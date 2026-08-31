@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
 import { useToast } from "@/components/ui/use-toast";
 import { usePlayer, buildMediaSources } from "@/components/mg/PlayerProvider";
+import EpisodeSelector from "@/components/mg/EpisodeSelector";
 
 export default function DetailModal({ item, mediaType, onClose }) {
   const [data, setData] = useState(null);
@@ -148,6 +149,16 @@ export default function DetailModal({ item, mediaType, onClose }) {
               {details.overview || item.description || "No overview available."}
             </p>
           </div>
+
+          {/* Episode selector (TV only) */}
+          {mediaType === "tv" && !loading && (
+            <EpisodeSelector
+              item={item}
+              seasons={details.seasons || []}
+              trailerUrl={trailerUrl}
+              providers={providers}
+            />
+          )}
 
           {/* Streaming links */}
           <div className="mt-5">

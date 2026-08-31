@@ -31,9 +31,29 @@ export default async function(req) {
     const year = body.year || '';
     const language = body.language || '';
     const movieId = body.movie_id;
+    const seasonNumber = body.season_number;
 
     const apiKey = secrets.get('TMDB_API_KEY');
     if (!apiKey) return Response.json({ error: 'TMDB API key not configured' }, { status: 500 });
+
+    // Season episodes for a TV show.
+    if (movieId && mediaType === 'tv' && seasonNumber !== undefined && seasonNumber !== null && seasonNumber !== '') {
+      const sRes = await fetch(
+        `${TMDB_BASE}/tv/${movieId}/season/${seasonNumber}?api_key=${apiKey}&language=en-GB`,
+        { headers: { Accept: 'application/json' } }
+      );
+      if (!sRes.ok) return Response.json({ error: `TMDB error: ${sRes.status}` }, { status: 502 });
+      const sData = await sRes.json();
+      const episodes = (sData.episodes || []).map((e) => ({
+        episode_number: e.episode_number,
+        name: e.name || `Episode ${e.episode_number}`,
+        overview: e.overview || '',
+        still_url: e.still_path ? `https://image.tmdb.org/t/p/w300${e.still_path}` : '',
+        air_date: e.air_date || '',
+        runtime: (e.runtime || (e.episode_run_time || [])[0]) || '',
+      }));
+      return Response.json({ season_name: sData.name || `Season ${seasonNumber}`, episodes });
+    }
 
     // Trailer lookup for a specific movie or show
     if (movieId) {
@@ -104,6 +124,9 @@ export default async function(req) {
             genres: (d.genres || []).map((g) => g.name),
             backdrop_url: d.backdrop_path ? `https://image.tmdb.org/t/p/w780${d.backdrop_path}` : '',
             release_date: d.release_date || d.first_air_date || '',
+            seasons: mediaType === 'tv' ? (d.seasons || [])
+              .filter((s) => s.season_number !== 0)
+              .map((s) => ({ season_number: s.season_number, name: s.name, episode_count: s.episode_count, poster_url: s.poster_path ? `https://image.tmdb.org/t/p/w185${s.poster_path}` : '' })) : [],
           };
         }
       } catch {}
