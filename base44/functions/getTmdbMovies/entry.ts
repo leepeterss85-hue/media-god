@@ -10,11 +10,31 @@ export default async function(req) {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const url = new URL(req.url);
-    const category = url.searchParams.get('category') || 'now_playing';
+    let body = {};
+    try { body = await req.json(); } catch {}
+    const category = body.category || 'now_playing';
+    const movieId = body.movie_id;
 
     const apiKey = secrets.get('TMDB_API_KEY');
     if (!apiKey) return Response.json({ error: 'TMDB API key not configured' }, { status: 500 });
+
+    // Trailer lookup for a specific movie
+    if (movieId) {
+      const vRes = await fetch(
+        `${TMDB_BASE}/movie/${movieId}/videos?api_key=${apiKey}&language=en-GB`,
+        { headers: { 'Accept': 'application/json' } }
+      );
+      if (!vRes.ok) return Response.json({ error: `TMDB error: ${vRes.status}` }, { status: 502 });
+      const vData = await vRes.json();
+      const results = vData.results || [];
+      const yt = results.find((v) => v.site === 'YouTube' && v.type === 'Trailer')
+        || results.find((v) => v.site === 'YouTube');
+      const key = yt?.key || '';
+      return Response.json({
+        trailer_key: key,
+        trailer_url: key ? `https://www.youtube.com/embed/${key}?autoplay=1&rel=0` : ''
+      });
+    }
 
     const tmdbRes = await fetch(
       `${TMDB_BASE}/movie/${category}?api_key=${apiKey}&language=en-GB&page=1`,

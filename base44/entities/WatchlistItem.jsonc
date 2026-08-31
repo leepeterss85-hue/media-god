@@ -13,6 +13,9 @@
     },
     "description": {
       "type": "string"
+    },
+    "tmdb_id": {
+      "type": "string"
     }
   },
   "required": [

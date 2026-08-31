@@ -3,12 +3,14 @@ import { ChevronLeft, Play, Film } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
 import { cn } from "@/lib/utils";
+import { usePlayer, DEMO_VIDEO } from "@/components/mg/PlayerProvider";
 
 export default function RoadmapView() {
   const [films, setFilms] = useState([]);
   const [broadcasts, setBroadcasts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("film");
+  const player = usePlayer();
 
   useEffect(() => {
     Promise.all([
@@ -28,6 +30,25 @@ export default function RoadmapView() {
     () => (tab === "film" ? films : broadcasts.filter((i) => i.type === "broadcast")),
     [films, broadcasts, tab]
   );
+
+  const playTrailer = async (r) => {
+    const id = r.tmdb_id || r.id;
+    if (id && /^\d+$/.test(String(id))) {
+      try {
+        const res = await base44.functions.invoke("getTmdbMovies", { movie_id: id });
+        const url = res.data?.trailer_url;
+        if (url) {
+          player.play({ type: "youtube", src: url, title: r.title, poster: r.poster_url });
+          return;
+        }
+      } catch {}
+    }
+    player.play({ type: "file", src: DEMO_VIDEO, title: r.title, poster: r.poster_url });
+  };
+
+  const playStream = (r) => {
+    player.play({ type: "file", src: DEMO_VIDEO, title: r.title, poster: r.poster_url });
+  };
 
   return (
     <div className="p-4 md:p-6 max-w-3xl">
@@ -86,10 +107,16 @@ export default function RoadmapView() {
                 </div>
                 <p className="text-xs text-white/50 mt-1 line-clamp-3">{r.plot || r.description}</p>
                 <div className="flex gap-2 mt-3">
-                  <button className="flex items-center gap-1.5 bg-mg-green text-black font-semibold text-xs px-3 py-1.5 rounded-md hover:bg-mg-green-dim">
+                  <button
+                    onClick={() => playStream(r)}
+                    className="flex items-center gap-1.5 bg-mg-green text-black font-semibold text-xs px-3 py-1.5 rounded-md hover:bg-mg-green-dim"
+                  >
                     <Play className="w-3 h-3 fill-black" /> STREAM
                   </button>
-                  <button className="flex items-center gap-1.5 bg-white/10 text-white font-semibold text-xs px-3 py-1.5 rounded-md hover:bg-white/20">
+                  <button
+                    onClick={() => playTrailer(r)}
+                    className="flex items-center gap-1.5 bg-white/10 text-white font-semibold text-xs px-3 py-1.5 rounded-md hover:bg-white/20"
+                  >
                     <Film className="w-3 h-3" /> TRAILER
                   </button>
                 </div>

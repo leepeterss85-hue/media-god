@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Search, Mic, Plus, Check } from "lucide-react";
+import { Search, Mic, Plus, Check, Play } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
 import { useToast } from "@/components/ui/use-toast";
+import { usePlayer, DEMO_VIDEO } from "@/components/mg/PlayerProvider";
 
 export default function MoviesView() {
   const [movies, setMovies] = useState([]);
@@ -10,6 +11,7 @@ export default function MoviesView() {
   const [query, setQuery] = useState("");
   const [watched, setWatched] = useState({});
   const { toast } = useToast();
+  const player = usePlayer();
 
   useEffect(() => {
     base44.functions
@@ -34,11 +36,26 @@ export default function MoviesView() {
         year: m.year,
         poster_url: m.poster_url,
         description: m.description,
+        tmdb_id: m.id,
       });
       setWatched((w) => ({ ...w, [m.id]: true }));
       toast({ title: "Added to Watchlist", description: m.title });
     } catch (e) {
       toast({ title: "Could not add", variant: "destructive" });
+    }
+  };
+
+  const playMovie = async (m) => {
+    try {
+      const res = await base44.functions.invoke("getTmdbMovies", { movie_id: m.id });
+      const url = res.data?.trailer_url;
+      if (url) {
+        player.play({ type: "youtube", src: url, title: m.title, poster: m.poster_url });
+      } else {
+        player.play({ type: "file", src: DEMO_VIDEO, title: m.title, poster: m.poster_url });
+      }
+    } catch {
+      player.play({ type: "file", src: DEMO_VIDEO, title: m.title, poster: m.poster_url });
     }
   };
 
@@ -76,6 +93,15 @@ export default function MoviesView() {
                   className="w-full h-full object-cover"
                   fittingType="fill"
                 />
+                <button
+                  onClick={() => playMovie(m)}
+                  className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Play trailer"
+                >
+                  <span className="w-12 h-12 rounded-full bg-mg-green text-black flex items-center justify-center">
+                    <Play className="w-6 h-6 fill-black" />
+                  </span>
+                </button>
                 <button
                   onClick={() => addToWatchlist(m)}
                   className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-mg-green text-black flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"

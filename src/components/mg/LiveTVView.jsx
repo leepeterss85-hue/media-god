@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Search, Wifi, Users, ChevronLeft } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { cn } from "@/lib/utils";
+import { usePlayer, DEMO_VIDEO } from "@/components/mg/PlayerProvider";
 
 const TABS = ["TV", "Rest of World", "Free Streams"];
 const SORTS = ["Default", "Viewers", "A-Z", "Quality", "Region"];
@@ -13,6 +14,7 @@ export default function LiveTVView() {
   const [subtab, setSubtab] = useState("UK Television");
   const [sort, setSort] = useState("Default");
   const [query, setQuery] = useState("");
+  const player = usePlayer();
 
   useEffect(() => {
     base44.entities.Channel.list("-created_date", 200)
@@ -35,6 +37,10 @@ export default function LiveTVView() {
   }, [channels, tab, query, sort]);
 
   const fmt = (n) => (n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "k" : `${n}`);
+
+  const playChannel = (c) => {
+    player.play({ type: "live", src: DEMO_VIDEO, title: c.name });
+  };
 
   return (
     <div className="p-4 md:p-6">
@@ -112,9 +118,10 @@ export default function LiveTVView() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {filtered.map((c) => (
-            <div
+            <button
               key={c.id}
-              className="bg-mg-card border border-white/10 rounded-lg p-3 flex flex-col justify-between min-h-[96px]"
+              onClick={() => playChannel(c)}
+              className="text-left bg-mg-card border border-white/10 rounded-lg p-3 flex flex-col justify-between min-h-[96px] hover:border-mg-green/60 hover:bg-mg-surface transition-colors cursor-pointer"
             >
               <div className="flex items-start justify-between">
                 <span className="text-xs text-white/40">#{c.number}</span>
@@ -130,7 +137,7 @@ export default function LiveTVView() {
                   {fmt(c.viewers || 0)}
                 </span>
               </div>
-            </div>
+            </button>
           ))}
         </div>
       )}

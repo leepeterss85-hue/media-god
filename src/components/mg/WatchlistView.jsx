@@ -3,12 +3,13 @@ import { Trash2, Play } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
 import { useToast } from "@/components/ui/use-toast";
-import { cn } from "@/lib/utils";
+import { usePlayer, DEMO_VIDEO } from "@/components/mg/PlayerProvider";
 
 export default function WatchlistView() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const player = usePlayer();
 
   const load = () =>
     base44.entities.WatchlistItem.list("-created_date", 100).then((i) => {
@@ -24,6 +25,20 @@ export default function WatchlistView() {
     await base44.entities.WatchlistItem.delete(item.id);
     toast({ title: "Removed from Watchlist" });
     load();
+  };
+
+  const playItem = async (m) => {
+    if (m.tmdb_id) {
+      try {
+        const res = await base44.functions.invoke("getTmdbMovies", { movie_id: m.tmdb_id });
+        const url = res.data?.trailer_url;
+        if (url) {
+          player.play({ type: "youtube", src: url, title: m.title, poster: m.poster_url });
+          return;
+        }
+      } catch {}
+    }
+    player.play({ type: "file", src: DEMO_VIDEO, title: m.title, poster: m.poster_url });
   };
 
   return (
@@ -58,12 +73,17 @@ export default function WatchlistView() {
                   fittingType="fill"
                 />
                 <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                  <button className="w-9 h-9 rounded-full bg-mg-green text-black flex items-center justify-center">
+                  <button
+                    onClick={() => playItem(m)}
+                    className="w-9 h-9 rounded-full bg-mg-green text-black flex items-center justify-center"
+                    title="Play"
+                  >
                     <Play className="w-4 h-4 fill-black" />
                   </button>
                   <button
                     onClick={() => remove(m)}
                     className="w-9 h-9 rounded-full bg-red-600 text-white flex items-center justify-center"
+                    title="Remove"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>

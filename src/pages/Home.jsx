@@ -6,11 +6,13 @@ import WatchlistView from "@/components/mg/WatchlistView";
 import AddonsView from "@/components/mg/AddonsView";
 import RoadmapView from "@/components/mg/RoadmapView";
 import SettingsView from "@/components/mg/SettingsView";
+import { PlayerProvider } from "@/components/mg/PlayerProvider";
 
 export default function Home() {
   const [view, setView] = useState("movies");
 
   return (
+    <PlayerProvider>
     <div className="flex h-screen bg-mg-background text-white overflow-hidden">
       <Sidebar active={view} onSelect={setView} />
       <main className="flex-1 overflow-y-auto">
@@ -22,5 +24,6 @@ export default function Home() {
         {view === "settings" && <SettingsView />}
       </main>
     </div>
+    </PlayerProvider>
   );
 }
