@@ -18,6 +18,7 @@ export default function VideoPlayer({ source, onClose }) {
   const [rdResolving, setRdResolving] = useState(false);
   const [rdError, setRdError] = useState("");
   const [rdOverride, setRdOverride] = useState(null);
+  const [pastedMagnet, setPastedMagnet] = useState("");
   const videoRef = useRef(null);
 
   const active = sources[activeIdx] || sources[0];
@@ -28,8 +29,9 @@ export default function VideoPlayer({ source, onClose }) {
     setRdError("");
   }, [activeIdx]);
 
-  // Auto-resolve the default Real-Debrid source on open; fall back to the next
-  // source if no cached torrent is available.
+  // Auto-resolve the default Real-Debrid source on open. When nothing is
+  // cached, stay on the RD source and offer a paste-your-own-magnet box
+  // instead of jumping to the trailer.
   useEffect(() => {
     if (active?.type !== "rd") return;
     let cancelled = false;
@@ -43,18 +45,13 @@ export default function VideoPlayer({ source, onClose }) {
         if (data.status === "ready" && data.stream_url) {
           setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream" });
         } else if (data.status === "not_cached") {
-          setActiveIdx((i) => Math.min(i + 1, sources.length - 1));
+          // Stay on the RD source; the paste box appears below.
         } else if (data.error) {
           setRdError(data.error);
-          setActiveIdx((i) => Math.min(i + 1, sources.length - 1));
-        } else {
-          setActiveIdx((i) => Math.min(i + 1, sources.length - 1));
         }
       })
       .catch((e) => {
-        if (cancelled) return;
-        setRdError(e.message || "Real-Debrid request failed");
-        setActiveIdx((i) => Math.min(i + 1, sources.length - 1));
+        if (!cancelled) setRdError(e.message || "Real-Debrid request failed");
       })
       .finally(() => {
         if (!cancelled) setRdResolving(false);
@@ -90,6 +87,33 @@ export default function VideoPlayer({ source, onClose }) {
     } catch {}
   };
   const openLink = (href) => window.open(href, "_blank", "noopener,noreferrer");
+
+  const resolvePasted = async () => {
+    if (!pastedMagnet.trim().startsWith("magnet:")) {
+      setRdError("Paste a valid magnet link (starts with magnet:?xt=…)");
+      return;
+    }
+    setRdResolving(true);
+    setRdError("");
+    try {
+      const res = await base44.functions.invoke("realDebrid", {
+        action: "resolve_best",
+        magnet: pastedMagnet.trim(),
+      });
+      const data = res.data || {};
+      if (data.status === "ready" && data.stream_url) {
+        setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream" });
+      } else if (data.status === "not_cached") {
+        setRdError("Not cached on Real-Debrid yet. Add it to your RD account, wait for it to download, then try again.");
+      } else {
+        setRdError(data.error || "Real-Debrid could not resolve this magnet.");
+      }
+    } catch (e) {
+      setRdError(e.message || "Real-Debrid request failed");
+    } finally {
+      setRdResolving(false);
+    }
+  };
 
   const resolveRd = async () => {
     setRdResolving(true);
@@ -196,8 +220,25 @@ export default function VideoPlayer({ source, onClose }) {
               <p className="text-white/40 text-xs max-w-sm">
                 {rdResolving
                   ? "Checking Real-Debrid cache for an instant stream…"
-                  : "No cached stream found — falling back to another source."}
+                  : "No cached stream for this title. Paste a real magnet link to stream it through your Real-Debrid account."}
               </p>
+              {!rdResolving && (
+                <div className="flex flex-col gap-2 w-full max-w-md mt-1">
+                  <input
+                    value={pastedMagnet}
+                    onChange={(e) => setPastedMagnet(e.target.value)}
+                    placeholder="magnet:?xt=urn:btih:…"
+                    className="w-full bg-black/40 border border-white/15 rounded-md px-3 py-2 text-xs text-white placeholder-white/30 font-mono outline-none focus:border-mg-green/60"
+                  />
+                  <button
+                    onClick={resolvePasted}
+                    disabled={rdResolving || !pastedMagnet.trim()}
+                    className="flex items-center justify-center gap-1.5 bg-mg-green text-black font-semibold text-xs px-3 py-2 rounded-md hover:bg-mg-green-dim disabled:opacity-50"
+                  >
+                    <Zap className="w-3.5 h-3.5" /> Stream via Real-Debrid
+                  </button>
+                </div>
+              )}
               {rdError && (
                 <p className="text-red-400 text-xs mt-1 max-w-md break-words">{rdError}</p>
               )}
