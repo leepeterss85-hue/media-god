@@ -40,6 +40,7 @@ export default function WatchlistView() {
     player.play({
       title: m.title,
       poster: m.poster_url,
+      rdTitle: m.title,
       sources: buildMediaSources({ title: m.title, id: m.tmdb_id, poster: m.poster_url, trailerUrl, providers }),
     });
   };

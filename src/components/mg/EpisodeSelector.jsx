@@ -36,6 +36,9 @@ export default function EpisodeSelector({ item, seasons, trailerUrl, providers }
     player.play({
       title,
       poster: ep.still_url || item.poster_url,
+      rdTitle: item.title,
+      rdSeason: season,
+      rdEpisode: ep.episode_number,
       sources: buildMediaSources({ title, id: item.id, poster: ep.still_url || item.poster_url, trailerUrl, providers }),
     });
   };

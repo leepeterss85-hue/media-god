@@ -42,6 +42,7 @@ export default function DetailModal({ item, mediaType, onClose }) {
     player.play({
       title: item.title,
       poster: item.poster_url,
+      rdTitle: item.title,
       sources: buildMediaSources({ title: item.title, id: item.id, poster: item.poster_url, trailerUrl, providers }),
     });
     onClose();

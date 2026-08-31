@@ -214,16 +214,33 @@ export default async function(req) {
     if (action === 'find_cached') {
       const title = (body.title || '').trim();
       if (!title) return Response.json({ error: 'title required' }, { status: 400 });
+      const season = body.season != null ? String(body.season) : '';
+      const episode = body.episode != null ? String(body.episode) : '';
       const res = await fetch(`${RD_BASE}/torrents`, { headers: authHeaders });
       if (!res.ok) return Response.json({ error: `RD error: ${res.status}` }, { status: 502 });
       const data = await res.json();
       const norm = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
       const want = norm(title);
-      const usable = (data || []).filter((t) => {
+      // Flexible S##E## matcher (handles S1E1 ↔ S01E01 zero-padding).
+      let epRegex = null;
+      if (season && episode) {
+        const s = String(season).replace(/^0+/, '');
+        const e = String(episode).replace(/^0+/, '');
+        epRegex = new RegExp(`s0*${s}e0*${e}`, 'i');
+      }
+      const candidates = (data || []).filter((t) => {
         const st = t.status;
         if (st === 'magnet_error' || st === 'error' || st === 'magnet_conversion') return false;
-        return want && norm(t.filename || t.original_filename || '').includes(want);
+        const fn = t.filename || t.original_filename || '';
+        return want && norm(fn).includes(want);
       });
+      // Prefer an exact-episode match when season/episode are given; fall
+      // back to any torrent of this title (e.g. a full-season pack).
+      let usable = candidates;
+      if (epRegex) {
+        const exact = candidates.filter((t) => epRegex.test(t.filename || t.original_filename || ''));
+        if (exact.length > 0) usable = exact;
+      }
       usable.sort((a, b) => ((b.status === 'downloaded') ? 1 : 0) - ((a.status === 'downloaded') ? 1 : 0));
       if (usable.length === 0) return Response.json({ status: 'not_found' });
       const best = usable[0];

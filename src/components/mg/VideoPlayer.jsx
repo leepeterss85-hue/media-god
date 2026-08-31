@@ -65,7 +65,12 @@ export default function VideoPlayer({ source, onClose }) {
       }
       // No magnet / not cached → look for this title in the user's RD library.
       try {
-        const fc = await base44.functions.invoke("realDebrid", { action: "find_cached", title: source.title });
+        const fc = await base44.functions.invoke("realDebrid", {
+          action: "find_cached",
+          title: source.rdTitle || source.title,
+          ...(source.rdSeason != null ? { season: source.rdSeason } : {}),
+          ...(source.rdEpisode != null ? { episode: source.rdEpisode } : {}),
+        });
         if (cancelled) return;
         const d = fc.data || {};
         if (d.torrent_id) setRdTorrentId(d.torrent_id); // auto-poll resolves + plays
