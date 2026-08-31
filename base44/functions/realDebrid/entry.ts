@@ -166,6 +166,22 @@ export default async function(req) {
       return Response.json({ stream_url: unData.download, filename: unData.filename || '' });
     }
 
+    // List the torrents on the user's Real-Debrid account (their RD library).
+    if (action === 'torrents_list') {
+      const res = await fetch(`${RD_BASE}/torrents`, { headers: authHeaders });
+      if (!res.ok) return Response.json({ error: `RD error: ${res.status}` }, { status: 502 });
+      const data = await res.json();
+      const torrents = (data || []).map((t) => ({
+        id: String(t.id),
+        filename: t.filename || t.original_filename || '',
+        status: t.status,
+        progress: typeof t.progress === 'number' ? t.progress : 0,
+        bytes: t.bytes || 0,
+        ready: t.status === 'downloaded' || (Array.isArray(t.links) && t.links.length > 0),
+      }));
+      return Response.json({ torrents });
+    }
+
     // List supported hosters (for the settings page).
     if (action === 'hosts') {
       const res = await fetch(`${RD_BASE}/hosts/status`, { headers: authHeaders });

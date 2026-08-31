@@ -4,6 +4,7 @@ import MoviesView from "@/components/mg/MoviesView";
 import TvShowsView from "@/components/mg/TvShowsView";
 import LiveTVView from "@/components/mg/LiveTVView";
 import WatchlistView from "@/components/mg/WatchlistView";
+import RdLibraryView from "@/components/mg/RdLibraryView";
 import AddonsView from "@/components/mg/AddonsView";
 import RoadmapView from "@/components/mg/RoadmapView";
 import SettingsView from "@/components/mg/SettingsView";
@@ -15,6 +16,7 @@ const TITLES = {
   tv: "TV Shows",
   live: "Live TV",
   watchlist: "Watchlist",
+  rdlib: "RD Library",
   addons: "Addons",
   roadmap: "Roadmap",
   settings: "Settings",
@@ -59,6 +61,7 @@ export default function Home() {
         {view === "tv" && <TvShowsView />}
         {view === "live" && <LiveTVView />}
         {view === "watchlist" && <WatchlistView />}
+        {view === "rdlib" && <RdLibraryView />}
         {view === "addons" && <AddonsView />}
         {view === "roadmap" && <RoadmapView />}
         {view === "settings" && <SettingsView />}

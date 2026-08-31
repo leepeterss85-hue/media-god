@@ -71,6 +71,40 @@ export default function VideoPlayer({ source, onClose }) {
     };
   }, [activeIdx, active?.type]);
 
+  // Resolve a torrent already on the user's Real-Debrid account (from the
+  // RD Library) by its torrent id.
+  useEffect(() => {
+    if (active?.type !== "rd_torrent") return;
+    let cancelled = false;
+    setRdResolving(true);
+    setRdError("");
+    setRdOverride(null);
+    setRdFiles([]);
+    base44.functions
+      .invoke("realDebrid", { action: "torrent_info", torrent_id: active.src })
+      .then((res) => {
+        if (cancelled) return;
+        const data = res.data || {};
+        if (data.status === "ready" && data.stream_url) {
+          setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream", file: currentFilePath(data.files) });
+          setRdFiles(data.files || []);
+        } else if (data.status === "preparing") {
+          setRdTorrentId(data.torrent_id || active.src);
+        } else if (data.error) {
+          setRdError(data.error);
+        }
+      })
+      .catch((e) => {
+        if (!cancelled) setRdError(e.message || "Real-Debrid request failed");
+      })
+      .finally(() => {
+        if (!cancelled) setRdResolving(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeIdx, active?.type, active?.src]);
+
   // Auto-poll a torrent that Real-Debrid is still downloading, until it's
   // ready to play — no manual "Check again" needed.
   useEffect(() => {
@@ -317,7 +351,7 @@ export default function VideoPlayer({ source, onClose }) {
               className="w-full h-full object-contain bg-black"
             />
           )}
-          {active?.type === "rd" && !rdOverride && (
+          {(active?.type === "rd" || active?.type === "rd_torrent") && !rdOverride && (
             <div className="w-full h-full flex flex-col items-center justify-center gap-3 p-6 text-center">
               <div className="w-12 h-12 rounded-full bg-mg-green/15 border border-mg-green/40 flex items-center justify-center">
                 {busy ? (
@@ -484,7 +518,7 @@ export default function VideoPlayer({ source, onClose }) {
                     : "bg-mg-card text-white/70 hover:text-white"
                 )}
               >
-                {s.type === "rd" && <Zap className="w-3 h-3" />}
+                {(s.type === "rd" || s.type === "rd_torrent") && <Zap className="w-3 h-3" />}
                 {s.type === "magnet" && <Link className="w-3 h-3" />}
                 {s.type === "torrent" && <Download className="w-3 h-3" />}
                 {s.type === "provider" && <Tv className="w-3 h-3" />}
