@@ -5,7 +5,12 @@ import { Image } from "@/components/ui/image";
 import { GENRES_TV, LANGUAGES, YEARS, GENRE_LABELS_TV } from "@/components/mg/filterOptions";
 import GenreTags from "@/components/mg/GenreTags";
 import DetailModal from "@/components/mg/DetailModal";
+import FeaturedSpotlight from "@/components/mg/FeaturedSpotlight";
 import useDebouncedValue from "@/components/mg/useDebouncedValue";
+
+const FEATURED_SHOWS = [
+  { tmdb_id: "106159", title: "Debris" },
+];
 
 const COUNTRIES = [
   { code: "", label: "All Countries" },
@@ -57,9 +62,17 @@ export default function TvShowsView() {
   }, [country, category, genre, year, language, debouncedQuery]);
 
   const filtered = shows;
+  const featured = FEATURED_SHOWS.find((f) => f.title === "Debris");
 
   return (
     <div className="p-4 md:p-6">
+      {!query && !country && !genre && !year && !language && category === "tv_airing_today" && featured && (
+        <FeaturedSpotlight
+          tmdbId={featured.tmdb_id}
+          title={featured.title}
+          onOpen={() => setSelected({ id: featured.tmdb_id, title: featured.title, media_type: "tv", poster_url: "" })}
+        />
+      )}
       <div className="flex flex-col gap-3 mb-5">
         <div className="flex items-center gap-2">
           <Globe className="w-5 h-5 text-mg-green" />
