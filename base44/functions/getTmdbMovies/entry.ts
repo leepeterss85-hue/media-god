@@ -73,7 +73,7 @@ export default async function(req) {
       } catch {}
       return Response.json({
         trailer_key: key,
-        trailer_url: key ? `https://www.youtube.com/embed/${key}?autoplay=1&rel=0` : '',
+        trailer_url: key ? `https://www.youtube.com/embed/${key}?autoplay=1&mute=1&rel=0&playsinline=1` : '',
         watch_providers: providers,
       });
     }
