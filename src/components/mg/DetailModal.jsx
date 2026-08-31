@@ -132,7 +132,7 @@ export default function DetailModal({ item, mediaType, onClose }) {
               onClick={play}
               className="flex-1 flex items-center justify-center gap-2 bg-mg-green text-black font-semibold text-sm py-2.5 rounded-lg hover:bg-mg-green-dim"
             >
-              <Play className="w-4 h-4 fill-black" /> Play Trailer
+              <Play className="w-4 h-4 fill-black" /> Play
             </button>
             <button
               onClick={addToWatchlist}

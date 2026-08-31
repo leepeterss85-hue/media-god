@@ -10,6 +10,7 @@ import RoadmapView from "@/components/mg/RoadmapView";
 import SettingsView from "@/components/mg/SettingsView";
 import { PlayerProvider } from "@/components/mg/PlayerProvider";
 import TopBar from "@/components/mg/TopBar";
+import RdBanner from "@/components/mg/RdBanner";
 
 const TITLES = {
   movies: "Movies",
@@ -57,6 +58,7 @@ export default function Home() {
           canGoBack={history.length > 0}
           onMenu={() => setSidebarOpen(true)}
         />
+        <RdBanner onLinkSettings={() => selectView("settings")} />
         {view === "movies" && <MoviesView />}
         {view === "tv" && <TvShowsView />}
         {view === "live" && <LiveTVView />}
