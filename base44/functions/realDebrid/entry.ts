@@ -127,7 +127,8 @@ export default async function(req) {
     if (action === 'torrent_info') {
       const torrentId = body.torrent_id;
       if (!torrentId) return Response.json({ error: 'torrent_id required' }, { status: 400 });
-      const stream = await resolveStreamable(torrentId, authHeaders, formHeaders);
+      const ep = (body.season != null && body.episode != null) ? { season: String(body.season), episode: String(body.episode) } : null;
+      const stream = await resolveStreamable(torrentId, authHeaders, formHeaders, ep);
       if (stream.error) return Response.json({ error: stream.error }, { status: 502 });
       return Response.json({
         status: stream.ready ? 'ready' : 'preparing',
@@ -247,8 +248,7 @@ export default async function(req) {
         const matched = titleWords.filter((w) => fnWords.has(w)).length;
         if (titleWords.length > 0 && matched === titleWords.length) s += 50;
         if (wantYear && fn.includes(wantYear)) s += 15;
-        if (t.status === 'downloaded') s += 5;
-        return s;
+        return s; // downloaded status is a sort tiebreaker only, not a match
       };
       const candidates = (data || []).filter((t) => {
         const st = t.status;
@@ -262,13 +262,13 @@ export default async function(req) {
         const exact = candidates.filter((t) => epRegex.test(t.filename || t.original_filename || ''));
         if (exact.length > 0) usable = exact;
       }
-      usable.sort((a, b) => scoreTorrent(b) - scoreTorrent(a));
+      usable.sort((a, b) => scoreTorrent(b) - scoreTorrent(a) || (b.status === 'downloaded' ? 1 : 0) - (a.status === 'downloaded' ? 1 : 0));
       if (usable.length === 0) return Response.json({ status: 'not_found' });
       const best = usable[0];
       // If the best match is already downloaded, resolve a direct streamable
       // link right now so playback starts instantly — no 5s poll wait.
       if (best.status === 'downloaded') {
-        const stream = await resolveStreamable(String(best.id), authHeaders, formHeaders);
+        const stream = await resolveStreamable(String(best.id), authHeaders, formHeaders, { season, episode });
         if (stream.ready && stream.stream_url) {
           return Response.json({
             status: 'ready',
@@ -310,7 +310,7 @@ function buildFileEntries(info, target) {
 // Fetch torrent info, pick the largest video file, unrestrict its link. If
 // the torrent is downloaded but its files were never selected (e.g. added
 // outside this app), select them first so RD exposes streamable links.
-async function resolveStreamable(torrentId, authHeaders, formHeaders) {
+async function resolveStreamable(torrentId, authHeaders, formHeaders, ep) {
   const infoRes = await fetch(`${RD_BASE}/torrents/info/${torrentId}`, { headers: authHeaders });
   if (!infoRes.ok) return { error: `info failed: ${infoRes.status}` };
   let info = await infoRes.json();
@@ -349,6 +349,19 @@ async function resolveStreamable(torrentId, authHeaders, formHeaders) {
     target = pool[0];
   }
 
+  // For TV episodes, prefer the file whose name matches S##E## over the
+  // largest file — in a full-season pack the largest file is a random episode.
+  if (ep && ep.season && ep.episode) {
+    const s = String(ep.season).replace(/^0+/, '');
+    const e = String(ep.episode).replace(/^0+/, '');
+    const epRe = new RegExp(`s0*${s}e0*${e}`, 'i');
+    const epReAlt = new RegExp(`\\b0*${s}x0*${e}\\b`, 'i');
+    const match = pool.find((f) => {
+      const p = (f.path || '').split('/').pop();
+      return epRe.test(p) || epReAlt.test(p);
+    });
+    if (match) target = match;
+  }
   const fileEntries = buildFileEntries(info, target);
 
   if (!target || !target.link) {

@@ -160,6 +160,8 @@ export default function VideoPlayer({ source, onClose }) {
         const res = await base44.functions.invoke("realDebrid", {
           action: "torrent_info",
           torrent_id: rdTorrentId,
+          ...(source.rdSeason != null ? { season: source.rdSeason } : {}),
+          ...(source.rdEpisode != null ? { episode: source.rdEpisode } : {}),
         });
         const data = res.data || {};
         if (cancelled) return;
@@ -261,6 +263,8 @@ export default function VideoPlayer({ source, onClose }) {
       const res = await base44.functions.invoke("realDebrid", {
         action: "torrent_info",
         torrent_id: rdTorrentId,
+        ...(source.rdSeason != null ? { season: source.rdSeason } : {}),
+        ...(source.rdEpisode != null ? { episode: source.rdEpisode } : {}),
       });
       const data = res.data || {};
       if (data.status === "ready" && data.stream_url) {
