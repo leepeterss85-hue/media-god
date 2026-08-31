@@ -66,3 +66,10 @@ export const YEARS = [
     return { value: String(y), label: String(y) };
   }),
 ];
+
+export const GENRE_LABELS_MOVIE = Object.fromEntries(
+  GENRES_MOVIE.filter((g) => g.id).map((g) => [g.id, g.label])
+);
+export const GENRE_LABELS_TV = Object.fromEntries(
+  GENRES_TV.filter((g) => g.id).map((g) => [g.id, g.label])
+);

@@ -4,7 +4,8 @@ import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
 import { useToast } from "@/components/ui/use-toast";
 import { usePlayer, buildMediaSources } from "@/components/mg/PlayerProvider";
-import { GENRES_MOVIE, LANGUAGES, YEARS } from "@/components/mg/filterOptions";
+import { GENRES_MOVIE, LANGUAGES, YEARS, GENRE_LABELS_MOVIE } from "@/components/mg/filterOptions";
+import GenreTags from "@/components/mg/GenreTags";
 
 const COUNTRIES = [
   { code: "", label: "All Countries" },
@@ -200,6 +201,7 @@ export default function MoviesView() {
               </div>
               <p className="mt-2 text-sm text-white truncate">{m.title}</p>
               <p className="text-xs text-white/40">{m.year}</p>
+              <GenreTags genreIds={m.genre_ids} labelMap={GENRE_LABELS_MOVIE} onSelect={setGenre} />
             </div>
           ))}
         </div>

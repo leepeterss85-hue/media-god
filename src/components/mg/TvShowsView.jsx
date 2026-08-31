@@ -3,7 +3,8 @@ import { Search, Play, Globe } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
 import { usePlayer, buildMediaSources } from "@/components/mg/PlayerProvider";
-import { GENRES_TV, LANGUAGES, YEARS } from "@/components/mg/filterOptions";
+import { GENRES_TV, LANGUAGES, YEARS, GENRE_LABELS_TV } from "@/components/mg/filterOptions";
+import GenreTags from "@/components/mg/GenreTags";
 
 const COUNTRIES = [
   { code: "", label: "All Countries" },
@@ -178,6 +179,7 @@ export default function TvShowsView() {
               </div>
               <p className="mt-2 text-sm text-white truncate">{s.title}</p>
               <p className="text-xs text-white/40">{s.year}</p>
+              <GenreTags genreIds={s.genre_ids} labelMap={GENRE_LABELS_TV} onSelect={setGenre} />
             </div>
           ))}
         </div>

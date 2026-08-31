@@ -97,6 +97,7 @@ export default async function(req) {
         poster_url: m.poster_path ? `${IMG_BASE}${m.poster_path}` : '',
         description: m.overview || '',
         tmdb_id: m.id,
+        genre_ids: m.genre_ids || [],
         media_type: isTv ? 'tv' : 'movie',
       };
     });
