@@ -9,6 +9,8 @@ const TYPE_COLORS = {
   Torrent: "bg-green-900/40 text-mg-green border-mg-green/40",
   Metadata: "bg-blue-900/40 text-blue-400 border-blue-500/40",
   Subtitles: "bg-yellow-900/30 text-yellow-500 border-yellow-600/40",
+  Debrid: "bg-purple-900/40 text-purple-400 border-purple-500/40",
+  Provider: "bg-cyan-900/30 text-cyan-400 border-cyan-500/40",
 };
 
 export default function AddonsView() {
@@ -108,7 +110,7 @@ export default function AddonsView() {
     <div className="p-4 md:p-6 max-w-3xl">
       <h1 className="text-xl font-bold text-white">Streaming Addons</h1>
       <p className="text-sm text-white/50 mb-6">
-        Install Stremio-style addons for extra torrent sources
+        Legitimate metadata, subtitle, debrid, and streaming-provider add-ons
       </p>
 
       <h3 className="text-sm font-bold text-mg-green mb-3">
