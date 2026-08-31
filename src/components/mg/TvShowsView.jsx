@@ -28,10 +28,10 @@ const COUNTRIES = [
 ];
 
 const CATEGORIES = [
-  { id: "tv_popular", label: "Popular" },
-  { id: "tv_top_rated", label: "Top Rated" },
   { id: "tv_airing_today", label: "Airing Today" },
   { id: "tv_on_the_air", label: "On The Air" },
+  { id: "tv_popular", label: "Popular" },
+  { id: "tv_top_rated", label: "Top Rated" },
 ];
 
 export default function TvShowsView() {
@@ -39,7 +39,7 @@ export default function TvShowsView() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [country, setCountry] = useState("");
-  const [category, setCategory] = useState("tv_popular");
+  const [category, setCategory] = useState("tv_airing_today");
   const [genre, setGenre] = useState("");
   const [year, setYear] = useState("");
   const [language, setLanguage] = useState("");
