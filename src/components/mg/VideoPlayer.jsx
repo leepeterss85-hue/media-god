@@ -81,6 +81,7 @@ export default function VideoPlayer({ source, onClose }) {
               className="w-full h-full"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
+              referrerPolicy="strict-origin-when-cross-origin"
             />
           )}
           {active?.type === "file" && (

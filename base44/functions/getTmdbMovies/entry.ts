@@ -109,7 +109,7 @@ export default async function(req) {
 
       return Response.json({
         trailer_key: key,
-        trailer_url: key ? `https://www.youtube.com/embed/${key}?autoplay=1&mute=1&rel=0&playsinline=1` : '',
+        trailer_url: key ? `https://www.youtube-nocookie.com/embed/${key}?autoplay=1&mute=1&rel=0&playsinline=1` : '',
         watch_providers: providers,
         details,
         cast,
