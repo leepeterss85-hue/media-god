@@ -12,8 +12,10 @@ export default function MoviesView() {
   const { toast } = useToast();
 
   useEffect(() => {
-    base44.entities.Movie.list("-created_date", 60)
-      .then(setMovies)
+    base44.functions
+      .invoke("getTmdbMovies", { category: "now_playing" })
+      .then((res) => setMovies(res.data?.movies || []))
+      .catch(() => setMovies([]))
       .finally(() => setLoading(false));
   }, []);
 
