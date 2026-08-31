@@ -23,6 +23,7 @@ const TITLES = {
 export default function Home() {
   const [view, setView] = useState("movies");
   const [history, setHistory] = useState([]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const selectView = (v) => {
     setHistory((h) => [...h, view]);
@@ -41,9 +42,19 @@ export default function Home() {
   return (
     <PlayerProvider>
     <div className="flex h-screen bg-mg-background text-white overflow-hidden">
-      <Sidebar active={view} onSelect={selectView} />
+      <Sidebar
+        active={view}
+        onSelect={selectView}
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
       <main className="flex-1 overflow-y-auto">
-        <TopBar title={TITLES[view]} onBack={goBack} canGoBack={history.length > 0} />
+        <TopBar
+          title={TITLES[view]}
+          onBack={goBack}
+          canGoBack={history.length > 0}
+          onMenu={() => setSidebarOpen(true)}
+        />
         {view === "movies" && <MoviesView />}
         {view === "tv" && <TvShowsView />}
         {view === "live" && <LiveTVView />}
