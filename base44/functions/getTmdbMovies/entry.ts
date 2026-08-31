@@ -158,45 +158,63 @@ export default async function(req) {
     const query = body.query || '';
 
     const hasFilters = country || genre || year || language;
-    let url;
-    if (query) {
-      const params = new URLSearchParams({
-        api_key: apiKey,
-        language: 'en-GB',
-        query,
-        page: '1',
-        include_adult: 'false',
-      });
-      url = `${TMDB_BASE}/search/${mediaType}?${params.toString()}`;
-    } else if (hasFilters) {
-      const params = new URLSearchParams({
-        api_key: apiKey,
-        language: 'en-GB',
-        sort_by: 'popularity.desc',
-        page: '1',
-      });
-      if (country) params.set('with_origin_country', country);
-      if (genre) params.set('with_genres', genre);
-      if (year) {
-        if (mediaType === 'tv') params.set('first_air_date_year', year);
-        else params.set('primary_release_year', year);
+
+    // Build the base URL for a single page (page param appended per request).
+    // Fetching several pages and merging surfaces far more new releases than
+    // the single 20-item page TMDB returns by default — so newer or less
+    // prominent titles (e.g. a fresh indie release) actually appear.
+    const buildUrl = (page) => {
+      if (query) {
+        const params = new URLSearchParams({
+          api_key: apiKey,
+          language: 'en-GB',
+          query,
+          page: String(page),
+          include_adult: 'false',
+        });
+        return `${TMDB_BASE}/search/${mediaType}?${params.toString()}`;
       }
-      if (language) params.set('with_original_language', language);
-      url = `${TMDB_BASE}/discover/${mediaType}?${params.toString()}`;
-    } else {
+      if (hasFilters) {
+        const params = new URLSearchParams({
+          api_key: apiKey,
+          language: 'en-GB',
+          sort_by: 'popularity.desc',
+          page: String(page),
+        });
+        if (country) params.set('with_origin_country', country);
+        if (genre) params.set('with_genres', genre);
+        if (year) {
+          if (mediaType === 'tv') params.set('first_air_date_year', year);
+          else params.set('primary_release_year', year);
+        }
+        if (language) params.set('with_original_language', language);
+        return `${TMDB_BASE}/discover/${mediaType}?${params.toString()}`;
+      }
       const path = mediaType === 'tv' ? TV_ENDPOINTS[category] || TV_ENDPOINTS.tv_popular
         : MOVIE_ENDPOINTS[category] || MOVIE_ENDPOINTS.now_playing;
-      url = `${TMDB_BASE}/${path}?api_key=${apiKey}&language=en-GB&page=1`;
+      return `${TMDB_BASE}/${path}?api_key=${apiKey}&language=en-GB&page=${page}`;
+    };
+
+    const PAGES = query ? 2 : 3;
+    const pageResults = await Promise.all(
+      Array.from({ length: PAGES }, (_, i) =>
+        fetch(buildUrl(i + 1), { headers: { Accept: 'application/json' } })
+          .then((r) => (r.ok ? r.json() : { results: [] }))
+          .catch(() => ({ results: [] }))
+      )
+    );
+
+    const seen = new Set();
+    const merged = [];
+    for (const data of pageResults) {
+      for (const m of data.results || []) {
+        if (!m || seen.has(m.id)) continue;
+        seen.add(m.id);
+        merged.push(m);
+      }
     }
 
-    const tmdbRes = await fetch(url, { headers: { Accept: 'application/json' } });
-    if (!tmdbRes.ok) {
-      const txt = await tmdbRes.text();
-      return Response.json({ error: `TMDB error: ${tmdbRes.status} ${txt}` }, { status: 502 });
-    }
-    const data = await tmdbRes.json();
-
-    const items = (data.results || []).map((m) => {
+    const items = merged.map((m) => {
       const isTv = mediaType === 'tv' || !!m.name;
       const title = isTv ? (m.name || m.title) : (m.title || m.name);
       const date = isTv ? (m.first_air_date || '') : (m.release_date || '');
