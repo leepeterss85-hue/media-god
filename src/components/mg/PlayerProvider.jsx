@@ -53,12 +53,6 @@ export function buildMediaSources({ title, id, poster, trailerUrl, providers = [
   providers.forEach((p) =>
     sources.push({ label: p.name, type: "provider", src: p.link, logo: p.logo })
   );
-  QUALITIES.forEach((q) =>
-    sources.push({ label: `Magnet ${q}`, type: "magnet", src: buildMagnet(title, id, q) })
-  );
-  QUALITIES.forEach((q) =>
-    sources.push({ label: `Torrent ${q}`, type: "torrent", src: buildTorrentUrl(id, q) })
-  );
   return sources;
 }
 
@@ -80,8 +74,9 @@ export function PlayerProvider({ children }) {
     // default source for movies/shows (those that ship magnet/torrent sources).
     const isVod = sources.some((x) => x.type === "magnet" || x.type === "torrent");
     if (hasRd && isVod) {
-      const rdMagnet = buildMagnet(s.title, s.id, "1080p");
-      sources = [{ label: "Real-Debrid", type: "rd", src: rdMagnet }, ...sources];
+      // No fake magnet — the player shows a paste-your-own-real-magnet box
+      // for this source, so only genuine magnets reach Real-Debrid.
+      sources = [{ label: "Real-Debrid", type: "rd", src: "" }, ...sources];
     }
     setSource({ ...s, sources });
   };

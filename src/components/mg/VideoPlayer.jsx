@@ -43,6 +43,8 @@ export default function VideoPlayer({ source, onClose }) {
   // instead of jumping to the trailer.
   useEffect(() => {
     if (active?.type !== "rd") return;
+    // No magnet on this source yet — just show the paste box, don't poll RD.
+    if (!active.src) return;
     let cancelled = false;
     setRdResolving(true);
     setRdError("");

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Play, RefreshCw, Loader2, HardDrive, AlertCircle } from "lucide-react";
+import { Play, RefreshCw, Loader2, HardDrive, AlertCircle, Trash2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 import { cn } from "@/lib/utils";
@@ -19,6 +19,7 @@ export default function RdLibraryView() {
   const [torrents, setTorrents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
   const player = usePlayer();
 
   const load = async () => {
@@ -45,6 +46,32 @@ export default function RdLibraryView() {
     });
   };
 
+  const remove = async (t) => {
+    setBusy(true);
+    try {
+      await base44.functions.invoke("realDebrid", { action: "torrent_delete", torrent_id: t.id });
+      setTorrents((prev) => prev.filter((x) => x.id !== t.id));
+    } catch (e) {
+      setError(e.message || "Could not delete torrent.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const clearErrors = async () => {
+    setBusy(true);
+    const errs = torrents.filter((t) => !t.ready && (t.status || "").includes("error"));
+    for (const t of errs) {
+      try {
+        await base44.functions.invoke("realDebrid", { action: "torrent_delete", torrent_id: t.id });
+      } catch {}
+    }
+    await load();
+    setBusy(false);
+  };
+
+  const errorCount = torrents.filter((t) => !t.ready && (t.status || "").includes("error")).length;
+
   const fmt = (b) => (b > 1e9 ? `${(b / 1e9).toFixed(1)}GB` : `${(b / 1e6).toFixed(0)}MB`);
 
   return (
@@ -59,6 +86,16 @@ export default function RdLibraryView() {
           {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
           Refresh
         </button>
+        {errorCount > 0 && (
+          <button
+            onClick={clearErrors}
+            disabled={busy}
+            className="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 px-3 py-1.5 rounded-lg hover:bg-red-500/10 disabled:opacity-60"
+          >
+            {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+            Clear errors ({errorCount})
+          </button>
+        )}
       </div>
       <p className="text-sm text-white/50 mb-6">
         {torrents.length} {torrents.length === 1 ? "torrent" : "torrents"} on your Real-Debrid account
@@ -125,14 +162,24 @@ export default function RdLibraryView() {
                     </div>
                   )}
                 </div>
-                {ready && (
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {ready && (
+                    <button
+                      onClick={() => play(t)}
+                      className="flex items-center gap-1.5 bg-mg-green text-black font-semibold text-xs px-3 py-2 rounded-lg hover:bg-mg-green-dim"
+                    >
+                      <Play className="w-3.5 h-3.5 fill-black" /> Play
+                    </button>
+                  )}
                   <button
-                    onClick={() => play(t)}
-                    className="flex items-center gap-1.5 bg-mg-green text-black font-semibold text-xs px-3 py-2 rounded-lg hover:bg-mg-green-dim shrink-0"
+                    onClick={() => remove(t)}
+                    disabled={busy}
+                    title="Remove from Real-Debrid"
+                    className="flex items-center justify-center w-8 h-8 rounded-lg text-white/40 hover:text-red-400 hover:bg-red-500/10 disabled:opacity-50"
                   >
-                    <Play className="w-3.5 h-3.5 fill-black" /> Play
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
-                )}
+                </div>
               </div>
             );
           })}

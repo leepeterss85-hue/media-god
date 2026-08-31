@@ -166,6 +166,18 @@ export default async function(req) {
       return Response.json({ stream_url: unData.download, filename: unData.filename || '' });
     }
 
+    // Delete a torrent from the user's Real-Debrid account (library cleanup).
+    if (action === 'torrent_delete') {
+      const torrentId = body.torrent_id;
+      if (!torrentId) return Response.json({ error: 'torrent_id required' }, { status: 400 });
+      const delRes = await fetch(`${RD_BASE}/torrents/delete/${torrentId}`, {
+        method: 'DELETE',
+        headers: authHeaders,
+      });
+      if (!delRes.ok) return Response.json({ error: `delete failed: ${delRes.status}` }, { status: 502 });
+      return Response.json({ deleted: true });
+    }
+
     // List the torrents on the user's Real-Debrid account (their RD library).
     if (action === 'torrents_list') {
       const res = await fetch(`${RD_BASE}/torrents`, { headers: authHeaders });
