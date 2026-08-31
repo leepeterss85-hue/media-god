@@ -5,20 +5,28 @@ import { Image } from "@/components/ui/image";
 import { cn } from "@/lib/utils";
 
 export default function RoadmapView() {
-  const [items, setItems] = useState([]);
+  const [films, setFilms] = useState([]);
+  const [broadcasts, setBroadcasts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("film");
 
   useEffect(() => {
-    base44.entities.RoadmapItem.list("-created_date", 50).then((i) => {
-      setItems(i);
+    Promise.all([
+      base44.functions
+        .invoke("getTmdbMovies", { category: "upcoming" })
+        .then((res) => res.data?.movies || [])
+        .catch(() => []),
+      base44.entities.RoadmapItem.list("-created_date", 50).catch(() => []),
+    ]).then(([f, b]) => {
+      setFilms(f);
+      setBroadcasts(b);
       setLoading(false);
     });
   }, []);
 
   const filtered = useMemo(
-    () => items.filter((i) => i.type === tab),
-    [items, tab]
+    () => (tab === "film" ? films : broadcasts.filter((i) => i.type === "broadcast")),
+    [films, broadcasts, tab]
   );
 
   return (
@@ -76,7 +84,7 @@ export default function RoadmapView() {
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-white/50 mt-1 line-clamp-3">{r.plot}</p>
+                <p className="text-xs text-white/50 mt-1 line-clamp-3">{r.plot || r.description}</p>
                 <div className="flex gap-2 mt-3">
                   <button className="flex items-center gap-1.5 bg-mg-green text-black font-semibold text-xs px-3 py-1.5 rounded-md hover:bg-mg-green-dim">
                     <Play className="w-3 h-3 fill-black" /> STREAM

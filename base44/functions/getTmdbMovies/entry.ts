@@ -30,6 +30,7 @@ export default async function(req) {
       id: String(m.id),
       title: m.title,
       year: (m.release_date || '').slice(0, 4),
+      release_date: m.release_date || '',
       poster_url: m.poster_path ? `${IMG_BASE}${m.poster_path}` : '',
       description: m.overview || '',
       category: 'Cinema Releases',
