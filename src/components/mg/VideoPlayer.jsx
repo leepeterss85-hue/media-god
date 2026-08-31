@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { X, Copy, Check, ExternalLink, Link, Download, Tv, Loader2, Zap } from "lucide-react";
+import { X, Copy, Check, ExternalLink, Link, Download, Tv, Loader2, Zap, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { base44 } from "@/api/base44Client";
 import CastButton from "@/components/mg/CastButton";
@@ -19,6 +19,7 @@ export default function VideoPlayer({ source, onClose }) {
   const [rdError, setRdError] = useState("");
   const [rdOverride, setRdOverride] = useState(null);
   const [pastedMagnet, setPastedMagnet] = useState("");
+  const [rdTorrentId, setRdTorrentId] = useState(null);
   const videoRef = useRef(null);
 
   const active = sources[activeIdx] || sources[0];
@@ -95,18 +96,44 @@ export default function VideoPlayer({ source, onClose }) {
     }
     setRdResolving(true);
     setRdError("");
+    setRdTorrentId(null);
     try {
       const res = await base44.functions.invoke("realDebrid", {
-        action: "resolve_best",
+        action: "add_magnet",
         magnet: pastedMagnet.trim(),
       });
       const data = res.data || {};
       if (data.status === "ready" && data.stream_url) {
         setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream" });
-      } else if (data.status === "not_cached") {
-        setRdError("Not cached on Real-Debrid yet. Add it to your RD account, wait for it to download, then try again.");
+      } else if (data.status === "preparing") {
+        setRdTorrentId(data.torrent_id);
+        setRdError("Real-Debrid is downloading this torrent. Wait a moment, then tap Check again to play.");
       } else {
         setRdError(data.error || "Real-Debrid could not resolve this magnet.");
+      }
+    } catch (e) {
+      setRdError(e.message || "Real-Debrid request failed");
+    } finally {
+      setRdResolving(false);
+    }
+  };
+
+  const retryPasted = async () => {
+    if (!rdTorrentId) return;
+    setRdResolving(true);
+    setRdError("");
+    try {
+      const res = await base44.functions.invoke("realDebrid", {
+        action: "torrent_info",
+        torrent_id: rdTorrentId,
+      });
+      const data = res.data || {};
+      if (data.status === "ready" && data.stream_url) {
+        setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream" });
+      } else if (data.status === "preparing") {
+        setRdError("Still downloading on Real-Debrid — try again shortly.");
+      } else {
+        setRdError(data.error || "Real-Debrid could not resolve this torrent.");
       }
     } catch (e) {
       setRdError(e.message || "Real-Debrid request failed");
@@ -237,6 +264,14 @@ export default function VideoPlayer({ source, onClose }) {
                   >
                     <Zap className="w-3.5 h-3.5" /> Stream via Real-Debrid
                   </button>
+                  {rdTorrentId && (
+                    <button
+                      onClick={retryPasted}
+                      className="flex items-center justify-center gap-1.5 bg-white/10 hover:bg-white/20 text-white font-semibold text-xs px-3 py-2 rounded-md"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" /> Check again
+                    </button>
+                  )}
                 </div>
               )}
               {rdError && (
