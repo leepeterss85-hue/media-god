@@ -31,35 +31,35 @@ export default function RoadmapView() {
     [films, broadcasts, tab]
   );
 
-  const fetchTrailer = async (id) => {
+  const fetchMedia = async (id) => {
     if (id && /^\d+$/.test(String(id))) {
       try {
         const res = await base44.functions.invoke("getTmdbMovies", { movie_id: id });
-        return res.data?.trailer_url || "";
+        return { trailerUrl: res.data?.trailer_url || "", providers: res.data?.watch_providers || [] };
       } catch {}
     }
-    return "";
+    return { trailerUrl: "", providers: [] };
   };
 
   const playTrailer = async (r) => {
-    const url = await fetchTrailer(r.tmdb_id || r.id);
-    if (url) {
-      player.play({ type: "youtube", src: url, title: r.title, poster: r.poster_url });
+    const { trailerUrl, providers } = await fetchMedia(r.tmdb_id || r.id);
+    if (trailerUrl) {
+      player.play({ type: "youtube", src: trailerUrl, title: r.title, poster: r.poster_url });
       return;
     }
     player.play({
       title: r.title,
       poster: r.poster_url,
-      sources: buildMediaSources({ title: r.title, id: r.tmdb_id || r.id, poster: r.poster_url, trailerUrl: "" }),
+      sources: buildMediaSources({ title: r.title, id: r.tmdb_id || r.id, poster: r.poster_url, trailerUrl: "", providers }),
     });
   };
 
   const playStream = async (r) => {
-    const trailerUrl = await fetchTrailer(r.tmdb_id || r.id);
+    const { trailerUrl, providers } = await fetchMedia(r.tmdb_id || r.id);
     player.play({
       title: r.title,
       poster: r.poster_url,
-      sources: buildMediaSources({ title: r.title, id: r.tmdb_id || r.id, poster: r.poster_url, trailerUrl }),
+      sources: buildMediaSources({ title: r.title, id: r.tmdb_id || r.id, poster: r.poster_url, trailerUrl, providers }),
     });
   };
 

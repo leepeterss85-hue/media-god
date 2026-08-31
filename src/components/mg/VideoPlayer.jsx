@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { X, Copy, Check, ExternalLink, Link, Download } from "lucide-react";
+import { X, Copy, Check, ExternalLink, Link, Download, Tv } from "lucide-react";
 import { cn } from "@/lib/utils";
 import CastButton from "@/components/mg/CastButton";
 
@@ -128,6 +128,25 @@ export default function VideoPlayer({ source, onClose }) {
               </p>
             </div>
           )}
+          {active?.type === "provider" && (
+            <div className="w-full h-full flex flex-col items-center justify-center gap-3 p-6 text-center">
+              {active.logo ? (
+                <img src={active.logo} alt={active.label} className="w-14 h-14 rounded-md object-contain bg-white/5 p-1" />
+              ) : (
+                <div className="w-14 h-14 rounded-md bg-mg-green/15 border border-mg-green/40 flex items-center justify-center">
+                  <Tv className="w-7 h-7 text-mg-green" />
+                </div>
+              )}
+              <p className="text-white font-semibold text-sm">Watch on {active.label}</p>
+              <p className="text-white/40 text-xs">Legal streaming provider</p>
+              <button
+                onClick={() => openLink(active.src)}
+                className="flex items-center gap-1.5 bg-mg-green text-black font-semibold text-xs px-3 py-2 rounded-md hover:bg-mg-green-dim"
+              >
+                <ExternalLink className="w-3.5 h-3.5" /> Open
+              </button>
+            </div>
+          )}
         </div>
 
         {sources.length > 1 && (
@@ -145,6 +164,7 @@ export default function VideoPlayer({ source, onClose }) {
               >
                 {s.type === "magnet" && <Link className="w-3 h-3" />}
                 {s.type === "torrent" && <Download className="w-3 h-3" />}
+                {s.type === "provider" && <Tv className="w-3 h-3" />}
                 {s.label}
               </button>
             ))}

@@ -29,16 +29,18 @@ export default function WatchlistView() {
 
   const playItem = async (m) => {
     let trailerUrl = "";
+    let providers = [];
     if (m.tmdb_id) {
       try {
         const res = await base44.functions.invoke("getTmdbMovies", { movie_id: m.tmdb_id });
         trailerUrl = res.data?.trailer_url || "";
+        providers = res.data?.watch_providers || [];
       } catch {}
     }
     player.play({
       title: m.title,
       poster: m.poster_url,
-      sources: buildMediaSources({ title: m.title, id: m.tmdb_id, poster: m.poster_url, trailerUrl }),
+      sources: buildMediaSources({ title: m.title, id: m.tmdb_id, poster: m.poster_url, trailerUrl, providers }),
     });
   };
 

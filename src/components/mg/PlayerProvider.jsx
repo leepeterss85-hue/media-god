@@ -46,9 +46,12 @@ export function buildTorrentUrl(id, quality) {
 
 // Build the full source list for a movie/show: trailer (if available), multiple
 // stream mirrors, and magnet + torrent variants across several qualities.
-export function buildMediaSources({ title, id, poster, trailerUrl }) {
+export function buildMediaSources({ title, id, poster, trailerUrl, providers = [] }) {
   const sources = [];
   if (trailerUrl) sources.push({ label: "Trailer", type: "youtube", src: trailerUrl });
+  providers.forEach((p) =>
+    sources.push({ label: p.name, type: "provider", src: p.link, logo: p.logo })
+  );
   QUALITIES.forEach((q) =>
     sources.push({ label: `Magnet ${q}`, type: "magnet", src: buildMagnet(title, id, q) })
   );

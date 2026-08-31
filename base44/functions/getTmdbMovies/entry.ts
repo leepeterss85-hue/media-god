@@ -47,9 +47,34 @@ export default async function(req) {
       const yt = results.find((v) => v.site === 'YouTube' && v.type === 'Trailer')
         || results.find((v) => v.site === 'YouTube');
       const key = yt?.key || '';
+      // Legal "where to watch" streaming providers (JustWatch data via TMDB).
+      let providers = [];
+      try {
+        const wRes = await fetch(
+          `${TMDB_BASE}/${mediaType}/${movieId}/watch/providers?api_key=${apiKey}`,
+          { headers: { Accept: 'application/json' } }
+        );
+        if (wRes.ok) {
+          const wData = await wRes.json();
+          const results = wData.results || {};
+          const region = results.GB || results.US || {};
+          const link = region.link || '';
+          const flat = region.flatrate || [];
+          const seen = new Set();
+          providers = flat
+            .filter((p) => p.provider_id && !seen.has(p.provider_id) && seen.add(p.provider_id))
+            .slice(0, 6)
+            .map((p) => ({
+              name: p.provider_name,
+              logo: p.logo_path ? `https://image.tmdb.org/t/p/w92${p.logo_path}` : '',
+              link,
+            }));
+        }
+      } catch {}
       return Response.json({
         trailer_key: key,
-        trailer_url: key ? `https://www.youtube.com/embed/${key}?autoplay=1&rel=0` : ''
+        trailer_url: key ? `https://www.youtube.com/embed/${key}?autoplay=1&rel=0` : '',
+        watch_providers: providers,
       });
     }
 

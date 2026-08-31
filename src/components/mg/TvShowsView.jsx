@@ -61,14 +61,16 @@ export default function TvShowsView() {
 
   const playShow = async (s) => {
     let trailerUrl = "";
+    let providers = [];
     try {
       const res = await base44.functions.invoke("getTmdbMovies", { media_type: "tv", movie_id: s.id });
       trailerUrl = res.data?.trailer_url || "";
+      providers = res.data?.watch_providers || [];
     } catch {}
     player.play({
       title: s.title,
       poster: s.poster_url,
-      sources: buildMediaSources({ title: s.title, id: s.id, poster: s.poster_url, trailerUrl }),
+      sources: buildMediaSources({ title: s.title, id: s.id, poster: s.poster_url, trailerUrl, providers }),
     });
   };
 

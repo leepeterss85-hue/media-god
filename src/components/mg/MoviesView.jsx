@@ -80,14 +80,16 @@ export default function MoviesView() {
 
   const playMovie = async (m) => {
     let trailerUrl = "";
+    let providers = [];
     try {
       const res = await base44.functions.invoke("getTmdbMovies", { media_type: "movie", movie_id: m.id });
       trailerUrl = res.data?.trailer_url || "";
+      providers = res.data?.watch_providers || [];
     } catch {}
     player.play({
       title: m.title,
       poster: m.poster_url,
-      sources: buildMediaSources({ title: m.title, id: m.id, poster: m.poster_url, trailerUrl }),
+      sources: buildMediaSources({ title: m.title, id: m.id, poster: m.poster_url, trailerUrl, providers }),
     });
   };
 
