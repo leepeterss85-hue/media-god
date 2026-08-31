@@ -3,7 +3,7 @@ import { Search, Mic, Plus, Check, Play, Globe } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
 import { useToast } from "@/components/ui/use-toast";
-import { usePlayer, DEMO_VIDEO, buildMagnet, buildTorrentUrl } from "@/components/mg/PlayerProvider";
+import { usePlayer, buildMediaSources } from "@/components/mg/PlayerProvider";
 
 const COUNTRIES = [
   { code: "", label: "All Countries" },
@@ -82,12 +82,7 @@ export default function MoviesView() {
     player.play({
       title: m.title,
       poster: m.poster_url,
-      sources: [
-        ...(trailerUrl ? [{ label: "Trailer", type: "youtube", src: trailerUrl }] : []),
-        { label: "Stream", type: "file", src: DEMO_VIDEO },
-        { label: "Magnet", type: "magnet", src: buildMagnet(m.title, m.id) },
-        { label: "Torrent", type: "torrent", src: buildTorrentUrl(m.id) },
-      ],
+      sources: buildMediaSources({ title: m.title, id: m.id, poster: m.poster_url, trailerUrl }),
     });
   };
 

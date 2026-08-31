@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Search, Play, Globe } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
-import { usePlayer, DEMO_VIDEO, buildMagnet, buildTorrentUrl } from "@/components/mg/PlayerProvider";
+import { usePlayer, buildMediaSources } from "@/components/mg/PlayerProvider";
 
 const COUNTRIES = [
   { code: "", label: "All Countries" },
@@ -63,12 +63,7 @@ export default function TvShowsView() {
     player.play({
       title: s.title,
       poster: s.poster_url,
-      sources: [
-        ...(trailerUrl ? [{ label: "Trailer", type: "youtube", src: trailerUrl }] : []),
-        { label: "Stream", type: "file", src: DEMO_VIDEO },
-        { label: "Magnet", type: "magnet", src: buildMagnet(s.title, s.id) },
-        { label: "Torrent", type: "torrent", src: buildTorrentUrl(s.id) },
-      ],
+      sources: buildMediaSources({ title: s.title, id: s.id, poster: s.poster_url, trailerUrl }),
     });
   };
 

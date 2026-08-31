@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { X, Copy, Check, ExternalLink, Link, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +13,7 @@ export default function VideoPlayer({ source, onClose }) {
   ];
   const [activeIdx, setActiveIdx] = useState(0);
   const [copied, setCopied] = useState(false);
+  const videoRef = useRef(null);
 
   const active = sources[activeIdx] || sources[0];
   const isLive = source.type === "live" || active?.live;
@@ -26,6 +27,14 @@ export default function VideoPlayer({ source, onClose }) {
       document.body.style.overflow = "";
     };
   }, [onClose]);
+
+  // Explicitly start playback when a stream becomes active — autoPlay alone is
+  // unreliable, but play() after the user's click gesture always works.
+  useEffect(() => {
+    if (active?.type === "file" && videoRef.current) {
+      videoRef.current.play().catch(() => {});
+    }
+  }, [active]);
 
   const copy = async (text) => {
     try {
@@ -70,10 +79,12 @@ export default function VideoPlayer({ source, onClose }) {
           )}
           {active?.type === "file" && (
             <video
+              ref={videoRef}
               src={active.src}
               poster={source.poster}
               controls
               autoPlay
+              muted
               playsInline
               className="w-full h-full object-contain bg-black"
             />
