@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { X, Copy, Check, ExternalLink, Link, Download, Tv, Loader2, Zap, RefreshCw, Film } from "lucide-react";
+import { X, Copy, Check, ExternalLink, Link, Download, Tv, Loader2, Zap, RefreshCw, Film, Maximize } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { base44 } from "@/api/base44Client";
 import CastButton from "@/components/mg/CastButton";
@@ -26,7 +26,27 @@ export default function VideoPlayer({ source, onClose }) {
   const [fileSwitching, setFileSwitching] = useState(false);
   const [pastedMagnet, setPastedMagnet] = useState("");
   const videoRef = useRef(null);
+  const stageRef = useRef(null);
   const pollRef = useRef(null);
+
+  // Request fullscreen on the video stage. Must be called from a user gesture
+  // (a tap/click) — the browser blocks fullscreen requests that aren't. iOS
+  // Safari only supports fullscreen on the <video> element itself via
+  // webkitEnterFullscreen; other browsers fullscreen the stage container so
+  // the controls and file list stay visible.
+  const goFullscreen = () => {
+    const video = videoRef.current;
+    const stage = stageRef.current;
+    try {
+      if (video && video.webkitEnterFullscreen) {
+        video.webkitEnterFullscreen();
+      } else if (stage?.requestFullscreen) {
+        stage.requestFullscreen().catch(() => {});
+      } else if (video?.requestFullscreen) {
+        video.requestFullscreen().catch(() => {});
+      }
+    } catch {}
+  };
 
   const active = sources[activeIdx] || sources[0];
   const isLive = source.type === "live" || active?.live;
@@ -320,11 +340,20 @@ export default function VideoPlayer({ source, onClose }) {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {(active?.type === "file" || rdOverride) && (
-              <CastButton
-                url={rdOverride?.src || active.src}
-                title={source.title}
-                poster={source.poster}
-              />
+              <>
+                <button
+                  onClick={goFullscreen}
+                  className="text-white/60 hover:text-white"
+                  aria-label="Fullscreen"
+                >
+                  <Maximize className="w-5 h-5" />
+                </button>
+                <CastButton
+                  url={rdOverride?.src || active.src}
+                  title={source.title}
+                  poster={source.poster}
+                />
+              </>
             )}
             <button onClick={onClose} className="text-white/60 hover:text-white">
               <X className="w-5 h-5" />
@@ -332,7 +361,7 @@ export default function VideoPlayer({ source, onClose }) {
           </div>
         </div>
 
-        <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden border border-white/10">
+        <div ref={stageRef} className="relative w-full aspect-video bg-black rounded-lg overflow-hidden border border-white/10">
           {rdOverride ? (
             <video
               ref={videoRef}
