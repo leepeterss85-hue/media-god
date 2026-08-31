@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
-import { X, Copy, Check, ExternalLink, Link, Download, Tv } from "lucide-react";
+import { X, Copy, Check, ExternalLink, Link, Download, Tv, Loader2, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { base44 } from "@/api/base44Client";
 import CastButton from "@/components/mg/CastButton";
 
 export default function VideoPlayer({ source, onClose }) {
@@ -14,10 +15,18 @@ export default function VideoPlayer({ source, onClose }) {
   ];
   const [activeIdx, setActiveIdx] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [rdResolving, setRdResolving] = useState(false);
+  const [rdError, setRdError] = useState("");
+  const [rdOverride, setRdOverride] = useState(null);
   const videoRef = useRef(null);
 
   const active = sources[activeIdx] || sources[0];
   const isLive = source.type === "live" || active?.live;
+
+  useEffect(() => {
+    setRdOverride(null);
+    setRdError("");
+  }, [activeIdx]);
 
   useEffect(() => {
     const onKey = (e) => e.key === "Escape" && onClose();
@@ -32,10 +41,10 @@ export default function VideoPlayer({ source, onClose }) {
   // Explicitly start playback when a stream becomes active — autoPlay alone is
   // unreliable, but play() after the user's click gesture always works.
   useEffect(() => {
-    if (active?.type === "file" && videoRef.current) {
+    if ((active?.type === "file" || rdOverride) && videoRef.current) {
       videoRef.current.play().catch(() => {});
     }
-  }, [active]);
+  }, [active, rdOverride]);
 
   const copy = async (text) => {
     try {
@@ -45,6 +54,31 @@ export default function VideoPlayer({ source, onClose }) {
     } catch {}
   };
   const openLink = (href) => window.open(href, "_blank", "noopener,noreferrer");
+
+  const resolveRd = async () => {
+    setRdResolving(true);
+    setRdError("");
+    try {
+      const res = await base44.functions.invoke("realDebrid", {
+        action: "add_magnet",
+        magnet: active.src,
+      });
+      const data = res.data || {};
+      if (data.error) {
+        setRdError(data.error);
+      } else if (data.status === "ready" && data.stream_url) {
+        setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream" });
+      } else if (data.status === "preparing") {
+        setRdError("Torrent is being prepared on Real-Debrid — try again shortly.");
+      } else {
+        setRdError("Real-Debrid could not resolve this magnet.");
+      }
+    } catch (e) {
+      setRdError(e.message || "Real-Debrid request failed");
+    } finally {
+      setRdResolving(false);
+    }
+  };
 
   const isP2P = active?.type === "magnet" || active?.type === "torrent";
 
@@ -64,8 +98,12 @@ export default function VideoPlayer({ source, onClose }) {
             <h3 className="text-white font-semibold text-sm truncate">{source.title}</h3>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            {active?.type === "file" && (
-              <CastButton url={active.src} title={source.title} poster={source.poster} />
+            {(active?.type === "file" || rdOverride) && (
+              <CastButton
+                url={rdOverride?.src || active.src}
+                title={source.title}
+                poster={source.poster}
+              />
             )}
             <button onClick={onClose} className="text-white/60 hover:text-white">
               <X className="w-5 h-5" />
@@ -74,7 +112,18 @@ export default function VideoPlayer({ source, onClose }) {
         </div>
 
         <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden border border-white/10">
-          {active?.type === "youtube" && (
+          {rdOverride ? (
+            <video
+              ref={videoRef}
+              src={rdOverride.src}
+              poster={source.poster}
+              controls
+              autoPlay
+              muted
+              playsInline
+              className="w-full h-full object-contain bg-black"
+            />
+          ) : active?.type === "youtube" && (
             <iframe
               src={active.src}
               title={source.title}
@@ -123,9 +172,29 @@ export default function VideoPlayer({ source, onClose }) {
                 >
                   <ExternalLink className="w-3.5 h-3.5" /> Open
                 </button>
+                {active.type === "magnet" && (
+                  <button
+                    onClick={resolveRd}
+                    disabled={rdResolving}
+                    className="flex items-center gap-1.5 bg-mg-green/20 border border-mg-green/50 text-mg-green font-semibold text-xs px-3 py-2 rounded-md hover:bg-mg-green/30 disabled:opacity-60"
+                  >
+                    {rdResolving ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Zap className="w-3.5 h-3.5" />
+                    )}
+                    {rdResolving ? "Resolving…" : "Stream via Real-Debrid"}
+                  </button>
+                )}
               </div>
+              {rdResolving && (
+                <p className="text-mg-green text-xs mt-1">Contacting Real-Debrid…</p>
+              )}
+              {rdError && (
+                <p className="text-red-400 text-xs mt-1 max-w-md break-words">{rdError}</p>
+              )}
               <p className="text-white/30 text-[10px] mt-1">
-                Opens in your default torrent client
+                Opens in your torrent client — or stream instantly with Real-Debrid
               </p>
             </div>
           )}
