@@ -216,11 +216,20 @@ export default async function(req) {
       if (!title) return Response.json({ error: 'title required' }, { status: 400 });
       const season = body.season != null ? String(body.season) : '';
       const episode = body.episode != null ? String(body.episode) : '';
+      const year = body.year != null ? String(body.year).trim() : '';
       const res = await fetch(`${RD_BASE}/torrents`, { headers: authHeaders });
       if (!res.ok) return Response.json({ error: `RD error: ${res.status}` }, { status: 502 });
       const data = await res.json();
       const norm = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
       const want = norm(title);
+      const wantYear = norm(year);
+      // Word-based matching: every significant title word (len >= 3, common
+      // stopwords dropped) must appear in the torrent filename. This catches
+      // library entries whose filename splits/reorders the title differently
+      // from TMDB (e.g. "Minions: The Rise of Gru" vs "Minions Rise Of Gru
+      // 2022 1080p"), which a strict contiguous-substring test would miss.
+      const STOP = new Set(['the', 'a', 'an', 'of', 'and', 'or', 'to', 'in', 'on', 'at', 'for', 'is', 'it', 'as', 'by', 'with', 'from', 'ii', 'iii']);
+      const titleWords = title.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 3 && !STOP.has(w));
       // Flexible S##E## matcher (handles S1E1 ↔ S01E01 zero-padding).
       let epRegex = null;
       if (season && episode) {
@@ -228,11 +237,23 @@ export default async function(req) {
         const e = String(episode).replace(/^0+/, '');
         epRegex = new RegExp(`s0*${s}e0*${e}`, 'i');
       }
+      const scoreTorrent = (t) => {
+        const rawFn = t.filename || t.original_filename || '';
+        const fn = norm(rawFn);
+        if (!fn || !want) return -1;
+        let s = 0;
+        if (fn.includes(want)) s += 100; // contiguous title match (strongest)
+        const fnWords = new Set(rawFn.toLowerCase().split(/[^a-z0-9]+/));
+        const matched = titleWords.filter((w) => fnWords.has(w)).length;
+        if (titleWords.length > 0 && matched === titleWords.length) s += 50;
+        if (wantYear && fn.includes(wantYear)) s += 15;
+        if (t.status === 'downloaded') s += 5;
+        return s;
+      };
       const candidates = (data || []).filter((t) => {
         const st = t.status;
         if (st === 'magnet_error' || st === 'error' || st === 'magnet_conversion') return false;
-        const fn = t.filename || t.original_filename || '';
-        return want && norm(fn).includes(want);
+        return scoreTorrent(t) > 0;
       });
       // Prefer an exact-episode match when season/episode are given; fall
       // back to any torrent of this title (e.g. a full-season pack).
@@ -241,9 +262,24 @@ export default async function(req) {
         const exact = candidates.filter((t) => epRegex.test(t.filename || t.original_filename || ''));
         if (exact.length > 0) usable = exact;
       }
-      usable.sort((a, b) => ((b.status === 'downloaded') ? 1 : 0) - ((a.status === 'downloaded') ? 1 : 0));
+      usable.sort((a, b) => scoreTorrent(b) - scoreTorrent(a));
       if (usable.length === 0) return Response.json({ status: 'not_found' });
       const best = usable[0];
+      // If the best match is already downloaded, resolve a direct streamable
+      // link right now so playback starts instantly — no 5s poll wait.
+      if (best.status === 'downloaded') {
+        const stream = await resolveStreamable(String(best.id), authHeaders, formHeaders);
+        if (stream.ready && stream.stream_url) {
+          return Response.json({
+            status: 'ready',
+            torrent_id: String(best.id),
+            stream_url: stream.stream_url,
+            filename: stream.filename || '',
+            files: stream.files || [],
+            rd_status: best.status,
+          });
+        }
+      }
       return Response.json({
         status: best.status === 'downloaded' ? 'ready' : 'preparing',
         torrent_id: String(best.id),

@@ -41,6 +41,7 @@ export default function WatchlistView() {
       title: m.title,
       poster: m.poster_url,
       rdTitle: m.title,
+      rdYear: m.year,
       sources: buildMediaSources({ title: m.title, id: m.tmdb_id, poster: m.poster_url, trailerUrl, providers }),
     });
   };

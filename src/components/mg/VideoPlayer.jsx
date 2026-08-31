@@ -88,12 +88,19 @@ export default function VideoPlayer({ source, onClose }) {
         const fc = await base44.functions.invoke("realDebrid", {
           action: "find_cached",
           title: source.rdTitle || source.title,
+          ...(source.rdYear != null ? { year: source.rdYear } : {}),
           ...(source.rdSeason != null ? { season: source.rdSeason } : {}),
           ...(source.rdEpisode != null ? { episode: source.rdEpisode } : {}),
         });
         if (cancelled) return;
         const d = fc.data || {};
-        if (d.torrent_id) setRdTorrentId(d.torrent_id); // auto-poll resolves + plays
+        // Ready library match → play instantly, no poll wait.
+        if (d.status === "ready" && d.stream_url) {
+          setRdOverride({ src: d.stream_url, label: "Real-Debrid Stream", file: currentFilePath(d.files) });
+          setRdFiles(d.files || []);
+        } else if (d.torrent_id) {
+          setRdTorrentId(d.torrent_id); // auto-poll resolves + plays
+        }
         // not_found → paste box shows (rdOverride stays null)
       } catch {}
     };
