@@ -206,6 +206,35 @@ export default async function(req) {
       return Response.json({ hosts: active });
     }
 
+    // Search the user's OWN Real-Debrid library for a torrent whose filename
+    // matches the requested title. If a ready (cached) copy exists, the client
+    // resolves and plays it directly — no magnet pasting needed. This only
+    // surfaces content the user already added to their account, so nothing is
+    // auto-sourced from piracy indexes.
+    if (action === 'find_cached') {
+      const title = (body.title || '').trim();
+      if (!title) return Response.json({ error: 'title required' }, { status: 400 });
+      const res = await fetch(`${RD_BASE}/torrents`, { headers: authHeaders });
+      if (!res.ok) return Response.json({ error: `RD error: ${res.status}` }, { status: 502 });
+      const data = await res.json();
+      const norm = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const want = norm(title);
+      const usable = (data || []).filter((t) => {
+        const st = t.status;
+        if (st === 'magnet_error' || st === 'error' || st === 'magnet_conversion') return false;
+        return want && norm(t.filename || t.original_filename || '').includes(want);
+      });
+      usable.sort((a, b) => ((b.status === 'downloaded') ? 1 : 0) - ((a.status === 'downloaded') ? 1 : 0));
+      if (usable.length === 0) return Response.json({ status: 'not_found' });
+      const best = usable[0];
+      return Response.json({
+        status: best.status === 'downloaded' ? 'ready' : 'preparing',
+        torrent_id: String(best.id),
+        rd_status: best.status,
+        filename: best.filename || best.original_filename || '',
+      });
+    }
+
     return Response.json({ error: 'Unknown action' }, { status: 400 });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
@@ -225,16 +254,48 @@ function buildFileEntries(info, target) {
   }));
 }
 
-// Fetch torrent info, pick the largest video file, unrestrict its link.
+// Fetch torrent info, pick the largest video file, unrestrict its link. If
+// the torrent is downloaded but its files were never selected (e.g. added
+// outside this app), select them first so RD exposes streamable links.
 async function resolveStreamable(torrentId, authHeaders, formHeaders) {
   const infoRes = await fetch(`${RD_BASE}/torrents/info/${torrentId}`, { headers: authHeaders });
   if (!infoRes.ok) return { error: `info failed: ${infoRes.status}` };
-  const info = await infoRes.json();
+  let info = await infoRes.json();
 
-  const files = (info.files || []).filter((f) => f.path && VIDEO_RE.test(f.path));
-  const pool = files.length > 0 ? files : (info.files || []);
+  let files = (info.files || []).filter((f) => f.path && VIDEO_RE.test(f.path));
+  let pool = files.length > 0 ? files : (info.files || []);
   pool.sort((a, b) => (b.bytes || 0) - (a.bytes || 0));
-  const target = pool[0];
+  let target = pool[0];
+
+  // Downloaded but no file links → select all files, then re-fetch for links.
+  if (info.status === 'downloaded' && (!target || !target.link)) {
+    await fetch(`${RD_BASE}/torrents/selectFiles/${torrentId}`, {
+      method: 'POST',
+      headers: formHeaders,
+      body: 'files=all',
+    });
+    const refetch = await fetch(`${RD_BASE}/torrents/info/${torrentId}`, { headers: authHeaders });
+    if (refetch.ok) {
+      info = await refetch.json();
+      files = (info.files || []).filter((f) => f.path && VIDEO_RE.test(f.path));
+      pool = files.length > 0 ? files : (info.files || []);
+      pool.sort((a, b) => (b.bytes || 0) - (a.bytes || 0));
+      target = pool[0];
+    }
+  }
+
+  // RD exposes selected-file download links as a top-level `links` array when
+  // the per-file `link` field is empty. Map them onto the selected files.
+  const topLinks = Array.isArray(info.links) ? info.links : [];
+  const selectedFiles = (info.files || []).filter((f) => f.selected);
+  if (topLinks.length > 0 && selectedFiles.length === topLinks.length) {
+    selectedFiles.forEach((f, i) => { if (!f.link) f.link = topLinks[i]; });
+    files = (info.files || []).filter((f) => f.path && VIDEO_RE.test(f.path));
+    pool = files.length > 0 ? files : (info.files || []);
+    pool.sort((a, b) => (b.bytes || 0) - (a.bytes || 0));
+    target = pool[0];
+  }
+
   const fileEntries = buildFileEntries(info, target);
 
   if (!target || !target.link) {

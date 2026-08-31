@@ -38,40 +38,47 @@ export default function VideoPlayer({ source, onClose }) {
     setRdTorrentId(null);
   }, [activeIdx]);
 
-  // Auto-resolve the default Real-Debrid source on open. When nothing is
-  // cached, stay on the RD source and offer a paste-your-own-magnet box
-  // instead of jumping to the trailer.
+  // Auto-resolve the default Real-Debrid source on open. With a magnet
+  // attached, check RD's cache. Without one, search the user's own RD
+  // library for an already-cached copy of this title and play that. If
+  // neither yields a stream, stay on the RD source and show the paste box.
   useEffect(() => {
     if (active?.type !== "rd") return;
-    // No magnet on this source yet — just show the paste box, don't poll RD.
-    if (!active.src) return;
     let cancelled = false;
     setRdResolving(true);
     setRdError("");
-    base44.functions
-      .invoke("realDebrid", { action: "resolve_best", magnet: active.src })
-      .then((res) => {
-        if (cancelled) return;
-        const data = res.data || {};
-        if (data.status === "ready" && data.stream_url) {
-          setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream", file: currentFilePath(data.files) });
-          setRdFiles(data.files || []);
-        } else if (data.status === "not_cached") {
-          // Stay on the RD source; the paste box appears below.
-        } else if (data.error) {
-          setRdError(data.error);
+    const run = async () => {
+      if (active.src) {
+        try {
+          const res = await base44.functions.invoke("realDebrid", { action: "resolve_best", magnet: active.src });
+          if (cancelled) return;
+          const data = res.data || {};
+          if (data.status === "ready" && data.stream_url) {
+            setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream", file: currentFilePath(data.files) });
+            setRdFiles(data.files || []);
+            return;
+          }
+          if (data.error) setRdError(data.error);
+        } catch (e) {
+          if (!cancelled) setRdError(e.message || "Real-Debrid request failed");
         }
-      })
-      .catch((e) => {
-        if (!cancelled) setRdError(e.message || "Real-Debrid request failed");
-      })
-      .finally(() => {
-        if (!cancelled) setRdResolving(false);
-      });
+      }
+      // No magnet / not cached → look for this title in the user's RD library.
+      try {
+        const fc = await base44.functions.invoke("realDebrid", { action: "find_cached", title: source.title });
+        if (cancelled) return;
+        const d = fc.data || {};
+        if (d.torrent_id) setRdTorrentId(d.torrent_id); // auto-poll resolves + plays
+        // not_found → paste box shows (rdOverride stays null)
+      } catch {}
+    };
+    run().finally(() => {
+      if (!cancelled) setRdResolving(false);
+    });
     return () => {
       cancelled = true;
     };
-  }, [activeIdx, active?.type]);
+  }, [activeIdx, active?.type, active?.src, source.title]);
 
   // Resolve a torrent already on the user's Real-Debrid account (from the
   // RD Library) by its torrent id.
