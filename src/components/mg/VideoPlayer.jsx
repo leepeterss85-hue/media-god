@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { X, Copy, Check, ExternalLink, Link, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
+import CastButton from "@/components/mg/CastButton";
 
 export default function VideoPlayer({ source, onClose }) {
   const sources = source.sources || [
@@ -62,9 +63,14 @@ export default function VideoPlayer({ source, onClose }) {
             )}
             <h3 className="text-white font-semibold text-sm truncate">{source.title}</h3>
           </div>
-          <button onClick={onClose} className="text-white/60 hover:text-white shrink-0">
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {active?.type === "file" && (
+              <CastButton url={active.src} title={source.title} poster={source.poster} />
+            )}
+            <button onClick={onClose} className="text-white/60 hover:text-white">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden border border-white/10">
