@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState } from "react";
 import VideoPlayer from "@/components/mg/VideoPlayer";
 
-const PlayerContext = createContext(null);
+const NO_PLAYER = { play: () => {}, close: () => {} };
+const PlayerContext = createContext(NO_PLAYER);
 
 export const DEMO_VIDEO =
   "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
