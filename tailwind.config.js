@@ -51,6 +51,14 @@ module.exports = {
   				'4': 'hsl(var(--chart-4))',
   				'5': 'hsl(var(--chart-5))'
   			},
+  			mg: {
+  				background: 'hsl(var(--mg-background))',
+  				surface: 'hsl(var(--mg-surface))',
+  				card: 'hsl(var(--mg-card))',
+  				green: 'hsl(var(--mg-green))',
+  				'green-dim': 'hsl(var(--mg-green-dim))',
+  				muted: 'hsl(var(--mg-muted))'
+  			},
   			sidebar: {
   				DEFAULT: 'hsl(var(--sidebar-background))',
   				foreground: 'hsl(var(--sidebar-foreground))',

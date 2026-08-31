@@ -1,0 +1,25 @@
+{
+  "name": "Movie",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "year": {
+      "type": "string"
+    },
+    "poster_url": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string",
+      "default": "Cinema Releases"
+    }
+  },
+  "required": [
+    "title"
+  ]
+}

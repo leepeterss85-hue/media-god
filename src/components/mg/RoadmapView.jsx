@@ -1,0 +1,95 @@
+import React, { useEffect, useMemo, useState } from "react";
+import { ChevronLeft, Play, Film } from "lucide-react";
+import { base44 } from "@/api/base44Client";
+import { Image } from "@/components/ui/image";
+import { cn } from "@/lib/utils";
+
+export default function RoadmapView() {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState("film");
+
+  useEffect(() => {
+    base44.entities.RoadmapItem.list("-created_date", 50).then((i) => {
+      setItems(i);
+      setLoading(false);
+    });
+  }, []);
+
+  const filtered = useMemo(
+    () => items.filter((i) => i.type === tab),
+    [items, tab]
+  );
+
+  return (
+    <div className="p-4 md:p-6 max-w-3xl">
+      <div className="flex items-center gap-3 mb-4">
+        <button className="text-white/50 hover:text-white">
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+        <h1 className="text-xl font-bold text-white tracking-wide">RELEASE ROADMAP</h1>
+      </div>
+
+      <div className="flex gap-6 border-b border-white/10 mb-6">
+        {[
+          { id: "film", label: "FILM SCHEDULE" },
+          { id: "broadcast", label: "BROADCASTS" },
+        ].map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={cn(
+              "pb-2 text-sm font-semibold transition-colors border-b-2",
+              tab === t.id
+                ? "text-mg-green border-mg-green"
+                : "text-white/50 border-transparent hover:text-white"
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <p className="text-white/40 text-sm">Loading...</p>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {filtered.map((r) => (
+            <div
+              key={r.id}
+              className="bg-mg-card border border-white/10 rounded-lg p-3 flex gap-4"
+            >
+              <div className="w-16 h-24 shrink-0 rounded-md overflow-hidden border border-white/10 bg-mg-surface">
+                <Image
+                  src={r.poster_url}
+                  alt={r.title}
+                  className="w-full h-full object-cover"
+                  fittingType="fill"
+                />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="font-bold text-white text-sm">{r.title}</h3>
+                  {r.release_date && (
+                    <span className="text-[10px] font-bold bg-mg-green/15 text-mg-green border border-mg-green/40 px-2 py-1 rounded whitespace-nowrap">
+                      {r.release_date}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-white/50 mt-1 line-clamp-3">{r.plot}</p>
+                <div className="flex gap-2 mt-3">
+                  <button className="flex items-center gap-1.5 bg-mg-green text-black font-semibold text-xs px-3 py-1.5 rounded-md hover:bg-mg-green-dim">
+                    <Play className="w-3 h-3 fill-black" /> STREAM
+                  </button>
+                  <button className="flex items-center gap-1.5 bg-white/10 text-white font-semibold text-xs px-3 py-1.5 rounded-md hover:bg-white/20">
+                    <Film className="w-3 h-3" /> TRAILER
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

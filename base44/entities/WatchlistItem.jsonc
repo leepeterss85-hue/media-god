@@ -1,0 +1,21 @@
+{
+  "name": "WatchlistItem",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "year": {
+      "type": "string"
+    },
+    "poster_url": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "title"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "name": "RoadmapItem",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "release_date": {
+      "type": "string"
+    },
+    "poster_url": {
+      "type": "string"
+    },
+    "plot": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "default": "film"
+    }
+  },
+  "required": [
+    "title"
+  ]
+}
