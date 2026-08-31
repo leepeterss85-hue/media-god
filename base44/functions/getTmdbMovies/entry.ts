@@ -27,6 +27,9 @@ export default async function(req) {
     try { body = await req.json(); } catch {}
     const mediaType = body.media_type === 'tv' ? 'tv' : 'movie';
     const country = body.country || '';
+    const genre = body.genre || '';
+    const year = body.year || '';
+    const language = body.language || '';
     const movieId = body.movie_id;
 
     const apiKey = secrets.get('TMDB_API_KEY');
@@ -52,10 +55,23 @@ export default async function(req) {
 
     const category = body.category || (mediaType === 'tv' ? 'tv_popular' : 'now_playing');
 
+    const hasFilters = country || genre || year || language;
     let url;
-    if (country) {
-      url = `${TMDB_BASE}/discover/${mediaType}?api_key=${apiKey}&language=en-GB`
-        + `&with_origin_country=${country}&sort_by=popularity.desc&page=1`;
+    if (hasFilters) {
+      const params = new URLSearchParams({
+        api_key: apiKey,
+        language: 'en-GB',
+        sort_by: 'popularity.desc',
+        page: '1',
+      });
+      if (country) params.set('with_origin_country', country);
+      if (genre) params.set('with_genres', genre);
+      if (year) {
+        if (mediaType === 'tv') params.set('first_air_date_year', year);
+        else params.set('primary_release_year', year);
+      }
+      if (language) params.set('with_original_language', language);
+      url = `${TMDB_BASE}/discover/${mediaType}?${params.toString()}`;
     } else {
       const path = mediaType === 'tv' ? TV_ENDPOINTS[category] || TV_ENDPOINTS.tv_popular
         : MOVIE_ENDPOINTS[category] || MOVIE_ENDPOINTS.now_playing;

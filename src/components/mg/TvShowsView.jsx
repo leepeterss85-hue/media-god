@@ -3,6 +3,7 @@ import { Search, Play, Globe } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
 import { usePlayer, buildMediaSources } from "@/components/mg/PlayerProvider";
+import { GENRES_TV, LANGUAGES, YEARS } from "@/components/mg/filterOptions";
 
 const COUNTRIES = [
   { code: "", label: "All Countries" },
@@ -38,16 +39,19 @@ export default function TvShowsView() {
   const [query, setQuery] = useState("");
   const [country, setCountry] = useState("");
   const [category, setCategory] = useState("tv_popular");
+  const [genre, setGenre] = useState("");
+  const [year, setYear] = useState("");
+  const [language, setLanguage] = useState("");
   const player = usePlayer();
 
   useEffect(() => {
     setLoading(true);
     base44.functions
-      .invoke("getTmdbMovies", { media_type: "tv", category, country })
+      .invoke("getTmdbMovies", { media_type: "tv", category, country, genre, year, language })
       .then((res) => setShows(res.data?.movies || []))
       .catch(() => setShows([]))
       .finally(() => setLoading(false));
-  }, [country, category]);
+  }, [country, category, genre, year, language]);
 
   const filtered = useMemo(
     () => shows.filter((s) => s.title.toLowerCase().includes(query.toLowerCase())),
@@ -114,6 +118,39 @@ export default function TvShowsView() {
               ))}
             </select>
           </div>
+          <select
+            value={genre}
+            onChange={(e) => setGenre(e.target.value)}
+            className="appearance-none bg-mg-card border border-white/10 rounded-lg px-3 pr-8 py-2 text-sm text-white focus:outline-none focus:border-mg-green cursor-pointer"
+          >
+            {GENRES_TV.map((g) => (
+              <option key={g.id} value={g.id} className="bg-mg-card">
+                {g.label}
+              </option>
+            ))}
+          </select>
+          <select
+            value={year}
+            onChange={(e) => setYear(e.target.value)}
+            className="appearance-none bg-mg-card border border-white/10 rounded-lg px-3 pr-8 py-2 text-sm text-white focus:outline-none focus:border-mg-green cursor-pointer"
+          >
+            {YEARS.map((y) => (
+              <option key={y.value} value={y.value} className="bg-mg-card">
+                {y.label}
+              </option>
+            ))}
+          </select>
+          <select
+            value={language}
+            onChange={(e) => setLanguage(e.target.value)}
+            className="appearance-none bg-mg-card border border-white/10 rounded-lg px-3 pr-8 py-2 text-sm text-white focus:outline-none focus:border-mg-green cursor-pointer"
+          >
+            {LANGUAGES.map((l) => (
+              <option key={l.code} value={l.code} className="bg-mg-card">
+                {l.label}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
