@@ -70,12 +70,12 @@ export function PlayerProvider({ children }) {
 
   const play = (s) => {
     let sources = s.sources || [];
-    // When the user has a Real-Debrid token, make the RD-resolved stream the
-    // default source for movies/shows (those that ship magnet/torrent sources).
-    const isVod = sources.some((x) => x.type === "magnet" || x.type === "torrent");
-    if (hasRd && isVod) {
-      // No fake magnet — the player shows a paste-your-own-real-magnet box
-      // for this source, so only genuine magnets reach Real-Debrid.
+    // When the user has a Real-Debrid token, make the RD source the default
+    // for any on-demand content (movies/shows). Live TV is excluded. The RD
+    // source shows a paste-your-own-real-magnet box — only genuine magnets
+    // reach Real-Debrid, so nothing fake pollutes the account.
+    const isLive = sources.some((x) => x.live || x.type === "live");
+    if (hasRd && !isLive) {
       sources = [{ label: "Real-Debrid", type: "rd", src: "" }, ...sources];
     }
     setSource({ ...s, sources });
