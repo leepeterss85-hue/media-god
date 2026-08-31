@@ -196,7 +196,11 @@ export default function VideoPlayer({ source, onClose }) {
   }, [rdTorrentId, rdOverride]);
 
   useEffect(() => {
-    const onKey = (e) => e.key === "Escape" && onClose();
+    const onKey = (e) => {
+      // Don't close the player on Escape while fullscreen — let the browser
+      // exit fullscreen first. A second Esc (once back to normal) closes.
+      if (e.key === "Escape" && !document.fullscreenElement) onClose();
+    };
     window.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
     return () => {
