@@ -71,10 +71,48 @@ export default async function(req) {
             }));
         }
       } catch {}
+
+      // Full details + cast for the detail popup.
+      let details = {};
+      let cast = [];
+      try {
+        const dRes = await fetch(
+          `${TMDB_BASE}/${mediaType}/${movieId}?api_key=${apiKey}&language=en-GB`,
+          { headers: { Accept: 'application/json' } }
+        );
+        if (dRes.ok) {
+          const d = await dRes.json();
+          details = {
+            overview: d.overview || '',
+            rating: d.vote_average ? Number(d.vote_average).toFixed(1) : '',
+            runtime: mediaType === 'tv' ? (d.episode_run_time || [])[0] : d.runtime,
+            genres: (d.genres || []).map((g) => g.name),
+            backdrop_url: d.backdrop_path ? `https://image.tmdb.org/t/p/w780${d.backdrop_path}` : '',
+            release_date: d.release_date || d.first_air_date || '',
+          };
+        }
+      } catch {}
+      try {
+        const cRes = await fetch(
+          `${TMDB_BASE}/${mediaType}/${movieId}/credits?api_key=${apiKey}&language=en-GB`,
+          { headers: { Accept: 'application/json' } }
+        );
+        if (cRes.ok) {
+          const cData = await cRes.json();
+          cast = (cData.cast || []).slice(0, 12).map((c) => ({
+            name: c.name,
+            character: c.character,
+            profile_url: c.profile_path ? `https://image.tmdb.org/t/p/w185${c.profile_path}` : '',
+          }));
+        }
+      } catch {}
+
       return Response.json({
         trailer_key: key,
         trailer_url: key ? `https://www.youtube.com/embed/${key}?autoplay=1&mute=1&rel=0&playsinline=1` : '',
         watch_providers: providers,
+        details,
+        cast,
       });
     }
 

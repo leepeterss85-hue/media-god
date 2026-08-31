@@ -3,9 +3,9 @@ import { Search, Mic, Plus, Check, Play, Globe } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
 import { useToast } from "@/components/ui/use-toast";
-import { usePlayer, buildMediaSources } from "@/components/mg/PlayerProvider";
 import { GENRES_MOVIE, LANGUAGES, YEARS, GENRE_LABELS_MOVIE } from "@/components/mg/filterOptions";
 import GenreTags from "@/components/mg/GenreTags";
+import DetailModal from "@/components/mg/DetailModal";
 
 const COUNTRIES = [
   { code: "", label: "All Countries" },
@@ -45,8 +45,8 @@ export default function MoviesView() {
   const [year, setYear] = useState("");
   const [language, setLanguage] = useState("");
   const [watched, setWatched] = useState({});
+  const [selected, setSelected] = useState(null);
   const { toast } = useToast();
-  const player = usePlayer();
 
   useEffect(() => {
     setLoading(true);
@@ -76,21 +76,6 @@ export default function MoviesView() {
     } catch (e) {
       toast({ title: "Could not add", variant: "destructive" });
     }
-  };
-
-  const playMovie = async (m) => {
-    let trailerUrl = "";
-    let providers = [];
-    try {
-      const res = await base44.functions.invoke("getTmdbMovies", { media_type: "movie", movie_id: m.id });
-      trailerUrl = res.data?.trailer_url || "";
-      providers = res.data?.watch_providers || [];
-    } catch {}
-    player.play({
-      title: m.title,
-      poster: m.poster_url,
-      sources: buildMediaSources({ title: m.title, id: m.id, poster: m.poster_url, trailerUrl, providers }),
-    });
   };
 
   return (
@@ -185,9 +170,9 @@ export default function MoviesView() {
               <div className="relative aspect-[2/3] rounded-md overflow-hidden border border-white/10 bg-mg-card">
                 <Image src={m.poster_url} alt={m.title} className="w-full h-full object-cover" fittingType="fill" />
                 <button
-                  onClick={() => playMovie(m)}
+                  onClick={() => setSelected(m)}
                   className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="Play"
+                  title="Details"
                 >
                   <span className="w-12 h-12 rounded-full bg-mg-green text-black flex items-center justify-center">
                     <Play className="w-6 h-6 fill-black" />
@@ -210,6 +195,10 @@ export default function MoviesView() {
       )}
       {!loading && filtered.length === 0 && (
         <p className="text-white/40 text-sm">No movies found for this country.</p>
+      )}
+
+      {selected && (
+        <DetailModal item={selected} mediaType="movie" onClose={() => setSelected(null)} />
       )}
     </div>
   );
