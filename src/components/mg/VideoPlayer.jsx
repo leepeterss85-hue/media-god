@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { X, Copy, Check, ExternalLink, Link, Download, Tv, Loader2, Zap, RefreshCw, Film, Maximize } from "lucide-react";
+import { X, Copy, Check, ExternalLink, Link, Download, Tv, Loader2, Zap, RefreshCw, Film } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { base44 } from "@/api/base44Client";
 import CastButton from "@/components/mg/CastButton";
@@ -176,25 +176,12 @@ export default function VideoPlayer({ source, onClose }) {
     };
   }, [onClose]);
 
-  // Enter native fullscreen on the video element. iOS Safari only supports
-  // webkitEnterFullscreen; other browsers use the standard Fullscreen API.
-  const enterFullscreen = (el) => {
-    if (!el) return;
-    try {
-      if (el.webkitEnterFullscreen) el.webkitEnterFullscreen();
-      else if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
-      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-    } catch {}
-  };
-
   // Explicitly start playback when a stream becomes active — autoPlay alone is
-  // unreliable, but play() after the user's click gesture always works. Also
-  // push the player into fullscreen so the video fills the screen.
+  // unreliable, but play() after the user's click gesture always works.
   useEffect(() => {
     if ((active?.type === "file" || rdOverride) && videoRef.current) {
       videoRef.current.muted = false;
       videoRef.current.play().catch(() => {});
-      enterFullscreen(videoRef.current);
     }
   }, [active, rdOverride]);
 
@@ -333,20 +320,11 @@ export default function VideoPlayer({ source, onClose }) {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {(active?.type === "file" || rdOverride) && (
-              <>
-                <button
-                  onClick={() => enterFullscreen(videoRef.current)}
-                  className="text-white/60 hover:text-white"
-                  aria-label="Fullscreen"
-                >
-                  <Maximize className="w-5 h-5" />
-                </button>
-                <CastButton
-                  url={rdOverride?.src || active.src}
-                  title={source.title}
-                  poster={source.poster}
-                />
-              </>
+              <CastButton
+                url={rdOverride?.src || active.src}
+                title={source.title}
+                poster={source.poster}
+              />
             )}
             <button onClick={onClose} className="text-white/60 hover:text-white">
               <X className="w-5 h-5" />
