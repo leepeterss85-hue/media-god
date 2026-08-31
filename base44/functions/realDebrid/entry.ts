@@ -70,6 +70,7 @@ export default async function(req) {
         stream_url: stream.stream_url || '',
         filename: stream.filename || '',
         rd_status: stream.rd_status,
+        files: stream.files || [],
       });
     }
 
@@ -118,6 +119,7 @@ export default async function(req) {
         torrent_id: torrentId,
         stream_url: stream.stream_url || '',
         filename: stream.filename || '',
+        files: stream.files || [],
       });
     }
 
@@ -133,7 +135,35 @@ export default async function(req) {
         stream_url: stream.stream_url || '',
         filename: stream.filename || '',
         rd_status: stream.rd_status,
+        files: stream.files || [],
       });
+    }
+
+    // List the video files of an existing torrent (for the file picker).
+    if (action === 'torrent_files') {
+      const torrentId = body.torrent_id;
+      if (!torrentId) return Response.json({ error: 'torrent_id required' }, { status: 400 });
+      const infoRes = await fetch(`${RD_BASE}/torrents/info/${torrentId}`, { headers: authHeaders });
+      if (!infoRes.ok) return Response.json({ error: `info failed: ${infoRes.status}` }, { status: 502 });
+      const info = await infoRes.json();
+      return Response.json({ files: buildFileEntries(info, null), rd_status: info.status });
+    }
+
+    // Unrestrict a single chosen file link to a direct streamable URL.
+    if (action === 'unrestrict_file') {
+      const link = body.link;
+      if (!link) return Response.json({ error: 'link required' }, { status: 400 });
+      const unRes = await fetch(`${RD_BASE}/unrestrict/link`, {
+        method: 'POST',
+        headers: formHeaders,
+        body: `link=${encodeURIComponent(link)}`,
+      });
+      if (!unRes.ok) {
+        const t = await unRes.text();
+        return Response.json({ error: `unrestrict failed: ${unRes.status} ${t}` }, { status: 502 });
+      }
+      const unData = await unRes.json();
+      return Response.json({ stream_url: unData.download, filename: unData.filename || '' });
     }
 
     // List supported hosters (for the settings page).
@@ -154,6 +184,19 @@ export default async function(req) {
   }
 }
 
+// Build a list of video files (with RD file links) for a torrent. The
+// auto-picked largest file is flagged so the client can highlight it.
+function buildFileEntries(info, target) {
+  const files = (info.files || []).filter((f) => f.path && VIDEO_RE.test(f.path));
+  return files.map((f) => ({
+    id: f.id,
+    path: (f.path || '').split('/').pop(),
+    bytes: f.bytes || 0,
+    link: f.link,
+    selected: !!(target && f.id === target.id),
+  }));
+}
+
 // Fetch torrent info, pick the largest video file, unrestrict its link.
 async function resolveStreamable(torrentId, authHeaders, formHeaders) {
   const infoRes = await fetch(`${RD_BASE}/torrents/info/${torrentId}`, { headers: authHeaders });
@@ -164,9 +207,10 @@ async function resolveStreamable(torrentId, authHeaders, formHeaders) {
   const pool = files.length > 0 ? files : (info.files || []);
   pool.sort((a, b) => (b.bytes || 0) - (a.bytes || 0));
   const target = pool[0];
+  const fileEntries = buildFileEntries(info, target);
 
   if (!target || !target.link) {
-    return { ready: false, rd_status: info.status };
+    return { ready: false, rd_status: info.status, files: fileEntries };
   }
 
   const unRes = await fetch(`${RD_BASE}/unrestrict/link`, {
@@ -184,5 +228,6 @@ async function resolveStreamable(torrentId, authHeaders, formHeaders) {
     stream_url: unData.download,
     filename: unData.filename || (target.path || '').split('/').pop(),
     rd_status: info.status,
+    files: fileEntries,
   };
 }

@@ -1,8 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
-import { X, Copy, Check, ExternalLink, Link, Download, Tv, Loader2, Zap, RefreshCw } from "lucide-react";
+import { X, Copy, Check, ExternalLink, Link, Download, Tv, Loader2, Zap, RefreshCw, Film } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { base44 } from "@/api/base44Client";
 import CastButton from "@/components/mg/CastButton";
+
+const currentFilePath = (files) => (files?.find((f) => f.selected) || files?.[0] || {}).path || "";
 
 export default function VideoPlayer({ source, onClose }) {
   const sources = source.sources || [
@@ -16,11 +18,15 @@ export default function VideoPlayer({ source, onClose }) {
   const [activeIdx, setActiveIdx] = useState(0);
   const [copied, setCopied] = useState(false);
   const [rdResolving, setRdResolving] = useState(false);
+  const [rdPolling, setRdPolling] = useState(false);
   const [rdError, setRdError] = useState("");
   const [rdOverride, setRdOverride] = useState(null);
-  const [pastedMagnet, setPastedMagnet] = useState("");
+  const [rdFiles, setRdFiles] = useState([]);
   const [rdTorrentId, setRdTorrentId] = useState(null);
+  const [fileSwitching, setFileSwitching] = useState(false);
+  const [pastedMagnet, setPastedMagnet] = useState("");
   const videoRef = useRef(null);
+  const pollRef = useRef(null);
 
   const active = sources[activeIdx] || sources[0];
   const isLive = source.type === "live" || active?.live;
@@ -28,6 +34,8 @@ export default function VideoPlayer({ source, onClose }) {
   useEffect(() => {
     setRdOverride(null);
     setRdError("");
+    setRdFiles([]);
+    setRdTorrentId(null);
   }, [activeIdx]);
 
   // Auto-resolve the default Real-Debrid source on open. When nothing is
@@ -44,7 +52,8 @@ export default function VideoPlayer({ source, onClose }) {
         if (cancelled) return;
         const data = res.data || {};
         if (data.status === "ready" && data.stream_url) {
-          setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream" });
+          setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream", file: currentFilePath(data.files) });
+          setRdFiles(data.files || []);
         } else if (data.status === "not_cached") {
           // Stay on the RD source; the paste box appears below.
         } else if (data.error) {
@@ -61,6 +70,53 @@ export default function VideoPlayer({ source, onClose }) {
       cancelled = true;
     };
   }, [activeIdx, active?.type]);
+
+  // Auto-poll a torrent that Real-Debrid is still downloading, until it's
+  // ready to play — no manual "Check again" needed.
+  useEffect(() => {
+    if (!rdTorrentId || rdOverride) return;
+    let cancelled = false;
+    setRdPolling(true);
+    let attempts = 0;
+    const tick = async () => {
+      if (cancelled) return;
+      attempts += 1;
+      try {
+        const res = await base44.functions.invoke("realDebrid", {
+          action: "torrent_info",
+          torrent_id: rdTorrentId,
+        });
+        const data = res.data || {};
+        if (cancelled) return;
+        if (data.status === "ready" && data.stream_url) {
+          setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream", file: currentFilePath(data.files) });
+          setRdFiles(data.files || []);
+          setRdPolling(false);
+          return;
+        }
+        if (data.error) {
+          setRdError(data.error);
+          setRdPolling(false);
+          return;
+        }
+      } catch (e) {
+        if (!cancelled) setRdError(e.message || "Real-Debrid poll failed");
+        setRdPolling(false);
+        return;
+      }
+      if (attempts < 24) {
+        pollRef.current = setTimeout(tick, 5000);
+      } else {
+        setRdPolling(false);
+        setRdError("Real-Debrid is still downloading. Tap Check again later.");
+      }
+    };
+    pollRef.current = setTimeout(tick, 5000);
+    return () => {
+      cancelled = true;
+      if (pollRef.current) clearTimeout(pollRef.current);
+    };
+  }, [rdTorrentId, rdOverride]);
 
   useEffect(() => {
     const onKey = (e) => e.key === "Escape" && onClose();
@@ -96,6 +152,8 @@ export default function VideoPlayer({ source, onClose }) {
     }
     setRdResolving(true);
     setRdError("");
+    setRdOverride(null);
+    setRdFiles([]);
     setRdTorrentId(null);
     try {
       const res = await base44.functions.invoke("realDebrid", {
@@ -104,10 +162,11 @@ export default function VideoPlayer({ source, onClose }) {
       });
       const data = res.data || {};
       if (data.status === "ready" && data.stream_url) {
-        setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream" });
+        setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream", file: currentFilePath(data.files) });
+        setRdFiles(data.files || []);
       } else if (data.status === "preparing") {
         setRdTorrentId(data.torrent_id);
-        setRdError("Real-Debrid is downloading this torrent. Wait a moment, then tap Check again to play.");
+        // auto-poll effect takes over
       } else {
         setRdError(data.error || "Real-Debrid could not resolve this magnet.");
       }
@@ -129,7 +188,8 @@ export default function VideoPlayer({ source, onClose }) {
       });
       const data = res.data || {};
       if (data.status === "ready" && data.stream_url) {
-        setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream" });
+        setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream", file: currentFilePath(data.files) });
+        setRdFiles(data.files || []);
       } else if (data.status === "preparing") {
         setRdError("Still downloading on Real-Debrid — try again shortly.");
       } else {
@@ -139,6 +199,29 @@ export default function VideoPlayer({ source, onClose }) {
       setRdError(e.message || "Real-Debrid request failed");
     } finally {
       setRdResolving(false);
+    }
+  };
+
+  // Switch to a different file within a resolved multi-file torrent.
+  const pickFile = async (file) => {
+    if (rdOverride?.file === file.path) return;
+    setFileSwitching(true);
+    setRdError("");
+    try {
+      const res = await base44.functions.invoke("realDebrid", {
+        action: "unrestrict_file",
+        link: file.link,
+      });
+      const data = res.data || {};
+      if (data.stream_url) {
+        setRdOverride({ src: data.stream_url, label: file.path, file: file.path });
+      } else {
+        setRdError(data.error || "Could not unrestrict this file.");
+      }
+    } catch (e) {
+      setRdError(e.message || "Real-Debrid request failed");
+    } finally {
+      setFileSwitching(false);
     }
   };
 
@@ -154,9 +237,10 @@ export default function VideoPlayer({ source, onClose }) {
       if (data.error) {
         setRdError(data.error);
       } else if (data.status === "ready" && data.stream_url) {
-        setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream" });
+        setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream", file: currentFilePath(data.files) });
+        setRdFiles(data.files || []);
       } else if (data.status === "preparing") {
-        setRdError("Torrent is being prepared on Real-Debrid — try again shortly.");
+        setRdTorrentId(data.torrent_id);
       } else {
         setRdError("Real-Debrid could not resolve this magnet.");
       }
@@ -168,6 +252,7 @@ export default function VideoPlayer({ source, onClose }) {
   };
 
   const isP2P = active?.type === "magnet" || active?.type === "torrent";
+  const busy = rdResolving || rdPolling;
 
   return (
     <div
@@ -235,21 +320,23 @@ export default function VideoPlayer({ source, onClose }) {
           {active?.type === "rd" && !rdOverride && (
             <div className="w-full h-full flex flex-col items-center justify-center gap-3 p-6 text-center">
               <div className="w-12 h-12 rounded-full bg-mg-green/15 border border-mg-green/40 flex items-center justify-center">
-                {rdResolving ? (
+                {busy ? (
                   <Loader2 className="w-6 h-6 text-mg-green animate-spin" />
                 ) : (
                   <Zap className="w-6 h-6 text-mg-green" />
                 )}
               </div>
               <p className="text-white font-semibold text-sm">
-                {rdResolving ? "Resolving via Real-Debrid…" : "Real-Debrid"}
+                {rdResolving ? "Resolving via Real-Debrid…" : rdPolling ? "Downloading on Real-Debrid…" : "Real-Debrid"}
               </p>
               <p className="text-white/40 text-xs max-w-sm">
                 {rdResolving
                   ? "Checking Real-Debrid cache for an instant stream…"
+                  : rdPolling
+                  ? "Auto-checking until your file is ready to play…"
                   : "No cached stream for this title. Paste a real magnet link to stream it through your Real-Debrid account."}
               </p>
-              {!rdResolving && (
+              {!busy && (
                 <div className="flex flex-col gap-2 w-full max-w-md mt-1">
                   <input
                     value={pastedMagnet}
@@ -352,6 +439,37 @@ export default function VideoPlayer({ source, onClose }) {
             </div>
           )}
         </div>
+
+        {rdOverride && rdFiles.length > 1 && (
+          <div className="mt-3 bg-mg-card border border-white/10 rounded-lg p-2 max-h-44 overflow-y-auto">
+            <p className="text-white/50 text-[10px] font-semibold uppercase tracking-wide px-1 pb-1 flex items-center gap-1">
+              <Film className="w-3 h-3" /> Files
+            </p>
+            <div className="flex flex-col gap-0.5">
+              {rdFiles.map((f) => {
+                const isCurrent = rdOverride.file === f.path;
+                return (
+                  <button
+                    key={f.id}
+                    onClick={() => pickFile(f)}
+                    disabled={fileSwitching}
+                    className={cn(
+                      "flex items-center gap-2 text-left px-2 py-1.5 rounded text-xs transition-colors",
+                      isCurrent ? "bg-mg-green/15 text-mg-green" : "text-white/70 hover:bg-white/5",
+                      fileSwitching && "opacity-60"
+                    )}
+                  >
+                    <Film className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate flex-1">{f.path}</span>
+                    <span className="text-white/30 shrink-0">
+                      {f.bytes > 1e9 ? `${(f.bytes / 1e9).toFixed(1)}GB` : `${(f.bytes / 1e6).toFixed(0)}MB`}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {sources.length > 1 && (
           <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
