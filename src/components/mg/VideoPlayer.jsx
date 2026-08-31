@@ -208,10 +208,18 @@ export default function VideoPlayer({ source, onClose }) {
   // Explicitly start playback when a stream becomes active — autoPlay alone is
   // unreliable, but play() after the user's click gesture always works.
   useEffect(() => {
-    if ((active?.type === "file" || rdOverride) && videoRef.current) {
-      videoRef.current.muted = false;
-      videoRef.current.play().catch(() => {});
-    }
+    const video = videoRef.current;
+    if (!((active?.type === "file" || rdOverride) && video)) return;
+    // Try unmuted first (the user's Play click is the gesture). If the
+    // browser blocks unmuted autoplay, fall back to muted so the video
+    // still starts — the user can unmute via the native controls. This
+    // replaces the old autoPlay race where the browser would sometimes
+    // win and start muted/paused.
+    video.muted = false;
+    video.play().catch(() => {
+      video.muted = true;
+      video.play().catch(() => {});
+    });
   }, [active, rdOverride]);
 
   const copy = async (text) => {
@@ -375,11 +383,11 @@ export default function VideoPlayer({ source, onClose }) {
         <div ref={stageRef} className="relative w-full aspect-video bg-black rounded-lg overflow-hidden border border-white/10">
           {rdOverride ? (
             <video
+              key={rdOverride.src}
               ref={videoRef}
               src={rdOverride.src}
               poster={source.poster}
               controls
-              autoPlay
               playsInline
               className="w-full h-full object-contain bg-black"
             />
@@ -395,11 +403,11 @@ export default function VideoPlayer({ source, onClose }) {
           )}
           {active?.type === "file" && (
             <video
+              key={active.src}
               ref={videoRef}
               src={active.src}
               poster={source.poster}
               controls
-              autoPlay
               playsInline
               className="w-full h-full object-contain bg-black"
             />
