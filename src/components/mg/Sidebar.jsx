@@ -1,9 +1,10 @@
 import React from "react";
-import { Shield, Film, Tv, Bookmark, Puzzle, Calendar, Settings, Crown, Power, Circle } from "lucide-react";
+import { Shield, Film, Tv, Bookmark, Puzzle, Calendar, Settings, Crown, Power, Circle, MonitorPlay } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
   { id: "movies", label: "Movies", icon: Film },
+  { id: "tv", label: "TV Shows", icon: MonitorPlay },
   { id: "live", label: "Live TV", icon: Tv },
   { id: "watchlist", label: "Watchlist", icon: Bookmark },
   { id: "addons", label: "Addons", icon: Puzzle },

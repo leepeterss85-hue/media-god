@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Search, Mic, Plus, Check, Play, Globe } from "lucide-react";
+import { Search, Play, Globe } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
-import { useToast } from "@/components/ui/use-toast";
 import { usePlayer, DEMO_VIDEO, buildMagnet, buildTorrentUrl } from "@/components/mg/PlayerProvider";
 
 const COUNTRIES = [
@@ -27,66 +26,48 @@ const COUNTRIES = [
 ];
 
 const CATEGORIES = [
-  { id: "now_playing", label: "In Cinemas" },
-  { id: "popular", label: "Popular" },
-  { id: "top_rated", label: "Top Rated" },
-  { id: "upcoming", label: "Upcoming" },
+  { id: "tv_popular", label: "Popular" },
+  { id: "tv_top_rated", label: "Top Rated" },
+  { id: "tv_airing_today", label: "Airing Today" },
+  { id: "tv_on_the_air", label: "On The Air" },
 ];
 
-export default function MoviesView() {
-  const [movies, setMovies] = useState([]);
+export default function TvShowsView() {
+  const [shows, setShows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [country, setCountry] = useState("");
-  const [category, setCategory] = useState("now_playing");
-  const [watched, setWatched] = useState({});
-  const { toast } = useToast();
+  const [category, setCategory] = useState("tv_popular");
   const player = usePlayer();
 
   useEffect(() => {
     setLoading(true);
     base44.functions
-      .invoke("getTmdbMovies", { media_type: "movie", category, country })
-      .then((res) => setMovies(res.data?.movies || []))
-      .catch(() => setMovies([]))
+      .invoke("getTmdbMovies", { media_type: "tv", category, country })
+      .then((res) => setShows(res.data?.movies || []))
+      .catch(() => setShows([]))
       .finally(() => setLoading(false));
   }, [country, category]);
 
   const filtered = useMemo(
-    () => movies.filter((m) => m.title.toLowerCase().includes(query.toLowerCase())),
-    [movies, query]
+    () => shows.filter((s) => s.title.toLowerCase().includes(query.toLowerCase())),
+    [shows, query]
   );
 
-  const addToWatchlist = async (m) => {
-    try {
-      await base44.entities.WatchlistItem.create({
-        title: m.title,
-        year: m.year,
-        poster_url: m.poster_url,
-        description: m.description,
-        tmdb_id: m.id,
-      });
-      setWatched((w) => ({ ...w, [m.id]: true }));
-      toast({ title: "Added to Watchlist", description: m.title });
-    } catch (e) {
-      toast({ title: "Could not add", variant: "destructive" });
-    }
-  };
-
-  const playMovie = async (m) => {
+  const playShow = async (s) => {
     let trailerUrl = "";
     try {
-      const res = await base44.functions.invoke("getTmdbMovies", { media_type: "movie", movie_id: m.id });
+      const res = await base44.functions.invoke("getTmdbMovies", { media_type: "tv", movie_id: s.id });
       trailerUrl = res.data?.trailer_url || "";
     } catch {}
     player.play({
-      title: m.title,
-      poster: m.poster_url,
+      title: s.title,
+      poster: s.poster_url,
       sources: [
         ...(trailerUrl ? [{ label: "Trailer", type: "youtube", src: trailerUrl }] : []),
         { label: "Stream", type: "file", src: DEMO_VIDEO },
-        { label: "Magnet", type: "magnet", src: buildMagnet(m.title, m.id) },
-        { label: "Torrent", type: "torrent", src: buildTorrentUrl(m.id) },
+        { label: "Magnet", type: "magnet", src: buildMagnet(s.title, s.id) },
+        { label: "Torrent", type: "torrent", src: buildTorrentUrl(s.id) },
       ],
     });
   };
@@ -94,6 +75,11 @@ export default function MoviesView() {
   return (
     <div className="p-4 md:p-6">
       <div className="flex flex-col gap-3 mb-5">
+        <div className="flex items-center gap-2">
+          <Globe className="w-5 h-5 text-mg-green" />
+          <h1 className="text-xl font-bold text-white tracking-wide">TV SHOWS</h1>
+        </div>
+
         <div className="flex flex-wrap gap-2">
           {CATEGORIES.map((c) => (
             <button
@@ -110,22 +96,21 @@ export default function MoviesView() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-[180px] max-w-xl">
+          <div className="relative flex-1 min-w-[180px] max-w-xs">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search or speak movie titles..."
-              className="w-full bg-mg-card border border-white/10 rounded-lg pl-10 pr-10 py-2.5 text-sm text-white placeholder:text-white/40 focus:outline-none focus:border-mg-green"
+              placeholder="Search shows..."
+              className="w-full bg-mg-card border border-white/10 rounded-lg pl-10 pr-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:border-mg-green"
             />
-            <Mic className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-mg-green" />
           </div>
           <div className="relative">
             <Globe className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
             <select
               value={country}
               onChange={(e) => setCountry(e.target.value)}
-              className="appearance-none bg-mg-card border border-white/10 rounded-lg pl-10 pr-8 py-2.5 text-sm text-white focus:outline-none focus:border-mg-green cursor-pointer"
+              className="appearance-none bg-mg-card border border-white/10 rounded-lg pl-10 pr-8 py-2 text-sm text-white focus:outline-none focus:border-mg-green cursor-pointer"
             >
               {COUNTRIES.map((c) => (
                 <option key={c.code} value={c.code} className="bg-mg-card">
@@ -145,12 +130,12 @@ export default function MoviesView() {
         </div>
       ) : (
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
-          {filtered.map((m) => (
-            <div key={m.id} className="group">
+          {filtered.map((s) => (
+            <div key={s.id} className="group">
               <div className="relative aspect-[2/3] rounded-md overflow-hidden border border-white/10 bg-mg-card">
-                <Image src={m.poster_url} alt={m.title} className="w-full h-full object-cover" fittingType="fill" />
+                <Image src={s.poster_url} alt={s.title} className="w-full h-full object-cover" fittingType="fill" />
                 <button
-                  onClick={() => playMovie(m)}
+                  onClick={() => playShow(s)}
                   className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity"
                   title="Play"
                 >
@@ -158,22 +143,15 @@ export default function MoviesView() {
                     <Play className="w-6 h-6 fill-black" />
                   </span>
                 </button>
-                <button
-                  onClick={() => addToWatchlist(m)}
-                  className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-mg-green text-black flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="Add to Watchlist"
-                >
-                  {watched[m.id] ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                </button>
               </div>
-              <p className="mt-2 text-sm text-white truncate">{m.title}</p>
-              <p className="text-xs text-white/40">{m.year}</p>
+              <p className="mt-2 text-sm text-white truncate">{s.title}</p>
+              <p className="text-xs text-white/40">{s.year}</p>
             </div>
           ))}
         </div>
       )}
       {!loading && filtered.length === 0 && (
-        <p className="text-white/40 text-sm">No movies found for this country.</p>
+        <p className="text-white/40 text-sm">No shows found for this country.</p>
       )}
     </div>
   );
