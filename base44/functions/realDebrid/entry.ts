@@ -73,6 +73,54 @@ export default async function(req) {
       });
     }
 
+    // Default-source resolver: check instant cache availability first (no
+    // account pollution). Only if the torrent is cached on RD do we add it,
+    // select files, and unrestrict to a direct streamable link.
+    if (action === 'resolve_best') {
+      const magnet = body.magnet;
+      if (!magnet || !magnet.startsWith('magnet:')) {
+        return Response.json({ error: 'A valid magnet URI is required' }, { status: 400 });
+      }
+      const hashMatch = magnet.match(/btih:([a-fA-F0-9]{40})/i);
+      if (!hashMatch) return Response.json({ error: 'Invalid magnet hash' }, { status: 400 });
+      const hash = hashMatch[1].toLowerCase();
+
+      const iaRes = await fetch(`${RD_BASE}/torrents/instantAvailability/${hash}`, { headers: authHeaders });
+      let cached = false;
+      if (iaRes.ok) {
+        try {
+          const iaData = await iaRes.json();
+          const entry = iaData && iaData[hash];
+          cached = !!(entry && entry.rd && entry.rd.length > 0);
+        } catch {}
+      }
+      if (!cached) return Response.json({ status: 'not_cached' });
+
+      const addRes = await fetch(`${RD_BASE}/torrents/addMagnet`, {
+        method: 'POST',
+        headers: formHeaders,
+        body: `magnet=${encodeURIComponent(magnet)}`,
+      });
+      if (!addRes.ok) {
+        const t = await addRes.text();
+        return Response.json({ error: `addMagnet failed: ${addRes.status} ${t}` }, { status: 502 });
+      }
+      const torrentId = (await addRes.json()).id;
+      await fetch(`${RD_BASE}/torrents/selectFiles/${torrentId}`, {
+        method: 'POST',
+        headers: formHeaders,
+        body: 'files=all',
+      });
+      const stream = await resolveStreamable(torrentId, authHeaders, formHeaders);
+      if (stream.error) return Response.json({ error: stream.error }, { status: 502 });
+      return Response.json({
+        status: stream.ready ? 'ready' : 'preparing',
+        torrent_id: torrentId,
+        stream_url: stream.stream_url || '',
+        filename: stream.filename || '',
+      });
+    }
+
     // Poll an existing torrent for a ready streamable link.
     if (action === 'torrent_info') {
       const torrentId = body.torrent_id;

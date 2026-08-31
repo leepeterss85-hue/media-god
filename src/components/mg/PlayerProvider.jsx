@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { base44 } from "@/api/base44Client";
 import VideoPlayer from "@/components/mg/VideoPlayer";
 
 const NO_PLAYER = { play: () => {}, close: () => {} };
@@ -67,7 +68,23 @@ export function usePlayer() {
 
 export function PlayerProvider({ children }) {
   const [source, setSource] = useState(null);
-  const play = (s) => setSource(s);
+  const [hasRd, setHasRd] = useState(false);
+
+  useEffect(() => {
+    base44.auth.me().then((u) => setHasRd(!!u?.rd_token)).catch(() => {});
+  }, []);
+
+  const play = (s) => {
+    let sources = s.sources || [];
+    // When the user has a Real-Debrid token, make the RD-resolved stream the
+    // default source for movies/shows (those that ship magnet/torrent sources).
+    const isVod = sources.some((x) => x.type === "magnet" || x.type === "torrent");
+    if (hasRd && isVod) {
+      const rdMagnet = buildMagnet(s.title, s.id, "1080p");
+      sources = [{ label: "Real-Debrid", type: "rd", src: rdMagnet }, ...sources];
+    }
+    setSource({ ...s, sources });
+  };
   const close = () => setSource(null);
 
   return (

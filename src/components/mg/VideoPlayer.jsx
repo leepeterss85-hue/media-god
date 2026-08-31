@@ -28,6 +28,42 @@ export default function VideoPlayer({ source, onClose }) {
     setRdError("");
   }, [activeIdx]);
 
+  // Auto-resolve the default Real-Debrid source on open; fall back to the next
+  // source if no cached torrent is available.
+  useEffect(() => {
+    if (active?.type !== "rd") return;
+    let cancelled = false;
+    setRdResolving(true);
+    setRdError("");
+    base44.functions
+      .invoke("realDebrid", { action: "resolve_best", magnet: active.src })
+      .then((res) => {
+        if (cancelled) return;
+        const data = res.data || {};
+        if (data.status === "ready" && data.stream_url) {
+          setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream" });
+        } else if (data.status === "not_cached") {
+          setActiveIdx((i) => Math.min(i + 1, sources.length - 1));
+        } else if (data.error) {
+          setRdError(data.error);
+          setActiveIdx((i) => Math.min(i + 1, sources.length - 1));
+        } else {
+          setActiveIdx((i) => Math.min(i + 1, sources.length - 1));
+        }
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setRdError(e.message || "Real-Debrid request failed");
+        setActiveIdx((i) => Math.min(i + 1, sources.length - 1));
+      })
+      .finally(() => {
+        if (!cancelled) setRdResolving(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeIdx, active?.type]);
+
   useEffect(() => {
     const onKey = (e) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -145,6 +181,28 @@ export default function VideoPlayer({ source, onClose }) {
               className="w-full h-full object-contain bg-black"
             />
           )}
+          {active?.type === "rd" && !rdOverride && (
+            <div className="w-full h-full flex flex-col items-center justify-center gap-3 p-6 text-center">
+              <div className="w-12 h-12 rounded-full bg-mg-green/15 border border-mg-green/40 flex items-center justify-center">
+                {rdResolving ? (
+                  <Loader2 className="w-6 h-6 text-mg-green animate-spin" />
+                ) : (
+                  <Zap className="w-6 h-6 text-mg-green" />
+                )}
+              </div>
+              <p className="text-white font-semibold text-sm">
+                {rdResolving ? "Resolving via Real-Debrid…" : "Real-Debrid"}
+              </p>
+              <p className="text-white/40 text-xs max-w-sm">
+                {rdResolving
+                  ? "Checking Real-Debrid cache for an instant stream…"
+                  : "No cached stream found — falling back to another source."}
+              </p>
+              {rdError && (
+                <p className="text-red-400 text-xs mt-1 max-w-md break-words">{rdError}</p>
+              )}
+            </div>
+          )}
           {isP2P && (
             <div className="w-full h-full flex flex-col items-center justify-center gap-3 p-6 text-center">
               <div className="w-12 h-12 rounded-full bg-mg-green/15 border border-mg-green/40 flex items-center justify-center">
@@ -232,6 +290,7 @@ export default function VideoPlayer({ source, onClose }) {
                     : "bg-mg-card text-white/70 hover:text-white"
                 )}
               >
+                {s.type === "rd" && <Zap className="w-3 h-3" />}
                 {s.type === "magnet" && <Link className="w-3 h-3" />}
                 {s.type === "torrent" && <Download className="w-3 h-3" />}
                 {s.type === "provider" && <Tv className="w-3 h-3" />}
