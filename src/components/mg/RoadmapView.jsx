@@ -3,7 +3,7 @@ import { ChevronLeft, Play, Film } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
 import { cn } from "@/lib/utils";
-import { usePlayer, DEMO_VIDEO } from "@/components/mg/PlayerProvider";
+import { usePlayer, buildMediaSources } from "@/components/mg/PlayerProvider";
 
 export default function RoadmapView() {
   const [films, setFilms] = useState([]);
@@ -31,23 +31,36 @@ export default function RoadmapView() {
     [films, broadcasts, tab]
   );
 
-  const playTrailer = async (r) => {
-    const id = r.tmdb_id || r.id;
+  const fetchTrailer = async (id) => {
     if (id && /^\d+$/.test(String(id))) {
       try {
         const res = await base44.functions.invoke("getTmdbMovies", { movie_id: id });
-        const url = res.data?.trailer_url;
-        if (url) {
-          player.play({ type: "youtube", src: url, title: r.title, poster: r.poster_url });
-          return;
-        }
+        return res.data?.trailer_url || "";
       } catch {}
     }
-    player.play({ type: "file", src: DEMO_VIDEO, title: r.title, poster: r.poster_url });
+    return "";
   };
 
-  const playStream = (r) => {
-    player.play({ type: "file", src: DEMO_VIDEO, title: r.title, poster: r.poster_url });
+  const playTrailer = async (r) => {
+    const url = await fetchTrailer(r.tmdb_id || r.id);
+    if (url) {
+      player.play({ type: "youtube", src: url, title: r.title, poster: r.poster_url });
+      return;
+    }
+    player.play({
+      title: r.title,
+      poster: r.poster_url,
+      sources: buildMediaSources({ title: r.title, id: r.tmdb_id || r.id, poster: r.poster_url, trailerUrl: "" }),
+    });
+  };
+
+  const playStream = async (r) => {
+    const trailerUrl = await fetchTrailer(r.tmdb_id || r.id);
+    player.play({
+      title: r.title,
+      poster: r.poster_url,
+      sources: buildMediaSources({ title: r.title, id: r.tmdb_id || r.id, poster: r.poster_url, trailerUrl }),
+    });
   };
 
   return (

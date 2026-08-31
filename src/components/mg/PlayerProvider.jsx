@@ -6,13 +6,6 @@ const PlayerContext = createContext(NO_PLAYER);
 
 export const DEMO_VIDEO = "https://media.w3.org/2010/05/sintel/trailer.mp4";
 
-// Multiple stream mirrors so the user has fallbacks if one server is down.
-const STREAM_SERVERS = [
-  "https://media.w3.org/2010/05/sintel/trailer.mp4",
-  "https://www.w3schools.com/html/mov_bbb.mp4",
-  "https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4",
-];
-
 // Public trackers from around the world — included in every magnet so peers
 // can be discovered even if the user's default tracker is down.
 const TRACKERS = [
@@ -56,9 +49,6 @@ export function buildTorrentUrl(id, quality) {
 export function buildMediaSources({ title, id, poster, trailerUrl }) {
   const sources = [];
   if (trailerUrl) sources.push({ label: "Trailer", type: "youtube", src: trailerUrl });
-  STREAM_SERVERS.forEach((src, i) =>
-    sources.push({ label: `Stream (Server ${i + 1})`, type: "file", src })
-  );
   QUALITIES.forEach((q) =>
     sources.push({ label: `Magnet ${q}`, type: "magnet", src: buildMagnet(title, id, q) })
   );

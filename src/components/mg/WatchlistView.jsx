@@ -3,7 +3,7 @@ import { Trash2, Play } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
 import { useToast } from "@/components/ui/use-toast";
-import { usePlayer, DEMO_VIDEO } from "@/components/mg/PlayerProvider";
+import { usePlayer, buildMediaSources } from "@/components/mg/PlayerProvider";
 
 export default function WatchlistView() {
   const [items, setItems] = useState([]);
@@ -28,17 +28,18 @@ export default function WatchlistView() {
   };
 
   const playItem = async (m) => {
+    let trailerUrl = "";
     if (m.tmdb_id) {
       try {
         const res = await base44.functions.invoke("getTmdbMovies", { movie_id: m.tmdb_id });
-        const url = res.data?.trailer_url;
-        if (url) {
-          player.play({ type: "youtube", src: url, title: m.title, poster: m.poster_url });
-          return;
-        }
+        trailerUrl = res.data?.trailer_url || "";
       } catch {}
     }
-    player.play({ type: "file", src: DEMO_VIDEO, title: m.title, poster: m.poster_url });
+    player.play({
+      title: m.title,
+      poster: m.poster_url,
+      sources: buildMediaSources({ title: m.title, id: m.tmdb_id, poster: m.poster_url, trailerUrl }),
+    });
   };
 
   return (
