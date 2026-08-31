@@ -177,10 +177,15 @@ export default function VideoPlayer({ source, onClose }) {
   }, [onClose]);
 
   // Explicitly start playback when a stream becomes active — autoPlay alone is
-  // unreliable, but play() after the user's click gesture always works.
+  // unreliable, but play() after the user's click gesture always works. Also
+  // push the player into fullscreen so the video fills the screen.
   useEffect(() => {
     if ((active?.type === "file" || rdOverride) && videoRef.current) {
-      videoRef.current.play().catch(() => {});
+      videoRef.current.muted = false;
+      videoRef.current.play().then(() => {
+        const el = videoRef.current;
+        if (el && el.requestFullscreen) el.requestFullscreen().catch(() => {});
+      }).catch(() => {});
     }
   }, [active, rdOverride]);
 
@@ -339,7 +344,6 @@ export default function VideoPlayer({ source, onClose }) {
               poster={source.poster}
               controls
               autoPlay
-              muted
               playsInline
               className="w-full h-full object-contain bg-black"
             />
@@ -360,7 +364,6 @@ export default function VideoPlayer({ source, onClose }) {
               poster={source.poster}
               controls
               autoPlay
-              muted
               playsInline
               className="w-full h-full object-contain bg-black"
             />
