@@ -161,26 +161,39 @@ export default function DetailModal({ item, mediaType, onClose }) {
                 ))}
               </div>
             ) : providers.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {providers.map((p) => (
-                  <a
-                    key={p.name}
-                    href={p.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="group flex items-center gap-2 bg-mg-card border border-white/10 rounded-lg pl-1.5 pr-3 py-1.5 hover:border-mg-green transition-colors"
-                  >
-                    {p.logo ? (
-                      <img src={p.logo} alt={p.name} className="w-8 h-8 rounded object-contain" />
-                    ) : (
-                      <span className="w-8 h-8 rounded bg-mg-green/15 flex items-center justify-center">
-                        <Tv className="w-4 h-4 text-mg-green" />
-                      </span>
-                    )}
-                    <span className="text-white text-xs font-medium">{p.name}</span>
-                    <ExternalLink className="w-3 h-3 text-white/40 group-hover:text-mg-green" />
-                  </a>
-                ))}
+              <div className="space-y-3">
+                {["Subscription", "Free", "Free with Ads", "Rent", "Buy"]
+                  .map((tier) => ({
+                    tier,
+                    items: providers.filter((p) => p.tier === tier),
+                  }))
+                  .filter((g) => g.items.length > 0)
+                  .map((g) => (
+                    <div key={g.tier}>
+                      <p className="text-white/40 text-[10px] font-bold uppercase tracking-wider mb-1.5">{g.tier}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {g.items.map((p) => (
+                          <a
+                            key={g.tier + p.name}
+                            href={p.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="group flex items-center gap-2 bg-mg-card border border-white/10 rounded-lg pl-1.5 pr-3 py-1.5 hover:border-mg-green transition-colors"
+                          >
+                            {p.logo ? (
+                              <img src={p.logo} alt={p.name} className="w-8 h-8 rounded object-contain" />
+                            ) : (
+                              <span className="w-8 h-8 rounded bg-mg-green/15 flex items-center justify-center">
+                                <Tv className="w-4 h-4 text-mg-green" />
+                              </span>
+                            )}
+                            <span className="text-white text-xs font-medium">{p.name}</span>
+                            <ExternalLink className="w-3 h-3 text-white/40 group-hover:text-mg-green" />
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
               </div>
             ) : (
               <p className="text-white/40 text-xs">Not legally streamable in your region right now.</p>

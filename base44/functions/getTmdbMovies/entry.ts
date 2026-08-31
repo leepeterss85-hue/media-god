@@ -48,6 +48,8 @@ export default async function(req) {
         || results.find((v) => v.site === 'YouTube');
       const key = yt?.key || '';
       // Legal "where to watch" streaming providers (JustWatch data via TMDB).
+      // Surfaces subscription (flatrate), free/ad-supported (free, ads), and
+      // transactional (rent, buy) tiers so users land on a legal source.
       let providers = [];
       try {
         const wRes = await fetch(
@@ -59,16 +61,29 @@ export default async function(req) {
           const results = wData.results || {};
           const region = results.GB || results.US || {};
           const link = region.link || '';
-          const flat = region.flatrate || [];
+          const tierMap = [
+            ['flatrate', 'Subscription'],
+            ['free', 'Free'],
+            ['ads', 'Free with Ads'],
+            ['rent', 'Rent'],
+            ['buy', 'Buy'],
+          ];
           const seen = new Set();
-          providers = flat
-            .filter((p) => p.provider_id && !seen.has(p.provider_id) && seen.add(p.provider_id))
-            .slice(0, 6)
-            .map((p) => ({
-              name: p.provider_name,
-              logo: p.logo_path ? `https://image.tmdb.org/t/p/w92${p.logo_path}` : '',
-              link,
-            }));
+          const out = [];
+          for (const [key, tier] of tierMap) {
+            for (const p of region[key] || []) {
+              if (!p.provider_id || seen.has(p.provider_id)) continue;
+              seen.add(p.provider_id);
+              out.push({
+                name: p.provider_name,
+                logo: p.logo_path ? `https://image.tmdb.org/t/p/w92${p.logo_path}` : '',
+                tier,
+                link,
+              });
+            }
+            if (out.length >= 12) break;
+          }
+          providers = out;
         }
       } catch {}
 
