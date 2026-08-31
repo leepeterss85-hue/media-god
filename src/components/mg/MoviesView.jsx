@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Search, Mic, Plus, Check, Play, Globe } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { GENRES_MOVIE, LANGUAGES, YEARS, GENRE_LABELS_MOVIE } from "@/components/mg/filterOptions";
 import GenreTags from "@/components/mg/GenreTags";
 import DetailModal from "@/components/mg/DetailModal";
+import useDebouncedValue from "@/components/mg/useDebouncedValue";
 
 const COUNTRIES = [
   { code: "", label: "All Countries" },
@@ -47,20 +48,18 @@ export default function MoviesView() {
   const [watched, setWatched] = useState({});
   const [selected, setSelected] = useState(null);
   const { toast } = useToast();
+  const debouncedQuery = useDebouncedValue(query, 400);
 
   useEffect(() => {
     setLoading(true);
     base44.functions
-      .invoke("getTmdbMovies", { media_type: "movie", category, country, genre, year, language })
+      .invoke("getTmdbMovies", { media_type: "movie", category, country, genre, year, language, query: debouncedQuery })
       .then((res) => setMovies(res.data?.movies || []))
       .catch(() => setMovies([]))
       .finally(() => setLoading(false));
-  }, [country, category, genre, year, language]);
+  }, [country, category, genre, year, language, debouncedQuery]);
 
-  const filtered = useMemo(
-    () => movies.filter((m) => m.title.toLowerCase().includes(query.toLowerCase())),
-    [movies, query]
-  );
+  const filtered = movies;
 
   const addToWatchlist = async (m) => {
     try {

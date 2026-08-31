@@ -132,10 +132,20 @@ export default async function(req) {
     }
 
     const category = body.category || (mediaType === 'tv' ? 'tv_popular' : 'now_playing');
+    const query = body.query || '';
 
     const hasFilters = country || genre || year || language;
     let url;
-    if (hasFilters) {
+    if (query) {
+      const params = new URLSearchParams({
+        api_key: apiKey,
+        language: 'en-GB',
+        query,
+        page: '1',
+        include_adult: 'false',
+      });
+      url = `${TMDB_BASE}/search/${mediaType}?${params.toString()}`;
+    } else if (hasFilters) {
       const params = new URLSearchParams({
         api_key: apiKey,
         language: 'en-GB',

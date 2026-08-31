@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Search, Play, Globe } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
 import { GENRES_TV, LANGUAGES, YEARS, GENRE_LABELS_TV } from "@/components/mg/filterOptions";
 import GenreTags from "@/components/mg/GenreTags";
 import DetailModal from "@/components/mg/DetailModal";
+import useDebouncedValue from "@/components/mg/useDebouncedValue";
 
 const COUNTRIES = [
   { code: "", label: "All Countries" },
@@ -44,20 +45,18 @@ export default function TvShowsView() {
   const [year, setYear] = useState("");
   const [language, setLanguage] = useState("");
   const [selected, setSelected] = useState(null);
+  const debouncedQuery = useDebouncedValue(query, 400);
 
   useEffect(() => {
     setLoading(true);
     base44.functions
-      .invoke("getTmdbMovies", { media_type: "tv", category, country, genre, year, language })
+      .invoke("getTmdbMovies", { media_type: "tv", category, country, genre, year, language, query: debouncedQuery })
       .then((res) => setShows(res.data?.movies || []))
       .catch(() => setShows([]))
       .finally(() => setLoading(false));
-  }, [country, category, genre, year, language]);
+  }, [country, category, genre, year, language, debouncedQuery]);
 
-  const filtered = useMemo(
-    () => shows.filter((s) => s.title.toLowerCase().includes(query.toLowerCase())),
-    [shows, query]
-  );
+  const filtered = shows;
 
   return (
     <div className="p-4 md:p-6">
