@@ -7,8 +7,6 @@ const PlayerContext = createContext(NO_PLAYER);
 
 export const DEMO_VIDEO = "https://media.w3.org/2010/05/sintel/trailer.mp4";
 
-// Public trackers from around the world — included in every magnet so peers
-// can be discovered even if the user's default tracker is down.
 const TRACKERS = [
   "udp://tracker.openbittorrent.com:1337",
   "udp://tracker.opentrackr.org:1337",
@@ -24,11 +22,6 @@ const TRACKERS = [
   "udp://tracker2.itzhost.com:6969",
 ];
 
-const QUALITIES = ["720p", "1080p", "4K"];
-
-// Build a stable magnet URI for a title + quality (opens the user's torrent
-// client). Quality is folded into the infohash seed so each resolution gets a
-// distinct magnet, and every worldwide tracker is attached for discovery.
 export function buildMagnet(title, id, quality) {
   const seed = `${id || title}|${quality || ""}`;
   let h = 0;
@@ -37,23 +30,6 @@ export function buildMagnet(title, id, quality) {
   const dn = encodeURIComponent(`${title || "media"}${quality ? ` ${quality}` : ""}`);
   const tr = TRACKERS.map((t) => `&tr=${encodeURIComponent(t)}`).join("");
   return `magnet:?xt=urn:btih:${hex}&dn=${dn}${tr}`;
-}
-
-// Build a .torrent file URL for a title + quality.
-export function buildTorrentUrl(id, quality) {
-  const q = quality ? `-${quality.toLowerCase()}` : "";
-  return `https://media-god.app/torrents/${id}${q}.torrent`;
-}
-
-// Build the full source list for a movie/show: trailer (if available), multiple
-// stream mirrors, and magnet + torrent variants across several qualities.
-export function buildMediaSources({ title, id, poster, trailerUrl, providers = [] }) {
-  const sources = [];
-  if (trailerUrl) sources.push({ label: "Trailer", type: "youtube", src: trailerUrl });
-  providers.forEach((p) =>
-    sources.push({ label: p.name, type: "provider", src: p.link, logo: p.logo })
-  );
-  return sources;
 }
 
 export function usePlayer() {
@@ -68,18 +44,44 @@ export function PlayerProvider({ children }) {
     base44.auth.me().then((u) => setHasRd(!!u?.rd_token)).catch(() => {});
   }, []);
 
-  const play = (s) => {
+  const play = async (s) => {
     let sources = s.sources || [];
-    // When the user has a Real-Debrid token, make the RD source the default
-    // for any on-demand content (movies/shows). Live TV is excluded. The RD
-    // source shows a paste-your-own-real-magnet box — only genuine magnets
-    // reach Real-Debrid, so nothing fake pollutes the account.
     const isLive = sources.some((x) => x.live || x.type === "live");
+
+    // Automatically query active scrapers/addons when playing a title
+    if (!isLive && s.title) {
+      try {
+        const addons = await base44.entities.Addon.list("-created_date", 100);
+        const activeAddons = (addons || []).filter((a) => a.active && a.url);
+
+        for (const addon of activeAddons) {
+          try {
+            const targetUrl = addon.url.replace('/manifest.json', `/stream/movie/${encodeURIComponent(s.title)}.json`);
+            const res = await fetch(targetUrl);
+            const data = await res.json();
+            if (data && data.streams) {
+              const scraped = data.streams.map((st) => ({
+                label: st.title ? st.title.split('\n')[0] : "Scraped Source",
+                type: "url",
+                src: st.url || st.infoHash,
+              }));
+              sources = [...scraped, ...sources];
+            }
+          } catch (err) {
+            // Skip failing addon endpoints quietly
+          }
+        }
+      } catch (e) {
+        // Fallback if addon fetch fails entirely
+      }
+    }
+
     if (hasRd && !isLive && !s.noRd) {
       sources = [{ label: "Real-Debrid", type: "rd", src: "" }, ...sources];
     }
     setSource({ ...s, sources });
   };
+
   const close = () => setSource(null);
 
   return (
@@ -89,3 +91,4 @@ export function PlayerProvider({ children }) {
     </PlayerContext.Provider>
   );
 }
+
