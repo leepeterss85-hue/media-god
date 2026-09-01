@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { base44 } from "@/api/base44Client";
 import CastButton from "@/components/mg/CastButton";
 import LiveVideo from "@/components/mg/LiveVideo";
+import PlayerControls from "@/components/mg/PlayerControls";
 
 const currentFilePath = (files) => (files?.find((f) => f.selected) || files?.[0] || {}).path || "";
 
@@ -27,6 +28,7 @@ export default function VideoPlayer({ source, onClose }) {
   const [fileSwitching, setFileSwitching] = useState(false);
   const [pastedMagnet, setPastedMagnet] = useState("");
   const videoRef = useRef(null);
+  const liveVideoRef = useRef(null);
   const stageRef = useRef(null);
   const pollRef = useRef(null);
 
@@ -253,6 +255,11 @@ export default function VideoPlayer({ source, onClose }) {
       if (tag === "input" || tag === "textarea" || e.target?.isContentEditable) return;
       const video = stageRef.current?.querySelector("video");
       if (!video) return;
+      if (e.key >= "0" && e.key <= "9" && video.duration) {
+        e.preventDefault();
+        video.currentTime = video.duration * (parseInt(e.key, 10) / 10);
+        return;
+      }
       switch (e.key) {
         case " ":
         case "k":
@@ -283,6 +290,22 @@ export default function VideoPlayer({ source, onClose }) {
         case "m":
           e.preventDefault();
           video.muted = !video.muted;
+          break;
+        case "j":
+          e.preventDefault();
+          video.currentTime = Math.max(0, (video.currentTime || 0) - 10);
+          break;
+        case "l":
+          e.preventDefault();
+          if (video.duration) video.currentTime = Math.min(video.duration, (video.currentTime || 0) + 10);
+          break;
+        case "<":
+          e.preventDefault();
+          video.playbackRate = Math.max(0.5, (video.playbackRate || 1) - 0.25);
+          break;
+        case ">":
+          e.preventDefault();
+          video.playbackRate = Math.min(2, (video.playbackRate || 1) + 0.25);
           break;
       }
     };
@@ -561,17 +584,19 @@ export default function VideoPlayer({ source, onClose }) {
 
         <div ref={stageRef} className="relative w-full aspect-video bg-black rounded-lg overflow-hidden border border-white/10">
           {rdOverride ? (
-            <video
-              key={rdOverride.src}
-              ref={videoRef}
-              src={rdOverride.src}
-              poster={source.poster}
-              controls
-              playsInline
-              onLoadedMetadata={handleLoadedMetadata}
-              onTimeUpdate={handleTimeUpdate}
-              className="w-full h-full object-contain bg-black"
-            />
+            <>
+              <video
+                key={rdOverride.src}
+                ref={videoRef}
+                src={rdOverride.src}
+                poster={source.poster}
+                playsInline
+                onLoadedMetadata={handleLoadedMetadata}
+                onTimeUpdate={handleTimeUpdate}
+                className="w-full h-full object-contain bg-black"
+              />
+              <PlayerControls key={rdOverride.src} videoRef={videoRef} stageRef={stageRef} isLive={isLive} onFullscreen={goFullscreen} />
+            </>
           ) : active?.type === "youtube" && (
             <iframe
               src={active.src}
@@ -583,14 +608,19 @@ export default function VideoPlayer({ source, onClose }) {
             />
           )}
           {(active?.type === "file" || active?.type === "live") && !rdOverride && (
-            <LiveVideo
-              key={active.src}
-              src={active.src}
-              poster={source.poster}
-              className="w-full h-full object-contain bg-black"
-              onLoadedMetadata={handleLoadedMetadata}
-              onTimeUpdate={handleTimeUpdate}
-            />
+            <>
+              <LiveVideo
+                ref={liveVideoRef}
+                key={active.src}
+                src={active.src}
+                poster={source.poster}
+                controls={false}
+                className="w-full h-full object-contain bg-black"
+                onLoadedMetadata={handleLoadedMetadata}
+                onTimeUpdate={handleTimeUpdate}
+              />
+              <PlayerControls key={active.src} videoRef={liveVideoRef} stageRef={stageRef} isLive={isLive} onFullscreen={goFullscreen} />
+            </>
           )}
           {(active?.type === "rd" || active?.type === "rd_torrent") && !rdOverride && (
             <div className="w-full h-full flex flex-col items-center justify-center gap-3 p-6 text-center">
