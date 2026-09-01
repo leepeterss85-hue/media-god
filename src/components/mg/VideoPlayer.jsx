@@ -88,6 +88,7 @@ export default function VideoPlayer({ source, onClose }) {
         }
       }
       // No magnet / not cached → look for this title in the user's RD library.
+      let cached = false;
       try {
         const fc = await base44.functions.invoke("realDebrid", {
           action: "find_cached",
@@ -102,10 +103,48 @@ export default function VideoPlayer({ source, onClose }) {
         if (d.status === "ready" && d.stream_url) {
           setRdOverride({ src: d.stream_url, label: "Real-Debrid Stream", file: currentFilePath(d.files) });
           setRdFiles(d.files || []);
+          cached = true;
         } else if (d.torrent_id) {
           setRdTorrentId(d.torrent_id); // auto-poll resolves + plays
+          cached = true;
         }
-        // not_found → paste box shows (rdOverride stays null)
+        // not_found → fall through to saved-magnet lookup
+      } catch {}
+      if (cached) return;
+
+      // No cached copy — reuse a magnet previously pasted for this title so
+      // playback stays one-click even after the RD torrent is deleted. The
+      // box is pre-filled too, so if re-caching fails the user just hits Play.
+      try {
+        const links = await base44.entities.RdLink.filter({
+          title: source.rdTitle || source.title,
+          ...(source.rdYear != null ? { year: source.rdYear } : {}),
+          ...(source.rdSeason != null ? { season: source.rdSeason } : {}),
+          ...(source.rdEpisode != null ? { episode: source.rdEpisode } : {}),
+        });
+        if (cancelled) return;
+        if (links.length > 0 && links[0].magnet) {
+          const savedMagnet = links[0].magnet;
+          setPastedMagnet(savedMagnet);
+          const res = await base44.functions.invoke("realDebrid", {
+            action: "add_magnet",
+            magnet: savedMagnet,
+            title: source.rdTitle || source.title,
+            ...(source.rdYear != null ? { year: source.rdYear } : {}),
+            ...(source.rdSeason != null ? { season: source.rdSeason } : {}),
+            ...(source.rdEpisode != null ? { episode: source.rdEpisode } : {}),
+          });
+          if (cancelled) return;
+          const data = res.data || {};
+          if (data.status === "ready" && data.stream_url) {
+            setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream", file: currentFilePath(data.files) });
+            setRdFiles(data.files || []);
+          } else if (data.torrent_id) {
+            setRdTorrentId(data.torrent_id);
+          } else if (data.error) {
+            setRdError(data.error);
+          }
+        }
       } catch {}
     };
     run().finally(() => {
@@ -342,6 +381,29 @@ export default function VideoPlayer({ source, onClose }) {
   };
   const openLink = (href) => window.open(href, "_blank", "noopener,noreferrer");
 
+  // Remember a magnet the user pasted for this title so next time it
+  // auto-resolves without re-pasting.
+  const saveRdLink = (magnet, torrentId) => {
+    const title = source.rdTitle || source.title;
+    if (!title || !magnet) return;
+    const query = {
+      title,
+      ...(source.rdYear != null ? { year: source.rdYear } : {}),
+      ...(source.rdSeason != null ? { season: source.rdSeason } : {}),
+      ...(source.rdEpisode != null ? { episode: source.rdEpisode } : {}),
+    };
+    const patch = { magnet, ...(torrentId ? { torrent_id: torrentId } : {}) };
+    base44.entities.RdLink.filter(query)
+      .then((rows) => {
+        if (rows.length > 0) base44.entities.RdLink.update(rows[0].id, patch).catch(() => {});
+        else
+          base44.entities.RdLink
+            .create({ title, year: source.rdYear || "", season: source.rdSeason || "", episode: source.rdEpisode || "", ...patch })
+            .catch(() => {});
+      })
+      .catch(() => {});
+  };
+
   const resolvePasted = async () => {
     if (!pastedMagnet.trim().startsWith("magnet:")) {
       setRdError("Paste a valid magnet link (starts with magnet:?xt=…)");
@@ -365,8 +427,10 @@ export default function VideoPlayer({ source, onClose }) {
       if (data.status === "ready" && data.stream_url) {
         setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream", file: currentFilePath(data.files) });
         setRdFiles(data.files || []);
+        saveRdLink(pastedMagnet.trim(), data.torrent_id);
       } else if (data.status === "preparing") {
         setRdTorrentId(data.torrent_id);
+        saveRdLink(pastedMagnet.trim(), data.torrent_id);
         // auto-poll effect takes over
       } else {
         setRdError(data.error || "Real-Debrid could not resolve this magnet.");
