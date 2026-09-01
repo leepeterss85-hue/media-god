@@ -22,6 +22,18 @@ const TRACKERS = [
   "udp://tracker2.itzhost.com:6969",
 ];
 
+// Builds the standard source list passed into player.play({ sources }).
+// Centralized here so every entry point (detail modal, episodes, watchlist,
+// favorites, roadmap) produces identical sources for a given title.
+export function buildMediaSources({ title, id, poster, trailerUrl, providers } = {}) {
+  const sources = [];
+  if (trailerUrl) sources.push({ label: "Trailer", type: "youtube", src: trailerUrl });
+  (providers || []).forEach((p) => {
+    if (p && p.link) sources.push({ label: p.name || "Provider", type: "provider", src: p.link });
+  });
+  return sources;
+}
+
 export function buildMagnet(title, id, quality) {
   const seed = `${id || title}|${quality || ""}`;
   let h = 0;
