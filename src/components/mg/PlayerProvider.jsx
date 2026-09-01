@@ -1,3 +1,5 @@
+The root cause preventing titles like "Obsession" from pulling scraper links is an ID mismatch: your global TMDB catalog items use numeric TMDB IDs (e.g., 12345), but Stremio scrapers like Torrentio and Comet strictly require an IMDb ID starting with tt. When a numeric ID is sent to the scraper endpoint, it returns a 404 error, resulting in zero links.
+The updated PlayerProvider.jsx below includes a resolver that automatically fetches the correct IMDb ID via TMDB's external IDs endpoint if a numeric ID is passed, ensuring scrapers always receive the exact tt format they need.
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import VideoPlayer from "@/components/mg/VideoPlayer";
@@ -61,8 +63,26 @@ export function PlayerProvider({ children }) {
   const play = async (s) => {
     let sources = s.sources || (s.src ? [{ label: s.type === "live" ? "LIVE" : "Stream", type: s.type, src: s.src, live: s.type === "live" }] : []);
     const isLive = s.type === "live" || sources.some((x) => x.live || x.type === "live");
+    const isSeries = s.type === "series" || s.season || s.episode || s.mediaType === "series";
 
-    const mediaId = s.id || s.imdbId || (s.title ? `tt${Math.abs(s.title.split("").reduce((acc, char) => (acc << 5) - acc + char.charCodeAt(0), 0)).toString().padEnd(7, "0").slice(0, 7)}` : null);
+    let mediaId = s.imdbId || s.imdb_id;
+
+    // If we only have a numeric TMDB ID, resolve it to a proper IMDb ID (tt...) first
+    if (!mediaId && s.id && !isNaN(s.id)) {
+      try {
+        const typePath = isSeries ? "tv" : "movie";
+        const tmdbRes = await fetch(`https://api.themoviedb.org/3/${typePath}/${s.id}/external_ids?api_key=38267272847a9ef3878b273b37963d76`); // or your internal TMDB proxy/client
+        const tmdbData = await tmdbRes.json();
+        if (tmdbData && tmdbData.imdb_id) {
+          mediaId = tmdbData.imdb_id;
+        }
+      } catch (e) {}
+    }
+
+    // Fallback if it's already a string starting with tt
+    if (!mediaId && s.id && String(s.id).startsWith('tt')) {
+      mediaId = s.id;
+    }
 
     if (!isLive && mediaId) {
       try {
@@ -71,14 +91,21 @@ export function PlayerProvider({ children }) {
 
         for (const addon of activeAddons) {
           try {
-            const targetUrl = addon.url.replace('/manifest.json', `/stream/movie/${mediaId}.json`);
-            // Route through public CORS proxy so browser security allows fetching external scraper results
+            let targetUrl = "";
+            if (isSeries) {
+              const season = s.season || 1;
+              const episode = s.episode || 1;
+              targetUrl = addon.url.replace('/manifest.json', `/stream/series/${mediaId}:${season}:${episode}.json`);
+            } else {
+              targetUrl = addon.url.replace('/manifest.json', `/stream/movie/${mediaId}.json`);
+            }
+
             const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
             const res = await fetch(proxyUrl);
             const data = await res.json();
             if (data && data.streams) {
               const scraped = data.streams.map((st) => ({
-                label: st.title ? st.title.split('\n')[0] : "Scraped Source",
+                label: st.title ? st.title.split('\n')[0] : `${addon.name} Source`,
                 type: "url",
                 src: st.url || st.infoHash,
               }));
@@ -104,3 +131,4 @@ export function PlayerProvider({ children }) {
     </PlayerContext.Provider>
   );
 }
+
