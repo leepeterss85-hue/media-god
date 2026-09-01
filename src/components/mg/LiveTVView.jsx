@@ -3,6 +3,7 @@ import { Search, Wifi, Users, ChevronLeft } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { cn } from "@/lib/utils";
 import { usePlayer, DEMO_VIDEO } from "@/components/mg/PlayerProvider";
+import FreeTvChannels from "@/components/mg/FreeTvChannels";
 
 const TABS = ["TV", "Rest of World", "Free Streams"];
 const SORTS = ["Default", "Viewers", "A-Z", "Quality", "Region"];
@@ -64,6 +65,10 @@ export default function LiveTVView() {
         </div>
       </div>
 
+      {tab === "Free Streams" ? (
+        <FreeTvChannels />
+      ) : (
+        <>
       <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
         {["UK Television", "Rest of World (13473)"].map((s) => (
           <button
@@ -140,6 +145,8 @@ export default function LiveTVView() {
             </button>
           ))}
         </div>
+      )}
+        </>
       )}
     </div>
   );

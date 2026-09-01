@@ -3,6 +3,7 @@ import { X, Copy, Check, ExternalLink, Link, Download, Tv, Loader2, Zap, Refresh
 import { cn } from "@/lib/utils";
 import { base44 } from "@/api/base44Client";
 import CastButton from "@/components/mg/CastButton";
+import LiveVideo from "@/components/mg/LiveVideo";
 
 const currentFilePath = (files) => (files?.find((f) => f.selected) || files?.[0] || {}).path || "";
 
@@ -368,7 +369,7 @@ export default function VideoPlayer({ source, onClose }) {
             <h3 className="text-white font-semibold text-sm truncate">{source.title}</h3>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            {(active?.type === "file" || rdOverride) && (
+            {(active?.type === "file" || active?.type === "live" || rdOverride) && (
               <>
                 <button
                   onClick={goFullscreen}
@@ -411,14 +412,11 @@ export default function VideoPlayer({ source, onClose }) {
               referrerPolicy="strict-origin-when-cross-origin"
             />
           )}
-          {active?.type === "file" && (
-            <video
+          {(active?.type === "file" || active?.type === "live") && !rdOverride && (
+            <LiveVideo
               key={active.src}
-              ref={videoRef}
               src={active.src}
               poster={source.poster}
-              controls
-              playsInline
               className="w-full h-full object-contain bg-black"
             />
           )}
