@@ -62,7 +62,13 @@ export default async function(req) {
         body: 'files=all',
       });
 
-      const stream = await resolveStreamable(torrentId, authHeaders, formHeaders);
+      const ep = {
+        title: body.title,
+        ...(body.year != null ? { year: String(body.year) } : {}),
+        ...(body.season != null ? { season: String(body.season) } : {}),
+        ...(body.episode != null ? { episode: String(body.episode) } : {}),
+      };
+      const stream = await resolveStreamable(torrentId, authHeaders, formHeaders, ep);
       if (stream.error) return Response.json({ error: stream.error }, { status: 502 });
       return Response.json({
         status: stream.ready ? 'ready' : 'preparing',
