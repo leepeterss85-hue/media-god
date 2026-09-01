@@ -87,11 +87,11 @@ export default function AddonsView() {
   const [query, setQuery] = useState("");
   const { toast } = useToast();
 
-  // Persist the legitimate catalog/metadata providers (Cinemeta, CyberFlix,
-  // OpenSubtitles) to the entity on first load so they're genuinely active
-  // and discoverable app-wide — not just held in local UI state. Torrent
-  // scrapers stay as local-only defaults so they never auto-run.
-  const SEED_ADDONS = DEFAULT_ADDONS.filter((a) => a.type === "Metadata" || a.type === "Subtitles");
+  // Persist torrent scrapers, providers, metadata, and subtitles to the database
+  // on first load so they are discoverable app-wide by the player.
+  const SEED_ADDONS = DEFAULT_ADDONS.filter(
+    (a) => a.type === "Metadata" || a.type === "Subtitles" || a.type === "Torrent" || a.type === "Provider"
+  );
 
   const load = () => {
     setLoading(true);
@@ -109,8 +109,6 @@ export default function AddonsView() {
         const entityNames = new Set((list || []).map((x) => x.name));
         const visibleDefaults = DEFAULT_ADDONS.filter((d) => !entityNames.has(d.name));
         const combined = [...visibleDefaults, ...(list || [])];
-        // Collapse duplicate records (e.g. repeated Cinemeta entries from
-        // earlier seeds) so each catalog/provider appears once.
         const seenNames = new Set();
         const deduped = combined.filter((a) => {
           if (seenNames.has(a.name)) return false;
@@ -270,3 +268,4 @@ export default function AddonsView() {
     </div>
   );
 }
+
