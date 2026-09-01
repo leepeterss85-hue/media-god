@@ -243,17 +243,38 @@ export default async function(req) {
         const e = String(episode).replace(/^0+/, '');
         epRegex = new RegExp(`s0*${s}(?!\\d)e0*${e}(?!\\d)`, 'i');
       }
+      const titleYears = (title.match(/\b(19\d{2}|20\d{2})\b/g) || []).map((y) => y);
       const scoreTorrent = (t) => {
         const rawFn = t.filename || t.original_filename || '';
         const fn = norm(rawFn);
         if (!fn || !want) return -1;
-        let s = 0;
-        if (fn.includes(want)) s += 100; // contiguous title match (strongest)
+        // Reject torrents whose filename carries a release year that conflicts
+        // with the requested year (ignoring any 4-digit number that's part of
+        // the title itself, e.g. "Blade Runner 2049"). A different year almost
+        // always means a different film — better to surface no match (paste
+        // box) than to play the wrong movie.
+        if (wantYear) {
+          const fnYears = (rawFn.match(/\b(19\d{2}|20\d{2})\b/g) || []);
+          const extra = fnYears.filter((y) => !titleYears.includes(y));
+          if (extra.length > 0 && !extra.includes(wantYear)) return -1;
+        }
         const fnWords = new Set(rawFn.toLowerCase().split(/[^a-z0-9]+/));
-        const matched = titleWords.filter((w) => fnWords.has(w)).length;
-        if (titleWords.length > 0 && matched === titleWords.length) s += 50;
+        // Require a real title match — the normalized title as a contiguous
+        // chunk (handles compound names like "Spider-Man" stored as "spiderman"),
+        // OR every significant title word as a token. Short titles such as "It"
+        // would false-match as substrings of unrelated words, so they must
+        // appear as a whole token instead.
+        const contiguous = want.length >= 4 && fn.includes(want);
+        const allWords = titleWords.length > 0 && titleWords.every((w) => fnWords.has(w));
+        const tokenMatch = titleWords.length === 0 && fnWords.has(want);
+        if (!contiguous && !allWords && !tokenMatch) return -1;
+        let s = 0;
+        if (contiguous) s += 100;
+        if (allWords) s += 50;
+        if (tokenMatch) s += 100;
+        if (fn.startsWith(want) && want.length >= 4) s += 20;
         if (wantYear && fn.includes(wantYear)) s += 15;
-        return s; // downloaded status is a sort tiebreaker only, not a match
+        return s;
       };
       const candidates = (data || []).filter((t) => {
         const st = t.status;
@@ -267,7 +288,17 @@ export default async function(req) {
         const exact = candidates.filter((t) => epRegex.test(t.filename || t.original_filename || ''));
         if (exact.length > 0) usable = exact;
       }
-      usable.sort((a, b) => scoreTorrent(b) - scoreTorrent(a) || (b.status === 'downloaded' ? 1 : 0) - (a.status === 'downloaded' ? 1 : 0));
+      usable.sort((a, b) => {
+        const sa = scoreTorrent(a), sb = scoreTorrent(b);
+        if (sb !== sa) return sb - sa;
+        const aVid = VIDEO_RE.test(a.filename || a.original_filename || '') ? 1 : 0;
+        const bVid = VIDEO_RE.test(b.filename || b.original_filename || '') ? 1 : 0;
+        if (bVid !== aVid) return bVid - aVid;             // prefer real video files over .exe fakes
+        const aDl = a.status === 'downloaded' ? 1 : 0;
+        const bDl = b.status === 'downloaded' ? 1 : 0;
+        if (bDl !== aDl) return bDl - aDl;                 // prefer ready-to-play
+        return (b.bytes || 0) - (a.bytes || 0);           // prefer higher quality
+      });
       if (usable.length === 0) return Response.json({ status: 'not_found' });
       const best = usable[0];
       // If the best match is already downloaded, resolve a direct streamable
