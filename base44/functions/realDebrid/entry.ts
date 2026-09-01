@@ -236,7 +236,7 @@ export default async function(req) {
       if (season && episode) {
         const s = String(season).replace(/^0+/, '');
         const e = String(episode).replace(/^0+/, '');
-        epRegex = new RegExp(`s0*${s}e0*${e}`, 'i');
+        epRegex = new RegExp(`s0*${s}(?!\\d)e0*${e}(?!\\d)`, 'i');
       }
       const scoreTorrent = (t) => {
         const rawFn = t.filename || t.original_filename || '';
@@ -354,8 +354,8 @@ async function resolveStreamable(torrentId, authHeaders, formHeaders, ep) {
   if (ep && ep.season && ep.episode) {
     const s = String(ep.season).replace(/^0+/, '');
     const e = String(ep.episode).replace(/^0+/, '');
-    const epRe = new RegExp(`s0*${s}e0*${e}`, 'i');
-    const epReAlt = new RegExp(`\\b0*${s}x0*${e}\\b`, 'i');
+    const epRe = new RegExp(`s0*${s}(?!\\d)e0*${e}(?!\\d)`, 'i');
+    const epReAlt = new RegExp(`\\b0*${s}x0*${e}(?!\\d)`, 'i');
     const match = pool.find((f) => {
       const p = (f.path || '').split('/').pop();
       return epRe.test(p) || epReAlt.test(p);
