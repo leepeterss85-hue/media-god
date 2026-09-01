@@ -65,6 +65,9 @@ export default function VideoPlayer({ source, onClose }) {
   // neither yields a stream, stay on the RD source and show the paste box.
   useEffect(() => {
     if (active?.type !== "rd") return;
+    // "Paste Magnet" source: skip the cache/library lookup and show the
+    // paste box immediately so the user can drop in their own real magnet.
+    if (active.skipAutoResolve) return;
     let cancelled = false;
     setRdResolving(true);
     setRdError("");
