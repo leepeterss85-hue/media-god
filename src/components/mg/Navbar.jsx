@@ -1,5 +1,5 @@
 import React from "react";
-import { Shield, Film, Tv, Bookmark, Puzzle, Calendar, Settings, Power, MonitorPlay, HardDrive, Users, Home as HomeIcon, Search, Heart, Activity } from "lucide-react";
+import { Shield, Film, Tv, Bookmark, Puzzle, Calendar, Settings, Power, MonitorPlay, HardDrive, Users, Home as HomeIcon, Search, Heart, Activity, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { base44 } from "@/api/base44Client";
 
@@ -13,6 +13,7 @@ const NAV = [
   { id: "watchparty", label: "Watch Party", icon: Users },
   { id: "rdlib", label: "RD Library", icon: HardDrive },
   { id: "downloads", label: "Downloads", icon: Activity },
+  { id: "stats", label: "Insights", icon: BarChart3 },
   { id: "addons", label: "Addons", icon: Puzzle },
   { id: "roadmap", label: "Roadmap", icon: Calendar },
   { id: "settings", label: "Settings", icon: Settings },
