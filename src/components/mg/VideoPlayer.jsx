@@ -276,15 +276,15 @@ export default function VideoPlayer({ source, onClose }) {
   // and periodically save playback progress so the user can resume later.
   const lastSaveRef = useRef(0);
   const cwIdRef = useRef({});
-  const saveProgress = (t, d) => {
+  const saveProgress = (t, d, force) => {
     if (isLive || !source.title) return;
     const url = rdOverride?.src || active?.src;
     if (!url) return;
     const now = Date.now();
-    if (now - lastSaveRef.current < 10000) return;
+    if (!force && now - lastSaveRef.current < 10000) return;
     lastSaveRef.current = now;
     const key = `${source.title}|${source.rdYear || source.year || ""}`;
-    const patch = { progress: t, duration: d, video_url: url, poster_url: source.poster || "" };
+    const patch = { progress: t, duration: d, video_url: url, poster_url: source.poster || "", source_type: rdOverride ? "rd" : "file" };
     const id = cwIdRef.current[key];
     if (id) {
       base44.entities.ContinueWatching.update(id, patch).catch(() => {});
@@ -308,6 +308,19 @@ export default function VideoPlayer({ source, onClose }) {
         .catch(() => {});
     }
   };
+  const saveProgressRef = useRef(saveProgress);
+  saveProgressRef.current = saveProgress;
+  const lastPosRef = useRef({ t: 0, d: 0 });
+
+  // Final unthrottled save when the player closes so the exact last position
+  // is captured (periodic saves are throttled to every 10s).
+  useEffect(() => {
+    return () => {
+      const { t, d } = lastPosRef.current;
+      if (t > 5) saveProgressRef.current?.(t, d, true);
+    };
+  }, []);
+
   const handleLoadedMetadata = (e) => {
     const v = e.target;
     if (source.startTime && source.startTime > 5) {
@@ -316,6 +329,7 @@ export default function VideoPlayer({ source, onClose }) {
   };
   const handleTimeUpdate = (e) => {
     const v = e.target;
+    lastPosRef.current = { t: v.currentTime || 0, d: v.duration || 0 };
     saveProgress(v.currentTime || 0, v.duration || 0);
   };
 

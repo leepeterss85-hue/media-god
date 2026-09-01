@@ -35,9 +35,24 @@ export default function ContinueWatchingRow() {
   };
 
   const resume = (it) => {
+    if (it.source_type === "rd") {
+      // Real-Debrid stream URLs expire, so re-resolve from the user's RD
+      // library and seek to the saved position once the stream loads.
+      player.play({
+        title: it.title,
+        poster: it.poster_url,
+        rdTitle: it.title,
+        rdYear: it.year,
+        startTime: it.progress,
+        noRd: true,
+        sources: [{ label: "Real-Debrid", type: "rd", src: "" }],
+      });
+      return;
+    }
     player.play({
       title: it.title,
       poster: it.poster_url,
+      rdYear: it.year,
       startTime: it.progress,
       noRd: true,
       sources: [{ label: "Resume", type: "file", src: it.video_url }],

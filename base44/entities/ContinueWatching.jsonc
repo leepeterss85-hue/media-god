@@ -24,6 +24,10 @@
     "duration": {
       "type": "number",
       "default": 0
+    },
+    "source_type": {
+      "type": "string",
+      "default": "file"
     }
   },
   "required": [
