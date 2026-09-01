@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Shield, Film, Tv, Bookmark, Puzzle, Calendar, Settings, Power, MonitorPlay, HardDrive, Users, Home as HomeIcon, Menu, X, Search } from "lucide-react";
+import { Shield, Film, Tv, Bookmark, Puzzle, Calendar, Settings, Power, MonitorPlay, HardDrive, Users, Home as HomeIcon, Menu, X, Search, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { base44 } from "@/api/base44Client";
 
@@ -9,6 +9,7 @@ const NAV = [
   { id: "tv", label: "TV Shows", icon: MonitorPlay },
   { id: "live", label: "Live TV", icon: Tv },
   { id: "watchlist", label: "Watchlist", icon: Bookmark },
+  { id: "favorites", label: "Favorites", icon: Heart },
   { id: "watchparty", label: "Watch Party", icon: Users },
   { id: "rdlib", label: "RD Library", icon: HardDrive },
   { id: "addons", label: "Addons", icon: Puzzle },
@@ -16,7 +17,7 @@ const NAV = [
   { id: "settings", label: "Settings", icon: Settings },
 ];
 
-export default function Navbar({ active, onSelect }) {
+export default function Navbar({ active, onSelect, onSearch }) {
   const [open, setOpen] = useState(false);
   const select = (id) => { onSelect(id); setOpen(false); };
 
@@ -50,7 +51,7 @@ export default function Navbar({ active, onSelect }) {
           })}
         </nav>
         <div className="ml-auto flex items-center gap-1 shrink-0">
-          <button onClick={() => select("movies")} className="flex items-center justify-center w-9 h-9 rounded-lg text-white/70 hover:text-white hover:bg-white/5" aria-label="Search">
+          <button onClick={onSearch} className="flex items-center justify-center w-9 h-9 rounded-lg text-white/70 hover:text-white hover:bg-white/5" aria-label="Search">
             <Search className="w-5 h-5" />
           </button>
           <button onClick={() => base44.auth.logout()} className="flex items-center justify-center w-9 h-9 rounded-lg text-white/70 hover:text-white hover:bg-white/5" aria-label="Sign out">

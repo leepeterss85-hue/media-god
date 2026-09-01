@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Users, Copy, Check, LogOut, Send, Plus, ArrowRight, Loader2 } from "lucide-react";
+import { Users, Copy, Check, LogOut, Send, Plus, ArrowRight, Loader2, Share2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import PartyPlayer from "@/components/mg/PartyPlayer";
 
@@ -15,6 +15,7 @@ export default function WatchPartyView() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [cTitle, setCTitle] = useState("");
   const [cUrl, setCUrl] = useState("");
   const [cPoster, setCPoster] = useState("");
@@ -74,17 +75,26 @@ export default function WatchPartyView() {
     finally { setBusy(false); }
   };
 
-  const joinRoom = async () => {
-    if (!code.trim()) { setError("Enter a room code"); return; }
+  const joinRoom = async (overrideCode) => {
+    const c = (overrideCode || code).trim();
+    if (!c) { setError("Enter a room code"); return; }
     setBusy(true); setError("");
     try {
-      const found = await base44.entities.WatchParty.filter({ room_code: code.trim().toUpperCase() });
+      const found = await base44.entities.WatchParty.filter({ room_code: c.toUpperCase() });
       if (found.length === 0) { setError("No room with that code"); return; }
       setParty(found[0]);
       setMode("room");
     } catch (e) { setError(e.message || "Could not join room"); }
     finally { setBusy(false); }
   };
+
+  // Auto-join when opened via a shared link (?party=CODE).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const p = params.get("party");
+    if (p) { setCode(p.toUpperCase()); joinRoom(p); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const leave = () => { setParty(null); setMessages([]); setMode("lobby"); };
 
@@ -106,6 +116,15 @@ export default function WatchPartyView() {
       await navigator.clipboard.writeText(party.room_code);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
+    } catch {}
+  };
+
+  const shareLink = async () => {
+    const url = `${window.location.origin}/?party=${party.room_code}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 1500);
     } catch {}
   };
 
@@ -158,6 +177,10 @@ export default function WatchPartyView() {
             <button onClick={copyCode} className="flex items-center gap-1 bg-mg-card border border-white/10 rounded px-2 py-0.5 text-mg-green font-mono text-xs font-bold">
               {party.room_code}
               {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+            </button>
+            <button onClick={shareLink} className="flex items-center gap-1 bg-mg-card border border-white/10 rounded px-2 py-0.5 text-white/80 text-xs font-semibold hover:text-white">
+              <Share2 className="w-3 h-3" />
+              {linkCopied ? <Check className="w-3 h-3 text-mg-green" /> : "Share"}
             </button>
             <span className="text-[10px] text-white/30">{isHost ? "HOST" : "GUEST"}</span>
           </div>

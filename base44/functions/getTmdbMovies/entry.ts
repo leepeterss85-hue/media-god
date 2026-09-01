@@ -36,6 +36,39 @@ export default async function(req) {
     const apiKey = secrets.get('TMDB_API_KEY');
     if (!apiKey) return Response.json({ error: 'TMDB API key not configured' }, { status: 500 });
 
+    // Multi-search (movies + TV) for the global search dialog.
+    if (body.multi_search) {
+      const q = String(body.multi_search).trim();
+      if (!q) return Response.json({ movies: [] });
+      const sRes = await fetch(
+        `${TMDB_BASE}/search/multi?api_key=${apiKey}&language=en-GB&query=${encodeURIComponent(q)}&page=1`,
+        { headers: { Accept: 'application/json' } }
+      );
+      if (!sRes.ok) return Response.json({ error: `TMDB error: ${sRes.status}` }, { status: 502 });
+      const sData = await sRes.json();
+      const items = (sData.results || [])
+        .filter((m) => m.media_type === 'movie' || m.media_type === 'tv')
+        .slice(0, 12)
+        .map((m) => {
+          const isTv = m.media_type === 'tv';
+          const title = isTv ? (m.name || m.title) : (m.title || m.name);
+          const date = isTv ? (m.first_air_date || '') : (m.release_date || '');
+          return {
+            id: String(m.id),
+            title,
+            year: date.slice(0, 4),
+            release_date: date,
+            poster_url: m.poster_path ? `${IMG_BASE}${m.poster_path}` : '',
+            backdrop_url: m.backdrop_path ? `https://image.tmdb.org/t/p/w780${m.backdrop_path}` : '',
+            description: m.overview || '',
+            tmdb_id: m.id,
+            media_type: isTv ? 'tv' : 'movie',
+            vote_average: m.vote_average || 0,
+          };
+        });
+      return Response.json({ movies: items });
+    }
+
     // Season episodes for a TV show.
     if (movieId && mediaType === 'tv' && seasonNumber !== undefined && seasonNumber !== null && seasonNumber !== '') {
       const sRes = await fetch(

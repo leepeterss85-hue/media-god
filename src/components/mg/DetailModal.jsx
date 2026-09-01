@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { X, Star, Clock, Play, Plus, Check, ExternalLink, Tv } from "lucide-react";
+import { X, Star, Clock, Play, Plus, Check, ExternalLink, Tv, Heart } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
 import { useToast } from "@/components/ui/use-toast";
@@ -10,6 +10,7 @@ export default function DetailModal({ item, mediaType, onClose }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [added, setAdded] = useState(false);
+  const [favorited, setFavorited] = useState(false);
   const { toast } = useToast();
   const player = usePlayer();
 
@@ -60,6 +61,40 @@ export default function DetailModal({ item, mediaType, onClose }) {
       });
       setAdded(true);
       toast({ title: "Added to Watchlist", description: item.title });
+    } catch {
+      toast({ title: "Could not add", variant: "destructive" });
+    }
+  };
+
+  useEffect(() => {
+    base44.entities.Favorite.filter({ tmdb_id: String(item.id) })
+      .then((rows) => setFavorited(rows.length > 0))
+      .catch(() => {});
+  }, [item.id]);
+
+  const toggleFavorite = async () => {
+    if (favorited) {
+      try {
+        const rows = await base44.entities.Favorite.filter({ tmdb_id: String(item.id) });
+        if (rows.length > 0) await base44.entities.Favorite.delete(rows[0].id);
+        setFavorited(false);
+        toast({ title: "Removed from Favorites", description: item.title });
+      } catch {
+        toast({ title: "Could not update", variant: "destructive" });
+      }
+      return;
+    }
+    try {
+      await base44.entities.Favorite.create({
+        title: item.title,
+        year: item.year,
+        poster_url: item.poster_url,
+        description: item.description,
+        tmdb_id: String(item.id),
+        media_type: mediaType,
+      });
+      setFavorited(true);
+      toast({ title: "Added to Favorites", description: item.title });
     } catch {
       toast({ title: "Could not add", variant: "destructive" });
     }
@@ -141,6 +176,13 @@ export default function DetailModal({ item, mediaType, onClose }) {
             >
               {added ? <Check className="w-4 h-4 text-mg-green" /> : <Plus className="w-4 h-4" />}
               {added ? "Added" : "Watchlist"}
+            </button>
+            <button
+              onClick={toggleFavorite}
+              className="flex items-center justify-center gap-1.5 bg-mg-card border border-white/10 text-white text-sm font-semibold px-4 py-2.5 rounded-lg hover:bg-white/10"
+            >
+              <Heart className={favorited ? "w-4 h-4 fill-red-500 text-red-500" : "w-4 h-4"} />
+              {favorited ? "Favorited" : "Favorite"}
             </button>
           </div>
 

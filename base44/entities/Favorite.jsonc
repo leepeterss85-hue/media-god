@@ -1,0 +1,42 @@
+{
+  "name": "Favorite",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "year": {
+      "type": "string"
+    },
+    "poster_url": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "tmdb_id": {
+      "type": "string"
+    },
+    "media_type": {
+      "type": "string",
+      "default": "movie"
+    }
+  },
+  "required": [
+    "title"
+  ],
+  "rls": {
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}
