@@ -5,7 +5,7 @@ import MoviesView from "@/components/mg/MoviesView";
 import TvShowsView from "@/components/mg/TvShowsView";
 import LiveTVView from "@/components/mg/LiveTVView";
 import WatchlistView from "@/components/mg/WatchlistView";
-import RdLibraryView from "@/components/mg/RdLibraryView";
+import DebridLibrariesView from "@/components/mg/DebridLibrariesView";
 import DebridDashboard from "@/components/mg/DebridDashboard";
 import StatsView from "@/components/mg/StatsView";
 import AddonsView from "@/components/mg/AddonsView";
@@ -36,7 +36,7 @@ export default function Home() {
         {view === "watchlist" && <WatchlistView />}
         {view === "favorites" && <FavoritesView />}
         {view === "watchparty" && <WatchPartyView />}
-        {view === "rdlib" && <RdLibraryView />}
+        {view === "libraries" && <DebridLibrariesView />}
         {view === "downloads" && <DebridDashboard />}
         {view === "stats" && <StatsView />}
         {view === "addons" && <AddonsView />}

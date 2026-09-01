@@ -11,7 +11,7 @@ const NAV = [
   { id: "watchlist", label: "Watchlist", icon: Bookmark },
   { id: "favorites", label: "Favorites", icon: Heart },
   { id: "watchparty", label: "Watch Party", icon: Users },
-  { id: "rdlib", label: "RD Library", icon: HardDrive },
+  { id: "libraries", label: "Libraries", icon: HardDrive },
   { id: "downloads", label: "Downloads", icon: Activity },
   { id: "stats", label: "Insights", icon: BarChart3 },
   { id: "addons", label: "Addons", icon: Puzzle },
