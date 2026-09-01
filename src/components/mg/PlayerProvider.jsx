@@ -59,8 +59,8 @@ export function PlayerProvider({ children }) {
   }, []);
 
   const play = async (s) => {
-    let sources = s.sources || [];
-    const isLive = sources.some((x) => x.live || x.type === "live");
+    let sources = s.sources || (s.src ? [{ label: s.type === "live" ? "LIVE" : "Stream", type: s.type, src: s.src, live: s.type === "live" }] : []);
+    const isLive = s.type === "live" || sources.some((x) => x.live || x.type === "live");
 
     const mediaId = s.id || s.imdbId || (s.title ? `tt${Math.abs(s.title.split("").reduce((acc, char) => (acc << 5) - acc + char.charCodeAt(0), 0)).toString().padEnd(7, "0").slice(0, 7)}` : null);
 
@@ -104,4 +104,3 @@ export function PlayerProvider({ children }) {
     </PlayerContext.Provider>
   );
 }
-
