@@ -1,0 +1,42 @@
+{
+  "name": "RdLink",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "year": {
+      "type": "string"
+    },
+    "season": {
+      "type": "string"
+    },
+    "episode": {
+      "type": "string"
+    },
+    "magnet": {
+      "type": "string"
+    },
+    "torrent_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "title",
+    "magnet"
+  ],
+  "rls": {
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

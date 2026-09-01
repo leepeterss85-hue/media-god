@@ -70,6 +70,20 @@ export default async function(req) {
       };
       const stream = await resolveStreamable(torrentId, authHeaders, formHeaders, ep);
       if (stream.error) return Response.json({ error: stream.error }, { status: 502 });
+      // Remember this magnet so the title auto-plays next time (no paste box).
+      if (body.title) {
+        try {
+          const rYear = (body.year != null ? String(body.year) : '').trim();
+          const rSeason = body.season != null ? String(body.season) : '';
+          const rEpisode = body.episode != null ? String(body.episode) : '';
+          const existing = await base44.entities.RdLink.filter({ title: body.title.trim(), year: rYear, season: rSeason, episode: rEpisode });
+          if (existing.length > 0) {
+            await base44.entities.RdLink.update(existing[0].id, { magnet, torrent_id: String(torrentId) });
+          } else {
+            await base44.entities.RdLink.create({ title: body.title.trim(), year: rYear, season: rSeason, episode: rEpisode, magnet, torrent_id: String(torrentId) });
+          }
+        } catch {}
+      }
       return Response.json({
         status: stream.ready ? 'ready' : 'preparing',
         torrent_id: torrentId,
@@ -305,7 +319,50 @@ export default async function(req) {
         if (bDl !== aDl) return bDl - aDl;                 // prefer ready-to-play
         return (b.bytes || 0) - (a.bytes || 0);           // prefer higher quality
       });
-      if (usable.length === 0) return Response.json({ status: 'not_found' });
+      if (usable.length === 0) {
+        // No library match — replay a magnet the user previously pasted for
+        // this title. If the old torrent is still on the account, play it
+        // directly; otherwise re-add the remembered magnet. This makes a
+        // title the user linked once auto-play on every future click.
+        try {
+          const remembered = await base44.entities.RdLink.filter({ title, year, season, episode });
+          if (remembered.length > 0) {
+            const rec = remembered[0];
+            if (rec.torrent_id) {
+              const stream = await resolveStreamable(rec.torrent_id, authHeaders, formHeaders, { title, year, season, episode });
+              if (!stream.error && (stream.ready || stream.rd_status)) {
+                return Response.json({
+                  status: stream.ready ? 'ready' : 'preparing',
+                  torrent_id: String(rec.torrent_id),
+                  stream_url: stream.stream_url || '',
+                  filename: stream.filename || '',
+                  files: stream.files || [],
+                });
+              }
+            }
+            const addRes = await fetch(`${RD_BASE}/torrents/addMagnet`, {
+              method: 'POST',
+              headers: formHeaders,
+              body: `magnet=${encodeURIComponent(rec.magnet)}`,
+            });
+            if (addRes.ok) {
+              const tid = (await addRes.json()).id;
+              await fetch(`${RD_BASE}/torrents/selectFiles/${tid}`, { method: 'POST', headers: formHeaders, body: 'files=all' });
+              const stream = await resolveStreamable(tid, authHeaders, formHeaders, { title, year, season, episode });
+              try { await base44.entities.RdLink.update(rec.id, { torrent_id: String(tid) }); } catch {}
+              if (stream.error) return Response.json({ error: stream.error }, { status: 502 });
+              return Response.json({
+                status: stream.ready ? 'ready' : 'preparing',
+                torrent_id: String(tid),
+                stream_url: stream.stream_url || '',
+                filename: stream.filename || '',
+                files: stream.files || [],
+              });
+            }
+          }
+        } catch {}
+        return Response.json({ status: 'not_found' });
+      }
       const best = usable[0];
       // If the best match is already downloaded, resolve a direct streamable
       // link right now so playback starts instantly — no 5s poll wait.
