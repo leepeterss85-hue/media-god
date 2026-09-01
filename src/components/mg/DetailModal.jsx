@@ -5,6 +5,7 @@ import { Image } from "@/components/ui/image";
 import { useToast } from "@/components/ui/use-toast";
 import { usePlayer, buildMediaSources } from "@/components/mg/PlayerProvider";
 import EpisodeSelector from "@/components/mg/EpisodeSelector";
+import StreamSourcesBox from "@/components/mg/StreamSourcesBox";
 
 export default function DetailModal({ item, mediaType, onClose }) {
   const [data, setData] = useState(null);
@@ -185,6 +186,16 @@ export default function DetailModal({ item, mediaType, onClose }) {
               {favorited ? "Favorited" : "Favorite"}
             </button>
           </div>
+
+          {/* Stream sources */}
+          <StreamSourcesBox
+            title={item.title}
+            poster={item.poster_url}
+            trailerUrl={trailerUrl}
+            providers={providers}
+            loading={loading}
+            rdYear={item.year}
+          />
 
           {/* Plot */}
           <div className="mt-5">
