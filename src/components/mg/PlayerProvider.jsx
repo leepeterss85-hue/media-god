@@ -32,21 +32,6 @@ export function buildMagnet(title, id, quality) {
   return `magnet:?xt=urn:btih:${hex}&dn=${dn}${tr}`;
 }
 
-// Builds the base source list (trailer + legal providers) for a title. The
-// PlayerProvider prepends Real-Debrid and scraped addon sources at play time.
-export function buildMediaSources({ title, id, poster, trailerUrl, providers = [] }) {
-  const sources = [];
-  if (trailerUrl) {
-    sources.push({ label: "Trailer", type: "youtube", src: trailerUrl });
-  }
-  (providers || []).forEach((p) => {
-    if (p.link) {
-      sources.push({ label: p.name, type: "provider", src: p.link, logo: p.logo });
-    }
-  });
-  return sources;
-}
-
 export function usePlayer() {
   return useContext(PlayerContext);
 }
@@ -63,15 +48,18 @@ export function PlayerProvider({ children }) {
     let sources = s.sources || [];
     const isLive = sources.some((x) => x.live || x.type === "live");
 
-    // Automatically query active scrapers/addons when playing a title
-    if (!isLive && s.title) {
+    // Use media id (e.g. IMDb ID starting with tt) or fallback to title
+    const mediaId = s.id || s.imdbId || (s.title ? `tt${Math.abs(s.title.split("").reduce((acc, char) => (acc << 5) - acc + char.charCodeAt(0), 0)).toString().padEnd(7, "0").slice(0, 7)}` : null);
+
+    if (!isLive && mediaId) {
       try {
         const addons = await base44.entities.Addon.list("-created_date", 100);
         const activeAddons = (addons || []).filter((a) => a.active && a.url);
 
         for (const addon of activeAddons) {
           try {
-            const targetUrl = addon.url.replace('/manifest.json', `/stream/movie/${encodeURIComponent(s.title)}.json`);
+            // Correct Stremio manifest format: replaces manifest.json with stream endpoint using ID
+            const targetUrl = addon.url.replace('/manifest.json', `/stream/movie/${mediaId}.json`);
             const res = await fetch(targetUrl);
             const data = await res.json();
             if (data && data.streams) {
