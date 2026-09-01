@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { Play, RefreshCw, Loader2, HardDrive, AlertCircle, Filter } from "lucide-react";
+import { Play, RefreshCw, Loader2, HardDrive, AlertCircle, Filter, Link as LinkIcon } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 import { cn } from "@/lib/utils";
+import MagnetSendDialog from "@/components/mg/MagnetSendDialog";
 
 // Unified cloud-library view: lists torrents from every connected debrid
 // service (Real-Debrid + AllDebrid + Premiumize + DebridLink) in one feed,
@@ -26,6 +27,7 @@ export default function DebridLibrariesView() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
   const [busyId, setBusyId] = useState(null);
+  const [sendOpen, setSendOpen] = useState(false);
   const player = usePlayer();
 
   const load = useCallback(async () => {
@@ -129,14 +131,23 @@ export default function DebridLibrariesView() {
     <div className="p-4 md:p-6">
       <div className="flex items-center justify-between mb-1">
         <h1 className="text-xl font-bold text-white">Debrid Libraries</h1>
-        <button
-          onClick={load}
-          disabled={loading}
-          className="flex items-center gap-1.5 text-xs text-white/60 hover:text-white px-3 py-1.5 rounded-lg hover:bg-white/5 disabled:opacity-60"
-        >
-          {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-          Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setSendOpen(true)}
+            disabled={connected.length === 0}
+            className="flex items-center gap-1.5 bg-mg-green text-black font-semibold text-xs px-3 py-1.5 rounded-lg hover:bg-mg-green-dim disabled:opacity-50"
+          >
+            <LinkIcon className="w-3.5 h-3.5" /> Send magnet
+          </button>
+          <button
+            onClick={load}
+            disabled={loading}
+            className="flex items-center gap-1.5 text-xs text-white/60 hover:text-white px-3 py-1.5 rounded-lg hover:bg-white/5 disabled:opacity-60"
+          >
+            {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+            Refresh
+          </button>
+        </div>
       </div>
       <p className="text-sm text-white/50 mb-4">
         {items.length} items across {connected.length} connected {connected.length === 1 ? "service" : "services"} ·{" "}
@@ -247,6 +258,8 @@ export default function DebridLibrariesView() {
           })}
         </div>
       )}
+
+      <MagnetSendDialog open={sendOpen} onClose={() => setSendOpen(false)} connected={connected} />
     </div>
   );
 }

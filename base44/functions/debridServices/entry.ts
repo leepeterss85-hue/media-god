@@ -44,6 +44,8 @@ export default async function (req) {
     if (action === 'status') return await status(service, token);
     if (action === 'torrents_list') return await torrentsList(service, token);
     if (action === 'resolve') return await resolve(service, token, body);
+    if (action === 'magnet_add') return await magnetAdd(service, token, body);
+    if (action === 'torrent_info') return await torrentInfo(service, token, body);
     return Response.json({ error: 'Unknown action' }, { status: 400 });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
@@ -188,6 +190,78 @@ function dlStatusLabel(code) {
   return { 0: 'Queued', 1: 'Downloading', 2: 'Ready', 3: 'Error', 4: 'Paused', 5: 'Uploading' }[code] || 'Unknown';
 }
 
+// ---------- magnet upload + per-torrent polling ----------
+
+// AllDebrid
+async function adMagnetAdd(token, body) {
+  const res = await fetch(`${AD_BASE}/magnet/upload?agent=${AGENT}&token=${encodeURIComponent(token)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `magnets[]=${encodeURIComponent(body.magnet)}`,
+  });
+  if (!res.ok) throw new Error(`AllDebrid upload failed ${res.status}`);
+  const d = await res.json();
+  if (d.status !== 'success') throw new Error(d.data?.error?.message || 'AllDebrid upload failed');
+  const m = (d.data.magnets || [])[0];
+  if (!m || !m.id) throw new Error('AllDebrid did not return a torrent id');
+  return { torrent_id: String(m.id) };
+}
+async function adTorrentInfo(token, body) {
+  const d = await adGet(`/torrent?id=${body.torrent_id}`, token);
+  const t = d.torrent || {};
+  const ready = t.statusCode === 2;
+  if (!ready) return { status: 'preparing', progress: typeof t.progress === 'number' ? t.progress : 0 };
+  const r = await adResolve(token, { torrent_id: body.torrent_id });
+  return { status: 'ready', progress: 100, stream_url: r.stream_url, filename: r.filename };
+}
+
+// Premiumize
+async function pmMagnetAdd(token, body) {
+  const res = await fetch(`${PM_BASE}/transfer/create?apikey=${encodeURIComponent(token)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `src=${encodeURIComponent(body.magnet)}`,
+  });
+  if (!res.ok) throw new Error(`Premiumize create failed ${res.status}`);
+  const d = await res.json();
+  if (d.status !== 'success') throw new Error(d.message || 'Premiumize create failed');
+  return { torrent_id: String(d.id), folder_id: d.folder_id || '' };
+}
+async function pmTorrentInfo(token, body) {
+  const d = await pmGet('/transfer/list', token);
+  const t = (d.transfers || []).find((x) => String(x.id) === String(body.torrent_id));
+  if (!t) return { status: 'error', error: 'Transfer not found' };
+  if (t.status !== 'finished') {
+    return { status: 'preparing', progress: t.status === 'running' ? Math.round((t.progress || 0) * 100) : 0 };
+  }
+  const r = await pmResolve(token, { folder_id: t.folder_id || body.folder_id });
+  return { status: 'ready', progress: 100, stream_url: r.stream_url, filename: r.filename };
+}
+
+// DebridLink
+async function dlMagnetAdd(token, body) {
+  const res = await fetch(`${DL_BASE}/torrents`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: `Bearer ${token}` },
+    body: `magnet=${encodeURIComponent(body.magnet)}`,
+  });
+  if (!res.ok) throw new Error(`DebridLink create failed ${res.status}`);
+  const d = await res.json();
+  if (d.success === false) throw new Error(d.error?.message || 'DebridLink create failed');
+  const t = d.data || d.torrent || {};
+  if (!t.id) throw new Error('DebridLink did not return a torrent id');
+  return { torrent_id: String(t.id) };
+}
+async function dlTorrentInfo(token, body) {
+  const d = await dlGet(`/torrent/${body.torrent_id}`, token);
+  const t = d.data || d.torrent || {};
+  if (t.status !== 2) {
+    return { status: 'preparing', progress: t.status === 1 ? Math.round((t.progress || 0) * 100) : 0 };
+  }
+  const r = await dlResolve(token, { torrent_id: body.torrent_id });
+  return { status: 'ready', progress: 100, stream_url: r.stream_url, filename: r.filename };
+}
+
 // ---------- dispatchers ----------
 async function status(service, token) {
   try {
@@ -208,6 +282,28 @@ async function resolve(service, token, body) {
     if (service === 'alldebrid') return Response.json(await adResolve(token, body));
     if (service === 'premiumize') return Response.json(await pmResolve(token, body));
     if (service === 'debridlink') return Response.json(await dlResolve(token, body));
+  } catch (e) {
+    return Response.json({ error: e.message }, { status: 502 });
+  }
+}
+async function magnetAdd(service, token, body) {
+  if (!body.magnet || !body.magnet.startsWith('magnet:')) {
+    return Response.json({ error: 'A valid magnet link is required' }, { status: 400 });
+  }
+  try {
+    if (service === 'alldebrid') return Response.json(await adMagnetAdd(token, body));
+    if (service === 'premiumize') return Response.json(await pmMagnetAdd(token, body));
+    if (service === 'debridlink') return Response.json(await dlMagnetAdd(token, body));
+  } catch (e) {
+    return Response.json({ error: e.message }, { status: 502 });
+  }
+}
+async function torrentInfo(service, token, body) {
+  if (!body.torrent_id) return Response.json({ error: 'torrent_id required' }, { status: 400 });
+  try {
+    if (service === 'alldebrid') return Response.json(await adTorrentInfo(token, body));
+    if (service === 'premiumize') return Response.json(await pmTorrentInfo(token, body));
+    if (service === 'debridlink') return Response.json(await dlTorrentInfo(token, body));
   } catch (e) {
     return Response.json({ error: e.message }, { status: 502 });
   }
