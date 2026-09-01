@@ -6,6 +6,7 @@ import TvShowsView from "@/components/mg/TvShowsView";
 import LiveTVView from "@/components/mg/LiveTVView";
 import WatchlistView from "@/components/mg/WatchlistView";
 import RdLibraryView from "@/components/mg/RdLibraryView";
+import DebridDashboard from "@/components/mg/DebridDashboard";
 import AddonsView from "@/components/mg/AddonsView";
 import RoadmapView from "@/components/mg/RoadmapView";
 import SettingsView from "@/components/mg/SettingsView";
@@ -34,6 +35,7 @@ export default function Home() {
         {view === "favorites" && <FavoritesView />}
         {view === "watchparty" && <WatchPartyView />}
         {view === "rdlib" && <RdLibraryView />}
+        {view === "downloads" && <DebridDashboard />}
         {view === "addons" && <AddonsView />}
         {view === "roadmap" && <RoadmapView />}
         {view === "settings" && <SettingsView />}
