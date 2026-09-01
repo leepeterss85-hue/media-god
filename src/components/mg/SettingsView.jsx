@@ -3,6 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { KeyRound, Check, Loader2, ExternalLink, Zap } from "lucide-react";
+import SocialLoginSection from "@/components/mg/SocialLoginSection";
 
 export default function SettingsView() {
   const [me, setMe] = useState(null);
@@ -88,6 +89,8 @@ export default function SettingsView() {
           <p className="text-white font-semibold">{me.email}</p>
         </div>
       )}
+
+      <SocialLoginSection />
 
       <div className="bg-mg-card border border-white/10 rounded-lg divide-y divide-white/5">
         <div className="flex items-center justify-between p-4">
