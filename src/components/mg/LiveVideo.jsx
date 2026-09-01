@@ -4,7 +4,7 @@ import Hls from "hls.js";
 // Plays a live stream URL in a <video> element. HLS (.m3u8) streams are
 // attached via hls.js on browsers without native HLS (desktop Chrome/Firefox);
 // Safari/iOS and direct mp4/webm play natively.
-export default function LiveVideo({ src, poster, className }) {
+export default function LiveVideo({ src, poster, className, onLoadedMetadata, onTimeUpdate }) {
   const videoRef = useRef(null);
 
   useEffect(() => {
@@ -33,6 +33,6 @@ export default function LiveVideo({ src, poster, className }) {
   }, [src]);
 
   return (
-    <video ref={videoRef} poster={poster} controls playsInline className={className} />
+    <video ref={videoRef} poster={poster} controls playsInline className={className} onLoadedMetadata={onLoadedMetadata} onTimeUpdate={onTimeUpdate} />
   );
 }

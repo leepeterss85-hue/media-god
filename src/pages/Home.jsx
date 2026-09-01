@@ -8,6 +8,8 @@ import RdLibraryView from "@/components/mg/RdLibraryView";
 import AddonsView from "@/components/mg/AddonsView";
 import RoadmapView from "@/components/mg/RoadmapView";
 import SettingsView from "@/components/mg/SettingsView";
+import WatchPartyView from "@/components/mg/WatchPartyView";
+import ContinueWatchingRow from "@/components/mg/ContinueWatchingRow";
 import { PlayerProvider } from "@/components/mg/PlayerProvider";
 import TopBar from "@/components/mg/TopBar";
 import RdBanner from "@/components/mg/RdBanner";
@@ -17,6 +19,7 @@ const TITLES = {
   tv: "TV Shows",
   live: "Live TV",
   watchlist: "Watchlist",
+  watchparty: "Watch Party",
   rdlib: "RD Library",
   addons: "Addons",
   roadmap: "Roadmap",
@@ -59,10 +62,16 @@ export default function Home() {
           onMenu={() => setSidebarOpen(true)}
         />
         <RdBanner onLinkSettings={() => selectView("settings")} />
-        {view === "movies" && <MoviesView />}
+        {view === "movies" && (
+          <>
+            <ContinueWatchingRow />
+            <MoviesView />
+          </>
+        )}
         {view === "tv" && <TvShowsView />}
         {view === "live" && <LiveTVView />}
         {view === "watchlist" && <WatchlistView />}
+        {view === "watchparty" && <WatchPartyView />}
         {view === "rdlib" && <RdLibraryView />}
         {view === "addons" && <AddonsView />}
         {view === "roadmap" && <RoadmapView />}

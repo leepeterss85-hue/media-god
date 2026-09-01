@@ -202,7 +202,47 @@ export default function VideoPlayer({ source, onClose }) {
     const onKey = (e) => {
       // Don't close the player on Escape while fullscreen — let the browser
       // exit fullscreen first. A second Esc (once back to normal) closes.
-      if (e.key === "Escape" && !document.fullscreenElement) onClose();
+      if (e.key === "Escape" && !document.fullscreenElement) {
+        onClose();
+        return;
+      }
+      // Don't hijack keys while typing in an input/textarea.
+      const tag = (e.target?.tagName || "").toLowerCase();
+      if (tag === "input" || tag === "textarea" || e.target?.isContentEditable) return;
+      const video = stageRef.current?.querySelector("video");
+      if (!video) return;
+      switch (e.key) {
+        case " ":
+        case "k":
+          e.preventDefault();
+          if (video.paused) video.play().catch(() => {});
+          else video.pause();
+          break;
+        case "ArrowLeft":
+          e.preventDefault();
+          video.currentTime = Math.max(0, (video.currentTime || 0) - 10);
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          if (video.duration) video.currentTime = Math.min(video.duration, (video.currentTime || 0) + 10);
+          break;
+        case "ArrowUp":
+          e.preventDefault();
+          video.volume = Math.min(1, (video.volume ?? 1) + 0.1);
+          break;
+        case "ArrowDown":
+          e.preventDefault();
+          video.volume = Math.max(0, (video.volume ?? 1) - 0.1);
+          break;
+        case "f":
+          e.preventDefault();
+          goFullscreen();
+          break;
+        case "m":
+          e.preventDefault();
+          video.muted = !video.muted;
+          break;
+      }
     };
     window.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
@@ -228,6 +268,53 @@ export default function VideoPlayer({ source, onClose }) {
       video.play().catch(() => {});
     });
   }, [active, rdOverride]);
+
+  // Continue Watching: seek to a saved resume point when the stream loads,
+  // and periodically save playback progress so the user can resume later.
+  const lastSaveRef = useRef(0);
+  const cwIdRef = useRef({});
+  const saveProgress = (t, d) => {
+    if (isLive || !source.title) return;
+    const url = rdOverride?.src || active?.src;
+    if (!url) return;
+    const now = Date.now();
+    if (now - lastSaveRef.current < 10000) return;
+    lastSaveRef.current = now;
+    const key = `${source.title}|${source.rdYear || source.year || ""}`;
+    const patch = { progress: t, duration: d, video_url: url, poster_url: source.poster || "" };
+    const id = cwIdRef.current[key];
+    if (id) {
+      base44.entities.ContinueWatching.update(id, patch).catch(() => {});
+    } else {
+      base44.entities.ContinueWatching.filter({ content_key: key })
+        .then((rows) => {
+          if (rows.length > 0) {
+            cwIdRef.current[key] = rows[0].id;
+            base44.entities.ContinueWatching.update(rows[0].id, patch).catch(() => {});
+          } else {
+            base44.entities.ContinueWatching.create({
+              content_key: key,
+              title: source.title,
+              year: source.rdYear || source.year || "",
+              ...patch,
+            })
+              .then((r) => { cwIdRef.current[key] = r.id; })
+              .catch(() => {});
+          }
+        })
+        .catch(() => {});
+    }
+  };
+  const handleLoadedMetadata = (e) => {
+    const v = e.target;
+    if (source.startTime && source.startTime > 5) {
+      try { v.currentTime = source.startTime; } catch {}
+    }
+  };
+  const handleTimeUpdate = (e) => {
+    const v = e.target;
+    saveProgress(v.currentTime || 0, v.duration || 0);
+  };
 
   const copy = async (text) => {
     try {
@@ -400,6 +487,8 @@ export default function VideoPlayer({ source, onClose }) {
               poster={source.poster}
               controls
               playsInline
+              onLoadedMetadata={handleLoadedMetadata}
+              onTimeUpdate={handleTimeUpdate}
               className="w-full h-full object-contain bg-black"
             />
           ) : active?.type === "youtube" && (
@@ -418,6 +507,8 @@ export default function VideoPlayer({ source, onClose }) {
               src={active.src}
               poster={source.poster}
               className="w-full h-full object-contain bg-black"
+              onLoadedMetadata={handleLoadedMetadata}
+              onTimeUpdate={handleTimeUpdate}
             />
           )}
           {(active?.type === "rd" || active?.type === "rd_torrent") && !rdOverride && (

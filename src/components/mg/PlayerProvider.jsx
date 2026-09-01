@@ -75,7 +75,7 @@ export function PlayerProvider({ children }) {
     // source shows a paste-your-own-real-magnet box — only genuine magnets
     // reach Real-Debrid, so nothing fake pollutes the account.
     const isLive = sources.some((x) => x.live || x.type === "live");
-    if (hasRd && !isLive) {
+    if (hasRd && !isLive && !s.noRd) {
       sources = [{ label: "Real-Debrid", type: "rd", src: "" }, ...sources];
     }
     setSource({ ...s, sources });
