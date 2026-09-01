@@ -13,19 +13,91 @@ const TYPE_COLORS = {
   Provider: "bg-cyan-900/30 text-cyan-400 border-cyan-500/40",
 };
 
+const DEFAULT_ADDONS = [
+  {
+    id: "torrentio-default",
+    name: "Torrentio",
+    type: "Torrent",
+    description: "High-performance torrent scraper with Real-Debrid support.",
+    url: "https://torrentio.strem.fun/manifest.json",
+    installed: true,
+    active: true,
+  },
+  {
+    id: "comet-default",
+    name: "Comet",
+    type: "Torrent",
+    description: "Lightning-fast alternative indexer and debrid scraper.",
+    url: "https://comet.elfhosted.com/manifest.json",
+    installed: true,
+    active: true,
+  },
+  {
+    id: "annatar-default",
+    name: "Annatar",
+    type: "Torrent",
+    description: "Direct metadata and torrent-scraping companion for debrid lookups.",
+    url: "https://annatar.strem.fun/manifest.json",
+    installed: true,
+    active: true,
+  },
+  {
+    id: "mediafusion-default",
+    name: "MediaFusion",
+    type: "Provider",
+    description: "Handles live television feeds, sports streaming, and torrent catalogs.",
+    url: "https://mediafusion.elfhosted.com/manifest.json",
+    installed: true,
+    active: true,
+  },
+  {
+    id: "cyberflix-default",
+    name: "CyberFlix Catalog",
+    type: "Metadata",
+    description: "Alternative metadata provider for clean movie and TV posters.",
+    url: "https://cyberflix.elfhosted.com/manifest.json",
+    installed: true,
+    active: true,
+  },
+  {
+    id: "cinemeta-default",
+    name: "Cinemeta",
+    type: "Metadata",
+    description: "Official metadata provider for movies, series descriptions, and artwork.",
+    url: "https://v3-cinemeta.strem.io/manifest.json",
+    installed: true,
+    active: true,
+  },
+  {
+    id: "opensubtitles-default",
+    name: "OpenSubtitles v3",
+    type: "Subtitles",
+    description: "Automatically pulls multi-language subtitle files on demand.",
+    url: "https://opensubtitles.strem.fun/manifest.json",
+    installed: true,
+    active: true,
+  }
+];
+
 export default function AddonsView() {
-  const [addons, setAddons] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [addons, setAddons] = useState(DEFAULT_ADDONS);
+  const [loading, setLoading] = useState(false);
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
   const [query, setQuery] = useState("");
   const { toast } = useToast();
 
-  const load = () =>
+  const load = () => {
+    setLoading(true);
     base44.entities.Addon.list("-created_date", 100).then((a) => {
-      setAddons(a);
+      if (a && a.length > 0) {
+        setAddons([...DEFAULT_ADDONS, ...a]);
+      }
+      setLoading(false);
+    }).catch(() => {
       setLoading(false);
     });
+  };
 
   useEffect(() => {
     load();
@@ -37,14 +109,22 @@ export default function AddonsView() {
   );
 
   const remove = async (a) => {
-    await base44.entities.Addon.delete(a.id);
+    if (a.id.includes("default")) {
+      setAddons(addons.filter((item) => item.id !== a.id));
+    } else {
+      await base44.entities.Addon.delete(a.id);
+      load();
+    }
     toast({ title: "Addon removed", description: a.name });
-    load();
   };
 
   const toggleActive = async (a) => {
-    await base44.entities.Addon.update(a.id, { active: !a.active });
-    load();
+    if (a.id.includes("default")) {
+      setAddons(addons.map(item => item.id === a.id ? { ...item, active: !item.active } : item));
+    } else {
+      await base44.entities.Addon.update(a.id, { active: !a.active });
+      load();
+    }
   };
 
   const addCustom = async () => {
