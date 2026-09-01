@@ -155,6 +155,47 @@ export default async function(req) {
     }
 
     const category = body.category || (mediaType === 'tv' ? 'tv_popular' : 'now_playing');
+
+    // Trending (all media types) for the home hero + row.
+    if (category === 'trending') {
+      const trendUrl = (page) => `${TMDB_BASE}/trending/all/week?api_key=${apiKey}&language=en-GB&page=${page}`;
+      const trendPages = await Promise.all(
+        Array.from({ length: 3 }, (_, i) =>
+          fetch(trendUrl(i + 1), { headers: { Accept: 'application/json' } })
+            .then((r) => (r.ok ? r.json() : { results: [] }))
+            .catch(() => ({ results: [] }))
+        )
+      );
+      const seen = new Set();
+      const merged = [];
+      for (const data of trendPages) {
+        for (const m of data.results || []) {
+          if (!m || seen.has(m.id)) continue;
+          seen.add(m.id);
+          merged.push(m);
+        }
+      }
+      const items = merged.map((m) => {
+        const isTv = m.media_type === 'tv' || (!!m.name && !m.title);
+        const title = isTv ? (m.name || m.title) : (m.title || m.name);
+        const date = isTv ? (m.first_air_date || '') : (m.release_date || '');
+        return {
+          id: String(m.id),
+          title,
+          year: date.slice(0, 4),
+          release_date: date,
+          poster_url: m.poster_path ? `${IMG_BASE}${m.poster_path}` : '',
+          backdrop_url: m.backdrop_path ? `https://image.tmdb.org/t/p/w780${m.backdrop_path}` : '',
+          description: m.overview || '',
+          tmdb_id: m.id,
+          genre_ids: m.genre_ids || [],
+          media_type: isTv ? 'tv' : 'movie',
+          vote_average: m.vote_average || 0,
+        };
+      });
+      return Response.json({ movies: items });
+    }
+
     const query = body.query || '';
 
     const hasFilters = country || genre || year || language;
@@ -224,10 +265,12 @@ export default async function(req) {
         year: date.slice(0, 4),
         release_date: date,
         poster_url: m.poster_path ? `${IMG_BASE}${m.poster_path}` : '',
+        backdrop_url: m.backdrop_path ? `https://image.tmdb.org/t/p/w780${m.backdrop_path}` : '',
         description: m.overview || '',
         tmdb_id: m.id,
         genre_ids: m.genre_ids || [],
         media_type: isTv ? 'tv' : 'movie',
+        vote_average: m.vote_average || 0,
       };
     });
 

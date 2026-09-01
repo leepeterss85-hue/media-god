@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import Sidebar from "@/components/mg/Sidebar";
+import Navbar from "@/components/mg/Navbar";
+import HomeDashboard from "@/components/mg/HomeDashboard";
 import MoviesView from "@/components/mg/MoviesView";
 import TvShowsView from "@/components/mg/TvShowsView";
 import LiveTVView from "@/components/mg/LiveTVView";
@@ -9,65 +10,19 @@ import AddonsView from "@/components/mg/AddonsView";
 import RoadmapView from "@/components/mg/RoadmapView";
 import SettingsView from "@/components/mg/SettingsView";
 import WatchPartyView from "@/components/mg/WatchPartyView";
-import ContinueWatchingRow from "@/components/mg/ContinueWatchingRow";
 import { PlayerProvider } from "@/components/mg/PlayerProvider";
-import TopBar from "@/components/mg/TopBar";
 import RdBanner from "@/components/mg/RdBanner";
 
-const TITLES = {
-  movies: "Movies",
-  tv: "TV Shows",
-  live: "Live TV",
-  watchlist: "Watchlist",
-  watchparty: "Watch Party",
-  rdlib: "RD Library",
-  addons: "Addons",
-  roadmap: "Roadmap",
-  settings: "Settings",
-};
-
 export default function Home() {
-  const [view, setView] = useState("movies");
-  const [history, setHistory] = useState([]);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  const selectView = (v) => {
-    setHistory((h) => [...h, view]);
-    setView(v);
-  };
-  const goBack = () => {
-    if (history.length === 0) {
-      setView("movies");
-      return;
-    }
-    const prev = history[history.length - 1];
-    setHistory(history.slice(0, -1));
-    setView(prev);
-  };
+  const [view, setView] = useState("home");
 
   return (
     <PlayerProvider>
-    <div className="flex h-screen bg-mg-background text-white overflow-hidden">
-      <Sidebar
-        active={view}
-        onSelect={selectView}
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
-      <main className="flex-1 overflow-y-auto">
-        <TopBar
-          title={TITLES[view]}
-          onBack={goBack}
-          canGoBack={history.length > 0}
-          onMenu={() => setSidebarOpen(true)}
-        />
-        <RdBanner onLinkSettings={() => selectView("settings")} />
-        {view === "movies" && (
-          <>
-            <ContinueWatchingRow />
-            <MoviesView />
-          </>
-        )}
+      <div className="min-h-screen bg-mg-background text-white">
+        <Navbar active={view} onSelect={setView} />
+        <RdBanner onLinkSettings={() => setView("settings")} />
+        {view === "home" && <HomeDashboard />}
+        {view === "movies" && <MoviesView />}
         {view === "tv" && <TvShowsView />}
         {view === "live" && <LiveTVView />}
         {view === "watchlist" && <WatchlistView />}
@@ -76,8 +31,7 @@ export default function Home() {
         {view === "addons" && <AddonsView />}
         {view === "roadmap" && <RoadmapView />}
         {view === "settings" && <SettingsView />}
-      </main>
-    </div>
+      </div>
     </PlayerProvider>
   );
 }

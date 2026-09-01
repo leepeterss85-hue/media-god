@@ -56,7 +56,7 @@ export default function ContinueWatchingRow() {
         {items.map((it) => {
           const pct = it.duration > 0 ? Math.min(100, (it.progress / it.duration) * 100) : 0;
           return (
-            <button key={it.id} onClick={() => resume(it)} className="group relative w-32 sm:w-36 shrink-0 text-left">
+            <div key={it.id} onClick={() => resume(it)} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter') resume(it); }} className="group relative w-32 sm:w-36 shrink-0 text-left cursor-pointer">
               <div className="relative aspect-video rounded-lg overflow-hidden bg-mg-card border border-white/10">
                 <Image src={it.poster_url} fittingType="fill" className="w-full h-full" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-80" />
@@ -78,7 +78,7 @@ export default function ContinueWatchingRow() {
               </div>
               <div className="mt-1.5 text-white font-semibold text-xs truncate">{it.title}</div>
               <div className="text-white/40 text-[10px]">{fmtTime(it.progress)}</div>
-            </button>
+            </div>
           );
         })}
       </div>
