@@ -45,7 +45,7 @@ const DEFAULT_ADDONS = [
     id: "mediafusion-default",
     name: "MediaFusion",
     type: "Provider",
-    description: "Handles live television feeds, sports streaming, and torrent catalogs.",
+    description: "Handles live television feeds, sports streaming, and free catalog sources.",
     url: "https://mediafusion.elfhosted.com/manifest.json",
     installed: true,
     active: true,
