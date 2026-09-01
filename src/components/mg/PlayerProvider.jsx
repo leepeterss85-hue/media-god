@@ -32,6 +32,21 @@ export function buildMagnet(title, id, quality) {
   return `magnet:?xt=urn:btih:${hex}&dn=${dn}${tr}`;
 }
 
+// Builds the base source list (trailer + legal providers) for a title. The
+// PlayerProvider prepends Real-Debrid and scraped addon sources at play time.
+export function buildMediaSources({ title, id, poster, trailerUrl, providers = [] }) {
+  const sources = [];
+  if (trailerUrl) {
+    sources.push({ label: "Trailer", type: "youtube", src: trailerUrl });
+  }
+  (providers || []).forEach((p) => {
+    if (p.link) {
+      sources.push({ label: p.name, type: "provider", src: p.link, logo: p.logo });
+    }
+  });
+  return sources;
+}
+
 export function usePlayer() {
   return useContext(PlayerContext);
 }
@@ -91,4 +106,3 @@ export function PlayerProvider({ children }) {
     </PlayerContext.Provider>
   );
 }
-
