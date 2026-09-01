@@ -24,8 +24,9 @@ export default function Home() {
 
   return (
     <PlayerProvider>
-      <div className="min-h-screen bg-mg-background text-white">
+      <div className="min-h-screen bg-mg-background text-white flex">
         <Navbar active={view} onSelect={setView} onSearch={() => setSearchOpen(true)} />
+        <div className="flex-1 min-w-0 flex flex-col">
         <RdBanner onLinkSettings={() => setView("settings")} />
         {view === "home" && <HomeDashboard />}
         {view === "movies" && <MoviesView />}
@@ -48,6 +49,7 @@ export default function Home() {
             onClose={() => setSearchResult(null)}
           />
         )}
+        </div>
       </div>
     </PlayerProvider>
   );
