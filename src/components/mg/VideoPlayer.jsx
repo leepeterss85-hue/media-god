@@ -160,6 +160,8 @@ export default function VideoPlayer({ source, onClose }) {
         const res = await base44.functions.invoke("realDebrid", {
           action: "torrent_info",
           torrent_id: rdTorrentId,
+          title: source.rdTitle || source.title,
+          ...(source.rdYear != null ? { year: source.rdYear } : {}),
           ...(source.rdSeason != null ? { season: source.rdSeason } : {}),
           ...(source.rdEpisode != null ? { episode: source.rdEpisode } : {}),
         });

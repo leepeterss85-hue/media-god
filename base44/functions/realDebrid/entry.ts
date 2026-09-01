@@ -127,8 +127,13 @@ export default async function(req) {
     if (action === 'torrent_info') {
       const torrentId = body.torrent_id;
       if (!torrentId) return Response.json({ error: 'torrent_id required' }, { status: 400 });
-      const ep = (body.season != null && body.episode != null) ? { season: String(body.season), episode: String(body.episode) } : null;
-      const stream = await resolveStreamable(torrentId, authHeaders, formHeaders, ep);
+      const opts = {
+        title: body.title,
+        year: body.year,
+        ...(body.season != null ? { season: String(body.season) } : {}),
+        ...(body.episode != null ? { episode: String(body.episode) } : {}),
+      };
+      const stream = await resolveStreamable(torrentId, authHeaders, formHeaders, opts);
       if (stream.error) return Response.json({ error: stream.error }, { status: 502 });
       return Response.json({
         status: stream.ready ? 'ready' : 'preparing',
@@ -268,7 +273,7 @@ export default async function(req) {
       // If the best match is already downloaded, resolve a direct streamable
       // link right now so playback starts instantly — no 5s poll wait.
       if (best.status === 'downloaded') {
-        const stream = await resolveStreamable(String(best.id), authHeaders, formHeaders, { season, episode });
+        const stream = await resolveStreamable(String(best.id), authHeaders, formHeaders, { season, episode, title, year });
         if (stream.ready && stream.stream_url) {
           return Response.json({
             status: 'ready',
@@ -361,6 +366,25 @@ async function resolveStreamable(torrentId, authHeaders, formHeaders, ep) {
       return epRe.test(p) || epReAlt.test(p);
     });
     if (match) target = match;
+  }
+  // For movies in a multi-file torrent (e.g. a pack), pick the file whose
+  // name matches the requested title/year instead of the largest file,
+  // which could be a different film bundled in the same pack.
+  if (ep && ep.title && !(ep.season && ep.episode)) {
+    const norm = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const want = norm(ep.title);
+    const wantYear = norm(ep.year || '');
+    const scored = pool
+      .map((f) => {
+        const np = norm((f.path || '').split('/').pop());
+        let s = 0;
+        if (want && np.includes(want)) s += 100;
+        if (wantYear && np.includes(wantYear)) s += 30;
+        return { f, s };
+      })
+      .filter((x) => x.s > 0)
+      .sort((a, b) => b.s - a.s);
+    if (scored.length > 0) target = scored[0].f;
   }
   const fileEntries = buildFileEntries(info, target);
 
