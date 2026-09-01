@@ -1,5 +1,3 @@
-The root cause preventing titles like "Obsession" from pulling scraper links is an ID mismatch: your global TMDB catalog items use numeric TMDB IDs (e.g., 12345), but Stremio scrapers like Torrentio and Comet strictly require an IMDb ID starting with tt. When a numeric ID is sent to the scraper endpoint, it returns a 404 error, resulting in zero links.
-The updated PlayerProvider.jsx below includes a resolver that automatically fetches the correct IMDb ID via TMDB's external IDs endpoint if a numeric ID is passed, ensuring scrapers always receive the exact tt format they need.
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import VideoPlayer from "@/components/mg/VideoPlayer";
