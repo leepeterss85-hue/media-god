@@ -47,6 +47,19 @@ export default function MagnetSendDialog({ open, onClose, connected = [] }) {
     }
   }, [open]);
 
+  // Auto-play the resolved stream the instant it's ready — no "Play now" click.
+  useEffect(() => {
+    if (state !== "ready" || !stream?.url || !meta) return;
+    player.play({
+      title: stream.filename || "Magnet stream",
+      noRd: true,
+      sources: [{ label: meta.label, type: "url", src: stream.url }],
+    });
+    toast({ title: "Playing via " + meta.label });
+    onClose();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, stream?.url]);
+
   if (!open) return null;
 
   const meta = SERVICE_META[service];
