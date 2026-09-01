@@ -22,18 +22,6 @@ const TRACKERS = [
   "udp://tracker2.itzhost.com:6969",
 ];
 
-// Builds the standard source list passed into player.play({ sources }).
-// Centralized here so every entry point (detail modal, episodes, watchlist,
-// favorites, roadmap) produces identical sources for a given title.
-export function buildMediaSources({ title, id, poster, trailerUrl, providers } = {}) {
-  const sources = [];
-  if (trailerUrl) sources.push({ label: "Trailer", type: "youtube", src: trailerUrl });
-  (providers || []).forEach((p) => {
-    if (p && p.link) sources.push({ label: p.name || "Provider", type: "provider", src: p.link });
-  });
-  return sources;
-}
-
 export function buildMagnet(title, id, quality) {
   const seed = `${id || title}|${quality || ""}`;
   let h = 0;
@@ -42,6 +30,20 @@ export function buildMagnet(title, id, quality) {
   const dn = encodeURIComponent(`${title || "media"}${quality ? ` ${quality}` : ""}`);
   const tr = TRACKERS.map((t) => `&tr=${encodeURIComponent(t)}`).join("");
   return `magnet:?xt=urn:btih:${hex}&dn=${dn}${tr}`;
+}
+
+export function buildTorrentUrl(id, quality) {
+  const q = quality ? `-${quality.toLowerCase()}` : "";
+  return `https://media-god.app/torrents/${id}${q}.torrent`;
+}
+
+export function buildMediaSources({ title, id, poster, trailerUrl, providers = [] }) {
+  const sources = [];
+  if (trailerUrl) sources.push({ label: "Trailer", type: "youtube", src: trailerUrl });
+  providers.forEach((p) =>
+    sources.push({ label: p.name, type: "provider", src: p.link, logo: p.logo })
+  );
+  return sources;
 }
 
 export function usePlayer() {
@@ -60,7 +62,6 @@ export function PlayerProvider({ children }) {
     let sources = s.sources || [];
     const isLive = sources.some((x) => x.live || x.type === "live");
 
-    // Use media id (e.g. IMDb ID starting with tt) or fallback to title
     const mediaId = s.id || s.imdbId || (s.title ? `tt${Math.abs(s.title.split("").reduce((acc, char) => (acc << 5) - acc + char.charCodeAt(0), 0)).toString().padEnd(7, "0").slice(0, 7)}` : null);
 
     if (!isLive && mediaId) {
@@ -70,9 +71,10 @@ export function PlayerProvider({ children }) {
 
         for (const addon of activeAddons) {
           try {
-            // Correct Stremio manifest format: replaces manifest.json with stream endpoint using ID
             const targetUrl = addon.url.replace('/manifest.json', `/stream/movie/${mediaId}.json`);
-            const res = await fetch(targetUrl);
+            // Route through public CORS proxy so browser security allows fetching external scraper results
+            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+            const res = await fetch(proxyUrl);
             const data = await res.json();
             if (data && data.streams) {
               const scraped = data.streams.map((st) => ({
@@ -82,13 +84,9 @@ export function PlayerProvider({ children }) {
               }));
               sources = [...scraped, ...sources];
             }
-          } catch (err) {
-            // Skip failing addon endpoints quietly
-          }
+          } catch (err) {}
         }
-      } catch (e) {
-        // Fallback if addon fetch fails entirely
-      }
+      } catch (e) {}
     }
 
     if (hasRd && !isLive && !s.noRd) {
@@ -106,3 +104,4 @@ export function PlayerProvider({ children }) {
     </PlayerContext.Provider>
   );
 }
+
