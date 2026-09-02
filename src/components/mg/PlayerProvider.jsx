@@ -4,6 +4,8 @@ import { base44 } from "@/api/base44Client";
 const NO_PLAYER = { play: () => {}, close: () => {} };
 const PlayerContext = createContext(NO_PLAYER);
 
+export const DEMO_VIDEO = "https://media.w3.org/2010/05/sintel/trailer.mp4";
+
 export function buildMagnet(title, id, quality) {
   return `magnet:?xt=urn:btih:${id || "media"}&dn=${encodeURIComponent(title || "media")}`;
 }
@@ -162,4 +164,3 @@ export function PlayerProvider({ children }) {
     </PlayerContext.Provider>
   );
 }
-
