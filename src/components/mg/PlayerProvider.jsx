@@ -1,6 +1,3 @@
- * Missing Metadata IDs: Titles you haven't watched yet often lack a cached imdbId or imdb_id property in their database records, meaning the scraper loop skips searching entirely because mediaId evaluates to null.
- * Fallback Text Search: When an IMDb ID lookup fails, the player needs to query Stremio/Torrentio addons using the raw movie title string instead of aborting the fetch.
-Here is the updated PlayerProvider code with a text-search fallback so un-watched titles without pre-existing IMDb IDs still successfully scrape and play:
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import VideoPlayer from "@/components/mg/VideoPlayer";
@@ -61,7 +58,6 @@ export function PlayerProvider({ children }) {
             const baseUrl = addon.url.replace(/\/manifest\.json$/, '');
             const mediaType = isSeries ? "series" : "movie";
             
-            // Fallback to title query if no IMDb ID exists
             const queryPath = mediaId 
               ? (isSeries && s.season && s.episode ? `${mediaId}:${s.season}:${s.episode}` : mediaId)
               : `search:${encodeURIComponent(s.title || "")}`;
@@ -136,4 +132,3 @@ export function buildMediaSources({ title, id, poster, trailerUrl, providers }) 
   });
   return sources;
 }
-
