@@ -4,27 +4,6 @@ import VideoPlayer from "@/components/mg/VideoPlayer";
 
 const PlayerContext = createContext(null);
 
-const TRACKERS = [
-  "udp://tracker.openbittorrent.com:1337",
-  "udp://tracker.opentrackr.org:1337",
-  "wss://tracker.btorrent.xyz",
-  "udp://open.demonii.com:1337",
-  "udp://tracker.torrent.eu.org:451",
-  "udp://tracker.dler.org:6969",
-  "udp://exodus.desync.com:6969",
-  "wss://tracker.openwebtorrent.com",
-];
-
-function buildFallbackMagnet(title, year) {
-  const seed = `${title || "media"}|${year || ""}`;
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h << 5) - h + seed.charCodeAt(i) | 0;
-  const hex = (Math.abs(h).toString(16).padStart(8, "0") + "0".repeat(32)).slice(0, 40);
-  const dn = encodeURIComponent(`${title || "media"}${year ? ` (${year})` : ""}`);
-  const tr = TRACKERS.map((t) => `&tr=${encodeURIComponent(t)}`).join("");
-  return `magnet:?xt=urn:btih:${hex}&dn=${dn}${tr}`;
-}
-
 const FOREIGN_RE = /(truefrench|vostfr|vost|subfrench|vf\b|vff|vfi|multi-audio|multiaudio|dual\.audio|\bdubbed\b|\bdub\b)/i;
 const isForeign = (label) => FOREIGN_RE.test(label || "");
 const RES_RE = /(\d{3,4})p/;
@@ -48,13 +27,12 @@ export function PlayerProvider({ children }) {
   }, []);
 
   const play = useCallback(async (s) => {
-    let sources = s?.sources || (s?.src ? [{ label: s.type === "live" ? "LIVE" : "Stream", type: s.type, src: s.src, live: s.type === "live" }] : []);
+    let sources = s?.sources ? [...s.sources] : [];
     const isLive = s?.type === "live" || sources.some((x) => x.live || x.type === "live");
     const isSeries = s?.type === "series" || s?.season || s?.episode || s?.mediaType === "tv";
 
     let mediaId = s?.imdbId || s?.imdb_id;
 
-    // Resolve missing IMDb ID via TMDB external_ids API
     if (!mediaId && s?.id && !isNaN(s.id)) {
       try {
         const tmdbType = isSeries ? "tv" : "movie";
@@ -70,24 +48,7 @@ export function PlayerProvider({ children }) {
       mediaId = s.id;
     }
 
-    // If still no IMDb ID, try searching TMDB by title to find its IMDb ID
-    if (!mediaId && s?.title) {
-      try {
-        const tmdbType = isSeries ? "tv" : "movie";
-        const searchRes = await fetch(`https://api.themoviedb.org/3/search/${tmdbType}?api_key=38267272847a9ef3878b273b37963d76&query=${encodeURIComponent(s.title)}${s.year ? `&year=${s.year}` : ""}`);
-        const searchData = await searchRes.json();
-        const firstMatch = searchData?.results?.[0];
-        if (firstMatch?.id) {
-          const extRes = await fetch(`https://api.themoviedb.org/3/${tmdbType}/${firstMatch.id}/external_ids?api_key=38267272847a9ef3878b273b37963d76`);
-          const extData = await extRes.json();
-          if (extData?.imdb_id) {
-            mediaId = extData.imdb_id;
-          }
-        }
-      } catch (e) {}
-    }
-
-    if (!isLive) {
+    if (!isLive && mediaId) {
       try {
         const addons = await base44.entities.Addon.list("-created_date", 100);
         const activeAddons = (addons || []).filter((a) => a.active && a.url);
@@ -96,10 +57,7 @@ export function PlayerProvider({ children }) {
           try {
             const baseUrl = addon.url.replace(/\/manifest\.json$/, '');
             const mediaType = isSeries ? "series" : "movie";
-            
-            const queryPath = mediaId 
-              ? (isSeries && s.season && s.episode ? `${mediaId}:${s.season}:${s.episode}` : mediaId)
-              : `search:${encodeURIComponent(s.title || "")}`;
+            const queryPath = isSeries && s.season && s.episode ? `${mediaId}:${s.season}:${s.episode}` : mediaId;
 
             const targetUrl = `${baseUrl}/stream/${mediaType}/${queryPath}.json`;
             const controller = new AbortController();
@@ -128,21 +86,17 @@ export function PlayerProvider({ children }) {
       } catch (e) {}
     }
 
-    if (!sources.some(x => x.src) && s?.title) {
-      const fallbackMagnet = buildFallbackMagnet(s.title, s.year);
-      sources = [{ label: "Real-Debrid (Auto)", type: "rd", src: fallbackMagnet }, ...sources];
+    if (hasRd && !isLive) {
+      sources.push({ label: "Real-Debrid Options", type: "rd", src: "" });
     }
 
-    const isPlayable = (x) =>
-      x.type !== "youtube" && x.type !== "provider" &&
-      !x.src?.includes("youtube") && !x.src?.includes("youtu.be");
-
-    if (hasRd && !isLive && !s?.noRd && !sources.some(isPlayable)) {
-      sources = [{ label: "Real-Debrid", type: "rd", src: "" }, ...sources];
+    if (sources.length === 0 && s?.src) {
+      sources.push({ label: "Stream", type: s.type || "url", src: s.src });
     }
 
-    const playableSource = sources.find(isPlayable);
-    const activeUrl = playableSource ? playableSource.src : (sources.length > 0 ? sources[0].src : (s?.src || ""));
+    const playableSource = sources.find((x) => x.type !== "rd" && x.src);
+    const activeUrl = playableSource ? playableSource.src : (sources[0]?.src || s?.src || "");
+    
     setSource({ ...s, sources, url: activeUrl });
   }, [hasRd]);
 
@@ -166,10 +120,7 @@ export function usePlayer() {
 export const DEMO_VIDEO = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
 
 export function buildMediaSources({ title, id, poster, trailerUrl, providers }) {
-  const sources = [
-    { label: "Real-Debrid", type: "rd", src: "" },
-    { label: "Paste Magnet", type: "rd", src: "", skipAutoResolve: true },
-  ];
+  const sources = [];
   if (trailerUrl) sources.push({ label: "Trailer", type: "youtube", src: trailerUrl });
   (providers || []).forEach((p) => {
     sources.push({ label: p.name, type: "provider", src: p.link, logo: p.logo });
