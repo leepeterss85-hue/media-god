@@ -48,7 +48,7 @@ export function PlayerProvider({ children }) {
       mediaId = s.id;
     }
 
-    if (!isLive && mediaId) {
+    if (!isLive) {
       try {
         const addons = await base44.entities.Addon.list("-created_date", 100);
         const activeAddons = (addons || []).filter((a) => a.active && a.url);
@@ -57,7 +57,10 @@ export function PlayerProvider({ children }) {
           try {
             const baseUrl = addon.url.replace(/\/manifest\.json$/, '');
             const mediaType = isSeries ? "series" : "movie";
-            const queryPath = isSeries && s.season && s.episode ? `${mediaId}:${s.season}:${s.episode}` : mediaId;
+            
+            const queryPath = mediaId 
+              ? (isSeries && s.season && s.episode ? `${mediaId}:${s.season}:${s.episode}` : mediaId)
+              : `search:${encodeURIComponent(s.title || "")}`;
 
             const targetUrl = `${baseUrl}/stream/${mediaType}/${queryPath}.json`;
             const controller = new AbortController();
