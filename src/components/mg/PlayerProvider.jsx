@@ -1,7 +1,3 @@
-That error message right there tells us everything: "No video with supported format and MIME type found."
-The HTML5 <video> element isn't broken, and it's not a CORS block—it's that the URL being passed into src is returning a raw .torrent file or an HTML error page from the backend instead of an actual streaming media stream (like an MP4, MKV, or HLS stream). Because the browser tries to parse a torrent file as a video stream, it throws a MIME type error and shows that broken file icon.
-When it was working before, the resolved URL wasn't ending in .torrent—it was pointing to a live media link or a streaming proxy route that outputted proper video chunks.
-Here is the fixed code. I have updated the fallback and generation logic to strip out the raw .torrent suffix and map properly to standard stream playback routes:
 import React, { createContext, useContext, useState } from "react";
 import { base44 } from "@/api/base44Client";
 
@@ -115,7 +111,6 @@ export function PlayerProvider({ children }) {
       if (!resolvedUrl) {
         const fallbackId = mediaId || (s.id && !isNaN(s.id) ? `tmdb-${s.id}` : null) || (s.title ? s.title.toLowerCase().replace(/[^a-z0-9]/g, '-') : 'tt10872600');
         const isTv = s.season && s.episode;
-        // Use direct streaming stream endpoint path instead of .torrent file
         resolvedUrl = isTv 
           ? `https://media-god.app/stream/${fallbackId}:${s.season}:${s.episode}`
           : `https://media-god.app/stream/${fallbackId}`;
@@ -178,4 +173,3 @@ export function PlayerProvider({ children }) {
     </PlayerContext.Provider>
   );
 }
-
