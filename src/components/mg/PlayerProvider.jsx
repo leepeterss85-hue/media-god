@@ -55,35 +55,37 @@ export function PlayerProvider({ children }) {
     try {
       let resolvedUrl = "";
 
-      // 1. Check explicit sources passed directly from the detail view/UI buttons
-      if (s.sources && Array.isArray(s.sources) && s.sources.length > 0) {
-        const primarySource = s.sources[0];
-        if (primarySource.type === 'rd_torrent' || primarySource.src) {
-          if (primarySource.type === 'rd_torrent') {
+      // 1. Check direct string URL or src on the clicked item/source object
+      const direct = s.src || s.url;
+      if (direct && typeof direct === 'string' && !direct.includes('media-god.app') && !direct.includes('youtube')) {
+        resolvedUrl = direct;
+      }
+
+      // 2. Check explicit sources array passed from UI buttons (Real-Debrid, Free Archive, etc.)
+      if (!resolvedUrl && s.sources && Array.isArray(s.sources) && s.sources.length > 0) {
+        for (const srcObj of s.sources) {
+          if (!srcObj || !srcObj.src) continue;
+          const sourceLink = String(srcObj.src);
+
+          if (srcObj.type === 'rd_torrent') {
             try {
               const res = await base44.functions.invoke("realDebrid", { 
                 action: "torrent_select", 
-                torrent_id: primarySource.src 
+                torrent_id: sourceLink 
               });
               if (res.data?.link) {
                 resolvedUrl = res.data.link;
+                break;
               }
             } catch (err) {}
-          } else {
-            resolvedUrl = primarySource.src;
+          } else if (sourceLink.startsWith('http') && !sourceLink.includes('youtube') && !sourceLink.includes('youtu.be')) {
+            resolvedUrl = sourceLink;
+            break;
           }
         }
       }
 
-      // 2. Handle direct string URLs passed in
-      if (!resolvedUrl) {
-        const direct = s.src || s.url;
-        if (direct && typeof direct === 'string' && !direct.includes('media-god.app')) {
-          resolvedUrl = direct;
-        }
-      }
-
-      // 3. Resolve Media ID (IMDb) for scraping if no direct source selected
+      // 3. Resolve Media ID (IMDb) if no direct link found yet
       let mediaId = s.imdbId || s.imdb_id;
       if (!mediaId && s.id && String(s.id).startsWith('tt')) {
         mediaId = s.id;
@@ -97,7 +99,7 @@ export function PlayerProvider({ children }) {
         } catch (e) {}
       }
 
-      // 4. Scrape active addons if still not resolved
+      // 4. Scrape active database addons as fallback
       if (!resolvedUrl && mediaId) {
         try {
           const addons = await base44.entities.Addon.list("-created_date", 100);
@@ -140,7 +142,7 @@ export function PlayerProvider({ children }) {
         } catch (dbErr) {}
       }
 
-      // 5. Safe fallback to demo video instead of blocking alert popup if everything else misses
+      // 5. Ultimate fallback: if everything else is missing, use DEMO_VIDEO silently without throwing popups
       if (!resolvedUrl) {
         resolvedUrl = DEMO_VIDEO;
       }
