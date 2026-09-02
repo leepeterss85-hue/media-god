@@ -133,7 +133,6 @@ export default function VideoPlayer({ source, onClose }) {
           return;
         }
 
-        // Background polling loop that doesn't re-trigger the main component effect
         setRdResolving(false);
         setRdPolling(true);
         let attempts = 0;
@@ -499,7 +498,7 @@ export default function VideoPlayer({ source, onClose }) {
               >
                 {(s.type === "rd" || s.type === "rd_torrent") && <Zap className="w-3 h-3" />}
                 {s.type === "magnet" && <Link className="w-3 h-3" />}
-                {s.type ===="torrent" && <Download className="w-3 h-3" />}
+                {s.type === "torrent" && <Download className="w-3 h-3" />}
                 {s.type === "provider" && <Tv className="w-3 h-3" />}
                 {s.label}
               </button>
