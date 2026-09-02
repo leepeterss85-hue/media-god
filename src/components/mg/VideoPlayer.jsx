@@ -56,7 +56,6 @@ export default function VideoPlayer({ source, onClose }) {
     setRdTorrentId(null);
   }, [activeIdx]);
 
-  // Automatically resolve addon magnet/torrent sources through Real-Debrid
   useEffect(() => {
     if (!active?.src || active?.type === "youtube" || active?.type === "provider" || active?.type === "file" || active?.live || active?.type === "rd") return;
     
@@ -80,7 +79,7 @@ export default function VideoPlayer({ source, onClose }) {
         if (data.status === "ready" && data.stream_url) {
           setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream", file: currentFilePath(data.files) });
           setRdFiles(data.files || []);
-        } else if (data.status === "preparing" && data.torrent_id) {
+        } else if (data.torrent_id) {
           setRdTorrentId(data.torrent_id);
         } else if (data.stream_url) {
           setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream", file: currentFilePath(data.files) });
@@ -104,7 +103,6 @@ export default function VideoPlayer({ source, onClose }) {
     };
   }, [activeIdx, active, source]);
 
-  // Existing RD auto-resolve for pure RD dropdown options
   useEffect(() => {
     if (active?.type !== "rd") return;
     if (active.skipAutoResolve) return;
@@ -535,10 +533,12 @@ export default function VideoPlayer({ source, onClose }) {
         </div>
 
         <div ref={stageRef} className="relative w-full aspect-video bg-black rounded-lg overflow-hidden border border-white/10 flex items-center justify-center">
-          {rdResolving ? (
+          {busy ? (
             <div className="flex flex-col items-center gap-3 p-6 text-center">
               <Loader2 className="w-8 h-8 text-mg-green animate-spin" />
-              <p className="text-white font-semibold text-sm">Resolving stream through Real-Debrid…</p>
+              <p className="text-white font-semibold text-sm">
+                {rdResolving ? "Resolving stream through Real-Debrid…" : "Preparing download on Real-Debrid…"}
+              </p>
             </div>
           ) : rdOverride ? (
             <>
@@ -580,41 +580,35 @@ export default function VideoPlayer({ source, onClose }) {
           ) : active?.type === "rd" && !rdOverride ? (
             <div className="w-full h-full flex flex-col items-center justify-center gap-3 p-6 text-center">
               <div className="w-12 h-12 rounded-full bg-mg-green/15 border border-mg-green/40 flex items-center justify-center">
-                {busy ? (
-                  <Loader2 className="w-6 h-6 text-mg-green animate-spin" />
-                ) : (
-                  <Zap className="w-6 h-6 text-mg-green" />
-                )}
+                <Zap className="w-6 h-6 text-mg-green" />
               </div>
               <p className="text-white font-semibold text-sm">Real-Debrid Options</p>
               <p className="text-white/40 text-xs max-w-sm">
                 Select an addon source above, or paste a magnet link below to stream through Real-Debrid.
               </p>
-              {!busy && (
-                <div className="flex flex-col gap-2 w-full max-w-md mt-1">
-                  <input
-                    value={pastedMagnet}
-                    onChange={(e) => setPastedMagnet(e.target.value)}
-                    placeholder="magnet:?xt=urn:btih:…"
-                    className="w-full bg-black/40 border border-white/15 rounded-md px-3 py-2 text-xs text-white placeholder-white/30 font-mono outline-none focus:border-mg-green/60"
-                  />
+              <div className="flex flex-col gap-2 w-full max-w-md mt-1">
+                <input
+                  value={pastedMagnet}
+                  onChange={(e) => setPastedMagnet(e.target.value)}
+                  placeholder="magnet:?xt=urn:btih:…"
+                  className="w-full bg-black/40 border border-white/15 rounded-md px-3 py-2 text-xs text-white placeholder-white/30 font-mono outline-none focus:border-mg-green/60"
+                />
+                <button
+                  onClick={resolvePasted}
+                  disabled={rdResolving || !pastedMagnet.trim()}
+                  className="flex items-center justify-center gap-1.5 bg-mg-green text-black font-semibold text-xs px-3 py-2 rounded-md hover:bg-mg-green-dim disabled:opacity-50"
+                >
+                  <Zap className="w-3.5 h-3.5" /> Stream via Real-Debrid
+                </button>
+                {rdTorrentId && (
                   <button
-                    onClick={resolvePasted}
-                    disabled={rdResolving || !pastedMagnet.trim()}
-                    className="flex items-center justify-center gap-1.5 bg-mg-green text-black font-semibold text-xs px-3 py-2 rounded-md hover:bg-mg-green-dim disabled:opacity-50"
+                    onClick={retryPasted}
+                    className="flex items-center justify-center gap-1.5 bg-white/10 hover:bg-white/20 text-white font-semibold text-xs px-3 py-2 rounded-md"
                   >
-                    <Zap className="w-3.5 h-3.5" /> Stream via Real-Debrid
+                    <RefreshCw className="w-3.5 h-3.5" /> Check again
                   </button>
-                  {rdTorrentId && (
-                    <button
-                      onClick={retryPasted}
-                      className="flex items-center justify-center gap-1.5 bg-white/10 hover:bg-white/20 text-white font-semibold text-xs px-3 py-2 rounded-md"
-                    >
-                      <RefreshCw className="w-3.5 h-3.5" /> Check again
-                    </button>
-                  )}
-                </div>
-              )}
+                )}
+              </div>
               {rdError && (
                 <p className="text-red-400 text-xs mt-1 max-w-md break-words">{rdError}</p>
               )}
