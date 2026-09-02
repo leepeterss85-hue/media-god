@@ -9,13 +9,13 @@ import PlayerControls from "@/components/mg/PlayerControls";
 const currentFilePath = (files) => (files?.find((f) => f.selected) || files?.[0] || {}).path || "";
 
 export default function VideoPlayer({ source, onClose }) {
-  const sources = source.sources || [
+  const sources = source?.sources && source.sources.length > 0 ? source.sources : [
     {
-      label: source.label || (source.type === "live" ? "LIVE" : "Stream"),
-      type: source.type,
-      src: source.src,
-      magnet: source.magnet,
-      live: source.type === "live",
+      label: source?.label || (source?.type === "live" ? "LIVE" : "Stream"),
+      type: source?.type || "rd",
+      src: source?.src || source?.magnet || source?.magnetLink || source?.url,
+      magnet: source?.magnet || source?.src || source?.magnetLink || source?.url,
+      live: source?.type === "live",
     },
   ];
   const [activeIdx, setActiveIdx] = useState(0);
@@ -46,8 +46,8 @@ export default function VideoPlayer({ source, onClose }) {
     } catch {}
   };
 
-  const active = sources[activeIdx] || sources[0];
-  const isLive = source.type === "live" || active?.live;
+  const active = sources[activeIdx] || sources[0] || {};
+  const isLive = source?.type === "live" || active?.live;
 
   useEffect(() => {
     setRdOverride(null);
@@ -67,10 +67,10 @@ export default function VideoPlayer({ source, onClose }) {
       try {
         const cacheRes = await base44.functions.invoke("realDebrid", {
           action: "find_cached",
-          title: source.rdTitle || source.title,
-          ...(source.rdYear != null ? { year: source.rdYear } : {}),
-          ...(source.rdSeason != null ? { season: source.rdSeason } : {}),
-          ...(source.rdEpisode != null ? { episode: source.rdEpisode } : {}),
+          title: source?.rdTitle || source?.title,
+          ...(source?.rdYear != null ? { year: source.rdYear } : {}),
+          ...(source?.rdSeason != null ? { season: source.rdSeason } : {}),
+          ...(source?.rdEpisode != null ? { episode: source.rdEpisode } : {}),
         });
 
         if (cancelled) return;
@@ -85,10 +85,23 @@ export default function VideoPlayer({ source, onClose }) {
           return;
         }
 
-        // Robustly check src, magnet, or fallback properties across active and parent source objects
-        let magnetToUse = active?.src || active?.magnet || sources[0]?.src || sources[0]?.magnet || source?.src || source?.magnet || cacheData.magnet;
+        let magnetToUse = 
+          active?.src || 
+          active?.magnet || 
+          active?.magnetLink || 
+          active?.url || 
+          active?.infoHash ||
+          sources[0]?.src || 
+          sources[0]?.magnet || 
+          sources[0]?.magnetLink || 
+          sources[0]?.url || 
+          source?.src || 
+          source?.magnet || 
+          source?.magnetLink || 
+          source?.url || 
+          cacheData.magnet;
 
-        if (!magnetToUse || !magnetToUse.startsWith("magnet:")) {
+        if (!magnetToUse) {
           setRdError("No stream source provided.");
           return;
         }
@@ -96,10 +109,10 @@ export default function VideoPlayer({ source, onClose }) {
         const res = await base44.functions.invoke("realDebrid", {
           action: "resolve_best",
           magnet: magnetToUse,
-          title: source.rdTitle || source.title,
-          ...(source.rdYear != null ? { year: source.rdYear } : {}),
-          ...(source.rdSeason != null ? { season: source.rdSeason } : {}),
-          ...(source.rdEpisode != null ? { episode: source.rdEpisode } : {}),
+          title: source?.rdTitle || source?.title,
+          ...(source?.rdYear != null ? { year: source.rdYear } : {}),
+          ...(source?.rdSeason != null ? { season: source.rdSeason } : {}),
+          ...(source?.rdEpisode != null ? { episode: source.rdEpisode } : {}),
         });
 
         if (cancelled) return;
@@ -126,7 +139,7 @@ export default function VideoPlayer({ source, onClose }) {
     return () => {
       cancelled = true;
     };
-  }, [activeIdx, active, source, sources]);
+  }, [activeIdx, active, source]);
 
   useEffect(() => {
     if (!rdTorrentId || rdOverride) return;
@@ -140,10 +153,10 @@ export default function VideoPlayer({ source, onClose }) {
         const res = await base44.functions.invoke("realDebrid", {
           action: "torrent_info",
           torrent_id: rdTorrentId,
-          title: source.rdTitle || source.title,
-          ...(source.rdYear != null ? { year: source.rdYear } : {}),
-          ...(source.rdSeason != null ? { season: source.rdSeason } : {}),
-          ...(source.rdEpisode != null ? { episode: source.rdEpisode } : {}),
+          title: source?.rdTitle || source?.title,
+          ...(source?.rdYear != null ? { year: source.rdYear } : {}),
+          ...(source?.rdSeason != null ? { season: source.rdSeason } : {}),
+          ...(source?.rdEpisode != null ? { episode: source.rdEpisode } : {}),
         });
         const data = res.data || {};
         if (cancelled) return;
@@ -262,7 +275,7 @@ export default function VideoPlayer({ source, onClose }) {
   const lastSaveRef = useRef(0);
   const cwIdRef = useRef({});
   const saveProgress = (t, d, force) => {
-    if (isLive || !source.title) return;
+    if (isLive || !source?.title) return;
     const url = rdOverride?.src || active?.src || active?.magnet;
     if (!url) return;
     const now = Date.now();
@@ -306,7 +319,7 @@ export default function VideoPlayer({ source, onClose }) {
 
   const handleLoadedMetadata = (e) => {
     const v = e.target;
-    if (source.startTime && source.startTime > 5) {
+    if (source?.startTime && source.startTime > 5) {
       try { v.currentTime = source.startTime; } catch {}
     }
   };
@@ -353,7 +366,7 @@ export default function VideoPlayer({ source, onClose }) {
                 <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" /> LIVE
               </span>
             )}
-            <h3 className="text-white font-semibold text-sm truncate">{source.title}</h3>
+            <h3 className="text-white font-semibold text-sm truncate">{source?.title}</h3>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {(active?.type === "file" || active?.type === "live" || rdOverride) && (
@@ -366,9 +379,9 @@ export default function VideoPlayer({ source, onClose }) {
                   <Maximize className="w-5 h-5" />
                 </button>
                 <CastButton
-                  url={rdOverride?.src || active.src || active.magnet}
-                  title={source.title}
-                  poster={source.poster}
+                  url={rdOverride?.src || active?.src || active?.magnet}
+                  title={source?.title}
+                  poster={source?.poster}
                 />
               </>
             )}
@@ -393,7 +406,7 @@ export default function VideoPlayer({ source, onClose }) {
                 key={rdOverride.src}
                 ref={videoRef}
                 src={rdOverride.src}
-                poster={source.poster}
+                poster={source?.poster}
                 playsInline
                 onLoadedMetadata={handleLoadedMetadata}
                 onTimeUpdate={handleTimeUpdate}
@@ -404,7 +417,7 @@ export default function VideoPlayer({ source, onClose }) {
           ) : active?.type === "youtube" ? (
             <iframe
               src={active.src}
-              title={source.title}
+              title={source?.title}
               className="w-full h-full"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
@@ -416,7 +429,7 @@ export default function VideoPlayer({ source, onClose }) {
                 ref={liveVideoRef}
                 key={active.src}
                 src={active.src}
-                poster={source.poster}
+                poster={source?.poster}
                 controls={false}
                 className="w-full h-full object-contain bg-black"
                 onLoadedMetadata={handleLoadedMetadata}
