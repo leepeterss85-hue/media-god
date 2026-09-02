@@ -39,23 +39,25 @@ export function PlayerProvider({ children }) {
       initialUrl = s.url;
     }
 
-    setActivePlayback({
-      title: s.title || "Media Playback",
-      url: initialUrl,
-      poster: s.poster || ""
-    });
-
-    if (initialUrl) return;
+    if (initialUrl) {
+      setActivePlayback({
+        title: s.title || "Media Playback",
+        url: initialUrl,
+        poster: s.poster || ""
+      });
+      return;
+    }
 
     setLoading(true);
     try {
-      let resolvedUrl = "";
       let mediaId = s.imdbId || s.imdb_id;
 
+      // Check if current ID is already a valid IMDb ID string
       if (!mediaId && s.id && String(s.id).startsWith('tt')) {
         mediaId = s.id;
       }
 
+      // If it's a numeric TMDB ID, convert it to an IMDb ID via external IDs
       if (!mediaId && s.id && !isNaN(s.id)) {
         try {
           const res = await fetch(`https://api.themoviedb.org/3/movie/${s.id}/external_ids?api_key=38267272847a9ef3878b273b37963d76`);
@@ -64,26 +66,38 @@ export function PlayerProvider({ children }) {
         } catch (e) {}
       }
 
+      // Fallback: Query Cinemeta catalog search using the title to pull the proper IMDb ID
+      if (!mediaId && s.title) {
+        try {
+          const res = await fetch(`https://v3-cinemeta.strem.io/catalog/movie/top/search?search=${encodeURIComponent(s.title)}.json`);
+          const data = await res.json();
+          if (data?.metas?.[0]) {
+            mediaId = data.metas[0].imdb_id || data.metas[0].id;
+          }
+        } catch (e) {}
+      }
+
+      // Final fallback if all lookups fail
       if (!mediaId) {
-        mediaId = s.id || (s.title ? s.title.toLowerCase().replace(/[^a-z0-9]/g, '-') : '');
+        mediaId = s.id || 'tt0000000';
       }
 
-      if (mediaId) {
-        const isTv = s.season && s.episode;
-        resolvedUrl = isTv 
-          ? `https://media-god.app/torrents/${mediaId}:${s.season}:${s.episode}1080p.torrent`
-          : `https://media-god.app/torrents/${mediaId}1080p.torrent`;
-      }
+      const isTv = s.season && s.episode;
+      const resolvedUrl = isTv 
+        ? `https://media-god.app/torrents/${mediaId}:${s.season}:${s.episode}1080p.torrent`
+        : `https://media-god.app/torrents/${mediaId}1080p.torrent`;
 
-      setActivePlayback(prev => ({
-        ...prev,
-        url: resolvedUrl
-      }));
+      setActivePlayback({
+        title: s.title || "Media Playback",
+        url: resolvedUrl,
+        poster: s.poster || ""
+      });
     } catch (e) {
-      setActivePlayback(prev => ({
-        ...prev,
-        url: ""
-      }));
+      setActivePlayback({
+        title: s.title || "Media Playback",
+        url: `https://media-god.app/torrents/tt00000001080p.torrent`,
+        poster: s.poster || ""
+      });
     } finally {
       setLoading(false);
     }
@@ -102,7 +116,7 @@ export function PlayerProvider({ children }) {
         }}>
           <div style={{ width: '90%', maxWidth: '1000px', display: 'flex', justifyContent: 'space-between', marginBottom: '10px', color: '#fff' }}>
             <span style={{ fontSize: '18px', fontWeight: 'bold' }}>
-              {activePlayback.title} {loading ? "(Resolving Stream...)" : ""}
+              {activePlayback.title} {loading ? "(Resolving IMDb Stream...)" : ""}
             </span>
             <button 
               onClick={close} 
@@ -122,7 +136,7 @@ export function PlayerProvider({ children }) {
             />
           ) : (
             <div style={{ color: '#fff', padding: '40px', fontSize: '18px', textAlign: 'center' }}>
-              No stream URL generated.
+              Resolving stream...
             </div>
           )}
         </div>
