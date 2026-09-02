@@ -57,7 +57,10 @@ export function PlayerProvider({ children }) {
 
       // 1. Handle explicit source arrays (Real-Debrid or direct links)
       if (s.sources && Array.isArray(s.sources) && s.sources.length > 0) {
-        const primarySource = s.sources[0];
+        // Skip trailer/youtube sources if full media sources exist
+        const validSources = s.sources.filter(src => src.type !== 'youtube' && !String(src.src).includes('youtube'));
+        const primarySource = validSources.length > 0 ? validSources[0] : s.sources[0];
+
         if (primarySource.type === 'rd_torrent' || primarySource.src) {
           if (primarySource.type === 'rd_torrent') {
             try {
@@ -69,16 +72,16 @@ export function PlayerProvider({ children }) {
                 resolvedUrl = res.data.link;
               }
             } catch (err) {}
-          } else {
+          } else if (!String(primarySource.src).includes('youtube')) {
             resolvedUrl = primarySource.src;
           }
         }
       }
 
-      // 2. Handle direct string URLs
+      // 2. Handle direct string URLs (ignoring YouTube trailers)
       if (!resolvedUrl) {
         const direct = s.src || s.url;
-        if (direct && typeof direct === 'string' && !direct.includes('media-god.app') && !direct.endsWith('.torrent')) {
+        if (direct && typeof direct === 'string' && !direct.includes('media-god.app') && !direct.endsWith('.torrent') && !direct.includes('youtube')) {
           resolvedUrl = direct;
         }
       }
@@ -97,7 +100,7 @@ export function PlayerProvider({ children }) {
         } catch (e) {}
       }
 
-      // 4. Scrape active addons for stream links
+      // 4. Scrape active addons for actual stream links (strictly ignoring YouTube/trailers)
       if (!resolvedUrl && mediaId) {
         try {
           const addons = await base44.entities.Addon.list("-created_date", 100);
@@ -123,7 +126,8 @@ export function PlayerProvider({ children }) {
                     !streamUrl.includes('youtube') && 
                     !streamUrl.includes('youtu.be') &&
                     !streamUrl.endsWith('.torrent') &&
-                    !streamUrl.includes('magnet:')
+                    !streamUrl.includes('magnet:') &&
+                    !streamUrl.includes('trailer')
                   );
                 });
                 
@@ -137,7 +141,7 @@ export function PlayerProvider({ children }) {
         } catch (dbErr) {}
       }
 
-      // 5. Direct Cinemeta Stream Fallback if addons miss
+      // 5. Direct Cinemeta Stream Fallback
       if (!resolvedUrl && mediaId) {
         try {
           const isTv = s.season && s.episode;
@@ -145,13 +149,13 @@ export function PlayerProvider({ children }) {
           const target = isTv ? `${mediaId}:${s.season}:${s.episode}` : mediaId;
           const res = await fetch(`https://v3-cinemeta.strem.io/stream/${type}/${target}.json`);
           const data = await res.json();
-          if (data?.streams?.[0]?.url) {
-            resolvedUrl = data.streams[0].url;
+          const validStream = data?.streams?.find(st => st.url && !st.url.includes('youtube'));
+          if (validStream?.url) {
+            resolvedUrl = validStream.url;
           }
         } catch (e) {}
       }
 
-      // Final fallback if everything else fails
       if (!resolvedUrl) {
         resolvedUrl = DEMO_VIDEO;
       }
@@ -188,7 +192,7 @@ export function PlayerProvider({ children }) {
         }}>
           <div style={{ width: '90%', maxWidth: '1000px', display: 'flex', justifyContent: 'space-between', marginBottom: '10px', color: '#fff' }}>
             <span style={{ fontSize: '18px', fontWeight: 'bold' }}>
-              {activePlayback.title} {loading ? "(Resolving Stream...)" : ""}
+              {activePlayback.title} {loading ? "(Resolving Full Stream...)" : ""}
             </span>
             <button 
               onClick={close} 
