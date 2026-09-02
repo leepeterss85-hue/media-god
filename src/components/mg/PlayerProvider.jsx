@@ -4,8 +4,6 @@ import { base44 } from "@/api/base44Client";
 const NO_PLAYER = { play: () => {}, close: () => {} };
 const PlayerContext = createContext(NO_PLAYER);
 
-export const DEMO_VIDEO = "https://media.w3.org/2010/05/sintel/trailer.mp4";
-
 export function buildMagnet(title, id, quality) {
   return `magnet:?xt=urn:btih:${id || "media"}&dn=${encodeURIComponent(title || "media")}`;
 }
@@ -87,10 +85,6 @@ export function PlayerProvider({ children }) {
         }
       }
 
-      if (!resolvedUrl) {
-        resolvedUrl = DEMO_VIDEO;
-      }
-
       setActivePlayback(prev => ({
         ...prev,
         url: resolvedUrl
@@ -98,7 +92,7 @@ export function PlayerProvider({ children }) {
     } catch (e) {
       setActivePlayback(prev => ({
         ...prev,
-        url: DEMO_VIDEO
+        url: ""
       }));
     } finally {
       setLoading(false);
@@ -137,7 +131,9 @@ export function PlayerProvider({ children }) {
               style={{ width: '90%', maxWidth: '1000px', maxHeight: '80vh', backgroundColor: '#000', borderRadius: '8px' }}
             />
           ) : (
-            <div style={{ color: '#fff', padding: '40px', fontSize: '18px' }}>Resolving stream source...</div>
+            <div style={{ color: '#fff', padding: '40px', fontSize: '18px', textAlign: 'center' }}>
+              {loading ? "Scraping active add-on sources..." : "No playable streams found for this title."}
+            </div>
           )}
         </div>
       )}
