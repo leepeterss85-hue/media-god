@@ -105,6 +105,11 @@ export function PlayerProvider({ children }) {
       } catch (e) {}
     }
 
+    // Only append Real-Debrid options if the user actually has an active token saved
+    if (hasRd && !isLive && !sources.some(x => x.type === "rd")) {
+      sources.push({ label: "Real-Debrid Options", type: "rd", src: "" });
+    }
+
     if (sources.length === 0 && s?.src) {
       sources.push({ label: "Stream", type: s.type || "url", src: s.src });
     }
@@ -113,7 +118,7 @@ export function PlayerProvider({ children }) {
     const activeUrl = playableSource ? playableSource.src : (sources[0]?.src || s?.src || "");
     
     setSource({ ...s, sources, url: activeUrl });
-  }, []);
+  }, [hasRd]);
 
   const close = useCallback(() => setSource(null), []);
   const value = useMemo(() => ({ play, close }), [play, close]);
