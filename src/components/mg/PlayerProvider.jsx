@@ -33,7 +33,6 @@ export function PlayerProvider({ children }) {
 
     let mediaId = s?.imdbId || s?.imdb_id;
 
-    // Resolve missing IMDb ID via TMDB external_ids API
     if (!mediaId && s?.id && !isNaN(s.id)) {
       try {
         const tmdbType = isSeries ? "tv" : "movie";
@@ -49,7 +48,6 @@ export function PlayerProvider({ children }) {
       mediaId = s.id;
     }
 
-    // If still no IMDb ID, search TMDB by title to find its IMDb ID
     if (!mediaId && s?.title) {
       try {
         const tmdbType = isSeries ? "tv" : "movie";
@@ -66,7 +64,6 @@ export function PlayerProvider({ children }) {
       } catch (e) {}
     }
 
-    // Scrape active addons across all videos using the resolved ID or title fallback
     if (!isLive) {
       try {
         const addons = await base44.entities.Addon.list("-created_date", 100);
@@ -108,10 +105,6 @@ export function PlayerProvider({ children }) {
       } catch (e) {}
     }
 
-    if (hasRd && !isLive && !sources.some(x => x.type === "rd")) {
-      sources.push({ label: "Real-Debrid Options", type: "rd", src: "" });
-    }
-
     if (sources.length === 0 && s?.src) {
       sources.push({ label: "Stream", type: s.type || "url", src: s.src });
     }
@@ -120,7 +113,7 @@ export function PlayerProvider({ children }) {
     const activeUrl = playableSource ? playableSource.src : (sources[0]?.src || s?.src || "");
     
     setSource({ ...s, sources, url: activeUrl });
-  }, [hasRd]);
+  }, []);
 
   const close = useCallback(() => setSource(null), []);
   const value = useMemo(() => ({ play, close }), [play, close]);
