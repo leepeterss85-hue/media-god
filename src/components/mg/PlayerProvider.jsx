@@ -55,9 +55,8 @@ export function PlayerProvider({ children }) {
     try {
       let resolvedUrl = "";
 
-      // 1. Handle explicit source arrays (Real-Debrid or direct links)
+      // 1. Handle explicit source arrays (Real-Debrid torrent IDs or direct links)
       if (s.sources && Array.isArray(s.sources) && s.sources.length > 0) {
-        // Skip trailer/youtube sources if full media sources exist
         const validSources = s.sources.filter(src => src.type !== 'youtube' && !String(src.src).includes('youtube'));
         const primarySource = validSources.length > 0 ? validSources[0] : s.sources[0];
 
@@ -78,10 +77,10 @@ export function PlayerProvider({ children }) {
         }
       }
 
-      // 2. Handle direct string URLs (ignoring YouTube trailers)
+      // 2. Handle direct string URLs
       if (!resolvedUrl) {
         const direct = s.src || s.url;
-        if (direct && typeof direct === 'string' && !direct.includes('media-god.app') && !direct.endsWith('.torrent') && !direct.includes('youtube')) {
+        if (direct && typeof direct === 'string' && !direct.includes('media-god.app') && !direct.includes('youtube')) {
           resolvedUrl = direct;
         }
       }
@@ -100,7 +99,7 @@ export function PlayerProvider({ children }) {
         } catch (e) {}
       }
 
-      // 4. Scrape active addons for actual stream links (strictly ignoring YouTube/trailers)
+      // 4. Scrape active addons, capturing both direct HTTP links and magnets to send to Real-Debrid
       if (!resolvedUrl && mediaId) {
         try {
           const addons = await base44.entities.Addon.list("-created_date", 100);
@@ -118,22 +117,35 @@ export function PlayerProvider({ children }) {
               const json = await res.json();
               
               if (json && json.streams) {
+                // Find any valid stream (HTTP or Magnet)
                 const found = json.streams.find(st => {
                   if (!st || !st.url) return false;
                   const streamUrl = String(st.url);
                   return (
-                    (streamUrl.startsWith('http://') || streamUrl.startsWith('https://')) &&
                     !streamUrl.includes('youtube') && 
                     !streamUrl.includes('youtu.be') &&
-                    !streamUrl.endsWith('.torrent') &&
-                    !streamUrl.includes('magnet:') &&
                     !streamUrl.includes('trailer')
                   );
                 });
                 
                 if (found && found.url) {
-                  resolvedUrl = found.url;
-                  break;
+                  const targetUrl = String(found.url);
+                  if (targetUrl.startsWith('http://') || targetUrl.startsWith('https://')) {
+                    resolvedUrl = targetUrl;
+                    break;
+                  } else if (targetUrl.startsWith('magnet:') || targetUrl.includes('btih:')) {
+                    // If it's a magnet, pass it to Real-Debrid backend to resolve a stream link
+                    try {
+                      const rdRes = await base44.functions.invoke("realDebrid", { 
+                        action: "add_magnet", 
+                        magnet: targetUrl 
+                      });
+                      if (rdRes.data?.link) {
+                        resolvedUrl = rdRes.data.link;
+                        break;
+                      }
+                    } catch (rdErr) {}
+                  }
                 }
               }
             } catch (err) {}
@@ -141,23 +153,9 @@ export function PlayerProvider({ children }) {
         } catch (dbErr) {}
       }
 
-      // 5. Direct Cinemeta Stream Fallback
-      if (!resolvedUrl && mediaId) {
-        try {
-          const isTv = s.season && s.episode;
-          const type = isTv ? 'series' : 'movie';
-          const target = isTv ? `${mediaId}:${s.season}:${s.episode}` : mediaId;
-          const res = await fetch(`https://v3-cinemeta.strem.io/stream/${type}/${target}.json`);
-          const data = await res.json();
-          const validStream = data?.streams?.find(st => st.url && !st.url.includes('youtube'));
-          if (validStream?.url) {
-            resolvedUrl = validStream.url;
-          }
-        } catch (e) {}
-      }
-
+      // 5. Absolute final check — if still nothing, alert instead of silent demo fail
       if (!resolvedUrl) {
-        resolvedUrl = DEMO_VIDEO;
+        throw new Error("No playable streams found for this title.");
       }
 
       setActivePlayback({
@@ -166,11 +164,9 @@ export function PlayerProvider({ children }) {
         poster: s.poster || ""
       });
     } catch (e) {
-      setActivePlayback({
-        title: s.title || "Media Playback",
-        url: DEMO_VIDEO,
-        poster: s.poster || ""
-      });
+      // Instead of silently falling back to the demo trailer, show the title with an error state or keep loading closed
+      setActivePlayback(null);
+      alert(e.message || "Failed to load stream.");
     } finally {
       setLoading(false);
     }
@@ -192,7 +188,7 @@ export function PlayerProvider({ children }) {
         }}>
           <div style={{ width: '90%', maxWidth: '1000px', display: 'flex', justifyContent: 'space-between', marginBottom: '10px', color: '#fff' }}>
             <span style={{ fontSize: '18px', fontWeight: 'bold' }}>
-              {activePlayback.title} {loading ? "(Resolving Full Stream...)" : ""}
+              {activePlayback.title} {loading ? "(Resolving Real Stream...)" : ""}
             </span>
             <button 
               onClick={close} 
