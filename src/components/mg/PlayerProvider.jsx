@@ -86,19 +86,15 @@ export function PlayerProvider({ children }) {
       } catch (e) {}
     }
 
-    if (hasRd && !isLive) {
-      sources.push({ label: "Real-Debrid Options", type: "rd", src: "" });
-    }
-
     if (sources.length === 0 && s?.src) {
       sources.push({ label: "Stream", type: s.type || "url", src: s.src });
     }
 
-    const playableSource = sources.find((x) => x.type !== "rd" && x.src);
+    const playableSource = sources.find((x) => x.src);
     const activeUrl = playableSource ? playableSource.src : (sources[0]?.src || s?.src || "");
     
     setSource({ ...s, sources, url: activeUrl });
-  }, [hasRd]);
+  }, []);
 
   const close = useCallback(() => setSource(null), []);
   const value = useMemo(() => ({ play, close }), [play, close]);
