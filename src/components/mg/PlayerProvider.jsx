@@ -169,6 +169,11 @@ export function PlayerProvider({ children }) {
               controls 
               autoPlay 
               poster={activePlayback.poster}
+              onError={() => {
+                if (activePlayback.url !== DEMO_VIDEO) {
+                  setActivePlayback(prev => ({ ...prev, url: DEMO_VIDEO }));
+                }
+              }}
               style={{ width: '90%', maxWidth: '1000px', maxHeight: '80vh', backgroundColor: '#000', borderRadius: '8px' }}
             />
           ) : (
