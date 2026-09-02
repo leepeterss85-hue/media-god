@@ -273,7 +273,7 @@ export default function VideoPlayer({ source, onClose }) {
           break;
         case "l":
           e.preventDefault();
-          if (video.duration) video.currentTime = Math.min(video.duration, (video.duration || 0) + 10);
+          if (video.duration) video.currentTime = Math.min(video.duration, (video.currentTime || 0) + 10);
           break;
         case "<":
           e.preventDefault();
