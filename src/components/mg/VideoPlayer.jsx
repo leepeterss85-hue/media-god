@@ -56,6 +56,55 @@ export default function VideoPlayer({ source, onClose }) {
     setRdTorrentId(null);
   }, [activeIdx]);
 
+  // Automatically resolve addon magnet/torrent sources through Real-Debrid
+  useEffect(() => {
+    if (!active?.src || active?.type === "youtube" || active?.type === "provider" || active?.type === "file" || active?.live || active?.type === "rd") return;
+    
+    let cancelled = false;
+    setRdResolving(true);
+    setRdError("");
+
+    const run = async () => {
+      try {
+        const isMagnet = active.src.startsWith("magnet:") || active.type === "torrent";
+        const res = await base44.functions.invoke("realDebrid", {
+          action: isMagnet ? "add_magnet" : "resolve_best",
+          magnet: active.src,
+          title: source.title,
+          year: source.year,
+          season: source.season,
+          episode: source.episode,
+        });
+        if (cancelled) return;
+        const data = res.data || {};
+        if (data.status === "ready" && data.stream_url) {
+          setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream", file: currentFilePath(data.files) });
+          setRdFiles(data.files || []);
+        } else if (data.status === "preparing" && data.torrent_id) {
+          setRdTorrentId(data.torrent_id);
+        } else if (data.stream_url) {
+          setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream", file: currentFilePath(data.files) });
+          setRdFiles(data.files || []);
+        } else if (data.error) {
+          setRdError(data.error);
+        } else {
+          setRdOverride({ src: active.src, label: active.label });
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setRdOverride({ src: active.src, label: active.label });
+        }
+      } finally {
+        if (!cancelled) setRdResolving(false);
+      }
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeIdx, active, source]);
+
+  // Existing RD auto-resolve for pure RD dropdown options
   useEffect(() => {
     if (active?.type !== "rd") return;
     if (active.skipAutoResolve) return;
@@ -138,39 +187,7 @@ export default function VideoPlayer({ source, onClose }) {
     return () => {
       cancelled = true;
     };
-  }, [activeIdx, active?.type, active?.src, source.title]);
-
-  useEffect(() => {
-    if (active?.type !== "rd_torrent") return;
-    let cancelled = false;
-    setRdResolving(true);
-    setRdError("");
-    setRdOverride(null);
-    setRdFiles([]);
-    base44.functions
-      .invoke("realDebrid", { action: "torrent_info", torrent_id: active.src })
-      .then((res) => {
-        if (cancelled) return;
-        const data = res.data || {};
-        if (data.status === "ready" && data.stream_url) {
-          setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream", file: currentFilePath(data.files) });
-          setRdFiles(data.files || []);
-        } else if (data.status === "preparing") {
-          setRdTorrentId(data.torrent_id || active.src);
-        } else if (data.error) {
-          setRdError(data.error);
-        }
-      })
-      .catch((e) => {
-        if (!cancelled) setRdError(e.message || "Real-Debrid request failed");
-      })
-      .finally(() => {
-        if (!cancelled) setRdResolving(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [activeIdx, active?.type, active?.src]);
+  }, [activeIdx, active?.type, active?.src, source]);
 
   useEffect(() => {
     if (!rdTorrentId || rdOverride) return;
@@ -219,7 +236,7 @@ export default function VideoPlayer({ source, onClose }) {
       cancelled = true;
       if (pollRef.current) clearTimeout(pollRef.current);
     };
-  }, [rdTorrentId, rdOverride]);
+  }, [rdTorrentId, rdOverride, source]);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -476,32 +493,6 @@ export default function VideoPlayer({ source, onClose }) {
     }
   };
 
-  const resolveRd = async () => {
-    setRdResolving(true);
-    setRdError("");
-    try {
-      const res = await base44.functions.invoke("realDebrid", {
-        action: "add_magnet",
-        magnet: active.src,
-      });
-      const data = res.data || {};
-      if (data.error) {
-        setRdError(data.error);
-      } else if (data.status === "ready" && data.stream_url) {
-        setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream", file: currentFilePath(data.files) });
-        setRdFiles(data.files || []);
-      } else if (data.status === "preparing") {
-        setRdTorrentId(data.torrent_id);
-      } else {
-        setRdError("Real-Debrid could not resolve this magnet.");
-      }
-    } catch (e) {
-      setRdError(e.message || "Real-Debrid request failed");
-    } finally {
-      setRdResolving(false);
-    }
-  };
-
   const isP2P = active?.type === "magnet" || active?.type === "torrent";
   const busy = rdResolving || rdPolling;
 
@@ -543,8 +534,13 @@ export default function VideoPlayer({ source, onClose }) {
           </div>
         </div>
 
-        <div ref={stageRef} className="relative w-full aspect-video bg-black rounded-lg overflow-hidden border border-white/10">
-          {rdOverride ? (
+        <div ref={stageRef} className="relative w-full aspect-video bg-black rounded-lg overflow-hidden border border-white/10 flex items-center justify-center">
+          {rdResolving ? (
+            <div className="flex flex-col items-center gap-3 p-6 text-center">
+              <Loader2 className="w-8 h-8 text-mg-green animate-spin" />
+              <p className="text-white font-semibold text-sm">Resolving stream through Real-Debrid…</p>
+            </div>
+          ) : rdOverride ? (
             <>
               <video
                 key={rdOverride.src}
@@ -558,7 +554,7 @@ export default function VideoPlayer({ source, onClose }) {
               />
               <PlayerControls key={rdOverride.src} videoRef={videoRef} stageRef={stageRef} isLive={isLive} onFullscreen={goFullscreen} />
             </>
-          ) : active?.type === "youtube" && (
+          ) : active?.type === "youtube" ? (
             <iframe
               src={active.src}
               title={source.title}
@@ -567,8 +563,7 @@ export default function VideoPlayer({ source, onClose }) {
               allowFullScreen
               referrerPolicy="strict-origin-when-cross-origin"
             />
-          )}
-          {(active?.type === "file" || active?.type === "live") && !rdOverride && (
+          ) : (active?.type === "file" || active?.type === "live") && !rdOverride ? (
             <>
               <LiveVideo
                 ref={liveVideoRef}
@@ -582,8 +577,7 @@ export default function VideoPlayer({ source, onClose }) {
               />
               <PlayerControls key={active.src} videoRef={liveVideoRef} stageRef={stageRef} isLive={isLive} onFullscreen={goFullscreen} />
             </>
-          )}
-          {(active?.type === "rd" || active?.type === "rd_torrent") && !rdOverride && (
+          ) : active?.type === "rd" && !rdOverride ? (
             <div className="w-full h-full flex flex-col items-center justify-center gap-3 p-6 text-center">
               <div className="w-12 h-12 rounded-full bg-mg-green/15 border border-mg-green/40 flex items-center justify-center">
                 {busy ? (
@@ -592,9 +586,7 @@ export default function VideoPlayer({ source, onClose }) {
                   <Zap className="w-6 h-6 text-mg-green" />
                 )}
               </div>
-              <p className="text-white font-semibold text-sm">
-                {rdResolving ? "Resolving via Real-Debrid…" : rdPolling ? "Downloading on Real-Debrid…" : "Real-Debrid Options"}
-              </p>
+              <p className="text-white font-semibold text-sm">Real-Debrid Options</p>
               <p className="text-white/40 text-xs max-w-sm">
                 Select an addon source above, or paste a magnet link below to stream through Real-Debrid.
               </p>
@@ -627,75 +619,8 @@ export default function VideoPlayer({ source, onClose }) {
                 <p className="text-red-400 text-xs mt-1 max-w-md break-words">{rdError}</p>
               )}
             </div>
-          )}
-          {isP2P && (
-            <div className="w-full h-full flex flex-col items-center justify-center gap-3 p-6 text-center">
-              <div className="w-12 h-12 rounded-full bg-mg-green/15 border border-mg-green/40 flex items-center justify-center">
-                {active.type === "magnet" ? (
-                  <Link className="w-6 h-6 text-mg-green" />
-                ) : (
-                  <Download className="w-6 h-6 text-mg-green" />
-                )}
-              </div>
-              <p className="text-white font-semibold text-sm">
-                {active.type === "magnet" ? "Magnet Link" : "Torrent File"}
-              </p>
-              <p className="text-white/40 text-xs break-all max-w-md font-mono">{active.src}</p>
-              <div className="flex gap-2 mt-1">
-                <button
-                  onClick={() => copy(active.src)}
-                  className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-3 py-2 rounded-md"
-                >
-                  {copied ? <Check className="w-3.5 h-3.5 text-mg-green" /> : <Copy className="w-3.5 h-3.5" />}
-                  {copied ? "Copied" : "Copy"}
-                </button>
-                <button
-                  onClick={() => openLink(active.src)}
-                  className="flex items-center gap-1.5 bg-mg-green text-black font-semibold text-xs px-3 py-2 rounded-md hover:bg-mg-green-dim"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" /> Open
-                </button>
-                {active.type === "magnet" && (
-                  <button
-                    onClick={resolveRd}
-                    disabled={rdResolving}
-                    className="flex items-center gap-1.5 bg-mg-green/20 border border-mg-green/50 text-mg-green font-semibold text-xs px-3 py-2 rounded-md hover:bg-mg-green/30 disabled:opacity-60"
-                  >
-                    {rdResolving ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Zap className="w-3.5 h-3.5" />
-                    )}
-                    {rdResolving ? "Resolving…" : "Stream via Real-Debrid"}
-                  </button>
-                )}
-              </div>
-              {rdResolving && (
-                <p className="text-mg-green text-xs mt-1">Contacting Real-Debrid…</p>
-              )}
-              {rdError && (
-                <p className="text-red-400 text-xs mt-1 max-w-md break-words">{rdError}</p>
-              )}
-            </div>
-          )}
-          {active?.type === "provider" && (
-            <div className="w-full h-full flex flex-col items-center justify-center gap-3 p-6 text-center">
-              {active.logo ? (
-                <img src={active.logo} alt={active.label} className="w-14 h-14 rounded-md object-contain bg-white/5 p-1" />
-              ) : (
-                <div className="w-14 h-14 rounded-md bg-mg-green/15 border border-mg-green/40 flex items-center justify-center">
-                  <Tv className="w-7 h-7 text-mg-green" />
-                </div>
-              )}
-              <p className="text-white font-semibold text-sm">Watch on {active.label}</p>
-              <p className="text-white/40 text-xs">Legal streaming provider</p>
-              <button
-                onClick={() => openLink(active.src)}
-                className="flex items-center gap-1.5 bg-mg-green text-black font-semibold text-xs px-3 py-2 rounded-md hover:bg-mg-green-dim"
-              >
-                <ExternalLink className="w-3.5 h-3.5" /> Open
-              </button>
-            </div>
+          ) : (
+            <div className="text-white/60 text-xs p-6 text-center">No stream source available.</div>
           )}
         </div>
 
