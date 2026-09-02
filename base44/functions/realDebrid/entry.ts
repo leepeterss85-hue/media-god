@@ -33,9 +33,26 @@ export default async function(req) {
     }
 
     if (action === 'add_magnet') {
-      const magnet = body.magnet;
-      if (!magnet || !magnet.startsWith('magnet:')) {
-        return Response.json({ error: 'A valid magnet URI is required' }, { status: 400 });
+      let magnet = body.magnet;
+      if (!magnet) {
+        return Response.json({ error: 'A valid stream source or magnet URI is required' }, { status: 400 });
+      }
+
+      if (!magnet.startsWith('magnet:') && /^[a-fA-F0-9]{40}$/.test(magnet)) {
+        magnet = `magnet:?xt=urn:btih:${magnet}`;
+      }
+
+      if (magnet.startsWith('http://') || magnet.startsWith('https://')) {
+        return Response.json({
+          status: 'ready',
+          stream_url: magnet,
+          filename: body.title || 'Stream',
+          files: [],
+        });
+      }
+
+      if (!magnet.startsWith('magnet:')) {
+        return Response.json({ error: 'Invalid magnet URI format' }, { status: 400 });
       }
 
       const addRes = await fetch(`${RD_BASE}/torrents/addMagnet`, {
@@ -89,9 +106,26 @@ export default async function(req) {
     }
 
     if (action === 'resolve_best') {
-      const magnet = body.magnet;
-      if (!magnet || !magnet.startsWith('magnet:')) {
-        return Response.json({ error: 'A valid magnet URI is required' }, { status: 400 });
+      let magnet = body.magnet;
+      if (!magnet) {
+        return Response.json({ error: 'A valid stream source or magnet URI is required' }, { status: 400 });
+      }
+
+      if (!magnet.startsWith('magnet:') && /^[a-fA-F0-9]{40}$/.test(magnet)) {
+        magnet = `magnet:?xt=urn:btih:${magnet}`;
+      }
+
+      if (magnet.startsWith('http://') || magnet.startsWith('https://')) {
+        return Response.json({
+          status: 'ready',
+          stream_url: magnet,
+          filename: body.title || 'Stream',
+          files: [],
+        });
+      }
+
+      if (!magnet.startsWith('magnet:')) {
+        return Response.json({ error: 'Invalid magnet URI format' }, { status: 400 });
       }
 
       const addRes = await fetch(`${RD_BASE}/torrents/addMagnet`, {
