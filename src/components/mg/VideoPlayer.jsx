@@ -56,7 +56,6 @@ export default function VideoPlayer({ source, onClose }) {
     setRdTorrentId(null);
   }, [activeIdx]);
 
-  // Automatically resolve selected addon sources (URLs or magnets/torrents) through Real-Debrid
   useEffect(() => {
     if (!active?.src || active?.type === "youtube" || active?.type === "provider" || active?.type === "file" || active?.live || active?.type === "rd") return;
     
@@ -492,7 +491,6 @@ export default function VideoPlayer({ source, onClose }) {
     }
   };
 
-  const isP2P = active?.type === "magnet" || active?.type === "torrent";
   const busy = rdResolving || rdPolling;
 
   return (
