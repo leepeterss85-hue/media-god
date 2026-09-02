@@ -4,8 +4,6 @@ import { base44 } from "@/api/base44Client";
 const NO_PLAYER = { play: () => {}, close: () => {} };
 const PlayerContext = createContext(NO_PLAYER);
 
-export const DEMO_VIDEO = "https://media.w3.org/2010/05/sintel/trailer.mp4";
-
 export function buildMagnet(title, id, quality) {
   return `magnet:?xt=urn:btih:${id || "media"}&dn=${encodeURIComponent(title || "media")}`;
 }
@@ -56,7 +54,6 @@ export function PlayerProvider({ children }) {
     setLoading(true);
 
     try {
-      let resolvedUrl = "";
       let mediaId = s.imdbId || s.imdb_id;
 
       if (!mediaId && s.id && String(s.id).startsWith('tt')) {
@@ -71,44 +68,24 @@ export function PlayerProvider({ children }) {
         } catch (e) {}
       }
 
-      if (mediaId) {
-        const addons = await base44.entities.Addon.list("-created_date", 100);
-        const activeAddons = (addons || []).filter((a) => a.active && a.url);
-
-        const isTv = s.season && s.episode;
-        const streamType = isTv ? 'series' : 'movie';
-        const streamTarget = isTv ? `${mediaId}:${s.season}:${s.episode}` : mediaId;
-
-        for (const addon of activeAddons) {
-          try {
-            const targetUrl = addon.url.replace('/manifest.json', `/stream/${streamType}/${streamTarget}.json`);
-            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
-            const res = await fetch(proxyUrl);
-            const json = await res.json();
-            if (json && json.streams) {
-              const found = json.streams.find(st => st && st.url && !st.url.startsWith('magnet:') && !st.url.includes('youtube'));
-              if (found && found.url) {
-                resolvedUrl = found.url;
-                break;
-              }
-            }
-          } catch (err) {}
-        }
+      if (!mediaId && s.title) {
+        try {
+          const res = await fetch(`https://v3-cinemeta.strem.io/catalog/movie/top/search?search=${encodeURIComponent(s.title)}.json`);
+          const data = await res.json();
+          if (data?.metas?.[0]) {
+            mediaId = data.metas[0].imdb_id || data.metas[0].id;
+          }
+        } catch (e) {}
       }
 
-      if (!resolvedUrl) {
-        let fallbackId = mediaId || s.imdbId || s.imdb_id;
-        if (!fallbackId && s.id && String(s.id).startsWith('tt')) {
-          fallbackId = s.id;
-        }
-        if (!fallbackId) {
-          fallbackId = s.id || 'tt10872600';
-        }
-        const isTv = s.season && s.episode;
-        resolvedUrl = isTv 
-          ? `https://media-god.app/torrents/${fallbackId}:${s.season}:${s.episode}1080p.torrent`
-          : `https://media-god.app/torrents/${fallbackId}1080p.torrent`;
+      if (!mediaId) {
+        mediaId = s.id || 'tt10872600';
       }
+
+      const isTv = s.season && s.episode;
+      const resolvedUrl = isTv 
+        ? `https://media-god.app/torrents/${mediaId}:${s.season}:${s.episode}.torrent`
+        : `https://media-god.app/torrents/${mediaId}.torrent`;
 
       setActivePlayback({
         title: s.title || "Media Playback",
@@ -118,7 +95,7 @@ export function PlayerProvider({ children }) {
     } catch (e) {
       setActivePlayback({
         title: s.title || "Media Playback",
-        url: `https://media-god.app/torrents/tt108726001080p.torrent`,
+        url: `https://media-god.app/torrents/tt10872600.torrent`,
         poster: s.poster || ""
       });
     } finally {
@@ -139,7 +116,7 @@ export function PlayerProvider({ children }) {
         }}>
           <div style={{ width: '90%', maxWidth: '1000px', display: 'flex', justifyContent: 'space-between', marginBottom: '10px', color: '#fff' }}>
             <span style={{ fontSize: '18px', fontWeight: 'bold' }}>
-              {activePlayback.title} {loading ? "(Scraping Streams...)" : ""}
+              {activePlayback.title} {loading ? "(Resolving...)" : ""}
             </span>
             <button 
               onClick={close} 
