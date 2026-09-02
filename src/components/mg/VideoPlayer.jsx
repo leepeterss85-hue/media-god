@@ -32,11 +32,6 @@ export default function VideoPlayer({ source, onClose }) {
   const stageRef = useRef(null);
   const pollRef = useRef(null);
 
-  // Request fullscreen on the video stage. Must be called from a user gesture
-  // (a tap/click) — the browser blocks fullscreen requests that aren't. iOS
-  // Safari only supports fullscreen on the <video> element itself via
-  // webkitEnterFullscreen; other browsers fullscreen the stage container so
-  // the controls and file list stay visible.
   const goFullscreen = () => {
     const video = videoRef.current;
     const stage = stageRef.current;
@@ -61,14 +56,8 @@ export default function VideoPlayer({ source, onClose }) {
     setRdTorrentId(null);
   }, [activeIdx]);
 
-  // Auto-resolve the default Real-Debrid source on open. With a magnet
-  // attached, check RD's cache. Without one, search the user's own RD
-  // library for an already-cached copy of this title and play that. If
-  // neither yields a stream, stay on the RD source and show the paste box.
   useEffect(() => {
     if (active?.type !== "rd") return;
-    // "Paste Magnet" source: skip the cache/library lookup and show the
-    // paste box immediately so the user can drop in their own real magnet.
     if (active.skipAutoResolve) return;
     let cancelled = false;
     setRdResolving(true);
@@ -89,7 +78,6 @@ export default function VideoPlayer({ source, onClose }) {
           if (!cancelled) setRdError(e.message || "Real-Debrid request failed");
         }
       }
-      // No magnet / not cached → look for this title in the user's RD library.
       let cached = false;
       try {
         const fc = await base44.functions.invoke("realDebrid", {
@@ -101,22 +89,17 @@ export default function VideoPlayer({ source, onClose }) {
         });
         if (cancelled) return;
         const d = fc.data || {};
-        // Ready library match → play instantly, no poll wait.
         if (d.status === "ready" && d.stream_url) {
           setRdOverride({ src: d.stream_url, label: "Real-Debrid Stream", file: currentFilePath(d.files) });
           setRdFiles(d.files || []);
           cached = true;
         } else if (d.torrent_id) {
-          setRdTorrentId(d.torrent_id); // auto-poll resolves + plays
+          setRdTorrentId(d.torrent_id);
           cached = true;
         }
-        // not_found → fall through to saved-magnet lookup
       } catch {}
       if (cached) return;
 
-      // No cached copy — reuse a magnet previously pasted for this title so
-      // playback stays one-click even after the RD torrent is deleted. The
-      // box is pre-filled too, so if re-caching fails the user just hits Play.
       try {
         const links = await base44.entities.RdLink.filter({
           title: source.rdTitle || source.title,
@@ -157,8 +140,6 @@ export default function VideoPlayer({ source, onClose }) {
     };
   }, [activeIdx, active?.type, active?.src, source.title]);
 
-  // Resolve a torrent already on the user's Real-Debrid account (from the
-  // RD Library) by its torrent id.
   useEffect(() => {
     if (active?.type !== "rd_torrent") return;
     let cancelled = false;
@@ -191,8 +172,6 @@ export default function VideoPlayer({ source, onClose }) {
     };
   }, [activeIdx, active?.type, active?.src]);
 
-  // Auto-poll a torrent that Real-Debrid is still downloading, until it's
-  // ready to play — no manual "Check again" needed.
   useEffect(() => {
     if (!rdTorrentId || rdOverride) return;
     let cancelled = false;
@@ -244,13 +223,10 @@ export default function VideoPlayer({ source, onClose }) {
 
   useEffect(() => {
     const onKey = (e) => {
-      // Don't close the player on Escape while fullscreen — let the browser
-      // exit fullscreen first. A second Esc (once back to normal) closes.
       if (e.key === "Escape" && !document.fullscreenElement) {
         onClose();
         return;
       }
-      // Don't hijack keys while typing in an input/textarea.
       const tag = (e.target?.tagName || "").toLowerCase();
       if (tag === "input" || tag === "textarea" || e.target?.isContentEditable) return;
       const video = stageRef.current?.querySelector("video");
@@ -317,16 +293,9 @@ export default function VideoPlayer({ source, onClose }) {
     };
   }, [onClose]);
 
-  // Explicitly start playback when a stream becomes active — autoPlay alone is
-  // unreliable, but play() after the user's click gesture always works.
   useEffect(() => {
     const video = videoRef.current;
     if (!((active?.type === "file" || rdOverride) && video)) return;
-    // Try unmuted first (the user's Play click is the gesture). If the
-    // browser blocks unmuted autoplay, fall back to muted so the video
-    // still starts — the user can unmute via the native controls. This
-    // replaces the old autoPlay race where the browser would sometimes
-    // win and start muted/paused.
     video.muted = false;
     video.play().catch(() => {
       video.muted = true;
@@ -334,8 +303,6 @@ export default function VideoPlayer({ source, onClose }) {
     });
   }, [active, rdOverride]);
 
-  // Continue Watching: seek to a saved resume point when the stream loads,
-  // and periodically save playback progress so the user can resume later.
   const lastSaveRef = useRef(0);
   const cwIdRef = useRef({});
   const saveProgress = (t, d, force) => {
@@ -374,8 +341,6 @@ export default function VideoPlayer({ source, onClose }) {
   saveProgressRef.current = saveProgress;
   const lastPosRef = useRef({ t: 0, d: 0 });
 
-  // Final unthrottled save when the player closes so the exact last position
-  // is captured (periodic saves are throttled to every 10s).
   useEffect(() => {
     return () => {
       const { t, d } = lastPosRef.current;
@@ -404,8 +369,6 @@ export default function VideoPlayer({ source, onClose }) {
   };
   const openLink = (href) => window.open(href, "_blank", "noopener,noreferrer");
 
-  // Remember a magnet the user pasted for this title so next time it
-  // auto-resolves without re-pasting.
   const saveRdLink = (magnet, torrentId) => {
     const title = source.rdTitle || source.title;
     if (!title || !magnet) return;
@@ -454,7 +417,6 @@ export default function VideoPlayer({ source, onClose }) {
       } else if (data.status === "preparing") {
         setRdTorrentId(data.torrent_id);
         saveRdLink(pastedMagnet.trim(), data.torrent_id);
-        // auto-poll effect takes over
       } else {
         setRdError(data.error || "Real-Debrid could not resolve this magnet.");
       }
@@ -492,7 +454,6 @@ export default function VideoPlayer({ source, onClose }) {
     }
   };
 
-  // Switch to a different file within a resolved multi-file torrent.
   const pickFile = async (file) => {
     if (rdOverride?.file === file.path) return;
     setFileSwitching(true);
@@ -632,14 +593,10 @@ export default function VideoPlayer({ source, onClose }) {
                 )}
               </div>
               <p className="text-white font-semibold text-sm">
-                {rdResolving ? "Resolving via Real-Debrid…" : rdPolling ? "Downloading on Real-Debrid…" : "Real-Debrid"}
+                {rdResolving ? "Resolving via Real-Debrid…" : rdPolling ? "Downloading on Real-Debrid…" : "Real-Debrid Options"}
               </p>
               <p className="text-white/40 text-xs max-w-sm">
-                {rdResolving
-                  ? "Checking Real-Debrid cache for an instant stream…"
-                  : rdPolling
-                  ? "Auto-checking until your file is ready to play…"
-                  : "No cached stream for this title. Paste a real magnet link to stream it through your Real-Debrid account."}
+                Select an addon source above, or paste a magnet link below to stream through Real-Debrid.
               </p>
               {!busy && (
                 <div className="flex flex-col gap-2 w-full max-w-md mt-1">
@@ -719,9 +676,6 @@ export default function VideoPlayer({ source, onClose }) {
               {rdError && (
                 <p className="text-red-400 text-xs mt-1 max-w-md break-words">{rdError}</p>
               )}
-              <p className="text-white/30 text-[10px] mt-1">
-                Opens in your torrent client — or stream instantly with Real-Debrid
-              </p>
             </div>
           )}
           {active?.type === "provider" && (
