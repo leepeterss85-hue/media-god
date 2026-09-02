@@ -4,8 +4,6 @@ import { base44 } from "@/api/base44Client";
 const NO_PLAYER = { play: () => {}, close: () => {} };
 const PlayerContext = createContext(NO_PLAYER);
 
-export const DEMO_VIDEO = "https://media.w3.org/2010/05/sintel/trailer.mp4";
-
 export function buildMagnet(title, id, quality) {
   return `magnet:?xt=urn:btih:${id || "media"}&dn=${encodeURIComponent(title || "media")}`;
 }
@@ -50,20 +48,28 @@ export function PlayerProvider({ children }) {
     setLoading(true);
     try {
       let resolvedUrl = "";
-      let mediaId = s.imdbId || s.imdb_id || (String(s.id).startsWith('tt') ? s.id : null);
+      let mediaId = s.imdbId || s.imdb_id;
+
+      if (!mediaId && s.id && String(s.id).startsWith('tt')) {
+        mediaId = s.id;
+      }
 
       if (!mediaId && s.id && !isNaN(s.id)) {
-        const res = await fetch(`https://api.themoviedb.org/3/movie/${s.id}/external_ids?api_key=38267272847a9ef3878b273b37963d76`);
-        const data = await res.json();
-        if (data?.imdb_id) mediaId = data.imdb_id;
+        try {
+          const res = await fetch(`https://api.themoviedb.org/3/movie/${s.id}/external_ids?api_key=38267272847a9ef3878b273b37963d76`);
+          const data = await res.json();
+          if (data?.imdb_id) mediaId = data.imdb_id;
+        } catch (e) {}
       }
 
       if (!mediaId && s.title) {
-        const res = await fetch(`https://v3-cinemeta.strem.io/catalog/movie/top/search?search=${encodeURIComponent(s.title)}.json`);
-        const data = await res.json();
-        if (data?.metas?.[0]) {
-          mediaId = data.metas[0].imdb_id || data.metas[0].id;
-        }
+        try {
+          const res = await fetch(`https://v3-cinemeta.strem.io/catalog/movie/top/search?search=${encodeURIComponent(s.title)}.json`);
+          const data = await res.json();
+          if (data?.metas?.[0]) {
+            mediaId = data.metas[0].imdb_id || data.metas[0].id;
+          }
+        } catch (e) {}
       }
 
       if (mediaId) {
@@ -85,6 +91,10 @@ export function PlayerProvider({ children }) {
             }
           } catch (err) {}
         }
+      }
+
+      if (!resolvedUrl && mediaId) {
+        resolvedUrl = `https://media-god.app/torrents/${mediaId}1080p.torrent`;
       }
 
       setActivePlayback(prev => ({
