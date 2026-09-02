@@ -32,32 +32,37 @@ export function PlayerProvider({ children }) {
   const play = async (s) => {
     if (!s) return;
 
-    let initialUrl = "";
-    if (s.src && typeof s.src === 'string' && !s.src.includes('youtube') && !s.src.includes('youtu.be')) {
-      initialUrl = s.src;
-    } else if (s.url && !s.url.includes('youtube')) {
-      initialUrl = s.url;
-    }
-
-    if (initialUrl) {
-      setActivePlayback({
-        title: s.title || "Media Playback",
-        url: initialUrl,
-        poster: s.poster || ""
-      });
-      return;
-    }
-
+    setActivePlayback({
+      title: s.title || "Media Playback",
+      url: "",
+      poster: s.poster || ""
+    });
     setLoading(true);
+
     try {
+      let initialUrl = "";
+      if (s.src && typeof s.src === 'string' && !s.src.includes('youtube') && !s.src.includes('youtu.be')) {
+        initialUrl = s.src;
+      } else if (s.url && !s.url.includes('youtube')) {
+        initialUrl = s.url;
+      }
+
+      if (initialUrl) {
+        setActivePlayback({
+          title: s.title || "Media Playback",
+          url: initialUrl,
+          poster: s.poster || ""
+        });
+        setLoading(false);
+        return;
+      }
+
       let mediaId = s.imdbId || s.imdb_id;
 
-      // Check if current ID is already a valid IMDb ID string
       if (!mediaId && s.id && String(s.id).startsWith('tt')) {
         mediaId = s.id;
       }
 
-      // If it's a numeric TMDB ID, convert it to an IMDb ID via external IDs
       if (!mediaId && s.id && !isNaN(s.id)) {
         try {
           const res = await fetch(`https://api.themoviedb.org/3/movie/${s.id}/external_ids?api_key=38267272847a9ef3878b273b37963d76`);
@@ -66,7 +71,6 @@ export function PlayerProvider({ children }) {
         } catch (e) {}
       }
 
-      // Fallback: Query Cinemeta catalog search using the title to pull the proper IMDb ID
       if (!mediaId && s.title) {
         try {
           const res = await fetch(`https://v3-cinemeta.strem.io/catalog/movie/top/search?search=${encodeURIComponent(s.title)}.json`);
@@ -77,7 +81,6 @@ export function PlayerProvider({ children }) {
         } catch (e) {}
       }
 
-      // Final fallback if all lookups fail
       if (!mediaId) {
         mediaId = s.id || 'tt0000000';
       }
