@@ -88,7 +88,7 @@ export function PlayerProvider({ children }) {
             
             if (data?.streams) {
               return data.streams.map((st) => ({
-                label: st.title ? st.title.split('\n')[0] : `${addon.name} Source`,
+                label: st.title ? `${addon.name}: ${st.title.split('\n')[0]}` : `${addon.name} Source`,
                 type: st.infoHash ? "torrent" : "url",
                 src: st.url || `magnet:?xt=urn:btih:${st.infoHash}`,
               }));
@@ -105,7 +105,6 @@ export function PlayerProvider({ children }) {
       } catch (e) {}
     }
 
-    // Only append Real-Debrid options if the user actually has an active token saved
     if (hasRd && !isLive && !sources.some(x => x.type === "rd")) {
       sources.push({ label: "Real-Debrid Options", type: "rd", src: "" });
     }
