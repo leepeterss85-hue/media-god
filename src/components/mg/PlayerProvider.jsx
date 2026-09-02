@@ -56,6 +56,7 @@ export function PlayerProvider({ children }) {
     setLoading(true);
 
     try {
+      let resolvedUrl = "";
       let mediaId = s.imdbId || s.imdb_id;
 
       if (!mediaId && s.id && String(s.id).startsWith('tt')) {
@@ -80,14 +81,38 @@ export function PlayerProvider({ children }) {
         } catch (e) {}
       }
 
-      if (!mediaId) {
-        mediaId = s.id || 'tt10872600';
+      if (mediaId) {
+        const addons = await base44.entities.Addon.list("-created_date", 100);
+        const activeAddons = (addons || []).filter((a) => a.active && a.url);
+
+        const isTv = s.season && s.episode;
+        const streamType = isTv ? 'series' : 'movie';
+        const streamTarget = isTv ? `${mediaId}:${s.season}:${s.episode}` : mediaId;
+
+        for (const addon of activeAddons) {
+          try {
+            const targetUrl = addon.url.replace('/manifest.json', `/stream/${streamType}/${streamTarget}.json`);
+            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+            const res = await fetch(proxyUrl);
+            const json = await res.json();
+            if (json && json.streams) {
+              const found = json.streams.find(st => st && st.url && !st.url.startsWith('magnet:') && !st.url.includes('youtube'));
+              if (found && found.url) {
+                resolvedUrl = found.url;
+                break;
+              }
+            }
+          } catch (err) {}
+        }
       }
 
-      const isTv = s.season && s.episode;
-      const resolvedUrl = isTv 
-        ? `https://media-god.app/torrents/${mediaId}:${s.season}:${s.episode}.torrent`
-        : `https://media-god.app/torrents/${mediaId}.torrent`;
+      // Fallback to direct backend torrent stream if online scrapers are empty
+      if (!resolvedUrl && mediaId) {
+        const isTv = s.season && s.episode;
+        resolvedUrl = isTv 
+          ? `https://media-god.app/torrents/${mediaId}:${s.season}:${s.episode}.torrent`
+          : `https://media-god.app/torrents/${mediaId}.torrent`;
+      }
 
       setActivePlayback({
         title: s.title || "Media Playback",
@@ -97,7 +122,7 @@ export function PlayerProvider({ children }) {
     } catch (e) {
       setActivePlayback({
         title: s.title || "Media Playback",
-        url: `https://media-god.app/torrents/tt10872600.torrent`,
+        url: "",
         poster: s.poster || ""
       });
     } finally {
@@ -118,7 +143,7 @@ export function PlayerProvider({ children }) {
         }}>
           <div style={{ width: '90%', maxWidth: '1000px', display: 'flex', justifyContent: 'space-between', marginBottom: '10px', color: '#fff' }}>
             <span style={{ fontSize: '18px', fontWeight: 'bold' }}>
-              {activePlayback.title} {loading ? "(Resolving...)" : ""}
+              {activePlayback.title} {loading ? "(Searching Online Streams...)" : ""}
             </span>
             <button 
               onClick={close} 
@@ -138,7 +163,7 @@ export function PlayerProvider({ children }) {
             />
           ) : (
             <div style={{ color: '#fff', padding: '40px', fontSize: '18px', textAlign: 'center' }}>
-              Resolving stream...
+              {loading ? "Scraping online sources..." : "No streams available."}
             </div>
           )}
         </div>
