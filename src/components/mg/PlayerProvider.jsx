@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback, createContext, useContext, useMemo } from "react";
 import {
   X, Check, Link as LinkIcon, Loader2, Zap, Film, Maximize, AlertCircle, FileVideo,
 } from "lucide-react";
@@ -16,15 +16,13 @@ const HEVC_RE = /x265|h265|hevc|hev1|hvc1|10-?bit|hi10|hdr10|dolby.?vision/i;
 const isHevcName = (s) => HEVC_RE.test((s || "").toLowerCase());
 
 export default function VideoPlayer({ source, onClose }) {
-  if (!source) return null;
-
-  const sources = (source.sources && source.sources.length > 0)
+  const sources = (source?.sources && source.sources.length > 0)
     ? source.sources
     : [{
-        label: source.label || (source.type === "live" ? "LIVE" : "Default Stream"),
-        type: source.type || "url",
-        src: source.url || source.src,
-        live: source.type === "live",
+        label: source?.label || (source?.type === "live" ? "LIVE" : "Default Stream"),
+        type: source?.type || "url",
+        src: source?.url || source?.src,
+        live: source?.type === "live",
       }];
 
   const [activeIdx, setActiveIdx] = useState(0);
@@ -48,7 +46,7 @@ export default function VideoPlayer({ source, onClose }) {
   const active = sources[activeIdx] || sources[0];
   const isLive = source.type === "live" || active?.live;
   const isRd = active?.type === "rd" || active?.type === "torrent";
-  const playUrl = rdOverride?.src || (isRd ? "" : (active?.type === "url" ? active.src : source.url || ""));
+  const playUrl = rdOverride?.src || (isRd ? "" : (active?.type === "url" ? active.src : source?.url || ""));
   const isYoutube = active?.type === "youtube" || playUrl.includes("youtube.com") || playUrl.includes("youtu.be");
   const hevcDetected = isHevcName(rdOverride?.filename) || isHevcName(active?.label) || isHevcName(active?.filename);
   const useMovi = !isLive && !isYoutube && playUrl.length > 0 && (hevcDetected || nativeFailed);
@@ -195,6 +193,8 @@ export default function VideoPlayer({ source, onClose }) {
 
   useEffect(() => () => { if (pollRef.current) clearTimeout(pollRef.current); }, []);
 
+  if (!source) return null;
+
   const showPasteBox = isRd && (rdStatus === "not_found" || rdStatus === "not_cached" || rdStatus === "error");
   const resolving = isRd && (rdStatus === "resolving" || rdStatus === "preparing");
 
@@ -292,4 +292,43 @@ export default function VideoPlayer({ source, onClose }) {
       </div>
     </div>
   );
+}
+
+const PlayerContext = createContext(null);
+
+export function PlayerProvider({ children }) {
+  const [source, setSource] = useState(null);
+  const play = useCallback((s) => setSource(s), []);
+  const close = useCallback(() => setSource(null), []);
+  const value = useMemo(() => ({ play, close }), [play, close]);
+  return (
+    <PlayerContext.Provider value={value}>
+      {children}
+      {source && <VideoPlayer source={source} onClose={close} />}
+    </PlayerContext.Provider>
+  );
+}
+
+export function usePlayer() {
+  const ctx = useContext(PlayerContext);
+  if (!ctx) throw new Error("usePlayer must be used within a PlayerProvider");
+  return ctx;
+}
+
+// Sample HLS stream used by the Live TV demo channel player.
+export const DEMO_VIDEO = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
+
+// Build the default source list for a movie/show from its TMDB details.
+// Real-Debrid first (auto-resolves a cached stream), then a paste-your-own-
+// magnet option, the YouTube trailer, and any legal streaming providers.
+export function buildMediaSources({ title, id, poster, trailerUrl, providers }) {
+  const sources = [
+    { label: "Real-Debrid", type: "rd", src: "" },
+    { label: "Paste Magnet", type: "rd", src: "", skipAutoResolve: true },
+  ];
+  if (trailerUrl) sources.push({ label: "Trailer", type: "youtube", src: trailerUrl });
+  (providers || []).forEach((p) => {
+    sources.push({ label: p.name, type: "provider", src: p.link, logo: p.logo });
+  });
+  return sources;
 }
