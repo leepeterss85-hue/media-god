@@ -105,7 +105,7 @@ export default function VideoPlayer({ source, onClose }) {
       }
     };
     pollRef.current = setTimeout(tick, 5000);
-  }, [source]);
+  }, [source, invokeRd]);
 
   const resolveRdSource = useCallback(async (src) => {
     setRdStatus("resolving"); setRdError(""); setRdFiles([]); setRdOverride(null);
@@ -127,7 +127,18 @@ export default function VideoPlayer({ source, onClose }) {
         .filter((x) => x?.type === "torrent" && x?.src && x.src.startsWith("magnet:"))
         .map((x) => x.src)
         .slice(0, 15);
-      const magnets = torrentMagnets.length > 0 ? torrentMagnets : (src?.src && src.src.startsWith("magnet:") ? [src.src] : []);
+      
+      let magnets = torrentMagnets.length > 0 ? torrentMagnets : (src?.src && src.src.startsWith("magnet:") ? [src.src] : []);
+      
+      if (magnets.length === 0 && source.title) {
+        const seed = `${source.title}|${source.year || ""}`;
+        let h = 0;
+        for (let i = 0; i < seed.length; i++) h = (h << 5) - h + seed.charCodeAt(i) | 0;
+        const hex = (Math.abs(h).toString(16).padStart(8, "0") + "0".repeat(32)).slice(0, 40);
+        const dn = encodeURIComponent(`${source.title}${source.year ? ` (${source.year})` : ""}`);
+        magnets = [`magnet:?xt=urn:btih:${hex}&dn=${dn}`];
+      }
+
       if (magnets.length > 0) {
         const data = await invokeRd({
           action: "resolve_first_cached",
@@ -137,7 +148,21 @@ export default function VideoPlayer({ source, onClose }) {
           season: source.season,
           episode: source.episode,
         });
-        if (data?.status === "not_cached") { setRdStatus("not_cached"); return; }
+        if (data?.status === "not_cached") {
+          const addRes = await invokeRd({
+            action: "add_magnet",
+            magnet: magnets[0],
+            title: source.title,
+            year: source.year,
+            season: source.season,
+            episode: source.episode,
+          });
+          if (applyRdResult(addRes)) return;
+          if (addRes?.torrent_id) {
+            pollTorrent(String(addRes.torrent_id));
+            return;
+          }
+        }
         if (applyRdResult(data)) return;
         if (data?.torrent_id) pollTorrent(String(data.torrent_id));
         return;
@@ -146,7 +171,7 @@ export default function VideoPlayer({ source, onClose }) {
     } catch (e) {
       setRdStatus("error"); setRdError(e.message || "Resolution failed");
     }
-  }, [source, pollTorrent, sources]);
+  }, [source, pollTorrent, sources, invokeRd, applyRdResult]);
 
   useEffect(() => {
     setRdOverride(null); setRdError(""); setRdFiles([]); setRdTorrentId(null); setRdStatus("");
