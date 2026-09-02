@@ -58,7 +58,6 @@ export default function VideoPlayer({ source, onClose }) {
 
   useEffect(() => {
     if (!active?.src || active?.type === "youtube" || active?.type === "provider" || active?.type === "file" || active?.live) return;
-    if (active?.type === "rd" && !active.src) return;
     
     let cancelled = false;
     setRdResolving(true);
@@ -66,7 +65,7 @@ export default function VideoPlayer({ source, onClose }) {
 
     const run = async () => {
       try {
-        const isMagnet = active.src.startsWith("magnet:") || active.type === "torrent" || active.type === "rd";
+        const isMagnet = active.src.startsWith("magnet:") || active.type === "torrent" || active.type === "rd" || active.type === "rd_torrent";
         const res = await base44.functions.invoke("realDebrid", {
           action: isMagnet ? "add_magnet" : "resolve_best",
           magnet: active.src,
@@ -82,9 +81,6 @@ export default function VideoPlayer({ source, onClose }) {
           setRdFiles(data.files || []);
         } else if (data.torrent_id) {
           setRdTorrentId(data.torrent_id);
-        } else if (data.stream_url) {
-          setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream", file: currentFilePath(data.files) });
-          setRdFiles(data.files || []);
         } else if (data.error) {
           setRdError(data.error);
         } else {
@@ -103,75 +99,6 @@ export default function VideoPlayer({ source, onClose }) {
       cancelled = true;
     };
   }, [activeIdx, active, source]);
-
-  useEffect(() => {
-    if (active?.type !== "rd" || active?.src) return;
-    if (active.skipAutoResolve) return;
-    let cancelled = false;
-    setRdResolving(true);
-    setRdError("");
-    const run = async () => {
-      let cached = false;
-      try {
-        const fc = await base44.functions.invoke("realDebrid", {
-          action: "find_cached",
-          title: source.rdTitle || source.title,
-          ...(source.rdYear != null ? { year: source.rdYear } : {}),
-          ...(source.rdSeason != null ? { season: source.rdSeason } : {}),
-          ...(source.rdEpisode != null ? { episode: source.rdEpisode } : {}),
-        });
-        if (cancelled) return;
-        const d = fc.data || {};
-        if (d.status === "ready" && d.stream_url) {
-          setRdOverride({ src: d.stream_url, label: "Real-Debrid Stream", file: currentFilePath(d.files) });
-          setRdFiles(d.files || []);
-          cached = true;
-        } else if (d.torrent_id) {
-          setRdTorrentId(d.torrent_id);
-          cached = true;
-        }
-      } catch {}
-      if (cached) return;
-
-      try {
-        const links = await base44.entities.RdLink.filter({
-          title: source.rdTitle || source.title,
-          ...(source.rdYear != null ? { year: source.rdYear } : {}),
-          ...(source.rdSeason != null ? { season: source.rdSeason } : {}),
-          ...(source.rdEpisode != null ? { episode: source.rdEpisode } : {}),
-        });
-        if (cancelled) return;
-        if (links.length > 0 && links[0].magnet) {
-          const savedMagnet = links[0].magnet;
-          setPastedMagnet(savedMagnet);
-          const res = await base44.functions.invoke("realDebrid", {
-            action: "add_magnet",
-            magnet: savedMagnet,
-            title: source.rdTitle || source.title,
-            ...(source.rdYear != null ? { year: source.rdYear } : {}),
-            ...(source.rdSeason != null ? { season: source.rdSeason } : {}),
-            ...(source.rdEpisode != null ? { episode: source.rdEpisode } : {}),
-          });
-          if (cancelled) return;
-          const data = res.data || {};
-          if (data.status === "ready" && data.stream_url) {
-            setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream", file: currentFilePath(data.files) });
-            setRdFiles(data.files || []);
-          } else if (data.torrent_id) {
-            setRdTorrentId(data.torrent_id);
-          } else if (data.error) {
-            setRdError(data.error);
-          }
-        }
-      } catch {}
-    };
-    run().finally(() => {
-      if (!cancelled) setRdResolving(false);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [activeIdx, active?.type, active?.src, source]);
 
   useEffect(() => {
     if (!rdTorrentId || rdOverride) return;
