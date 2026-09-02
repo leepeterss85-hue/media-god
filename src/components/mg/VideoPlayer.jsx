@@ -64,7 +64,7 @@ export default function VideoPlayer({ source, onClose }) {
 
     const run = async () => {
       try {
-        const magnetToUse = active.src;
+        const magnetToUse = active?.src || sources[0]?.src || source?.src;
         if (!magnetToUse) {
           setRdError("No stream source provided.");
           setRdResolving(false);
@@ -107,7 +107,7 @@ export default function VideoPlayer({ source, onClose }) {
     return () => {
       cancelled = true;
     };
-  }, [activeIdx, active, source]);
+  }, [activeIdx, active, source, sources]);
 
   useEffect(() => {
     if (!rdTorrentId || rdOverride) return;
@@ -364,7 +364,7 @@ export default function VideoPlayer({ source, onClose }) {
             <div className="flex flex-col items-center gap-3 p-6 text-center">
               <Loader2 className="w-8 h-8 text-mg-green animate-spin" />
               <p className="text-white font-semibold text-sm">
-                {rdResolving ? "Resolving stream through Real-Debrid…" : "Preparing download on Real-Debrid… Please wait."}
+                {rdResolving ? "Initializing Real-Debrid Stream…" : "Preparing download on Real-Debrid… Please wait."}
               </p>
               {rdError && <p className="text-red-400 text-xs mt-1 max-w-md break-words">{rdError}</p>}
             </div>
