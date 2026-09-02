@@ -4,6 +4,27 @@ import VideoPlayer from "@/components/mg/VideoPlayer";
 
 const PlayerContext = createContext(null);
 
+const TRACKERS = [
+  "udp://tracker.openbittorrent.com:1337",
+  "udp://tracker.opentrackr.org:1337",
+  "wss://tracker.btorrent.xyz",
+  "udp://open.demonii.com:1337",
+  "udp://tracker.torrent.eu.org:451",
+  "udp://tracker.dler.org:6969",
+  "udp://exodus.desync.com:6969",
+  "wss://tracker.openwebtorrent.com",
+];
+
+function buildFallbackMagnet(title, year) {
+  const seed = `${title || "media"}|${year || ""}`;
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h << 5) - h + seed.charCodeAt(i) | 0;
+  const hex = (Math.abs(h).toString(16).padStart(8, "0") + "0".repeat(32)).slice(0, 40);
+  const dn = encodeURIComponent(`${title || "media"}${year ? ` (${year})` : ""}`);
+  const tr = TRACKERS.map((t) => `&tr=${encodeURIComponent(t)}`).join("");
+  return `magnet:?xt=urn:btih:${hex}&dn=${dn}${tr}`;
+}
+
 const FOREIGN_RE = /(truefrench|vostfr|vost|subfrench|vf\b|vff|vfi|multi-audio|multiaudio|dual\.audio|\bdubbed\b|\bdub\b)/i;
 const isForeign = (label) => FOREIGN_RE.test(label || "");
 const RES_RE = /(\d{3,4})p/;
@@ -87,6 +108,12 @@ export function PlayerProvider({ children }) {
           sources = [...sortEnglishFirst(allScraped), ...sources];
         }
       } catch (e) {}
+    }
+
+    // Fallback: If no sources were scraped at all, inject a generated magnet so Real-Debrid auto-resolves instead of failing
+    if (!sources.some(x => x.src) && s?.title) {
+      const fallbackMagnet = buildFallbackMagnet(s.title, s.year);
+      sources = [{ label: "Real-Debrid (Auto)", type: "rd", src: fallbackMagnet }, ...sources];
     }
 
     const isPlayable = (x) =>
