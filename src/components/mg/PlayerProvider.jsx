@@ -45,22 +45,6 @@ export function PlayerProvider({ children }) {
   const play = async (s) => {
     if (!s) return;
 
-    let targetUrl = "";
-    if (s.src && typeof s.src === 'string') {
-      targetUrl = s.src;
-    } else if (s.url) {
-      targetUrl = s.url;
-    }
-
-    if (targetUrl && !targetUrl.includes('media-god.app') && !targetUrl.endsWith('.torrent')) {
-      setActivePlayback({
-        title: s.title || "Media Playback",
-        url: targetUrl,
-        poster: s.poster || ""
-      });
-      return;
-    }
-
     setActivePlayback({
       title: s.title || "Media Playback",
       url: "",
@@ -70,31 +54,43 @@ export function PlayerProvider({ children }) {
 
     try {
       let resolvedUrl = "";
-      let mediaId = s.imdbId || s.imdb_id;
 
+      // 1. Handle explicit source arrays (like Real-Debrid torrent IDs or direct links)
+      if (s.sources && Array.isArray(s.sources) && s.sources.length > 0) {
+        const primarySource = s.sources[0];
+        if (primarySource.type === 'rd_torrent' || primarySource.src) {
+          if (primarySource.type === 'rd_torrent') {
+            // Resolve Real-Debrid torrent ID to playable file link via backend function
+            try {
+              const res = await base44.functions.invoke("realDebrid", { 
+                action: "torrent_select", 
+                torrent_id: primarySource.src 
+              });
+              if (res.data?.link) {
+                resolvedUrl = res.data.link;
+              }
+            } catch (err) {}
+          } else {
+            resolvedUrl = primarySource.src;
+          }
+        }
+      }
+
+      // 2. Handle direct string URLs passed in 'src' or 'url'
+      if (!resolvedUrl) {
+        const direct = s.src || s.url;
+        if (direct && typeof direct === 'string' && !direct.includes('media-god.app') && !direct.endsWith('.torrent')) {
+          resolvedUrl = direct;
+        }
+      }
+
+      // 3. Fallback to Stremio addon scraping if no direct URL found
+      let mediaId = s.imdbId || s.imdb_id;
       if (!mediaId && s.id && String(s.id).startsWith('tt')) {
         mediaId = s.id;
       }
 
-      if (!mediaId && s.id && !isNaN(s.id)) {
-        try {
-          const res = await fetch(`https://api.themoviedb.org/3/movie/${s.id}/external_ids?api_key=38267272847a9ef3878b273b37963d76`);
-          const data = await res.json();
-          if (data?.imdb_id) mediaId = data.imdb_id;
-        } catch (e) {}
-      }
-
-      if (!mediaId && s.title) {
-        try {
-          const res = await fetch(`https://v3-cinemeta.strem.io/catalog/movie/top/search?search=${encodeURIComponent(s.title)}.json`);
-          const data = await res.json();
-          if (data?.metas?.[0]) {
-            mediaId = data.metas[0].imdb_id || data.metas[0].id;
-          }
-        } catch (e) {}
-      }
-
-      if (mediaId) {
+      if (!resolvedUrl && mediaId) {
         try {
           const addons = await base44.entities.Addon.list("-created_date", 100);
           const activeAddons = (addons || []).filter((a) => a.active && a.url);
@@ -133,12 +129,9 @@ export function PlayerProvider({ children }) {
         } catch (dbErr) {}
       }
 
+      // Final fallback safety check
       if (!resolvedUrl) {
-        const fallbackId = mediaId || (s.id && !isNaN(s.id) ? `tmdb-${s.id}` : null) || (s.title ? s.title.toLowerCase().replace(/[^a-z0-9]/g, '-') : 'tt10872600');
-        const isTv = s.season && s.episode;
-        resolvedUrl = isTv 
-          ? `https://media-god.app/api/stream?id=${fallbackId}&season=${s.season}&episode=${s.episode}`
-          : `https://media-god.app/api/stream?id=${fallbackId}`;
+        resolvedUrl = DEMO_VIDEO;
       }
 
       setActivePlayback({
@@ -173,7 +166,7 @@ export function PlayerProvider({ children }) {
         }}>
           <div style={{ width: '90%', maxWidth: '1000px', display: 'flex', justifyContent: 'space-between', marginBottom: '10px', color: '#fff' }}>
             <span style={{ fontSize: '18px', fontWeight: 'bold' }}>
-              {activePlayback.title} {loading ? "(Fetching Stream...)" : ""}
+              {activePlayback.title} {loading ? "(Resolving Stream...)" : ""}
             </span>
             <button 
               onClick={close} 
