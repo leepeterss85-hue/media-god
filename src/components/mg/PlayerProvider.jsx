@@ -24,11 +24,13 @@ export function PlayerProvider({ children }) {
       });
     }
 
-    const playableSource = sources.find((x) => x.src);
-    const activeUrl = playableSource ? playableSource.src : (sources[0]?.src || s?.src || "");
-    
+    if (hasRd && !sources.some(x => x.type === "rd")) {
+      sources.push({ label: "Real-Debrid Options", type: "rd", src: "" });
+    }
+
+    const activeUrl = sources[0]?.src || s?.src || "";
     setSource({ ...s, sources, url: activeUrl });
-  }, []);
+  }, [hasRd]);
 
   const close = useCallback(() => setSource(null), []);
   const value = useMemo(() => ({ play, close }), [play, close]);
@@ -50,7 +52,9 @@ export function usePlayer() {
 export const DEMO_VIDEO = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
 
 export function buildMediaSources({ title, id, poster, trailerUrl, providers }) {
-  const sources = [];
+  const sources = [
+    { label: "Real-Debrid", type: "rd", src: "" },
+  ];
   if (trailerUrl) sources.push({ label: "Trailer", type: "youtube", src: trailerUrl });
   (providers || []).forEach((p) => {
     sources.push({ label: p.name, type: "provider", src: p.link, logo: p.logo });
