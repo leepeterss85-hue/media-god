@@ -1,6 +1,3 @@
-Hitting the demo video means the browser caught an error on the stream URL and flipped to the safety net, which confirms the backend route is throwing a 404 or serving a file format the HTML5 player can't read.
-The core issue is that pointing the video player directly to a .torrent file or a raw metadata link fails because a browser's <video> tag can only decode actual media streams (like MP4, MKV, or HTTP streaming links), not torrent files. When it was working smoothly before, the code was successfully grabbing direct HTTP streaming links (like Debrid or proxy streams) from your active Stremio addons.
-Here is the updated PlayerProvider.jsx tuned to strictly capture and play valid HTTP stream links from your addons, avoiding dead fallback routes:
 import React, { createContext, useContext, useState } from "react";
 import { base44 } from "@/api/base44Client";
 
@@ -84,7 +81,6 @@ export function PlayerProvider({ children }) {
         } catch (e) {}
       }
 
-      // Step 1: Scrape active Stremio/Torrentio addons for real HTTP stream links
       if (mediaId) {
         try {
           const addons = await base44.entities.Addon.list("-created_date", 100);
@@ -102,7 +98,6 @@ export function PlayerProvider({ children }) {
               const json = await res.json();
               
               if (json && json.streams) {
-                // Look for direct HTTP streams, avoiding magnets and youtube links
                 const found = json.streams.find(st => 
                   st && st.url && 
                   typeof st.url === 'string' &&
@@ -121,7 +116,6 @@ export function PlayerProvider({ children }) {
         } catch (dbErr) {}
       }
 
-      // Step 2: Fallback to direct stream URL format if scraping didn't catch an addon link
       if (!resolvedUrl) {
         const fallbackId = mediaId || (s.id && !isNaN(s.id) ? `tmdb-${s.id}` : null) || (s.title ? s.title.toLowerCase().replace(/[^a-z0-9]/g, '-') : 'tt10872600');
         const isTv = s.season && s.episode;
@@ -187,4 +181,3 @@ export function PlayerProvider({ children }) {
     </PlayerContext.Provider>
   );
 }
-
