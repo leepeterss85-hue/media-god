@@ -55,12 +55,11 @@ export function PlayerProvider({ children }) {
     try {
       let resolvedUrl = "";
 
-      // 1. Handle explicit source arrays (like Real-Debrid torrent IDs or direct links)
+      // 1. Handle explicit source arrays (Real-Debrid or direct links)
       if (s.sources && Array.isArray(s.sources) && s.sources.length > 0) {
         const primarySource = s.sources[0];
         if (primarySource.type === 'rd_torrent' || primarySource.src) {
           if (primarySource.type === 'rd_torrent') {
-            // Resolve Real-Debrid torrent ID to playable file link via backend function
             try {
               const res = await base44.functions.invoke("realDebrid", { 
                 action: "torrent_select", 
@@ -76,7 +75,7 @@ export function PlayerProvider({ children }) {
         }
       }
 
-      // 2. Handle direct string URLs passed in 'src' or 'url'
+      // 2. Handle direct string URLs
       if (!resolvedUrl) {
         const direct = s.src || s.url;
         if (direct && typeof direct === 'string' && !direct.includes('media-god.app') && !direct.endsWith('.torrent')) {
@@ -84,12 +83,21 @@ export function PlayerProvider({ children }) {
         }
       }
 
-      // 3. Fallback to Stremio addon scraping if no direct URL found
+      // 3. Resolve Media ID (IMDb)
       let mediaId = s.imdbId || s.imdb_id;
       if (!mediaId && s.id && String(s.id).startsWith('tt')) {
         mediaId = s.id;
       }
 
+      if (!mediaId && s.id && !isNaN(s.id)) {
+        try {
+          const res = await fetch(`https://api.themoviedb.org/3/movie/${s.id}/external_ids?api_key=38267272847a9ef3878b273b37963d76`);
+          const data = await res.json();
+          if (data?.imdb_id) mediaId = data.imdb_id;
+        } catch (e) {}
+      }
+
+      // 4. Scrape active addons for stream links
       if (!resolvedUrl && mediaId) {
         try {
           const addons = await base44.entities.Addon.list("-created_date", 100);
@@ -129,7 +137,21 @@ export function PlayerProvider({ children }) {
         } catch (dbErr) {}
       }
 
-      // Final fallback safety check
+      // 5. Direct Cinemeta Stream Fallback if addons miss
+      if (!resolvedUrl && mediaId) {
+        try {
+          const isTv = s.season && s.episode;
+          const type = isTv ? 'series' : 'movie';
+          const target = isTv ? `${mediaId}:${s.season}:${s.episode}` : mediaId;
+          const res = await fetch(`https://v3-cinemeta.strem.io/stream/${type}/${target}.json`);
+          const data = await res.json();
+          if (data?.streams?.[0]?.url) {
+            resolvedUrl = data.streams[0].url;
+          }
+        } catch (e) {}
+      }
+
+      // Final fallback if everything else fails
       if (!resolvedUrl) {
         resolvedUrl = DEMO_VIDEO;
       }
