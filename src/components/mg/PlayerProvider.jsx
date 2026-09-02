@@ -87,11 +87,15 @@ export function PlayerProvider({ children }) {
             const data = await res.json();
             
             if (data?.streams) {
-              return data.streams.map((st) => ({
-                label: st.title ? `${addon.name}: ${st.title.split('\n')[0]}` : `${addon.name} Source`,
-                type: st.infoHash ? "torrent" : "url",
-                src: st.url || `magnet:?xt=urn:btih:${st.infoHash}`,
-              }));
+              return data.streams.map((st) => {
+                const streamUrl = st.url || `magnet:?xt=urn:btih:${st.infoHash}`;
+                const isMagnet = streamUrl.startsWith("magnet:") || !!st.infoHash;
+                return {
+                  label: st.title ? `${addon.name}: ${st.title.split('\n')[0]}` : `${addon.name} Source`,
+                  type: isMagnet ? "rd" : "url",
+                  src: streamUrl,
+                };
+              });
             }
           } catch (err) {}
           return [];
@@ -116,7 +120,15 @@ export function PlayerProvider({ children }) {
     const playableSource = sources.find((x) => x.src);
     const activeUrl = playableSource ? playableSource.src : (sources[0]?.src || s?.src || "");
     
-    setSource({ ...s, sources, url: activeUrl });
+    setSource({ 
+      ...s, 
+      rdTitle: s.rdTitle || s.title,
+      rdYear: s.rdYear || s.year,
+      rdSeason: s.rdSeason || s.season,
+      rdEpisode: s.rdEpisode || s.episode,
+      sources, 
+      url: activeUrl 
+    });
   }, [hasRd]);
 
   const close = useCallback(() => setSource(null), []);
@@ -129,6 +141,8 @@ export function PlayerProvider({ children }) {
     </PlayerContext.Provider>
   );
 }
+
+usePlayer.displayName = "usePlayer";
 
 export function usePlayer() {
   const ctx = useContext(PlayerContext);
