@@ -45,17 +45,17 @@ export function PlayerProvider({ children }) {
   const play = async (s) => {
     if (!s) return;
 
-    let initialUrl = "";
+    let targetUrl = "";
     if (s.src && typeof s.src === 'string') {
-      initialUrl = s.src;
+      targetUrl = s.src;
     } else if (s.url) {
-      initialUrl = s.url;
+      targetUrl = s.url;
     }
 
-    if (initialUrl) {
+    if (targetUrl) {
       setActivePlayback({
         title: s.title || "Media Playback",
-        url: initialUrl,
+        url: targetUrl,
         poster: s.poster || ""
       });
       return;
@@ -105,8 +105,8 @@ export function PlayerProvider({ children }) {
 
           for (const addon of activeAddons) {
             try {
-              const targetUrl = addon.url.replace('/manifest.json', `/stream/${streamType}/${streamTarget}.json`);
-              const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+              const addonUrl = addon.url.replace('/manifest.json', `/stream/${streamType}/${streamTarget}.json`);
+              const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(addonUrl)}`;
               const res = await fetch(proxyUrl);
               const json = await res.json();
               
@@ -114,9 +114,10 @@ export function PlayerProvider({ children }) {
                 const found = json.streams.find(st => 
                   st && st.url && 
                   typeof st.url === 'string' &&
-                  st.url.startsWith('http') && 
+                  (st.url.startsWith('http://') || st.url.startsWith('https://')) &&
                   !st.url.includes('youtube') && 
-                  !st.url.includes('youtu.be')
+                  !st.url.includes('youtu.be') &&
+                  !st.url.endsWith('.torrent')
                 );
                 
                 if (found && found.url) {
@@ -195,11 +196,6 @@ export function PlayerProvider({ children }) {
                 controls 
                 autoPlay 
                 poster={activePlayback.poster}
-                onError={() => {
-                  if (finalPlayerUrl !== DEMO_VIDEO) {
-                    setActivePlayback(prev => ({ ...prev, url: DEMO_VIDEO }));
-                  }
-                }}
                 style={{ width: '90%', maxWidth: '1000px', maxHeight: '80vh', backgroundColor: '#000', borderRadius: '8px' }}
               />
             )
@@ -213,3 +209,4 @@ export function PlayerProvider({ children }) {
     </PlayerContext.Provider>
   );
 }
+
