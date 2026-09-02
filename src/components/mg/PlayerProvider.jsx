@@ -25,6 +25,19 @@ export function usePlayer() {
   return useContext(PlayerContext);
 }
 
+function getYouTubeEmbedUrl(url) {
+  if (!url) return "";
+  let videoId = "";
+  if (url.includes("youtu.be/")) {
+    videoId = url.split("youtu.be/")[1]?.split("?")[0];
+  } else if (url.includes("watch?v=")) {
+    videoId = url.split("watch?v=")[1]?.split("&")[0];
+  } else if (url.includes("/embed/")) {
+    videoId = url.split("/embed/")[1]?.split("?")[0];
+  }
+  return videoId ? `https://www.youtube.com/embed/${videoId}?autoplay=1` : url;
+}
+
 export function PlayerProvider({ children }) {
   const [activePlayback, setActivePlayback] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -33,9 +46,9 @@ export function PlayerProvider({ children }) {
     if (!s) return;
 
     let initialUrl = "";
-    if (s.src && typeof s.src === 'string' && !s.src.includes('youtube') && !s.src.includes('youtu.be')) {
+    if (s.src && typeof s.src === 'string') {
       initialUrl = s.src;
-    } else if (s.url && !s.url.includes('youtube')) {
+    } else if (s.url) {
       initialUrl = s.url;
     }
 
@@ -142,6 +155,9 @@ export function PlayerProvider({ children }) {
 
   const close = () => setActivePlayback(null);
 
+  const isYouTube = activePlayback?.url && (activePlayback.url.includes('youtube') || activePlayback.url.includes('youtu.be'));
+  const finalPlayerUrl = isYouTube ? getYouTubeEmbedUrl(activePlayback.url) : activePlayback?.url;
+
   return (
     <PlayerContext.Provider value={{ play, close }}>
       {children}
@@ -162,20 +178,31 @@ export function PlayerProvider({ children }) {
               Close
             </button>
           </div>
-          {activePlayback.url ? (
-            <video 
-              key={activePlayback.url}
-              src={activePlayback.url} 
-              controls 
-              autoPlay 
-              poster={activePlayback.poster}
-              onError={() => {
-                if (activePlayback.url !== DEMO_VIDEO) {
-                  setActivePlayback(prev => ({ ...prev, url: DEMO_VIDEO }));
-                }
-              }}
-              style={{ width: '90%', maxWidth: '1000px', maxHeight: '80vh', backgroundColor: '#000', borderRadius: '8px' }}
-            />
+          {finalPlayerUrl ? (
+            isYouTube ? (
+              <iframe
+                key={finalPlayerUrl}
+                src={finalPlayerUrl}
+                title={activePlayback.title}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                style={{ width: '90%', maxWidth: '1000px', height: '80vh', border: 'none', backgroundColor: '#000', borderRadius: '8px' }}
+              />
+            ) : (
+              <video 
+                key={finalPlayerUrl}
+                src={finalPlayerUrl} 
+                controls 
+                autoPlay 
+                poster={activePlayback.poster}
+                onError={() => {
+                  if (finalPlayerUrl !== DEMO_VIDEO) {
+                    setActivePlayback(prev => ({ ...prev, url: DEMO_VIDEO }));
+                  }
+                }}
+                style={{ width: '90%', maxWidth: '1000px', maxHeight: '80vh', backgroundColor: '#000', borderRadius: '8px' }}
+              />
+            )
           ) : (
             <div style={{ color: '#fff', padding: '40px', fontSize: '18px', textAlign: 'center' }}>
               Resolving stream...
