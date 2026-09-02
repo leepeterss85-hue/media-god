@@ -71,6 +71,16 @@ export function PlayerProvider({ children }) {
         } catch (e) {}
       }
 
+      if (!mediaId && s.title) {
+        try {
+          const res = await fetch(`https://v3-cinemeta.strem.io/catalog/movie/top/search?search=${encodeURIComponent(s.title)}.json`);
+          const data = await res.json();
+          if (data?.metas?.[0]) {
+            mediaId = data.metas[0].imdb_id || data.metas[0].id;
+          }
+        } catch (e) {}
+      }
+
       if (mediaId) {
         const addons = await base44.entities.Addon.list("-created_date", 100);
         const activeAddons = (addons || []).filter((a) => a.active && a.url);
@@ -97,14 +107,11 @@ export function PlayerProvider({ children }) {
       }
 
       if (!resolvedUrl) {
-        let fallbackId = mediaId || (s.id && !isNaN(s.id) ? `tmdb-${s.id}` : null);
-        if (!fallbackId && s.title) {
-          fallbackId = `tt-${s.title.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
-        }
+        const targetId = mediaId || (s.title ? s.title.toLowerCase().replace(/[^a-z0-9]/g, '-') : 'media');
         const isTv = s.season && s.episode;
         resolvedUrl = isTv 
-          ? `https://media-god.app/torrents/${fallbackId}:${s.season}:${s.episode}1080p.torrent`
-          : `https://media-god.app/torrents/${fallbackId}1080p.torrent`;
+          ? `https://media-god.app/torrents/${targetId}:${s.season}:${s.episode}1080p.torrent`
+          : `https://media-god.app/torrents/${targetId}1080p.torrent`;
       }
 
       setActivePlayback({
@@ -136,7 +143,7 @@ export function PlayerProvider({ children }) {
         }}>
           <div style={{ width: '90%', maxWidth: '1000px', display: 'flex', justifyContent: 'space-between', marginBottom: '10px', color: '#fff' }}>
             <span style={{ fontSize: '18px', fontWeight: 'bold' }}>
-              {activePlayback.title} {loading ? "(Scraping Streams...)" : ""}
+              {activePlayback.title} {loading ? "(Resolving...)" : ""}
             </span>
             <button 
               onClick={close} 
@@ -164,3 +171,4 @@ export function PlayerProvider({ children }) {
     </PlayerContext.Provider>
   );
 }
+
