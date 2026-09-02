@@ -126,7 +126,16 @@ export default function StreamSourcesBox({ title, poster, trailerUrl, providers,
     }
     if (s.kind === "rd") {
       const fallbackStream = scrapedStreams.find(addonStream => addonStream.url);
-      const fallbackMagnet = `magnet:?xt=urn:btih:0000000000000000000000000000000000000000&dn=${encodeURIComponent(title)}`;
+      if (!fallbackStream) {
+        player.play({
+          title,
+          poster,
+          rdTitle: title,
+          rdYear,
+          sources: [{ label: "Real-Debrid", type: "rd", src: "", skipAutoResolve: true }],
+        });
+        return;
+      }
       player.play({
         title,
         poster,
@@ -135,8 +144,8 @@ export default function StreamSourcesBox({ title, poster, trailerUrl, providers,
         sources: [{ 
           label: "Real-Debrid", 
           type: "rd", 
-          src: fallbackStream ? fallbackStream.url : fallbackMagnet,
-          magnet: fallbackStream ? fallbackStream.url : fallbackMagnet
+          src: fallbackStream.url,
+          magnet: fallbackStream.url
         }],
       });
     }
