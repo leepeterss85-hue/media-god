@@ -19,13 +19,11 @@ export default function VideoPlayer({ source, onClose }) {
     },
   ];
   const [activeIdx, setActiveIdx] = useState(0);
-  const [copied, setCopied] = useState(false);
   const [rdResolving, setRdResolving] = useState(false);
   const [rdPolling, setRdPolling] = useState(false);
   const [rdError, setRdError] = useState("");
   const [rdOverride, setRdOverride] = useState(null);
   const [rdFiles, setRdFiles] = useState([]);
-  const [rdTorrentId, setRdTorrentId] = useState(null);
   const [fileSwitching, setFileSwitching] = useState(false);
   const videoRef = useRef(null);
   const liveVideoRef = useRef(null);
@@ -53,7 +51,7 @@ export default function VideoPlayer({ source, onClose }) {
     setRdOverride(null);
     setRdError("");
     setRdFiles([]);
-    setRdTorrentId(null);
+    if (pollRef.current) clearTimeout(pollRef.current);
   }, [activeIdx]);
 
   useEffect(() => {
@@ -79,116 +77,125 @@ export default function VideoPlayer({ source, onClose }) {
         if (cacheData.status === "ready" && cacheData.stream_url) {
           setRdOverride({ src: cacheData.stream_url, label: "Real-Debrid Stream", file: currentFilePath(cacheData.files) });
           setRdFiles(cacheData.files || []);
-          return;
-        } else if (cacheData.torrent_id && !cacheData.stream_url) {
-          setRdTorrentId(cacheData.torrent_id);
+          setRdResolving(false);
           return;
         }
 
-        let magnetToUse = 
-          active?.src || 
-          active?.magnet || 
-          active?.magnetLink || 
-          active?.url || 
-          active?.infoHash ||
-          sources[0]?.src || 
-          sources[0]?.magnet || 
-          sources[0]?.magnetLink || 
-          sources[0]?.url || 
-          source?.src || 
-          source?.magnet || 
-          source?.magnetLink || 
-          source?.url || 
-          cacheData.magnet;
+        let torrentId = cacheData.torrent_id;
 
-        if (!magnetToUse) {
-          setRdError("No stream source provided.");
+        if (!torrentId) {
+          let magnetToUse = 
+            active?.src || 
+            active?.magnet || 
+            active?.magnetLink || 
+            active?.url || 
+            active?.infoHash ||
+            sources[0]?.src || 
+            sources[0]?.magnet || 
+            sources[0]?.magnetLink || 
+            sources[0]?.url || 
+            source?.src || 
+            source?.magnet || 
+            source?.magnetLink || 
+            source?.url || 
+            cacheData.magnet;
+
+          if (!magnetToUse) {
+            setRdError("No stream source provided.");
+            setRdResolving(false);
+            return;
+          }
+
+          const res = await base44.functions.invoke("realDebrid", {
+            action: "resolve_best",
+            magnet: magnetToUse,
+            title: source?.rdTitle || source?.title,
+            ...(source?.rdYear != null ? { year: source.rdYear } : {}),
+            ...(source?.rdSeason != null ? { season: source.rdSeason } : {}),
+            ...(source?.rdEpisode != null ? { episode: source.rdEpisode } : {}),
+          });
+
+          if (cancelled) return;
+          const data = res.data || {};
+
+          if (data.status === "ready" && data.stream_url) {
+            setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream", file: currentFilePath(data.files) });
+            setRdFiles(data.files || []);
+            setRdResolving(false);
+            return;
+          }
+          torrentId = data.torrent_id;
+        }
+
+        if (!torrentId) {
+          setRdError("Could not initialize torrent on Real-Debrid.");
+          setRdResolving(false);
           return;
         }
 
-        const res = await base44.functions.invoke("realDebrid", {
-          action: "resolve_best",
-          magnet: magnetToUse,
-          title: source?.rdTitle || source?.title,
-          ...(source?.rdYear != null ? { year: source.rdYear } : {}),
-          ...(source?.rdSeason != null ? { season: source.rdSeason } : {}),
-          ...(source?.rdEpisode != null ? { episode: source.rdEpisode } : {}),
-        });
+        // Background polling loop that doesn't re-trigger the main component effect
+        setRdResolving(false);
+        setRdPolling(true);
+        let attempts = 0;
 
-        if (cancelled) return;
-        const data = res.data || {};
+        const pollTick = async () => {
+          if (cancelled) return;
+          attempts += 1;
+          try {
+            const pollRes = await base44.functions.invoke("realDebrid", {
+              action: "torrent_info",
+              torrent_id: torrentId,
+              title: source?.rdTitle || source?.title,
+              ...(source?.rdYear != null ? { year: source.rdYear } : {}),
+              ...(source?.rdSeason != null ? { season: source.rdSeason } : {}),
+              ...(source?.rdEpisode != null ? { episode: source.rdEpisode } : {}),
+            });
+            const pollData = pollRes.data || {};
+            if (cancelled) return;
 
-        if (data.status === "ready" && data.stream_url) {
-          setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream", file: currentFilePath(data.files) });
-          setRdFiles(data.files || []);
-        } else if (data.torrent_id) {
-          setRdTorrentId(data.torrent_id);
-        } else {
-          setRdError(data.error || "Could not resolve stream through Real-Debrid.");
-        }
+            if (pollData.status === "ready" && pollData.stream_url) {
+              setRdOverride({ src: pollData.stream_url, label: "Real-Debrid Stream", file: currentFilePath(pollData.files) });
+              setRdFiles(pollData.files || []);
+              setRdPolling(false);
+              return;
+            }
+            if (pollData.error) {
+              setRdError(pollData.error);
+              setRdPolling(false);
+              return;
+            }
+          } catch (e) {
+            if (!cancelled) {
+              setRdError(e.message || "Real-Debrid poll failed");
+            }
+            setRdPolling(false);
+            return;
+          }
+
+          if (attempts < 45) {
+            pollRef.current = setTimeout(pollTick, 4000);
+          } else {
+            setRdPolling(false);
+            setRdError("Real-Debrid is still preparing this file. Please try again shortly.");
+          }
+        };
+
+        pollRef.current = setTimeout(pollTick, 4000);
+
       } catch (e) {
         if (!cancelled) {
           setRdError(e.message || "Resolution failed");
+          setRdResolving(false);
         }
-      } finally {
-        if (!cancelled) setRdResolving(false);
       }
     };
 
     run();
     return () => {
       cancelled = true;
-    };
-  }, [activeIdx, active, source]);
-
-  useEffect(() => {
-    if (!rdTorrentId || rdOverride) return;
-    let cancelled = false;
-    setRdPolling(true);
-    let attempts = 0;
-    const tick = async () => {
-      if (cancelled) return;
-      attempts += 1;
-      try {
-        const res = await base44.functions.invoke("realDebrid", {
-          action: "torrent_info",
-          torrent_id: rdTorrentId,
-          title: source?.rdTitle || source?.title,
-          ...(source?.rdYear != null ? { year: source.rdYear } : {}),
-          ...(source?.rdSeason != null ? { season: source.rdSeason } : {}),
-          ...(source?.rdEpisode != null ? { episode: source.rdEpisode } : {}),
-        });
-        const data = res.data || {};
-        if (cancelled) return;
-        if (data.status === "ready" && data.stream_url) {
-          setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream", file: currentFilePath(data.files) });
-          setRdFiles(data.files || []);
-          setRdPolling(false);
-          return;
-        }
-        if (data.error) {
-          setRdError(data.error);
-          setRdPolling(false);
-          return;
-        }
-      } catch (e) {
-        if (!cancelled) setRdError(e.message || "Real-Debrid poll failed");
-        setRdPolling(false);
-        return;
-      }
-      if (attempts < 36) {
-        pollRef.current = setTimeout(tick, 5000);
-      } else {
-        setRdPolling(false);
-        setRdError("Real-Debrid is still preparing this file. Tap Check again shortly.");
-      }
-    };
-    pollRef.current = setTimeout(tick, 5000);
-    return () => {
-      cancelled = true;
       if (pollRef.current) clearTimeout(pollRef.current);
     };
-  }, [rdTorrentId, rdOverride, source]);
+  }, [activeIdx, source]);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -351,7 +358,7 @@ export default function VideoPlayer({ source, onClose }) {
     }
   };
 
-  const busy = rdResolving || rdPolling || rdTorrentId;
+  const busy = rdResolving || rdPolling;
 
   return (
     <div
@@ -492,7 +499,7 @@ export default function VideoPlayer({ source, onClose }) {
               >
                 {(s.type === "rd" || s.type === "rd_torrent") && <Zap className="w-3 h-3" />}
                 {s.type === "magnet" && <Link className="w-3 h-3" />}
-                {s.type === "torrent" && <Download className="w-3 h-3" />}
+                {s.type ===="torrent" && <Download className="w-3 h-3" />}
                 {s.type === "provider" && <Tv className="w-3 h-3" />}
                 {s.label}
               </button>
