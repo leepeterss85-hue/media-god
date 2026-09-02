@@ -52,7 +52,7 @@ export function PlayerProvider({ children }) {
       targetUrl = s.url;
     }
 
-    if (targetUrl && !targetUrl.includes('media-god.app')) {
+    if (targetUrl && !targetUrl.includes('media-god.app') && !targetUrl.endsWith('.torrent')) {
       setActivePlayback({
         title: s.title || "Media Playback",
         url: targetUrl,
@@ -117,7 +117,8 @@ export function PlayerProvider({ children }) {
                   (st.url.startsWith('http://') || st.url.startsWith('https://')) &&
                   !st.url.includes('youtube') && 
                   !st.url.includes('youtu.be') &&
-                  !st.url.endsWith('.torrent')
+                  !st.url.endsWith('.torrent') &&
+                  !st.url.includes('magnet:')
                 );
                 
                 if (found && found.url) {
@@ -134,8 +135,8 @@ export function PlayerProvider({ children }) {
         const fallbackId = mediaId || (s.id && !isNaN(s.id) ? `tmdb-${s.id}` : null) || (s.title ? s.title.toLowerCase().replace(/[^a-z0-9]/g, '-') : 'tt10872600');
         const isTv = s.season && s.episode;
         resolvedUrl = isTv 
-          ? `https://media-god.app/torrents/${fallbackId}:${s.season}:${s.episode}.torrent`
-          : `https://media-god.app/torrents/${fallbackId}.torrent`;
+          ? `https://media-god.app/stream/${fallbackId}:${s.season}:${s.episode}`
+          : `https://media-god.app/stream/${fallbackId}`;
       }
 
       setActivePlayback({
