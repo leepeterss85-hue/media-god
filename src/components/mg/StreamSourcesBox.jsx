@@ -5,7 +5,7 @@ import { findChannelsByTitle } from "@/components/mg/freeTvPlaylist";
 import { base44 } from "@/api/base44Client";
 import { cn } from "@/lib/utils";
 
-export default function StreamSourcesBox({ title, poster, trailerUrl, providers, loading, rdYear }) {
+export default function StreamSourcesBox({ title, poster, trailerUrl, providers, loading, rdYear, imdbId }) {
   const player = usePlayer();
   const [liveMatches, setLiveMatches] = useState(null);
   const [scrapedStreams, setScrapedStreams] = useState([]);
@@ -26,7 +26,8 @@ export default function StreamSourcesBox({ title, poster, trailerUrl, providers,
 
         for (const addon of activeAddons) {
           try {
-            const targetUrl = addon.url.replace('/manifest.json', `/stream/movie/${encodeURIComponent(title)}.json`);
+            const queryTarget = imdbId || encodeURIComponent(title);
+            const targetUrl = addon.url.replace('/manifest.json', `/stream/movie/${queryTarget}.json`);
             const res = await fetch(targetUrl);
             const data = await res.json();
             if (data && data.streams) {
@@ -53,7 +54,7 @@ export default function StreamSourcesBox({ title, poster, trailerUrl, providers,
     return () => {
       cancelled = true;
     };
-  }, [title]);
+  }, [title, imdbId]);
 
   const sources = [];
   sources.push({ id: "rd", kind: "rd", label: "Real-Debrid", note: "Cached stream or your magnet" });
