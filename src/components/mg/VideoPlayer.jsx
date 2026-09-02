@@ -57,7 +57,8 @@ export default function VideoPlayer({ source, onClose }) {
   }, [activeIdx]);
 
   useEffect(() => {
-    if (!active?.src || active?.type === "youtube" || active?.type === "provider" || active?.type === "file" || active?.live || active?.type === "rd") return;
+    if (!active?.src || active?.type === "youtube" || active?.type === "provider" || active?.type === "file" || active?.live) return;
+    if (active?.type === "rd" && !active.src) return;
     
     let cancelled = false;
     setRdResolving(true);
@@ -65,7 +66,7 @@ export default function VideoPlayer({ source, onClose }) {
 
     const run = async () => {
       try {
-        const isMagnet = active.src.startsWith("magnet:") || active.type === "torrent";
+        const isMagnet = active.src.startsWith("magnet:") || active.type === "torrent" || active.type === "rd";
         const res = await base44.functions.invoke("realDebrid", {
           action: isMagnet ? "add_magnet" : "resolve_best",
           magnet: active.src,
