@@ -14,6 +14,7 @@ export default function VideoPlayer({ source, onClose }) {
       label: source.label || (source.type === "live" ? "LIVE" : "Stream"),
       type: source.type,
       src: source.src,
+      magnet: source.magnet,
       live: source.type === "live",
     },
   ];
@@ -64,8 +65,6 @@ export default function VideoPlayer({ source, onClose }) {
 
     const run = async () => {
       try {
-        let magnetToUse = active?.src || sources[0]?.src || source?.src;
-
         const cacheRes = await base44.functions.invoke("realDebrid", {
           action: "find_cached",
           title: source.rdTitle || source.title,
@@ -84,9 +83,10 @@ export default function VideoPlayer({ source, onClose }) {
         } else if (cacheData.torrent_id && !cacheData.stream_url) {
           setRdTorrentId(cacheData.torrent_id);
           return;
-        } else if (cacheData.magnet) {
-          magnetToUse = cacheData.magnet;
         }
+
+        // Robustly check src, magnet, or fallback properties across active and parent source objects
+        let magnetToUse = active?.src || active?.magnet || sources[0]?.src || sources[0]?.magnet || source?.src || source?.magnet || cacheData.magnet;
 
         if (!magnetToUse || !magnetToUse.startsWith("magnet:")) {
           setRdError("No stream source provided.");
@@ -263,7 +263,7 @@ export default function VideoPlayer({ source, onClose }) {
   const cwIdRef = useRef({});
   const saveProgress = (t, d, force) => {
     if (isLive || !source.title) return;
-    const url = rdOverride?.src || active?.src;
+    const url = rdOverride?.src || active?.src || active?.magnet;
     if (!url) return;
     const now = Date.now();
     if (!force && now - lastSaveRef.current < 10000) return;
@@ -366,7 +366,7 @@ export default function VideoPlayer({ source, onClose }) {
                   <Maximize className="w-5 h-5" />
                 </button>
                 <CastButton
-                  url={rdOverride?.src || active.src}
+                  url={rdOverride?.src || active.src || active.magnet}
                   title={source.title}
                   poster={source.poster}
                 />
