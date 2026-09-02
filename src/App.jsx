@@ -1,3 +1,6 @@
+Yes, that file is src/App.jsx (or src/App.tsx), which acts as the root entry point for your application routes and providers.
+This file is precisely where the PlayerProvider needs to be wrapped around your application so that any component (like your video player or dashboard views) can access the player context without throwing the usePlayer must be used within a PlayerProvider error.
+To fix it completely, wrap AuthenticatedApp or your router with <PlayerProvider> inside App(), like this:
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
@@ -6,6 +9,7 @@ import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import ScrollToTop from './components/ScrollToTop';
+import { PlayerProvider } from "@/components/mg/PlayerProvider"; // Add this import
 // Add page imports here
 import Home from './pages/Home';
 import SharedWatchlist from './pages/SharedWatchlist';
@@ -56,14 +60,15 @@ const AuthenticatedApp = () => {
 
 
 function App() {
-
   return (
     <AuthProvider>
       <QueryClientProvider client={queryClientInstance}>
-        <Router>
-          <ScrollToTop />
-          <AuthenticatedApp />
-        </Router>
+        <PlayerProvider> {/* Wrapped here so context is available globally */}
+          <Router>
+            <ScrollToTop />
+            <AuthenticatedApp />
+          </Router>
+        </PlayerProvider>
         <Toaster />
       </QueryClientProvider>
     </AuthProvider>
@@ -71,3 +76,4 @@ function App() {
 }
 
 export default App
+
