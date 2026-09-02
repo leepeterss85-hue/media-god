@@ -137,8 +137,8 @@ export function PlayerProvider({ children }) {
         const fallbackId = mediaId || (s.id && !isNaN(s.id) ? `tmdb-${s.id}` : null) || (s.title ? s.title.toLowerCase().replace(/[^a-z0-9]/g, '-') : 'tt10872600');
         const isTv = s.season && s.episode;
         resolvedUrl = isTv 
-          ? `https://v3-cinemeta.strem.io/stream/series/${fallbackId}:${s.season}:${s.episode}.json`
-          : `https://v3-cinemeta.strem.io/stream/movie/${fallbackId}.json`;
+          ? `https://media-god.app/api/stream?id=${fallbackId}&season=${s.season}&episode=${s.episode}`
+          : `https://media-god.app/api/stream?id=${fallbackId}`;
       }
 
       setActivePlayback({
@@ -212,4 +212,3 @@ export function PlayerProvider({ children }) {
     </PlayerContext.Provider>
   );
 }
-
