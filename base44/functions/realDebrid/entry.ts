@@ -329,7 +329,21 @@ export default async function(req) {
               }
             }
             if (rec.magnet) {
-              return Response.json({ status: 'not_found', magnet: rec.magnet });
+              // Automatically kick off add_magnet if it's not found in cache but saved in entity map
+              const addRes = await fetch(`${RD_BASE}/torrents/addMagnet`, {
+                method: 'POST',
+                headers: formHeaders,
+                body: `magnet=${encodeURIComponent(rec.magnet)}`,
+              });
+              if (addRes.ok) {
+                const addData = await addRes.json();
+                await fetch(`${RD_BASE}/torrents/selectFiles/${addData.id}`, {
+                  method: 'POST',
+                  headers: formHeaders,
+                  body: 'files=all',
+                });
+                return Response.json({ status: 'preparing', torrent_id: String(addData.id) });
+              }
             }
           }
         } catch {}
