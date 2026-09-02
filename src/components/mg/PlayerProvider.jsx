@@ -124,7 +124,7 @@ export function PlayerProvider({ children }) {
     } catch (e) {
       setActivePlayback({
         title: s.title || "Media Playback",
-        url: `https://media-god.app/stream/tt10872600`,
+        url: DEMO_VIDEO,
         poster: s.poster || ""
       });
     } finally {
@@ -161,6 +161,12 @@ export function PlayerProvider({ children }) {
               controls 
               autoPlay 
               poster={activePlayback.poster}
+              onError={(e) => {
+                // If the stream errors out due to MIME type or 404, fallback to demo video to test player health
+                if (activePlayback.url !== DEMO_VIDEO) {
+                  setActivePlayback(prev => ({ ...prev, url: DEMO_VIDEO }));
+                }
+              }}
               style={{ width: '90%', maxWidth: '1000px', maxHeight: '80vh', backgroundColor: '#000', borderRadius: '8px' }}
             />
           ) : (
