@@ -64,6 +64,8 @@ export default function VideoPlayer({ source, onClose }) {
 
     const run = async () => {
       try {
+        let magnetToUse = active?.src || sources[0]?.src || source?.src;
+
         const cacheRes = await base44.functions.invoke("realDebrid", {
           action: "find_cached",
           title: source.rdTitle || source.title,
@@ -74,8 +76,6 @@ export default function VideoPlayer({ source, onClose }) {
 
         if (cancelled) return;
         const cacheData = cacheRes.data || {};
-
-        let magnetToUse = active?.src || sources[0]?.src || source?.src;
 
         if (cacheData.status === "ready" && cacheData.stream_url) {
           setRdOverride({ src: cacheData.stream_url, label: "Real-Debrid Stream", file: currentFilePath(cacheData.files) });
@@ -88,7 +88,7 @@ export default function VideoPlayer({ source, onClose }) {
           magnetToUse = cacheData.magnet;
         }
 
-        if (!magnetToUse) {
+        if (!magnetToUse || !magnetToUse.startsWith("magnet:")) {
           setRdError("No stream source provided.");
           return;
         }
