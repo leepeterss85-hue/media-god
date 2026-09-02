@@ -26,7 +26,6 @@ export default function VideoPlayer({ source, onClose }) {
   const [rdFiles, setRdFiles] = useState([]);
   const [rdTorrentId, setRdTorrentId] = useState(null);
   const [fileSwitching, setFileSwitching] = useState(false);
-  const [pastedMagnet, setPastedMagnet] = useState("");
   const videoRef = useRef(null);
   const liveVideoRef = useRef(null);
   const stageRef = useRef(null);
@@ -57,8 +56,7 @@ export default function VideoPlayer({ source, onClose }) {
   }, [activeIdx]);
 
   useEffect(() => {
-    if (!active?.src || active?.type === "youtube" || active?.type === "provider" || active?.type === "file" || active?.live) return;
-    if (active?.type === "rd" && !active.src) return;
+    if (!active || active?.type === "youtube" || active?.type === "provider" || active?.type === "file" || active?.live) return;
     
     let cancelled = false;
     setRdResolving(true);
@@ -66,46 +64,35 @@ export default function VideoPlayer({ source, onClose }) {
 
     const run = async () => {
       try {
-        const isMagnet = active.src.startsWith("magnet:") || active.type === "torrent" || active.type === "rd";
+        const magnetToUse = active.src;
+        if (!magnetToUse) {
+          setRdError("No stream source provided.");
+          setRdResolving(false);
+          return;
+        }
+
         const res = await base44.functions.invoke("realDebrid", {
-          action: isMagnet ? "resolve_best" : "resolve_best",
-          magnet: active.src,
-          title: source.title,
-          year: source.year,
-          season: source.season,
-          episode: source.episode,
+          action: "resolve_best",
+          magnet: magnetToUse,
+          title: source.rdTitle || source.title,
+          ...(source.rdYear != null ? { year: source.rdYear } : {}),
+          ...(source.rdSeason != null ? { season: source.rdSeason } : {}),
+          ...(source.rdEpisode != null ? { episode: source.rdEpisode } : {}),
         });
+
         if (cancelled) return;
         const data = res.data || {};
+
         if (data.status === "ready" && data.stream_url) {
           setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream", file: currentFilePath(data.files) });
           setRdFiles(data.files || []);
-        } else if (data.status === "not_cached") {
-          const addRes = await base44.functions.invoke("realDebrid", {
-            action: "add_magnet",
-            magnet: active.src,
-            title: source.title,
-            year: source.year,
-            season: source.season,
-            episode: source.episode,
-          });
-          if (cancelled) return;
-          const addData = addRes.data || {};
-          if (addData.status === "ready" && addData.stream_url) {
-            setRdOverride({ src: addData.stream_url, label: "Real-Debrid Stream", file: currentFilePath(addData.files) });
-            setRdFiles(addData.files || []);
-          } else if (addData.torrent_id) {
-            setRdTorrentId(addData.torrent_id);
-          } else {
-            setRdError(addData.error || "Could not resolve stream.");
-          }
         } else if (data.torrent_id) {
           setRdTorrentId(data.torrent_id);
         } else if (data.stream_url) {
           setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream", file: currentFilePath(data.files) });
           setRdFiles(data.files || []);
         } else {
-          setRdError(data.error || "Could not resolve stream.");
+          setRdError(data.error || "Could not resolve stream through Real-Debrid.");
         }
       } catch (e) {
         if (!cancelled) {
@@ -115,80 +102,12 @@ export default function VideoPlayer({ source, onClose }) {
         if (!cancelled) setRdResolving(false);
       }
     };
+
     run();
     return () => {
       cancelled = true;
     };
   }, [activeIdx, active, source]);
-
-  useEffect(() => {
-    if (active?.type !== "rd" || active?.src) return;
-    if (active.skipAutoResolve) return;
-    let cancelled = false;
-    setRdResolving(true);
-    setRdError("");
-    const run = async () => {
-      let cached = false;
-      try {
-        const fc = await base44.functions.invoke("realDebrid", {
-          action: "find_cached",
-          title: source.rdTitle || source.title,
-          ...(source.rdYear != null ? { year: source.rdYear } : {}),
-          ...(source.rdSeason != null ? { season: source.rdSeason } : {}),
-          ...(source.rdEpisode != null ? { episode: source.rdEpisode } : {}),
-        });
-        if (cancelled) return;
-        const d = fc.data || {};
-        if (d.status === "ready" && d.stream_url) {
-          setRdOverride({ src: d.stream_url, label: "Real-Debrid Stream", file: currentFilePath(d.files) });
-          setRdFiles(d.files || []);
-          cached = true;
-        } else if (d.torrent_id) {
-          setRdTorrentId(d.torrent_id);
-          cached = true;
-        }
-      } catch {}
-      if (cached) return;
-
-      try {
-        const links = await base44.entities.RdLink.filter({
-          title: source.rdTitle || source.title,
-          ...(source.rdYear != null ? { year: source.rdYear } : {}),
-          ...(source.rdSeason != null ? { season: source.rdSeason } : {}),
-          ...(source.rdEpisode != null ? { episode: source.rdEpisode } : {}),
-        });
-        if (cancelled) return;
-        if (links.length > 0 && links[0].magnet) {
-          const savedMagnet = links[0].magnet;
-          setPastedMagnet(savedMagnet);
-          const res = await base44.functions.invoke("realDebrid", {
-            action: "add_magnet",
-            magnet: savedMagnet,
-            title: source.rdTitle || source.title,
-            ...(source.rdYear != null ? { year: source.rdYear } : {}),
-            ...(source.rdSeason != null ? { season: source.rdSeason } : {}),
-            ...(source.rdEpisode != null ? { episode: source.rdEpisode } : {}),
-          });
-          if (cancelled) return;
-          const data = res.data || {};
-          if (data.status === "ready" && data.stream_url) {
-            setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream", file: currentFilePath(data.files) });
-            setRdFiles(data.files || []);
-          } else if (data.torrent_id) {
-            setRdTorrentId(data.torrent_id);
-          } else if (data.error) {
-            setRdError(data.error);
-          }
-        }
-      } catch {}
-    };
-    run().finally(() => {
-      if (!cancelled) setRdResolving(false);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [activeIdx, active?.type, active?.src, source]);
 
   useEffect(() => {
     if (!rdTorrentId || rdOverride) return;
@@ -378,50 +297,6 @@ export default function VideoPlayer({ source, onClose }) {
     saveProgress(v.currentTime || 0, v.duration || 0);
   };
 
-  const copy = async (text) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {}
-  };
-  const openLink = (href) => window.open(href, "_blank", "noopener,noreferrer");
-
-  const resolvePasted = async () => {
-    if (!pastedMagnet.trim().startsWith("magnet:")) {
-      setRdError("Paste a valid magnet link (starts with magnet:?xt=…)");
-      return;
-    }
-    setRdResolving(true);
-    setRdError("");
-    setRdOverride(null);
-    setRdFiles([]);
-    setRdTorrentId(null);
-    try {
-      const res = await base44.functions.invoke("realDebrid", {
-        action: "add_magnet",
-        magnet: pastedMagnet.trim(),
-        title: source.rdTitle || source.title,
-        ...(source.rdYear != null ? { year: source.rdYear } : {}),
-        ...(source.rdSeason != null ? { season: source.rdSeason } : {}),
-        ...(source.rdEpisode != null ? { episode: source.rdEpisode } : {}),
-      });
-      const data = res.data || {};
-      if (data.status === "ready" && data.stream_url) {
-        setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream", file: currentFilePath(data.files) });
-        setRdFiles(data.files || []);
-      } else if (data.status === "preparing" || data.torrent_id) {
-        setRdTorrentId(data.torrent_id);
-      } else {
-        setRdError(data.error || "Real-Debrid could not resolve this magnet.");
-      }
-    } catch (e) {
-      setRdError(e.message || "Real-Debrid request failed");
-    } finally {
-      setRdResolving(false);
-    }
-  };
-
   const pickFile = async (file) => {
     if (rdOverride?.file === file.path) return;
     setFileSwitching(true);
@@ -530,36 +405,12 @@ export default function VideoPlayer({ source, onClose }) {
               />
               <PlayerControls key={active.src} videoRef={liveVideoRef} stageRef={stageRef} isLive={isLive} onFullscreen={goFullscreen} />
             </>
-          ) : active?.type === "rd" && !rdOverride && !rdTorrentId ? (
-            <div className="w-full h-full flex flex-col items-center justify-center gap-3 p-6 text-center">
-              <div className="w-12 h-12 rounded-full bg-mg-green/15 border border-mg-green/40 flex items-center justify-center">
-                <Zap className="w-6 h-6 text-mg-green" />
-              </div>
-              <p className="text-white font-semibold text-sm">Real-Debrid Options</p>
-              <p className="text-white/40 text-xs max-w-sm">
-                Select an addon source above, or paste a magnet link below to stream through Real-Debrid.
-              </p>
-              <div className="flex flex-col gap-2 w-full max-w-md mt-1">
-                <input
-                  value={pastedMagnet}
-                  onChange={(e) => setPastedMagnet(e.target.value)}
-                  placeholder="magnet:?xt=urn:btih:…"
-                  className="w-full bg-black/40 border border-white/15 rounded-md px-3 py-2 text-xs text-white placeholder-white/30 font-mono outline-none focus:border-mg-green/60"
-                />
-                <button
-                  onClick={resolvePasted}
-                  disabled={rdResolving || !pastedMagnet.trim()}
-                  className="flex items-center justify-center gap-1.5 bg-mg-green text-black font-semibold text-xs px-3 py-2 rounded-md hover:bg-mg-green-dim disabled:opacity-50"
-                >
-                  <Zap className="w-3.5 h-3.5" /> Stream via Real-Debrid
-                </button>
-              </div>
-              {rdError && (
-                <p className="text-red-400 text-xs mt-1 max-w-md break-words">{rdError}</p>
-              )}
-            </div>
           ) : (
-            <div className="text-white/60 text-xs p-6 text-center">No stream source available.</div>
+            <div className="flex flex-col items-center gap-3 p-6 text-center">
+              <Loader2 className="w-8 h-8 text-mg-green animate-spin" />
+              <p className="text-white font-semibold text-sm">Initializing Real-Debrid Stream…</p>
+              {rdError && <p className="text-red-400 text-xs mt-1 max-w-md break-words">{rdError}</p>}
+            </div>
           )}
         </div>
 
