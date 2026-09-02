@@ -1,19 +1,11 @@
+ * Missing Metadata IDs: Titles you haven't watched yet often lack a cached imdbId or imdb_id property in their database records, meaning the scraper loop skips searching entirely because mediaId evaluates to null.
+ * Fallback Text Search: When an IMDb ID lookup fails, the player needs to query Stremio/Torrentio addons using the raw movie title string instead of aborting the fetch.
+Here is the updated PlayerProvider code with a text-search fallback so un-watched titles without pre-existing IMDb IDs still successfully scrape and play:
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import VideoPlayer from "@/components/mg/VideoPlayer";
 
 const PlayerContext = createContext(null);
-
-const TRACKERS = [
-  "udp://tracker.openbittorrent.com:1337",
-  "udp://tracker.opentrackr.org:1337",
-  "wss://tracker.btorrent.xyz",
-  "udp://open.demonii.com:1337",
-  "udp://tracker.torrent.eu.org:451",
-  "udp://tracker.dler.org:6969",
-  "udp://exodus.desync.com:6969",
-  "wss://tracker.openwebtorrent.com",
-];
 
 const FOREIGN_RE = /(truefrench|vostfr|vost|subfrench|vf\b|vff|vfi|multi-audio|multiaudio|dual\.audio|\bdubbed\b|\bdub\b)/i;
 const isForeign = (label) => FOREIGN_RE.test(label || "");
@@ -59,7 +51,7 @@ export function PlayerProvider({ children }) {
       mediaId = s.id;
     }
 
-    if (!isLive && mediaId) {
+    if (!isLive) {
       try {
         const addons = await base44.entities.Addon.list("-created_date", 100);
         const activeAddons = (addons || []).filter((a) => a.active && a.url);
@@ -68,11 +60,13 @@ export function PlayerProvider({ children }) {
           try {
             const baseUrl = addon.url.replace(/\/manifest\.json$/, '');
             const mediaType = isSeries ? "series" : "movie";
-            const mediaPath = isSeries && s.season && s.episode
-              ? `${mediaId}:${s.season}:${s.episode}`
-              : mediaId;
             
-            const targetUrl = `${baseUrl}/stream/${mediaType}/${mediaPath}.json`;
+            // Fallback to title query if no IMDb ID exists
+            const queryPath = mediaId 
+              ? (isSeries && s.season && s.episode ? `${mediaId}:${s.season}:${s.episode}` : mediaId)
+              : `search:${encodeURIComponent(s.title || "")}`;
+
+            const targetUrl = `${baseUrl}/stream/${mediaType}/${queryPath}.json`;
             const controller = new AbortController();
             const timeout = setTimeout(() => controller.abort(), 7000);
             
