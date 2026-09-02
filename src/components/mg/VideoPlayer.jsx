@@ -53,22 +53,36 @@ export default function VideoPlayer({ source, onClose }) {
 
   useEffect(() => {
     if (!active?.src || active?.type === "youtube" || active?.type === "provider" || active?.type === "file" || active?.live) return;
+    
     let cancelled = false;
     setRdResolving(true);
     setRdError("");
+
     const run = async () => {
       try {
-        const res = await base44.functions.invoke("realDebrid", { action: "resolve_best", magnet: active.src });
+        const isMagnet = active.src.startsWith("magnet:");
+        const actionType = isMagnet ? "add_magnet" : "resolve_best";
+        const payload = isMagnet ? { action: actionType, magnet: active.src, title: source.title, year: source.year } : { action: actionType, magnet: active.src };
+
+        const res = await base44.functions.invoke("realDebrid", payload);
         if (cancelled) return;
         const data = res.data || {};
+        
         if (data.status === "ready" && data.stream_url) {
+          setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream", file: currentFilePath(data.files) });
+          setRdFiles(data.files || []);
+        } else if (data.stream_url) {
           setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream", file: currentFilePath(data.files) });
           setRdFiles(data.files || []);
         } else if (data.error) {
           setRdError(data.error);
+        } else {
+          setRdOverride({ src: active.src, label: active.label });
         }
       } catch (e) {
-        if (!cancelled) setRdError(e.message || "Real-Debrid resolution failed");
+        if (!cancelled) {
+          setRdOverride({ src: active.src, label: active.label });
+        }
       } finally {
         if (!cancelled) setRdResolving(false);
       }
@@ -77,7 +91,7 @@ export default function VideoPlayer({ source, onClose }) {
     return () => {
       cancelled = true;
     };
-  }, [activeIdx, active]);
+  }, [activeIdx, active, source.title, source.year]);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -89,11 +103,6 @@ export default function VideoPlayer({ source, onClose }) {
       if (tag === "input" || tag === "textarea" || e.target?.isContentEditable) return;
       const video = stageRef.current?.querySelector("video");
       if (!video) return;
-      if (e.key >= "0" && e.key <= "9" && video.duration) {
-        e.preventDefault();
-        video.currentTime = video.duration * (parseInt(e.key, 10) / 10);
-        return;
-      }
       switch (e.key) {
         case " ":
         case "k":
@@ -109,37 +118,9 @@ export default function VideoPlayer({ source, onClose }) {
           e.preventDefault();
           if (video.duration) video.currentTime = Math.min(video.duration, (video.currentTime || 0) + 10);
           break;
-        case "ArrowUp":
-          e.preventDefault();
-          video.volume = Math.min(1, (video.volume ?? 1) + 0.1);
-          break;
-        case "ArrowDown":
-          e.preventDefault();
-          video.volume = Math.max(0, (video.volume ?? 1) - 0.1);
-          break;
         case "f":
           e.preventDefault();
           goFullscreen();
-          break;
-        case "m":
-          e.preventDefault();
-          video.muted = !video.muted;
-          break;
-        case "j":
-          e.preventDefault();
-          video.currentTime = Math.max(0, (video.currentTime || 0) - 10);
-          break;
-        case "l":
-          e.preventDefault();
-          if (video.duration) video.currentTime = Math.min(video.duration, (video.currentTime || 0) + 10);
-          break;
-        case "<":
-          e.preventDefault();
-          video.playbackRate = Math.max(0.5, (video.playbackRate || 1) - 0.25);
-          break;
-        case ">":
-          e.preventDefault();
-          video.playbackRate = Math.min(2, (video.playbackRate || 1) + 0.25);
           break;
       }
     };
@@ -169,15 +150,6 @@ export default function VideoPlayer({ source, onClose }) {
     }
   };
 
-  const copy = async (text) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {}
-  };
-  const openLink = (href) => window.open(href, "_blank", "noopener,noreferrer");
-
   const pickFile = async (file) => {
     if (rdOverride?.file === file.path) return;
     setFileSwitching(true);
@@ -190,17 +162,13 @@ export default function VideoPlayer({ source, onClose }) {
       const data = res.data || {};
       if (data.stream_url) {
         setRdOverride({ src: data.stream_url, label: file.path, file: file.path });
-      } else {
-        setRdError(data.error || "Could not unrestrict this file.");
       }
-    } catch (e) {
-      setRdError(e.message || "Real-Debrid request failed");
-    } finally {
+    } catch (e) {} finally {
       setFileSwitching(false);
     }
   };
 
-  const currentPlayUrl = rdOverride?.src || active?.src;
+  const currentPlayUrl = rdOverride?.src || (active?.src?.startsWith("http") ? active.src : null);
 
   return (
     <div
@@ -220,18 +188,10 @@ export default function VideoPlayer({ source, onClose }) {
           <div className="flex items-center gap-2 shrink-0">
             {currentPlayUrl && active?.type !== "youtube" && active?.type !== "provider" && (
               <>
-                <button
-                  onClick={goFullscreen}
-                  className="text-white/60 hover:text-white"
-                  aria-label="Fullscreen"
-                >
+                <button onClick={goFullscreen} className="text-white/60 hover:text-white" aria-label="Fullscreen">
                   <Maximize className="w-5 h-5" />
                 </button>
-                <CastButton
-                  url={currentPlayUrl}
-                  title={source.title}
-                  poster={source.poster}
-                />
+                <CastButton url={currentPlayUrl} title={source.title} poster={source.poster} />
               </>
             )}
             <button onClick={onClose} className="text-white/60 hover:text-white">
@@ -244,21 +204,19 @@ export default function VideoPlayer({ source, onClose }) {
           {rdResolving ? (
             <div className="flex flex-col items-center gap-3">
               <Loader2 className="w-8 h-8 text-mg-green animate-spin" />
-              <p className="text-white/70 text-xs">Resolving via Real-Debrid…</p>
+              <p className="text-white/70 text-xs">Resolving stream through Real-Debrid…</p>
             </div>
-          ) : rdOverride ? (
-            <>
-              <video
-                key={rdOverride.src}
-                ref={videoRef}
-                src={rdOverride.src}
-                poster={source.poster}
-                playsInline
-                controls
-                onLoadedMetadata={handleLoadedMetadata}
-                className="w-full h-full object-contain bg-black"
-              />
-            </>
+          ) : rdOverride || currentPlayUrl ? (
+            <video
+              key={rdOverride?.src || currentPlayUrl}
+              ref={videoRef}
+              src={rdOverride?.src || currentPlayUrl}
+              poster={source.poster}
+              playsInline
+              controls
+              onLoadedMetadata={handleLoadedMetadata}
+              className="w-full h-full object-contain bg-black"
+            />
           ) : active?.type === "youtube" ? (
             <iframe
               src={active.src}
@@ -267,34 +225,6 @@ export default function VideoPlayer({ source, onClose }) {
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
               referrerPolicy="strict-origin-when-cross-origin"
-            />
-          ) : active?.type === "provider" ? (
-            <div className="w-full h-full flex flex-col items-center justify-center gap-3 p-6 text-center">
-              {active.logo ? (
-                <img src={active.logo} alt={active.label} className="w-14 h-14 rounded-md object-contain bg-white/5 p-1" />
-              ) : (
-                <div className="w-14 h-14 rounded-md bg-mg-green/15 border border-mg-green/40 flex items-center justify-center">
-                  <Tv className="w-7 h-7 text-mg-green" />
-                </div>
-              )}
-              <p className="text-white font-semibold text-sm">Watch on {active.label}</p>
-              <button
-                onClick={() => openLink(active.src)}
-                className="flex items-center gap-1.5 bg-mg-green text-black font-semibold text-xs px-3 py-2 rounded-md hover:bg-mg-green-dim"
-              >
-                <ExternalLink className="w-3.5 h-3.5" /> Open
-              </button>
-            </div>
-          ) : currentPlayUrl ? (
-            <video
-              key={currentPlayUrl}
-              ref={videoRef}
-              src={currentPlayUrl}
-              poster={source.poster}
-              playsInline
-              controls
-              onLoadedMetadata={handleLoadedMetadata}
-              className="w-full h-full object-contain bg-black"
             />
           ) : (
             <div className="text-white/60 text-xs p-6 text-center">No stream source available.</div>
