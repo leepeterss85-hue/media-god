@@ -65,9 +65,29 @@ export default function VideoPlayer({ source, onClose }) {
     const run = async () => {
       try {
         const magnetToUse = active?.src || sources[0]?.src || source?.src;
+        
+        const cacheRes = await base44.functions.invoke("realDebrid", {
+          action: "find_cached",
+          title: source.rdTitle || source.title,
+          ...(source.rdYear != null ? { year: source.rdYear } : {}),
+          ...(source.rdSeason != null ? { season: source.rdSeason } : {}),
+          ...(source.rdEpisode != null ? { episode: source.rdEpisode } : {}),
+        });
+
+        if (cancelled) return;
+        const cacheData = cacheRes.data || {};
+
+        if (cacheData.status === "ready" && cacheData.stream_url) {
+          setRdOverride({ src: cacheData.stream_url, label: "Real-Debrid Stream", file: currentFilePath(cacheData.files) });
+          setRdFiles(cacheData.files || []);
+          return;
+        } else if (cacheData.torrent_id && !cacheData.stream_url) {
+          setRdTorrentId(cacheData.torrent_id);
+          return;
+        }
+
         if (!magnetToUse) {
           setRdError("No stream source provided.");
-          setRdResolving(false);
           return;
         }
 
@@ -88,9 +108,6 @@ export default function VideoPlayer({ source, onClose }) {
           setRdFiles(data.files || []);
         } else if (data.torrent_id) {
           setRdTorrentId(data.torrent_id);
-        } else if (data.stream_url) {
-          setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream", file: currentFilePath(data.files) });
-          setRdFiles(data.files || []);
         } else {
           setRdError(data.error || "Could not resolve stream through Real-Debrid.");
         }
