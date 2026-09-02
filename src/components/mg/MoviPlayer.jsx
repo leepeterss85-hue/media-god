@@ -1,8 +1,5 @@
 import React, { forwardRef } from "react";
 
-// Thin wrapper around a native <video> element used as the HEVC/software-decoder
-// fallback path in PlayerProvider. Forwards the ref so the parent can drive
-// playback and read currentTime/duration just like a plain video element.
 const MoviPlayer = forwardRef(function MoviPlayer(
   { src, autoPlay, controls = true, className, onTimeUpdate, onError, onLoadedMetadata },
   ref
@@ -21,5 +18,7 @@ const MoviPlayer = forwardRef(function MoviPlayer(
     />
   );
 });
+
+MoviPlayer.displayName = "MoviPlayer";
 
 export default MoviPlayer;
