@@ -54,6 +54,7 @@ export function PlayerProvider({ children }) {
 
     let mediaId = s?.imdbId || s?.imdb_id;
 
+    // Resolve missing IMDb ID via TMDB external_ids API
     if (!mediaId && s?.id && !isNaN(s.id)) {
       try {
         const tmdbType = isSeries ? "tv" : "movie";
@@ -67,6 +68,23 @@ export function PlayerProvider({ children }) {
 
     if (!mediaId && s?.id && String(s.id).startsWith('tt')) {
       mediaId = s.id;
+    }
+
+    // If still no IMDb ID, try searching TMDB by title to find its IMDb ID
+    if (!mediaId && s?.title) {
+      try {
+        const tmdbType = isSeries ? "tv" : "movie";
+        const searchRes = await fetch(`https://api.themoviedb.org/3/search/${tmdbType}?api_key=38267272847a9ef3878b273b37963d76&query=${encodeURIComponent(s.title)}${s.year ? `&year=${s.year}` : ""}`);
+        const searchData = await searchRes.json();
+        const firstMatch = searchData?.results?.[0];
+        if (firstMatch?.id) {
+          const extRes = await fetch(`https://api.themoviedb.org/3/${tmdbType}/${firstMatch.id}/external_ids?api_key=38267272847a9ef3878b273b37963d76`);
+          const extData = await extRes.json();
+          if (extData?.imdb_id) {
+            mediaId = extData.imdb_id;
+          }
+        }
+      } catch (e) {}
     }
 
     if (!isLive) {
@@ -110,7 +128,6 @@ export function PlayerProvider({ children }) {
       } catch (e) {}
     }
 
-    // Fallback: If no sources were scraped at all, inject a generated magnet so Real-Debrid auto-resolves instead of failing
     if (!sources.some(x => x.src) && s?.title) {
       const fallbackMagnet = buildFallbackMagnet(s.title, s.year);
       sources = [{ label: "Real-Debrid (Auto)", type: "rd", src: fallbackMagnet }, ...sources];
