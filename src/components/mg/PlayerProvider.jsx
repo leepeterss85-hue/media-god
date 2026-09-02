@@ -111,15 +111,17 @@ export function PlayerProvider({ children }) {
               const json = await res.json();
               
               if (json && json.streams) {
-                const found = json.streams.find(st => 
-                  st && st.url && 
-                  typeof st.url === 'string' &&
-                  (st.url.startsWith('http://') || st.url.startsWith('https://')) &&
-                  !st.url.includes('youtube') && 
-                  !st.url.includes('youtu.be') &&
-                  !st.url.endsWith('.torrent') &&
-                  !st.url.includes('magnet:')
-                );
+                const found = json.streams.find(st => {
+                  if (!st || !st.url) return false;
+                  const streamUrl = String(st.url);
+                  return (
+                    (streamUrl.startsWith('http://') || streamUrl.startsWith('https://')) &&
+                    !streamUrl.includes('youtube') && 
+                    !streamUrl.includes('youtu.be') &&
+                    !streamUrl.endsWith('.torrent') &&
+                    !streamUrl.includes('magnet:')
+                  );
+                });
                 
                 if (found && found.url) {
                   resolvedUrl = found.url;
@@ -135,8 +137,8 @@ export function PlayerProvider({ children }) {
         const fallbackId = mediaId || (s.id && !isNaN(s.id) ? `tmdb-${s.id}` : null) || (s.title ? s.title.toLowerCase().replace(/[^a-z0-9]/g, '-') : 'tt10872600');
         const isTv = s.season && s.episode;
         resolvedUrl = isTv 
-          ? `https://media-god.app/stream/${fallbackId}:${s.season}:${s.episode}`
-          : `https://media-god.app/stream/${fallbackId}`;
+          ? `https://v3-cinemeta.strem.io/stream/series/${fallbackId}:${s.season}:${s.episode}.json`
+          : `https://v3-cinemeta.strem.io/stream/movie/${fallbackId}.json`;
       }
 
       setActivePlayback({
@@ -210,3 +212,4 @@ export function PlayerProvider({ children }) {
     </PlayerContext.Provider>
   );
 }
+
