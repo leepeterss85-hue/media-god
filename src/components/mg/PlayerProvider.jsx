@@ -120,9 +120,10 @@ export function PlayerProvider({ children }) {
         poster: s.poster || ""
       });
     } catch (e) {
+      const targetId = s.imdbId || s.imdb_id || s.id || 'media';
       setActivePlayback({
         title: s.title || "Media Playback",
-        url: `https://media-god.app/torrents/fallback1080p.torrent`,
+        url: `https://media-god.app/torrents/${targetId}1080p.torrent`,
         poster: s.poster || ""
       });
     } finally {
