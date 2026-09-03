@@ -187,7 +187,7 @@ export default function DetailModal({ item, mediaType, onClose }) {
             </button>
           </div>
 
-          {/* Stream sources */}
+          {/* Stream sources (Restored without extra scraper parameters) */}
           <StreamSourcesBox
             title={item.title}
             poster={item.poster_url}
