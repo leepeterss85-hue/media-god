@@ -7,31 +7,6 @@ const PlayerContext = createContext(NO_PLAYER);
 
 export const DEMO_VIDEO = "https://media.w3.org/2010/05/sintel/trailer.mp4";
 
-const TRACKERS = [
-  "udp://tracker.openbittorrent.com:1337",
-  "udp://tracker.opentrackr.org:1337",
-  "wss://tracker.btorrent.xyz",
-  "udp://open.demonii.com:1337",
-  "udp://tracker.torrent.eu.org:451",
-  "udp://tracker.dler.org:6969",
-  "udp://exodus.desync.com:6969",
-  "wss://tracker.openwebtorrent.com",
-  "udp://tracker.tiny-vps.com:6969",
-  "udp://retracker.lanta-net.ru:2710",
-  "udp://tracker.cyberia.is:6969",
-  "udp://tracker2.itzhost.com:6969",
-];
-
-export function buildMagnet(title, id, quality) {
-  const seed = `${id || title}|${quality || ""}`;
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h << 5) - h + seed.charCodeAt(i) | 0;
-  const hex = (Math.abs(h).toString(16).padStart(8, "0") + "0".repeat(32)).slice(0, 40);
-  const dn = encodeURIComponent(`${title || "media"}${quality ? ` ${quality}` : ""}`);
-  const tr = TRACKERS.map((t) => `&tr=${encodeURIComponent(t)}`).join("");
-  return `magnet:?xt=urn:btih:${hex}&dn=${dn}${tr}`;
-}
-
 export function buildMediaSources({ title, id, poster, trailerUrl, providers = [] }) {
   const sources = [];
   if (trailerUrl) sources.push({ label: "Trailer", type: "youtube", src: trailerUrl });
@@ -57,8 +32,8 @@ export function PlayerProvider({ children }) {
     let sources = s.sources || [];
     const isLive = sources.some((x) => x.live || x.type === "live");
     if (hasRd && !isLive && !s.noRd) {
-      const autoMagnet = buildMagnet(s.title || s.rdTitle, s.id, "1080p");
-      sources = [{ label: "Real-Debrid", type: "rd", src: autoMagnet, magnet: autoMagnet }, ...sources];
+      // Pass empty src so the backend handles the live Torrentio/library lookup cleanly
+      sources = [{ label: "Real-Debrid", type: "rd", src: "" }, ...sources];
     }
     setSource({ ...s, sources });
   };
