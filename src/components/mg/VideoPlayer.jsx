@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { X, Copy, Check, ExternalLink, Link, Download, Tv, Loader2, Zap, RefreshCw, Film, Maximize } from "lucide-react";
+import { X, Loader2, Zap, Maximize } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { base44 } from "@/api/base44Client";
 import CastButton from "@/components/mg/CastButton";
@@ -17,14 +17,12 @@ export default function VideoPlayer({ source, onClose }) {
     },
   ];
   const [activeIdx, setActiveIdx] = useState(0);
-  const [copied, setCopied] = useState(false);
   const [rdResolving, setRdResolving] = useState(false);
   const [rdPolling, setRdPolling] = useState(false);
   const [rdError, setRdError] = useState("");
   const [rdOverride, setRdOverride] = useState(null);
   const [rdFiles, setRdFiles] = useState([]);
   const [rdTorrentId, setRdTorrentId] = useState(null);
-  const [fileSwitching, setFileSwitching] = useState(false);
   const [pastedMagnet, setPastedMagnet] = useState("");
   const videoRef = useRef(null);
   const stageRef = useRef(null);
@@ -95,8 +93,18 @@ export default function VideoPlayer({ source, onClose }) {
           setRdFiles(d.files || []);
         } else if (d.torrent_id) {
           setRdTorrentId(d.torrent_id);
+        } else {
+          const fallbackSource = sources.find((s) => s.type === "youtube" || s.type === "file" || s.type === "live");
+          if (fallbackSource) {
+            setActiveIdx(sources.indexOf(fallbackSource));
+          }
         }
-      } catch {}
+      } catch {
+        const fallbackSource = sources.find((s) => s.type === "youtube" || s.type === "file" || s.type === "live");
+        if (fallbackSource) {
+          setActiveIdx(sources.indexOf(fallbackSource));
+        }
+      }
     };
     run().finally(() => {
       if (!cancelled) setRdResolving(false);
@@ -138,14 +146,19 @@ export default function VideoPlayer({ source, onClose }) {
         setRdPolling(false);
         return;
       }
-      if (attempts < 24) {
-        pollRef.current = setTimeout(tick, 5000);
+      if (attempts < 10) {
+        pollRef.current = setTimeout(tick, 3000);
       } else {
         setRdPolling(false);
-        setRdError("Real-Debrid is still downloading.");
+        const fallbackSource = sources.find((s) => s.type === "youtube" || s.type === "file" || s.type === "live");
+        if (fallbackSource) {
+          setActiveIdx(sources.indexOf(fallbackSource));
+        } else {
+          setRdError("Stream not instantly available.");
+        }
       }
     };
-    pollRef.current = setTimeout(tick, 5000);
+    pollRef.current = setTimeout(tick, 3000);
     return () => {
       cancelled = true;
       if (pollRef.current) clearTimeout(pollRef.current);
@@ -210,10 +223,7 @@ export default function VideoPlayer({ source, onClose }) {
   const busy = rdResolving || rdPolling;
 
   return (
-    <div
-      className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
       <div className="w-full max-w-4xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3 gap-3">
           <div className="flex items-center gap-2 min-w-0">
@@ -266,34 +276,12 @@ export default function VideoPlayer({ source, onClose }) {
                 {busy ? <Loader2 className="w-6 h-6 text-mg-green animate-spin" /> : <Zap className="w-6 h-6 text-mg-green" />}
               </div>
               <h4 className="text-white font-semibold text-base mb-1">
-                {busy ? (rdPolling ? "Downloading on Real-Debrid..." : "Resolving Stream...") : "Real-Debrid Stream"}
+                {busy ? (rdPolling ? "Checking Cache..." : "Resolving Stream...") : "Real-Debrid Stream"}
               </h4>
               <p className="text-white/50 text-xs max-w-md mb-4">
-                {busy
-                  ? "Setting up your stream automatically. This will switch to playback shortly."
-                  : "Automatically processing your media request."}
+                {busy ? "Looking up available cached streams automatically." : "Stream options loaded below."}
               </p>
               {rdError && <p className="text-red-400 text-xs mb-3 bg-red-500/10 px-3 py-1.5 rounded">{rdError}</p>}
-              
-              {!busy && (
-                <div className="w-full max-w-md flex flex-col gap-2">
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="Paste magnet:?xt=… (optional manual override)"
-                      value={pastedMagnet}
-                      onChange={(e) => setPastedMagnet(e.target.value)}
-                      className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/30 focus:outline-none focus:border-mg-green"
-                    />
-                    <button
-                      onClick={resolvePasted}
-                      className="bg-mg-green text-black font-semibold text-xs px-4 py-2 rounded-lg hover:bg-mg-green-dim shrink-0"
-                    >
-                      Stream
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </div>
