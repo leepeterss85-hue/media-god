@@ -33,14 +33,13 @@ export default async function(req) {
     }
 
     if (action === 'find_cached') {
-      console.log("Incoming payload:", JSON.stringify(body));
       const title = (body.title || '').trim();
       if (!title) return Response.json({ error: 'title required' }, { status: 400 });
       const year = body.year != null ? String(body.year).trim() : '';
       const season = body.season != null ? String(body.season) : '';
       const episode = body.episode != null ? String(body.episode) : '';
 
-      // 1. Try Torrentio Network Scrape for real infohashes
+      // 1. External Network Scrape via Torrentio
       let queryTitle = title;
       if (season && episode) {
         queryTitle += ` S${season.padStart(2, '0')}E${episode.padStart(2, '0')}`;
@@ -48,87 +47,94 @@ export default async function(req) {
         queryTitle += ` ${year}`;
       }
 
-      const torrentioUrl = `https://torrentio.strem.fun/stream/movie/${encodeURIComponent(queryTitle.toLowerCase())}.json`;
-      const scrapeRes = await fetch(torrentioUrl).catch(() => null);
-      
-      if (scrapeRes && scrapeRes.ok) {
-        const scrapeData = await scrapeRes.json();
-        const streams = scrapeData.streams || [];
-        const validStream = streams.find(s => s.infoHash || (s.url && s.url.includes('btih:')));
-        
-        if (validStream) {
-          let infoHash = validStream.infoHash;
-          if (!infoHash && validStream.url) {
-            const match = validStream.url.match(/btih:([a-fA-F0-9]{40})/i);
-            if (match) infoHash = match[1];
-          }
+      try {
+        const torrentioUrl = `https://torrentio.strem.fun/stream/movie/${encodeURIComponent(queryTitle.toLowerCase())}.json`;
+        const scrapeRes = await fetch(torrentioUrl);
+        if (scrapeRes.ok) {
+          const scrapeData = await scrapeRes.json();
+          const streams = scrapeData.streams || [];
+          const validStream = streams.find(s => s.infoHash || (s.url && s.url.includes('btih:')));
+          
+          if (validStream) {
+            let infoHash = validStream.infoHash;
+            if (!infoHash && validStream.url) {
+              const match = validStream.url.match(/btih:([a-fA-F0-9]{40})/i);
+              if (match) infoHash = match[1];
+            }
 
-          if (infoHash) {
-            const realMagnet = `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(title)}`;
-            const availRes = await fetch(`${RD_BASE}/torrents/instantAvailability/${infoHash}`, { headers: authHeaders });
-            
-            if (availRes.ok) {
-              const availData = await availRes.json();
-              const cachedVariants = availData[infoHash]?.rd;
-              if (cachedVariants && cachedVariants.length > 0) {
-                const addRes = await fetch(`${RD_BASE}/torrents/addMagnet`, {
-                  method: 'POST',
-                  headers: formHeaders,
-                  body: `magnet=${encodeURIComponent(realMagnet)}`,
-                });
-
-                if (addRes.ok) {
-                  const addData = await addRes.json();
-                  await fetch(`${RD_BASE}/torrents/selectFiles/${addData.id}`, {
+            if (infoHash) {
+              const realMagnet = `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(title)}`;
+              const availRes = await fetch(`${RD_BASE}/torrents/instantAvailability/${infoHash}`, { headers: authHeaders });
+              
+              if (availRes.ok) {
+                const availData = await availRes.json();
+                const cachedVariants = availData[infoHash]?.rd;
+                if (cachedVariants && cachedVariants.length > 0) {
+                  const addRes = await fetch(`${RD_BASE}/torrents/addMagnet`, {
                     method: 'POST',
                     headers: formHeaders,
-                    body: 'files=all',
+                    body: `magnet=${encodeURIComponent(realMagnet)}`,
                   });
 
-                  const stream = await resolveStreamable(addData.id, authHeaders, formHeaders);
-                  if (stream.ready && stream.stream_url) {
-                    return Response.json({
-                      status: 'ready',
-                      torrent_id: String(addData.id),
-                      stream_url: stream.stream_url,
-                      filename: stream.filename || '',
+                  if (addRes.ok) {
+                    const addData = await addRes.json();
+                    await fetch(`${RD_BASE}/torrents/selectFiles/${addData.id}`, {
+                      method: 'POST',
+                      headers: formHeaders,
+                      body: 'files=all',
                     });
+
+                    const stream = await resolveStreamable(addData.id, authHeaders, formHeaders);
+                    if (stream.ready && stream.stream_url) {
+                      return Response.json({
+                        status: 'ready',
+                        torrent_id: String(addData.id),
+                        stream_url: stream.stream_url,
+                        filename: stream.filename || '',
+                      });
+                    }
                   }
                 }
               }
             }
           }
         }
+      } catch (err) {
+        console.error("Torrentio scrape error:", err);
       }
 
-      // 2. Fallback: Check personal Real-Debrid cloud library storage
-      const libRes = await fetch(`${RD_BASE}/torrents`, { headers: authHeaders });
-      if (libRes.ok) {
-        const libData = await libRes.json();
-        const norm = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-        const want = norm(title);
-        
-        const candidates = (libData || []).filter((t) => {
-          if (t.status !== 'downloaded') return false;
-          const fn = norm(t.filename || t.original_filename || '');
-          return fn.includes(want);
-        });
+      // 2. Personal Cloud Library Fallback
+      try {
+        const libRes = await fetch(`${RD_BASE}/torrents`, { headers: authHeaders });
+        if (libRes.ok) {
+          const libData = await libRes.json();
+          const norm = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+          const want = norm(title);
+          
+          const candidates = (libData || []).filter((t) => {
+            if (t.status !== 'downloaded') return false;
+            const fn = norm(t.filename || t.original_filename || '');
+            return fn.includes(want);
+          });
 
-        if (candidates.length > 0) {
-          const best = candidates[0];
-          const stream = await resolveStreamable(best.id, authHeaders, formHeaders);
-          if (stream.ready && stream.stream_url) {
-            return Response.json({
-              status: 'ready',
-              torrent_id: String(best.id),
-              stream_url: stream.stream_url,
-              filename: stream.filename || '',
-            });
+          if (candidates.length > 0) {
+            const best = candidates[0];
+            const stream = await resolveStreamable(best.id, authHeaders, formHeaders);
+            if (stream.ready && stream.stream_url) {
+              return Response.json({
+                status: 'ready',
+                torrent_id: String(best.id),
+                stream_url: stream.stream_url,
+                filename: stream.filename || '',
+              });
+            }
           }
         }
+      } catch (err) {
+        console.error("Library fallback error:", err);
       }
 
-      return Response.json({ status: 'not_found' });
+      return Response.json({ error: "Stream not found on network or in your Real-Debrid library." }, { status: 404 });
     }
 
     return Response.json({ error: 'Unknown action' }, { status: 400 });
