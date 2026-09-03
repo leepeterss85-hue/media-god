@@ -87,6 +87,12 @@ export default function AddonsView() {
   const [query, setQuery] = useState("");
   const { toast } = useToast();
 
+  // Persist torrent scrapers, providers, metadata, and subtitles to the database
+  // on first load so they are discoverable app-wide by the player.
+  const SEED_ADDONS = DEFAULT_ADDONS.filter(
+    (a) => a.type === "Metadata" || a.type === "Subtitles" || a.type === "Torrent" || a.type === "Provider"
+  );
+
   const load = () => {
     setLoading(true);
     base44.entities.Addon.list("-created_date", 100)
@@ -94,9 +100,6 @@ export default function AddonsView() {
         let list = a || [];
         if (list.length === 0) {
           try {
-            const SEED_ADDONS = DEFAULT_ADDONS.filter(
-              (x) => x.type === "Metadata" || x.type === "Subtitles" || x.type === "Torrent" || x.type === "Provider"
-            );
             await base44.entities.Addon.bulkCreate(
               SEED_ADDONS.map(({ id, ...rest }) => rest)
             );
@@ -107,9 +110,9 @@ export default function AddonsView() {
         const visibleDefaults = DEFAULT_ADDONS.filter((d) => !entityNames.has(d.name));
         const combined = [...visibleDefaults, ...(list || [])];
         const seenNames = new Set();
-        const deduped = combined.filter((item) => {
-          if (seenNames.has(item.name)) return false;
-          seenNames.add(item.name);
+        const deduped = combined.filter((a) => {
+          if (seenNames.has(a.name)) return false;
+          seenNames.add(a.name);
           return true;
         });
         setAddons(deduped);
@@ -265,3 +268,4 @@ export default function AddonsView() {
     </div>
   );
 }
+

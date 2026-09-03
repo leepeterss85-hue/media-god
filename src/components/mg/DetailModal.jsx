@@ -190,7 +190,6 @@ export default function DetailModal({ item, mediaType, onClose }) {
           {/* Stream sources */}
           <StreamSourcesBox
             title={item.title}
-            imdbId={item.id}
             poster={item.poster_url}
             trailerUrl={trailerUrl}
             providers={providers}
