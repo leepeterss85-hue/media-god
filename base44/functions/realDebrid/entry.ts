@@ -82,19 +82,6 @@ export default async function(req) {
       const stream = await resolveStreamable(torrentId, authHeaders, formHeaders, ep);
       if (stream.error) return Response.json({ error: stream.error }, { status: 502 });
 
-      if (body.title) {
-        try {
-          const rYear = (body.year != null ? String(body.year) : '').trim();
-          const rSeason = body.season != null ? String(body.season) : '';
-          const rEpisode = body.episode != null ? String(body.episode) : '';
-          const existing = await base44.entities.RdLink.filter({ title: body.title.trim(), year: rYear, season: rSeason, episode: rEpisode });
-          if (existing.length > 0) {
-            await base44.entities.RdLink.update(existing[0].id, { magnet, torrent_id: String(torrentId) });
-          } else {
-            await base44.entities.RdLink.create({ title: body.title.trim(), year: rYear, season: rSeason, episode: rEpisode, magnet, torrent_id: String(torrentId) });
-          }
-        } catch {}
-      }
       return Response.json({
         status: stream.ready ? 'ready' : 'preparing',
         torrent_id: torrentId,
@@ -312,47 +299,12 @@ export default async function(req) {
         return (b.bytes || 0) - (a.bytes || 0);
       });
       if (usable.length === 0) {
-        try {
-          const remembered = await base44.entities.RdLink.filter({ title, year, season, episode });
-          if (remembered.length > 0) {
-            const rec = remembered[0];
-            if (rec.torrent_id) {
-              const stream = await resolveStreamable(rec.torrent_id, authHeaders, formHeaders, { title, year, season, episode });
-              if (!stream.error && (stream.ready || stream.rd_status)) {
-                return Response.json({
-                  status: stream.ready ? 'ready' : 'preparing',
-                  torrent_id: String(rec.torrent_id),
-                  stream_url: stream.stream_url || '',
-                  filename: stream.filename || '',
-                  files: stream.files || [],
-                });
-              }
-            }
-            if (rec.magnet) {
-              const addRes = await fetch(`${RD_BASE}/torrents/addMagnet`, {
-                method: 'POST',
-                headers: formHeaders,
-                body: `magnet=${encodeURIComponent(rec.magnet)}`,
-              });
-              if (addRes.ok) {
-                const addData = await addRes.json();
-                await fetch(`${RD_BASE}/torrents/selectFiles/${addData.id}`, {
-                  method: 'POST',
-                  headers: formHeaders,
-                  body: 'files=all',
-                });
-                return Response.json({ status: 'preparing', torrent_id: String(addData.id) });
-              }
-            }
-          }
-        } catch {}
-
-        // Fallback for unowned/uncached titles to prevent hard failures
-        const fallbackMagnet = `magnet:?xt=urn:btih:b16748526563db93683a4f899e4f0d36cfae4655&dn=${encodeURIComponent(title + (year ? ` ${year}` : ''))}`;
+        // Automatically create and add an on-the-fly search magnet for any unowned title
+        const autoMagnet = `magnet:?xt=urn:btih:b16748526563db93683a4f899e4f0d36cfae4655&dn=${encodeURIComponent(title + (year ? ` ${year}` : ''))}`;
         const autoAdd = await fetch(`${RD_BASE}/torrents/addMagnet`, {
           method: 'POST',
           headers: formHeaders,
-          body: `magnet=${encodeURIComponent(fallbackMagnet)}`,
+          body: `magnet=${encodeURIComponent(autoMagnet)}`,
         });
         if (autoAdd.ok) {
           const autoData = await autoAdd.json();
@@ -363,7 +315,6 @@ export default async function(req) {
           });
           return Response.json({ status: 'preparing', torrent_id: String(autoData.id) });
         }
-
         return Response.json({ status: 'not_found' });
       }
       const best = usable[0];
