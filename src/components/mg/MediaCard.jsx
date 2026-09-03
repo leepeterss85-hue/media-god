@@ -11,7 +11,12 @@ export default function MediaCard({ item, onOpen, onWatchlist, watched }) {
       <div className="relative aspect-[2/3] rounded-md overflow-hidden border border-white/10 bg-mg-card">
         <Image src={item.poster_url} alt={item.title} className="w-full h-full object-cover" fittingType="fill" />
         <button
-          onClick={() => play({ title: item.title, poster: item.poster_url, rdYear: item.year })}
+          onClick={() => play({ 
+            title: item.title, 
+            poster: item.poster_url, 
+            rdYear: item.year, 
+            imdb_id: item.imdb_id || item.id 
+          })}
           className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity"
           aria-label={`Play ${item.title}`}
         >
