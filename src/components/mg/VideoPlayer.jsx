@@ -75,7 +75,7 @@ export default function VideoPlayer({ source, onClose }) {
           }
           if (data.error) setRdError(data.error);
         } catch (e) {
-          if (!cancelled) setRdError(e.message || "Real-Debrid request failed");
+          if (!cancelled) setRdError("Resolve error: " + (e.message || JSON.stringify(e)));
         }
       }
       try {
@@ -94,10 +94,10 @@ export default function VideoPlayer({ source, onClose }) {
         } else if (d.torrent_id) {
           setRdTorrentId(d.torrent_id);
         } else {
-          setRdError("Cached stream not found in your Real-Debrid library.");
+          setRdError(d.error || "Cached stream not found in your Real-Debrid library.");
         }
-      } catch {
-        setRdError("Could not connect to Real-Debrid.");
+      } catch (e) {
+        setRdError("Invoke error: " + (e.message || JSON.stringify(e)));
       }
     };
     run().finally(() => {
