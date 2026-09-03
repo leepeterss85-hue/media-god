@@ -2,17 +2,12 @@ import React, { useEffect, useState } from "react";
 import { Zap, Play, Tv, ExternalLink, Link as LinkIcon, Globe, Radio } from "lucide-react";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 import { findChannelsByTitle } from "@/components/mg/freeTvPlaylist";
+import { base44 } from "@/api/base44Client";
 import { cn } from "@/lib/utils";
 
-// A box that surfaces every available stream source for a title as a
-// clickable row — Real-Debrid, free web scrapers (Torrentio/Comet public links),
-// a manual magnet paste, the YouTube trailer, matching live/free-to-air channels,
-// a free public-domain archive search, and each legal watch provider.
 export default function StreamSourcesBox({ title, poster, trailerUrl, providers, loading, rdYear }) {
   const player = usePlayer();
   const [liveMatches, setLiveMatches] = useState(null);
-  const [freeScrapes, setFreeScrapes] = useState([]);
-  const [scrapingFree, setScrapingFree] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -20,34 +15,6 @@ export default function StreamSourcesBox({ title, poster, trailerUrl, providers,
     findChannelsByTitle(title).then((m) => {
       if (!cancelled) setLiveMatches(m);
     });
-
-    // Query public/free scrapers (e.g. public Torrentio/Comet instances or public catalog APIs)
-    setScrapingFree(true);
-    fetch(`https://torrentio.strem.fun/stream/movie/${encodeURIComponent(title)}.json`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (!cancelled && data && data.streams) {
-          // Filter out streams requiring debrid tokens or map public free ones
-          const freeStreams = data.streams
-            .filter((s) => s.title && !s.title.toLowerCase().includes("rd"))
-            .slice(0, 3)
-            .map((s, idx) => ({
-              id: "free-scrape-" + idx,
-              kind: "free-scrape",
-              label: s.title.split("\n")[0] || "Free Stream Source",
-              note: s.name || "Free Web Scraper",
-              url: s.url || s.infoHash,
-            }));
-          setFreeScrapes(freeStreams);
-        }
-      })
-      .catch(() => {
-        // Fallback or silent catch if public scraper instance is blocked/offline
-      })
-      .finally(() => {
-        if (!cancelled) setScrapingFree(false);
-      });
-
     return () => {
       cancelled = true;
     };
@@ -55,15 +22,10 @@ export default function StreamSourcesBox({ title, poster, trailerUrl, providers,
 
   const sources = [];
   sources.push({ id: "rd", kind: "rd", label: "Real-Debrid", note: "Cached stream or your magnet" });
-  
-  // Inject free scraped sources dynamically
-  freeScrapes.forEach((fs) => {
-    sources.push(fs);
-  });
-
   sources.push({ id: "paste", kind: "paste", label: "Paste Magnet", note: "Your own magnet via Real-Debrid" });
-  if (trailerUrl) sources.push({ id: "trailer", kind: "trailer", label: "Trailer", note: "YouTube" });
   
+  if (trailerUrl) sources.push({ id: "trailer", kind: "trailer", label: "Trailer", note: "YouTube" });
+
   (liveMatches || []).forEach((c, i) => {
     sources.push({
       id: "live-" + i,
@@ -76,7 +38,7 @@ export default function StreamSourcesBox({ title, poster, trailerUrl, providers,
   });
 
   sources.push({ id: "archive", kind: "archive", label: "Free Archive", note: "Public-domain on Internet Archive" });
-  
+
   (providers || []).forEach((p) => {
     sources.push({ id: "prov-" + p.name, kind: "provider", label: p.name, note: p.tier || "Stream", logo: p.logo, link: p.link });
   });
@@ -88,15 +50,6 @@ export default function StreamSourcesBox({ title, poster, trailerUrl, providers,
     }
     if (s.kind === "archive") {
       window.open(`https://archive.org/search?query=${encodeURIComponent(title)}`, "_blank", "noopener,noreferrer");
-      return;
-    }
-    if (s.kind === "free-scrape") {
-      player.play({
-        title,
-        poster,
-        noRd: true,
-        sources: [{ label: s.label, type: "url", src: s.url }],
-      });
       return;
     }
     if (s.kind === "trailer") {
@@ -135,7 +88,6 @@ export default function StreamSourcesBox({ title, poster, trailerUrl, providers,
 
   const iconFor = (kind) => {
     if (kind === "rd") return <Zap className="w-4 h-4 text-mg-green" />;
-    if (kind === "free-scrape") return <Globe className="w-4 h-4 text-cyan-400" />;
     if (kind === "paste") return <LinkIcon className="w-4 h-4 text-mg-green" />;
     if (kind === "trailer") return <Play className="w-4 h-4 text-white/70" />;
     if (kind === "live") return <Radio className="w-4 h-4 text-red-400" />;
@@ -148,15 +100,13 @@ export default function StreamSourcesBox({ title, poster, trailerUrl, providers,
       "flex items-center gap-2.5 w-full text-left px-2.5 py-2 rounded-md transition-colors border",
       kind === "rd"
         ? "bg-mg-green/10 hover:bg-mg-green/20 border-mg-green/30"
-        : kind === "free-scrape"
-        ? "bg-cyan-500/10 hover:bg-cyan-500/20 border-cyan-500/30"
         : kind === "live"
         ? "bg-red-500/10 hover:bg-red-500/20 border-red-500/30"
         : "bg-white/5 hover:bg-white/10 border-transparent"
     );
 
   const labelClass = (kind) =>
-    cn("block text-sm font-medium truncate", kind === "rd" || kind === "free-scrape" || kind === "live" ? "text-mg-green" : "text-white");
+    cn("block text-sm font-medium truncate", kind === "rd" || kind === "live" ? "text-mg-green" : "text-white");
 
   return (
     <div className="mt-4 bg-mg-card border border-white/10 rounded-lg p-3">
@@ -191,12 +141,8 @@ export default function StreamSourcesBox({ title, poster, trailerUrl, providers,
               )}
             </button>
           ))}
-          {liveMatches === null && (
-            <p className="text-[10px] text-white/30 px-1 pt-1">Checking live channels…</p>
-          )}
         </div>
       )}
     </div>
   );
 }
-
