@@ -1,16 +1,19 @@
 import React from "react";
 import { Play, Plus, Check } from "lucide-react";
 import { Image } from "@/components/ui/image";
+import { usePlayer } from "@/components/mg/PlayerProvider";
 
 export default function MediaCard({ item, onOpen, onWatchlist, watched }) {
+  const { play } = usePlayer();
+
   return (
     <div className="group shrink-0 w-28 sm:w-36 md:w-40">
       <div className="relative aspect-[2/3] rounded-md overflow-hidden border border-white/10 bg-mg-card">
         <Image src={item.poster_url} alt={item.title} className="w-full h-full object-cover" fittingType="fill" />
         <button
-          onClick={() => onOpen(item)}
+          onClick={() => play({ title: item.title, poster: item.poster_url, rdYear: item.year })}
           className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity"
-          aria-label={`Details for ${item.title}`}
+          aria-label={`Play ${item.title}`}
         >
           <span className="w-10 h-10 rounded-full bg-mg-green text-black flex items-center justify-center">
             <Play className="w-5 h-5 fill-black" />
