@@ -4,7 +4,6 @@ import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { KeyRound, Check, Loader2, ExternalLink, Zap } from "lucide-react";
 import SocialLoginSection from "@/components/mg/SocialLoginSection";
-import DebridServiceCard from "@/components/mg/DebridServiceCard";
 
 export default function SettingsView() {
   const [me, setMe] = useState(null);
@@ -15,7 +14,6 @@ export default function SettingsView() {
   const [rdStatus, setRdStatus] = useState(null);
   const [rdSaving, setRdSaving] = useState(false);
   const [rdChecking, setRdChecking] = useState(false);
-  const [extraStatus, setExtraStatus] = useState({});
   const { toast } = useToast();
 
   useEffect(() => {
@@ -24,15 +22,6 @@ export default function SettingsView() {
       .then((u) => {
         setMe(u);
         if (u?.rd_token) setRdToken(u.rd_token);
-        // Pre-verify any already-connected additional services.
-        for (const s of ["alldebrid", "premiumize", "debridlink"]) {
-          if (u?.[`${s}_token`]) {
-            base44.functions
-              .invoke("debridServices", { service: s, action: "status" })
-              .then((res) => setExtraStatus((p) => ({ ...p, [s]: res.data })))
-              .catch((e) => setExtraStatus((p) => ({ ...p, [s]: { error: e.message } })));
-          }
-        }
       })
       .catch(() => {});
   }, []);
@@ -205,10 +194,6 @@ export default function SettingsView() {
           <p className="mt-3 text-xs text-red-400">{rdStatus.error}</p>
         )}
       </div>
-
-      <DebridServiceCard service="alldebrid" initialToken={me?.alldebrid_token} initialStatus={extraStatus.alldebrid} />
-      <DebridServiceCard service="premiumize" initialToken={me?.premiumize_token} initialStatus={extraStatus.premiumize} />
-      <DebridServiceCard service="debridlink" initialToken={me?.debridlink_token} initialStatus={extraStatus.debridlink} />
 
       <button
         onClick={save}

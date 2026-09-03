@@ -1,14 +1,11 @@
-import React, { useEffect, useImperativeHandle, useRef, forwardRef } from "react";
+import React, { useEffect, useRef } from "react";
 import Hls from "hls.js";
 
 // Plays a live stream URL in a <video> element. HLS (.m3u8) streams are
 // attached via hls.js on browsers without native HLS (desktop Chrome/Firefox);
-// Safari/iOS and direct mp4/webm play natively. Forwards the video element
-// ref so a custom controls overlay can drive it, and accepts a `controls`
-// prop to disable the native controls when an overlay is used.
-const LiveVideo = forwardRef(function LiveVideo({ src, poster, className, onLoadedMetadata, onTimeUpdate, controls = true }, ref) {
+// Safari/iOS and direct mp4/webm play natively.
+export default function LiveVideo({ src, poster, className, onLoadedMetadata, onTimeUpdate }) {
   const videoRef = useRef(null);
-  useImperativeHandle(ref, () => videoRef.current, []);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -36,8 +33,6 @@ const LiveVideo = forwardRef(function LiveVideo({ src, poster, className, onLoad
   }, [src]);
 
   return (
-    <video ref={videoRef} poster={poster} controls={controls} playsInline className={className} onLoadedMetadata={onLoadedMetadata} onTimeUpdate={onTimeUpdate} />
+    <video ref={videoRef} poster={poster} controls playsInline className={className} onLoadedMetadata={onLoadedMetadata} onTimeUpdate={onTimeUpdate} />
   );
-});
-
-export default LiveVideo;
+}

@@ -4,7 +4,6 @@ import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
 import { useToast } from "@/components/ui/use-toast";
 import { usePlayer, buildMediaSources } from "@/components/mg/PlayerProvider";
-import WatchlistShareButton from "@/components/mg/WatchlistShareButton";
 
 export default function WatchlistView() {
   const [items, setItems] = useState([]);
@@ -49,15 +48,10 @@ export default function WatchlistView() {
 
   return (
     <div className="p-4 md:p-6">
-      <div className="flex items-start justify-between gap-3 mb-6">
-        <div>
-          <h1 className="text-xl font-bold text-white mb-1">Watchlist</h1>
-          <p className="text-sm text-white/50">
-            {items.length} saved {items.length === 1 ? "title" : "titles"}
-          </p>
-        </div>
-        <WatchlistShareButton items={items} />
-      </div>
+      <h1 className="text-xl font-bold text-white mb-1">Watchlist</h1>
+      <p className="text-sm text-white/50 mb-6">
+        {items.length} saved {items.length === 1 ? "title" : "titles"}
+      </p>
 
       {loading ? (
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">

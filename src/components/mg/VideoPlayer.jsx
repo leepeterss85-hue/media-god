@@ -4,7 +4,6 @@ import { cn } from "@/lib/utils";
 import { base44 } from "@/api/base44Client";
 import CastButton from "@/components/mg/CastButton";
 import LiveVideo from "@/components/mg/LiveVideo";
-import PlayerControls from "@/components/mg/PlayerControls";
 
 const currentFilePath = (files) => (files?.find((f) => f.selected) || files?.[0] || {}).path || "";
 
@@ -28,7 +27,6 @@ export default function VideoPlayer({ source, onClose }) {
   const [fileSwitching, setFileSwitching] = useState(false);
   const [pastedMagnet, setPastedMagnet] = useState("");
   const videoRef = useRef(null);
-  const liveVideoRef = useRef(null);
   const stageRef = useRef(null);
   const pollRef = useRef(null);
 
@@ -90,7 +88,6 @@ export default function VideoPlayer({ source, onClose }) {
         }
       }
       // No magnet / not cached → look for this title in the user's RD library.
-      let cached = false;
       try {
         const fc = await base44.functions.invoke("realDebrid", {
           action: "find_cached",
@@ -105,48 +102,10 @@ export default function VideoPlayer({ source, onClose }) {
         if (d.status === "ready" && d.stream_url) {
           setRdOverride({ src: d.stream_url, label: "Real-Debrid Stream", file: currentFilePath(d.files) });
           setRdFiles(d.files || []);
-          cached = true;
         } else if (d.torrent_id) {
           setRdTorrentId(d.torrent_id); // auto-poll resolves + plays
-          cached = true;
         }
-        // not_found → fall through to saved-magnet lookup
-      } catch {}
-      if (cached) return;
-
-      // No cached copy — reuse a magnet previously pasted for this title so
-      // playback stays one-click even after the RD torrent is deleted. The
-      // box is pre-filled too, so if re-caching fails the user just hits Play.
-      try {
-        const links = await base44.entities.RdLink.filter({
-          title: source.rdTitle || source.title,
-          ...(source.rdYear != null ? { year: source.rdYear } : {}),
-          ...(source.rdSeason != null ? { season: source.rdSeason } : {}),
-          ...(source.rdEpisode != null ? { episode: source.rdEpisode } : {}),
-        });
-        if (cancelled) return;
-        if (links.length > 0 && links[0].magnet) {
-          const savedMagnet = links[0].magnet;
-          setPastedMagnet(savedMagnet);
-          const res = await base44.functions.invoke("realDebrid", {
-            action: "add_magnet",
-            magnet: savedMagnet,
-            title: source.rdTitle || source.title,
-            ...(source.rdYear != null ? { year: source.rdYear } : {}),
-            ...(source.rdSeason != null ? { season: source.rdSeason } : {}),
-            ...(source.rdEpisode != null ? { episode: source.rdEpisode } : {}),
-          });
-          if (cancelled) return;
-          const data = res.data || {};
-          if (data.status === "ready" && data.stream_url) {
-            setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream", file: currentFilePath(data.files) });
-            setRdFiles(data.files || []);
-          } else if (data.torrent_id) {
-            setRdTorrentId(data.torrent_id);
-          } else if (data.error) {
-            setRdError(data.error);
-          }
-        }
+        // not_found → paste box shows (rdOverride stays null)
       } catch {}
     };
     run().finally(() => {
@@ -255,11 +214,6 @@ export default function VideoPlayer({ source, onClose }) {
       if (tag === "input" || tag === "textarea" || e.target?.isContentEditable) return;
       const video = stageRef.current?.querySelector("video");
       if (!video) return;
-      if (e.key >= "0" && e.key <= "9" && video.duration) {
-        e.preventDefault();
-        video.currentTime = video.duration * (parseInt(e.key, 10) / 10);
-        return;
-      }
       switch (e.key) {
         case " ":
         case "k":
@@ -290,22 +244,6 @@ export default function VideoPlayer({ source, onClose }) {
         case "m":
           e.preventDefault();
           video.muted = !video.muted;
-          break;
-        case "j":
-          e.preventDefault();
-          video.currentTime = Math.max(0, (video.currentTime || 0) - 10);
-          break;
-        case "l":
-          e.preventDefault();
-          if (video.duration) video.currentTime = Math.min(video.duration, (video.currentTime || 0) + 10);
-          break;
-        case "<":
-          e.preventDefault();
-          video.playbackRate = Math.max(0.5, (video.playbackRate || 1) - 0.25);
-          break;
-        case ">":
-          e.preventDefault();
-          video.playbackRate = Math.min(2, (video.playbackRate || 1) + 0.25);
           break;
       }
     };
@@ -404,29 +342,6 @@ export default function VideoPlayer({ source, onClose }) {
   };
   const openLink = (href) => window.open(href, "_blank", "noopener,noreferrer");
 
-  // Remember a magnet the user pasted for this title so next time it
-  // auto-resolves without re-pasting.
-  const saveRdLink = (magnet, torrentId) => {
-    const title = source.rdTitle || source.title;
-    if (!title || !magnet) return;
-    const query = {
-      title,
-      ...(source.rdYear != null ? { year: source.rdYear } : {}),
-      ...(source.rdSeason != null ? { season: source.rdSeason } : {}),
-      ...(source.rdEpisode != null ? { episode: source.rdEpisode } : {}),
-    };
-    const patch = { magnet, ...(torrentId ? { torrent_id: torrentId } : {}) };
-    base44.entities.RdLink.filter(query)
-      .then((rows) => {
-        if (rows.length > 0) base44.entities.RdLink.update(rows[0].id, patch).catch(() => {});
-        else
-          base44.entities.RdLink
-            .create({ title, year: source.rdYear || "", season: source.rdSeason || "", episode: source.rdEpisode || "", ...patch })
-            .catch(() => {});
-      })
-      .catch(() => {});
-  };
-
   const resolvePasted = async () => {
     if (!pastedMagnet.trim().startsWith("magnet:")) {
       setRdError("Paste a valid magnet link (starts with magnet:?xt=…)");
@@ -450,10 +365,8 @@ export default function VideoPlayer({ source, onClose }) {
       if (data.status === "ready" && data.stream_url) {
         setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream", file: currentFilePath(data.files) });
         setRdFiles(data.files || []);
-        saveRdLink(pastedMagnet.trim(), data.torrent_id);
       } else if (data.status === "preparing") {
         setRdTorrentId(data.torrent_id);
-        saveRdLink(pastedMagnet.trim(), data.torrent_id);
         // auto-poll effect takes over
       } else {
         setRdError(data.error || "Real-Debrid could not resolve this magnet.");
@@ -584,19 +497,17 @@ export default function VideoPlayer({ source, onClose }) {
 
         <div ref={stageRef} className="relative w-full aspect-video bg-black rounded-lg overflow-hidden border border-white/10">
           {rdOverride ? (
-            <>
-              <video
-                key={rdOverride.src}
-                ref={videoRef}
-                src={rdOverride.src}
-                poster={source.poster}
-                playsInline
-                onLoadedMetadata={handleLoadedMetadata}
-                onTimeUpdate={handleTimeUpdate}
-                className="w-full h-full object-contain bg-black"
-              />
-              <PlayerControls key={rdOverride.src} videoRef={videoRef} stageRef={stageRef} isLive={isLive} onFullscreen={goFullscreen} />
-            </>
+            <video
+              key={rdOverride.src}
+              ref={videoRef}
+              src={rdOverride.src}
+              poster={source.poster}
+              controls
+              playsInline
+              onLoadedMetadata={handleLoadedMetadata}
+              onTimeUpdate={handleTimeUpdate}
+              className="w-full h-full object-contain bg-black"
+            />
           ) : active?.type === "youtube" && (
             <iframe
               src={active.src}
@@ -608,19 +519,14 @@ export default function VideoPlayer({ source, onClose }) {
             />
           )}
           {(active?.type === "file" || active?.type === "live") && !rdOverride && (
-            <>
-              <LiveVideo
-                ref={liveVideoRef}
-                key={active.src}
-                src={active.src}
-                poster={source.poster}
-                controls={false}
-                className="w-full h-full object-contain bg-black"
-                onLoadedMetadata={handleLoadedMetadata}
-                onTimeUpdate={handleTimeUpdate}
-              />
-              <PlayerControls key={active.src} videoRef={liveVideoRef} stageRef={stageRef} isLive={isLive} onFullscreen={goFullscreen} />
-            </>
+            <LiveVideo
+              key={active.src}
+              src={active.src}
+              poster={source.poster}
+              className="w-full h-full object-contain bg-black"
+              onLoadedMetadata={handleLoadedMetadata}
+              onTimeUpdate={handleTimeUpdate}
+            />
           )}
           {(active?.type === "rd" || active?.type === "rd_torrent") && !rdOverride && (
             <div className="w-full h-full flex flex-col items-center justify-center gap-3 p-6 text-center">
