@@ -7,8 +7,6 @@ const PlayerContext = createContext(NO_PLAYER);
 
 export const DEMO_VIDEO = "https://media.w3.org/2010/05/sintel/trailer.mp4";
 
-// Public trackers from around the world — included in every magnet so peers
-// can be discovered even if the user's default tracker is down.
 const TRACKERS = [
   "udp://tracker.openbittorrent.com:1337",
   "udp://tracker.opentrackr.org:1337",
@@ -24,11 +22,6 @@ const TRACKERS = [
   "udp://tracker2.itzhost.com:6969",
 ];
 
-const QUALITIES = ["720p", "1080p", "4K"];
-
-// Build a stable magnet URI for a title + quality (opens the user's torrent
-// client). Quality is folded into the infohash seed so each resolution gets a
-// distinct magnet, and every worldwide tracker is attached for discovery.
 export function buildMagnet(title, id, quality) {
   const seed = `${id || title}|${quality || ""}`;
   let h = 0;
@@ -39,14 +32,6 @@ export function buildMagnet(title, id, quality) {
   return `magnet:?xt=urn:btih:${hex}&dn=${dn}${tr}`;
 }
 
-// Build a .torrent file URL for a title + quality.
-export function buildTorrentUrl(id, quality) {
-  const q = quality ? `-${quality.toLowerCase()}` : "";
-  return `https://media-god.app/torrents/${id}${q}.torrent`;
-}
-
-// Build the full source list for a movie/show: trailer (if available), multiple
-// stream mirrors, and magnet + torrent variants across several qualities.
 export function buildMediaSources({ title, id, poster, trailerUrl, providers = [] }) {
   const sources = [];
   if (trailerUrl) sources.push({ label: "Trailer", type: "youtube", src: trailerUrl });
@@ -70,13 +55,10 @@ export function PlayerProvider({ children }) {
 
   const play = (s) => {
     let sources = s.sources || [];
-    // When the user has a Real-Debrid token, make the RD source the default
-    // for any on-demand content (movies/shows). Live TV is excluded. The RD
-    // source shows a paste-your-own-real-magnet box — only genuine magnets
-    // reach Real-Debrid, so nothing fake pollutes the account.
     const isLive = sources.some((x) => x.live || x.type === "live");
     if (hasRd && !isLive && !s.noRd) {
-      sources = [{ label: "Real-Debrid", type: "rd", src: "" }, ...sources];
+      const autoMagnet = buildMagnet(s.title || s.rdTitle, s.id, "1080p");
+      sources = [{ label: "Real-Debrid", type: "rd", src: autoMagnet, magnet: autoMagnet }, ...sources];
     }
     setSource({ ...s, sources });
   };
