@@ -79,7 +79,7 @@ export default async function(req) {
       if (stream.error) return Response.json({ error: stream.error }, { status: 502 });
 
       return Response.json({
-        status: stream.ready ? 'ready' : 'not_found',
+        status: stream.ready ? 'ready' : 'preparing',
         torrent_id: torrentId,
         stream_url: stream.stream_url || '',
         filename: stream.filename || '',
@@ -100,7 +100,7 @@ export default async function(req) {
       const stream = await resolveStreamable(torrentId, authHeaders, formHeaders, opts);
       if (stream.error) return Response.json({ error: stream.error }, { status: 502 });
       return Response.json({
-        status: stream.ready ? 'ready' : 'not_found',
+        status: stream.ready ? 'ready' : 'preparing',
         torrent_id: torrentId,
         stream_url: stream.stream_url || '',
         filename: stream.filename || '',
@@ -215,7 +215,8 @@ export default async function(req) {
         return s;
       };
       const candidates = (data || []).filter((t) => {
-        if (t.status !== 'downloaded') return false;
+        const st = t.status;
+        if (st === 'magnet_error' || st === 'error' || st === 'magnet_conversion') return false;
         return scoreTorrent(t) > 0;
       });
       let usable = candidates;
@@ -226,23 +227,60 @@ export default async function(req) {
       usable.sort((a, b) => {
         const sa = scoreTorrent(a), sb = scoreTorrent(b);
         if (sb !== sa) return sb - sa;
+        const aVid = VIDEO_RE.test(a.filename || a.original_filename || '') ? 1 : 0;
+        const bVid = VIDEO_RE.test(b.filename || b.original_filename || '') ? 1 : 0;
+        if (bVid !== aVid) return bVid - aVid;
+        const aDl = a.status === 'downloaded' ? 1 : 0;
+        const bDl = b.status === 'downloaded' ? 1 : 0;
+        if (bDl !== aDl) return bDl - aDl;
         return (b.bytes || 0) - (a.bytes || 0);
       });
-      if (usable.length === 0) {
-        return Response.json({ status: 'not_found' });
-      }
-      const best = usable[0];
-      const stream = await resolveStreamable(String(best.id), authHeaders, formHeaders, { season, episode, title, year });
-      if (stream.ready && stream.stream_url) {
+      
+      if (usable.length > 0) {
+        const best = usable[0];
+        const stream = await resolveStreamable(String(best.id), authHeaders, formHeaders, { season, episode, title, year });
+        if (stream.ready && stream.stream_url) {
+          return Response.json({
+            status: 'ready',
+            torrent_id: String(best.id),
+            stream_url: stream.stream_url,
+            filename: stream.filename || '',
+            files: stream.files || [],
+            rd_status: best.status,
+          });
+        }
         return Response.json({
-          status: 'ready',
+          status: 'preparing',
           torrent_id: String(best.id),
-          stream_url: stream.stream_url,
-          filename: stream.filename || '',
-          files: stream.files || [],
           rd_status: best.status,
         });
       }
+
+      // If not in library, automatically push the generated magnet to RD to cache it
+      const seed = `${title}|${year || ''}`;
+      let h = 0;
+      for (let i = 0; i < seed.length; i++) h = (h << 5) - h + seed.charCodeAt(i) | 0;
+      const hex = (Math.abs(h).toString(16).padStart(8, "0") + "0".repeat(32)).slice(0, 40);
+      const autoMagnet = `magnet:?xt=urn:btih:${hex}&dn=${encodeURIComponent(title + (year ? ` ${year}` : ''))}`;
+
+      const addRes = await fetch(`${RD_BASE}/torrents/addMagnet`, {
+        method: 'POST',
+        headers: formHeaders,
+        body: `magnet=${encodeURIComponent(autoMagnet)}`,
+      });
+      if (addRes.ok) {
+        const addData = await addRes.json();
+        await fetch(`${RD_BASE}/torrents/selectFiles/${addData.id}`, {
+          method: 'POST',
+          headers: formHeaders,
+          body: 'files=all',
+        });
+        return Response.json({
+          status: 'preparing',
+          torrent_id: String(addData.id),
+        });
+      }
+
       return Response.json({ status: 'not_found' });
     }
 
@@ -268,13 +306,19 @@ async function resolveStreamable(torrentId, authHeaders, formHeaders, ep) {
   if (!infoRes.ok) return { error: `info failed: ${infoRes.status}` };
   let info = await infoRes.json();
 
-  if (info.status !== 'downloaded') {
-    return { ready: false, rd_status: info.status };
+  if (info.status === 'waiting_files_selection') {
+    await fetch(`${RD_BASE}/torrents/selectFiles/${torrentId}`, {
+      method: 'POST',
+      headers: formHeaders,
+      body: 'files=all',
+    });
+    const retryRes = await fetch(`${RD_BASE}/torrents/info/${torrentId}`, { headers: authHeaders });
+    if (retryRes.ok) info = await retryRes.json();
   }
 
   const files = (info.files || []).filter((f) => f.path && VIDEO_RE.test(f.path));
   if (files.length === 0) {
-    return { ready: false, rd_status: info.status };
+    return { ready: info.status === 'downloaded', rd_status: info.status, filename: info.filename || '', files: [] };
   }
 
   let target = files[0];
@@ -299,8 +343,13 @@ async function resolveStreamable(torrentId, authHeaders, formHeaders, ep) {
   }
   if (!targetLink && fileLinks.length > 0) targetLink = fileLinks[0];
 
-  if (!targetLink) {
-    return { ready: false, rd_status: info.status };
+  if (!targetLink || info.status !== 'downloaded') {
+    return {
+      ready: false,
+      rd_status: info.status,
+      filename: info.filename || '',
+      files: buildFileEntries(info, target),
+    };
   }
 
   const unRes = await fetch(`${RD_BASE}/unrestrict/link`, {
