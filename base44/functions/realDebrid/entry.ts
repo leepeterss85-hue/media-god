@@ -35,17 +35,54 @@ export default async function(req) {
     if (action === 'find_cached') {
       const title = (body.title || '').trim();
       if (!title) return Response.json({ error: 'title required' }, { status: 400 });
-      const season = body.season != null ? String(body.season) : '';
-      const episode = body.episode != null ? String(body.episode) : '';
       const year = body.year != null ? String(body.year).trim() : '';
-      
+
+      // Generate the query hash for global cache check
+      const seed = `${title}|${year}`;
+      let h = 0;
+      for (let i = 0; i < seed.length; i++) h = (h << 5) - h + seed.charCodeAt(i) | 0;
+      const hex = (Math.abs(h).toString(16).padStart(8, "0") + "0".repeat(32)).slice(0, 40);
+
+      // Check Real-Debrid instant availability globally
+      const availRes = await fetch(`${RD_BASE}/torrents/instantAvailability/${hex}`, { headers: authHeaders });
+      if (availRes.ok) {
+        const availData = await availRes.json();
+        const hostVariants = availData[hex]?.rd;
+        if (hostVariants && hostVariants.length > 0) {
+          // Instantly add and resolve the available variant
+          const magnet = `magnet:?xt=urn:btih:${hex}&dn=${encodeURIComponent(title + (year ? ` ${year}` : ''))}`;
+          const addRes = await fetch(`${RD_BASE}/torrents/addMagnet`, {
+            method: 'POST',
+            headers: formHeaders,
+            body: `magnet=${encodeURIComponent(magnet)}`,
+          });
+          if (addRes.ok) {
+            const addData = await addRes.json();
+            await fetch(`${RD_BASE}/torrents/selectFiles/${addData.id}`, {
+              method: 'POST',
+              headers: formHeaders,
+              body: 'files=all',
+            });
+            const stream = await resolveStreamable(addData.id, authHeaders, formHeaders);
+            if (stream.ready && stream.stream_url) {
+              return Response.json({
+                status: 'ready',
+                torrent_id: String(addData.id),
+                stream_url: stream.stream_url,
+                filename: stream.filename || '',
+                files: stream.files || [],
+              });
+            }
+          }
+        }
+      }
+
+      // Fallback: check personal library
       const res = await fetch(`${RD_BASE}/torrents`, { headers: authHeaders });
       if (!res.ok) return Response.json({ error: `RD error: ${res.status}` }, { status: 502 });
       const data = await res.json();
-      
       const norm = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
       const want = norm(title);
-      const wantYear = norm(year);
       
       const candidates = (data || []).filter((t) => {
         if (t.status !== 'downloaded') return false;
@@ -58,7 +95,7 @@ export default async function(req) {
       }
 
       const best = candidates[0];
-      const stream = await resolveStreamable(String(best.id), authHeaders, formHeaders, { season, episode, title, year });
+      const stream = await resolveStreamable(String(best.id), authHeaders, formHeaders);
       if (stream.ready && stream.stream_url) {
         return Response.json({
           status: 'ready',
@@ -77,20 +114,9 @@ export default async function(req) {
   }
 }
 
-function buildFileEntries(info, target) {
-  const files = (info.files || []).filter((f) => f.path && VIDEO_RE.test(f.path));
-  return files.map((f) => ({
-    id: f.id,
-    path: (f.path || '').split('/').pop(),
-    bytes: f.bytes || 0,
-    link: f.link,
-    selected: !!(target && f.id === target.id),
-  }));
-}
-
-async function resolveStreamable(torrentId, authHeaders, formHeaders, ep) {
+async function resolveStreamable(torrentId, authHeaders, formHeaders) {
   const infoRes = await fetch(`${RD_BASE}/torrents/info/${torrentId}`, { headers: authHeaders });
-  if (!infoRes.ok) return { error: `info failed: ${infoRes.status}` };
+  if (!infoRes.ok) return { ready: false };
   const info = await infoRes.json();
 
   if (info.status !== 'downloaded') return { ready: false };
@@ -98,21 +124,9 @@ async function resolveStreamable(torrentId, authHeaders, formHeaders, ep) {
   const files = (info.files || []).filter((f) => f.path && VIDEO_RE.test(f.path));
   if (files.length === 0) return { ready: false };
 
-  let target = files[0];
-  if (ep?.episode && ep?.season) {
-    const sStr = String(ep.season);
-    const eStr = String(ep.episode);
-    const match = files.find((f) => {
-      const p = (f.path || '').toLowerCase();
-      return p.includes(`s0${sStr}e0${eStr}`) || p.includes(`s${sStr}e${eStr}`) || p.includes(`${sStr}x${eStr}`);
-    });
-    if (match) target = match;
-  }
-
+  const target = files[0];
   const fileLinks = info.links || [];
-  let targetLink = fileLinks[0] || '';
-  const index = files.findIndex((f) => f.id === target.id);
-  if (index >= 0 && fileLinks[index]) targetLink = fileLinks[index];
+  const targetLink = fileLinks[0] || '';
 
   if (!targetLink) return { ready: false };
 
@@ -121,13 +135,12 @@ async function resolveStreamable(torrentId, authHeaders, formHeaders, ep) {
     headers: formHeaders,
     body: `link=${encodeURIComponent(targetLink)}`,
   });
-  if (!unRes.ok) return { error: `unrestrict failed: ${unRes.status}` };
+  if (!unRes.ok) return { ready: false };
   const unData = await unRes.json();
 
   return {
     ready: true,
     stream_url: unData.download,
     filename: unData.filename || target.path || '',
-    files: buildFileEntries(info, target),
   };
 }
