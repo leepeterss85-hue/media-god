@@ -33,13 +33,14 @@ export default async function(req) {
     }
 
     if (action === 'find_cached') {
+      console.log("Incoming payload:", JSON.stringify(body));
       const title = (body.title || '').trim();
       if (!title) return Response.json({ error: 'title required' }, { status: 400 });
       const year = body.year != null ? String(body.year).trim() : '';
       const season = body.season != null ? String(body.season) : '';
       const episode = body.episode != null ? String(body.episode) : '';
 
-      // Query Torrentio API to fetch actual, valid cached hashes from the network
+      // 1. Try Torrentio Network Scrape for real infohashes
       let queryTitle = title;
       if (season && episode) {
         queryTitle += ` S${season.padStart(2, '0')}E${episode.padStart(2, '0')}`;
@@ -53,9 +54,8 @@ export default async function(req) {
       if (scrapeRes && scrapeRes.ok) {
         const scrapeData = await scrapeRes.json();
         const streams = scrapeData.streams || [];
-        
-        // Look for a real stream option containing a valid infohash (bh property)
         const validStream = streams.find(s => s.infoHash || (s.url && s.url.includes('btih:')));
+        
         if (validStream) {
           let infoHash = validStream.infoHash;
           if (!infoHash && validStream.url) {
@@ -65,14 +65,12 @@ export default async function(req) {
 
           if (infoHash) {
             const realMagnet = `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(title)}`;
-            
-            // Check global cache instant availability via Real-Debrid API first
             const availRes = await fetch(`${RD_BASE}/torrents/instantAvailability/${infoHash}`, { headers: authHeaders });
+            
             if (availRes.ok) {
               const availData = await availRes.json();
               const cachedVariants = availData[infoHash]?.rd;
               if (cachedVariants && cachedVariants.length > 0) {
-                // Instantly add and resolve the cached torrent
                 const addRes = await fetch(`${RD_BASE}/torrents/addMagnet`, {
                   method: 'POST',
                   headers: formHeaders,
@@ -99,6 +97,33 @@ export default async function(req) {
                 }
               }
             }
+          }
+        }
+      }
+
+      // 2. Fallback: Check personal Real-Debrid cloud library storage
+      const libRes = await fetch(`${RD_BASE}/torrents`, { headers: authHeaders });
+      if (libRes.ok) {
+        const libData = await libRes.json();
+        const norm = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const want = norm(title);
+        
+        const candidates = (libData || []).filter((t) => {
+          if (t.status !== 'downloaded') return false;
+          const fn = norm(t.filename || t.original_filename || '');
+          return fn.includes(want);
+        });
+
+        if (candidates.length > 0) {
+          const best = candidates[0];
+          const stream = await resolveStreamable(best.id, authHeaders, formHeaders);
+          if (stream.ready && stream.stream_url) {
+            return Response.json({
+              status: 'ready',
+              torrent_id: String(best.id),
+              stream_url: stream.stream_url,
+              filename: stream.filename || '',
+            });
           }
         }
       }
@@ -142,4 +167,3 @@ async function resolveStreamable(torrentId, authHeaders, formHeaders) {
     filename: unData.filename || target.path || '',
   };
 }
-
