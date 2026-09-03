@@ -34,21 +34,29 @@ export default async function(req) {
 
     if (action === 'find_cached') {
       const title = (body.title || '').trim();
-      if (!title) return Response.json({ error: 'title required' }, { status: 400 });
+      const imdbId = (body.imdb_id || '').trim();
+      if (!title && !imdbId) return Response.json({ error: 'title or imdb_id required' }, { status: 400 });
       const year = body.year != null ? String(body.year).trim() : '';
       const season = body.season != null ? String(body.season) : '';
       const episode = body.episode != null ? String(body.episode) : '';
 
-      // 1. External Network Scrape via Torrentio
-      let queryTitle = title;
-      if (season && episode) {
-        queryTitle += ` S${season.padStart(2, '0')}E${episode.padStart(2, '0')}`;
-      } else if (year) {
-        queryTitle += ` ${year}`;
+      // 1. External Network Scrape via Torrentio (using IMDb ID or title query)
+      let torrentioUrl = '';
+      if (imdbId) {
+        const type = season && episode ? 'series' : 'movie';
+        const streamPath = type === 'series' ? `${imdbId}:${season}:${episode}` : imdbId;
+        torrentioUrl = `https://torrentio.strem.fun/stream/${type}/${streamPath}.json`;
+      } else {
+        let queryTitle = title;
+        if (season && episode) {
+          queryTitle += ` S${season.padStart(2, '0')}E${episode.padStart(2, '0')}`;
+        } else if (year) {
+          queryTitle += ` ${year}`;
+        }
+        torrentioUrl = `https://torrentio.strem.fun/stream/movie/${encodeURIComponent(queryTitle.toLowerCase())}.json`;
       }
 
       try {
-        const torrentioUrl = `https://torrentio.strem.fun/stream/movie/${encodeURIComponent(queryTitle.toLowerCase())}.json`;
         const scrapeRes = await fetch(torrentioUrl);
         if (scrapeRes.ok) {
           const scrapeData = await scrapeRes.json();
@@ -63,7 +71,7 @@ export default async function(req) {
             }
 
             if (infoHash) {
-              const realMagnet = `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(title)}`;
+              const realMagnet = `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(title || imdbId)}`;
               const availRes = await fetch(`${RD_BASE}/torrents/instantAvailability/${infoHash}`, { headers: authHeaders });
               
               if (availRes.ok) {
@@ -114,7 +122,7 @@ export default async function(req) {
           const candidates = (libData || []).filter((t) => {
             if (t.status !== 'downloaded') return false;
             const fn = norm(t.filename || t.original_filename || '');
-            return fn.includes(want);
+            return want ? fn.includes(want) : false;
           });
 
           if (candidates.length > 0) {
