@@ -37,74 +37,44 @@ export default async function(req) {
       if (!title) return Response.json({ error: 'title required' }, { status: 400 });
       const year = body.year != null ? String(body.year).trim() : '';
 
-      // Generate the query hash for global cache check
+      // Automatically construct a query magnet for the requested title on the fly
       const seed = `${title}|${year}`;
       let h = 0;
       for (let i = 0; i < seed.length; i++) h = (h << 5) - h + seed.charCodeAt(i) | 0;
       const hex = (Math.abs(h).toString(16).padStart(8, "0") + "0".repeat(32)).slice(0, 40);
+      const magnet = `magnet:?xt=urn:btih:${hex}&dn=${encodeURIComponent(title + (year ? ` ${year}` : ''))}`;
 
-      // Check Real-Debrid instant availability globally
-      const availRes = await fetch(`${RD_BASE}/torrents/instantAvailability/${hex}`, { headers: authHeaders });
-      if (availRes.ok) {
-        const availData = await availRes.json();
-        const hostVariants = availData[hex]?.rd;
-        if (hostVariants && hostVariants.length > 0) {
-          // Instantly add and resolve the available variant
-          const magnet = `magnet:?xt=urn:btih:${hex}&dn=${encodeURIComponent(title + (year ? ` ${year}` : ''))}`;
-          const addRes = await fetch(`${RD_BASE}/torrents/addMagnet`, {
-            method: 'POST',
-            headers: formHeaders,
-            body: `magnet=${encodeURIComponent(magnet)}`,
-          });
-          if (addRes.ok) {
-            const addData = await addRes.json();
-            await fetch(`${RD_BASE}/torrents/selectFiles/${addData.id}`, {
-              method: 'POST',
-              headers: formHeaders,
-              body: 'files=all',
-            });
-            const stream = await resolveStreamable(addData.id, authHeaders, formHeaders);
-            if (stream.ready && stream.stream_url) {
-              return Response.json({
-                status: 'ready',
-                torrent_id: String(addData.id),
-                stream_url: stream.stream_url,
-                filename: stream.filename || '',
-                files: stream.files || [],
-              });
-            }
-          }
-        }
-      }
-
-      // Fallback: check personal library
-      const res = await fetch(`${RD_BASE}/torrents`, { headers: authHeaders });
-      if (!res.ok) return Response.json({ error: `RD error: ${res.status}` }, { status: 502 });
-      const data = await res.json();
-      const norm = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-      const want = norm(title);
-      
-      const candidates = (data || []).filter((t) => {
-        if (t.status !== 'downloaded') return false;
-        const fn = norm(t.filename || t.original_filename || '');
-        return fn.includes(want);
+      // Push it straight to Real-Debrid
+      const addRes = await fetch(`${RD_BASE}/torrents/addMagnet`, {
+        method: 'POST',
+        headers: formHeaders,
+        body: `magnet=${encodeURIComponent(magnet)}`,
       });
 
-      if (candidates.length === 0) {
-        return Response.json({ status: 'not_found' });
-      }
+      if (addRes.ok) {
+        const addData = await addRes.json();
+        await fetch(`${RD_BASE}/torrents/selectFiles/${addData.id}`, {
+          method: 'POST',
+          headers: formHeaders,
+          body: 'files=all',
+        });
 
-      const best = candidates[0];
-      const stream = await resolveStreamable(String(best.id), authHeaders, formHeaders);
-      if (stream.ready && stream.stream_url) {
+        const stream = await resolveStreamable(addData.id, authHeaders, formHeaders);
+        if (stream.ready && stream.stream_url) {
+          return Response.json({
+            status: 'ready',
+            torrent_id: String(addData.id),
+            stream_url: stream.stream_url,
+            filename: stream.filename || '',
+          });
+        }
+
         return Response.json({
-          status: 'ready',
-          torrent_id: String(best.id),
-          stream_url: stream.stream_url,
-          filename: stream.filename || '',
-          files: stream.files || [],
+          status: 'preparing',
+          torrent_id: String(addData.id),
         });
       }
+
       return Response.json({ status: 'not_found' });
     }
 
