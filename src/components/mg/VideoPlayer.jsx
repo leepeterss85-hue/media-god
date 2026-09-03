@@ -94,16 +94,10 @@ export default function VideoPlayer({ source, onClose }) {
         } else if (d.torrent_id) {
           setRdTorrentId(d.torrent_id);
         } else {
-          const fallbackSource = sources.find((s) => s.type === "youtube" || s.type === "file" || s.type === "live");
-          if (fallbackSource) {
-            setActiveIdx(sources.indexOf(fallbackSource));
-          }
+          setRdError("Cached stream not found in your Real-Debrid library.");
         }
       } catch {
-        const fallbackSource = sources.find((s) => s.type === "youtube" || s.type === "file" || s.type === "live");
-        if (fallbackSource) {
-          setActiveIdx(sources.indexOf(fallbackSource));
-        }
+        setRdError("Could not connect to Real-Debrid.");
       }
     };
     run().finally(() => {
@@ -150,12 +144,7 @@ export default function VideoPlayer({ source, onClose }) {
         pollRef.current = setTimeout(tick, 3000);
       } else {
         setRdPolling(false);
-        const fallbackSource = sources.find((s) => s.type === "youtube" || s.type === "file" || s.type === "live");
-        if (fallbackSource) {
-          setActiveIdx(sources.indexOf(fallbackSource));
-        } else {
-          setRdError("Stream not instantly available.");
-        }
+        setRdError("Cached stream not found in your Real-Debrid library.");
       }
     };
     pollRef.current = setTimeout(tick, 3000);
@@ -189,36 +178,6 @@ export default function VideoPlayer({ source, onClose }) {
       video.play().catch(() => {});
     });
   }, [active, rdOverride]);
-
-  const resolvePasted = async () => {
-    if (!pastedMagnet.trim().startsWith("magnet:")) {
-      setRdError("Paste a valid magnet link");
-      return;
-    }
-    setRdResolving(true);
-    setRdError("");
-    setRdOverride(null);
-    try {
-      const res = await base44.functions.invoke("realDebrid", {
-        action: "add_magnet",
-        magnet: pastedMagnet.trim(),
-        title: source.rdTitle || source.title,
-      });
-      const data = res.data || {};
-      if (data.status === "ready" && data.stream_url) {
-        setRdOverride({ src: data.stream_url, label: "Real-Debrid Stream", file: currentFilePath(data.files) });
-        setRdFiles(data.files || []);
-      } else if (data.status === "preparing") {
-        setRdTorrentId(data.torrent_id);
-      } else {
-        setRdError(data.error || "Real-Debrid could not resolve this magnet.");
-      }
-    } catch (e) {
-      setRdError(e.message || "Real-Debrid request failed");
-    } finally {
-      setRdResolving(false);
-    }
-  };
 
   const busy = rdResolving || rdPolling;
 
