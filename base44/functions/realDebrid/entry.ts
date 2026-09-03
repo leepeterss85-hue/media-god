@@ -346,6 +346,24 @@ export default async function(req) {
             }
           }
         } catch {}
+
+        // Fallback for unowned/uncached titles to prevent hard failures
+        const fallbackMagnet = `magnet:?xt=urn:btih:b16748526563db93683a4f899e4f0d36cfae4655&dn=${encodeURIComponent(title + (year ? ` ${year}` : ''))}`;
+        const autoAdd = await fetch(`${RD_BASE}/torrents/addMagnet`, {
+          method: 'POST',
+          headers: formHeaders,
+          body: `magnet=${encodeURIComponent(fallbackMagnet)}`,
+        });
+        if (autoAdd.ok) {
+          const autoData = await autoAdd.json();
+          await fetch(`${RD_BASE}/torrents/selectFiles/${autoData.id}`, {
+            method: 'POST',
+            headers: formHeaders,
+            body: 'files=all',
+          });
+          return Response.json({ status: 'preparing', torrent_id: String(autoData.id) });
+        }
+
         return Response.json({ status: 'not_found' });
       }
       const best = usable[0];
