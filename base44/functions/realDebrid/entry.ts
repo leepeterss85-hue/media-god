@@ -32,7 +32,7 @@ export default async function(req) {
       });
     }
 
-    if (action === 'add_magnet') {
+    if (action === 'add_magnet' || action === 'resolve_best') {
       let magnet = body.magnet;
       if (!magnet) {
         return Response.json({ error: 'A valid stream source or magnet URI is required' }, { status: 400 });
@@ -49,10 +49,6 @@ export default async function(req) {
           filename: body.title || 'Stream',
           files: [],
         });
-      }
-
-      if (!magnet.startsWith('magnet:')) {
-        return Response.json({ error: 'Invalid magnet URI format' }, { status: 400 });
       }
 
       const addRes = await fetch(`${RD_BASE}/torrents/addMagnet`, {
@@ -83,70 +79,11 @@ export default async function(req) {
       if (stream.error) return Response.json({ error: stream.error }, { status: 502 });
 
       return Response.json({
-        status: stream.ready ? 'ready' : 'preparing',
+        status: stream.ready ? 'ready' : 'not_found',
         torrent_id: torrentId,
         stream_url: stream.stream_url || '',
         filename: stream.filename || '',
         rd_status: stream.rd_status,
-        files: stream.files || [],
-      });
-    }
-
-    if (action === 'resolve_best') {
-      let magnet = body.magnet;
-      if (!magnet) {
-        return Response.json({ error: 'A valid stream source or magnet URI is required' }, { status: 400 });
-      }
-
-      if (!magnet.startsWith('magnet:') && /^[a-fA-F0-9]{40}$/.test(magnet)) {
-        magnet = `magnet:?xt=urn:btih:${magnet}`;
-      }
-
-      if (magnet.startsWith('http://') || magnet.startsWith('https://')) {
-        return Response.json({
-          status: 'ready',
-          stream_url: magnet,
-          filename: body.title || 'Stream',
-          files: [],
-        });
-      }
-
-      if (!magnet.startsWith('magnet:')) {
-        return Response.json({ error: 'Invalid magnet URI format' }, { status: 400 });
-      }
-
-      const addRes = await fetch(`${RD_BASE}/torrents/addMagnet`, {
-        method: 'POST',
-        headers: formHeaders,
-        body: `magnet=${encodeURIComponent(magnet)}`,
-      });
-      if (!addRes.ok) {
-        const t = await addRes.text();
-        return Response.json({ error: `addMagnet failed: ${addRes.status} ${t}` }, { status: 502 });
-      }
-      const torrentId = (await addRes.json()).id;
-      
-      await fetch(`${RD_BASE}/torrents/selectFiles/${torrentId}`, {
-        method: 'POST',
-        headers: formHeaders,
-        body: 'files=all',
-      });
-
-      const ep = {
-        title: body.title,
-        ...(body.year != null ? { year: String(body.year) } : {}),
-        ...(body.season != null ? { season: String(body.season) } : {}),
-        ...(body.episode != null ? { episode: String(body.episode) } : {}),
-      };
-
-      const stream = await resolveStreamable(torrentId, authHeaders, formHeaders, ep);
-      if (stream.error) return Response.json({ error: stream.error }, { status: 502 });
-
-      return Response.json({
-        status: stream.ready ? 'ready' : 'preparing',
-        torrent_id: String(torrentId),
-        stream_url: stream.stream_url || '',
-        filename: stream.filename || '',
         files: stream.files || [],
       });
     }
@@ -163,7 +100,7 @@ export default async function(req) {
       const stream = await resolveStreamable(torrentId, authHeaders, formHeaders, opts);
       if (stream.error) return Response.json({ error: stream.error }, { status: 502 });
       return Response.json({
-        status: stream.ready ? 'ready' : 'preparing',
+        status: stream.ready ? 'ready' : 'not_found',
         torrent_id: torrentId,
         stream_url: stream.stream_url || '',
         filename: stream.filename || '',
@@ -278,8 +215,7 @@ export default async function(req) {
         return s;
       };
       const candidates = (data || []).filter((t) => {
-        const st = t.status;
-        if (st === 'magnet_error' || st === 'error' || st === 'magnet_conversion') return false;
+        if (t.status !== 'downloaded') return false;
         return scoreTorrent(t) > 0;
       });
       let usable = candidates;
@@ -290,53 +226,24 @@ export default async function(req) {
       usable.sort((a, b) => {
         const sa = scoreTorrent(a), sb = scoreTorrent(b);
         if (sb !== sa) return sb - sa;
-        const aVid = VIDEO_RE.test(a.filename || a.original_filename || '') ? 1 : 0;
-        const bVid = VIDEO_RE.test(b.filename || b.original_filename || '') ? 1 : 0;
-        if (bVid !== aVid) return bVid - aVid;
-        const aDl = a.status === 'downloaded' ? 1 : 0;
-        const bDl = b.status === 'downloaded' ? 1 : 0;
-        if (bDl !== aDl) return bDl - aDl;
         return (b.bytes || 0) - (a.bytes || 0);
       });
       if (usable.length === 0) {
-        // Automatically create and add an on-the-fly search magnet for any unowned title
-        const autoMagnet = `magnet:?xt=urn:btih:b16748526563db93683a4f899e4f0d36cfae4655&dn=${encodeURIComponent(title + (year ? ` ${year}` : ''))}`;
-        const autoAdd = await fetch(`${RD_BASE}/torrents/addMagnet`, {
-          method: 'POST',
-          headers: formHeaders,
-          body: `magnet=${encodeURIComponent(autoMagnet)}`,
-        });
-        if (autoAdd.ok) {
-          const autoData = await autoAdd.json();
-          await fetch(`${RD_BASE}/torrents/selectFiles/${autoData.id}`, {
-            method: 'POST',
-            headers: formHeaders,
-            body: 'files=all',
-          });
-          return Response.json({ status: 'preparing', torrent_id: String(autoData.id) });
-        }
         return Response.json({ status: 'not_found' });
       }
       const best = usable[0];
-      if (best.status === 'downloaded') {
-        const stream = await resolveStreamable(String(best.id), authHeaders, formHeaders, { season, episode, title, year });
-        if (stream.ready && stream.stream_url) {
-          return Response.json({
-            status: 'ready',
-            torrent_id: String(best.id),
-            stream_url: stream.stream_url,
-            filename: stream.filename || '',
-            files: stream.files || [],
-            rd_status: best.status,
-          });
-        }
+      const stream = await resolveStreamable(String(best.id), authHeaders, formHeaders, { season, episode, title, year });
+      if (stream.ready && stream.stream_url) {
+        return Response.json({
+          status: 'ready',
+          torrent_id: String(best.id),
+          stream_url: stream.stream_url,
+          filename: stream.filename || '',
+          files: stream.files || [],
+          rd_status: best.status,
+        });
       }
-      return Response.json({
-        status: best.status === 'downloaded' ? 'ready' : 'preparing',
-        torrent_id: String(best.id),
-        rd_status: best.status,
-        filename: best.filename || best.original_filename || '',
-      });
+      return Response.json({ status: 'not_found' });
     }
 
     return Response.json({ error: 'Unknown action' }, { status: 400 });
@@ -361,19 +268,13 @@ async function resolveStreamable(torrentId, authHeaders, formHeaders, ep) {
   if (!infoRes.ok) return { error: `info failed: ${infoRes.status}` };
   let info = await infoRes.json();
 
-  if (info.status === 'waiting_files_selection') {
-    await fetch(`${RD_BASE}/torrents/selectFiles/${torrentId}`, {
-      method: 'POST',
-      headers: formHeaders,
-      body: 'files=all',
-    });
-    const retryRes = await fetch(`${RD_BASE}/torrents/info/${torrentId}`, { headers: authHeaders });
-    if (retryRes.ok) info = await retryRes.json();
+  if (info.status !== 'downloaded') {
+    return { ready: false, rd_status: info.status };
   }
 
   const files = (info.files || []).filter((f) => f.path && VIDEO_RE.test(f.path));
   if (files.length === 0) {
-    return { ready: info.status === 'downloaded', rd_status: info.status, filename: info.filename || '', files: [] };
+    return { ready: false, rd_status: info.status };
   }
 
   let target = files[0];
@@ -398,13 +299,8 @@ async function resolveStreamable(torrentId, authHeaders, formHeaders, ep) {
   }
   if (!targetLink && fileLinks.length > 0) targetLink = fileLinks[0];
 
-  if (!targetLink || info.status !== 'downloaded') {
-    return {
-      ready: false,
-      rd_status: info.status,
-      filename: info.filename || '',
-      files: buildFileEntries(info, target),
-    };
+  if (!targetLink) {
+    return { ready: false, rd_status: info.status };
   }
 
   const unRes = await fetch(`${RD_BASE}/unrestrict/link`, {
