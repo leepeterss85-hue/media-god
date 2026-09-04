@@ -1,85 +1,240 @@
-import React, { useEffect, useState } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import {
-  Zap,
-  Play,
-  Tv,
+  ChevronDown,
+  ChevronUp,
   ExternalLink,
-  Link as LinkIcon,
   Globe,
+  Loader2,
+  Play,
   Radio,
+  ShieldCheck,
+  Tv,
+  Zap,
 } from "lucide-react";
-import { usePlayer } from "@/components/mg/PlayerProvider";
-import { findChannelsByTitle } from "@/components/mg/freeTvPlaylist";
+
 import { base44 } from "@/api/base44Client";
+import { findChannelsByTitle } from "@/components/mg/freeTvPlaylist";
+import { usePlayer } from "@/components/mg/PlayerProvider";
 import { cn } from "@/lib/utils";
 
-const normaliseAddonStream = (stream, addon) => {
-  if (!stream) return null;
+const TMDB_KEY =
+  "38267272847a9ef3878b273b37963d76";
 
+const getBaseUrl = (
+  manifestUrl
+) =>
+  String(
+    manifestUrl ||
+      ""
+  )
+    .replace(
+      /\/manifest\.json\/?$/i,
+      ""
+    )
+    .replace(
+      /\/+$/,
+      ""
+    );
+
+const getStreamUrl = (
+  stream
+) => {
   const infoHash =
     stream?.infoHash ||
     stream?.info_hash ||
     "";
 
-  const url =
+  return (
     stream?.url ||
     stream?.link ||
     stream?.src ||
-    (infoHash
-      ? `magnet:?xt=urn:btih:${infoHash}`
-      : "");
-
-  if (!url) return null;
-
-  const magnet =
-    String(url)
-      .toLowerCase()
-      .startsWith("magnet:") ||
-    !!infoHash;
-
-  const rawTitle =
-    stream?.title ||
-    stream?.name ||
-    stream?.filename ||
-    "Stream Source";
-
-  return {
-    id: `${addon?.name || "addon"}-${Math.random()
-      .toString(36)
-      .slice(2)}`,
-
-    kind: "addon-stream",
-
-    label: String(rawTitle).split("\n")[0],
-
-    note:
-      stream?.name ||
-      addon?.name ||
-      "Addon source",
-
-    url,
-
-    src: url,
-
-    infoHash:
-      infoHash ||
-      undefined,
-
-    type:
-      magnet
-        ? "rd"
-        : "url",
-
-    behaviorHints:
-      stream?.behaviorHints ||
-      stream?.behavior_hints ||
-      {},
-
-    addon:
-      addon?.name ||
-      "Addon",
-  };
+    (
+      infoHash
+        ? `magnet:?xt=urn:btih:${infoHash}`
+        : ""
+    )
+  );
 };
+
+const normaliseAddonStream =
+  (
+    stream,
+    addon,
+    index
+  ) => {
+    const url =
+      getStreamUrl(
+        stream
+      );
+
+    if (!url) {
+      return null;
+    }
+
+    const infoHash =
+      stream?.infoHash ||
+      stream?.info_hash ||
+      "";
+
+    const magnet =
+      String(url)
+        .toLowerCase()
+        .startsWith(
+          "magnet:"
+        ) ||
+      Boolean(
+        infoHash
+      );
+
+    const rawTitle =
+      stream?.title ||
+      stream?.name ||
+      stream?.filename ||
+      "Stream Source";
+
+    return {
+      id:
+        `${
+          addon?.id ||
+          addon?.name ||
+          "addon"
+        }-${index}-${String(
+          url
+        ).slice(-16)}`,
+
+      kind:
+        "addon-stream",
+
+      label:
+        String(
+          rawTitle
+        ).split(
+          "\n"
+        )[0],
+
+      note:
+        addon?.name ||
+        stream?.name ||
+        "Addon source",
+
+      url,
+
+      src:
+        url,
+
+      type:
+        magnet
+          ? "rd"
+          : "url",
+
+      infoHash:
+        infoHash ||
+        undefined,
+
+      behaviorHints:
+        stream?.behaviorHints ||
+        stream?.behavior_hints ||
+        undefined,
+
+      addon:
+        addon?.name ||
+        "Addon",
+    };
+  };
+
+const dedupe = (
+  items
+) => {
+  const seen =
+    new Set();
+
+  return items.filter(
+    (item) => {
+      const key =
+        String(
+          item?.url ||
+          item?.src ||
+          item?.id ||
+          ""
+        );
+
+      if (
+        !key ||
+        seen.has(
+          key
+        )
+      ) {
+        return false;
+      }
+
+      seen.add(
+        key
+      );
+
+      return true;
+    }
+  );
+};
+
+const resolveImdbId =
+  async ({
+    tmdbId,
+    imdbId,
+    mediaType,
+  }) => {
+    if (imdbId) {
+      return imdbId;
+    }
+
+    if (!tmdbId) {
+      return "";
+    }
+
+    if (
+      String(
+        tmdbId
+      ).startsWith(
+        "tt"
+      )
+    ) {
+      return String(
+        tmdbId
+      );
+    }
+
+    try {
+      const response =
+        await fetch(
+          `https://api.themoviedb.org/3/${
+            mediaType ===
+            "tv"
+              ? "tv"
+              : "movie"
+          }/${tmdbId}/external_ids?api_key=${TMDB_KEY}`
+        );
+
+      if (
+        !response.ok
+      ) {
+        return "";
+      }
+
+      const data =
+        await response.json();
+
+      return (
+        data?.imdb_id ||
+        ""
+      );
+    } catch {
+      return "";
+    }
+  };
 
 export default function StreamSourcesBox({
   title,
@@ -92,39 +247,139 @@ export default function StreamSourcesBox({
   imdbId,
   mediaType = "movie",
 }) {
-  const player = usePlayer();
+  const player =
+    usePlayer();
 
-  const [liveMatches, setLiveMatches] =
-    useState(null);
+  const hasRd =
+    Boolean(
+      player?.hasRd
+    );
 
-  const [scrapedStreams, setScrapedStreams] =
-    useState([]);
+  const [
+    liveMatches,
+    setLiveMatches,
+  ] = useState(
+    null
+  );
 
-  const [scraping, setScraping] =
-    useState(true);
+  const [
+    addonStreams,
+    setAddonStreams,
+  ] = useState(
+    []
+  );
+
+  const [
+    scraping,
+    setScraping,
+  ] = useState(
+    false
+  );
+
+  const [
+    alternatesOpen,
+    setAlternatesOpen,
+  ] = useState(
+    false
+  );
 
   useEffect(() => {
-    let cancelled = false;
+    let cancelled =
+      false;
 
-    setLiveMatches(null);
-    setScrapedStreams([]);
-    setScraping(true);
+    setLiveMatches(
+      null
+    );
 
-    findChannelsByTitle(title)
-      .then((matches) => {
-        if (!cancelled) {
-          setLiveMatches(matches || []);
+    findChannelsByTitle(
+      title
+    )
+      .then(
+        (
+          matches
+        ) => {
+          if (
+            !cancelled
+          ) {
+            setLiveMatches(
+              matches ||
+                []
+            );
+          }
         }
-      })
+      )
       .catch(() => {
-        if (!cancelled) {
-          setLiveMatches([]);
+        if (
+          !cancelled
+        ) {
+          setLiveMatches(
+            []
+          );
         }
       });
 
-    const loadAddonSources =
+    return () => {
+      cancelled =
+        true;
+    };
+  }, [title]);
+
+  useEffect(() => {
+    let cancelled =
+      false;
+
+    /*
+     * Movie detail can be
+     * looked up immediately.
+     *
+     * TV streams should be
+     * resolved after an episode
+     * has been selected.
+     */
+    if (
+      mediaType ===
+      "tv"
+    ) {
+      setAddonStreams(
+        []
+      );
+
+      setScraping(
+        false
+      );
+
+      return () => {
+        cancelled =
+          true;
+      };
+    }
+
+    const load =
       async () => {
+        setScraping(
+          true
+        );
+
+        setAddonStreams(
+          []
+        );
+
         try {
+          const resolvedImdb =
+            await resolveImdbId(
+              {
+                tmdbId,
+                imdbId,
+                mediaType,
+              }
+            );
+
+          if (
+            !resolvedImdb
+          ) {
+            return;
+          }
+
           const addons =
             await base44.entities.Addon.list(
               "-created_date",
@@ -132,333 +387,329 @@ export default function StreamSourcesBox({
             );
 
           const activeAddons =
-            (addons || []).filter(
-              (addon) =>
+            (
+              addons ||
+              []
+            ).filter(
+              (
+                addon
+              ) =>
                 addon?.active &&
                 addon?.url
             );
 
-          const isSeries =
-            mediaType === "tv";
-
-          let resolvedImdb =
-            imdbId || "";
-
-          /*
-           * Resolve the TMDB id to IMDb if
-           * the caller did not already provide
-           * an IMDb id.
-           */
-          if (
-            !resolvedImdb &&
-            tmdbId != null
-          ) {
-            try {
-              const res =
-                await fetch(
-                  `https://api.themoviedb.org/3/${
-                    isSeries
-                      ? "tv"
-                      : "movie"
-                  }/${tmdbId}/external_ids?api_key=38267272847a9ef3878b273b37963d76`
-                );
-
-              if (res.ok) {
-                const data =
-                  await res.json();
-
-                resolvedImdb =
-                  data?.imdb_id ||
-                  "";
-              }
-            } catch {
-              /*
-               * PlayerProvider will also
-               * attempt IMDb resolution when
-               * playback starts.
-               */
-            }
-          }
-
-          /*
-           * Without an IMDb id there is no
-           * reliable addon stream lookup.
-           */
-          if (!resolvedImdb) {
-            if (!cancelled) {
-              setScrapedStreams([]);
-            }
-
-            return;
-          }
-
-          const media =
-            isSeries
-              ? "series"
-              : "movie";
-
-          const endpointId =
-            resolvedImdb;
-
           const results =
-            await Promise.all(
+            await Promise.allSettled(
               activeAddons.map(
-                async (addon) => {
+                async (
+                  addon
+                ) => {
+                  const controller =
+                    new AbortController();
+
+                  const timeout =
+                    setTimeout(
+                      () =>
+                        controller.abort(),
+                      10000
+                    );
+
                   try {
-                    const baseUrl =
-                      String(addon.url)
-                        .replace(
-                          /\/manifest\.json\/?$/i,
-                          ""
-                        )
-                        .replace(
-                          /\/+$/,
-                          ""
-                        );
-
-                    const targetUrl =
-                      `${baseUrl}/stream/${media}/${endpointId}.json`;
-
-                    const controller =
-                      new AbortController();
-
-                    const timeout =
-                      setTimeout(
-                        () =>
-                          controller.abort(),
-                        10000
+                    const response =
+                      await fetch(
+                        `${getBaseUrl(
+                          addon.url
+                        )}/stream/movie/${resolvedImdb}.json`,
+                        {
+                          signal:
+                            controller.signal,
+                        }
                       );
 
-                    try {
-                      const res =
-                        await fetch(
-                          targetUrl,
-                          {
-                            signal:
-                              controller.signal,
-                          }
-                        );
-
-                      if (!res.ok) {
-                        return [];
-                      }
-
-                      const data =
-                        await res.json();
-
-                      if (
-                        !Array.isArray(
-                          data?.streams
-                        )
-                      ) {
-                        return [];
-                      }
-
-                      return data.streams
-                        .map(
-                          (stream) =>
-                            normaliseAddonStream(
-                              stream,
-                              addon
-                            )
-                        )
-                        .filter(Boolean);
-                    } finally {
-                      clearTimeout(
-                        timeout
-                      );
+                    if (
+                      !response.ok
+                    ) {
+                      return [];
                     }
-                  } catch {
-                    return [];
+
+                    const data =
+                      await response.json();
+
+                    if (
+                      !Array.isArray(
+                        data?.streams
+                      )
+                    ) {
+                      return [];
+                    }
+
+                    return data.streams
+                      .map(
+                        (
+                          stream,
+                          index
+                        ) =>
+                          normaliseAddonStream(
+                            stream,
+                            addon,
+                            index
+                          )
+                      )
+                      .filter(
+                        Boolean
+                      );
+                  } finally {
+                    clearTimeout(
+                      timeout
+                    );
                   }
                 }
               )
             );
 
-          if (!cancelled) {
-            const seen =
-              new Set();
+          const collected =
+            dedupe(
+              results.flatMap(
+                (
+                  result
+                ) =>
+                  result.status ===
+                  "fulfilled"
+                    ? result.value
+                    : []
+              )
+            ).slice(
+              0,
+              30
+            );
 
-            const unique =
-              results
-                .flat()
-                .filter((stream) => {
-                  const key =
-                    String(
-                      stream?.url ||
-                        ""
-                    ).trim();
-
-                  if (
-                    !key ||
-                    seen.has(key)
-                  ) {
-                    return false;
-                  }
-
-                  seen.add(key);
-
-                  return true;
-                });
-
-            setScrapedStreams(
-              unique.slice(0, 25)
+          if (
+            !cancelled
+          ) {
+            setAddonStreams(
+              collected
             );
           }
         } catch {
-          if (!cancelled) {
-            setScrapedStreams([]);
+          if (
+            !cancelled
+          ) {
+            setAddonStreams(
+              []
+            );
           }
         } finally {
-          if (!cancelled) {
-            setScraping(false);
+          if (
+            !cancelled
+          ) {
+            setScraping(
+              false
+            );
           }
         }
       };
 
-    loadAddonSources();
+    load();
 
     return () => {
-      cancelled = true;
+      cancelled =
+        true;
     };
   }, [
-    title,
     tmdbId,
     imdbId,
     mediaType,
   ]);
 
-  /*
-   * The Real-Debrid row is a launcher.
-   *
-   * It must NEVER be passed to VideoPlayer
-   * with an empty src. Instead, use the real
-   * addon streams already discovered above.
-   */
-  const sources = [
-    {
-      id: "rd",
-      kind: "rd",
-      label: "Real-Debrid",
+  const directAddonStreams =
+    useMemo(
+      () =>
+        addonStreams.filter(
+          (
+            stream
+          ) =>
+            stream.type !==
+            "rd"
+        ),
+      [
+        addonStreams,
+      ]
+    );
 
-      note: scraping
-        ? "Checking installed addons…"
-        : scrapedStreams.length
-          ? `${
-              scrapedStreams.length
-            } source${
-              scrapedStreams.length === 1
-                ? ""
-                : "s"
-            } available`
-          : "No addon stream available",
-    },
+  const rdAddonStreams =
+    useMemo(
+      () =>
+        addonStreams.filter(
+          (
+            stream
+          ) =>
+            stream.type ===
+            "rd"
+        ),
+      [
+        addonStreams,
+      ]
+    );
 
-    ...scrapedStreams,
+  const freeProviders =
+    useMemo(
+      () =>
+        (
+          providers ||
+          []
+        ).filter(
+          (
+            provider
+          ) =>
+            provider?.link &&
+            (
+              provider?.tier ===
+                "Free" ||
+              provider?.tier ===
+                "Free with Ads"
+            )
+        ),
+      [
+        providers,
+      ]
+    );
 
-    {
-      id: "paste",
-      kind: "paste",
-      label: "Paste Magnet",
-      note:
-        "Send your own magnet through Real-Debrid",
-    },
+  const alternateSources =
+    useMemo(
+      () => {
+        const rows =
+          [];
 
-    ...(trailerUrl
-      ? [
-          {
-            id: "trailer",
-            kind: "trailer",
-            label: "Trailer",
-            note: "YouTube",
-          },
-        ]
-      : []),
+        directAddonStreams.forEach(
+          (
+            stream
+          ) =>
+            rows.push(
+              stream
+            )
+        );
 
-    ...(liveMatches || []).map(
-      (c, i) => ({
-        id: `live-${i}`,
-        kind: "live",
-        label: c.name,
-        note: `Live • ${
-          c.group ||
-          "Free-to-air"
-        }`,
-        logo: c.logo,
-        channel: c,
-      })
-    ),
+        (
+          liveMatches ||
+          []
+        ).forEach(
+          (
+            channel,
+            index
+          ) => {
+            rows.push(
+              {
+                id:
+                  `live-${index}-${
+                    channel?.name ||
+                    "channel"
+                  }`,
 
-    {
-      id: "archive",
-      kind: "archive",
-      label: "Free Archive",
-      note:
-        "Public-domain Internet Archive",
-    },
+                kind:
+                  "live",
 
-    ...(providers || [])
-      .filter((p) => p?.link)
-      .map((p) => ({
-        id: `provider-${p.name}`,
-        kind: "provider",
-        label: p.name,
-        note:
-          p.tier ||
-          "Stream",
-        logo: p.logo,
-        link: p.link,
-      })),
-  ];
+                label:
+                  channel?.name ||
+                  "Live TV",
 
-  const playSource = (s) => {
-    /*
-     * External provider.
-     */
-    if (
-      s.kind === "provider"
-    ) {
-      window.open(
-        s.link,
-        "_blank",
-        "noopener,noreferrer"
-      );
+                note:
+                  `Live • ${
+                    channel?.group ||
+                    "Free-to-air"
+                  }`,
 
-      return;
-    }
+                logo:
+                  channel?.logo,
 
-    /*
-     * Internet Archive.
-     */
-    if (
-      s.kind === "archive"
-    ) {
-      window.open(
-        `https://archive.org/search?query=${encodeURIComponent(
-          title
-        )}`,
-        "_blank",
-        "noopener,noreferrer"
-      );
+                channel,
+              }
+            );
+          }
+        );
 
-      return;
-    }
+        freeProviders.forEach(
+          (
+            provider,
+            index
+          ) => {
+            rows.push(
+              {
+                id:
+                  `free-provider-${index}-${
+                    provider?.name ||
+                    "provider"
+                  }`,
 
-    /*
-     * An actual addon stream.
-     *
-     * If it is a magnet, PlayerProvider /
-     * VideoPlayer will send it through
-     * Real-Debrid.
-     *
-     * If it is a direct HTTP URL, it can
-     * be played directly.
-     */
-    if (
-      s.kind === "addon-stream"
-    ) {
+                kind:
+                  "provider",
+
+                label:
+                  provider?.name ||
+                  "Free provider",
+
+                note:
+                  provider?.tier ||
+                  "Free",
+
+                logo:
+                  provider?.logo,
+
+                link:
+                  provider?.link,
+              }
+            );
+          }
+        );
+
+        rows.push({
+          id:
+            "archive",
+
+          kind:
+            "archive",
+
+          label:
+            "Internet Archive",
+
+          note:
+            "Search archive availability (rights vary by title)",
+        });
+
+        if (
+          trailerUrl
+        ) {
+          rows.push({
+            id:
+              "trailer",
+
+            kind:
+              "trailer",
+
+            label:
+              "Trailer",
+
+            note:
+              "YouTube",
+          });
+        }
+
+        return rows;
+      },
+      [
+        directAddonStreams,
+        liveMatches,
+        freeProviders,
+        trailerUrl,
+      ]
+    );
+
+  const playAddonStream =
+    (
+      stream
+    ) => {
       player.play({
-        id: tmdbId,
+        id:
+          tmdbId,
 
         imdbId,
 
@@ -466,176 +717,180 @@ export default function StreamSourcesBox({
 
         poster,
 
-        year: rdYear,
+        year:
+          rdYear,
 
         mediaType,
 
-        rdTitle: title,
+        rdTitle:
+          title,
 
         rdYear,
+
+        skipAddonLookup:
+          true,
 
         sources: [
           {
             label:
-              s.label,
+              stream.label,
 
             type:
-              s.type,
+              stream.type,
 
             src:
-              s.src,
+              stream.src,
 
             url:
-              s.url,
+              stream.url,
 
             magnet:
-              s.type === "rd"
-                ? s.url
+              stream.type ===
+              "rd"
+                ? stream.url
                 : undefined,
 
             infoHash:
-              s.infoHash,
+              stream.infoHash,
 
             behaviorHints:
-              s.behaviorHints,
+              stream.behaviorHints,
           },
         ],
       });
+    };
 
-      return;
-    }
+  const playSource =
+    (
+      source
+    ) => {
+      if (
+        source.kind ===
+        "addon-stream"
+      ) {
+        playAddonStream(
+          source
+        );
 
-    /*
-     * Trailer.
-     */
-    if (
-      s.kind === "trailer"
-    ) {
-      player.play({
-        title,
-
-        poster,
-
-        sources: [
-          {
-            label: "Trailer",
-            type: "youtube",
-            src: trailerUrl,
-          },
-        ],
-      });
-
-      return;
-    }
-
-    /*
-     * Live channel.
-     */
-    if (
-      s.kind === "live"
-    ) {
-      player.play({
-        type: "live",
-
-        title:
-          s.channel.name,
-
-        poster:
-          s.channel.logo,
-
-        sources: [
-          {
-            label: "LIVE",
-            type: "live",
-            src:
-              s.channel.url,
-            live: true,
-          },
-        ],
-      });
-
-      return;
-    }
-
-    /*
-     * Paste Magnet.
-     *
-     * This deliberately remains available
-     * for the user's own magnet input flow.
-     */
-    if (
-      s.kind === "paste"
-    ) {
-      player.play({
-        title,
-
-        poster,
-
-        rdTitle: title,
-
-        rdYear,
-
-        sources: [
-          {
-            label:
-              "Real-Debrid",
-
-            type: "rd",
-
-            src: "",
-          },
-        ],
-      });
-
-      return;
-    }
-
-    /*
-     * Real-Debrid launcher.
-     *
-     * IMPORTANT:
-     * The old version sent:
-     *
-     * type: "rd",
-     * src: ""
-     *
-     * which caused the exact error shown
-     * in the screenshot.
-     *
-     * We now use the real discovered
-     * addon streams instead.
-     */
-    if (
-      s.kind === "rd"
-    ) {
-      /*
-       * Do not attempt playback while
-       * addon discovery is still running.
-       */
-      if (scraping) {
         return;
       }
 
-      /*
-       * Do not open VideoPlayer with an
-       * empty Real-Debrid source.
-       */
       if (
-        !scrapedStreams.length
+        source.kind ===
+        "provider"
+      ) {
+        window.open(
+          source.link,
+          "_blank",
+          "noopener,noreferrer"
+        );
+
+        return;
+      }
+
+      if (
+        source.kind ===
+        "archive"
+      ) {
+        window.open(
+          `https://archive.org/search?query=${encodeURIComponent(
+            title
+          )}`,
+          "_blank",
+          "noopener,noreferrer"
+        );
+
+        return;
+      }
+
+      if (
+        source.kind ===
+        "trailer"
+      ) {
+        player.play({
+          title,
+
+          poster,
+
+          mediaType,
+
+          skipAddonLookup:
+            true,
+
+          sources: [
+            {
+              label:
+                "Trailer",
+
+              type:
+                "youtube",
+
+              src:
+                trailerUrl,
+
+              url:
+                trailerUrl,
+            },
+          ],
+        });
+
+        return;
+      }
+
+      if (
+        source.kind ===
+        "live"
+      ) {
+        player.play({
+          type:
+            "live",
+
+          title:
+            source?.channel?.name ||
+            title,
+
+          poster:
+            source?.channel?.logo ||
+            poster,
+
+          skipAddonLookup:
+            true,
+
+          sources: [
+            {
+              label:
+                "LIVE",
+
+              type:
+                "live",
+
+              src:
+                source?.channel?.url,
+
+              url:
+                source?.channel?.url,
+
+              live:
+                true,
+            },
+          ],
+        });
+      }
+    };
+
+  const playWithRealDebrid =
+    () => {
+      if (
+        !hasRd ||
+        rdAddonStreams.length ===
+          0
       ) {
         return;
       }
 
-      /*
-       * Pass every discovered stream into
-       * PlayerProvider.
-       *
-       * PlayerProvider will prefer genuine
-       * direct URLs and then Real-Debrid
-       * torrent/magnet sources.
-       */
       player.play({
-        id: tmdbId,
+        id:
+          tmdbId,
 
         imdbId,
 
@@ -643,40 +898,38 @@ export default function StreamSourcesBox({
 
         poster,
 
-        year: rdYear,
+        year:
+          rdYear,
 
         mediaType,
 
-        rdTitle: title,
+        rdTitle:
+          title,
 
         rdYear,
 
+        skipAddonLookup:
+          true,
+
         sources:
-          scrapedStreams.map(
-            (stream) => ({
+          rdAddonStreams.map(
+            (
+              stream
+            ) => ({
               label:
-                stream.label ||
-                "Addon Source",
+                stream.label,
 
               type:
-                stream.type ||
-                "url",
+                "rd",
 
               src:
-                stream.src ||
-                stream.url ||
-                "",
+                stream.src,
 
               url:
-                stream.url ||
-                stream.src ||
-                "",
+                stream.url,
 
               magnet:
-                stream.type === "rd"
-                  ? stream.url ||
-                    stream.src
-                  : undefined,
+                stream.url,
 
               infoHash:
                 stream.infoHash,
@@ -686,207 +939,295 @@ export default function StreamSourcesBox({
             })
           ),
       });
+    };
 
-      return;
-    }
-  };
+  const iconFor =
+    (
+      kind
+    ) => {
+      if (
+        kind ===
+        "addon-stream"
+      ) {
+        return (
+          <Globe className="w-4 h-4 text-cyan-400" />
+        );
+      }
 
-  const iconFor = (kind) => {
-    if (
-      kind === "rd"
-    ) {
-      return (
-        <Zap className="w-4 h-4 text-mg-green" />
-      );
-    }
+      if (
+        kind ===
+        "live"
+      ) {
+        return (
+          <Radio className="w-4 h-4 text-red-400" />
+        );
+      }
 
-    if (
-      kind === "addon-stream"
-    ) {
-      return (
-        <Globe className="w-4 h-4 text-cyan-400" />
-      );
-    }
+      if (
+        kind ===
+        "archive"
+      ) {
+        return (
+          <Globe className="w-4 h-4 text-white/70" />
+        );
+      }
 
-    if (
-      kind === "paste"
-    ) {
-      return (
-        <LinkIcon className="w-4 h-4 text-mg-green" />
-      );
-    }
+      if (
+        kind ===
+        "provider"
+      ) {
+        return (
+          <Tv className="w-4 h-4 text-mg-green" />
+        );
+      }
 
-    if (
-      kind === "trailer"
-    ) {
       return (
         <Play className="w-4 h-4 text-white/70" />
       );
-    }
+    };
 
-    if (
-      kind === "live"
-    ) {
-      return (
-        <Radio className="w-4 h-4 text-red-400" />
+  const rowClass =
+    (
+      kind
+    ) =>
+      cn(
+        "flex items-center gap-2.5 w-full text-left px-2.5 py-2 rounded-md transition-colors border",
+
+        kind ===
+          "addon-stream"
+          ? "bg-cyan-500/10 hover:bg-cyan-500/20 border-cyan-500/30"
+          : kind ===
+              "live"
+            ? "bg-red-500/10 hover:bg-red-500/20 border-red-500/30"
+            : "bg-white/5 hover:bg-white/10 border-transparent"
       );
-    }
-
-    if (
-      kind === "archive"
-    ) {
-      return (
-        <Globe className="w-4 h-4 text-white/70" />
-      );
-    }
-
-    return (
-      <Tv className="w-4 h-4 text-white/70" />
-    );
-  };
-
-  const rowClass = (kind) =>
-    cn(
-      "flex items-center gap-2.5 w-full text-left px-2.5 py-2 rounded-md transition-colors border",
-
-      kind === "rd" &&
-        "bg-mg-green/10 hover:bg-mg-green/20 border-mg-green/30",
-
-      kind === "addon-stream" &&
-        "bg-cyan-500/10 hover:bg-cyan-500/20 border-cyan-500/30",
-
-      kind === "live" &&
-        "bg-red-500/10 hover:bg-red-500/20 border-red-500/30",
-
-      ![
-        "rd",
-        "addon-stream",
-        "live",
-      ].includes(kind) &&
-        "bg-white/5 hover:bg-white/10 border-transparent"
-    );
-
-  const labelClass = (kind) =>
-    cn(
-      "block text-sm font-medium truncate",
-
-      [
-        "rd",
-        "addon-stream",
-        "live",
-      ].includes(kind)
-        ? "text-mg-green"
-        : "text-white"
-    );
 
   return (
     <div className="mt-4 bg-mg-card border border-white/10 rounded-lg p-3">
-      <h3 className="text-white/80 text-xs font-bold uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-        <Zap className="w-3.5 h-3.5 text-mg-green" />
+      <div className="flex items-center justify-between gap-2 mb-2.5">
+        <h3 className="text-white/80 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+          <Zap className="w-3.5 h-3.5 text-mg-green" />
 
-        Stream Sources
-      </h3>
+          Stream Sources
+        </h3>
+
+        {scraping && (
+          <span className="text-[10px] text-white/40 flex items-center gap-1">
+            <Loader2 className="w-3 h-3 animate-spin" />
+
+            Checking
+          </span>
+        )}
+      </div>
 
       {loading ? (
         <div className="flex flex-col gap-1.5">
           {Array.from({
-            length: 4,
-          }).map((_, i) => (
-            <div
-              key={i}
-              className="h-10 rounded-md bg-white/5 animate-pulse"
-            />
-          ))}
+            length:
+              3,
+          }).map(
+            (
+              _,
+              index
+            ) => (
+              <div
+                key={
+                  index
+                }
+                className="h-10 rounded-md bg-white/5 animate-pulse"
+              />
+            )
+          )}
         </div>
       ) : (
-        <div className="flex flex-col gap-1.5">
-          {sources.map((s) => (
-            <button
-              key={s.id}
-              onClick={() =>
-                playSource(s)
-              }
-              disabled={
-                s.kind === "rd" &&
-                (
-                  scraping ||
-                  scrapedStreams.length ===
-                    0
-                )
-              }
-              className={cn(
-                rowClass(
-                  s.kind
-                ),
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={
+              playWithRealDebrid
+            }
+            disabled={
+              !hasRd ||
+              scraping ||
+              rdAddonStreams.length ===
+                0
+            }
+            className={cn(
+              "flex items-center gap-2.5 w-full text-left px-2.5 py-2 rounded-md border transition-colors",
 
-                s.kind === "rd" &&
-                  (
-                    scraping ||
-                    scrapedStreams.length ===
-                      0
-                  ) &&
-                  "opacity-50 cursor-not-allowed"
-              )}
-            >
-              <span className="w-8 h-8 rounded-md bg-black/30 flex items-center justify-center shrink-0 overflow-hidden">
-                {s.logo ? (
-                  <img
-                    src={s.logo}
-                    alt={s.label}
-                    className="w-full h-full object-contain"
-                  />
-                ) : (
-                  iconFor(
-                    s.kind
-                  )
-                )}
-              </span>
-
-              <span className="min-w-0 flex-1">
-                <span
-                  className={labelClass(
-                    s.kind
-                  )}
-                >
-                  {s.label}
-                </span>
-
-                <span className="block text-[10px] text-white/40 truncate">
-                  {s.note}
-                </span>
-              </span>
-
-              {s.kind ===
-                "provider" ||
-              s.kind ===
-                "archive" ? (
-                <ExternalLink className="w-3.5 h-3.5 text-white/40 shrink-0" />
-              ) : (
-                <Play className="w-3.5 h-3.5 text-white/40 shrink-0" />
-              )}
-            </button>
-          ))}
-
-          {scraping && (
-            <p className="text-[10px] text-white/30 px-1 pt-1">
-              Checking installed addons…
-            </p>
-          )}
-
-          {liveMatches ===
-            null && (
-            <p className="text-[10px] text-white/30 px-1 pt-1">
-              Checking live channels…
-            </p>
-          )}
-
-          {!scraping &&
-            scrapedStreams.length ===
-              0 && (
-              <p className="text-[10px] text-white/30 px-1 pt-1">
-                No addon streams returned yet.
-              </p>
+              hasRd &&
+                rdAddonStreams.length >
+                  0
+                ? "bg-mg-green/10 hover:bg-mg-green/20 border-mg-green/30"
+                : "bg-white/5 border-white/10 opacity-60 cursor-not-allowed"
             )}
+          >
+            <span className="w-8 h-8 rounded-md bg-black/30 flex items-center justify-center shrink-0">
+              <Zap className="w-4 h-4 text-mg-green" />
+            </span>
+
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-medium text-mg-green truncate">
+                Real-Debrid
+              </span>
+
+              <span className="block text-[10px] text-white/40 truncate">
+                {!hasRd
+                  ? "Connect Real-Debrid to use torrent/magnet sources"
+                  : scraping
+                    ? "Checking installed addons…"
+                    : rdAddonStreams.length >
+                        0
+                      ? `${
+                          rdAddonStreams.length
+                        } Real-Debrid source${
+                          rdAddonStreams.length ===
+                          1
+                            ? ""
+                            : "s"
+                        } available`
+                      : mediaType ===
+                          "tv"
+                        ? "Choose an episode first"
+                        : "No Real-Debrid source found"}
+              </span>
+            </span>
+
+            <Play className="w-3.5 h-3.5 text-white/40 shrink-0" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              setAlternatesOpen(
+                (
+                  open
+                ) =>
+                  !open
+              )
+            }
+            className="flex items-center gap-2.5 w-full text-left px-2.5 py-2.5 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
+          >
+            <span className="w-8 h-8 rounded-md bg-black/30 flex items-center justify-center shrink-0">
+              <ShieldCheck className="w-4 h-4 text-mg-green" />
+            </span>
+
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold text-white truncate">
+                Alternate Sources
+              </span>
+
+              <span className="block text-[10px] text-white/40 truncate">
+                {
+                  alternateSources.length
+                }{" "}
+                option
+                {alternateSources.length ===
+                1
+                  ? ""
+                  : "s"}{" "}
+                • direct,
+                free-provider,
+                live and archive
+                links
+              </span>
+            </span>
+
+            {alternatesOpen ? (
+              <ChevronUp className="w-4 h-4 text-white/50 shrink-0" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-white/50 shrink-0" />
+            )}
+          </button>
+
+          {alternatesOpen && (
+            <div className="flex flex-col gap-1.5 pt-0.5">
+              {alternateSources.map(
+                (
+                  source
+                ) => (
+                  <button
+                    type="button"
+                    key={
+                      source.id
+                    }
+                    onClick={() =>
+                      playSource(
+                        source
+                      )
+                    }
+                    className={rowClass(
+                      source.kind
+                    )}
+                  >
+                    <span className="w-8 h-8 rounded-md bg-black/30 flex items-center justify-center shrink-0 overflow-hidden">
+                      {source.logo ? (
+                        <img
+                          src={
+                            source.logo
+                          }
+                          alt={
+                            source.label
+                          }
+                          className="w-full h-full object-contain"
+                        />
+                      ) : (
+                        iconFor(
+                          source.kind
+                        )
+                      )}
+                    </span>
+
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-medium text-white truncate">
+                        {
+                          source.label
+                        }
+                      </span>
+
+                      <span className="block text-[10px] text-white/40 truncate">
+                        {
+                          source.note
+                        }
+                      </span>
+                    </span>
+
+                    {source.kind ===
+                      "provider" ||
+                    source.kind ===
+                      "archive" ? (
+                      <ExternalLink className="w-3.5 h-3.5 text-white/40 shrink-0" />
+                    ) : (
+                      <Play className="w-3.5 h-3.5 text-white/40 shrink-0" />
+                    )}
+                  </button>
+                )
+              )}
+
+              {mediaType ===
+                "tv" && (
+                <p className="text-[10px] text-white/35 px-1 pt-1">
+                  For TV
+                  episodes,
+                  select the
+                  episode first;
+                  the player will
+                  then look up
+                  episode-specific
+                  streams.
+                </p>
+              )}
+
+              {liveMatches ===
+                null && (
+                <p className="text-[10px] text-white/35 px-1 pt-1">
+                  Checking free
+                  live
+                  channels…
+                </p>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
