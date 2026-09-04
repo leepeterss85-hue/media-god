@@ -40,7 +40,7 @@ export default async function(req) {
       const season = body.season != null ? String(body.season) : '';
       const episode = body.episode != null ? String(body.episode) : '';
 
-      // 1. External Network Scrape via Torrentio (with Real-Debrid provider configuration embedded in URL)
+      // 1. External Network Scrape via Torrentio (with Real-Debrid token embedded)
       let torrentioUrl = '';
       const providerSlug = `realdebrid=${token}`;
       if (imdbId && imdbId.startsWith('tt')) {
