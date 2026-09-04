@@ -1,7 +1,4 @@
-                  });
-
-                  if (cachedVariants && cachedVariants.length > 0) {
-          import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 
 const RD_BASE = 'https://api.real-debrid.com/rest/1.0';
 const VIDEO_RE = /\.(mp4|mkv|avi|mov|webm|m4v|mpg|mpeg|ts|m2ts)$/i;
@@ -65,20 +62,10 @@ export default async function(req) {
           const scrapeData = await scrapeRes.json();
           const streams = scrapeData.streams || [];
           
-          // Relaxed filter: Prefer English/Multi, but fallback to all streams if filter returns empty
-          const englishStreams = streams.filter(s => {
-            const desc = ((s.description || '') + (s.title || '')).toLowerCase();
-            const isForeignExplicit = desc.includes('french') || desc.includes('spanish') || desc.includes('german') || desc.includes('italian') || (desc.includes('japanese') && !desc.includes('multi'));
-            return !isForeignExplicit;
-          });
-
-          const usableStreams = englishStreams.length > 0 ? englishStreams : streams;
-          const validStream = usableStreams.find(s => s.infoHash || (s.url && s.url.includes('btih:')));
-          
-          if (validStream) {
-            let infoHash = validStream.infoHash;
-            if (!infoHash && validStream.url) {
-              const match = validStream.url.match(/btih:([a-fA-F0-9]{40})/i);
+          for (const s of streams) {
+            let infoHash = s.infoHash;
+            if (!infoHash && s.url) {
+              const match = s.url.match(/btih:([a-fA-F0-9]{40})/i);
               if (match) infoHash = match[1];
             }
 
@@ -130,7 +117,7 @@ export default async function(req) {
         console.error("Torrentio scrape error:", err);
       }
 
-      // 2. Personal Cloud Library Fallback (Only if network/Torrentio didn't yield a stream)
+      // 2. Personal Cloud Library Fallback
       try {
         const libRes = await fetch(`${RD_BASE}/torrents`, { headers: authHeaders });
         if (libRes.ok) {
@@ -203,102 +190,3 @@ async function resolveStreamable(torrentId, authHeaders, formHeaders) {
     filename: unData.filename || target.path || '',
   };
 }
-          const stream = await resolveStreamable(addData.id, authHeaders, formHeaders);
-                    if (stream.ready && stream.stream_url) {
-                      return Response.json({
-                        status: 'ready',
-                        torrent_id: String(addData.id),
-                        stream_url: stream.stream_url,
-                        filename: stream.filename || '',
-                      });
-                    }
-                  } else {
-                    return Response.json({
-                      status: 'downloading',
-                      torrent_id: String(addData.id),
-                      error: "New release not cached yet. Added to your Real-Debrid download queue."
-                    });
-                  }
-                }
-              }
-            }
-          }
-        }
-      } catch (err) {
-        console.error("Torrentio scrape error:", err);
-      }
-
-      // 2. Personal Cloud Library Fallback (Only if network/Torrentio didn't yield a stream)
-      try {
-        const libRes = await fetch(`${RD_BASE}/torrents`, { headers: authHeaders });
-        if (libRes.ok) {
-          const libData = await libRes.json();
-          const norm = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-          const want = norm(title);
-          
-          const candidates = (libData || []).filter((t) => {
-            if (t.status !== 'downloaded') return false;
-            const fn = norm(t.filename || t.original_filename || '');
-            return want ? fn.includes(want) : false;
-          });
-
-          if (candidates.length > 0) {
-            const best = candidates[0];
-            const stream = await resolveStreamable(best.id, authHeaders, formHeaders);
-            if (stream.ready && stream.stream_url) {
-              return Response.json({
-                status: 'ready',
-                torrent_id: String(best.id),
-                stream_url: stream.stream_url,
-                filename: stream.filename || '',
-              });
-            }
-          }
-        }
-      } catch (err) {
-        console.error("Library fallback error:", err);
-      }
-
-      return Response.json({ 
-        status: "not_found", 
-        error: "Stream not found on network or in your Real-Debrid library." 
-      }, { status: 200 });
-    }
-
-    return Response.json({ error: 'Unknown action' }, { status: 400 });
-  } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
-  }
-}
-
-async function resolveStreamable(torrentId, authHeaders, formHeaders) {
-  const infoRes = await fetch(`${RD_BASE}/torrents/info/${torrentId}`, { headers: authHeaders });
-  if (!infoRes.ok) return { ready: false };
-  const info = await infoRes.json();
-
-  if (info.status !== 'downloaded') return { ready: false };
-
-  const files = (info.files || []).filter((f) => f.path && VIDEO_RE.test(f.path));
-  if (files.length === 0) return { ready: false };
-
-  const target = files[0];
-  const fileLinks = info.links || [];
-  const targetLink = fileLinks[0] || '';
-
-  if (!targetLink) return { ready: false };
-
-  const unRes = await fetch(`${RD_BASE}/unrestrict/link`, {
-    method: 'POST',
-    headers: formHeaders,
-    body: `link=${encodeURIComponent(targetLink)}`,
-  });
-  if (!unRes.ok) return { ready: false };
-  const unData = await unRes.json();
-
-  return {
-    ready: true,
-    stream_url: unData.download,
-    filename: unData.filename || target.path || '',
-  };
-}
-
