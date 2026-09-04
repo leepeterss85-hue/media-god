@@ -149,7 +149,10 @@ export default async function(req) {
         console.error("Library fallback error:", err);
       }
 
-      return Response.json({ error: "Stream not found on network or in your Real-Debrid library." }, { status: 404 });
+      return Response.json({ 
+        status: "not_found", 
+        error: "Stream not found on network or in your Real-Debrid library." 
+      }, { status: 200 });
     }
 
     return Response.json({ error: 'Unknown action' }, { status: 400 });
