@@ -1,258 +1,1365 @@
 import React, {
+  createContext,
+  useCallback,
+  useContext,
   useEffect,
-  useRef,
+  useMemo,
   useState,
 } from "react";
-import {
-  Play,
-  Pause,
-  Volume2,
-  VolumeX,
-  Maximize,
-  Minimize,
-  RotateCcw,
-  RotateCw,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
 
-const formatTime = (seconds) => {
-  if (!seconds || !isFinite(seconds)) return "0:00";
+import { base44 } from "@/api/base44Client";
+import VideoPlayer from "@/components/mg/VideoPlayer";
 
-  const s = Math.floor(seconds % 60);
-  const m = Math.floor((seconds / 60) % 60);
-  const h = Math.floor(seconds / 3600);
+const PlayerContext = createContext(null);
 
-  if (h > 0) {
-    return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  }
+const FOREIGN_RE =
+  /(truefrench|vostfr|vost|subfrench|\bvf\b|\bvff\b|\bvfi\b|french|spanish|german|italian|\bdubbed\b|multi-audio|multiaudio|dual\.audio)/i;
 
-  return `${m}:${String(s).padStart(2, "0")}`;
-};
+const RES_RE = /(2160|1080|720|480)p/i;
 
-export default function PlayerControls({
-  videoRef,
-  stageRef,
-  isLive = false,
-  onFullscreen,
-}) {
-  const [playing, setPlaying] = useState(false);
-  const [muted, setMuted] = useState(false);
-  const [volume, setVolume] = useState(1);
-  const [current, setCurrent] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [fullscreen, setFullscreen] = useState(false);
-  const [showControls, setShowControls] = useState(true);
-  const [seeking, setSeeking] = useState(false);
+const unwrap = (response) =>
+  response?.data ?? response ?? {};
 
-  const hideTimer = useRef(null);
-  const barRef = useRef(null);
+const getSourceUrl = (item) =>
+  String(
+    item?.src ||
+      item?.url ||
+      item?.magnet ||
+      item?.magnetLink ||
+      ""
+  ).trim();
 
-  const getVideo = () => videoRef?.current;
-
-  const revealControls = () => {
-    setShowControls(true);
-
-    if (hideTimer.current) clearTimeout(hideTimer.current);
-
-    hideTimer.current = setTimeout(() => {
-      if (playing && !seeking) setShowControls(false);
-    }, 2800);
-  };
-
-  useEffect(() => {
-    const video = getVideo();
-    if (!video) return;
-
-    const onPlay = () => setPlaying(true);
-    const onPause = () => setPlaying(false);
-    const onTime = () => {
-      if (!seeking) setCurrent(video.currentTime || 0);
-    };
-    const onDur = () => setDuration(video.duration || 0);
-    const onVol = () => {
-      setMuted(video.muted);
-      setVolume(video.volume);
-    };
-
-    video.addEventListener("play", onPlay);
-    video.addEventListener("pause", onPause);
-    video.addEventListener("timeupdate", onTime);
-    video.addEventListener("durationchange", onDur);
-    video.addEventListener("loadedmetadata", onDur);
-    video.addEventListener("volumechange", onVol);
-
-    setMuted(video.muted);
-    setVolume(video.volume);
-    setPlaying(!video.paused);
-
-    return () => {
-      video.removeEventListener("play", onPlay);
-      video.removeEventListener("pause", onPause);
-      video.removeEventListener("timeupdate", onTime);
-      video.removeEventListener("durationchange", onDur);
-      video.removeEventListener("loadedmetadata", onDur);
-      video.removeEventListener("volumechange", onVol);
-
-      if (hideTimer.current) clearTimeout(hideTimer.current);
-    };
-  }, [videoRef, seeking]);
-
-  useEffect(() => {
-    const onFs = () => setFullscreen(!!document.fullscreenElement);
-    document.addEventListener("fullscreenchange", onFs);
-    return () => document.removeEventListener("fullscreenchange", onFs);
-  }, []);
-
-  const togglePlay = () => {
-    const video = getVideo();
-    if (!video) return;
-
-    if (video.paused) {
-      video.play().catch(() => {});
-    } else {
-      video.pause();
-    }
-  };
-
-  const toggleMute = () => {
-    const video = getVideo();
-    if (!video) return;
-    video.muted = !video.muted;
-  };
-
-  const onVolume = (e) => {
-    const video = getVideo();
-    if (!video) return;
-    const v = Number(e.target.value);
-    video.volume = v;
-    video.muted = v === 0;
-  };
-
-  const seekTo = (e) => {
-    const video = getVideo();
-    if (!video || !video.duration) return;
-    const ratio = Number(e.target.value) / 100;
-    video.currentTime = ratio * video.duration;
-    setCurrent(video.currentTime);
-  };
-
-  const skip = (delta) => {
-    const video = getVideo();
-    if (!video) return;
-    video.currentTime = Math.max(0, Math.min(video.duration || 0, (video.currentTime || 0) + delta));
-  };
-
-  const toggleFullscreen = () => {
-    if (onFullscreen) onFullscreen();
-    else stageRef?.current?.requestFullscreen?.().catch(() => {});
-  };
-
-  const progress = duration ? (current / duration) * 100 : 0;
+const isMagnetSource = (item) => {
+  const value = getSourceUrl(item).toLowerCase();
 
   return (
-    <div
-      className={cn(
-        "absolute inset-0 flex flex-col justify-end transition-opacity duration-200",
-        showControls ? "opacity-100" : "opacity-0 pointer-events-none"
-      )}
-      onMouseMove={revealControls}
-      onMouseLeave={() => {
-        if (hideTimer.current) clearTimeout(hideTimer.current);
-        if (playing && !seeking) setShowControls(false);
-      }}
-      onClick={(e) => {
-        // Only toggle play when clicking the backdrop, not a control.
-        if (e.target === e.currentTarget) togglePlay();
-      }}
-    >
-      <div className="bg-gradient-to-t from-black/80 via-black/30 to-transparent px-3 pb-2 pt-8 select-none">
-        {!isLive && (
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] text-white/80 tabular-nums w-12 text-right">
-              {formatTime(current)}
-            </span>
-            <input
-              ref={barRef}
-              type="range"
-              min={0}
-              max={100}
-              step={0.1}
-              value={progress}
-              onChange={seekTo}
-              onPointerDown={() => setSeeking(true)}
-              onPointerUp={() => setSeeking(false)}
-              className="flex-1 h-1.5 accent-mg-green cursor-pointer"
-              aria-label="Seek"
-            />
-            <span className="text-[10px] text-white/60 tabular-nums w-12">
-              {formatTime(duration)}
-            </span>
-          </div>
-        )}
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={togglePlay}
-            className="text-white hover:text-mg-green transition-colors"
-            aria-label={playing ? "Pause" : "Play"}
-          >
-            {playing ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-          </button>
-
-          {!isLive && (
-            <>
-              <button
-                onClick={() => skip(-10)}
-                className="text-white/80 hover:text-white transition-colors"
-                aria-label="Back 10 seconds"
-              >
-                <RotateCcw className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => skip(10)}
-                className="text-white/80 hover:text-white transition-colors"
-                aria-label="Forward 10 seconds"
-              >
-                <RotateCw className="w-4 h-4" />
-              </button>
-            </>
-          )}
-
-          <div className="flex items-center gap-1.5 group">
-            <button
-              onClick={toggleMute}
-              className="text-white/80 hover:text-white transition-colors"
-              aria-label={muted ? "Unmute" : "Mute"}
-            >
-              {muted || volume === 0 ? (
-                <VolumeX className="w-4 h-4" />
-              ) : (
-                <Volume2 className="w-4 h-4" />
-              )}
-            </button>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.05}
-              value={muted ? 0 : volume}
-              onChange={onVolume}
-              className="w-0 group-hover:w-16 transition-all h-1 accent-mg-green cursor-pointer"
-              aria-label="Volume"
-            />
-          </div>
-
-          <div className="flex-1" />
-
-          <button
-            onClick={toggleFullscreen}
-            className="text-white/80 hover:text-white transition-colors"
-            aria-label="Fullscreen"
-          >
-            {fullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
-          </button>
-        </div>
-      </div>
-    </div>
+    item?.type === "rd" ||
+    item?.type === "rd_torrent" ||
+    item?.type === "magnet" ||
+    item?.type === "torrent" ||
+    value.startsWith("magnet:")
   );
+};
+
+const isDirectSource = (item) => {
+  const value = getSourceUrl(item);
+
+  return (
+    /^https?:\/\//i.test(value) &&
+    !isMagnetSource(item) &&
+    item?.type !== "provider" &&
+    item?.type !== "youtube"
+  );
+};
+
+const scoreSource = (item) => {
+  const label = String(
+    item?.label || item?.name || ""
+  );
+
+  const resolution = Number(
+    (label.match(RES_RE) || [])[1] || 0
+  );
+
+  const foreignPenalty = FOREIGN_RE.test(label)
+    ? 10000
+    : 0;
+
+  const rdLibraryBonus = item?.viaRealDebrid
+    ? 20000
+    : 0;
+
+  const directBonus = isDirectSource(item)
+    ? 5000
+    : 0;
+
+  return (
+    rdLibraryBonus +
+    directBonus +
+    resolution -
+    foreignPenalty
+  );
+};
+
+const sortSources = (items) =>
+  [...items].sort(
+    (a, b) => scoreSource(b) - scoreSource(a)
+  );
+
+const dedupeSources = (items) => {
+  const seen = new Set();
+
+  return items.filter((item) => {
+    if (!item) {
+      return false;
+    }
+
+    const key =
+      getSourceUrl(item) ||
+      `${item?.type || ""}:${item?.label || ""}`;
+
+    if (!key || seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+};
+
+const normaliseOriginalSource = (item) => {
+  if (!item) {
+    return null;
+  }
+
+  const url = getSourceUrl(item);
+
+  return {
+    ...item,
+    src: item?.src || url,
+    url: item?.url || url,
+  };
+};
+
+const resolveImdbInfo = async ({
+  id,
+  tmdbId,
+  tmdb_id,
+  imdbId,
+  imdb_id,
+  mediaType,
+  title,
+  year,
+}) => {
+  const supplied = String(
+    imdbId || imdb_id || ""
+  ).trim();
+
+  if (/^tt\d+$/i.test(supplied)) {
+    return {
+      imdbId: supplied,
+      status: "OK",
+      method: "supplied",
+      error: "",
+    };
+  }
+
+  if (
+    id &&
+    /^tt\d+$/i.test(String(id))
+  ) {
+    return {
+      imdbId: String(id),
+      status: "OK",
+      method: "item id",
+      error: "",
+    };
+  }
+
+  try {
+    const response = await base44.functions.invoke(
+      "resolveImdb",
+      {
+        imdb_id: supplied,
+
+        tmdb_id:
+          tmdbId ??
+          tmdb_id ??
+          id ??
+          "",
+
+        title: title || "",
+
+        year: year ?? "",
+
+        media_type:
+          mediaType === "tv"
+            ? "tv"
+            : "movie",
+      }
+    );
+
+    const data = unwrap(response);
+
+    const resolved = String(
+      data?.imdb_id || ""
+    ).trim();
+
+    if (/^tt\d+$/i.test(resolved)) {
+      return {
+        imdbId: resolved,
+        status: "OK",
+
+        method:
+          data?.source ||
+          "resolveImdb",
+
+        error: "",
+      };
+    }
+
+    return {
+      imdbId: "",
+      status: "FAILED",
+      method: "resolveImdb",
+
+      error:
+        data?.error ||
+        "IMDb id was not returned.",
+    };
+  } catch (error) {
+    console.error(
+      "[Media God] IMDb resolution failed:",
+      error
+    );
+
+    return {
+      imdbId: "",
+      status: "FAILED",
+      method: "resolveImdb",
+
+      error:
+        error?.message ||
+        "IMDb lookup call failed.",
+    };
+  }
+};
+
+const fetchAddonSources = async ({
+  imdbId,
+  tmdbId,
+  title,
+  year,
+  mediaType,
+  season,
+  episode,
+}) => {
+  if (!imdbId) {
+    return {
+      streams: [],
+      diagnostics: [],
+      addonsChecked: 0,
+
+      reason:
+        "IMDb id could not be resolved for this title.",
+
+      status: "BLOCKED",
+      error: "IMDb missing",
+    };
+  }
+
+  try {
+    const response = await base44.functions.invoke(
+      "fetchAddonStreams",
+      {
+        imdb_id: imdbId,
+
+        tmdb_id:
+          tmdbId ?? "",
+
+        title:
+          title || "",
+
+        year:
+          year ?? "",
+
+        media_type:
+          mediaType === "tv"
+            ? "tv"
+            : "movie",
+
+        ...(season != null
+          ? {
+              season,
+            }
+          : {}),
+
+        ...(episode != null
+          ? {
+              episode,
+            }
+          : {}),
+      }
+    );
+
+    const data = unwrap(response);
+
+    const streams =
+      Array.isArray(data?.streams)
+        ? data.streams
+        : [];
+
+    const diagnostics =
+      Array.isArray(data?.diagnostics)
+        ? data.diagnostics
+        : [];
+
+    const addonsChecked =
+      Number(
+        data?.addons_checked ||
+          0
+      );
+
+    const reason =
+      data?.reason ||
+      data?.error ||
+      "";
+
+    return {
+      streams,
+      diagnostics,
+      addonsChecked,
+      reason,
+
+      status:
+        data?.error
+          ? "FAILED"
+          : "OK",
+
+      error:
+        data?.error || "",
+    };
+  } catch (error) {
+    return {
+      streams: [],
+      diagnostics: [],
+      addonsChecked: 0,
+
+      reason:
+        error?.message ||
+        "Configured source lookup failed.",
+
+      status: "FAILED",
+
+      error:
+        error?.message ||
+        "fetchAddonStreams call failed.",
+    };
+  }
+};
+
+const findRdLibrarySource = async ({
+  title,
+  year,
+  season,
+  episode,
+}) => {
+  if (!title) {
+    return {
+      source: null,
+      status: "SKIPPED",
+      detail: "No title",
+    };
+  }
+
+  try {
+    const response =
+      await base44.functions.invoke(
+        "realDebrid",
+        {
+          action:
+            "find_cached",
+
+          title,
+
+          ...(year != null
+            ? {
+                year,
+              }
+            : {}),
+
+          ...(season != null
+            ? {
+                season,
+              }
+            : {}),
+
+          ...(episode != null
+            ? {
+                episode,
+              }
+            : {}),
+        }
+      );
+
+    const data =
+      unwrap(response);
+
+    if (
+      data?.status ===
+        "ready" &&
+      data?.stream_url
+    ) {
+      return {
+        source: {
+          label:
+            data?.filename ||
+            "Real-Debrid Library",
+
+          type:
+            "url",
+
+          src:
+            data.stream_url,
+
+          url:
+            data.stream_url,
+
+          addon:
+            "Real-Debrid Library",
+
+          viaRealDebrid:
+            true,
+        },
+
+        status:
+          "FOUND",
+
+        detail:
+          "Library match ready",
+      };
+    }
+
+    if (
+      data?.status ===
+      "not_found"
+    ) {
+      return {
+        source: null,
+
+        status:
+          "CONNECTED",
+
+        detail:
+          "No library match",
+      };
+    }
+
+    if (
+      data?.error
+    ) {
+      return {
+        source: null,
+        status: "FAILED",
+        detail: data.error,
+      };
+    }
+
+    return {
+      source: null,
+
+      status:
+        "CONNECTED",
+
+      detail:
+        data?.status ||
+        "No library match",
+    };
+  } catch (error) {
+    console.error(
+      "[Media God] RD library lookup failed:",
+      error
+    );
+
+    return {
+      source: null,
+      status: "FAILED",
+
+      detail:
+        error?.message ||
+        "Real-Debrid lookup call failed.",
+    };
+  }
+};
+
+const orderSources = ({
+  sources,
+  hasRd,
+  preferRd,
+}) => {
+  const usable = hasRd
+    ? sources
+    : sources.filter(
+        (item) =>
+          !isMagnetSource(
+            item
+          )
+      );
+
+  const rdLibrary =
+    usable.filter(
+      (item) =>
+        item?.viaRealDebrid &&
+        isDirectSource(item)
+    );
+
+  const direct =
+    usable.filter(
+      (item) =>
+        !item?.viaRealDebrid &&
+        isDirectSource(item)
+    );
+
+  const rdMagnets =
+    hasRd
+      ? usable.filter(
+          isMagnetSource
+        )
+      : [];
+
+  const live =
+    usable.filter(
+      (item) =>
+        item?.type ===
+          "live" ||
+        item?.live
+    );
+
+  const youtube =
+    usable.filter(
+      (item) =>
+        item?.type ===
+        "youtube"
+    );
+
+  const providers =
+    usable.filter(
+      (item) =>
+        item?.type ===
+        "provider"
+    );
+
+  const other =
+    usable.filter(
+      (item) =>
+        !rdLibrary.includes(
+          item
+        ) &&
+        !direct.includes(
+          item
+        ) &&
+        !rdMagnets.includes(
+          item
+        ) &&
+        !live.includes(
+          item
+        ) &&
+        !youtube.includes(
+          item
+        ) &&
+        !providers.includes(
+          item
+        )
+    );
+
+  if (preferRd) {
+    return [
+      ...rdLibrary,
+
+      ...sortSources(
+        rdMagnets
+      ),
+
+      ...sortSources(
+        direct
+      ),
+
+      ...live,
+      ...other,
+      ...youtube,
+      ...providers,
+    ];
+  }
+
+  return [
+    ...rdLibrary,
+
+    ...sortSources(
+      direct
+    ),
+
+    ...sortSources(
+      rdMagnets
+    ),
+
+    ...live,
+    ...other,
+    ...youtube,
+    ...providers,
+  ];
+};
+
+const compactAddonDiagnostics = (
+  diagnostics
+) =>
+  (
+    diagnostics ||
+    []
+  )
+    .slice(0, 4)
+    .map((item) => {
+      const name =
+        String(
+          item?.name ||
+          "Addon"
+        ).trim();
+
+      const status =
+        String(
+          item?.status ||
+          "unknown"
+        ).trim();
+
+      const playable =
+        Number(
+          item?.playable_count ||
+          0
+        );
+
+      if (
+        status ===
+        "ok"
+      ) {
+        return `${name}: ${playable} usable`;
+      }
+
+      return `${name}: ${status}`;
+    })
+    .join(" · ");
+
+const buildFailureDiagnosticLabel = ({
+  imdbInfo,
+  addonLookup,
+  rdLookup,
+  hasRd,
+}) => {
+  const imdbPart =
+    imdbInfo?.imdbId
+      ? `IMDb ${imdbInfo.imdbId} ✓`
+      : "IMDb FAILED";
+
+  const sourcePart =
+    addonLookup?.status ===
+    "OK"
+      ? "Source search CALLED ✓"
+      : addonLookup?.status ===
+          "BLOCKED"
+        ? "Source search BLOCKED"
+        : "Source search FAILED";
+
+  const addonsPart =
+    `Addons ${Number(
+      addonLookup?.addonsChecked ||
+        0
+    )}`;
+
+  const returnedPart =
+    `Returned ${
+      Array.isArray(
+        addonLookup?.streams
+      )
+        ? addonLookup
+            .streams
+            .length
+        : 0
+    }`;
+
+  const rdPart =
+    hasRd
+      ? `RD ${
+          rdLookup?.status ||
+          "CONNECTED"
+        }`
+      : "RD NOT CONNECTED";
+
+  const addonDetails =
+    compactAddonDiagnostics(
+      addonLookup?.diagnostics
+    );
+
+  const reason =
+    addonLookup?.reason ||
+    imdbInfo?.error ||
+    rdLookup?.detail ||
+    "No playable source was returned.";
+
+  return [
+    imdbPart,
+    sourcePart,
+    addonsPart,
+    returnedPart,
+    rdPart,
+    addonDetails,
+    reason,
+  ]
+    .filter(Boolean)
+    .join(" | ");
+};
+
+export function PlayerProvider({
+  children,
+}) {
+  const [
+    source,
+    setSource,
+  ] =
+    useState(null);
+
+  const [
+    hasRd,
+    setHasRd,
+  ] =
+    useState(false);
+
+  useEffect(() => {
+    let mounted =
+      true;
+
+    base44.auth
+      .me()
+      .then((user) => {
+        if (mounted) {
+          setHasRd(
+            Boolean(
+              user?.rd_token
+            )
+          );
+        }
+      })
+      .catch(() => {
+        if (mounted) {
+          setHasRd(false);
+        }
+      });
+
+    return () => {
+      mounted =
+        false;
+    };
+  }, []);
+
+  const play =
+    useCallback(
+      async (
+        request = {}
+      ) => {
+        const originalSources =
+          Array.isArray(
+            request?.sources
+          )
+            ? request.sources
+                .map(
+                  normaliseOriginalSource
+                )
+                .filter(
+                  Boolean
+                )
+            : [];
+
+        const isLive =
+          request?.type ===
+            "live" ||
+          originalSources.some(
+            (item) =>
+              item?.live ||
+              item?.type ===
+                "live"
+          );
+
+        const mediaType =
+          request?.mediaType ===
+            "tv" ||
+          request?.type ===
+            "series" ||
+          request?.season !=
+            null ||
+          request?.episode !=
+            null ||
+          request?.rdSeason !=
+            null ||
+          request?.rdEpisode !=
+            null
+            ? "tv"
+            : "movie";
+
+        const season =
+          request?.season ??
+          request?.rdSeason ??
+          null;
+
+        const episode =
+          request?.episode ??
+          request?.rdEpisode ??
+          null;
+
+        const tmdbId =
+          request?.tmdbId ??
+          request?.tmdb_id ??
+          request?.id ??
+          "";
+
+        const imdbInfo =
+          isLive
+            ? {
+                imdbId:
+                  request?.imdbId ||
+                  request?.imdb_id ||
+                  "",
+
+                status:
+                  "SKIPPED",
+
+                method:
+                  "live",
+
+                error:
+                  "",
+              }
+            : await resolveImdbInfo(
+                {
+                  ...request,
+
+                  tmdbId,
+
+                  mediaType,
+                }
+              );
+
+        const imdbId =
+          imdbInfo.imdbId;
+
+        const addonPromise =
+          !isLive &&
+          !request?.skipAddonLookup
+            ? fetchAddonSources({
+                imdbId,
+
+                tmdbId,
+
+                title:
+                  request?.title ||
+                  "",
+
+                year:
+                  request?.year ??
+                  request?.rdYear ??
+                  "",
+
+                mediaType,
+
+                season,
+
+                episode,
+              })
+            : Promise.resolve(
+                {
+                  streams:
+                    [],
+
+                  diagnostics:
+                    [],
+
+                  addonsChecked:
+                    0,
+
+                  reason:
+                    "Source lookup skipped.",
+
+                  status:
+                    "SKIPPED",
+
+                  error:
+                    "",
+                }
+              );
+
+        const rdPromise =
+          !isLive &&
+          hasRd &&
+          !request?.noRd &&
+          !request?.skipRdLookup
+            ? findRdLibrarySource(
+                {
+                  title:
+                    request?.rdTitle ||
+                    request?.title ||
+                    "",
+
+                  year:
+                    request?.rdYear ??
+                    request?.year ??
+                    null,
+
+                  season,
+
+                  episode,
+                }
+              )
+            : Promise.resolve(
+                {
+                  source:
+                    null,
+
+                  status:
+                    hasRd
+                      ? "SKIPPED"
+                      : "NOT CONNECTED",
+
+                  detail:
+                    hasRd
+                      ? "RD lookup skipped"
+                      : "No RD token",
+                }
+              );
+
+        const [
+          addonLookup,
+          rdLookup,
+        ] =
+          await Promise.all(
+            [
+              addonPromise,
+              rdPromise,
+            ]
+          );
+
+        const rdLibrarySource =
+          rdLookup?.source ||
+          null;
+
+        const combined =
+          dedupeSources(
+            [
+              ...(rdLibrarySource
+                ? [
+                    rdLibrarySource,
+                  ]
+                : []),
+
+              ...(
+                addonLookup
+                  ?.streams ||
+                []
+              ),
+
+              ...originalSources,
+            ]
+          );
+
+        let orderedSources =
+          orderSources({
+            sources:
+              combined,
+
+            hasRd,
+
+            preferRd:
+              Boolean(
+                request?.preferRd
+              ),
+          });
+
+        const playbackSources =
+          orderedSources.filter(
+            (item) =>
+              isDirectSource(
+                item
+              ) ||
+              isMagnetSource(
+                item
+              ) ||
+              item?.type ===
+                "live" ||
+              item?.live
+          );
+
+        const nonPlaybackSources =
+          orderedSources.filter(
+            (item) =>
+              !playbackSources.includes(
+                item
+              )
+          );
+
+        const diagnosticLabel =
+          buildFailureDiagnosticLabel(
+            {
+              imdbInfo,
+
+              addonLookup,
+
+              rdLookup,
+
+              hasRd,
+            }
+          );
+
+        if (
+          playbackSources.length ===
+            0 &&
+          !request
+            ?.allowNonPlaybackFallback
+        ) {
+          orderedSources = [
+            {
+              label:
+                diagnosticLabel,
+
+              type:
+                "status",
+
+              src:
+                "",
+
+              url:
+                "",
+
+              diagnostic:
+                true,
+            },
+
+            ...nonPlaybackSources,
+          ];
+        }
+
+        if (
+          orderedSources.length ===
+          0
+        ) {
+          orderedSources = [
+            {
+              label:
+                diagnosticLabel,
+
+              type:
+                "status",
+
+              src:
+                "",
+
+              url:
+                "",
+
+              diagnostic:
+                true,
+            },
+          ];
+        }
+
+        const primary =
+          orderedSources[0] ||
+          {};
+
+        const activeUrl =
+          getSourceUrl(
+            primary
+          );
+
+        setSource({
+          ...request,
+
+          id:
+            request?.id,
+
+          tmdbId,
+
+          imdbId,
+
+          title:
+            request?.title ||
+            "Video",
+
+          poster:
+            request?.poster ||
+            request?.poster_url ||
+            "",
+
+          year:
+            request?.year,
+
+          mediaType,
+
+          season,
+
+          episode,
+
+          rdTitle:
+            request?.rdTitle ||
+            request?.title ||
+            "",
+
+          rdYear:
+            request?.rdYear ??
+            request?.year ??
+            null,
+
+          rdSeason:
+            request?.rdSeason ??
+            season,
+
+          rdEpisode:
+            request?.rdEpisode ??
+            episode,
+
+          sources:
+            orderedSources,
+
+          src:
+            activeUrl,
+
+          url:
+            activeUrl,
+
+          hasRd,
+
+          sourceDiagnostics: {
+            imdbId,
+
+            tmdbId,
+
+            mediaType,
+
+            season,
+
+            episode,
+
+            imdbStatus:
+              imdbInfo?.status ||
+              "UNKNOWN",
+
+            imdbMethod:
+              imdbInfo?.method ||
+              "",
+
+            imdbError:
+              imdbInfo?.error ||
+              "",
+
+            addonLookupStatus:
+              addonLookup?.status ||
+              "UNKNOWN",
+
+            addonsChecked:
+              Number(
+                addonLookup
+                  ?.addonsChecked ||
+                  0
+              ),
+
+            diagnostics:
+              addonLookup
+                ?.diagnostics ||
+              [],
+
+            reason:
+              addonLookup
+                ?.reason ||
+              "",
+
+            discoveredCount:
+              Array.isArray(
+                addonLookup
+                  ?.streams
+              )
+                ? addonLookup
+                    .streams
+                    .length
+                : 0,
+
+            rdConnected:
+              hasRd,
+
+            rdLookupStatus:
+              rdLookup?.status ||
+              (
+                hasRd
+                  ? "UNKNOWN"
+                  : "NOT CONNECTED"
+              ),
+
+            rdLookupDetail:
+              rdLookup?.detail ||
+              "",
+
+            diagnosticLabel,
+          },
+        });
+
+        console.info(
+          "[Media God] Playback diagnostics",
+          {
+            title:
+              request?.title,
+
+            tmdbId,
+
+            imdbId,
+
+            mediaType,
+
+            season,
+
+            episode,
+
+            imdbStatus:
+              imdbInfo?.status,
+
+            addonLookupStatus:
+              addonLookup?.status,
+
+            addonsChecked:
+              addonLookup
+                ?.addonsChecked,
+
+            discoveredCount:
+              Array.isArray(
+                addonLookup
+                  ?.streams
+              )
+                ? addonLookup
+                    .streams
+                    .length
+                : 0,
+
+            addonDiagnostics:
+              addonLookup
+                ?.diagnostics ||
+              [],
+
+            rdConnected:
+              hasRd,
+
+            rdLookupStatus:
+              rdLookup?.status,
+
+            rdLookupDetail:
+              rdLookup?.detail,
+          }
+        );
+
+        return true;
+      },
+      [
+        hasRd,
+      ]
+    );
+
+  const close =
+    useCallback(
+      () => {
+        setSource(
+          null
+        );
+      },
+      []
+    );
+
+  const value =
+    useMemo(
+      () => ({
+        play,
+        close,
+        hasRd,
+      }),
+      [
+        play,
+        close,
+        hasRd,
+      ]
+    );
+
+  return (
+    <PlayerContext.Provider
+      value={value}
+    >
+      {children}
+
+      {source && (
+        <VideoPlayer
+          source={source}
+          onClose={close}
+        />
+      )}
+    </PlayerContext.Provider>
+  );
+}
+
+export function usePlayer() {
+  const context =
+    useContext(
+      PlayerContext
+    );
+
+  if (!context) {
+    throw new Error(
+      "usePlayer must be used within a PlayerProvider"
+    );
+  }
+
+  return context;
+}
+
+usePlayer.displayName =
+  "usePlayer";
+
+export const DEMO_VIDEO =
+  "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
+
+export function buildMediaSources({
+  trailerUrl,
+  providers,
+}) {
+  const sources = [];
+
+  if (trailerUrl) {
+    sources.push({
+      label:
+        "Trailer",
+
+      type:
+        "youtube",
+
+      src:
+        trailerUrl,
+
+      url:
+        trailerUrl,
+    });
+  }
+
+  (
+    providers ||
+    []
+  ).forEach(
+    (provider) => {
+      if (
+        !provider?.link
+      ) {
+        return;
+      }
+
+      sources.push({
+        label:
+          provider?.name ||
+          "Provider",
+
+        type:
+          "provider",
+
+        src:
+          provider.link,
+
+        url:
+          provider.link,
+
+        logo:
+          provider.logo,
+
+        tier:
+          provider.tier,
+      });
+    }
+  );
+
+  return sources;
 }
