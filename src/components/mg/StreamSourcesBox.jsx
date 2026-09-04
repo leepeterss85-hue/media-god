@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { Zap, Play, Tv, ExternalLink, Link as LinkIcon, Globe, Radio } from "lucide-react";
+import { Zap, Play, Tv, ExternalLink, Link as LinkIcon } from "lucide-react";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 import { findChannelsByTitle } from "@/components/mg/freeTvPlaylist";
 import { base44 } from "@/api/base44Client";
-import { cn } from "@/lib/utils";
 
 export default function StreamSourcesBox({
   title,
@@ -15,6 +14,8 @@ export default function StreamSourcesBox({
   tmdbId,
   imdbId,
   mediaType = "movie",
+  rdSeason,
+  rdEpisode,
 }) {
   const player = usePlayer();
   const [liveMatches, setLiveMatches] = useState([]);
@@ -24,7 +25,6 @@ export default function StreamSourcesBox({
   useEffect(() => {
     let cancelled = false;
 
-    // Load live channels
     findChannelsByTitle(title)
       .then((matches) => {
         if (!cancelled) setLiveMatches(matches || []);
@@ -33,12 +33,8 @@ export default function StreamSourcesBox({
         if (!cancelled) setLiveMatches([]);
       });
 
-    // Load addon streams asynchronously
     const loadAddonSources = async () => {
       try {
-        const addons = await base44.entities.Addon.list("-created_date", 100);
-        const activeAddons = (addons || []).filter((a) => (a?.installed !== false && a?.active !== false) && a?.url);
-        
         const isSeries = mediaType === "tv";
         let resolvedImdb = imdbId || "";
 
@@ -54,34 +50,19 @@ export default function StreamSourcesBox({
           } catch {}
         }
 
-        if (!resolvedImdb && !title) {
-          if (!cancelled) setScraping(false);
-          return;
-        }
-
-        // Call the backend search action
-        const token = (await base44.auth.me())?.rd_token;
-        if (!token) {
-          if (!cancelled) setScraping(false);
-          return;
-        }
-
-        const backendRes = await fetch(`/api/functions/realDebrid`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "fetch_streams",
-            title,
-            imdb_id: resolvedImdb,
-            season: isSeries ? rdSeason : undefined,
-            episode: isSeries ? rdEpisode : undefined
-          })
+        // Invoke the backend server-side function correctly via Base44 SDK
+        const response = await base44.functions.invoke("realDebrid", {
+          action: "fetch_streams",
+          title,
+          imdb_id: resolvedImdb,
+          season: isSeries ? rdSeason : undefined,
+          episode: isSeries ? rdEpisode : undefined,
         });
 
-        if (backendRes.ok) {
-          const data = await backendRes.json();
-          if (!cancelled && Array.isArray(data?.sources)) {
-            setScrapedStreams(data.sources);
+        if (!cancelled && response) {
+          const sourcesList = response.sources || response?.data?.sources || [];
+          if (Array.isArray(sourcesList)) {
+            setScrapedStreams(sourcesList);
           }
         }
       } catch (err) {
@@ -96,9 +77,8 @@ export default function StreamSourcesBox({
     return () => {
       cancelled = true;
     };
-  }, [title, tmdbId, imdbId, mediaType]);
+  }, [title, tmdbId, imdbId, mediaType, rdSeason, rdEpisode]);
 
-  // Construct source options list safely so non-addon items always show up
   const sources = [
     {
       id: "rd",
@@ -115,7 +95,7 @@ export default function StreamSourcesBox({
       src: s.src,
       magnet: s.magnet,
       infoHash: s.infoHash,
-      type: s.type
+      type: s.type,
     })),
     {
       id: "paste",
@@ -191,7 +171,6 @@ export default function StreamSourcesBox({
       return;
     }
 
-    // Play through player provider (RD / Addon Stream / Paste)
     player.play({
       id: tmdbId,
       imdbId,
