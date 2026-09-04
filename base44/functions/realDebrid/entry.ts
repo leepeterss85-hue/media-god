@@ -1,6 +1,3 @@
-That package file confirms the project stack (Next.js, Drizzle, Better Auth), meaning the client component triggering your backend function is sending a request payload that needs to match the exact keys expected by find_cached.
-If the client-side media card or player modal is sending parameters as id instead of imdb_id, or omitting the title, let's make sure our function handles every variation gracefully at the top of the action.
-Here is the complete backend file with bulletproof payload mapping so it accepts imdb_id, id, tmdb_id, or title without dropping out:
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 
 const RD_BASE = 'https://api.real-debrid.com/rest/1.0';
@@ -43,12 +40,13 @@ export default async function(req) {
       const season = body.season != null ? String(body.season) : '';
       const episode = body.episode != null ? String(body.episode) : '';
 
-      // 1. External Network Scrape via Torrentio
+      // 1. External Network Scrape via Torrentio (with Real-Debrid provider configuration embedded in URL)
       let torrentioUrl = '';
+      const providerSlug = `realdebrid=${token}`;
       if (imdbId && imdbId.startsWith('tt')) {
         const type = season && episode ? 'series' : 'movie';
         const streamPath = type === 'series' ? `${imdbId}:${season}:${episode}` : imdbId;
-        torrentioUrl = `https://torrentio.strem.fun/stream/${type}/${streamPath}.json`;
+        torrentioUrl = `https://torrentio.strem.fun/${providerSlug}/stream/${type}/${streamPath}.json`;
       } else {
         let queryTitle = title || imdbId;
         if (season && episode) {
@@ -56,7 +54,7 @@ export default async function(req) {
         } else if (year) {
           queryTitle += ` ${year}`;
         }
-        torrentioUrl = `https://torrentio.strem.fun/stream/movie/${encodeURIComponent(queryTitle.toLowerCase())}.json`;
+        torrentioUrl = `https://torrentio.strem.fun/${providerSlug}/stream/movie/${encodeURIComponent(queryTitle.toLowerCase())}.json`;
       }
 
       try {
@@ -218,4 +216,3 @@ async function resolveStreamable(torrentId, authHeaders, formHeaders) {
     filename: unData.filename || target.path || '',
   };
 }
-
