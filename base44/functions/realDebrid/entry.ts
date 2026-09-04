@@ -2,279 +2,1836 @@ import { createClientFromRequest } from "npm:@base44/sdk@0.8.44";
 
 const RD_BASE = "https://api.real-debrid.com/rest/1.0";
 
-const VIDEO_RE = /\.(mp4|mkv|avi|mov|webm|m4v|mpg|mpeg|ts|m2ts)$/i;
+const VIDEO_RE =
+  /\.(mp4|mkv|avi|mov|webm|m4v|mpg|mpeg|ts|m2ts)$/i;
 
-const DEFAULT_ADDONS = [
-  { name: "Torrentio", url: "https://torrentio.strem.fun/manifest.json", installed: true, active: true },
-  { name: "Comet", url: "https://comet.elfhosted.com/manifest.json", installed: true, active: true },
-  { name: "Annatar", url: "https://annatar.elfhosted.com/manifest.json", installed: true, active: true },
-  { name: "MediaFusion", url: "https://mediafusion.elfhosted.com/manifest.json", installed: true, active: true }
-];
+const SAMPLE_RE =
+  /(^|[\s._-])(sample|trailer|featurette|extras?|behind[ ._-]?the[ ._-]?scenes)([\s._-]|$)/i;
 
-const clean = (value) => String(value || "").trim();
+const clean = (value) =>
+  String(value || "").trim();
 
 const normalise = (value) =>
   clean(value)
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "");
 
-const magnetFromHash = (hash, title = "") => {
-  const value = clean(hash);
-  if (!value) return "";
-  return `magnet:?xt=urn:btih:${value}${title ? `&dn=${encodeURIComponent(title)}` : ""}`;
+const isHttp = (value) =>
+  /^https?:\/\//i.test(clean(value));
+
+const isMagnet = (value) =>
+  clean(value)
+    .toLowerCase()
+    .startsWith("magnet:");
+
+const isVideoFile = (file) => {
+  const path =
+    clean(
+      file?.path ||
+        file?.filename
+    );
+
+  return Boolean(
+    path &&
+      VIDEO_RE.test(path)
+  );
 };
 
 const infoHashFromValue = (value) => {
-  const text = clean(value);
-  if (!text) return "";
-  if (/^[a-f0-9]{40}$/i.test(text)) return text;
-  const match = text.match(/btih:([a-f0-9]{40})/i);
-  return match?.[1] || "";
+  const text =
+    clean(value);
+
+  if (
+    /^[a-f0-9]{40}$/i.test(
+      text
+    )
+  ) {
+    return text;
+  }
+
+  return (
+    text.match(
+      /btih:([a-f0-9]{40})/i
+    )?.[1] ||
+    ""
+  );
 };
 
-export default async function(req) {
-  try {
-    const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+const magnetFromHash = (
+  hash,
+  title = ""
+) => {
+  const value =
+    clean(hash);
 
-    const token = user.rd_token;
-    if (!token) {
-      return Response.json({ error: "Real-Debrid token not set. Add it in Settings." }, { status: 400 });
+  if (!value) {
+    return "";
+  }
+
+  return `magnet:?xt=urn:btih:${value}${
+    title
+      ? `&dn=${encodeURIComponent(
+          title
+        )}`
+      : ""
+  }`;
+};
+
+const episodeRegex = (
+  season,
+  episode
+) => {
+  if (
+    season == null ||
+    episode == null
+  ) {
+    return null;
+  }
+
+  const s =
+    Number(season);
+
+  const e =
+    Number(episode);
+
+  if (
+    !Number.isFinite(s) ||
+    !Number.isFinite(e)
+  ) {
+    return null;
+  }
+
+  return new RegExp(
+    `(?:s0*${s}(?!\\d)e0*${e}(?!\\d)|${s}x0*${e}(?!\\d))`,
+    "i"
+  );
+};
+
+const chooseVideoFile = (
+  files,
+  metadata = {}
+) => {
+  const videos =
+    (files || []).filter(
+      isVideoFile
+    );
+
+  if (
+    videos.length ===
+    0
+  ) {
+    return null;
+  }
+
+  const epRe =
+    episodeRegex(
+      metadata.season,
+      metadata.episode
+    );
+
+  if (epRe) {
+    const episodeMatch =
+      videos.find(
+        (file) =>
+          epRe.test(
+            clean(
+              file.path
+            )
+          )
+      );
+
+    if (
+      episodeMatch
+    ) {
+      return episodeMatch;
+    }
+  }
+
+  const withoutSamples =
+    videos.filter(
+      (file) =>
+        !SAMPLE_RE.test(
+          clean(
+            file.path
+          )
+        )
+    );
+
+  const pool =
+    withoutSamples.length >
+    0
+      ? withoutSamples
+      : videos;
+
+  return [...pool].sort(
+    (a, b) =>
+      Number(
+        b?.bytes ||
+          0
+      ) -
+      Number(
+        a?.bytes ||
+          0
+      )
+  )[0];
+};
+
+const buildFileEntries = (
+  info,
+  selectedTarget = null
+) => {
+  const allFiles =
+    Array.isArray(
+      info?.files
+    )
+      ? info.files
+      : [];
+
+  const selectedFiles =
+    allFiles.filter(
+      (file) =>
+        file?.selected !==
+        0
+    );
+
+  const links =
+    Array.isArray(
+      info?.links
+    )
+      ? info.links
+      : [];
+
+  const linkByFileId =
+    new Map();
+
+  if (
+    selectedFiles.length ===
+    links.length
+  ) {
+    selectedFiles.forEach(
+      (
+        file,
+        index
+      ) => {
+        if (
+          links[
+            index
+          ]
+        ) {
+          linkByFileId.set(
+            file.id,
+            links[
+              index
+            ]
+          );
+        }
+      }
+    );
+  } else if (
+    allFiles.length ===
+    links.length
+  ) {
+    allFiles.forEach(
+      (
+        file,
+        index
+      ) => {
+        if (
+          links[
+            index
+          ]
+        ) {
+          linkByFileId.set(
+            file.id,
+            links[
+              index
+            ]
+          );
+        }
+      }
+    );
+  }
+
+  return allFiles
+    .filter(
+      isVideoFile
+    )
+    .map(
+      (file) => ({
+        id:
+          file.id,
+
+        path:
+          clean(
+            file.path
+          ),
+
+        bytes:
+          Number(
+            file.bytes ||
+              0
+          ),
+
+        link:
+          linkByFileId.get(
+            file.id
+          ) ||
+          "",
+
+        selected:
+          selectedTarget
+            ? file.id ===
+              selectedTarget.id
+            : false,
+      })
+    );
+};
+
+const fetchTorrentInfo =
+  async (
+    torrentId,
+    authHeaders
+  ) => {
+    const response =
+      await fetch(
+        `${RD_BASE}/torrents/info/${torrentId}`,
+        {
+          headers:
+            authHeaders,
+        }
+      );
+
+    if (
+      !response.ok
+    ) {
+      return {
+        error:
+          `Real-Debrid torrent info failed (${response.status}).`,
+      };
     }
 
-    let body = {};
-    try { body = await req.json(); } catch {}
-    const action = body.action || "status";
-    const authHeaders = { Authorization: `Bearer ${token}` };
-    const formHeaders = { ...authHeaders, "Content-Type": "application/x-www-form-urlencoded" };
+    return {
+      data:
+        await response.json(),
+    };
+  };
 
-    if (action === "status") {
-      const res = await fetch(`${RD_BASE}/user`, { headers: authHeaders });
-      if (!res.ok) return Response.json({ error: `Real-Debrid rejected token (${res.status})` }, { status: 502 });
-      const data = await res.json();
+const selectAllFiles =
+  async (
+    torrentId,
+    formHeaders
+  ) => {
+    const response =
+      await fetch(
+        `${RD_BASE}/torrents/selectFiles/${torrentId}`,
+        {
+          method:
+            "POST",
+
+          headers:
+            formHeaders,
+
+          body:
+            "files=all",
+        }
+      );
+
+    if (
+      !response.ok &&
+      response.status !==
+        204
+    ) {
+      return {
+        error:
+          `Real-Debrid file selection failed (${response.status}).`,
+      };
+    }
+
+    return {
+      ok: true,
+    };
+  };
+
+const unrestrictLink =
+  async (
+    link,
+    formHeaders
+  ) => {
+    const response =
+      await fetch(
+        `${RD_BASE}/unrestrict/link`,
+        {
+          method:
+            "POST",
+
+          headers:
+            formHeaders,
+
+          body:
+            `link=${encodeURIComponent(
+              link
+            )}`,
+        }
+      );
+
+    if (
+      !response.ok
+    ) {
+      const text =
+        await response
+          .text()
+          .catch(
+            () => ""
+          );
+
+      return {
+        error:
+          `Real-Debrid unrestrict failed (${response.status})${
+            text
+              ? `: ${text}`
+              : ""
+          }`,
+      };
+    }
+
+    const data =
+      await response.json();
+
+    if (
+      !data?.download
+    ) {
+      return {
+        error:
+          "Real-Debrid did not return a playable download URL.",
+      };
+    }
+
+    return {
+      stream_url:
+        data.download,
+
+      filename:
+        clean(
+          data.filename
+        ),
+    };
+  };
+
+const resolveStreamable =
+  async (
+    torrentId,
+    authHeaders,
+    formHeaders,
+    metadata = {}
+  ) => {
+    let infoResult =
+      await fetchTorrentInfo(
+        torrentId,
+        authHeaders
+      );
+
+    if (
+      infoResult.error
+    ) {
+      return infoResult;
+    }
+
+    let info =
+      infoResult.data;
+
+    if (
+      info?.status ===
+      "waiting_files_selection"
+    ) {
+      const selected =
+        await selectAllFiles(
+          torrentId,
+          formHeaders
+        );
+
+      if (
+        selected.error
+      ) {
+        return selected;
+      }
+
+      infoResult =
+        await fetchTorrentInfo(
+          torrentId,
+          authHeaders
+        );
+
+      if (
+        infoResult.error
+      ) {
+        return infoResult;
+      }
+
+      info =
+        infoResult.data;
+    }
+
+    const target =
+      chooseVideoFile(
+        info?.files,
+        metadata
+      );
+
+    const files =
+      buildFileEntries(
+        info,
+        target
+      );
+
+    if (!target) {
+      return {
+        ready:
+          false,
+
+        rd_status:
+          clean(
+            info?.status
+          ),
+
+        progress:
+          Number(
+            info?.progress ||
+              0
+          ),
+
+        filename:
+          clean(
+            info?.filename
+          ),
+
+        files,
+      };
+    }
+
+    const targetEntry =
+      files.find(
+        (file) =>
+          file.id ===
+          target.id
+      );
+
+    const targetLink =
+      clean(
+        targetEntry?.link
+      );
+
+    if (
+      info?.status !==
+        "downloaded" ||
+      !targetLink
+    ) {
+      return {
+        ready:
+          false,
+
+        rd_status:
+          clean(
+            info?.status
+          ),
+
+        progress:
+          Number(
+            info?.progress ||
+              0
+          ),
+
+        filename:
+          clean(
+            target?.path ||
+              info?.filename
+          ),
+
+        files,
+      };
+    }
+
+    const unrestricted =
+      await unrestrictLink(
+        targetLink,
+        formHeaders
+      );
+
+    if (
+      unrestricted.error
+    ) {
+      return unrestricted;
+    }
+
+    return {
+      ready:
+        true,
+
+      rd_status:
+        clean(
+          info?.status
+        ),
+
+      progress:
+        100,
+
+      stream_url:
+        unrestricted.stream_url,
+
+      filename:
+        unrestricted.filename ||
+        clean(
+          target?.path ||
+            info?.filename
+        ),
+
+      files,
+    };
+  };
+
+const saveRdLink =
+  async (
+    base44,
+    body,
+    magnet,
+    torrentId
+  ) => {
+    if (
+      !body?.title
+    ) {
+      return;
+    }
+
+    const key = {
+      title:
+        clean(
+          body.title
+        ),
+
+      year:
+        body.year != null
+          ? String(
+              body.year
+            )
+          : "",
+
+      season:
+        body.season != null
+          ? String(
+              body.season
+            )
+          : "",
+
+      episode:
+        body.episode != null
+          ? String(
+              body.episode
+            )
+          : "",
+    };
+
+    const patch = {
+      ...key,
+
+      magnet,
+
+      torrent_id:
+        String(
+          torrentId
+        ),
+    };
+
+    try {
+      const existing =
+        await base44.entities.RdLink.filter(
+          key
+        );
+
+      if (
+        existing?.length >
+        0
+      ) {
+        await base44.entities.RdLink.update(
+          existing[0].id,
+          patch
+        );
+      } else {
+        await base44.entities.RdLink.create(
+          patch
+        );
+      }
+    } catch {
+      // RdLink is optional.
+    }
+  };
+
+const addMagnetAndResolve =
+  async ({
+    body,
+    base44,
+    authHeaders,
+    formHeaders,
+  }) => {
+    let value =
+      clean(
+        body?.magnet ||
+          body?.url ||
+          body?.src ||
+          body?.infoHash
+      );
+
+    if (!value) {
+      return Response.json(
+        {
+          error:
+            "A magnet link, info hash, or direct URL is required.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+    if (
+      isHttp(
+        value
+      )
+    ) {
       return Response.json({
-        valid: true,
-        premium: !!data.premium,
-        expires: data.expiration || "",
-        points: data.points || 0,
+        status:
+          "ready",
+
+        stream_url:
+          value,
+
+        filename:
+          clean(
+            body?.title
+          ) ||
+          "Stream",
+
+        files: [],
       });
     }
 
-    if (action === "find_cached" || action === "fetch_streams") {
-      const title = clean(body.title);
-      const imdbId = clean(body.imdb_id || body.id);
-      if (!title && !imdbId) return Response.json({ error: "title or imdb_id required" }, { status: 400 });
-      const season = body.season != null ? String(body.season) : "";
-      const episode = body.episode != null ? String(body.episode) : "";
-
-      let activeAddons = DEFAULT_ADDONS;
-      try {
-        let dbAddons = await base44.entities.Addon.list("-created_date", 100);
-        if (!dbAddons || dbAddons.length === 0) {
-          for (const defAddon of DEFAULT_ADDONS) {
-            await base44.entities.Addon.create(defAddon);
-          }
-          dbAddons = await base44.entities.Addon.list("-created_date", 100);
-        }
-
-        if (dbAddons && dbAddons.length > 0) {
-          activeAddons = dbAddons
-            .filter(a => (a?.installed !== false && a?.active !== false) && clean(a?.url))
-            .map(a => ({
-              name: a.name || "Addon",
-              url: a.url
-            }));
-        }
-      } catch (err) {
-        console.error("Addon entity list error, using defaults:", err);
-      }
-
-      let allDiscoveredStreams = [];
-
-      for (const addon of activeAddons) {
-        try {
-          const rawUrl = clean(addon.url);
-          let baseUrl = rawUrl.replace(/\/manifest\.json\/?$/i, "").replace(/\/+$/, "");
-
-          // Automatically inject the Real-Debrid token into Torrentio if it's missing from the URL
-          if (baseUrl.includes("torrentio.strem.fun") && !baseUrl.includes("realdebrid=")) {
-            baseUrl = `https://torrentio.strem.fun/realdebrid=${token}`;
-          }
-
-          let queryPath = "";
-          const isSeries = Boolean(season && episode);
-          const mediaType = isSeries ? "series" : "movie";
-
-          if (imdbId && imdbId.startsWith("tt")) {
-            queryPath = isSeries ? `${imdbId}:${season}:${episode}` : imdbId;
-          } else {
-            let queryTitle = title || imdbId;
-            if (isSeries) {
-              queryTitle += ` S${season.padStart(2, "0")}E${episode.padStart(2, "0")}`;
-            }
-            queryPath = `search:${encodeURIComponent(queryTitle.toLowerCase())}`;
-          }
-
-          const targetUrl = `${baseUrl}/stream/${mediaType}/${queryPath}.json`;
-
-          const scrapeRes = await fetch(targetUrl, {
-            headers: { "User-Agent": "Stremio/4.4.16 (Mozilla/5.0)" }
-          });
-
-          if (scrapeRes.ok) {
-            const data = await scrapeRes.json();
-            if (Array.isArray(data?.streams)) {
-              for (const s of data.streams) {
-                const infoHash = infoHashFromValue(s.infoHash || s.info_hash || s.url || s.link);
-                const streamUrl = clean(s.url || s.link || (infoHash ? magnetFromHash(infoHash, title) : ""));
-
-                if (streamUrl) {
-                  const rawTitle = s.title || s.name || s.filename || "Stream Source";
-                  allDiscoveredStreams.push({
-                    label: `${addon.name}: ${clean(rawTitle).split("\n")[0]}`,
-                    type: infoHash ? "rd" : "url",
-                    src: streamUrl,
-                    url: streamUrl,
-                    magnet: infoHash ? magnetFromHash(infoHash, title || imdbId) : undefined,
-                    infoHash: infoHash || undefined,
-                    addon: addon.name
-                  });
-                }
-              }
-            }
-          }
-        } catch (err) {
-          console.error(`Addon fetch error for ${addon.name}:`, err);
-        }
-      }
-
-      if (allDiscoveredStreams.length > 0) {
-        if (action === "fetch_streams") {
-          return Response.json({ status: "success", sources: allDiscoveredStreams, addons_checked: activeAddons.length });
-        }
-
-        for (const candidate of allDiscoveredStreams.slice(0, 10)) {
-          if (candidate.infoHash) {
-            const availRes = await fetch(`${RD_BASE}/torrents/instantAvailability/${candidate.infoHash}`, { headers: authHeaders });
-            if (availRes.ok) {
-              const availData = await availRes.json();
-              const cachedVariants = availData[candidate.infoHash]?.rd;
-
-              const addRes = await fetch(`${RD_BASE}/torrents/addMagnet`, {
-                method: "POST",
-                headers: formHeaders,
-                body: `magnet=${encodeURIComponent(candidate.magnet)}`,
-              });
-
-              if (addRes.ok) {
-                const addData = await addRes.json();
-                await fetch(`${RD_BASE}/torrents/selectFiles/${addData.id}`, {
-                  method: "POST",
-                  headers: formHeaders,
-                  body: "files=all",
-                });
-
-                if (cachedVariants && cachedVariants.length > 0) {
-                  const resolved = await resolveStreamable(addData.id, authHeaders, formHeaders);
-                  if (resolved.ready && resolved.stream_url) {
-                    return Response.json({
-                      status: "ready",
-                      torrent_id: String(addData.id),
-                      url: resolved.stream_url,
-                      stream_url: resolved.stream_url,
-                      filename: resolved.filename || "",
-                      sources: allDiscoveredStreams
-                    });
-                  }
-                } else {
-                  return Response.json({
-                    status: "downloading",
-                    torrent_id: String(addData.id),
-                    url: candidate.url,
-                    stream_url: candidate.url,
-                    sources: allDiscoveredStreams,
-                    error: "Source not cached yet. Added to your Real-Debrid download queue."
-                  }, { status: 200 });
-                }
-              }
-            }
-          }
-        }
-      }
-
-      try {
-        const libRes = await fetch(`${RD_BASE}/torrents`, { headers: authHeaders });
-        if (libRes.ok) {
-          const libData = await libRes.json();
-          const want = normalise(title);
-          
-          const candidates = (libData || []).filter((t) => {
-            if (t.status !== "downloaded") return false;
-            const fn = normalise(t.filename || t.original_filename || "");
-            return want ? fn.includes(want) : false;
-          });
-
-          if (candidates.length > 0) {
-            const best = candidates[0];
-            const stream = await resolveStreamable(best.id, authHeaders, formHeaders);
-            if (stream.ready && stream.stream_url) {
-              return Response.json({
-                status: "ready",
-                torrent_id: String(best.id),
-                url: stream.stream_url,
-                stream_url: stream.stream_url,
-                filename: stream.filename || "",
-                sources: allDiscoveredStreams
-              });
-            }
-          }
-        }
-      } catch (err) {
-        console.error("Library fallback error:", err);
-      }
-
-      return Response.json({ 
-        status: "not_found", 
-        sources: allDiscoveredStreams,
-        addons_checked: activeAddons.length,
-        error: "Stream not found on network or in your Real-Debrid library." 
-      }, { status: 200 });
+    if (
+      /^[a-f0-9]{40}$/i.test(
+        value
+      )
+    ) {
+      value =
+        magnetFromHash(
+          value,
+          clean(
+            body?.title
+          )
+        );
     }
 
-    return Response.json({ error: "Unknown action" }, { status: 400 });
-  } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
-  }
-}
+    if (
+      !isMagnet(
+        value
+      )
+    ) {
+      const hash =
+        infoHashFromValue(
+          value
+        );
 
-async function resolveStreamable(torrentId, authHeaders, formHeaders) {
-  const infoRes = await fetch(`${RD_BASE}/torrents/info/${torrentId}`, { headers: authHeaders });
-  if (!infoRes.ok) return { ready: false };
-  const info = await infoRes.json();
+      if (hash) {
+        value =
+          magnetFromHash(
+            hash,
+            clean(
+              body?.title
+            )
+          );
+      }
+    }
 
-  if (info.status !== "downloaded") return { ready: false };
+    if (
+      !isMagnet(
+        value
+      )
+    ) {
+      return Response.json(
+        {
+          error:
+            "Invalid magnet or info hash.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
 
-  const files = (info.files || []).filter((f) => f.path && VIDEO_RE.test(f.path));
-  if (files.length === 0) return { ready: false };
+    const addResponse =
+      await fetch(
+        `${RD_BASE}/torrents/addMagnet`,
+        {
+          method:
+            "POST",
 
-  const target = files[0];
-  const fileLinks = info.links || [];
-  const targetLink = fileLinks[0] || "";
+          headers:
+            formHeaders,
 
-  if (!targetLink) return { ready: false };
+          body:
+            `magnet=${encodeURIComponent(
+              value
+            )}`,
+        }
+      );
 
-  const unRes = await fetch(`${RD_BASE}/unrestrict/link`, {
-    method: "POST",
-    headers: formHeaders,
-    body: `link=${encodeURIComponent(targetLink)}`,
-  });
-  if (!unRes.ok) return { ready: false };
-  const unData = await unRes.json();
+    if (
+      !addResponse.ok
+    ) {
+      const text =
+        await addResponse
+          .text()
+          .catch(
+            () => ""
+          );
 
-  return {
-    ready: true,
-    stream_url: unData.download,
-    filename: unData.filename || target.path || "",
+      return Response.json(
+        {
+          error:
+            `Real-Debrid could not add this magnet (${addResponse.status})${
+              text
+                ? `: ${text}`
+                : ""
+            }`,
+        },
+        {
+          status:
+            502,
+        }
+      );
+    }
+
+    const added =
+      await addResponse.json();
+
+    const torrentId =
+      clean(
+        added?.id
+      );
+
+    if (!torrentId) {
+      return Response.json(
+        {
+          error:
+            "Real-Debrid did not return a torrent id.",
+        },
+        {
+          status:
+            502,
+        }
+      );
+    }
+
+    await selectAllFiles(
+      torrentId,
+      formHeaders
+    );
+
+    await saveRdLink(
+      base44,
+      body,
+      value,
+      torrentId
+    );
+
+    const resolved =
+      await resolveStreamable(
+        torrentId,
+        authHeaders,
+        formHeaders,
+        {
+          title:
+            body?.title,
+
+          year:
+            body?.year,
+
+          season:
+            body?.season,
+
+          episode:
+            body?.episode,
+        }
+      );
+
+    if (
+      resolved.error
+    ) {
+      return Response.json(
+        {
+          error:
+            resolved.error,
+        },
+        {
+          status:
+            502,
+        }
+      );
+    }
+
+    return Response.json({
+      status:
+        resolved.ready
+          ? "ready"
+          : "preparing",
+
+      torrent_id:
+        torrentId,
+
+      stream_url:
+        resolved.stream_url ||
+        "",
+
+      filename:
+        resolved.filename ||
+        "",
+
+      progress:
+        Number(
+          resolved.progress ||
+            0
+        ),
+
+      rd_status:
+        resolved.rd_status ||
+        "",
+
+      files:
+        resolved.files ||
+        [],
+    });
   };
+
+const titleWords = (
+  title
+) =>
+  clean(
+    title
+  )
+    .toLowerCase()
+    .split(
+      /[^a-z0-9]+/
+    )
+    .filter(
+      (word) =>
+        word.length >=
+        3
+    );
+
+const scoreLibraryTorrent =
+  (
+    torrent,
+    body
+  ) => {
+    const filename =
+      clean(
+        torrent?.filename ||
+          torrent?.original_filename
+      );
+
+    const normalizedFilename =
+      normalise(
+        filename
+      );
+
+    const wanted =
+      normalise(
+        body?.title
+      );
+
+    if (
+      !filename ||
+      !wanted
+    ) {
+      return -1;
+    }
+
+    const words =
+      titleWords(
+        body?.title
+      );
+
+    const filenameWords =
+      new Set(
+        filename
+          .toLowerCase()
+          .split(
+            /[^a-z0-9]+/
+          )
+          .filter(
+            Boolean
+          )
+      );
+
+    const contiguous =
+      normalizedFilename.includes(
+        wanted
+      );
+
+    const allWords =
+      words.length >
+        0 &&
+      words.every(
+        (word) =>
+          filenameWords.has(
+            word
+          )
+      );
+
+    if (
+      !contiguous &&
+      !allWords
+    ) {
+      return -1;
+    }
+
+    const epRe =
+      episodeRegex(
+        body?.season,
+        body?.episode
+      );
+
+    if (
+      epRe &&
+      !epRe.test(
+        filename
+      )
+    ) {
+      return -1;
+    }
+
+    let score =
+      0;
+
+    if (
+      contiguous
+    ) {
+      score +=
+        100;
+    }
+
+    if (
+      allWords
+    ) {
+      score +=
+        50;
+    }
+
+    if (
+      epRe
+    ) {
+      score +=
+        60;
+    }
+
+    const year =
+      clean(
+        body?.year
+      );
+
+    if (
+      year &&
+      normalizedFilename.includes(
+        normalise(
+          year
+        )
+      )
+    ) {
+      score +=
+        20;
+    }
+
+    if (
+      torrent?.status ===
+      "downloaded"
+    ) {
+      score +=
+        30;
+    }
+
+    if (
+      !SAMPLE_RE.test(
+        filename
+      )
+    ) {
+      score +=
+        5;
+    }
+
+    return score;
+  };
+
+const findCachedLibraryStream =
+  async ({
+    body,
+    authHeaders,
+    formHeaders,
+  }) => {
+    const response =
+      await fetch(
+        `${RD_BASE}/torrents?limit=100`,
+        {
+          headers:
+            authHeaders,
+        }
+      );
+
+    if (
+      !response.ok
+    ) {
+      return Response.json(
+        {
+          error:
+            `Real-Debrid library lookup failed (${response.status}).`,
+        },
+        {
+          status:
+            502,
+        }
+      );
+    }
+
+    const torrents =
+      await response.json();
+
+    const candidates =
+      (torrents || [])
+        .map(
+          (torrent) => ({
+            torrent,
+
+            score:
+              scoreLibraryTorrent(
+                torrent,
+                body
+              ),
+          })
+        )
+        .filter(
+          (item) =>
+            item.score >=
+            0
+        )
+        .sort(
+          (a, b) =>
+            b.score -
+            a.score
+        );
+
+    for (
+      const candidate
+      of candidates.slice(
+        0,
+        10
+      )
+    ) {
+      const torrentId =
+        clean(
+          candidate
+            ?.torrent?.id
+        );
+
+      if (
+        !torrentId
+      ) {
+        continue;
+      }
+
+      const resolved =
+        await resolveStreamable(
+          torrentId,
+          authHeaders,
+          formHeaders,
+          {
+            season:
+              body?.season,
+
+            episode:
+              body?.episode,
+          }
+        );
+
+      if (
+        resolved.ready &&
+        resolved.stream_url
+      ) {
+        return Response.json({
+          status:
+            "ready",
+
+          source:
+            "library",
+
+          torrent_id:
+            torrentId,
+
+          stream_url:
+            resolved.stream_url,
+
+          url:
+            resolved.stream_url,
+
+          filename:
+            resolved.filename ||
+            clean(
+              candidate
+                ?.torrent
+                ?.filename
+            ),
+
+          files:
+            resolved.files ||
+            [],
+        });
+      }
+    }
+
+    return Response.json({
+      status:
+        "not_found",
+
+      source:
+        "library",
+    });
+  };
+
+export default async function (
+  req
+) {
+  try {
+    const base44 =
+      createClientFromRequest(
+        req
+      );
+
+    const user =
+      await base44.auth.me();
+
+    if (!user) {
+      return Response.json(
+        {
+          error:
+            "Unauthorized",
+        },
+        {
+          status:
+            401,
+        }
+      );
+    }
+
+    const token =
+      clean(
+        user?.rd_token
+      );
+
+    if (!token) {
+      return Response.json(
+        {
+          error:
+            "Real-Debrid token not set. Add it in Settings.",
+        },
+        {
+          status:
+            400,
+        }
+      );
+    }
+
+    let body = {};
+
+    try {
+      body =
+        await req.json();
+    } catch {
+      body = {};
+    }
+
+    const action =
+      clean(
+        body?.action
+      ) ||
+      "status";
+
+    const authHeaders = {
+      Authorization:
+        `Bearer ${token}`,
+    };
+
+    const formHeaders = {
+      ...authHeaders,
+
+      "Content-Type":
+        "application/x-www-form-urlencoded",
+    };
+
+    if (
+      action ===
+      "status"
+    ) {
+      const response =
+        await fetch(
+          `${RD_BASE}/user`,
+          {
+            headers:
+              authHeaders,
+          }
+        );
+
+      if (
+        !response.ok
+      ) {
+        return Response.json(
+          {
+            error:
+              `Real-Debrid rejected token (${response.status}).`,
+          },
+          {
+            status:
+              502,
+          }
+        );
+      }
+
+      const data =
+        await response.json();
+
+      return Response.json({
+        valid:
+          true,
+
+        premium:
+          Boolean(
+            data?.premium
+          ),
+
+        expires:
+          clean(
+            data?.expiration
+          ),
+
+        points:
+          Number(
+            data?.points ||
+              0
+          ),
+      });
+    }
+
+    if (
+      action ===
+      "find_cached"
+    ) {
+      if (
+        !clean(
+          body?.title
+        )
+      ) {
+        return Response.json(
+          {
+            error:
+              "title required",
+          },
+          {
+            status:
+              400,
+          }
+        );
+      }
+
+      return await findCachedLibraryStream({
+        body,
+        authHeaders,
+        formHeaders,
+      });
+    }
+
+    if (
+      action ===
+        "add_magnet" ||
+      action ===
+        "resolve_best"
+    ) {
+      return await addMagnetAndResolve({
+        body,
+        base44,
+        authHeaders,
+        formHeaders,
+      });
+    }
+
+    if (
+      action ===
+      "torrent_info"
+    ) {
+      const torrentId =
+        clean(
+          body?.torrent_id ||
+            body?.torrentId
+        );
+
+      if (
+        !torrentId
+      ) {
+        return Response.json(
+          {
+            error:
+              "torrent_id required",
+          },
+          {
+            status:
+              400,
+          }
+        );
+      }
+
+      const resolved =
+        await resolveStreamable(
+          torrentId,
+          authHeaders,
+          formHeaders,
+          {
+            title:
+              body?.title,
+
+            year:
+              body?.year,
+
+            season:
+              body?.season,
+
+            episode:
+              body?.episode,
+          }
+        );
+
+      if (
+        resolved.error
+      ) {
+        return Response.json(
+          {
+            error:
+              resolved.error,
+          },
+          {
+            status:
+              502,
+          }
+        );
+      }
+
+      return Response.json({
+        status:
+          resolved.ready
+            ? "ready"
+            : "preparing",
+
+        torrent_id:
+          torrentId,
+
+        stream_url:
+          resolved.stream_url ||
+          "",
+
+        filename:
+          resolved.filename ||
+          "",
+
+        progress:
+          Number(
+            resolved.progress ||
+              0
+          ),
+
+        rd_status:
+          resolved.rd_status ||
+          "",
+
+        files:
+          resolved.files ||
+          [],
+      });
+    }
+
+    if (
+      action ===
+      "torrent_files"
+    ) {
+      const torrentId =
+        clean(
+          body?.torrent_id ||
+            body?.torrentId
+        );
+
+      if (
+        !torrentId
+      ) {
+        return Response.json(
+          {
+            error:
+              "torrent_id required",
+          },
+          {
+            status:
+              400,
+          }
+        );
+      }
+
+      const infoResult =
+        await fetchTorrentInfo(
+          torrentId,
+          authHeaders
+        );
+
+      if (
+        infoResult.error
+      ) {
+        return Response.json(
+          {
+            error:
+              infoResult.error,
+          },
+          {
+            status:
+              502,
+          }
+        );
+      }
+
+      const target =
+        chooseVideoFile(
+          infoResult.data
+            ?.files,
+          {
+            season:
+              body?.season,
+
+            episode:
+              body?.episode,
+          }
+        );
+
+      return Response.json({
+        files:
+          buildFileEntries(
+            infoResult.data,
+            target
+          ),
+
+        rd_status:
+          clean(
+            infoResult.data
+              ?.status
+          ),
+
+        progress:
+          Number(
+            infoResult.data
+              ?.progress ||
+              0
+          ),
+      });
+    }
+
+    if (
+      action ===
+      "unrestrict_file"
+    ) {
+      const link =
+        clean(
+          body?.link
+        );
+
+      if (!link) {
+        return Response.json(
+          {
+            error:
+              "link required",
+          },
+          {
+            status:
+              400,
+          }
+        );
+      }
+
+      const unrestricted =
+        await unrestrictLink(
+          link,
+          formHeaders
+        );
+
+      if (
+        unrestricted.error
+      ) {
+        return Response.json(
+          {
+            error:
+              unrestricted.error,
+          },
+          {
+            status:
+              502,
+          }
+        );
+      }
+
+      return Response.json(
+        unrestricted
+      );
+    }
+
+    if (
+      action ===
+      "torrents_list"
+    ) {
+      const response =
+        await fetch(
+          `${RD_BASE}/torrents?limit=100`,
+          {
+            headers:
+              authHeaders,
+          }
+        );
+
+      if (
+        !response.ok
+      ) {
+        return Response.json(
+          {
+            error:
+              `Real-Debrid torrents failed (${response.status}).`,
+          },
+          {
+            status:
+              502,
+          }
+        );
+      }
+
+      const data =
+        await response.json();
+
+      return Response.json({
+        torrents:
+          (data || []).map(
+            (torrent) => ({
+              id:
+                String(
+                  torrent.id
+                ),
+
+              filename:
+                clean(
+                  torrent.filename ||
+                    torrent.original_filename
+                ),
+
+              status:
+                clean(
+                  torrent.status
+                ),
+
+              progress:
+                Number(
+                  torrent.progress ||
+                    0
+                ),
+
+              bytes:
+                Number(
+                  torrent.bytes ||
+                    0
+                ),
+
+              added:
+                clean(
+                  torrent.added
+                ),
+
+              ended:
+                clean(
+                  torrent.ended
+                ),
+
+              ready:
+                torrent.status ===
+                  "downloaded" ||
+                (
+                  Array.isArray(
+                    torrent.links
+                  ) &&
+                  torrent.links.length >
+                    0
+                ),
+            })
+          ),
+      });
+    }
+
+    if (
+      action ===
+      "torrent_delete"
+    ) {
+      const torrentId =
+        clean(
+          body?.torrent_id ||
+            body?.torrentId
+        );
+
+      if (
+        !torrentId
+      ) {
+        return Response.json(
+          {
+            error:
+              "torrent_id required",
+          },
+          {
+            status:
+              400,
+          }
+        );
+      }
+
+      const response =
+        await fetch(
+          `${RD_BASE}/torrents/delete/${torrentId}`,
+          {
+            method:
+              "DELETE",
+
+            headers:
+              authHeaders,
+          }
+        );
+
+      if (
+        !response.ok &&
+        response.status !==
+          204
+      ) {
+        return Response.json(
+          {
+            error:
+              `Real-Debrid delete failed (${response.status}).`,
+          },
+          {
+            status:
+              502,
+          }
+        );
+      }
+
+      return Response.json({
+        deleted:
+          true,
+      });
+    }
+
+    if (
+      action ===
+      "hosts"
+    ) {
+      const response =
+        await fetch(
+          `${RD_BASE}/hosts/status`,
+          {
+            headers:
+              authHeaders,
+          }
+        );
+
+      if (
+        !response.ok
+      ) {
+        return Response.json(
+          {
+            error:
+              `Real-Debrid hosts failed (${response.status}).`,
+          },
+          {
+            status:
+              502,
+          }
+        );
+      }
+
+      const data =
+        await response.json();
+
+      return Response.json({
+        hosts:
+          Object.entries(
+            data ||
+              {}
+          )
+            .filter(
+              (
+                [
+                  ,
+                  value,
+                ]
+              ) =>
+                value?.supported &&
+                !value?.disabled
+            )
+            .map(
+              (
+                [
+                  host,
+                ]
+              ) =>
+                host
+            ),
+      });
+    }
+
+    if (
+      action ===
+      "fetch_streams"
+    ) {
+      return Response.json({
+        status:
+          "moved",
+
+        sources: [],
+
+        error:
+          "Source discovery is handled by the fetchAddonStreams function. Real-Debrid only resolves the selected source.",
+      });
+    }
+
+    return Response.json(
+      {
+        error:
+          "Unknown action",
+      },
+      {
+        status:
+          400,
+      }
+    );
+  } catch (error) {
+    return Response.json(
+      {
+        error:
+          error?.message ||
+          "Unexpected Real-Debrid error.",
+      },
+      {
+        status:
+          500,
+      }
+    );
+  }
 }
