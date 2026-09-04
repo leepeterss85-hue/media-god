@@ -77,21 +77,22 @@ export default async function(req) {
               if (availRes.ok) {
                 const availData = await availRes.json();
                 const cachedVariants = availData[infoHash]?.rd;
-                if (cachedVariants && cachedVariants.length > 0) {
-                  const addRes = await fetch(`${RD_BASE}/torrents/addMagnet`, {
+                
+                const addRes = await fetch(`${RD_BASE}/torrents/addMagnet`, {
+                  method: 'POST',
+                  headers: formHeaders,
+                  body: `magnet=${encodeURIComponent(realMagnet)}`,
+                });
+
+                if (addRes.ok) {
+                  const addData = await addRes.json();
+                  await fetch(`${RD_BASE}/torrents/selectFiles/${addData.id}`, {
                     method: 'POST',
                     headers: formHeaders,
-                    body: `magnet=${encodeURIComponent(realMagnet)}`,
+                    body: 'files=all',
                   });
 
-                  if (addRes.ok) {
-                    const addData = await addRes.json();
-                    await fetch(`${RD_BASE}/torrents/selectFiles/${addData.id}`, {
-                      method: 'POST',
-                      headers: formHeaders,
-                      body: 'files=all',
-                    });
-
+                  if (cachedVariants && cachedVariants.length > 0) {
                     const stream = await resolveStreamable(addData.id, authHeaders, formHeaders);
                     if (stream.ready && stream.stream_url) {
                       return Response.json({
@@ -101,6 +102,12 @@ export default async function(req) {
                         filename: stream.filename || '',
                       });
                     }
+                  } else {
+                    return Response.json({
+                      status: 'downloading',
+                      torrent_id: String(addData.id),
+                      error: "New release not cached yet. Added to your Real-Debrid download queue."
+                    });
                   }
                 }
               }
