@@ -72,7 +72,9 @@ const normaliseAddonStream =
         stream
       );
 
-    if (!url) {
+    if (
+      !url
+    ) {
       return null;
     }
 
@@ -82,7 +84,9 @@ const normaliseAddonStream =
       "";
 
     const magnet =
-      String(url)
+      String(
+        url
+      )
         .toLowerCase()
         .startsWith(
           "magnet:"
@@ -154,7 +158,9 @@ const dedupe = (
     new Set();
 
   return items.filter(
-    (item) => {
+    (
+      item
+    ) => {
       const key =
         String(
           item?.url ||
@@ -187,11 +193,15 @@ const resolveImdbId =
     imdbId,
     mediaType,
   }) => {
-    if (imdbId) {
+    if (
+      imdbId
+    ) {
       return imdbId;
     }
 
-    if (!tmdbId) {
+    if (
+      !tmdbId
+    ) {
       return "";
     }
 
@@ -322,19 +332,18 @@ export default function StreamSourcesBox({
       cancelled =
         true;
     };
-  }, [title]);
+  }, [
+    title,
+  ]);
 
   useEffect(() => {
     let cancelled =
       false;
 
     /*
-     * Movie detail can be
-     * looked up immediately.
-     *
-     * TV streams should be
-     * resolved after an episode
-     * has been selected.
+     * Movie detail can be queried immediately.
+     * For TV we wait for EpisodeSelector because
+     * season/episode are required.
      */
     if (
       mediaType ===
@@ -369,7 +378,9 @@ export default function StreamSourcesBox({
             await resolveImdbId(
               {
                 tmdbId,
+
                 imdbId,
+
                 mediaType,
               }
             );
@@ -597,33 +608,31 @@ export default function StreamSourcesBox({
             channel,
             index
           ) => {
-            rows.push(
-              {
-                id:
-                  `live-${index}-${
-                    channel?.name ||
-                    "channel"
-                  }`,
-
-                kind:
-                  "live",
-
-                label:
+            rows.push({
+              id:
+                `live-${index}-${
                   channel?.name ||
-                  "Live TV",
+                  "channel"
+                }`,
 
-                note:
-                  `Live • ${
-                    channel?.group ||
-                    "Free-to-air"
-                  }`,
+              kind:
+                "live",
 
-                logo:
-                  channel?.logo,
+              label:
+                channel?.name ||
+                "Live TV",
 
-                channel,
-              }
-            );
+              note:
+                `Live • ${
+                  channel?.group ||
+                  "Free-to-air"
+                }`,
+
+              logo:
+                channel?.logo,
+
+              channel,
+            });
           }
         );
 
@@ -632,32 +641,30 @@ export default function StreamSourcesBox({
             provider,
             index
           ) => {
-            rows.push(
-              {
-                id:
-                  `free-provider-${index}-${
-                    provider?.name ||
-                    "provider"
-                  }`,
-
-                kind:
-                  "provider",
-
-                label:
+            rows.push({
+              id:
+                `free-provider-${index}-${
                   provider?.name ||
-                  "Free provider",
+                  "provider"
+                }`,
 
-                note:
-                  provider?.tier ||
-                  "Free",
+              kind:
+                "provider",
 
-                logo:
-                  provider?.logo,
+              label:
+                provider?.name ||
+                "Free provider",
 
-                link:
-                  provider?.link,
-              }
-            );
+              note:
+                provider?.tier ||
+                "Free",
+
+              logo:
+                provider?.logo,
+
+              link:
+                provider?.link,
+            });
           }
         );
 
@@ -697,8 +704,11 @@ export default function StreamSourcesBox({
       },
       [
         directAddonStreams,
+
         liveMatches,
+
         freeProviders,
+
         trailerUrl,
       ]
     );
@@ -881,13 +891,18 @@ export default function StreamSourcesBox({
   const playWithRealDebrid =
     () => {
       if (
-        !hasRd ||
-        rdAddonStreams.length ===
-          0
+        !hasRd
       ) {
         return;
       }
 
+      /*
+       * Do not disable RD simply because the browser-side
+       * addon requests returned no magnet results.
+       *
+       * PlayerProvider will also use the server-side
+       * realDebrid/find_cached action.
+       */
       player.play({
         id:
           tmdbId,
@@ -1047,17 +1062,12 @@ export default function StreamSourcesBox({
               playWithRealDebrid
             }
             disabled={
-              !hasRd ||
-              scraping ||
-              rdAddonStreams.length ===
-                0
+              !hasRd
             }
             className={cn(
               "flex items-center gap-2.5 w-full text-left px-2.5 py-2 rounded-md border transition-colors",
 
-              hasRd &&
-                rdAddonStreams.length >
-                  0
+              hasRd
                 ? "bg-mg-green/10 hover:bg-mg-green/20 border-mg-green/30"
                 : "bg-white/5 border-white/10 opacity-60 cursor-not-allowed"
             )}
@@ -1073,7 +1083,7 @@ export default function StreamSourcesBox({
 
               <span className="block text-[10px] text-white/40 truncate">
                 {!hasRd
-                  ? "Connect Real-Debrid to use torrent/magnet sources"
+                  ? "Connect Real-Debrid to use Real-Debrid playback"
                   : scraping
                     ? "Checking installed addons…"
                     : rdAddonStreams.length >
@@ -1088,8 +1098,8 @@ export default function StreamSourcesBox({
                         } available`
                       : mediaType ===
                           "tv"
-                        ? "Choose an episode first"
-                        : "No Real-Debrid source found"}
+                        ? "Select an episode, then search Real-Debrid"
+                        : "Search Real-Debrid for this title"}
               </span>
             </span>
 
@@ -1156,9 +1166,11 @@ export default function StreamSourcesBox({
                         source
                       )
                     }
-                    className={rowClass(
-                      source.kind
-                    )}
+                    className={
+                      rowClass(
+                        source.kind
+                      )
+                    }
                   >
                     <span className="w-8 h-8 rounded-md bg-black/30 flex items-center justify-center shrink-0 overflow-hidden">
                       {source.logo ? (
@@ -1211,9 +1223,9 @@ export default function StreamSourcesBox({
                   episodes,
                   select the
                   episode first;
-                  the player will
-                  then look up
-                  episode-specific
+                  the player
+                  will then look
+                  up episode-specific
                   streams.
                 </p>
               )}
@@ -1222,8 +1234,7 @@ export default function StreamSourcesBox({
                 null && (
                 <p className="text-[10px] text-white/35 px-1 pt-1">
                   Checking free
-                  live
-                  channels…
+                  live channels…
                 </p>
               )}
             </div>
