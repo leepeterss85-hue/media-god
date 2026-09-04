@@ -10,21 +10,16 @@ import React, {
 import { base44 } from "@/api/base44Client";
 import VideoPlayer from "@/components/mg/VideoPlayer";
 
-const PlayerContext =
-  createContext(null);
-
-const TMDB_KEY =
-  "38267272847a9ef3878b273b37963d76";
+const PlayerContext = createContext(null);
 
 const FOREIGN_RE =
-  /(truefrench|vostfr|vost|subfrench|\bvf\b|\bvff\b|\bvfi\b|french|spanish|german|italian|\bdubbed\b)/i;
+  /(truefrench|vostfr|vost|subfrench|\bvf\b|\bvff\b|\bvfi\b|french|spanish|german|italian|\bdubbed\b|multi-audio|multiaudio|dual[ ._-]?audio)/i;
 
-const RES_RE =
-  /(2160|1080|720|480)p/i;
+const RES_RE = /(2160|1080|720|480)p/i;
 
-const getSourceUrl = (
-  item
-) =>
+const unwrap = (response) => response?.data ?? response ?? {};
+
+const getSourceUrl = (item) =>
   String(
     item?.src ||
       item?.url ||
@@ -33,1040 +28,822 @@ const getSourceUrl = (
       ""
   ).trim();
 
-const isMagnetSource = (
-  item
-) => {
-  const value =
-    getSourceUrl(
-      item
-    ).toLowerCase();
+const isMagnetSource = (item) => {
+  const value = getSourceUrl(item).toLowerCase();
 
   return (
-    item?.type ===
-      "rd" ||
-    item?.type ===
-      "rd_torrent" ||
-    item?.type ===
-      "magnet" ||
-    item?.type ===
-      "torrent" ||
-    value.startsWith(
-      "magnet:"
-    )
+    item?.type === "rd" ||
+    item?.type === "rd_torrent" ||
+    item?.type === "magnet" ||
+    item?.type === "torrent" ||
+    value.startsWith("magnet:")
   );
 };
 
-const isDirectSource = (
-  item
-) => {
-  const value =
-    getSourceUrl(
-      item
-    );
+const isDirectSource = (item) => {
+  const value = getSourceUrl(item);
 
   return (
-    /^https?:\/\//i.test(
-      value
-    ) &&
-    !isMagnetSource(
-      item
-    ) &&
-    item?.type !==
-      "provider" &&
-    item?.type !==
-      "youtube"
+    /^https?:\/\//i.test(value) &&
+    !isMagnetSource(item) &&
+    item?.type !== "provider" &&
+    item?.type !== "youtube"
   );
 };
 
-const scoreSource = (
-  item
-) => {
-  const label =
-    String(
-      item?.label ||
-        item?.name ||
-        ""
-    );
+const normaliseSource = (item) => {
+  if (!item) return null;
 
-  const resolution =
-    Number(
-      (
-        label.match(
-          RES_RE
-        ) ||
-        []
-      )[1] ||
-        0
-    );
+  const url = getSourceUrl(item);
 
-  const foreignPenalty =
-    FOREIGN_RE.test(
-      label
-    )
-      ? 10000
-      : 0;
-
-  const cachedBonus =
-    item?.viaRealDebrid
-      ? 20000
-      : 0;
-
-  const directBonus =
-    isDirectSource(
-      item
-    )
-      ? 5000
-      : 0;
-
-  return (
-    cachedBonus +
-    directBonus +
-    resolution -
-    foreignPenalty
-  );
+  return {
+    ...item,
+    src: item?.src || url,
+    url: item?.url || url,
+  };
 };
 
-const sortSources = (
-  items
-) =>
-  [...items].sort(
-    (
-      a,
-      b
-    ) =>
-      scoreSource(
-        b
-      ) -
-      scoreSource(
-        a
-      )
-  );
+const dedupeSources = (items) => {
+  const seen = new Set();
 
-const dedupeSources = (
-  items
-) => {
-  const seen =
-    new Set();
+  return (items || []).filter((item) => {
+    if (!item) return false;
 
-  return items.filter(
-    (item) => {
-      if (!item) {
-        return false;
-      }
+    const key =
+      getSourceUrl(item) ||
+      `${item?.type || ""}:${item?.label || item?.name || ""}`;
 
-      const url =
-        getSourceUrl(
-          item
-        );
+    if (!key || seen.has(key)) return false;
 
-      if (!url) {
-        return (
-          item?.type ===
-            "provider" ||
-          item?.type ===
-            "youtube"
-        );
-      }
-
-      if (
-        seen.has(
-          url
-        )
-      ) {
-        return false;
-      }
-
-      seen.add(
-        url
-      );
-
-      return true;
-    }
-  );
+    seen.add(key);
+    return true;
+  });
 };
 
-const resolveImdbId =
-  async ({
-    id,
-    imdbId,
-    imdb_id,
-    mediaType,
-    title,
-    year,
-  }) => {
-    if (
-      imdbId ||
-      imdb_id
-    ) {
-      return (
-        imdbId ||
-        imdb_id
-      );
-    }
+const scoreSource = (item) => {
+  const label = String(item?.label || item?.name || "");
+  const resolution = Number((label.match(RES_RE) || [])[1] || 0);
+  const foreignPenalty = FOREIGN_RE.test(label) ? 10000 : 0;
+  const rdLibraryBonus = item?.viaRealDebrid ? 20000 : 0;
+  const directBonus = isDirectSource(item) ? 5000 : 0;
 
-    if (
-      id &&
-      String(
-        id
-      ).startsWith(
-        "tt"
-      )
-    ) {
-      return String(
-        id
-      );
-    }
+  return rdLibraryBonus + directBonus + resolution - foreignPenalty;
+};
 
-    const tmdbType =
-      mediaType ===
-      "tv"
-        ? "tv"
-        : "movie";
+const sortSources = (items) =>
+  [...items].sort((a, b) => scoreSource(b) - scoreSource(a));
 
-    if (
-      id != null &&
-      !Number.isNaN(
-        Number(
-          id
-        )
-      )
-    ) {
-      try {
-        const response =
-          await fetch(
-            `https://api.themoviedb.org/3/${tmdbType}/${id}/external_ids?api_key=${TMDB_KEY}`
-          );
+const resolveImdbInfo = async ({
+  id,
+  tmdbId,
+  tmdb_id,
+  imdbId,
+  imdb_id,
+  mediaType,
+  title,
+  year,
+}) => {
+  const supplied = String(imdbId || imdb_id || "").trim();
 
-        if (
-          response.ok
-        ) {
-          const data =
-            await response.json();
+  if (/^tt\d+$/i.test(supplied)) {
+    return {
+      imdbId: supplied,
+      status: "OK",
+      method: "supplied",
+      error: "",
+    };
+  }
 
-          if (
-            data?.imdb_id
-          ) {
-            return data.imdb_id;
-          }
-        }
-      } catch {
-        // Fall through to title search.
-      }
-    }
+  if (id && /^tt\d+$/i.test(String(id))) {
+    return {
+      imdbId: String(id),
+      status: "OK",
+      method: "item_id",
+      error: "",
+    };
+  }
 
-    if (!title) {
-      return "";
-    }
+  try {
+    const response = await base44.functions.invoke("resolveImdb", {
+      imdb_id: supplied,
+      tmdb_id: tmdbId ?? tmdb_id ?? id ?? "",
+      title: title || "",
+      year: year ?? "",
+      media_type: mediaType === "tv" ? "tv" : "movie",
+    });
 
-    try {
-      const query =
-        new URLSearchParams({
-          api_key:
-            TMDB_KEY,
+    const data = unwrap(response);
+    const resolved = String(data?.imdb_id || "").trim();
 
-          query:
-            title,
-        });
-
-      if (year) {
-        if (
-          tmdbType ===
-          "tv"
-        ) {
-          query.set(
-            "first_air_date_year",
-            String(year)
-          );
-        } else {
-          query.set(
-            "year",
-            String(year)
-          );
-        }
-      }
-
-      const searchResponse =
-        await fetch(
-          `https://api.themoviedb.org/3/search/${tmdbType}?${query.toString()}`
-        );
-
-      if (
-        !searchResponse.ok
-      ) {
-        return "";
-      }
-
-      const searchData =
-        await searchResponse.json();
-
-      const match =
-        searchData?.results?.[0];
-
-      if (!match?.id) {
-        return "";
-      }
-
-      const externalResponse =
-        await fetch(
-          `https://api.themoviedb.org/3/${tmdbType}/${match.id}/external_ids?api_key=${TMDB_KEY}`
-        );
-
-      if (
-        !externalResponse.ok
-      ) {
-        return "";
-      }
-
-      const externalData =
-        await externalResponse.json();
-
-      return (
-        externalData?.imdb_id ||
-        ""
-      );
-    } catch {
-      return "";
-    }
-  };
-
-const fetchAddonStreamsServer =
-  async ({
-    imdbId,
-    title,
-    mediaType,
-    season,
-    episode,
-  }) => {
-    if (
-      !imdbId &&
-      !title
-    ) {
+    if (/^tt\d+$/i.test(resolved)) {
       return {
-        streams: [],
-        diagnostics: [],
-        addonsChecked: 0,
-        reason:
-          "No IMDb id or title was available.",
+        imdbId: resolved,
+        status: "OK",
+        method: data?.source || "resolveImdb",
+        error: "",
       };
     }
 
-    if (
-      mediaType ===
-        "tv" &&
-      (
-        season == null ||
-        episode == null
-      )
-    ) {
-      return {
-        streams: [],
-        diagnostics: [],
-        addonsChecked: 0,
-        reason:
-          "Select a season and episode first.",
-      };
-    }
+    return {
+      imdbId: "",
+      status: "FAILED",
+      method: "resolveImdb",
+      error: data?.error || "IMDb id was not returned.",
+    };
+  } catch (error) {
+    return {
+      imdbId: "",
+      status: "FAILED",
+      method: "resolveImdb",
+      error: error?.message || "IMDb lookup call failed.",
+    };
+  }
+};
 
-    try {
-      const response =
-        await base44.functions.invoke(
-          "fetchAddonStreams",
-          {
-            imdb_id:
-              imdbId ||
-              "",
+const fetchAddonSources = async ({
+  imdbId,
+  tmdbId,
+  title,
+  year,
+  mediaType,
+  season,
+  episode,
+}) => {
+  if (!imdbId) {
+    return {
+      streams: [],
+      diagnostics: [],
+      addonsChecked: 0,
+      reason: "IMDb id could not be resolved for this title.",
+      status: "BLOCKED",
+      error: "IMDb missing",
+    };
+  }
 
-            title:
-              title ||
-              "",
+  if (
+    mediaType === "tv" &&
+    (season == null || episode == null)
+  ) {
+    return {
+      streams: [],
+      diagnostics: [],
+      addonsChecked: 0,
+      reason: "Select a season and episode first.",
+      status: "BLOCKED",
+      error: "Episode missing",
+    };
+  }
 
-            media_type:
-              mediaType,
-
-            ...(season != null
-              ? {
-                  season,
-                }
-              : {}),
-
-            ...(episode != null
-              ? {
-                  episode,
-                }
-              : {}),
-          }
-        );
-
-      const data =
-        response?.data ||
-        {};
-
-      return {
-        streams:
-          Array.isArray(
-            data?.streams
-          )
-            ? data.streams
-            : [],
-
-        diagnostics:
-          Array.isArray(
-            data?.diagnostics
-          )
-            ? data.diagnostics
-            : [],
-
-        addonsChecked:
-          Number(
-            data?.addons_checked ||
-              0
-          ),
-
-        reason:
-          data?.reason ||
-          data?.error ||
-          "",
-      };
-    } catch (error) {
-      return {
-        streams: [],
-        diagnostics: [],
-        addonsChecked: 0,
-
-        reason:
-          error?.message ||
-          "Addon source lookup failed.",
-      };
-    }
-  };
-
-const findRealDebridSource =
-  async ({
-    title,
-    year,
-    season,
-    episode,
-  }) => {
-    if (!title) {
-      return null;
-    }
-
-    try {
-      const response =
-        await base44.functions.invoke(
-          "findRdLibrary",
-          {
-            title,
-
-            ...(year != null
-              ? {
-                  year,
-                }
-              : {}),
-
-            ...(season != null
-              ? {
-                  season,
-                }
-              : {}),
-
-            ...(episode != null
-              ? {
-                  episode,
-                }
-              : {}),
-          }
-        );
-
-      const data =
-        response?.data ||
-        {};
-
-      if (
-        data?.status ===
-          "ready" &&
-        data?.stream_url
-      ) {
-        return {
-          label:
-            data?.filename ||
-            "Real-Debrid Library",
-
-          type:
-            "url",
-
-          src:
-            data.stream_url,
-
-          url:
-            data.stream_url,
-
-          addon:
-            "Real-Debrid Library",
-
-          viaRealDebrid:
-            true,
-        };
+  try {
+    const response = await base44.functions.invoke(
+      "fetchAddonStreams",
+      {
+        imdb_id: imdbId,
+        tmdb_id: tmdbId ?? "",
+        title: title || "",
+        year: year ?? "",
+        media_type: mediaType === "tv" ? "tv" : "movie",
+        ...(season != null ? { season } : {}),
+        ...(episode != null ? { episode } : {}),
       }
-    } catch {
-      // Real-Debrid library lookup is optional.
-    }
-
-    return null;
-  };
-
-export function PlayerProvider({
-  children,
-}) {
-  const [
-    source,
-    setSource,
-  ] =
-    useState(
-      null
     );
 
-  const [
-    hasRd,
-    setHasRd,
-  ] =
-    useState(
-      false
-    );
+    const data = unwrap(response);
+
+    return {
+      streams: Array.isArray(data?.streams) ? data.streams : [],
+      diagnostics: Array.isArray(data?.diagnostics)
+        ? data.diagnostics
+        : [],
+      addonsChecked: Number(data?.addons_checked || 0),
+      reason: data?.reason || data?.error || "",
+      status: data?.error ? "FAILED" : "OK",
+      error: data?.error || "",
+    };
+  } catch (error) {
+    return {
+      streams: [],
+      diagnostics: [],
+      addonsChecked: 0,
+      reason: error?.message || "Configured source lookup failed.",
+      status: "FAILED",
+      error: error?.message || "fetchAddonStreams call failed.",
+    };
+  }
+};
+
+const findRdLibrarySource = async ({
+  title,
+  year,
+  season,
+  episode,
+}) => {
+  if (!title) {
+    return {
+      source: null,
+      status: "SKIPPED",
+      detail: "No title",
+    };
+  }
+
+  try {
+    const response = await base44.functions.invoke("realDebrid", {
+      action: "find_cached",
+      title,
+      ...(year != null ? { year } : {}),
+      ...(season != null ? { season } : {}),
+      ...(episode != null ? { episode } : {}),
+    });
+
+    const data = unwrap(response);
+
+    if (data?.status === "ready" && data?.stream_url) {
+      return {
+        source: {
+          label: data?.filename || "Real-Debrid Library",
+          type: "url",
+          src: data.stream_url,
+          url: data.stream_url,
+          addon: "Real-Debrid Library",
+          viaRealDebrid: true,
+        },
+        status: "FOUND",
+        detail: "Library match ready",
+      };
+    }
+
+    if (data?.error) {
+      return {
+        source: null,
+        status: "FAILED",
+        detail: data.error,
+      };
+    }
+
+    return {
+      source: null,
+      status: "CONNECTED",
+      detail: data?.status || "No library match",
+    };
+  } catch (error) {
+    return {
+      source: null,
+      status: "FAILED",
+      detail: error?.message || "Real-Debrid lookup failed.",
+    };
+  }
+};
+
+const orderSources = ({ sources, hasRd, preferRd }) => {
+  const usable = hasRd
+    ? sources
+    : sources.filter((item) => !isMagnetSource(item));
+
+  const rdLibrary = usable.filter(
+    (item) => item?.viaRealDebrid && isDirectSource(item)
+  );
+
+  const direct = usable.filter(
+    (item) => !item?.viaRealDebrid && isDirectSource(item)
+  );
+
+  const rdMagnets = hasRd
+    ? usable.filter(isMagnetSource)
+    : [];
+
+  const live = usable.filter(
+    (item) => item?.type === "live" || item?.live
+  );
+
+  const youtube = usable.filter(
+    (item) => item?.type === "youtube"
+  );
+
+  const providers = usable.filter(
+    (item) => item?.type === "provider"
+  );
+
+  const other = usable.filter(
+    (item) =>
+      !rdLibrary.includes(item) &&
+      !direct.includes(item) &&
+      !rdMagnets.includes(item) &&
+      !live.includes(item) &&
+      !youtube.includes(item) &&
+      !providers.includes(item)
+  );
+
+  if (preferRd) {
+    return [
+      ...rdLibrary,
+      ...sortSources(rdMagnets),
+      ...sortSources(direct),
+      ...live,
+      ...other,
+      ...youtube,
+      ...providers,
+    ];
+  }
+
+  return [
+    ...rdLibrary,
+    ...sortSources(direct),
+    ...sortSources(rdMagnets),
+    ...live,
+    ...other,
+    ...youtube,
+    ...providers,
+  ];
+};
+
+const compactAddonDiagnostics = (diagnostics) =>
+  (diagnostics || [])
+    .slice(0, 4)
+    .map((item) => {
+      const name = String(item?.name || "Addon").trim();
+      const status = String(item?.status || "unknown").trim();
+      const playable = Number(item?.playable_count || 0);
+
+      if (status === "ok") {
+        return `${name}: ${playable} usable`;
+      }
+
+      return `${name}: ${status}`;
+    })
+    .join(" · ");
+
+const buildDiagnosticLabel = ({
+  imdbInfo,
+  addonLookup,
+  rdLookup,
+  hasRd,
+}) => {
+  const parts = [];
+
+  parts.push(
+    imdbInfo?.imdbId
+      ? `IMDb ${imdbInfo.imdbId} ✓`
+      : "IMDb FAILED"
+  );
+
+  parts.push(
+    addonLookup?.status === "OK"
+      ? "Source search ✓"
+      : addonLookup?.status === "BLOCKED"
+        ? "Source search BLOCKED"
+        : "Source search FAILED"
+  );
+
+  parts.push(`Addons ${Number(addonLookup?.addonsChecked || 0)}`);
+
+  parts.push(
+    `Returned ${
+      Array.isArray(addonLookup?.streams)
+        ? addonLookup.streams.length
+        : 0
+    }`
+  );
+
+  parts.push(
+    hasRd
+      ? `RD ${rdLookup?.status || "CONNECTED"}`
+      : "RD NOT CONNECTED"
+  );
+
+  const addonDetails = compactAddonDiagnostics(
+    addonLookup?.diagnostics
+  );
+
+  if (addonDetails) {
+    parts.push(addonDetails);
+  }
+
+  const reason =
+    addonLookup?.reason ||
+    imdbInfo?.error ||
+    rdLookup?.detail ||
+    "No playable source was returned.";
+
+  if (reason) {
+    parts.push(reason);
+  }
+
+  return parts.join(" | ");
+};
+
+export function PlayerProvider({ children }) {
+  const [source, setSource] = useState(null);
+  const [hasRd, setHasRd] = useState(false);
 
   useEffect(() => {
-    let mounted =
-      true;
+    let mounted = true;
 
     base44.auth
       .me()
-      .then(
-        (user) => {
-          if (
-            mounted
-          ) {
-            setHasRd(
-              Boolean(
-                user?.rd_token
-              )
-            );
-          }
+      .then((user) => {
+        if (mounted) {
+          setHasRd(Boolean(user?.rd_token));
         }
-      )
+      })
       .catch(() => {
-        if (
-          mounted
-        ) {
-          setHasRd(
-            false
-          );
+        if (mounted) {
+          setHasRd(false);
         }
       });
 
     return () => {
-      mounted =
-        false;
+      mounted = false;
     };
   }, []);
 
-  const play =
-    useCallback(
-      async (
-        request = {}
-      ) => {
-        const originalSources =
-          Array.isArray(
-            request?.sources
-          )
-            ? request.sources.filter(
-                Boolean
-              )
-            : [];
+  const play = useCallback(
+    async (request = {}) => {
+      const originalSources = Array.isArray(request?.sources)
+        ? request.sources.map(normaliseSource).filter(Boolean)
+        : [];
 
-        const isLive =
-          request?.type ===
-            "live" ||
-          originalSources.some(
-            (item) =>
-              item?.live ||
-              item?.type ===
-                "live"
-          );
+      const isLive =
+        request?.type === "live" ||
+        originalSources.some(
+          (item) =>
+            item?.live ||
+            item?.type === "live"
+        );
 
-        const mediaType =
-          request?.mediaType ===
-            "tv" ||
-          request?.type ===
-            "series" ||
-          request?.season != null ||
-          request?.episode != null ||
-          request?.rdSeason != null ||
-          request?.rdEpisode != null
-            ? "tv"
-            : "movie";
+      const mediaType =
+        request?.mediaType === "tv" ||
+        request?.type === "series" ||
+        request?.season != null ||
+        request?.episode != null ||
+        request?.rdSeason != null ||
+        request?.rdEpisode != null
+          ? "tv"
+          : "movie";
 
-        const season =
-          request?.season ??
-          request?.rdSeason ??
-          null;
+      const season =
+        request?.season ??
+        request?.rdSeason ??
+        null;
 
-        const episode =
-          request?.episode ??
-          request?.rdEpisode ??
-          null;
+      const episode =
+        request?.episode ??
+        request?.rdEpisode ??
+        null;
 
-        const imdbId =
-          isLive
-            ? request?.imdbId ||
+      const tmdbId =
+        request?.tmdbId ??
+        request?.tmdb_id ??
+        request?.id ??
+        "";
+
+      const imdbInfo = isLive
+        ? {
+            imdbId:
+              request?.imdbId ||
               request?.imdb_id ||
-              ""
-            : await resolveImdbId(
-                {
-                  ...request,
-                  mediaType,
-                }
-              );
+              "",
+            status: "SKIPPED",
+            method: "live",
+            error: "",
+          }
+        : await resolveImdbInfo({
+            ...request,
+            tmdbId,
+            mediaType,
+          });
 
-        let sources =
-          originalSources.map(
-            (item) => {
-              const url =
-                getSourceUrl(
-                  item
-                );
+      const imdbId = imdbInfo.imdbId;
 
-              return {
-                ...item,
-
-                src:
-                  item?.src ||
-                  url,
-
-                url:
-                  item?.url ||
-                  url,
-              };
-            }
-          );
-
-        const addonPromise =
-          !isLive &&
-          !request?.skipAddonLookup
-            ? fetchAddonStreamsServer(
-                {
-                  imdbId,
-
-                  title:
-                    request?.title ||
-                    "",
-
-                  mediaType,
-                  season,
-                  episode,
-                }
-              )
-            : Promise.resolve(
-                {
-                  streams: [],
-                  diagnostics: [],
-                  addonsChecked:
-                    0,
-                  reason:
-                    "",
-                }
-              );
-
-        const rdPromise =
-          !isLive &&
-          hasRd &&
-          !request?.noRd &&
-          !request?.skipRdLookup
-            ? findRealDebridSource(
-                {
-                  title:
-                    request?.rdTitle ||
-                    request?.title ||
-                    "",
-
-                  year:
-                    request?.rdYear ??
-                    request?.year ??
-                    null,
-
-                  season,
-                  episode,
-                }
-              )
-            : Promise.resolve(
-                null
-              );
-
-        const [
-          addonLookup,
-          rdSource,
-        ] =
-          await Promise.all(
-            [
-              addonPromise,
-              rdPromise,
-            ]
-          );
-
-        const addonSources =
-          Array.isArray(
-            addonLookup
-              ?.streams
-          )
-            ? addonLookup
-                .streams
-            : [];
-
-        sources =
-          dedupeSources(
-            [
-              ...(rdSource
-                ? [
-                    rdSource,
-                  ]
-                : []),
-
-              ...addonSources,
-
-              ...sources,
-            ]
-          );
-
-        const usableSources =
-          hasRd
-            ? sources
-            : sources.filter(
-                (item) =>
-                  !isMagnetSource(
-                    item
-                  )
-              );
-
-        const rdReady =
-          usableSources.filter(
-            (item) =>
-              item
-                ?.viaRealDebrid &&
-              isDirectSource(
-                item
-              )
-          );
-
-        const directSources =
-          usableSources.filter(
-            (item) =>
-              !item
-                ?.viaRealDebrid &&
-              isDirectSource(
-                item
-              )
-          );
-
-        const rdSources =
-          hasRd
-            ? usableSources.filter(
-                isMagnetSource
-              )
-            : [];
-
-        const liveSources =
-          usableSources.filter(
-            (item) =>
-              item?.type ===
-                "live" ||
-              item?.live
-          );
-
-        const trailerSources =
-          usableSources.filter(
-            (item) =>
-              item?.type ===
-              "youtube"
-          );
-
-        const providerSources =
-          usableSources.filter(
-            (item) =>
-              item?.type ===
-              "provider"
-          );
-
-        const otherSources =
-          usableSources.filter(
-            (item) =>
-              !rdReady.includes(
-                item
-              ) &&
-              !directSources.includes(
-                item
-              ) &&
-              !rdSources.includes(
-                item
-              ) &&
-              !liveSources.includes(
-                item
-              ) &&
-              !trailerSources.includes(
-                item
-              ) &&
-              !providerSources.includes(
-                item
-              )
-          );
-
-        const preferRd =
-          Boolean(
-            request?.preferRd
-          );
-
-        const orderedSources =
-          preferRd
-            ? [
-                ...rdReady,
-
-                ...sortSources(
-                  rdSources
-                ),
-
-                ...sortSources(
-                  directSources
-                ),
-
-                ...liveSources,
-
-                ...otherSources,
-
-                ...trailerSources,
-
-                ...providerSources,
-              ]
-            : [
-                ...rdReady,
-
-                ...sortSources(
-                  directSources
-                ),
-
-                ...sortSources(
-                  rdSources
-                ),
-
-                ...liveSources,
-
-                ...otherSources,
-
-                ...trailerSources,
-
-                ...providerSources,
-              ];
-
-        const hasPlaybackSource =
-          orderedSources.some(
-            (item) =>
-              isDirectSource(
-                item
-              ) ||
-              isMagnetSource(
-                item
-              ) ||
-              item?.type ===
-                "live" ||
-              item?.live
-          );
-
-        const allowNonPlaybackFallback =
-          Boolean(
-            request
-              ?.allowNonPlaybackFallback
-          );
-
-        if (
-          orderedSources.length ===
-            0 &&
-          !allowNonPlaybackFallback
-        ) {
-          console.warn(
-            "[Media God] No source found",
-            {
-              title:
-                request?.title,
-
+      const addonPromise =
+        !isLive &&
+        !request?.skipAddonLookup
+          ? fetchAddonSources({
               imdbId,
+              tmdbId,
+              title:
+                request?.rdTitle ||
+                request?.title ||
+                "",
+              year:
+                request?.rdYear ??
+                request?.year ??
+                "",
               mediaType,
               season,
               episode,
+            })
+          : Promise.resolve({
+              streams: [],
+              diagnostics: [],
+              addonsChecked: 0,
+              reason: "Source lookup skipped.",
+              status: "SKIPPED",
+              error: "",
+            });
 
-              addonsChecked:
-                addonLookup
-                  ?.addonsChecked ||
-                0,
-
-              addonReason:
-                addonLookup
-                  ?.reason ||
+      const rdPromise =
+        !isLive &&
+        hasRd &&
+        !request?.noRd &&
+        !request?.skipRdLookup
+          ? findRdLibrarySource({
+              title:
+                request?.rdTitle ||
+                request?.title ||
                 "",
-            }
-          );
+              year:
+                request?.rdYear ??
+                request?.year ??
+                null,
+              season,
+              episode,
+            })
+          : Promise.resolve({
+              source: null,
+              status: hasRd
+                ? "SKIPPED"
+                : "NOT CONNECTED",
+              detail: hasRd
+                ? "RD lookup skipped"
+                : "No RD token",
+            });
 
-          return false;
-        }
+      const [
+        addonLookup,
+        rdLookup,
+      ] = await Promise.all([
+        addonPromise,
+        rdPromise,
+      ]);
 
-        const finalSources =
-          hasPlaybackSource
-            ? orderedSources
-            : [
-                {
-                  label:
-                    addonLookup
-                      ?.reason ||
-                    "No full playback source was found",
+      const combined = dedupeSources([
+        ...(rdLookup?.source
+          ? [rdLookup.source]
+          : []),
 
-                  type:
-                    "status",
+        ...(addonLookup?.streams || []),
 
-                  src:
-                    "",
+        ...originalSources,
+      ]);
 
-                  url:
-                    "",
-                },
+      let orderedSources = orderSources({
+        sources: combined,
+        hasRd,
+        preferRd: Boolean(request?.preferRd),
+      });
 
-                ...orderedSources,
-              ];
+      const playbackSources = orderedSources.filter(
+        (item) =>
+          isDirectSource(item) ||
+          isMagnetSource(item) ||
+          item?.type === "live" ||
+          item?.live
+      );
 
-        const primary =
-          finalSources[0] ||
-          {};
+      const nonPlaybackSources = orderedSources.filter(
+        (item) =>
+          !playbackSources.includes(item)
+      );
 
-        const activeUrl =
-          getSourceUrl(
-            primary
-          );
+      const diagnosticLabel = buildDiagnosticLabel({
+        imdbInfo,
+        addonLookup,
+        rdLookup,
+        hasRd,
+      });
 
-        setSource({
-          ...request,
+      if (
+        playbackSources.length === 0 &&
+        !request?.allowNonPlaybackFallback
+      ) {
+        orderedSources = [
+          {
+            label: diagnosticLabel,
+            type: "status",
+            src: "",
+            url: "",
+            diagnostic: true,
+          },
 
-          id:
-            request?.id,
+          ...nonPlaybackSources,
+        ];
+      }
+
+      if (orderedSources.length === 0) {
+        orderedSources = [
+          {
+            label: diagnosticLabel,
+            type: "status",
+            src: "",
+            url: "",
+            diagnostic: true,
+          },
+        ];
+      }
+
+      const primary = orderedSources[0] || {};
+      const activeUrl = getSourceUrl(primary);
+
+      setSource({
+        ...request,
+
+        id: request?.id,
+
+        tmdbId,
+
+        imdbId,
+
+        title:
+          request?.title ||
+          "Video",
+
+        poster:
+          request?.poster ||
+          request?.poster_url ||
+          "",
+
+        year:
+          request?.year,
+
+        mediaType,
+
+        season,
+
+        episode,
+
+        rdTitle:
+          request?.rdTitle ||
+          request?.title ||
+          "",
+
+        rdYear:
+          request?.rdYear ??
+          request?.year ??
+          null,
+
+        rdSeason:
+          request?.rdSeason ??
+          season,
+
+        rdEpisode:
+          request?.rdEpisode ??
+          episode,
+
+        sources:
+          orderedSources,
+
+        src:
+          activeUrl,
+
+        url:
+          activeUrl,
+
+        hasRd,
+
+        sourceDiagnostics: {
+          imdbId,
+
+          tmdbId,
+
+          mediaType,
+
+          season,
+
+          episode,
+
+          imdbStatus:
+            imdbInfo?.status ||
+            "UNKNOWN",
+
+          imdbMethod:
+            imdbInfo?.method ||
+            "",
+
+          imdbError:
+            imdbInfo?.error ||
+            "",
+
+          addonLookupStatus:
+            addonLookup?.status ||
+            "UNKNOWN",
+
+          addonsChecked:
+            Number(
+              addonLookup?.addonsChecked ||
+                0
+            ),
+
+          diagnostics:
+            addonLookup?.diagnostics ||
+            [],
+
+          reason:
+            addonLookup?.reason ||
+            "",
+
+          discoveredCount:
+            Array.isArray(
+              addonLookup?.streams
+            )
+              ? addonLookup.streams.length
+              : 0,
+
+          rdConnected:
+            hasRd,
+
+          rdLookupStatus:
+            rdLookup?.status ||
+            (
+              hasRd
+                ? "UNKNOWN"
+                : "NOT CONNECTED"
+            ),
+
+          rdLookupDetail:
+            rdLookup?.detail ||
+            "",
+
+          diagnosticLabel,
+        },
+      });
+
+      console.info(
+        "[Media God] Playback diagnostics",
+        {
+          title:
+            request?.title,
+
+          tmdbId,
 
           imdbId,
 
-          title:
-            request?.title ||
-            "Video",
-
-          poster:
-            request?.poster ||
-            request?.poster_url ||
-            "",
-
-          year:
-            request?.year,
-
           mediaType,
+
           season,
+
           episode,
 
-          rdTitle:
-            request?.rdTitle ||
-            request?.title ||
-            "",
+          imdbStatus:
+            imdbInfo?.status,
 
-          rdYear:
-            request?.rdYear ??
-            request?.year ??
-            null,
+          addonLookupStatus:
+            addonLookup?.status,
 
-          rdSeason:
-            request?.rdSeason ??
-            season,
+          addonsChecked:
+            addonLookup?.addonsChecked,
 
-          rdEpisode:
-            request?.rdEpisode ??
-            episode,
+          discoveredCount:
+            Array.isArray(
+              addonLookup?.streams
+            )
+              ? addonLookup.streams.length
+              : 0,
 
-          sources:
-            finalSources,
+          addonDiagnostics:
+            addonLookup?.diagnostics ||
+            [],
 
-          src:
-            activeUrl,
+          rdConnected:
+            hasRd,
 
-          url:
-            activeUrl,
+          rdLookupStatus:
+            rdLookup?.status,
 
-          hasRd,
+          rdLookupDetail:
+            rdLookup?.detail,
+        }
+      );
 
-          sourceDiagnostics:
-            {
-              addonsChecked:
-                addonLookup
-                  ?.addonsChecked ||
-                0,
+      return true;
+    },
+    [hasRd]
+  );
 
-              diagnostics:
-                addonLookup
-                  ?.diagnostics ||
-                [],
+  const close = useCallback(() => {
+    setSource(null);
+  }, []);
 
-              reason:
-                addonLookup
-                  ?.reason ||
-                "",
-
-              discoveredCount:
-                addonSources.length,
-            },
-        });
-
-        return true;
-      },
-      [
-        hasRd,
-      ]
-    );
-
-  const close =
-    useCallback(
-      () => {
-        setSource(
-          null
-        );
-      },
-      []
-    );
-
-  const value =
-    useMemo(
-      () => ({
-        play,
-        close,
-        hasRd,
-      }),
-      [
-        play,
-        close,
-        hasRd,
-      ]
-    );
+  const value = useMemo(
+    () => ({
+      play,
+      close,
+      hasRd,
+    }),
+    [
+      play,
+      close,
+      hasRd,
+    ]
+  );
 
   return (
-    <PlayerContext.Provider
-      value={value}
-    >
+    <PlayerContext.Provider value={value}>
       {children}
 
       {source && (
         <VideoPlayer
-          source={
-            source
-          }
-          onClose={
-            close
-          }
+          source={source}
+          onClose={close}
         />
       )}
     </PlayerContext.Provider>
@@ -1074,10 +851,7 @@ export function PlayerProvider({
 }
 
 export function usePlayer() {
-  const context =
-    useContext(
-      PlayerContext
-    );
+  const context = useContext(PlayerContext);
 
   if (!context) {
     throw new Error(
@@ -1088,8 +862,7 @@ export function usePlayer() {
   return context;
 }
 
-usePlayer.displayName =
-  "usePlayer";
+usePlayer.displayName = "usePlayer";
 
 export const DEMO_VIDEO =
   "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
@@ -1098,58 +871,43 @@ export function buildMediaSources({
   trailerUrl,
   providers,
 }) {
-  const sources =
-    [];
+  const sources = [];
 
   if (trailerUrl) {
     sources.push({
-      label:
-        "Trailer",
-
-      type:
-        "youtube",
-
-      src:
-        trailerUrl,
-
-      url:
-        trailerUrl,
+      label: "Trailer",
+      type: "youtube",
+      src: trailerUrl,
+      url: trailerUrl,
     });
   }
 
-  (
-    providers ||
-    []
-  ).forEach(
-    (provider) => {
-      if (
-        !provider?.link
-      ) {
-        return;
-      }
-
-      sources.push({
-        label:
-          provider?.name ||
-          "Provider",
-
-        type:
-          "provider",
-
-        src:
-          provider.link,
-
-        url:
-          provider.link,
-
-        logo:
-          provider.logo,
-
-        tier:
-          provider.tier,
-      });
+  (providers || []).forEach((provider) => {
+    if (!provider?.link) {
+      return;
     }
-  );
+
+    sources.push({
+      label:
+        provider?.name ||
+        "Provider",
+
+      type:
+        "provider",
+
+      src:
+        provider.link,
+
+      url:
+        provider.link,
+
+      logo:
+        provider.logo,
+
+      tier:
+        provider.tier,
+    });
+  });
 
   return sources;
 }
