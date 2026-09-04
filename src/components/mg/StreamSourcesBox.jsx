@@ -16,64 +16,112 @@ import {
 } from "lucide-react";
 
 import { base44 } from "@/api/base44Client";
-import { usePlayer } from "@/components/mg/PlayerProvider";
 import { findChannelsByTitle } from "@/components/mg/freeTvPlaylist";
+import { usePlayer } from "@/components/mg/PlayerProvider";
 import { cn } from "@/lib/utils";
 
-const TMDB_KEY =
-  "38267272847a9ef3878b273b37963d76";
+const unwrap = (response) => response?.data ?? response ?? {};
 
 const resolveImdbId = async ({
   tmdbId,
   imdbId,
+  title,
+  year,
   mediaType,
 }) => {
-  if (imdbId) {
-    return imdbId;
-  }
+  const supplied = String(imdbId || "").trim();
 
-  if (!tmdbId) {
-    return "";
+  if (/^tt\d+$/i.test(supplied)) {
+    return {
+      imdbId: supplied,
+      status: "OK",
+      error: "",
+    };
   }
 
   if (
-    String(
-      tmdbId
-    ).startsWith(
-      "tt"
-    )
+    tmdbId &&
+    /^tt\d+$/i.test(String(tmdbId))
   ) {
-    return String(
-      tmdbId
-    );
+    return {
+      imdbId: String(tmdbId),
+      status: "OK",
+      error: "",
+    };
   }
 
   try {
-    const type =
-      mediaType === "tv"
-        ? "tv"
-        : "movie";
+    const response = await base44.functions.invoke(
+      "resolveImdb",
+      {
+        imdb_id: supplied,
 
-    const response =
-      await fetch(
-        `https://api.themoviedb.org/3/${type}/${tmdbId}/external_ids?api_key=${TMDB_KEY}`
-      );
+        tmdb_id:
+          tmdbId ??
+          "",
 
-    if (
-      !response.ok
-    ) {
-      return "";
-    }
+        title:
+          title ||
+          "",
 
-    const data =
-      await response.json();
+        year:
+          year ??
+          "",
 
-    return (
+        media_type:
+          mediaType === "tv"
+            ? "tv"
+            : "movie",
+      }
+    );
+
+    const data = unwrap(response);
+
+    const resolved = String(
       data?.imdb_id ||
       ""
-    );
-  } catch {
-    return "";
+    ).trim();
+
+    if (
+      /^tt\d+$/i.test(
+        resolved
+      )
+    ) {
+      return {
+        imdbId:
+          resolved,
+
+        status:
+          "OK",
+
+        error:
+          "",
+      };
+    }
+
+    return {
+      imdbId:
+        "",
+
+      status:
+        "FAILED",
+
+      error:
+        data?.error ||
+        "IMDb id could not be resolved.",
+    };
+  } catch (error) {
+    return {
+      imdbId:
+        "",
+
+      status:
+        "FAILED",
+
+      error:
+        error?.message ||
+        "IMDb lookup failed.",
+    };
   }
 };
 
@@ -90,291 +138,262 @@ export default function StreamSourcesBox({
   season = null,
   episode = null,
 }) {
-  const player =
-    usePlayer();
+  const player = usePlayer();
 
-  const hasRd =
-    Boolean(
-      player?.hasRd
-    );
+  const hasRd = Boolean(
+    player?.hasRd
+  );
 
   const [
     liveMatches,
     setLiveMatches,
-  ] =
-    useState(
-      null
-    );
-
-  const [
-    rdSearching,
-    setRdSearching,
-  ] =
-    useState(
-      false
-    );
-
-  const [
-    message,
-    setMessage,
-  ] =
-    useState(
-      ""
-    );
-
-  const [
-    addonLoading,
-    setAddonLoading,
-  ] =
-    useState(
-      false
-    );
+  ] = useState([]);
 
   const [
     addonStreams,
     setAddonStreams,
-  ] =
-    useState(
-      []
-    );
+  ] = useState([]);
+
+  const [
+    addonLoading,
+    setAddonLoading,
+  ] = useState(false);
 
   const [
     addonDiagnostics,
     setAddonDiagnostics,
-  ] =
-    useState(
-      []
-    );
+  ] = useState([]);
 
   const [
     addonReason,
     setAddonReason,
-  ] =
-    useState(
-      ""
-    );
+  ] = useState("");
 
   const [
     addonsChecked,
     setAddonsChecked,
-  ] =
-    useState(
-      0
-    );
+  ] = useState(0);
+
+  const [
+    resolvedImdb,
+    setResolvedImdb,
+  ] = useState("");
+
+  const [
+    imdbStatus,
+    setImdbStatus,
+  ] = useState("IDLE");
+
+  const [
+    message,
+    setMessage,
+  ] = useState("");
+
+  const [
+    rdSearching,
+    setRdSearching,
+  ] = useState(false);
 
   useEffect(() => {
-    let cancelled =
-      false;
+    let cancelled = false;
 
-    setLiveMatches(
-      null
-    );
-
-    findChannelsByTitle(
-      title
-    )
-      .then(
-        (matches) => {
-          if (
-            !cancelled
-          ) {
-            setLiveMatches(
-              matches ||
-              []
-            );
-          }
-        }
-      )
-      .catch(() => {
-        if (
-          !cancelled
-        ) {
+    findChannelsByTitle(title)
+      .then((matches) => {
+        if (!cancelled) {
           setLiveMatches(
+            matches ||
             []
           );
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setLiveMatches([]);
         }
       });
 
     return () => {
-      cancelled =
-        true;
+      cancelled = true;
     };
-  }, [
-    title,
-  ]);
+  }, [title]);
 
   useEffect(() => {
-    let cancelled =
-      false;
+    let cancelled = false;
 
-    const loadAddonStreams =
-      async () => {
-        if (!title) {
-          return;
-        }
+    const load = async () => {
+      setAddonStreams([]);
+      setAddonDiagnostics([]);
+      setAddonReason("");
+      setAddonsChecked(0);
+      setResolvedImdb("");
+      setImdbStatus("CHECKING");
 
-        if (
-          mediaType ===
-            "tv" &&
-          (
-            season == null ||
-            episode == null
-          )
-        ) {
-          setAddonStreams(
-            []
-          );
+      if (!title) {
+        setImdbStatus("FAILED");
 
-          setAddonDiagnostics(
-            []
-          );
-
-          setAddonsChecked(
-            0
-          );
-
-          setAddonReason(
-            "Select an episode to search configured playback sources."
-          );
-
-          return;
-        }
-
-        setAddonLoading(
-          true
+        setAddonReason(
+          "A title is required before sources can be checked."
         );
 
+        return;
+      }
+
+      if (
+        mediaType === "tv" &&
+        (
+          season == null ||
+          episode == null
+        )
+      ) {
+        setImdbStatus("WAITING");
+
+        setAddonReason(
+          "Select an episode to search configured playback sources."
+        );
+
+        return;
+      }
+
+      setAddonLoading(true);
+
+      try {
+        const imdbResult =
+          await resolveImdbId({
+            tmdbId,
+            imdbId,
+            title,
+            year:
+              rdYear,
+            mediaType,
+          });
+
+        if (cancelled) {
+          return;
+        }
+
+        setResolvedImdb(
+          imdbResult.imdbId
+        );
+
+        setImdbStatus(
+          imdbResult.status
+        );
+
+        if (
+          !imdbResult.imdbId
+        ) {
+          setAddonReason(
+            imdbResult.error ||
+              "IMDb id could not be resolved for this title."
+          );
+
+          return;
+        }
+
+        const response =
+          await base44.functions.invoke(
+            "fetchAddonStreams",
+            {
+              imdb_id:
+                imdbResult.imdbId,
+
+              tmdb_id:
+                tmdbId ??
+                "",
+
+              title:
+                title ||
+                "",
+
+              year:
+                rdYear ??
+                "",
+
+              media_type:
+                mediaType ===
+                "tv"
+                  ? "tv"
+                  : "movie",
+
+              ...(season != null
+                ? {
+                    season,
+                  }
+                : {}),
+
+              ...(episode != null
+                ? {
+                    episode,
+                  }
+                : {}),
+            }
+          );
+
+        if (cancelled) {
+          return;
+        }
+
+        const data =
+          unwrap(
+            response
+          );
+
         setAddonStreams(
-          []
+          Array.isArray(
+            data?.streams
+          )
+            ? data.streams
+            : []
         );
 
         setAddonDiagnostics(
-          []
-        );
-
-        setAddonReason(
-          ""
+          Array.isArray(
+            data?.diagnostics
+          )
+            ? data.diagnostics
+            : []
         );
 
         setAddonsChecked(
-          0
+          Number(
+            data?.addons_checked ||
+              0
+          )
         );
 
-        try {
-          const resolvedImdbId =
-            await resolveImdbId(
-              {
-                tmdbId,
-                imdbId,
-                mediaType,
-              }
-            );
+        setAddonReason(
+          data?.reason ||
+            data?.error ||
+            ""
+        );
+      } catch (error) {
+        if (!cancelled) {
+          setAddonStreams([]);
 
-          const response =
-            await base44.functions.invoke(
-              "fetchAddonStreams",
-              {
-                imdb_id:
-                  resolvedImdbId ||
-                  "",
+          setAddonDiagnostics([]);
 
-                title,
-
-                media_type:
-                  mediaType,
-
-                ...(season != null
-                  ? {
-                      season,
-                    }
-                  : {}),
-
-                ...(episode != null
-                  ? {
-                      episode,
-                    }
-                  : {}),
-              }
-            );
-
-          if (
-            cancelled
-          ) {
-            return;
-          }
-
-          const data =
-            response?.data ||
-            {};
-
-          setAddonStreams(
-            Array.isArray(
-              data?.streams
-            )
-              ? data.streams
-              : []
-          );
-
-          setAddonDiagnostics(
-            Array.isArray(
-              data?.diagnostics
-            )
-              ? data.diagnostics
-              : []
-          );
-
-          setAddonsChecked(
-            Number(
-              data?.addons_checked ||
-                0
-            )
-          );
+          setAddonsChecked(0);
 
           setAddonReason(
-            data?.reason ||
-              data?.error ||
-              ""
+            error?.message ||
+              "Configured source lookup failed."
           );
-        } catch (error) {
-          if (
-            !cancelled
-          ) {
-            setAddonStreams(
-              []
-            );
-
-            setAddonDiagnostics(
-              []
-            );
-
-            setAddonsChecked(
-              0
-            );
-
-            setAddonReason(
-              error?.message ||
-                "Configured source lookup failed."
-            );
-          }
-        } finally {
-          if (
-            !cancelled
-          ) {
-            setAddonLoading(
-              false
-            );
-          }
         }
-      };
+      } finally {
+        if (!cancelled) {
+          setAddonLoading(false);
+        }
+      }
+    };
 
-    loadAddonStreams();
+    load();
 
     return () => {
-      cancelled =
-        true;
+      cancelled = true;
     };
   }, [
     title,
+    rdYear,
     tmdbId,
     imdbId,
     mediaType,
@@ -382,7 +401,7 @@ export default function StreamSourcesBox({
     episode,
   ]);
 
-  const playableAddonStreams =
+  const visibleAddonStreams =
     useMemo(
       () =>
         addonStreams.filter(
@@ -392,7 +411,7 @@ export default function StreamSourcesBox({
             }
 
             if (
-              stream.type ===
+              stream?.type ===
                 "rd" &&
               !hasRd
             ) {
@@ -400,9 +419,9 @@ export default function StreamSourcesBox({
             }
 
             return Boolean(
-              stream.src ||
-                stream.url ||
-                stream.magnet
+              stream?.src ||
+                stream?.url ||
+                stream?.magnet
             );
           }
         ),
@@ -417,8 +436,9 @@ export default function StreamSourcesBox({
       () =>
         addonDiagnostics.filter(
           (item) =>
-            item?.status !==
-            "ok"
+            item?.status &&
+            item.status !==
+              "ok"
         ).length,
       [
         addonDiagnostics,
@@ -427,79 +447,71 @@ export default function StreamSourcesBox({
 
   const playRealDebrid =
     async () => {
-      if (
-        !hasRd ||
-        rdSearching
-      ) {
-        if (!hasRd) {
-          setMessage(
-            "Connect Real-Debrid in Settings first."
-          );
-        }
+      if (!hasRd) {
+        setMessage(
+          "Connect Real-Debrid in Settings first."
+        );
 
         return;
       }
 
-      setRdSearching(
-        true
-      );
+      if (rdSearching) {
+        return;
+      }
 
-      setMessage(
-        "Searching configured sources and Real-Debrid…"
-      );
+      setRdSearching(true);
+
+      setMessage("");
 
       try {
-        const opened =
-          await player.play(
-            {
-              id:
-                tmdbId,
+        await player.play({
+          id:
+            tmdbId,
 
-              imdbId,
+          tmdbId,
 
-              title,
-              poster,
+          imdbId:
+            resolvedImdb ||
+            imdbId ||
+            "",
 
-              year:
-                rdYear,
+          title,
 
-              mediaType,
-              season,
-              episode,
+          poster,
 
-              rdTitle:
-                title,
+          year:
+            rdYear,
 
-              rdYear,
+          mediaType,
 
-              rdSeason:
-                season,
+          season,
 
-              rdEpisode:
-                episode,
+          episode,
 
-              preferRd:
-                true,
+          rdTitle:
+            title,
 
-              sources:
-                [],
-            }
-          );
+          rdYear,
 
-        setMessage(
-          opened
-            ? ""
-            : "No playable source was found for this title."
-        );
+          rdSeason:
+            season,
+
+          rdEpisode:
+            episode,
+
+          preferRd:
+            true,
+
+          sources:
+            [],
+        });
       } catch (error) {
         setMessage(
           error?.message ||
-            "Real-Debrid search failed."
+            "Real-Debrid playback lookup failed."
         );
       } finally {
-        setRdSearching(
-          false
-        );
+        setRdSearching(false);
       }
     };
 
@@ -512,7 +524,7 @@ export default function StreamSourcesBox({
       }
 
       if (
-        stream.type ===
+        stream?.type ===
           "rd" &&
         !hasRd
       ) {
@@ -523,24 +535,30 @@ export default function StreamSourcesBox({
         return;
       }
 
-      setMessage(
-        ""
-      );
+      setMessage("");
 
       await player.play({
         id:
           tmdbId,
 
-        imdbId,
+        tmdbId,
+
+        imdbId:
+          resolvedImdb ||
+          imdbId ||
+          "",
 
         title,
+
         poster,
 
         year:
           rdYear,
 
         mediaType,
+
         season,
+
         episode,
 
         rdTitle:
@@ -555,21 +573,24 @@ export default function StreamSourcesBox({
           episode,
 
         preferRd:
-          stream.type ===
+          stream?.type ===
           "rd",
 
         skipAddonLookup:
           true,
 
+        skipRdLookup:
+          true,
+
+        allowNonPlaybackFallback:
+          stream?.type ===
+            "provider" ||
+          stream?.type ===
+            "youtube",
+
         sources: [
           stream,
         ],
-
-        allowNonPlaybackFallback:
-          stream.type ===
-            "provider" ||
-          stream.type ===
-            "youtube",
       });
     };
 
@@ -613,24 +634,30 @@ export default function StreamSourcesBox({
         return;
       }
 
-      setMessage(
-        ""
-      );
+      setMessage("");
 
       await player.play({
         id:
           tmdbId,
 
-        imdbId,
+        tmdbId,
+
+        imdbId:
+          resolvedImdb ||
+          imdbId ||
+          "",
 
         title,
+
         poster,
 
         year:
           rdYear,
 
         mediaType,
+
         season,
+
         episode,
 
         rdTitle:
@@ -644,19 +671,19 @@ export default function StreamSourcesBox({
         rdEpisode:
           episode,
 
+        preferRd:
+          true,
+
         skipAddonLookup:
           true,
 
         skipRdLookup:
           true,
 
-        preferRd:
-          true,
-
         sources: [
           {
             label:
-              "Real-Debrid magnet",
+              "Your magnet",
 
             type:
               "rd",
@@ -678,15 +705,15 @@ export default function StreamSourcesBox({
 
   const playTrailer =
     async () => {
-      if (
-        !trailerUrl
-      ) {
+      if (!trailerUrl) {
         return;
       }
 
       await player.play({
         title,
+
         poster,
+
         mediaType,
 
         noRd:
@@ -789,97 +816,92 @@ export default function StreamSourcesBox({
 
       note:
         hasRd
-          ? "Library, cached links and sources you provide"
+          ? "Your RD library plus selected sources"
           : "Connect Real-Debrid in Settings",
 
       onClick:
         playRealDebrid,
     },
-  ];
 
-  playableAddonStreams.forEach(
-    (
-      stream,
-      index
-    ) => {
-      rows.push({
+    ...visibleAddonStreams.map(
+      (
+        stream,
+        index
+      ) => ({
         id:
-          stream.id ||
-          `addon-${index}-${stream.label}`,
+          stream?.id ||
+          `addon-${index}`,
 
         kind:
           "addon-stream",
 
         label:
-          stream.label ||
-          "Configured source",
+          stream?.label ||
+          `Source ${index + 1}`,
 
         note:
-          stream.type ===
+          stream?.type ===
           "rd"
-            ? `${stream.addon || "Addon"} • Real-Debrid`
-            : stream.type ===
+            ? `${stream?.addon || "Addon"} • Real-Debrid source`
+            : stream?.type ===
                 "provider"
-              ? `${stream.addon || "Addon"} • Provider`
-              : stream.type ===
+              ? `${stream?.addon || "Addon"} • Provider`
+              : stream?.type ===
                   "youtube"
-                ? `${stream.addon || "Addon"} • Video`
-                : `${stream.addon || "Addon"} • Direct`,
+                ? `${stream?.addon || "Addon"} • Video`
+                : `${stream?.addon || "Addon"} • Direct stream`,
 
         onClick:
           () =>
             playAddonStream(
               stream
             ),
-      });
-    }
-  );
+      })
+    ),
 
-  rows.push({
-    id:
-      "paste",
-
-    kind:
-      "paste",
-
-    label:
-      "Paste Magnet",
-
-    note:
-      "Your own magnet via Real-Debrid",
-
-    onClick:
-      pasteMagnet,
-  });
-
-  if (trailerUrl) {
-    rows.push({
+    {
       id:
-        "trailer",
+        "paste",
 
       kind:
-        "trailer",
+        "paste",
 
       label:
-        "Trailer",
+        "Paste Magnet",
 
       note:
-        "YouTube",
+        "Send your own magnet through Real-Debrid",
 
       onClick:
-        playTrailer,
-    });
-  }
+        pasteMagnet,
+    },
 
-  (
-    liveMatches ||
-    []
-  ).forEach(
-    (
-      channel,
-      index
-    ) => {
-      rows.push({
+    ...(trailerUrl
+      ? [
+          {
+            id:
+              "trailer",
+
+            kind:
+              "trailer",
+
+            label:
+              "Trailer",
+
+            note:
+              "YouTube preview",
+
+            onClick:
+              playTrailer,
+          },
+        ]
+      : []),
+
+    ...(liveMatches || []).map(
+      (
+        channel,
+        index
+      ) => ({
         id:
           `live-${index}`,
 
@@ -904,76 +926,70 @@ export default function StreamSourcesBox({
             playLive(
               channel
             ),
-      });
-    }
-  );
+      })
+    ),
 
-  rows.push({
-    id:
-      "archive",
+    {
+      id:
+        "archive",
 
-    kind:
-      "archive",
+      kind:
+        "archive",
 
-    label:
-      "Free Archive",
+      label:
+        "Free Archive",
 
-    note:
-      "Public-domain on Internet Archive",
+      note:
+        "Search public-domain material on Internet Archive",
 
-    onClick:
-      () =>
-        window.open(
-          `https://archive.org/search?query=${encodeURIComponent(
-            title
-          )}`,
-          "_blank",
-          "noopener,noreferrer"
-        ),
-  });
+      onClick:
+        () =>
+          window.open(
+            `https://archive.org/search?query=${encodeURIComponent(
+              title
+            )}`,
+            "_blank",
+            "noopener,noreferrer"
+          ),
+    },
 
-  (
-    providers ||
-    []
-  ).forEach(
-    (
-      provider,
-      index
-    ) => {
-      if (
-        !provider?.link
-      ) {
-        return;
-      }
+    ...(providers || [])
+      .filter(
+        (provider) =>
+          provider?.link
+      )
+      .map(
+        (
+          provider,
+          index
+        ) => ({
+          id:
+            `provider-${index}-${provider?.name || "provider"}`,
 
-      rows.push({
-        id:
-          `provider-${index}-${provider.name}`,
+          kind:
+            "provider",
 
-        kind:
-          "provider",
+          label:
+            provider?.name ||
+            "Provider",
 
-        label:
-          provider?.name ||
-          "Provider",
+          note:
+            provider?.tier ||
+            "Where to watch",
 
-        note:
-          provider?.tier ||
-          "Where to watch",
+          logo:
+            provider?.logo,
 
-        logo:
-          provider?.logo,
-
-        onClick:
-          () =>
-            window.open(
-              provider.link,
-              "_blank",
-              "noopener,noreferrer"
-            ),
-      });
-    }
-  );
+          onClick:
+            () =>
+              window.open(
+                provider.link,
+                "_blank",
+                "noopener,noreferrer"
+              ),
+        })
+      ),
+  ];
 
   const iconFor =
     (
@@ -1053,7 +1069,7 @@ export default function StreamSourcesBox({
           <span className="text-[10px] text-white/40 flex items-center gap-1">
             <Loader2 className="w-3 h-3 animate-spin" />
 
-            Checking sources
+            Checking
           </span>
         )}
       </div>
@@ -1061,7 +1077,8 @@ export default function StreamSourcesBox({
       {loading ? (
         <div className="flex flex-col gap-1.5">
           {Array.from({
-            length: 4,
+            length:
+              4,
           }).map(
             (
               _,
@@ -1079,7 +1096,9 @@ export default function StreamSourcesBox({
       ) : (
         <div className="flex flex-col gap-1.5">
           {rows.map(
-            (row) => (
+            (
+              row
+            ) => (
               <button
                 type="button"
                 key={
@@ -1169,43 +1188,98 @@ export default function StreamSourcesBox({
           )}
 
           {!addonLoading && (
-            <div className="px-1 pt-1 space-y-1">
-              {addonsChecked >
-              0 ? (
-                <p className="text-[10px] text-white/35">
-                  Configured playback addons checked:{" "}
-                  {
-                    addonsChecked
-                  }
-                  . Playable sources found:{" "}
-                  {
-                    playableAddonStreams.length
-                  }
-                  .
-                  {failedAddonCount >
-                  0
-                    ? ` ${failedAddonCount} addon${failedAddonCount === 1 ? "" : "s"} returned no usable source.`
-                    : ""}
-                </p>
-              ) : addonReason ? (
-                <p className="text-[10px] text-amber-300/70 break-words">
-                  {
-                    addonReason
-                  }
-                </p>
-              ) : null}
-            </div>
-          )}
+            <details className="mt-1 rounded-md border border-white/5 bg-black/20 px-2.5 py-2">
+              <summary className="cursor-pointer text-[10px] text-white/45">
+                Source diagnostics — IMDb:{" "}
+                {
+                  resolvedImdb ||
+                  "not resolved"
+                }{" "}
+                ·{" "}
+                {
+                  imdbStatus
+                }{" "}
+                ·{" "}
+                {
+                  addonsChecked
+                }{" "}
+                addon
+                {addonsChecked ===
+                1
+                  ? ""
+                  : "s"}{" "}
+                checked ·{" "}
+                {
+                  visibleAddonStreams.length
+                }{" "}
+                source
+                {visibleAddonStreams.length ===
+                1
+                  ? ""
+                  : "s"}{" "}
+                shown
+              </summary>
 
-          {liveMatches ===
-            null && (
-            <p className="text-[10px] text-white/30 px-1 pt-1">
-              Checking live channels…
-            </p>
+              <div className="mt-2 space-y-1 text-[10px] text-white/40">
+                {addonReason && (
+                  <p className="break-words">
+                    {
+                      addonReason
+                    }
+                  </p>
+                )}
+
+                {addonDiagnostics.map(
+                  (
+                    item,
+                    index
+                  ) => (
+                    <p
+                      key={`${item?.name || "addon"}-${index}`}
+                      className="break-words"
+                    >
+                      <span className="text-white/60">
+                        {
+                          item?.name ||
+                          "Addon"
+                        }
+                        :
+                      </span>{" "}
+                      {item?.message ||
+                        item?.status ||
+                        "No details"}
+                    </p>
+                  )
+                )}
+
+                {failedAddonCount >
+                  0 && (
+                  <p>
+                    {
+                      failedAddonCount
+                    }{" "}
+                    configured addon
+                    {failedAddonCount ===
+                    1
+                      ? ""
+                      : "s"}{" "}
+                    returned no usable source or could not be reached.
+                  </p>
+                )}
+
+                {!addonReason &&
+                  addonDiagnostics.length ===
+                    0 && (
+                    <p>
+                      No additional diagnostics were returned.
+                    </p>
+                  )}
+              </div>
+            </details>
           )}
 
           {message && (
-            <p className="text-[10px] text-white/50 px-1 pt-1 break-words">
+            <p className="text-[10px] text-white/55 px-1 pt-1 break-words">
               {
                 message
               }
