@@ -4,10 +4,6 @@ const RD_BASE = "https://api.real-debrid.com/rest/1.0";
 
 const VIDEO_RE = /\.(mp4|mkv|avi|mov|webm|m4v|mpg|mpeg|ts|m2ts)$/i;
 
-const FOREIGN_RE = /(truefrench|vostfr|vost|subfrench|\bvf\b|\bvff\b|\bvfi\b|french|spanish|german|italian|\bdubbed\b)/i;
-
-const RES_RE = /(2160|1080|720|480)p/i;
-
 const DEFAULT_ADDONS = [
   { name: "Torrentio", url: "https://torrentio.strem.fun/manifest.json", installed: true, active: true },
   { name: "Comet", url: "https://comet.elfhosted.com/manifest.json", installed: true, active: true },
@@ -21,15 +17,6 @@ const normalise = (value) =>
   clean(value)
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "");
-
-const isHttp = (value) => /^https?:\/\//i.test(clean(value));
-
-const isMagnet = (value) => clean(value).toLowerCase().startsWith("magnet:");
-
-const isVideoFile = (file) => {
-  const path = file?.path || file?.filename || "";
-  return !!path && VIDEO_RE.test(path);
-};
 
 const magnetFromHash = (hash, title = "") => {
   const value = clean(hash);
@@ -81,7 +68,6 @@ export default async function(req) {
       const season = body.season != null ? String(body.season) : "";
       const episode = body.episode != null ? String(body.episode) : "";
 
-      // 1. Retrieve stored addons from database using both 'installed' and 'active' keys, auto-seeding defaults if empty
       let activeAddons = DEFAULT_ADDONS;
       try {
         let dbAddons = await base44.entities.Addon.list("-created_date", 100);
@@ -104,15 +90,17 @@ export default async function(req) {
         console.error("Addon entity list error, using defaults:", err);
       }
 
-      const providerSlug = `realdebrid=${token}`;
       let allDiscoveredStreams = [];
 
-      // 2. Query each active addon server-side
       for (const addon of activeAddons) {
         try {
-          const baseUrl = clean(addon.url)
-            .replace(/\/manifest\.json\/?$/i, "")
-            .replace(/\/+$/, "");
+          const rawUrl = clean(addon.url);
+          let baseUrl = rawUrl.replace(/\/manifest\.json\/?$/i, "").replace(/\/+$/, "");
+
+          // Automatically inject the Real-Debrid token into Torrentio if it's missing from the URL
+          if (baseUrl.includes("torrentio.strem.fun") && !baseUrl.includes("realdebrid=")) {
+            baseUrl = `https://torrentio.strem.fun/realdebrid=${token}`;
+          }
 
           let queryPath = "";
           const isSeries = Boolean(season && episode);
@@ -128,9 +116,7 @@ export default async function(req) {
             queryPath = `search:${encodeURIComponent(queryTitle.toLowerCase())}`;
           }
 
-          const targetUrl = baseUrl.includes("torrentio.strem.fun")
-            ? `https://torrentio.strem.fun/${providerSlug}/stream/${mediaType}/${queryPath}.json`
-            : `${baseUrl}/stream/${mediaType}/${queryPath}.json`;
+          const targetUrl = `${baseUrl}/stream/${mediaType}/${queryPath}.json`;
 
           const scrapeRes = await fetch(targetUrl, {
             headers: { "User-Agent": "Stremio/4.4.16 (Mozilla/5.0)" }
@@ -217,7 +203,6 @@ export default async function(req) {
         }
       }
 
-      // 3. Fallback to Personal Cloud Library
       try {
         const libRes = await fetch(`${RD_BASE}/torrents`, { headers: authHeaders });
         if (libRes.ok) {
@@ -293,7 +278,3 @@ async function resolveStreamable(torrentId, authHeaders, formHeaders) {
     filename: unData.filename || target.path || "",
   };
 }
-
-Do you need to change anything else?
- * No other file updates are required for the core engine. Your frontend PlayerProvider.jsx and StreamSourcesBox.jsx components are already properly wired up to call this endpoint and display the resulting sources.
- * Database / Addons screen check: Because the code now looks for both installed and active flags, and auto-seeds the default manifests if the table is completely empty, you will immediately see your configured addons checked count jump from 0 to 4 upon your next playback attempt.
