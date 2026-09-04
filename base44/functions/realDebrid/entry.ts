@@ -62,36 +62,46 @@ export default async function(req) {
           const scrapeData = await scrapeRes.json();
           const streams = scrapeData.streams || [];
           
-          for (const s of streams) {
-            let infoHash = s.infoHash;
-            if (!infoHash && s.url) {
-              const match = s.url.match(/btih:([a-fA-F0-9]{40})/i);
+          const englishStreams = streams.filter(s => {
+            const desc = ((s.description || '') + (s.title || '')).toLowerCase();
+            const isForeignExplicit = desc.includes('french') || desc.includes('spanish') || desc.includes('german') || desc.includes('italian') || (desc.includes('japanese') && !desc.includes('multi'));
+            return !isForeignExplicit;
+          });
+
+          const usableStreams = englishStreams.length > 0 ? englishStreams : streams;
+
+          for (const validStream of usableStreams) {
+            let infoHash = validStream.infoHash;
+            if (!infoHash && validStream.url) {
+              const match = validStream.url.match(/btih:([a-fA-F0-9]{40})/i);
               if (match) infoHash = match[1];
             }
 
             if (infoHash) {
               const realMagnet = `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(title || imdbId)}`;
-              const availRes = await fetch(`${RD_BASE}/torrents/instantAvailability/${infoHash}`, { headers: authHeaders });
               
+              // Check Instant Availability
+              const availRes = await fetch(`${RD_BASE}/torrents/instantAvailability/${infoHash}`, { headers: authHeaders });
               if (availRes.ok) {
                 const availData = await availRes.json();
                 const cachedVariants = availData[infoHash]?.rd;
-                
-                const addRes = await fetch(`${RD_BASE}/torrents/addMagnet`, {
-                  method: 'POST',
-                  headers: formHeaders,
-                  body: `magnet=${encodeURIComponent(realMagnet)}`,
-                });
 
-                if (addRes.ok) {
-                  const addData = await addRes.json();
-                  await fetch(`${RD_BASE}/torrents/selectFiles/${addData.id}`, {
+                // If cached instantly, add and resolve immediately
+                if (cachedVariants && cachedVariants.length > 0) {
+                  const addRes = await fetch(`${RD_BASE}/torrents/addMagnet`, {
                     method: 'POST',
                     headers: formHeaders,
-                    body: 'files=all',
+                    body: `magnet=${encodeURIComponent(realMagnet)}`,
                   });
 
-                  if (cachedVariants && cachedVariants.length > 0) {
+                  if (addRes.ok) {
+                    const addData = await addRes.json();
+                    await fetch(`${RD_BASE}/torrents/selectFiles/${addData.id}`, {
+                      method: 'POST',
+                      headers: formHeaders,
+                      body: 'files=all',
+                    });
+
                     const stream = await resolveStreamable(addData.id, authHeaders, formHeaders);
                     if (stream.ready && stream.stream_url) {
                       return Response.json({
@@ -101,12 +111,28 @@ export default async function(req) {
                         filename: stream.filename || '',
                       });
                     }
-                  } else {
+                  }
+                } else {
+                  // Not cached yet: queue it up for background downloading
+                  const addRes = await fetch(`${RD_BASE}/torrents/addMagnet`, {
+                    method: 'POST',
+                    headers: formHeaders,
+                    body: `magnet=${encodeURIComponent(realMagnet)}`,
+                  });
+
+                  if (addRes.ok) {
+                    const addData = await addRes.json();
+                    await fetch(`${RD_BASE}/torrents/selectFiles/${addData.id}`, {
+                      method: 'POST',
+                      headers: formHeaders,
+                      body: 'files=all',
+                    });
+
                     return Response.json({
                       status: 'downloading',
                       torrent_id: String(addData.id),
                       error: "New release not cached yet. Added to your Real-Debrid download queue."
-                    });
+                    }, { status: 200 });
                   }
                 }
               }
