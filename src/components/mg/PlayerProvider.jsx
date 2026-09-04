@@ -88,7 +88,6 @@ export function PlayerProvider({ children }) {
         });
       }
 
-      // Fetch discovered sources securely via the backend function to prevent browser CORS blocks
       if (!isLive) {
         try {
           const response = await base44.functions.invoke("realDebrid", {
@@ -108,7 +107,6 @@ export function PlayerProvider({ children }) {
         }
       }
 
-      // Deduplicate sources
       const seen = new Set();
       sources = sources.filter((item) => {
         const key = String(item?.src || item?.url || item?.magnet || "").trim();
@@ -125,11 +123,31 @@ export function PlayerProvider({ children }) {
         });
       }
 
-      const getSourceUrl = (item) =>
-        String(item?.src || item?.url || item?.magnet || "").trim();
+      let activeUrl = s?.src || s?.url || sources[0]?.src || sources[0]?.url || "";
+      let resolvedSources = [...sources];
 
-      const playableSource = sources[0];
-      const activeUrl = getSourceUrl(playableSource) || s?.src || "";
+      if (!isLive && (activeUrl.startsWith("magnet:") || s?.infoHash || s?.type === "rd" || originalSources.length === 0)) {
+        try {
+          const response = await base44.functions.invoke("realDebrid", {
+            action: "find_cached",
+            title: s?.title || s?.rdTitle || "",
+            imdb_id: mediaId,
+            season: isSeries ? (s?.season ?? s?.rdSeason) : undefined,
+            episode: isSeries ? (s?.episode ?? s?.rdEpisode) : undefined,
+          });
+
+          if (response?.stream_url) {
+            activeUrl = response.stream_url;
+            resolvedSources = [{
+              label: response.filename || s?.title || "Stream",
+              type: "url",
+              src: activeUrl
+            }];
+          }
+        } catch (err) {
+          console.error("Failed to resolve stream through Real-Debrid:", err);
+        }
+      }
 
       setSource({
         ...s,
@@ -142,7 +160,7 @@ export function PlayerProvider({ children }) {
         rdSeason: s?.rdSeason ?? s?.season ?? null,
         rdEpisode: s?.rdEpisode ?? s?.episode ?? null,
         mediaType: s?.mediaType || (isSeries ? "tv" : "movie"),
-        sources,
+        sources: resolvedSources,
         url: activeUrl,
         hasRd,
       });
