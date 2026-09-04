@@ -40,7 +40,7 @@ export default async function(req) {
       const season = body.season != null ? String(body.season) : '';
       const episode = body.episode != null ? String(body.episode) : '';
 
-      // 1. External Network Scrape via Torrentio (using IMDb ID or title query)
+      // 1. External Network Scrape via Torrentio FIRST (with English Language Filter)
       let torrentioUrl = '';
       if (imdbId) {
         const type = season && episode ? 'series' : 'movie';
@@ -61,7 +61,15 @@ export default async function(req) {
         if (scrapeRes.ok) {
           const scrapeData = await scrapeRes.json();
           const streams = scrapeData.streams || [];
-          const validStream = streams.find(s => s.infoHash || (s.url && s.url.includes('btih:')));
+          
+          // Filter streams to prioritize English or Multi-audio, avoiding foreign-only dubs
+          const englishStreams = streams.filter(s => {
+            const desc = ((s.description || '') + (s.title || '')).toLowerCase();
+            const isForeignExplicit = desc.includes('french') || desc.includes('spanish') || desc.includes('german') || desc.includes('italian') || (desc.includes('japanese') && !desc.includes('multi'));
+            return !isForeignExplicit;
+          });
+
+          const validStream = englishStreams.find(s => s.infoHash || (s.url && s.url.includes('btih:'))) || streams.find(s => s.infoHash || (s.url && s.url.includes('btih:')));
           
           if (validStream) {
             let infoHash = validStream.infoHash;
@@ -118,7 +126,7 @@ export default async function(req) {
         console.error("Torrentio scrape error:", err);
       }
 
-      // 2. Personal Cloud Library Fallback
+      // 2. Personal Cloud Library Fallback (Only if network/Torrentio didn't yield a stream)
       try {
         const libRes = await fetch(`${RD_BASE}/torrents`, { headers: authHeaders });
         if (libRes.ok) {
