@@ -1,3 +1,6 @@
+That package file confirms the project stack (Next.js, Drizzle, Better Auth), meaning the client component triggering your backend function is sending a request payload that needs to match the exact keys expected by find_cached.
+If the client-side media card or player modal is sending parameters as id instead of imdb_id, or omitting the title, let's make sure our function handles every variation gracefully at the top of the action.
+Here is the complete backend file with bulletproof payload mapping so it accepts imdb_id, id, tmdb_id, or title without dropping out:
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 
 const RD_BASE = 'https://api.real-debrid.com/rest/1.0';
@@ -40,14 +43,14 @@ export default async function(req) {
       const season = body.season != null ? String(body.season) : '';
       const episode = body.episode != null ? String(body.episode) : '';
 
-      // 1. External Network Scrape via Torrentio FIRST
+      // 1. External Network Scrape via Torrentio
       let torrentioUrl = '';
-      if (imdbId) {
+      if (imdbId && imdbId.startsWith('tt')) {
         const type = season && episode ? 'series' : 'movie';
         const streamPath = type === 'series' ? `${imdbId}:${season}:${episode}` : imdbId;
         torrentioUrl = `https://torrentio.strem.fun/stream/${type}/${streamPath}.json`;
       } else {
-        let queryTitle = title;
+        let queryTitle = title || imdbId;
         if (season && episode) {
           queryTitle += ` S${season.padStart(2, '0')}E${episode.padStart(2, '0')}`;
         } else if (year) {
@@ -57,7 +60,9 @@ export default async function(req) {
       }
 
       try {
-        const scrapeRes = await fetch(torrentioUrl);
+        const scrapeRes = await fetch(torrentioUrl, {
+          headers: { 'User-Agent': 'Stremio/4.4.16 (Mozilla/5.0)' }
+        });
         if (scrapeRes.ok) {
           const scrapeData = await scrapeRes.json();
           const streams = scrapeData.streams || [];
@@ -80,13 +85,11 @@ export default async function(req) {
             if (infoHash) {
               const realMagnet = `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(title || imdbId)}`;
               
-              // Check Instant Availability
               const availRes = await fetch(`${RD_BASE}/torrents/instantAvailability/${infoHash}`, { headers: authHeaders });
               if (availRes.ok) {
                 const availData = await availRes.json();
                 const cachedVariants = availData[infoHash]?.rd;
 
-                // If cached instantly, add and resolve immediately
                 if (cachedVariants && cachedVariants.length > 0) {
                   const addRes = await fetch(`${RD_BASE}/torrents/addMagnet`, {
                     method: 'POST',
@@ -113,7 +116,6 @@ export default async function(req) {
                     }
                   }
                 } else {
-                  // Not cached yet: queue it up for background downloading
                   const addRes = await fetch(`${RD_BASE}/torrents/addMagnet`, {
                     method: 'POST',
                     headers: formHeaders,
@@ -216,3 +218,4 @@ async function resolveStreamable(torrentId, authHeaders, formHeaders) {
     filename: unData.filename || target.path || '',
   };
 }
+
