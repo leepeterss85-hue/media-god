@@ -42,11 +42,20 @@ export default function DetailModal({ item, mediaType, onClose }) {
 
   const play = () => {
     player.play({
+      id: item.id,
       title: item.title,
       poster: item.poster_url,
+      year: item.year,
+      mediaType,
       rdTitle: item.title,
       rdYear: item.year,
-      sources: buildMediaSources({ title: item.title, id: item.id, poster: item.poster_url, trailerUrl, providers }),
+      sources: buildMediaSources({
+        title: item.title,
+        id: item.id,
+        poster: item.poster_url,
+        trailerUrl,
+        providers,
+      }),
     });
     onClose();
   };
@@ -187,7 +196,7 @@ export default function DetailModal({ item, mediaType, onClose }) {
             </button>
           </div>
 
-          {/* Stream sources (Restored without extra scraper parameters) */}
+          {/* Stream sources */}
           <StreamSourcesBox
             title={item.title}
             poster={item.poster_url}
@@ -195,6 +204,15 @@ export default function DetailModal({ item, mediaType, onClose }) {
             providers={providers}
             loading={loading}
             rdYear={item.year}
+            tmdbId={item.id}
+            imdbId={
+              item.imdb_id ||
+              item.imdbId ||
+              details.imdb_id ||
+              details.imdbId ||
+              ""
+            }
+            mediaType={mediaType}
           />
 
           {/* Plot */}
