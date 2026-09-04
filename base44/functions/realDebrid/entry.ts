@@ -40,13 +40,14 @@ export default async function(req) {
       const season = body.season != null ? String(body.season) : '';
       const episode = body.episode != null ? String(body.episode) : '';
 
-      // 1. External Network Scrape via Torrentio FIRST (with English Language Filter)
+      // 1. External Network Scrape via Torrentio FIRST (Using correct Stremio IMDb URL pattern)
       let torrentioUrl = '';
       if (imdbId) {
         const type = season && episode ? 'series' : 'movie';
         const streamPath = type === 'series' ? `${imdbId}:${season}:${episode}` : imdbId;
         torrentioUrl = `https://torrentio.strem.fun/stream/${type}/${streamPath}.json`;
       } else {
+        // Fallback search route if IMDb ID is completely missing
         let queryTitle = title;
         if (season && episode) {
           queryTitle += ` S${season.padStart(2, '0')}E${episode.padStart(2, '0')}`;
