@@ -1,5 +1,3 @@
-The missing buildMediaSources helper was omitted when cleaning up the player provider.
-Here is the complete PlayerProvider.jsx with buildMediaSources fully restored so other components importing it won't crash:
 import React, {
   createContext,
   useContext,
@@ -183,6 +181,8 @@ export function PlayerProvider({ children }) {
     </PlayerContext.Provider>
   );
 }
+
+usePlayer.displayName = "usePlayer";
 
 export function usePlayer() {
   const ctx = useContext(PlayerContext);
