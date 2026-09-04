@@ -1,3 +1,5 @@
+The missing buildMediaSources helper was omitted when cleaning up the player provider.
+Here is the complete PlayerProvider.jsx with buildMediaSources fully restored so other components importing it won't crash:
 import React, {
   createContext,
   useContext,
@@ -187,3 +189,30 @@ export function usePlayer() {
   if (!ctx) throw new Error("usePlayer must be used within a PlayerProvider");
   return ctx;
 }
+
+export const DEMO_VIDEO = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
+
+export function buildMediaSources({ title, id, poster, trailerUrl, providers }) {
+  const sources = [];
+
+  if (trailerUrl) {
+    sources.push({
+      label: "Trailer",
+      type: "youtube",
+      src: trailerUrl,
+    });
+  }
+
+  (providers || []).forEach((provider) => {
+    if (!provider?.link) return;
+    sources.push({
+      label: provider.name,
+      type: "provider",
+      src: provider.link,
+      logo: provider.logo,
+    });
+  });
+
+  return sources;
+}
+
