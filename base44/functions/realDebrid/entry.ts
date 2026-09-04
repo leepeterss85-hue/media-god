@@ -40,110 +40,123 @@ export default async function(req) {
       const season = body.season != null ? String(body.season) : '';
       const episode = body.episode != null ? String(body.episode) : '';
 
-      // 1. External Network Scrape via Torrentio (with Real-Debrid token embedded)
-      let torrentioUrl = '';
       const providerSlug = `realdebrid=${token}`;
+      let streams = [];
+
+      // Helper to fetch and parse Torrentio streams
+      async function scrapeTorrentio(url) {
+        try {
+          const scrapeRes = await fetch(url, {
+            headers: { 'User-Agent': 'Stremio/4.4.16 (Mozilla/5.0)' }
+          });
+          if (scrapeRes.ok) {
+            const data = await scrapeRes.json();
+            return data.streams || [];
+          }
+        } catch (err) {
+          console.error("Torrentio fetch error:", err);
+        }
+        return [];
+      }
+
+      // 1. Try IMDb ID lookup first if available
       if (imdbId && imdbId.startsWith('tt')) {
         const type = season && episode ? 'series' : 'movie';
         const streamPath = type === 'series' ? `${imdbId}:${season}:${episode}` : imdbId;
-        torrentioUrl = `https://torrentio.strem.fun/${providerSlug}/stream/${type}/${streamPath}.json`;
-      } else {
-        let queryTitle = title || imdbId;
+        const url = `https://torrentio.strem.fun/${providerSlug}/stream/${type}/${streamPath}.json`;
+        streams = await scrapeTorrentio(url);
+      }
+
+      // 2. If IMDb ID returned nothing, fallback to title-based search query
+      if (streams.length === 0 && title) {
+        let queryTitle = title;
         if (season && episode) {
           queryTitle += ` S${season.padStart(2, '0')}E${episode.padStart(2, '0')}`;
         } else if (year) {
           queryTitle += ` ${year}`;
         }
-        torrentioUrl = `https://torrentio.strem.fun/${providerSlug}/stream/movie/${encodeURIComponent(queryTitle.toLowerCase())}.json`;
+        const url = `https://torrentio.strem.fun/${providerSlug}/stream/movie/${encodeURIComponent(queryTitle.toLowerCase())}.json`;
+        streams = await scrapeTorrentio(url);
       }
 
-      try {
-        const scrapeRes = await fetch(torrentioUrl, {
-          headers: { 'User-Agent': 'Stremio/4.4.16 (Mozilla/5.0)' }
+      // Process collected streams
+      if (streams.length > 0) {
+        const englishStreams = streams.filter(s => {
+          const desc = ((s.description || '') + (s.title || '')).toLowerCase();
+          const isForeignExplicit = desc.includes('french') || desc.includes('spanish') || desc.includes('german') || desc.includes('italian') || (desc.includes('japanese') && !desc.includes('multi'));
+          return !isForeignExplicit;
         });
-        if (scrapeRes.ok) {
-          const scrapeData = await scrapeRes.json();
-          const streams = scrapeData.streams || [];
-          
-          const englishStreams = streams.filter(s => {
-            const desc = ((s.description || '') + (s.title || '')).toLowerCase();
-            const isForeignExplicit = desc.includes('french') || desc.includes('spanish') || desc.includes('german') || desc.includes('italian') || (desc.includes('japanese') && !desc.includes('multi'));
-            return !isForeignExplicit;
-          });
 
-          const usableStreams = englishStreams.length > 0 ? englishStreams : streams;
+        const usableStreams = englishStreams.length > 0 ? englishStreams : streams;
 
-          for (const validStream of usableStreams) {
-            let infoHash = validStream.infoHash;
-            if (!infoHash && validStream.url) {
-              const match = validStream.url.match(/btih:([a-fA-F0-9]{40})/i);
-              if (match) infoHash = match[1];
-            }
+        for (const validStream of usableStreams) {
+          let infoHash = validStream.infoHash;
+          if (!infoHash && validStream.url) {
+            const match = validStream.url.match(/btih:([a-fA-F0-9]{40})/i);
+            if (match) infoHash = match[1];
+          }
 
-            if (infoHash) {
-              const realMagnet = `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(title || imdbId)}`;
-              
-              const availRes = await fetch(`${RD_BASE}/torrents/instantAvailability/${infoHash}`, { headers: authHeaders });
-              if (availRes.ok) {
-                const availData = await availRes.json();
-                const cachedVariants = availData[infoHash]?.rd;
+          if (infoHash) {
+            const realMagnet = `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(title || imdbId)}`;
+            
+            const availRes = await fetch(`${RD_BASE}/torrents/instantAvailability/${infoHash}`, { headers: authHeaders });
+            if (availRes.ok) {
+              const availData = await availRes.json();
+              const cachedVariants = availData[infoHash]?.rd;
 
-                if (cachedVariants && cachedVariants.length > 0) {
-                  const addRes = await fetch(`${RD_BASE}/torrents/addMagnet`, {
+              if (cachedVariants && cachedVariants.length > 0) {
+                const addRes = await fetch(`${RD_BASE}/torrents/addMagnet`, {
+                  method: 'POST',
+                  headers: formHeaders,
+                  body: `magnet=${encodeURIComponent(realMagnet)}`,
+                });
+
+                if (addRes.ok) {
+                  const addData = await addRes.json();
+                  await fetch(`${RD_BASE}/torrents/selectFiles/${addData.id}`, {
                     method: 'POST',
                     headers: formHeaders,
-                    body: `magnet=${encodeURIComponent(realMagnet)}`,
+                    body: 'files=all',
                   });
 
-                  if (addRes.ok) {
-                    const addData = await addRes.json();
-                    await fetch(`${RD_BASE}/torrents/selectFiles/${addData.id}`, {
-                      method: 'POST',
-                      headers: formHeaders,
-                      body: 'files=all',
-                    });
-
-                    const stream = await resolveStreamable(addData.id, authHeaders, formHeaders);
-                    if (stream.ready && stream.stream_url) {
-                      return Response.json({
-                        status: 'ready',
-                        torrent_id: String(addData.id),
-                        stream_url: stream.stream_url,
-                        filename: stream.filename || '',
-                      });
-                    }
-                  }
-                } else {
-                  const addRes = await fetch(`${RD_BASE}/torrents/addMagnet`, {
-                    method: 'POST',
-                    headers: formHeaders,
-                    body: `magnet=${encodeURIComponent(realMagnet)}`,
-                  });
-
-                  if (addRes.ok) {
-                    const addData = await addRes.json();
-                    await fetch(`${RD_BASE}/torrents/selectFiles/${addData.id}`, {
-                      method: 'POST',
-                      headers: formHeaders,
-                      body: 'files=all',
-                    });
-
+                  const stream = await resolveStreamable(addData.id, authHeaders, formHeaders);
+                  if (stream.ready && stream.stream_url) {
                     return Response.json({
-                      status: 'downloading',
+                      status: 'ready',
                       torrent_id: String(addData.id),
-                      error: "New release not cached yet. Added to your Real-Debrid download queue."
-                    }, { status: 200 });
+                      stream_url: stream.stream_url,
+                      filename: stream.filename || '',
+                    });
                   }
+                }
+              } else {
+                const addRes = await fetch(`${RD_BASE}/torrents/addMagnet`, {
+                  method: 'POST',
+                  headers: formHeaders,
+                  body: `magnet=${encodeURIComponent(realMagnet)}`,
+                });
+
+                if (addRes.ok) {
+                  const addData = await addRes.json();
+                  await fetch(`${RD_BASE}/torrents/selectFiles/${addData.id}`, {
+                    method: 'POST',
+                    headers: formHeaders,
+                    body: 'files=all',
+                  });
+
+                  return Response.json({
+                    status: 'downloading',
+                    torrent_id: String(addData.id),
+                    error: "New release not cached yet. Added to your Real-Debrid download queue."
+                  }, { status: 200 });
                 }
               }
             }
           }
         }
-      } catch (err) {
-        console.error("Torrentio scrape error:", err);
       }
 
-      // 2. Personal Cloud Library Fallback
+      // 3. Personal Cloud Library Fallback
       try {
         const libRes = await fetch(`${RD_BASE}/torrents`, { headers: authHeaders });
         if (libRes.ok) {
