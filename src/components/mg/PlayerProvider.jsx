@@ -22,7 +22,9 @@ const FOREIGN_RE =
 const RES_RE =
   /(2160|1080|720|480)p/i;
 
-const getSourceUrl = (item) =>
+const getSourceUrl = (
+  item
+) =>
   String(
     item?.src ||
       item?.url ||
@@ -40,7 +42,8 @@ const isMagnetSource = (
     ).toLowerCase();
 
   return (
-    item?.type === "rd" ||
+    item?.type ===
+      "rd" ||
     item?.type ===
       "rd_torrent" ||
     item?.type ===
@@ -247,7 +250,7 @@ const resolveImdbId =
           }
         }
       } catch {
-        // Fall through.
+        // Fall through to title search.
       }
     }
 
@@ -260,6 +263,7 @@ const resolveImdbId =
         new URLSearchParams({
           api_key:
             TMDB_KEY,
+
           query:
             title,
         });
@@ -271,16 +275,12 @@ const resolveImdbId =
         ) {
           query.set(
             "first_air_date_year",
-            String(
-              year
-            )
+            String(year)
           );
         } else {
           query.set(
             "year",
-            String(
-              year
-            )
+            String(year)
           );
         }
       }
@@ -302,9 +302,7 @@ const resolveImdbId =
       const match =
         searchData?.results?.[0];
 
-      if (
-        !match?.id
-      ) {
+      if (!match?.id) {
         return "";
       }
 
@@ -334,12 +332,22 @@ const resolveImdbId =
 const fetchAddonStreamsServer =
   async ({
     imdbId,
+    title,
     mediaType,
     season,
     episode,
   }) => {
-    if (!imdbId) {
-      return [];
+    if (
+      !imdbId &&
+      !title
+    ) {
+      return {
+        streams: [],
+        diagnostics: [],
+        addonsChecked: 0,
+        reason:
+          "No IMDb id or title was available.",
+      };
     }
 
     if (
@@ -350,7 +358,13 @@ const fetchAddonStreamsServer =
         episode == null
       )
     ) {
-      return [];
+      return {
+        streams: [],
+        diagnostics: [],
+        addonsChecked: 0,
+        reason:
+          "Select a season and episode first.",
+      };
     }
 
     try {
@@ -359,7 +373,12 @@ const fetchAddonStreamsServer =
           "fetchAddonStreams",
           {
             imdb_id:
-              imdbId,
+              imdbId ||
+              "",
+
+            title:
+              title ||
+              "",
 
             media_type:
               mediaType,
@@ -378,52 +397,66 @@ const fetchAddonStreamsServer =
           }
         );
 
-      return Array.isArray(
-        response?.data
-          ?.streams
-      )
-        ? response.data
-            .streams
-        : [];
-    } catch {
-      return [];
+      const data =
+        response?.data ||
+        {};
+
+      return {
+        streams:
+          Array.isArray(
+            data?.streams
+          )
+            ? data.streams
+            : [],
+
+        diagnostics:
+          Array.isArray(
+            data?.diagnostics
+          )
+            ? data.diagnostics
+            : [],
+
+        addonsChecked:
+          Number(
+            data?.addons_checked ||
+              0
+          ),
+
+        reason:
+          data?.reason ||
+          data?.error ||
+          "",
+      };
+    } catch (error) {
+      return {
+        streams: [],
+        diagnostics: [],
+        addonsChecked: 0,
+
+        reason:
+          error?.message ||
+          "Addon source lookup failed.",
+      };
     }
   };
 
 const findRealDebridSource =
   async ({
     title,
-    imdbId,
     year,
-    mediaType,
     season,
     episode,
   }) => {
-    if (
-      !title &&
-      !imdbId
-    ) {
+    if (!title) {
       return null;
     }
 
     try {
       const response =
         await base44.functions.invoke(
-          "realDebrid",
+          "findRdLibrary",
           {
-            action:
-              "find_cached",
-
-            title:
-              title ||
-              "",
-
-            imdb_id:
-              imdbId ||
-              "",
-
-            media_type:
-              mediaType,
+            title,
 
             ...(year != null
               ? {
@@ -454,18 +487,10 @@ const findRealDebridSource =
           "ready" &&
         data?.stream_url
       ) {
-        const isAddonDirect =
-          data?.source ===
-          "addon-direct";
-
         return {
           label:
             data?.filename ||
-            (
-              isAddonDirect
-                ? "Direct source"
-                : "Real-Debrid"
-            ),
+            "Real-Debrid Library",
 
           type:
             "url",
@@ -477,55 +502,14 @@ const findRealDebridSource =
             data.stream_url,
 
           addon:
-            isAddonDirect
-              ? "Direct source"
-              : "Real-Debrid",
-
-          viaRealDebrid:
-            !isAddonDirect,
-        };
-      }
-
-      /*
-       * IMPORTANT:
-       *
-       * The current Real-Debrid backend returns
-       * status "source" for films/shows that it
-       * finds outside the user's existing library.
-       *
-       * The old PlayerProvider ignored this.
-       */
-      if (
-        data?.status ===
-          "source" &&
-        data?.magnet
-      ) {
-        return {
-          label:
-            data?.filename ||
-            "Real-Debrid source",
-
-          type:
-            "rd",
-
-          src:
-            data.magnet,
-
-          url:
-            data.magnet,
-
-          magnet:
-            data.magnet,
-
-          addon:
-            "Real-Debrid",
+            "Real-Debrid Library",
 
           viaRealDebrid:
             true,
         };
       }
     } catch {
-      // Other sources may still work.
+      // Real-Debrid library lookup is optional.
     }
 
     return null;
@@ -557,9 +541,7 @@ export function PlayerProvider({
     base44.auth
       .me()
       .then(
-        (
-          user
-        ) => {
+        (user) => {
           if (
             mounted
           ) {
@@ -605,9 +587,7 @@ export function PlayerProvider({
           request?.type ===
             "live" ||
           originalSources.some(
-            (
-              item
-            ) =>
+            (item) =>
               item?.live ||
               item?.type ===
                 "live"
@@ -649,9 +629,7 @@ export function PlayerProvider({
 
         let sources =
           originalSources.map(
-            (
-              item
-            ) => {
+            (item) => {
               const url =
                 getSourceUrl(
                   item
@@ -671,32 +649,33 @@ export function PlayerProvider({
             }
           );
 
-        /*
-         * Fetch the full source list server-side.
-         * This avoids browser CORS blocking addon requests.
-         */
         const addonPromise =
           !isLive &&
           !request?.skipAddonLookup
             ? fetchAddonStreamsServer(
                 {
                   imdbId,
+
+                  title:
+                    request?.title ||
+                    "",
+
                   mediaType,
                   season,
                   episode,
                 }
               )
             : Promise.resolve(
-                []
+                {
+                  streams: [],
+                  diagnostics: [],
+                  addonsChecked:
+                    0,
+                  reason:
+                    "",
+                }
               );
 
-        /*
-         * Ask Real-Debrid separately.
-         *
-         * This can return:
-         * ready  -> existing/cached direct URL
-         * source -> new magnet that VideoPlayer sends to RD
-         */
         const rdPromise =
           !isLive &&
           hasRd &&
@@ -709,14 +688,11 @@ export function PlayerProvider({
                     request?.title ||
                     "",
 
-                  imdbId,
-
                   year:
                     request?.rdYear ??
                     request?.year ??
                     null,
 
-                  mediaType,
                   season,
                   episode,
                 }
@@ -726,7 +702,7 @@ export function PlayerProvider({
               );
 
         const [
-          addonSources,
+          addonLookup,
           rdSource,
         ] =
           await Promise.all(
@@ -735,6 +711,15 @@ export function PlayerProvider({
               rdPromise,
             ]
           );
+
+        const addonSources =
+          Array.isArray(
+            addonLookup
+              ?.streams
+          )
+            ? addonLookup
+                .streams
+            : [];
 
         sources =
           dedupeSources(
@@ -751,20 +736,11 @@ export function PlayerProvider({
             ]
           );
 
-        /*
-         * People without Real-Debrid
-         * can still use genuine direct URLs,
-         * live streams, trailers and providers.
-         *
-         * Magnet/RD sources are hidden from them.
-         */
         const usableSources =
           hasRd
             ? sources
             : sources.filter(
-                (
-                  item
-                ) =>
+                (item) =>
                   !isMagnetSource(
                     item
                   )
@@ -772,10 +748,9 @@ export function PlayerProvider({
 
         const rdReady =
           usableSources.filter(
-            (
+            (item) =>
               item
-            ) =>
-              item?.viaRealDebrid &&
+                ?.viaRealDebrid &&
               isDirectSource(
                 item
               )
@@ -783,10 +758,9 @@ export function PlayerProvider({
 
         const directSources =
           usableSources.filter(
-            (
-              item
-            ) =>
-              !item?.viaRealDebrid &&
+            (item) =>
+              !item
+                ?.viaRealDebrid &&
               isDirectSource(
                 item
               )
@@ -801,9 +775,7 @@ export function PlayerProvider({
 
         const liveSources =
           usableSources.filter(
-            (
-              item
-            ) =>
+            (item) =>
               item?.type ===
                 "live" ||
               item?.live
@@ -811,27 +783,21 @@ export function PlayerProvider({
 
         const trailerSources =
           usableSources.filter(
-            (
-              item
-            ) =>
+            (item) =>
               item?.type ===
               "youtube"
           );
 
         const providerSources =
           usableSources.filter(
-            (
-              item
-            ) =>
+            (item) =>
               item?.type ===
               "provider"
           );
 
         const otherSources =
           usableSources.filter(
-            (
-              item
-            ) =>
+            (item) =>
               !rdReady.includes(
                 item
               ) &&
@@ -900,9 +866,7 @@ export function PlayerProvider({
 
         const hasPlaybackSource =
           orderedSources.some(
-            (
-              item
-            ) =>
+            (item) =>
               isDirectSource(
                 item
               ) ||
@@ -916,38 +880,67 @@ export function PlayerProvider({
 
         const allowNonPlaybackFallback =
           Boolean(
-            request?.allowNonPlaybackFallback
+            request
+              ?.allowNonPlaybackFallback
           );
 
         if (
           orderedSources.length ===
-            0 ||
-          (
-            !hasPlaybackSource &&
-            !allowNonPlaybackFallback
-          )
+            0 &&
+          !allowNonPlaybackFallback
         ) {
           console.warn(
-            "[Media God] No playable source found",
+            "[Media God] No source found",
             {
               title:
                 request?.title,
 
               imdbId,
-
               mediaType,
-
               season,
-
               episode,
+
+              addonsChecked:
+                addonLookup
+                  ?.addonsChecked ||
+                0,
+
+              addonReason:
+                addonLookup
+                  ?.reason ||
+                "",
             }
           );
 
           return false;
         }
 
+        const finalSources =
+          hasPlaybackSource
+            ? orderedSources
+            : [
+                {
+                  label:
+                    addonLookup
+                      ?.reason ||
+                    "No full playback source was found",
+
+                  type:
+                    "status",
+
+                  src:
+                    "",
+
+                  url:
+                    "",
+                },
+
+                ...orderedSources,
+              ];
+
         const primary =
-          orderedSources[0];
+          finalSources[0] ||
+          {};
 
         const activeUrl =
           getSourceUrl(
@@ -975,9 +968,7 @@ export function PlayerProvider({
             request?.year,
 
           mediaType,
-
           season,
-
           episode,
 
           rdTitle:
@@ -999,7 +990,7 @@ export function PlayerProvider({
             episode,
 
           sources:
-            orderedSources,
+            finalSources,
 
           src:
             activeUrl,
@@ -1008,6 +999,27 @@ export function PlayerProvider({
             activeUrl,
 
           hasRd,
+
+          sourceDiagnostics:
+            {
+              addonsChecked:
+                addonLookup
+                  ?.addonsChecked ||
+                0,
+
+              diagnostics:
+                addonLookup
+                  ?.diagnostics ||
+                [],
+
+              reason:
+                addonLookup
+                  ?.reason ||
+                "",
+
+              discoveredCount:
+                addonSources.length,
+            },
         });
 
         return true;
@@ -1043,9 +1055,7 @@ export function PlayerProvider({
 
   return (
     <PlayerContext.Provider
-      value={
-        value
-      }
+      value={value}
     >
       {children}
 
@@ -1069,9 +1079,7 @@ export function usePlayer() {
       PlayerContext
     );
 
-  if (
-    !context
-  ) {
+  if (!context) {
     throw new Error(
       "usePlayer must be used within a PlayerProvider"
     );
@@ -1093,9 +1101,7 @@ export function buildMediaSources({
   const sources =
     [];
 
-  if (
-    trailerUrl
-  ) {
+  if (trailerUrl) {
     sources.push({
       label:
         "Trailer",
@@ -1115,9 +1121,7 @@ export function buildMediaSources({
     providers ||
     []
   ).forEach(
-    (
-      provider
-    ) => {
+    (provider) => {
       if (
         !provider?.link
       ) {
