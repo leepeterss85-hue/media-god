@@ -3,4 +3,4 @@ export {
   usePlayer,
   DEMO_VIDEO,
   buildMediaSources,
-} from "./MediaPlayerProvider.jsx";
+} from "./PlayerProvider.jsx";
