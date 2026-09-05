@@ -1,17 +1,26 @@
 {
+  "type": "object",
   "properties": {
-    "role": {
-      "type": "string",
-      "description": "The role of the user in the app",
-      "enum": [
-        "admin",
-        "user"
-      ]
-    }
-  },
-  "required": [
-    "role"
-  ],
-  "name": "User",
-  "type": "object"
+    "preferences": {
+      "type": "object",
+      "properties": {
+        "autoplay": { "type": "boolean", "default": true },
+        "subs": { "type": "boolean", "default": true },
+        "quality": {
+          "type": "string",
+          "enum": ["Auto", "4K", "1080p", "720p", "480p"],
+          "default": "Auto"
+        }
+      }
+    },
+    "rd_token": { "type": "string" },
+    "rd_refresh_token": { "type": "string" },
+    "rd_client_id": { "type": "string" },
+    "rd_client_secret": { "type": "string" },
+    "rd_token_expires_at": { "type": "string" },
+    "rd_connected_at": { "type": "string" },
+    "alldebrid_token": { "type": "string" },
+    "premiumize_token": { "type": "string" },
+    "debridlink_token": { "type": "string" }
+  }
 }
