@@ -6,7 +6,6 @@ import React, {
 } from "react";
 
 import {
-  ChevronDown,
   ListVideo,
   Loader2,
   Maximize,
@@ -22,27 +21,23 @@ import {
   X,
 } from "lucide-react";
 
-import { cn } from "@/lib/utils";
 import { base44 } from "@/api/base44Client";
+import { cn } from "@/lib/utils";
 
-const EMPTY_CONTEXT = {
-  mediaType: null,
+const formatTime = (seconds) => {
+  if (!seconds || !isFinite(seconds)) {
+    return "0:00";
+  }
 
-  tmdbId: null,
+  const s = Math.floor(seconds % 60);
+  const m = Math.floor((seconds / 60) % 60);
+  const h = Math.floor(seconds / 3600);
 
-  imdbId: "",
+  if (h > 0) {
+    return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  }
 
-  title: "",
-  seriesTitle: "",
-
-  poster: "",
-
-  year: null,
-
-  season: null,
-  episode: null,
-
-  autoNext: true,
+  return `${m}:${String(s).padStart(2, "0")}`;
 };
 
 const unwrap = (response) =>
@@ -53,132 +48,93 @@ const unwrap = (response) =>
 const positiveInt = (value) => {
   const number = Number(value);
 
-  return Number.isInteger(number) &&
-    number > 0
+  return Number.isInteger(number) && number > 0
     ? number
     : null;
 };
 
 const normaliseSeasons = (items) =>
-  (Array.isArray(items)
-    ? items
-    : []
-  )
+  (Array.isArray(items) ? items : [])
     .filter(
       (item) =>
-        positiveInt(
-          item?.season_number
-        ) != null
-    )
-    .map(
-      (item) => ({
-        ...item,
-
-        season_number:
-          Number(
-            item
-              .season_number
-          ),
-
-        episode_count:
-          Number(
-            item
-              ?.episode_count ||
-              0
-          ),
-      })
+        positiveInt(item?.season_number) != null &&
+        Number(item?.episode_count || 0) > 0
     )
     .sort(
       (a, b) =>
-        Number(
-          a.season_number
-        ) -
-        Number(
-          b.season_number
-        )
+        Number(a?.season_number || 0) -
+        Number(b?.season_number || 0)
     );
 
 const normaliseEpisodes = (items) =>
-  (Array.isArray(items)
-    ? items
-    : []
-  )
+  (Array.isArray(items) ? items : [])
     .filter(
       (item) =>
-        positiveInt(
-          item?.episode_number
-        ) != null
+        positiveInt(item?.episode_number) != null
     )
     .sort(
       (a, b) =>
-        Number(
-          a?.episode_number ||
-            0
-        ) -
-        Number(
-          b?.episode_number ||
-            0
-        )
+        Number(a?.episode_number || 0) -
+        Number(b?.episode_number || 0)
     );
 
 const readPlayerContext = () => {
-  if (
-    typeof window ===
-    "undefined"
-  ) {
-    return EMPTY_CONTEXT;
+  const fallback = {
+    mediaType: null,
+    tmdbId: null,
+    imdbId: null,
+    title: "",
+    year: null,
+    season: null,
+    episode: null,
+    autoNext: true,
+  };
+
+  if (typeof window === "undefined") {
+    return fallback;
   }
 
-  return (
-    window.__MG_PLAYER_CONTEXT__ ||
-    EMPTY_CONTEXT
-  );
+  return window.__MG_PLAYER_CONTEXT__ || fallback;
 };
 
-const formatTime = (seconds) => {
-  if (
-    !seconds ||
-    !isFinite(seconds)
-  ) {
-    return "0:00";
+const seasonName = (season) => {
+  const number = positiveInt(
+    season?.season_number
+  );
+
+  if (!number) {
+    return season?.name || "Season";
   }
 
-  const s =
-    Math.floor(
-      seconds % 60
-    );
+  const supplied = String(
+    season?.name || ""
+  ).trim();
 
-  const m =
-    Math.floor(
-      (seconds / 60) %
-        60
-    );
-
-  const h =
-    Math.floor(
-      seconds / 3600
-    );
-
-  if (h > 0) {
-    return `${h}:${String(
-      m
-    ).padStart(
-      2,
-      "0"
-    )}:${String(
-      s
-    ).padStart(
-      2,
-      "0"
-    )}`;
+  if (supplied) {
+    return supplied;
   }
 
-  return `${m}:${String(
-    s
-  ).padStart(
-    2,
-    "0"
-  )}`;
+  return `Season ${number}`;
+};
+
+const episodeName = (episode) => {
+  const number = positiveInt(
+    episode?.episode_number
+  );
+
+  if (!number) {
+    return "Episode";
+  }
+
+  const title = String(
+    episode?.name ||
+      episode?.title ||
+      ""
+  ).trim();
+
+  return title
+    ? `E${String(number).padStart(2, "0")} · ${title}`
+    : `Episode ${number}`;
 };
 
 export default function MediaPlayerControls({
@@ -187,393 +143,162 @@ export default function MediaPlayerControls({
   isLive = false,
   onFullscreen,
 }) {
-  const [
-    playing,
-    setPlaying,
-  ] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const [muted, setMuted] = useState(false);
+  const [volume, setVolume] = useState(1);
+  const [current, setCurrent] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [fullscreen, setFullscreen] = useState(false);
+  const [showControls, setShowControls] = useState(true);
+  const [seeking, setSeeking] = useState(false);
 
-  const [
-    muted,
-    setMuted,
-  ] = useState(false);
-
-  const [
-    volume,
-    setVolume,
-  ] = useState(1);
-
-  const [
-    current,
-    setCurrent,
-  ] = useState(0);
-
-  const [
-    duration,
-    setDuration,
-  ] = useState(0);
-
-  const [
-    fullscreen,
-    setFullscreen,
-  ] = useState(false);
-
-  const [
-    showControls,
-    setShowControls,
-  ] = useState(true);
-
-  const [
-    seeking,
-    setSeeking,
-  ] = useState(false);
-
-  const [
-    playerContext,
-    setPlayerContext,
-  ] = useState(
+  const [playerContext, setPlayerContext] = useState(
     readPlayerContext
   );
 
-  const [
-    statusMessage,
-    setStatusMessage,
-  ] = useState("");
+  const [statusMessage, setStatusMessage] = useState("");
 
-  const [
-    pickerOpen,
-    setPickerOpen,
-  ] = useState(false);
+  const [episodePickerOpen, setEpisodePickerOpen] =
+    useState(false);
 
-  const [
-    seasons,
-    setSeasons,
-  ] = useState([]);
+  const [seasonOptions, setSeasonOptions] = useState([]);
+  const [episodeOptions, setEpisodeOptions] = useState([]);
 
-  const [
-    seasonsLoading,
-    setSeasonsLoading,
-  ] = useState(false);
+  const [selectedSeason, setSelectedSeason] = useState("");
+  const [selectedEpisode, setSelectedEpisode] = useState("");
 
-  const [
-    selectedSeason,
-    setSelectedSeason,
-  ] = useState("");
+  const [seasonLoading, setSeasonLoading] = useState(false);
+  const [episodeLoading, setEpisodeLoading] = useState(false);
+  const [pickerError, setPickerError] = useState("");
 
-  const [
-    episodes,
-    setEpisodes,
-  ] = useState([]);
+  const hideTimer = useRef(null);
+  const statusTimer = useRef(null);
 
-  const [
-    episodesLoading,
-    setEpisodesLoading,
-  ] = useState(false);
+  const getVideo = () => videoRef?.current;
 
-  const [
-    pickerError,
-    setPickerError,
-  ] = useState("");
+  const revealControls = () => {
+    setShowControls(true);
 
-  const [
-    startingEpisode,
-    setStartingEpisode,
-  ] = useState("");
+    if (hideTimer.current) {
+      clearTimeout(hideTimer.current);
+    }
 
-  const hideTimer =
-    useRef(null);
+    if (episodePickerOpen) {
+      return;
+    }
 
-  const statusTimer =
-    useRef(null);
+    hideTimer.current = setTimeout(() => {
+      if (playing && !seeking) {
+        setShowControls(false);
+      }
+    }, 2800);
+  };
 
-  const getVideo = () =>
-    videoRef?.current;
-
-  const isTv =
-    playerContext
-      ?.mediaType ===
-    "tv";
-
-  const revealControls =
-    useCallback(
-      () => {
-        setShowControls(
-          true
-        );
-
-        if (
-          hideTimer.current
-        ) {
-          clearTimeout(
-            hideTimer.current
-          );
-        }
-
-        if (pickerOpen) {
-          return;
-        }
-
-        hideTimer.current =
-          setTimeout(
-            () => {
-              if (
-                playing &&
-                !seeking &&
-                !pickerOpen
-              ) {
-                setShowControls(
-                  false
-                );
-              }
-            },
-            2800
-          );
-      },
-      [
-        pickerOpen,
-        playing,
-        seeking,
-      ]
-    );
-
-  /*
-   * Video state.
-   */
   useEffect(() => {
-    const video =
-      getVideo();
+    const video = getVideo();
 
     if (!video) {
       return undefined;
     }
 
-    const onPlay = () =>
-      setPlaying(
-        true
-      );
-
-    const onPause = () =>
-      setPlaying(
-        false
-      );
+    const onPlay = () => setPlaying(true);
+    const onPause = () => setPlaying(false);
 
     const onTime = () => {
       if (!seeking) {
-        setCurrent(
-          video.currentTime ||
-            0
-        );
+        setCurrent(video.currentTime || 0);
       }
     };
 
-    const onDuration =
-      () => {
-        setDuration(
-          video.duration ||
-            0
-        );
-      };
+    const onDur = () => {
+      setDuration(video.duration || 0);
+    };
 
-    const onVolumeChange =
-      () => {
-        setMuted(
-          video.muted
-        );
+    const onVol = () => {
+      setMuted(video.muted);
+      setVolume(video.volume);
+    };
 
-        setVolume(
-          video.volume
-        );
-      };
+    video.addEventListener("play", onPlay);
+    video.addEventListener("pause", onPause);
+    video.addEventListener("timeupdate", onTime);
+    video.addEventListener("durationchange", onDur);
+    video.addEventListener("loadedmetadata", onDur);
+    video.addEventListener("volumechange", onVol);
 
-    video.addEventListener(
-      "play",
-      onPlay
-    );
-
-    video.addEventListener(
-      "pause",
-      onPause
-    );
-
-    video.addEventListener(
-      "timeupdate",
-      onTime
-    );
-
-    video.addEventListener(
-      "durationchange",
-      onDuration
-    );
-
-    video.addEventListener(
-      "loadedmetadata",
-      onDuration
-    );
-
-    video.addEventListener(
-      "volumechange",
-      onVolumeChange
-    );
-
-    setMuted(
-      video.muted
-    );
-
-    setVolume(
-      video.volume
-    );
-
-    setPlaying(
-      !video.paused
-    );
-
-    setCurrent(
-      video.currentTime ||
-        0
-    );
-
-    setDuration(
-      video.duration ||
-        0
-    );
+    setMuted(video.muted);
+    setVolume(video.volume);
+    setPlaying(!video.paused);
+    setCurrent(video.currentTime || 0);
+    setDuration(video.duration || 0);
 
     return () => {
-      video.removeEventListener(
-        "play",
-        onPlay
-      );
+      video.removeEventListener("play", onPlay);
+      video.removeEventListener("pause", onPause);
+      video.removeEventListener("timeupdate", onTime);
+      video.removeEventListener("durationchange", onDur);
+      video.removeEventListener("loadedmetadata", onDur);
+      video.removeEventListener("volumechange", onVol);
 
-      video.removeEventListener(
-        "pause",
-        onPause
-      );
-
-      video.removeEventListener(
-        "timeupdate",
-        onTime
-      );
-
-      video.removeEventListener(
-        "durationchange",
-        onDuration
-      );
-
-      video.removeEventListener(
-        "loadedmetadata",
-        onDuration
-      );
-
-      video.removeEventListener(
-        "volumechange",
-        onVolumeChange
-      );
-
-      if (
-        hideTimer.current
-      ) {
-        clearTimeout(
-          hideTimer.current
-        );
+      if (hideTimer.current) {
+        clearTimeout(hideTimer.current);
       }
     };
-  }, [
-    videoRef,
-    seeking,
-  ]);
+  }, [videoRef, seeking]);
 
-  /*
-   * Fullscreen state.
-   */
   useEffect(() => {
-    const onFullscreenChange =
-      () => {
-        setFullscreen(
-          Boolean(
-            document
-              .fullscreenElement
-          )
-        );
-      };
+    const onFs = () => {
+      setFullscreen(Boolean(document.fullscreenElement));
+    };
 
-    document.addEventListener(
-      "fullscreenchange",
-      onFullscreenChange
-    );
+    document.addEventListener("fullscreenchange", onFs);
 
     return () => {
-      document.removeEventListener(
-        "fullscreenchange",
-        onFullscreenChange
-      );
+      document.removeEventListener("fullscreenchange", onFs);
     };
   }, []);
 
-  /*
-   * Receive player context from
-   * PlayerProvider.jsx.
-   */
   useEffect(() => {
-    if (
-      typeof window ===
-      "undefined"
-    ) {
+    if (typeof window === "undefined") {
       return undefined;
     }
 
-    setPlayerContext(
-      readPlayerContext()
-    );
+    setPlayerContext(readPlayerContext());
 
-    const onContext =
-      (event) => {
-        const detail =
-          event?.detail ||
-          readPlayerContext();
+    const onContext = (event) => {
+      const next = event?.detail || readPlayerContext();
 
-        setPlayerContext(
-          detail
-        );
+      setPlayerContext(next);
 
-        setStartingEpisode(
-          ""
-        );
-      };
+      if (next?.season != null) {
+        setSelectedSeason(String(next.season));
+      }
 
-    const onStatus =
-      (event) => {
-        const message =
-          String(
-            event?.detail
-              ?.message ||
-              ""
-          );
+      if (next?.episode != null) {
+        setSelectedEpisode(String(next.episode));
+      }
 
-        setStatusMessage(
-          message
-        );
+      setEpisodePickerOpen(false);
+    };
 
-        setShowControls(
-          true
-        );
+    const onStatus = (event) => {
+      const message = String(
+        event?.detail?.message || ""
+      );
 
-        if (
-          statusTimer.current
-        ) {
-          clearTimeout(
-            statusTimer.current
-          );
-        }
+      setStatusMessage(message);
+      setShowControls(true);
 
-        if (message) {
-          statusTimer.current =
-            setTimeout(
-              () =>
-                setStatusMessage(
-                  ""
-                ),
-              3500
-            );
-        }
-      };
+      if (statusTimer.current) {
+        clearTimeout(statusTimer.current);
+      }
+
+      if (message) {
+        statusTimer.current = setTimeout(() => {
+          setStatusMessage("");
+        }, 3500);
+      }
+    };
 
     window.addEventListener(
       "mg:player-context",
@@ -596,903 +321,544 @@ export default function MediaPlayerControls({
         onStatus
       );
 
-      if (
-        statusTimer.current
-      ) {
-        clearTimeout(
-          statusTimer.current
-        );
+      if (statusTimer.current) {
+        clearTimeout(statusTimer.current);
       }
     };
   }, []);
 
-  /*
-   * When the actual show changes,
-   * clear the picker cache.
-   */
   useEffect(() => {
-    setSeasons(
-      []
-    );
-
-    setEpisodes(
-      []
-    );
-
-    setPickerError(
-      ""
-    );
-
     if (
-      playerContext
-        ?.season != null
-    ) {
-      setSelectedSeason(
-        String(
-          playerContext.season
-        )
-      );
-    }
-  }, [
-    playerContext
-      ?.tmdbId,
-  ]);
-
-  /*
-   * LOAD EVERY SEASON.
-   *
-   * This is deliberately a request for
-   * TV details WITHOUT season_number.
-   */
-  useEffect(() => {
-    let cancelled =
-      false;
-
-    if (
-      !pickerOpen ||
-      !isTv
-    ) {
-      return undefined;
-    }
-
-    const tmdbId =
-      playerContext
-        ?.tmdbId ??
-      playerContext
-        ?.tmdb_id ??
-      playerContext
-        ?.id;
-
-    if (!tmdbId) {
-      setPickerError(
-        "The TV show ID is missing. Close the player and start the episode again."
-      );
-
-      return undefined;
-    }
-
-    const loadSeasons =
-      async () => {
-        setSeasonsLoading(
-          true
-        );
-
-        setPickerError(
-          ""
-        );
-
-        try {
-          const response =
-            await base44.functions.invoke(
-              "getTmdbMovies",
-              {
-                media_type:
-                  "tv",
-
-                movie_id:
-                  tmdbId,
-              }
-            );
-
-          if (cancelled) {
-            return;
-          }
-
-          const data =
-            unwrap(
-              response
-            );
-
-          const found =
-            normaliseSeasons(
-              data?.details
-                ?.seasons
-            );
-
-          setSeasons(
-            found
-          );
-
-          if (
-            found.length ===
-            0
-          ) {
-            setPickerError(
-              data?.error ||
-                "No seasons were returned for this TV show."
-            );
-
-            return;
-          }
-
-          const currentSeason =
-            positiveInt(
-              playerContext
-                ?.season
-            );
-
-          const currentExists =
-            currentSeason &&
-            found.some(
-              (item) =>
-                Number(
-                  item
-                    .season_number
-                ) ===
-                currentSeason
-            );
-
-          if (
-            currentExists
-          ) {
-            setSelectedSeason(
-              String(
-                currentSeason
-              )
-            );
-          } else {
-            const firstSeason =
-              found.find(
-                (item) =>
-                  Number(
-                    item
-                      .episode_count ||
-                      0
-                  ) > 0
-              ) ||
-              found[0];
-
-            setSelectedSeason(
-              String(
-                firstSeason
-                  .season_number
-              )
-            );
-          }
-        } catch (error) {
-          if (
-            !cancelled
-          ) {
-            setSeasons(
-              []
-            );
-
-            setPickerError(
-              error?.message ||
-                "Could not load the season list."
-            );
-          }
-        } finally {
-          if (
-            !cancelled
-          ) {
-            setSeasonsLoading(
-              false
-            );
-          }
-        }
-      };
-
-    loadSeasons();
-
-    return () => {
-      cancelled =
-        true;
-    };
-  }, [
-    pickerOpen,
-    isTv,
-    playerContext
-      ?.tmdbId,
-    playerContext
-      ?.tmdb_id,
-    playerContext
-      ?.id,
-  ]);
-
-  /*
-   * Load episodes whenever the user
-   * changes the Season dropdown.
-   */
-  useEffect(() => {
-    let cancelled =
-      false;
-
-    if (
-      !pickerOpen ||
-      !isTv ||
+      !episodePickerOpen ||
+      playerContext?.mediaType !== "tv" ||
+      !playerContext?.tmdbId ||
       !selectedSeason
     ) {
       return undefined;
     }
 
-    const tmdbId =
-      playerContext
-        ?.tmdbId ??
-      playerContext
-        ?.tmdb_id ??
-      playerContext
-        ?.id;
+    let cancelled = false;
 
-    if (!tmdbId) {
-      return undefined;
-    }
+    setEpisodeLoading(true);
+    setEpisodeOptions([]);
+    setPickerError("");
 
-    const loadEpisodes =
-      async () => {
-        setEpisodesLoading(
-          true
-        );
-
-        setEpisodes(
-          []
-        );
-
-        setPickerError(
-          ""
-        );
-
-        try {
-          const response =
-            await base44.functions.invoke(
-              "getTmdbMovies",
-              {
-                media_type:
-                  "tv",
-
-                movie_id:
-                  tmdbId,
-
-                season_number:
-                  Number(
-                    selectedSeason
-                  ),
-              }
-            );
-
-          if (cancelled) {
-            return;
-          }
-
-          const data =
-            unwrap(
-              response
-            );
-
-          const found =
-            normaliseEpisodes(
-              data?.episodes
-            );
-
-          setEpisodes(
-            found
-          );
-
-          if (
-            found.length ===
-            0
-          ) {
-            setPickerError(
-              data?.error ||
-                `No episodes were returned for Season ${selectedSeason}.`
-            );
-          }
-        } catch (error) {
-          if (
-            !cancelled
-          ) {
-            setEpisodes(
-              []
-            );
-
-            setPickerError(
-              error?.message ||
-                "Could not load episodes for this season."
-            );
-          }
-        } finally {
-          if (
-            !cancelled
-          ) {
-            setEpisodesLoading(
-              false
-            );
-          }
+    base44.functions
+      .invoke("getTmdbMovies", {
+        media_type: "tv",
+        movie_id: playerContext.tmdbId,
+        season_number: Number(selectedSeason),
+      })
+      .then((response) => {
+        if (cancelled) {
+          return;
         }
-      };
 
-    loadEpisodes();
+        const data = unwrap(response);
+        const episodes = normaliseEpisodes(
+          data?.episodes
+        );
+
+        setEpisodeOptions(episodes);
+
+        const currentSeason = String(
+          playerContext?.season ?? ""
+        );
+
+        const currentEpisode = String(
+          playerContext?.episode ?? ""
+        );
+
+        if (
+          String(selectedSeason) === currentSeason &&
+          episodes.some(
+            (item) =>
+              String(item?.episode_number) ===
+              currentEpisode
+          )
+        ) {
+          setSelectedEpisode(currentEpisode);
+        } else {
+          setSelectedEpisode("");
+        }
+
+        if (episodes.length === 0) {
+          setPickerError(
+            "No episodes were returned for that season."
+          );
+        }
+      })
+      .catch((error) => {
+        if (cancelled) {
+          return;
+        }
+
+        setEpisodeOptions([]);
+        setSelectedEpisode("");
+        setPickerError(
+          error?.message ||
+            "Could not load episodes for that season."
+        );
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setEpisodeLoading(false);
+        }
+      });
 
     return () => {
-      cancelled =
-        true;
+      cancelled = true;
     };
   }, [
-    pickerOpen,
-    isTv,
+    episodePickerOpen,
+    playerContext?.episode,
+    playerContext?.mediaType,
+    playerContext?.season,
+    playerContext?.tmdbId,
     selectedSeason,
-    playerContext
-      ?.tmdbId,
-    playerContext
-      ?.tmdb_id,
-    playerContext
-      ?.id,
   ]);
 
   const togglePlay = () => {
-    const video =
-      getVideo();
+    const video = getVideo();
 
     if (!video) {
       return;
     }
 
     if (video.paused) {
-      video
-        .play()
-        .catch(
-          () => {}
-        );
+      video.play().catch(() => {});
     } else {
       video.pause();
     }
   };
 
   const toggleMute = () => {
-    const video =
-      getVideo();
+    const video = getVideo();
 
     if (!video) {
       return;
     }
 
-    video.muted =
-      !video.muted;
+    video.muted = !video.muted;
   };
 
-  const onVolume =
-    (event) => {
-      const video =
-        getVideo();
+  const onVolume = (event) => {
+    const video = getVideo();
 
-      if (!video) {
-        return;
-      }
-
-      const nextVolume =
-        Number(
-          event.target
-            .value
-        );
-
-      video.volume =
-        nextVolume;
-
-      video.muted =
-        nextVolume === 0;
-    };
-
-  const seekTo =
-    (event) => {
-      const video =
-        getVideo();
-
-      if (
-        !video ||
-        !video.duration
-      ) {
-        return;
-      }
-
-      const ratio =
-        Number(
-          event.target
-            .value
-        ) / 100;
-
-      video.currentTime =
-        ratio *
-        video.duration;
-
-      setCurrent(
-        video.currentTime
-      );
-    };
-
-  const skip =
-    (delta) => {
-      const video =
-        getVideo();
-
-      if (!video) {
-        return;
-      }
-
-      video.currentTime =
-        Math.max(
-          0,
-
-          Math.min(
-            video.duration ||
-              0,
-
-            (video.currentTime ||
-              0) +
-              delta
-          )
-        );
-    };
-
-  const toggleFullscreen =
-    () => {
-      if (onFullscreen) {
-        onFullscreen();
-
-        return;
-      }
-
-      stageRef
-        ?.current
-        ?.requestFullscreen
-        ?.()
-        .catch(
-          () => {}
-        );
-    };
-
-  const openPicker = () => {
-    setShowControls(
-      true
-    );
-
-    setPickerOpen(
-      true
-    );
-
-    setPickerError(
-      ""
-    );
-
-    if (
-      playerContext
-        ?.season != null
-    ) {
-      setSelectedSeason(
-        String(
-          playerContext.season
-        )
-      );
+    if (!video) {
+      return;
     }
+
+    const nextVolume = Number(event.target.value);
+
+    video.volume = nextVolume;
+    video.muted = nextVolume === 0;
   };
 
-  const playEpisode =
-    (episodeItem) => {
-      const seasonNumber =
-        positiveInt(
-          selectedSeason
-        );
+  const seekTo = (event) => {
+    const video = getVideo();
 
-      const episodeNumber =
-        positiveInt(
-          episodeItem
-            ?.episode_number
-        );
+    if (!video || !video.duration) {
+      return;
+    }
+
+    const ratio = Number(event.target.value) / 100;
+
+    video.currentTime = ratio * video.duration;
+    setCurrent(video.currentTime);
+  };
+
+  const skip = (delta) => {
+    const video = getVideo();
+
+    if (!video) {
+      return;
+    }
+
+    video.currentTime = Math.max(
+      0,
+      Math.min(
+        video.duration || 0,
+        (video.currentTime || 0) + delta
+      )
+    );
+  };
+
+  const toggleFullscreen = () => {
+    if (onFullscreen) {
+      onFullscreen();
+      return;
+    }
+
+    stageRef?.current?.requestFullscreen?.().catch(() => {});
+  };
+
+  const openEpisodePicker = useCallback(async () => {
+    if (playerContext?.mediaType !== "tv") {
+      return;
+    }
+
+    if (!playerContext?.tmdbId) {
+      setStatusMessage(
+        "This TV item is missing its TMDB id, so seasons cannot be loaded."
+      );
+      setShowControls(true);
+      return;
+    }
+
+    if (hideTimer.current) {
+      clearTimeout(hideTimer.current);
+    }
+
+    setShowControls(true);
+    setEpisodePickerOpen(true);
+    setPickerError("");
+
+    const currentSeason = positiveInt(
+      playerContext?.season
+    );
+
+    if (currentSeason) {
+      setSelectedSeason(String(currentSeason));
+    }
+
+    setSeasonLoading(true);
+
+    try {
+      const response = await base44.functions.invoke(
+        "getTmdbMovies",
+        {
+          media_type: "tv",
+          movie_id: playerContext.tmdbId,
+        }
+      );
+
+      const data = unwrap(response);
+      let seasons = normaliseSeasons(
+        data?.details?.seasons
+      );
 
       if (
-        !seasonNumber ||
-        !episodeNumber
+        currentSeason &&
+        !seasons.some(
+          (item) =>
+            Number(item?.season_number) ===
+            currentSeason
+        )
       ) {
-        return;
+        seasons = normaliseSeasons([
+          ...seasons,
+          {
+            season_number: currentSeason,
+            name: `Season ${currentSeason}`,
+            episode_count: 1,
+          },
+        ]);
       }
 
-      const key =
-        `${seasonNumber}:${episodeNumber}`;
+      setSeasonOptions(seasons);
 
-      setStartingEpisode(
-        key
+      const requestedSeason = currentSeason
+        ? String(currentSeason)
+        : seasons[0]?.season_number != null
+          ? String(seasons[0].season_number)
+          : "";
+
+      setSelectedSeason(requestedSeason);
+
+      if (seasons.length === 0) {
+        setPickerError(
+          "No seasons were returned for this show."
+        );
+      }
+    } catch (error) {
+      setSeasonOptions([]);
+      setEpisodeOptions([]);
+      setPickerError(
+        error?.message ||
+          "Could not load the season list."
       );
+    } finally {
+      setSeasonLoading(false);
+    }
+  }, [
+    playerContext?.mediaType,
+    playerContext?.season,
+    playerContext?.tmdbId,
+  ]);
 
-      window.dispatchEvent(
-        new CustomEvent(
-          "mg:play-specific-episode",
-          {
-            detail: {
-              season:
-                seasonNumber,
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return undefined;
+    }
 
-              episode:
-                episodeNumber,
-
-              episodeItem,
-            },
-          }
-        )
-      );
-
-      setPickerOpen(
-        false
-      );
+    const onOpenPicker = () => {
+      openEpisodePicker();
     };
 
-  const playNextEpisode =
-    () => {
-      window.dispatchEvent(
-        new CustomEvent(
-          "mg:play-next-episode"
-        )
+    window.addEventListener(
+      "mg:open-episode-picker",
+      onOpenPicker
+    );
+
+    return () => {
+      window.removeEventListener(
+        "mg:open-episode-picker",
+        onOpenPicker
       );
     };
+  }, [openEpisodePicker]);
 
-  const toggleAutoNext =
-    () => {
-      window.dispatchEvent(
-        new CustomEvent(
-          "mg:set-auto-next",
-          {
-            detail: {
-              enabled:
-                !playerContext
-                  ?.autoNext,
-            },
-          }
-        )
-      );
-    };
+  const closeEpisodePicker = () => {
+    setEpisodePickerOpen(false);
+    setPickerError("");
+    revealControls();
+  };
 
-  const progress =
-    duration
-      ? (
-          current /
-          duration
-        ) * 100
-      : 0;
+  const chooseSeason = (event) => {
+    setSelectedSeason(event.target.value);
+    setSelectedEpisode("");
+    setPickerError("");
+  };
+
+  const chooseEpisode = (event) => {
+    const value = event.target.value;
+
+    setSelectedEpisode(value);
+
+    const episodeItem = episodeOptions.find(
+      (item) =>
+        String(item?.episode_number) === value
+    );
+
+    const seasonNumber = positiveInt(
+      selectedSeason
+    );
+
+    if (!episodeItem || !seasonNumber) {
+      return;
+    }
+
+    window.dispatchEvent(
+      new CustomEvent("mg:play-specific-episode", {
+        detail: {
+          seasonNumber,
+          episodeItem,
+        },
+      })
+    );
+
+    setEpisodePickerOpen(false);
+    setShowControls(true);
+  };
+
+  const playNextEpisode = () => {
+    window.dispatchEvent(
+      new CustomEvent("mg:play-next-episode")
+    );
+  };
+
+  const toggleAutoNext = () => {
+    window.dispatchEvent(
+      new CustomEvent("mg:set-auto-next", {
+        detail: {
+          enabled: !playerContext?.autoNext,
+        },
+      })
+    );
+  };
+
+  const progress = duration
+    ? (current / duration) * 100
+    : 0;
+
+  const isTv = playerContext?.mediaType === "tv";
+
+  const controlsVisible =
+    showControls || episodePickerOpen;
 
   return (
     <div
-      className={cn(
-        "absolute inset-0 flex flex-col justify-end transition-opacity duration-200",
-
-        showControls
-          ? "opacity-100"
-          : "opacity-0 pointer-events-none"
-      )}
-      onMouseMove={
-        revealControls
-      }
-      onTouchStart={
-        revealControls
-      }
+      className="absolute inset-0 flex flex-col justify-end"
+      onMouseMove={revealControls}
+      onTouchStart={revealControls}
       onMouseLeave={() => {
-        if (
-          hideTimer.current
-        ) {
-          clearTimeout(
-            hideTimer.current
-          );
+        if (episodePickerOpen) {
+          return;
         }
 
-        if (
-          playing &&
-          !seeking &&
-          !pickerOpen
-        ) {
-          setShowControls(
-            false
-          );
+        if (hideTimer.current) {
+          clearTimeout(hideTimer.current);
+        }
+
+        if (playing && !seeking) {
+          setShowControls(false);
         }
       }}
       onClick={(event) => {
         if (
-          event.target ===
-          event.currentTarget
+          !episodePickerOpen &&
+          event.target === event.currentTarget
         ) {
           togglePlay();
         }
       }}
     >
-      {/* SEASON / EPISODE PICKER */}
-      {isTv &&
-        pickerOpen && (
-          <div
-            className="absolute z-40 left-2 right-2 sm:left-4 sm:right-4 bottom-24 sm:bottom-20 max-h-[72vh] bg-black/95 backdrop-blur-md border border-white/15 rounded-xl shadow-2xl overflow-hidden"
-            onClick={(
-              event
-            ) =>
-              event.stopPropagation()
-            }
-          >
-            <div className="flex items-center justify-between gap-3 px-3 sm:px-4 py-3 border-b border-white/10">
-              <div className="min-w-0">
-                <p className="text-white text-sm font-semibold truncate">
-                  {playerContext
-                    ?.seriesTitle ||
-                    playerContext
-                      ?.title ||
-                    "TV Show"}
-                </p>
+      {isTv && !episodePickerOpen && (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            openEpisodePicker();
+          }}
+          className="absolute left-3 top-3 z-20 flex items-center gap-1.5 rounded-lg border border-white/20 bg-black/75 px-2.5 py-1.5 text-[11px] font-semibold text-white shadow-lg backdrop-blur-sm hover:border-mg-green/60 hover:text-mg-green"
+          aria-label="Choose season and episode"
+        >
+          <ListVideo className="w-3.5 h-3.5" />
+          Seasons & episodes
+          {playerContext?.season != null &&
+            playerContext?.episode != null && (
+              <span className="text-white/50">
+                S{String(playerContext.season).padStart(2, "0")}
+                E{String(playerContext.episode).padStart(2, "0")}
+              </span>
+            )}
+        </button>
+      )}
 
-                <p className="text-white/40 text-[10px] mt-0.5">
-                  Choose a season,
-                  then choose an
-                  episode
+      {episodePickerOpen && isTv && (
+        <div
+          className="absolute inset-0 z-30 flex items-end sm:items-center justify-center bg-black/75 p-3 pointer-events-auto"
+          onClick={closeEpisodePicker}
+        >
+          <div
+            className="w-full max-w-md rounded-xl border border-white/15 bg-mg-surface/95 backdrop-blur-md p-3 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="min-w-0">
+                <p className="text-white text-sm font-semibold">
+                  Season & Episode
+                </p>
+                <p className="text-white/45 text-[10px] mt-0.5 truncate">
+                  {playerContext?.title || "Choose what to play"}
                 </p>
               </div>
 
               <button
                 type="button"
-                onClick={() =>
-                  setPickerOpen(
-                    false
-                  )
-                }
-                className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 text-white flex items-center justify-center shrink-0"
-                aria-label="Close season selector"
+                onClick={closeEpisodePicker}
+                className="shrink-0 rounded-md p-1.5 text-white/60 hover:text-white hover:bg-white/10"
+                aria-label="Close season and episode picker"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* VERY CLEAR SEASON SELECTOR */}
-            <div className="p-3 sm:p-4 border-b border-white/10">
-              <label
-                htmlFor="mg-player-season-select"
-                className="block text-[10px] uppercase tracking-wider font-bold text-mg-green mb-1.5"
-              >
-                Season
-              </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <label className="block min-w-0">
+                <span className="block text-[10px] font-semibold uppercase tracking-wide text-white/50 mb-1">
+                  Season
+                </span>
 
-              {seasonsLoading ? (
-                <div className="h-11 flex items-center gap-2 px-3 rounded-lg border border-white/10 bg-white/5 text-white/60 text-sm">
-                  <Loader2 className="w-4 h-4 animate-spin text-mg-green" />
-                  Loading all
-                  seasons…
-                </div>
-              ) : (
                 <div className="relative">
                   <select
-                    id="mg-player-season-select"
-                    value={
-                      selectedSeason
-                    }
-                    onChange={(
-                      event
-                    ) =>
-                      setSelectedSeason(
-                        event.target
-                          .value
-                      )
-                    }
-                    className="w-full min-h-11 appearance-none bg-mg-card border border-mg-green/40 rounded-lg pl-3 pr-10 py-2.5 text-sm font-semibold text-white focus:outline-none focus:border-mg-green cursor-pointer"
+                    value={selectedSeason}
+                    onChange={chooseSeason}
+                    disabled={seasonLoading}
+                    className="w-full appearance-none rounded-lg border border-white/15 bg-black/60 px-3 py-2.5 pr-9 text-sm text-white outline-none focus:border-mg-green disabled:opacity-60"
+                    aria-label="Choose season"
                   >
-                    {seasons.map(
-                      (
-                        seasonItem
-                      ) => (
-                        <option
-                          key={
-                            seasonItem
-                              .season_number
-                          }
-                          value={
-                            seasonItem
-                              .season_number
-                          }
-                          className="bg-black text-white"
-                        >
-                          {seasonItem
-                            ?.name ||
-                            `Season ${seasonItem.season_number}`}
-                          {Number(
-                            seasonItem
-                              ?.episode_count ||
-                              0
-                          ) >
-                          0
-                            ? ` — ${seasonItem.episode_count} episodes`
-                            : ""}
-                        </option>
-                      )
-                    )}
+                    <option value="">
+                      {seasonLoading
+                        ? "Loading seasons…"
+                        : "Choose season"}
+                    </option>
+
+                    {seasonOptions.map((season) => (
+                      <option
+                        key={season.season_number}
+                        value={String(season.season_number)}
+                      >
+                        {seasonName(season)}
+                        {Number(season?.episode_count || 0) > 0
+                          ? ` · ${season.episode_count} ep`
+                          : ""}
+                      </option>
+                    ))}
                   </select>
 
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-mg-green" />
-                </div>
-              )}
-
-              {!seasonsLoading &&
-                seasons.length >
-                  1 && (
-                  <p className="text-[10px] text-white/40 mt-1.5">
-                    {
-                      seasons.length
-                    } seasons
-                    available — use
-                    the dropdown to
-                    swap season.
-                  </p>
-                )}
-            </div>
-
-            {/* EPISODES */}
-            <div className="max-h-[45vh] overflow-y-auto p-2 sm:p-3">
-              {episodesLoading ? (
-                <div className="p-6 flex items-center justify-center gap-2 text-white/60 text-sm">
-                  <Loader2 className="w-4 h-4 animate-spin text-mg-green" />
-
-                  Loading Season{" "}
-                  {
-                    selectedSeason
-                  }
-                  …
-                </div>
-              ) : episodes.length >
-                0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {episodes.map(
-                    (
-                      episodeItem
-                    ) => {
-                      const episodeNumber =
-                        Number(
-                          episodeItem
-                            ?.episode_number
-                        );
-
-                      const currentEpisode =
-                        Number(
-                          playerContext
-                            ?.season
-                        ) ===
-                          Number(
-                            selectedSeason
-                          ) &&
-                        Number(
-                          playerContext
-                            ?.episode
-                        ) ===
-                          episodeNumber;
-
-                      const key =
-                        `${selectedSeason}:${episodeNumber}`;
-
-                      const starting =
-                        startingEpisode ===
-                        key;
-
-                      return (
-                        <button
-                          type="button"
-                          key={
-                            episodeNumber
-                          }
-                          onClick={() =>
-                            playEpisode(
-                              episodeItem
-                            )
-                          }
-                          disabled={
-                            starting
-                          }
-                          className={cn(
-                            "flex gap-2.5 text-left rounded-lg border p-2 transition-colors min-w-0",
-
-                            currentEpisode
-                              ? "border-mg-green/60 bg-mg-green/10"
-                              : "border-white/10 bg-white/5 hover:border-mg-green/40 hover:bg-white/10",
-
-                            starting &&
-                              "opacity-60"
-                          )}
-                        >
-                          <div className="relative w-24 sm:w-28 aspect-video bg-black rounded-md overflow-hidden shrink-0">
-                            {episodeItem
-                              ?.still_url ? (
-                              <img
-                                src={
-                                  episodeItem
-                                    .still_url
-                                }
-                                alt={
-                                  episodeItem
-                                    ?.name ||
-                                  ""
-                                }
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-white/30">
-                                <Play className="w-5 h-5" />
-                              </div>
-                            )}
-
-                            <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/80 text-white text-[9px] font-bold">
-                              E
-                              {
-                                episodeNumber
-                              }
-                            </span>
-                          </div>
-
-                          <div className="min-w-0 flex-1 py-0.5">
-                            <p className="text-white text-xs font-semibold line-clamp-2">
-                              Episode{" "}
-                              {
-                                episodeNumber
-                              }
-
-                              {episodeItem
-                                ?.name
-                                ? ` — ${episodeItem.name}`
-                                : ""}
-                            </p>
-
-                            {episodeItem
-                              ?.air_date && (
-                              <p className="text-white/35 text-[9px] mt-1">
-                                {
-                                  episodeItem
-                                    .air_date
-                                }
-                              </p>
-                            )}
-
-                            {currentEpisode && (
-                              <p className="text-mg-green text-[9px] font-bold mt-1">
-                                PLAYING NOW
-                              </p>
-                            )}
-
-                            {starting && (
-                              <p className="flex items-center gap-1 text-mg-green text-[9px] mt-1">
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                                Loading…
-                              </p>
-                            )}
-                          </div>
-                        </button>
-                      );
-                    }
+                  {seasonLoading && (
+                    <Loader2 className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-mg-green" />
                   )}
                 </div>
-              ) : (
-                <div className="p-6 text-center">
-                  <p className="text-white/45 text-xs">
-                    {pickerError ||
-                      "No episodes found for this season."}
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+              </label>
 
-      <div className="bg-gradient-to-t from-black/85 via-black/35 to-transparent px-3 pb-2 pt-8 select-none">
+              <label className="block min-w-0">
+                <span className="block text-[10px] font-semibold uppercase tracking-wide text-white/50 mb-1">
+                  Episode
+                </span>
+
+                <div className="relative">
+                  <select
+                    value={selectedEpisode}
+                    onChange={chooseEpisode}
+                    disabled={
+                      !selectedSeason ||
+                      episodeLoading ||
+                      episodeOptions.length === 0
+                    }
+                    className="w-full appearance-none rounded-lg border border-white/15 bg-black/60 px-3 py-2.5 pr-9 text-sm text-white outline-none focus:border-mg-green disabled:opacity-60"
+                    aria-label="Choose episode"
+                  >
+                    <option value="">
+                      {episodeLoading
+                        ? "Loading episodes…"
+                        : "Choose episode"}
+                    </option>
+
+                    {episodeOptions.map((episode) => (
+                      <option
+                        key={episode.episode_number}
+                        value={String(episode.episode_number)}
+                      >
+                        {episodeName(episode)}
+                      </option>
+                    ))}
+                  </select>
+
+                  {episodeLoading && (
+                    <Loader2 className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-mg-green" />
+                  )}
+                </div>
+              </label>
+            </div>
+
+            {pickerError && (
+              <p className="mt-2 rounded-md border border-red-500/20 bg-red-500/10 px-2.5 py-2 text-[11px] text-red-300">
+                {pickerError}
+              </p>
+            )}
+
+            <p className="mt-2 text-[10px] leading-relaxed text-white/40">
+              Picking an episode starts a fresh source search for that exact season and episode. The Real-Debrid file list below the player is only the files inside the currently selected torrent.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div
+        className={cn(
+          "bg-gradient-to-t from-black/80 via-black/30 to-transparent px-3 pb-2 pt-8 select-none transition-opacity duration-200",
+          controlsVisible
+            ? "opacity-100"
+            : "opacity-0 pointer-events-none"
+        )}
+      >
         {statusMessage && (
           <div className="mb-2 inline-flex max-w-full rounded-md bg-black/70 border border-white/10 px-2.5 py-1.5 text-[11px] text-white/80">
             <span className="truncate">
-              {
-                statusMessage
-              }
+              {statusMessage}
             </span>
           </div>
         )}
@@ -1501,78 +867,44 @@ export default function MediaPlayerControls({
           <div className="flex flex-wrap items-center gap-1.5 mb-2">
             <button
               type="button"
-              onClick={
-                openPicker
-              }
+              onClick={openEpisodePicker}
               className="flex items-center gap-1.5 rounded-md bg-black/60 border border-white/15 px-2.5 py-1.5 text-[11px] text-white hover:border-mg-green/60 hover:text-mg-green transition-colors"
-              aria-label="Choose season or episode"
+              aria-label="Choose another season or episode"
             >
               <ListVideo className="w-3.5 h-3.5" />
-
-              Seasons &
-              Episodes
+              Seasons & episodes
             </button>
 
             <button
               type="button"
-              onClick={
-                playNextEpisode
-              }
+              onClick={playNextEpisode}
               className="flex items-center gap-1.5 rounded-md bg-black/60 border border-white/15 px-2.5 py-1.5 text-[11px] text-white hover:border-mg-green/60 hover:text-mg-green transition-colors"
               aria-label="Play next episode"
             >
               <SkipForward className="w-3.5 h-3.5" />
-
               Next episode
             </button>
 
             <button
               type="button"
-              onClick={
-                toggleAutoNext
-              }
+              onClick={toggleAutoNext}
               className={cn(
                 "flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[11px] transition-colors",
-
-                playerContext
-                  ?.autoNext
+                playerContext?.autoNext
                   ? "bg-mg-green/15 border-mg-green/40 text-mg-green"
                   : "bg-black/60 border-white/15 text-white/60 hover:text-white"
               )}
               aria-label="Toggle automatic next episode"
             >
               <Repeat2 className="w-3.5 h-3.5" />
-
-              Auto next{" "}
-              {playerContext
-                ?.autoNext
-                ? "On"
-                : "Off"}
+              Auto next {playerContext?.autoNext ? "On" : "Off"}
             </button>
 
-            {playerContext
-              ?.season !=
-              null &&
-              playerContext
-                ?.episode !=
-                null && (
+            {playerContext?.season != null &&
+              playerContext?.episode != null && (
                 <span className="text-[10px] text-white/50 ml-1">
-                  S
-                  {String(
-                    playerContext
-                      .season
-                  ).padStart(
-                    2,
-                    "0"
-                  )}
-                  E
-                  {String(
-                    playerContext
-                      .episode
-                  ).padStart(
-                    2,
-                    "0"
-                  )}
+                  S{String(playerContext.season).padStart(2, "0")}
+                  E{String(playerContext.episode).padStart(2, "0")}
                 </span>
               )}
           </div>
@@ -1581,9 +913,7 @@ export default function MediaPlayerControls({
         {!isLive && (
           <div className="flex items-center gap-2 mb-1">
             <span className="text-[10px] text-white/80 tabular-nums w-12 text-right">
-              {formatTime(
-                current
-              )}
+              {formatTime(current)}
             </span>
 
             <input
@@ -1591,30 +921,16 @@ export default function MediaPlayerControls({
               min={0}
               max={100}
               step={0.1}
-              value={
-                progress
-              }
-              onChange={
-                seekTo
-              }
-              onPointerDown={() =>
-                setSeeking(
-                  true
-                )
-              }
-              onPointerUp={() =>
-                setSeeking(
-                  false
-                )
-              }
+              value={progress}
+              onChange={seekTo}
+              onPointerDown={() => setSeeking(true)}
+              onPointerUp={() => setSeeking(false)}
               className="flex-1 h-1.5 accent-mg-green cursor-pointer"
               aria-label="Seek"
             />
 
             <span className="text-[10px] text-white/60 tabular-nums w-12">
-              {formatTime(
-                duration
-              )}
+              {formatTime(duration)}
             </span>
           </div>
         )}
@@ -1622,15 +938,9 @@ export default function MediaPlayerControls({
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={
-              togglePlay
-            }
+            onClick={togglePlay}
             className="text-white hover:text-mg-green transition-colors"
-            aria-label={
-              playing
-                ? "Pause"
-                : "Play"
-            }
+            aria-label={playing ? "Pause" : "Play"}
           >
             {playing ? (
               <Pause className="w-5 h-5" />
@@ -1643,11 +953,7 @@ export default function MediaPlayerControls({
             <>
               <button
                 type="button"
-                onClick={() =>
-                  skip(
-                    -10
-                  )
-                }
+                onClick={() => skip(-10)}
                 className="text-white/80 hover:text-white transition-colors"
                 aria-label="Back 10 seconds"
               >
@@ -1656,11 +962,7 @@ export default function MediaPlayerControls({
 
               <button
                 type="button"
-                onClick={() =>
-                  skip(
-                    10
-                  )
-                }
+                onClick={() => skip(10)}
                 className="text-white/80 hover:text-white transition-colors"
                 aria-label="Forward 10 seconds"
               >
@@ -1672,19 +974,11 @@ export default function MediaPlayerControls({
           <div className="flex items-center gap-1.5 group">
             <button
               type="button"
-              onClick={
-                toggleMute
-              }
+              onClick={toggleMute}
               className="text-white/80 hover:text-white transition-colors"
-              aria-label={
-                muted
-                  ? "Unmute"
-                  : "Mute"
-              }
+              aria-label={muted ? "Unmute" : "Mute"}
             >
-              {muted ||
-              volume ===
-                0 ? (
+              {muted || volume === 0 ? (
                 <VolumeX className="w-4 h-4" />
               ) : (
                 <Volume2 className="w-4 h-4" />
@@ -1696,15 +990,9 @@ export default function MediaPlayerControls({
               min={0}
               max={1}
               step={0.05}
-              value={
-                muted
-                  ? 0
-                  : volume
-              }
-              onChange={
-                onVolume
-              }
-              className="w-0 group-hover:w-16 focus:w-16 transition-all h-1 accent-mg-green cursor-pointer"
+              value={muted ? 0 : volume}
+              onChange={onVolume}
+              className="w-0 group-hover:w-16 transition-all h-1 accent-mg-green cursor-pointer"
               aria-label="Volume"
             />
           </div>
@@ -1713,9 +1001,7 @@ export default function MediaPlayerControls({
 
           <button
             type="button"
-            onClick={
-              toggleFullscreen
-            }
+            onClick={toggleFullscreen}
             className="text-white/80 hover:text-white transition-colors"
             aria-label="Fullscreen"
           >
