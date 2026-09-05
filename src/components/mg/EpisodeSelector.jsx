@@ -7,7 +7,6 @@ import React, {
 import {
   AlertCircle,
   Calendar,
-  ChevronDown,
   Loader2,
   Play,
   RefreshCw,
@@ -28,35 +27,88 @@ const unwrap = (response) =>
 
 const isImdbId = (value) =>
   /^tt\d+$/i.test(
-    String(
-      value ||
-      ""
-    ).trim()
+    String(value || "").trim()
   );
 
+const positiveInt = (value) => {
+  const number = Number(value);
+
+  return Number.isInteger(number) &&
+    number > 0
+    ? number
+    : null;
+};
+
 const normaliseSeasons = (items) =>
-  (
-    Array.isArray(items)
-      ? items
-      : []
-  )
+  (Array.isArray(items) ? items : [])
     .filter(
       (entry) =>
-        Number(
+        positiveInt(
           entry?.season_number
-        ) > 0
+        ) != null
     )
+    .map((entry) => ({
+      ...entry,
+
+      season_number:
+        Number(
+          entry.season_number
+        ),
+
+      episode_count:
+        Number(
+          entry?.episode_count ||
+            0
+        ),
+    }))
     .sort(
       (a, b) =>
-        Number(
-          a?.season_number ||
-          0
-        ) -
-        Number(
-          b?.season_number ||
-          0
-        )
+        a.season_number -
+        b.season_number
     );
+
+const mergeSeasons = (
+  first,
+  second
+) => {
+  const map = new Map();
+
+  [
+    ...normaliseSeasons(first),
+    ...normaliseSeasons(second),
+  ].forEach((entry) => {
+    const key =
+      Number(
+        entry.season_number
+      );
+
+    const previous =
+      map.get(key) || {};
+
+    map.set(key, {
+      ...previous,
+      ...entry,
+
+      season_number:
+        key,
+
+      episode_count:
+        Number(
+          entry?.episode_count ??
+            previous?.episode_count ??
+            0
+        ),
+    });
+  });
+
+  return Array.from(
+    map.values()
+  ).sort(
+    (a, b) =>
+      a.season_number -
+      b.season_number
+  );
+};
 
 export default function EpisodeSelector({
   item,
@@ -71,72 +123,56 @@ export default function EpisodeSelector({
   const [
     availableSeasons,
     setAvailableSeasons,
-  ] =
-    useState(() =>
-      normaliseSeasons(
-        seasons
-      )
-    );
+  ] = useState(() =>
+    normaliseSeasons(
+      seasons
+    )
+  );
 
   const [
     season,
     setSeason,
-  ] =
-    useState("");
+  ] = useState("");
 
   const [
     episodes,
     setEpisodes,
-  ] =
-    useState([]);
+  ] = useState([]);
 
   const [
     loading,
     setLoading,
-  ] =
-    useState(false);
+  ] = useState(false);
 
   const [
     seasonsLoading,
     setSeasonsLoading,
-  ] =
-    useState(false);
+  ] = useState(false);
 
   const [
     seasonsError,
     setSeasonsError,
-  ] =
-    useState("");
+  ] = useState("");
 
   const [
     episodeError,
     setEpisodeError,
-  ] =
-    useState("");
+  ] = useState("");
 
   const [
     playError,
     setPlayError,
-  ] =
-    useState("");
-
-  const [
-    pickerOpen,
-    setPickerOpen,
-  ] =
-    useState(false);
+  ] = useState("");
 
   const [
     reloadNonce,
     setReloadNonce,
-  ] =
-    useState(0);
+  ] = useState(0);
 
   const [
     playingEpisode,
     setPlayingEpisode,
-  ] =
-    useState(null);
+  ] = useState(null);
 
   const sortedSeasons =
     useMemo(
@@ -149,6 +185,10 @@ export default function EpisodeSelector({
       ]
     );
 
+  /*
+   * Reset when the TV programme
+   * itself changes.
+   */
   useEffect(() => {
     setAvailableSeasons(
       normaliseSeasons(
@@ -161,11 +201,19 @@ export default function EpisodeSelector({
     setSeasonsError("");
     setEpisodeError("");
     setPlayError("");
-    setPickerOpen(false);
+    setPlayingEpisode(null);
   }, [
     item?.id,
   ]);
 
+  /*
+   * If DetailModal supplies season
+   * information, keep it.
+   *
+   * IMPORTANT:
+   * We MERGE it rather than replacing
+   * the full list.
+   */
   useEffect(() => {
     const incoming =
       normaliseSeasons(
@@ -173,35 +221,37 @@ export default function EpisodeSelector({
       );
 
     if (
-      incoming.length >
+      incoming.length ===
       0
     ) {
-      setAvailableSeasons(
-        incoming
-      );
-
-      setSeasonsError(
-        ""
-      );
+      return;
     }
+
+    setAvailableSeasons(
+      (current) =>
+        mergeSeasons(
+          current,
+          incoming
+        )
+    );
   }, [
     seasons,
   ]);
 
+  /*
+   * ALWAYS ask for the complete TV
+   * series details.
+   *
+   * The old code stopped here if even
+   * one season was already supplied.
+   * That was why some shows only showed
+   * the current season.
+   */
   useEffect(() => {
     let cancelled =
       false;
 
-    if (
-      sortedSeasons.length >
-      0
-    ) {
-      return undefined;
-    }
-
-    if (
-      !item?.id
-    ) {
+    if (!item?.id) {
       setSeasonsError(
         "This show does not have a TMDB id."
       );
@@ -209,7 +259,7 @@ export default function EpisodeSelector({
       return undefined;
     }
 
-    const load =
+    const loadAllSeasons =
       async () => {
         setSeasonsLoading(
           true
@@ -232,9 +282,7 @@ export default function EpisodeSelector({
               }
             );
 
-          if (
-            cancelled
-          ) {
+          if (cancelled) {
             return;
           }
 
@@ -249,28 +297,34 @@ export default function EpisodeSelector({
                 ?.seasons
             );
 
-          setAvailableSeasons(
-            found
-          );
-
           if (
-            found.length ===
+            found.length >
             0
           ) {
+            setAvailableSeasons(
+              (current) =>
+                mergeSeasons(
+                  current,
+                  found
+                )
+            );
+
+            setSeasonsError(
+              ""
+            );
+          } else {
             setSeasonsError(
               data?.error ||
-              "No seasons were returned for this TV show."
+                "No seasons were returned for this TV show."
             );
           }
-        } catch (
-          error
-        ) {
+        } catch (error) {
           if (
             !cancelled
           ) {
             setSeasonsError(
               error?.message ||
-              "Could not load seasons for this TV show."
+                "Could not load all seasons for this TV show."
             );
           }
         } finally {
@@ -284,7 +338,7 @@ export default function EpisodeSelector({
         }
       };
 
-    load();
+    loadAllSeasons();
 
     return () => {
       cancelled =
@@ -293,9 +347,15 @@ export default function EpisodeSelector({
   }, [
     item?.id,
     reloadNonce,
-    sortedSeasons.length,
   ]);
 
+  /*
+   * Select the first valid season once
+   * the complete list is available.
+   *
+   * If the user has already selected a
+   * season, preserve that selection.
+   */
   useEffect(() => {
     if (
       sortedSeasons.length ===
@@ -304,37 +364,36 @@ export default function EpisodeSelector({
       return;
     }
 
-    const stillExists =
+    const existing =
       sortedSeasons.some(
         (entry) =>
           String(
-            entry?.season_number
+            entry.season_number
           ) ===
           String(
             season
           )
       );
 
-    if (
-      stillExists
-    ) {
+    if (existing) {
       return;
     }
 
-    const first =
+    const firstWithEpisodes =
       sortedSeasons.find(
         (entry) =>
           Number(
-            entry?.episode_count ||
-            0
+            entry.episode_count ||
+              0
           ) > 0
       ) ||
       sortedSeasons[0];
 
     setSeason(
       String(
-        first?.season_number ||
-        ""
+        firstWithEpisodes
+          ?.season_number ||
+          ""
       )
     );
   }, [
@@ -342,6 +401,10 @@ export default function EpisodeSelector({
     season,
   ]);
 
+  /*
+   * Load episodes whenever a different
+   * season is selected.
+   */
   useEffect(() => {
     let cancelled =
       false;
@@ -353,7 +416,7 @@ export default function EpisodeSelector({
       return undefined;
     }
 
-    const load =
+    const loadEpisodes =
       async () => {
         setLoading(
           true
@@ -364,6 +427,10 @@ export default function EpisodeSelector({
         );
 
         setEpisodeError(
+          ""
+        );
+
+        setPlayError(
           ""
         );
 
@@ -385,9 +452,7 @@ export default function EpisodeSelector({
               }
             );
 
-          if (
-            cancelled
-          ) {
+          if (cancelled) {
             return;
           }
 
@@ -413,12 +478,10 @@ export default function EpisodeSelector({
           ) {
             setEpisodeError(
               data?.error ||
-              "No episodes were returned for this season."
+                "No episodes were returned for this season."
             );
           }
-        } catch (
-          error
-        ) {
+        } catch (error) {
           if (
             !cancelled
           ) {
@@ -428,7 +491,7 @@ export default function EpisodeSelector({
 
             setEpisodeError(
               error?.message ||
-              "Could not load episodes for this season."
+                "Could not load episodes for this season."
             );
           }
         } finally {
@@ -442,7 +505,7 @@ export default function EpisodeSelector({
         }
       };
 
-    load();
+    loadEpisodes();
 
     return () => {
       cancelled =
@@ -458,38 +521,28 @@ export default function EpisodeSelector({
     sortedSeasons.find(
       (entry) =>
         String(
-          entry?.season_number
+          entry.season_number
         ) ===
         String(
           season
         )
     );
 
-  const seasonLabel =
-    currentSeason
-      ? currentSeason?.name ||
-        `Season ${currentSeason?.season_number}`
-      : "Select season";
-
+  /*
+   * Resolve the series IMDb id before
+   * asking addons for an episode.
+   */
   const resolveEpisodeImdb =
     async () => {
-      const staleOrFallback =
+      const fallback =
         String(
           imdbId ||
-          item?.imdb_id ||
-          item?.imdbId ||
-          ""
+            item?.imdb_id ||
+            item?.imdbId ||
+            ""
         ).trim();
 
-      // TV is resolved from the TMDB series id
-      // on every play.
-      //
-      // This prevents a stale IMDb id stored on a
-      // card/detail object from being used for all
-      // episodes of the wrong programme.
-      if (
-        item?.id
-      ) {
+      if (item?.id) {
         try {
           const response =
             await base44.functions.invoke(
@@ -517,7 +570,7 @@ export default function EpisodeSelector({
           const resolved =
             String(
               data?.imdb_id ||
-              ""
+                ""
             ).trim();
 
           if (
@@ -527,9 +580,7 @@ export default function EpisodeSelector({
           ) {
             return resolved;
           }
-        } catch (
-          error
-        ) {
+        } catch (error) {
           console.warn(
             "[Media God] TV IMDb resolution failed",
             error
@@ -538,9 +589,9 @@ export default function EpisodeSelector({
       }
 
       return isImdbId(
-        staleOrFallback
+        fallback
       )
-        ? staleOrFallback
+        ? fallback
         : "";
     };
 
@@ -549,25 +600,19 @@ export default function EpisodeSelector({
       episodeItem
     ) => {
       const seasonNumber =
-        Number(
+        positiveInt(
           season
         );
 
       const episodeNumber =
-        Number(
+        positiveInt(
           episodeItem
             ?.episode_number
         );
 
       if (
-        !Number.isInteger(
-          seasonNumber
-        ) ||
-        seasonNumber < 1 ||
-        !Number.isInteger(
-          episodeNumber
-        ) ||
-        episodeNumber < 1
+        !seasonNumber ||
+        !episodeNumber
       ) {
         setPlayError(
           "This episode does not have a valid season/episode number."
@@ -591,11 +636,9 @@ export default function EpisodeSelector({
         if (
           !resolvedImdb
         ) {
-          setPlayError(
+          throw new Error(
             "Could not resolve the IMDb series id for this episode."
           );
-
-          return;
         }
 
         const seriesTitle =
@@ -663,6 +706,9 @@ export default function EpisodeSelector({
           mediaType:
             "tv",
 
+          type:
+            "series",
+
           season:
             seasonNumber,
 
@@ -684,6 +730,12 @@ export default function EpisodeSelector({
           preferRd:
             true,
 
+          skipAddonLookup:
+            false,
+
+          skipRdLookup:
+            false,
+
           sources:
             buildMediaSources({
               title:
@@ -699,12 +751,10 @@ export default function EpisodeSelector({
               providers,
             }),
         });
-      } catch (
-        error
-      ) {
+      } catch (error) {
         setPlayError(
           error?.message ||
-          "Could not start this episode."
+            "Could not start this episode."
         );
       } finally {
         setPlayingEpisode(
@@ -716,16 +766,16 @@ export default function EpisodeSelector({
   return (
     <div
       id="mg-episode-selector"
-      className="mt-5 scroll-mt-4"
+      className="mt-5 3xl:mt-7 scroll-mt-4"
     >
-      <div className="flex items-center justify-between gap-3 mb-2">
-        <h3 className="text-white/80 text-xs font-bold uppercase tracking-wider">
-          Episodes
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <h3 className="text-white/80 text-xs 3xl:text-sm font-bold uppercase tracking-wider">
+          Seasons & Episodes
         </h3>
 
         {sortedSeasons.length >
           0 && (
-          <span className="text-[10px] text-white/40">
+          <span className="text-[10px] 3xl:text-xs text-white/40">
             {
               sortedSeasons.length
             }{" "}
@@ -738,20 +788,26 @@ export default function EpisodeSelector({
         )}
       </div>
 
-      {seasonsLoading ? (
+      {seasonsLoading &&
+        sortedSeasons.length ===
+          0 && (
         <div className="bg-mg-card border border-white/10 rounded-lg p-4 flex items-center gap-2 text-white/60 text-sm">
           <Loader2 className="w-4 h-4 animate-spin text-mg-green" />
-          Loading seasons…
+          Loading all seasons…
         </div>
-      ) : sortedSeasons.length ===
-        0 ? (
+      )}
+
+      {!seasonsLoading &&
+        sortedSeasons.length ===
+          0 && (
         <div className="bg-mg-card border border-white/10 rounded-lg p-4">
           <div className="flex items-start gap-2">
             <AlertCircle className="w-4 h-4 text-amber-300 mt-0.5 shrink-0" />
 
             <div className="flex-1">
               <p className="text-white text-sm font-medium">
-                Seasons are not available yet
+                Seasons are not
+                available yet
               </p>
 
               <p className="text-white/45 text-xs mt-1">
@@ -765,8 +821,7 @@ export default function EpisodeSelector({
               onClick={() =>
                 setReloadNonce(
                   (value) =>
-                    value +
-                    1
+                    value + 1
                 )
               }
               className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-white/10 text-white text-xs hover:bg-white/15"
@@ -776,87 +831,98 @@ export default function EpisodeSelector({
             </button>
           </div>
         </div>
-      ) : (
+      )}
+
+      {sortedSeasons.length >
+        0 && (
         <>
-          <div className="relative mb-3">
-            <button
-              type="button"
-              onClick={() =>
-                setPickerOpen(
-                  (open) =>
-                    !open
-                )
-              }
-              className="flex items-center justify-between w-full bg-mg-card border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white"
-            >
-              <span className="font-semibold">
-                {
-                  seasonLabel
-                }
-              </span>
+          {/* ALL SEASONS ARE ALWAYS VISIBLE HERE */}
+          <div className="mb-4">
+            <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-2 overscroll-x-contain">
+              {sortedSeasons.map(
+                (entry) => {
+                  const number =
+                    Number(
+                      entry
+                        .season_number
+                    );
 
-              <ChevronDown
-                className={`w-4 h-4 text-white/60 transition-transform ${
-                  pickerOpen
-                    ? "rotate-180"
-                    : ""
-                }`}
-              />
-            </button>
+                  const selected =
+                    String(
+                      number
+                    ) ===
+                    String(
+                      season
+                    );
 
-            {pickerOpen && (
-              <div className="absolute z-20 mt-1 w-full max-h-64 overflow-y-auto bg-mg-surface border border-white/10 rounded-lg shadow-xl">
-                {sortedSeasons.map(
-                  (
-                    entry
-                  ) => (
+                  return (
                     <button
                       type="button"
                       key={
-                        entry
-                          ?.season_number
+                        number
                       }
-                      onClick={() => {
+                      onClick={() =>
                         setSeason(
                           String(
-                            entry
-                              ?.season_number
+                            number
                           )
-                        );
-
-                        setPickerOpen(
-                          false
-                        );
-                      }}
-                      className={`flex items-center justify-between w-full px-3 py-2 text-sm text-left hover:bg-white/5 ${
-                        String(
-                          entry
-                            ?.season_number
-                        ) ===
-                        String(
-                          season
                         )
-                          ? "text-mg-green"
-                          : "text-white/80"
-                      }`}
+                      }
+                      className={
+                        "shrink-0 min-h-11 rounded-lg border px-3 py-2 text-left transition-colors " +
+                        (selected
+                          ? "bg-mg-green text-black border-mg-green"
+                          : "bg-mg-card text-white/80 border-white/10 hover:border-mg-green/50 hover:text-white")
+                      }
                     >
-                      <span>
-                        {entry?.name ||
-                          `Season ${entry?.season_number}`}
+                      <span className="block text-xs sm:text-sm font-bold whitespace-nowrap">
+                        Season{" "}
+                        {
+                          number
+                        }
                       </span>
 
-                      <span className="text-white/40 text-xs">
+                      <span
+                        className={
+                          "block text-[10px] mt-0.5 whitespace-nowrap " +
+                          (selected
+                            ? "text-black/60"
+                            : "text-white/40")
+                        }
+                      >
                         {Number(
                           entry
                             ?.episode_count ||
-                          0
+                            0
                         )}{" "}
-                        ep
+                        episodes
                       </span>
                     </button>
-                  )
-                )}
-              </div>
+                  );
+                }
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <div>
+              <p className="text-white text-sm 3xl:text-base font-semibold">
+                {currentSeason
+                  ?.name ||
+                  `Season ${season}`}
+              </p>
+
+              <p className="text-white/40 text-[10px] 3xl:text-xs">
+                Choose an episode
+                to play
+              </p>
+            </div>
+
+            {seasonsLoading && (
+              <span className="flex items-center gap-1.5 text-[10px] text-white/40">
+                <Loader2 className="w-3 h-3 animate-spin" />
+                Updating seasons
+              </span>
             )}
           </div>
 
@@ -871,8 +937,7 @@ export default function EpisodeSelector({
           {loading ? (
             <div className="space-y-2">
               {Array.from({
-                length:
-                  4,
+                length: 4,
               }).map(
                 (
                   _,
@@ -882,13 +947,13 @@ export default function EpisodeSelector({
                     key={
                       index
                     }
-                    className="h-20 bg-mg-card rounded-lg animate-pulse"
+                    className="h-20 3xl:h-24 bg-mg-card rounded-lg animate-pulse"
                   />
                 )
               )}
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2 3xl:space-y-3">
               {episodes.map(
                 (
                   episodeItem
@@ -906,10 +971,9 @@ export default function EpisodeSelector({
                   return (
                     <div
                       key={
-                        episodeItem
-                          ?.episode_number
+                        episodeNumber
                       }
-                      className="flex gap-3 bg-mg-card border border-white/10 rounded-lg p-2 hover:border-mg-green/50 transition-colors"
+                      className="flex gap-3 3xl:gap-4 bg-mg-card border border-white/10 rounded-lg p-2 3xl:p-3 hover:border-mg-green/50 transition-colors"
                     >
                       <button
                         type="button"
@@ -921,9 +985,10 @@ export default function EpisodeSelector({
                         disabled={
                           isStarting
                         }
-                        className="relative w-24 sm:w-32 aspect-video rounded-md overflow-hidden bg-black shrink-0 group disabled:opacity-60"
+                        className="relative w-24 sm:w-32 3xl:w-40 aspect-video rounded-md overflow-hidden bg-black shrink-0 group disabled:opacity-60"
                       >
-                        {episodeItem?.still_url ? (
+                        {episodeItem
+                          ?.still_url ? (
                           <Image
                             src={
                               episodeItem
@@ -942,17 +1007,17 @@ export default function EpisodeSelector({
                           </div>
                         )}
 
-                        <span className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <span className="w-8 h-8 rounded-full bg-mg-green text-black flex items-center justify-center">
+                        <span className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 mg-hover-action transition-opacity">
+                          <span className="w-8 h-8 3xl:w-10 3xl:h-10 rounded-full bg-mg-green text-black flex items-center justify-center">
                             {isStarting ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <Loader2 className="w-4 h-4 3xl:w-5 3xl:h-5 animate-spin" />
                             ) : (
-                              <Play className="w-4 h-4 fill-black" />
+                              <Play className="w-4 h-4 3xl:w-5 3xl:h-5 fill-black" />
                             )}
                           </span>
                         </span>
 
-                        <span className="absolute bottom-0.5 left-0.5 text-[10px] font-bold bg-black/70 text-white px-1 rounded">
+                        <span className="absolute bottom-0.5 left-0.5 text-[10px] 3xl:text-xs font-bold bg-black/70 text-white px-1 rounded">
                           E
                           {
                             episodeNumber
@@ -972,15 +1037,22 @@ export default function EpisodeSelector({
                         }
                         className="flex-1 min-w-0 text-left disabled:opacity-60"
                       >
-                        <p className="text-white text-sm font-medium truncate">
-                          {episodeItem?.name ||
-                            `Episode ${episodeNumber}`}
+                        <p className="text-white text-sm 3xl:text-base font-medium">
+                          Episode{" "}
+                          {
+                            episodeNumber
+                          }
+                          {episodeItem
+                            ?.name
+                            ? ` — ${episodeItem.name}`
+                            : ""}
                         </p>
 
-                        <p className="text-white/40 text-xs flex items-center gap-1 mt-0.5">
-                          {episodeItem?.air_date && (
+                        <p className="text-white/40 text-xs 3xl:text-sm flex flex-wrap items-center gap-1 mt-0.5">
+                          {episodeItem
+                            ?.air_date && (
                             <>
-                              <Calendar className="w-3 h-3" />
+                              <Calendar className="w-3 h-3 3xl:w-4 3xl:h-4" />
 
                               {
                                 episodeItem
@@ -989,7 +1061,8 @@ export default function EpisodeSelector({
                             </>
                           )}
 
-                          {episodeItem?.runtime && (
+                          {episodeItem
+                            ?.runtime && (
                             <>
                               <span>
                                 •
@@ -1006,8 +1079,9 @@ export default function EpisodeSelector({
                           )}
                         </p>
 
-                        <p className="text-white/50 text-xs mt-1 line-clamp-2">
-                          {episodeItem?.overview ||
+                        <p className="text-white/50 text-xs 3xl:text-sm mt-1 line-clamp-2">
+                          {episodeItem
+                            ?.overview ||
                             "No description."}
                         </p>
                       </button>
