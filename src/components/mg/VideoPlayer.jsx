@@ -17,6 +17,7 @@ import {
   RefreshCw,
   Film,
   Maximize,
+  Minimize,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -103,6 +104,16 @@ export default function VideoPlayer({
   const [fileSwitching, setFileSwitching] =
     useState(false);
 
+  /*
+   * Safe fullscreen:
+   * keep fullscreen entirely inside React/CSS instead of using
+   * the browser Fullscreen/Screen Orientation APIs. Base44's
+   * mobile preview can be unstable when those native APIs are
+   * requested from an embedded preview.
+   */
+  const [viewportFullscreen, setViewportFullscreen] =
+    useState(false);
+
   const [failedSources, setFailedSources] =
     useState(() => new Set());
 
@@ -153,16 +164,21 @@ export default function VideoPlayer({
     return -1;
   };
 
-  const tryNextSource = (message = "This source could not be played.") => {
+  const tryNextSource = (
+    message = "This source could not be played."
+  ) => {
     markSourceFailed(activeIdx);
 
-    const nextIndex = findNextPlayableSource(activeIdx);
+    const nextIndex =
+      findNextPlayableSource(activeIdx);
 
     if (nextIndex === -1) {
       setRdResolving(false);
       setRdPolling(false);
       setRdTorrentId(null);
-      setRdError(`${message} No other playable source is available.`);
+      setRdError(
+        `${message} No other playable source is available.`
+      );
       return false;
     }
 
@@ -199,10 +215,24 @@ export default function VideoPlayer({
   };
 
   const sourceTypeLabel = (item) => {
-    const type = String(item?.type || "").toLowerCase();
+    const type = String(
+      item?.type || ""
+    ).toLowerCase();
 
-    if (type === "rd" || type === "rd_torrent") return "Real-Debrid";
-    if (type === "magnet" || type === "torrent") return "Torrent / Magnet";
+    if (
+      type === "rd" ||
+      type === "rd_torrent"
+    ) {
+      return "Real-Debrid";
+    }
+
+    if (
+      type === "magnet" ||
+      type === "torrent"
+    ) {
+      return "Torrent / Magnet";
+    }
+
     if (type === "live") return "Live";
     if (type === "youtube") return "Trailer";
     if (type === "provider") return "Provider";
@@ -234,97 +264,25 @@ export default function VideoPlayer({
     active?.type === "magnet" ||
     isMagnet(activeUrl);
 
-  const goFullscreen = async () => {
-    const stage = stageRef.current;
-    const video =
-      videoRef.current ||
-      liveVideoRef.current;
-
-    const fullscreenElement =
-      document.fullscreenElement ||
-      document.webkitFullscreenElement;
-
-    if (fullscreenElement) {
-      try {
-        if (document.exitFullscreen) {
-          await document.exitFullscreen();
-        } else if (document.webkitExitFullscreen) {
-          document.webkitExitFullscreen();
-        }
-      } catch {
-        // Ignore exit-fullscreen errors.
-      }
-
-      try {
-        window.screen?.orientation?.unlock?.();
-      } catch {
-        // Orientation unlock is optional.
-      }
-
-      return;
-    }
-
+  const goFullscreen = () => {
     /*
-     * Prefer putting the whole player stage into fullscreen.
-     * This keeps the custom controls, season/episode picker,
-     * subtitles and overlays visible on phones, tablets and TVs.
+     * Deliberately do NOT call requestFullscreen(),
+     * webkitEnterFullscreen(), or screen.orientation.lock().
+     *
+     * In Base44 mobile preview those native browser APIs can
+     * tear down or reload the embedded player. A CSS viewport
+     * fullscreen gives the same in-app viewing layout while
+     * keeping the video element and React player mounted.
      */
-    if (stage) {
-      try {
-        if (stage.requestFullscreen) {
-          try {
-            await stage.requestFullscreen({
-              navigationUI: "hide",
-            });
-          } catch {
-            await stage.requestFullscreen();
-          }
-
-          try {
-            await window.screen?.orientation?.lock?.(
-              "landscape"
-            );
-          } catch {
-            // Some browsers do not allow orientation locking.
-          }
-
-          return;
-        }
-
-        if (stage.webkitRequestFullscreen) {
-          stage.webkitRequestFullscreen();
-          return;
-        }
-      } catch {
-        // Fall through to native video fullscreen below.
-      }
-    }
-
-    /*
-     * Native-video fullscreen is the fallback for browsers
-     * that cannot fullscreen an arbitrary element.
-     */
-    if (video) {
-      try {
-        if (video.requestFullscreen) {
-          await video.requestFullscreen();
-          return;
-        }
-
-        if (video.webkitRequestFullscreen) {
-          video.webkitRequestFullscreen();
-          return;
-        }
-
-        if (video.webkitEnterFullscreen) {
-          video.webkitEnterFullscreen();
-        }
-      } catch {
-        // The browser does not support a usable fullscreen API.
-      }
-    }
+    setViewportFullscreen(
+      (current) => !current
+    );
   };
 
+  /*
+   * Reset RD state whenever the user chooses
+   * another source.
+   */
   useEffect(() => {
     setRdOverride(null);
     setRdError("");
@@ -337,6 +295,20 @@ export default function VideoPlayer({
     }
   }, [activeIdx]);
 
+  /*
+   * MAIN PLAYBACK RESOLUTION
+   *
+   * Direct URLs are played directly.
+   *
+   * Magnets/RD sources:
+   *
+   * 1. Try the magnet through Real-Debrid.
+   * 2. Real-Debrid can return a cached/instant result.
+   * 3. If it has to prepare the torrent, poll it.
+   *
+   * We deliberately do NOT require the title to already
+   * exist in the user's RD library.
+   */
   useEffect(() => {
     if (!active) return;
 
@@ -376,6 +348,9 @@ export default function VideoPlayer({
           );
         }
 
+        /*
+         * Direct HTTP sources do not need RD.
+         */
         if (
           String(magnet)
             .toLowerCase()
@@ -392,12 +367,17 @@ export default function VideoPlayer({
                 "Stream",
               file: "",
             });
+
             setRdResolving(false);
           }
 
           return;
         }
 
+        /*
+         * A magnet is NOT required to already be in
+         * the RD library. resolve_best adds it to RD.
+         */
         const res =
           await base44.functions.invoke(
             "realDebrid",
@@ -405,134 +385,6 @@ export default function VideoPlayer({
               action: "resolve_best",
 
               magnet,
-
-              title:
-                source?.rdTitle ||
-                source?.title ||
-                "",
-
-              ...(source?.rdYear != null
-                ? {
-                    year:
-                      source.rdYear,
-                  }
-                : {}),
-
-              ...(source?.rdSeason != null
-                ? {
-                    season:
-                      source.rdSeason,
-                  }
-                : {}),
-
-              ...(source?.rdEpisode != null
-                ? {
-                    episode:
-                      source.rdEpisode,
-                  }
-                : {}),
-            }
-          );
-
-        if (cancelled) return;
-
-        const data = res?.data || {};
-
-        if (
-          data.status === "ready" &&
-          data.stream_url
-        ) {
-          setRdOverride({
-            src: data.stream_url,
-            label:
-              data.filename ||
-              active?.label ||
-              "Real-Debrid Stream",
-            file: currentFilePath(
-              data.files
-            ),
-          });
-
-          setRdFiles(
-            data.files || []
-          );
-
-          setRdResolving(false);
-          return;
-        }
-
-        if (data.torrent_id) {
-          setRdTorrentId(
-            String(data.torrent_id)
-          );
-
-          setRdResolving(false);
-          return;
-        }
-
-        throw new Error(
-          data.error ||
-            "Real-Debrid could not resolve this source."
-        );
-      } catch (error) {
-        if (!cancelled) {
-          tryNextSource(
-            error?.message ||
-              "Unable to resolve this stream."
-          );
-        }
-      }
-    };
-
-    run();
-
-    return () => {
-      cancelled = true;
-
-      if (pollRef.current) {
-        clearTimeout(pollRef.current);
-        pollRef.current = null;
-      }
-    };
-  }, [
-    activeIdx,
-    active,
-    activeUrl,
-    source,
-    isYoutube,
-    isProvider,
-    isDirectFile,
-    isLive,
-    isRdSource,
-  ]);
-
-  useEffect(() => {
-    if (
-      !rdTorrentId ||
-      rdOverride
-    ) {
-      return;
-    }
-
-    let cancelled = false;
-    let attempts = 0;
-
-    setRdPolling(true);
-
-    const tick = async () => {
-      if (cancelled) return;
-
-      attempts += 1;
-
-      try {
-        const res =
-          await base44.functions.invoke(
-            "realDebrid",
-            {
-              action: "torrent_info",
-
-              torrent_id:
-                rdTorrentId,
 
               title:
                 source?.rdTitle ||
@@ -575,10 +427,154 @@ export default function VideoPlayer({
             src: data.stream_url,
             label:
               data.filename ||
+              active?.label ||
               "Real-Debrid Stream",
-            file: currentFilePath(
-              data.files
-            ),
+            file:
+              currentFilePath(
+                data.files
+              ),
+          });
+
+          setRdFiles(
+            data.files || []
+          );
+
+          setRdResolving(false);
+
+          return;
+        }
+
+        if (data.torrent_id) {
+          setRdTorrentId(
+            String(data.torrent_id)
+          );
+
+          setRdResolving(false);
+
+          return;
+        }
+
+        throw new Error(
+          data.error ||
+            "Real-Debrid could not resolve this source."
+        );
+      } catch (error) {
+        if (!cancelled) {
+          tryNextSource(
+            error?.message ||
+              "Unable to resolve this stream."
+          );
+        }
+      }
+    };
+
+    run();
+
+    return () => {
+      cancelled = true;
+
+      if (pollRef.current) {
+        clearTimeout(
+          pollRef.current
+        );
+
+        pollRef.current = null;
+      }
+    };
+  }, [
+    activeIdx,
+    active,
+    activeUrl,
+    source,
+    isYoutube,
+    isProvider,
+    isDirectFile,
+    isLive,
+    isRdSource,
+  ]);
+
+  /*
+   * Poll Real-Debrid while a newly submitted torrent
+   * is being prepared.
+   */
+  useEffect(() => {
+    if (
+      !rdTorrentId ||
+      rdOverride
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+    let attempts = 0;
+
+    setRdPolling(true);
+
+    const tick = async () => {
+      if (cancelled) return;
+
+      attempts += 1;
+
+      try {
+        const res =
+          await base44.functions.invoke(
+            "realDebrid",
+            {
+              action:
+                "torrent_info",
+
+              torrent_id:
+                rdTorrentId,
+
+              title:
+                source?.rdTitle ||
+                source?.title ||
+                "",
+
+              ...(source?.rdYear != null
+                ? {
+                    year:
+                      source.rdYear,
+                  }
+                : {}),
+
+              ...(source?.rdSeason != null
+                ? {
+                    season:
+                      source.rdSeason,
+                  }
+                : {}),
+
+              ...(source?.rdEpisode != null
+                ? {
+                    episode:
+                      source.rdEpisode,
+                  }
+                : {}),
+            }
+          );
+
+        if (cancelled) return;
+
+        const data =
+          res?.data || {};
+
+        if (
+          data.status === "ready" &&
+          data.stream_url
+        ) {
+          setRdOverride({
+            src:
+              data.stream_url,
+
+            label:
+              data.filename ||
+              "Real-Debrid Stream",
+
+            file:
+              currentFilePath(
+                data.files
+              ),
           });
 
           setRdFiles(
@@ -592,9 +588,13 @@ export default function VideoPlayer({
         }
 
         if (data.error) {
-          setRdError(data.error);
+          setRdError(
+            data.error
+          );
+
           setRdPolling(false);
           setRdTorrentId(null);
+
           return;
         }
       } catch (error) {
@@ -611,6 +611,9 @@ export default function VideoPlayer({
         return;
       }
 
+      /*
+       * 36 attempts x 5 seconds = 3 minutes.
+       */
       if (attempts < 36) {
         pollRef.current =
           setTimeout(
@@ -627,6 +630,9 @@ export default function VideoPlayer({
       }
     };
 
+    /*
+     * Give RD a moment to register the torrent.
+     */
     pollRef.current =
       setTimeout(
         tick,
@@ -651,8 +657,12 @@ export default function VideoPlayer({
   ]);
 
   useEffect(() => {
-    failedSourcesRef.current = new Set();
-    setFailedSources(new Set());
+    failedSourcesRef.current =
+      new Set();
+
+    setFailedSources(
+      new Set()
+    );
   }, [
     source?.title,
     source?.id,
@@ -660,14 +670,24 @@ export default function VideoPlayer({
     source?.rdEpisode,
   ]);
 
+  /*
+   * Keyboard controls.
+   */
   useEffect(() => {
     const onKey = (event) => {
       if (
-        event.key === "Escape" &&
-        !document.fullscreenElement &&
-        !document.webkitFullscreenElement
+        event.key === "Escape"
       ) {
-        onClose();
+        if (
+          viewportFullscreen
+        ) {
+          setViewportFullscreen(
+            false
+          );
+        } else {
+          onClose();
+        }
+
         return;
       }
 
@@ -679,15 +699,17 @@ export default function VideoPlayer({
       if (
         tag === "input" ||
         tag === "textarea" ||
-        event.target?.isContentEditable
+        event.target
+          ?.isContentEditable
       ) {
         return;
       }
 
       const video =
-        stageRef.current?.querySelector(
-          "video"
-        );
+        stageRef.current
+          ?.querySelector(
+            "video"
+          );
 
       if (!video) return;
 
@@ -700,23 +722,31 @@ export default function VideoPlayer({
 
         video.currentTime =
           video.duration *
-          (parseInt(
-            event.key,
-            10
-          ) / 10);
+          (
+            parseInt(
+              event.key,
+              10
+            ) / 10
+          );
 
         return;
       }
 
-      switch (event.key) {
+      switch (
+        event.key
+      ) {
         case " ":
         case "k":
           event.preventDefault();
 
-          if (video.paused) {
+          if (
+            video.paused
+          ) {
             video
               .play()
-              .catch(() => {});
+              .catch(
+                () => {}
+              );
           } else {
             video.pause();
           }
@@ -730,8 +760,10 @@ export default function VideoPlayer({
           video.currentTime =
             Math.max(
               0,
-              (video.currentTime ||
-                0) - 10
+              (
+                video.currentTime ||
+                0
+              ) - 10
             );
 
           break;
@@ -740,12 +772,16 @@ export default function VideoPlayer({
         case "l":
           event.preventDefault();
 
-          if (video.duration) {
+          if (
+            video.duration
+          ) {
             video.currentTime =
               Math.min(
                 video.duration,
-                (video.currentTime ||
-                  0) + 10
+                (
+                  video.currentTime ||
+                  0
+                ) + 10
               );
           }
 
@@ -757,8 +793,10 @@ export default function VideoPlayer({
           video.volume =
             Math.min(
               1,
-              (video.volume ?? 1) +
-                0.1
+              (
+                video.volume ??
+                1
+              ) + 0.1
             );
 
           break;
@@ -769,8 +807,10 @@ export default function VideoPlayer({
           video.volume =
             Math.max(
               0,
-              (video.volume ?? 1) -
-                0.1
+              (
+                video.volume ??
+                1
+              ) - 0.1
             );
 
           break;
@@ -782,8 +822,10 @@ export default function VideoPlayer({
 
         case "m":
           event.preventDefault();
+
           video.muted =
             !video.muted;
+
           break;
 
         case "<":
@@ -792,8 +834,10 @@ export default function VideoPlayer({
           video.playbackRate =
             Math.max(
               0.5,
-              (video.playbackRate ||
-                1) - 0.25
+              (
+                video.playbackRate ||
+                1
+              ) - 0.25
             );
 
           break;
@@ -804,8 +848,10 @@ export default function VideoPlayer({
           video.playbackRate =
             Math.min(
               2,
-              (video.playbackRate ||
-                1) + 0.25
+              (
+                video.playbackRate ||
+                1
+              ) + 0.25
             );
 
           break;
@@ -832,8 +878,14 @@ export default function VideoPlayer({
       document.body.style.overflow =
         "";
     };
-  }, [onClose]);
+  }, [
+    onClose,
+    viewportFullscreen,
+  ]);
 
+  /*
+   * Autoplay direct/RD video.
+   */
   useEffect(() => {
     const video =
       videoRef.current;
@@ -860,18 +912,25 @@ export default function VideoPlayer({
 
     video.muted = false;
 
-    video.play().catch(() => {
-      video.muted = true;
+    video
+      .play()
+      .catch(() => {
+        video.muted = true;
 
-      video
-        .play()
-        .catch(() => {});
-    });
+        video
+          .play()
+          .catch(
+            () => {}
+          );
+      });
   }, [
     active,
     rdOverride,
   ]);
 
+  /*
+   * Continue Watching.
+   */
   const lastSaveRef =
     useRef(0);
 
@@ -937,8 +996,11 @@ export default function VideoPlayer({
       progress: time,
       duration,
       video_url: url,
+
       poster_url:
-        source.poster || "",
+        source.poster ||
+        "",
+
       source_type:
         rdOverride
           ? "rd"
@@ -946,55 +1008,91 @@ export default function VideoPlayer({
     };
 
     const id =
-      cwIdRef.current[key];
+      cwIdRef.current[
+        key
+      ];
 
     if (id) {
-      base44.entities.ContinueWatching
-        .update(id, patch)
-        .catch(() => {});
+      base44.entities
+        .ContinueWatching
+        .update(
+          id,
+          patch
+        )
+        .catch(
+          () => {}
+        );
 
       return;
     }
 
-    base44.entities.ContinueWatching
+    base44.entities
+      .ContinueWatching
       .filter({
-        content_key: key,
+        content_key:
+          key,
       })
-      .then((rows) => {
-        if (rows?.length > 0) {
-          cwIdRef.current[key] =
-            rows[0].id;
+      .then(
+        (rows) => {
+          if (
+            rows?.length >
+            0
+          ) {
+            cwIdRef.current[
+              key
+            ] =
+              rows[0].id;
 
-          base44.entities.ContinueWatching
-            .update(
-              rows[0].id,
-              patch
-            )
-            .catch(() => {});
+            base44.entities
+              .ContinueWatching
+              .update(
+                rows[0].id,
+                patch
+              )
+              .catch(
+                () => {}
+              );
 
-          return;
+            return;
+          }
+
+          return base44.entities
+            .ContinueWatching
+            .create({
+              content_key:
+                key,
+
+              title:
+                source.title,
+
+              year:
+                source.rdYear ||
+                source.year ||
+                "",
+
+              ...patch,
+            })
+            .then(
+              (
+                created
+              ) => {
+                cwIdRef.current[
+                  key
+                ] =
+                  created.id;
+              }
+            );
         }
-
-        return base44.entities.ContinueWatching
-          .create({
-            content_key: key,
-            title: source.title,
-            year:
-              source.rdYear ||
-              source.year ||
-              "",
-            ...patch,
-          })
-          .then((created) => {
-            cwIdRef.current[key] =
-              created.id;
-          });
-      })
-      .catch(() => {});
+      )
+      .catch(
+        () => {}
+      );
   };
 
   const saveProgressRef =
-    useRef(saveProgress);
+    useRef(
+      saveProgress
+    );
 
   saveProgressRef.current =
     saveProgress;
@@ -1004,14 +1102,16 @@ export default function VideoPlayer({
       const {
         t,
         d,
-      } = lastPosRef.current;
+      } =
+        lastPosRef.current;
 
       if (t > 5) {
-        saveProgressRef.current?.(
-          t,
-          d,
-          true
-        );
+        saveProgressRef
+          .current?.(
+            t,
+            d,
+            true
+          );
       }
     };
   }, []);
@@ -1024,7 +1124,8 @@ export default function VideoPlayer({
 
     if (
       source?.startTime &&
-      source.startTime > 5
+      source.startTime >
+        5
     ) {
       try {
         video.currentTime =
@@ -1041,98 +1142,151 @@ export default function VideoPlayer({
     const video =
       event.target;
 
-    lastPosRef.current = {
-      t:
-        video.currentTime ||
-        0,
-      d:
-        video.duration || 0,
-    };
+    lastPosRef.current =
+      {
+        t:
+          video.currentTime ||
+          0,
+
+        d:
+          video.duration ||
+          0,
+      };
 
     saveProgress(
       video.currentTime ||
         0,
+
       video.duration ||
         0
     );
   };
 
-  const pickFile = async (
-    file
-  ) => {
-    if (!file?.link) {
-      setRdError(
-        "This file does not have a Real-Debrid link yet."
-      );
-      return;
-    }
-
-    if (
-      rdOverride?.file ===
-      file.path
-    ) {
-      return;
-    }
-
-    setFileSwitching(true);
-    setRdError("");
-
-    try {
-      const res =
-        await base44.functions.invoke(
-          "realDebrid",
-          {
-            action:
-              "unrestrict_file",
-            link: file.link,
-          }
+  /*
+   * Allow selecting another video file from a
+   * multi-file RD torrent.
+   */
+  const pickFile =
+    async (
+      file
+    ) => {
+      if (
+        !file?.link
+      ) {
+        setRdError(
+          "This file does not have a Real-Debrid link yet."
         );
 
-      const data =
-        res?.data || {};
+        return;
+      }
 
-      if (data.stream_url) {
-        setRdOverride({
-          src:
-            data.stream_url,
-          label:
-            file.path ||
-            "Real-Debrid File",
-          file:
-            file.path || "",
-        });
-      } else {
+      if (
+        rdOverride?.file ===
+        file.path
+      ) {
+        return;
+      }
+
+      setFileSwitching(
+        true
+      );
+
+      setRdError("");
+
+      try {
+        const res =
+          await base44.functions.invoke(
+            "realDebrid",
+            {
+              action:
+                "unrestrict_file",
+
+              link:
+                file.link,
+            }
+          );
+
+        const data =
+          res?.data ||
+          {};
+
+        if (
+          data.stream_url
+        ) {
+          setRdOverride({
+            src:
+              data.stream_url,
+
+            label:
+              file.path ||
+              "Real-Debrid File",
+
+            file:
+              file.path ||
+              "",
+          });
+        } else {
+          setRdError(
+            data.error ||
+              "Could not open this file."
+          );
+        }
+      } catch (
+        error
+      ) {
         setRdError(
-          data.error ||
-            "Could not open this file."
+          error?.message ||
+            "Real-Debrid request failed."
+        );
+      } finally {
+        setFileSwitching(
+          false
         );
       }
-    } catch (error) {
-      setRdError(
-        error?.message ||
-          "Real-Debrid request failed."
+    };
+
+  /*
+   * Retry the currently selected RD source.
+   */
+  const retryResolution =
+    () => {
+      setRdOverride(
+        null
       );
-    } finally {
-      setFileSwitching(false);
-    }
-  };
 
-  const retryResolution = () => {
-    setRdOverride(null);
-    setRdFiles([]);
-    setRdTorrentId(null);
-    setRdError("");
-    setRdResolving(true);
+      setRdFiles([]);
 
-    const current =
-      activeIdx;
+      setRdTorrentId(
+        null
+      );
 
-    setActiveIdx(-1);
+      setRdError("");
 
-    setTimeout(() => {
-      setActiveIdx(current);
-    }, 0);
-  };
+      setRdResolving(
+        true
+      );
+
+      /*
+       * Changing activeIdx to itself does not trigger React's
+       * effect, so force a harmless source reset by temporarily
+       * changing state through the same index.
+       */
+      const current =
+        activeIdx;
+
+      setActiveIdx(
+        -1
+      );
+
+      setTimeout(
+        () => {
+          setActiveIdx(
+            current
+          );
+        },
+        0
+      );
+    };
 
   const busy =
     rdResolving ||
@@ -1145,16 +1299,37 @@ export default function VideoPlayer({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4"
-      onClick={onClose}
+      className={cn(
+        "fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center",
+        viewportFullscreen
+          ? "p-0"
+          : "p-4"
+      )}
+      onClick={
+        onClose
+      }
     >
       <div
-        className="w-full max-w-4xl"
-        onClick={(event) =>
+        className={cn(
+          "w-full",
+          viewportFullscreen
+            ? "h-[100dvh] max-w-none"
+            : "max-w-4xl"
+        )}
+        onClick={(
+          event
+        ) =>
           event.stopPropagation()
         }
       >
-        <div className="flex items-center justify-between mb-3 gap-3">
+        <div
+          className={cn(
+            "items-center justify-between mb-3 gap-3",
+            viewportFullscreen
+              ? "hidden"
+              : "flex"
+          )}
+        >
           <div className="flex items-center gap-2 min-w-0">
             {isLive && (
               <span className="flex items-center gap-1 text-[10px] font-bold bg-red-600 text-white px-2 py-0.5 rounded shrink-0">
@@ -1164,7 +1339,9 @@ export default function VideoPlayer({
             )}
 
             <h3 className="text-white font-semibold text-sm truncate">
-              {source?.title}
+              {
+                source?.title
+              }
             </h3>
           </div>
 
@@ -1200,7 +1377,9 @@ export default function VideoPlayer({
             )}
 
             <button
-              onClick={onClose}
+              onClick={
+                onClose
+              }
               className="text-white/60 hover:text-white"
               aria-label="Close"
             >
@@ -1209,37 +1388,37 @@ export default function VideoPlayer({
           </div>
         </div>
 
-        <style>{`
-          #mg-video-stage:fullscreen,
-          #mg-video-stage:-webkit-full-screen {
-            width: 100vw !important;
-            height: 100vh !important;
-            max-width: none !important;
-            max-height: none !important;
-            aspect-ratio: auto !important;
-            border: 0 !important;
-            border-radius: 0 !important;
-            background: #000 !important;
-          }
-
-          #mg-video-stage:fullscreen video,
-          #mg-video-stage:-webkit-full-screen video,
-          #mg-video-stage:fullscreen iframe,
-          #mg-video-stage:-webkit-full-screen iframe {
-            width: 100% !important;
-            height: 100% !important;
-            max-width: 100% !important;
-            max-height: 100% !important;
-            object-fit: contain !important;
-            background: #000 !important;
-          }
-        `}</style>
-
         <div
-          id="mg-video-stage"
-          ref={stageRef}
-          className="relative w-full aspect-video bg-black rounded-lg overflow-hidden border border-white/10 flex items-center justify-center"
+          ref={
+            stageRef
+          }
+          className={cn(
+            "relative w-full bg-black overflow-hidden flex items-center justify-center",
+            viewportFullscreen
+              ? "h-[100dvh] aspect-auto rounded-none border-0"
+              : "aspect-video rounded-lg border border-white/10"
+          )}
         >
+          {viewportFullscreen && (
+            <button
+              type="button"
+              onClick={(
+                event
+              ) => {
+                event.stopPropagation();
+
+                setViewportFullscreen(
+                  false
+                );
+              }}
+              className="absolute right-3 top-3 z-50 flex h-10 w-10 items-center justify-center rounded-full bg-black/70 text-white shadow-lg backdrop-blur-sm hover:bg-black/90"
+              aria-label="Exit fullscreen"
+              title="Exit fullscreen"
+            >
+              <Minimize className="h-5 w-5" />
+            </button>
+          )}
+
           {busy ? (
             <div className="flex flex-col items-center gap-3 p-6 text-center">
               <Loader2 className="w-8 h-8 text-mg-green animate-spin" />
@@ -1259,19 +1438,31 @@ export default function VideoPlayer({
 
               {displayedError && (
                 <p className="text-red-400 text-xs mt-1 max-w-md break-words">
-                  {displayedError}
+                  {
+                    displayedError
+                  }
                 </p>
               )}
             </div>
           ) : rdOverride ? (
             <>
               <video
-                key={rdOverride.src}
-                ref={videoRef}
-                src={rdOverride.src}
-                poster={source?.poster}
+                key={
+                  rdOverride.src
+                }
+                ref={
+                  videoRef
+                }
+                src={
+                  rdOverride.src
+                }
+                poster={
+                  source?.poster
+                }
                 playsInline
-                controls={false}
+                controls={
+                  false
+                }
                 onLoadedMetadata={
                   handleLoadedMetadata
                 }
@@ -1287,10 +1478,18 @@ export default function VideoPlayer({
               />
 
               <PlayerControls
-                key={rdOverride.src}
-                videoRef={videoRef}
-                stageRef={stageRef}
-                isLive={isLive}
+                key={
+                  rdOverride.src
+                }
+                videoRef={
+                  videoRef
+                }
+                stageRef={
+                  stageRef
+                }
+                isLive={
+                  isLive
+                }
                 onFullscreen={
                   goFullscreen
                 }
@@ -1298,7 +1497,9 @@ export default function VideoPlayer({
             </>
           ) : isYoutube ? (
             <iframe
-              src={active.src}
+              src={
+                active.src
+              }
               title={
                 source?.title ||
                 "Video"
@@ -1310,7 +1511,9 @@ export default function VideoPlayer({
             />
           ) : isProvider ? (
             <iframe
-              src={active.src}
+              src={
+                active.src
+              }
               title={
                 source?.title ||
                 "Provider"
@@ -1323,13 +1526,21 @@ export default function VideoPlayer({
           ) : isDirectFile ? (
             <>
               <LiveVideo
-                ref={liveVideoRef}
-                key={active.src}
-                src={active.src}
+                ref={
+                  liveVideoRef
+                }
+                key={
+                  active.src
+                }
+                src={
+                  active.src
+                }
                 poster={
                   source?.poster
                 }
-                controls={false}
+                controls={
+                  false
+                }
                 className="w-full h-full object-contain bg-black"
                 onLoadedMetadata={
                   handleLoadedMetadata
@@ -1345,14 +1556,18 @@ export default function VideoPlayer({
               />
 
               <PlayerControls
-                key={active.src}
+                key={
+                  active.src
+                }
                 videoRef={
                   liveVideoRef
                 }
                 stageRef={
                   stageRef
                 }
-                isLive={isLive}
+                isLive={
+                  isLive
+                }
                 onFullscreen={
                   goFullscreen
                 }
@@ -1368,7 +1583,9 @@ export default function VideoPlayer({
 
               {displayedError && (
                 <p className="text-red-400 text-xs max-w-md break-words">
-                  {displayedError}
+                  {
+                    displayedError
+                  }
                 </p>
               )}
 
@@ -1398,7 +1615,9 @@ export default function VideoPlayer({
                   </p>
 
                   <p className="text-red-300/70 text-xs mt-1 break-words">
-                    {displayedError}
+                    {
+                      displayedError
+                    }
                   </p>
                 </div>
 
@@ -1418,7 +1637,8 @@ export default function VideoPlayer({
           )}
 
         {rdOverride &&
-          rdFiles.length > 1 && (
+          rdFiles.length >
+            1 && (
             <div className="mt-3 bg-mg-card border border-white/10 rounded-lg p-2 max-h-44 overflow-y-auto">
               <p className="text-white/50 text-[10px] font-semibold uppercase tracking-wide px-1 pb-1 flex items-center gap-1">
                 <Film className="w-3 h-3" />
@@ -1427,7 +1647,9 @@ export default function VideoPlayer({
 
               <div className="flex flex-col gap-0.5">
                 {rdFiles.map(
-                  (file) => {
+                  (
+                    file
+                  ) => {
                     const isCurrent =
                       rdOverride.file ===
                       file.path;
@@ -1488,49 +1710,81 @@ export default function VideoPlayer({
             </div>
           )}
 
-        {sources.length > 1 && (
+        {sources.length >
+          1 && (
           <div className="mt-3 bg-mg-card border border-white/10 rounded-lg p-3">
             <div className="flex items-center justify-between gap-3 mb-2">
               <div className="min-w-0">
                 <p className="text-white text-xs font-semibold">
                   Playback source
                 </p>
+
                 <p className="text-white/40 text-[10px] mt-0.5">
                   Choose from every source Media God found for this title.
                 </p>
               </div>
 
               <span className="shrink-0 text-[10px] font-semibold text-mg-green bg-mg-green/10 border border-mg-green/20 rounded-full px-2 py-1">
-                {sources.length} sources
+                {
+                  sources.length
+                }{" "}
+                sources
               </span>
             </div>
 
             <div className="relative">
               <select
-                value={activeIdx}
-                onChange={(event) =>
-                  selectSource(event.target.value)
+                value={
+                  activeIdx
+                }
+                onChange={(
+                  event
+                ) =>
+                  selectSource(
+                    event.target
+                      .value
+                  )
                 }
                 className="w-full appearance-none bg-black/40 border border-white/10 rounded-lg text-white text-sm pl-3 pr-10 py-2.5 outline-none focus:border-mg-green"
                 aria-label="Choose playback source"
               >
-                {sources.map((item, index) => {
-                  const failed = failedSources.has(index);
-                  const label =
-                    item?.label ||
-                    `Source ${index + 1}`;
+                {sources.map(
+                  (
+                    item,
+                    index
+                  ) => {
+                    const failed =
+                      failedSources.has(
+                        index
+                      );
 
-                  return (
-                    <option
-                      key={`${index}-${label}`}
-                      value={index}
-                    >
-                      {failed ? "Failed — " : ""}
-                      {label}
-                      {` · ${sourceTypeLabel(item)}`}
-                    </option>
-                  );
-                })}
+                    const label =
+                      item?.label ||
+                      `Source ${
+                        index +
+                        1
+                      }`;
+
+                    return (
+                      <option
+                        key={`${index}-${label}`}
+                        value={
+                          index
+                        }
+                      >
+                        {failed
+                          ? "Failed — "
+                          : ""}
+                        {
+                          label
+                        }
+                        {` · ${sourceTypeLabel(
+                          item
+                        )}`}
+                      </option>
+                    );
+                  }
+                )}
               </select>
 
               <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-white/50">
@@ -1539,31 +1793,45 @@ export default function VideoPlayer({
             </div>
 
             <div className="flex items-center gap-2 mt-2 text-[10px] text-white/45 min-w-0">
-              {(active.type === "rd" ||
-                active.type === "rd_torrent") && (
+              {(active.type ===
+                "rd" ||
+                active.type ===
+                  "rd_torrent") && (
                 <Zap className="w-3 h-3 text-mg-green shrink-0" />
               )}
 
-              {(active.type === "magnet" ||
-                active.type === "torrent") && (
+              {(active.type ===
+                "magnet" ||
+                active.type ===
+                  "torrent") && (
                 <Link className="w-3 h-3 text-mg-green shrink-0" />
               )}
 
-              {active.type === "provider" && (
+              {active.type ===
+                "provider" && (
                 <Tv className="w-3 h-3 shrink-0" />
               )}
 
-              {active.type === "youtube" && (
+              {active.type ===
+                "youtube" && (
                 <ExternalLink className="w-3 h-3 shrink-0" />
               )}
 
-              {active.type === "torrent" && (
+              {active.type ===
+                "torrent" && (
                 <Download className="w-3 h-3 shrink-0" />
               )}
 
               <span className="truncate">
-                Current: {active?.label || `Source ${activeIdx + 1}`}
-                {active?.addon ? ` · ${active.addon}` : ""}
+                Current:{" "}
+                {active?.label ||
+                  `Source ${
+                    activeIdx +
+                    1
+                  }`}
+                {active?.addon
+                  ? ` · ${active.addon}`
+                  : ""}
               </span>
             </div>
           </div>
