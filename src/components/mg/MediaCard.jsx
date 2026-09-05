@@ -1,33 +1,7 @@
 import React from "react";
-
-import {
-  Check,
-  ListVideo,
-  Play,
-  Plus,
-} from "lucide-react";
-
+import { Play, Plus, Check } from "lucide-react";
 import { Image } from "@/components/ui/image";
 import { usePlayer } from "@/components/mg/PlayerProvider";
-
-const getMediaType = (item) => {
-  const explicit = String(
-    item?.media_type ||
-      item?.mediaType ||
-      item?.type ||
-      ""
-  ).toLowerCase();
-
-  if (
-    explicit === "tv" ||
-    explicit === "series" ||
-    explicit === "show"
-  ) {
-    return "tv";
-  }
-
-  return "movie";
-};
 
 export default function MediaCard({
   item,
@@ -35,138 +9,83 @@ export default function MediaCard({
   onWatchlist,
   watched,
 }) {
-  const { play } = usePlayer();
+  const player = usePlayer();
 
-  const mediaType = getMediaType(item);
-  const isTv = mediaType === "tv";
-
-  const openDetails = () => {
-    if (typeof onOpen !== "function") {
-      return false;
-    }
-
-    onOpen({
-      ...item,
-      media_type: mediaType,
-    });
-
-    return true;
-  };
-
-  const handlePrimaryAction = async (event) => {
-    event.preventDefault();
+  const handlePlay = (event) => {
     event.stopPropagation();
 
-    // TV must go through DetailModal -> EpisodeSelector
-    // so an exact season and episode is selected first.
-    if (isTv) {
-      openDetails();
-      return;
-    }
-
-    // Keep the working movie playback path.
-    await play({
-      id: item?.id || item?.tmdb_id,
-      tmdbId: item?.tmdb_id || item?.id,
-      imdbId: item?.imdb_id || item?.imdbId || "",
-      title: item?.title || "Movie",
-      poster: item?.poster_url || "",
-      year: item?.year,
-      rdTitle: item?.title || "",
-      rdYear: item?.year,
-      mediaType: "movie",
-      type: "movie",
-      sources: [],
+    player.play({
+      id: item.id || item.tmdb_id,
+      imdbId: item.imdb_id || item.imdbId,
+      title: item.title,
+      year: item.year,
+      poster: item.poster_url,
+      type: item.media_type || item.type || "movie",
     });
   };
 
-  const handleTitleClick = (event) => {
-    if (typeof onOpen !== "function") {
-      return;
-    }
-
-    event.preventDefault();
+  const handleDetails = (event) => {
     event.stopPropagation();
-
-    openDetails();
+    onOpen?.(item);
   };
 
   const handleWatchlist = (event) => {
-    event.preventDefault();
     event.stopPropagation();
-
-    if (typeof onWatchlist === "function") {
-      onWatchlist({
-        ...item,
-        media_type: mediaType,
-      });
-    }
+    onWatchlist?.(item);
   };
 
   return (
-    <div className="group shrink-0 w-28 sm:w-36 md:w-40">
-      <div className="relative aspect-[2/3] rounded-md overflow-hidden border border-white/10 bg-mg-card">
+    <article className="group shrink-0 w-28 min-[420px]:w-32 sm:w-36 md:w-40 xl:w-44 3xl:w-52 4xl:w-60">
+      <div className="relative aspect-[2/3] rounded-md 3xl:rounded-lg overflow-hidden border border-white/10 bg-mg-card">
         <Image
-          src={item?.poster_url}
-          alt={item?.title || "Media"}
+          src={item.poster_url}
+          alt={item.title}
           className="w-full h-full object-cover"
           fittingType="fill"
         />
 
         <button
           type="button"
-          onClick={handlePrimaryAction}
-          className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
-          aria-label={
-            isTv
-              ? `Choose episode for ${item?.title || "TV show"}`
-              : `Play ${item?.title || "movie"}`
-          }
+          onClick={handlePlay}
+          className="mg-hover-action absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity"
+          aria-label={`Play ${item.title}`}
         >
-          <span className="w-10 h-10 rounded-full bg-mg-green text-black flex items-center justify-center">
-            {isTv ? (
-              <ListVideo className="w-5 h-5" />
-            ) : (
-              <Play className="w-5 h-5 fill-black" />
-            )}
+          <span className="w-10 h-10 3xl:w-12 3xl:h-12 4xl:w-14 4xl:h-14 rounded-full bg-mg-green text-black flex items-center justify-center shadow-lg">
+            <Play className="w-5 h-5 3xl:w-6 3xl:h-6 4xl:w-7 4xl:h-7 fill-black" />
           </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={handleDetails}
+          className="mg-hover-action absolute top-1.5 left-1.5 3xl:top-2 3xl:left-2 px-2 py-1 3xl:px-2.5 3xl:py-1.5 rounded bg-black/70 text-white text-[10px] 3xl:text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity"
+        >
+          Details
         </button>
 
         {onWatchlist && (
           <button
             type="button"
             onClick={handleWatchlist}
-            className="absolute bottom-1.5 right-1.5 w-7 h-7 rounded-full bg-mg-green text-black flex items-center justify-center opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
-            aria-label={
-              watched
-                ? "In Watchlist"
-                : "Add to Watchlist"
-            }
+            className="mg-hover-action absolute bottom-1.5 right-1.5 3xl:bottom-2 3xl:right-2 w-8 h-8 3xl:w-10 3xl:h-10 rounded-full bg-mg-green text-black flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+            aria-label={watched ? "In Watchlist" : "Add to Watchlist"}
           >
             {watched ? (
-              <Check className="w-3.5 h-3.5" />
+              <Check className="w-4 h-4 3xl:w-5 3xl:h-5" />
             ) : (
-              <Plus className="w-3.5 h-3.5" />
+              <Plus className="w-4 h-4 3xl:w-5 3xl:h-5" />
             )}
           </button>
         )}
       </div>
 
-      <button
-        type="button"
-        onClick={handleTitleClick}
-        className="block w-full mt-1.5 text-left"
-        disabled={typeof onOpen !== "function"}
-      >
-        <p className="text-xs sm:text-sm text-white truncate">
-          {item?.title}
-        </p>
+      <p className="mt-1.5 3xl:mt-2 text-xs sm:text-sm 3xl:text-base 4xl:text-lg text-white truncate">
+        {item.title}
+      </p>
 
-        <p className="text-[10px] sm:text-xs text-white/40">
-          {item?.year}
-          {isTv ? " · TV" : ""}
-        </p>
-      </button>
-    </div>
+      <p className="text-[10px] sm:text-xs 3xl:text-sm text-white/40">
+        {item.year}
+      </p>
+    </article>
   );
 }
