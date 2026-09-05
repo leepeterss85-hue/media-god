@@ -3,6 +3,19 @@ import { Play, Plus, Check } from "lucide-react";
 import { Image } from "@/components/ui/image";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 
+const getMediaType = (item) => {
+  const value = String(
+    item?.media_type ||
+      item?.mediaType ||
+      item?.type ||
+      "movie"
+  ).toLowerCase();
+
+  return value === "tv" || value === "series"
+    ? "tv"
+    : "movie";
+};
+
 export default function MediaCard({
   item,
   onOpen,
@@ -14,19 +27,62 @@ export default function MediaCard({
   const handlePlay = (event) => {
     event.stopPropagation();
 
+    const mediaType = getMediaType(item);
+    const tmdbId = item.id || item.tmdb_id;
+
+    /*
+     * A TV card must not start a generic title/season pack.
+     * Open the show's details first so the user can choose the
+     * exact season and episode, just like everywhere else.
+     */
+    if (mediaType === "tv" && onOpen) {
+      onOpen({
+        ...item,
+        id: tmdbId,
+        media_type: "tv",
+        mediaType: "tv",
+        type: "tv",
+      });
+      return;
+    }
+
     player.play({
-      id: item.id || item.tmdb_id,
+      id: tmdbId,
+      tmdbId,
+      tmdb_id: tmdbId,
       imdbId: item.imdb_id || item.imdbId,
       title: item.title,
       year: item.year,
+      rdYear: item.year,
       poster: item.poster_url,
-      type: item.media_type || item.type || "movie",
+      mediaType,
+      type: mediaType === "tv" ? "series" : "movie",
+      rdTitle: item.title,
     });
+
+    /*
+     * Fallback for any MediaCard used without an onOpen handler:
+     * once the player mounts, ask it to open the TV picker.
+     */
+    if (mediaType === "tv") {
+      window.setTimeout(() => {
+        window.dispatchEvent(
+          new CustomEvent("mg:open-episode-picker")
+        );
+      }, 250);
+    }
   };
 
   const handleDetails = (event) => {
     event.stopPropagation();
-    onOpen?.(item);
+
+    const mediaType = getMediaType(item);
+
+    onOpen?.({
+      ...item,
+      media_type: mediaType,
+      mediaType,
+    });
   };
 
   const handleWatchlist = (event) => {
