@@ -26,6 +26,14 @@ const unwrap = (response) =>
   response ??
   {};
 
+const isImdbId = (value) =>
+  /^tt\d+$/i.test(
+    String(
+      value ||
+      ""
+    ).trim()
+  );
+
 const normaliseSeasons = (items) =>
   (
     Array.isArray(items)
@@ -33,18 +41,20 @@ const normaliseSeasons = (items) =>
       : []
   )
     .filter(
-      (item) =>
+      (entry) =>
         Number(
-          item?.season_number
+          entry?.season_number
         ) > 0
     )
     .sort(
       (a, b) =>
         Number(
-          a.season_number
+          a?.season_number ||
+          0
         ) -
         Number(
-          b.season_number
+          b?.season_number ||
+          0
         )
     );
 
@@ -61,51 +71,72 @@ export default function EpisodeSelector({
   const [
     availableSeasons,
     setAvailableSeasons,
-  ] = useState(() =>
-    normaliseSeasons(
-      seasons
-    )
-  );
+  ] =
+    useState(() =>
+      normaliseSeasons(
+        seasons
+      )
+    );
 
   const [
     season,
     setSeason,
-  ] = useState("");
+  ] =
+    useState("");
 
   const [
     episodes,
     setEpisodes,
-  ] = useState([]);
+  ] =
+    useState([]);
 
   const [
     loading,
     setLoading,
-  ] = useState(false);
+  ] =
+    useState(false);
 
   const [
     seasonsLoading,
     setSeasonsLoading,
-  ] = useState(false);
+  ] =
+    useState(false);
 
   const [
     seasonsError,
     setSeasonsError,
-  ] = useState("");
+  ] =
+    useState("");
 
   const [
     episodeError,
     setEpisodeError,
-  ] = useState("");
+  ] =
+    useState("");
+
+  const [
+    playError,
+    setPlayError,
+  ] =
+    useState("");
 
   const [
     pickerOpen,
     setPickerOpen,
-  ] = useState(false);
+  ] =
+    useState(false);
 
   const [
     reloadNonce,
     setReloadNonce,
-  ] = useState(0);
+  ] =
+    useState(0);
+
+  const [
+    playingEpisode,
+    setPlayingEpisode,
+  ] =
+    useState(null);
 
   const sortedSeasons =
     useMemo(
@@ -118,10 +149,6 @@ export default function EpisodeSelector({
       ]
     );
 
-  /*
-   * New programme:
-   * clear all old season / episode state.
-   */
   useEffect(() => {
     setAvailableSeasons(
       normaliseSeasons(
@@ -133,15 +160,12 @@ export default function EpisodeSelector({
     setEpisodes([]);
     setSeasonsError("");
     setEpisodeError("");
+    setPlayError("");
     setPickerOpen(false);
   }, [
     item?.id,
   ]);
 
-  /*
-   * If DetailModal receives seasons after
-   * loading has completed, use them.
-   */
   useEffect(() => {
     const incoming =
       normaliseSeasons(
@@ -156,21 +180,14 @@ export default function EpisodeSelector({
         incoming
       );
 
-      setSeasonsError("");
+      setSeasonsError(
+        ""
+      );
     }
   }, [
     seasons,
   ]);
 
-  /*
-   * Recovery path.
-   *
-   * The old EpisodeSelector disappeared completely
-   * when no seasons were supplied.
-   *
-   * This version asks getTmdbMovies for the
-   * programme details itself instead.
-   */
   useEffect(() => {
     let cancelled =
       false;
@@ -179,10 +196,7 @@ export default function EpisodeSelector({
       sortedSeasons.length >
       0
     ) {
-      return () => {
-        cancelled =
-          true;
-      };
+      return undefined;
     }
 
     if (
@@ -192,13 +206,10 @@ export default function EpisodeSelector({
         "This show does not have a TMDB id."
       );
 
-      return () => {
-        cancelled =
-          true;
-      };
+      return undefined;
     }
 
-    const loadSeasons =
+    const load =
       async () => {
         setSeasonsLoading(
           true
@@ -238,21 +249,19 @@ export default function EpisodeSelector({
                 ?.seasons
             );
 
+          setAvailableSeasons(
+            found
+          );
+
           if (
-            found.length >
+            found.length ===
             0
           ) {
-            setAvailableSeasons(
-              found
-            );
-
-            return;
-          }
-
-          setSeasonsError(
-            data?.error ||
+            setSeasonsError(
+              data?.error ||
               "No seasons were returned for this TV show."
-          );
+            );
+          }
         } catch (
           error
         ) {
@@ -261,7 +270,7 @@ export default function EpisodeSelector({
           ) {
             setSeasonsError(
               error?.message ||
-                "Could not load seasons for this TV show."
+              "Could not load seasons for this TV show."
             );
           }
         } finally {
@@ -275,7 +284,7 @@ export default function EpisodeSelector({
         }
       };
 
-    loadSeasons();
+    load();
 
     return () => {
       cancelled =
@@ -287,9 +296,6 @@ export default function EpisodeSelector({
     sortedSeasons.length,
   ]);
 
-  /*
-   * Automatically select the first normal season.
-   */
   useEffect(() => {
     if (
       sortedSeasons.length ===
@@ -300,9 +306,9 @@ export default function EpisodeSelector({
 
     const stillExists =
       sortedSeasons.some(
-        (item) =>
+        (entry) =>
           String(
-            item.season_number
+            entry?.season_number
           ) ===
           String(
             season
@@ -315,20 +321,20 @@ export default function EpisodeSelector({
       return;
     }
 
-    const firstWithEpisodes =
+    const first =
       sortedSeasons.find(
-        (item) =>
+        (entry) =>
           Number(
-            item?.episode_count ||
-              0
+            entry?.episode_count ||
+            0
           ) > 0
       ) ||
       sortedSeasons[0];
 
     setSeason(
       String(
-        firstWithEpisodes
-          .season_number
+        first?.season_number ||
+        ""
       )
     );
   }, [
@@ -336,9 +342,6 @@ export default function EpisodeSelector({
     season,
   ]);
 
-  /*
-   * Load the episodes for the selected season.
-   */
   useEffect(() => {
     let cancelled =
       false;
@@ -347,13 +350,10 @@ export default function EpisodeSelector({
       season === "" ||
       !item?.id
     ) {
-      return () => {
-        cancelled =
-          true;
-      };
+      return undefined;
     }
 
-    const loadEpisodes =
+    const load =
       async () => {
         setLoading(
           true
@@ -396,7 +396,7 @@ export default function EpisodeSelector({
               response
             );
 
-          const foundEpisodes =
+          const found =
             Array.isArray(
               data?.episodes
             )
@@ -404,16 +404,16 @@ export default function EpisodeSelector({
               : [];
 
           setEpisodes(
-            foundEpisodes
+            found
           );
 
           if (
-            foundEpisodes.length ===
+            found.length ===
             0
           ) {
             setEpisodeError(
               data?.error ||
-                "No episodes were returned for this season."
+              "No episodes were returned for this season."
             );
           }
         } catch (
@@ -428,7 +428,7 @@ export default function EpisodeSelector({
 
             setEpisodeError(
               error?.message ||
-                "Could not load episodes for this season."
+              "Could not load episodes for this season."
             );
           }
         } finally {
@@ -442,7 +442,7 @@ export default function EpisodeSelector({
         }
       };
 
-    loadEpisodes();
+    load();
 
     return () => {
       cancelled =
@@ -456,9 +456,9 @@ export default function EpisodeSelector({
 
   const currentSeason =
     sortedSeasons.find(
-      (item) =>
+      (entry) =>
         String(
-          item.season_number
+          entry?.season_number
         ) ===
         String(
           season
@@ -467,167 +467,250 @@ export default function EpisodeSelector({
 
   const seasonLabel =
     currentSeason
-      ? currentSeason.name ||
-        `Season ${currentSeason.season_number}`
+      ? currentSeason?.name ||
+        `Season ${currentSeason?.season_number}`
       : "Select season";
 
-  /*
-   * Resolve the IMDb series ID before an episode
-   * is sent to source discovery.
-   */
   const resolveEpisodeImdb =
     async () => {
-      const supplied =
+      const staleOrFallback =
         String(
           imdbId ||
-            item?.imdb_id ||
-            item?.imdbId ||
-            ""
+          item?.imdb_id ||
+          item?.imdbId ||
+          ""
         ).trim();
 
+      // TV is resolved from the TMDB series id
+      // on every play.
+      //
+      // This prevents a stale IMDb id stored on a
+      // card/detail object from being used for all
+      // episodes of the wrong programme.
       if (
-        /^tt\d+$/i.test(
-          supplied
-        )
+        item?.id
       ) {
-        return supplied;
-      }
+        try {
+          const response =
+            await base44.functions.invoke(
+              "resolveTvImdb",
+              {
+                tmdb_id:
+                  item.id,
 
-      try {
-        const response =
-          await base44.functions.invoke(
-            "resolveImdb",
-            {
-              tmdb_id:
-                item.id,
+                title:
+                  item?.title ||
+                  item?.name ||
+                  "",
 
-              title:
-                item.title ||
-                "",
+                year:
+                  item?.year ||
+                  "",
+              }
+            );
 
-              year:
-                item.year ||
-                "",
+          const data =
+            unwrap(
+              response
+            );
 
-              media_type:
-                "tv",
-            }
-          );
-
-        const data =
-          unwrap(
-            response
-          );
-
-        const resolved =
-          String(
-            data?.imdb_id ||
+          const resolved =
+            String(
+              data?.imdb_id ||
               ""
-          ).trim();
+            ).trim();
 
-        return /^tt\d+$/i.test(
-          resolved
-        )
-          ? resolved
-          : "";
-      } catch {
-        return "";
+          if (
+            isImdbId(
+              resolved
+            )
+          ) {
+            return resolved;
+          }
+        } catch (
+          error
+        ) {
+          console.warn(
+            "[Media God] TV IMDb resolution failed",
+            error
+          );
+        }
       }
+
+      return isImdbId(
+        staleOrFallback
+      )
+        ? staleOrFallback
+        : "";
     };
 
   const playEpisode =
     async (
       episodeItem
     ) => {
-      const episodeNumber =
-        Number(
-          episodeItem
-            .episode_number
-        );
-
       const seasonNumber =
         Number(
           season
         );
 
-      const episodeTitle =
-        `${item.title} — S${String(
+      const episodeNumber =
+        Number(
+          episodeItem
+            ?.episode_number
+        );
+
+      if (
+        !Number.isInteger(
           seasonNumber
-        ).padStart(
-          2,
-          "0"
-        )}E${String(
+        ) ||
+        seasonNumber < 1 ||
+        !Number.isInteger(
           episodeNumber
-        ).padStart(
-          2,
-          "0"
-        )}`;
+        ) ||
+        episodeNumber < 1
+      ) {
+        setPlayError(
+          "This episode does not have a valid season/episode number."
+        );
 
-      const poster =
-        episodeItem
-          .still_url ||
-        item.poster_url;
+        return;
+      }
 
-      const resolvedImdb =
-        await resolveEpisodeImdb();
+      setPlayingEpisode(
+        episodeNumber
+      );
 
-      await player.play({
-        id:
-          item.id,
+      setPlayError(
+        ""
+      );
 
-        tmdbId:
-          item.id,
+      try {
+        const resolvedImdb =
+          await resolveEpisodeImdb();
 
-        imdbId:
-          resolvedImdb,
+        if (
+          !resolvedImdb
+        ) {
+          setPlayError(
+            "Could not resolve the IMDb series id for this episode."
+          );
 
-        title:
-          episodeTitle,
+          return;
+        }
 
-        poster,
+        const seriesTitle =
+          item?.title ||
+          item?.name ||
+          "TV Show";
 
-        year:
-          item.year,
+        const episodeTitle =
+          `${seriesTitle} — S${String(
+            seasonNumber
+          ).padStart(
+            2,
+            "0"
+          )}E${String(
+            episodeNumber
+          ).padStart(
+            2,
+            "0"
+          )}`;
 
-        mediaType:
-          "tv",
+        const poster =
+          episodeItem
+            ?.still_url ||
+          item?.poster_url ||
+          "";
 
-        season:
-          seasonNumber,
+        console.info(
+          "[Media God] TV episode lookup",
+          {
+            tmdbId:
+              item?.id,
 
-        episode:
-          episodeNumber,
+            imdbId:
+              resolvedImdb,
 
-        rdTitle:
-          item.title,
+            season:
+              seasonNumber,
 
-        rdYear:
-          item.year,
+            episode:
+              episodeNumber,
 
-        rdSeason:
-          seasonNumber,
+            streamId:
+              `${resolvedImdb}:${seasonNumber}:${episodeNumber}`,
+          }
+        );
 
-        rdEpisode:
-          episodeNumber,
+        await player.play({
+          id:
+            item?.id,
 
-        preferRd:
-          true,
+          tmdbId:
+            item?.id,
 
-        sources:
-          buildMediaSources({
-            title:
-              episodeTitle,
+          imdbId:
+            resolvedImdb,
 
-            id:
-              item.id,
+          title:
+            episodeTitle,
 
-            poster,
+          poster,
 
-            trailerUrl,
+          year:
+            item?.year,
 
-            providers,
-          }),
-      });
+          mediaType:
+            "tv",
+
+          season:
+            seasonNumber,
+
+          episode:
+            episodeNumber,
+
+          rdTitle:
+            seriesTitle,
+
+          rdYear:
+            item?.year,
+
+          rdSeason:
+            seasonNumber,
+
+          rdEpisode:
+            episodeNumber,
+
+          preferRd:
+            true,
+
+          sources:
+            buildMediaSources({
+              title:
+                episodeTitle,
+
+              id:
+                item?.id,
+
+              poster,
+
+              trailerUrl,
+
+              providers,
+            }),
+        });
+      } catch (
+        error
+      ) {
+        setPlayError(
+          error?.message ||
+          "Could not start this episode."
+        );
+      } finally {
+        setPlayingEpisode(
+          null
+        );
+      }
     };
 
   return (
@@ -658,7 +741,6 @@ export default function EpisodeSelector({
       {seasonsLoading ? (
         <div className="bg-mg-card border border-white/10 rounded-lg p-4 flex items-center gap-2 text-white/60 text-sm">
           <Loader2 className="w-4 h-4 animate-spin text-mg-green" />
-
           Loading seasons…
         </div>
       ) : sortedSeasons.length ===
@@ -690,7 +772,6 @@ export default function EpisodeSelector({
               className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-white/10 text-white text-xs hover:bg-white/15"
             >
               <RefreshCw className="w-3.5 h-3.5" />
-
               Retry
             </button>
           </div>
@@ -715,14 +796,11 @@ export default function EpisodeSelector({
               </span>
 
               <ChevronDown
-                className={
-                  "w-4 h-4 text-white/60 transition-transform " +
-                  (
-                    pickerOpen
-                      ? "rotate-180"
-                      : ""
-                  )
-                }
+                className={`w-4 h-4 text-white/60 transition-transform ${
+                  pickerOpen
+                    ? "rotate-180"
+                    : ""
+                }`}
               />
             </button>
 
@@ -730,19 +808,19 @@ export default function EpisodeSelector({
               <div className="absolute z-20 mt-1 w-full max-h-64 overflow-y-auto bg-mg-surface border border-white/10 rounded-lg shadow-xl">
                 {sortedSeasons.map(
                   (
-                    seasonItem
+                    entry
                   ) => (
                     <button
                       type="button"
                       key={
-                        seasonItem
-                          .season_number
+                        entry
+                          ?.season_number
                       }
                       onClick={() => {
                         setSeason(
                           String(
-                            seasonItem
-                              .season_number
+                            entry
+                              ?.season_number
                           )
                         );
 
@@ -750,31 +828,28 @@ export default function EpisodeSelector({
                           false
                         );
                       }}
-                      className={
-                        "flex items-center justify-between w-full px-3 py-2 text-sm text-left hover:bg-white/5 " +
-                        (
-                          String(
-                            seasonItem
-                              .season_number
-                          ) ===
-                          String(
-                            season
-                          )
-                            ? "text-mg-green"
-                            : "text-white/80"
+                      className={`flex items-center justify-between w-full px-3 py-2 text-sm text-left hover:bg-white/5 ${
+                        String(
+                          entry
+                            ?.season_number
+                        ) ===
+                        String(
+                          season
                         )
-                      }
+                          ? "text-mg-green"
+                          : "text-white/80"
+                      }`}
                     >
                       <span>
-                        {seasonItem.name ||
-                          `Season ${seasonItem.season_number}`}
+                        {entry?.name ||
+                          `Season ${entry?.season_number}`}
                       </span>
 
                       <span className="text-white/40 text-xs">
                         {Number(
-                          seasonItem
-                            .episode_count ||
-                            0
+                          entry
+                            ?.episode_count ||
+                          0
                         )}{" "}
                         ep
                       </span>
@@ -784,6 +859,14 @@ export default function EpisodeSelector({
               </div>
             )}
           </div>
+
+          {playError && (
+            <div className="mb-3 bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-red-200 text-xs">
+              {
+                playError
+              }
+            </div>
+          )}
 
           {loading ? (
             <div className="space-y-2">
@@ -809,109 +892,128 @@ export default function EpisodeSelector({
               {episodes.map(
                 (
                   episodeItem
-                ) => (
-                  <div
-                    key={
+                ) => {
+                  const episodeNumber =
+                    Number(
                       episodeItem
-                        .episode_number
-                    }
-                    className="flex gap-3 bg-mg-card border border-white/10 rounded-lg p-2 hover:border-mg-green/50 transition-colors"
-                  >
-                    <button
-                      type="button"
-                      onClick={() =>
-                        playEpisode(
-                          episodeItem
-                        )
+                        ?.episode_number
+                    );
+
+                  const isStarting =
+                    playingEpisode ===
+                    episodeNumber;
+
+                  return (
+                    <div
+                      key={
+                        episodeItem
+                          ?.episode_number
                       }
-                      className="relative w-24 sm:w-32 aspect-video rounded-md overflow-hidden bg-black shrink-0 group"
+                      className="flex gap-3 bg-mg-card border border-white/10 rounded-lg p-2 hover:border-mg-green/50 transition-colors"
                     >
-                      {episodeItem.still_url ? (
-                        <Image
-                          src={
+                      <button
+                        type="button"
+                        onClick={() =>
+                          playEpisode(
                             episodeItem
-                              .still_url
-                          }
-                          alt={
-                            episodeItem
-                              .name
-                          }
-                          className="w-full h-full object-cover"
-                          fittingType="fill"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-white/30 text-[10px]">
-                          No still
-                        </div>
-                      )}
-
-                      <span className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <span className="w-8 h-8 rounded-full bg-mg-green text-black flex items-center justify-center">
-                          <Play className="w-4 h-4 fill-black" />
-                        </span>
-                      </span>
-
-                      <span className="absolute bottom-0.5 left-0.5 text-[10px] font-bold bg-black/70 text-white px-1 rounded">
-                        E
-                        {
-                          episodeItem
-                            .episode_number
+                          )
                         }
-                      </span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        playEpisode(
-                          episodeItem
-                        )
-                      }
-                      className="flex-1 min-w-0 text-left"
-                    >
-                      <p className="text-white text-sm font-medium truncate">
-                        {
-                          episodeItem
-                            .name
+                        disabled={
+                          isStarting
                         }
-                      </p>
-
-                      <p className="text-white/40 text-xs flex items-center gap-1 mt-0.5">
-                        {episodeItem.air_date && (
-                          <>
-                            <Calendar className="w-3 h-3" />
-
-                            {
+                        className="relative w-24 sm:w-32 aspect-video rounded-md overflow-hidden bg-black shrink-0 group disabled:opacity-60"
+                      >
+                        {episodeItem?.still_url ? (
+                          <Image
+                            src={
                               episodeItem
-                                .air_date
+                                .still_url
                             }
-                          </>
+                            alt={
+                              episodeItem?.name ||
+                              `Episode ${episodeNumber}`
+                            }
+                            className="w-full h-full object-cover"
+                            fittingType="fill"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-white/30 text-[10px]">
+                            No still
+                          </div>
                         )}
 
-                        {episodeItem.runtime && (
-                          <>
-                            <span>
-                              •
-                            </span>
+                        <span className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <span className="w-8 h-8 rounded-full bg-mg-green text-black flex items-center justify-center">
+                            {isStarting ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Play className="w-4 h-4 fill-black" />
+                            )}
+                          </span>
+                        </span>
 
-                            <span>
+                        <span className="absolute bottom-0.5 left-0.5 text-[10px] font-bold bg-black/70 text-white px-1 rounded">
+                          E
+                          {
+                            episodeNumber
+                          }
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          playEpisode(
+                            episodeItem
+                          )
+                        }
+                        disabled={
+                          isStarting
+                        }
+                        className="flex-1 min-w-0 text-left disabled:opacity-60"
+                      >
+                        <p className="text-white text-sm font-medium truncate">
+                          {episodeItem?.name ||
+                            `Episode ${episodeNumber}`}
+                        </p>
+
+                        <p className="text-white/40 text-xs flex items-center gap-1 mt-0.5">
+                          {episodeItem?.air_date && (
+                            <>
+                              <Calendar className="w-3 h-3" />
+
                               {
                                 episodeItem
-                                  .runtime
+                                  .air_date
                               }
-                              m
-                            </span>
-                          </>
-                        )}
-                      </p>
+                            </>
+                          )}
 
-                      <p className="text-white/50 text-xs mt-1 line-clamp-2">
-                        {episodeItem.overview ||
-                          "No description."}
-                      </p>
-                    </button>
-                  </div>
-                )
+                          {episodeItem?.runtime && (
+                            <>
+                              <span>
+                                •
+                              </span>
+
+                              <span>
+                                {
+                                  episodeItem
+                                    .runtime
+                                }
+                                m
+                              </span>
+                            </>
+                          )}
+                        </p>
+
+                        <p className="text-white/50 text-xs mt-1 line-clamp-2">
+                          {episodeItem?.overview ||
+                            "No description."}
+                        </p>
+                      </button>
+                    </div>
+                  );
+                }
               )}
 
               {episodes.length ===
@@ -936,7 +1038,6 @@ export default function EpisodeSelector({
                     className="mt-2 flex items-center gap-1.5 text-xs text-mg-green"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
-
                     Try again
                   </button>
                 </div>
