@@ -109,7 +109,19 @@ const episodePlaybackRequest = ({
   return {
     ...current,
 
+    id:
+      current?.tmdbId ??
+      current?.tmdb_id ??
+      current?.id,
+
+    tmdbId:
+      current?.tmdbId ??
+      current?.tmdb_id ??
+      current?.id,
+
     title,
+
+    seriesTitle,
 
     poster:
       episodeItem?.still_url ||
@@ -123,18 +135,27 @@ const episodePlaybackRequest = ({
     episode: episodeNumber,
 
     rdTitle: seriesTitle,
+
+    rdYear:
+      current?.rdYear ??
+      current?.year ??
+      null,
+
     rdSeason: seasonNumber,
     rdEpisode: episodeNumber,
 
     startTime: 0,
+
     preferRd: true,
 
     skipAddonLookup: false,
     skipRdLookup: false,
+
     allowNonPlaybackFallback: false,
 
     src: "",
     url: "",
+
     sources: [],
   };
 };
@@ -173,11 +194,11 @@ const findNextEpisodeRequest = async (
   }
 
   /*
-   * First try the next episode
+   * First look for the next episode
    * in the current season.
    */
   try {
-    const seasonResponse =
+    const response =
       await base44.functions.invoke(
         "getTmdbMovies",
         {
@@ -187,19 +208,20 @@ const findNextEpisodeRequest = async (
         }
       );
 
-    const seasonData =
-      unwrap(seasonResponse);
+    const data =
+      unwrap(response);
 
-    const currentEpisodes =
+    const episodes =
       normaliseEpisodes(
-        seasonData?.episodes
+        data?.episodes
       );
 
     const nextEpisode =
-      currentEpisodes.find(
+      episodes.find(
         (item) =>
           Number(
-            item?.episode_number || 0
+            item?.episode_number ||
+              0
           ) > episodeNumber
       );
 
@@ -207,22 +229,23 @@ const findNextEpisodeRequest = async (
       return episodePlaybackRequest({
         current,
         seasonNumber,
-        episodeItem: nextEpisode,
+        episodeItem:
+          nextEpisode,
       });
     }
   } catch (error) {
     console.warn(
-      "[Media God] Could not inspect current TV season",
+      "[Media God] Could not inspect current season",
       error
     );
   }
 
   /*
-   * No later episode in this season.
-   * Look for the next season.
+   * Current season is finished.
+   * Load every season for the show.
    */
   try {
-    const detailsResponse =
+    const response =
       await base44.functions.invoke(
         "getTmdbMovies",
         {
@@ -231,22 +254,24 @@ const findNextEpisodeRequest = async (
         }
       );
 
-    const detailsData =
-      unwrap(detailsResponse);
+    const data =
+      unwrap(response);
 
     const seasons =
       normaliseSeasons(
-        detailsData?.details?.seasons
+        data?.details?.seasons
       );
 
     const laterSeasons =
       seasons.filter(
         (item) =>
           Number(
-            item?.season_number || 0
+            item?.season_number ||
+              0
           ) > seasonNumber &&
           Number(
-            item?.episode_count || 0
+            item?.episode_count ||
+              0
           ) > 0
       );
 
@@ -269,7 +294,10 @@ const findNextEpisodeRequest = async (
             "getTmdbMovies",
             {
               media_type: "tv",
-              movie_id: tmdbId,
+
+              movie_id:
+                tmdbId,
+
               season_number:
                 nextSeasonNumber,
             }
@@ -280,19 +308,21 @@ const findNextEpisodeRequest = async (
             nextSeasonResponse
           );
 
-        const nextSeasonEpisodes =
+        const episodes =
           normaliseEpisodes(
             nextSeasonData?.episodes
           );
 
         const firstEpisode =
-          nextSeasonEpisodes[0];
+          episodes[0];
 
         if (firstEpisode) {
           return episodePlaybackRequest({
             current,
+
             seasonNumber:
               nextSeasonNumber,
+
             episodeItem:
               firstEpisode,
           });
@@ -306,7 +336,7 @@ const findNextEpisodeRequest = async (
     }
   } catch (error) {
     console.warn(
-      "[Media God] Could not inspect later TV seasons",
+      "[Media God] Could not inspect later seasons",
       error
     );
   }
@@ -348,8 +378,9 @@ function PlayerAutomationBridge({
   );
 
   /*
-   * Tell the player controls whether
-   * this is a movie or TV episode.
+   * Give MediaPlayerControls enough
+   * information to build its OWN
+   * all-season episode selector.
    */
   const publishContext =
     useCallback(
@@ -364,13 +395,54 @@ function PlayerAutomationBridge({
           return;
         }
 
+        const tv =
+          isTvRequest(
+            request
+          );
+
         const detail = {
           mediaType:
-            isTvRequest(request)
+            tv
               ? "tv"
               : request
                 ? "movie"
                 : null,
+
+          tmdbId:
+            request?.tmdbId ??
+            request?.tmdb_id ??
+            request?.id ??
+            null,
+
+          imdbId:
+            request?.imdbId ??
+            request?.imdb_id ??
+            "",
+
+          title:
+            tv
+              ? seriesTitleFromRequest(
+                  request
+                )
+              : request?.title ||
+                "",
+
+          seriesTitle:
+            tv
+              ? seriesTitleFromRequest(
+                  request
+                )
+              : "",
+
+          poster:
+            request?.poster ??
+            request?.poster_url ??
+            "",
+
+          year:
+            request?.rdYear ??
+            request?.year ??
+            null,
 
           season:
             request?.season ??
@@ -398,7 +470,9 @@ function PlayerAutomationBridge({
           )
         );
       },
-      [autoNext]
+      [
+        autoNext,
+      ]
     );
 
   const publishStatus =
@@ -418,7 +492,8 @@ function PlayerAutomationBridge({
               detail: {
                 message:
                   String(
-                    message || ""
+                    message ||
+                      ""
                   ),
               },
             }
@@ -428,11 +503,6 @@ function PlayerAutomationBridge({
       []
     );
 
-  /*
-   * Every playback request passes
-   * through here so we remember which
-   * series / season / episode is active.
-   */
   const play =
     useCallback(
       async (
@@ -473,9 +543,6 @@ function PlayerAutomationBridge({
       ]
     );
 
-  /*
-   * Find and play the following episode.
-   */
   const advanceToNext =
     useCallback(
       async (
@@ -554,12 +621,9 @@ function PlayerAutomationBridge({
     }
 
     /*
-     * Episodes button inside
-     * the video player.
-     *
-     * Close the player and reveal
-     * the existing EpisodeSelector
-     * inside DetailModal.
+     * Fallback for the old
+     * outside-the-player episode
+     * selector.
      */
     const onChooseEpisode =
       () => {
@@ -576,12 +640,119 @@ function PlayerAutomationBridge({
               ?.scrollIntoView?.({
                 behavior:
                   "smooth",
+
                 block:
                   "start",
               });
           },
           100
         );
+      };
+
+    /*
+     * NEW:
+     * MediaPlayerControls sends this
+     * event when a user chooses any
+     * season / episode inside the
+     * video player.
+     */
+    const onPlaySpecificEpisode =
+      async (
+        event
+      ) => {
+        const current =
+          currentRequestRef.current;
+
+        if (
+          !current ||
+          !isTvRequest(
+            current
+          )
+        ) {
+          return;
+        }
+
+        const seasonNumber =
+          positiveInt(
+            event?.detail
+              ?.season
+          );
+
+        const suppliedEpisode =
+          event?.detail
+            ?.episodeItem ||
+          {};
+
+        const episodeNumber =
+          positiveInt(
+            suppliedEpisode
+              ?.episode_number ??
+              event?.detail
+                ?.episode
+          );
+
+        if (
+          !seasonNumber ||
+          !episodeNumber
+        ) {
+          publishStatus(
+            "Could not identify that episode."
+          );
+
+          return;
+        }
+
+        const episodeItem = {
+          ...suppliedEpisode,
+
+          episode_number:
+            episodeNumber,
+        };
+
+        const nextRequest =
+          episodePlaybackRequest({
+            current,
+            seasonNumber,
+            episodeItem,
+          });
+
+        if (!nextRequest) {
+          publishStatus(
+            "Could not prepare that episode."
+          );
+
+          return;
+        }
+
+        try {
+          publishStatus(
+            `Loading S${String(
+              seasonNumber
+            ).padStart(
+              2,
+              "0"
+            )}E${String(
+              episodeNumber
+            ).padStart(
+              2,
+              "0"
+            )}…`
+          );
+
+          await play(
+            nextRequest
+          );
+        } catch (error) {
+          console.error(
+            "[Media God] Episode selection failed",
+            error
+          );
+
+          publishStatus(
+            error?.message ||
+              "Could not load that episode."
+          );
+        }
       };
 
     const onPlayNextEpisode =
@@ -611,7 +782,7 @@ function PlayerAutomationBridge({
               : "0"
           );
         } catch {
-          // Storage may be unavailable.
+          // Storage can be unavailable.
         }
 
         publishContext(
@@ -620,11 +791,6 @@ function PlayerAutomationBridge({
         );
       };
 
-    /*
-     * VideoPlayer's underlying <video>
-     * bubbles/captures an ended event.
-     * Use it for TV auto-next.
-     */
     const onEnded =
       (event) => {
         if (!autoNext) {
@@ -664,6 +830,11 @@ function PlayerAutomationBridge({
     );
 
     window.addEventListener(
+      "mg:play-specific-episode",
+      onPlaySpecificEpisode
+    );
+
+    window.addEventListener(
       "mg:play-next-episode",
       onPlayNextEpisode
     );
@@ -686,6 +857,11 @@ function PlayerAutomationBridge({
       );
 
       window.removeEventListener(
+        "mg:play-specific-episode",
+        onPlaySpecificEpisode
+      );
+
+      window.removeEventListener(
         "mg:play-next-episode",
         onPlayNextEpisode
       );
@@ -705,13 +881,11 @@ function PlayerAutomationBridge({
     advanceToNext,
     autoNext,
     core,
+    play,
     publishContext,
+    publishStatus,
   ]);
 
-  /*
-   * Keep player controls synced if
-   * auto-next changes.
-   */
   useEffect(() => {
     publishContext(
       currentRequestRef.current
