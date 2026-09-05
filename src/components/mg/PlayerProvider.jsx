@@ -40,10 +40,16 @@ const isTvRequest = (request) =>
   request?.rdSeason != null ||
   request?.rdEpisode != null;
 
+const getTmdbId = (request) =>
+  request?.tmdbId ??
+  request?.tmdb_id ??
+  request?.id ??
+  null;
+
 const seriesTitleFromRequest = (request) => {
   const explicit = String(
-    request?.rdTitle ||
-      request?.seriesTitle ||
+    request?.seriesTitle ||
+      request?.rdTitle ||
       ""
   ).trim();
 
@@ -51,7 +57,10 @@ const seriesTitleFromRequest = (request) => {
     return explicit;
   }
 
-  return String(request?.title || "TV Show")
+  return String(
+    request?.title ||
+      "TV Show"
+  )
     .replace(
       /\s+[—-]\s+S\d{1,2}E\d{1,3}.*$/i,
       ""
@@ -60,27 +69,49 @@ const seriesTitleFromRequest = (request) => {
 };
 
 const normaliseEpisodes = (items) =>
-  (Array.isArray(items) ? items : [])
+  (Array.isArray(items)
+    ? items
+    : []
+  )
     .filter(
       (item) =>
-        positiveInt(item?.episode_number) != null
+        positiveInt(
+          item?.episode_number
+        ) != null
     )
     .sort(
       (a, b) =>
-        Number(a?.episode_number || 0) -
-        Number(b?.episode_number || 0)
+        Number(
+          a?.episode_number ||
+            0
+        ) -
+        Number(
+          b?.episode_number ||
+            0
+        )
     );
 
 const normaliseSeasons = (items) =>
-  (Array.isArray(items) ? items : [])
+  (Array.isArray(items)
+    ? items
+    : []
+  )
     .filter(
       (item) =>
-        positiveInt(item?.season_number) != null
+        positiveInt(
+          item?.season_number
+        ) != null
     )
     .sort(
       (a, b) =>
-        Number(a?.season_number || 0) -
-        Number(b?.season_number || 0)
+        Number(
+          a?.season_number ||
+            0
+        ) -
+        Number(
+          b?.season_number ||
+            0
+        )
     );
 
 const episodePlaybackRequest = ({
@@ -88,36 +119,50 @@ const episodePlaybackRequest = ({
   seasonNumber,
   episodeItem,
 }) => {
-  const episodeNumber = positiveInt(
-    episodeItem?.episode_number
-  );
+  const episodeNumber =
+    positiveInt(
+      episodeItem?.episode_number
+    );
 
   if (!episodeNumber) {
     return null;
   }
 
   const seriesTitle =
-    seriesTitleFromRequest(current);
+    seriesTitleFromRequest(
+      current
+    );
+
+  const tmdbId =
+    getTmdbId(
+      current
+    );
 
   const title =
     `${seriesTitle} — S${String(
       seasonNumber
-    ).padStart(2, "0")}E${String(
+    ).padStart(
+      2,
+      "0"
+    )}E${String(
       episodeNumber
-    ).padStart(2, "0")}`;
+    ).padStart(
+      2,
+      "0"
+    )}`;
 
   return {
     ...current,
 
     id:
-      current?.tmdbId ??
-      current?.tmdb_id ??
+      tmdbId ??
       current?.id,
 
     tmdbId:
-      current?.tmdbId ??
-      current?.tmdb_id ??
-      current?.id,
+      tmdbId,
+
+    tmdb_id:
+      tmdbId,
 
     title,
 
@@ -126,23 +171,31 @@ const episodePlaybackRequest = ({
     poster:
       episodeItem?.still_url ||
       current?.poster ||
+      current?.poster_url ||
       "",
 
     mediaType: "tv",
     type: "series",
 
-    season: seasonNumber,
-    episode: episodeNumber,
+    season:
+      seasonNumber,
 
-    rdTitle: seriesTitle,
+    episode:
+      episodeNumber,
+
+    rdTitle:
+      seriesTitle,
 
     rdYear:
       current?.rdYear ??
       current?.year ??
       null,
 
-    rdSeason: seasonNumber,
-    rdEpisode: episodeNumber,
+    rdSeason:
+      seasonNumber,
+
+    rdEpisode:
+      episodeNumber,
 
     startTime: 0,
 
@@ -151,7 +204,8 @@ const episodePlaybackRequest = ({
     skipAddonLookup: false,
     skipRdLookup: false,
 
-    allowNonPlaybackFallback: false,
+    allowNonPlaybackFallback:
+      false,
 
     src: "",
     url: "",
@@ -160,193 +214,221 @@ const episodePlaybackRequest = ({
   };
 };
 
-const findNextEpisodeRequest = async (
-  current
-) => {
-  if (!isTvRequest(current)) {
-    return null;
-  }
-
-  const tmdbId =
-    current?.tmdbId ??
-    current?.tmdb_id ??
-    current?.id ??
-    null;
-
-  const seasonNumber =
-    positiveInt(
-      current?.season ??
-        current?.rdSeason
-    );
-
-  const episodeNumber =
-    positiveInt(
-      current?.episode ??
-        current?.rdEpisode
-    );
-
-  if (
-    !tmdbId ||
-    !seasonNumber ||
-    !episodeNumber
-  ) {
-    return null;
-  }
-
-  /*
-   * First look for the next episode
-   * in the current season.
-   */
-  try {
-    const response =
-      await base44.functions.invoke(
-        "getTmdbMovies",
-        {
-          media_type: "tv",
-          movie_id: tmdbId,
-          season_number: seasonNumber,
-        }
-      );
-
-    const data =
-      unwrap(response);
-
-    const episodes =
-      normaliseEpisodes(
-        data?.episodes
-      );
-
-    const nextEpisode =
-      episodes.find(
-        (item) =>
-          Number(
-            item?.episode_number ||
-              0
-          ) > episodeNumber
-      );
-
-    if (nextEpisode) {
-      return episodePlaybackRequest({
-        current,
-        seasonNumber,
-        episodeItem:
-          nextEpisode,
-      });
-    }
-  } catch (error) {
-    console.warn(
-      "[Media God] Could not inspect current season",
-      error
-    );
-  }
-
-  /*
-   * Current season is finished.
-   * Load every season for the show.
-   */
-  try {
-    const response =
-      await base44.functions.invoke(
-        "getTmdbMovies",
-        {
-          media_type: "tv",
-          movie_id: tmdbId,
-        }
-      );
-
-    const data =
-      unwrap(response);
-
-    const seasons =
-      normaliseSeasons(
-        data?.details?.seasons
-      );
-
-    const laterSeasons =
-      seasons.filter(
-        (item) =>
-          Number(
-            item?.season_number ||
-              0
-          ) > seasonNumber &&
-          Number(
-            item?.episode_count ||
-              0
-          ) > 0
-      );
-
-    for (
-      const seasonItem
-      of laterSeasons
+const findNextEpisodeRequest =
+  async (current) => {
+    if (
+      !isTvRequest(
+        current
+      )
     ) {
-      const nextSeasonNumber =
-        positiveInt(
-          seasonItem?.season_number
-        );
-
-      if (!nextSeasonNumber) {
-        continue;
-      }
-
-      try {
-        const nextSeasonResponse =
-          await base44.functions.invoke(
-            "getTmdbMovies",
-            {
-              media_type: "tv",
-
-              movie_id:
-                tmdbId,
-
-              season_number:
-                nextSeasonNumber,
-            }
-          );
-
-        const nextSeasonData =
-          unwrap(
-            nextSeasonResponse
-          );
-
-        const episodes =
-          normaliseEpisodes(
-            nextSeasonData?.episodes
-          );
-
-        const firstEpisode =
-          episodes[0];
-
-        if (firstEpisode) {
-          return episodePlaybackRequest({
-            current,
-
-            seasonNumber:
-              nextSeasonNumber,
-
-            episodeItem:
-              firstEpisode,
-          });
-        }
-      } catch (error) {
-        console.warn(
-          `[Media God] Could not inspect season ${nextSeasonNumber}`,
-          error
-        );
-      }
+      return null;
     }
-  } catch (error) {
-    console.warn(
-      "[Media God] Could not inspect later seasons",
-      error
-    );
-  }
 
-  return null;
-};
+    const tmdbId =
+      getTmdbId(
+        current
+      );
+
+    const seasonNumber =
+      positiveInt(
+        current?.season ??
+          current?.rdSeason
+      );
+
+    const episodeNumber =
+      positiveInt(
+        current?.episode ??
+          current?.rdEpisode
+      );
+
+    if (
+      !tmdbId ||
+      !seasonNumber ||
+      !episodeNumber
+    ) {
+      return null;
+    }
+
+    /*
+     * Look for the next episode
+     * in the current season first.
+     */
+    try {
+      const response =
+        await base44.functions.invoke(
+          "getTmdbMovies",
+          {
+            media_type:
+              "tv",
+
+            movie_id:
+              tmdbId,
+
+            season_number:
+              seasonNumber,
+          }
+        );
+
+      const data =
+        unwrap(
+          response
+        );
+
+      const episodes =
+        normaliseEpisodes(
+          data?.episodes
+        );
+
+      const nextEpisode =
+        episodes.find(
+          (item) =>
+            Number(
+              item?.episode_number ||
+                0
+            ) >
+            episodeNumber
+        );
+
+      if (nextEpisode) {
+        return episodePlaybackRequest({
+          current,
+          seasonNumber,
+          episodeItem:
+            nextEpisode,
+        });
+      }
+    } catch (error) {
+      console.warn(
+        "[Media God] Could not inspect current season",
+        error
+      );
+    }
+
+    /*
+     * Current season finished.
+     * Retrieve ALL seasons and move
+     * to the first episode of the
+     * next available season.
+     */
+    try {
+      const response =
+        await base44.functions.invoke(
+          "getTmdbMovies",
+          {
+            media_type:
+              "tv",
+
+            movie_id:
+              tmdbId,
+          }
+        );
+
+      const data =
+        unwrap(
+          response
+        );
+
+      const seasons =
+        normaliseSeasons(
+          data?.details
+            ?.seasons
+        );
+
+      const laterSeasons =
+        seasons.filter(
+          (item) =>
+            Number(
+              item
+                ?.season_number ||
+                0
+            ) >
+              seasonNumber &&
+            Number(
+              item
+                ?.episode_count ||
+                0
+            ) >
+              0
+        );
+
+      for (
+        const seasonItem
+        of laterSeasons
+      ) {
+        const nextSeason =
+          positiveInt(
+            seasonItem
+              ?.season_number
+          );
+
+        if (!nextSeason) {
+          continue;
+        }
+
+        try {
+          const seasonResponse =
+            await base44.functions.invoke(
+              "getTmdbMovies",
+              {
+                media_type:
+                  "tv",
+
+                movie_id:
+                  tmdbId,
+
+                season_number:
+                  nextSeason,
+              }
+            );
+
+          const seasonData =
+            unwrap(
+              seasonResponse
+            );
+
+          const episodes =
+            normaliseEpisodes(
+              seasonData
+                ?.episodes
+            );
+
+          const firstEpisode =
+            episodes[0];
+
+          if (firstEpisode) {
+            return episodePlaybackRequest({
+              current,
+
+              seasonNumber:
+                nextSeason,
+
+              episodeItem:
+                firstEpisode,
+            });
+          }
+        } catch (
+          error
+        ) {
+          console.warn(
+            `[Media God] Could not inspect season ${nextSeason}`,
+            error
+          );
+        }
+      }
+    } catch (error) {
+      console.warn(
+        "[Media God] Could not inspect later seasons",
+        error
+      );
+    }
+
+    return null;
+  };
 
 const readAutoNext = () => {
   if (
-    typeof window === "undefined"
+    typeof window ===
+    "undefined"
   ) {
     return true;
   }
@@ -378,9 +460,11 @@ function PlayerAutomationBridge({
   );
 
   /*
-   * Give MediaPlayerControls enough
-   * information to build its OWN
-   * all-season episode selector.
+   * This is the important part.
+   *
+   * The player now receives the show
+   * TMDB id as well as the current
+   * season and episode.
    */
   const publishContext =
     useCallback(
@@ -400,6 +484,18 @@ function PlayerAutomationBridge({
             request
           );
 
+        const tmdbId =
+          getTmdbId(
+            request
+          );
+
+        const seriesTitle =
+          tv
+            ? seriesTitleFromRequest(
+                request
+              )
+            : "";
+
         const detail = {
           mediaType:
             tv
@@ -409,10 +505,13 @@ function PlayerAutomationBridge({
                 : null,
 
           tmdbId:
-            request?.tmdbId ??
-            request?.tmdb_id ??
-            request?.id ??
-            null,
+            tmdbId,
+
+          tmdb_id:
+            tmdbId,
+
+          id:
+            tmdbId,
 
           imdbId:
             request?.imdbId ??
@@ -420,19 +519,10 @@ function PlayerAutomationBridge({
             "",
 
           title:
-            tv
-              ? seriesTitleFromRequest(
-                  request
-                )
-              : request?.title ||
-                "",
+            request?.title ||
+            "",
 
-          seriesTitle:
-            tv
-              ? seriesTitleFromRequest(
-                  request
-                )
-              : "",
+          seriesTitle,
 
           poster:
             request?.poster ??
@@ -455,7 +545,9 @@ function PlayerAutomationBridge({
             null,
 
           autoNext:
-            Boolean(enabled),
+            Boolean(
+              enabled
+            ),
         };
 
         window.__MG_PLAYER_CONTEXT__ =
@@ -621,9 +713,8 @@ function PlayerAutomationBridge({
     }
 
     /*
-     * Fallback for the old
-     * outside-the-player episode
-     * selector.
+     * Old external Episodes button.
+     * Keep this for compatibility.
      */
     const onChooseEpisode =
       () => {
@@ -651,10 +742,8 @@ function PlayerAutomationBridge({
 
     /*
      * NEW:
-     * MediaPlayerControls sends this
-     * event when a user chooses any
-     * season / episode inside the
-     * video player.
+     * Called by the in-player season
+     * and episode browser.
      */
     const onPlaySpecificEpisode =
       async (
@@ -669,6 +758,10 @@ function PlayerAutomationBridge({
             current
           )
         ) {
+          publishStatus(
+            "TV programme information is unavailable."
+          );
+
           return;
         }
 
@@ -678,14 +771,14 @@ function PlayerAutomationBridge({
               ?.season
           );
 
-        const suppliedEpisode =
+        const supplied =
           event?.detail
             ?.episodeItem ||
           {};
 
         const episodeNumber =
           positiveInt(
-            suppliedEpisode
+            supplied
               ?.episode_number ??
               event?.detail
                 ?.episode
@@ -703,7 +796,7 @@ function PlayerAutomationBridge({
         }
 
         const episodeItem = {
-          ...suppliedEpisode,
+          ...supplied,
 
           episode_number:
             episodeNumber,
@@ -744,7 +837,7 @@ function PlayerAutomationBridge({
           );
         } catch (error) {
           console.error(
-            "[Media God] Episode selection failed",
+            "[Media God] Selected episode failed",
             error
           );
 
@@ -782,7 +875,7 @@ function PlayerAutomationBridge({
               : "0"
           );
         } catch {
-          // Storage can be unavailable.
+          // Ignore unavailable storage.
         }
 
         publishContext(
