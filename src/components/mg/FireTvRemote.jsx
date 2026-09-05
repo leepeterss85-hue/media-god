@@ -1,4 +1,7 @@
-import React, { useEffect, useRef } from "react";
+import React, {
+  useEffect,
+  useRef,
+} from "react";
 
 const FOCUSABLE = [
   'button:not([disabled])',
@@ -10,8 +13,43 @@ const FOCUSABLE = [
 ].join(",");
 
 const FIRE_TV_CSS = `
-html.mg-fire-tv-mode, body.mg-fire-tv-mode {
+html.mg-fire-tv-mode,
+body.mg-fire-tv-mode {
   scroll-behavior: smooth;
+}
+
+html.mg-tv-layout {
+  font-size: 15px !important;
+  width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+body.mg-tv-layout {
+  width: 100vw;
+  min-width: 0;
+  max-width: 100vw;
+  min-height: 100dvh;
+  overflow-x: hidden !important;
+}
+
+body.mg-tv-layout #root {
+  width: 100vw;
+  min-width: 0;
+  max-width: 100vw;
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+body.mg-tv-layout main {
+  min-width: 0;
+  max-width: 100%;
+}
+
+body.mg-tv-layout img,
+body.mg-tv-layout video,
+body.mg-tv-layout iframe {
+  max-width: 100%;
 }
 
 body.mg-fire-tv-mode button:focus-visible,
@@ -23,8 +61,8 @@ body.mg-fire-tv-mode [tabindex]:focus-visible {
   outline: 4px solid hsl(var(--mg-green)) !important;
   outline-offset: 4px !important;
   box-shadow:
-    0 0 0 2px rgba(0,0,0,.95),
-    0 0 0 8px rgba(0,255,0,.20) !important;
+    0 0 0 2px rgba(0, 0, 0, 0.95),
+    0 0 0 8px rgba(0, 255, 0, 0.2) !important;
 }
 
 body.mg-fire-tv-mode button:focus-visible,
@@ -44,9 +82,7 @@ body.mg-fire-tv-mode [tabindex] {
   scroll-margin: 12vh 8vw;
 }
 
-/*
- * One clean remote focus target per poster card.
- */
+/* One clean remote focus target per poster card. */
 body.mg-fire-tv-mode .mg-hover-action {
   opacity: 0 !important;
   pointer-events: none !important;
@@ -66,7 +102,7 @@ body.mg-fire-tv-mode
 
 body.mg-fire-tv-mode
 .group > .relative > .mg-hover-action:first-of-type:focus-visible {
-  background: rgba(0,0,0,.28) !important;
+  background: rgba(0, 0, 0, 0.28) !important;
 }
 
 body.mg-fire-tv-mode
@@ -85,26 +121,36 @@ body.mg-fire-tv-mode input[type="range"] {
 }
 `;
 
-const keyCode = (event) =>
+const keyCode = (
+  event
+) =>
   Number(
     event?.keyCode ||
       event?.which ||
       0
   );
 
-const keyName = (event) =>
+const keyName = (
+  event
+) =>
   String(
     event?.key ||
       event?.code ||
       ""
   );
 
-const directionFromEvent = (event) => {
-  const key = keyName(event);
-  const code = keyCode(event);
+const directionFromEvent = (
+  event
+) => {
+  const key =
+    keyName(event);
+
+  const code =
+    keyCode(event);
 
   if (
-    key === "ArrowUp" ||
+    key ===
+      "ArrowUp" ||
     code === 19 ||
     code === 38
   ) {
@@ -112,7 +158,8 @@ const directionFromEvent = (event) => {
   }
 
   if (
-    key === "ArrowDown" ||
+    key ===
+      "ArrowDown" ||
     code === 20 ||
     code === 40
   ) {
@@ -120,7 +167,8 @@ const directionFromEvent = (event) => {
   }
 
   if (
-    key === "ArrowLeft" ||
+    key ===
+      "ArrowLeft" ||
     code === 21 ||
     code === 37
   ) {
@@ -128,7 +176,8 @@ const directionFromEvent = (event) => {
   }
 
   if (
-    key === "ArrowRight" ||
+    key ===
+      "ArrowRight" ||
     code === 22 ||
     code === 39
   ) {
@@ -138,13 +187,19 @@ const directionFromEvent = (event) => {
   return null;
 };
 
-const isSelectKey = (event) => {
-  const key = keyName(event);
-  const code = keyCode(event);
+const isSelectKey = (
+  event
+) => {
+  const key =
+    keyName(event);
+
+  const code =
+    keyCode(event);
 
   return (
     key === "Enter" ||
-    key === "NumpadEnter" ||
+    key ===
+      "NumpadEnter" ||
     key === "Select" ||
     key === "Accept" ||
     code === 23 ||
@@ -153,21 +208,32 @@ const isSelectKey = (event) => {
   );
 };
 
-const isBackKey = (event) => {
-  const key = keyName(event);
-  const code = keyCode(event);
+const isBackKey = (
+  event
+) => {
+  const key =
+    keyName(event);
 
-  const tag = String(
-    event?.target?.tagName || ""
-  ).toLowerCase();
+  const code =
+    keyCode(event);
+
+  const tag =
+    String(
+      event?.target
+        ?.tagName ||
+        ""
+    ).toLowerCase();
 
   const editing =
     tag === "input" ||
-    tag === "textarea" ||
-    event?.target?.isContentEditable;
+    tag ===
+      "textarea" ||
+    event?.target
+      ?.isContentEditable;
 
   if (
-    key === "BrowserBack" ||
+    key ===
+      "BrowserBack" ||
     key === "GoBack" ||
     key === "Escape" ||
     code === 4 ||
@@ -179,19 +245,26 @@ const isBackKey = (event) => {
 
   return (
     (
-      key === "Backspace" ||
+      key ===
+        "Backspace" ||
       code === 8
     ) &&
     !editing
   );
 };
 
-const isMenuKey = (event) => {
-  const key = keyName(event);
-  const code = keyCode(event);
+const isMenuKey = (
+  event
+) => {
+  const key =
+    keyName(event);
+
+  const code =
+    keyCode(event);
 
   return (
-    key === "ContextMenu" ||
+    key ===
+      "ContextMenu" ||
     key === "Menu" ||
     code === 82
   );
@@ -200,11 +273,15 @@ const isMenuKey = (event) => {
 const mediaActionFromEvent = (
   event
 ) => {
-  const key = keyName(event);
-  const code = keyCode(event);
+  const key =
+    keyName(event);
+
+  const code =
+    keyCode(event);
 
   if (
-    key === "MediaPlayPause" ||
+    key ===
+      "MediaPlayPause" ||
     code === 85 ||
     code === 179
   ) {
@@ -212,21 +289,24 @@ const mediaActionFromEvent = (
   }
 
   if (
-    key === "MediaPlay" ||
+    key ===
+      "MediaPlay" ||
     code === 126
   ) {
     return "play";
   }
 
   if (
-    key === "MediaPause" ||
+    key ===
+      "MediaPause" ||
     code === 127
   ) {
     return "pause";
   }
 
   if (
-    key === "MediaRewind" ||
+    key ===
+      "MediaRewind" ||
     code === 89 ||
     code === 227
   ) {
@@ -234,7 +314,8 @@ const mediaActionFromEvent = (
   }
 
   if (
-    key === "MediaFastForward" ||
+    key ===
+      "MediaFastForward" ||
     code === 90 ||
     code === 228
   ) {
@@ -242,7 +323,8 @@ const mediaActionFromEvent = (
   }
 
   if (
-    key === "MediaTrackNext" ||
+    key ===
+      "MediaTrackNext" ||
     code === 87 ||
     code === 176
   ) {
@@ -250,7 +332,8 @@ const mediaActionFromEvent = (
   }
 
   if (
-    key === "MediaTrackPrevious" ||
+    key ===
+      "MediaTrackPrevious" ||
     code === 88 ||
     code === 177
   ) {
@@ -265,13 +348,18 @@ const visible = (
   stopAt = null
 ) => {
   if (
-    !(element instanceof HTMLElement)
+    !(
+      element instanceof
+      HTMLElement
+    )
   ) {
     return false;
   }
 
   if (
-    element.hasAttribute("disabled") ||
+    element.hasAttribute(
+      "disabled"
+    ) ||
     element.getAttribute(
       "aria-hidden"
     ) === "true"
@@ -289,15 +377,19 @@ const visible = (
     return false;
   }
 
-  let node = element;
+  let node =
+    element;
 
   while (
     node &&
-    node instanceof HTMLElement
+    node instanceof
+      HTMLElement
   ) {
     if (
       node.hidden ||
-      node.hasAttribute("inert") ||
+      node.hasAttribute(
+        "inert"
+      ) ||
       node.getAttribute(
         "aria-hidden"
       ) === "true"
@@ -306,22 +398,29 @@ const visible = (
     }
 
     const style =
-      window.getComputedStyle(node);
+      window.getComputedStyle(
+        node
+      );
 
     if (
-      style.display === "none" ||
-      style.visibility === "hidden" ||
+      style.display ===
+        "none" ||
+      style.visibility ===
+        "hidden" ||
       Number(
-        style.opacity || 1
+        style.opacity ||
+          1
       ) < 0.03 ||
-      style.pointerEvents === "none"
+      style.pointerEvents ===
+        "none"
     ) {
       return false;
     }
 
     if (
       node === stopAt ||
-      node === document.body
+      node ===
+        document.body
     ) {
       break;
     }
@@ -365,8 +464,12 @@ const topByStacking = (
         }
       )
       .sort(
-        (a, b) =>
-          a.z === b.z
+        (
+          a,
+          b
+        ) =>
+          a.z ===
+          b.z
             ? a.index -
               b.index
             : a.z -
@@ -375,59 +478,71 @@ const topByStacking = (
 
   return sorted.length
     ? sorted[
-        sorted.length - 1
+        sorted.length -
+          1
       ].element
     : null;
 };
 
-const seasonPickerScope = () => {
-  const close =
-    Array.from(
-      document.querySelectorAll(
-        'button[aria-label="Close season and episode picker"]'
-      )
-    ).find(
-      (item) =>
-        visible(item)
+const seasonPickerScope =
+  () => {
+    const close =
+      Array.from(
+        document.querySelectorAll(
+          'button[aria-label="Close season and episode picker"]'
+        )
+      ).find(
+        (
+          item
+        ) =>
+          visible(
+            item
+          )
+      );
+
+    return (
+      close?.closest(
+        ".absolute.inset-0"
+      ) ||
+      null
     );
+  };
 
-  return (
-    close?.closest(
-      ".absolute.inset-0"
-    ) ||
-    null
-  );
-};
+const modalScope =
+  () => {
+    const picker =
+      seasonPickerScope();
 
-const modalScope = () => {
-  const picker =
-    seasonPickerScope();
+    if (
+      picker &&
+      visible(picker)
+    ) {
+      return picker;
+    }
 
-  if (
-    picker &&
-    visible(picker)
-  ) {
-    return picker;
-  }
+    const overlays =
+      Array.from(
+        document.querySelectorAll(
+          '[role="dialog"], [aria-modal="true"], .fixed.inset-0'
+        )
+      ).filter(
+        (
+          item
+        ) =>
+          visible(
+            item
+          )
+      );
 
-  const overlays =
-    Array.from(
-      document.querySelectorAll(
-        '[role="dialog"], [aria-modal="true"], .fixed.inset-0'
-      )
-    ).filter(
-      (item) =>
-        visible(item)
+    return topByStacking(
+      overlays
     );
+  };
 
-  return topByStacking(
-    overlays
-  );
-};
-
-const navigationScope = () =>
-  modalScope() ||
-  document.body;
+const navigationScope =
+  () =>
+    modalScope() ||
+    document.body;
 
 const focusables = (
   scope
@@ -437,7 +552,9 @@ const focusables = (
       FOCUSABLE
     )
   ).filter(
-    (item) =>
+    (
+      item
+    ) =>
       visible(
         item,
         scope
@@ -449,11 +566,13 @@ const centre = (
 ) => ({
   x:
     rect.left +
-    rect.width / 2,
+    rect.width /
+      2,
 
   y:
     rect.top +
-    rect.height / 2,
+    rect.height /
+      2,
 });
 
 const overlap = (
@@ -477,7 +596,8 @@ const overlap = (
 const cardRoot = (
   element
 ) =>
-  element instanceof HTMLElement
+  element instanceof
+  HTMLElement
     ? element.closest(
         "article.group, .group.shrink-0"
       )
@@ -486,7 +606,8 @@ const cardRoot = (
 const rowRoot = (
   element
 ) =>
-  element instanceof HTMLElement
+  element instanceof
+  HTMLElement
     ? element.closest(
         ".overflow-x-auto"
       )
@@ -498,48 +619,60 @@ const scoreDirection = (
   direction
 ) => {
   const from =
-    centre(fromRect);
+    centre(
+      fromRect
+    );
 
   const to =
-    centre(toRect);
+    centre(
+      toRect
+    );
 
   const dx =
-    to.x - from.x;
+    to.x -
+    from.x;
 
   const dy =
-    to.y - from.y;
+    to.y -
+    from.y;
 
   if (
-    direction === "right" &&
+    direction ===
+      "right" &&
     dx <= 4
   ) {
     return Infinity;
   }
 
   if (
-    direction === "left" &&
+    direction ===
+      "left" &&
     dx >= -4
   ) {
     return Infinity;
   }
 
   if (
-    direction === "down" &&
+    direction ===
+      "down" &&
     dy <= 4
   ) {
     return Infinity;
   }
 
   if (
-    direction === "up" &&
+    direction ===
+      "up" &&
     dy >= -4
   ) {
     return Infinity;
   }
 
   const horizontal =
-    direction === "left" ||
-    direction === "right";
+    direction ===
+      "left" ||
+    direction ===
+      "right";
 
   const main =
     horizontal
@@ -570,7 +703,8 @@ const scoreDirection = (
     main +
     cross *
       (
-        crossOverlap > 0
+        crossOverlap >
+        0
           ? 0.35
           : 2.2
       ) +
@@ -596,7 +730,8 @@ const focusElement = (
 
   try {
     element.focus({
-      preventScroll: true,
+      preventScroll:
+        true,
     });
   } catch {
     element.focus();
@@ -604,9 +739,14 @@ const focusElement = (
 
   try {
     element.scrollIntoView({
-      block: "center",
-      inline: "center",
-      behavior: "smooth",
+      block:
+        "center",
+
+      inline:
+        "center",
+
+      behavior:
+        "smooth",
     });
   } catch {
     element.scrollIntoView();
@@ -619,7 +759,9 @@ const defaultFocus = (
   scope
 ) => {
   const items =
-    focusables(scope);
+    focusables(
+      scope
+    );
 
   if (
     !items.length
@@ -630,9 +772,9 @@ const defaultFocus = (
   const selectors = [
     'button[aria-label="Play"]',
     'button[aria-label="Pause"]',
-    "input[autofocus]",
+    'input[autofocus]',
     'aside nav button[title="Home"]',
-    "aside nav button",
+    'aside nav button',
     'aside button[title="Search"]',
   ];
 
@@ -642,7 +784,9 @@ const defaultFocus = (
   ) {
     const found =
       items.find(
-        (item) =>
+        (
+          item
+        ) =>
           item.matches(
             selector
           )
@@ -666,7 +810,9 @@ const moveFocus = (
     document.activeElement;
 
   const items =
-    focusables(scope);
+    focusables(
+      scope
+    );
 
   if (
     !items.length
@@ -697,41 +843,51 @@ const moveFocus = (
     current.getBoundingClientRect();
 
   const currentCard =
-    cardRoot(current);
+    cardRoot(
+      current
+    );
 
   const currentRow =
-    rowRoot(current);
+    rowRoot(
+      current
+    );
 
   let candidates =
     items.filter(
-      (item) =>
-        item !== current
+      (
+        item
+      ) =>
+        item !==
+        current
     );
 
-  /*
-   * Poster rows:
-   * left/right jumps directly
-   * to the next poster.
-   */
   if (
     currentCard &&
     currentRow &&
     (
-      direction === "left" ||
-      direction === "right"
+      direction ===
+        "left" ||
+      direction ===
+        "right"
     )
   ) {
     const cardCandidates =
       candidates.filter(
-        (item) => {
+        (
+          item
+        ) => {
           const card =
-            cardRoot(item);
+            cardRoot(
+              item
+            );
 
           return (
             card &&
             card !==
               currentCard &&
-            rowRoot(item) ===
+            rowRoot(
+              item
+            ) ===
               currentRow
           );
         }
@@ -748,7 +904,9 @@ const moveFocus = (
         cardCandidates
       ) {
         const card =
-          cardRoot(item);
+          cardRoot(
+            item
+          );
 
         if (
           !byCard.has(
@@ -804,7 +962,9 @@ const moveFocus = (
     }
   }
 
-  let best = null;
+  let best =
+    null;
+
   let bestScore =
     Infinity;
 
@@ -857,7 +1017,8 @@ const adjustSelect = (
   }
 
   const step =
-    direction === "down"
+    direction ===
+      "down"
       ? 1
       : -1;
 
@@ -871,7 +1032,8 @@ const adjustSelect = (
   while (
     next >= 0 &&
     next <
-      select.options.length
+      select.options
+        .length
   ) {
     const option =
       select.options[
@@ -889,7 +1051,8 @@ const adjustSelect = (
         new Event(
           "input",
           {
-            bubbles: true,
+            bubbles:
+              true,
           }
         )
       );
@@ -898,7 +1061,8 @@ const adjustSelect = (
         new Event(
           "change",
           {
-            bubbles: true,
+            bubbles:
+              true,
           }
         )
       );
@@ -925,7 +1089,9 @@ const playerControlRoot = (
 
   return (
     candidates.find(
-      (element) =>
+      (
+        element
+      ) =>
         element.querySelector(
           'button[aria-label="Play"], button[aria-label="Pause"]'
         )
@@ -954,10 +1120,14 @@ const showPlayerControls =
       new MouseEvent(
         "mousemove",
         {
-          bubbles: true,
+          bubbles:
+            true,
+
           cancelable:
             false,
-          view: window,
+
+          view:
+            window,
         }
       )
     );
@@ -981,7 +1151,9 @@ const focusPlayerControl =
 
         const target =
           items.find(
-            (item) =>
+            (
+              item
+            ) =>
               item.getAttribute(
                 "aria-label"
               ) ===
@@ -992,7 +1164,9 @@ const focusPlayerControl =
                 "Pause"
           ) ||
           items.find(
-            (item) =>
+            (
+              item
+            ) =>
               String(
                 item.getAttribute(
                   "aria-label"
@@ -1026,7 +1200,9 @@ const activeVideo = () => {
         "video"
       )
     ).filter(
-      (video) =>
+      (
+        video
+      ) =>
         visible(
           video,
           scope
@@ -1035,7 +1211,8 @@ const activeVideo = () => {
 
   return videos.length
     ? videos[
-        videos.length - 1
+        videos.length -
+          1
       ]
     : null;
 };
@@ -1061,7 +1238,9 @@ const remoteBackButton = (
           selector
         )
       ).find(
-        (item) =>
+        (
+          item
+        ) =>
           visible(
             item,
             scope
@@ -1076,75 +1255,206 @@ const remoteBackButton = (
   return null;
 };
 
-const syntheticEscape = () => {
-  const target =
-    document.activeElement instanceof
-    HTMLElement
-      ? document.activeElement
-      : document.body;
-
-  const event =
-    new KeyboardEvent(
-      "keydown",
-      {
-        key: "Escape",
-        code: "Escape",
-        bubbles: true,
-        cancelable: true,
-      }
-    );
-
-  try {
-    Object.defineProperty(
-      event,
-      "__mgRemoteSynthetic",
-      {
-        value: true,
-      }
-    );
-  } catch {
-    // No-op.
-  }
-
-  target.dispatchEvent(
-    event
-  );
-};
-
-const activateRemoteMode =
+const syntheticEscape =
   () => {
-    document.documentElement.classList.add(
-      "mg-fire-tv-mode"
-    );
+    const target =
+      document.activeElement instanceof
+      HTMLElement
+        ? document.activeElement
+        : document.body;
 
-    document.body.classList.add(
-      "mg-fire-tv-mode"
+    const event =
+      new KeyboardEvent(
+        "keydown",
+        {
+          key:
+            "Escape",
+
+          code:
+            "Escape",
+
+          bubbles:
+            true,
+
+          cancelable:
+            true,
+        }
+      );
+
+    try {
+      Object.defineProperty(
+        event,
+        "__mgRemoteSynthetic",
+        {
+          value:
+            true,
+        }
+      );
+    } catch {
+      // No-op.
+    }
+
+    target.dispatchEvent(
+      event
     );
   };
+
+const looksLikeFireTv =
+  () => {
+    if (
+      typeof navigator ===
+      "undefined"
+    ) {
+      return false;
+    }
+
+    const ua =
+      String(
+        navigator.userAgent ||
+          ""
+      );
+
+    const platform =
+      String(
+        navigator.platform ||
+          ""
+      );
+
+    return /(?:AFT[A-Z0-9]*|Fire TV|AmazonWebAppPlatform|Silk)/i.test(
+      `${ua} ${platform}`
+    );
+  };
+
+const activateRemoteMode = ({
+  tvLayout = false,
+} = {}) => {
+  document
+    .documentElement
+    .classList
+    .add(
+      "mg-fire-tv-mode"
+    );
+
+  document
+    .body
+    .classList
+    .add(
+      "mg-fire-tv-mode"
+    );
+
+  if (
+    tvLayout
+  ) {
+    document
+      .documentElement
+      .classList
+      .add(
+        "mg-tv-layout"
+      );
+
+    document
+      .body
+      .classList
+      .add(
+        "mg-tv-layout"
+      );
+  }
+};
 
 export default function FireTvRemote({
   onBack,
 }) {
   const activeRef =
-    useRef(false);
+    useRef(
+      false
+    );
 
   const timerRef =
-    useRef(null);
+    useRef(
+      null
+    );
 
   useEffect(() => {
-    const activate =
+    const fireTv =
+      looksLikeFireTv();
+
+    const guardActiveRef = {
+      current:
+        false,
+    };
+
+    const ensureHistoryGuard =
       () => {
         if (
-          activeRef.current
+          guardActiveRef.current ||
+          typeof window ===
+            "undefined"
         ) {
           return;
         }
 
-        activeRef.current =
+        guardActiveRef.current =
           true;
 
-        activateRemoteMode();
+        try {
+          const current =
+            window.history.state ||
+            {};
+
+          window.history.replaceState(
+            {
+              ...current,
+              mgFireTvBase:
+                true,
+            },
+            "",
+            window.location.href
+          );
+
+          window.history.pushState(
+            {
+              mgFireTvGuard:
+                true,
+            },
+            "",
+            window.location.href
+          );
+        } catch {
+          // Key interception still works.
+        }
       };
+
+    const activate =
+      () => {
+        if (
+          !activeRef.current
+        ) {
+          activeRef.current =
+            true;
+
+          activateRemoteMode({
+            tvLayout:
+              fireTv,
+          });
+        }
+
+        /*
+         * Fire TV Back can arrive as browser history navigation instead
+         * of a keyboard event. Keep a same-page history entry above the
+         * Base44 login page so Back never falls through to it.
+         */
+        if (
+          fireTv
+        ) {
+          ensureHistoryGuard();
+        }
+      };
+
+    if (
+      fireTv
+    ) {
+      activate();
+    }
 
     const refocusForNewOverlay =
       () => {
@@ -1201,6 +1511,64 @@ export default function FireTvRemote({
             },
             70
           );
+      };
+
+    const handleRemoteBack =
+      () => {
+        const scope =
+          navigationScope();
+
+        if (
+          scope !==
+          document.body
+        ) {
+          const close =
+            remoteBackButton(
+              scope
+            );
+
+          if (
+            close
+          ) {
+            close.click();
+          } else {
+            syntheticEscape();
+          }
+
+          return true;
+        }
+
+        /*
+         * Home deliberately consumes Back even when already there.
+         */
+        return (
+          onBack?.() !==
+          false
+        );
+      };
+
+    const onPopState =
+      () => {
+        if (
+          !guardActiveRef.current
+        ) {
+          return;
+        }
+
+        handleRemoteBack();
+
+        try {
+          window.history.pushState(
+            {
+              mgFireTvGuard:
+                true,
+            },
+            "",
+            window.location.href
+          );
+        } catch {
+          // Ignore.
+        }
       };
 
     const onKeyDown = (
@@ -1265,15 +1633,9 @@ export default function FireTvRemote({
             ""
         ).toLowerCase();
 
-      /*
-       * D-PAD
-       */
-      if (direction) {
-        /*
-         * Text search:
-         * left/right still moves
-         * the text cursor.
-         */
+      if (
+        direction
+      ) {
         if (
           (
             (
@@ -1297,14 +1659,11 @@ export default function FireTvRemote({
           return;
         }
 
-        /*
-         * Seek / volume:
-         * left/right changes
-         * the range value.
-         */
         if (
-          tag === "input" &&
-          type === "range" &&
+          tag ===
+            "input" &&
+          type ===
+            "range" &&
           (
             direction ===
               "left" ||
@@ -1315,13 +1674,9 @@ export default function FireTvRemote({
           return;
         }
 
-        /*
-         * Fire TV select menus:
-         * Up/down changes
-         * season or episode.
-         */
         if (
-          tag === "select" &&
+          tag ===
+            "select" &&
           (
             direction ===
               "up" ||
@@ -1348,10 +1703,6 @@ export default function FireTvRemote({
         const scope =
           navigationScope();
 
-        /*
-         * A D-pad press in the
-         * player reveals controls.
-         */
         if (
           scope !==
             document.body &&
@@ -1377,17 +1728,12 @@ export default function FireTvRemote({
         return;
       }
 
-      /*
-       * OK / SELECT
-       */
-      if (select) {
+      if (
+        select
+      ) {
         const focused =
           document.activeElement;
 
-        /*
-         * Allow the browser's
-         * native select menu.
-         */
         if (
           focused instanceof
           HTMLSelectElement
@@ -1409,6 +1755,38 @@ export default function FireTvRemote({
             navigationScope()
           )
         ) {
+          const label =
+            String(
+              focused.getAttribute(
+                "aria-label"
+              ) ||
+                ""
+            ).toLowerCase();
+
+          if (
+            label ===
+              "play" ||
+            label ===
+              "pause"
+          ) {
+            const video =
+              activeVideo();
+
+            if (
+              video
+                ?.dataset
+                ?.mgAutoplayMuted ===
+              "true"
+            ) {
+              video.muted =
+                false;
+
+              delete video
+                .dataset
+                .mgAutoplayMuted;
+            }
+          }
+
           focused.click();
         } else {
           focusElement(
@@ -1421,59 +1799,21 @@ export default function FireTvRemote({
         return;
       }
 
-      /*
-       * BACK
-       */
-      if (back) {
-        const scope =
-          navigationScope();
+      if (
+        back
+      ) {
+        event.preventDefault();
 
-        /*
-         * Close the deepest
-         * player/modal/picker first.
-         */
-        if (
-          scope !==
-          document.body
-        ) {
-          event.preventDefault();
+        event.stopImmediatePropagation();
 
-          event.stopImmediatePropagation();
-
-          const close =
-            remoteBackButton(
-              scope
-            );
-
-          if (close) {
-            close.click();
-          } else {
-            syntheticEscape();
-          }
-
-          return;
-        }
-
-        /*
-         * No overlay open:
-         * return to Home.
-         */
-        if (
-          onBack?.() ===
-          true
-        ) {
-          event.preventDefault();
-
-          event.stopImmediatePropagation();
-        }
+        handleRemoteBack();
 
         return;
       }
 
-      /*
-       * MENU
-       */
-      if (menu) {
+      if (
+        menu
+      ) {
         event.preventDefault();
 
         event.stopImmediatePropagation();
@@ -1486,18 +1826,18 @@ export default function FireTvRemote({
             focused
           );
 
-        /*
-         * Menu on a media card
-         * opens Details.
-         */
-        if (card) {
+        if (
+          card
+        ) {
           const details =
             Array.from(
               card.querySelectorAll(
                 "button"
               )
             ).find(
-              (button) =>
+              (
+                button
+              ) =>
                 String(
                   button.textContent ||
                     ""
@@ -1507,29 +1847,25 @@ export default function FireTvRemote({
                 "details"
             );
 
-          if (details) {
+          if (
+            details
+          ) {
             details.click();
+
             return;
           }
         }
 
-        /*
-         * Menu while playing
-         * reveals player controls.
-         */
         if (
           navigationScope().querySelector(
             "video"
           )
         ) {
           focusPlayerControl();
+
           return;
         }
 
-        /*
-         * Outside the player,
-         * Menu jumps to Search.
-         */
         focusElement(
           document.querySelector(
             'aside button[title="Search"]'
@@ -1539,10 +1875,9 @@ export default function FireTvRemote({
         return;
       }
 
-      /*
-       * PLAYBACK BUTTONS
-       */
-      if (mediaAction) {
+      if (
+        mediaAction
+      ) {
         event.preventDefault();
 
         event.stopImmediatePropagation();
@@ -1550,11 +1885,6 @@ export default function FireTvRemote({
         const video =
           activeVideo();
 
-        /*
-         * Next media button:
-         * use the existing
-         * next-episode system.
-         */
         if (
           mediaAction ===
           "next"
@@ -1568,9 +1898,28 @@ export default function FireTvRemote({
           return;
         }
 
-        if (!video) {
+        if (
+          !video
+        ) {
           return;
         }
+
+        const restoreAutoplayAudio =
+          () => {
+            if (
+              video
+                .dataset
+                ?.mgAutoplayMuted ===
+              "true"
+            ) {
+              video.muted =
+                false;
+
+              delete video
+                .dataset
+                .mgAutoplayMuted;
+            }
+          };
 
         if (
           mediaAction ===
@@ -1579,6 +1928,8 @@ export default function FireTvRemote({
           if (
             video.paused
           ) {
+            restoreAutoplayAudio();
+
             video
               .play()
               .catch(
@@ -1595,6 +1946,8 @@ export default function FireTvRemote({
           mediaAction ===
           "play"
         ) {
+          restoreAutoplayAudio();
+
           video
             .play()
             .catch(
@@ -1609,6 +1962,7 @@ export default function FireTvRemote({
           "pause"
         ) {
           video.pause();
+
           return;
         }
 
@@ -1622,7 +1976,8 @@ export default function FireTvRemote({
               (
                 video.currentTime ||
                 0
-              ) - 10
+              ) -
+                10
             );
 
           showPlayerControls();
@@ -1643,7 +1998,8 @@ export default function FireTvRemote({
                 (
                   video.currentTime ||
                   0
-                ) + 10
+                ) +
+                  10
               );
           }
 
@@ -1656,9 +2012,6 @@ export default function FireTvRemote({
           mediaAction ===
           "previous"
         ) {
-          /*
-           * Previous/restart.
-           */
           video.currentTime =
             0;
 
@@ -1667,11 +2020,6 @@ export default function FireTvRemote({
       }
     };
 
-    /*
-     * If a modal/player/search
-     * opens while using the remote,
-     * move focus into it.
-     */
     const observer =
       new MutationObserver(
         refocusForNewOverlay
@@ -1683,11 +2031,19 @@ export default function FireTvRemote({
       true
     );
 
+    window.addEventListener(
+      "popstate",
+      onPopState
+    );
+
     observer.observe(
       document.body,
       {
-        childList: true,
-        subtree: true,
+        childList:
+          true,
+
+        subtree:
+          true,
       }
     );
 
@@ -1696,6 +2052,11 @@ export default function FireTvRemote({
         "keydown",
         onKeyDown,
         true
+      );
+
+      window.removeEventListener(
+        "popstate",
+        onPopState
       );
 
       observer.disconnect();
@@ -1708,13 +2069,33 @@ export default function FireTvRemote({
         );
       }
 
-      document.documentElement.classList.remove(
-        "mg-fire-tv-mode"
-      );
+      document
+        .documentElement
+        .classList
+        .remove(
+          "mg-fire-tv-mode"
+        );
 
-      document.body.classList.remove(
-        "mg-fire-tv-mode"
-      );
+      document
+        .body
+        .classList
+        .remove(
+          "mg-fire-tv-mode"
+        );
+
+      document
+        .documentElement
+        .classList
+        .remove(
+          "mg-tv-layout"
+        );
+
+      document
+        .body
+        .classList
+        .remove(
+          "mg-tv-layout"
+        );
     };
   }, [
     onBack,
