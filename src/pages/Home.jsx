@@ -1,4 +1,8 @@
-import React, { useState } from "react";
+import React, {
+  useCallback,
+  useState,
+} from "react";
+
 import Navbar from "@/components/mg/Navbar";
 import HomeDashboard from "@/components/mg/HomeDashboard";
 import MoviesView from "@/components/mg/MoviesView";
@@ -14,50 +18,193 @@ import WatchPartyView from "@/components/mg/WatchPartyView";
 import FavoritesView from "@/components/mg/FavoritesView";
 import SearchDialog from "@/components/mg/SearchDialog";
 import DetailModal from "@/components/mg/DetailModal";
-import { PlayerProvider } from "@/components/mg/PlayerProvider";
+import FireTvRemote from "@/components/mg/FireTvRemote";
+import {
+  PlayerProvider,
+} from "@/components/mg/PlayerProvider";
 import RdBanner from "@/components/mg/RdBanner";
 
 export default function Home() {
-  const [view, setView] = useState("home");
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchResult, setSearchResult] = useState(null);
+  const [
+    view,
+    setView,
+  ] =
+    useState(
+      "home"
+    );
+
+  const [
+    searchOpen,
+    setSearchOpen,
+  ] =
+    useState(
+      false
+    );
+
+  const [
+    searchResult,
+    setSearchResult,
+  ] =
+    useState(
+      null
+    );
+
+  /*
+   * Fire TV Back behaviour.
+   *
+   * FireTvRemote deals with:
+   * - player
+   * - fullscreen
+   * - season picker
+   * - detail modal
+   * - search modal
+   *
+   * If none of those are open,
+   * Back returns to Home.
+   *
+   * When already on Home we leave
+   * Back to Fire OS / the browser.
+   */
+  const handleRemoteBack =
+    useCallback(
+      () => {
+        if (
+          view !==
+          "home"
+        ) {
+          setView(
+            "home"
+          );
+
+          return true;
+        }
+
+        return false;
+      },
+      [
+        view,
+      ]
+    );
 
   return (
     <PlayerProvider>
+      <FireTvRemote
+        onBack={
+          handleRemoteBack
+        }
+      />
+
       <div className="min-h-screen w-full overflow-x-hidden bg-mg-background text-white flex">
         <Navbar
-          active={view}
-          onSelect={setView}
-          onSearch={() => setSearchOpen(true)}
+          active={
+            view
+          }
+          onSelect={
+            setView
+          }
+          onSearch={() =>
+            setSearchOpen(
+              true
+            )
+          }
         />
 
         <main className="flex-1 min-w-0 w-full flex flex-col overflow-x-hidden">
-          <RdBanner onLinkSettings={() => setView("settings")} />
+          <RdBanner
+            onLinkSettings={() =>
+              setView(
+                "settings"
+              )
+            }
+          />
 
-          {view === "home" && <HomeDashboard />}
-          {view === "movies" && <MoviesView />}
-          {view === "tv" && <TvShowsView />}
-          {view === "live" && <LiveTVView />}
-          {view === "watchlist" && <WatchlistView />}
-          {view === "favorites" && <FavoritesView />}
-          {view === "watchparty" && <WatchPartyView />}
-          {view === "rdlib" && <RdLibraryView />}
-          {view === "downloads" && <DebridDashboard />}
-          {view === "addons" && <AddonsView />}
-          {view === "roadmap" && <RoadmapView />}
-          {view === "settings" && <SettingsView />}
+          {view ===
+            "home" && (
+            <HomeDashboard />
+          )}
+
+          {view ===
+            "movies" && (
+            <MoviesView />
+          )}
+
+          {view ===
+            "tv" && (
+            <TvShowsView />
+          )}
+
+          {view ===
+            "live" && (
+            <LiveTVView />
+          )}
+
+          {view ===
+            "watchlist" && (
+            <WatchlistView />
+          )}
+
+          {view ===
+            "favorites" && (
+            <FavoritesView />
+          )}
+
+          {view ===
+            "watchparty" && (
+            <WatchPartyView />
+          )}
+
+          {view ===
+            "rdlib" && (
+            <RdLibraryView />
+          )}
+
+          {view ===
+            "downloads" && (
+            <DebridDashboard />
+          )}
+
+          {view ===
+            "addons" && (
+            <AddonsView />
+          )}
+
+          {view ===
+            "roadmap" && (
+            <RoadmapView />
+          )}
+
+          {view ===
+            "settings" && (
+            <SettingsView />
+          )}
 
           <SearchDialog
-            open={searchOpen}
-            onOpenChange={setSearchOpen}
-            onSelect={setSearchResult}
+            open={
+              searchOpen
+            }
+            onOpenChange={
+              setSearchOpen
+            }
+            onSelect={
+              setSearchResult
+            }
           />
 
           {searchResult && (
             <DetailModal
-              item={searchResult}
-              mediaType={searchResult.media_type || "movie"}
-              onClose={() => setSearchResult(null)}
+              item={
+                searchResult
+              }
+              mediaType={
+                searchResult
+                  .media_type ||
+                "movie"
+              }
+              onClose={() =>
+                setSearchResult(
+                  null
+                )
+              }
             />
           )}
         </main>
