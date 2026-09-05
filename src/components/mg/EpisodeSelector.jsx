@@ -5,11 +5,13 @@ import React, {
 } from "react";
 
 import {
-  AlertCircle,
   Calendar,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Loader2,
   Play,
-  RefreshCw,
+  RotateCcw,
 } from "lucide-react";
 
 import { base44 } from "@/api/base44Client";
@@ -20,1105 +22,1290 @@ import {
   usePlayer,
 } from "@/components/mg/PlayerProvider";
 
-const unwrap = (response) =>
-  response?.data ??
-  response ??
-  {};
+const asPositiveInt = (
+  value
+) => {
+  const number =
+    Number(
+      value
+    );
 
-const isImdbId = (value) =>
-  /^tt\d+$/i.test(
-    String(value || "").trim()
-  );
-
-const positiveInt = (value) => {
-  const number = Number(value);
-
-  return Number.isInteger(number) &&
+  return (
+    Number.isInteger(
+      number
+    ) &&
     number > 0
+  )
     ? number
     : null;
 };
 
-const normaliseSeasons = (items) =>
-  (Array.isArray(items) ? items : [])
-    .filter(
-      (entry) =>
-        positiveInt(
-          entry?.season_number
-        ) != null
-    )
-    .map((entry) => ({
-      ...entry,
+const episodeKey = (
+  season,
+  episode
+) =>
+  `${Number(
+    season
+  )}:${Number(
+    episode
+  )}`;
 
-      season_number:
-        Number(
-          entry.season_number
-        ),
-
-      episode_count:
-        Number(
-          entry?.episode_count ||
-            0
-        ),
-    }))
-    .sort(
-      (a, b) =>
-        a.season_number -
-        b.season_number
+const progressRatio = (
+  record
+) => {
+  const progress =
+    Number(
+      record
+        ?.progress ||
+        0
     );
 
-const mergeSeasons = (
-  first,
-  second
-) => {
-  const map = new Map();
+  const duration =
+    Number(
+      record
+        ?.duration ||
+        0
+    );
 
-  [
-    ...normaliseSeasons(first),
-    ...normaliseSeasons(second),
-  ].forEach((entry) => {
-    const key =
-      Number(
-        entry.season_number
-      );
+  if (
+    !duration ||
+    duration <= 0
+  ) {
+    return 0;
+  }
 
-    const previous =
-      map.get(key) || {};
-
-    map.set(key, {
-      ...previous,
-      ...entry,
-
-      season_number:
-        key,
-
-      episode_count:
-        Number(
-          entry?.episode_count ??
-            previous?.episode_count ??
-            0
-        ),
-    });
-  });
-
-  return Array.from(
-    map.values()
-  ).sort(
-    (a, b) =>
-      a.season_number -
-      b.season_number
+  return Math.max(
+    0,
+    Math.min(
+      1,
+      progress /
+        duration
+    )
   );
 };
+
+const parseProgressRecord = (
+  record
+) => {
+  const key =
+    String(
+      record
+        ?.content_key ||
+        ""
+    );
+
+  if (
+    key.startsWith(
+      "mg2|"
+    )
+  ) {
+    const [
+      ,
+      tmdbId,
+      mediaType,
+      ,
+      season,
+      episode,
+    ] =
+      key.split(
+        "|"
+      );
+
+    return {
+      tmdbId:
+        String(
+          tmdbId ||
+            ""
+        ),
+
+      mediaType:
+        mediaType ===
+        "tv"
+          ? "tv"
+          : "movie",
+
+      season:
+        asPositiveInt(
+          season
+        ),
+
+      episode:
+        asPositiveInt(
+          episode
+        ),
+    };
+  }
+
+  const parts =
+    key.split(
+      "|"
+    );
+
+  return {
+    tmdbId:
+      "",
+
+    mediaType:
+      asPositiveInt(
+        parts[2]
+      ) &&
+      asPositiveInt(
+        parts[3]
+      )
+        ? "tv"
+        : "movie",
+
+    season:
+      asPositiveInt(
+        parts[2]
+      ),
+
+    episode:
+      asPositiveInt(
+        parts[3]
+      ),
+  };
+};
+
+const showTitleOf = (
+  item
+) =>
+  item?.title ||
+  item?.name ||
+  "TV Show";
 
 export default function EpisodeSelector({
   item,
   seasons,
   trailerUrl,
   providers,
-  imdbId = "",
 }) {
   const player =
     usePlayer();
 
-  const [
-    availableSeasons,
-    setAvailableSeasons,
-  ] = useState(() =>
-    normaliseSeasons(
-      seasons
-    )
-  );
+  const regularSeasons =
+    useMemo(
+      () =>
+        (
+          seasons ||
+          []
+        )
+          .filter(
+            (
+              seasonItem
+            ) =>
+              Number(
+                seasonItem
+                  ?.season_number
+              ) > 0
+          )
+          .sort(
+            (
+              a,
+              b
+            ) =>
+              Number(
+                a
+                  .season_number
+              ) -
+              Number(
+                b
+                  .season_number
+              )
+          ),
+      [
+        seasons,
+      ]
+    );
 
   const [
     season,
     setSeason,
-  ] = useState("");
+  ] =
+    useState(
+      ""
+    );
 
   const [
     episodes,
     setEpisodes,
-  ] = useState([]);
+  ] =
+    useState(
+      []
+    );
 
   const [
     loading,
     setLoading,
-  ] = useState(false);
+  ] =
+    useState(
+      false
+    );
 
   const [
-    seasonsLoading,
-    setSeasonsLoading,
-  ] = useState(false);
+    progressRows,
+    setProgressRows,
+  ] =
+    useState(
+      []
+    );
 
   const [
-    seasonsError,
-    setSeasonsError,
-  ] = useState("");
+    progressLoading,
+    setProgressLoading,
+  ] =
+    useState(
+      true
+    );
 
-  const [
-    episodeError,
-    setEpisodeError,
-  ] = useState("");
+  const showTitle =
+    showTitleOf(
+      item
+    );
 
-  const [
-    playError,
-    setPlayError,
-  ] = useState("");
+  const tmdbId =
+    String(
+      item?.id ||
+        item
+          ?.tmdb_id ||
+        item
+          ?.tmdbId ||
+        ""
+    );
 
-  const [
-    reloadNonce,
-    setReloadNonce,
-  ] = useState(0);
+  useEffect(() => {
+    let mounted =
+      true;
 
-  const [
-    playingEpisode,
-    setPlayingEpisode,
-  ] = useState(null);
+    const loadProgress =
+      () => {
+        setProgressLoading(
+          true
+        );
 
-  const sortedSeasons =
+        base44.entities.ContinueWatching
+          .list(
+            "-updated_date",
+            100
+          )
+          .then(
+            (
+              rows
+            ) => {
+              if (
+                !mounted
+              ) {
+                return;
+              }
+
+              const matching =
+                (
+                  rows ||
+                  []
+                ).filter(
+                  (
+                    record
+                  ) => {
+                    const parsed =
+                      parseProgressRecord(
+                        record
+                      );
+
+                    if (
+                      parsed.mediaType !==
+                        "tv" ||
+                      !parsed.season ||
+                      !parsed.episode
+                    ) {
+                      return false;
+                    }
+
+                    if (
+                      parsed.tmdbId &&
+                      tmdbId &&
+                      parsed.tmdbId ===
+                        tmdbId
+                    ) {
+                      return true;
+                    }
+
+                    const storedTitle =
+                      String(
+                        record
+                          ?.title ||
+                          record
+                            ?.content_key ||
+                          ""
+                      ).toLowerCase();
+
+                    return storedTitle.includes(
+                      showTitle.toLowerCase()
+                    );
+                  }
+                );
+
+              setProgressRows(
+                matching
+              );
+            }
+          )
+          .catch(
+            () => {
+              if (
+                mounted
+              ) {
+                setProgressRows(
+                  []
+                );
+              }
+            }
+          )
+          .finally(
+            () => {
+              if (
+                mounted
+              ) {
+                setProgressLoading(
+                  false
+                );
+              }
+            }
+          );
+      };
+
+    loadProgress();
+
+    let unsubscribe =
+      null;
+
+    try {
+      unsubscribe =
+        base44.entities.ContinueWatching.subscribe(
+          () =>
+            loadProgress()
+        );
+    } catch {
+      unsubscribe =
+        null;
+    }
+
+    return () => {
+      mounted =
+        false;
+
+      if (
+        typeof unsubscribe ===
+        "function"
+      ) {
+        unsubscribe();
+      }
+    };
+  }, [
+    showTitle,
+    tmdbId,
+  ]);
+
+  const progressMap =
     useMemo(
-      () =>
-        normaliseSeasons(
-          availableSeasons
-        ),
+      () => {
+        const map =
+          new Map();
+
+        progressRows.forEach(
+          (
+            record
+          ) => {
+            const parsed =
+              parseProgressRecord(
+                record
+              );
+
+            if (
+              !parsed.season ||
+              !parsed.episode
+            ) {
+              return;
+            }
+
+            const key =
+              episodeKey(
+                parsed.season,
+                parsed.episode
+              );
+
+            const existing =
+              map.get(
+                key
+              );
+
+            if (
+              !existing ||
+              Number(
+                record
+                  ?.progress ||
+                  0
+              ) >
+                Number(
+                  existing
+                    ?.progress ||
+                    0
+                )
+            ) {
+              map.set(
+                key,
+                record
+              );
+            }
+          }
+        );
+
+        return map;
+      },
       [
-        availableSeasons,
+        progressRows,
       ]
     );
 
-  /*
-   * Reset when the TV programme
-   * itself changes.
-   */
-  useEffect(() => {
-    setAvailableSeasons(
-      normaliseSeasons(
-        seasons
-      )
+  const latestProgress =
+    useMemo(
+      () =>
+        progressRows
+          .map(
+            (
+              record
+            ) => ({
+              record,
+
+              parsed:
+                parseProgressRecord(
+                  record
+                ),
+            })
+          )
+          .filter(
+            ({
+              parsed,
+              record,
+            }) =>
+              parsed.season &&
+              parsed.episode &&
+              Number(
+                record
+                  ?.progress ||
+                  0
+              ) >= 5 &&
+              progressRatio(
+                record
+              ) < 0.96
+          )
+          .sort(
+            (
+              a,
+              b
+            ) => {
+              const aDate =
+                new Date(
+                  a.record
+                    ?.updated_date ||
+                    a.record
+                      ?.created_date ||
+                    0
+                ).getTime();
+
+              const bDate =
+                new Date(
+                  b.record
+                    ?.updated_date ||
+                    b.record
+                      ?.created_date ||
+                    0
+                ).getTime();
+
+              return (
+                bDate -
+                aDate
+              );
+            }
+          )[0] ||
+        null,
+      [
+        progressRows,
+      ]
     );
 
-    setSeason("");
-    setEpisodes([]);
-    setSeasonsError("");
-    setEpisodeError("");
-    setPlayError("");
-    setPlayingEpisode(null);
-  }, [
-    item?.id,
-  ]);
-
-  /*
-   * If DetailModal supplies season
-   * information, keep it.
-   *
-   * IMPORTANT:
-   * We MERGE it rather than replacing
-   * the full list.
-   */
   useEffect(() => {
-    const incoming =
-      normaliseSeasons(
-        seasons
-      );
-
     if (
-      incoming.length ===
-      0
+      !regularSeasons.length
     ) {
       return;
     }
 
-    setAvailableSeasons(
-      (current) =>
-        mergeSeasons(
-          current,
-          incoming
-        )
-    );
-  }, [
-    seasons,
-  ]);
+    const resumeSeason =
+      latestProgress
+        ?.parsed
+        ?.season;
 
-  /*
-   * ALWAYS ask for the complete TV
-   * series details.
-   *
-   * The old code stopped here if even
-   * one season was already supplied.
-   * That was why some shows only showed
-   * the current season.
-   */
-  useEffect(() => {
-    let cancelled =
-      false;
-
-    if (!item?.id) {
-      setSeasonsError(
-        "This show does not have a TMDB id."
-      );
-
-      return undefined;
-    }
-
-    const loadAllSeasons =
-      async () => {
-        setSeasonsLoading(
-          true
-        );
-
-        setSeasonsError(
-          ""
-        );
-
-        try {
-          const response =
-            await base44.functions.invoke(
-              "getTmdbMovies",
-              {
-                media_type:
-                  "tv",
-
-                movie_id:
-                  item.id,
-              }
-            );
-
-          if (cancelled) {
-            return;
-          }
-
-          const data =
-            unwrap(
-              response
-            );
-
-          const found =
-            normaliseSeasons(
-              data?.details
-                ?.seasons
-            );
-
-          if (
-            found.length >
-            0
-          ) {
-            setAvailableSeasons(
-              (current) =>
-                mergeSeasons(
-                  current,
-                  found
-                )
-            );
-
-            setSeasonsError(
-              ""
-            );
-          } else {
-            setSeasonsError(
-              data?.error ||
-                "No seasons were returned for this TV show."
-            );
-          }
-        } catch (error) {
-          if (
-            !cancelled
-          ) {
-            setSeasonsError(
-              error?.message ||
-                "Could not load all seasons for this TV show."
-            );
-          }
-        } finally {
-          if (
-            !cancelled
-          ) {
-            setSeasonsLoading(
-              false
-            );
-          }
-        }
-      };
-
-    loadAllSeasons();
-
-    return () => {
-      cancelled =
-        true;
-    };
-  }, [
-    item?.id,
-    reloadNonce,
-  ]);
-
-  /*
-   * Select the first valid season once
-   * the complete list is available.
-   *
-   * If the user has already selected a
-   * season, preserve that selection.
-   */
-  useEffect(() => {
-    if (
-      sortedSeasons.length ===
-      0
-    ) {
-      return;
-    }
-
-    const existing =
-      sortedSeasons.some(
-        (entry) =>
-          String(
-            entry.season_number
+    const hasResumeSeason =
+      resumeSeason &&
+      regularSeasons.some(
+        (
+          seasonItem
+        ) =>
+          Number(
+            seasonItem
+              .season_number
           ) ===
-          String(
-            season
+          Number(
+            resumeSeason
           )
       );
 
-    if (existing) {
-      return;
-    }
-
-    const firstWithEpisodes =
-      sortedSeasons.find(
-        (entry) =>
-          Number(
-            entry.episode_count ||
-              0
-          ) > 0
-      ) ||
-      sortedSeasons[0];
-
     setSeason(
       String(
-        firstWithEpisodes
-          ?.season_number ||
-          ""
+        hasResumeSeason
+          ? resumeSeason
+          : regularSeasons[0]
+              .season_number
       )
     );
   }, [
-    sortedSeasons,
-    season,
+    regularSeasons,
+    latestProgress
+      ?.parsed
+      ?.season,
   ]);
 
-  /*
-   * Load episodes whenever a different
-   * season is selected.
-   */
   useEffect(() => {
-    let cancelled =
-      false;
-
     if (
-      season === "" ||
-      !item?.id
+      season ===
+      ""
     ) {
-      return undefined;
+      return;
     }
 
-    const loadEpisodes =
-      async () => {
-        setLoading(
-          true
-        );
+    let mounted =
+      true;
 
-        setEpisodes(
-          []
-        );
+    setLoading(
+      true
+    );
 
-        setEpisodeError(
-          ""
-        );
+    setEpisodes(
+      []
+    );
 
-        setPlayError(
-          ""
-        );
+    base44.functions
+      .invoke(
+        "getTmdbMovies",
+        {
+          media_type:
+            "tv",
 
-        try {
-          const response =
-            await base44.functions.invoke(
-              "getTmdbMovies",
-              {
-                media_type:
-                  "tv",
+          movie_id:
+            item?.id ||
+            item
+              ?.tmdb_id ||
+            item
+              ?.tmdbId,
 
-                movie_id:
-                  item.id,
-
-                season_number:
-                  Number(
-                    season
-                  ),
-              }
-            );
-
-          if (cancelled) {
+          season_number:
+            Number(
+              season
+            ),
+        }
+      )
+      .then(
+        (
+          response
+        ) => {
+          if (
+            !mounted
+          ) {
             return;
           }
 
-          const data =
-            unwrap(
-              response
-            );
-
-          const found =
-            Array.isArray(
-              data?.episodes
-            )
-              ? data.episodes
-              : [];
-
           setEpisodes(
-            found
+            Array.isArray(
+              response
+                ?.data
+                ?.episodes
+            )
+              ? response
+                  .data
+                  .episodes
+              : []
           );
-
+        }
+      )
+      .catch(
+        () => {
           if (
-            found.length ===
-            0
-          ) {
-            setEpisodeError(
-              data?.error ||
-                "No episodes were returned for this season."
-            );
-          }
-        } catch (error) {
-          if (
-            !cancelled
+            mounted
           ) {
             setEpisodes(
               []
             );
-
-            setEpisodeError(
-              error?.message ||
-                "Could not load episodes for this season."
-            );
           }
-        } finally {
+        }
+      )
+      .finally(
+        () => {
           if (
-            !cancelled
+            mounted
           ) {
             setLoading(
               false
             );
           }
         }
-      };
-
-    loadEpisodes();
+      );
 
     return () => {
-      cancelled =
-        true;
+      mounted =
+        false;
     };
   }, [
     item?.id,
+    item?.tmdb_id,
+    item?.tmdbId,
     season,
-    reloadNonce,
   ]);
 
-  const currentSeason =
-    sortedSeasons.find(
-      (entry) =>
+  const currentSeasonIndex =
+    regularSeasons.findIndex(
+      (
+        seasonItem
+      ) =>
         String(
-          entry.season_number
+          seasonItem
+            .season_number
         ) ===
         String(
           season
         )
     );
 
-  /*
-   * Resolve the series IMDb id before
-   * asking addons for an episode.
-   */
-  const resolveEpisodeImdb =
-    async () => {
-      const fallback =
-        String(
-          imdbId ||
-            item?.imdb_id ||
-            item?.imdbId ||
-            ""
-        ).trim();
-
-      if (item?.id) {
-        try {
-          const response =
-            await base44.functions.invoke(
-              "resolveTvImdb",
-              {
-                tmdb_id:
-                  item.id,
-
-                title:
-                  item?.title ||
-                  item?.name ||
-                  "",
-
-                year:
-                  item?.year ||
-                  "",
-              }
-            );
-
-          const data =
-            unwrap(
-              response
-            );
-
-          const resolved =
-            String(
-              data?.imdb_id ||
-                ""
-            ).trim();
-
-          if (
-            isImdbId(
-              resolved
-            )
-          ) {
-            return resolved;
-          }
-        } catch (error) {
-          console.warn(
-            "[Media God] TV IMDb resolution failed",
-            error
-          );
-        }
-      }
-
-      return isImdbId(
-        fallback
-      )
-        ? fallback
-        : "";
-    };
-
-  const playEpisode =
-    async (
-      episodeItem
-    ) => {
-      const seasonNumber =
-        positiveInt(
-          season
-        );
-
-      const episodeNumber =
-        positiveInt(
-          episodeItem
-            ?.episode_number
-        );
-
+  const goPreviousSeason =
+    () => {
       if (
-        !seasonNumber ||
-        !episodeNumber
+        currentSeasonIndex <=
+        0
       ) {
-        setPlayError(
-          "This episode does not have a valid season/episode number."
-        );
-
         return;
       }
 
-      setPlayingEpisode(
-        episodeNumber
+      setSeason(
+        String(
+          regularSeasons[
+            currentSeasonIndex -
+              1
+          ].season_number
+        )
       );
-
-      setPlayError(
-        ""
-      );
-
-      try {
-        const resolvedImdb =
-          await resolveEpisodeImdb();
-
-        if (
-          !resolvedImdb
-        ) {
-          throw new Error(
-            "Could not resolve the IMDb series id for this episode."
-          );
-        }
-
-        const seriesTitle =
-          item?.title ||
-          item?.name ||
-          "TV Show";
-
-        const episodeTitle =
-          `${seriesTitle} — S${String(
-            seasonNumber
-          ).padStart(
-            2,
-            "0"
-          )}E${String(
-            episodeNumber
-          ).padStart(
-            2,
-            "0"
-          )}`;
-
-        const poster =
-          episodeItem
-            ?.still_url ||
-          item?.poster_url ||
-          "";
-
-        console.info(
-          "[Media God] TV episode lookup",
-          {
-            tmdbId:
-              item?.id,
-
-            imdbId:
-              resolvedImdb,
-
-            season:
-              seasonNumber,
-
-            episode:
-              episodeNumber,
-
-            streamId:
-              `${resolvedImdb}:${seasonNumber}:${episodeNumber}`,
-          }
-        );
-
-        await player.play({
-          id:
-            item?.id,
-
-          tmdbId:
-            item?.id,
-
-          imdbId:
-            resolvedImdb,
-
-          title:
-            episodeTitle,
-
-          poster,
-
-          year:
-            item?.year,
-
-          mediaType:
-            "tv",
-
-          type:
-            "series",
-
-          season:
-            seasonNumber,
-
-          episode:
-            episodeNumber,
-
-          rdTitle:
-            seriesTitle,
-
-          rdYear:
-            item?.year,
-
-          rdSeason:
-            seasonNumber,
-
-          rdEpisode:
-            episodeNumber,
-
-          preferRd:
-            true,
-
-          skipAddonLookup:
-            false,
-
-          skipRdLookup:
-            false,
-
-          sources:
-            buildMediaSources({
-              title:
-                episodeTitle,
-
-              id:
-                item?.id,
-
-              poster,
-
-              trailerUrl,
-
-              providers,
-            }),
-        });
-      } catch (error) {
-        setPlayError(
-          error?.message ||
-            "Could not start this episode."
-        );
-      } finally {
-        setPlayingEpisode(
-          null
-        );
-      }
     };
 
+  const goNextSeason =
+    () => {
+      if (
+        currentSeasonIndex <
+          0 ||
+        currentSeasonIndex >=
+          regularSeasons.length -
+            1
+      ) {
+        return;
+      }
+
+      setSeason(
+        String(
+          regularSeasons[
+            currentSeasonIndex +
+              1
+          ].season_number
+        )
+      );
+    };
+
+  const playEpisodeNumber =
+    ({
+      seasonNumber,
+      episodeNumber,
+      episodeData =
+        null,
+      startTime =
+        0,
+    }) => {
+      const episodeTitle =
+        `${showTitle} — S${String(
+          seasonNumber
+        ).padStart(
+          2,
+          "0"
+        )}E${String(
+          episodeNumber
+        ).padStart(
+          2,
+          "0"
+        )}`;
+
+      const poster =
+        episodeData
+          ?.still_url ||
+        item
+          ?.poster_url ||
+        item?.poster ||
+        "";
+
+      player.play({
+        id:
+          item?.id ||
+          item
+            ?.tmdb_id ||
+          item
+            ?.tmdbId,
+
+        tmdbId:
+          item?.id ||
+          item
+            ?.tmdb_id ||
+          item
+            ?.tmdbId,
+
+        tmdb_id:
+          item?.id ||
+          item
+            ?.tmdb_id ||
+          item
+            ?.tmdbId,
+
+        title:
+          episodeTitle,
+
+        poster,
+
+        year:
+          item?.year,
+
+        mediaType:
+          "tv",
+
+        type:
+          "series",
+
+        season:
+          Number(
+            seasonNumber
+          ),
+
+        episode:
+          Number(
+            episodeNumber
+          ),
+
+        rdTitle:
+          showTitle,
+
+        rdYear:
+          item?.year,
+
+        rdSeason:
+          Number(
+            seasonNumber
+          ),
+
+        rdEpisode:
+          Number(
+            episodeNumber
+          ),
+
+        startTime:
+          Number(
+            startTime ||
+              0
+          ),
+
+        preferRd:
+          true,
+
+        sources:
+          buildMediaSources({
+            title:
+              episodeTitle,
+
+            id:
+              item?.id ||
+              item
+                ?.tmdb_id ||
+              item
+                ?.tmdbId,
+
+            poster,
+
+            trailerUrl,
+
+            providers,
+          }),
+      });
+    };
+
+  const playEpisode =
+    (
+      episodeData
+    ) => {
+      const episodeNumber =
+        Number(
+          episodeData
+            ?.episode_number
+        );
+
+      const seasonNumber =
+        Number(
+          season
+        );
+
+      const progressRecord =
+        progressMap.get(
+          episodeKey(
+            seasonNumber,
+            episodeNumber
+          )
+        );
+
+      const ratio =
+        progressRatio(
+          progressRecord
+        );
+
+      const startTime =
+        progressRecord &&
+        Number(
+          progressRecord
+            ?.progress ||
+            0
+        ) >= 5 &&
+        ratio <
+          0.96
+          ? Number(
+              progressRecord
+                .progress ||
+                0
+            )
+          : 0;
+
+      playEpisodeNumber({
+        seasonNumber,
+        episodeNumber,
+        episodeData,
+        startTime,
+      });
+    };
+
+  const resumeLatest =
+    () => {
+      if (
+        !latestProgress
+      ) {
+        return;
+      }
+
+      playEpisodeNumber({
+        seasonNumber:
+          latestProgress
+            .parsed
+            .season,
+
+        episodeNumber:
+          latestProgress
+            .parsed
+            .episode,
+
+        startTime:
+          Number(
+            latestProgress
+              .record
+              ?.progress ||
+              0
+          ),
+      });
+    };
+
+  if (
+    !regularSeasons.length
+  ) {
+    return null;
+  }
+
   return (
-    <div
-      id="mg-episode-selector"
-      className="mt-5 3xl:mt-7 scroll-mt-4"
-    >
-      <div className="flex items-center justify-between gap-3 mb-3">
-        <h3 className="text-white/80 text-xs 3xl:text-sm font-bold uppercase tracking-wider">
-          Seasons & Episodes
+    <div className="mt-5">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+        <h3 className="text-white/80 text-xs font-bold uppercase tracking-wider">
+          Episodes
         </h3>
 
-        {sortedSeasons.length >
-          0 && (
-          <span className="text-[10px] 3xl:text-xs text-white/40">
-            {
-              sortedSeasons.length
-            }{" "}
-            season
-            {sortedSeasons.length ===
-            1
-              ? ""
-              : "s"}
+        {progressLoading && (
+          <span className="inline-flex items-center gap-1 text-[10px] text-white/35">
+            <Loader2 className="w-3 h-3 animate-spin" />
+
+            Syncing progress
           </span>
         )}
       </div>
 
-      {seasonsLoading &&
-        sortedSeasons.length ===
-          0 && (
-        <div className="bg-mg-card border border-white/10 rounded-lg p-4 flex items-center gap-2 text-white/60 text-sm">
-          <Loader2 className="w-4 h-4 animate-spin text-mg-green" />
-          Loading all seasons…
-        </div>
-      )}
+      {latestProgress && (
+        <button
+          type="button"
+          onClick={
+            resumeLatest
+          }
+          className="mb-3 w-full min-h-11 flex items-center justify-between gap-3 rounded-lg border border-mg-green/25 bg-mg-green/10 px-3 py-2.5 text-left hover:bg-mg-green/15 focus:outline-none focus:ring-2 focus:ring-mg-green"
+        >
+          <span className="min-w-0">
+            <span className="block text-xs font-semibold text-mg-green">
+              Continue this series
+            </span>
 
-      {!seasonsLoading &&
-        sortedSeasons.length ===
-          0 && (
-        <div className="bg-mg-card border border-white/10 rounded-lg p-4">
-          <div className="flex items-start gap-2">
-            <AlertCircle className="w-4 h-4 text-amber-300 mt-0.5 shrink-0" />
-
-            <div className="flex-1">
-              <p className="text-white text-sm font-medium">
-                Seasons are not
-                available yet
-              </p>
-
-              <p className="text-white/45 text-xs mt-1">
-                {seasonsError ||
-                  "Media God did not receive season information for this show."}
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={() =>
-                setReloadNonce(
-                  (value) =>
-                    value + 1
-                )
-              }
-              className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-white/10 text-white text-xs hover:bg-white/15"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              Retry
-            </button>
-          </div>
-        </div>
-      )}
-
-      {sortedSeasons.length >
-        0 && (
-        <>
-          {/* ALL SEASONS ARE ALWAYS VISIBLE HERE */}
-          <div className="mb-4">
-            <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-2 overscroll-x-contain">
-              {sortedSeasons.map(
-                (entry) => {
-                  const number =
-                    Number(
-                      entry
-                        .season_number
-                    );
-
-                  const selected =
-                    String(
-                      number
-                    ) ===
-                    String(
-                      season
-                    );
-
-                  return (
-                    <button
-                      type="button"
-                      key={
-                        number
-                      }
-                      onClick={() =>
-                        setSeason(
-                          String(
-                            number
-                          )
-                        )
-                      }
-                      className={
-                        "shrink-0 min-h-11 rounded-lg border px-3 py-2 text-left transition-colors " +
-                        (selected
-                          ? "bg-mg-green text-black border-mg-green"
-                          : "bg-mg-card text-white/80 border-white/10 hover:border-mg-green/50 hover:text-white")
-                      }
-                    >
-                      <span className="block text-xs sm:text-sm font-bold whitespace-nowrap">
-                        Season{" "}
-                        {
-                          number
-                        }
-                      </span>
-
-                      <span
-                        className={
-                          "block text-[10px] mt-0.5 whitespace-nowrap " +
-                          (selected
-                            ? "text-black/60"
-                            : "text-white/40")
-                        }
-                      >
-                        {Number(
-                          entry
-                            ?.episode_count ||
-                            0
-                        )}{" "}
-                        episodes
-                      </span>
-                    </button>
-                  );
-                }
+            <span className="block text-[11px] text-white/55 mt-0.5">
+              Resume S
+              {String(
+                latestProgress
+                  .parsed
+                  .season
+              ).padStart(
+                2,
+                "0"
               )}
-            </div>
-          </div>
+              E
+              {String(
+                latestProgress
+                  .parsed
+                  .episode
+              ).padStart(
+                2,
+                "0"
+              )}
+              {" · "}
+              {Math.round(
+                progressRatio(
+                  latestProgress
+                    .record
+                ) *
+                  100
+              )}
+              % watched
+            </span>
+          </span>
 
-          <div className="flex items-center justify-between gap-3 mb-3">
-            <div>
-              <p className="text-white text-sm 3xl:text-base font-semibold">
-                {currentSeason
-                  ?.name ||
-                  `Season ${season}`}
-              </p>
+          <RotateCcw className="w-4 h-4 text-mg-green shrink-0" />
+        </button>
+      )}
 
-              <p className="text-white/40 text-[10px] 3xl:text-xs">
-                Choose an episode
-                to play
-              </p>
-            </div>
+      <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 mb-3">
+        <button
+          type="button"
+          onClick={
+            goPreviousSeason
+          }
+          disabled={
+            currentSeasonIndex <=
+            0
+          }
+          className="w-11 h-11 rounded-lg border border-white/10 bg-mg-card text-white/70 flex items-center justify-center hover:text-white hover:border-white/20 disabled:opacity-25 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-mg-green"
+          aria-label="Previous season"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
 
-            {seasonsLoading && (
-              <span className="flex items-center gap-1.5 text-[10px] text-white/40">
-                <Loader2 className="w-3 h-3 animate-spin" />
-                Updating seasons
-              </span>
-            )}
-          </div>
+        <select
+          value={
+            season
+          }
+          onChange={(
+            event
+          ) =>
+            setSeason(
+              event.target
+                .value
+            )
+          }
+          className="w-full min-h-11 bg-mg-card border border-white/10 rounded-lg px-3 py-2.5 text-sm font-semibold text-white outline-none focus:border-mg-green"
+          aria-label="Choose season"
+        >
+          {regularSeasons.map(
+            (
+              seasonItem
+            ) => (
+              <option
+                key={
+                  seasonItem
+                    .season_number
+                }
+                value={
+                  String(
+                    seasonItem
+                      .season_number
+                  )
+                }
+              >
+                {seasonItem.name ||
+                  `Season ${seasonItem.season_number}`}
 
-          {playError && (
-            <div className="mb-3 bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-red-200 text-xs">
-              {
-                playError
-              }
-            </div>
+                {seasonItem
+                  .episode_count
+                  ? ` · ${seasonItem.episode_count} episodes`
+                  : ""}
+              </option>
+            )
           )}
+        </select>
 
-          {loading ? (
-            <div className="space-y-2">
-              {Array.from({
-                length: 4,
-              }).map(
-                (
-                  _,
+        <button
+          type="button"
+          onClick={
+            goNextSeason
+          }
+          disabled={
+            currentSeasonIndex <
+              0 ||
+            currentSeasonIndex >=
+              regularSeasons.length -
+                1
+          }
+          className="w-11 h-11 rounded-lg border border-white/10 bg-mg-card text-white/70 flex items-center justify-center hover:text-white hover:border-white/20 disabled:opacity-25 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-mg-green"
+          aria-label="Next season"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="space-y-2">
+          {Array.from({
+            length:
+              5,
+          }).map(
+            (
+              _,
+              index
+            ) => (
+              <div
+                key={
                   index
-                ) => (
-                  <div
-                    key={
-                      index
-                    }
-                    className="h-20 3xl:h-24 bg-mg-card rounded-lg animate-pulse"
-                  />
-                )
-              )}
-            </div>
-          ) : (
-            <div className="space-y-2 3xl:space-y-3">
-              {episodes.map(
-                (
-                  episodeItem
-                ) => {
-                  const episodeNumber =
-                    Number(
-                      episodeItem
-                        ?.episode_number
-                    );
-
-                  const isStarting =
-                    playingEpisode ===
-                    episodeNumber;
-
-                  return (
-                    <div
-                      key={
-                        episodeNumber
-                      }
-                      className="flex gap-3 3xl:gap-4 bg-mg-card border border-white/10 rounded-lg p-2 3xl:p-3 hover:border-mg-green/50 transition-colors"
-                    >
-                      <button
-                        type="button"
-                        onClick={() =>
-                          playEpisode(
-                            episodeItem
-                          )
-                        }
-                        disabled={
-                          isStarting
-                        }
-                        className="relative w-24 sm:w-32 3xl:w-40 aspect-video rounded-md overflow-hidden bg-black shrink-0 group disabled:opacity-60"
-                      >
-                        {episodeItem
-                          ?.still_url ? (
-                          <Image
-                            src={
-                              episodeItem
-                                .still_url
-                            }
-                            alt={
-                              episodeItem?.name ||
-                              `Episode ${episodeNumber}`
-                            }
-                            className="w-full h-full object-cover"
-                            fittingType="fill"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-white/30 text-[10px]">
-                            No still
-                          </div>
-                        )}
-
-                        <span className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 mg-hover-action transition-opacity">
-                          <span className="w-8 h-8 3xl:w-10 3xl:h-10 rounded-full bg-mg-green text-black flex items-center justify-center">
-                            {isStarting ? (
-                              <Loader2 className="w-4 h-4 3xl:w-5 3xl:h-5 animate-spin" />
-                            ) : (
-                              <Play className="w-4 h-4 3xl:w-5 3xl:h-5 fill-black" />
-                            )}
-                          </span>
-                        </span>
-
-                        <span className="absolute bottom-0.5 left-0.5 text-[10px] 3xl:text-xs font-bold bg-black/70 text-white px-1 rounded">
-                          E
-                          {
-                            episodeNumber
-                          }
-                        </span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          playEpisode(
-                            episodeItem
-                          )
-                        }
-                        disabled={
-                          isStarting
-                        }
-                        className="flex-1 min-w-0 text-left disabled:opacity-60"
-                      >
-                        <p className="text-white text-sm 3xl:text-base font-medium">
-                          Episode{" "}
-                          {
-                            episodeNumber
-                          }
-                          {episodeItem
-                            ?.name
-                            ? ` — ${episodeItem.name}`
-                            : ""}
-                        </p>
-
-                        <p className="text-white/40 text-xs 3xl:text-sm flex flex-wrap items-center gap-1 mt-0.5">
-                          {episodeItem
-                            ?.air_date && (
-                            <>
-                              <Calendar className="w-3 h-3 3xl:w-4 3xl:h-4" />
-
-                              {
-                                episodeItem
-                                  .air_date
-                              }
-                            </>
-                          )}
-
-                          {episodeItem
-                            ?.runtime && (
-                            <>
-                              <span>
-                                •
-                              </span>
-
-                              <span>
-                                {
-                                  episodeItem
-                                    .runtime
-                                }
-                                m
-                              </span>
-                            </>
-                          )}
-                        </p>
-
-                        <p className="text-white/50 text-xs 3xl:text-sm mt-1 line-clamp-2">
-                          {episodeItem
-                            ?.overview ||
-                            "No description."}
-                        </p>
-                      </button>
-                    </div>
-                  );
                 }
-              )}
+                className="h-20 rounded-lg bg-mg-card animate-pulse"
+              />
+            )
+          )}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {episodes.map(
+            (
+              episodeData
+            ) => {
+              const episodeNumber =
+                Number(
+                  episodeData
+                    ?.episode_number
+                );
 
-              {episodes.length ===
-                0 && (
-                <div className="bg-mg-card border border-white/10 rounded-lg p-3">
-                  <p className="text-white/50 text-xs">
-                    {episodeError ||
-                      "No episodes found for this season."}
-                  </p>
+              const seasonNumber =
+                Number(
+                  season
+                );
 
+              const progressRecord =
+                progressMap.get(
+                  episodeKey(
+                    seasonNumber,
+                    episodeNumber
+                  )
+                );
+
+              const ratio =
+                progressRatio(
+                  progressRecord
+                );
+
+              const percent =
+                Math.round(
+                  ratio *
+                    100
+                );
+
+              const hasResume =
+                Number(
+                  progressRecord
+                    ?.progress ||
+                    0
+                ) >=
+                  5 &&
+                ratio >
+                  0 &&
+                ratio <
+                  0.96;
+
+              const nearlyWatched =
+                ratio >=
+                0.92;
+
+              return (
+                <div
+                  key={
+                    episodeData.id ||
+                    `${seasonNumber}-${episodeNumber}`
+                  }
+                  className="group relative flex gap-3 rounded-lg border border-white/5 bg-white/[0.02] p-2 hover:bg-white/[0.04] focus-within:border-mg-green/30"
+                >
                   <button
                     type="button"
                     onClick={() =>
-                      setReloadNonce(
-                        (
-                          value
-                        ) =>
-                          value +
-                          1
+                      playEpisode(
+                        episodeData
                       )
                     }
-                    className="mt-2 flex items-center gap-1.5 text-xs text-mg-green"
+                    className="relative w-28 sm:w-32 aspect-video shrink-0 overflow-hidden rounded-md bg-mg-card border border-white/10 focus:outline-none focus:ring-2 focus:ring-mg-green"
+                    aria-label={`${
+                      hasResume
+                        ? "Resume"
+                        : "Play"
+                    } episode ${episodeNumber}`}
                   >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    Try again
+                    {episodeData
+                      .still_url ? (
+                      <Image
+                        src={
+                          episodeData
+                            .still_url
+                        }
+                        alt={
+                          episodeData
+                            .name ||
+                          `Episode ${episodeNumber}`
+                        }
+                        className="w-full h-full object-cover"
+                        fittingType="fill"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-white/25">
+                        <Play className="w-5 h-5" />
+                      </div>
+                    )}
+
+                    <span className="absolute inset-0 flex items-center justify-center bg-black/35 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+                      <span className="w-9 h-9 rounded-full bg-mg-green text-black flex items-center justify-center">
+                        {hasResume ? (
+                          <RotateCcw className="w-4 h-4" />
+                        ) : (
+                          <Play className="w-4 h-4 fill-black" />
+                        )}
+                      </span>
+                    </span>
+
+                    <span className="absolute top-1 left-1 rounded bg-black/75 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                      E
+                      {
+                        episodeNumber
+                      }
+                    </span>
+
+                    {nearlyWatched && (
+                      <span className="absolute top-1 right-1 rounded-full bg-black/75 p-1 text-mg-green">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                      </span>
+                    )}
+
+                    {ratio >
+                      0 && (
+                      <span className="absolute bottom-0 left-0 right-0 h-1 bg-white/20">
+                        <span
+                          className="block h-full bg-mg-green"
+                          style={{
+                            width:
+                              `${percent}%`,
+                          }}
+                        />
+                      </span>
+                    )}
                   </button>
+
+                  <div className="flex-1 min-w-0 py-0.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-white text-sm font-medium truncate">
+                          {episodeData.name ||
+                            `Episode ${episodeNumber}`}
+                        </p>
+
+                        <p className="text-white/40 text-xs flex flex-wrap items-center gap-x-2 gap-y-1 mt-0.5">
+                          {episodeData
+                            .air_date && (
+                            <span className="inline-flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+
+                              {
+                                episodeData
+                                  .air_date
+                              }
+                            </span>
+                          )}
+
+                          {hasResume && (
+                            <span className="text-mg-green font-semibold">
+                              Resume ·{" "}
+                              {
+                                percent
+                              }
+                              %
+                            </span>
+                          )}
+
+                          {nearlyWatched &&
+                            !hasResume && (
+                              <span className="text-mg-green font-semibold">
+                                Watched
+                              </span>
+                            )}
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          playEpisode(
+                            episodeData
+                          )
+                        }
+                        className="shrink-0 min-h-10 inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/5 px-2.5 text-[11px] font-semibold text-white/70 hover:text-white hover:border-mg-green/30 focus:outline-none focus:ring-2 focus:ring-mg-green"
+                      >
+                        {hasResume ? (
+                          <RotateCcw className="w-3.5 h-3.5" />
+                        ) : (
+                          <Play className="w-3.5 h-3.5" />
+                        )}
+
+                        {hasResume
+                          ? "Resume"
+                          : "Play"}
+                      </button>
+                    </div>
+
+                    <p className="text-white/50 text-xs mt-1 line-clamp-2 leading-relaxed">
+                      {episodeData.overview ||
+                        "No description available."}
+                    </p>
+                  </div>
                 </div>
-              )}
-            </div>
+              );
+            }
           )}
-        </>
+
+          {episodes.length ===
+            0 && (
+            <p className="text-white/40 text-xs rounded-lg border border-white/10 bg-mg-card p-4">
+              No episodes found for this season.
+            </p>
+          )}
+        </div>
       )}
     </div>
   );
