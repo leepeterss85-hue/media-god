@@ -19,48 +19,48 @@ import FavoritesView from "@/components/mg/FavoritesView";
 import SearchDialog from "@/components/mg/SearchDialog";
 import DetailModal from "@/components/mg/DetailModal";
 import FireTvRemote from "@/components/mg/FireTvRemote";
+
 import {
   PlayerProvider,
 } from "@/components/mg/PlayerProvider";
+
 import RdBanner from "@/components/mg/RdBanner";
 
 export default function Home() {
   const [
     view,
     setView,
-  ] =
-    useState(
-      "home"
-    );
+  ] = useState(
+    "home"
+  );
 
   const [
     searchOpen,
     setSearchOpen,
-  ] =
-    useState(
-      false
-    );
+  ] = useState(
+    false
+  );
 
   const [
     searchResult,
     setSearchResult,
-  ] =
-    useState(
-      null
-    );
+  ] = useState(
+    null
+  );
 
   /*
-   * Fire TV Back behaviour:
+   * Fire TV Back behaviour.
    *
-   * The global remote controller closes
-   * the player/modal/picker first.
+   * Back closes player / modal /
+   * season picker first.
    *
-   * If no overlay is open, Back returns
-   * to Home.
+   * If the user is inside another
+   * section it returns to Home.
    *
-   * If already on Home, we still consume
-   * Back so Fire TV/Silk does not navigate
-   * backwards into the Base44 login page.
+   * If already on Home we still
+   * consume Back so it does not
+   * navigate back to the Base44
+   * login screen.
    */
   const handleRemoteBack =
     useCallback(
@@ -90,6 +90,23 @@ export default function Home() {
           handleRemoteBack
         }
       />
+
+      {/*
+       * TEMPORARY APK LIVE UPDATE TEST
+       *
+       * Publish this change in Base44.
+       * DO NOT rebuild the APK.
+       *
+       * Force-close Media God on the
+       * Fire Stick and reopen it.
+       *
+       * If this badge appears, the APK
+       * is loading your latest hosted
+       * Base44 application.
+       */}
+      <div className="fixed top-3 right-3 z-[9999] rounded-lg border border-white/20 bg-red-600 px-4 py-2 text-sm font-black text-white shadow-2xl pointer-events-none">
+        REMOTE UPDATE TEST
+      </div>
 
       <div className="min-h-screen w-full overflow-x-hidden bg-mg-background text-white flex">
         <Navbar
