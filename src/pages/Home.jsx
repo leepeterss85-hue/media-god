@@ -50,20 +50,17 @@ export default function Home() {
     );
 
   /*
-   * Fire TV Back behaviour.
+   * Fire TV Back behaviour:
    *
-   * FireTvRemote deals with:
-   * - player
-   * - fullscreen
-   * - season picker
-   * - detail modal
-   * - search modal
+   * The global remote controller closes
+   * the player/modal/picker first.
    *
-   * If none of those are open,
-   * Back returns to Home.
+   * If no overlay is open, Back returns
+   * to Home.
    *
-   * When already on Home we leave
-   * Back to Fire OS / the browser.
+   * If already on Home, we still consume
+   * Back so Fire TV/Silk does not navigate
+   * backwards into the Base44 login page.
    */
   const handleRemoteBack =
     useCallback(
@@ -79,7 +76,7 @@ export default function Home() {
           return true;
         }
 
-        return false;
+        return true;
       },
       [
         view,
