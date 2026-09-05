@@ -17,7 +17,30 @@ export default function HomeDashboard() {
     const fetchRow = (params) =>
       base44.functions
         .invoke("getTmdbMovies", params)
-        .then((r) => r.data?.movies || [])
+        .then((r) => {
+          const fallbackType =
+            params?.media_type === "tv" ? "tv" : "movie";
+
+          return (r.data?.movies || []).map((item) => {
+            const rawType = String(
+              item?.media_type ||
+                item?.mediaType ||
+                item?.type ||
+                fallbackType
+            ).toLowerCase();
+
+            const mediaType =
+              rawType === "tv" || rawType === "series"
+                ? "tv"
+                : "movie";
+
+            return {
+              ...item,
+              media_type: mediaType,
+              mediaType,
+            };
+          });
+        })
         .catch(() => []);
 
     Promise.all([
@@ -42,7 +65,27 @@ export default function HomeDashboard() {
     );
   }, []);
 
-  const open = (item) => setSelected(item);
+  const open = (item) => {
+    if (!item) return;
+
+    const rawType = String(
+      item?.media_type ||
+        item?.mediaType ||
+        item?.type ||
+        "movie"
+    ).toLowerCase();
+
+    const mediaType =
+      rawType === "tv" || rawType === "series"
+        ? "tv"
+        : "movie";
+
+    setSelected({
+      ...item,
+      media_type: mediaType,
+      mediaType,
+    });
+  };
 
   const onWatchlist = async (movie) => {
     try {
