@@ -51,16 +51,18 @@ export default function Home() {
   /*
    * Fire TV Back behaviour.
    *
-   * Back closes player / modal /
-   * season picker first.
+   * FireTvRemote closes the player,
+   * detail modal or season/episode
+   * picker first.
    *
-   * If the user is inside another
-   * section it returns to Home.
+   * If no overlay is open and the
+   * user is inside another section,
+   * Back returns to Home.
    *
-   * If already on Home we still
-   * consume Back so it does not
-   * navigate back to the Base44
-   * login screen.
+   * If already on Home, Back is still
+   * consumed so Fire TV/Silk does not
+   * navigate backwards to the Base44
+   * login page.
    */
   const handleRemoteBack =
     useCallback(
@@ -90,23 +92,6 @@ export default function Home() {
           handleRemoteBack
         }
       />
-
-      {/*
-       * TEMPORARY APK LIVE UPDATE TEST
-       *
-       * Publish this change in Base44.
-       * DO NOT rebuild the APK.
-       *
-       * Force-close Media God on the
-       * Fire Stick and reopen it.
-       *
-       * If this badge appears, the APK
-       * is loading your latest hosted
-       * Base44 application.
-       */}
-      <div className="fixed top-3 right-3 z-[9999] rounded-lg border border-white/20 bg-red-600 px-4 py-2 text-sm font-black text-white shadow-2xl pointer-events-none">
-        REMOTE UPDATE TEST
-      </div>
 
       <div className="min-h-screen w-full overflow-x-hidden bg-mg-background text-white flex">
         <Navbar
