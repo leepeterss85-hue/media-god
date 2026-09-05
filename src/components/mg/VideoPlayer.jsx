@@ -7,8 +7,6 @@ import React, {
 
 import {
   X,
-  Copy,
-  Check,
   ExternalLink,
   Link,
   Download,
@@ -35,37 +33,19 @@ import {
   orderSourcesForPlayback,
 } from "@/components/mg/mediaCompatibility";
 
-const VIDEO_RE =
-  /\.(mp4|mkv|avi|mov|webm|m4v|mpg|mpeg|ts|m2ts)$/i;
-
-const isMagnet = (
-  value
-) =>
-  String(
-    value || ""
-  )
+const isMagnet = (value) =>
+  String(value || "")
     .toLowerCase()
-    .startsWith(
-      "magnet:"
-    );
+    .startsWith("magnet:");
 
-const currentFilePath = (
-  files
-) =>
+const currentFilePath = (files) =>
   (
-    files?.find(
-      (
-        file
-      ) =>
-        file.selected
-    ) ||
+    files?.find((file) => file.selected) ||
     files?.[0] ||
     {}
   ).path || "";
 
-const getSourceUrl = (
-  item
-) =>
+const getSourceUrl = (item) =>
   item?.src ||
   item?.url ||
   item?.magnet ||
@@ -78,126 +58,90 @@ const DEFAULT_PLAYBACK_PREFERENCES = {
   audioLanguage: "en",
 };
 
-const normaliseSubtitleItems = (
-  ...groups
-) => {
-  const seen =
-    new Set();
+const normaliseSubtitleItems = (...groups) => {
+  const seen = new Set();
 
   return groups
-    .flatMap(
-      (
-        group
-      ) =>
-        Array.isArray(
-          group
-        )
-          ? group
-          : []
+    .flatMap((group) =>
+      Array.isArray(group)
+        ? group
+        : []
     )
-    .map(
-      (
-        item,
-        index
-      ) => {
-        if (
-          typeof item ===
-          "string"
-        ) {
-          return {
-            src:
-              item,
-
-            label:
-              `Subtitle ${index + 1}`,
-
-            lang:
-              "",
-
-            kind:
-              "subtitles",
-          };
-        }
-
+    .map((item, index) => {
+      if (typeof item === "string") {
         return {
-          src:
-            item?.src ||
-            item?.url ||
-            item?.file ||
-            "",
-
-          label:
-            item?.label ||
-            item?.name ||
-            item?.language ||
-            item?.lang ||
-            `Subtitle ${index + 1}`,
-
-          lang:
-            item?.lang ||
-            item?.language ||
-            "",
-
-          kind:
-            item?.kind ||
-            item?.type ||
-            "subtitles",
-
-          default:
-            Boolean(
-              item?.default
-            ),
+          src: item,
+          label: `Subtitle ${index + 1}`,
+          lang: "",
+          kind: "subtitles",
         };
       }
-    )
-    .filter(
-      (
-        item
-      ) => {
-        const src =
-          String(
-            item?.src ||
-              ""
-          ).trim();
 
-        const kind =
-          String(
-            item?.kind ||
-              ""
-          ).toLowerCase();
+      return {
+        src:
+          item?.src ||
+          item?.url ||
+          item?.file ||
+          "",
 
-        if (
-          !/^https?:\/\//i.test(
-            src
-          )
-        ) {
-          return false;
-        }
+        label:
+          item?.label ||
+          item?.name ||
+          item?.language ||
+          item?.lang ||
+          `Subtitle ${index + 1}`,
 
-        if (
-          kind &&
-          !/(sub|caption|text|vtt|srt)/i.test(
-            kind
-          )
-        ) {
-          return false;
-        }
+        lang:
+          item?.lang ||
+          item?.language ||
+          "",
 
-        if (
-          seen.has(
-            src
-          )
-        ) {
-          return false;
-        }
+        kind:
+          item?.kind ||
+          item?.type ||
+          "subtitles",
 
-        seen.add(
-          src
-        );
+        default: Boolean(
+          item?.default
+        ),
+      };
+    })
+    .filter((item) => {
+      const src =
+        String(
+          item?.src || ""
+        ).trim();
 
-        return true;
+      const kind =
+        String(
+          item?.kind || ""
+        ).toLowerCase();
+
+      if (
+        !/^https?:\/\//i.test(src)
+      ) {
+        return false;
       }
-    );
+
+      if (
+        kind &&
+        !/(sub|caption|text|vtt|srt)/i.test(
+          kind
+        )
+      ) {
+        return false;
+      }
+
+      if (
+        seen.has(src)
+      ) {
+        return false;
+      }
+
+      seen.add(src);
+
+      return true;
+    });
 };
 
 export default function VideoPlayer({
@@ -207,18 +151,14 @@ export default function VideoPlayer({
   const [
     playbackPreferences,
     setPlaybackPreferences,
-  ] =
-    useState(
-      DEFAULT_PLAYBACK_PREFERENCES
-    );
+  ] = useState(
+    DEFAULT_PLAYBACK_PREFERENCES
+  );
 
   const [
     sessionQuality,
     setSessionQuality,
-  ] =
-    useState(
-      "Auto"
-    );
+  ] = useState("Auto");
 
   const deviceProfile =
     useMemo(
@@ -227,391 +167,259 @@ export default function VideoPlayer({
       []
     );
 
-  useEffect(
-    () => {
-      let mounted =
-        true;
+  useEffect(() => {
+    let mounted = true;
 
-      base44.auth
-        .me()
-        .then(
-          (
-            user
-          ) => {
-            if (
-              !mounted
-            ) {
-              return;
-            }
+    base44.auth
+      .me()
+      .then((user) => {
+        if (!mounted) {
+          return;
+        }
 
-            const preferences =
-              user?.preferences ||
-              {};
+        const preferences =
+          user?.preferences || {};
 
-            const next = {
-              quality:
-                preferences.quality ||
-                DEFAULT_PLAYBACK_PREFERENCES.quality,
+        const next = {
+          quality:
+            preferences.quality ||
+            DEFAULT_PLAYBACK_PREFERENCES.quality,
 
-              subs:
-                preferences.subs ??
-                DEFAULT_PLAYBACK_PREFERENCES.subs,
+          subs:
+            preferences.subs ??
+            DEFAULT_PLAYBACK_PREFERENCES.subs,
 
-              audioLanguage:
-                preferences.audioLanguage ||
-                DEFAULT_PLAYBACK_PREFERENCES.audioLanguage,
-            };
+          audioLanguage:
+            preferences.audioLanguage ||
+            DEFAULT_PLAYBACK_PREFERENCES.audioLanguage,
+        };
 
-            setPlaybackPreferences(
-              next
-            );
-
-            setSessionQuality(
-              next.quality
-            );
-          }
-        )
-        .catch(
-          () => {
-            if (
-              !mounted
-            ) {
-              return;
-            }
-
-            setPlaybackPreferences(
-              DEFAULT_PLAYBACK_PREFERENCES
-            );
-
-            setSessionQuality(
-              DEFAULT_PLAYBACK_PREFERENCES.quality
-            );
-          }
+        setPlaybackPreferences(
+          next
         );
 
-      return () => {
-        mounted =
-          false;
-      };
-    },
-    []
-  );
+        setSessionQuality(
+          next.quality
+        );
+      })
+      .catch(() => {
+        if (!mounted) {
+          return;
+        }
+
+        setPlaybackPreferences(
+          DEFAULT_PLAYBACK_PREFERENCES
+        );
+
+        setSessionQuality(
+          DEFAULT_PLAYBACK_PREFERENCES.quality
+        );
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const sources =
-    useMemo(
-      () => {
-        const rawSources =
-          source?.sources &&
-          source.sources
-            .length >
-            0
-            ? source.sources
-            : [
-                {
-                  label:
-                    source?.label ||
-                    (
-                      source?.type ===
-                      "live"
-                        ? "LIVE"
-                        : "Stream"
-                    ),
-
-                  type:
-                    source?.type ||
-                    "rd",
-
-                  src:
-                    getSourceUrl(
-                      source
-                    ),
-
-                  magnet:
-                    source?.magnet ||
-                    source?.magnetLink ||
-                    source?.src ||
-                    source?.url,
-
-                  live:
+    useMemo(() => {
+      const rawSources =
+        source?.sources &&
+        source.sources.length > 0
+          ? source.sources
+          : [
+              {
+                label:
+                  source?.label ||
+                  (
                     source?.type ===
-                    "live",
-                },
-              ];
+                    "live"
+                      ? "LIVE"
+                      : "Stream"
+                  ),
 
-        /*
-         * Smart source ranking.
-         *
-         * English audio and compatible
-         * codecs come first.
-         *
-         * 4K is NEVER disabled just
-         * because this is a Fire Stick.
-         *
-         * Fire Stick 4K and 4K Max
-         * devices can expose a 1080p
-         * WebView while decoding 2160p.
-         */
-        return orderSourcesForPlayback(
-          rawSources,
-          {
-            qualityPreference:
-              playbackPreferences.quality,
+                type:
+                  source?.type ||
+                  "rd",
 
-            deviceProfile,
-          }
-        );
-      },
-      [
-        source,
-        playbackPreferences.quality,
-        deviceProfile,
-      ]
-    );
+                src:
+                  getSourceUrl(
+                    source
+                  ),
+
+                magnet:
+                  source?.magnet ||
+                  source?.magnetLink ||
+                  source?.src ||
+                  source?.url,
+
+                live:
+                  source?.type ===
+                  "live",
+              },
+            ];
+
+      return orderSourcesForPlayback(
+        rawSources,
+        {
+          qualityPreference:
+            playbackPreferences.quality,
+
+          deviceProfile,
+        }
+      );
+    }, [
+      source,
+      playbackPreferences.quality,
+      deviceProfile,
+    ]);
 
   const [
     activeIdx,
     setActiveIdx,
-  ] =
-    useState(
-      0
-    );
-
-  const [
-    copied,
-    setCopied,
-  ] =
-    useState(
-      false
-    );
+  ] = useState(0);
 
   const [
     rdResolving,
     setRdResolving,
-  ] =
-    useState(
-      false
-    );
+  ] = useState(false);
 
   const [
     rdPolling,
     setRdPolling,
-  ] =
-    useState(
-      false
-    );
+  ] = useState(false);
 
   const [
     rdError,
     setRdError,
-  ] =
-    useState(
-      ""
-    );
+  ] = useState("");
 
   const [
     rdOverride,
     setRdOverride,
-  ] =
-    useState(
-      null
-    );
+  ] = useState(null);
 
   const [
     rdFiles,
     setRdFiles,
-  ] =
-    useState(
-      []
-    );
+  ] = useState([]);
 
   const [
     rdTorrentId,
     setRdTorrentId,
-  ] =
-    useState(
-      null
-    );
+  ] = useState(null);
 
   const [
     fileSwitching,
     setFileSwitching,
-  ] =
-    useState(
-      false
-    );
+  ] = useState(false);
 
-  /*
-   * Safe fullscreen:
-   *
-   * Keep fullscreen entirely inside
-   * React/CSS instead of using the
-   * browser Fullscreen/Screen
-   * Orientation APIs.
-   */
   const [
     viewportFullscreen,
     setViewportFullscreen,
-  ] =
-    useState(
-      false
-    );
+  ] = useState(false);
 
   const [
     failedSources,
     setFailedSources,
-  ] =
-    useState(
-      () =>
-        new Set()
-    );
+  ] = useState(
+    () => new Set()
+  );
 
   const [
     audioTracks,
     setAudioTracks,
-  ] =
-    useState(
-      []
-    );
+  ] = useState([]);
 
   const [
     subtitleTracks,
     setSubtitleTracks,
-  ] =
-    useState(
-      []
-    );
+  ] = useState([]);
 
   const [
     qualityLevels,
     setQualityLevels,
-  ] =
-    useState(
-      []
-    );
+  ] = useState([]);
 
   const [
     audioTrackChoice,
     setAudioTrackChoice,
-  ] =
-    useState(
-      "english"
-    );
+  ] = useState(
+    "english"
+  );
 
   const [
     subtitleTrackChoice,
     setSubtitleTrackChoice,
-  ] =
-    useState(
-      "english"
-    );
+  ] = useState(
+    "english"
+  );
 
   const [
     activeAudioTrack,
     setActiveAudioTrack,
-  ] =
-    useState(
-      null
-    );
+  ] = useState(null);
 
   const [
     activeSubtitleTrack,
     setActiveSubtitleTrack,
-  ] =
-    useState(
-      null
-    );
+  ] = useState(null);
 
   const failedSourcesRef =
-    useRef(
-      new Set()
-    );
+    useRef(new Set());
 
   const videoRef =
-    useRef(
-      null
-    );
+    useRef(null);
 
   const liveVideoRef =
-    useRef(
-      null
-    );
+    useRef(null);
 
   const stageRef =
-    useRef(
-      null
-    );
+    useRef(null);
 
   const pollRef =
-    useRef(
-      null
+    useRef(null);
+
+  useEffect(() => {
+    setActiveIdx(0);
+  }, [
+    source?.title,
+    source?.id,
+    source?.rdSeason,
+    source?.rdEpisode,
+    source?.season,
+    source?.episode,
+  ]);
+
+  useEffect(() => {
+    setAudioTracks([]);
+    setSubtitleTracks([]);
+    setQualityLevels([]);
+    setActiveAudioTrack(null);
+    setActiveSubtitleTrack(null);
+
+    setAudioTrackChoice(
+      "english"
     );
 
-  useEffect(
-    () => {
-      setActiveIdx(
-        0
-      );
-    },
-    [
-      source?.title,
-      source?.id,
-      source?.rdSeason,
-      source?.rdEpisode,
-      source?.season,
-      source?.episode,
-    ]
-  );
-
-  useEffect(
-    () => {
-      setAudioTracks(
-        []
-      );
-
-      setSubtitleTracks(
-        []
-      );
-
-      setQualityLevels(
-        []
-      );
-
-      setActiveAudioTrack(
-        null
-      );
-
-      setActiveSubtitleTrack(
-        null
-      );
-
-      setAudioTrackChoice(
-        "english"
-      );
-
-      setSubtitleTrackChoice(
-        playbackPreferences.subs
-          ? "english"
-          : "off"
-      );
-    },
-    [
-      activeIdx,
-      rdOverride?.src,
-      playbackPreferences.subs,
-    ]
-  );
+    setSubtitleTrackChoice(
+      playbackPreferences.subs
+        ? "english"
+        : "off"
+    );
+  }, [
+    activeIdx,
+    rdOverride?.src,
+    playbackPreferences.subs,
+  ]);
 
   const active =
-    sources[
-      activeIdx
-    ] ||
+    sources[activeIdx] ||
     sources[0] ||
     {};
 
   const activeUrl =
-    getSourceUrl(
-      active
-    );
+    getSourceUrl(active);
 
   const activeCompatibility =
     describeSourceCompatibility(
@@ -652,310 +460,240 @@ export default function VideoPlayer({
       ]
     );
 
-  const markSourceFailed =
-    (
+  const markSourceFailed = (
+    index
+  ) => {
+    failedSourcesRef.current.add(
       index
-    ) => {
-      failedSourcesRef.current.add(
+    );
+
+    setFailedSources(
+      new Set(
+        failedSourcesRef.current
+      )
+    );
+  };
+
+  const clearSourceFailed = (
+    index
+  ) => {
+    if (
+      !failedSourcesRef.current.has(
         index
-      );
+      )
+    ) {
+      return;
+    }
 
-      setFailedSources(
-        new Set(
-          failedSourcesRef.current
-        )
-      );
-    };
-
-  const clearSourceFailed =
-    (
+    failedSourcesRef.current.delete(
       index
-    ) => {
+    );
+
+    setFailedSources(
+      new Set(
+        failedSourcesRef.current
+      )
+    );
+  };
+
+  const findNextPlayableSource = (
+    fromIndex
+  ) => {
+    for (
+      let offset = 1;
+      offset <= sources.length;
+      offset += 1
+    ) {
+      const index =
+        (
+          fromIndex +
+          offset
+        ) %
+        sources.length;
+
       if (
-        !failedSourcesRef.current.has(
+        failedSourcesRef.current.has(
           index
         )
       ) {
-        return;
+        continue;
       }
 
-      failedSourcesRef.current.delete(
-        index
-      );
+      const candidate =
+        sources[index];
 
-      setFailedSources(
-        new Set(
-          failedSourcesRef.current
-        )
-      );
-    };
+      const url =
+        getSourceUrl(
+          candidate
+        );
 
-  const findNextPlayableSource =
-    (
-      fromIndex
-    ) => {
-      for (
-        let offset =
-          1;
-        offset <=
-        sources.length;
-        offset +=
-          1
+      const torrent =
+        candidate?.type ===
+          "rd" ||
+        candidate?.type ===
+          "rd_torrent" ||
+        candidate?.type ===
+          "torrent" ||
+        candidate?.type ===
+          "magnet" ||
+        isMagnet(url);
+
+      if (
+        url ||
+        torrent
       ) {
-        const index =
-          (
-            fromIndex +
-            offset
-          ) %
-          sources.length;
-
-        if (
-          failedSourcesRef.current.has(
-            index
-          )
-        ) {
-          continue;
-        }
-
-        const candidate =
-          sources[
-            index
-          ];
-
-        const url =
-          getSourceUrl(
-            candidate
-          );
-
-        const torrent =
-          candidate?.type ===
-            "rd" ||
-          candidate?.type ===
-            "rd_torrent" ||
-          candidate?.type ===
-            "torrent" ||
-          candidate?.type ===
-            "magnet" ||
-          isMagnet(
-            url
-          );
-
-        if (
-          url ||
-          torrent
-        ) {
-          return index;
-        }
+        return index;
       }
+    }
 
-      return -1;
-    };
+    return -1;
+  };
 
-  const tryNextSource =
-    (
-      message =
-        "This source could not be played."
-    ) => {
-      markSourceFailed(
+  const tryNextSource = (
+    message =
+      "This source could not be played."
+  ) => {
+    markSourceFailed(
+      activeIdx
+    );
+
+    const nextIndex =
+      findNextPlayableSource(
         activeIdx
       );
 
-      const nextIndex =
-        findNextPlayableSource(
-          activeIdx
-        );
-
-      if (
-        nextIndex ===
-        -1
-      ) {
-        setRdResolving(
-          false
-        );
-
-        setRdPolling(
-          false
-        );
-
-        setRdTorrentId(
-          null
-        );
-
-        setRdError(
-          `${message} No other playable source is available.`
-        );
-
-        return false;
-      }
-
-      setRdOverride(
-        null
-      );
-
-      setRdFiles(
-        []
-      );
-
-      setRdTorrentId(
-        null
-      );
+    if (
+      nextIndex ===
+      -1
+    ) {
+      setRdResolving(false);
+      setRdPolling(false);
+      setRdTorrentId(null);
 
       setRdError(
-        ""
+        `${message} No other playable source is available.`
       );
 
-      setRdResolving(
-        false
+      return false;
+    }
+
+    setRdOverride(null);
+    setRdFiles([]);
+    setRdTorrentId(null);
+    setRdError("");
+    setRdResolving(false);
+    setRdPolling(false);
+
+    setActiveIdx(
+      nextIndex
+    );
+
+    return true;
+  };
+
+  const handleNoAudio = () => {
+    if (
+      sources.length > 1
+    ) {
+      tryNextSource(
+        "Media God detected video playback with no decoded audio and switched source."
       );
 
-      setRdPolling(
-        false
-      );
+      return;
+    }
 
-      setActiveIdx(
+    setRdError(
+      "Video is playing, but this device did not decode audio from this source."
+    );
+  };
+
+  const selectSource = (
+    index
+  ) => {
+    const nextIndex =
+      Number(index);
+
+    if (
+      Number.isNaN(
         nextIndex
-      );
+      ) ||
+      nextIndex < 0 ||
+      nextIndex >=
+        sources.length
+    ) {
+      return;
+    }
 
-      return true;
-    };
+    clearSourceFailed(
+      nextIndex
+    );
 
-  const handleNoAudio =
-    () => {
-      if (
-        sources.length >
-        1
-      ) {
-        tryNextSource(
-          "Media God detected video playback with no decoded audio and switched source."
-        );
+    setRdOverride(null);
+    setRdFiles([]);
+    setRdTorrentId(null);
+    setRdError("");
+    setRdResolving(false);
+    setRdPolling(false);
 
-        return;
-      }
+    setActiveIdx(
+      nextIndex
+    );
+  };
 
-      setRdError(
-        "Video is playing, but this device did not decode audio from this source. Try another source if one becomes available."
-      );
-    };
+  const sourceTypeLabel = (
+    item
+  ) => {
+    const type =
+      String(
+        item?.type || ""
+      ).toLowerCase();
 
-  const selectSource =
-    (
-      index
-    ) => {
-      const nextIndex =
-        Number(
-          index
-        );
+    if (
+      type === "rd" ||
+      type === "rd_torrent"
+    ) {
+      return "Real-Debrid";
+    }
 
-      if (
-        Number.isNaN(
-          nextIndex
-        ) ||
-        nextIndex <
-          0 ||
-        nextIndex >=
-          sources.length
-      ) {
-        return;
-      }
+    if (
+      type === "magnet" ||
+      type === "torrent"
+    ) {
+      return "Torrent / Magnet";
+    }
 
-      clearSourceFailed(
-        nextIndex
-      );
+    if (
+      type === "live"
+    ) {
+      return "Live";
+    }
 
-      setRdOverride(
-        null
-      );
+    if (
+      type === "youtube"
+    ) {
+      return "Trailer";
+    }
 
-      setRdFiles(
-        []
-      );
+    if (
+      type === "provider"
+    ) {
+      return "Provider";
+    }
 
-      setRdTorrentId(
-        null
-      );
+    if (
+      type === "file"
+    ) {
+      return "File";
+    }
 
-      setRdError(
-        ""
-      );
+    if (
+      type === "url"
+    ) {
+      return "Direct";
+    }
 
-      setRdResolving(
-        false
-      );
-
-      setRdPolling(
-        false
-      );
-
-      setActiveIdx(
-        nextIndex
-      );
-    };
-
-  const sourceTypeLabel =
-    (
-      item
-    ) => {
-      const type =
-        String(
-          item?.type ||
-            ""
-        ).toLowerCase();
-
-      if (
-        type ===
-          "rd" ||
-        type ===
-          "rd_torrent"
-      ) {
-        return "Real-Debrid";
-      }
-
-      if (
-        type ===
-          "magnet" ||
-        type ===
-          "torrent"
-      ) {
-        return "Torrent / Magnet";
-      }
-
-      if (
-        type ===
-        "live"
-      ) {
-        return "Live";
-      }
-
-      if (
-        type ===
-        "youtube"
-      ) {
-        return "Trailer";
-      }
-
-      if (
-        type ===
-        "provider"
-      ) {
-        return "Provider";
-      }
-
-      if (
-        type ===
-        "file"
-      ) {
-        return "File";
-      }
-
-      if (
-        type ===
-        "url"
-      ) {
-        return "Direct";
-      }
-
-      return "Source";
-    };
+    return "Source";
+  };
 
   const isLive =
     source?.type ===
@@ -987,47 +725,455 @@ export default function VideoPlayer({
       "rd_torrent" ||
     active?.type ===
       "magnet" ||
-    isMagnet(
-      activeUrl
+    isMagnet(activeUrl);
+
+  const goFullscreen = () => {
+    setViewportFullscreen(
+      (current) =>
+        !current
     );
+  };
 
-  const goFullscreen =
-    () => {
-      /*
-       * Deliberately do NOT call:
-       *
-       * requestFullscreen()
-       * webkitEnterFullscreen()
-       * screen.orientation.lock()
-       *
-       * CSS viewport fullscreen keeps
-       * Base44/Fire TV stable.
-       */
-      setViewportFullscreen(
-        (
-          current
-        ) =>
-          !current
-      );
+  /*
+   * While CSS fullscreen is active,
+   * lock the page itself.
+   *
+   * This stops Base44/WebView scroll
+   * size from reducing the visible
+   * player area.
+   */
+  useEffect(() => {
+    if (
+      !viewportFullscreen
+    ) {
+      return undefined;
+    }
+
+    const oldBodyOverflow =
+      document.body.style.overflow;
+
+    const oldBodyWidth =
+      document.body.style.width;
+
+    const oldBodyHeight =
+      document.body.style.height;
+
+    const oldHtmlOverflow =
+      document.documentElement.style
+        .overflow;
+
+    document.body.style.overflow =
+      "hidden";
+
+    document.body.style.width =
+      "100vw";
+
+    document.body.style.height =
+      "100dvh";
+
+    document.documentElement.style.overflow =
+      "hidden";
+
+    return () => {
+      document.body.style.overflow =
+        oldBodyOverflow;
+
+      document.body.style.width =
+        oldBodyWidth;
+
+      document.body.style.height =
+        oldBodyHeight;
+
+      document.documentElement.style.overflow =
+        oldHtmlOverflow;
     };
+  }, [
+    viewportFullscreen,
+  ]);
 
-  useEffect(
-    () => {
-      setRdOverride(
-        null
+  useEffect(() => {
+    setRdOverride(null);
+    setRdError("");
+    setRdFiles([]);
+    setRdTorrentId(null);
+
+    if (
+      pollRef.current
+    ) {
+      clearTimeout(
+        pollRef.current
       );
 
-      setRdError(
-        ""
+      pollRef.current =
+        null;
+    }
+  }, [
+    activeIdx,
+  ]);
+
+  useEffect(() => {
+    if (!active) {
+      return;
+    }
+
+    if (
+      isYoutube ||
+      isProvider ||
+      isDirectFile ||
+      isLive
+    ) {
+      return;
+    }
+
+    if (
+      !isRdSource
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+
+    setRdResolving(true);
+    setRdPolling(false);
+    setRdError("");
+    setRdOverride(null);
+    setRdTorrentId(null);
+
+    const run =
+      async () => {
+        try {
+          const magnet =
+            active?.magnet ||
+            active?.magnetLink ||
+            active?.src ||
+            active?.url ||
+            "";
+
+          if (!magnet) {
+            throw new Error(
+              "This source did not provide a playable link."
+            );
+          }
+
+          if (
+            String(magnet)
+              .toLowerCase()
+              .startsWith(
+                "http://"
+              ) ||
+            String(magnet)
+              .toLowerCase()
+              .startsWith(
+                "https://"
+              )
+          ) {
+            if (
+              !cancelled
+            ) {
+              setRdOverride({
+                src: magnet,
+
+                label:
+                  active?.label ||
+                  "Stream",
+
+                file: "",
+              });
+
+              setRdResolving(
+                false
+              );
+            }
+
+            return;
+          }
+
+          const res =
+            await base44.functions.invoke(
+              "realDebrid",
+              {
+                action:
+                  "resolve_best",
+
+                magnet,
+
+                title:
+                  source?.rdTitle ||
+                  source?.title ||
+                  "",
+
+                ...(source?.rdYear !=
+                null
+                  ? {
+                      year:
+                        source.rdYear,
+                    }
+                  : {}),
+
+                ...(source?.rdSeason !=
+                null
+                  ? {
+                      season:
+                        source.rdSeason,
+                    }
+                  : {}),
+
+                ...(source?.rdEpisode !=
+                null
+                  ? {
+                      episode:
+                        source.rdEpisode,
+                    }
+                  : {}),
+              }
+            );
+
+          if (
+            cancelled
+          ) {
+            return;
+          }
+
+          const data =
+            res?.data || {};
+
+          if (
+            data.status ===
+              "ready" &&
+            data.stream_url
+          ) {
+            setRdOverride({
+              src:
+                data.stream_url,
+
+              label:
+                data.filename ||
+                active?.label ||
+                "Real-Debrid Stream",
+
+              file:
+                currentFilePath(
+                  data.files
+                ),
+            });
+
+            setRdFiles(
+              data.files || []
+            );
+
+            setRdResolving(
+              false
+            );
+
+            return;
+          }
+
+          if (
+            data.torrent_id
+          ) {
+            setRdTorrentId(
+              String(
+                data.torrent_id
+              )
+            );
+
+            setRdResolving(
+              false
+            );
+
+            return;
+          }
+
+          throw new Error(
+            data.error ||
+              "Real-Debrid could not resolve this source."
+          );
+        } catch (error) {
+          if (
+            !cancelled
+          ) {
+            tryNextSource(
+              error?.message ||
+                "Unable to resolve this stream."
+            );
+          }
+        }
+      };
+
+    run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    activeIdx,
+    active,
+    activeUrl,
+    source,
+    isYoutube,
+    isProvider,
+    isDirectFile,
+    isLive,
+    isRdSource,
+  ]);
+
+  useEffect(() => {
+    if (
+      !rdTorrentId ||
+      rdOverride
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+    let attempts = 0;
+
+    setRdPolling(true);
+
+    const tick =
+      async () => {
+        if (
+          cancelled
+        ) {
+          return;
+        }
+
+        attempts += 1;
+
+        try {
+          const res =
+            await base44.functions.invoke(
+              "realDebrid",
+              {
+                action:
+                  "torrent_info",
+
+                torrent_id:
+                  rdTorrentId,
+
+                title:
+                  source?.rdTitle ||
+                  source?.title ||
+                  "",
+
+                ...(source?.rdYear !=
+                null
+                  ? {
+                      year:
+                        source.rdYear,
+                    }
+                  : {}),
+
+                ...(source?.rdSeason !=
+                null
+                  ? {
+                      season:
+                        source.rdSeason,
+                    }
+                  : {}),
+
+                ...(source?.rdEpisode !=
+                null
+                  ? {
+                      episode:
+                        source.rdEpisode,
+                    }
+                  : {}),
+              }
+            );
+
+          if (
+            cancelled
+          ) {
+            return;
+          }
+
+          const data =
+            res?.data || {};
+
+          if (
+            data.status ===
+              "ready" &&
+            data.stream_url
+          ) {
+            setRdOverride({
+              src:
+                data.stream_url,
+
+              label:
+                data.filename ||
+                "Real-Debrid Stream",
+
+              file:
+                currentFilePath(
+                  data.files
+                ),
+            });
+
+            setRdFiles(
+              data.files || []
+            );
+
+            setRdPolling(false);
+            setRdTorrentId(null);
+
+            return;
+          }
+
+          if (
+            data.error
+          ) {
+            setRdError(
+              data.error
+            );
+
+            setRdPolling(false);
+            setRdTorrentId(null);
+
+            return;
+          }
+        } catch (error) {
+          if (
+            !cancelled
+          ) {
+            setRdError(
+              error?.message ||
+                "Real-Debrid polling failed."
+            );
+
+            setRdPolling(false);
+            setRdTorrentId(null);
+          }
+
+          return;
+        }
+
+        if (
+          attempts < 36
+        ) {
+          pollRef.current =
+            setTimeout(
+              tick,
+              5000
+            );
+        } else {
+          setRdPolling(false);
+          setRdTorrentId(null);
+
+          setRdError(
+            "Real-Debrid is still preparing this file. Please try again shortly."
+          );
+        }
+      };
+
+    pollRef.current =
+      setTimeout(
+        tick,
+        2500
       );
 
-      setRdFiles(
-        []
-      );
-
-      setRdTorrentId(
-        null
-      );
+    return () => {
+      cancelled = true;
 
       if (
         pollRef.current
@@ -1039,733 +1185,68 @@ export default function VideoPlayer({
         pollRef.current =
           null;
       }
-    },
-    [
-      activeIdx,
-    ]
-  );
+    };
+  }, [
+    rdTorrentId,
+    rdOverride,
+    source,
+  ]);
 
-  useEffect(
-    () => {
+  useEffect(() => {
+    failedSourcesRef.current =
+      new Set();
+
+    setFailedSources(
+      new Set()
+    );
+  }, [
+    source?.title,
+    source?.id,
+    source?.rdSeason,
+    source?.rdEpisode,
+  ]);
+
+  useEffect(() => {
+    const onKey = (
+      event
+    ) => {
       if (
-        !active
+        event.key ===
+        "Escape"
       ) {
-        return;
-      }
-
-      if (
-        isYoutube ||
-        isProvider ||
-        isDirectFile ||
-        isLive
-      ) {
-        return;
-      }
-
-      if (
-        !isRdSource
-      ) {
-        return;
-      }
-
-      let cancelled =
-        false;
-
-      setRdResolving(
-        true
-      );
-
-      setRdPolling(
-        false
-      );
-
-      setRdError(
-        ""
-      );
-
-      setRdOverride(
-        null
-      );
-
-      setRdTorrentId(
-        null
-      );
-
-      const run =
-        async () => {
-          try {
-            const magnet =
-              active?.magnet ||
-              active?.magnetLink ||
-              active?.src ||
-              active?.url ||
-              "";
-
-            if (
-              !magnet
-            ) {
-              throw new Error(
-                "This source did not provide a playable link."
-              );
-            }
-
-            if (
-              String(
-                magnet
-              )
-                .toLowerCase()
-                .startsWith(
-                  "http://"
-                ) ||
-              String(
-                magnet
-              )
-                .toLowerCase()
-                .startsWith(
-                  "https://"
-                )
-            ) {
-              if (
-                !cancelled
-              ) {
-                setRdOverride({
-                  src:
-                    magnet,
-
-                  label:
-                    active?.label ||
-                    "Stream",
-
-                  file:
-                    "",
-                });
-
-                setRdResolving(
-                  false
-                );
-              }
-
-              return;
-            }
-
-            const res =
-              await base44.functions.invoke(
-                "realDebrid",
-                {
-                  action:
-                    "resolve_best",
-
-                  magnet,
-
-                  title:
-                    source?.rdTitle ||
-                    source?.title ||
-                    "",
-
-                  ...(source?.rdYear !=
-                  null
-                    ? {
-                        year:
-                          source.rdYear,
-                      }
-                    : {}),
-
-                  ...(source?.rdSeason !=
-                  null
-                    ? {
-                        season:
-                          source.rdSeason,
-                      }
-                    : {}),
-
-                  ...(source?.rdEpisode !=
-                  null
-                    ? {
-                        episode:
-                          source.rdEpisode,
-                      }
-                    : {}),
-                }
-              );
-
-            if (
-              cancelled
-            ) {
-              return;
-            }
-
-            const data =
-              res?.data ||
-              {};
-
-            if (
-              data.status ===
-                "ready" &&
-              data.stream_url
-            ) {
-              setRdOverride({
-                src:
-                  data.stream_url,
-
-                label:
-                  data.filename ||
-                  active?.label ||
-                  "Real-Debrid Stream",
-
-                file:
-                  currentFilePath(
-                    data.files
-                  ),
-              });
-
-              setRdFiles(
-                data.files ||
-                []
-              );
-
-              setRdResolving(
-                false
-              );
-
-              return;
-            }
-
-            if (
-              data.torrent_id
-            ) {
-              setRdTorrentId(
-                String(
-                  data.torrent_id
-                )
-              );
-
-              setRdResolving(
-                false
-              );
-
-              return;
-            }
-
-            throw new Error(
-              data.error ||
-                "Real-Debrid could not resolve this source."
-            );
-          } catch (
-            error
-          ) {
-            if (
-              !cancelled
-            ) {
-              tryNextSource(
-                error?.message ||
-                  "Unable to resolve this stream."
-              );
-            }
-          }
-        };
-
-      run();
-
-      return () => {
-        cancelled =
-          true;
-
         if (
-          pollRef.current
+          viewportFullscreen
         ) {
-          clearTimeout(
-            pollRef.current
+          setViewportFullscreen(
+            false
           );
-
-          pollRef.current =
-            null;
+        } else {
+          onClose();
         }
-      };
-    },
-    [
-      activeIdx,
-      active,
-      activeUrl,
-      source,
-      isYoutube,
-      isProvider,
-      isDirectFile,
-      isLive,
-      isRdSource,
-    ]
-  );
-
-  useEffect(
-    () => {
-      if (
-        !rdTorrentId ||
-        rdOverride
-      ) {
-        return;
       }
-
-      let cancelled =
-        false;
-
-      let attempts =
-        0;
-
-      setRdPolling(
-        true
-      );
-
-      const tick =
-        async () => {
-          if (
-            cancelled
-          ) {
-            return;
-          }
-
-          attempts +=
-            1;
-
-          try {
-            const res =
-              await base44.functions.invoke(
-                "realDebrid",
-                {
-                  action:
-                    "torrent_info",
-
-                  torrent_id:
-                    rdTorrentId,
-
-                  title:
-                    source?.rdTitle ||
-                    source?.title ||
-                    "",
-
-                  ...(source?.rdYear !=
-                  null
-                    ? {
-                        year:
-                          source.rdYear,
-                      }
-                    : {}),
-
-                  ...(source?.rdSeason !=
-                  null
-                    ? {
-                        season:
-                          source.rdSeason,
-                      }
-                    : {}),
-
-                  ...(source?.rdEpisode !=
-                  null
-                    ? {
-                        episode:
-                          source.rdEpisode,
-                      }
-                    : {}),
-                }
-              );
-
-            if (
-              cancelled
-            ) {
-              return;
-            }
-
-            const data =
-              res?.data ||
-              {};
-
-            if (
-              data.status ===
-                "ready" &&
-              data.stream_url
-            ) {
-              setRdOverride({
-                src:
-                  data.stream_url,
-
-                label:
-                  data.filename ||
-                  "Real-Debrid Stream",
-
-                file:
-                  currentFilePath(
-                    data.files
-                  ),
-              });
-
-              setRdFiles(
-                data.files ||
-                []
-              );
-
-              setRdPolling(
-                false
-              );
-
-              setRdTorrentId(
-                null
-              );
-
-              return;
-            }
-
-            if (
-              data.error
-            ) {
-              setRdError(
-                data.error
-              );
-
-              setRdPolling(
-                false
-              );
-
-              setRdTorrentId(
-                null
-              );
-
-              return;
-            }
-          } catch (
-            error
-          ) {
-            if (
-              !cancelled
-            ) {
-              setRdError(
-                error?.message ||
-                  "Real-Debrid polling failed."
-              );
-
-              setRdPolling(
-                false
-              );
-
-              setRdTorrentId(
-                null
-              );
-            }
-
-            return;
-          }
-
-          if (
-            attempts <
-            36
-          ) {
-            pollRef.current =
-              setTimeout(
-                tick,
-                5000
-              );
-          } else {
-            setRdPolling(
-              false
-            );
-
-            setRdTorrentId(
-              null
-            );
-
-            setRdError(
-              "Real-Debrid is still preparing this file. Please try Check Again shortly."
-            );
-          }
-        };
-
-      pollRef.current =
-        setTimeout(
-          tick,
-          2500
-        );
-
-      return () => {
-        cancelled =
-          true;
-
-        if (
-          pollRef.current
-        ) {
-          clearTimeout(
-            pollRef.current
-          );
-
-          pollRef.current =
-            null;
-        }
-      };
-    },
-    [
-      rdTorrentId,
-      rdOverride,
-      source,
-    ]
-  );
-
-  useEffect(
-    () => {
-      failedSourcesRef.current =
-        new Set();
-
-      setFailedSources(
-        new Set()
-      );
-    },
-    [
-      source?.title,
-      source?.id,
-      source?.rdSeason,
-      source?.rdEpisode,
-    ]
-  );
-
-  useEffect(
-    () => {
-      const onKey =
-        (
-          event
-        ) => {
-          if (
-            event.key ===
-            "Escape"
-          ) {
-            if (
-              viewportFullscreen
-            ) {
-              setViewportFullscreen(
-                false
-              );
-            } else {
-              onClose();
-            }
-
-            return;
-          }
-
-          const tag =
-            (
-              event.target
-                ?.tagName ||
-              ""
-            ).toLowerCase();
-
-          if (
-            tag ===
-              "input" ||
-            tag ===
-              "textarea" ||
-            event.target
-              ?.isContentEditable
-          ) {
-            return;
-          }
-
-          const video =
-            stageRef.current?.querySelector(
-              "video"
-            );
-
-          if (
-            !video
-          ) {
-            return;
-          }
-
-          if (
-            event.key >=
-              "0" &&
-            event.key <=
-              "9" &&
-            video.duration
-          ) {
-            event.preventDefault();
-
-            video.currentTime =
-              video.duration *
-              (
-                parseInt(
-                  event.key,
-                  10
-                ) /
-                10
-              );
-
-            return;
-          }
-
-          switch (
-            event.key
-          ) {
-            case " ":
-            case "k":
-              event.preventDefault();
-
-              if (
-                video.paused
-              ) {
-                video
-                  .play()
-                  .catch(
-                    () => {}
-                  );
-              } else {
-                video.pause();
-              }
-
-              break;
-
-            case "ArrowLeft":
-            case "j":
-              event.preventDefault();
-
-              video.currentTime =
-                Math.max(
-                  0,
-                  (
-                    video.currentTime ||
-                    0
-                  ) -
-                    10
-                );
-
-              break;
-
-            case "ArrowRight":
-            case "l":
-              event.preventDefault();
-
-              if (
-                video.duration
-              ) {
-                video.currentTime =
-                  Math.min(
-                    video.duration,
-                    (
-                      video.currentTime ||
-                      0
-                    ) +
-                      10
-                  );
-              }
-
-              break;
-
-            case "ArrowUp":
-              event.preventDefault();
-
-              video.volume =
-                Math.min(
-                  1,
-                  (
-                    video.volume ??
-                    1
-                  ) +
-                    0.1
-                );
-
-              break;
-
-            case "ArrowDown":
-              event.preventDefault();
-
-              video.volume =
-                Math.max(
-                  0,
-                  (
-                    video.volume ??
-                    1
-                  ) -
-                    0.1
-                );
-
-              break;
-
-            case "f":
-              event.preventDefault();
-
-              goFullscreen();
-
-              break;
-
-            case "m":
-              event.preventDefault();
-
-              video.muted =
-                !video.muted;
-
-              break;
-
-            case "<":
-              event.preventDefault();
-
-              video.playbackRate =
-                Math.max(
-                  0.5,
-                  (
-                    video.playbackRate ||
-                    1
-                  ) -
-                    0.25
-                );
-
-              break;
-
-            case ">":
-              event.preventDefault();
-
-              video.playbackRate =
-                Math.min(
-                  2,
-                  (
-                    video.playbackRate ||
-                    1
-                  ) +
-                    0.25
-                );
-
-              break;
-
-            default:
-              break;
-          }
-        };
-
-      window.addEventListener(
+    };
+
+    window.addEventListener(
+      "keydown",
+      onKey
+    );
+
+    return () => {
+      window.removeEventListener(
         "keydown",
         onKey
       );
-
-      document.body.style.overflow =
-        "hidden";
-
-      return () => {
-        window.removeEventListener(
-          "keydown",
-          onKey
-        );
-
-        document.body.style.overflow =
-          "";
-      };
-    },
-    [
-      onClose,
-      viewportFullscreen,
-    ]
-  );
+    };
+  }, [
+    onClose,
+    viewportFullscreen,
+  ]);
 
   const lastSaveRef =
-    useRef(
-      0
-    );
+    useRef(0);
 
   const cwIdRef =
-    useRef(
-      {}
-    );
+    useRef({});
 
   const lastPosRef =
     useRef({
@@ -1773,160 +1254,140 @@ export default function VideoPlayer({
       d: 0,
     });
 
-  const saveProgress =
-    (
-      time,
+  const saveProgress = (
+    time,
+    duration,
+    force = false
+  ) => {
+    if (
+      isLive ||
+      !source?.title
+    ) {
+      return;
+    }
+
+    const url =
+      rdOverride?.src ||
+      active?.src ||
+      active?.url;
+
+    if (!url) {
+      return;
+    }
+
+    const now =
+      Date.now();
+
+    if (
+      !force &&
+      now -
+        lastSaveRef.current <
+        10000
+    ) {
+      return;
+    }
+
+    lastSaveRef.current =
+      now;
+
+    const key =
+      `${source.title}|${
+        source.rdYear ||
+        source.year ||
+        ""
+      }|${
+        source.rdSeason ||
+        source.season ||
+        ""
+      }|${
+        source.rdEpisode ||
+        source.episode ||
+        ""
+      }`;
+
+    const patch = {
+      progress: time,
       duration,
-      force = false
-    ) => {
-      if (
-        isLive ||
-        !source?.title
-      ) {
-        return;
-      }
+      video_url: url,
 
-      const url =
-        rdOverride?.src ||
-        active?.src ||
-        active?.url;
+      poster_url:
+        source.poster || "",
 
-      if (
-        !url
-      ) {
-        return;
-      }
+      source_type:
+        rdOverride
+          ? "rd"
+          : "file",
+    };
 
-      const now =
-        Date.now();
+    const id =
+      cwIdRef.current[
+        key
+      ];
 
-      if (
-        !force &&
-        now -
-          lastSaveRef.current <
-          10000
-      ) {
-        return;
-      }
-
-      lastSaveRef.current =
-        now;
-
-      const key =
-        `${source.title}|${
-          source.rdYear ||
-          source.year ||
-          ""
-        }|${
-          source.rdSeason ||
-          source.season ||
-          ""
-        }|${
-          source.rdEpisode ||
-          source.episode ||
-          ""
-        }`;
-
-      const patch = {
-        progress:
-          time,
-
-        duration,
-
-        video_url:
-          url,
-
-        poster_url:
-          source.poster ||
-          "",
-
-        source_type:
-          rdOverride
-            ? "rd"
-            : "file",
-      };
-
-      const id =
-        cwIdRef.current[
-          key
-        ];
-
-      if (
-        id
-      ) {
-        base44.entities.ContinueWatching
-          .update(
-            id,
-            patch
-          )
-          .catch(
-            () => {}
-          );
-
-        return;
-      }
-
+    if (id) {
       base44.entities.ContinueWatching
-        .filter({
-          content_key:
-            key,
-        })
-        .then(
-          (
-            rows
-          ) => {
-            if (
-              rows?.length >
-              0
-            ) {
+        .update(
+          id,
+          patch
+        )
+        .catch(() => {});
+
+      return;
+    }
+
+    base44.entities.ContinueWatching
+      .filter({
+        content_key:
+          key,
+      })
+      .then((rows) => {
+        if (
+          rows?.length >
+          0
+        ) {
+          cwIdRef.current[
+            key
+          ] =
+            rows[0].id;
+
+          base44.entities.ContinueWatching
+            .update(
+              rows[0].id,
+              patch
+            )
+            .catch(
+              () => {}
+            );
+
+          return;
+        }
+
+        return base44.entities.ContinueWatching
+          .create({
+            content_key:
+              key,
+
+            title:
+              source.title,
+
+            year:
+              source.rdYear ||
+              source.year ||
+              "",
+
+            ...patch,
+          })
+          .then(
+            (created) => {
               cwIdRef.current[
                 key
               ] =
-                rows[0].id;
-
-              base44.entities.ContinueWatching
-                .update(
-                  rows[0].id,
-                  patch
-                )
-                .catch(
-                  () => {}
-                );
-
-              return;
+                created.id;
             }
-
-            return base44.entities.ContinueWatching
-              .create({
-                content_key:
-                  key,
-
-                title:
-                  source.title,
-
-                year:
-                  source.rdYear ||
-                  source.year ||
-                  "",
-
-                ...patch,
-              })
-              .then(
-                (
-                  created
-                ) => {
-                  cwIdRef.current[
-                    key
-                  ] =
-                    created.id;
-                }
-              );
-          }
-        )
-        .catch(
-          () => {}
-        );
-    };
+          );
+      })
+      .catch(() => {});
+  };
 
   const saveProgressRef =
     useRef(
@@ -1936,77 +1397,70 @@ export default function VideoPlayer({
   saveProgressRef.current =
     saveProgress;
 
-  useEffect(
-    () => {
-      return () => {
-        const {
-          t,
-          d,
-        } =
-          lastPosRef.current;
-
-        if (
-          t >
-          5
-        ) {
-          saveProgressRef.current?.(
-            t,
-            d,
-            true
-          );
-        }
-      };
-    },
-    []
-  );
-
-  const handleLoadedMetadata =
-    (
-      event
-    ) => {
-      const video =
-        event.target;
+  useEffect(() => {
+    return () => {
+      const {
+        t,
+        d,
+      } =
+        lastPosRef.current;
 
       if (
-        source?.startTime &&
-        source.startTime >
-          5
+        t > 5
       ) {
-        try {
-          video.currentTime =
-            source.startTime;
-        } catch {
-          // Ignore.
-        }
+        saveProgressRef.current?.(
+          t,
+          d,
+          true
+        );
       }
     };
+  }, []);
 
-  const handleTimeUpdate =
-    (
-      event
-    ) => {
-      const video =
-        event.target;
+  const handleLoadedMetadata = (
+    event
+  ) => {
+    const video =
+      event.target;
 
-      lastPosRef.current =
-        {
-          t:
-            video.currentTime ||
-            0,
+    if (
+      source?.startTime &&
+      source.startTime > 5
+    ) {
+      try {
+        video.currentTime =
+          source.startTime;
+      } catch {
+        // Ignore.
+      }
+    }
+  };
 
-          d:
-            video.duration ||
-            0,
-        };
+  const handleTimeUpdate = (
+    event
+  ) => {
+    const video =
+      event.target;
 
-      saveProgress(
-        video.currentTime ||
+    lastPosRef.current =
+      {
+        t:
+          video.currentTime ||
           0,
 
-        video.duration ||
-          0
-      );
-    };
+        d:
+          video.duration ||
+          0,
+      };
+
+    saveProgress(
+      video.currentTime ||
+        0,
+
+      video.duration ||
+        0
+    );
+  };
 
   const pickFile =
     async (
@@ -2033,9 +1487,7 @@ export default function VideoPlayer({
         true
       );
 
-      setRdError(
-        ""
-      );
+      setRdError("");
 
       try {
         const res =
@@ -2051,8 +1503,7 @@ export default function VideoPlayer({
           );
 
         const data =
-          res?.data ||
-          {};
+          res?.data || {};
 
         if (
           data.stream_url
@@ -2075,9 +1526,7 @@ export default function VideoPlayer({
               "Could not open this file."
           );
         }
-      } catch (
-        error
-      ) {
+      } catch (error) {
         setRdError(
           error?.message ||
             "Real-Debrid request failed."
@@ -2089,44 +1538,24 @@ export default function VideoPlayer({
       }
     };
 
-  const retryResolution =
-    () => {
-      setRdOverride(
-        null
-      );
+  const retryResolution = () => {
+    setRdOverride(null);
+    setRdFiles([]);
+    setRdTorrentId(null);
+    setRdError("");
+    setRdResolving(true);
 
-      setRdFiles(
-        []
-      );
+    const current =
+      activeIdx;
 
-      setRdTorrentId(
-        null
-      );
+    setActiveIdx(-1);
 
-      setRdError(
-        ""
-      );
-
-      setRdResolving(
-        true
-      );
-
-      const current =
-        activeIdx;
-
+    setTimeout(() => {
       setActiveIdx(
-        -1
+        current
       );
-
-      setTimeout(
-        () => {
-          setActiveIdx(
-            current
-          );
-        },
-        0
-      );
-    };
+    }, 0);
+  };
 
   const busy =
     rdResolving ||
@@ -2134,132 +1563,133 @@ export default function VideoPlayer({
     !!rdTorrentId;
 
   const displayedError =
-    rdError ||
-    "";
+    rdError || "";
+
+  /*
+   * The fullscreen player is deliberately
+   * a completely separate viewport layout.
+   *
+   * It does NOT inherit the normal
+   * max-width/aspect-ratio player card.
+   */
+  const playerStageClass =
+    viewportFullscreen
+      ? "fixed inset-0 z-[9999] w-screen h-[100dvh] min-w-full min-h-[100dvh] max-w-none max-h-none m-0 p-0 rounded-none border-0 bg-black overflow-hidden"
+      : "relative w-full aspect-video bg-black rounded-lg overflow-hidden border border-white/10 flex items-center justify-center";
+
+  const videoClass =
+    viewportFullscreen
+      ? "absolute inset-0 block w-screen h-[100dvh] min-w-full min-h-full max-w-none max-h-none object-contain bg-black"
+      : "w-full h-full object-contain bg-black";
 
   return (
     <div
       className={cn(
-        "fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center",
+        "fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center",
 
         viewportFullscreen
-          ? "p-0"
-          : "p-4"
+          ? "z-[9998] p-0"
+          : "z-50 p-4"
       )}
       onClick={
-        onClose
+        viewportFullscreen
+          ? undefined
+          : onClose
       }
     >
       <div
         className={cn(
-          "w-full",
-
           viewportFullscreen
-            ? "h-[100dvh] max-w-none"
-            : "max-w-4xl"
+            ? "fixed inset-0 w-screen h-[100dvh] max-w-none max-h-none m-0 p-0"
+            : "w-full max-w-4xl"
         )}
-        onClick={(
-          event
-        ) =>
+        onClick={(event) =>
           event.stopPropagation()
         }
       >
-        <div
-          className={cn(
-            "items-center justify-between mb-3 gap-3",
+        {!viewportFullscreen && (
+          <div className="flex items-center justify-between mb-3 gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              {isLive && (
+                <span className="flex items-center gap-1 text-[10px] font-bold bg-red-600 text-white px-2 py-0.5 rounded shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                  LIVE
+                </span>
+              )}
 
-            viewportFullscreen
-              ? "hidden"
-              : "flex"
-          )}
-        >
-          <div className="flex items-center gap-2 min-w-0">
-            {isLive && (
-              <span className="flex items-center gap-1 text-[10px] font-bold bg-red-600 text-white px-2 py-0.5 rounded shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                LIVE
-              </span>
-            )}
+              <h3 className="text-white font-semibold text-sm truncate">
+                {source?.title}
+              </h3>
+            </div>
 
-            <h3 className="text-white font-semibold text-sm truncate">
-              {
-                source?.title
-              }
-            </h3>
+            <div className="flex items-center gap-2 shrink-0">
+              {(isDirectFile ||
+                isLive ||
+                rdOverride) && (
+                <>
+                  <button
+                    type="button"
+                    onClick={
+                      goFullscreen
+                    }
+                    className="text-white/60 hover:text-white"
+                    aria-label="Fullscreen"
+                  >
+                    <Maximize className="w-5 h-5" />
+                  </button>
+
+                  <CastButton
+                    url={
+                      rdOverride?.src ||
+                      active?.src ||
+                      active?.url
+                    }
+                    title={
+                      source?.title
+                    }
+                    poster={
+                      source?.poster
+                    }
+                  />
+                </>
+              )}
+
+              <button
+                type="button"
+                onClick={
+                  onClose
+                }
+                className="text-white/60 hover:text-white"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            {(isDirectFile ||
-              isLive ||
-              rdOverride) && (
-              <>
-                <button
-                  onClick={
-                    goFullscreen
-                  }
-                  className="text-white/60 hover:text-white"
-                  aria-label="Fullscreen"
-                >
-                  <Maximize className="w-5 h-5" />
-                </button>
-
-                <CastButton
-                  url={
-                    rdOverride?.src ||
-                    active?.src ||
-                    active?.url
-                  }
-                  title={
-                    source?.title
-                  }
-                  poster={
-                    source?.poster
-                  }
-                />
-              </>
-            )}
-
-            <button
-              onClick={
-                onClose
-              }
-              className="text-white/60 hover:text-white"
-              aria-label="Close"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
+        )}
 
         <div
           ref={
             stageRef
           }
-          className={cn(
-            "relative w-full bg-black overflow-hidden flex items-center justify-center",
-
-            viewportFullscreen
-              ? "h-[100dvh] aspect-auto rounded-none border-0"
-              : "aspect-video rounded-lg border border-white/10"
-          )}
+          className={
+            playerStageClass
+          }
         >
           {viewportFullscreen && (
             <button
               type="button"
-              onClick={(
-                event
-              ) => {
+              onClick={(event) => {
                 event.stopPropagation();
 
                 setViewportFullscreen(
                   false
                 );
               }}
-              className="absolute right-3 top-3 z-50 flex h-10 w-10 items-center justify-center rounded-full bg-black/70 text-white shadow-lg backdrop-blur-sm hover:bg-black/90"
+              className="absolute right-4 top-4 z-[10010] flex h-12 w-12 items-center justify-center rounded-full border border-white/15 bg-black/65 text-white shadow-xl backdrop-blur-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-mg-green"
               aria-label="Exit fullscreen"
-              title="Exit fullscreen"
             >
-              <Minimize className="h-5 w-5" />
+              <Minimize className="h-6 w-6" />
             </button>
           )}
 
@@ -2274,10 +1704,6 @@ export default function VideoPlayer({
                       rdTorrentId
                     ? "Real-Debrid is preparing your stream…"
                     : "Loading…"}
-              </p>
-
-              <p className="text-white/50 text-xs max-w-md">
-                This title does not need to already be in your Real-Debrid library. If the selected source is a torrent, Media God is sending it to Real-Debrid now.
               </p>
 
               {displayedError && (
@@ -2351,7 +1777,9 @@ export default function VideoPlayer({
                     "This stream failed during playback or used an unsupported codec."
                   )
                 }
-                className="w-full h-full object-contain bg-black"
+                className={
+                  videoClass
+                }
               />
 
               <PlayerControls
@@ -2381,7 +1809,11 @@ export default function VideoPlayer({
                 source?.title ||
                 "Video"
               }
-              className="w-full h-full"
+              className={
+                viewportFullscreen
+                  ? "absolute inset-0 w-screen h-[100dvh] border-0"
+                  : "w-full h-full"
+              }
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
               referrerPolicy="strict-origin-when-cross-origin"
@@ -2395,7 +1827,11 @@ export default function VideoPlayer({
                 source?.title ||
                 "Provider"
               }
-              className="w-full h-full"
+              className={
+                viewportFullscreen
+                  ? "absolute inset-0 w-screen h-[100dvh] border-0"
+                  : "w-full h-full"
+              }
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; picture-in-picture; fullscreen"
               allowFullScreen
               referrerPolicy="strict-origin-when-cross-origin"
@@ -2452,7 +1888,9 @@ export default function VideoPlayer({
                 onNoAudio={
                   handleNoAudio
                 }
-                className="w-full h-full object-contain bg-black"
+                className={
+                  videoClass
+                }
                 onLoadedMetadata={
                   handleLoadedMetadata
                 }
@@ -2508,7 +1946,6 @@ export default function VideoPlayer({
                   className="flex items-center gap-2 px-3 py-2 rounded-md bg-mg-green text-black text-xs font-semibold hover:bg-mg-green-dim"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
-
                   Try Again
                 </button>
               )}
@@ -2516,226 +1953,198 @@ export default function VideoPlayer({
           )}
         </div>
 
-        {(rdOverride ||
-          isDirectFile) &&
-          !busy &&
-          !viewportFullscreen && (
-            <div className="mt-3 bg-mg-card border border-white/10 rounded-lg p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                <div>
-                  <p className="text-white text-xs font-semibold">
-                    Playback options
-                  </p>
+        {!viewportFullscreen && (
+          <>
+            {(rdOverride ||
+              isDirectFile) &&
+              !busy && (
+                <div className="mt-3 bg-mg-card border border-white/10 rounded-lg p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                    <div>
+                      <p className="text-white text-xs font-semibold">
+                        Playback options
+                      </p>
 
-                  <p className="text-white/40 text-[10px] mt-0.5">
-                    English audio is preferred automatically. 4K stays available on Fire Stick 4K / 4K Max.
-                  </p>
-                </div>
+                      <p className="text-white/40 text-[10px] mt-0.5">
+                        English audio is preferred automatically. 4K stays available on Fire Stick 4K / 4K Max.
+                      </p>
+                    </div>
 
-                <span className="text-[10px] font-semibold text-mg-green bg-mg-green/10 border border-mg-green/20 rounded-full px-2 py-1">
-                  {
-                    deviceProfile.name
-                  }
-                  {deviceProfile.fourKAllowed
-                    ? " · 4K allowed"
-                    : ""}
-                </span>
-              </div>
+                    <span className="text-[10px] font-semibold text-mg-green bg-mg-green/10 border border-mg-green/20 rounded-full px-2 py-1">
+                      {
+                        deviceProfile.name
+                      }{" "}
+                      · 4K allowed
+                    </span>
+                  </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <label className="flex flex-col gap-1 text-[10px] text-white/45">
-                  <span className="flex items-center gap-1.5">
-                    <Volume2 className="w-3 h-3" />
-                    Audio
-                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <label className="flex flex-col gap-1 text-[10px] text-white/45">
+                      <span className="flex items-center gap-1.5">
+                        <Volume2 className="w-3 h-3" />
+                        Audio
+                      </span>
 
-                  <select
-                    value={
-                      audioTrackChoice
-                    }
-                    onChange={(
-                      event
-                    ) =>
-                      setAudioTrackChoice(
-                        event.target.value
-                      )
-                    }
-                    className="min-h-10 bg-black/40 border border-white/10 rounded-md text-white text-xs px-2 outline-none focus:border-mg-green"
-                    aria-label="Choose audio track"
-                  >
-                    <option value="english">
-                      English automatic
-                    </option>
-
-                    {audioTracks.map(
-                      (
-                        track
-                      ) => (
-                        <option
-                          key={
-                            track.id
-                          }
-                          value={
-                            track.id
-                          }
-                        >
-                          {
-                            track.label
-                          }
-                          {track.language
-                            ? ` · ${track.language}`
-                            : ""}
-                          {track.codec
-                            ? ` · ${track.codec}`
-                            : ""}
+                      <select
+                        value={
+                          audioTrackChoice
+                        }
+                        onChange={(event) =>
+                          setAudioTrackChoice(
+                            event.target.value
+                          )
+                        }
+                        className="min-h-10 bg-black/40 border border-white/10 rounded-md text-white text-xs px-2 outline-none focus:border-mg-green"
+                      >
+                        <option value="english">
+                          English automatic
                         </option>
-                      )
-                    )}
-                  </select>
-                </label>
 
-                <label className="flex flex-col gap-1 text-[10px] text-white/45">
-                  <span className="flex items-center gap-1.5">
-                    <Film className="w-3 h-3" />
-                    Subtitles
-                  </span>
+                        {audioTracks.map(
+                          (track) => (
+                            <option
+                              key={
+                                track.id
+                              }
+                              value={
+                                track.id
+                              }
+                            >
+                              {
+                                track.label
+                              }
+                              {track.language
+                                ? ` · ${track.language}`
+                                : ""}
+                            </option>
+                          )
+                        )}
+                      </select>
+                    </label>
 
-                  <select
-                    value={
-                      subtitleTrackChoice
-                    }
-                    onChange={(
-                      event
-                    ) =>
-                      setSubtitleTrackChoice(
-                        event.target.value
-                      )
-                    }
-                    className="min-h-10 bg-black/40 border border-white/10 rounded-md text-white text-xs px-2 outline-none focus:border-mg-green"
-                    aria-label="Choose subtitle track"
-                  >
-                    <option value="off">
-                      Off
-                    </option>
+                    <label className="flex flex-col gap-1 text-[10px] text-white/45">
+                      <span className="flex items-center gap-1.5">
+                        <Film className="w-3 h-3" />
+                        Subtitles
+                      </span>
 
-                    <option value="english">
-                      English automatic
-                    </option>
-
-                    {subtitleTracks.map(
-                      (
-                        track
-                      ) => (
-                        <option
-                          key={
-                            track.id
-                          }
-                          value={
-                            track.id
-                          }
-                        >
-                          {
-                            track.label
-                          }
-                          {track.language
-                            ? ` · ${track.language}`
-                            : ""}
+                      <select
+                        value={
+                          subtitleTrackChoice
+                        }
+                        onChange={(event) =>
+                          setSubtitleTrackChoice(
+                            event.target.value
+                          )
+                        }
+                        className="min-h-10 bg-black/40 border border-white/10 rounded-md text-white text-xs px-2 outline-none focus:border-mg-green"
+                      >
+                        <option value="off">
+                          Off
                         </option>
-                      )
-                    )}
-                  </select>
-                </label>
 
-                <label className="flex flex-col gap-1 text-[10px] text-white/45">
-                  <span className="flex items-center gap-1.5">
-                    <Tv className="w-3 h-3" />
-                    Quality
-                  </span>
+                        <option value="english">
+                          English automatic
+                        </option>
 
-                  <select
-                    value={
-                      sessionQuality
-                    }
-                    onChange={(
-                      event
-                    ) =>
-                      setSessionQuality(
-                        event.target.value
-                      )
-                    }
-                    className="min-h-10 bg-black/40 border border-white/10 rounded-md text-white text-xs px-2 outline-none focus:border-mg-green"
-                    aria-label="Choose playback quality"
-                  >
-                    <option value="Auto">
-                      Auto
-                    </option>
+                        {subtitleTracks.map(
+                          (track) => (
+                            <option
+                              key={
+                                track.id
+                              }
+                              value={
+                                track.id
+                              }
+                            >
+                              {
+                                track.label
+                              }
+                            </option>
+                          )
+                        )}
+                      </select>
+                    </label>
 
-                    <option value="4K">
-                      4K / 2160p
-                    </option>
+                    <label className="flex flex-col gap-1 text-[10px] text-white/45">
+                      <span className="flex items-center gap-1.5">
+                        <Tv className="w-3 h-3" />
+                        Quality
+                      </span>
 
-                    <option value="1080p">
-                      1080p
-                    </option>
+                      <select
+                        value={
+                          sessionQuality
+                        }
+                        onChange={(event) =>
+                          setSessionQuality(
+                            event.target.value
+                          )
+                        }
+                        className="min-h-10 bg-black/40 border border-white/10 rounded-md text-white text-xs px-2 outline-none focus:border-mg-green"
+                      >
+                        <option value="Auto">
+                          Auto
+                        </option>
 
-                    <option value="720p">
-                      720p
-                    </option>
+                        <option value="4K">
+                          4K / 2160p
+                        </option>
 
-                    <option value="480p">
-                      480p
-                    </option>
-                  </select>
-                </label>
-              </div>
+                        <option value="1080p">
+                          1080p
+                        </option>
 
-              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-white/35">
-                <span>
-                  Audio:{" "}
-                  {activeAudioTrack?.label ||
-                    "English automatic"}
-                </span>
+                        <option value="720p">
+                          720p
+                        </option>
 
-                <span>
-                  Subtitles:{" "}
-                  {activeSubtitleTrack?.label ||
-                    (
-                      subtitleTrackChoice ===
-                      "off"
-                        ? "Off"
-                        : "English automatic"
-                    )}
-                </span>
+                        <option value="480p">
+                          480p
+                        </option>
+                      </select>
+                    </label>
+                  </div>
 
-                {qualityLevels.length >
-                  0 && (
-                  <span>
-                    HLS levels:{" "}
-                    {qualityLevels
-                      .map(
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-white/35">
+                    <span>
+                      Audio:{" "}
+                      {activeAudioTrack?.label ||
+                        "English automatic"}
+                    </span>
+
+                    <span>
+                      Subtitles:{" "}
+                      {activeSubtitleTrack?.label ||
                         (
-                          level
-                        ) =>
-                          level.label
-                      )
-                      .filter(
-                        Boolean
-                      )
-                      .join(
-                        ", "
-                      )}
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
+                          subtitleTrackChoice ===
+                          "off"
+                            ? "Off"
+                            : "English automatic"
+                        )}
+                    </span>
 
-        {displayedError &&
-          !busy &&
-          !rdOverride && (
-            <div className="mt-3 bg-red-500/10 border border-red-500/20 rounded-lg p-3">
-              <div className="flex items-start gap-2">
-                <div className="flex-1">
+                    {qualityLevels.length >
+                      0 && (
+                      <span>
+                        HLS levels:{" "}
+                        {qualityLevels
+                          .map(
+                            (level) =>
+                              level.label
+                          )
+                          .filter(Boolean)
+                          .join(", ")}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+            {displayedError &&
+              !busy &&
+              !rdOverride && (
+                <div className="mt-3 bg-red-500/10 border border-red-500/20 rounded-lg p-3">
                   <p className="text-red-300 text-xs font-semibold">
                     Playback problem
                   </p>
@@ -2746,246 +2155,156 @@ export default function VideoPlayer({
                     }
                   </p>
                 </div>
+              )}
 
-                {isRdSource && (
-                  <button
-                    onClick={
-                      retryResolution
-                    }
-                    className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-white/10 text-white text-[11px] font-semibold hover:bg-white/15"
-                  >
-                    <RefreshCw className="w-3 h-3" />
-                    Retry
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
+            {rdOverride &&
+              rdFiles.length >
+                1 && (
+                <div className="mt-3 bg-mg-card border border-white/10 rounded-lg p-2 max-h-44 overflow-y-auto">
+                  <p className="text-white/50 text-[10px] font-semibold uppercase tracking-wide px-1 pb-1 flex items-center gap-1">
+                    <Film className="w-3 h-3" />
+                    Files
+                  </p>
 
-        {rdOverride &&
-          rdFiles.length >
-            1 && (
-            <div className="mt-3 bg-mg-card border border-white/10 rounded-lg p-2 max-h-44 overflow-y-auto">
-              <p className="text-white/50 text-[10px] font-semibold uppercase tracking-wide px-1 pb-1 flex items-center gap-1">
-                <Film className="w-3 h-3" />
-                Files
-              </p>
+                  <div className="flex flex-col gap-0.5">
+                    {rdFiles.map(
+                      (file) => {
+                        const isCurrent =
+                          rdOverride.file ===
+                          file.path;
 
-              <div className="flex flex-col gap-0.5">
-                {rdFiles.map(
-                  (
-                    file
-                  ) => {
-                    const isCurrent =
-                      rdOverride.file ===
-                      file.path;
+                        return (
+                          <button
+                            key={
+                              file.id
+                            }
+                            onClick={() =>
+                              pickFile(
+                                file
+                              )
+                            }
+                            disabled={
+                              fileSwitching
+                            }
+                            className={cn(
+                              "flex items-center gap-2 text-left px-2 py-1.5 rounded text-xs transition-colors",
 
-                    return (
-                      <button
-                        key={
-                          file.id
-                        }
-                        onClick={() =>
-                          pickFile(
-                            file
-                          )
-                        }
-                        disabled={
-                          fileSwitching
-                        }
-                        className={cn(
-                          "flex items-center gap-2 text-left px-2 py-1.5 rounded text-xs transition-colors",
+                              isCurrent
+                                ? "bg-mg-green/15 text-mg-green"
+                                : "text-white/70 hover:bg-white/5",
 
-                          isCurrent
-                            ? "bg-mg-green/15 text-mg-green"
-                            : "text-white/70 hover:bg-white/5",
+                              fileSwitching &&
+                                "opacity-60"
+                            )}
+                          >
+                            <Film className="w-3.5 h-3.5 shrink-0" />
 
-                          fileSwitching &&
-                            "opacity-60"
-                        )}
-                      >
-                        <Film className="w-3.5 h-3.5 shrink-0" />
+                            <span className="truncate flex-1">
+                              {
+                                file.path
+                              }
+                            </span>
+                          </button>
+                        );
+                      }
+                    )}
+                  </div>
+                </div>
+              )}
 
-                        <span className="truncate flex-1">
-                          {
-                            file.path
-                          }
-                        </span>
+            {sources.length >
+              1 && (
+              <div className="mt-3 bg-mg-card border border-white/10 rounded-lg p-3">
+                <div className="flex items-center justify-between gap-3 mb-2">
+                  <div>
+                    <p className="text-white text-xs font-semibold">
+                      Playback source
+                    </p>
 
-                        <span className="text-white/30 shrink-0">
-                          {file.bytes >
-                          1e9
-                            ? `${(
-                                file.bytes /
-                                1e9
-                              ).toFixed(
-                                1
-                              )}GB`
-                            : `${(
-                                file.bytes /
-                                1e6
-                              ).toFixed(
-                                0
-                              )}MB`}
-                        </span>
-                      </button>
-                    );
+                    <p className="text-white/40 text-[10px]">
+                      Media God prefers the best compatible English source.
+                    </p>
+                  </div>
+
+                  <span className="text-[10px] font-semibold text-mg-green">
+                    {
+                      sources.length
+                    }{" "}
+                    sources
+                  </span>
+                </div>
+
+                <select
+                  value={
+                    activeIdx
                   }
-                )}
-              </div>
-            </div>
-          )}
-
-        {sources.length >
-          1 && (
-          <div className="mt-3 bg-mg-card border border-white/10 rounded-lg p-3">
-            <div className="flex items-center justify-between gap-3 mb-2">
-              <div className="min-w-0">
-                <p className="text-white text-xs font-semibold">
-                  Playback source
-                </p>
-
-                <p className="text-white/40 text-[10px] mt-0.5">
-                  Media God prefers compatible video/audio first. Every source is still available.
-                </p>
-              </div>
-
-              <span className="shrink-0 text-[10px] font-semibold text-mg-green bg-mg-green/10 border border-mg-green/20 rounded-full px-2 py-1">
-                {
-                  sources.length
-                }{" "}
-                sources
-              </span>
-            </div>
-
-            <div className="relative">
-              <select
-                value={
-                  activeIdx
-                }
-                onChange={(
-                  event
-                ) =>
-                  selectSource(
-                    event.target.value
-                  )
-                }
-                className="w-full appearance-none bg-black/40 border border-white/10 rounded-lg text-white text-sm pl-3 pr-10 py-2.5 outline-none focus:border-mg-green"
-                aria-label="Choose playback source"
-              >
-                {sources.map(
-                  (
-                    item,
-                    index
-                  ) => {
-                    const failed =
-                      failedSources.has(
-                        index
-                      );
-
-                    const label =
-                      item?.label ||
-                      `Source ${index + 1}`;
-
-                    return (
+                  onChange={(event) =>
+                    selectSource(
+                      event.target.value
+                    )
+                  }
+                  className="w-full bg-black/40 border border-white/10 rounded-lg text-white text-sm px-3 py-2.5 outline-none focus:border-mg-green"
+                >
+                  {sources.map(
+                    (
+                      item,
+                      index
+                    ) => (
                       <option
-                        key={`${index}-${label}`}
+                        key={
+                          index
+                        }
                         value={
                           index
                         }
                       >
-                        {failed
+                        {failedSources.has(
+                          index
+                        )
                           ? "Failed — "
                           : ""}
-                        {
-                          label
-                        }
+                        {item?.label ||
+                          `Source ${index + 1}`}
                         {` · ${sourceTypeLabel(
                           item
                         )}`}
                       </option>
-                    );
+                    )
+                  )}
+                </select>
+
+                <div
+                  className={cn(
+                    "mt-2 text-[10px] rounded-md border px-2.5 py-2",
+
+                    activeAudioRisk
+                      ? "border-amber-400/25 bg-amber-400/5 text-amber-200/80"
+                      : "border-white/10 bg-black/20 text-white/45"
+                  )}
+                >
+                  {
+                    activeCompatibility
                   }
-                )}
-              </select>
+                </div>
 
-              <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-white/50">
-                <Tv className="w-4 h-4" />
+                <button
+                  type="button"
+                  onClick={() =>
+                    tryNextSource(
+                      "Trying another source because this one has missing or unsupported audio."
+                    )
+                  }
+                  className="mt-2 min-h-10 inline-flex items-center justify-center gap-2 rounded-md border border-mg-green/25 bg-mg-green/10 px-3 py-2 text-[11px] font-semibold text-mg-green"
+                >
+                  <Volume2 className="w-3.5 h-3.5" />
+
+                  No sound? Try next source
+                </button>
               </div>
-            </div>
-
-            <div className="flex items-center gap-2 mt-2 text-[10px] text-white/45 min-w-0">
-              {(active.type ===
-                "rd" ||
-                active.type ===
-                  "rd_torrent") && (
-                <Zap className="w-3 h-3 text-mg-green shrink-0" />
-              )}
-
-              {(active.type ===
-                "magnet" ||
-                active.type ===
-                  "torrent") && (
-                <Link className="w-3 h-3 text-mg-green shrink-0" />
-              )}
-
-              {active.type ===
-                "provider" && (
-                <Tv className="w-3 h-3 shrink-0" />
-              )}
-
-              {active.type ===
-                "youtube" && (
-                <ExternalLink className="w-3 h-3 shrink-0" />
-              )}
-
-              {active.type ===
-                "torrent" && (
-                <Download className="w-3 h-3 shrink-0" />
-              )}
-
-              <span className="truncate">
-                Current:{" "}
-                {active?.label ||
-                  `Source ${activeIdx + 1}`}
-                {active?.addon
-                  ? ` · ${active.addon}`
-                  : ""}
-              </span>
-            </div>
-
-            <div className="mt-2 flex flex-col sm:flex-row sm:items-center gap-2">
-              <div
-                className={cn(
-                  "flex-1 text-[10px] rounded-md border px-2.5 py-2",
-
-                  activeAudioRisk
-                    ? "border-amber-400/25 bg-amber-400/5 text-amber-200/80"
-                    : "border-white/10 bg-black/20 text-white/45"
-                )}
-              >
-                {
-                  activeCompatibility
-                }
-              </div>
-
-              <button
-                type="button"
-                onClick={() =>
-                  tryNextSource(
-                    "Trying another source because this one has missing or unsupported audio."
-                  )
-                }
-                className="shrink-0 min-h-10 inline-flex items-center justify-center gap-2 rounded-md border border-mg-green/25 bg-mg-green/10 px-3 py-2 text-[11px] font-semibold text-mg-green hover:bg-mg-green/15"
-                aria-label="No sound - try next compatible source"
-              >
-                <Volume2 className="w-3.5 h-3.5" />
-                No sound? Try next source
-              </button>
-            </div>
-          </div>
+            )}
+          </>
         )}
       </div>
     </div>
   );
-}
+}0
