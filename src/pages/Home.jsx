@@ -24,32 +24,43 @@ export default function Home() {
 
   return (
     <PlayerProvider>
-      <div className="min-h-screen bg-mg-background text-white flex">
-        <Navbar active={view} onSelect={setView} onSearch={() => setSearchOpen(true)} />
-        <div className="flex-1 min-w-0 flex flex-col">
-        <RdBanner onLinkSettings={() => setView("settings")} />
-        {view === "home" && <HomeDashboard />}
-        {view === "movies" && <MoviesView />}
-        {view === "tv" && <TvShowsView />}
-        {view === "live" && <LiveTVView />}
-        {view === "watchlist" && <WatchlistView />}
-        {view === "favorites" && <FavoritesView />}
-        {view === "watchparty" && <WatchPartyView />}
-        {view === "rdlib" && <RdLibraryView />}
-        {view === "downloads" && <DebridDashboard />}
-        {view === "addons" && <AddonsView />}
-        {view === "roadmap" && <RoadmapView />}
-        {view === "settings" && <SettingsView />}
+      <div className="min-h-screen w-full overflow-x-hidden bg-mg-background text-white flex">
+        <Navbar
+          active={view}
+          onSelect={setView}
+          onSearch={() => setSearchOpen(true)}
+        />
 
-        <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} onSelect={setSearchResult} />
-        {searchResult && (
-          <DetailModal
-            item={searchResult}
-            mediaType={searchResult.media_type || "movie"}
-            onClose={() => setSearchResult(null)}
+        <main className="flex-1 min-w-0 w-full flex flex-col overflow-x-hidden">
+          <RdBanner onLinkSettings={() => setView("settings")} />
+
+          {view === "home" && <HomeDashboard />}
+          {view === "movies" && <MoviesView />}
+          {view === "tv" && <TvShowsView />}
+          {view === "live" && <LiveTVView />}
+          {view === "watchlist" && <WatchlistView />}
+          {view === "favorites" && <FavoritesView />}
+          {view === "watchparty" && <WatchPartyView />}
+          {view === "rdlib" && <RdLibraryView />}
+          {view === "downloads" && <DebridDashboard />}
+          {view === "addons" && <AddonsView />}
+          {view === "roadmap" && <RoadmapView />}
+          {view === "settings" && <SettingsView />}
+
+          <SearchDialog
+            open={searchOpen}
+            onOpenChange={setSearchOpen}
+            onSelect={setSearchResult}
           />
-        )}
-        </div>
+
+          {searchResult && (
+            <DetailModal
+              item={searchResult}
+              mediaType={searchResult.media_type || "movie"}
+              onClose={() => setSearchResult(null)}
+            />
+          )}
+        </main>
       </div>
     </PlayerProvider>
   );
