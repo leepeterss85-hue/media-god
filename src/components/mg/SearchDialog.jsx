@@ -2,20 +2,24 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Search, Film, Tv, X, Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
-import { cn } from "@/lib/utils";
 
-// Global multi-search overlay (movies + TV). Debounced; selecting a result
-// opens the detail modal via onSelect.
 export default function SearchDialog({ open, onOpenChange, onSelect }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const search = useCallback(async (q) => {
-    if (!q.trim()) { setResults([]); return; }
+  const search = useCallback(async (value) => {
+    if (!value.trim()) {
+      setResults([]);
+      return;
+    }
+
     setLoading(true);
+
     try {
-      const res = await base44.functions.invoke("getTmdbMovies", { multi_search: q });
+      const res = await base44.functions.invoke("getTmdbMovies", {
+        multi_search: value,
+      });
       setResults(res.data?.movies || []);
     } catch {
       setResults([]);
@@ -25,29 +29,34 @@ export default function SearchDialog({ open, onOpenChange, onSelect }) {
   }, []);
 
   useEffect(() => {
-    const t = setTimeout(() => search(query), 300);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => search(query), 300);
+    return () => clearTimeout(timer);
   }, [query, search]);
 
-  // Reset when closed.
   useEffect(() => {
-    if (!open) { setQuery(""); setResults([]); }
+    if (!open) {
+      setQuery("");
+      setResults([]);
+    }
   }, [open]);
 
-  // Escape closes, arrow keys navigate.
   useEffect(() => {
-    if (!open) return;
-    const onKey = (e) => {
-      if (e.key === "Escape") onOpenChange(false);
+    if (!open) return undefined;
+
+    const onKey = (event) => {
+      if (event.key === "Escape") {
+        onOpenChange(false);
+      }
     };
+
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onOpenChange]);
 
   if (!open) return null;
 
-  const choose = (r) => {
-    onSelect(r);
+  const choose = (result) => {
+    onSelect(result);
     onOpenChange(false);
     setQuery("");
     setResults([]);
@@ -55,69 +64,115 @@ export default function SearchDialog({ open, onOpenChange, onSelect }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-start justify-center pt-[8vh] px-4"
+      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-start justify-center sm:pt-[7vh] 3xl:pt-[9vh] p-0 sm:px-4"
       onClick={() => onOpenChange(false)}
     >
       <div
-        className="w-full max-w-2xl bg-mg-surface border border-white/10 rounded-xl overflow-hidden shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
+        className="w-full sm:max-w-2xl 3xl:max-w-4xl 4xl:max-w-5xl max-h-[92svh] sm:max-h-[84vh] bg-mg-surface border border-white/10 rounded-t-2xl sm:rounded-xl 3xl:rounded-2xl overflow-hidden shadow-2xl mg-safe-bottom"
+        onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10">
-          <Search className="w-5 h-5 text-white/40" />
+        <div className="flex items-center gap-3 3xl:gap-4 px-4 sm:px-5 3xl:px-7 py-3.5 3xl:py-5 border-b border-white/10">
+          <Search className="w-5 h-5 3xl:w-6 3xl:h-6 4xl:w-7 4xl:h-7 text-white/40 shrink-0" />
+
           <input
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(event) => setQuery(event.target.value)}
             placeholder="Search movies, TV shows..."
-            className="flex-1 bg-transparent border-0 outline-none text-white text-lg placeholder:text-white/30"
+            className="flex-1 min-w-0 bg-transparent border-0 outline-none text-white text-base sm:text-lg 3xl:text-xl 4xl:text-2xl placeholder:text-white/30"
             autoFocus
           />
-          {query && (
-            <button onClick={() => { setQuery(""); setResults([]); }} className="text-white/40 hover:text-white" aria-label="Clear">
-              <X className="w-5 h-5" />
-            </button>
-          )}
+
+          <button
+            type="button"
+            onClick={() => {
+              if (query) {
+                setQuery("");
+                setResults([]);
+              } else {
+                onOpenChange(false);
+              }
+            }}
+            className="w-10 h-10 3xl:w-12 3xl:h-12 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/5 shrink-0"
+            aria-label={query ? "Clear search" : "Close search"}
+          >
+            <X className="w-5 h-5 3xl:w-6 3xl:h-6" />
+          </button>
         </div>
 
-        <div className="max-h-[60vh] overflow-y-auto">
+        <div className="max-h-[75svh] sm:max-h-[68vh] overflow-y-auto overscroll-contain">
           {loading && (
-            <div className="p-8 text-center text-white/40 flex items-center justify-center gap-2">
-              <Loader2 className="w-4 h-4 animate-spin" /> Searching...
+            <div className="p-8 3xl:p-12 text-center text-white/40 flex items-center justify-center gap-2 3xl:text-lg">
+              <Loader2 className="w-4 h-4 3xl:w-6 3xl:h-6 animate-spin" />
+              Searching...
             </div>
           )}
+
           {!loading && query && results.length === 0 && (
-            <div className="p-8 text-center text-white/40">No results found for "{query}"</div>
+            <div className="p-8 3xl:p-12 text-center text-white/40 text-sm 3xl:text-lg">
+              No results found for &quot;{query}&quot;
+            </div>
           )}
+
           {!loading && results.length > 0 && (
             <div className="divide-y divide-white/5">
-              {results.map((r) => (
+              {results.map((result) => (
                 <button
-                  key={`${r.media_type}-${r.id}`}
-                  onClick={() => choose(r)}
-                  className="w-full flex items-center gap-4 p-3 hover:bg-white/5 transition-colors text-left"
+                  type="button"
+                  key={`${result.media_type}-${result.id}`}
+                  onClick={() => choose(result)}
+                  className="w-full flex items-center gap-3 sm:gap-4 3xl:gap-5 p-3 sm:p-4 3xl:p-5 hover:bg-white/5 transition-colors text-left min-h-[78px] 3xl:min-h-[104px]"
                 >
-                  <div className="w-10 h-14 rounded-md overflow-hidden bg-mg-card shrink-0">
-                    {r.poster_url ? (
-                      <Image src={r.poster_url} alt={r.title} className="w-full h-full object-cover" fittingType="fill" />
+                  <div className="w-11 h-16 sm:w-12 3xl:w-16 3xl:h-24 4xl:w-20 4xl:h-28 rounded-md 3xl:rounded-lg overflow-hidden bg-mg-card shrink-0">
+                    {result.poster_url ? (
+                      <Image
+                        src={result.poster_url}
+                        alt={result.title}
+                        className="w-full h-full object-cover"
+                        fittingType="fill"
+                      />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-white/30">
-                        {r.media_type === "movie" ? <Film className="w-5 h-5" /> : <Tv className="w-5 h-5" />}
+                        {result.media_type === "movie" ? (
+                          <Film className="w-5 h-5 3xl:w-7 3xl:h-7" />
+                        ) : (
+                          <Tv className="w-5 h-5 3xl:w-7 3xl:h-7" />
+                        )}
                       </div>
                     )}
                   </div>
+
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-white truncate">{r.title}</p>
-                    <div className="flex items-center gap-2 text-xs text-white/40">
-                      <span className="capitalize">{r.media_type}</span>
-                      {r.year && <><span>•</span><span>{r.year}</span></>}
-                      {r.vote_average > 0 && <><span>•</span><span>★ {Number(r.vote_average).toFixed(1)}</span></>}
+                    <p className="font-medium text-white text-sm sm:text-base 3xl:text-xl 4xl:text-2xl truncate">
+                      {result.title}
+                    </p>
+
+                    <div className="flex flex-wrap items-center gap-2 3xl:gap-3 text-xs 3xl:text-base text-white/40 mt-1">
+                      <span className="capitalize">{result.media_type}</span>
+
+                      {result.year && (
+                        <>
+                          <span>•</span>
+                          <span>{result.year}</span>
+                        </>
+                      )}
+
+                      {result.vote_average > 0 && (
+                        <>
+                          <span>•</span>
+                          <span>★ {Number(result.vote_average).toFixed(1)}</span>
+                        </>
+                      )}
                     </div>
                   </div>
                 </button>
               ))}
             </div>
           )}
+
           {!loading && !query && (
-            <div className="p-8 text-center text-white/40">Start typing to search movies and TV shows</div>
+            <div className="p-8 3xl:p-12 text-center text-white/40 text-sm 3xl:text-lg">
+              Start typing to search movies and TV shows
+            </div>
           )}
         </div>
       </div>
