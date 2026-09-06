@@ -62,10 +62,28 @@ const RADIO_STREAM_OVERRIDES = {
     "https://stream-mz.hellorayo.co.uk/net2national.mp3?direct=true",
 };
 
+const SKY_STREAM_OVERRIDES = {
+  "sky sports main event": "https://live20.bozztv.com/trn03/gin-skysportsmainevent/index.m3u8",
+  "sky sports premier league": "https://live20.bozztv.com/trn03/gin-skysportspl/index.m3u8",
+  "sky sports football": "https://live20.bozztv.com/trn03/gin-skysportsfootball/index.m3u8",
+  "sky sports cricket": "https://live20.bozztv.com/trn03/gin-skysportscricket/index.m3u8",
+  "sky sports f1": "https://live20.bozztv.com/trn03/gin-skysportsf1/index.m3u8",
+  "sky showcase": "https://live20.bozztv.com/trn03/gin-skyshowcase/index.m3u8",
+  "sky news": "https://skynews2-plutolive-vo.akamaized.net/playlist.m3u8",
+  "gb news": "https://gbnews-live.rakuten.tv/v1/master.m3u8",
+  "talktv": "https://live-talktv.uksse.wurl.tv/playlist.m3u8",
+  "Bloomberg TV": "https://live.bloomberg.com/kinesis/us-live.m3u8",
+  "trrt world": "https://trtworld.ios.bund.cpl.delvenetworks.com/playlist.m3u8",
+  "tnt sports 1": "https://live20.bozztv.com/trn03/gin-tntsports1/index.m3u8",
+  "tnt sports 2": "https://live20.bozztv.com/trn03/gin-tntsports2/index.m3u8",
+  "tnt sports 3": "https://live20.bozztv.com/trn03/gin-tntsports3/index.m3u8",
+  "tnt sports 4": "https://live20.bozztv.com/trn03/gin-tntsports4/index.m3u8",
+};
+
 const searchText = (value) => String(value || "").toLowerCase().trim();
 
 const normaliseStationName = (value) =>
-  searchText(value).replace(/\s+/g, " ").replace(/\s+uk$/i, "").trim();
+  searchText(value).replace(/\s+/g, " ").replace(/\s+(uk|hd|fhd)$/i, "").trim();
 
 const isRadioChannel = (channel) => {
   const name = searchText(channel?.name);
@@ -184,11 +202,23 @@ export default function LiveTVView() {
         force,
       });
 
-      setChannels(
-        Array.isArray(result?.channels)
-          ? result.channels
-          : []
-      );
+      let loadedChannels = Array.isArray(result?.channels) ? result.channels : [];
+
+      loadedChannels = loadedChannels.map((ch) => {
+        const norm = normaliseStationName(ch.name);
+        if (SKY_STREAM_OVERRIDES[norm] !== undefined && SKY_STREAM_OVERRIDES[norm] !== "") {
+          return {
+            ...ch,
+            url: SKY_STREAM_OVERRIDES[norm],
+            kind: "direct",
+            browserPlayable: true,
+            tags: Array.from(new Set([...(ch.tags || []), "United Kingdom", "Sports"])),
+          };
+        }
+        return ch;
+      });
+
+      setChannels(loadedChannels);
 
       setSourceStatus(
         Array.isArray(result?.sourceStatus)
@@ -813,7 +843,7 @@ export default function LiveTVView() {
           </div>
 
           <p className="max-w-3xl text-xs text-white/45 sm:text-sm">
-            UK-aware public Live TV, sports, movies and radio with incompatible feeds filtered and duplicate streams kept as backups.
+            UK-aware public Live TV, sports, movies and radio with Sky, TNT, and public news streams integrated.
           </p>
         </div>
 
