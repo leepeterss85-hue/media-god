@@ -55,116 +55,126 @@ export const browserCodecSupport = {
     ),
 
   aac:
-    canPlay(AUDIO_PROBE, 'audio/mp4; codecs="mp4a.40.2"') ||
-    canPlay(AUDIO_PROBE, "audio/aac"),
+    canPlay(
+      AUDIO_PROBE,
+      'audio/mp4; codecs="mp4a.40.2"'
+    ) ||
+    canPlay(
+      AUDIO_PROBE,
+      "audio/aac"
+    ),
 
-  mp3: canPlay(AUDIO_PROBE, "audio/mpeg"),
+  mp3: canPlay(
+    AUDIO_PROBE,
+    "audio/mpeg"
+  ),
 
   opus:
-    canPlay(AUDIO_PROBE, 'audio/webm; codecs="opus"') ||
-    canPlay(AUDIO_PROBE, 'audio/ogg; codecs="opus"'),
+    canPlay(
+      AUDIO_PROBE,
+      'audio/webm; codecs="opus"'
+    ) ||
+    canPlay(
+      AUDIO_PROBE,
+      'audio/ogg; codecs="opus"'
+    ),
 
   flac:
-    canPlay(AUDIO_PROBE, "audio/flac") ||
-    canPlay(AUDIO_PROBE, 'audio/mp4; codecs="fLaC"'),
+    canPlay(
+      AUDIO_PROBE,
+      "audio/flac"
+    ) ||
+    canPlay(
+      AUDIO_PROBE,
+      'audio/mp4; codecs="fLaC"'
+    ),
 
   ac3:
-    canPlay(AUDIO_PROBE, 'audio/mp4; codecs="ac-3"') ||
-    canPlay(VIDEO_PROBE, 'video/mp4; codecs="avc1.4D401F, ac-3"'),
+    canPlay(
+      AUDIO_PROBE,
+      'audio/mp4; codecs="ac-3"'
+    ) ||
+    canPlay(
+      VIDEO_PROBE,
+      'video/mp4; codecs="avc1.4D401F, ac-3"'
+    ),
 
   eac3:
-    canPlay(AUDIO_PROBE, 'audio/mp4; codecs="ec-3"') ||
-    canPlay(VIDEO_PROBE, 'video/mp4; codecs="avc1.4D401F, ec-3"'),
+    canPlay(
+      AUDIO_PROBE,
+      'audio/mp4; codecs="ec-3"'
+    ) ||
+    canPlay(
+      VIDEO_PROBE,
+      'video/mp4; codecs="avc1.4D401F, ec-3"'
+    ),
 };
 
+const FIRE_TV_RE =
+  /(?:AFT[A-Z0-9]*|Fire TV|AmazonWebAppPlatform|Silk)/i;
+
 export const getPlaybackDeviceProfile = () => {
-  if (typeof window === "undefined" || typeof navigator === "undefined") {
-    return {
-      name: "Browser",
-      isFireTv: false,
-      isTv: false,
-      fourKAllowed: true,
-      displayLikely4K: false,
-      userAgent: "",
-    };
-  }
+  const userAgent =
+    typeof navigator !== "undefined"
+      ? String(navigator.userAgent || "")
+      : "";
 
-  const userAgent = String(navigator.userAgent || "");
+  const fireTv =
+    FIRE_TV_RE.test(userAgent);
 
-  const isFireTv =
-    /\bAFT[A-Z0-9]+\b|Fire\s?TV|AmazonWebAppPlatform|Silk\//i.test(
-      userAgent
-    );
+  const width =
+    typeof window !== "undefined"
+      ? Math.max(
+          Number(window.innerWidth || 0),
+          Number(window.screen?.width || 0)
+        )
+      : 0;
 
-  const isAndroidTv =
-    /Android TV|Google TV|BRAVIA|SHIELD/i.test(userAgent);
+  const height =
+    typeof window !== "undefined"
+      ? Math.max(
+          Number(window.innerHeight || 0),
+          Number(window.screen?.height || 0)
+        )
+      : 0;
 
-  const isTv =
-    isFireTv ||
-    isAndroidTv;
+  const pixelRatio =
+    typeof window !== "undefined"
+      ? Number(window.devicePixelRatio || 1)
+      : 1;
 
-  const ratio =
-    Number(
-      window.devicePixelRatio || 1
-    );
+  const physicalLongEdge =
+    Math.max(width, height) *
+    pixelRatio;
 
-  const screenWidth =
-    Number(
-      window.screen?.width ||
-        window.innerWidth ||
-        0
-    );
-
-  const screenHeight =
-    Number(
-      window.screen?.height ||
-        window.innerHeight ||
-        0
-    );
-
-  const physicalWidth =
-    Math.max(
-      screenWidth,
-      screenHeight
-    ) * ratio;
-
-  const physicalHeight =
-    Math.min(
-      screenWidth,
-      screenHeight
-    ) * ratio;
-
-  const displayLikely4K =
-    physicalWidth >= 3000 &&
-    physicalHeight >= 1600;
+  /*
+   * Do not cap Fire TV at 1080p here.
+   *
+   * Some 4K Fire TV WebViews report a 1920-wide CSS viewport
+   * even though the device can decode/output 4K.
+   *
+   * LiveVideo/HLS still makes the final decoder decision.
+   */
+  const fourKAllowed =
+    fireTv ||
+    physicalLongEdge >= 3000;
 
   return {
-    name: isFireTv
-      ? "Fire TV / Fire Stick"
-      : isAndroidTv
-        ? "Android TV"
+    name:
+      fireTv
+        ? "Fire TV"
         : "Browser",
 
-    isFireTv,
-    isTv,
+    fireTv,
+    isFireTv: fireTv,
+    fourKAllowed,
 
-    /*
-     * IMPORTANT:
-     *
-     * Never hard-cap Fire TV at 1080p.
-     *
-     * Fire TV Stick 4K / 4K Max devices
-     * often expose a 1080p CSS viewport
-     * even while the HDMI output and
-     * hardware decoder are 4K capable.
-     *
-     * Source compatibility and the user's
-     * quality preference decide what wins.
-     */
-    fourKAllowed: true,
+    width,
+    height,
+    pixelRatio,
 
-    displayLikely4K,
-    userAgent,
+    codecSupport:
+      browserCodecSupport,
   };
 };
 
@@ -187,6 +197,14 @@ export const sourceText = (
     item?.file,
     item?.path,
     item?.description,
+    item?.quality,
+    item?.resolution,
+    item?.audio,
+    item?.audioCodec,
+    item?.audio_codec,
+    item?.codec,
+    item?.videoCodec,
+    item?.video_codec,
     item?.behaviorHints?.filename,
     item?.behaviorHints?.videoHash,
     extraText,
@@ -267,17 +285,38 @@ export const detectStreamTraits = (
         ""
     ).toLowerCase();
 
+  const joined =
+    `${url} ${text}`;
+
   const traits = {
     text,
-    container: "",
-    video: "",
-    audio: "",
-    resolution: 0,
-    hdr: false,
-    dolbyVision: false,
-    atmos: false,
-    audioRisk: false,
-    language: "unknown",
+
+    container:
+      "",
+
+    video:
+      "",
+
+    audio:
+      "",
+
+    resolution:
+      0,
+
+    hdr:
+      false,
+
+    dolbyVision:
+      false,
+
+    atmos:
+      false,
+
+    audioRisk:
+      false,
+
+    language:
+      "unknown",
   };
 
   traits.language =
@@ -288,7 +327,7 @@ export const detectStreamTraits = (
 
   if (
     has(
-      url + " " + text,
+      joined,
       /\.m3u8(?:[?#\s]|$)|\bhls\b/i
     )
   ) {
@@ -296,7 +335,7 @@ export const detectStreamTraits = (
       "hls";
   } else if (
     has(
-      url + " " + text,
+      joined,
       /\.m2ts(?:[?#\s]|$)|\bm2ts\b/i
     )
   ) {
@@ -304,7 +343,7 @@ export const detectStreamTraits = (
       "m2ts";
   } else if (
     has(
-      url + " " + text,
+      joined,
       /\.mts(?:[?#\s]|$)|\bmts\b/i
     )
   ) {
@@ -312,7 +351,7 @@ export const detectStreamTraits = (
       "mts";
   } else if (
     has(
-      url + " " + text,
+      joined,
       /\.ts(?:[?#\s]|$)|\bmpeg[ -]?ts\b|\btransport stream\b/i
     )
   ) {
@@ -320,7 +359,7 @@ export const detectStreamTraits = (
       "ts";
   } else if (
     has(
-      url + " " + text,
+      joined,
       /\.flv(?:[?#\s]|$)|\bflv\b/i
     )
   ) {
@@ -328,7 +367,7 @@ export const detectStreamTraits = (
       "flv";
   } else if (
     has(
-      url + " " + text,
+      joined,
       /\.mp4(?:[?#\s]|$)|\bmp4\b/i
     )
   ) {
@@ -336,7 +375,7 @@ export const detectStreamTraits = (
       "mp4";
   } else if (
     has(
-      url + " " + text,
+      joined,
       /\.m4v(?:[?#\s]|$)|\bm4v\b/i
     )
   ) {
@@ -344,7 +383,7 @@ export const detectStreamTraits = (
       "m4v";
   } else if (
     has(
-      url + " " + text,
+      joined,
       /\.webm(?:[?#\s]|$)|\bwebm\b/i
     )
   ) {
@@ -352,7 +391,7 @@ export const detectStreamTraits = (
       "webm";
   } else if (
     has(
-      url + " " + text,
+      joined,
       /\.mkv(?:[?#\s]|$)|\bmkv\b|\bmatroska\b/i
     )
   ) {
@@ -360,7 +399,7 @@ export const detectStreamTraits = (
       "mkv";
   } else if (
     has(
-      url + " " + text,
+      joined,
       /\.avi(?:[?#\s]|$)|\bavi\b/i
     )
   ) {
@@ -368,7 +407,7 @@ export const detectStreamTraits = (
       "avi";
   } else if (
     has(
-      url + " " + text,
+      joined,
       /\.mov(?:[?#\s]|$)|\bmov\b/i
     )
   ) {
@@ -418,10 +457,16 @@ export const detectStreamTraits = (
       "mpeg2";
   }
 
+  /*
+   * Audio detection order matters.
+   *
+   * TrueHD and DTS variants are checked before generic Dolby
+   * labels because release names often contain several tags.
+   */
   if (
     has(
       text,
-      /\b(?:truehd|true-hd|mlp)\b/i
+      /\b(?:true[ ._-]?hd|true-hd|mlp)(?:[ ._-]?(?:atmos|7\.1|5\.1))?\b/i
     )
   ) {
     traits.audio =
@@ -432,7 +477,7 @@ export const detectStreamTraits = (
   } else if (
     has(
       text,
-      /\b(?:dts[ -]?hd|dts[- .]?ma|dts[- .]?x|dts)\b/i
+      /\b(?:dts(?:[ ._-]?hd)?(?:[ ._-]?(?:ma|hra))?|dts[ ._-]?x|dca)(?:[ ._-]?(?:7\.1|5\.1))?\b/i
     )
   ) {
     traits.audio =
@@ -443,7 +488,7 @@ export const detectStreamTraits = (
   } else if (
     has(
       text,
-      /\b(?:e-?ac-?3(?:[ .-]?\d(?:\.\d)?)?|eac3(?:[ .-]?\d(?:\.\d)?)?|ddp(?:[ .-]?\d(?:\.\d)?)?|dd\+|dolby digital plus)\b/i
+      /\b(?:e-?ac-?3|eac3|ec-?3|ddp|dd\+|dolby[ ._-]?digital[ ._-]?plus)(?:[ ._-]?(?:atmos|7\.1|5\.1|2\.0))?\b/i
     )
   ) {
     traits.audio =
@@ -451,7 +496,7 @@ export const detectStreamTraits = (
   } else if (
     has(
       text,
-      /\b(?:ac-?3(?:[ .-]?\d(?:\.\d)?)?|ac3(?:[ .-]?\d(?:\.\d)?)?|dolby digital|dd(?:[ .-]?\d(?:\.\d)?)?)\b/i
+      /\b(?:ac-?3|ac3|dolby[ ._-]?digital|dd)(?:[ ._-]?(?:7\.1|5\.1|2\.0))?\b/i
     )
   ) {
     traits.audio =
@@ -459,7 +504,7 @@ export const detectStreamTraits = (
   } else if (
     has(
       text,
-      /\b(?:aac|mp4a)\b/i
+      /\b(?:aac(?:[ ._-]?(?:lc|he|2\.0|5\.1))?|heaac|he-aac|mp4a)\b/i
     )
   ) {
     traits.audio =
@@ -509,77 +554,134 @@ export const detectStreamTraits = (
       /\b(?:hdr10\+?|hdr)\b/i
     );
 
-  const resolutionMatch =
-    text.match(
-      /\b(4320|2160|1440|1080|720|576|480)p\b/i
+  const explicitResolution =
+    Number(
+      item?.resolution ||
+        item?.height ||
+        0
     );
 
   if (
-    resolutionMatch
+    Number.isFinite(
+      explicitResolution
+    ) &&
+    explicitResolution >=
+      240
   ) {
     traits.resolution =
-      Number(
-        resolutionMatch[1]
+      explicitResolution;
+  } else {
+    const resolutionMatch =
+      text.match(
+        /\b(4320|2160|1440|1080|720|576|480|360)p\b/i
       );
-  } else if (
-    has(
-      text,
-      /\b(?:4k|uhd)\b/i
-    )
-  ) {
-    traits.resolution =
-      2160;
+
+    if (
+      resolutionMatch
+    ) {
+      traits.resolution =
+        Number(
+          resolutionMatch[
+            1
+          ]
+        );
+    } else if (
+      has(
+        text,
+        /\b8k\b/i
+      )
+    ) {
+      traits.resolution =
+        4320;
+    } else if (
+      has(
+        text,
+        /\b(?:4k|uhd)\b/i
+      )
+    ) {
+      traits.resolution =
+        2160;
+    }
   }
 
   return traits;
 };
 
 const audioSupport = (
-  audio
+  audio,
+  deviceProfile = null
 ) => {
   if (!audio) {
     return null;
   }
 
   if (
-    audio === "aac"
+    audio ===
+    "aac"
   ) {
     return browserCodecSupport.aac;
   }
 
   if (
-    audio === "mp3"
+    audio ===
+    "mp3"
   ) {
     return browserCodecSupport.mp3;
   }
 
   if (
-    audio === "opus"
+    audio ===
+    "opus"
   ) {
     return browserCodecSupport.opus;
   }
 
   if (
-    audio === "flac"
+    audio ===
+    "flac"
   ) {
     return browserCodecSupport.flac;
   }
 
   if (
-    audio === "ac3"
+    audio ===
+    "ac3"
   ) {
-    return browserCodecSupport.ac3;
+    if (
+      browserCodecSupport.ac3
+    ) {
+      return true;
+    }
+
+    /*
+     * Fire TV WebView codec reporting is not always accurate.
+     * Treat AC-3 as uncertain rather than an automatic rejection.
+     */
+    return deviceProfile?.fireTv
+      ? null
+      : false;
   }
 
   if (
-    audio === "eac3"
+    audio ===
+    "eac3"
   ) {
-    return browserCodecSupport.eac3;
+    if (
+      browserCodecSupport.eac3
+    ) {
+      return true;
+    }
+
+    return deviceProfile?.fireTv
+      ? null
+      : false;
   }
 
   if (
-    audio === "dts" ||
-    audio === "truehd"
+    audio ===
+      "dts" ||
+    audio ===
+      "truehd"
   ) {
     return false;
   }
@@ -587,464 +689,123 @@ const audioSupport = (
   return null;
 };
 
-const qualityScore = (
-  resolution,
-  preference = "Auto"
+const qualityPreferenceTarget = (
+  preference
 ) => {
-  const pref =
+  const value =
     String(
-      preference || "Auto"
+      preference ||
+        "Auto"
     ).toLowerCase();
 
-  if (!resolution) {
+  if (
+    value ===
+      "4k" ||
+    value ===
+      "2160p"
+  ) {
+    return 2160;
+  }
+
+  const parsed =
+    Number.parseInt(
+      value,
+      10
+    );
+
+  return Number.isFinite(
+    parsed
+  )
+    ? parsed
+    : 0;
+};
+
+const qualityScore = (
+  resolution,
+  qualityPreference,
+  deviceProfile
+) => {
+  const value =
+    Number(
+      resolution ||
+        0
+    );
+
+  if (!value) {
     return 0;
   }
 
-  if (
-    pref === "4k" ||
-    pref === "2160p"
-  ) {
+  const target =
+    qualityPreferenceTarget(
+      qualityPreference
+    );
+
+  if (target) {
     if (
-      resolution >= 2160
+      value ===
+      target
     ) {
-      return 36000;
+      return 9000;
     }
 
     if (
-      resolution >= 1440
+      value <
+      target
     ) {
-      return 6000;
+      return Math.max(
+        500,
+        6500 -
+          Math.abs(
+            target -
+              value
+          ) *
+            2
+      );
     }
 
-    if (
-      resolution >= 1080
-    ) {
-      return 1500;
-    }
-
-    return 300;
+    return 2500;
   }
 
   if (
-    pref === "1080p"
+    value >=
+    4320
   ) {
-    if (
-      resolution === 1080
-    ) {
-      return 8500;
-    }
-
-    if (
-      resolution === 720
-    ) {
-      return 2500;
-    }
-
-    if (
-      resolution >= 2160
-    ) {
-      return -1800;
-    }
-
-    return 500;
+    return deviceProfile?.fourKAllowed
+      ? 3200
+      : 300;
   }
 
   if (
-    pref === "720p"
+    value >=
+    2160
   ) {
-    if (
-      resolution === 720
-    ) {
-      return 8000;
-    }
-
-    if (
-      resolution === 1080
-    ) {
-      return 1000;
-    }
-
-    if (
-      resolution >= 1440
-    ) {
-      return -2600;
-    }
-
-    return 600;
+    return deviceProfile?.fourKAllowed
+      ? 4200
+      : 800;
   }
 
   if (
-    pref === "480p"
+    value >=
+    1440
   ) {
-    if (
-      resolution <= 576
-    ) {
-      return 7600;
-    }
-
-    if (
-      resolution === 720
-    ) {
-      return 500;
-    }
-
-    if (
-      resolution >= 1080
-    ) {
-      return -3200;
-    }
-
-    return 0;
-  }
-
-  /*
-   * Auto does not punish 4K.
-   *
-   * A Fire Stick 4K may expose a
-   * 1080p browser viewport, so
-   * resolution ranking must not infer
-   * hardware capability from CSS
-   * dimensions.
-   *
-   * Codec/language/container scoring
-   * still decides whether a 4K file is
-   * actually the better choice.
-   */
-  if (
-    resolution >= 2160
-  ) {
-    return 2300;
+    return 3300;
   }
 
   if (
-    resolution >= 1440
+    value >=
+    1080
   ) {
-    return 1950;
+    return 3000;
   }
 
   if (
-    resolution === 1080
+    value >=
+    720
   ) {
     return 1800;
   }
 
-  if (
-    resolution === 720
-  ) {
-    return 1000;
-  }
-
-  return 500;
-};
-
-export const scoreSourceCompatibility = (
-  item,
-  extraText = "",
-  options = {}
-) => {
-  const traits =
-    detectStreamTraits(
-      item,
-      extraText
-    );
-
-  const type =
-    String(
-      item?.type || ""
-    ).toLowerCase();
-
-  const qualityPreference =
-    options?.qualityPreference ||
-    "Auto";
-
-  let score =
-    0;
-
-  if (
-    item?.viaRealDebrid
-  ) {
-    score += 1600;
-  }
-
-  if (
-    type === "provider" ||
-    type === "youtube"
-  ) {
-    score -= 30000;
-  }
-
-  if (
-    traits.language ===
-    "english"
-  ) {
-    score += 12000;
-  } else if (
-    traits.language ===
-    "multi"
-  ) {
-    score += 5500;
-  } else if (
-    traits.language ===
-    "foreign"
-  ) {
-    score -= 10000;
-  }
-
-  if (
-    traits.container ===
-      "mp4" ||
-    traits.container ===
-      "m4v"
-  ) {
-    score += 4500;
-  }
-
-  if (
-    traits.container ===
-    "hls"
-  ) {
-    score += 4200;
-  }
-
-  if (
-    traits.container ===
-    "webm"
-  ) {
-    score += 1800;
-  }
-
-  if (
-    [
-      "ts",
-      "m2ts",
-      "mts",
-      "flv",
-    ].includes(
-      traits.container
-    )
-  ) {
-    score += 1200;
-  }
-
-  if (
-    traits.container ===
-    "mkv"
-  ) {
-    score -= 900;
-  }
-
-  if (
-    traits.container ===
-    "avi"
-  ) {
-    score -= 4000;
-  }
-
-  if (
-    traits.video ===
-    "h264"
-  ) {
-    score += 6000;
-  }
-
-  if (
-    traits.video ===
-    "hevc"
-  ) {
-    score +=
-      browserCodecSupport.hevcAac
-        ? 3800
-        : -1200;
-  }
-
-  if (
-    traits.video ===
-    "av1"
-  ) {
-    score +=
-      browserCodecSupport.av1Aac
-        ? 3000
-        : -1500;
-  }
-
-  if (
-    traits.video ===
-    "vp9"
-  ) {
-    score +=
-      browserCodecSupport.vp9Opus
-        ? 2200
-        : -700;
-  }
-
-  if (
-    traits.audio ===
-    "aac"
-  ) {
-    score += 7000;
-  }
-
-  if (
-    traits.audio ===
-    "mp3"
-  ) {
-    score += 5000;
-  }
-
-  if (
-    traits.audio ===
-    "opus"
-  ) {
-    score +=
-      browserCodecSupport.opus
-        ? 4200
-        : -900;
-  }
-
-  if (
-    traits.audio ===
-    "flac"
-  ) {
-    score +=
-      browserCodecSupport.flac
-        ? 1400
-        : -1000;
-  }
-
-  if (
-    traits.audio ===
-    "ac3"
-  ) {
-    score +=
-      browserCodecSupport.ac3
-        ? 2600
-        : -700;
-  }
-
-  if (
-    traits.audio ===
-    "eac3"
-  ) {
-    score +=
-      browserCodecSupport.eac3
-        ? 2600
-        : -900;
-  }
-
-  if (
-    traits.audio ===
-    "dts"
-  ) {
-    score -= 11000;
-  }
-
-  if (
-    traits.audio ===
-    "truehd"
-  ) {
-    score -= 13000;
-  }
-
-  if (
-    traits.video ===
-      "h264" &&
-    traits.audio ===
-      "aac"
-  ) {
-    score += 7000;
-  }
-
-  if (
-    (
-      traits.container ===
-        "mp4" ||
-      traits.container ===
-        "hls"
-    ) &&
-    traits.audio ===
-      "aac"
-  ) {
-    score += 3000;
-  }
-
-  score +=
-    qualityScore(
-      traits.resolution,
-      qualityPreference
-    );
-
-  return score;
-};
-
-export const orderSourcesForPlayback = (
-  items,
-  options = {}
-) =>
-  (items || [])
-    .map(
-      (
-        item,
-        index
-      ) => ({
-        item,
-        index,
-
-        score:
-          scoreSourceCompatibility(
-            item,
-            "",
-            options
-          ),
-      })
-    )
-    .sort(
-      (
-        a,
-        b
-      ) =>
-        b.score -
-          a.score ||
-        a.index -
-          b.index
-    )
-    .map(
-      ({
-        item,
-      }) =>
-        item
-    );
-
-const prettyContainer = {
-  hls: "HLS",
-  mp4: "MP4",
-  m4v: "M4V",
-  webm: "WebM",
-  ts: "MPEG-TS",
-  m2ts: "M2TS",
-  mts: "MTS",
-  flv: "FLV",
-  mkv: "MKV",
-  avi: "AVI",
-  mov: "MOV",
-};
-
-const prettyVideo = {
-  h264: "H.264",
-  hevc: "HEVC/H.265",
-  av1: "AV1",
-  vp9: "VP9",
-  mpeg2: "MPEG-2",
-};
-
-const prettyAudio = {
-  aac: "AAC",
-  mp3: "MP3",
-  opus: "Opus",
-  flac: "FLAC",
-  ac3: "AC-3",
-  eac3: "E-AC-3",
-  dts: "DTS",
-  truehd: "TrueHD",
+  return 800;
 };
 
 export const hasSevereAudioRisk = (
@@ -1061,8 +822,443 @@ export const hasSevereAudioRisk = (
     traits.audio ===
       "dts" ||
     traits.audio ===
-      "truehd"
+      "truehd" ||
+    traits.audioRisk
   );
+};
+
+export const scoreSourceCompatibility = (
+  item,
+  extraText = "",
+  options = {}
+) => {
+  const traits =
+    detectStreamTraits(
+      item,
+      extraText
+    );
+
+  const type =
+    String(
+      item?.type ||
+        ""
+    ).toLowerCase();
+
+  const deviceProfile =
+    options?.deviceProfile ||
+    getPlaybackDeviceProfile();
+
+  const qualityPreference =
+    options?.qualityPreference ||
+    "Auto";
+
+  let score =
+    0;
+
+  if (
+    item?.viaRealDebrid
+  ) {
+    score +=
+      1800;
+  }
+
+  if (
+    type ===
+      "provider" ||
+    type ===
+      "youtube" ||
+    type ===
+      "status"
+  ) {
+    score -=
+      30000;
+  }
+
+  /*
+   * English first.
+   *
+   * Multi-audio also gets priority because it commonly contains
+   * English and LiveVideo can switch tracks where supported.
+   */
+  if (
+    traits.language ===
+    "english"
+  ) {
+    score +=
+      15000;
+  } else if (
+    traits.language ===
+    "multi"
+  ) {
+    score +=
+      6500;
+  } else if (
+    traits.language ===
+    "foreign"
+  ) {
+    score -=
+      11000;
+  }
+
+  /*
+   * Browser-friendly containers first.
+   */
+  if (
+    traits.container ===
+    "hls"
+  ) {
+    score +=
+      7000;
+  } else if (
+    traits.container ===
+      "mp4" ||
+    traits.container ===
+      "m4v"
+  ) {
+    score +=
+      6500;
+  } else if (
+    traits.container ===
+    "webm"
+  ) {
+    score +=
+      2200;
+  } else if (
+    [
+      "ts",
+      "m2ts",
+      "mts",
+      "flv",
+    ].includes(
+      traits.container
+    )
+  ) {
+    score +=
+      1200;
+  } else if (
+    traits.container ===
+    "mkv"
+  ) {
+    score -=
+      1200;
+  } else if (
+    traits.container ===
+    "avi"
+  ) {
+    score -=
+      4500;
+  }
+
+  if (
+    traits.video ===
+    "h264"
+  ) {
+    score +=
+      6500;
+  } else if (
+    traits.video ===
+    "hevc"
+  ) {
+    score +=
+      browserCodecSupport.hevcAac ||
+      deviceProfile.fireTv
+        ? 3600
+        : -1400;
+  } else if (
+    traits.video ===
+    "av1"
+  ) {
+    score +=
+      browserCodecSupport.av1Aac
+        ? 2400
+        : -1600;
+  } else if (
+    traits.video ===
+    "vp9"
+  ) {
+    score +=
+      browserCodecSupport.vp9Opus
+        ? 2200
+        : -800;
+  }
+
+  /*
+   * AUDIO IS WEIGHTED ABOVE RESOLUTION.
+   *
+   * A 1080p AAC source is better than a 4K DTS/TrueHD source
+   * that produces a picture with no sound.
+   *
+   * A 4K source with safe audio still receives the 4K quality
+   * bonus below and remains preferred.
+   */
+  if (
+    traits.audio ===
+    "aac"
+  ) {
+    score +=
+      12000;
+  } else if (
+    traits.audio ===
+    "mp3"
+  ) {
+    score +=
+      7000;
+  } else if (
+    traits.audio ===
+    "opus"
+  ) {
+    score +=
+      browserCodecSupport.opus
+        ? 6500
+        : -1200;
+  } else if (
+    traits.audio ===
+    "ac3"
+  ) {
+    const supported =
+      audioSupport(
+        "ac3",
+        deviceProfile
+      );
+
+    score +=
+      supported === true
+        ? 6500
+        : supported === null
+          ? 2500
+          : -1800;
+  } else if (
+    traits.audio ===
+    "eac3"
+  ) {
+    const supported =
+      audioSupport(
+        "eac3",
+        deviceProfile
+      );
+
+    score +=
+      supported === true
+        ? 6200
+        : supported === null
+          ? 2200
+          : -2000;
+  } else if (
+    traits.audio ===
+    "flac"
+  ) {
+    score +=
+      browserCodecSupport.flac
+        ? 1800
+        : -1800;
+  } else if (
+    traits.audio ===
+    "dts"
+  ) {
+    /*
+     * Known high-risk Fire TV / WebView audio.
+     * Keep it available only as an Audio Rescue candidate.
+     */
+    score -=
+      100000;
+  } else if (
+    traits.audio ===
+    "truehd"
+  ) {
+    score -=
+      110000;
+  }
+
+  if (
+    traits.video ===
+      "h264" &&
+    traits.audio ===
+      "aac"
+  ) {
+    score +=
+      10000;
+  }
+
+  if (
+    (
+      traits.container ===
+        "mp4" ||
+      traits.container ===
+        "hls"
+    ) &&
+    traits.audio ===
+      "aac"
+  ) {
+    score +=
+      6000;
+  }
+
+  score +=
+    qualityScore(
+      traits.resolution,
+      qualityPreference,
+      deviceProfile
+    );
+
+  return score;
+};
+
+export const orderSourcesForPlayback = (
+  items,
+  options = {}
+) => {
+  const deviceProfile =
+    options?.deviceProfile ||
+    getPlaybackDeviceProfile();
+
+  const list =
+    (items || []).map(
+      (
+        item,
+        index
+      ) => {
+        const severeAudioRisk =
+          hasSevereAudioRisk(
+            item
+          );
+
+        return {
+          item,
+          index,
+          severeAudioRisk,
+
+          score:
+            scoreSourceCompatibility(
+              item,
+              "",
+              {
+                ...options,
+                deviceProfile,
+              }
+            ),
+        };
+      }
+    );
+
+  const hasSaferAlternative =
+    list.some(
+      (entry) =>
+        !entry.severeAudioRisk
+    );
+
+  return list
+    .sort(
+      (
+        a,
+        b
+      ) => {
+        /*
+         * If any safer source exists, DTS/TrueHD sources ALWAYS
+         * go behind every safer alternative.
+         *
+         * They are not deleted because the Real-Debrid backend
+         * can still attempt Audio Rescue if every safer source fails.
+         */
+        if (
+          hasSaferAlternative &&
+          a.severeAudioRisk !==
+            b.severeAudioRisk
+        ) {
+          return a.severeAudioRisk
+            ? 1
+            : -1;
+        }
+
+        return (
+          b.score -
+            a.score ||
+          a.index -
+            b.index
+        );
+      }
+    )
+    .map(
+      ({ item }) =>
+        item
+    );
+};
+
+const prettyContainer = {
+  hls:
+    "HLS",
+
+  mp4:
+    "MP4",
+
+  m4v:
+    "M4V",
+
+  webm:
+    "WebM",
+
+  ts:
+    "MPEG-TS",
+
+  m2ts:
+    "M2TS",
+
+  mts:
+    "MTS",
+
+  flv:
+    "FLV",
+
+  mkv:
+    "MKV",
+
+  avi:
+    "AVI",
+
+  mov:
+    "MOV",
+};
+
+const prettyVideo = {
+  h264:
+    "H.264",
+
+  hevc:
+    "HEVC/H.265",
+
+  av1:
+    "AV1",
+
+  vp9:
+    "VP9",
+
+  mpeg2:
+    "MPEG-2",
+};
+
+const prettyAudio = {
+  aac:
+    "AAC",
+
+  mp3:
+    "MP3",
+
+  opus:
+    "Opus",
+
+  flac:
+    "FLAC",
+
+  ac3:
+    "AC-3",
+
+  eac3:
+    "E-AC-3",
+
+  dts:
+    "DTS/DTS-HD",
+
+  truehd:
+    "TrueHD",
 };
 
 export const describeSourceCompatibility = (
@@ -1075,6 +1271,9 @@ export const describeSourceCompatibility = (
       extraText
     );
 
+  const deviceProfile =
+    getPlaybackDeviceProfile();
+
   const parts =
     [];
 
@@ -1082,10 +1281,7 @@ export const describeSourceCompatibility = (
     traits.resolution
   ) {
     parts.push(
-      traits.resolution >=
-        2160
-        ? "4K"
-        : `${traits.resolution}p`
+      `${traits.resolution}p`
     );
   }
 
@@ -1146,40 +1342,19 @@ export const describeSourceCompatibility = (
   }
 
   if (
-    traits.atmos
+    hasSevereAudioRisk(
+      item,
+      extraText
+    )
   ) {
     parts.push(
-      "Atmos"
-    );
-  }
-
-  if (
-    traits.dolbyVision
-  ) {
-    parts.push(
-      "Dolby Vision"
-    );
-  } else if (
-    traits.hdr
-  ) {
-    parts.push(
-      "HDR"
-    );
-  }
-
-  if (
-    traits.audio ===
-      "dts" ||
-    traits.audio ===
-      "truehd"
-  ) {
-    parts.push(
-      "audio may be silent in browser"
+      "Audio Rescue required"
     );
   } else {
     const supported =
       audioSupport(
-        traits.audio
+        traits.audio,
+        deviceProfile
       );
 
     if (
