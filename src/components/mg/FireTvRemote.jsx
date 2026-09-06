@@ -1,10 +1,11 @@
 import React, { useEffect, useRef } from "react";
 
-const TV_REMOTE_STORAGE_KEY =
-  "mg:fire-tv-settings-v2";
+const TV_REMOTE_STORAGE_KEY = "mg:fire-tv-settings-v2";
 
 const FIRE_TV_RE =
   /(?:AFT[A-Z0-9]*|Fire TV|AmazonWebAppPlatform|Silk)/i;
+
+const TV_LAYOUT_WIDTH = 1920;
 
 const FOCUSABLE = [
   'button:not([disabled])',
@@ -25,32 +26,28 @@ body.mg-fire-tv-mode {
   scroll-behavior: smooth;
 }
 
-html.mg-tv-layout {
-  font-size: 15px !important;
-  width: 100%;
-  min-width: 0;
-  overflow-x: hidden;
+/*
+ * IMPORTANT:
+ * Do not force widths on #root, main or aside here.
+ *
+ * The Fire TV viewport is corrected in JavaScript to a true 1920px
+ * television layout viewport. Once that is done, the app's normal
+ * Tailwind responsive rules are allowed to lay the page out normally.
+ */
+html.mg-tv-layout,
+body.mg-tv-layout,
+body.mg-tv-layout #root {
+  min-width: 0 !important;
+  max-width: none !important;
 }
 
 body.mg-tv-layout {
-  width: 100vw;
-  min-width: 0;
-  max-width: 100vw;
-  min-height: 100dvh;
+  margin: 0 !important;
   overflow-x: hidden !important;
 }
 
 body.mg-tv-layout #root {
-  width: 100vw;
-  min-width: 0;
-  max-width: 100vw;
-  min-height: 100dvh;
-  overflow-x: hidden;
-}
-
-body.mg-tv-layout main {
-  min-width: 0;
-  max-width: 100%;
+  min-height: 100dvh !important;
 }
 
 body.mg-tv-layout img,
@@ -59,10 +56,7 @@ body.mg-tv-layout iframe {
   max-width: 100%;
 }
 
-/*
- * Fire TV WebView does not always report :focus-visible reliably.
- * Use both so remote focus can always be seen.
- */
+/* Strong, reliable TV focus ring. */
 body.mg-fire-tv-mode button:focus,
 body.mg-fire-tv-mode a:focus,
 body.mg-fire-tv-mode input:focus,
@@ -92,8 +86,8 @@ body.mg-fire-tv-mode [tabindex]:focus-visible {
 
 body.mg-fire-tv-mode button:focus,
 body.mg-fire-tv-mode a:focus,
-body.mg-fire-tv-mode select:focus,
 body.mg-fire-tv-mode input:focus,
+body.mg-fire-tv-mode select:focus,
 body.mg-fire-tv-mode [role="button"]:focus,
 body.mg-fire-tv-mode [role="menuitem"]:focus,
 body.mg-fire-tv-mode [role="option"]:focus,
@@ -115,7 +109,7 @@ body.mg-fire-tv-mode [tabindex] {
   scroll-margin: 14vh 8vw;
 }
 
-/* One clean remote target per poster card. */
+/* One clean focus target per poster card. */
 body.mg-fire-tv-mode .mg-hover-action {
   opacity: 0 !important;
   pointer-events: none !important;
@@ -187,14 +181,9 @@ const keyName = (event) =>
       ""
   );
 
-const directionFromEvent = (
-  event
-) => {
-  const key =
-    keyName(event);
-
-  const code =
-    keyCode(event);
+const directionFromEvent = (event) => {
+  const key = keyName(event);
+  const code = keyCode(event);
 
   if (
     key === "ArrowUp" ||
@@ -231,14 +220,9 @@ const directionFromEvent = (
   return null;
 };
 
-const isSelectKey = (
-  event
-) => {
-  const key =
-    keyName(event);
-
-  const code =
-    keyCode(event);
+const isSelectKey = (event) => {
+  const key = keyName(event);
+  const code = keyCode(event);
 
   return (
     key === "Enter" ||
@@ -251,27 +235,19 @@ const isSelectKey = (
   );
 };
 
-const isBackKey = (
-  event
-) => {
-  const key =
-    keyName(event);
+const isBackKey = (event) => {
+  const key = keyName(event);
+  const code = keyCode(event);
 
-  const code =
-    keyCode(event);
-
-  const tag =
-    String(
-      event?.target
-        ?.tagName ||
-        ""
-    ).toLowerCase();
+  const tag = String(
+    event?.target?.tagName ||
+      ""
+  ).toLowerCase();
 
   const editing =
     tag === "input" ||
     tag === "textarea" ||
-    event?.target
-      ?.isContentEditable;
+    event?.target?.isContentEditable;
 
   if (
     key === "BrowserBack" ||
@@ -293,14 +269,9 @@ const isBackKey = (
   );
 };
 
-const isMenuKey = (
-  event
-) => {
-  const key =
-    keyName(event);
-
-  const code =
-    keyCode(event);
+const isMenuKey = (event) => {
+  const key = keyName(event);
+  const code = keyCode(event);
 
   return (
     key === "ContextMenu" ||
@@ -309,145 +280,281 @@ const isMenuKey = (
   );
 };
 
-const mediaActionFromEvent =
-  (event) => {
-    const key =
-      keyName(event);
+const mediaActionFromEvent = (event) => {
+  const key = keyName(event);
+  const code = keyCode(event);
 
-    const code =
-      keyCode(event);
+  if (
+    key === "MediaPlayPause" ||
+    code === 85 ||
+    code === 179
+  ) {
+    return "playpause";
+  }
 
-    if (
-      key ===
-        "MediaPlayPause" ||
-      code === 85 ||
-      code === 179
-    ) {
-      return "playpause";
-    }
+  if (
+    key === "MediaPlay" ||
+    code === 126
+  ) {
+    return "play";
+  }
 
-    if (
-      key === "MediaPlay" ||
-      code === 126
-    ) {
-      return "play";
-    }
+  if (
+    key === "MediaPause" ||
+    code === 127
+  ) {
+    return "pause";
+  }
 
-    if (
-      key === "MediaPause" ||
-      code === 127
-    ) {
-      return "pause";
-    }
+  if (
+    key === "MediaRewind" ||
+    code === 89 ||
+    code === 227
+  ) {
+    return "rewind";
+  }
 
-    if (
-      key ===
-        "MediaRewind" ||
-      code === 89 ||
-      code === 227
-    ) {
-      return "rewind";
-    }
+  if (
+    key === "MediaFastForward" ||
+    code === 90 ||
+    code === 228
+  ) {
+    return "fastforward";
+  }
 
-    if (
-      key ===
-        "MediaFastForward" ||
-      code === 90 ||
-      code === 228
-    ) {
-      return "fastforward";
-    }
+  if (
+    key === "MediaTrackNext" ||
+    code === 87 ||
+    code === 176
+  ) {
+    return "next";
+  }
 
-    if (
-      key ===
-        "MediaTrackNext" ||
-      code === 87 ||
-      code === 176
-    ) {
-      return "next";
-    }
+  if (
+    key === "MediaTrackPrevious" ||
+    code === 88 ||
+    code === 177
+  ) {
+    return "previous";
+  }
 
-    if (
-      key ===
-        "MediaTrackPrevious" ||
-      code === 88 ||
-      code === 177
-    ) {
-      return "previous";
-    }
+  return null;
+};
 
-    return null;
+const isActualFireTv = () => {
+  if (
+    typeof navigator === "undefined"
+  ) {
+    return false;
+  }
+
+  return FIRE_TV_RE.test(
+    String(
+      navigator.userAgent ||
+        ""
+    )
+  );
+};
+
+const readRemoteSettings = () => {
+  const defaults = {
+    enabled: true,
+    focusRing: true,
+    autoFocus: true,
   };
 
-const isActualFireTv =
-  () => {
-    if (
-      typeof navigator ===
-      "undefined"
-    ) {
-      return false;
-    }
-
-    const userAgent =
-      String(
-        navigator.userAgent ||
-          ""
+  try {
+    const raw =
+      window.localStorage.getItem(
+        TV_REMOTE_STORAGE_KEY
       );
 
-    return FIRE_TV_RE.test(
-      userAgent
+    if (!raw) {
+      return defaults;
+    }
+
+    const parsed =
+      JSON.parse(raw);
+
+    return {
+      ...defaults,
+      ...(parsed &&
+      typeof parsed === "object"
+        ? parsed
+        : {}),
+    };
+  } catch {
+    return defaults;
+  }
+};
+
+const dispatchRemoteStatus = (detail) => {
+  try {
+    window.dispatchEvent(
+      new CustomEvent(
+        "mg:remote-status",
+        {
+          detail,
+        }
+      )
+    );
+  } catch {
+    // Optional status event.
+  }
+};
+
+/*
+ * Fire TV / Android WebView frequently reports a 960px or 1280px CSS
+ * viewport even when the television is 1920x1080 or 3840x2160.
+ *
+ * That makes Tailwind believe it is laying out a tablet and is the real
+ * reason the UI can look squeezed. Changing sidebar widths afterwards
+ * cannot fix the responsive breakpoints.
+ *
+ * On Fire TV only, give the WebView a 1920px layout viewport and choose
+ * an initial scale that still fits the actual visible width.
+ */
+const installFireTvViewport = () => {
+  if (
+    typeof document ===
+    "undefined"
+  ) {
+    return () => {};
+  }
+
+  let meta =
+    document.querySelector(
+      'meta[name="viewport"]'
+    );
+
+  const created =
+    !meta;
+
+  if (!meta) {
+    meta =
+      document.createElement(
+        "meta"
+      );
+
+    meta.setAttribute(
+      "name",
+      "viewport"
+    );
+
+    document.head.appendChild(
+      meta
+    );
+  }
+
+  const originalContent =
+    meta.getAttribute(
+      "content"
+    );
+
+  const apply = () => {
+    const visibleWidth =
+      Math.max(
+        1,
+        Number(
+          window.innerWidth ||
+            0
+        ),
+        Number(
+          document
+            .documentElement
+            .clientWidth ||
+            0
+        )
+      );
+
+    /*
+     * If the WebView already exposes a proper desktop/TV viewport, do not
+     * zoom it further. Otherwise calculate the fit scale for 1920px.
+     */
+    const fitScale =
+      visibleWidth >= 1600
+        ? 1
+        : Math.max(
+            0.35,
+            Math.min(
+              1,
+              visibleWidth /
+                TV_LAYOUT_WIDTH
+            )
+          );
+
+    meta.setAttribute(
+      "content",
+      [
+        `width=${TV_LAYOUT_WIDTH}`,
+        `initial-scale=${fitScale.toFixed(
+          4
+        )}`,
+        `minimum-scale=${fitScale.toFixed(
+          4
+        )}`,
+        `maximum-scale=${fitScale.toFixed(
+          4
+        )}`,
+        "user-scalable=no",
+        "viewport-fit=cover",
+      ].join(", ")
+    );
+
+    document.documentElement.style.setProperty(
+      "--mg-tv-design-width",
+      `${TV_LAYOUT_WIDTH}px`
+    );
+
+    document.documentElement.style.setProperty(
+      "--mg-tv-fit-scale",
+      String(
+        fitScale
+      )
     );
   };
 
-const readRemoteSettings =
-  () => {
-    const defaults = {
-      enabled: true,
-      focusRing: true,
-      autoFocus: true,
-    };
+  apply();
 
-    try {
-      const raw =
-        window.localStorage.getItem(
-          TV_REMOTE_STORAGE_KEY
-        );
+  /*
+   * Android WebView can apply the new viewport asynchronously. A second
+   * write after the first reflow makes it reliable without reloading.
+   */
+  const settleTimer =
+    window.setTimeout(
+      apply,
+      180
+    );
 
-      if (!raw) {
-        return defaults;
-      }
+  return () => {
+    window.clearTimeout(
+      settleTimer
+    );
 
-      const parsed =
-        JSON.parse(raw);
+    document.documentElement.style.removeProperty(
+      "--mg-tv-design-width"
+    );
 
-      return {
-        ...defaults,
-        ...(parsed &&
-        typeof parsed ===
-          "object"
-          ? parsed
-          : {}),
-      };
-    } catch {
-      return defaults;
-    }
-  };
+    document.documentElement.style.removeProperty(
+      "--mg-tv-fit-scale"
+    );
 
-const dispatchRemoteStatus =
-  (detail) => {
-    try {
-      window.dispatchEvent(
-        new CustomEvent(
-          "mg:remote-status",
-          {
-            detail,
-          }
-        )
+    if (created) {
+      meta.remove();
+    } else if (
+      originalContent == null
+    ) {
+      meta.removeAttribute(
+        "content"
       );
-    } catch {
-      // Optional.
+    } else {
+      meta.setAttribute(
+        "content",
+        originalContent
+      );
     }
   };
+};
 
 const visible = (
   element,
@@ -517,7 +624,8 @@ const visible = (
       style.visibility ===
         "hidden" ||
       Number(
-        style.opacity || 1
+        style.opacity ||
+          1
       ) < 0.03 ||
       style.pointerEvents ===
         "none"
@@ -543,6 +651,10 @@ const visible = (
 const topByStacking = (
   elements
 ) => {
+  if (!elements.length) {
+    return null;
+  }
+
   const sorted =
     elements
       .map(
@@ -574,18 +686,18 @@ const topByStacking = (
           a,
           b
         ) =>
-          a.z === b.z
+          a.z ===
+          b.z
             ? a.index -
               b.index
-            : a.z - b.z
+            : a.z -
+              b.z
       );
 
-  return sorted.length
-    ? sorted[
-        sorted.length -
-          1
-      ].element
-    : null;
+  return sorted[
+    sorted.length -
+      1
+  ]?.element || null;
 };
 
 const seasonPickerScope =
@@ -604,6 +716,30 @@ const seasonPickerScope =
       close?.closest(
         ".absolute.inset-0"
       ) || null
+    );
+  };
+
+const popupScope =
+  () => {
+    const candidates =
+      Array.from(
+        document.querySelectorAll(
+          [
+            '[role="menu"]',
+            '[role="listbox"]',
+            '[data-radix-menu-content]',
+            '[data-radix-select-content]',
+            '[data-state="open"][role="menu"]',
+            '[data-state="open"][role="listbox"]',
+          ].join(",")
+        )
+      ).filter(
+        (item) =>
+          visible(item)
+      );
+
+    return topByStacking(
+      candidates
     );
   };
 
@@ -631,55 +767,6 @@ const modalScope =
 
     return topByStacking(
       overlays
-    );
-  };
-
-const popupScope =
-  () => {
-    const candidates =
-      Array.from(
-        document.querySelectorAll(
-          [
-            '[role="menu"]',
-            '[role="listbox"]',
-            '[data-radix-menu-content]',
-            '[data-radix-select-content]',
-            '[data-state="open"][role="menu"]',
-            '[data-state="open"][role="listbox"]',
-          ].join(",")
-        )
-      ).filter(
-        (item) => {
-          if (
-            !visible(item)
-          ) {
-            return false;
-          }
-
-          const style =
-            window.getComputedStyle(
-              item
-            );
-
-          const wrapper =
-            item.closest(
-              "[data-radix-popper-content-wrapper]"
-            );
-
-          return (
-            Boolean(
-              wrapper
-            ) ||
-            style.position ===
-              "absolute" ||
-            style.position ===
-              "fixed"
-          );
-        }
-      );
-
-    return topByStacking(
-      candidates
     );
   };
 
@@ -756,27 +843,20 @@ const rowRoot = (
 
 const menuRoot = (
   element
-) => {
-  if (
-    !(
-      element instanceof
-      HTMLElement
-    )
-  ) {
-    return null;
-  }
-
-  return element.closest(
-    [
-      "aside nav",
-      '[role="menu"]',
-      '[role="listbox"]',
-      '[role="tablist"]',
-      "[data-tv-nav]",
-      ".mg-tv-menu",
-    ].join(",")
-  );
-};
+) =>
+  element instanceof
+  HTMLElement
+    ? element.closest(
+        [
+          "aside nav",
+          '[role="menu"]',
+          '[role="listbox"]',
+          '[role="tablist"]',
+          "[data-tv-nav]",
+          ".mg-tv-menu",
+        ].join(",")
+      )
+    : null;
 
 const scoreDirection = (
   fromRect,
@@ -790,10 +870,12 @@ const scoreDirection = (
     centre(toRect);
 
   const dx =
-    to.x - from.x;
+    to.x -
+    from.x;
 
   const dy =
-    to.y - from.y;
+    to.y -
+    from.y;
 
   if (
     direction ===
@@ -897,18 +979,16 @@ const focusElement = (
   }
 
   try {
-    element.scrollIntoView(
-      {
-        block:
-          "center",
+    element.scrollIntoView({
+      block:
+        "center",
 
-        inline:
-          "center",
+      inline:
+        "center",
 
-        behavior:
-          "smooth",
-      }
-    );
+      behavior:
+        "smooth",
+    });
   } catch {
     element.scrollIntoView();
   }
@@ -927,12 +1007,11 @@ const defaultFocus = (
   }
 
   const selectors = [
-    '[role="menuitem"]',
-    '[role="option"]',
+    '[role="option"][aria-selected="true"]',
     '[role="tab"][aria-selected="true"]',
+    '[role="menuitem"]',
     'button[aria-label="Play"]',
     'button[aria-label="Pause"]',
-    "input[autofocus]",
     'aside nav button[title="Home"]',
     "aside nav button",
     'aside button[title="Search"]',
@@ -991,19 +1070,19 @@ const moveInsideMenu = (
     return false;
   }
 
-  const role =
-    String(
-      root.getAttribute(
-        "role"
-      ) || ""
-    ).toLowerCase();
-
   const isSidebar =
     Boolean(
       root.closest(
         "aside"
       )
     );
+
+  const role =
+    String(
+      root.getAttribute(
+        "role"
+      ) || ""
+    ).toLowerCase();
 
   const isTabs =
     role ===
@@ -1068,7 +1147,8 @@ const moveInsideMenu = (
     direction ===
       "up"
   ) {
-    step = -1;
+    step =
+      -1;
   }
 
   if (
@@ -1076,7 +1156,8 @@ const moveInsideMenu = (
     direction ===
       "down"
   ) {
-    step = 1;
+    step =
+      1;
   }
 
   if (
@@ -1084,7 +1165,8 @@ const moveInsideMenu = (
     direction ===
       "left"
   ) {
-    step = -1;
+    step =
+      -1;
   }
 
   if (
@@ -1092,7 +1174,8 @@ const moveInsideMenu = (
     direction ===
       "right"
   ) {
-    step = 1;
+    step =
+      1;
   }
 
   if (!step) {
@@ -1103,12 +1186,9 @@ const moveInsideMenu = (
     currentIndex +
     step;
 
-  /*
-   * Don't trap remote focus inside the menu.
-   * At the first/last item normal spatial movement takes over.
-   */
   if (
-    nextIndex < 0 ||
+    nextIndex <
+      0 ||
     nextIndex >=
       items.length
   ) {
@@ -1178,7 +1258,8 @@ const moveFocus = (
   let candidates =
     items.filter(
       (item) =>
-        item !== current
+        item !==
+        current
     );
 
   if (
@@ -1335,7 +1416,7 @@ const adjustSelect = (
 
   const step =
     direction ===
-    "down"
+      "down"
       ? 1
       : -1;
 
@@ -1393,35 +1474,23 @@ const adjustSelect = (
   return false;
 };
 
-const playerControlRoot =
-  (scope) => {
-    const candidates =
-      Array.from(
-        scope.querySelectorAll(
-          "div.absolute.inset-0"
-        )
-      );
-
-    return (
-      candidates.find(
-        (
-          element
-        ) =>
-          element.querySelector(
-            'button[aria-label="Play"], button[aria-label="Pause"]'
-          )
-      ) || null
-    );
-  };
-
 const showPlayerControls =
   () => {
     const scope =
       navigationScope();
 
     const controls =
-      playerControlRoot(
-        scope
+      Array.from(
+        scope.querySelectorAll(
+          "div.absolute.inset-0"
+        )
+      ).find(
+        (
+          element
+        ) =>
+          element.querySelector(
+            'button[aria-label="Play"], button[aria-label="Pause"]'
+          )
       );
 
     if (!controls) {
@@ -1464,26 +1533,14 @@ const focusPlayerControl =
         const target =
           items.find(
             (item) =>
-              item.getAttribute(
-                "aria-label"
-              ) ===
-                "Play" ||
-              item.getAttribute(
-                "aria-label"
-              ) ===
-                "Pause"
-          ) ||
-          items.find(
-            (item) =>
-              String(
+              [
+                "Play",
+                "Pause",
+              ].includes(
                 item.getAttribute(
                   "aria-label"
-                ) || ""
-              )
-                .toLowerCase()
-                .includes(
-                  "season"
                 )
+              )
           ) ||
           defaultFocus(
             scope
@@ -1497,30 +1554,31 @@ const focusPlayerControl =
     );
   };
 
-const activeVideo = () => {
-  const scope =
-    navigationScope();
+const activeVideo =
+  () => {
+    const scope =
+      navigationScope();
 
-  const videos =
-    Array.from(
-      scope.querySelectorAll(
-        "video"
-      )
-    ).filter(
-      (video) =>
-        visible(
-          video,
-          scope
+    const videos =
+      Array.from(
+        scope.querySelectorAll(
+          "video"
         )
-    );
+      ).filter(
+        (video) =>
+          visible(
+            video,
+            scope
+          )
+      );
 
-  return videos.length
-    ? videos[
-        videos.length -
-          1
-      ]
-    : null;
-};
+    return videos.length
+      ? videos[
+          videos.length -
+            1
+        ]
+      : null;
+  };
 
 const remoteBackButton =
   (scope) => {
@@ -1629,10 +1687,14 @@ export default function FireTvRemote({
   onBack,
 }) {
   const activeRef =
-    useRef(false);
+    useRef(
+      false
+    );
 
   const timerRef =
-    useRef(null);
+    useRef(
+      null
+    );
 
   useEffect(() => {
     const fireTv =
@@ -1640,6 +1702,11 @@ export default function FireTvRemote({
 
     let settings =
       readRemoteSettings();
+
+    const removeTvViewport =
+      fireTv
+        ? installFireTvViewport()
+        : () => {};
 
     const report =
       () => {
@@ -1666,12 +1733,8 @@ export default function FireTvRemote({
           return false;
         }
 
-        if (
-          !activeRef.current
-        ) {
-          activeRef.current =
-            true;
-        }
+        activeRef.current =
+          true;
 
         activateRemoteMode(
           {
@@ -1854,9 +1917,6 @@ export default function FireTvRemote({
           ).toLowerCase();
 
         if (direction) {
-          /*
-           * Text inputs keep normal caret movement.
-           */
           if (
             (
               (
@@ -1879,9 +1939,6 @@ export default function FireTvRemote({
             return;
           }
 
-          /*
-           * Slider owns Left/Right.
-           */
           if (
             tag ===
               "input" &&
@@ -1897,9 +1954,6 @@ export default function FireTvRemote({
             return;
           }
 
-          /*
-           * Select Up/Down changes option.
-           */
           if (
             tag ===
               "select" &&
@@ -1923,11 +1977,8 @@ export default function FireTvRemote({
           }
 
           /*
-           * This is the important fix.
-           *
-           * FireTvRemote receives arrows BEFORE VideoPlayer or
-           * menu key handlers, so D-pad arrows always mean
-           * navigation rather than seek/volume.
+           * Capture D-pad arrows before VideoPlayer or a menu can turn them
+           * into seek/volume shortcuts. On Fire TV arrows navigate focus.
            */
           event.preventDefault();
 
@@ -1937,8 +1988,6 @@ export default function FireTvRemote({
             navigationScope();
 
           if (
-            scope !==
-              document.body &&
             scope.querySelector(
               "video"
             )
@@ -1966,7 +2015,7 @@ export default function FireTvRemote({
             document.activeElement;
 
           /*
-           * Leave native select Enter alone.
+           * Let Android open a native select normally.
            */
           if (
             focused instanceof
@@ -2073,6 +2122,7 @@ export default function FireTvRemote({
 
             if (details) {
               details.click();
+
               return;
             }
           }
@@ -2083,6 +2133,7 @@ export default function FireTvRemote({
             )
           ) {
             focusPlayerControl();
+
             return;
           }
 
@@ -2221,10 +2272,8 @@ export default function FireTvRemote({
       );
 
     /*
-     * CAPTURE PHASE IS DELIBERATE.
-     *
-     * This makes FireTvRemote the single owner of the D-pad
-     * across Home, menus, Settings and the player.
+     * Capture phase is deliberate: FireTvRemote owns the Fire TV D-pad
+     * globally, including the player and popup menus.
      */
     window.addEventListener(
       "keydown",
@@ -2286,7 +2335,7 @@ export default function FireTvRemote({
               );
             }
           },
-          120
+          220
         );
       }
     } else {
@@ -2315,12 +2364,22 @@ export default function FireTvRemote({
         );
       }
 
+      removeTvViewport();
+
       document.documentElement.classList.remove(
         "mg-fire-tv-mode"
       );
 
       document.body.classList.remove(
         "mg-fire-tv-mode"
+      );
+
+      document.documentElement.classList.remove(
+        "mg-tv-layout"
+      );
+
+      document.body.classList.remove(
+        "mg-tv-layout"
       );
     };
   }, [onBack]);
