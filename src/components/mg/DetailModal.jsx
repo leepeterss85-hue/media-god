@@ -1,10 +1,14 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import {
   Check,
   Clock,
   ExternalLink,
   Heart,
-  Loader2,
   Play,
   Plus,
   Star,
@@ -49,25 +53,15 @@ const asText = (
     typeof value === "string" ||
     typeof value === "number"
   ) {
-    return String(
-      value
-    ).trim();
+    return String(value).trim();
   }
 
   return fallback;
 };
 
-const firstText = (
-  ...values
-) => {
-  for (
-    const value of
-    values
-  ) {
-    const text =
-      asText(
-        value
-      );
+const firstText = (...values) => {
+  for (const value of values) {
+    const text = asText(value);
 
     if (text) {
       return text;
@@ -79,30 +73,20 @@ const firstText = (
 
 const imageUrl = (
   value,
-  sizeBase =
-    TMDB_IMAGE_BASE
+  sizeBase = TMDB_IMAGE_BASE
 ) => {
-  const text =
-    asText(
-      value
-    );
+  const text = asText(value);
 
   if (!text) {
     return "";
   }
 
-  if (
-    /^https?:\/\//i.test(
-      text
-    )
-  ) {
+  if (/^https?:\/\//i.test(text)) {
     return text;
   }
 
   return `${sizeBase}${
-    text.startsWith(
-      "/"
-    )
+    text.startsWith("/")
       ? text
       : `/${text}`
   }`;
@@ -113,9 +97,7 @@ const normaliseMediaType = (
   source = {}
 ) => {
   const type =
-    asText(
-      value
-    ).toLowerCase();
+    asText(value).toLowerCase();
 
   if (
     type === "tv" ||
@@ -142,623 +124,490 @@ const normaliseMediaType = (
   return "movie";
 };
 
-const normaliseGenres = (
-  value
-) => {
-  if (
-    !Array.isArray(
-      value
-    )
-  ) {
+const normaliseGenres = (value) => {
+  if (!Array.isArray(value)) {
     return [];
   }
 
   return value
-    .map(
-      (
-        genre
-      ) => {
-        if (
-          typeof genre ===
-          "string"
-        ) {
-          return genre.trim();
-        }
-
-        if (
-          genre &&
-          typeof genre ===
-            "object"
-        ) {
-          return firstText(
-            genre.name,
-            genre.title,
-            genre.label
-          );
-        }
-
-        return "";
+    .map((genre) => {
+      if (typeof genre === "string") {
+        return genre.trim();
       }
-    )
-    .filter(
-      Boolean
-    );
+
+      if (
+        genre &&
+        typeof genre === "object"
+      ) {
+        return firstText(
+          genre.name,
+          genre.title,
+          genre.label
+        );
+      }
+
+      return "";
+    })
+    .filter(Boolean);
 };
 
-const normaliseProviders =
-  (
-    value
+const normaliseProviders = (value) => {
+  const collected = [];
+
+  const pushProvider = (
+    provider,
+    tierHint = ""
   ) => {
-    const collected =
-      [];
+    if (
+      !provider ||
+      typeof provider !== "object"
+    ) {
+      return;
+    }
 
-    const pushProvider =
-      (
-        provider,
-        tierHint = ""
-      ) => {
+    const name = firstText(
+      provider.name,
+      provider.provider_name,
+      provider.title
+    );
+
+    const link = firstText(
+      provider.link,
+      provider.url,
+      provider.href,
+      provider.deep_link
+    );
+
+    const logo = imageUrl(
+      firstText(
+        provider.logo,
+        provider.logo_url,
+        provider.logo_path,
+        provider.icon
+      ),
+      "https://image.tmdb.org/t/p/w92"
+    );
+
+    const tier = firstText(
+      provider.tier,
+      provider.type,
+      provider.category,
+      tierHint,
+      "Subscription"
+    );
+
+    if (
+      !name &&
+      !link &&
+      !logo
+    ) {
+      return;
+    }
+
+    collected.push({
+      ...provider,
+      name:
+        name ||
+        "Provider",
+      link,
+      logo,
+      tier,
+    });
+  };
+
+  if (Array.isArray(value)) {
+    value.forEach((provider) =>
+      pushProvider(provider)
+    );
+  } else if (
+    value &&
+    typeof value === "object"
+  ) {
+    Object.entries(value).forEach(
+      ([
+        tier,
+        providers,
+      ]) => {
         if (
-          !provider ||
-          typeof provider !==
-            "object"
+          Array.isArray(providers)
         ) {
-          return;
+          providers.forEach((provider) =>
+            pushProvider(
+              provider,
+              tier
+            )
+          );
         }
+      }
+    );
+  }
 
-        const name =
+  const seen = new Set();
+
+  return collected.filter(
+    (provider) => {
+      const key =
+        `${provider.tier}|${provider.name}|${provider.link}|${provider.logo}`;
+
+      if (seen.has(key)) {
+        return false;
+      }
+
+      seen.add(key);
+
+      return true;
+    }
+  );
+};
+
+const normaliseCast = (value) =>
+  asArray(value)
+    .map((person) => {
+      const source =
+        asObject(person);
+
+      const name = firstText(
+        source.name,
+        source.original_name
+      );
+
+      if (!name) {
+        return null;
+      }
+
+      return {
+        ...source,
+        name,
+        character:
           firstText(
-            provider.name,
-            provider.provider_name,
-            provider.title
-          );
-
-        const link =
-          firstText(
-            provider.link,
-            provider.url,
-            provider.href,
-            provider.deep_link
-          );
-
-        const logo =
+            source.character,
+            source.role
+          ),
+        profile_url:
           imageUrl(
             firstText(
-              provider.logo,
-              provider.logo_url,
-              provider.logo_path,
-              provider.icon
+              source.profile_url,
+              source.profileUrl,
+              source.profile_path
             ),
-            "https://image.tmdb.org/t/p/w92"
-          );
-
-        const tier =
-          firstText(
-            provider.tier,
-            provider.type,
-            provider.category,
-            tierHint,
-            "Subscription"
-          );
-
-        if (
-          !name &&
-          !link &&
-          !logo
-        ) {
-          return;
-        }
-
-        collected.push(
-          {
-            ...provider,
-
-            name:
-              name ||
-              "Provider",
-
-            link,
-
-            logo,
-
-            tier,
-          }
-        );
+            "https://image.tmdb.org/t/p/w185"
+          ),
       };
+    })
+    .filter(Boolean);
 
-    if (
-      Array.isArray(
-        value
-      )
-    ) {
-      value.forEach(
-        (
-          provider
-        ) =>
-          pushProvider(
-            provider
-          )
-      );
-    } else if (
-      value &&
-      typeof value ===
-        "object"
-    ) {
-      Object.entries(
-        value
-      ).forEach(
-        ([
-          tier,
-          providers,
-        ]) => {
-          if (
-            Array.isArray(
-              providers
-            )
-          ) {
-            providers.forEach(
-              (
-                provider
-              ) =>
-                pushProvider(
-                  provider,
-                  tier
-                )
-            );
-          }
-        }
-      );
-    }
+const normaliseSeasons = (value) =>
+  asArray(value)
+    .map((season) => {
+      const source =
+        asObject(season);
 
-    const seen =
-      new Set();
-
-    return collected.filter(
-      (
-        provider
-      ) => {
-        const key =
-          `${provider.tier}|${provider.name}|${provider.link}|${provider.logo}`;
-
-        if (
-          seen.has(
-            key
-          )
-        ) {
-          return false;
-        }
-
-        seen.add(
-          key
+      const seasonNumber =
+        Number(
+          source.season_number ??
+            source.seasonNumber ??
+            source.number
         );
 
-        return true;
+      if (
+        !Number.isFinite(
+          seasonNumber
+        )
+      ) {
+        return null;
       }
-    );
-  };
 
-const normaliseCast = (
-  value
-) =>
-  asArray(
-    value
-  )
-    .map(
-      (
-        person
-      ) => {
-        const source =
-          asObject(
-            person
-          );
-
-        const name =
+      return {
+        ...source,
+        season_number:
+          seasonNumber,
+        name:
           firstText(
             source.name,
-            source.original_name
-          );
-
-        if (!name) {
-          return null;
-        }
-
-        return {
-          ...source,
-
-          name,
-
-          character:
-            firstText(
-              source.character,
-              source.role
-            ),
-
-          profile_url:
-            imageUrl(
-              firstText(
-                source.profile_url,
-                source.profileUrl,
-                source.profile_path
-              ),
-              "https://image.tmdb.org/t/p/w185"
-            ),
-        };
-      }
-    )
-    .filter(
-      Boolean
+            `Season ${seasonNumber}`
+          ),
+        episode_count:
+          Number(
+            source.episode_count ??
+              source.episodeCount ??
+              0
+          ),
+      };
+    })
+    .filter(Boolean)
+    .sort(
+      (a, b) =>
+        a.season_number -
+        b.season_number
     );
 
-const normaliseSeasons =
-  (
-    value
-  ) =>
-    asArray(
-      value
-    )
-      .map(
-        (
-          season
-        ) => {
-          const source =
-            asObject(
-              season
-            );
+const unwrapFunctionData = (
+  response
+) => {
+  const first =
+    response?.data ??
+    response ??
+    {};
 
-          const seasonNumber =
-            Number(
-              source.season_number ??
-                source.seasonNumber ??
-                source.number
-            );
+  if (
+    first &&
+    typeof first === "object" &&
+    !Array.isArray(first) &&
+    first.data &&
+    typeof first.data === "object" &&
+    !Array.isArray(first.data)
+  ) {
+    return first.data;
+  }
 
-          if (
-            !Number.isFinite(
-              seasonNumber
-            )
-          ) {
-            return null;
-          }
+  return first;
+};
 
-          return {
-            ...source,
+const normaliseDetailPayload = (
+  response,
+  fallbackItem
+) => {
+  const payload =
+    asObject(
+      unwrapFunctionData(response)
+    );
 
-            season_number:
-              seasonNumber,
+  const rawDetails =
+    asObject(payload.details);
 
-            name:
-              firstText(
-                source.name,
-                `Season ${seasonNumber}`
-              ),
+  const fallback =
+    asObject(fallbackItem);
 
-            episode_count:
-              Number(
-                source.episode_count ??
-                  source.episodeCount ??
-                  0
-              ),
-          };
-        }
-      )
-      .filter(
-        Boolean
-      )
-      .sort(
-        (
-          a,
-          b
-        ) =>
-          a.season_number -
-          b.season_number
-      );
+  const details = {
+    ...rawDetails,
 
-const unwrapFunctionData =
-  (
-    response
-  ) => {
-    const first =
-      response?.data ??
-      response ??
-      {};
+    title:
+      firstText(
+        rawDetails.title,
+        rawDetails.name,
+        payload.title,
+        payload.name,
+        fallback.title,
+        fallback.name
+      ),
 
-    if (
-      first &&
-      typeof first ===
-        "object" &&
-      !Array.isArray(
-        first
-      ) &&
-      first.data &&
-      typeof first.data ===
-        "object" &&
-      !Array.isArray(
-        first.data
-      )
-    ) {
-      return first.data;
-    }
+    overview:
+      firstText(
+        rawDetails.overview,
+        rawDetails.description,
+        payload.overview,
+        payload.description,
+        fallback.description,
+        fallback.overview
+      ),
 
-    return first;
-  };
-
-const normaliseDetailPayload =
-  (
-    response,
-    fallbackItem
-  ) => {
-    const payload =
-      asObject(
-        unwrapFunctionData(
-          response
+    backdrop_url:
+      imageUrl(
+        firstText(
+          rawDetails.backdrop_url,
+          rawDetails.backdropUrl,
+          rawDetails.backdrop_path,
+          payload.backdrop_url,
+          payload.backdrop_path
         )
-      );
+      ),
 
-    const rawDetails =
-      asObject(
-        payload.details
-      );
-
-    const fallback =
-      asObject(
-        fallbackItem
-      );
-
-    const details = {
-      ...rawDetails,
-
-      title:
+    poster_url:
+      imageUrl(
         firstText(
-          rawDetails.title,
-          rawDetails.name,
-          payload.title,
-          payload.name,
-          fallback.title,
-          fallback.name
+          rawDetails.poster_url,
+          rawDetails.posterUrl,
+          rawDetails.poster_path,
+          payload.poster_url,
+          payload.poster_path,
+          fallback.poster_url,
+          fallback.poster_path
         ),
+        "https://image.tmdb.org/t/p/w500"
+      ),
 
-      overview:
-        firstText(
-          rawDetails.overview,
-          rawDetails.description,
-          payload.overview,
-          payload.description,
-          fallback.description,
-          fallback.overview
-        ),
+    genres:
+      normaliseGenres(
+        rawDetails.genres ??
+          payload.genres
+      ),
 
-      backdrop_url:
-        imageUrl(
-          firstText(
-            rawDetails.backdrop_url,
-            rawDetails.backdropUrl,
-            rawDetails.backdrop_path,
-            payload.backdrop_url,
-            payload.backdrop_path
-          )
-        ),
+    seasons:
+      normaliseSeasons(
+        rawDetails.seasons ??
+          payload.seasons
+      ),
 
-      poster_url:
-        imageUrl(
-          firstText(
-            rawDetails.poster_url,
-            rawDetails.posterUrl,
-            rawDetails.poster_path,
-            payload.poster_url,
-            payload.poster_path,
-            fallback.poster_url,
-            fallback.poster_path
-          ),
-          "https://image.tmdb.org/t/p/w500"
-        ),
+    rating:
+      Number(
+        rawDetails.rating ??
+          rawDetails.vote_average ??
+          payload.rating ??
+          payload.vote_average ??
+          fallback.vote_average ??
+          fallback.rating ??
+          0
+      ),
 
-      genres:
-        normaliseGenres(
-          rawDetails.genres ??
-            payload.genres
-        ),
+    runtime:
+      Number(
+        rawDetails.runtime ??
+          payload.runtime ??
+          0
+      ),
 
-      seasons:
-        normaliseSeasons(
-          rawDetails.seasons ??
-            payload.seasons
-        ),
-
-      rating:
-        Number(
-          rawDetails.rating ??
-            rawDetails.vote_average ??
-            payload.rating ??
-            payload.vote_average ??
-            fallback.vote_average ??
-            fallback.rating ??
-            0
-        ),
-
-      runtime:
-        Number(
-          rawDetails.runtime ??
-            payload.runtime ??
-            0
-        ),
-
-      imdb_id:
-        firstText(
-          rawDetails.imdb_id,
-          rawDetails.imdbId,
-          payload.imdb_id,
-          payload.imdbId,
-          fallback.imdb_id,
-          fallback.imdbId
-        ),
-    };
-
-    return {
-      trailer_url:
-        firstText(
-          payload.trailer_url,
-          payload.trailerUrl,
-          rawDetails.trailer_url,
-          rawDetails.trailerUrl
-        ),
-
-      watch_providers:
-        normaliseProviders(
-          payload.watch_providers ??
-            payload.watchProviders ??
-            rawDetails.watch_providers ??
-            rawDetails.watchProviders
-        ),
-
-      cast:
-        normaliseCast(
-          payload.cast ??
-            rawDetails.cast
-        ),
-
-      details,
-    };
+    imdb_id:
+      firstText(
+        rawDetails.imdb_id,
+        rawDetails.imdbId,
+        payload.imdb_id,
+        payload.imdbId,
+        fallback.imdb_id,
+        fallback.imdbId
+      ),
   };
 
-const providerTierLabel =
-  (
-    value
-  ) => {
-    const text =
-      asText(
-        value
-      ).toLowerCase();
+  return {
+    trailer_url:
+      firstText(
+        payload.trailer_url,
+        payload.trailerUrl,
+        rawDetails.trailer_url,
+        rawDetails.trailerUrl
+      ),
 
-    if (
-      /free.*ads|ads.*free|ad.?supported|ads/.test(
-        text
-      )
-    ) {
-      return "Free with Ads";
-    }
+    watch_providers:
+      normaliseProviders(
+        payload.watch_providers ??
+          payload.watchProviders ??
+          rawDetails.watch_providers ??
+          rawDetails.watchProviders
+      ),
 
-    if (
-      /free/.test(
-        text
-      )
-    ) {
-      return "Free";
-    }
+    cast:
+      normaliseCast(
+        payload.cast ??
+          rawDetails.cast
+      ),
 
-    if (
-      /rent/.test(
-        text
-      )
-    ) {
-      return "Rent";
-    }
-
-    if (
-      /buy|purchase/.test(
-        text
-      )
-    ) {
-      return "Buy";
-    }
-
-    return "Subscription";
+    details,
   };
+};
+
+const providerTierLabel = (value) => {
+  const text =
+    asText(value).toLowerCase();
+
+  if (
+    /free.*ads|ads.*free|ad.?supported|ads/.test(
+      text
+    )
+  ) {
+    return "Free with Ads";
+  }
+
+  if (/free/.test(text)) {
+    return "Free";
+  }
+
+  if (/rent/.test(text)) {
+    return "Rent";
+  }
+
+  if (
+    /buy|purchase/.test(text)
+  ) {
+    return "Buy";
+  }
+
+  return "Subscription";
+};
 
 export default function DetailModal({
   item,
   mediaType,
   onClose,
 }) {
-  const safeItem =
-    useMemo(
-      () => {
-        const source =
-          asObject(
-            item
-          );
+  const safeItem = useMemo(() => {
+    const source =
+      asObject(item);
 
-        const type =
-          normaliseMediaType(
-            mediaType ||
-              source.media_type ||
-              source.mediaType ||
-              source.type,
-            source
-          );
+    const type =
+      normaliseMediaType(
+        mediaType ||
+          source.media_type ||
+          source.mediaType ||
+          source.type,
+        source
+      );
 
-        const date =
+    const date =
+      firstText(
+        source.release_date,
+        source.first_air_date
+      );
+
+    const year =
+      firstText(
+        source.year,
+        /^\d{4}/.test(date)
+          ? date.slice(0, 4)
+          : ""
+      );
+
+    return {
+      ...source,
+
+      id:
+        source.id ??
+        source.tmdb_id ??
+        source.tmdbId ??
+        null,
+
+      title:
+        firstText(
+          source.title,
+          source.name,
+          source.original_title,
+          source.original_name,
+          "Untitled"
+        ),
+
+      poster_url:
+        imageUrl(
           firstText(
-            source.release_date,
-            source.first_air_date
-          );
+            source.poster_url,
+            source.posterUrl,
+            source.poster_path,
+            source.posterPath
+          ),
+          "https://image.tmdb.org/t/p/w500"
+        ),
 
-        const year =
-          firstText(
-            source.year,
-            /^\d{4}/.test(
-              date
-            )
-              ? date.slice(
-                  0,
-                  4
-                )
-              : ""
-          );
+      description:
+        firstText(
+          source.description,
+          source.overview
+        ),
 
-        return {
-          ...source,
+      year,
 
-          id:
-            source.id ??
-            source.tmdb_id ??
-            source.tmdbId ??
-            null,
+      media_type:
+        type,
 
-          title:
-            firstText(
-              source.title,
-              source.name,
-              source.original_title,
-              source.original_name,
-              "Untitled"
-            ),
+      mediaType:
+        type,
 
-          poster_url:
-            imageUrl(
-              firstText(
-                source.poster_url,
-                source.posterUrl,
-                source.poster_path,
-                source.posterPath
-              ),
-              "https://image.tmdb.org/t/p/w500"
-            ),
-
-          description:
-            firstText(
-              source.description,
-              source.overview
-            ),
-
-          year,
-
-          media_type:
-            type,
-
-          mediaType:
-            type,
-
-          imdb_id:
-            firstText(
-              source.imdb_id,
-              source.imdbId
-            ),
-        };
-      },
-      [
-        item,
-        mediaType,
-      ]
-    );
+      imdb_id:
+        firstText(
+          source.imdb_id,
+          source.imdbId
+        ),
+    };
+  }, [
+    item,
+    mediaType,
+  ]);
 
   const resolvedMediaType =
     safeItem.media_type;
@@ -769,109 +618,86 @@ export default function DetailModal({
   const [
     data,
     setData,
-  ] = useState(
-    () =>
-      normaliseDetailPayload(
-        {},
-        safeItem
-      )
+  ] = useState(() =>
+    normaliseDetailPayload(
+      {},
+      safeItem
+    )
   );
 
   const [
     loading,
     setLoading,
-  ] = useState(
-    true
-  );
+  ] = useState(true);
 
   const [
     loadError,
     setLoadError,
-  ] = useState(
-    ""
-  );
+  ] = useState("");
 
   const [
     added,
     setAdded,
-  ] = useState(
-    false
-  );
+  ] = useState(false);
 
   const [
     favorited,
     setFavorited,
-  ] = useState(
-    false
-  );
+  ] = useState(false);
 
   const [
     favoriteRowId,
     setFavoriteRowId,
-  ] = useState(
-    null
-  );
+  ] = useState(null);
 
-  const {
-    toast,
-  } = useToast();
+  const { toast } =
+    useToast();
 
   const player =
     usePlayer();
 
-  useEffect(
-    () => {
-      const onKey =
-        (
-          event
-        ) => {
-          if (
-            event.key ===
-            "Escape"
-          ) {
-            onClose?.();
-          }
-        };
+  useEffect(() => {
+    const onKey = (event) => {
+      if (
+        event.key === "Escape"
+      ) {
+        onClose?.();
+      }
+    };
 
-      const previousOverflow =
-        document.body.style
-          .overflow;
+    const previousOverflow =
+      document.body.style.overflow;
 
-      window.addEventListener(
+    window.addEventListener(
+      "keydown",
+      onKey
+    );
+
+    document.body.style.overflow =
+      "hidden";
+
+    return () => {
+      window.removeEventListener(
         "keydown",
         onKey
       );
 
       document.body.style.overflow =
-        "hidden";
+        previousOverflow;
+    };
+  }, [onClose]);
 
-      return () => {
-        window.removeEventListener(
-          "keydown",
-          onKey
-        );
+  /*
+   * IMPORTANT:
+   * No .then(), .catch() or .finally() here.
+   * Base44 results are handled with await only.
+   */
+  useEffect(() => {
+    let cancelled = false;
 
-        document.body.style.overflow =
-          previousOverflow;
-      };
-    },
-    [
-      onClose,
-    ]
-  );
-
-  useEffect(
-    () => {
-      let cancelled =
-        false;
-
-      setLoading(
-        true
-      );
-
-      setLoadError(
-        ""
-      );
+    const loadDetails = async () => {
+      setLoading(true);
+      setLoadError("");
 
       setData(
         normaliseDetailPayload(
@@ -884,100 +710,70 @@ export default function DetailModal({
         itemId == null ||
         itemId === ""
       ) {
-        setLoading(
-          false
-        );
+        setLoading(false);
 
         setLoadError(
           "This result is missing its TMDB id."
         );
 
-        return () => {
-          cancelled =
-            true;
-        };
+        return;
       }
 
-      base44.functions
-        .invoke(
-          "getTmdbMovies",
-          {
-            media_type:
-              resolvedMediaType,
-
-            movie_id:
-              itemId,
-          }
-        )
-        .then(
-          (
-            response
-          ) => {
-            if (
-              cancelled
-            ) {
-              return;
+      try {
+        const response =
+          await base44.functions.invoke(
+            "getTmdbMovies",
+            {
+              media_type:
+                resolvedMediaType,
+              movie_id:
+                itemId,
             }
+          );
 
-            setData(
-              normaliseDetailPayload(
-                response,
-                safeItem
-              )
-            );
-          }
-        )
-        .catch(
-          (
-            error
-          ) => {
-            if (
-              cancelled
-            ) {
-              return;
-            }
+        if (cancelled) {
+          return;
+        }
 
-            /*
-             * Keep the modal usable even if the details request fails.
-             * Search results already contain enough information to show
-             * the title and still attempt source discovery.
-             */
-            setData(
-              normaliseDetailPayload(
-                {},
-                safeItem
-              )
-            );
+        setData(
+          normaliseDetailPayload(
+            response,
+            safeItem
+          )
+        );
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
 
-            setLoadError(
-              error?.message ||
-                "Extra title information could not be loaded."
-            );
-          }
-        )
-        .finally(
-          () => {
-            if (
-              !cancelled
-            ) {
-              setLoading(
-                false
-              );
-            }
-          }
+        setData(
+          normaliseDetailPayload(
+            {},
+            safeItem
+          )
         );
 
-      return () => {
-        cancelled =
-          true;
-      };
-    },
-    [
-      itemId,
-      resolvedMediaType,
-      safeItem,
-    ]
-  );
+        setLoadError(
+          error?.message ||
+            "Extra title information could not be loaded."
+        );
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadDetails();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    itemId,
+    resolvedMediaType,
+    safeItem,
+  ]);
 
   const trailerUrl =
     firstText(
@@ -1029,170 +825,141 @@ export default function DetailModal({
       "No overview available."
     );
 
-  useEffect(
-    () => {
-      let cancelled =
-        false;
+  /*
+   * Favorites lookup also uses await only.
+   */
+  useEffect(() => {
+    let cancelled = false;
 
-      setFavorited(
-        false
-      );
+    setFavorited(false);
+    setFavoriteRowId(null);
 
-      setFavoriteRowId(
-        null
-      );
-
-      if (
-        itemId == null ||
-        itemId === ""
-      ) {
-        return () => {
-          cancelled =
-            true;
-        };
-      }
-
-      base44.entities.Favorite
-        .filter({
-          tmdb_id:
-            String(
-              itemId
-            ),
-        })
-        .then(
-          (
-            rows
-          ) => {
-            if (
-              cancelled
-            ) {
-              return;
-            }
-
-            const safeRows =
-              asArray(
-                rows
-              );
-
-            const first =
-              safeRows[0];
-
-            setFavorited(
-              safeRows.length >
-                0
-            );
-
-            setFavoriteRowId(
-              first?.id ||
-                null
-            );
-          }
-        )
-        .catch(
-          () => {
-            if (
-              !cancelled
-            ) {
-              setFavorited(
-                false
-              );
-
-              setFavoriteRowId(
-                null
-              );
-            }
-          }
-        );
-
+    if (
+      itemId == null ||
+      itemId === ""
+    ) {
       return () => {
-        cancelled =
-          true;
+        cancelled = true;
       };
-    },
-    [
-      itemId,
-    ]
-  );
+    }
 
-  const play =
-    () => {
-      if (
-        itemId == null ||
-        itemId === ""
-      ) {
-        toast({
-          title:
-            "Cannot play this result",
+    const loadFavorite =
+      async () => {
+        try {
+          const rows =
+            await base44.entities.Favorite.filter(
+              {
+                tmdb_id:
+                  String(
+                    itemId
+                  ),
+              }
+            );
 
-          description:
-            "This title is missing its TMDB id.",
+          if (cancelled) {
+            return;
+          }
 
-          variant:
-            "destructive",
-        });
+          const safeRows =
+            asArray(rows);
 
-        return;
-      }
+          const first =
+            safeRows[0];
 
-      player.play({
-        id:
-          itemId,
+          setFavorited(
+            safeRows.length > 0
+          );
 
-        tmdbId:
-          itemId,
+          setFavoriteRowId(
+            first?.id ||
+              null
+          );
+        } catch {
+          if (!cancelled) {
+            setFavorited(false);
+            setFavoriteRowId(null);
+          }
+        }
+      };
 
-        tmdb_id:
-          itemId,
+    loadFavorite();
 
-        imdbId:
-          firstText(
-            safeItem.imdb_id,
-            details.imdb_id
-          ),
+    return () => {
+      cancelled = true;
+    };
+  }, [itemId]);
 
+  const play = () => {
+    if (
+      itemId == null ||
+      itemId === ""
+    ) {
+      toast({
         title:
-          displayTitle,
-
-        poster:
-          displayPoster,
-
-        year:
-          safeItem.year,
-
-        type:
-          resolvedMediaType ===
-          "tv"
-            ? "series"
-            : "movie",
-
-        mediaType:
-          resolvedMediaType,
-
-        rdTitle:
-          displayTitle,
-
-        rdYear:
-          safeItem.year,
-
-        sources:
-          buildMediaSources({
-            title:
-              displayTitle,
-
-            id:
-              itemId,
-
-            poster:
-              displayPoster,
-
-            trailerUrl,
-
-            providers,
-          }),
+          "Cannot play this result",
+        description:
+          "This title is missing its TMDB id.",
+        variant:
+          "destructive",
       });
 
-      onClose?.();
-    };
+      return;
+    }
+
+    player.play({
+      id:
+        itemId,
+
+      tmdbId:
+        itemId,
+
+      tmdb_id:
+        itemId,
+
+      imdbId:
+        firstText(
+          safeItem.imdb_id,
+          details.imdb_id
+        ),
+
+      title:
+        displayTitle,
+
+      poster:
+        displayPoster,
+
+      year:
+        safeItem.year,
+
+      type:
+        resolvedMediaType === "tv"
+          ? "series"
+          : "movie",
+
+      mediaType:
+        resolvedMediaType,
+
+      rdTitle:
+        displayTitle,
+
+      rdYear:
+        safeItem.year,
+
+      sources:
+        buildMediaSources({
+          title:
+            displayTitle,
+          id:
+            itemId,
+          poster:
+            displayPoster,
+          trailerUrl,
+          providers,
+        }),
+    });
+
+    onClose?.();
+  };
 
   const addToWatchlist =
     async () => {
@@ -1203,10 +970,8 @@ export default function DetailModal({
         toast({
           title:
             "Could not add",
-
           description:
             "This title is missing its TMDB id.",
-
           variant:
             "destructive",
         });
@@ -1219,46 +984,34 @@ export default function DetailModal({
           {
             title:
               displayTitle,
-
             year:
               safeItem.year,
-
             poster_url:
               displayPoster,
-
             description:
               overview,
-
             tmdb_id:
               itemId,
-
             media_type:
               resolvedMediaType,
           }
         );
 
-        setAdded(
-          true
-        );
+        setAdded(true);
 
         toast({
           title:
             "Added to Watchlist",
-
           description:
             displayTitle,
         });
-      } catch (
-        error
-      ) {
+      } catch (error) {
         toast({
           title:
             "Could not add",
-
           description:
             error?.message ||
             "Please try again.",
-
           variant:
             "destructive",
         });
@@ -1274,10 +1027,8 @@ export default function DetailModal({
         toast({
           title:
             "Could not update",
-
           description:
             "This title is missing its TMDB id.",
-
           variant:
             "destructive",
         });
@@ -1285,16 +1036,12 @@ export default function DetailModal({
         return;
       }
 
-      if (
-        favorited
-      ) {
+      if (favorited) {
         try {
           let rowId =
             favoriteRowId;
 
-          if (
-            !rowId
-          ) {
+          if (!rowId) {
             const rows =
               asArray(
                 await base44.entities.Favorite.filter(
@@ -1312,40 +1059,28 @@ export default function DetailModal({
               null;
           }
 
-          if (
-            rowId
-          ) {
+          if (rowId) {
             await base44.entities.Favorite.delete(
               rowId
             );
           }
 
-          setFavorited(
-            false
-          );
-
-          setFavoriteRowId(
-            null
-          );
+          setFavorited(false);
+          setFavoriteRowId(null);
 
           toast({
             title:
               "Removed from Favorites",
-
             description:
               displayTitle,
           });
-        } catch (
-          error
-        ) {
+        } catch (error) {
           toast({
             title:
               "Could not update",
-
             description:
               error?.message ||
               "Please try again.",
-
             variant:
               "destructive",
           });
@@ -1360,29 +1095,22 @@ export default function DetailModal({
             {
               title:
                 displayTitle,
-
               year:
                 safeItem.year,
-
               poster_url:
                 displayPoster,
-
               description:
                 overview,
-
               tmdb_id:
                 String(
                   itemId
                 ),
-
               media_type:
                 resolvedMediaType,
             }
           );
 
-        setFavorited(
-          true
-        );
+        setFavorited(true);
 
         setFavoriteRowId(
           created?.id ||
@@ -1392,21 +1120,16 @@ export default function DetailModal({
         toast({
           title:
             "Added to Favorites",
-
           description:
             displayTitle,
         });
-      } catch (
-        error
-      ) {
+      } catch (error) {
         toast({
           title:
             "Could not add",
-
           description:
             error?.message ||
               "Please try again.",
-
           variant:
             "destructive",
         });
@@ -1425,40 +1148,27 @@ export default function DetailModal({
         0
     );
 
-  const providerGroups =
-    [
-      "Subscription",
-      "Free",
-      "Free with Ads",
-      "Rent",
-      "Buy",
-    ]
-      .map(
-        (
-          tier
-        ) => ({
-          tier,
-
-          items:
-            providers.filter(
-              (
-                provider
-              ) =>
-                providerTierLabel(
-                  provider?.tier
-                ) ===
-                tier
-            ),
-        })
-      )
-      .filter(
-        (
-          group
-        ) =>
-          group.items
-            .length >
-          0
-      );
+  const providerGroups = [
+    "Subscription",
+    "Free",
+    "Free with Ads",
+    "Rent",
+    "Buy",
+  ]
+    .map((tier) => ({
+      tier,
+      items:
+        providers.filter(
+          (provider) =>
+            providerTierLabel(
+              provider?.tier
+            ) === tier
+        ),
+    }))
+    .filter(
+      (group) =>
+        group.items.length > 0
+    );
 
   return (
     <div
@@ -1472,9 +1182,7 @@ export default function DetailModal({
     >
       <div
         className="bg-mg-surface w-full max-w-3xl 3xl:max-w-5xl 4xl:max-w-6xl max-h-[92svh] md:max-h-[92vh] overflow-y-auto rounded-t-2xl md:rounded-2xl 3xl:rounded-3xl border border-white/10 relative shadow-2xl"
-        onClick={(
-          event
-        ) =>
+        onClick={(event) =>
           event.stopPropagation()
         }
       >
@@ -1490,10 +1198,8 @@ export default function DetailModal({
         </button>
 
         <div className="relative h-44 md:h-56 3xl:h-80 4xl:h-96 bg-mg-card overflow-hidden">
-          {(
-            details.backdrop_url ||
-            displayPoster
-          ) && (
+          {(details.backdrop_url ||
+            displayPoster) && (
             <Image
               src={
                 details.backdrop_url ||
@@ -1535,17 +1241,13 @@ export default function DetailModal({
 
             <div className="flex-1 min-w-0 pb-2 3xl:pb-4 pr-10 3xl:pr-14">
               <h2 className="text-white font-bold text-lg md:text-2xl 3xl:text-4xl 4xl:text-5xl leading-tight">
-                {
-                  displayTitle
-                }
+                {displayTitle}
               </h2>
 
               <div className="flex flex-wrap items-center gap-2 3xl:gap-4 mt-1.5 3xl:mt-3 text-xs 3xl:text-base 4xl:text-lg text-white/60">
                 {safeItem.year && (
                   <span>
-                    {
-                      safeItem.year
-                    }
+                    {safeItem.year}
                   </span>
                 )}
 
@@ -1556,32 +1258,22 @@ export default function DetailModal({
                     : "Movie"}
                 </span>
 
-                {rating >
-                  0 && (
+                {rating > 0 && (
                   <span className="flex items-center gap-1 text-mg-green">
                     <Star className="w-3 h-3 3xl:w-5 3xl:h-5 fill-mg-green" />
-
-                    {rating.toFixed(
-                      1
-                    )}
+                    {rating.toFixed(1)}
                   </span>
                 )}
 
-                {runtime >
-                  0 && (
+                {runtime > 0 && (
                   <span className="flex items-center gap-1">
                     <Clock className="w-3 h-3 3xl:w-5 3xl:h-5" />
-
-                    {
-                      runtime
-                    }
-                    m
+                    {runtime}m
                   </span>
                 )}
               </div>
 
-              {genres.length >
-                0 && (
+              {genres.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 3xl:gap-2 mt-2 3xl:mt-3">
                   {genres.map(
                     (
@@ -1592,9 +1284,7 @@ export default function DetailModal({
                         key={`${genre}-${index}`}
                         className="text-[10px] 3xl:text-sm px-2 3xl:px-3 py-0.5 3xl:py-1 rounded-full bg-white/10 text-white/70"
                       >
-                        {
-                          genre
-                        }
+                        {genre}
                       </span>
                     )
                   )}
@@ -1605,23 +1295,17 @@ export default function DetailModal({
 
           {loadError && (
             <div className="mt-4 3xl:mt-6 rounded-lg border border-amber-400/20 bg-amber-400/5 px-3 3xl:px-4 py-2.5 3xl:py-3 text-xs 3xl:text-sm text-amber-200/80">
-              {
-                loadError
-              }{" "}
-              You can still use Play and source discovery.
+              {loadError} You can still use Play and source discovery.
             </div>
           )}
 
           <div className="flex flex-wrap gap-2 3xl:gap-3 mt-4 3xl:mt-6">
             <button
               type="button"
-              onClick={
-                play
-              }
+              onClick={play}
               className="flex-1 min-w-[140px] flex items-center justify-center gap-2 bg-mg-green text-black font-semibold text-sm 3xl:text-lg py-2.5 3xl:py-3.5 rounded-lg 3xl:rounded-xl hover:bg-mg-green-dim focus:outline-none focus:ring-2 focus:ring-white"
             >
               <Play className="w-4 h-4 3xl:w-5 3xl:h-5 fill-black" />
-
               Play
             </button>
 
@@ -1706,27 +1390,21 @@ export default function DetailModal({
             </h3>
 
             <p className="text-white/70 text-sm 3xl:text-lg 4xl:text-xl leading-relaxed">
-              {
-                overview
-              }
+              {overview}
             </p>
           </div>
 
           {resolvedMediaType ===
             "tv" &&
             !loading &&
-            seasons.length >
-              0 && (
+            seasons.length > 0 && (
               <EpisodeSelector
                 item={{
                   ...safeItem,
-
                   title:
                     displayTitle,
-
                   poster_url:
                     displayPoster,
-
                   imdb_id:
                     firstText(
                       safeItem.imdb_id,
@@ -1758,24 +1436,20 @@ export default function DetailModal({
           <div className="mt-5 3xl:mt-8">
             <h3 className="text-white/80 text-xs 3xl:text-base font-bold uppercase tracking-wider mb-2 3xl:mb-3 flex items-center gap-1.5">
               <Tv className="w-3.5 h-3.5 3xl:w-5 3xl:h-5 text-mg-green" />
-
               Where to Watch
             </h3>
 
             {loading ? (
               <div className="flex gap-2">
                 {Array.from({
-                  length:
-                    4,
+                  length: 4,
                 }).map(
                   (
                     _,
                     index
                   ) => (
                     <div
-                      key={
-                        index
-                      }
+                      key={index}
                       className="w-12 h-12 3xl:w-16 3xl:h-16 rounded-md bg-mg-card animate-pulse"
                     />
                   )
@@ -1785,18 +1459,12 @@ export default function DetailModal({
               0 ? (
               <div className="space-y-3 3xl:space-y-5">
                 {providerGroups.map(
-                  (
-                    group
-                  ) => (
+                  (group) => (
                     <div
-                      key={
-                        group.tier
-                      }
+                      key={group.tier}
                     >
                       <p className="text-white/40 text-[10px] 3xl:text-sm font-bold uppercase tracking-wider mb-1.5 3xl:mb-2">
-                        {
-                          group.tier
-                        }
+                        {group.tier}
                       </p>
 
                       <div className="flex flex-wrap gap-2 3xl:gap-3">
@@ -1805,39 +1473,38 @@ export default function DetailModal({
                             provider,
                             index
                           ) => {
-                            const content =
-                              (
-                                <>
-                                  {provider.logo ? (
-                                    <img
-                                      src={
-                                        provider.logo
-                                      }
-                                      alt=""
-                                      className="w-8 h-8 3xl:w-11 3xl:h-11 rounded object-contain"
-                                      onError={(
-                                        event
-                                      ) => {
-                                        event.currentTarget.style.display =
-                                          "none";
-                                      }}
-                                    />
-                                  ) : (
-                                    <span className="w-8 h-8 3xl:w-11 3xl:h-11 rounded bg-mg-green/15 flex items-center justify-center">
-                                      <Tv className="w-4 h-4 3xl:w-5 3xl:h-5 text-mg-green" />
-                                    </span>
-                                  )}
-
-                                  <span className="text-white text-xs 3xl:text-base font-medium">
-                                    {provider.name ||
-                                      "Provider"}
+                            const content = (
+                              <>
+                                {provider.logo ? (
+                                  <img
+                                    src={
+                                      provider.logo
+                                    }
+                                    alt=""
+                                    className="w-8 h-8 3xl:w-11 3xl:h-11 rounded object-contain"
+                                    onError={(
+                                      event
+                                    ) => {
+                                      event.currentTarget.style.display =
+                                        "none";
+                                    }}
+                                  />
+                                ) : (
+                                  <span className="w-8 h-8 3xl:w-11 3xl:h-11 rounded bg-mg-green/15 flex items-center justify-center">
+                                    <Tv className="w-4 h-4 3xl:w-5 3xl:h-5 text-mg-green" />
                                   </span>
+                                )}
 
-                                  {provider.link && (
-                                    <ExternalLink className="w-3 h-3 3xl:w-4 3xl:h-4 text-white/40 group-hover:text-mg-green" />
-                                  )}
-                                </>
-                              );
+                                <span className="text-white text-xs 3xl:text-base font-medium">
+                                  {provider.name ||
+                                    "Provider"}
+                                </span>
+
+                                {provider.link && (
+                                  <ExternalLink className="w-3 h-3 3xl:w-4 3xl:h-4 text-white/40 group-hover:text-mg-green" />
+                                )}
+                              </>
+                            );
 
                             const className =
                               "group flex items-center gap-2 3xl:gap-3 bg-mg-card border border-white/10 rounded-lg 3xl:rounded-xl pl-1.5 3xl:pl-2 pr-3 3xl:pr-4 py-1.5 3xl:py-2 hover:border-mg-green transition-colors";
@@ -1857,9 +1524,7 @@ export default function DetailModal({
                                     className
                                   }
                                 >
-                                  {
-                                    content
-                                  }
+                                  {content}
                                 </a>
                               );
                             }
@@ -1871,9 +1536,7 @@ export default function DetailModal({
                                   className
                                 }
                               >
-                                {
-                                  content
-                                }
+                                {content}
                               </div>
                             );
                           }
@@ -1898,17 +1561,14 @@ export default function DetailModal({
             {loading ? (
               <div className="flex gap-3 3xl:gap-5 overflow-x-auto pb-1">
                 {Array.from({
-                  length:
-                    6,
+                  length: 6,
                 }).map(
                   (
                     _,
                     index
                   ) => (
                     <div
-                      key={
-                        index
-                      }
+                      key={index}
                       className="shrink-0 w-16 3xl:w-24"
                     >
                       <div className="w-16 h-16 3xl:w-24 3xl:h-24 rounded-full bg-mg-card animate-pulse" />
@@ -1918,8 +1578,7 @@ export default function DetailModal({
                   )
                 )}
               </div>
-            ) : cast.length >
-              0 ? (
+            ) : cast.length > 0 ? (
               <div className="flex gap-3 3xl:gap-5 overflow-x-auto pb-1 3xl:pb-2">
                 {cast.map(
                   (
@@ -1951,15 +1610,11 @@ export default function DetailModal({
                       </div>
 
                       <p className="text-white text-[11px] 3xl:text-sm font-medium mt-1.5 3xl:mt-2 truncate">
-                        {
-                          person.name
-                        }
+                        {person.name}
                       </p>
 
                       <p className="text-white/40 text-[10px] 3xl:text-xs truncate">
-                        {
-                          person.character
-                        }
+                        {person.character}
                       </p>
                     </div>
                   )
