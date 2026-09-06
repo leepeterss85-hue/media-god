@@ -7,8 +7,6 @@ import React, {
 
 import {
   X,
-  Copy,
-  Check,
   ExternalLink,
   Link,
   Download,
@@ -27,15 +25,13 @@ import { base44 } from "@/api/base44Client";
 import CastButton from "@/components/mg/CastButton";
 import LiveVideo from "@/components/mg/LiveVideo";
 import PlayerControls from "@/components/mg/PlayerControls";
+
 import {
   describeSourceCompatibility,
   getPlaybackDeviceProfile,
   hasSevereAudioRisk,
   orderSourcesForPlayback,
 } from "@/components/mg/mediaCompatibility";
-
-const VIDEO_RE =
-  /\.(mp4|mkv|avi|mov|webm|m4v|mpg|mpeg|ts|m2ts)$/i;
 
 const isMagnet = (value) =>
   String(value || "")
@@ -44,7 +40,10 @@ const isMagnet = (value) =>
 
 const currentFilePath = (files) =>
   (
-    files?.find((file) => file.selected) ||
+    files?.find(
+      (file) =>
+        file.selected
+    ) ||
     files?.[0] ||
     {}
   ).path || "";
@@ -56,909 +55,2026 @@ const getSourceUrl = (item) =>
   item?.magnetLink ||
   "";
 
+const isHttpUrl = (value) =>
+  /^https?:\/\//i.test(
+    String(value || "")
+  );
+
 const DEFAULT_PLAYBACK_PREFERENCES = {
   quality: "Auto",
   subs: true,
   audioLanguage: "en",
 };
 
-const normaliseSubtitleItems = (...groups) => {
-  const seen = new Set();
+const normaliseSubtitleItems = (
+  ...groups
+) => {
+  const seen =
+    new Set();
 
   return groups
-    .flatMap((group) => (Array.isArray(group) ? group : []))
-    .map((item, index) => {
-      if (typeof item === "string") {
+    .flatMap(
+      (group) =>
+        Array.isArray(group)
+          ? group
+          : []
+    )
+    .map(
+      (
+        item,
+        index
+      ) => {
+        if (
+          typeof item ===
+          "string"
+        ) {
+          return {
+            src: item,
+
+            label:
+              `Subtitle ${
+                index + 1
+              }`,
+
+            lang: "",
+
+            kind:
+              "subtitles",
+          };
+        }
+
         return {
-          src: item,
-          label: `Subtitle ${index + 1}`,
-          lang: "",
-          kind: "subtitles",
+          src:
+            item?.src ||
+            item?.url ||
+            item?.file ||
+            "",
+
+          label:
+            item?.label ||
+            item?.name ||
+            item?.language ||
+            item?.lang ||
+            `Subtitle ${
+              index + 1
+            }`,
+
+          lang:
+            item?.lang ||
+            item?.language ||
+            "",
+
+          kind:
+            item?.kind ||
+            item?.type ||
+            "subtitles",
+
+          default:
+            Boolean(
+              item?.default
+            ),
         };
       }
+    )
+    .filter(
+      (item) => {
+        const src =
+          String(
+            item?.src ||
+              ""
+          ).trim();
 
-      return {
-        src: item?.src || item?.url || item?.file || "",
-        label:
-          item?.label ||
-          item?.name ||
-          item?.language ||
-          item?.lang ||
-          `Subtitle ${index + 1}`,
-        lang: item?.lang || item?.language || "",
-        kind: item?.kind || item?.type || "subtitles",
-        default: Boolean(item?.default),
-      };
-    })
-    .filter((item) => {
-      const src = String(item?.src || "").trim();
-      const kind = String(item?.kind || "").toLowerCase();
+        const kind =
+          String(
+            item?.kind ||
+              ""
+          ).toLowerCase();
 
-      if (!/^https?:\/\//i.test(src)) return false;
-      if (kind && !/(sub|caption|text|vtt|srt)/i.test(kind)) return false;
-      if (seen.has(src)) return false;
+        if (
+          !/^https?:\/\//i.test(
+            src
+          )
+        ) {
+          return false;
+        }
 
-      seen.add(src);
-      return true;
-    });
+        if (
+          kind &&
+          !/(sub|caption|text|vtt|srt)/i.test(
+            kind
+          )
+        ) {
+          return false;
+        }
+
+        if (
+          seen.has(
+            src
+          )
+        ) {
+          return false;
+        }
+
+        seen.add(
+          src
+        );
+
+        return true;
+      }
+    );
 };
 
 export default function VideoPlayer({
   source,
   onClose,
 }) {
-  const [playbackPreferences, setPlaybackPreferences] = useState(
+  const [
+    playbackPreferences,
+    setPlaybackPreferences,
+  ] = useState(
     DEFAULT_PLAYBACK_PREFERENCES
   );
 
-  const [sessionQuality, setSessionQuality] = useState("Auto");
-
-  const deviceProfile = useMemo(
-    () => getPlaybackDeviceProfile(),
-    []
+  const [
+    sessionQuality,
+    setSessionQuality,
+  ] = useState(
+    "Auto"
   );
 
+  const [
+    hasRd,
+    setHasRd,
+  ] = useState(
+    false
+  );
+
+  const deviceProfile =
+    useMemo(
+      () =>
+        getPlaybackDeviceProfile(),
+      []
+    );
+
   useEffect(() => {
-    let mounted = true;
+    let mounted =
+      true;
 
     base44.auth
       .me()
-      .then((user) => {
-        if (!mounted) return;
+      .then(
+        (user) => {
+          if (
+            !mounted
+          ) {
+            return;
+          }
 
-        const preferences = user?.preferences || {};
-        const next = {
-          quality:
-            preferences.quality ||
-            DEFAULT_PLAYBACK_PREFERENCES.quality,
-          subs:
-            preferences.subs ??
-            DEFAULT_PLAYBACK_PREFERENCES.subs,
-          audioLanguage:
-            preferences.audioLanguage ||
-            DEFAULT_PLAYBACK_PREFERENCES.audioLanguage,
-        };
+          setHasRd(
+            Boolean(
+              user?.rd_token
+            )
+          );
 
-        setPlaybackPreferences(next);
-        setSessionQuality(next.quality);
-      })
-      .catch(() => {
-        if (!mounted) return;
-        setPlaybackPreferences(DEFAULT_PLAYBACK_PREFERENCES);
-        setSessionQuality(DEFAULT_PLAYBACK_PREFERENCES.quality);
-      });
+          const preferences =
+            user?.preferences ||
+            {};
+
+          const next = {
+            quality:
+              preferences.quality ||
+              DEFAULT_PLAYBACK_PREFERENCES.quality,
+
+            subs:
+              preferences.subs ??
+              DEFAULT_PLAYBACK_PREFERENCES.subs,
+
+            audioLanguage:
+              preferences.audioLanguage ||
+              DEFAULT_PLAYBACK_PREFERENCES.audioLanguage,
+          };
+
+          setPlaybackPreferences(
+            next
+          );
+
+          setSessionQuality(
+            next.quality
+          );
+        }
+      )
+      .catch(
+        () => {
+          if (
+            !mounted
+          ) {
+            return;
+          }
+
+          setHasRd(
+            false
+          );
+
+          setPlaybackPreferences(
+            DEFAULT_PLAYBACK_PREFERENCES
+          );
+
+          setSessionQuality(
+            DEFAULT_PLAYBACK_PREFERENCES.quality
+          );
+        }
+      );
 
     return () => {
-      mounted = false;
+      mounted =
+        false;
     };
   }, []);
 
-  const sources = useMemo(() => {
-    const rawSources =
-      source?.sources &&
-      source.sources.length > 0
-        ? source.sources
-        : [
-            {
-              label:
-                source?.label ||
-                (source?.type === "live"
-                  ? "LIVE"
-                  : "Stream"),
+  const sources =
+    useMemo(
+      () => {
+        const rawSources =
+          source?.sources &&
+          source.sources.length >
+            0
+            ? source.sources
+            : [
+                {
+                  label:
+                    source?.label ||
+                    (
+                      source?.type ===
+                      "live"
+                        ? "LIVE"
+                        : "Stream"
+                    ),
 
-              type: source?.type || "rd",
+                  type:
+                    source?.type ||
+                    "rd",
 
-              src: getSourceUrl(source),
+                  src:
+                    getSourceUrl(
+                      source
+                    ),
 
-              magnet:
-                source?.magnet ||
-                source?.magnetLink ||
-                source?.src ||
-                source?.url,
+                  magnet:
+                    source?.magnet ||
+                    source?.magnetLink ||
+                    source?.src ||
+                    source?.url,
 
-              live: source?.type === "live",
-            },
-          ];
+                  live:
+                    source?.type ===
+                    "live",
+                },
+              ];
 
-    return orderSourcesForPlayback(rawSources, {
-      qualityPreference: playbackPreferences.quality,
-      deviceProfile,
-    });
-  }, [source, playbackPreferences.quality, deviceProfile]);
+        return orderSourcesForPlayback(
+          rawSources,
+          {
+            qualityPreference:
+              playbackPreferences.quality,
 
-  const [activeIdx, setActiveIdx] =
-    useState(0);
-
-  const [copied, setCopied] =
-    useState(false);
-
-  const [rdResolving, setRdResolving] =
-    useState(false);
-
-  const [rdPolling, setRdPolling] =
-    useState(false);
-
-  const [rdError, setRdError] =
-    useState("");
-
-  const [rdOverride, setRdOverride] =
-    useState(null);
-
-  const [rdFiles, setRdFiles] =
-    useState([]);
-
-  const [rdTorrentId, setRdTorrentId] =
-    useState(null);
-
-  const [fileSwitching, setFileSwitching] =
-    useState(false);
-
-  const [viewportFullscreen, setViewportFullscreen] =
-    useState(false);
-
-  const [failedSources, setFailedSources] =
-    useState(() => new Set());
-
-  const [audioTracks, setAudioTracks] =
-    useState([]);
-
-  const [subtitleTracks, setSubtitleTracks] =
-    useState([]);
-
-  const [qualityLevels, setQualityLevels] =
-    useState([]);
-
-  const [audioTrackChoice, setAudioTrackChoice] =
-    useState("english");
-
-  const [subtitleTrackChoice, setSubtitleTrackChoice] =
-    useState("english");
-
-  const [activeAudioTrack, setActiveAudioTrack] =
-    useState(null);
-
-  const [activeSubtitleTrack, setActiveSubtitleTrack] =
-    useState(null);
-
-  const failedSourcesRef = useRef(new Set());
-
-  const videoRef = useRef(null);
-  const liveVideoRef = useRef(null);
-  const stageRef = useRef(null);
-  const pollRef = useRef(null);
-
-  useEffect(() => {
-    setActiveIdx(0);
-  }, [
-    source?.title,
-    source?.id,
-    source?.rdSeason,
-    source?.rdEpisode,
-    source?.season,
-    source?.episode,
-  ]);
-
-  useEffect(() => {
-    setAudioTracks([]);
-    setSubtitleTracks([]);
-    setQualityLevels([]);
-    setActiveAudioTrack(null);
-    setActiveSubtitleTrack(null);
-    setAudioTrackChoice("english");
-    setSubtitleTrackChoice(
-      playbackPreferences.subs ? "english" : "off"
+            deviceProfile,
+          }
+        );
+      },
+      [
+        source,
+        playbackPreferences.quality,
+        deviceProfile,
+      ]
     );
-  }, [
+
+  const [
     activeIdx,
-    rdOverride?.src,
-    playbackPreferences.subs,
-  ]);
+    setActiveIdx,
+  ] = useState(
+    0
+  );
+
+  const [
+    rdResolving,
+    setRdResolving,
+  ] = useState(
+    false
+  );
+
+  const [
+    rdPolling,
+    setRdPolling,
+  ] = useState(
+    false
+  );
+
+  const [
+    rdError,
+    setRdError,
+  ] = useState(
+    ""
+  );
+
+  const [
+    rdOverride,
+    setRdOverride,
+  ] = useState(
+    null
+  );
+
+  const [
+    rdFiles,
+    setRdFiles,
+  ] = useState(
+    []
+  );
+
+  const [
+    rdTorrentId,
+    setRdTorrentId,
+  ] = useState(
+    null
+  );
+
+  const [
+    fileSwitching,
+    setFileSwitching,
+  ] = useState(
+    false
+  );
+
+  const [
+    viewportFullscreen,
+    setViewportFullscreen,
+  ] = useState(
+    false
+  );
+
+  const [
+    failedSources,
+    setFailedSources,
+  ] = useState(
+    () =>
+      new Set()
+  );
+
+  const [
+    audioTracks,
+    setAudioTracks,
+  ] = useState(
+    []
+  );
+
+  const [
+    subtitleTracks,
+    setSubtitleTracks,
+  ] = useState(
+    []
+  );
+
+  const [
+    qualityLevels,
+    setQualityLevels,
+  ] = useState(
+    []
+  );
+
+  const [
+    audioTrackChoice,
+    setAudioTrackChoice,
+  ] = useState(
+    "english"
+  );
+
+  const [
+    subtitleTrackChoice,
+    setSubtitleTrackChoice,
+  ] = useState(
+    "english"
+  );
+
+  const [
+    activeAudioTrack,
+    setActiveAudioTrack,
+  ] = useState(
+    null
+  );
+
+  const [
+    activeSubtitleTrack,
+    setActiveSubtitleTrack,
+  ] = useState(
+    null
+  );
+
+  const failedSourcesRef =
+    useRef(
+      new Set()
+    );
+
+  /*
+   * Remembers sources for which we have already tried the
+   * Real-Debrid rescue path.
+   *
+   * This prevents a failed direct rescue from looping forever.
+   */
+  const audioRescueAttemptedRef =
+    useRef(
+      new Set()
+    );
+
+  const videoRef =
+    useRef(null);
+
+  const liveVideoRef =
+    useRef(null);
+
+  const stageRef =
+    useRef(null);
+
+  const pollRef =
+    useRef(null);
+
+  useEffect(
+    () => {
+      setActiveIdx(
+        0
+      );
+
+      audioRescueAttemptedRef.current =
+        new Set();
+    },
+    [
+      source?.title,
+      source?.id,
+      source?.rdSeason,
+      source?.rdEpisode,
+      source?.season,
+      source?.episode,
+    ]
+  );
+
+  useEffect(
+    () => {
+      setAudioTracks(
+        []
+      );
+
+      setSubtitleTracks(
+        []
+      );
+
+      setQualityLevels(
+        []
+      );
+
+      setActiveAudioTrack(
+        null
+      );
+
+      setActiveSubtitleTrack(
+        null
+      );
+
+      setAudioTrackChoice(
+        "english"
+      );
+
+      setSubtitleTrackChoice(
+        playbackPreferences.subs
+          ? "english"
+          : "off"
+      );
+    },
+    [
+      activeIdx,
+      rdOverride?.src,
+      playbackPreferences.subs,
+    ]
+  );
 
   const active =
-    sources[activeIdx] ||
+    sources[
+      activeIdx
+    ] ||
     sources[0] ||
     {};
 
-  const activeUrl = getSourceUrl(active);
+  const activeUrl =
+    getSourceUrl(
+      active
+    );
 
-  const activeCompatibility = describeSourceCompatibility(
-    active,
-    rdOverride?.file || rdOverride?.label || ""
-  );
+  const activeCompatibility =
+    describeSourceCompatibility(
+      active,
+      rdOverride?.file ||
+        rdOverride?.label ||
+        ""
+    );
 
-  const activeAudioRisk = hasSevereAudioRisk(
-    active,
-    rdOverride?.file || rdOverride?.label || ""
-  );
+  const activeAudioRisk =
+    hasSevereAudioRisk(
+      active,
+      rdOverride?.file ||
+        rdOverride?.label ||
+        ""
+    );
 
-  const externalSubtitles = useMemo(
-    () =>
-      normaliseSubtitleItems(
+  const externalSubtitles =
+    useMemo(
+      () =>
+        normaliseSubtitleItems(
+          rdOverride?.subtitles,
+          rdOverride?.captions,
+          active?.subtitles,
+          active?.captions,
+          active?.tracks,
+          source?.subtitles,
+          source?.captions
+        ),
+      [
         rdOverride?.subtitles,
         rdOverride?.captions,
         active?.subtitles,
         active?.captions,
         active?.tracks,
         source?.subtitles,
-        source?.captions
-      ),
-    [
-      rdOverride?.subtitles,
-      rdOverride?.captions,
-      active?.subtitles,
-      active?.captions,
-      active?.tracks,
-      source?.subtitles,
-      source?.captions,
-    ]
-  );
-
-  const markSourceFailed = (index) => {
-    failedSourcesRef.current.add(index);
-    setFailedSources(new Set(failedSourcesRef.current));
-  };
-
-  const clearSourceFailed = (index) => {
-    if (!failedSourcesRef.current.has(index)) return;
-
-    failedSourcesRef.current.delete(index);
-    setFailedSources(new Set(failedSourcesRef.current));
-  };
-
-  const findNextPlayableSource = (fromIndex) => {
-    for (let offset = 1; offset <= sources.length; offset += 1) {
-      const index = (fromIndex + offset) % sources.length;
-
-      if (failedSourcesRef.current.has(index)) continue;
-
-      const candidate = sources[index];
-      const url = getSourceUrl(candidate);
-      const torrent =
-        candidate?.type === "rd" ||
-        candidate?.type === "rd_torrent" ||
-        candidate?.type === "torrent" ||
-        candidate?.type === "magnet" ||
-        isMagnet(url);
-
-      if (url || torrent) return index;
-    }
-
-    return -1;
-  };
-
-  const tryNextSource = (message = "This source could not be played.") => {
-    markSourceFailed(activeIdx);
-
-    const nextIndex = findNextPlayableSource(activeIdx);
-
-    if (nextIndex === -1) {
-      setRdResolving(false);
-      setRdPolling(false);
-      setRdTorrentId(null);
-      setRdError(`${message} No other playable source is available.`);
-      return false;
-    }
-
-    setRdOverride(null);
-    setRdFiles([]);
-    setRdTorrentId(null);
-    setRdError("");
-    setRdResolving(false);
-    setRdPolling(false);
-    setActiveIdx(nextIndex);
-
-    return true;
-  };
-
-  const handleNoAudio = () => {
-    if (sources.length > 1) {
-      tryNextSource(
-        "Media God detected video playback with no decoded audio and switched source."
-      );
-      return;
-    }
-
-    setRdError(
-      "Video is playing, but this device did not decode audio from this source. Try another source if one becomes available."
+        source?.captions,
+      ]
     );
-  };
 
-  const selectSource = (index) => {
-    const nextIndex = Number(index);
+  const markSourceFailed =
+    (index) => {
+      failedSourcesRef.current.add(
+        index
+      );
 
-    if (
-      Number.isNaN(nextIndex) ||
-      nextIndex < 0 ||
-      nextIndex >= sources.length
-    ) {
-      return;
-    }
+      setFailedSources(
+        new Set(
+          failedSourcesRef.current
+        )
+      );
+    };
 
-    clearSourceFailed(nextIndex);
-    setRdOverride(null);
-    setRdFiles([]);
-    setRdTorrentId(null);
-    setRdError("");
-    setRdResolving(false);
-    setRdPolling(false);
-    setActiveIdx(nextIndex);
-  };
+  const clearSourceFailed =
+    (index) => {
+      if (
+        !failedSourcesRef.current.has(
+          index
+        )
+      ) {
+        return;
+      }
 
-  const sourceTypeLabel = (item) => {
-    const type = String(item?.type || "").toLowerCase();
+      failedSourcesRef.current.delete(
+        index
+      );
 
-    if (type === "rd" || type === "rd_torrent") return "Real-Debrid";
-    if (type === "magnet" || type === "torrent") return "Torrent / Magnet";
-    if (type === "live") return "Live";
-    if (type === "youtube") return "Trailer";
-    if (type === "provider") return "Provider";
-    if (type === "file") return "File";
-    if (type === "url") return "Direct";
+      setFailedSources(
+        new Set(
+          failedSourcesRef.current
+        )
+      );
+    };
 
-    return "Source";
-  };
-
-  const isLive =
-    source?.type === "live" ||
-    active?.live ||
-    active?.type === "live";
-
-  const isYoutube =
-    active?.type === "youtube";
-
-  const isProvider =
-    active?.type === "provider";
-
-  const isDirectFile =
-    active?.type === "file" ||
-    active?.type === "url" ||
-    active?.type === "live";
-
-  const isRdSource =
-    active?.type === "rd" ||
-    active?.type === "rd_torrent" ||
-    active?.type === "magnet" ||
-    isMagnet(activeUrl);
-
-  const goFullscreen = () => {
-    setViewportFullscreen((current) => !current);
-  };
-
-  useEffect(() => {
-    setRdOverride(null);
-    setRdError("");
-    setRdFiles([]);
-    setRdTorrentId(null);
-
-    if (pollRef.current) {
-      clearTimeout(pollRef.current);
-      pollRef.current = null;
-    }
-  }, [activeIdx]);
-
-  useEffect(() => {
-    if (!active) return;
-
-    if (
-      isYoutube ||
-      isProvider ||
-      isDirectFile ||
-      isLive
-    ) {
-      return;
-    }
-
-    if (!isRdSource) {
-      return;
-    }
-
-    let cancelled = false;
-
-    setRdResolving(true);
-    setRdPolling(false);
-    setRdError("");
-    setRdOverride(null);
-    setRdTorrentId(null);
-
-    const run = async () => {
-      try {
-        const magnet =
-          active?.magnet ||
-          active?.magnetLink ||
-          active?.src ||
-          active?.url ||
-          "";
-
-        if (!magnet) {
-          throw new Error(
-            "This source did not provide a playable link."
-          );
-        }
+  const findNextPlayableSource =
+    (
+      fromIndex
+    ) => {
+      for (
+        let offset =
+          1;
+        offset <=
+        sources.length;
+        offset += 1
+      ) {
+        const index =
+          (
+            fromIndex +
+            offset
+          ) %
+          sources.length;
 
         if (
-          String(magnet)
-            .toLowerCase()
-            .startsWith("http://") ||
-          String(magnet)
-            .toLowerCase()
-            .startsWith("https://")
+          failedSourcesRef.current.has(
+            index
+          )
         ) {
-          if (!cancelled) {
-            setRdOverride({
-              src: magnet,
-              label:
-                active?.label ||
-                "Stream",
-              file: "",
-            });
-            setRdResolving(false);
-          }
-
-          return;
+          continue;
         }
 
-        const res =
+        const candidate =
+          sources[
+            index
+          ];
+
+        const url =
+          getSourceUrl(
+            candidate
+          );
+
+        const torrent =
+          candidate?.type ===
+            "rd" ||
+          candidate?.type ===
+            "rd_torrent" ||
+          candidate?.type ===
+            "torrent" ||
+          candidate?.type ===
+            "magnet" ||
+          isMagnet(
+            url
+          );
+
+        if (
+          url ||
+          torrent
+        ) {
+          return index;
+        }
+      }
+
+      return -1;
+    };
+
+  const tryNextSource =
+    (
+      message =
+        "This source could not be played."
+    ) => {
+      markSourceFailed(
+        activeIdx
+      );
+
+      const nextIndex =
+        findNextPlayableSource(
+          activeIdx
+        );
+
+      if (
+        nextIndex ===
+        -1
+      ) {
+        setRdResolving(
+          false
+        );
+
+        setRdPolling(
+          false
+        );
+
+        setRdTorrentId(
+          null
+        );
+
+        setRdError(
+          `${message} No other playable source is available.`
+        );
+
+        return false;
+      }
+
+      setRdOverride(
+        null
+      );
+
+      setRdFiles(
+        []
+      );
+
+      setRdTorrentId(
+        null
+      );
+
+      setRdError(
+        ""
+      );
+
+      setRdResolving(
+        false
+      );
+
+      setRdPolling(
+        false
+      );
+
+      setActiveIdx(
+        nextIndex
+      );
+
+      return true;
+    };
+
+  const sourceTypeLabel =
+    (item) => {
+      const type =
+        String(
+          item?.type ||
+            ""
+        ).toLowerCase();
+
+      if (
+        type ===
+          "rd" ||
+        type ===
+          "rd_torrent"
+      ) {
+        return "Real-Debrid";
+      }
+
+      if (
+        type ===
+          "magnet" ||
+        type ===
+          "torrent"
+      ) {
+        return "Torrent / Magnet";
+      }
+
+      if (
+        type ===
+        "live"
+      ) {
+        return "Live";
+      }
+
+      if (
+        type ===
+        "youtube"
+      ) {
+        return "Trailer";
+      }
+
+      if (
+        type ===
+        "provider"
+      ) {
+        return "Provider";
+      }
+
+      if (
+        type ===
+        "file"
+      ) {
+        return "File";
+      }
+
+      if (
+        type ===
+        "url"
+      ) {
+        return "Direct";
+      }
+
+      return "Source";
+    };
+
+  const isLive =
+    source?.type ===
+      "live" ||
+    active?.live ||
+    active?.type ===
+      "live";
+
+  const isYoutube =
+    active?.type ===
+    "youtube";
+
+  const isProvider =
+    active?.type ===
+    "provider";
+
+  const isDirectFile =
+    active?.type ===
+      "file" ||
+    active?.type ===
+      "url" ||
+    active?.type ===
+      "live";
+
+  const isRdSource =
+    active?.type ===
+      "rd" ||
+    active?.type ===
+      "rd_torrent" ||
+    active?.type ===
+      "magnet" ||
+    isMagnet(
+      activeUrl
+    );
+
+  const goFullscreen =
+    () => {
+      setViewportFullscreen(
+        (current) =>
+          !current
+      );
+    };
+
+  /*
+   * ==========================================================
+   * DIRECT STREAM AUDIO RESCUE
+   *
+   * This is the new part.
+   *
+   * Addon sources sometimes give us a direct HTTP video URL
+   * rather than a magnet.
+   *
+   * If that video has unsupported audio, we now give
+   * Real-Debrid a chance to create a browser-friendly stream
+   * instead of immediately throwing the source away.
+   * ==========================================================
+   */
+  const tryDirectAudioRescue =
+    async (
+      reason =
+        "audio"
+    ) => {
+      if (
+        !hasRd ||
+        isLive ||
+        !activeUrl ||
+        !isHttpUrl(
+          activeUrl
+        ) ||
+        rdOverride
+      ) {
+        return false;
+      }
+
+      const rescueKey =
+        `${activeIdx}:${activeUrl}`;
+
+      if (
+        audioRescueAttemptedRef.current.has(
+          rescueKey
+        )
+      ) {
+        return false;
+      }
+
+      audioRescueAttemptedRef.current.add(
+        rescueKey
+      );
+
+      setRdResolving(
+        true
+      );
+
+      setRdError(
+        ""
+      );
+
+      try {
+        const response =
           await base44.functions.invoke(
             "realDebrid",
             {
-              action: "resolve_best",
+              action:
+                "unrestrict_file",
 
-              magnet,
+              link:
+                activeUrl,
 
-              title:
-                source?.rdTitle ||
-                source?.title ||
-                "",
+              prefer_english:
+                true,
 
-              ...(source?.rdYear != null
-                ? {
-                    year:
-                      source.rdYear,
-                  }
-                : {}),
-
-              ...(source?.rdSeason != null
-                ? {
-                    season:
-                      source.rdSeason,
-                  }
-                : {}),
-
-              ...(source?.rdEpisode != null
-                ? {
-                    episode:
-                      source.rdEpisode,
-                  }
-                : {}),
+              allow_transcode:
+                true,
             }
           );
 
-        if (cancelled) return;
-
-        const data = res?.data || {};
+        const data =
+          response?.data ||
+          {};
 
         if (
-          data.status === "ready" &&
-          data.stream_url
+          data?.stream_url
         ) {
           setRdOverride({
-            src: data.stream_url,
+            src:
+              data.stream_url,
+
             label:
               data.filename ||
               active?.label ||
-              "Real-Debrid Stream",
-            file: currentFilePath(
-              data.files
-            ),
+              "Audio Rescue",
+
+            file:
+              data.filename ||
+              "",
+
+            audioRescue:
+              data.audio_rescue ||
+              null,
+
+            mediaInfo:
+              data.media_info ||
+              null,
+
+            subtitles:
+              active?.subtitles ||
+              source?.subtitles ||
+              [],
+
+            captions:
+              active?.captions ||
+              source?.captions ||
+              [],
           });
 
-          setRdFiles(
-            data.files || []
+          setRdResolving(
+            false
           );
 
-          setRdResolving(false);
-          return;
-        }
-
-        if (data.torrent_id) {
-          setRdTorrentId(
-            String(data.torrent_id)
+          setRdError(
+            ""
           );
 
-          setRdResolving(false);
-          return;
+          return true;
         }
 
         throw new Error(
-          data.error ||
-            "Real-Debrid could not resolve this source."
+          data?.error ||
+            "Real-Debrid could not create a compatible audio stream."
         );
       } catch (error) {
-        if (!cancelled) {
-          tryNextSource(
-            error?.message ||
-              "Unable to resolve this stream."
-          );
+        setRdResolving(
+          false
+        );
+
+        /*
+         * Do not set a permanent error here yet.
+         *
+         * The caller decides whether to move to another source
+         * or let this one have a final native playback attempt.
+         */
+        console.warn(
+          `Media God Audio Rescue (${reason}) failed:`,
+          error
+        );
+
+        return false;
+      }
+    };
+
+  /*
+   * If a direct source advertises DTS / DTS-HD / TrueHD,
+   * don't waste time waiting for silent playback.
+   *
+   * Try Real-Debrid Audio Rescue first.
+   *
+   * If RD isn't connected and a safer source exists,
+   * skip the known-risky direct stream immediately.
+   */
+  useEffect(
+    () => {
+      if (
+        !isDirectFile ||
+        isLive ||
+        rdOverride ||
+        !activeAudioRisk
+      ) {
+        return undefined;
+      }
+
+      let cancelled =
+        false;
+
+      if (
+        !hasRd
+      ) {
+        if (
+          sources.length >
+          1
+        ) {
+          const timer =
+            setTimeout(
+              () => {
+                if (
+                  !cancelled
+                ) {
+                  tryNextSource(
+                    "This direct source advertises DTS/TrueHD audio, so Media God skipped it in favour of a safer source."
+                  );
+                }
+              },
+              0
+            );
+
+          return () => {
+            cancelled =
+              true;
+
+            clearTimeout(
+              timer
+            );
+          };
         }
+
+        return undefined;
       }
-    };
 
-    run();
-
-    return () => {
-      cancelled = true;
-
-      if (pollRef.current) {
-        clearTimeout(pollRef.current);
-        pollRef.current = null;
+      if (
+        !isHttpUrl(
+          activeUrl
+        )
+      ) {
+        return undefined;
       }
-    };
-  }, [
-    activeIdx,
-    active,
-    activeUrl,
-    source,
-    isYoutube,
-    isProvider,
-    isDirectFile,
-    isLive,
-    isRdSource,
-  ]);
 
-  useEffect(() => {
-    if (
-      !rdTorrentId ||
-      rdOverride
-    ) {
-      return;
-    }
+      const rescueKey =
+        `${activeIdx}:${activeUrl}`;
 
-    let cancelled = false;
-    let attempts = 0;
+      if (
+        audioRescueAttemptedRef.current.has(
+          rescueKey
+        )
+      ) {
+        return undefined;
+      }
 
-    setRdPolling(true);
+      const rescue =
+        async () => {
+          const success =
+            await tryDirectAudioRescue(
+              "known risky codec"
+            );
 
-    const tick = async () => {
-      if (cancelled) return;
+          if (
+            cancelled ||
+            success
+          ) {
+            return;
+          }
 
-      attempts += 1;
+          /*
+           * If another source exists, don't deliberately hand a
+           * known DTS/TrueHD direct stream to Fire TV.
+           */
+          if (
+            sources.length >
+            1
+          ) {
+            tryNextSource(
+              "Real-Debrid could not rescue this DTS/TrueHD source, so Media God is trying another source."
+            );
+          }
+        };
 
-      try {
-        const res =
-          await base44.functions.invoke(
-            "realDebrid",
-            {
-              action: "torrent_info",
+      rescue();
 
-              torrent_id:
-                rdTorrentId,
+      return () => {
+        cancelled =
+          true;
+      };
+    },
+    [
+      activeIdx,
+      activeUrl,
+      activeAudioRisk,
+      hasRd,
+      isDirectFile,
+      isLive,
+      rdOverride,
+      sources.length,
+    ]
+  );
 
-              title:
-                source?.rdTitle ||
-                source?.title ||
-                "",
-
-              ...(source?.rdYear != null
-                ? {
-                    year:
-                      source.rdYear,
-                  }
-                : {}),
-
-              ...(source?.rdSeason != null
-                ? {
-                    season:
-                      source.rdSeason,
-                  }
-                : {}),
-
-              ...(source?.rdEpisode != null
-                ? {
-                    episode:
-                      source.rdEpisode,
-                  }
-                : {}),
-            }
+  /*
+   * Runtime no-audio rescue.
+   *
+   * This catches streams whose release name did NOT tell us
+   * which codec they contained.
+   *
+   * LiveVideo detects that video is progressing but no audio
+   * bytes are being decoded. Before abandoning a direct stream,
+   * we now try Real-Debrid Audio Rescue once.
+   */
+  const handleNoAudio =
+    async () => {
+      if (
+        !rdOverride &&
+        !isLive &&
+        hasRd &&
+        isHttpUrl(
+          activeUrl
+        )
+      ) {
+        const rescued =
+          await tryDirectAudioRescue(
+            "runtime silent audio"
           );
-
-        if (cancelled) return;
-
-        const data =
-          res?.data || {};
 
         if (
-          data.status === "ready" &&
-          data.stream_url
+          rescued
         ) {
-          setRdOverride({
-            src: data.stream_url,
-            label:
-              data.filename ||
-              "Real-Debrid Stream",
-            file: currentFilePath(
-              data.files
-            ),
-          });
-
-          setRdFiles(
-            data.files || []
-          );
-
-          setRdPolling(false);
-          setRdTorrentId(null);
-
           return;
         }
+      }
 
-        if (data.error) {
-          setRdError(data.error);
-          setRdPolling(false);
-          setRdTorrentId(null);
-          return;
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setRdError(
-            error?.message ||
-              "Real-Debrid polling failed."
-          );
-
-          setRdPolling(false);
-          setRdTorrentId(null);
-        }
+      if (
+        sources.length >
+        1
+      ) {
+        tryNextSource(
+          "Media God detected video playback with no decoded audio and switched to another compatible source."
+        );
 
         return;
       }
 
-      if (attempts < 36) {
-        pollRef.current =
-          setTimeout(
-            tick,
-            5000
-          );
-      } else {
-        setRdPolling(false);
-        setRdTorrentId(null);
-
-        setRdError(
-          "Real-Debrid is still preparing this file. Please try Check Again shortly."
-        );
-      }
+      setRdError(
+        "Video is playing, but this device did not decode audio from this source and no compatible alternative was available."
+      );
     };
 
-    pollRef.current =
-      setTimeout(
-        tick,
-        2500
+  const selectSource =
+    (index) => {
+      const nextIndex =
+        Number(
+          index
+        );
+
+      if (
+        Number.isNaN(
+          nextIndex
+        ) ||
+        nextIndex <
+          0 ||
+        nextIndex >=
+          sources.length
+      ) {
+        return;
+      }
+
+      clearSourceFailed(
+        nextIndex
       );
 
-    return () => {
-      cancelled = true;
+      /*
+       * A manual source selection means the user intentionally
+       * wants another attempt, so allow Audio Rescue again.
+       */
+      audioRescueAttemptedRef.current =
+        new Set();
 
-      if (pollRef.current) {
+      setRdOverride(
+        null
+      );
+
+      setRdFiles(
+        []
+      );
+
+      setRdTorrentId(
+        null
+      );
+
+      setRdError(
+        ""
+      );
+
+      setRdResolving(
+        false
+      );
+
+      setRdPolling(
+        false
+      );
+
+      setActiveIdx(
+        nextIndex
+      );
+    };
+
+  useEffect(
+    () => {
+      setRdOverride(
+        null
+      );
+
+      setRdError(
+        ""
+      );
+
+      setRdFiles(
+        []
+      );
+
+      setRdTorrentId(
+        null
+      );
+
+      if (
+        pollRef.current
+      ) {
         clearTimeout(
           pollRef.current
         );
 
-        pollRef.current = null;
+        pollRef.current =
+          null;
       }
-    };
-  }, [
-    rdTorrentId,
-    rdOverride,
-    source,
-  ]);
+    },
+    [
+      activeIdx,
+    ]
+  );
 
-  useEffect(() => {
-    failedSourcesRef.current = new Set();
-    setFailedSources(new Set());
-  }, [
-    source?.title,
-    source?.id,
-    source?.rdSeason,
-    source?.rdEpisode,
-  ]);
-
-  useEffect(() => {
-    const onKey = (event) => {
-      if (event.key === "Escape") {
-        if (viewportFullscreen) {
-          setViewportFullscreen(false);
-        } else {
-          onClose();
-        }
-
-        return;
+  /*
+   * ==========================================================
+   * REAL-DEBRID / MAGNET RESOLUTION
+   * ==========================================================
+   */
+  useEffect(
+    () => {
+      if (!active) {
+        return undefined;
       }
 
-      const tag = (
-        event.target?.tagName ||
-        ""
-      ).toLowerCase();
+      /*
+       * Provider/YouTube/live streams never go through this
+       * Real-Debrid magnet resolver.
+       */
+      if (
+        isYoutube ||
+        isProvider ||
+        isLive
+      ) {
+        return undefined;
+      }
+
+      /*
+       * Normal direct HTTP/files play directly.
+       *
+       * Known risky direct audio is handled by the dedicated
+       * Audio Rescue effect above.
+       */
+      if (
+        isDirectFile
+      ) {
+        return undefined;
+      }
 
       if (
-        tag === "input" ||
-        tag === "textarea" ||
-        event.target?.isContentEditable
+        !isRdSource
       ) {
-        return;
+        return undefined;
       }
 
-      const video =
-        stageRef.current?.querySelector(
-          "video"
+      let cancelled =
+        false;
+
+      setRdResolving(
+        true
+      );
+
+      setRdPolling(
+        false
+      );
+
+      setRdError(
+        ""
+      );
+
+      setRdOverride(
+        null
+      );
+
+      setRdTorrentId(
+        null
+      );
+
+      const run =
+        async () => {
+          try {
+            const magnet =
+              active?.magnet ||
+              active?.magnetLink ||
+              active?.src ||
+              active?.url ||
+              "";
+
+            if (
+              !magnet
+            ) {
+              throw new Error(
+                "This source did not provide a playable link."
+              );
+            }
+
+            if (
+              isHttpUrl(
+                magnet
+              )
+            ) {
+              if (
+                !cancelled
+              ) {
+                setRdOverride({
+                  src:
+                    magnet,
+
+                  label:
+                    active?.label ||
+                    "Stream",
+
+                  file:
+                    "",
+                });
+
+                setRdResolving(
+                  false
+                );
+              }
+
+              return;
+            }
+
+            const res =
+              await base44.functions.invoke(
+                "realDebrid",
+                {
+                  action:
+                    "resolve_best",
+
+                  magnet,
+
+                  title:
+                    source?.rdTitle ||
+                    source?.title ||
+                    "",
+
+                  ...(source?.rdYear !=
+                  null
+                    ? {
+                        year:
+                          source.rdYear,
+                      }
+                    : {}),
+
+                  ...(source?.rdSeason !=
+                  null
+                    ? {
+                        season:
+                          source.rdSeason,
+                      }
+                    : {}),
+
+                  ...(source?.rdEpisode !=
+                  null
+                    ? {
+                        episode:
+                          source.rdEpisode,
+                      }
+                    : {}),
+                }
+              );
+
+            if (
+              cancelled
+            ) {
+              return;
+            }
+
+            const data =
+              res?.data ||
+              {};
+
+            if (
+              data.status ===
+                "ready" &&
+              data.stream_url
+            ) {
+              setRdOverride({
+                src:
+                  data.stream_url,
+
+                label:
+                  data.filename ||
+                  active?.label ||
+                  "Real-Debrid Stream",
+
+                file:
+                  currentFilePath(
+                    data.files
+                  ),
+
+                audioRescue:
+                  data.audio_rescue ||
+                  null,
+
+                mediaInfo:
+                  data.media_info ||
+                  null,
+
+                subtitles:
+                  active?.subtitles ||
+                  source?.subtitles ||
+                  [],
+
+                captions:
+                  active?.captions ||
+                  source?.captions ||
+                  [],
+              });
+
+              setRdFiles(
+                data.files ||
+                []
+              );
+
+              setRdResolving(
+                false
+              );
+
+              return;
+            }
+
+            if (
+              data.torrent_id
+            ) {
+              setRdTorrentId(
+                String(
+                  data.torrent_id
+                )
+              );
+
+              setRdResolving(
+                false
+              );
+
+              return;
+            }
+
+            throw new Error(
+              data.error ||
+                "Real-Debrid could not resolve this source."
+            );
+          } catch (
+            error
+          ) {
+            if (
+              !cancelled
+            ) {
+              /*
+               * Audio Rescue failures, magnet failures and
+               * unsupported files all move straight to the next
+               * source instead of leaving the user on a dead one.
+               */
+              tryNextSource(
+                error?.message ||
+                  "Unable to resolve this stream."
+              );
+            }
+          }
+        };
+
+      run();
+
+      return () => {
+        cancelled =
+          true;
+
+        if (
+          pollRef.current
+        ) {
+          clearTimeout(
+            pollRef.current
+          );
+
+          pollRef.current =
+            null;
+        }
+      };
+    },
+    [
+      activeIdx,
+      active,
+      activeUrl,
+      source,
+      isYoutube,
+      isProvider,
+      isDirectFile,
+      isLive,
+      isRdSource,
+    ]
+  );
+
+  /*
+   * ==========================================================
+   * REAL-DEBRID PREPARATION POLLING
+   * ==========================================================
+   */
+  useEffect(
+    () => {
+      if (
+        !rdTorrentId ||
+        rdOverride
+      ) {
+        return undefined;
+      }
+
+      let cancelled =
+        false;
+
+      let attempts =
+        0;
+
+      setRdPolling(
+        true
+      );
+
+      const tick =
+        async () => {
+          if (
+            cancelled
+          ) {
+            return;
+          }
+
+          attempts +=
+            1;
+
+          try {
+            const res =
+              await base44.functions.invoke(
+                "realDebrid",
+                {
+                  action:
+                    "torrent_info",
+
+                  torrent_id:
+                    rdTorrentId,
+
+                  title:
+                    source?.rdTitle ||
+                    source?.title ||
+                    "",
+
+                  ...(source?.rdYear !=
+                  null
+                    ? {
+                        year:
+                          source.rdYear,
+                      }
+                    : {}),
+
+                  ...(source?.rdSeason !=
+                  null
+                    ? {
+                        season:
+                          source.rdSeason,
+                      }
+                    : {}),
+
+                  ...(source?.rdEpisode !=
+                  null
+                    ? {
+                        episode:
+                          source.rdEpisode,
+                      }
+                    : {}),
+                }
+              );
+
+            if (
+              cancelled
+            ) {
+              return;
+            }
+
+            const data =
+              res?.data ||
+              {};
+
+            if (
+              data.status ===
+                "ready" &&
+              data.stream_url
+            ) {
+              setRdOverride({
+                src:
+                  data.stream_url,
+
+                label:
+                  data.filename ||
+                  "Real-Debrid Stream",
+
+                file:
+                  currentFilePath(
+                    data.files
+                  ),
+
+                audioRescue:
+                  data.audio_rescue ||
+                  null,
+
+                mediaInfo:
+                  data.media_info ||
+                  null,
+
+                subtitles:
+                  active?.subtitles ||
+                  source?.subtitles ||
+                  [],
+
+                captions:
+                  active?.captions ||
+                  source?.captions ||
+                  [],
+              });
+
+              setRdFiles(
+                data.files ||
+                []
+              );
+
+              setRdPolling(
+                false
+              );
+
+              setRdTorrentId(
+                null
+              );
+
+              return;
+            }
+
+            if (
+              data.error
+            ) {
+              throw new Error(
+                data.error
+              );
+            }
+          } catch (
+            error
+          ) {
+            if (
+              !cancelled
+            ) {
+              setRdPolling(
+                false
+              );
+
+              setRdTorrentId(
+                null
+              );
+
+              tryNextSource(
+                error?.message ||
+                  "Real-Debrid could not prepare this stream."
+              );
+            }
+
+            return;
+          }
+
+          if (
+            attempts <
+            36
+          ) {
+            pollRef.current =
+              setTimeout(
+                tick,
+                5000
+              );
+          } else {
+            setRdPolling(
+              false
+            );
+
+            setRdTorrentId(
+              null
+            );
+
+            /*
+             * A source that never finishes preparing should not
+             * block the entire title if another source exists.
+             */
+            if (
+              sources.length >
+              1
+            ) {
+              tryNextSource(
+                "Real-Debrid did not finish preparing this source in time."
+              );
+            } else {
+              setRdError(
+                "Real-Debrid is still preparing this file. Please try again shortly."
+              );
+            }
+          }
+        };
+
+      pollRef.current =
+        setTimeout(
+          tick,
+          2500
         );
 
-      if (!video) return;
+      return () => {
+        cancelled =
+          true;
 
-      if (
-        event.key >= "0" &&
-        event.key <= "9" &&
-        video.duration
-      ) {
-        event.preventDefault();
+        if (
+          pollRef.current
+        ) {
+          clearTimeout(
+            pollRef.current
+          );
 
-        video.currentTime =
-          video.duration *
-          (parseInt(
-            event.key,
-            10
-          ) / 10);
+          pollRef.current =
+            null;
+        }
+      };
+    },
+    [
+      rdTorrentId,
+      rdOverride,
+      source,
+      active?.subtitles,
+      active?.captions,
+      sources.length,
+    ]
+  );
 
-        return;
-      }
+  useEffect(
+    () => {
+      failedSourcesRef.current =
+        new Set();
 
-      switch (event.key) {
-        case " ":
-        case "k":
-          event.preventDefault();
+      audioRescueAttemptedRef.current =
+        new Set();
 
-          if (video.paused) {
-            video
-              .play()
-              .catch(() => {});
-          } else {
-            video.pause();
-          }
+      setFailedSources(
+        new Set()
+      );
+    },
+    [
+      source?.title,
+      source?.id,
+      source?.rdSeason,
+      source?.rdEpisode,
+    ]
+  );
 
-          break;
-
-        case "ArrowLeft":
-        case "j":
-          event.preventDefault();
-
-          video.currentTime =
-            Math.max(
-              0,
-              (video.currentTime ||
-                0) - 10
-            );
-
-          break;
-
-        case "ArrowRight":
-        case "l":
-          event.preventDefault();
-
-          if (video.duration) {
-            video.currentTime =
-              Math.min(
-                video.duration,
-                (video.currentTime ||
-                  0) + 10
+  /*
+   * ==========================================================
+   * KEYBOARD / PLAYER SHORTCUTS
+   * ==========================================================
+   */
+  useEffect(
+    () => {
+      const onKey =
+        (event) => {
+          if (
+            event.key ===
+            "Escape"
+          ) {
+            if (
+              viewportFullscreen
+            ) {
+              setViewportFullscreen(
+                false
               );
+            } else {
+              onClose();
+            }
+
+            return;
           }
 
-          break;
+          const tag =
+            (
+              event.target
+                ?.tagName ||
+              ""
+            ).toLowerCase();
 
-        case "ArrowUp":
-          event.preventDefault();
+          if (
+            tag ===
+              "input" ||
+            tag ===
+              "textarea" ||
+            event.target
+              ?.isContentEditable
+          ) {
+            return;
+          }
 
-          video.volume =
-            Math.min(
-              1,
-              (video.volume ?? 1) +
-                0.1
+          const video =
+            stageRef.current?.querySelector(
+              "video"
             );
 
-          break;
+          if (
+            !video
+          ) {
+            return;
+          }
 
-        case "ArrowDown":
-          event.preventDefault();
+          if (
+            event.key >=
+              "0" &&
+            event.key <=
+              "9" &&
+            video.duration
+          ) {
+            event.preventDefault();
 
-          video.volume =
-            Math.max(
-              0,
-              (video.volume ?? 1) -
-                0.1
-            );
+            video.currentTime =
+              video.duration *
+              (
+                parseInt(
+                  event.key,
+                  10
+                ) /
+                10
+              );
 
-          break;
+            return;
+          }
 
-        case "f":
-          event.preventDefault();
-          goFullscreen();
-          break;
+          switch (
+            event.key
+          ) {
+            case " ":
+            case "k":
+              event.preventDefault();
 
-        case "m":
-          event.preventDefault();
-          video.muted =
-            !video.muted;
-          break;
+              if (
+                video.paused
+              ) {
+                video
+                  .play()
+                  .catch(
+                    () => {}
+                  );
+              } else {
+                video.pause();
+              }
 
-        case "<":
-          event.preventDefault();
+              break;
 
-          video.playbackRate =
-            Math.max(
-              0.5,
-              (video.playbackRate ||
-                1) - 0.25
-            );
+            case "ArrowLeft":
+            case "j":
+              event.preventDefault();
 
-          break;
+              video.currentTime =
+                Math.max(
+                  0,
+                  (
+                    video.currentTime ||
+                    0
+                  ) -
+                    10
+                );
 
-        case ">":
-          event.preventDefault();
+              break;
 
-          video.playbackRate =
-            Math.min(
-              2,
-              (video.playbackRate ||
-                1) + 0.25
-            );
+            case "ArrowRight":
+            case "l":
+              event.preventDefault();
 
-          break;
+              if (
+                video.duration
+              ) {
+                video.currentTime =
+                  Math.min(
+                    video.duration,
+                    (
+                      video.currentTime ||
+                      0
+                    ) +
+                      10
+                  );
+              }
 
-        default:
-          break;
-      }
-    };
+              break;
 
-    window.addEventListener(
-      "keydown",
-      onKey
-    );
+            case "ArrowUp":
+              event.preventDefault();
 
-    document.body.style.overflow =
-      "hidden";
+              video.volume =
+                Math.min(
+                  1,
+                  (
+                    video.volume ??
+                    1
+                  ) +
+                    0.1
+                );
 
-    return () => {
-      window.removeEventListener(
+              break;
+
+            case "ArrowDown":
+              event.preventDefault();
+
+              video.volume =
+                Math.max(
+                  0,
+                  (
+                    video.volume ??
+                    1
+                  ) -
+                    0.1
+                );
+
+              break;
+
+            case "f":
+              event.preventDefault();
+
+              goFullscreen();
+
+              break;
+
+            case "m":
+              event.preventDefault();
+
+              video.muted =
+                !video.muted;
+
+              break;
+
+            case "<":
+              event.preventDefault();
+
+              video.playbackRate =
+                Math.max(
+                  0.5,
+                  (
+                    video.playbackRate ||
+                    1
+                  ) -
+                    0.25
+                );
+
+              break;
+
+            case ">":
+              event.preventDefault();
+
+              video.playbackRate =
+                Math.min(
+                  2,
+                  (
+                    video.playbackRate ||
+                    1
+                  ) +
+                    0.25
+                );
+
+              break;
+
+            default:
+              break;
+          }
+        };
+
+      window.addEventListener(
         "keydown",
         onKey
       );
 
       document.body.style.overflow =
-        "";
-    };
-  }, [onClose, viewportFullscreen]);
+        "hidden";
 
+      return () => {
+        window.removeEventListener(
+          "keydown",
+          onKey
+        );
+
+        document.body.style.overflow =
+          "";
+      };
+    },
+    [
+      onClose,
+      viewportFullscreen,
+    ]
+  );
+
+  /*
+   * ==========================================================
+   * CONTINUE WATCHING
+   * ==========================================================
+   */
   const lastSaveRef =
-    useRef(0);
+    useRef(
+      0
+    );
 
   const cwIdRef =
-    useRef({});
+    useRef(
+      {}
+    );
 
   const lastPosRef =
     useRef({
@@ -966,255 +2082,391 @@ export default function VideoPlayer({
       d: 0,
     });
 
-  const saveProgress = (
-    time,
-    duration,
-    force = false
-  ) => {
-    if (
-      isLive ||
-      !source?.title
-    ) {
-      return;
-    }
-
-    const url =
-      rdOverride?.src ||
-      active?.src ||
-      active?.url;
-
-    if (!url) return;
-
-    const now =
-      Date.now();
-
-    if (
-      !force &&
-      now -
-        lastSaveRef.current <
-        10000
-    ) {
-      return;
-    }
-
-    lastSaveRef.current =
-      now;
-
-    const key =
-      `${source.title}|${
-        source.rdYear ||
-        source.year ||
-        ""
-      }|${
-        source.rdSeason ||
-        source.season ||
-        ""
-      }|${
-        source.rdEpisode ||
-        source.episode ||
-        ""
-      }`;
-
-    const patch = {
-      progress: time,
+  const saveProgress =
+    (
+      time,
       duration,
-      video_url: url,
-      poster_url:
-        source.poster || "",
-      source_type:
-        rdOverride
-          ? "rd"
-          : "file",
+      force =
+        false
+    ) => {
+      if (
+        isLive ||
+        !source?.title
+      ) {
+        return;
+      }
+
+      const url =
+        rdOverride?.src ||
+        active?.src ||
+        active?.url;
+
+      if (
+        !url
+      ) {
+        return;
+      }
+
+      const now =
+        Date.now();
+
+      if (
+        !force &&
+        now -
+          lastSaveRef.current <
+          10000
+      ) {
+        return;
+      }
+
+      lastSaveRef.current =
+        now;
+
+      const key =
+        `${source.title}|${
+          source.rdYear ||
+          source.year ||
+          ""
+        }|${
+          source.rdSeason ||
+          source.season ||
+          ""
+        }|${
+          source.rdEpisode ||
+          source.episode ||
+          ""
+        }`;
+
+      const patch = {
+        progress:
+          time,
+
+        duration,
+
+        video_url:
+          url,
+
+        poster_url:
+          source.poster ||
+          "",
+
+        source_type:
+          rdOverride
+            ? "rd"
+            : "file",
+      };
+
+      const id =
+        cwIdRef.current[
+          key
+        ];
+
+      if (
+        id
+      ) {
+        base44.entities.ContinueWatching
+          .update(
+            id,
+            patch
+          )
+          .catch(
+            () => {}
+          );
+
+        return;
+      }
+
+      base44.entities.ContinueWatching
+        .filter({
+          content_key:
+            key,
+        })
+        .then(
+          (rows) => {
+            if (
+              rows?.length >
+              0
+            ) {
+              cwIdRef.current[
+                key
+              ] =
+                rows[0].id;
+
+              base44.entities.ContinueWatching
+                .update(
+                  rows[0].id,
+                  patch
+                )
+                .catch(
+                  () => {}
+                );
+
+              return;
+            }
+
+            return base44.entities.ContinueWatching
+              .create({
+                content_key:
+                  key,
+
+                title:
+                  source.title,
+
+                year:
+                  source.rdYear ||
+                  source.year ||
+                  "",
+
+                ...patch,
+              })
+              .then(
+                (
+                  created
+                ) => {
+                  cwIdRef.current[
+                    key
+                  ] =
+                    created.id;
+                }
+              );
+          }
+        )
+        .catch(
+          () => {}
+        );
     };
 
-    const id =
-      cwIdRef.current[key];
-
-    if (id) {
-      base44.entities.ContinueWatching
-        .update(id, patch)
-        .catch(() => {});
-
-      return;
-    }
-
-    base44.entities.ContinueWatching
-      .filter({
-        content_key: key,
-      })
-      .then((rows) => {
-        if (rows?.length > 0) {
-          cwIdRef.current[key] =
-            rows[0].id;
-
-          base44.entities.ContinueWatching
-            .update(
-              rows[0].id,
-              patch
-            )
-            .catch(() => {});
-
-          return;
-        }
-
-        return base44.entities.ContinueWatching
-          .create({
-            content_key: key,
-            title: source.title,
-            year:
-              source.rdYear ||
-              source.year ||
-              "",
-            ...patch,
-          })
-          .then((created) => {
-            cwIdRef.current[key] =
-              created.id;
-          });
-      })
-      .catch(() => {});
-  };
-
   const saveProgressRef =
-    useRef(saveProgress);
+    useRef(
+      saveProgress
+    );
 
   saveProgressRef.current =
     saveProgress;
 
-  useEffect(() => {
-    return () => {
-      const {
-        t,
-        d,
-      } = lastPosRef.current;
-
-      if (t > 5) {
-        saveProgressRef.current?.(
+  useEffect(
+    () => {
+      return () => {
+        const {
           t,
           d,
-          true
-        );
+        } =
+          lastPosRef.current;
+
+        if (
+          t >
+          5
+        ) {
+          saveProgressRef.current?.(
+            t,
+            d,
+            true
+          );
+        }
+      };
+    },
+    []
+  );
+
+  const handleLoadedMetadata =
+    (event) => {
+      const video =
+        event.target;
+
+      if (
+        source?.startTime &&
+        source.startTime >
+          5
+      ) {
+        try {
+          video.currentTime =
+            source.startTime;
+        } catch {
+          // Ignore.
+        }
       }
     };
-  }, []);
 
-  const handleLoadedMetadata = (
-    event
-  ) => {
-    const video =
-      event.target;
+  const handleTimeUpdate =
+    (event) => {
+      const video =
+        event.target;
 
-    if (
-      source?.startTime &&
-      source.startTime > 5
-    ) {
-      try {
-        video.currentTime =
-          source.startTime;
-      } catch {
-        // Ignore.
-      }
-    }
-  };
+      lastPosRef.current =
+        {
+          t:
+            video.currentTime ||
+            0,
 
-  const handleTimeUpdate = (
-    event
-  ) => {
-    const video =
-      event.target;
+          d:
+            video.duration ||
+            0,
+        };
 
-    lastPosRef.current = {
-      t:
+      saveProgress(
         video.currentTime ||
-        0,
-      d:
-        video.duration || 0,
+          0,
+        video.duration ||
+          0
+      );
     };
 
-    saveProgress(
-      video.currentTime ||
-        0,
-      video.duration ||
-        0
-    );
-  };
-
-  const pickFile = async (
-    file
-  ) => {
-    if (!file?.link) {
-      setRdError(
-        "This file does not have a Real-Debrid link yet."
-      );
-      return;
-    }
-
-    if (
-      rdOverride?.file ===
-      file.path
-    ) {
-      return;
-    }
-
-    setFileSwitching(true);
-    setRdError("");
-
-    try {
-      const res =
-        await base44.functions.invoke(
-          "realDebrid",
-          {
-            action:
-              "unrestrict_file",
-            link: file.link,
-          }
+  /*
+   * ==========================================================
+   * MANUAL REAL-DEBRID FILE SELECTION
+   * ==========================================================
+   */
+  const pickFile =
+    async (
+      file
+    ) => {
+      if (
+        !file?.link
+      ) {
+        setRdError(
+          "This file does not have a Real-Debrid link yet."
         );
 
-      const data =
-        res?.data || {};
+        return;
+      }
 
-      if (data.stream_url) {
-        setRdOverride({
-          src:
-            data.stream_url,
-          label:
-            file.path ||
-            "Real-Debrid File",
-          file:
-            file.path || "",
-        });
-      } else {
+      if (
+        rdOverride?.file ===
+        file.path
+      ) {
+        return;
+      }
+
+      setFileSwitching(
+        true
+      );
+
+      setRdError(
+        ""
+      );
+
+      try {
+        const res =
+          await base44.functions.invoke(
+            "realDebrid",
+            {
+              action:
+                "unrestrict_file",
+
+              link:
+                file.link,
+
+              prefer_english:
+                true,
+
+              allow_transcode:
+                true,
+            }
+          );
+
+        const data =
+          res?.data ||
+          {};
+
+        if (
+          data.stream_url
+        ) {
+          setRdOverride({
+            src:
+              data.stream_url,
+
+            label:
+              file.path ||
+              data.filename ||
+              "Real-Debrid File",
+
+            file:
+              file.path ||
+              "",
+
+            audioRescue:
+              data.audio_rescue ||
+              null,
+
+            mediaInfo:
+              data.media_info ||
+              null,
+
+            subtitles:
+              active?.subtitles ||
+              source?.subtitles ||
+              [],
+
+            captions:
+              active?.captions ||
+              source?.captions ||
+              [],
+          });
+        } else {
+          throw new Error(
+            data.error ||
+              "Could not open this file."
+          );
+        }
+      } catch (
+        error
+      ) {
+        /*
+         * If this manually selected file has incompatible audio,
+         * do not silently play it anyway.
+         */
         setRdError(
-          data.error ||
-            "Could not open this file."
+          error?.message ||
+            "Real-Debrid could not create a compatible stream for this file."
+        );
+      } finally {
+        setFileSwitching(
+          false
         );
       }
-    } catch (error) {
-      setRdError(
-        error?.message ||
-          "Real-Debrid request failed."
+    };
+
+  const retryResolution =
+    () => {
+      setRdOverride(
+        null
       );
-    } finally {
-      setFileSwitching(false);
-    }
-  };
 
-  const retryResolution = () => {
-    setRdOverride(null);
-    setRdFiles([]);
-    setRdTorrentId(null);
-    setRdError("");
-    setRdResolving(true);
+      setRdFiles(
+        []
+      );
 
-    const current =
-      activeIdx;
+      setRdTorrentId(
+        null
+      );
 
-    setActiveIdx(-1);
+      setRdError(
+        ""
+      );
 
-    setTimeout(() => {
-      setActiveIdx(current);
-    }, 0);
-  };
+      setRdResolving(
+        true
+      );
+
+      audioRescueAttemptedRef.current =
+        new Set();
+
+      const current =
+        activeIdx;
+
+      setActiveIdx(
+        -1
+      );
+
+      setTimeout(
+        () => {
+          setActiveIdx(
+            current
+          );
+        },
+        0
+      );
+    };
 
   const busy =
     rdResolving ||
@@ -1229,9 +2481,13 @@ export default function VideoPlayer({
     <div
       className={cn(
         "fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center",
-        viewportFullscreen ? "p-0" : "p-4"
+        viewportFullscreen
+          ? "p-0"
+          : "p-4"
       )}
-      onClick={onClose}
+      onClick={
+        onClose
+      }
     >
       <div
         className={cn(
@@ -1240,14 +2496,18 @@ export default function VideoPlayer({
             ? "h-[100dvh] max-w-none"
             : "max-w-4xl"
         )}
-        onClick={(event) =>
+        onClick={(
+          event
+        ) =>
           event.stopPropagation()
         }
       >
         <div
           className={cn(
             "items-center justify-between mb-3 gap-3",
-            viewportFullscreen ? "hidden" : "flex"
+            viewportFullscreen
+              ? "hidden"
+              : "flex"
           )}
         >
           <div className="flex items-center gap-2 min-w-0">
@@ -1259,14 +2519,18 @@ export default function VideoPlayer({
             )}
 
             <h3 className="text-white font-semibold text-sm truncate">
-              {source?.title}
+              {
+                source?.title
+              }
             </h3>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            {(isDirectFile ||
+            {(
+              isDirectFile ||
               isLive ||
-              rdOverride) && (
+              rdOverride
+            ) && (
               <>
                 <button
                   onClick={
@@ -1295,7 +2559,9 @@ export default function VideoPlayer({
             )}
 
             <button
-              onClick={onClose}
+              onClick={
+                onClose
+              }
               className="text-white/60 hover:text-white"
               aria-label="Close"
             >
@@ -1305,9 +2571,12 @@ export default function VideoPlayer({
         </div>
 
         <div
-          ref={stageRef}
+          ref={
+            stageRef
+          }
           className={cn(
             "relative w-full bg-black overflow-hidden flex items-center justify-center",
+
             viewportFullscreen
               ? "h-[100dvh] aspect-auto rounded-none border-0"
               : "aspect-video rounded-lg border border-white/10"
@@ -1316,9 +2585,14 @@ export default function VideoPlayer({
           {viewportFullscreen && (
             <button
               type="button"
-              onClick={(event) => {
+              onClick={(
+                event
+              ) => {
                 event.stopPropagation();
-                setViewportFullscreen(false);
+
+                setViewportFullscreen(
+                  false
+                );
               }}
               className="absolute right-3 top-3 z-50 flex h-10 w-10 items-center justify-center rounded-full bg-black/70 text-white shadow-lg backdrop-blur-sm hover:bg-black/90"
               aria-label="Exit fullscreen"
@@ -1334,43 +2608,69 @@ export default function VideoPlayer({
 
               <p className="text-white font-semibold text-sm">
                 {rdResolving
-                  ? "Finding your stream…"
+                  ? "Preparing compatible playback…"
                   : rdPolling ||
-                    rdTorrentId
-                  ? "Real-Debrid is preparing your stream…"
-                  : "Loading…"}
+                      rdTorrentId
+                    ? "Real-Debrid is preparing your stream…"
+                    : "Loading…"}
               </p>
 
               <p className="text-white/50 text-xs max-w-md">
-                This title does not need to already be in your Real-Debrid library. If the selected source is a torrent, Media God is sending it to Real-Debrid now.
+                Media God is checking the selected source and will automatically move to another source if this one cannot provide compatible audio.
               </p>
-
-              {displayedError && (
-                <p className="text-red-400 text-xs mt-1 max-w-md break-words">
-                  {displayedError}
-                </p>
-              )}
             </div>
           ) : rdOverride ? (
             <>
               <LiveVideo
-                key={rdOverride.src}
-                ref={videoRef}
-                src={rdOverride.src}
+                key={
+                  rdOverride.src
+                }
+                ref={
+                  videoRef
+                }
+                src={
+                  rdOverride.src
+                }
                 sourceLabel={`${rdOverride?.file || ""} ${rdOverride?.label || ""} ${active?.label || ""}`}
-                isLive={isLive}
-                poster={source?.poster}
-                controls={false}
-                qualityPreference={sessionQuality}
-                audioTrackPreference={audioTrackChoice}
-                subtitleTrackPreference={subtitleTrackChoice}
-                externalSubtitles={externalSubtitles}
-                onAudioTracksChanged={setAudioTracks}
-                onSubtitleTracksChanged={setSubtitleTracks}
-                onQualityLevelsChanged={setQualityLevels}
-                onActiveAudioTrackChanged={setActiveAudioTrack}
-                onActiveSubtitleTrackChanged={setActiveSubtitleTrack}
-                onNoAudio={handleNoAudio}
+                isLive={
+                  isLive
+                }
+                poster={
+                  source?.poster
+                }
+                controls={
+                  false
+                }
+                qualityPreference={
+                  sessionQuality
+                }
+                audioTrackPreference={
+                  audioTrackChoice
+                }
+                subtitleTrackPreference={
+                  subtitleTrackChoice
+                }
+                externalSubtitles={
+                  externalSubtitles
+                }
+                onAudioTracksChanged={
+                  setAudioTracks
+                }
+                onSubtitleTracksChanged={
+                  setSubtitleTracks
+                }
+                onQualityLevelsChanged={
+                  setQualityLevels
+                }
+                onActiveAudioTrackChanged={
+                  setActiveAudioTrack
+                }
+                onActiveSubtitleTrackChanged={
+                  setActiveSubtitleTrack
+                }
+                onNoAudio={
+                  handleNoAudio
+                }
                 onLoadedMetadata={
                   handleLoadedMetadata
                 }
@@ -1386,10 +2686,18 @@ export default function VideoPlayer({
               />
 
               <PlayerControls
-                key={rdOverride.src}
-                videoRef={videoRef}
-                stageRef={stageRef}
-                isLive={isLive}
+                key={
+                  rdOverride.src
+                }
+                videoRef={
+                  videoRef
+                }
+                stageRef={
+                  stageRef
+                }
+                isLive={
+                  isLive
+                }
                 onFullscreen={
                   goFullscreen
                 }
@@ -1397,7 +2705,9 @@ export default function VideoPlayer({
             </>
           ) : isYoutube ? (
             <iframe
-              src={active.src}
+              src={
+                active.src
+              }
               title={
                 source?.title ||
                 "Video"
@@ -1409,7 +2719,9 @@ export default function VideoPlayer({
             />
           ) : isProvider ? (
             <iframe
-              src={active.src}
+              src={
+                active.src
+              }
               title={
                 source?.title ||
                 "Provider"
@@ -1422,25 +2734,55 @@ export default function VideoPlayer({
           ) : isDirectFile ? (
             <>
               <LiveVideo
-                ref={liveVideoRef}
-                key={active.src}
-                src={active.src}
+                ref={
+                  liveVideoRef
+                }
+                key={
+                  active.src
+                }
+                src={
+                  active.src
+                }
                 sourceLabel={`${active?.label || ""} ${active?.name || ""} ${active?.filename || ""}`}
-                isLive={isLive}
+                isLive={
+                  isLive
+                }
                 poster={
                   source?.poster
                 }
-                controls={false}
-                qualityPreference={sessionQuality}
-                audioTrackPreference={audioTrackChoice}
-                subtitleTrackPreference={subtitleTrackChoice}
-                externalSubtitles={externalSubtitles}
-                onAudioTracksChanged={setAudioTracks}
-                onSubtitleTracksChanged={setSubtitleTracks}
-                onQualityLevelsChanged={setQualityLevels}
-                onActiveAudioTrackChanged={setActiveAudioTrack}
-                onActiveSubtitleTrackChanged={setActiveSubtitleTrack}
-                onNoAudio={handleNoAudio}
+                controls={
+                  false
+                }
+                qualityPreference={
+                  sessionQuality
+                }
+                audioTrackPreference={
+                  audioTrackChoice
+                }
+                subtitleTrackPreference={
+                  subtitleTrackChoice
+                }
+                externalSubtitles={
+                  externalSubtitles
+                }
+                onAudioTracksChanged={
+                  setAudioTracks
+                }
+                onSubtitleTracksChanged={
+                  setSubtitleTracks
+                }
+                onQualityLevelsChanged={
+                  setQualityLevels
+                }
+                onActiveAudioTrackChanged={
+                  setActiveAudioTrack
+                }
+                onActiveSubtitleTrackChanged={
+                  setActiveSubtitleTrack
+                }
+                onNoAudio={
+                  handleNoAudio
+                }
                 className="w-full h-full object-contain bg-black"
                 onLoadedMetadata={
                   handleLoadedMetadata
@@ -1456,14 +2798,18 @@ export default function VideoPlayer({
               />
 
               <PlayerControls
-                key={active.src}
+                key={
+                  active.src
+                }
                 videoRef={
                   liveVideoRef
                 }
                 stageRef={
                   stageRef
                 }
-                isLive={isLive}
+                isLive={
+                  isLive
+                }
                 onFullscreen={
                   goFullscreen
                 }
@@ -1479,7 +2825,9 @@ export default function VideoPlayer({
 
               {displayedError && (
                 <p className="text-red-400 text-xs max-w-md break-words">
-                  {displayedError}
+                  {
+                    displayedError
+                  }
                 </p>
               )}
 
@@ -1491,6 +2839,7 @@ export default function VideoPlayer({
                   className="flex items-center gap-2 px-3 py-2 rounded-md bg-mg-green text-black text-xs font-semibold hover:bg-mg-green-dim"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
+
                   Try Again
                 </button>
               )}
@@ -1498,147 +2847,228 @@ export default function VideoPlayer({
           )}
         </div>
 
-        {(rdOverride || isDirectFile) && !busy && !viewportFullscreen && (
-          <div className="mt-3 bg-mg-card border border-white/10 rounded-lg p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-              <div>
-                <p className="text-white text-xs font-semibold">
-                  Playback options
-                </p>
+        {(
+          rdOverride ||
+          isDirectFile
+        ) &&
+          !busy &&
+          !viewportFullscreen && (
+            <div className="mt-3 bg-mg-card border border-white/10 rounded-lg p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <div>
+                  <p className="text-white text-xs font-semibold">
+                    Playback options
+                  </p>
 
-                <p className="text-white/40 text-[10px] mt-0.5">
-                  English audio is preferred automatically. 4K stays available on Fire Stick 4K / 4K Max.
-                </p>
+                  <p className="text-white/40 text-[10px] mt-0.5">
+                    English audio is preferred automatically. 4K stays available on compatible Fire TV devices.
+                  </p>
+                </div>
+
+                <span className="text-[10px] font-semibold text-mg-green bg-mg-green/10 border border-mg-green/20 rounded-full px-2 py-1">
+                  {
+                    deviceProfile.name
+                  }
+
+                  {deviceProfile.fourKAllowed
+                    ? " · 4K allowed"
+                    : ""}
+                </span>
               </div>
 
-              <span className="text-[10px] font-semibold text-mg-green bg-mg-green/10 border border-mg-green/20 rounded-full px-2 py-1">
-                {deviceProfile.name}
-                {deviceProfile.fourKAllowed ? " · 4K allowed" : ""}
-              </span>
-            </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <label className="flex flex-col gap-1 text-[10px] text-white/45">
+                  <span className="flex items-center gap-1.5">
+                    <Volume2 className="w-3 h-3" />
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <label className="flex flex-col gap-1 text-[10px] text-white/45">
-                <span className="flex items-center gap-1.5">
-                  <Volume2 className="w-3 h-3" />
-                  Audio
-                </span>
+                    Audio
+                  </span>
 
-                <select
-                  value={audioTrackChoice}
-                  onChange={(event) =>
-                    setAudioTrackChoice(event.target.value)
-                  }
-                  className="min-h-10 bg-black/40 border border-white/10 rounded-md text-white text-xs px-2 outline-none focus:border-mg-green"
-                  aria-label="Choose audio track"
-                >
-                  <option value="english">
-                    English automatic
-                  </option>
-
-                  {audioTracks.map((track) => (
-                    <option key={track.id} value={track.id}>
-                      {track.label}
-                      {track.language ? ` · ${track.language}` : ""}
-                      {track.codec ? ` · ${track.codec}` : ""}
+                  <select
+                    value={
+                      audioTrackChoice
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setAudioTrackChoice(
+                        event.target.value
+                      )
+                    }
+                    className="min-h-10 bg-black/40 border border-white/10 rounded-md text-white text-xs px-2 outline-none focus:border-mg-green"
+                    aria-label="Choose audio track"
+                  >
+                    <option value="english">
+                      English automatic
                     </option>
-                  ))}
-                </select>
-              </label>
 
-              <label className="flex flex-col gap-1 text-[10px] text-white/45">
-                <span className="flex items-center gap-1.5">
-                  <Film className="w-3 h-3" />
-                  Subtitles
-                </span>
+                    {audioTracks.map(
+                      (
+                        track
+                      ) => (
+                        <option
+                          key={
+                            track.id
+                          }
+                          value={
+                            track.id
+                          }
+                        >
+                          {
+                            track.label
+                          }
 
-                <select
-                  value={subtitleTrackChoice}
-                  onChange={(event) =>
-                    setSubtitleTrackChoice(event.target.value)
-                  }
-                  className="min-h-10 bg-black/40 border border-white/10 rounded-md text-white text-xs px-2 outline-none focus:border-mg-green"
-                  aria-label="Choose subtitle track"
-                >
-                  <option value="off">
-                    Off
-                  </option>
+                          {track.language
+                            ? ` · ${track.language}`
+                            : ""}
 
-                  <option value="english">
-                    English automatic
-                  </option>
+                          {track.codec
+                            ? ` · ${track.codec}`
+                            : ""}
+                        </option>
+                      )
+                    )}
+                  </select>
+                </label>
 
-                  {subtitleTracks.map((track) => (
-                    <option key={track.id} value={track.id}>
-                      {track.label}
-                      {track.language ? ` · ${track.language}` : ""}
+                <label className="flex flex-col gap-1 text-[10px] text-white/45">
+                  <span className="flex items-center gap-1.5">
+                    <Film className="w-3 h-3" />
+
+                    Subtitles
+                  </span>
+
+                  <select
+                    value={
+                      subtitleTrackChoice
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setSubtitleTrackChoice(
+                        event.target.value
+                      )
+                    }
+                    className="min-h-10 bg-black/40 border border-white/10 rounded-md text-white text-xs px-2 outline-none focus:border-mg-green"
+                    aria-label="Choose subtitle track"
+                  >
+                    <option value="off">
+                      Off
                     </option>
-                  ))}
-                </select>
-              </label>
 
-              <label className="flex flex-col gap-1 text-[10px] text-white/45">
-                <span className="flex items-center gap-1.5">
-                  <Tv className="w-3 h-3" />
-                  Quality
-                </span>
+                    <option value="english">
+                      English automatic
+                    </option>
 
-                <select
-                  value={sessionQuality}
-                  onChange={(event) =>
-                    setSessionQuality(event.target.value)
-                  }
-                  className="min-h-10 bg-black/40 border border-white/10 rounded-md text-white text-xs px-2 outline-none focus:border-mg-green"
-                  aria-label="Choose playback quality"
-                >
-                  <option value="Auto">
-                    Auto
-                  </option>
+                    {subtitleTracks.map(
+                      (
+                        track
+                      ) => (
+                        <option
+                          key={
+                            track.id
+                          }
+                          value={
+                            track.id
+                          }
+                        >
+                          {
+                            track.label
+                          }
 
-                  <option value="4K">
-                    4K / 2160p
-                  </option>
+                          {track.language
+                            ? ` · ${track.language}`
+                            : ""}
+                        </option>
+                      )
+                    )}
+                  </select>
+                </label>
 
-                  <option value="1080p">
-                    1080p
-                  </option>
+                <label className="flex flex-col gap-1 text-[10px] text-white/45">
+                  <span className="flex items-center gap-1.5">
+                    <Tv className="w-3 h-3" />
 
-                  <option value="720p">
-                    720p
-                  </option>
+                    Quality
+                  </span>
 
-                  <option value="480p">
-                    480p
-                  </option>
-                </select>
-              </label>
-            </div>
+                  <select
+                    value={
+                      sessionQuality
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setSessionQuality(
+                        event.target.value
+                      )
+                    }
+                    className="min-h-10 bg-black/40 border border-white/10 rounded-md text-white text-xs px-2 outline-none focus:border-mg-green"
+                    aria-label="Choose playback quality"
+                  >
+                    <option value="Auto">
+                      Auto
+                    </option>
 
-            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-white/35">
-              <span>
-                Audio: {activeAudioTrack?.label || "English automatic"}
-              </span>
+                    <option value="4K">
+                      4K / 2160p
+                    </option>
 
-              <span>
-                Subtitles:{" "}
-                {activeSubtitleTrack?.label ||
-                  (subtitleTrackChoice === "off"
-                    ? "Off"
-                    : "English automatic")}
-              </span>
+                    <option value="1080p">
+                      1080p
+                    </option>
 
-              {qualityLevels.length > 0 && (
+                    <option value="720p">
+                      720p
+                    </option>
+
+                    <option value="480p">
+                      480p
+                    </option>
+                  </select>
+                </label>
+              </div>
+
+              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-white/35">
                 <span>
-                  HLS levels:{" "}
-                  {qualityLevels
-                    .map((level) => level.label)
-                    .filter(Boolean)
-                    .join(", ")}
+                  Audio:{" "}
+                  {activeAudioTrack?.label ||
+                    "English automatic"}
                 </span>
-              )}
+
+                <span>
+                  Subtitles:{" "}
+                  {activeSubtitleTrack?.label ||
+                    (
+                      subtitleTrackChoice ===
+                      "off"
+                        ? "Off"
+                        : "English automatic"
+                    )}
+                </span>
+
+                {qualityLevels.length >
+                  0 && (
+                  <span>
+                    HLS levels:{" "}
+                    {qualityLevels
+                      .map(
+                        (
+                          level
+                        ) =>
+                          level.label
+                      )
+                      .filter(
+                        Boolean
+                      )
+                      .join(
+                        ", "
+                      )}
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
         {displayedError &&
           !busy &&
@@ -1651,7 +3081,9 @@ export default function VideoPlayer({
                   </p>
 
                   <p className="text-red-300/70 text-xs mt-1 break-words">
-                    {displayedError}
+                    {
+                      displayedError
+                    }
                   </p>
                 </div>
 
@@ -1663,6 +3095,7 @@ export default function VideoPlayer({
                     className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-white/10 text-white text-[11px] font-semibold hover:bg-white/15"
                   >
                     <RefreshCw className="w-3 h-3" />
+
                     Retry
                   </button>
                 )}
@@ -1671,16 +3104,20 @@ export default function VideoPlayer({
           )}
 
         {rdOverride &&
-          rdFiles.length > 1 && (
+          rdFiles.length >
+            1 && (
             <div className="mt-3 bg-mg-card border border-white/10 rounded-lg p-2 max-h-44 overflow-y-auto">
               <p className="text-white/50 text-[10px] font-semibold uppercase tracking-wide px-1 pb-1 flex items-center gap-1">
                 <Film className="w-3 h-3" />
+
                 Files
               </p>
 
               <div className="flex flex-col gap-0.5">
                 {rdFiles.map(
-                  (file) => {
+                  (
+                    file
+                  ) => {
                     const isCurrent =
                       rdOverride.file ===
                       file.path;
@@ -1741,7 +3178,8 @@ export default function VideoPlayer({
             </div>
           )}
 
-        {sources.length > 1 && (
+        {sources.length >
+          1 && (
           <div className="mt-3 bg-mg-card border border-white/10 rounded-lg p-3">
             <div className="flex items-center justify-between gap-3 mb-2">
               <div className="min-w-0">
@@ -1750,42 +3188,71 @@ export default function VideoPlayer({
                 </p>
 
                 <p className="text-white/40 text-[10px] mt-0.5">
-                  Media God prefers compatible video/audio first. Every source is still available.
+                  Media God prefers compatible English audio before risky DTS/TrueHD sources.
                 </p>
               </div>
 
               <span className="shrink-0 text-[10px] font-semibold text-mg-green bg-mg-green/10 border border-mg-green/20 rounded-full px-2 py-1">
-                {sources.length} sources
+                {
+                  sources.length
+                }{" "}
+                sources
               </span>
             </div>
 
             <div className="relative">
               <select
-                value={activeIdx}
-                onChange={(event) =>
-                  selectSource(event.target.value)
+                value={
+                  activeIdx
+                }
+                onChange={(
+                  event
+                ) =>
+                  selectSource(
+                    event.target.value
+                  )
                 }
                 className="w-full appearance-none bg-black/40 border border-white/10 rounded-lg text-white text-sm pl-3 pr-10 py-2.5 outline-none focus:border-mg-green"
                 aria-label="Choose playback source"
               >
-                {sources.map((item, index) => {
-                  const failed = failedSources.has(index);
+                {sources.map(
+                  (
+                    item,
+                    index
+                  ) => {
+                    const failed =
+                      failedSources.has(
+                        index
+                      );
 
-                  const label =
-                    item?.label ||
-                    `Source ${index + 1}`;
+                    const label =
+                      item?.label ||
+                      `Source ${
+                        index + 1
+                      }`;
 
-                  return (
-                    <option
-                      key={`${index}-${label}`}
-                      value={index}
-                    >
-                      {failed ? "Failed — " : ""}
-                      {label}
-                      {` · ${sourceTypeLabel(item)}`}
-                    </option>
-                  );
-                })}
+                    return (
+                      <option
+                        key={`${index}-${label}`}
+                        value={
+                          index
+                        }
+                      >
+                        {failed
+                          ? "Failed — "
+                          : ""}
+
+                        {
+                          label
+                        }
+
+                        {` · ${sourceTypeLabel(
+                          item
+                        )}`}
+                      </option>
+                    );
+                  }
+                )}
               </select>
 
               <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-white/50">
@@ -1794,32 +3261,46 @@ export default function VideoPlayer({
             </div>
 
             <div className="flex items-center gap-2 mt-2 text-[10px] text-white/45 min-w-0">
-              {(active.type === "rd" ||
-                active.type === "rd_torrent") && (
+              {(
+                active.type ===
+                  "rd" ||
+                active.type ===
+                  "rd_torrent"
+              ) && (
                 <Zap className="w-3 h-3 text-mg-green shrink-0" />
               )}
 
-              {(active.type === "magnet" ||
-                active.type === "torrent") && (
+              {(
+                active.type ===
+                  "magnet" ||
+                active.type ===
+                  "torrent"
+              ) && (
                 <Link className="w-3 h-3 text-mg-green shrink-0" />
               )}
 
-              {active.type === "provider" && (
+              {active.type ===
+                "provider" && (
                 <Tv className="w-3 h-3 shrink-0" />
               )}
 
-              {active.type === "youtube" && (
+              {active.type ===
+                "youtube" && (
                 <ExternalLink className="w-3 h-3 shrink-0" />
               )}
 
-              {active.type === "torrent" && (
+              {active.type ===
+                "torrent" && (
                 <Download className="w-3 h-3 shrink-0" />
               )}
 
               <span className="truncate">
                 Current:{" "}
                 {active?.label ||
-                  `Source ${activeIdx + 1}`}
+                  `Source ${
+                    activeIdx +
+                    1
+                  }`}
 
                 {active?.addon
                   ? ` · ${active.addon}`
@@ -1831,26 +3312,28 @@ export default function VideoPlayer({
               <div
                 className={cn(
                   "flex-1 text-[10px] rounded-md border px-2.5 py-2",
+
                   activeAudioRisk
                     ? "border-amber-400/25 bg-amber-400/5 text-amber-200/80"
                     : "border-white/10 bg-black/20 text-white/45"
                 )}
               >
-                {activeCompatibility}
+                {
+                  activeCompatibility
+                }
               </div>
 
               <button
                 type="button"
-                onClick={() =>
-                  tryNextSource(
-                    "Trying another source because this one has missing or unsupported audio."
-                  )
+                onClick={
+                  handleNoAudio
                 }
                 className="shrink-0 min-h-10 inline-flex items-center justify-center gap-2 rounded-md border border-mg-green/25 bg-mg-green/10 px-3 py-2 text-[11px] font-semibold text-mg-green hover:bg-mg-green/15"
-                aria-label="No sound - try next compatible source"
+                aria-label="No sound - rescue audio or try another source"
               >
                 <Volume2 className="w-3.5 h-3.5" />
-                No sound? Try next source
+
+                No sound? Fix it
               </button>
             </div>
           </div>
