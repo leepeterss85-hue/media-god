@@ -1,155 +1,176 @@
-import React, {
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import Hls from "hls.js";
 import {
   AlertTriangle,
+  CheckCircle2,
   ExternalLink,
   Film,
   Globe2,
   Loader2,
+  Pause,
+  Play,
   Radio,
   RefreshCw,
   Search,
+  Square,
   Trophy,
   Tv,
+  Volume2,
   Wifi,
 } from "lucide-react";
 
 import {
   getFreeTvChannels,
+  LIVE_TV_REGION,
 } from "@/components/mg/freeTvPlaylist";
-
-import {
-  usePlayer,
-} from "@/components/mg/PlayerProvider";
-
+import { usePlayer } from "@/components/mg/PlayerProvider";
 import { cn } from "@/lib/utils";
 
 const DEFAULT_FILTER = "All";
 const MAX_VISIBLE = 400;
 
-const searchText = (value) =>
-  String(value || "")
-    .toLowerCase()
-    .trim();
+const BBC_RADIO_STREAMS = {
+  "bbc radio 1":
+    "https://as-hls-ww-live.akamaized.net/pool_01505109/live/ww/bbc_radio_one/bbc_radio_one.isml/bbc_radio_one-audio%3d320000.norewind.m3u8",
+  "bbc radio 1xtra":
+    "https://as-hls-ww-live.akamaized.net/pool_92079267/live/ww/bbc_1xtra/bbc_1xtra.isml/bbc_1xtra-audio%3d96000.norewind.m3u8",
+  "bbc radio 2":
+    "https://as-hls-ww-live.akamaized.net/pool_74208725/live/ww/bbc_radio_two/bbc_radio_two.isml/bbc_radio_two-audio%3d320000.norewind.m3u8",
+  "bbc radio 3":
+    "https://as-hls-ww-live.akamaized.net/pool_23461179/live/ww/bbc_radio_three/bbc_radio_three.isml/bbc_radio_three-audio%3d320000.norewind.m3u8",
+  "bbc radio 4":
+    "https://as-hls-ww-live.akamaized.net/pool_55057080/live/ww/bbc_radio_fourfm/bbc_radio_fourfm.isml/bbc_radio_fourfm-audio%3d320000.norewind.m3u8",
+  "bbc radio 4 extra":
+    "https://as-hls-ww-live.akamaized.net/pool_26173715/live/ww/bbc_radio_four_extra/bbc_radio_four_extra.isml/bbc_radio_four_extra-audio%3d96000.norewind.m3u8",
+  "bbc radio 5 live":
+    "https://as-hls-ww-live.akamaized.net/pool_89021708/live/ww/bbc_radio_five_live/bbc_radio_five_live.isml/bbc_radio_five_live-audio%3d320000.norewind.m3u8",
+  "bbc radio 5 sports extra":
+    "https://as-hls-uk-live.akamaized.net/pool_47700285/live/uk/bbc_radio_five_live_sports_extra/bbc_radio_five_live_sports_extra.isml/bbc_radio_five_live_sports_extra-audio%3d96000.norewind.m3u8",
+  "bbc radio 6 music":
+    "https://as-hls-ww-live.akamaized.net/pool_81827798/live/ww/bbc_6music/bbc_6music.isml/bbc_6music-audio%3d320000.norewind.m3u8",
+  "bbc asian network":
+    "https://as-hls-ww-live.akamaized.net/pool_22108647/live/ww/bbc_asian_network/bbc_asian_network.isml/bbc_asian_network-audio%3d96000.norewind.m3u8",
+  "bbc world service":
+    "https://as-hls-ww-live.akamaized.net/pool_87948813/live/ww/bbc_world_service/bbc_world_service.isml/bbc_world_service-audio%3d96000.norewind.m3u8",
+};
 
-const groupSort = (a, b) => {
-  if (a === "United Kingdom") {
-    return -1;
-  }
+const RADIO_STREAM_OVERRIDES = {
+  ...BBC_RADIO_STREAMS,
+  "greatest hits radio":
+    "https://stream-mz.hellorayo.co.uk/net2national.mp3?direct=true",
+  "greatest hits radio uk":
+    "https://stream-mz.hellorayo.co.uk/net2national.mp3?direct=true",
+};
 
-  if (b === "United Kingdom") {
-    return 1;
-  }
+const searchText = (value) => String(value || "").toLowerCase().trim();
 
-  if (a === "Sports") {
-    return -1;
-  }
+const normaliseStationName = (value) =>
+  searchText(value).replace(/\s+/g, " ").replace(/\s+uk$/i, "").trim();
 
-  if (b === "Sports") {
-    return 1;
-  }
+const isRadioChannel = (channel) => {
+  const name = searchText(channel?.name);
+  const group = searchText(channel?.group);
+  const tags = channel?.tags || [];
 
-  if (a === "Movies") {
-    return -1;
-  }
-
-  if (b === "Movies") {
-    return 1;
-  }
-
-  return String(a || "").localeCompare(
-    String(b || "")
+  return (
+    tags.includes("Radio") ||
+    /\bradio\b/.test(name) ||
+    /\bradio\b/.test(group) ||
+    /\bfm\b/.test(name) ||
+    name === "bbc asian network" ||
+    name === "bbc world service" ||
+    name.includes("greatest hits")
   );
 };
 
+const isHlsUrl = (url) => /\.m3u8(?:[?#]|$)/i.test(String(url || ""));
+
+const groupSort = (a, b) => {
+  const preferred = ["United Kingdom", "Sports", "Movies"];
+  const ai = preferred.indexOf(a);
+  const bi = preferred.indexOf(b);
+
+  if (ai !== -1 || bi !== -1) {
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
+    return ai - bi;
+  }
+
+  return String(a || "").localeCompare(String(b || ""));
+};
+
 const qualityLabel = (channel) => {
-  const quality = Number(
-    channel?.quality || 0
-  );
+  const quality = Number(channel?.quality || 0);
 
-  if (quality >= 2160) {
-    return "4K";
-  }
-
-  if (quality >= 1080) {
-    return "1080p";
-  }
-
-  if (quality >= 720) {
-    return "HD";
-  }
-
-  if (quality >= 576) {
-    return "576p";
-  }
-
-  if (quality > 0) {
-    return "SD";
-  }
+  if (quality >= 2160) return "4K";
+  if (quality >= 1080) return "1080p";
+  if (quality >= 720) return "HD";
+  if (quality >= 576) return "576p";
+  if (quality > 0) return "SD";
 
   return "";
 };
 
+const radioUrlsFor = (channel) => {
+  const seen = new Set();
+  const urls = [];
+
+  const add = (value) => {
+    const url = String(value || "").trim();
+
+    if (!url || seen.has(url)) {
+      return;
+    }
+
+    seen.add(url);
+    urls.push(url);
+  };
+
+  const normalised = normaliseStationName(channel?.name);
+
+  add(RADIO_STREAM_OVERRIDES[normalised]);
+
+  if (normalised.startsWith("greatest hits radio")) {
+    add(
+      "https://stream-mz.hellorayo.co.uk/net2national.mp3?direct=true"
+    );
+
+    add(
+      "https://stream-mz.planetradio.co.uk/net2national.mp3"
+    );
+  }
+
+  add(channel?.url);
+
+  (channel?.alternatives || []).forEach((candidate) => {
+    add(candidate?.url);
+  });
+
+  return urls;
+};
+
 export default function LiveTVView() {
-  const [
-    channels,
-    setChannels,
-  ] = useState([]);
+  const [channels, setChannels] = useState([]);
+  const [sourceStatus, setSourceStatus] = useState([]);
+  const [rawCount, setRawCount] = useState(0);
+  const [browserRejectedCount, setBrowserRejectedCount] = useState(0);
+  const [region, setRegion] = useState(LIVE_TV_REGION || "GB");
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
+  const [group, setGroup] = useState(DEFAULT_FILTER);
+  const [quickFilter, setQuickFilter] = useState(DEFAULT_FILTER);
+  const [directOnly, setDirectOnly] = useState(false);
+  const [radioStation, setRadioStation] = useState(null);
+  const [radioSourceIndex, setRadioSourceIndex] = useState(0);
+  const [radioPlaying, setRadioPlaying] = useState(false);
+  const [radioStatus, setRadioStatus] = useState("");
 
-  const [
-    sourceStatus,
-    setSourceStatus,
-  ] = useState([]);
-
-  const [
-    rawCount,
-    setRawCount,
-  ] = useState(0);
-
-  const [
-    loading,
-    setLoading,
-  ] = useState(true);
-
-  const [
-    refreshing,
-    setRefreshing,
-  ] = useState(false);
-
-  const [
-    error,
-    setError,
-  ] = useState("");
-
-  const [
-    query,
-    setQuery,
-  ] = useState("");
-
-  const [
-    group,
-    setGroup,
-  ] = useState(DEFAULT_FILTER);
-
-  const [
-    quickFilter,
-    setQuickFilter,
-  ] = useState(DEFAULT_FILTER);
-
-  const [
-    directOnly,
-    setDirectOnly,
-  ] = useState(false);
-
+  const audioRef = useRef(null);
   const player = usePlayer();
 
-  const load = async (
-    force = false
-  ) => {
+  const load = async (force = false) => {
     if (force) {
       setRefreshing(true);
     } else {
@@ -159,32 +180,38 @@ export default function LiveTVView() {
     setError("");
 
     try {
-      const result =
-        await getFreeTvChannels({
-          force,
-        });
+      const result = await getFreeTvChannels({
+        force,
+      });
 
-      const list =
-        Array.isArray(
-          result?.channels
-        )
+      setChannels(
+        Array.isArray(result?.channels)
           ? result.channels
-          : [];
-
-      setChannels(list);
+          : []
+      );
 
       setSourceStatus(
-        Array.isArray(
-          result?.sourceStatus
-        )
+        Array.isArray(result?.sourceStatus)
           ? result.sourceStatus
           : []
       );
 
       setRawCount(
+        Number(result?.rawCount || 0)
+      );
+
+      setBrowserRejectedCount(
         Number(
-          result?.rawCount || 0
+          result?.browserRejectedCount || 0
         )
+      );
+
+      setRegion(
+        String(
+          result?.region ||
+            LIVE_TV_REGION ||
+            "GB"
+        ).toUpperCase()
       );
     } catch (loadError) {
       setError(
@@ -200,9 +227,262 @@ export default function LiveTVView() {
   useEffect(() => {
     load(false);
 
-    // Initial load only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const activeRadioUrls = useMemo(
+    () =>
+      radioStation
+        ? radioUrlsFor(radioStation)
+        : [],
+    [radioStation]
+  );
+
+  useEffect(() => {
+    const audio = audioRef.current;
+
+    if (
+      !audio ||
+      !radioStation ||
+      activeRadioUrls.length === 0
+    ) {
+      return undefined;
+    }
+
+    const url =
+      activeRadioUrls[radioSourceIndex];
+
+    if (!url) {
+      return undefined;
+    }
+
+    let hls = null;
+    let cancelled = false;
+    let sourceFailed = false;
+    let recoveryAttempts = 0;
+
+    setRadioStatus("Loading radio…");
+    setRadioPlaying(false);
+
+    const tryPlay = async () => {
+      if (cancelled) {
+        return;
+      }
+
+      try {
+        audio.muted = false;
+        audio.volume = 1;
+
+        await audio.play();
+
+        setRadioPlaying(true);
+        setRadioStatus("");
+      } catch {
+        setRadioPlaying(false);
+        setRadioStatus(
+          "Press Play to start the radio."
+        );
+      }
+    };
+
+    const failToNext = () => {
+      if (
+        cancelled ||
+        sourceFailed
+      ) {
+        return;
+      }
+
+      sourceFailed = true;
+
+      if (
+        radioSourceIndex + 1 <
+        activeRadioUrls.length
+      ) {
+        setRadioStatus(
+          "Trying backup radio source…"
+        );
+
+        setRadioSourceIndex(
+          (current) => current + 1
+        );
+
+        return;
+      }
+
+      setRadioPlaying(false);
+
+      setRadioStatus(
+        "This radio stream is currently unavailable."
+      );
+    };
+
+    const handlePlaying = () => {
+      setRadioPlaying(true);
+      setRadioStatus("");
+    };
+
+    const handlePause = () => {
+      setRadioPlaying(false);
+    };
+
+    const handleStalled = () => {
+      if (!cancelled) {
+        setRadioStatus(
+          "Radio stalled — reconnecting…"
+        );
+      }
+    };
+
+    const handleError = () => {
+      failToNext();
+    };
+
+    audio.addEventListener(
+      "playing",
+      handlePlaying
+    );
+
+    audio.addEventListener(
+      "pause",
+      handlePause
+    );
+
+    audio.addEventListener(
+      "stalled",
+      handleStalled
+    );
+
+    audio.addEventListener(
+      "error",
+      handleError
+    );
+
+    try {
+      audio.pause();
+
+      audio.removeAttribute("src");
+
+      audio.load();
+    } catch {
+      // Ignore reset errors.
+    }
+
+    if (
+      isHlsUrl(url) &&
+      Hls.isSupported()
+    ) {
+      hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: true,
+        backBufferLength: 30,
+        maxBufferLength: 30,
+        maxMaxBufferLength: 60,
+      });
+
+      hls.on(
+        Hls.Events.ERROR,
+        (_event, data) => {
+          if (
+            !data?.fatal ||
+            cancelled
+          ) {
+            return;
+          }
+
+          try {
+            if (
+              data.type ===
+                Hls.ErrorTypes
+                  .MEDIA_ERROR &&
+              recoveryAttempts < 2
+            ) {
+              recoveryAttempts += 1;
+
+              hls.recoverMediaError();
+
+              return;
+            }
+
+            if (
+              data.type ===
+                Hls.ErrorTypes
+                  .NETWORK_ERROR &&
+              recoveryAttempts < 2
+            ) {
+              recoveryAttempts += 1;
+
+              hls.startLoad();
+
+              return;
+            }
+          } catch {
+            // Move to fallback source.
+          }
+
+          failToNext();
+        }
+      );
+
+      hls.on(
+        Hls.Events.MANIFEST_PARSED,
+        tryPlay
+      );
+
+      hls.loadSource(url);
+      hls.attachMedia(audio);
+    } else {
+      audio.src = url;
+      audio.load();
+      tryPlay();
+    }
+
+    return () => {
+      cancelled = true;
+
+      audio.removeEventListener(
+        "playing",
+        handlePlaying
+      );
+
+      audio.removeEventListener(
+        "pause",
+        handlePause
+      );
+
+      audio.removeEventListener(
+        "stalled",
+        handleStalled
+      );
+
+      audio.removeEventListener(
+        "error",
+        handleError
+      );
+
+      if (hls) {
+        try {
+          hls.destroy();
+        } catch {
+          // Ignore teardown errors.
+        }
+      }
+
+      try {
+        audio.pause();
+
+        audio.removeAttribute("src");
+
+        audio.load();
+      } catch {
+        // Ignore teardown errors.
+      }
+    };
+  }, [
+    radioStation,
+    radioSourceIndex,
+    activeRadioUrls,
+  ]);
 
   const groups = useMemo(() => {
     const values = Array.from(
@@ -330,13 +610,80 @@ export default function LiveTVView() {
     MAX_VISIBLE
   );
 
+  const stopRadio = () => {
+    try {
+      audioRef.current?.pause();
+    } catch {
+      // Ignore.
+    }
+
+    setRadioStation(null);
+    setRadioSourceIndex(0);
+    setRadioPlaying(false);
+    setRadioStatus("");
+  };
+
+  const openRadio = (channel) => {
+    setRadioStation(channel);
+    setRadioSourceIndex(0);
+    setRadioStatus("Loading radio…");
+  };
+
+  const toggleRadio = async () => {
+    const audio = audioRef.current;
+
+    if (!audio) {
+      return;
+    }
+
+    if (!audio.paused) {
+      audio.pause();
+
+      return;
+    }
+
+    try {
+      audio.muted = false;
+      audio.volume = 1;
+
+      await audio.play();
+
+      setRadioPlaying(true);
+      setRadioStatus("");
+    } catch {
+      setRadioStatus(
+        "Radio could not start. Try the next source."
+      );
+    }
+  };
+
+  const nextRadioSource = () => {
+    if (
+      radioSourceIndex + 1 <
+      activeRadioUrls.length
+    ) {
+      setRadioSourceIndex(
+        (current) => current + 1
+      );
+    }
+  };
+
   const playChannel = (channel) => {
     if (!channel?.url) {
       return;
     }
 
     if (
-      channel.kind === "external"
+      isRadioChannel(channel)
+    ) {
+      openRadio(channel);
+
+      return;
+    }
+
+    if (
+      channel.kind ===
+      "external"
     ) {
       window.open(
         channel.url,
@@ -355,7 +702,9 @@ export default function LiveTVView() {
         (candidate) =>
           candidate?.kind ===
             "direct" &&
-          candidate?.url
+          candidate?.url &&
+          candidate?.browserPlayable !==
+            false
       )
       .map(
         (
@@ -378,7 +727,6 @@ export default function LiveTVView() {
                       ? ` • ${quality}`
                       : ""
                   }`,
-
             type: "live",
             src: candidate.url,
             url: candidate.url,
@@ -400,14 +748,12 @@ export default function LiveTVView() {
       poster:
         channel.logo || "",
 
-      type:
-        "live",
+      type: "live",
 
       mediaType:
         "live",
 
-      noRd:
-        true,
+      noRd: true,
 
       sources:
         directSources.length > 0
@@ -442,7 +788,7 @@ export default function LiveTVView() {
         <Loader2 className="h-7 w-7 animate-spin text-mg-green" />
 
         <p className="text-sm text-white/55">
-          Loading and merging public Live TV sources…
+          Loading and checking public Live TV sources…
         </p>
       </div>
     );
@@ -450,6 +796,12 @@ export default function LiveTVView() {
 
   return (
     <div className="w-full p-3 min-[420px]:p-4 sm:p-6 md:p-8 3xl:p-10 4xl:p-14">
+      <audio
+        ref={audioRef}
+        preload="none"
+        className="hidden"
+      />
+
       <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="mb-1 flex items-center gap-2">
@@ -461,7 +813,7 @@ export default function LiveTVView() {
           </div>
 
           <p className="max-w-3xl text-xs text-white/45 sm:text-sm">
-            Public Live TV, UK, sports and movie channels merged into one list with duplicates removed and the strongest available feed kept first.
+            UK-aware public Live TV, sports, movies and radio with incompatible feeds filtered and duplicate streams kept as backups.
           </p>
         </div>
 
@@ -484,6 +836,115 @@ export default function LiveTVView() {
           Refresh channels
         </button>
       </div>
+
+      {region === "GB" && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-mg-green/20 bg-mg-green/5 px-3 py-2 text-xs text-mg-green">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+
+          UK mode active — UK geo-restricted feeds are treated as available in Great Britain.
+        </div>
+      )}
+
+      {radioStation && (
+        <div className="mb-5 rounded-xl border border-mg-green/40 bg-mg-card p-4 shadow-lg">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-black/30">
+                <Radio className="h-6 w-6 text-mg-green" />
+
+                {radioStation.logo && (
+                  <img
+                    src={
+                      radioStation.logo
+                    }
+                    alt=""
+                    className="absolute inset-0 h-full w-full object-contain p-1"
+                    onError={(
+                      event
+                    ) => {
+                      event.currentTarget.style.display =
+                        "none";
+                    }}
+                  />
+                )}
+              </div>
+
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <Volume2 className="h-4 w-4 shrink-0 text-mg-green" />
+
+                  <div className="truncate font-bold text-white">
+                    {
+                      radioStation.name
+                    }
+                  </div>
+                </div>
+
+                <div className="mt-1 text-xs text-white/45">
+                  Radio • source{" "}
+                  {radioSourceIndex + 1}{" "}
+                  of{" "}
+                  {Math.max(
+                    activeRadioUrls.length,
+                    1
+                  )}
+                </div>
+
+                {radioStatus && (
+                  <div className="mt-1 text-xs text-amber-200/80">
+                    {radioStatus}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={
+                  toggleRadio
+                }
+                className="flex min-h-11 items-center gap-2 rounded-lg bg-mg-green px-4 py-2 text-sm font-bold text-black"
+              >
+                {radioPlaying ? (
+                  <Pause className="h-4 w-4" />
+                ) : (
+                  <Play className="h-4 w-4" />
+                )}
+
+                {radioPlaying
+                  ? "Pause"
+                  : "Play"}
+              </button>
+
+              {radioSourceIndex + 1 <
+                activeRadioUrls.length && (
+                <button
+                  type="button"
+                  onClick={
+                    nextRadioSource
+                  }
+                  className="min-h-11 rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-sm font-semibold text-white/75 hover:text-white"
+                >
+                  Next source
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={
+                  stopRadio
+                }
+                className="flex min-h-11 items-center gap-2 rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-sm font-semibold text-white/75 hover:text-white"
+              >
+                <Square className="h-4 w-4" />
+
+                Stop
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="mb-5 flex items-start gap-3 rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">
@@ -508,7 +969,7 @@ export default function LiveTVView() {
             {failedSources.length === 1
               ? ""
               : "s"}{" "}
-            could not be reached. The working sources are still available.
+            could not be reached. Working playlists are still available.
           </div>
         )}
 
@@ -535,10 +996,12 @@ export default function LiveTVView() {
             icon: Film,
           },
         ].map((item) => {
-          const Icon = item.icon;
+          const Icon =
+            item.icon;
 
           const active =
-            quickFilter === item.id;
+            quickFilter ===
+            item.id;
 
           return (
             <button
@@ -657,6 +1120,12 @@ export default function LiveTVView() {
           {sourceStatus.length} playlist sources loaded
         </span>
 
+        {browserRejectedCount > 0 && (
+          <span>
+            {browserRejectedCount.toLocaleString()} incompatible/dead-format sources filtered out
+          </span>
+        )}
+
         {filtered.length >
           MAX_VISIBLE && (
           <span>
@@ -688,6 +1157,11 @@ export default function LiveTVView() {
                 channel.kind ===
                 "external";
 
+              const radio =
+                isRadioChannel(
+                  channel
+                );
+
               const quality =
                 qualityLabel(
                   channel
@@ -698,10 +1172,14 @@ export default function LiveTVView() {
                   channel.alternatives ||
                   []
                 ).filter(
-                  (candidate) =>
+                  (
+                    candidate
+                  ) =>
                     candidate?.kind ===
                       "direct" &&
-                    candidate?.url
+                    candidate?.url &&
+                    candidate?.browserPlayable !==
+                      false
                 ).length;
 
               return (
@@ -716,7 +1194,11 @@ export default function LiveTVView() {
                   className="group flex min-h-[92px] items-center gap-3 rounded-xl border border-white/10 bg-mg-card p-3 text-left transition-colors hover:border-mg-green/60 hover:bg-mg-surface focus:border-mg-green focus:outline-none"
                 >
                   <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-black/30">
-                    <Tv className="h-5 w-5 text-white/20" />
+                    {radio ? (
+                      <Radio className="h-5 w-5 text-mg-green/50" />
+                    ) : (
+                      <Tv className="h-5 w-5 text-white/20" />
+                    )}
 
                     {channel.logo && (
                       <img
@@ -757,23 +1239,32 @@ export default function LiveTVView() {
                     </div>
 
                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                      {external ? (
+                      {radio ? (
+                        <span className="inline-flex items-center gap-1 rounded bg-mg-green/10 px-1.5 py-0.5 text-[9px] font-bold uppercase text-mg-green">
+                          <Volume2 className="h-2.5 w-2.5" />
+
+                          Radio
+                        </span>
+                      ) : external ? (
                         <span className="inline-flex items-center gap-1 rounded bg-white/5 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white/50">
                           <ExternalLink className="h-2.5 w-2.5" />
+
                           Web stream
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 rounded bg-mg-green/10 px-1.5 py-0.5 text-[9px] font-bold uppercase text-mg-green">
                           <Wifi className="h-2.5 w-2.5" />
+
                           Live
                         </span>
                       )}
 
-                      {quality && (
-                        <span className="rounded bg-blue-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase text-blue-200">
-                          {quality}
-                        </span>
-                      )}
+                      {!radio &&
+                        quality && (
+                          <span className="rounded bg-blue-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase text-blue-200">
+                            {quality}
+                          </span>
+                        )}
 
                       {(channel.tags || []).includes(
                         "Sports"
@@ -791,17 +1282,24 @@ export default function LiveTVView() {
                         </span>
                       )}
 
-                      {channel.geoBlocked && (
-                        <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase text-amber-300">
-                          Geo
+                      {channel.geoAvailableHere && (
+                        <span className="rounded bg-mg-green/10 px-1.5 py-0.5 text-[9px] font-bold uppercase text-mg-green">
+                          UK Available
                         </span>
                       )}
 
-                      {channel.standardDefinition && (
-                        <span className="rounded bg-white/5 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white/40">
-                          SD
+                      {channel.geoBlocked && (
+                        <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase text-amber-300">
+                          Geo Restricted
                         </span>
                       )}
+
+                      {channel.standardDefinition &&
+                        !radio && (
+                          <span className="rounded bg-white/5 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white/40">
+                            SD
+                          </span>
+                        )}
 
                       {channel.insecure && (
                         <span className="rounded bg-red-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase text-red-300">
@@ -811,7 +1309,9 @@ export default function LiveTVView() {
                     </div>
                   </div>
 
-                  {external ? (
+                  {radio ? (
+                    <Volume2 className="h-4 w-4 shrink-0 text-mg-green" />
+                  ) : external ? (
                     <ExternalLink className="h-4 w-4 shrink-0 text-white/30" />
                   ) : (
                     <Wifi className="h-4 w-4 shrink-0 text-mg-green" />
