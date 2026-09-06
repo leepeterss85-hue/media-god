@@ -1623,3 +1623,12 @@ export async function getFreeTvChannels(
 
   return inflight;
 }
+
+export function findChannelsByTitle(query) {
+  if (!cache || !cache.channels) return [];
+  const q = String(query || "").toLowerCase().trim();
+  if (!q) return cache.channels;
+  return cache.channels.filter(ch => 
+    String(ch?.name || "").toLowerCase().includes(q)
+  );
+}
