@@ -35,111 +35,176 @@ const getStreamUrl = (stream) => {
   );
 };
 
+const normaliseSubtitleItem = (item, index = 0) => {
+  if (!item) return null;
+
+  if (typeof item === "string") {
+    const src = String(item).trim();
+
+    if (!src) return null;
+
+    return {
+      src,
+      url: src,
+      label: `Subtitle ${index + 1}`,
+      lang: "",
+      language: "",
+      kind: "subtitles",
+      default: false,
+    };
+  }
+
+  if (typeof item !== "object") {
+    return null;
+  }
+
+  const src = String(
+    item?.src ||
+      item?.url ||
+      item?.file ||
+      item?.path ||
+      ""
+  ).trim();
+
+  if (!src) {
+    return null;
+  }
+
+  const label =
+    item?.label ||
+    item?.name ||
+    item?.language ||
+    item?.lang ||
+    `Subtitle ${index + 1}`;
+
+  const lang =
+    item?.lang ||
+    item?.language ||
+    "";
+
+  return {
+    ...item,
+    src,
+    url:
+      item?.url ||
+      src,
+    label,
+    lang,
+    language:
+      item?.language ||
+      lang,
+    kind:
+      item?.kind ||
+      item?.type ||
+      "subtitles",
+    default:
+      Boolean(
+        item?.default
+      ),
+  };
+};
+
 const collectSubtitles = (stream) => {
   const behaviorHints =
     stream?.behaviorHints ||
     stream?.behavior_hints ||
     {};
 
-  const candidates = [
-    ...(Array.isArray(stream?.subtitles)
-      ? stream.subtitles
-      : []),
+  const trackItems =
+    Array.isArray(
+      stream?.tracks
+    )
+      ? stream.tracks.filter(
+          (track) => {
+            const text = [
+              track?.kind,
+              track?.type,
+              track?.label,
+              track?.name,
+              track?.src,
+              track?.url,
+              track?.file,
+            ]
+              .filter(Boolean)
+              .join(" ")
+              .toLowerCase();
 
-    ...(Array.isArray(stream?.captions)
-      ? stream.captions
-      : []),
-
-    ...(Array.isArray(behaviorHints?.subtitles)
-      ? behaviorHints.subtitles
-      : []),
-
-    ...(Array.isArray(behaviorHints?.captions)
-      ? behaviorHints.captions
-      : []),
-
-    ...(Array.isArray(stream?.tracks)
-      ? stream.tracks.filter((track) =>
-          /(sub|caption|text|vtt|srt)/i.test(
-            String(
-              track?.kind ||
-                track?.type ||
-                ""
-            )
-          )
+            return /(sub|caption|text|vtt|srt)/i.test(
+              text
+            );
+          }
         )
-      : []),
+      : [];
+
+  const groups = [
+    stream?.subtitles,
+    stream?.captions,
+    behaviorHints?.subtitles,
+    behaviorHints?.captions,
+    trackItems,
   ];
 
-  const seen = new Set();
+  const seen =
+    new Set();
 
-  return candidates
-    .map((item, index) => {
-      if (typeof item === "string") {
-        const src = item.trim();
+  const result =
+    [];
 
-        if (!src || seen.has(src)) {
-          return null;
+  groups.forEach(
+    (group) => {
+      const items =
+        Array.isArray(
+          group
+        )
+          ? group
+          : group
+            ? [group]
+            : [];
+
+      items.forEach(
+        (
+          item,
+          index
+        ) => {
+          const subtitle =
+            normaliseSubtitleItem(
+              item,
+              index
+            );
+
+          if (
+            !subtitle?.src
+          ) {
+            return;
+          }
+
+          const key =
+            String(
+              subtitle.src
+            ).trim();
+
+          if (
+            !key ||
+            seen.has(
+              key
+            )
+          ) {
+            return;
+          }
+
+          seen.add(
+            key
+          );
+
+          result.push(
+            subtitle
+          );
         }
+      );
+    }
+  );
 
-        seen.add(src);
-
-        return {
-          src,
-          url: src,
-          label: `Subtitle ${index + 1}`,
-          lang: "",
-          language: "",
-          kind: "subtitles",
-          default: false,
-        };
-      }
-
-      const src = String(
-        item?.src ||
-          item?.url ||
-          item?.file ||
-          ""
-      ).trim();
-
-      if (!src || seen.has(src)) {
-        return null;
-      }
-
-      seen.add(src);
-
-      return {
-        src,
-        url: src,
-
-        label:
-          item?.label ||
-          item?.name ||
-          item?.language ||
-          item?.lang ||
-          `Subtitle ${index + 1}`,
-
-        lang:
-          item?.lang ||
-          item?.language ||
-          "",
-
-        language:
-          item?.language ||
-          item?.lang ||
-          "",
-
-        kind:
-          item?.kind ||
-          "subtitles",
-
-        default:
-          Boolean(
-            item?.default
-          ),
-      };
-    })
-    .filter(Boolean);
+  return result;
 };
 
 const normaliseAddonStream = (
@@ -148,7 +213,9 @@ const normaliseAddonStream = (
   index
 ) => {
   const url =
-    getStreamUrl(stream);
+    getStreamUrl(
+      stream
+    );
 
   if (!url) {
     return null;
@@ -160,10 +227,16 @@ const normaliseAddonStream = (
     "";
 
   const magnet =
-    String(url)
+    String(
+      url
+    )
       .toLowerCase()
-      .startsWith("magnet:") ||
-    Boolean(infoHash);
+      .startsWith(
+        "magnet:"
+      ) ||
+    Boolean(
+      infoHash
+    );
 
   const rawTitle =
     stream?.title ||
@@ -172,21 +245,26 @@ const normaliseAddonStream = (
     "Stream Source";
 
   const subtitles =
-    collectSubtitles(stream);
+    collectSubtitles(
+      stream
+    );
 
   return {
-    id:
-      `${
-        addon?.id ||
-        addon?.name ||
-        "addon"
-      }-${index}-${String(url).slice(-16)}`,
+    id: `${
+      addon?.id ||
+      addon?.name ||
+      "addon"
+    }-${index}-${String(
+      url
+    ).slice(-16)}`,
 
     kind:
       "addon-stream",
 
     label:
-      String(rawTitle).split("\n")[0],
+      String(
+        rawTitle
+      ).split("\n")[0],
 
     note:
       addon?.name ||
@@ -194,7 +272,9 @@ const normaliseAddonStream = (
       "Addon source",
 
     url,
-    src: url,
+
+    src:
+      url,
 
     type:
       magnet
@@ -210,18 +290,22 @@ const normaliseAddonStream = (
       stream?.behavior_hints ||
       undefined,
 
-    subtitles,
-
-    captions:
-      subtitles,
-
     name:
       stream?.name ||
       undefined,
 
     filename:
       stream?.filename ||
+      stream?.behaviorHints
+        ?.filename ||
+      stream?.behavior_hints
+        ?.filename ||
       undefined,
+
+    subtitles,
+
+    captions:
+      subtitles,
 
     addon:
       addon?.name ||
@@ -230,28 +314,35 @@ const normaliseAddonStream = (
 };
 
 const dedupe = (items) => {
-  const seen = new Set();
+  const seen =
+    new Set();
 
-  return items.filter((item) => {
-    const key =
-      String(
-        item?.url ||
-          item?.src ||
-          item?.id ||
-          ""
+  return items.filter(
+    (item) => {
+      const key =
+        String(
+          item?.url ||
+            item?.src ||
+            item?.id ||
+            ""
+        );
+
+      if (
+        !key ||
+        seen.has(
+          key
+        )
+      ) {
+        return false;
+      }
+
+      seen.add(
+        key
       );
 
-    if (
-      !key ||
-      seen.has(key)
-    ) {
-      return false;
+      return true;
     }
-
-    seen.add(key);
-
-    return true;
-  });
+  );
 };
 
 const resolveImdbId = async ({
@@ -268,22 +359,31 @@ const resolveImdbId = async ({
   }
 
   if (
-    String(tmdbId).startsWith("tt")
+    String(
+      tmdbId
+    ).startsWith(
+      "tt"
+    )
   ) {
-    return String(tmdbId);
+    return String(
+      tmdbId
+    );
   }
 
   try {
     const response =
       await fetch(
         `https://api.themoviedb.org/3/${
-          mediaType === "tv"
+          mediaType ===
+          "tv"
             ? "tv"
             : "movie"
         }/${tmdbId}/external_ids?api_key=${TMDB_KEY}`
       );
 
-    if (!response.ok) {
+    if (
+      !response.ok
+    ) {
       return "";
     }
 
@@ -321,45 +421,78 @@ export default function StreamSourcesBox({
   const [
     liveMatches,
     setLiveMatches,
-  ] = useState(null);
+  ] = useState(
+    null
+  );
 
   const [
     addonStreams,
     setAddonStreams,
-  ] = useState([]);
+  ] = useState(
+    []
+  );
 
   const [
     scraping,
     setScraping,
-  ] = useState(false);
+  ] = useState(
+    false
+  );
 
   const [
     alternatesOpen,
     setAlternatesOpen,
-  ] = useState(false);
+  ] = useState(
+    false
+  );
 
   useEffect(() => {
     let cancelled =
       false;
 
-    setLiveMatches(null);
+    setLiveMatches(
+      null
+    );
 
-    findChannelsByTitle(title)
-      .then((matches) => {
-        if (!cancelled) {
-          setLiveMatches(
-            matches ||
+    const loadLiveMatches =
+      async () => {
+        try {
+          /*
+           * IMPORTANT FIX:
+           *
+           * Do not call .then() directly here.
+           *
+           * await works whether findChannelsByTitle()
+           * returns a Promise or an already-resolved array.
+           */
+          const matches =
+            await findChannelsByTitle(
+              title
+            );
+
+          if (
+            !cancelled
+          ) {
+            setLiveMatches(
+              Array.isArray(
+                matches
+              )
+                ? matches
+                : []
+            );
+          }
+        } catch {
+          if (
+            !cancelled
+          ) {
+            setLiveMatches(
               []
-          );
+            );
+          }
         }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setLiveMatches(
-            []
-          );
-        }
-      });
+      };
+
+    loadLiveMatches();
 
     return () => {
       cancelled =
@@ -372,8 +505,10 @@ export default function StreamSourcesBox({
       false;
 
     /*
-     * TV streams must wait until an episode is selected,
-     * because the player then has the exact season and episode.
+     * Movies can look up addon streams immediately.
+     *
+     * TV streams are resolved after an episode is selected,
+     * because season and episode numbers are then known.
      */
     if (
       mediaType ===
@@ -405,13 +540,11 @@ export default function StreamSourcesBox({
 
         try {
           const resolvedImdb =
-            await resolveImdbId(
-              {
-                tmdbId,
-                imdbId,
-                mediaType,
-              }
-            );
+            await resolveImdbId({
+              tmdbId,
+              imdbId,
+              mediaType,
+            });
 
           if (
             !resolvedImdb
@@ -791,17 +924,17 @@ export default function StreamSourcesBox({
             behaviorHints:
               stream.behaviorHints,
 
-            subtitles:
-              stream.subtitles,
-
-            captions:
-              stream.captions,
-
             name:
               stream.name,
 
             filename:
               stream.filename,
+
+            subtitles:
+              stream.subtitles,
+
+            captions:
+              stream.captions,
           },
         ],
       });
@@ -856,7 +989,9 @@ export default function StreamSourcesBox({
       ) {
         player.play({
           title,
+
           poster,
+
           mediaType,
 
           skipAddonLookup:
@@ -891,12 +1026,14 @@ export default function StreamSourcesBox({
             "live",
 
           title:
-            source?.channel
+            source
+              ?.channel
               ?.name ||
             title,
 
           poster:
-            source?.channel
+            source
+              ?.channel
               ?.logo ||
             poster,
 
@@ -912,11 +1049,13 @@ export default function StreamSourcesBox({
                 "live",
 
               src:
-                source?.channel
+                source
+                  ?.channel
                   ?.url,
 
               url:
-                source?.channel
+                source
+                  ?.channel
                   ?.url,
 
               live:
@@ -986,17 +1125,17 @@ export default function StreamSourcesBox({
               behaviorHints:
                 stream.behaviorHints,
 
-              subtitles:
-                stream.subtitles,
-
-              captions:
-                stream.captions,
-
               name:
                 stream.name,
 
               filename:
                 stream.filename,
+
+              subtitles:
+                stream.subtitles,
+
+              captions:
+                stream.captions,
             })
           ),
       });
@@ -1084,7 +1223,8 @@ export default function StreamSourcesBox({
       {loading ? (
         <div className="flex flex-col gap-1.5">
           {Array.from({
-            length: 3,
+            length:
+              3,
           }).map(
             (
               _,
@@ -1176,7 +1316,10 @@ export default function StreamSourcesBox({
               </span>
 
               <span className="block text-[10px] text-white/40 truncate">
-                {alternateSources.length} option
+                {
+                  alternateSources.length
+                }{" "}
+                option
                 {alternateSources.length ===
                 1
                   ? ""
@@ -1208,9 +1351,11 @@ export default function StreamSourcesBox({
                         source
                       )
                     }
-                    className={rowClass(
-                      source.kind
-                    )}
+                    className={
+                      rowClass(
+                        source.kind
+                      )
+                    }
                   >
                     <span className="w-8 h-8 rounded-md bg-black/30 flex items-center justify-center shrink-0 overflow-hidden">
                       {source.logo ? (
@@ -1241,22 +1386,6 @@ export default function StreamSourcesBox({
                         {
                           source.note
                         }
-
-                        {source.kind ===
-                          "addon-stream" &&
-                        source
-                          .subtitles
-                          ?.length >
-                          0
-                          ? ` • ${source.subtitles.length} subtitle${
-                              source
-                                .subtitles
-                                .length ===
-                              1
-                                ? ""
-                                : "s"
-                            }`
-                          : ""}
                       </span>
                     </span>
 
