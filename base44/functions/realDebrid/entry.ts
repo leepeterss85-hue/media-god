@@ -1,329 +1,1257 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.44";
 
 const RD_BASE = "https://api.real-debrid.com/rest/1.0";
-
 const VIDEO_RE =
   /\.(mp4|mkv|avi|mov|webm|m4v|mpg|mpeg|ts|m2ts)$/i;
 
-const SAMPLE_RE =
-  /(^|[\s._-])(sample|trailer|featurette|extras?|behind[ ._-]?the[ ._-]?scenes)([\s._-]|$)/i;
-
-const clean = (value) =>
-  String(value || "").trim();
-
 const normalise = (value) =>
-  clean(value)
+  String(value || "")
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "");
 
-const isHttp = (value) =>
-  /^https?:\/\//i.test(clean(value));
+const isVideoFile = (file) =>
+  Boolean(
+    file?.path &&
+      VIDEO_RE.test(
+        file.path
+      )
+  );
 
-const isMagnet = (value) =>
-  clean(value)
+const normaliseLanguage = (value) =>
+  String(value || "")
+    .trim()
     .toLowerCase()
-    .startsWith("magnet:");
+    .replace(/_/g, "-");
 
-const isVideoFile = (file) => {
-  const path =
-    clean(
-      file?.path ||
-        file?.filename
+const normaliseCodec = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(
+      /[^a-z0-9+]/g,
+      ""
     );
 
-  return Boolean(
-    path &&
-      VIDEO_RE.test(path)
+const isEnglishTrack = (track) => {
+  const iso =
+    normaliseLanguage(
+      track?.lang_iso ||
+        track?.language_iso ||
+        track?.language ||
+        ""
+    );
+
+  const label =
+    normaliseLanguage(
+      track?.lang ||
+        track?.name ||
+        ""
+    );
+
+  return (
+    iso === "eng" ||
+    iso === "en" ||
+    iso.startsWith(
+      "en-"
+    ) ||
+    label === "english" ||
+    /\benglish\b/i.test(
+      label
+    )
   );
 };
 
-const infoHashFromValue = (value) => {
-  const text =
-    clean(value);
+const hasKnownLanguage = (track) => {
+  const iso =
+    normaliseLanguage(
+      track?.lang_iso ||
+        track?.language_iso ||
+        track?.language ||
+        ""
+    );
+
+  const label =
+    normaliseLanguage(
+      track?.lang ||
+        track?.name ||
+        ""
+    );
+
+  const unknown =
+    new Set([
+      "",
+      "und",
+      "unknown",
+      "undefined",
+      "un",
+    ]);
+
+  return (
+    !unknown.has(iso) ||
+    !unknown.has(label)
+  );
+};
+
+const isSafeAudioCodec = (codec) => {
+  const value =
+    normaliseCodec(
+      codec
+    );
+
+  if (!value) {
+    return false;
+  }
 
   if (
-    /^[a-f0-9]{40}$/i.test(
-      text
+    value.includes(
+      "truehd"
+    ) ||
+    value.includes(
+      "mlp"
+    ) ||
+    value.includes(
+      "dts"
+    ) ||
+    value.includes(
+      "dca"
     )
   ) {
-    return text;
+    return false;
   }
 
   return (
-    text.match(
-      /btih:([a-f0-9]{40})/i
-    )?.[1] ||
-    ""
+    value.includes(
+      "aac"
+    ) ||
+    value.includes(
+      "mp3"
+    ) ||
+    value.includes(
+      "ac3"
+    ) ||
+    value.includes(
+      "eac3"
+    ) ||
+    value.includes(
+      "ec3"
+    ) ||
+    value.includes(
+      "opus"
+    )
   );
 };
 
-const magnetFromHash = (
-  hash,
-  title = ""
-) => {
-  const value =
-    clean(hash);
+const summariseAudioTrack = (
+  track,
+  key = ""
+) => ({
+  key,
 
-  if (!value) {
-    return "";
-  }
+  stream:
+    track?.stream ||
+    "",
 
-  return `magnet:?xt=urn:btih:${value}${
-    title
-      ? `&dn=${encodeURIComponent(
-          title
-        )}`
-      : ""
-  }`;
-};
+  language:
+    track?.lang ||
+    track?.language ||
+    "",
 
-const episodeRegex = (
-  season,
-  episode
-) => {
-  if (
-    season == null ||
-    episode == null
-  ) {
-    return null;
-  }
+  language_iso:
+    track?.lang_iso ||
+    track?.language_iso ||
+    "",
 
-  const s =
-    Number(season);
+  codec:
+    track?.codec ||
+    "",
 
-  const e =
-    Number(episode);
+  channels:
+    track?.channels ??
+    null,
 
-  if (
-    !Number.isFinite(s) ||
-    !Number.isFinite(e)
-  ) {
-    return null;
-  }
+  english:
+    isEnglishTrack(
+      track
+    ),
 
-  return new RegExp(
-    `(?:s0*${s}(?!\\d)e0*${e}(?!\\d)|${s}x0*${e}(?!\\d))`,
-    "i"
+  browser_safe:
+    isSafeAudioCodec(
+      track?.codec
+    ),
+});
+
+const jsonError = (
+  error,
+  status = 502,
+  extra = {}
+) =>
+  Response.json(
+    {
+      error,
+      ...extra,
+    },
+    {
+      status,
+    }
   );
-};
 
-const chooseVideoFile = (
-  files,
-  metadata = {}
-) => {
-  const videos =
-    (files || []).filter(
-      isVideoFile
-    );
-
-  if (
-    videos.length ===
-    0
-  ) {
-    return null;
-  }
-
-  const epRe =
-    episodeRegex(
-      metadata.season,
-      metadata.episode
-    );
-
-  if (epRe) {
-    const episodeMatch =
-      videos.find(
-        (file) =>
-          epRe.test(
-            clean(
-              file.path
-            )
-          )
+export default async function (req) {
+  try {
+    const base44 =
+      createClientFromRequest(
+        req
       );
 
+    const user =
+      await base44.auth.me();
+
+    if (!user) {
+      return jsonError(
+        "Unauthorized",
+        401
+      );
+    }
+
+    const token =
+      user.rd_token;
+
+    if (!token) {
+      return jsonError(
+        "Real-Debrid token not set. Add it in Settings.",
+        400
+      );
+    }
+
+    let body = {};
+
+    try {
+      body =
+        await req.json();
+    } catch {
+      body = {};
+    }
+
+    const action =
+      body.action ||
+      "status";
+
+    const authHeaders = {
+      Authorization:
+        `Bearer ${token}`,
+    };
+
+    const formHeaders = {
+      ...authHeaders,
+
+      "Content-Type":
+        "application/x-www-form-urlencoded",
+    };
+
+    /*
+     * STATUS
+     */
     if (
-      episodeMatch
+      action ===
+      "status"
     ) {
-      return episodeMatch;
+      const res =
+        await fetch(
+          `${RD_BASE}/user`,
+          {
+            headers:
+              authHeaders,
+          }
+        );
+
+      if (!res.ok) {
+        return jsonError(
+          `Real-Debrid rejected token (${res.status})`
+        );
+      }
+
+      const data =
+        await res.json();
+
+      return Response.json({
+        valid: true,
+
+        premium:
+          Boolean(
+            data.premium
+          ),
+
+        expires:
+          data.expiration ||
+          "",
+
+        points:
+          data.points ||
+          0,
+      });
+    }
+
+    /*
+     * ADD MAGNET / RESOLVE BEST
+     */
+    if (
+      action ===
+        "add_magnet" ||
+      action ===
+        "resolve_best"
+    ) {
+      return addMagnet({
+        body,
+
+        authHeaders,
+
+        formHeaders,
+
+        base44,
+
+        saveLink:
+          action ===
+          "resolve_best",
+      });
+    }
+
+    /*
+     * TORRENT INFO
+     */
+    if (
+      action ===
+      "torrent_info"
+    ) {
+      if (
+        !body.torrent_id
+      ) {
+        return jsonError(
+          "torrent_id required",
+          400
+        );
+      }
+
+      const stream =
+        await resolveStreamable(
+          String(
+            body.torrent_id
+          ),
+
+          authHeaders,
+
+          formHeaders,
+
+          {
+            title:
+              body.title,
+
+            year:
+              body.year,
+
+            season:
+              body.season,
+
+            episode:
+              body.episode,
+          }
+        );
+
+      if (
+        stream.error
+      ) {
+        return jsonError(
+          stream.error,
+          502,
+          {
+            error_code:
+              stream.error_code,
+
+            audio_rescue:
+              stream.audio_rescue ||
+              null,
+
+            media_info:
+              stream.media_info ||
+              null,
+          }
+        );
+      }
+
+      return Response.json({
+        status:
+          stream.ready
+            ? "ready"
+            : "preparing",
+
+        torrent_id:
+          String(
+            body.torrent_id
+          ),
+
+        stream_url:
+          stream.stream_url ||
+          "",
+
+        filename:
+          stream.filename ||
+          "",
+
+        rd_status:
+          stream.rd_status,
+
+        files:
+          stream.files ||
+          [],
+
+        audio_rescue:
+          stream.audio_rescue ||
+          null,
+
+        media_info:
+          stream.media_info ||
+          null,
+      });
+    }
+
+    /*
+     * TORRENT FILES
+     */
+    if (
+      action ===
+      "torrent_files"
+    ) {
+      if (
+        !body.torrent_id
+      ) {
+        return jsonError(
+          "torrent_id required",
+          400
+        );
+      }
+
+      const infoRes =
+        await fetch(
+          `${RD_BASE}/torrents/info/${encodeURIComponent(
+            String(
+              body.torrent_id
+            )
+          )}`,
+          {
+            headers:
+              authHeaders,
+          }
+        );
+
+      if (
+        !infoRes.ok
+      ) {
+        return jsonError(
+          `info failed: ${infoRes.status}`
+        );
+      }
+
+      const info =
+        await infoRes.json();
+
+      return Response.json({
+        files:
+          buildFileEntries(
+            info,
+            null
+          ),
+
+        rd_status:
+          info.status,
+      });
+    }
+
+    /*
+     * UNRESTRICT FILE
+     *
+     * Used when manually choosing another
+     * file from a multi-file torrent.
+     */
+    if (
+      action ===
+      "unrestrict_file"
+    ) {
+      if (
+        !body.link
+      ) {
+        return jsonError(
+          "link required",
+          400
+        );
+      }
+
+      const unrestricted =
+        await unrestrictRdLink(
+          body.link,
+          formHeaders
+        );
+
+      if (
+        unrestricted.error
+      ) {
+        return jsonError(
+          unrestricted.error
+        );
+      }
+
+      const playable =
+        await choosePlayableRdStream(
+          {
+            unData:
+              unrestricted.data,
+
+            authHeaders,
+
+            formHeaders,
+
+            preferEnglish:
+              body.prefer_english !==
+              false,
+
+            allowTranscode:
+              body.allow_transcode !==
+              false,
+          }
+        );
+
+      if (
+        playable.error
+      ) {
+        return jsonError(
+          playable.error,
+          502,
+          {
+            error_code:
+              playable.error_code ||
+              "AUDIO_RESCUE_FAILED",
+
+            audio_rescue:
+              playable.audio_rescue ||
+              null,
+
+            media_info:
+              playable.media_info ||
+              null,
+          }
+        );
+      }
+
+      return Response.json({
+        stream_url:
+          playable.stream_url,
+
+        filename:
+          playable.filename ||
+          unrestricted.data
+            ?.filename ||
+          "",
+
+        audio_rescue:
+          playable.audio_rescue ||
+          null,
+
+        media_info:
+          playable.media_info ||
+          null,
+      });
+    }
+
+    /*
+     * DELETE TORRENT
+     */
+    if (
+      action ===
+      "torrent_delete"
+    ) {
+      if (
+        !body.torrent_id
+      ) {
+        return jsonError(
+          "torrent_id required",
+          400
+        );
+      }
+
+      const res =
+        await fetch(
+          `${RD_BASE}/torrents/delete/${encodeURIComponent(
+            String(
+              body.torrent_id
+            )
+          )}`,
+          {
+            method:
+              "DELETE",
+
+            headers:
+              authHeaders,
+          }
+        );
+
+      if (!res.ok) {
+        return jsonError(
+          `delete failed: ${res.status}`
+        );
+      }
+
+      return Response.json({
+        deleted: true,
+      });
+    }
+
+    /*
+     * TORRENTS LIST
+     */
+    if (
+      action ===
+      "torrents_list"
+    ) {
+      const res =
+        await fetch(
+          `${RD_BASE}/torrents`,
+          {
+            headers:
+              authHeaders,
+          }
+        );
+
+      if (!res.ok) {
+        return jsonError(
+          `RD error: ${res.status}`
+        );
+      }
+
+      const data =
+        await res.json();
+
+      return Response.json({
+        torrents:
+          (data || []).map(
+            (
+              torrent
+            ) => ({
+              id:
+                String(
+                  torrent.id
+                ),
+
+              filename:
+                torrent.filename ||
+                torrent.original_filename ||
+                "",
+
+              status:
+                torrent.status,
+
+              progress:
+                typeof torrent.progress ===
+                "number"
+                  ? torrent.progress
+                  : 0,
+
+              bytes:
+                torrent.bytes ||
+                0,
+
+              ready:
+                torrent.status ===
+                  "downloaded" ||
+                (
+                  Array.isArray(
+                    torrent.links
+                  ) &&
+                  torrent.links
+                    .length >
+                    0
+                ),
+            })
+          ),
+      });
+    }
+
+    /*
+     * HOSTS
+     */
+    if (
+      action ===
+      "hosts"
+    ) {
+      const res =
+        await fetch(
+          `${RD_BASE}/hosts/status`,
+          {
+            headers:
+              authHeaders,
+          }
+        );
+
+      if (!res.ok) {
+        return jsonError(
+          `RD error: ${res.status}`
+        );
+      }
+
+      const data =
+        await res.json();
+
+      const hosts =
+        Object.entries(
+          data ||
+          {}
+        )
+          .filter(
+            ([
+              ,
+              value,
+            ]) =>
+              value &&
+              value.supported &&
+              !value.disabled
+          )
+          .map(
+            ([
+              key,
+            ]) =>
+              key
+          )
+          .slice(
+            0,
+            40
+          );
+
+      return Response.json({
+        hosts,
+      });
+    }
+
+    /*
+     * FIND CACHED
+     */
+    if (
+      action ===
+      "find_cached"
+    ) {
+      return findCached({
+        body,
+
+        authHeaders,
+
+        formHeaders,
+      });
+    }
+
+    return jsonError(
+      "Unknown action",
+      400
+    );
+  } catch (
+    error
+  ) {
+    return jsonError(
+      error?.message ||
+        "Unexpected Real-Debrid error",
+      500
+    );
+  }
+}
+
+/*
+ * ============================================================
+ * ADD MAGNET / RESOLVE MAGNET
+ * ============================================================
+ */
+async function addMagnet({
+  body,
+  authHeaders,
+  formHeaders,
+  base44,
+  saveLink = false,
+}) {
+  let magnet =
+    body.magnet;
+
+  if (!magnet) {
+    return jsonError(
+      "A valid magnet URI or stream source is required",
+      400
+    );
+  }
+
+  /*
+   * Accept a bare 40-character torrent hash.
+   */
+  if (
+    !String(
+      magnet
+    ).startsWith(
+      "magnet:"
+    ) &&
+    /^[a-fA-F0-9]{40}$/.test(
+      String(
+        magnet
+      )
+    )
+  ) {
+    magnet =
+      `magnet:?xt=urn:btih:${magnet}`;
+  }
+
+  /*
+   * Direct HTTP stream.
+   */
+  if (
+    /^https?:\/\//i.test(
+      String(
+        magnet
+      )
+    )
+  ) {
+    return Response.json({
+      status:
+        "ready",
+
+      stream_url:
+        magnet,
+
+      filename:
+        body.title ||
+        "Stream",
+
+      files: [],
+
+      audio_rescue:
+        null,
+
+      media_info:
+        null,
+    });
+  }
+
+  if (
+    !String(
+      magnet
+    ).startsWith(
+      "magnet:"
+    )
+  ) {
+    return jsonError(
+      "Invalid magnet URI format",
+      400
+    );
+  }
+
+  const addRes =
+    await fetch(
+      `${RD_BASE}/torrents/addMagnet`,
+      {
+        method:
+          "POST",
+
+        headers:
+          formHeaders,
+
+        body:
+          `magnet=${encodeURIComponent(
+            magnet
+          )}`,
+      }
+    );
+
+  if (
+    !addRes.ok
+  ) {
+    return jsonError(
+      `addMagnet failed: ${addRes.status} ${await addRes.text()}`
+    );
+  }
+
+  const addData =
+    await addRes.json();
+
+  const torrentId =
+    String(
+      addData.id ||
+      ""
+    );
+
+  if (
+    !torrentId
+  ) {
+    return jsonError(
+      "Real-Debrid did not return a torrent id."
+    );
+  }
+
+  /*
+   * Select all torrent files.
+   */
+  await fetch(
+    `${RD_BASE}/torrents/selectFiles/${encodeURIComponent(
+      torrentId
+    )}`,
+    {
+      method:
+        "POST",
+
+      headers:
+        formHeaders,
+
+      body:
+        "files=all",
+    }
+  ).catch(
+    () =>
+      null
+  );
+
+  const metadata = {
+    title:
+      body.title,
+
+    year:
+      body.year !=
+      null
+        ? String(
+            body.year
+          )
+        : "",
+
+    season:
+      body.season !=
+      null
+        ? String(
+            body.season
+          )
+        : "",
+
+    episode:
+      body.episode !=
+      null
+        ? String(
+            body.episode
+          )
+        : "",
+  };
+
+  /*
+   * Save the title -> torrent association
+   * so later plays can reuse it.
+   */
+  if (
+    saveLink &&
+    body.title
+  ) {
+    try {
+      const filter = {
+        title:
+          String(
+            body.title
+          ).trim(),
+
+        year:
+          metadata.year,
+
+        season:
+          metadata.season,
+
+        episode:
+          metadata.episode,
+      };
+
+      const existing =
+        await base44.entities.RdLink.filter(
+          filter
+        );
+
+      const patch = {
+        magnet,
+
+        torrent_id:
+          torrentId,
+      };
+
+      if (
+        existing?.length >
+        0
+      ) {
+        await base44.entities.RdLink.update(
+          existing[0].id,
+          patch
+        );
+      } else {
+        await base44.entities.RdLink.create(
+          {
+            ...filter,
+            ...patch,
+          }
+        );
+      }
+    } catch {
+      /*
+       * Saving this record is only an
+       * optimisation. Never break playback.
+       */
     }
   }
 
-  const withoutSamples =
-    videos.filter(
-      (file) =>
-        !SAMPLE_RE.test(
-          clean(
-            file.path
-          )
-        )
+  const stream =
+    await resolveStreamable(
+      torrentId,
+
+      authHeaders,
+
+      formHeaders,
+
+      metadata
     );
-
-  const pool =
-    withoutSamples.length >
-    0
-      ? withoutSamples
-      : videos;
-
-  return [...pool].sort(
-    (a, b) =>
-      Number(
-        b?.bytes ||
-          0
-      ) -
-      Number(
-        a?.bytes ||
-          0
-      )
-  )[0];
-};
-
-const buildFileEntries = (
-  info,
-  selectedTarget = null
-) => {
-  const allFiles =
-    Array.isArray(
-      info?.files
-    )
-      ? info.files
-      : [];
-
-  const selectedFiles =
-    allFiles.filter(
-      (file) =>
-        file?.selected !==
-        0
-    );
-
-  const links =
-    Array.isArray(
-      info?.links
-    )
-      ? info.links
-      : [];
-
-  const linkByFileId =
-    new Map();
 
   if (
-    selectedFiles.length ===
-    links.length
+    stream.error
   ) {
-    selectedFiles.forEach(
-      (
-        file,
-        index
-      ) => {
-        if (
-          links[
-            index
-          ]
-        ) {
-          linkByFileId.set(
-            file.id,
-            links[
-              index
-            ]
-          );
-        }
-      }
-    );
-  } else if (
-    allFiles.length ===
-    links.length
-  ) {
-    allFiles.forEach(
-      (
-        file,
-        index
-      ) => {
-        if (
-          links[
-            index
-          ]
-        ) {
-          linkByFileId.set(
-            file.id,
-            links[
-              index
-            ]
-          );
-        }
+    return jsonError(
+      stream.error,
+      502,
+      {
+        error_code:
+          stream.error_code,
+
+        audio_rescue:
+          stream.audio_rescue ||
+          null,
+
+        media_info:
+          stream.media_info ||
+          null,
       }
     );
   }
 
-  return allFiles
+  return Response.json({
+    status:
+      stream.ready
+        ? "ready"
+        : "preparing",
+
+    torrent_id:
+      torrentId,
+
+    stream_url:
+      stream.stream_url ||
+      "",
+
+    filename:
+      stream.filename ||
+      "",
+
+    rd_status:
+      stream.rd_status,
+
+    files:
+      stream.files ||
+      [],
+
+    audio_rescue:
+      stream.audio_rescue ||
+      null,
+
+    media_info:
+      stream.media_info ||
+      null,
+  });
+}
+
+/*
+ * ============================================================
+ * BUILD FILE LIST
+ * ============================================================
+ */
+function buildFileEntries(
+  info,
+  target
+) {
+  return (
+    info?.files ||
+    []
+  )
     .filter(
       isVideoFile
     )
     .map(
-      (file) => ({
+      (
+        file
+      ) => ({
         id:
           file.id,
 
         path:
-          clean(
-            file.path
-          ),
+          file.path ||
+          "",
 
         bytes:
-          Number(
-            file.bytes ||
-              0
-          ),
+          file.bytes ||
+          0,
 
         link:
-          linkByFileId.get(
-            file.id
-          ) ||
+          file.link ||
           "",
 
         selected:
-          selectedTarget
-            ? file.id ===
-              selectedTarget.id
-            : false,
+          Boolean(
+            target &&
+            file.id ===
+              target.id
+          ),
       })
     );
-};
+}
 
-const fetchTorrentInfo =
-  async (
-    torrentId,
-    authHeaders
-  ) => {
-    const response =
-      await fetch(
-        `${RD_BASE}/torrents/info/${torrentId}`,
-        {
-          headers:
-            authHeaders,
-        }
+/*
+ * ============================================================
+ * PICK CORRECT VIDEO FILE
+ * ============================================================
+ */
+function chooseVideoFile(
+  files,
+  ep
+) {
+  if (
+    !files?.length
+  ) {
+    return null;
+  }
+
+  /*
+   * Exact TV episode match first.
+   */
+  if (
+    ep?.season !=
+      null &&
+    ep?.episode !=
+      null
+  ) {
+    const season =
+      String(
+        ep.season
+      ).replace(
+        /^0+/,
+        ""
       );
 
-    if (
-      !response.ok
-    ) {
-      return {
-        error:
-          `Real-Debrid torrent info failed (${response.status}).`,
-      };
+    const episode =
+      String(
+        ep.episode
+      ).replace(
+        /^0+/,
+        ""
+      );
+
+    const patterns = [
+      new RegExp(
+        `s0*${season}e0*${episode}(?!\\d)`,
+        "i"
+      ),
+
+      new RegExp(
+        `${season}x0*${episode}(?!\\d)`,
+        "i"
+      ),
+    ];
+
+    const exact =
+      files.find(
+        (
+          file
+        ) =>
+          patterns.some(
+            (
+              pattern
+            ) =>
+              pattern.test(
+                file.path ||
+                ""
+              )
+          )
+      );
+
+    if (exact) {
+      return exact;
     }
+  }
 
+  /*
+   * Movie / fallback:
+   * largest video file.
+   */
+  return files
+    .slice()
+    .sort(
+      (
+        a,
+        b
+      ) =>
+        (
+          b.bytes ||
+          0
+        ) -
+        (
+          a.bytes ||
+          0
+        )
+    )[0];
+}
+
+/*
+ * ============================================================
+ * RESOLVE TORRENT INTO PLAYABLE STREAM
+ * ============================================================
+ */
+async function resolveStreamable(
+  torrentId,
+  authHeaders,
+  formHeaders,
+  ep
+) {
+  const infoUrl =
+    `${RD_BASE}/torrents/info/${encodeURIComponent(
+      torrentId
+    )}`;
+
+  const infoRes =
+    await fetch(
+      infoUrl,
+      {
+        headers:
+          authHeaders,
+      }
+    );
+
+  if (
+    !infoRes.ok
+  ) {
     return {
-      data:
-        await response.json(),
+      error:
+        `info failed: ${infoRes.status}`,
     };
-  };
+  }
 
-const selectAllFiles =
-  async (
-    torrentId,
-    formHeaders
-  ) => {
-    const response =
+  let info =
+    await infoRes.json();
+
+  /*
+   * Select files when RD is waiting.
+   */
+  if (
+    info.status ===
+    "waiting_files_selection"
+  ) {
+    const selectRes =
       await fetch(
-        `${RD_BASE}/torrents/selectFiles/${torrentId}`,
+        `${RD_BASE}/torrents/selectFiles/${encodeURIComponent(
+          torrentId
+        )}`,
         {
           method:
             "POST",
@@ -337,27 +1265,293 @@ const selectAllFiles =
       );
 
     if (
-      !response.ok &&
-      response.status !==
-        204
+      !selectRes.ok &&
+      selectRes.status !==
+        202
     ) {
       return {
         error:
-          `Real-Debrid file selection failed (${response.status}).`,
+          `file selection failed: ${selectRes.status}`,
       };
     }
 
-    return {
-      ok: true,
-    };
-  };
+    const retryRes =
+      await fetch(
+        infoUrl,
+        {
+          headers:
+            authHeaders,
+        }
+      );
 
-const unrestrictLink =
-  async (
-    link,
-    formHeaders
-  ) => {
-    const response =
+    if (
+      retryRes.ok
+    ) {
+      info =
+        await retryRes.json();
+    }
+  }
+
+  const allFiles =
+    Array.isArray(
+      info.files
+    )
+      ? info.files
+      : [];
+
+  const videoFiles =
+    allFiles.filter(
+      isVideoFile
+    );
+
+  if (
+    videoFiles.length ===
+    0
+  ) {
+    return {
+      ready:
+        info.status ===
+        "downloaded",
+
+      rd_status:
+        info.status,
+
+      filename:
+        info.filename ||
+        "",
+
+      files: [],
+    };
+  }
+
+  const target =
+    chooseVideoFile(
+      videoFiles,
+      ep
+    );
+
+  const fileEntries =
+    buildFileEntries(
+      info,
+      target
+    );
+
+  const fileLinks =
+    Array.isArray(
+      info.links
+    )
+      ? info.links
+      : [];
+
+  const linkByFileId =
+    new Map();
+
+  /*
+   * Map links to the original file array.
+   */
+  if (
+    fileLinks.length ===
+    allFiles.length
+  ) {
+    allFiles.forEach(
+      (
+        file,
+        index
+      ) => {
+        const link =
+          fileLinks[
+            index
+          ];
+
+        if (link) {
+          linkByFileId.set(
+            file.id,
+            link
+          );
+        }
+      }
+    );
+  }
+
+  let targetLink =
+    target
+      ? linkByFileId.get(
+          target.id
+        ) ||
+        ""
+      : "";
+
+  /*
+   * Some RD results only return links
+   * for video files.
+   */
+  if (
+    !targetLink &&
+    target &&
+    fileLinks.length ===
+      videoFiles.length
+  ) {
+    const videoIndex =
+      videoFiles.findIndex(
+        (
+          file
+        ) =>
+          file.id ===
+          target.id
+      );
+
+    if (
+      videoIndex >=
+      0
+    ) {
+      targetLink =
+        fileLinks[
+          videoIndex
+        ] ||
+        "";
+    }
+  }
+
+  /*
+   * Last safe fallback.
+   */
+  if (
+    !targetLink &&
+    fileLinks.length >
+      0
+  ) {
+    targetLink =
+      fileLinks[0];
+  }
+
+  /*
+   * Torrent still preparing.
+   */
+  if (
+    !targetLink ||
+    info.status !==
+      "downloaded"
+  ) {
+    return {
+      ready:
+        false,
+
+      rd_status:
+        info.status,
+
+      filename:
+        target?.path ||
+        info.filename ||
+        "",
+
+      files:
+        fileEntries,
+    };
+  }
+
+  /*
+   * Convert torrent link into an
+   * unrestricted RD download URL.
+   */
+  const unrestricted =
+    await unrestrictRdLink(
+      targetLink,
+      formHeaders
+    );
+
+  if (
+    unrestricted.error
+  ) {
+    return {
+      error:
+        unrestricted.error,
+    };
+  }
+
+  /*
+   * Smart Audio Rescue.
+   */
+  const playable =
+    await choosePlayableRdStream(
+      {
+        unData:
+          unrestricted.data,
+
+        authHeaders,
+
+        formHeaders,
+
+        preferEnglish:
+          true,
+
+        allowTranscode:
+          true,
+      }
+    );
+
+  if (
+    playable.error
+  ) {
+    return {
+      error:
+        playable.error,
+
+      error_code:
+        playable.error_code ||
+        "AUDIO_RESCUE_FAILED",
+
+      audio_rescue:
+        playable.audio_rescue ||
+        null,
+
+      media_info:
+        playable.media_info ||
+        null,
+    };
+  }
+
+  return {
+    ready:
+      true,
+
+    rd_status:
+      info.status,
+
+    stream_url:
+      playable.stream_url,
+
+    filename:
+      playable.filename ||
+      unrestricted.data
+        ?.filename ||
+      target?.path ||
+      info.filename ||
+      "",
+
+    files:
+      fileEntries,
+
+    audio_rescue:
+      playable.audio_rescue ||
+      null,
+
+    media_info:
+      playable.media_info ||
+      null,
+  };
+}
+
+/*
+ * ============================================================
+ * UNRESTRICT ONE RD LINK
+ * ============================================================
+ */
+async function unrestrictRdLink(
+  link,
+  formHeaders
+) {
+  try {
+    const res =
       await fetch(
         `${RD_BASE}/unrestrict/link`,
         {
@@ -374,710 +1568,605 @@ const unrestrictLink =
         }
       );
 
-    if (
-      !response.ok
-    ) {
-      const text =
-        await response
-          .text()
-          .catch(
-            () => ""
-          );
-
+    if (!res.ok) {
       return {
         error:
-          `Real-Debrid unrestrict failed (${response.status})${
-            text
-              ? `: ${text}`
-              : ""
-          }`,
-      };
-    }
-
-    const data =
-      await response.json();
-
-    if (
-      !data?.download
-    ) {
-      return {
-        error:
-          "Real-Debrid did not return a playable download URL.",
+          `unrestrict failed: ${res.status} ${await res.text()}`,
       };
     }
 
     return {
-      stream_url:
-        data.download,
-
-      filename:
-        clean(
-          data.filename
-        ),
+      data:
+        await res.json(),
     };
-  };
-
-const resolveStreamable =
-  async (
-    torrentId,
-    authHeaders,
-    formHeaders,
-    metadata = {}
-  ) => {
-    let infoResult =
-      await fetchTorrentInfo(
-        torrentId,
-        authHeaders
-      );
-
-    if (
-      infoResult.error
-    ) {
-      return infoResult;
-    }
-
-    let info =
-      infoResult.data;
-
-    if (
-      info?.status ===
-      "waiting_files_selection"
-    ) {
-      const selected =
-        await selectAllFiles(
-          torrentId,
-          formHeaders
-        );
-
-      if (
-        selected.error
-      ) {
-        return selected;
-      }
-
-      infoResult =
-        await fetchTorrentInfo(
-          torrentId,
-          authHeaders
-        );
-
-      if (
-        infoResult.error
-      ) {
-        return infoResult;
-      }
-
-      info =
-        infoResult.data;
-    }
-
-    const target =
-      chooseVideoFile(
-        info?.files,
-        metadata
-      );
-
-    const files =
-      buildFileEntries(
-        info,
-        target
-      );
-
-    if (!target) {
-      return {
-        ready:
-          false,
-
-        rd_status:
-          clean(
-            info?.status
-          ),
-
-        progress:
-          Number(
-            info?.progress ||
-              0
-          ),
-
-        filename:
-          clean(
-            info?.filename
-          ),
-
-        files,
-      };
-    }
-
-    const targetEntry =
-      files.find(
-        (file) =>
-          file.id ===
-          target.id
-      );
-
-    const targetLink =
-      clean(
-        targetEntry?.link
-      );
-
-    if (
-      info?.status !==
-        "downloaded" ||
-      !targetLink
-    ) {
-      return {
-        ready:
-          false,
-
-        rd_status:
-          clean(
-            info?.status
-          ),
-
-        progress:
-          Number(
-            info?.progress ||
-              0
-          ),
-
-        filename:
-          clean(
-            target?.path ||
-              info?.filename
-          ),
-
-        files,
-      };
-    }
-
-    const unrestricted =
-      await unrestrictLink(
-        targetLink,
-        formHeaders
-      );
-
-    if (
-      unrestricted.error
-    ) {
-      return unrestricted;
-    }
-
+  } catch (
+    error
+  ) {
     return {
-      ready:
-        true,
+      error:
+        error?.message ||
+        "unrestrict request failed",
+    };
+  }
+}
 
-      rd_status:
-        clean(
-          info?.status
-        ),
+/*
+ * ============================================================
+ * SMART AUDIO RESCUE
+ * ============================================================
+ *
+ * Order:
+ *
+ * 1. Inspect the RD file.
+ * 2. If it literally has no audio, reject it.
+ * 3. If original English audio is already safe, use original.
+ * 4. If English exists but default audio is wrong, use RD stream.
+ * 5. If DTS / TrueHD / risky audio is detected, use RD stream.
+ * 6. Choose the highest available RD transcode quality.
+ * 7. Do NOT cap Fire Stick to 1080p.
+ * 8. If RD inspection/transcode itself fails, return original
+ *    so frontend source failover can still recover.
+ */
+async function choosePlayableRdStream({
+  unData,
+  authHeaders,
+  formHeaders,
+  preferEnglish = true,
+  allowTranscode = true,
+}) {
+  const originalUrl =
+    unData?.download ||
+    "";
 
-      progress:
-        100,
+  const originalFilename =
+    unData?.filename ||
+    "";
 
+  const fileId =
+    unData?.id !=
+    null
+      ? String(
+          unData.id
+        )
+      : "";
+
+  if (
+    !originalUrl
+  ) {
+    return {
+      error:
+        "Real-Debrid did not return a playable download URL.",
+
+      error_code:
+        "NO_STREAM_URL",
+    };
+  }
+
+  /*
+   * Do not break playback if an unusual
+   * RD response doesn't expose a file id.
+   */
+  if (
+    !fileId
+  ) {
+    return {
       stream_url:
-        unrestricted.stream_url,
+        originalUrl,
 
       filename:
-        unrestricted.filename ||
-        clean(
-          target?.path ||
-            info?.filename
-        ),
+        originalFilename,
 
-      files,
+      audio_rescue: {
+        used:
+          false,
+
+        state:
+          "inspection_unavailable",
+
+        reason:
+          "Real-Debrid did not expose a file id for media inspection.",
+      },
+
+      media_info:
+        null,
     };
-  };
+  }
 
-const saveRdLink =
-  async (
-    base44,
-    body,
-    magnet,
-    torrentId
-  ) => {
-    if (
-      !body?.title
-    ) {
-      return;
-    }
-
-    const key = {
-      title:
-        clean(
-          body.title
-        ),
-
-      year:
-        body.year != null
-          ? String(
-              body.year
-            )
-          : "",
-
-      season:
-        body.season != null
-          ? String(
-              body.season
-            )
-          : "",
-
-      episode:
-        body.episode != null
-          ? String(
-              body.episode
-            )
-          : "",
-    };
-
-    const patch = {
-      ...key,
-
-      magnet,
-
-      torrent_id:
-        String(
-          torrentId
-        ),
-    };
-
-    try {
-      const existing =
-        await base44.entities.RdLink.filter(
-          key
-        );
-
-      if (
-        existing?.length >
-        0
-      ) {
-        await base44.entities.RdLink.update(
-          existing[0].id,
-          patch
-        );
-      } else {
-        await base44.entities.RdLink.create(
-          patch
-        );
-      }
-    } catch {
-      // RdLink is optional.
-    }
-  };
-
-const addMagnetAndResolve =
-  async ({
-    body,
-    base44,
-    authHeaders,
-    formHeaders,
-  }) => {
-    let value =
-      clean(
-        body?.magnet ||
-          body?.url ||
-          body?.src ||
-          body?.infoHash
-      );
-
-    if (!value) {
-      return Response.json(
-        {
-          error:
-            "A magnet link, info hash, or direct URL is required.",
-        },
-        {
-          status:
-            400,
-        }
-      );
-    }
-
-    if (
-      isHttp(
-        value
-      )
-    ) {
-      return Response.json({
-        status:
-          "ready",
-
-        stream_url:
-          value,
-
-        filename:
-          clean(
-            body?.title
-          ) ||
-          "Stream",
-
-        files: [],
-      });
-    }
-
-    if (
-      /^[a-f0-9]{40}$/i.test(
-        value
-      )
-    ) {
-      value =
-        magnetFromHash(
-          value,
-          clean(
-            body?.title
-          )
-        );
-    }
-
-    if (
-      !isMagnet(
-        value
-      )
-    ) {
-      const hash =
-        infoHashFromValue(
-          value
-        );
-
-      if (hash) {
-        value =
-          magnetFromHash(
-            hash,
-            clean(
-              body?.title
-            )
-          );
-      }
-    }
-
-    if (
-      !isMagnet(
-        value
-      )
-    ) {
-      return Response.json(
-        {
-          error:
-            "Invalid magnet or info hash.",
-        },
-        {
-          status:
-            400,
-        }
-      );
-    }
-
-    const addResponse =
-      await fetch(
-        `${RD_BASE}/torrents/addMagnet`,
-        {
-          method:
-            "POST",
-
-          headers:
-            formHeaders,
-
-          body:
-            `magnet=${encodeURIComponent(
-              value
-            )}`,
-        }
-      );
-
-    if (
-      !addResponse.ok
-    ) {
-      const text =
-        await addResponse
-          .text()
-          .catch(
-            () => ""
-          );
-
-      return Response.json(
-        {
-          error:
-            `Real-Debrid could not add this magnet (${addResponse.status})${
-              text
-                ? `: ${text}`
-                : ""
-            }`,
-        },
-        {
-          status:
-            502,
-        }
-      );
-    }
-
-    const added =
-      await addResponse.json();
-
-    const torrentId =
-      clean(
-        added?.id
-      );
-
-    if (!torrentId) {
-      return Response.json(
-        {
-          error:
-            "Real-Debrid did not return a torrent id.",
-        },
-        {
-          status:
-            502,
-        }
-      );
-    }
-
-    await selectAllFiles(
-      torrentId,
-      formHeaders
+  const inspection =
+    await getRdMediaInfo(
+      fileId,
+      authHeaders
     );
 
-    await saveRdLink(
-      base44,
-      body,
-      value,
-      torrentId
-    );
-
-    const resolved =
-      await resolveStreamable(
-        torrentId,
-        authHeaders,
-        formHeaders,
-        {
-          title:
-            body?.title,
-
-          year:
-            body?.year,
-
-          season:
-            body?.season,
-
-          episode:
-            body?.episode,
-        }
-      );
-
-    if (
-      resolved.error
-    ) {
-      return Response.json(
-        {
-          error:
-            resolved.error,
-        },
-        {
-          status:
-            502,
-        }
-      );
-    }
-
-    return Response.json({
-      status:
-        resolved.ready
-          ? "ready"
-          : "preparing",
-
-      torrent_id:
-        torrentId,
-
+  /*
+   * RD can temporarily return 503 while
+   * finding media metadata.
+   *
+   * Keep the original and let the
+   * frontend no-audio detector decide.
+   */
+  if (
+    !inspection.ok
+  ) {
+    return {
       stream_url:
-        resolved.stream_url ||
-        "",
+        originalUrl,
 
       filename:
-        resolved.filename ||
-        "",
+        originalFilename,
 
-      progress:
-        Number(
-          resolved.progress ||
-            0
-        ),
+      audio_rescue: {
+        used:
+          false,
 
-      rd_status:
-        resolved.rd_status ||
-        "",
+        state:
+          "inspection_unavailable",
 
-      files:
-        resolved.files ||
-        [],
-    });
-  };
+        reason:
+          inspection.error ||
+          "Real-Debrid media inspection was unavailable.",
+      },
 
-const titleWords = (
-  title
-) =>
-  clean(
-    title
-  )
-    .toLowerCase()
-    .split(
-      /[^a-z0-9]+/
+      media_info:
+        null,
+    };
+  }
+
+  const mediaInfo =
+    inspection.data ||
+    {};
+
+  const audioObject =
+    mediaInfo
+      ?.details
+      ?.audio &&
+    typeof mediaInfo
+      .details
+      .audio ===
+      "object"
+      ? mediaInfo
+          .details
+          .audio
+      : {};
+
+  /*
+   * Support both an object and an array
+   * just in case RD changes representation.
+   */
+  const rawAudioEntries =
+    Array.isArray(
+      audioObject
     )
-    .filter(
-      (word) =>
-        word.length >=
-        3
+      ? audioObject.map(
+          (
+            track,
+            index
+          ) => [
+            String(
+              index
+            ),
+            track,
+          ]
+        )
+      : Object.entries(
+          audioObject
+        );
+
+  const audioTracks =
+    rawAudioEntries.map(
+      ([
+        key,
+        track,
+      ]) =>
+        summariseAudioTrack(
+          track,
+          key
+        )
     );
 
-const scoreLibraryTorrent =
-  (
-    torrent,
-    body
-  ) => {
-    const filename =
-      clean(
-        torrent?.filename ||
-          torrent?.original_filename
-      );
+  const videoObject =
+    mediaInfo
+      ?.details
+      ?.video &&
+    typeof mediaInfo
+      .details
+      .video ===
+      "object"
+      ? mediaInfo
+          .details
+          .video
+      : {};
 
-    const normalizedFilename =
-      normalise(
-        filename
-      );
+  const mediaSummary = {
+    filename:
+      mediaInfo
+        ?.filename ||
+      originalFilename,
 
-    const wanted =
-      normalise(
-        body?.title
-      );
+    type:
+      mediaInfo?.type ||
+      "",
 
-    if (
-      !filename ||
-      !wanted
-    ) {
-      return -1;
-    }
+    duration:
+      mediaInfo
+        ?.duration ??
+      null,
 
-    const words =
-      titleWords(
-        body?.title
-      );
+    bitrate:
+      mediaInfo
+        ?.bitrate ??
+      null,
 
-    const filenameWords =
-      new Set(
-        filename
-          .toLowerCase()
-          .split(
-            /[^a-z0-9]+/
+    size:
+      mediaInfo?.size ??
+      null,
+
+    video_tracks:
+      Object.entries(
+        videoObject
+      ).map(
+        ([
+          key,
+          track,
+        ]) => ({
+          key,
+
+          codec:
+            track?.codec ||
+            "",
+
+          width:
+            track?.width ??
+            null,
+
+          height:
+            track?.height ??
+            null,
+
+          colorspace:
+            track?.colorspace ||
+            "",
+        })
+      ),
+
+    audio_tracks:
+      audioTracks,
+  };
+
+  /*
+   * REAL zero-audio file.
+   *
+   * Don't waste time trying to play it.
+   * Return an error so VideoPlayer can
+   * immediately move to another source.
+   */
+  if (
+    audioTracks.length ===
+    0
+  ) {
+    return {
+      error:
+        "This file contains no audio track. Media God will try another source.",
+
+      error_code:
+        "NO_AUDIO_TRACK",
+
+      audio_rescue: {
+        used:
+          false,
+
+        state:
+          "no_audio_track",
+
+        reason:
+          "Real-Debrid media inspection reported zero audio tracks.",
+      },
+
+      media_info:
+        mediaSummary,
+    };
+  }
+
+  const firstTrack =
+    audioTracks[0];
+
+  const englishTracks =
+    audioTracks.filter(
+      (
+        track
+      ) =>
+        track.english
+    );
+
+  const englishSafe =
+    englishTracks.find(
+      (
+        track
+      ) =>
+        track.browser_safe
+    );
+
+  const unknownLanguageTracks =
+    rawAudioEntries
+      .filter(
+        ([
+          ,
+          track,
+        ]) =>
+          !hasKnownLanguage(
+            track
           )
-          .filter(
-            Boolean
-          )
-      );
-
-    const contiguous =
-      normalizedFilename.includes(
-        wanted
-      );
-
-    const allWords =
-      words.length >
-        0 &&
-      words.every(
-        (word) =>
-          filenameWords.has(
-            word
-          )
-      );
-
-    if (
-      !contiguous &&
-      !allWords
-    ) {
-      return -1;
-    }
-
-    const epRe =
-      episodeRegex(
-        body?.season,
-        body?.episode
-      );
-
-    if (
-      epRe &&
-      !epRe.test(
-        filename
       )
-    ) {
-      return -1;
-    }
+      .map(
+        ([
+          key,
+          track,
+        ]) =>
+          summariseAudioTrack(
+            track,
+            key
+          )
+      );
 
-    let score =
+  const explicitlyForeignOnly =
+    preferEnglish &&
+    englishTracks.length ===
+      0 &&
+    unknownLanguageTracks.length ===
       0;
 
-    if (
-      contiguous
-    ) {
-      score +=
-        100;
-    }
+  /*
+   * Don't reject a working source only
+   * because English is missing.
+   *
+   * Keep it as a last resort.
+   */
+  if (
+    explicitlyForeignOnly
+  ) {
+    return {
+      stream_url:
+        originalUrl,
 
-    if (
-      allWords
-    ) {
-      score +=
-        50;
-    }
+      filename:
+        originalFilename,
 
-    if (
-      epRe
-    ) {
-      score +=
-        60;
-    }
+      audio_rescue: {
+        used:
+          false,
 
-    const year =
-      clean(
-        body?.year
-      );
+        state:
+          "no_english_audio",
 
-    if (
-      year &&
-      normalizedFilename.includes(
-        normalise(
-          year
-        )
-      )
-    ) {
-      score +=
-        20;
-    }
+        reason:
+          "All labelled audio tracks are non-English, so the original stream is kept as a last-resort fallback.",
+      },
 
-    if (
-      torrent?.status ===
-      "downloaded"
-    ) {
-      score +=
-        30;
-    }
+      media_info:
+        mediaSummary,
+    };
+  }
 
-    if (
-      !SAMPLE_RE.test(
-        filename
-      )
-    ) {
-      score +=
-        5;
-    }
+  const firstIsEnglish =
+    Boolean(
+      firstTrack
+        ?.english
+    );
 
-    return score;
+  const firstIsSafe =
+    Boolean(
+      firstTrack
+        ?.browser_safe
+    );
+
+  /*
+   * Original is already ideal.
+   */
+  if (
+    firstIsSafe &&
+    (
+      !preferEnglish ||
+      firstIsEnglish ||
+      englishTracks.length ===
+        0
+    )
+  ) {
+    return {
+      stream_url:
+        originalUrl,
+
+      filename:
+        originalFilename,
+
+      audio_rescue: {
+        used:
+          false,
+
+        state:
+          "original_compatible",
+
+        reason:
+          firstIsEnglish
+            ? "The original stream already starts with compatible English audio."
+            : "The original stream starts with compatible audio and no conflicting labelled English track.",
+
+        selected_audio:
+          firstTrack,
+      },
+
+      media_info:
+        mediaSummary,
+    };
+  }
+
+  /*
+   * Risky audio or wrong default language.
+   */
+  if (
+    !allowTranscode
+  ) {
+    return {
+      error:
+        "The selected file needs audio rescue, but transcoding is disabled.",
+
+      error_code:
+        "TRANSCODE_DISABLED",
+
+      audio_rescue: {
+        used:
+          false,
+
+        state:
+          "transcode_disabled",
+      },
+
+      media_info:
+        mediaSummary,
+    };
+  }
+
+  /*
+   * Ask RD to prefer English for its
+   * streaming/transcoding output.
+   */
+  if (
+    preferEnglish &&
+    englishTracks.length >
+      0
+  ) {
+    await ensureRdEnglishStreamingPreference(
+      authHeaders,
+      formHeaders
+    );
+  }
+
+  /*
+   * Request RD's stream/transcode links.
+   */
+  const transcode =
+    await getBestRdTranscode(
+      fileId,
+      authHeaders
+    );
+
+  if (
+    transcode?.url
+  ) {
+    const reason =
+      preferEnglish &&
+      englishTracks.length >
+        0 &&
+      !firstIsEnglish
+        ? "English audio exists but is not the likely default track."
+        : !firstIsSafe
+          ? `The original ${
+              firstTrack
+                ?.codec ||
+              "audio"
+            } track is risky for Fire TV browser playback.`
+          : "A Real-Debrid streaming version is safer for this file.";
+
+    const formatLabel =
+      transcode.format ===
+        "apple"
+        ? "HLS"
+        : transcode.format ===
+            "liveMP4"
+          ? "MP4"
+          : "WebM";
+
+    return {
+      stream_url:
+        transcode.url,
+
+      filename:
+        `${
+          originalFilename ||
+          mediaInfo
+            ?.filename ||
+          "Real-Debrid Stream"
+        } [${formatLabel} Audio Rescue]`,
+
+      audio_rescue: {
+        used:
+          true,
+
+        state:
+          "transcoded",
+
+        reason,
+
+        selected_audio:
+          englishSafe ||
+          englishTracks[0] ||
+          firstTrack ||
+          null,
+
+        format:
+          transcode.format,
+
+        quality:
+          transcode.quality,
+      },
+
+      media_info:
+        mediaSummary,
+    };
+  }
+
+  /*
+   * Fail-safe fallback.
+   *
+   * If RD itself cannot supply a streaming
+   * version, keep the original URL.
+   *
+   * LiveVideo / VideoPlayer already has
+   * silent-audio detection and source failover.
+   */
+  return {
+    stream_url:
+      originalUrl,
+
+    filename:
+      `${
+        originalFilename ||
+        mediaInfo
+          ?.filename ||
+        "Real-Debrid Stream"
+      } [Audio Rescue Fallback]`,
+
+    audio_rescue: {
+      used:
+        false,
+
+      state:
+        "transcode_unavailable_original_fallback",
+
+      reason:
+        transcode?.error ||
+        "No usable Real-Debrid transcode was returned. The original stream is kept so frontend failover can decide.",
+    },
+
+    media_info:
+      mediaSummary,
   };
+}
 
-const findCachedLibraryStream =
-  async ({
-    body,
-    authHeaders,
-    formHeaders,
-  }) => {
+/*
+ * ============================================================
+ * REAL-DEBRID MEDIA INSPECTION
+ * ============================================================
+ */
+async function getRdMediaInfo(
+  fileId,
+  authHeaders
+) {
+  try {
     const response =
       await fetch(
-        `${RD_BASE}/torrents?limit=100`,
+        `${RD_BASE}/streaming/mediaInfos/${encodeURIComponent(
+          fileId
+        )}`,
         {
           headers:
             authHeaders,
@@ -1087,751 +2176,827 @@ const findCachedLibraryStream =
     if (
       !response.ok
     ) {
-      return Response.json(
-        {
-          error:
-            `Real-Debrid library lookup failed (${response.status}).`,
-        },
-        {
-          status:
-            502,
-        }
-      );
+      return {
+        ok:
+          false,
+
+        error:
+          `mediaInfos unavailable (${response.status})`,
+      };
     }
 
-    const torrents =
-      await response.json();
+    return {
+      ok:
+        true,
 
-    const candidates =
-      (torrents || [])
-        .map(
-          (torrent) => ({
-            torrent,
+      data:
+        await response.json(),
+    };
+  } catch (
+    error
+  ) {
+    return {
+      ok:
+        false,
 
-            score:
-              scoreLibraryTorrent(
-                torrent,
-                body
-              ),
-          })
-        )
-        .filter(
-          (item) =>
-            item.score >=
-            0
-        )
-        .sort(
-          (a, b) =>
-            b.score -
-            a.score
-        );
+      error:
+        error?.message ||
+        "mediaInfos request failed",
+    };
+  }
+}
+
+/*
+ * ============================================================
+ * ASK RD TO PREFER ENGLISH
+ * ============================================================
+ */
+async function ensureRdEnglishStreamingPreference(
+  authHeaders,
+  formHeaders
+) {
+  try {
+    const settingsRes =
+      await fetch(
+        `${RD_BASE}/settings`,
+        {
+          headers:
+            authHeaders,
+        }
+      );
+
+    if (
+      !settingsRes.ok
+    ) {
+      return false;
+    }
+
+    const settings =
+      await settingsRes.json();
+
+    const languages =
+      settings
+        ?.streaming_languages &&
+      typeof settings
+        .streaming_languages ===
+        "object"
+        ? settings
+            .streaming_languages
+        : {};
+
+    let englishValue =
+      "";
 
     for (
-      const candidate
-      of candidates.slice(
-        0,
-        10
+      const [
+        key,
+        value,
+      ] of
+      Object.entries(
+        languages
       )
     ) {
-      const torrentId =
-        clean(
-          candidate
-            ?.torrent?.id
+      const keyText =
+        normaliseLanguage(
+          key
+        );
+
+      const valueText =
+        normaliseLanguage(
+          value
         );
 
       if (
-        !torrentId
+        [
+          "eng",
+          "en",
+          "english",
+        ].includes(
+          keyText
+        ) ||
+        [
+          "eng",
+          "en",
+          "english",
+        ].includes(
+          valueText
+        ) ||
+        /\benglish\b/i.test(
+          String(
+            value ||
+            ""
+          )
+        )
+      ) {
+        englishValue =
+          String(
+            key
+          );
+
+        break;
+      }
+    }
+
+    if (
+      !englishValue
+    ) {
+      return false;
+    }
+
+    if (
+      String(
+        settings
+          ?.streaming_language_preference ||
+        ""
+      ) ===
+      englishValue
+    ) {
+      return true;
+    }
+
+    const updateBody =
+      new URLSearchParams();
+
+    updateBody.set(
+      "setting_name",
+      "streaming_language_preference"
+    );
+
+    updateBody.set(
+      "setting_value",
+      englishValue
+    );
+
+    const updateRes =
+      await fetch(
+        `${RD_BASE}/settings/update`,
+        {
+          method:
+            "POST",
+
+          headers:
+            formHeaders,
+
+          body:
+            updateBody.toString(),
+        }
+      );
+
+    return updateRes.ok;
+  } catch {
+    /*
+     * Language preference is an
+     * optimisation only.
+     */
+    return false;
+  }
+}
+
+/*
+ * ============================================================
+ * QUALITY SCORING
+ * ============================================================
+ *
+ * Fire Stick 4K remains a 4K device.
+ *
+ * There is deliberately no 1080p ceiling.
+ */
+function transcodeQualityScore(
+  quality,
+  url
+) {
+  const text =
+    `${String(
+      quality ||
+      ""
+    )} ${String(
+      url ||
+      ""
+    )}`.toLowerCase();
+
+  if (
+    /\b(?:4320p?|8k)\b/.test(
+      text
+    )
+  ) {
+    return 4320;
+  }
+
+  if (
+    /\b(?:2160p?|4k|uhd)\b/.test(
+      text
+    )
+  ) {
+    return 2160;
+  }
+
+  if (
+    /\b1440p?\b/.test(
+      text
+    )
+  ) {
+    return 1440;
+  }
+
+  if (
+    /\b1080p?\b/.test(
+      text
+    )
+  ) {
+    return 1080;
+  }
+
+  if (
+    /\b720p?\b/.test(
+      text
+    )
+  ) {
+    return 720;
+  }
+
+  if (
+    /\b576p?\b/.test(
+      text
+    )
+  ) {
+    return 576;
+  }
+
+  if (
+    /\b480p?\b/.test(
+      text
+    )
+  ) {
+    return 480;
+  }
+
+  if (
+    /\b360p?\b/.test(
+      text
+    )
+  ) {
+    return 360;
+  }
+
+  /*
+   * Original / source / best should beat
+   * named fixed resolutions if RD exposes one.
+   */
+  if (
+    /\b(?:full|original|source|max|best)\b/.test(
+      text
+    )
+  ) {
+    return 10000;
+  }
+
+  const parsed =
+    Number.parseInt(
+      String(
+        quality ||
+        ""
+      ).replace(
+        /[^0-9]/g,
+        ""
+      ),
+      10
+    );
+
+  return Number.isFinite(
+    parsed
+  )
+    ? parsed
+    : 0;
+}
+
+/*
+ * ============================================================
+ * GET BEST RD TRANSCODE
+ * ============================================================
+ */
+async function getBestRdTranscode(
+  fileId,
+  authHeaders
+) {
+  try {
+    const response =
+      await fetch(
+        `${RD_BASE}/streaming/transcode/${encodeURIComponent(
+          fileId
+        )}`,
+        {
+          headers:
+            authHeaders,
+        }
+      );
+
+    if (
+      !response.ok
+    ) {
+      return {
+        error:
+          `transcode unavailable (${response.status})`,
+      };
+    }
+
+    const data =
+      await response.json();
+
+    const candidates =
+      [];
+
+    /*
+     * HLS is best because LiveVideo already
+     * handles it.
+     *
+     * Then live MP4.
+     *
+     * Then H264 WebM.
+     *
+     * DASH is deliberately ignored because
+     * the current player doesn't use dash.js.
+     */
+    for (
+      const format of [
+        "apple",
+        "liveMP4",
+        "h264WebM",
+      ]
+    ) {
+      const group =
+        data?.[
+          format
+        ];
+
+      if (
+        !group ||
+        typeof group !==
+          "object"
       ) {
         continue;
       }
 
-      const resolved =
-        await resolveStreamable(
-          torrentId,
-          authHeaders,
-          formHeaders,
-          {
-            season:
-              body?.season,
-
-            episode:
-              body?.episode,
-          }
-        );
-
-      if (
-        resolved.ready &&
-        resolved.stream_url
+      for (
+        const [
+          quality,
+          url,
+        ] of
+        Object.entries(
+          group
+        )
       ) {
-        return Response.json({
-          status:
-            "ready",
+        if (
+          typeof url !==
+            "string" ||
+          !/^https?:\/\//i.test(
+            url
+          )
+        ) {
+          continue;
+        }
 
-          source:
-            "library",
+        const formatBonus =
+          format ===
+            "apple"
+            ? 30
+            : format ===
+                "liveMP4"
+              ? 20
+              : 10;
 
-          torrent_id:
-            torrentId,
+        candidates.push({
+          format,
 
-          stream_url:
-            resolved.stream_url,
-
-          url:
-            resolved.stream_url,
-
-          filename:
-            resolved.filename ||
-            clean(
-              candidate
-                ?.torrent
-                ?.filename
+          quality:
+            String(
+              quality
             ),
 
-          files:
-            resolved.files ||
-            [],
+          url,
+
+          score:
+            transcodeQualityScore(
+              quality,
+              url
+            ) *
+              100 +
+            formatBonus,
         });
       }
     }
 
+    candidates.sort(
+      (
+        a,
+        b
+      ) =>
+        b.score -
+        a.score
+    );
+
+    return (
+      candidates[0] ||
+      {
+        error:
+          "Real-Debrid returned no HLS/MP4/WebM transcode links.",
+      }
+    );
+  } catch (
+    error
+  ) {
+    return {
+      error:
+        error?.message ||
+        "transcode request failed",
+    };
+  }
+}
+
+/*
+ * ============================================================
+ * FIND EXISTING CACHED TORRENT
+ * ============================================================
+ */
+async function findCached({
+  body,
+  authHeaders,
+  formHeaders,
+}) {
+  const title =
+    String(
+      body.title ||
+      ""
+    ).trim();
+
+  if (!title) {
+    return jsonError(
+      "title required",
+      400
+    );
+  }
+
+  const season =
+    body.season !=
+    null
+      ? String(
+          body.season
+        )
+      : "";
+
+  const episode =
+    body.episode !=
+    null
+      ? String(
+          body.episode
+        )
+      : "";
+
+  const year =
+    body.year !=
+    null
+      ? String(
+          body.year
+        ).trim()
+      : "";
+
+  const res =
+    await fetch(
+      `${RD_BASE}/torrents`,
+      {
+        headers:
+          authHeaders,
+      }
+    );
+
+  if (!res.ok) {
+    return jsonError(
+      `RD error: ${res.status}`
+    );
+  }
+
+  const data =
+    await res.json();
+
+  const want =
+    normalise(
+      title
+    );
+
+  const wantYear =
+    normalise(
+      year
+    );
+
+  const titleWords =
+    title
+      .toLowerCase()
+      .split(
+        /[^a-z0-9]+/
+      )
+      .filter(
+        (
+          word
+        ) =>
+          word.length >=
+          3
+      );
+
+  let epRegex =
+    null;
+
+  if (
+    season &&
+    episode
+  ) {
+    const s =
+      String(
+        season
+      ).replace(
+        /^0+/,
+        ""
+      );
+
+    const e =
+      String(
+        episode
+      ).replace(
+        /^0+/,
+        ""
+      );
+
+    epRegex =
+      new RegExp(
+        `s0*${s}(?!\\d)e0*${e}(?!\\d)`,
+        "i"
+      );
+  }
+
+  const scoreTorrent =
+    (
+      torrent
+    ) => {
+      const filename =
+        torrent.filename ||
+        torrent.original_filename ||
+        "";
+
+      const fn =
+        normalise(
+          filename
+        );
+
+      if (
+        !fn ||
+        !want
+      ) {
+        return -1;
+      }
+
+      const words =
+        new Set(
+          filename
+            .toLowerCase()
+            .split(
+              /[^a-z0-9]+/
+            )
+            .filter(
+              Boolean
+            )
+        );
+
+      const contiguous =
+        fn.includes(
+          want
+        );
+
+      const allWords =
+        titleWords.length >
+          0 &&
+        titleWords.every(
+          (
+            word
+          ) =>
+            words.has(
+              word
+            )
+        );
+
+      if (
+        !contiguous &&
+        !allWords
+      ) {
+        return -1;
+      }
+
+      let score =
+        0;
+
+      if (
+        contiguous
+      ) {
+        score +=
+          100;
+      }
+
+      if (
+        allWords
+      ) {
+        score +=
+          50;
+      }
+
+      if (
+        wantYear &&
+        fn.includes(
+          wantYear
+        )
+      ) {
+        score +=
+          15;
+      }
+
+      if (
+        VIDEO_RE.test(
+          filename
+        )
+      ) {
+        score +=
+          10;
+      }
+
+      return score;
+    };
+
+  let candidates =
+    (data || []).filter(
+      (
+        torrent
+      ) => {
+        if (
+          [
+            "magnet_error",
+            "error",
+            "magnet_conversion",
+          ].includes(
+            torrent.status
+          )
+        ) {
+          return false;
+        }
+
+        return (
+          scoreTorrent(
+            torrent
+          ) >
+          0
+        );
+      }
+    );
+
+  /*
+   * Exact TV episode wins when possible.
+   */
+  if (
+    epRegex
+  ) {
+    const exact =
+      candidates.filter(
+        (
+          torrent
+        ) =>
+          epRegex.test(
+            torrent.filename ||
+            torrent.original_filename ||
+            ""
+          )
+      );
+
+    if (
+      exact.length >
+      0
+    ) {
+      candidates =
+        exact;
+    }
+  }
+
+  candidates.sort(
+    (
+      a,
+      b
+    ) =>
+      scoreTorrent(
+        b
+      ) -
+      scoreTorrent(
+        a
+      )
+  );
+
+  if (
+    candidates.length ===
+    0
+  ) {
     return Response.json({
       status:
         "not_found",
-
-      source:
-        "library",
     });
-  };
+  }
 
-export default async function (
-  req
-) {
-  try {
-    const base44 =
-      createClientFromRequest(
-        req
-      );
+  const best =
+    candidates[0];
 
-    const user =
-      await base44.auth.me();
+  const stream =
+    await resolveStreamable(
+      String(
+        best.id
+      ),
 
-    if (!user) {
-      return Response.json(
-        {
-          error:
-            "Unauthorized",
-        },
-        {
-          status:
-            401,
-        }
-      );
-    }
+      authHeaders,
 
-    const token =
-      clean(
-        user?.rd_token
-      );
+      formHeaders,
 
-    if (!token) {
-      return Response.json(
-        {
-          error:
-            "Real-Debrid token not set. Add it in Settings.",
-        },
-        {
-          status:
-            400,
-        }
-      );
-    }
-
-    let body = {};
-
-    try {
-      body =
-        await req.json();
-    } catch {
-      body = {};
-    }
-
-    const action =
-      clean(
-        body?.action
-      ) ||
-      "status";
-
-    const authHeaders = {
-      Authorization:
-        `Bearer ${token}`,
-    };
-
-    const formHeaders = {
-      ...authHeaders,
-
-      "Content-Type":
-        "application/x-www-form-urlencoded",
-    };
-
-    if (
-      action ===
-      "status"
-    ) {
-      const response =
-        await fetch(
-          `${RD_BASE}/user`,
-          {
-            headers:
-              authHeaders,
-          }
-        );
-
-      if (
-        !response.ok
-      ) {
-        return Response.json(
-          {
-            error:
-              `Real-Debrid rejected token (${response.status}).`,
-          },
-          {
-            status:
-              502,
-          }
-        );
-      }
-
-      const data =
-        await response.json();
-
-      return Response.json({
-        valid:
-          true,
-
-        premium:
-          Boolean(
-            data?.premium
-          ),
-
-        expires:
-          clean(
-            data?.expiration
-          ),
-
-        points:
-          Number(
-            data?.points ||
-              0
-          ),
-      });
-    }
-
-    if (
-      action ===
-      "find_cached"
-    ) {
-      if (
-        !clean(
-          body?.title
-        )
-      ) {
-        return Response.json(
-          {
-            error:
-              "title required",
-          },
-          {
-            status:
-              400,
-          }
-        );
-      }
-
-      return await findCachedLibraryStream({
-        body,
-        authHeaders,
-        formHeaders,
-      });
-    }
-
-    if (
-      action ===
-        "add_magnet" ||
-      action ===
-        "resolve_best"
-    ) {
-      return await addMagnetAndResolve({
-        body,
-        base44,
-        authHeaders,
-        formHeaders,
-      });
-    }
-
-    if (
-      action ===
-      "torrent_info"
-    ) {
-      const torrentId =
-        clean(
-          body?.torrent_id ||
-            body?.torrentId
-        );
-
-      if (
-        !torrentId
-      ) {
-        return Response.json(
-          {
-            error:
-              "torrent_id required",
-          },
-          {
-            status:
-              400,
-          }
-        );
-      }
-
-      const resolved =
-        await resolveStreamable(
-          torrentId,
-          authHeaders,
-          formHeaders,
-          {
-            title:
-              body?.title,
-
-            year:
-              body?.year,
-
-            season:
-              body?.season,
-
-            episode:
-              body?.episode,
-          }
-        );
-
-      if (
-        resolved.error
-      ) {
-        return Response.json(
-          {
-            error:
-              resolved.error,
-          },
-          {
-            status:
-              502,
-          }
-        );
-      }
-
-      return Response.json({
-        status:
-          resolved.ready
-            ? "ready"
-            : "preparing",
-
-        torrent_id:
-          torrentId,
-
-        stream_url:
-          resolved.stream_url ||
-          "",
-
-        filename:
-          resolved.filename ||
-          "",
-
-        progress:
-          Number(
-            resolved.progress ||
-              0
-          ),
-
-        rd_status:
-          resolved.rd_status ||
-          "",
-
-        files:
-          resolved.files ||
-          [],
-      });
-    }
-
-    if (
-      action ===
-      "torrent_files"
-    ) {
-      const torrentId =
-        clean(
-          body?.torrent_id ||
-            body?.torrentId
-        );
-
-      if (
-        !torrentId
-      ) {
-        return Response.json(
-          {
-            error:
-              "torrent_id required",
-          },
-          {
-            status:
-              400,
-          }
-        );
-      }
-
-      const infoResult =
-        await fetchTorrentInfo(
-          torrentId,
-          authHeaders
-        );
-
-      if (
-        infoResult.error
-      ) {
-        return Response.json(
-          {
-            error:
-              infoResult.error,
-          },
-          {
-            status:
-              502,
-          }
-        );
-      }
-
-      const target =
-        chooseVideoFile(
-          infoResult.data
-            ?.files,
-          {
-            season:
-              body?.season,
-
-            episode:
-              body?.episode,
-          }
-        );
-
-      return Response.json({
-        files:
-          buildFileEntries(
-            infoResult.data,
-            target
-          ),
-
-        rd_status:
-          clean(
-            infoResult.data
-              ?.status
-          ),
-
-        progress:
-          Number(
-            infoResult.data
-              ?.progress ||
-              0
-          ),
-      });
-    }
-
-    if (
-      action ===
-      "unrestrict_file"
-    ) {
-      const link =
-        clean(
-          body?.link
-        );
-
-      if (!link) {
-        return Response.json(
-          {
-            error:
-              "link required",
-          },
-          {
-            status:
-              400,
-          }
-        );
-      }
-
-      const unrestricted =
-        await unrestrictLink(
-          link,
-          formHeaders
-        );
-
-      if (
-        unrestricted.error
-      ) {
-        return Response.json(
-          {
-            error:
-              unrestricted.error,
-          },
-          {
-            status:
-              502,
-          }
-        );
-      }
-
-      return Response.json(
-        unrestricted
-      );
-    }
-
-    if (
-      action ===
-      "torrents_list"
-    ) {
-      const response =
-        await fetch(
-          `${RD_BASE}/torrents?limit=100`,
-          {
-            headers:
-              authHeaders,
-          }
-        );
-
-      if (
-        !response.ok
-      ) {
-        return Response.json(
-          {
-            error:
-              `Real-Debrid torrents failed (${response.status}).`,
-          },
-          {
-            status:
-              502,
-          }
-        );
-      }
-
-      const data =
-        await response.json();
-
-      return Response.json({
-        torrents:
-          (data || []).map(
-            (torrent) => ({
-              id:
-                String(
-                  torrent.id
-                ),
-
-              filename:
-                clean(
-                  torrent.filename ||
-                    torrent.original_filename
-                ),
-
-              status:
-                clean(
-                  torrent.status
-                ),
-
-              progress:
-                Number(
-                  torrent.progress ||
-                    0
-                ),
-
-              bytes:
-                Number(
-                  torrent.bytes ||
-                    0
-                ),
-
-              added:
-                clean(
-                  torrent.added
-                ),
-
-              ended:
-                clean(
-                  torrent.ended
-                ),
-
-              ready:
-                torrent.status ===
-                  "downloaded" ||
-                (
-                  Array.isArray(
-                    torrent.links
-                  ) &&
-                  torrent.links.length >
-                    0
-                ),
-            })
-          ),
-      });
-    }
-
-    if (
-      action ===
-      "torrent_delete"
-    ) {
-      const torrentId =
-        clean(
-          body?.torrent_id ||
-            body?.torrentId
-        );
-
-      if (
-        !torrentId
-      ) {
-        return Response.json(
-          {
-            error:
-              "torrent_id required",
-          },
-          {
-            status:
-              400,
-          }
-        );
-      }
-
-      const response =
-        await fetch(
-          `${RD_BASE}/torrents/delete/${torrentId}`,
-          {
-            method:
-              "DELETE",
-
-            headers:
-              authHeaders,
-          }
-        );
-
-      if (
-        !response.ok &&
-        response.status !==
-          204
-      ) {
-        return Response.json(
-          {
-            error:
-              `Real-Debrid delete failed (${response.status}).`,
-          },
-          {
-            status:
-              502,
-          }
-        );
-      }
-
-      return Response.json({
-        deleted:
-          true,
-      });
-    }
-
-    if (
-      action ===
-      "hosts"
-    ) {
-      const response =
-        await fetch(
-          `${RD_BASE}/hosts/status`,
-          {
-            headers:
-              authHeaders,
-          }
-        );
-
-      if (
-        !response.ok
-      ) {
-        return Response.json(
-          {
-            error:
-              `Real-Debrid hosts failed (${response.status}).`,
-          },
-          {
-            status:
-              502,
-          }
-        );
-      }
-
-      const data =
-        await response.json();
-
-      return Response.json({
-        hosts:
-          Object.entries(
-            data ||
-              {}
-          )
-            .filter(
-              (
-                [
-                  ,
-                  value,
-                ]
-              ) =>
-                value?.supported &&
-                !value?.disabled
-            )
-            .map(
-              (
-                [
-                  host,
-                ]
-              ) =>
-                host
-            ),
-      });
-    }
-
-    if (
-      action ===
-      "fetch_streams"
-    ) {
-      return Response.json({
-        status:
-          "moved",
-
-        sources: [],
-
-        error:
-          "Source discovery is handled by the fetchAddonStreams function. Real-Debrid only resolves the selected source.",
-      });
-    }
-
-    return Response.json(
       {
-        error:
-          "Unknown action",
-      },
-      {
-        status:
-          400,
+        title,
+        year,
+        season,
+        episode,
       }
     );
-  } catch (error) {
-    return Response.json(
+
+  if (
+    !stream.error &&
+    stream.ready &&
+    stream.stream_url
+  ) {
+    return Response.json({
+      status:
+        "ready",
+
+      torrent_id:
+        String(
+          best.id
+        ),
+
+      stream_url:
+        stream.stream_url,
+
+      filename:
+        stream.filename ||
+        "",
+
+      files:
+        stream.files ||
+        [],
+
+      rd_status:
+        stream.rd_status,
+
+      audio_rescue:
+        stream.audio_rescue ||
+        null,
+
+      media_info:
+        stream.media_info ||
+        null,
+    });
+  }
+
+  if (
+    stream.error
+  ) {
+    return jsonError(
+      stream.error,
+      502,
       {
-        error:
-          error?.message ||
-          "Unexpected Real-Debrid error.",
-      },
-      {
-        status:
-          500,
+        error_code:
+          stream.error_code,
+
+        audio_rescue:
+          stream.audio_rescue ||
+          null,
+
+        media_info:
+          stream.media_info ||
+          null,
       }
     );
   }
+
+  return Response.json({
+    status:
+      "preparing",
+
+    torrent_id:
+      String(
+        best.id
+      ),
+
+    rd_status:
+      stream.rd_status,
+
+    filename:
+      stream.filename ||
+      "",
+  });
 }
