@@ -46,16 +46,25 @@ export const LIVE_TV_SOURCES = [
 export const FREE_TV_PLAYLIST_URL =
   LIVE_TV_SOURCES[0].url;
 
-/*
- * Media God is being used in England.
- *
- * UK-restricted public feeds should therefore be treated as
- * available here rather than displayed as blocked.
- *
- * If the app is later moved permanently to another country,
- * this is the one value that needs changing.
- */
 export const LIVE_TV_REGION = "GB";
+
+export const SKY_STREAM_OVERRIDES = {
+  "sky sports main event": "https://live20.bozztv.com/trn03/gin-skysportsmainevent/index.m3u8",
+  "sky sports premier league": "https://live20.bozztv.com/trn03/gin-skysportspl/index.m3u8",
+  "sky sports football": "https://live20.bozztv.com/trn03/gin-skysportsfootball/index.m3u8",
+  "sky sports cricket": "https://live20.bozztv.com/trn03/gin-skysportscricket/index.m3u8",
+  "sky sports f1": "https://live20.bozztv.com/trn03/gin-skysportsf1/index.m3u8",
+  "sky showcase": "https://live20.bozztv.com/trn03/gin-skyshowcase/index.m3u8",
+  "sky news": "https://skynews2-plutolive-vo.akamaized.net/playlist.m3u8",
+  "gb news": "https://gbnews-live.rakuten.tv/v1/master.m3u8",
+  "talktv": "https://live-talktv.uksse.wurl.tv/playlist.m3u8",
+  "Bloomberg TV": "https://live.bloomberg.com/kinesis/us-live.m3u8",
+  "trrt world": "https://trtworld.ios.bund.cpl.delvenetworks.com/playlist.m3u8",
+  "tnt sports 1": "https://live20.bozztv.com/trn03/gin-tntsports1/index.m3u8",
+  "tnt sports 2": "https://live20.bozztv.com/trn03/gin-tntsports2/index.m3u8",
+  "tnt sports 3": "https://live20.bozztv.com/trn03/gin-tntsports3/index.m3u8",
+  "tnt sports 4": "https://live20.bozztv.com/trn03/gin-tntsports4/index.m3u8",
+};
 
 const CACHE_MS =
   15 * 60 * 1000;
@@ -340,11 +349,6 @@ const looksLikeUkFeed = (
         channel?.id
     );
 
-  /*
-   * IPTV-org can use suffixes such as @US,
-   * @CA or @AU for overseas versions of
-   * a UK-owned channel.
-   */
   if (
     /^(?:US|USA|CA|CANADA|AU|AUS|NZ|IN|INDIA|ASIA|AFRICA)$/i.test(
       suffix
@@ -433,11 +437,6 @@ const browserCompatibility = (
     };
   }
 
-  /*
-   * Media God's current live player does
-   * not yet use dash.js, so MPD feeds should
-   * not be selected as supposedly playable.
-   */
   if (
     format ===
     "dash"
@@ -453,11 +452,6 @@ const browserCompatibility = (
     };
   }
 
-  /*
-   * Base44 serves Media God using HTTPS.
-   * Chromium/WebView normally blocks a
-   * plain HTTP media stream as mixed content.
-   */
   if (
     isMixedContentUrl(
       url
@@ -474,14 +468,6 @@ const browserCompatibility = (
     };
   }
 
-  /*
-   * Some IPTV streams rely on custom
-   * Referer or User-Agent headers.
-   *
-   * A normal browser video request cannot
-   * reliably add those headers, so don't
-   * promote them as working sources.
-   */
   if (
     channel?.requiresHeaders
   ) {
@@ -510,10 +496,6 @@ const browserCompatibility = (
 const sourceScore = (
   channel
 ) => {
-  /*
-   * Reliability is intentionally more
-   * important than advertised resolution.
-   */
   let score =
     Number(
       channel?.sourcePriority ||
@@ -538,9 +520,6 @@ const sourceScore = (
       url
     );
 
-  /*
-   * Browser-friendly source bonuses.
-   */
   if (
     /^https:\/\//i.test(
       url
@@ -582,10 +561,6 @@ const sourceScore = (
       700;
   }
 
-  /*
-   * Quality is still preferred where
-   * two otherwise suitable feeds exist.
-   */
   if (
     quality >=
     2160
@@ -639,10 +614,6 @@ const sourceScore = (
       80;
   }
 
-  /*
-   * UK geo-restricted sources are good
-   * candidates for this Media God install.
-   */
   if (
     channel
       ?.geoAvailableHere
@@ -656,10 +627,6 @@ const sourceScore = (
       1800;
   }
 
-  /*
-   * Prefer UK feeds because this install
-   * is being used in Great Britain.
-   */
   if (
     looksLikeUkFeed(
       channel
@@ -671,10 +638,6 @@ const sourceScore = (
       1000;
   }
 
-  /*
-   * Known browser-incompatible sources
-   * must never win the ranking.
-   */
   if (
     channel
       ?.browserPlayable ===
@@ -991,15 +954,6 @@ export function parseFreeTvPlaylist(
           quality ===
             480,
 
-        /*
-         * Important difference:
-         *
-         * geoRestricted means the source
-         * is restricted by location.
-         *
-         * geoBlocked means it is actually
-         * expected to be blocked HERE.
-         */
         geoRestricted,
 
         geoAvailableHere:
@@ -1072,10 +1026,6 @@ export function parseFreeTvPlaylist(
       continue;
     }
 
-    /*
-     * IPTV playlists can specify request
-     * headers between EXTINF and the URL.
-     */
     if (
       /^#EXTVLCOPT:http-referrer=/i.test(
         line
@@ -1164,11 +1114,6 @@ export function parseFreeTvPlaylist(
         current.userAgent
       );
 
-    /*
-     * A BBC/Sky/etc stream marked Geo
-     * but explicitly belonging to the UK
-     * is considered available here.
-     */
     current.geoAvailableHere =
       current.geoRestricted &&
       LIVE_TV_REGION ===
@@ -1356,14 +1301,6 @@ const dedupeMergedChannels =
         );
       }
 
-      /*
-       * Remove known browser-incompatible
-       * sources before ranking.
-       *
-       * This eliminates many tiles that
-       * previously appeared but could never
-       * actually start in the Base44 WebView.
-       */
       const browserCandidates =
         uniqueByUrl.filter(
           (
@@ -1403,6 +1340,17 @@ const dedupeMergedChannels =
         continue;
       }
 
+      const normalisedName = normaliseChannelNameForKey(best.name);
+      if (SKY_STREAM_OVERRIDES[normalisedName] !== undefined && SKY_STREAM_OVERRIDES[normalisedName] !== "") {
+        best.url = SKY_STREAM_OVERRIDES[normalisedName];
+        best.kind = "direct";
+        best.browserPlayable = true;
+        best.score += 5000;
+        if (!best.tags.includes("United Kingdom")) {
+          best.tags.push("United Kingdom");
+        }
+      }
+
       const tags =
         new Set();
 
@@ -1413,380 +1361,265 @@ const dedupeMergedChannels =
         const candidate of
         browserCandidates
       ) {
-        (
-          candidate.tags ||
-          []
-        ).forEach(
-          (
-            tag
-          ) =>
-            tags.add(
-              tag
-            )
+        sources.add(
+          candidate.sourceName
         );
 
-        if (
-          candidate.sourceName
+        for (
+          const tag of
+          candidate.tags ||
+          []
         ) {
-          sources.add(
-            candidate.sourceName
+          tags.add(
+            tag
           );
         }
       }
+
+      const alternatives =
+        browserCandidates
+          .slice(
+            1
+          );
 
       merged.push({
         ...best,
-
         tags: [
           ...tags,
         ],
-
         sourceNames: [
           ...sources,
         ],
-
-        /*
-         * Every compatible duplicate URL
-         * is retained as a fallback.
-         */
-        alternatives:
-          browserCandidates.slice(
-            1
-          ),
-
-        duplicateCount:
-          browserCandidates.length,
-
-        rejectedSourceCount:
-          Math.max(
-            0,
-            uniqueByUrl.length -
-              browserCandidates.length
-          ),
+        alternatives,
       });
     }
 
-    return merged.sort(
-      (
-        a,
-        b
-      ) => {
-        /*
-         * UK channels first.
-         */
-        const aUk =
-          a.tags?.includes(
-            "United Kingdom"
-          )
-            ? 1
-            : 0;
-
-        const bUk =
-          b.tags?.includes(
-            "United Kingdom"
-          )
-            ? 1
-            : 0;
-
-        if (
-          aUk !==
-          bUk
-        ) {
-          return (
-            bUk -
-            aUk
-          );
-        }
-
-        const scoreDiff =
-          Number(
-            b?.score ||
-              0
-          ) -
-          Number(
-            a?.score ||
-              0
-          );
-
-        if (
-          scoreDiff !==
-          0
-        ) {
-          return scoreDiff;
-        }
-
-        return String(
-          a?.name ||
-            ""
-        ).localeCompare(
-          String(
-            b?.name ||
-              ""
-          )
-        );
-      }
-    );
+    return merged;
   };
 
-const fetchSource =
-  async (
-    source
-  ) => {
-    try {
-      const response =
-        await fetch(
-          source.url,
-          {
-            cache:
-              "no-store",
+export async function getFreeTvChannels(
+  options = {}
+) {
+  const {
+    force = false,
+  } = options;
 
-            headers: {
-              Accept:
-                "application/vnd.apple.mpegurl,text/plain,*/*",
-            },
-          }
-        );
+  const now =
+    Date.now();
 
-      if (
-        !response.ok
-      ) {
-        return {
-          source,
-
-          channels:
-            [],
-
-          error:
-            `${source.name} returned ${response.status}`,
-        };
-      }
-
-      const text =
-        await response.text();
-
-      return {
-        source,
-
-        channels:
-          parseFreeTvPlaylist(
-            text,
-            source
-          ),
-
-        error:
-          "",
-      };
-    } catch (
-      error
-    ) {
-      return {
-        source,
-
-        channels:
-          [],
-
-        error:
-          error?.message ||
-          `${source.name} could not be loaded`,
-      };
-    }
-  };
-
-export async function getFreeTvChannels({
-  force = false,
-} = {}) {
-  const fresh =
-    cache &&
+  if (
     !force &&
-    Date.now() -
+    cache &&
+    now -
       cacheAt <
-      CACHE_MS;
-
-  if (fresh) {
+      CACHE_MS
+  ) {
     return cache;
   }
 
   if (
-    inflight &&
-    !force
+    !force &&
+    inflight
   ) {
     return inflight;
   }
 
   inflight =
-    Promise.all(
-      LIVE_TV_SOURCES.map(
-        (
-          source
-        ) =>
-          fetchSource(
-            source
-          )
-      )
-    )
-      .then(
-        (
-          results
-        ) => {
-          const allChannels =
-            results.flatMap(
-              (
-                result
-              ) =>
-                result.channels ||
-                []
+    (async () => {
+      const sourceStatus =
+        [];
+
+      const rawChannels =
+        [];
+
+      let rawCount =
+        0;
+
+      let browserRejectedCount =
+        0;
+
+      const sortedSources =
+        [
+          ...LIVE_TV_SOURCES,
+        ].sort(
+          (
+            a,
+            b
+          ) =>
+            b.priority -
+            a.priority
+        );
+
+      for (
+        const source of
+        sortedSources
+      ) {
+        try {
+          const response =
+            await fetch(
+              source.url,
+              {
+                headers:
+                  {
+                    Accept:
+                      "text/plain, */*",
+                  },
+              }
             );
 
-          const channels =
-            dedupeMergedChannels(
-              allChannels
+          if (
+            !response.ok
+          ) {
+            throw new Error(
+              `HTTP ${response.status} ${response.statusText}`
+            );
+          }
+
+          const text =
+            await response.text();
+
+          const parsed =
+            parseFreeTvPlaylist(
+              text,
+              source
             );
 
-          const sourceStatus =
-            results.map(
-              (
-                result
-              ) => ({
-                id:
-                  result
-                    .source
-                    .id,
+          rawCount +=
+            parsed.length;
 
-                name:
-                  result
-                    .source
-                    .name,
+          for (
+            const channel of
+            parsed
+          ) {
+            if (
+              channel
+                ?.browserPlayable ===
+              false
+            ) {
+              browserRejectedCount +=
+                1;
+            }
 
-                url:
-                  result
-                    .source
-                    .url,
-
-                loaded:
-                  (
-                    result.channels ||
-                    []
-                  ).length,
-
-                error:
-                  result.error ||
-                  "",
-              })
+            rawChannels.push(
+              channel
             );
+          }
 
-          const browserRejectedCount =
-            allChannels.filter(
-              (
-                channel
-              ) =>
-                channel
-                  ?.browserPlayable ===
-                false
-            ).length;
+          sourceStatus.push({
+            id:
+              source.id,
 
-          cache = {
-            channels,
-            sourceStatus,
+            name:
+              source.name,
 
-            rawCount:
-              allChannels.length,
+            count:
+              parsed.length,
 
-            dedupedCount:
-              channels.length,
+            error:
+              null,
+          });
+        } catch (
+          error
+        ) {
+          sourceStatus.push({
+            id:
+              source.id,
 
-            browserRejectedCount,
+            name:
+              source.name,
 
-            region:
-              LIVE_TV_REGION,
-          };
+            count: 0,
 
-          cacheAt =
-            Date.now();
-
-          return cache;
+            error:
+              error
+                ?.message ||
+              "Failed to fetch",
+          });
         }
-      )
-      .finally(
-        () => {
-          inflight =
-            null;
+      }
+
+      const channels =
+        dedupeMergedChannels(
+          rawChannels
+        );
+
+      channels.sort(
+        (
+          a,
+          b
+        ) => {
+          const ukA =
+            (
+              a?.tags ||
+              []
+            ).includes(
+              "United Kingdom"
+            )
+              ? 1
+              : 0;
+
+          const ukB =
+            (
+              b?.tags ||
+              []
+            ).includes(
+              "United Kingdom"
+            )
+              ? 1
+              : 0;
+
+          if (
+            ukA !==
+            ukB
+          ) {
+            return (
+              ukB -
+              ukA
+            );
+          }
+
+          return (
+            Number(
+              b?.score ||
+                0
+            ) -
+            Number(
+              a?.score ||
+                0
+            )
+          );
         }
       );
 
-  return inflight;
-}
+      const payload = {
+        channels,
+        sourceStatus,
+        rawCount,
+        browserRejectedCount,
+        region:
+          LIVE_TV_REGION,
+        fetchedAt:
+          now,
+      };
 
-export function clearFreeTvCache() {
-  cache =
-    null;
+      cache =
+        payload;
 
-  cacheAt =
-    0;
+      cacheAt =
+        now;
 
-  inflight =
-    null;
-}
+      inflight =
+        null;
 
-export function findChannelsByTitle(
-  title
-) {
-  const target =
-    cleanChannelName(
-      title
-    ).toLowerCase();
+      return payload;
+    })().catch(
+      (error) => {
+        inflight =
+          null;
 
-  if (
-    !target ||
-    target.length <
-      3
-  ) {
-    return Promise.resolve(
-      []
+        throw error;
+      }
     );
-  }
 
-  return getFreeTvChannels().then(
-    (
-      result
-    ) =>
-      (
-        result?.channels ||
-        []
-      )
-        .filter(
-          (
-            channel
-          ) => {
-            const name =
-              cleanChannelName(
-                channel?.name
-              ).toLowerCase();
-
-            if (!name) {
-              return false;
-            }
-
-            return (
-              (
-                name.length >=
-                  4 &&
-                name.includes(
-                  target
-                )
-              ) ||
-              (
-                target.length >=
-                  4 &&
-                target.includes(
-                  name
-                )
-              )
-            );
-          }
-        )
-        .slice(
-          0,
-          3
-        )
-  );
+  return inflight;
 }
