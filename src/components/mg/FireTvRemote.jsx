@@ -1,24 +1,23 @@
 import React, { useEffect, useRef } from "react";
 
+const TV_REMOTE_STORAGE_KEY =
+  "mg:fire-tv-settings-v2";
+
+const FIRE_TV_RE =
+  /(?:AFT[A-Z0-9]*|Fire TV|AmazonWebAppPlatform|Silk)/i;
+
 const FOCUSABLE = [
   'button:not([disabled])',
   'a[href]',
   'input:not([disabled]):not([type="hidden"])',
   'select:not([disabled])',
   'textarea:not([disabled])',
+  '[role="button"]:not([aria-disabled="true"])',
+  '[role="menuitem"]:not([aria-disabled="true"])',
+  '[role="option"]:not([aria-disabled="true"])',
+  '[role="tab"]:not([aria-disabled="true"])',
   '[tabindex]:not([tabindex="-1"])',
 ].join(",");
-
-const TV_REMOTE_STORAGE_KEY = "mg:fire-tv-settings-v2";
-
-const DEFAULT_REMOTE_SETTINGS = {
-  remoteMode: "auto",
-  focusStyle: "strong",
-  seekSeconds: 10,
-  wrapNavigation: true,
-  scrollFallback: true,
-  autoFocus: true,
-};
 
 const FIRE_TV_CSS = `
 html.mg-fire-tv-mode,
@@ -60,38 +59,47 @@ body.mg-tv-layout iframe {
   max-width: 100%;
 }
 
+/*
+ * Fire TV WebView does not always report :focus-visible reliably.
+ * Use both so remote focus can always be seen.
+ */
+body.mg-fire-tv-mode button:focus,
+body.mg-fire-tv-mode a:focus,
+body.mg-fire-tv-mode input:focus,
+body.mg-fire-tv-mode select:focus,
+body.mg-fire-tv-mode textarea:focus,
+body.mg-fire-tv-mode [role="button"]:focus,
+body.mg-fire-tv-mode [role="menuitem"]:focus,
+body.mg-fire-tv-mode [role="option"]:focus,
+body.mg-fire-tv-mode [role="tab"]:focus,
+body.mg-fire-tv-mode [tabindex]:focus,
 body.mg-fire-tv-mode button:focus-visible,
 body.mg-fire-tv-mode a:focus-visible,
 body.mg-fire-tv-mode input:focus-visible,
 body.mg-fire-tv-mode select:focus-visible,
 body.mg-fire-tv-mode textarea:focus-visible,
+body.mg-fire-tv-mode [role="button"]:focus-visible,
+body.mg-fire-tv-mode [role="menuitem"]:focus-visible,
+body.mg-fire-tv-mode [role="option"]:focus-visible,
+body.mg-fire-tv-mode [role="tab"]:focus-visible,
 body.mg-fire-tv-mode [tabindex]:focus-visible {
   outline: 4px solid hsl(var(--mg-green)) !important;
   outline-offset: 4px !important;
   box-shadow:
-    0 0 0 2px rgba(0,0,0,.95),
-    0 0 0 8px rgba(0,255,0,.20) !important;
+    0 0 0 2px rgba(0, 0, 0, 0.95),
+    0 0 0 8px rgba(0, 255, 0, 0.20) !important;
 }
 
-body.mg-fire-tv-mode.mg-remote-focus-standard button:focus-visible,
-body.mg-fire-tv-mode.mg-remote-focus-standard a:focus-visible,
-body.mg-fire-tv-mode.mg-remote-focus-standard input:focus-visible,
-body.mg-fire-tv-mode.mg-remote-focus-standard select:focus-visible,
-body.mg-fire-tv-mode.mg-remote-focus-standard textarea:focus-visible,
-body.mg-fire-tv-mode.mg-remote-focus-standard [tabindex]:focus-visible {
-  outline-width: 2px !important;
-  outline-offset: 2px !important;
-  box-shadow:
-    0 0 0 1px rgba(0,0,0,.9),
-    0 0 0 5px rgba(0,255,0,.14) !important;
-}
-
-body.mg-fire-tv-mode button:focus-visible,
-body.mg-fire-tv-mode a:focus-visible,
-body.mg-fire-tv-mode select:focus-visible,
-body.mg-fire-tv-mode input:focus-visible {
+body.mg-fire-tv-mode button:focus,
+body.mg-fire-tv-mode a:focus,
+body.mg-fire-tv-mode select:focus,
+body.mg-fire-tv-mode input:focus,
+body.mg-fire-tv-mode [role="button"]:focus,
+body.mg-fire-tv-mode [role="menuitem"]:focus,
+body.mg-fire-tv-mode [role="option"]:focus,
+body.mg-fire-tv-mode [role="tab"]:focus {
   position: relative;
-  z-index: 80;
+  z-index: 90;
 }
 
 body.mg-fire-tv-mode button,
@@ -99,30 +107,58 @@ body.mg-fire-tv-mode a,
 body.mg-fire-tv-mode input,
 body.mg-fire-tv-mode select,
 body.mg-fire-tv-mode textarea,
+body.mg-fire-tv-mode [role="button"],
+body.mg-fire-tv-mode [role="menuitem"],
+body.mg-fire-tv-mode [role="option"],
+body.mg-fire-tv-mode [role="tab"],
 body.mg-fire-tv-mode [tabindex] {
-  scroll-margin: 12vh 8vw;
+  scroll-margin: 14vh 8vw;
 }
 
+/* One clean remote target per poster card. */
 body.mg-fire-tv-mode .mg-hover-action {
   opacity: 0 !important;
   pointer-events: none !important;
 }
 
-body.mg-fire-tv-mode .group > .relative > .mg-hover-action:first-of-type {
+body.mg-fire-tv-mode
+.group
+> .relative
+> .mg-hover-action:first-of-type {
   opacity: 1 !important;
   pointer-events: auto !important;
   background: transparent !important;
 }
 
-body.mg-fire-tv-mode .group > .relative > .mg-hover-action:first-of-type > span {
+body.mg-fire-tv-mode
+.group
+> .relative
+> .mg-hover-action:first-of-type
+> span {
   opacity: 0 !important;
 }
 
-body.mg-fire-tv-mode .group > .relative > .mg-hover-action:first-of-type:focus-visible {
-  background: rgba(0,0,0,.28) !important;
+body.mg-fire-tv-mode
+.group
+> .relative
+> .mg-hover-action:first-of-type:focus,
+body.mg-fire-tv-mode
+.group
+> .relative
+> .mg-hover-action:first-of-type:focus-visible {
+  background: rgba(0, 0, 0, 0.28) !important;
 }
 
-body.mg-fire-tv-mode .group > .relative > .mg-hover-action:first-of-type:focus-visible > span {
+body.mg-fire-tv-mode
+.group
+> .relative
+> .mg-hover-action:first-of-type:focus
+> span,
+body.mg-fire-tv-mode
+.group
+> .relative
+> .mg-hover-action:first-of-type:focus-visible
+> span {
   opacity: 1 !important;
 }
 
@@ -133,78 +169,9 @@ body.mg-fire-tv-mode .group.shrink-0:focus-within > .relative {
 
 body.mg-fire-tv-mode select,
 body.mg-fire-tv-mode input[type="range"] {
-  min-height: 40px;
+  min-height: 42px;
 }
 `;
-
-const normaliseRemoteSettings = (value) => {
-  const raw =
-    value && typeof value === "object"
-      ? value
-      : {};
-
-  const seekSeconds = Number(
-    raw.seekSeconds
-  );
-
-  return {
-    remoteMode:
-      raw.remoteMode === "always"
-        ? "always"
-        : "auto",
-
-    focusStyle:
-      raw.focusStyle === "standard"
-        ? "standard"
-        : "strong",
-
-    seekSeconds:
-      [10, 20, 30].includes(
-        seekSeconds
-      )
-        ? seekSeconds
-        : DEFAULT_REMOTE_SETTINGS.seekSeconds,
-
-    wrapNavigation:
-      typeof raw.wrapNavigation === "boolean"
-        ? raw.wrapNavigation
-        : DEFAULT_REMOTE_SETTINGS.wrapNavigation,
-
-    scrollFallback:
-      typeof raw.scrollFallback === "boolean"
-        ? raw.scrollFallback
-        : DEFAULT_REMOTE_SETTINGS.scrollFallback,
-
-    autoFocus:
-      typeof raw.autoFocus === "boolean"
-        ? raw.autoFocus
-        : DEFAULT_REMOTE_SETTINGS.autoFocus,
-  };
-};
-
-const readRemoteSettings = () => {
-  if (
-    typeof window ===
-    "undefined"
-  ) {
-    return DEFAULT_REMOTE_SETTINGS;
-  }
-
-  try {
-    const raw =
-      window.localStorage.getItem(
-        TV_REMOTE_STORAGE_KEY
-      );
-
-    return raw
-      ? normaliseRemoteSettings(
-          JSON.parse(raw)
-        )
-      : DEFAULT_REMOTE_SETTINGS;
-  } catch {
-    return DEFAULT_REMOTE_SETTINGS;
-  }
-};
 
 const keyCode = (event) =>
   Number(
@@ -295,7 +262,8 @@ const isBackKey = (
 
   const tag =
     String(
-      event?.target?.tagName ||
+      event?.target
+        ?.tagName ||
         ""
     ).toLowerCase();
 
@@ -317,8 +285,10 @@ const isBackKey = (
   }
 
   return (
-    (key === "Backspace" ||
-      code === 8) &&
+    (
+      key === "Backspace" ||
+      code === 8
+    ) &&
     !editing
   );
 };
@@ -339,96 +309,145 @@ const isMenuKey = (
   );
 };
 
-const mediaActionFromEvent = (
-  event
-) => {
-  const key =
-    keyName(event);
+const mediaActionFromEvent =
+  (event) => {
+    const key =
+      keyName(event);
 
-  const code =
-    keyCode(event);
+    const code =
+      keyCode(event);
 
-  if (
-    key === "MediaPlayPause" ||
-    code === 85 ||
-    code === 179
-  ) {
-    return "playpause";
-  }
+    if (
+      key ===
+        "MediaPlayPause" ||
+      code === 85 ||
+      code === 179
+    ) {
+      return "playpause";
+    }
 
-  if (
-    key === "MediaPlay" ||
-    code === 126
-  ) {
-    return "play";
-  }
+    if (
+      key === "MediaPlay" ||
+      code === 126
+    ) {
+      return "play";
+    }
 
-  if (
-    key === "MediaPause" ||
-    code === 127
-  ) {
-    return "pause";
-  }
+    if (
+      key === "MediaPause" ||
+      code === 127
+    ) {
+      return "pause";
+    }
 
-  if (
-    key === "MediaRewind" ||
-    code === 89 ||
-    code === 227
-  ) {
-    return "rewind";
-  }
+    if (
+      key ===
+        "MediaRewind" ||
+      code === 89 ||
+      code === 227
+    ) {
+      return "rewind";
+    }
 
-  if (
-    key === "MediaFastForward" ||
-    code === 90 ||
-    code === 228
-  ) {
-    return "fastforward";
-  }
+    if (
+      key ===
+        "MediaFastForward" ||
+      code === 90 ||
+      code === 228
+    ) {
+      return "fastforward";
+    }
 
-  if (
-    key === "MediaTrackNext" ||
-    code === 87 ||
-    code === 176
-  ) {
-    return "next";
-  }
+    if (
+      key ===
+        "MediaTrackNext" ||
+      code === 87 ||
+      code === 176
+    ) {
+      return "next";
+    }
 
-  if (
-    key === "MediaTrackPrevious" ||
-    code === 88 ||
-    code === 177
-  ) {
-    return "previous";
-  }
+    if (
+      key ===
+        "MediaTrackPrevious" ||
+      code === 88 ||
+      code === 177
+    ) {
+      return "previous";
+    }
 
-  return null;
-};
+    return null;
+  };
 
-const looksLikeFireTv = () => {
-  if (
-    typeof navigator ===
-    "undefined"
-  ) {
-    return false;
-  }
+const isActualFireTv =
+  () => {
+    if (
+      typeof navigator ===
+      "undefined"
+    ) {
+      return false;
+    }
 
-  const ua =
-    String(
-      navigator.userAgent ||
-        ""
+    const userAgent =
+      String(
+        navigator.userAgent ||
+          ""
+      );
+
+    return FIRE_TV_RE.test(
+      userAgent
     );
+  };
 
-  const platform =
-    String(
-      navigator.platform ||
-        ""
-    );
+const readRemoteSettings =
+  () => {
+    const defaults = {
+      enabled: true,
+      focusRing: true,
+      autoFocus: true,
+    };
 
-  return /(?:AFT[A-Z0-9]*|Fire TV|AmazonWebAppPlatform|Silk)/i.test(
-    `${ua} ${platform}`
-  );
-};
+    try {
+      const raw =
+        window.localStorage.getItem(
+          TV_REMOTE_STORAGE_KEY
+        );
+
+      if (!raw) {
+        return defaults;
+      }
+
+      const parsed =
+        JSON.parse(raw);
+
+      return {
+        ...defaults,
+        ...(parsed &&
+        typeof parsed ===
+          "object"
+          ? parsed
+          : {}),
+      };
+    } catch {
+      return defaults;
+    }
+  };
+
+const dispatchRemoteStatus =
+  (detail) => {
+    try {
+      window.dispatchEvent(
+        new CustomEvent(
+          "mg:remote-status",
+          {
+            detail,
+          }
+        )
+      );
+    } catch {
+      // Optional.
+    }
+  };
 
 const visible = (
   element,
@@ -447,6 +466,9 @@ const visible = (
     element.hasAttribute(
       "disabled"
     ) ||
+    element.getAttribute(
+      "aria-disabled"
+    ) === "true" ||
     element.getAttribute(
       "aria-hidden"
     ) === "true"
@@ -469,7 +491,8 @@ const visible = (
 
   while (
     node &&
-    node instanceof HTMLElement
+    node instanceof
+      HTMLElement
   ) {
     if (
       node.hidden ||
@@ -504,7 +527,8 @@ const visible = (
 
     if (
       node === stopAt ||
-      node === document.body
+      node ===
+        document.body
     ) {
       break;
     }
@@ -558,7 +582,8 @@ const topByStacking = (
 
   return sorted.length
     ? sorted[
-        sorted.length - 1
+        sorted.length -
+          1
       ].element
     : null;
 };
@@ -571,9 +596,7 @@ const seasonPickerScope =
           'button[aria-label="Close season and episode picker"]'
         )
       ).find(
-        (
-          item
-        ) =>
+        (item) =>
           visible(item)
       );
 
@@ -584,37 +607,86 @@ const seasonPickerScope =
     );
   };
 
-const modalScope = () => {
-  const picker =
-    seasonPickerScope();
+const modalScope =
+  () => {
+    const picker =
+      seasonPickerScope();
 
-  if (
-    picker &&
-    visible(picker)
-  ) {
-    return picker;
-  }
+    if (
+      picker &&
+      visible(picker)
+    ) {
+      return picker;
+    }
 
-  const overlays =
-    Array.from(
-      document.querySelectorAll(
-        '[role="dialog"], [aria-modal="true"], .fixed.inset-0'
-      )
-    ).filter(
-      (
-        item
-      ) =>
-        visible(item)
+    const overlays =
+      Array.from(
+        document.querySelectorAll(
+          '[role="dialog"], [aria-modal="true"], .fixed.inset-0'
+        )
+      ).filter(
+        (item) =>
+          visible(item)
+      );
+
+    return topByStacking(
+      overlays
     );
+  };
 
-  return topByStacking(
-    overlays
-  );
-};
+const popupScope =
+  () => {
+    const candidates =
+      Array.from(
+        document.querySelectorAll(
+          [
+            '[role="menu"]',
+            '[role="listbox"]',
+            '[data-radix-menu-content]',
+            '[data-radix-select-content]',
+            '[data-state="open"][role="menu"]',
+            '[data-state="open"][role="listbox"]',
+          ].join(",")
+        )
+      ).filter(
+        (item) => {
+          if (
+            !visible(item)
+          ) {
+            return false;
+          }
+
+          const style =
+            window.getComputedStyle(
+              item
+            );
+
+          const wrapper =
+            item.closest(
+              "[data-radix-popper-content-wrapper]"
+            );
+
+          return (
+            Boolean(
+              wrapper
+            ) ||
+            style.position ===
+              "absolute" ||
+            style.position ===
+              "fixed"
+          );
+        }
+      );
+
+    return topByStacking(
+      candidates
+    );
+  };
 
 const navigationScope =
   () =>
     modalScope() ||
+    popupScope() ||
     document.body;
 
 const focusables = (
@@ -625,9 +697,7 @@ const focusables = (
       FOCUSABLE
     )
   ).filter(
-    (
-      item
-    ) =>
+    (item) =>
       visible(
         item,
         scope
@@ -667,20 +737,46 @@ const overlap = (
 const cardRoot = (
   element
 ) =>
-  element instanceof HTMLElement
+  element instanceof
+  HTMLElement
     ? element.closest(
-        "article.group, .group.shrink-0"
+        "article.group, .group.shrink-0, [data-media-card]"
       )
     : null;
 
 const rowRoot = (
   element
 ) =>
-  element instanceof HTMLElement
+  element instanceof
+  HTMLElement
     ? element.closest(
-        ".overflow-x-auto"
+        '.overflow-x-auto, [data-tv-row], [role="row"]'
       )
     : null;
+
+const menuRoot = (
+  element
+) => {
+  if (
+    !(
+      element instanceof
+      HTMLElement
+    )
+  ) {
+    return null;
+  }
+
+  return element.closest(
+    [
+      "aside nav",
+      '[role="menu"]',
+      '[role="listbox"]',
+      '[role="tablist"]',
+      "[data-tv-nav]",
+      ".mg-tv-menu",
+    ].join(",")
+  );
+};
 
 const scoreDirection = (
   fromRect,
@@ -766,9 +862,10 @@ const scoreDirection = (
     main +
     cross *
       (
-        crossOverlap > 0
-          ? 0.35
-          : 2.2
+        crossOverlap >
+        0
+          ? 0.3
+          : 2.4
       ) +
     Math.hypot(
       dx,
@@ -792,18 +889,26 @@ const focusElement = (
 
   try {
     element.focus({
-      preventScroll: true,
+      preventScroll:
+        true,
     });
   } catch {
     element.focus();
   }
 
   try {
-    element.scrollIntoView({
-      block: "center",
-      inline: "center",
-      behavior: "smooth",
-    });
+    element.scrollIntoView(
+      {
+        block:
+          "center",
+
+        inline:
+          "center",
+
+        behavior:
+          "smooth",
+      }
+    );
   } catch {
     element.scrollIntoView();
   }
@@ -822,11 +927,14 @@ const defaultFocus = (
   }
 
   const selectors = [
+    '[role="menuitem"]',
+    '[role="option"]',
+    '[role="tab"][aria-selected="true"]',
     'button[aria-label="Play"]',
     'button[aria-label="Pause"]',
-    'input[autofocus]',
+    "input[autofocus]",
     'aside nav button[title="Home"]',
-    'aside nav button',
+    "aside nav button",
     'aside button[title="Search"]',
   ];
 
@@ -836,9 +944,7 @@ const defaultFocus = (
   ) {
     const found =
       items.find(
-        (
-          item
-        ) =>
+        (item) =>
           item.matches(
             selector
           )
@@ -852,142 +958,172 @@ const defaultFocus = (
   return items[0];
 };
 
-const preferredCardTarget = (
-  card
-) => {
-  if (!card) {
-    return null;
-  }
-
-  const items =
-    Array.from(
-      card.querySelectorAll(
-        FOCUSABLE
-      )
-    ).filter(
-      (
-        item
-      ) =>
-        visible(
-          item,
-          card
-        )
-    );
-
-  const preferred =
-    items.find(
-      (
-        item
-      ) => {
-        const label =
-          String(
-            item.getAttribute(
-              "aria-label"
-            ) || ""
-          ).toLowerCase();
-
-        return (
-          label.startsWith(
-            "play "
-          ) ||
-          label.startsWith(
-            "choose episode"
-          )
-        );
-      }
-    );
-
-  return (
-    preferred ||
-    items[0] ||
-    null
-  );
-};
-
-const rowCardTargets = (
-  row
-) => {
-  if (!row) {
-    return [];
-  }
-
-  return Array.from(
-    row.querySelectorAll(
-      "article.group, .group.shrink-0"
-    )
-  )
-    .filter(
-      (
-        card
-      ) =>
-        visible(
-          card,
-          row
-        )
-    )
-    .map(
-      (
-        card
-      ) =>
-        preferredCardTarget(
-          card
-        )
-    )
-    .filter(Boolean)
-    .sort(
-      (
-        a,
-        b
-      ) =>
-        a.getBoundingClientRect()
-          .left -
-        b.getBoundingClientRect()
-          .left
-    );
-};
-
-const wrapHorizontalFocus = (
+const moveInsideMenu = (
   current,
   direction
 ) => {
-  const row =
-    rowRoot(current);
+  const root =
+    menuRoot(current);
 
-  if (!row) {
+  if (!root) {
     return false;
   }
 
-  const targets =
-    rowCardTargets(row);
+  const items =
+    focusables(root);
 
   if (
-    targets.length < 2
+    items.length <
+    2
   ) {
     return false;
   }
 
-  const target =
-    direction === "right"
-      ? targets[0]
-      : targets[
-          targets.length - 1
-        ];
+  const currentIndex =
+    items.indexOf(
+      current
+    );
 
   if (
-    !target ||
-    target === current
+    currentIndex <
+    0
+  ) {
+    return false;
+  }
+
+  const role =
+    String(
+      root.getAttribute(
+        "role"
+      ) || ""
+    ).toLowerCase();
+
+  const isSidebar =
+    Boolean(
+      root.closest(
+        "aside"
+      )
+    );
+
+  const isTabs =
+    role ===
+    "tablist";
+
+  const rects =
+    items.map(
+      (item) =>
+        item.getBoundingClientRect()
+    );
+
+  const centres =
+    rects.map(
+      centre
+    );
+
+  const xValues =
+    centres.map(
+      (point) =>
+        point.x
+    );
+
+  const yValues =
+    centres.map(
+      (point) =>
+        point.y
+    );
+
+  const xSpread =
+    Math.max(
+      ...xValues
+    ) -
+    Math.min(
+      ...xValues
+    );
+
+  const ySpread =
+    Math.max(
+      ...yValues
+    ) -
+    Math.min(
+      ...yValues
+    );
+
+  const vertical =
+    isSidebar ||
+    (
+      !isTabs &&
+      ySpread >=
+        xSpread
+    );
+
+  const horizontal =
+    isTabs ||
+    !vertical;
+
+  let step =
+    0;
+
+  if (
+    vertical &&
+    direction ===
+      "up"
+  ) {
+    step = -1;
+  }
+
+  if (
+    vertical &&
+    direction ===
+      "down"
+  ) {
+    step = 1;
+  }
+
+  if (
+    horizontal &&
+    direction ===
+      "left"
+  ) {
+    step = -1;
+  }
+
+  if (
+    horizontal &&
+    direction ===
+      "right"
+  ) {
+    step = 1;
+  }
+
+  if (!step) {
+    return false;
+  }
+
+  const nextIndex =
+    currentIndex +
+    step;
+
+  /*
+   * Don't trap remote focus inside the menu.
+   * At the first/last item normal spatial movement takes over.
+   */
+  if (
+    nextIndex < 0 ||
+    nextIndex >=
+      items.length
   ) {
     return false;
   }
 
   return focusElement(
-    target
+    items[
+      nextIndex
+    ]
   );
 };
 
 const moveFocus = (
-  direction,
-  settings
+  direction
 ) => {
   const scope =
     navigationScope();
@@ -1021,6 +1157,15 @@ const moveFocus = (
     );
   }
 
+  if (
+    moveInsideMenu(
+      current,
+      direction
+    )
+  ) {
+    return true;
+  }
+
   const fromRect =
     current.getBoundingClientRect();
 
@@ -1032,9 +1177,7 @@ const moveFocus = (
 
   let candidates =
     items.filter(
-      (
-        item
-      ) =>
+      (item) =>
         item !== current
     );
 
@@ -1042,23 +1185,27 @@ const moveFocus = (
     currentCard &&
     currentRow &&
     (
-      direction === "left" ||
-      direction === "right"
+      direction ===
+        "left" ||
+      direction ===
+        "right"
     )
   ) {
     const cardCandidates =
       candidates.filter(
-        (
-          item
-        ) => {
+        (item) => {
           const card =
-            cardRoot(item);
+            cardRoot(
+              item
+            );
 
           return (
             card &&
             card !==
               currentCard &&
-            rowRoot(item) ===
+            rowRoot(
+              item
+            ) ===
               currentRow
           );
         }
@@ -1075,18 +1222,51 @@ const moveFocus = (
         cardCandidates
       ) {
         const card =
-          cardRoot(item);
+          cardRoot(
+            item
+          );
 
         if (
           !byCard.has(
             card
           )
         ) {
+          const preferred =
+            Array.from(
+              card.querySelectorAll(
+                FOCUSABLE
+              )
+            ).find(
+              (
+                candidate
+              ) => {
+                const label =
+                  String(
+                    candidate.getAttribute(
+                      "aria-label"
+                    ) || ""
+                  ).toLowerCase();
+
+                return (
+                  visible(
+                    candidate,
+                    card
+                  ) &&
+                  (
+                    label.startsWith(
+                      "play "
+                    ) ||
+                    label.startsWith(
+                      "choose episode"
+                    )
+                  )
+                );
+              }
+            );
+
           byCard.set(
             card,
-            preferredCardTarget(
-              card
-            ) ||
+            preferred ||
               item
           );
         }
@@ -1128,118 +1308,16 @@ const moveFocus = (
     }
   }
 
-  if (
+  return (
     best &&
     Number.isFinite(
       bestScore
     )
-  ) {
-    return focusElement(
-      best
-    );
-  }
-
-  if (
-    settings
-      ?.wrapNavigation &&
-    (
-      direction === "left" ||
-      direction === "right"
-    )
-  ) {
-    return wrapHorizontalFocus(
-      current,
-      direction
-    );
-  }
-
-  return false;
-};
-
-const scrollForDirection = (
-  direction
-) => {
-  const current =
-    document.activeElement;
-
-  const row =
-    rowRoot(current);
-
-  if (
-    row &&
-    (
-      direction === "left" ||
-      direction === "right"
-    )
-  ) {
-    const amount =
-      Math.max(
-        180,
-        Math.floor(
-          row.clientWidth *
-            0.72
-        )
-      );
-
-    row.scrollBy({
-      left:
-        direction === "right"
-          ? amount
-          : -amount,
-
-      behavior:
-        "smooth",
-    });
-
-    return true;
-  }
-
-  const verticalAmount =
-    Math.max(
-      240,
-      Math.floor(
-        window.innerHeight *
-          0.66
+  )
+    ? focusElement(
+        best
       )
-    );
-
-  const horizontalAmount =
-    Math.max(
-      240,
-      Math.floor(
-        window.innerWidth *
-          0.66
-      )
-    );
-
-  if (
-    direction === "up" ||
-    direction === "down"
-  ) {
-    window.scrollBy({
-      top:
-        direction === "down"
-          ? verticalAmount
-          : -verticalAmount,
-
-      behavior:
-        "smooth",
-    });
-
-    return true;
-  }
-
-  window.scrollBy({
-    left:
-      direction === "right"
-        ? horizontalAmount
-        : -horizontalAmount,
-
-    behavior:
-      "smooth",
-  });
-
-  return true;
+    : false;
 };
 
 const adjustSelect = (
@@ -1256,7 +1334,8 @@ const adjustSelect = (
   }
 
   const step =
-    direction === "down"
+    direction ===
+    "down"
       ? 1
       : -1;
 
@@ -1273,7 +1352,9 @@ const adjustSelect = (
       select.options.length
   ) {
     const option =
-      select.options[next];
+      select.options[
+        next
+      ];
 
     if (
       !option.disabled &&
@@ -1286,7 +1367,8 @@ const adjustSelect = (
         new Event(
           "input",
           {
-            bubbles: true,
+            bubbles:
+              true,
           }
         )
       );
@@ -1295,7 +1377,8 @@ const adjustSelect = (
         new Event(
           "change",
           {
-            bubbles: true,
+            bubbles:
+              true,
           }
         )
       );
@@ -1303,34 +1386,33 @@ const adjustSelect = (
       return true;
     }
 
-    next += step;
+    next +=
+      step;
   }
 
   return false;
 };
 
-const playerControlRoot = (
-  scope
-) => {
-  const candidates =
-    Array.from(
-      scope.querySelectorAll(
-        "div.absolute.inset-0"
-      )
-    );
-
-  return (
-    candidates.find(
-      (
-        element
-      ) =>
-        element.querySelector(
-          'button[aria-label="Play"], button[aria-label="Pause"]'
+const playerControlRoot =
+  (scope) => {
+    const candidates =
+      Array.from(
+        scope.querySelectorAll(
+          "div.absolute.inset-0"
         )
-    ) ||
-    null
-  );
-};
+      );
+
+    return (
+      candidates.find(
+        (
+          element
+        ) =>
+          element.querySelector(
+            'button[aria-label="Play"], button[aria-label="Pause"]'
+          )
+      ) || null
+    );
+  };
 
 const showPlayerControls =
   () => {
@@ -1350,9 +1432,14 @@ const showPlayerControls =
       new MouseEvent(
         "mousemove",
         {
-          bubbles: true,
-          cancelable: false,
-          view: window,
+          bubbles:
+            true,
+
+          cancelable:
+            false,
+
+          view:
+            window,
         }
       )
     );
@@ -1376,25 +1463,22 @@ const focusPlayerControl =
 
         const target =
           items.find(
-            (
-              item
-            ) =>
+            (item) =>
               item.getAttribute(
                 "aria-label"
-              ) === "Play" ||
+              ) ===
+                "Play" ||
               item.getAttribute(
                 "aria-label"
-              ) === "Pause"
+              ) ===
+                "Pause"
           ) ||
           items.find(
-            (
-              item
-            ) =>
+            (item) =>
               String(
                 item.getAttribute(
                   "aria-label"
-                ) ||
-                  ""
+                ) || ""
               )
                 .toLowerCase()
                 .includes(
@@ -1413,7 +1497,7 @@ const focusPlayerControl =
     );
   };
 
-const activeMedia = () => {
+const activeVideo = () => {
   const scope =
     navigationScope();
 
@@ -1423,224 +1507,123 @@ const activeMedia = () => {
         "video"
       )
     ).filter(
-      (
-        video
-      ) =>
+      (video) =>
         visible(
           video,
           scope
         )
     );
 
-  if (
-    videos.length
-  ) {
-    return videos[
-      videos.length - 1
-    ];
-  }
-
-  const audios =
-    Array.from(
-      document.querySelectorAll(
-        "audio"
-      )
-    ).filter(
-      (
-        audio
-      ) =>
-        Boolean(
-          audio.currentSrc ||
-            audio.src
-        )
-    );
-
-  return (
-    audios.find(
-      (
-        audio
-      ) =>
-        !audio.paused
-    ) ||
-    audios[
-      audios.length - 1
-    ] ||
-    null
-  );
-};
-
-const activeVideo = () => {
-  const media =
-    activeMedia();
-
-  return media instanceof HTMLVideoElement
-    ? media
+  return videos.length
+    ? videos[
+        videos.length -
+          1
+      ]
     : null;
 };
 
-const remoteBackButton = (
-  scope
-) => {
-  const selectors = [
-    'button[aria-label="Exit fullscreen"]',
-    'button[aria-label="Close season and episode picker"]',
-    'button[aria-label^="Close "]',
-    'button[aria-label="Close"]',
-    'button[title="Close"]',
-  ];
+const remoteBackButton =
+  (scope) => {
+    const selectors = [
+      'button[aria-label="Exit fullscreen"]',
+      'button[aria-label="Close season and episode picker"]',
+      'button[aria-label^="Close "]',
+      'button[aria-label="Close"]',
+      'button[title="Close"]',
+    ];
 
-  for (
-    const selector of
-    selectors
-  ) {
-    const found =
-      Array.from(
-        scope.querySelectorAll(
-          selector
-        )
-      ).find(
-        (
-          item
-        ) =>
-          visible(
-            item,
-            scope
+    for (
+      const selector of
+      selectors
+    ) {
+      const found =
+        Array.from(
+          scope.querySelectorAll(
+            selector
           )
+        ).find(
+          (item) =>
+            visible(
+              item,
+              scope
+            )
+        );
+
+      if (found) {
+        return found;
+      }
+    }
+
+    return null;
+  };
+
+const syntheticEscape =
+  () => {
+    const target =
+      document.activeElement instanceof
+      HTMLElement
+        ? document.activeElement
+        : document.body;
+
+    const event =
+      new KeyboardEvent(
+        "keydown",
+        {
+          key:
+            "Escape",
+
+          code:
+            "Escape",
+
+          bubbles:
+            true,
+
+          cancelable:
+            true,
+        }
       );
 
-    if (found) {
-      return found;
+    try {
+      Object.defineProperty(
+        event,
+        "__mgRemoteSynthetic",
+        {
+          value:
+            true,
+        }
+      );
+    } catch {
+      // No-op.
     }
-  }
 
-  return null;
-};
+    target.dispatchEvent(
+      event
+    );
+  };
 
-const syntheticEscape = () => {
-  const target =
-    document.activeElement instanceof HTMLElement
-      ? document.activeElement
-      : document.body;
-
-  const event =
-    new KeyboardEvent(
-      "keydown",
-      {
-        key: "Escape",
-        code: "Escape",
-        bubbles: true,
-        cancelable: true,
-      }
+const activateRemoteMode =
+  ({
+    tvLayout =
+      false,
+  } = {}) => {
+    document.documentElement.classList.add(
+      "mg-fire-tv-mode"
     );
 
-  try {
-    Object.defineProperty(
-      event,
-      "__mgRemoteSynthetic",
-      {
-        value: true,
-      }
-    );
-  } catch {
-    // No-op.
-  }
-
-  target.dispatchEvent(
-    event
-  );
-};
-
-const isEditingTarget = (
-  target
-) => {
-  const tag =
-    String(
-      target?.tagName ||
-        ""
-    ).toLowerCase();
-
-  return (
-    tag === "input" ||
-    tag === "textarea" ||
-    target
-      ?.isContentEditable
-  );
-};
-
-const dispatchRemoteStatus = (
-  detail
-) => {
-  if (
-    typeof window ===
-    "undefined"
-  ) {
-    return;
-  }
-
-  window.dispatchEvent(
-    new CustomEvent(
-      "mg:remote-status",
-      {
-        detail,
-      }
-    )
-  );
-};
-
-const applyRemoteClasses = ({
-  active,
-  tvLayout,
-  focusStyle,
-}) => {
-  const html =
-    document.documentElement;
-
-  const body =
-    document.body;
-
-  const standard =
-    Boolean(
-      active &&
-      focusStyle ===
-        "standard"
+    document.body.classList.add(
+      "mg-fire-tv-mode"
     );
 
-  html.classList.toggle(
-    "mg-fire-tv-mode",
-    Boolean(active)
-  );
+    if (tvLayout) {
+      document.documentElement.classList.add(
+        "mg-tv-layout"
+      );
 
-  body.classList.toggle(
-    "mg-fire-tv-mode",
-    Boolean(active)
-  );
-
-  html.classList.toggle(
-    "mg-tv-layout",
-    Boolean(
-      active &&
-      tvLayout
-    )
-  );
-
-  body.classList.toggle(
-    "mg-tv-layout",
-    Boolean(
-      active &&
-      tvLayout
-    )
-  );
-
-  html.classList.toggle(
-    "mg-remote-focus-standard",
-    standard
-  );
-
-  body.classList.toggle(
-    "mg-remote-focus-standard",
-    standard
-  );
-};
+      document.body.classList.add(
+        "mg-tv-layout"
+      );
+    }
+  };
 
 export default function FireTvRemote({
   onBack,
@@ -1648,83 +1631,74 @@ export default function FireTvRemote({
   const activeRef =
     useRef(false);
 
-  const settingsRef =
-    useRef(
-      readRemoteSettings()
-    );
-
-  const remoteSeenRef =
-    useRef(false);
-
   const timerRef =
     useRef(null);
 
-  const directionRepeatRef =
-    useRef({
-      direction: null,
-      at: 0,
-    });
-
   useEffect(() => {
     const fireTv =
-      looksLikeFireTv();
+      isActualFireTv();
 
-    const guardActiveRef = {
-      current: false,
-    };
+    let settings =
+      readRemoteSettings();
 
-    const historyGuardEnabledRef = {
-      current: false,
-    };
-
-    const ensureHistoryGuard =
+    const report =
       () => {
-        if (
-          guardActiveRef.current ||
-          typeof window ===
-            "undefined"
-        ) {
-          return;
-        }
+        dispatchRemoteStatus(
+          {
+            active:
+              activeRef.current,
 
-        guardActiveRef.current =
-          true;
+            fireTv,
 
-        try {
-          const current =
-            window.history.state ||
-            {};
-
-          window.history.replaceState(
-            {
-              ...current,
-              mgFireTvBase:
-                true,
-            },
-            "",
-            window.location.href
-          );
-
-          window.history.pushState(
-            {
-              mgFireTvGuard:
-                true,
-            },
-            "",
-            window.location.href
-          );
-        } catch {
-          // Key interception still protects Back.
-        }
+            enabled:
+              settings.enabled !==
+              false,
+          }
+        );
       };
 
-    const requestDefaultFocus =
-      (
-        delay = 80
-      ) => {
+    const activate =
+      () => {
         if (
-          !settingsRef.current
-            .autoFocus
+          settings.enabled ===
+          false
+        ) {
+          return false;
+        }
+
+        if (
+          !activeRef.current
+        ) {
+          activeRef.current =
+            true;
+        }
+
+        activateRemoteMode(
+          {
+            tvLayout:
+              fireTv ||
+              document.documentElement.classList.contains(
+                "mg-tv-layout"
+              ) ||
+              document.body.classList.contains(
+                "mg-tv-layout"
+              ),
+          }
+        );
+
+        report();
+
+        return true;
+      };
+
+    const refocusForNewOverlay =
+      () => {
+        if (
+          !activeRef.current ||
+          settings.enabled ===
+            false ||
+          settings.autoFocus ===
+            false
         ) {
           return;
         }
@@ -1740,12 +1714,6 @@ export default function FireTvRemote({
         timerRef.current =
           window.setTimeout(
             () => {
-              if (
-                !activeRef.current
-              ) {
-                return;
-              }
-
               const scope =
                 navigationScope();
 
@@ -1753,9 +1721,8 @@ export default function FireTvRemote({
                 document.activeElement;
 
               if (
-                current instanceof HTMLElement &&
-                current !==
-                  document.body &&
+                current instanceof
+                  HTMLElement &&
                 scope.contains(
                   current
                 ) &&
@@ -1781,200 +1748,51 @@ export default function FireTvRemote({
                 );
               }
             },
-            delay
+            70
           );
-      };
-
-    const publishStatus =
-      () => {
-        dispatchRemoteStatus({
-          active:
-            activeRef.current,
-
-          fireTv,
-
-          settings:
-            settingsRef.current,
-        });
-      };
-
-    const syncMode = ({
-      focus = false,
-    } = {}) => {
-      const settings =
-        settingsRef.current;
-
-      const shouldBeActive =
-        fireTv ||
-        settings.remoteMode ===
-          "always" ||
-        remoteSeenRef.current;
-
-      const tvLayout =
-        fireTv ||
-        settings.remoteMode ===
-          "always";
-
-      activeRef.current =
-        shouldBeActive;
-
-      historyGuardEnabledRef.current =
-        fireTv ||
-        settings.remoteMode ===
-          "always";
-
-      applyRemoteClasses({
-        active:
-          shouldBeActive,
-
-        tvLayout,
-
-        focusStyle:
-          settings.focusStyle,
-      });
-
-      if (
-        shouldBeActive &&
-        historyGuardEnabledRef.current
-      ) {
-        ensureHistoryGuard();
-      }
-
-      publishStatus();
-
-      if (
-        shouldBeActive &&
-        focus
-      ) {
-        requestDefaultFocus(
-          60
-        );
-      }
-    };
-
-    const activateFromRemote =
-      () => {
-        remoteSeenRef.current =
-          true;
-
-        syncMode();
-      };
-
-    syncMode({
-      focus:
-        fireTv ||
-        settingsRef.current
-          .remoteMode ===
-          "always",
-    });
-
-    const refocusForNewOverlay =
-      () => {
-        if (
-          !activeRef.current ||
-          !settingsRef.current
-            .autoFocus
-        ) {
-          return;
-        }
-
-        requestDefaultFocus(
-          70
-        );
-      };
-
-    const handleRemoteBack =
-      () => {
-        const scope =
-          navigationScope();
-
-        if (
-          scope !==
-          document.body
-        ) {
-          const close =
-            remoteBackButton(
-              scope
-            );
-
-          if (close) {
-            close.click();
-          } else {
-            syntheticEscape();
-          }
-
-          return true;
-        }
-
-        return (
-          onBack?.() !==
-          false
-        );
-      };
-
-    const onPopState =
-      () => {
-        if (
-          !guardActiveRef.current ||
-          !historyGuardEnabledRef.current
-        ) {
-          return;
-        }
-
-        handleRemoteBack();
-
-        try {
-          window.history.pushState(
-            {
-              mgFireTvGuard:
-                true,
-            },
-            "",
-            window.location.href
-          );
-        } catch {
-          // Ignore history errors.
-        }
       };
 
     const onSettingsChanged =
-      (
-        event
-      ) => {
-        settingsRef.current =
-          normaliseRemoteSettings(
-            event?.detail ||
-              readRemoteSettings()
+      (event) => {
+        settings = {
+          ...readRemoteSettings(),
+
+          ...(event?.detail &&
+          typeof event.detail ===
+            "object"
+            ? event.detail
+            : {}),
+        };
+
+        if (
+          settings.enabled ===
+          false
+        ) {
+          activeRef.current =
+            false;
+
+          document.documentElement.classList.remove(
+            "mg-fire-tv-mode"
           );
 
-        syncMode({
-          focus: true,
-        });
-      };
+          document.body.classList.remove(
+            "mg-fire-tv-mode"
+          );
 
-    const onStorage =
-      (
-        event
-      ) => {
-        if (
-          event.key !==
-          TV_REMOTE_STORAGE_KEY
-        ) {
+          report();
+
           return;
         }
 
-        settingsRef.current =
-          readRemoteSettings();
+        if (fireTv) {
+          activate();
 
-        syncMode({
-          focus: true,
-        });
+          refocusForNewOverlay();
+        }
       };
 
     const onKeyDown =
-      (
-        event
-      ) => {
+      (event) => {
         if (
           event?.__mgRemoteSynthetic
         ) {
@@ -2016,10 +1834,9 @@ export default function FireTvRemote({
           return;
         }
 
-        activateFromRemote();
-
-        const settings =
-          settingsRef.current;
+        if (!activate()) {
+          return;
+        }
 
         const target =
           event.target;
@@ -2037,40 +1854,9 @@ export default function FireTvRemote({
           ).toLowerCase();
 
         if (direction) {
-          if (
-            event.repeat
-          ) {
-            const now =
-              Date.now();
-
-            const previous =
-              directionRepeatRef.current;
-
-            if (
-              previous.direction ===
-                direction &&
-              now -
-                previous.at <
-                70
-            ) {
-              event.preventDefault();
-              event.stopImmediatePropagation();
-
-              return;
-            }
-
-            directionRepeatRef.current = {
-              direction,
-              at: now,
-            };
-          } else {
-            directionRepeatRef.current = {
-              direction,
-              at:
-                Date.now(),
-            };
-          }
-
+          /*
+           * Text inputs keep normal caret movement.
+           */
           if (
             (
               (
@@ -2081,8 +1867,7 @@ export default function FireTvRemote({
               ) ||
               tag ===
                 "textarea" ||
-              target
-                ?.isContentEditable
+              target?.isContentEditable
             ) &&
             (
               direction ===
@@ -2094,9 +1879,14 @@ export default function FireTvRemote({
             return;
           }
 
+          /*
+           * Slider owns Left/Right.
+           */
           if (
-            tag === "input" &&
-            type === "range" &&
+            tag ===
+              "input" &&
+            type ===
+              "range" &&
             (
               direction ===
                 "left" ||
@@ -2107,8 +1897,12 @@ export default function FireTvRemote({
             return;
           }
 
+          /*
+           * Select Up/Down changes option.
+           */
           if (
-            tag === "select" &&
+            tag ===
+              "select" &&
             (
               direction ===
                 "up" ||
@@ -2117,6 +1911,7 @@ export default function FireTvRemote({
             )
           ) {
             event.preventDefault();
+
             event.stopImmediatePropagation();
 
             adjustSelect(
@@ -2127,7 +1922,15 @@ export default function FireTvRemote({
             return;
           }
 
+          /*
+           * This is the important fix.
+           *
+           * FireTvRemote receives arrows BEFORE VideoPlayer or
+           * menu key handlers, so D-pad arrows always mean
+           * navigation rather than seek/volume.
+           */
           event.preventDefault();
+
           event.stopImmediatePropagation();
 
           const scope =
@@ -2144,22 +1947,10 @@ export default function FireTvRemote({
           }
 
           window.setTimeout(
-            () => {
-              const moved =
-                moveFocus(
-                  direction,
-                  settings
-                );
-
-              if (
-                !moved &&
-                settings.scrollFallback
-              ) {
-                scrollForDirection(
-                  direction
-                );
-              }
-            },
+            () =>
+              moveFocus(
+                direction
+              ),
             scope.querySelector(
               "video"
             )
@@ -2174,6 +1965,9 @@ export default function FireTvRemote({
           const focused =
             document.activeElement;
 
+          /*
+           * Leave native select Enter alone.
+           */
           if (
             focused instanceof
             HTMLSelectElement
@@ -2182,10 +1976,12 @@ export default function FireTvRemote({
           }
 
           event.preventDefault();
+
           event.stopImmediatePropagation();
 
           if (
-            focused instanceof HTMLElement &&
+            focused instanceof
+              HTMLElement &&
             focused !==
               document.body &&
             visible(
@@ -2193,34 +1989,6 @@ export default function FireTvRemote({
               navigationScope()
             )
           ) {
-            const label =
-              String(
-                focused.getAttribute(
-                  "aria-label"
-                ) ||
-                  ""
-              ).toLowerCase();
-
-            if (
-              label === "play" ||
-              label === "pause"
-            ) {
-              const video =
-                activeVideo();
-
-              if (
-                video?.dataset
-                  ?.mgAutoplayMuted ===
-                "true"
-              ) {
-                video.muted =
-                  false;
-
-                delete video.dataset
-                  .mgAutoplayMuted;
-              }
-            }
-
             focused.click();
           } else {
             focusElement(
@@ -2234,34 +2002,46 @@ export default function FireTvRemote({
         }
 
         if (back) {
-          event.preventDefault();
-          event.stopImmediatePropagation();
+          const scope =
+            navigationScope();
 
           if (
-            isEditingTarget(
-              target
-            )
+            scope !==
+            document.body
           ) {
-            try {
-              target.blur();
-            } catch {
-              // Ignore.
-            }
+            event.preventDefault();
 
-            requestDefaultFocus(
-              30
-            );
+            event.stopImmediatePropagation();
+
+            const close =
+              remoteBackButton(
+                scope
+              );
+
+            if (close) {
+              close.click();
+            } else {
+              syntheticEscape();
+            }
 
             return;
           }
 
-          handleRemoteBack();
+          if (
+            onBack?.() ===
+            true
+          ) {
+            event.preventDefault();
+
+            event.stopImmediatePropagation();
+          }
 
           return;
         }
 
         if (menu) {
           event.preventDefault();
+
           event.stopImmediatePropagation();
 
           const focused =
@@ -2293,7 +2073,6 @@ export default function FireTvRemote({
 
             if (details) {
               details.click();
-
               return;
             }
           }
@@ -2304,7 +2083,6 @@ export default function FireTvRemote({
             )
           ) {
             focusPlayerControl();
-
             return;
           }
 
@@ -2319,7 +2097,11 @@ export default function FireTvRemote({
 
         if (mediaAction) {
           event.preventDefault();
+
           event.stopImmediatePropagation();
+
+          const video =
+            activeVideo();
 
           if (
             mediaAction ===
@@ -2334,46 +2116,24 @@ export default function FireTvRemote({
             return;
           }
 
-          const media =
-            activeMedia();
-
-          if (!media) {
+          if (!video) {
             return;
           }
-
-          const restoreAutoplayAudio =
-            () => {
-              if (
-                media instanceof
-                  HTMLVideoElement &&
-                media.dataset
-                  ?.mgAutoplayMuted ===
-                  "true"
-              ) {
-                media.muted =
-                  false;
-
-                delete media.dataset
-                  .mgAutoplayMuted;
-              }
-            };
 
           if (
             mediaAction ===
             "playpause"
           ) {
             if (
-              media.paused
+              video.paused
             ) {
-              restoreAutoplayAudio();
-
-              media
+              video
                 .play()
                 .catch(
                   () => {}
                 );
             } else {
-              media.pause();
+              video.pause();
             }
 
             return;
@@ -2383,9 +2143,7 @@ export default function FireTvRemote({
             mediaAction ===
             "play"
           ) {
-            restoreAutoplayAudio();
-
-            media
+            video
               .play()
               .catch(
                 () => {}
@@ -2398,43 +2156,26 @@ export default function FireTvRemote({
             mediaAction ===
             "pause"
           ) {
-            media.pause();
+            video.pause();
 
             return;
           }
-
-          const seekSeconds =
-            Number(
-              settings.seekSeconds ||
-                10
-            );
 
           if (
             mediaAction ===
             "rewind"
           ) {
-            if (
-              Number.isFinite(
-                media.currentTime
-              )
-            ) {
-              media.currentTime =
-                Math.max(
-                  0,
-                  (
-                    media.currentTime ||
-                    0
-                  ) -
-                    seekSeconds
-                );
-            }
+            video.currentTime =
+              Math.max(
+                0,
+                (
+                  video.currentTime ||
+                  0
+                ) -
+                  10
+              );
 
-            if (
-              media instanceof
-              HTMLVideoElement
-            ) {
-              showPlayerControls();
-            }
+            showPlayerControls();
 
             return;
           }
@@ -2444,28 +2185,20 @@ export default function FireTvRemote({
             "fastforward"
           ) {
             if (
-              Number.isFinite(
-                media.duration
-              ) &&
-              media.duration > 0
+              video.duration
             ) {
-              media.currentTime =
+              video.currentTime =
                 Math.min(
-                  media.duration,
+                  video.duration,
                   (
-                    media.currentTime ||
+                    video.currentTime ||
                     0
                   ) +
-                    seekSeconds
+                    10
                 );
             }
 
-            if (
-              media instanceof
-              HTMLVideoElement
-            ) {
-              showPlayerControls();
-            }
+            showPlayerControls();
 
             return;
           }
@@ -2474,21 +2207,10 @@ export default function FireTvRemote({
             mediaAction ===
             "previous"
           ) {
-            if (
-              Number.isFinite(
-                media.currentTime
-              )
-            ) {
-              media.currentTime =
-                0;
-            }
+            video.currentTime =
+              0;
 
-            if (
-              media instanceof
-              HTMLVideoElement
-            ) {
-              showPlayerControls();
-            }
+            showPlayerControls();
           }
         }
       };
@@ -2498,6 +2220,12 @@ export default function FireTvRemote({
         refocusForNewOverlay
       );
 
+    /*
+     * CAPTURE PHASE IS DELIBERATE.
+     *
+     * This makes FireTvRemote the single owner of the D-pad
+     * across Home, menus, Settings and the player.
+     */
     window.addEventListener(
       "keydown",
       onKeyDown,
@@ -2505,27 +2233,65 @@ export default function FireTvRemote({
     );
 
     window.addEventListener(
-      "popstate",
-      onPopState
-    );
-
-    window.addEventListener(
       "mg:remote-settings-changed",
       onSettingsChanged
-    );
-
-    window.addEventListener(
-      "storage",
-      onStorage
     );
 
     observer.observe(
       document.body,
       {
-        childList: true,
-        subtree: true,
+        childList:
+          true,
+
+        subtree:
+          true,
       }
     );
+
+    if (
+      fireTv &&
+      settings.enabled !==
+        false
+    ) {
+      activate();
+
+      if (
+        settings.autoFocus !==
+        false
+      ) {
+        window.setTimeout(
+          () => {
+            const scope =
+              navigationScope();
+
+            const current =
+              document.activeElement;
+
+            if (
+              !(
+                current instanceof
+                HTMLElement
+              ) ||
+              current ===
+                document.body ||
+              !visible(
+                current,
+                scope
+              )
+            ) {
+              focusElement(
+                defaultFocus(
+                  scope
+                )
+              );
+            }
+          },
+          120
+        );
+      }
+    } else {
+      report();
+    }
 
     return () => {
       window.removeEventListener(
@@ -2535,18 +2301,8 @@ export default function FireTvRemote({
       );
 
       window.removeEventListener(
-        "popstate",
-        onPopState
-      );
-
-      window.removeEventListener(
         "mg:remote-settings-changed",
         onSettingsChanged
-      );
-
-      window.removeEventListener(
-        "storage",
-        onStorage
       );
 
       observer.disconnect();
@@ -2559,17 +2315,13 @@ export default function FireTvRemote({
         );
       }
 
-      activeRef.current =
-        false;
+      document.documentElement.classList.remove(
+        "mg-fire-tv-mode"
+      );
 
-      applyRemoteClasses({
-        active: false,
-        tvLayout: false,
-        focusStyle:
-          "strong",
-      });
-
-      publishStatus();
+      document.body.classList.remove(
+        "mg-fire-tv-mode"
+      );
     };
   }, [onBack]);
 
