@@ -3,392 +3,332 @@ import React, {
   useEffect,
   useImperativeHandle,
   useRef,
+  useState,
 } from "react";
-
 import Hls from "hls.js";
-
 import {
   isFlvLike,
   isMpegTsLike,
 } from "@/components/mg/mediaCompatibility";
 
+/*
+ * Extra container / codec bridge for Chromium and Fire TV.
+ *
+ * HLS.js keeps HLS support.
+ * mpegts.js adds a transmux path for MPEG-TS / M2TS / FLV streams and can
+ * expose more combinations (including AC-3/E-AC-3 in MPEG-TS) to MSE when
+ * the device/browser decoder supports them.
+ *
+ * We load mpegts.js only when a TS/M2TS/FLV source actually needs it, so the
+ * normal player stays light and existing MP4/HLS playback is unchanged.
+ */
 const MPEGTS_CDN =
   "https://cdn.jsdelivr.net/npm/mpegts.js@1.8.0/dist/mpegts.min.js";
 
-let mpegTsLoader =
-  null;
+let mpegTsLoader = null;
 
 const loadMpegTs = () => {
-  if (
-    typeof window ===
-    "undefined"
-  ) {
-    return Promise.resolve(
-      null
-    );
+  if (typeof window === "undefined") {
+    return Promise.resolve(null);
   }
 
-  if (
-    window.mpegts
-  ) {
-    return Promise.resolve(
-      window.mpegts
-    );
+  if (window.mpegts) {
+    return Promise.resolve(window.mpegts);
   }
 
-  if (
-    mpegTsLoader
-  ) {
+  if (mpegTsLoader) {
     return mpegTsLoader;
   }
 
-  mpegTsLoader =
-    new Promise(
-      (
-        resolve
-      ) => {
-        const existing =
-          document.querySelector(
-            'script[data-mg-mpegts="true"]'
-          );
-
-        const finish =
-          () =>
-            resolve(
-              window.mpegts ||
-                null
-            );
-
-        if (
-          existing
-        ) {
-          existing.addEventListener(
-            "load",
-            finish,
-            {
-              once:
-                true,
-            }
-          );
-
-          existing.addEventListener(
-            "error",
-            () =>
-              resolve(
-                null
-              ),
-            {
-              once:
-                true,
-            }
-          );
-
-          window.setTimeout(
-            finish,
-            2500
-          );
-
-          return;
-        }
-
-        const script =
-          document.createElement(
-            "script"
-          );
-
-        script.src =
-          MPEGTS_CDN;
-
-        script.async =
-          true;
-
-        script.crossOrigin =
-          "anonymous";
-
-        script.dataset.mgMpegts =
-          "true";
-
-        script.onload =
-          finish;
-
-        script.onerror =
-          () =>
-            resolve(
-              null
-            );
-
-        document.head.appendChild(
-          script
-        );
-      }
+  mpegTsLoader = new Promise((resolve) => {
+    const existing = document.querySelector(
+      'script[data-mg-mpegts="true"]'
     );
+
+    const finish = () => resolve(window.mpegts || null);
+
+    if (existing) {
+      existing.addEventListener("load", finish, { once: true });
+      existing.addEventListener("error", () => resolve(null), {
+        once: true,
+      });
+
+      window.setTimeout(finish, 2500);
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = MPEGTS_CDN;
+    script.async = true;
+    script.crossOrigin = "anonymous";
+    script.dataset.mgMpegts = "true";
+    script.onload = finish;
+    script.onerror = () => resolve(null);
+    document.head.appendChild(script);
+  });
 
   return mpegTsLoader;
 };
 
-const isHlsUrl = (
-  src,
-  sourceLabel = ""
-) =>
+const isHlsUrl = (src, sourceLabel = "") =>
   /\.m3u8(?:[?#\s]|$)|\bhls\b/i.test(
-    `${String(
-      src || ""
-    )} ${String(
-      sourceLabel ||
-        ""
-    )}`
+    `${String(src || "")} ${String(sourceLabel || "")}`
   );
 
-const mpegTsType = (
-  src,
-  sourceLabel = ""
-) => {
+const mpegTsType = (src, sourceLabel = "") => {
   const text =
-    `${String(
-      src || ""
-    )} ${String(
-      sourceLabel ||
-        ""
-    )}`.toLowerCase();
+    `${String(src || "")} ${String(sourceLabel || "")}`.toLowerCase();
 
-  if (
-    /\.flv(?:[?#\s]|$)|\bflv\b/i.test(
-      text
-    )
-  ) {
-    return "flv";
-  }
-
-  if (
-    /\.m2ts(?:[?#\s]|$)|\bm2ts\b/i.test(
-      text
-    )
-  ) {
-    return "m2ts";
-  }
+  if (/\.flv(?:[?#\s]|$)|\bflv\b/i.test(text)) return "flv";
+  if (/\.m2ts(?:[?#\s]|$)|\bm2ts\b/i.test(text)) return "m2ts";
 
   return "mpegts";
 };
 
-const normaliseLanguage = (
-  value
-) =>
-  String(
-    value || ""
-  )
+const normaliseLanguage = (value) =>
+  String(value || "")
     .trim()
     .toLowerCase()
-    .replace(
-      /_/g,
-      "-"
-    );
+    .replace(/_/g, "-");
 
-const isEnglishLanguage = (
-  value
-) => {
+const isEnglishLanguage = (value) => {
   const language =
-    normaliseLanguage(
-      value
-    );
+    normaliseLanguage(value);
 
   return (
-    language ===
-      "en" ||
-    language ===
-      "eng" ||
-    language.startsWith(
-      "en-"
-    ) ||
-    language ===
-      "english" ||
+    language === "en" ||
+    language === "eng" ||
+    language.startsWith("en-") ||
+    language === "english" ||
     /\benglish\b/i.test(
-      String(
-        value || ""
-      )
+      String(value || "")
     )
   );
 };
 
-const hlsTrackText = (
-  track
-) =>
+const hlsTrackText = (track) =>
   [
     track?.lang,
     track?.name,
     track?.audioCodec,
-    track?.attrs
-      ?.LANGUAGE,
+    track?.attrs?.LANGUAGE,
     track?.attrs?.NAME,
-    track?.attrs
-      ?.GROUP_ID,
+    track?.attrs?.GROUP_ID,
   ]
-    .filter(
-      Boolean
-    )
-    .join(
-      " "
+    .filter(Boolean)
+    .join(" ");
+
+const chooseEnglishHlsTrack = (tracks) => {
+  let bestIndex = -1;
+  let bestScore = -Infinity;
+
+  (tracks || []).forEach((track, index) => {
+    const text =
+      hlsTrackText(track);
+
+    const language =
+      track?.lang ||
+      track?.attrs?.LANGUAGE ||
+      track?.name ||
+      "";
+
+    let score = 0;
+
+    if (
+      isEnglishLanguage(language) ||
+      /\b(?:eng|english)\b/i.test(text)
+    ) {
+      score += 10000;
+    } else {
+      return;
+    }
+
+    if (/aac|mp4a/i.test(text)) score += 1200;
+
+    if (
+      /ac-?3|e-?ac-?3|eac3|ddp/i.test(text)
+    ) {
+      score += 500;
+    }
+
+    if (
+      track?.default ||
+      track?.attrs?.DEFAULT === "YES"
+    ) {
+      score += 100;
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestIndex = index;
+    }
+  });
+
+  return bestIndex;
+};
+
+const selectEnglishNativeAudioTrack = (video) => {
+  const tracks =
+    video?.audioTracks;
+
+  if (
+    !tracks ||
+    typeof tracks.length !== "number" ||
+    tracks.length < 2
+  ) {
+    return false;
+  }
+
+  let englishIndex = -1;
+
+  for (
+    let index = 0;
+    index < tracks.length;
+    index += 1
+  ) {
+    const track =
+      tracks[index];
+
+    const text =
+      `${track?.language || ""} ${track?.label || ""}`;
+
+    if (
+      isEnglishLanguage(
+        track?.language
+      ) ||
+      /\b(?:eng|english)\b/i.test(text)
+    ) {
+      englishIndex = index;
+      break;
+    }
+  }
+
+  if (englishIndex < 0) {
+    return false;
+  }
+
+  for (
+    let index = 0;
+    index < tracks.length;
+    index += 1
+  ) {
+    try {
+      tracks[index].enabled =
+        index === englishIndex;
+    } catch {
+      // Some WebViews expose audioTracks as read-only.
+    }
+  }
+
+  return true;
+};
+
+const subtitleTrackText = (track) =>
+  [
+    track?.lang,
+    track?.language,
+    track?.name,
+    track?.label,
+    track?.attrs?.LANGUAGE,
+    track?.attrs?.NAME,
+    track?.attrs?.GROUP_ID,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+const choosePreferredHlsSubtitleTrack = (
+  tracks,
+  preferredLanguage = "en"
+) => {
+  const preferred =
+    normaliseLanguage(
+      preferredLanguage
     );
 
-const audioDescriptor = (
-  track,
-  index,
-  prefix
-) => ({
-  id:
-    `${prefix}:${index}`,
+  let bestIndex = -1;
+  let bestScore = -Infinity;
 
-  index,
-
-  label:
-    track?.name ||
-    track?.label ||
-    track?.attrs?.NAME ||
-    track?.lang ||
-    track?.language ||
-    `Audio ${index + 1}`,
-
-  language:
-    track?.lang ||
-    track?.language ||
-    track?.attrs
-      ?.LANGUAGE ||
-    "",
-
-  codec:
-    track?.audioCodec ||
-    "",
-});
-
-const subtitleDescriptor = (
-  track,
-  index,
-  prefix
-) => ({
-  id:
-    `${prefix}:${index}`,
-
-  index,
-
-  label:
-    track?.name ||
-    track?.label ||
-    track?.attrs?.NAME ||
-    track?.lang ||
-    track?.language ||
-    `Subtitle ${index + 1}`,
-
-  language:
-    track?.lang ||
-    track?.language ||
-    track?.attrs
-      ?.LANGUAGE ||
-    "",
-});
-
-const findEnglishTrackIndex = (
-  tracks,
-  type = "audio"
-) => {
-  let bestIndex =
-    -1;
-
-  let bestScore =
-    -Infinity;
-
-  (
-    tracks || []
-  ).forEach(
-    (
-      track,
-      index
-    ) => {
-      const language =
-        track?.lang ||
-        track?.language ||
-        track?.attrs
-          ?.LANGUAGE ||
-        track?.name ||
-        track?.label ||
-        "";
-
+  (tracks || []).forEach(
+    (track, index) => {
       const text =
-        type ===
-        "audio"
-          ? hlsTrackText(
-              track
-            )
-          : [
-              track?.lang,
-              track?.language,
-              track?.name,
-              track?.label,
-              track?.attrs
-                ?.LANGUAGE,
-              track?.attrs
-                ?.NAME,
-            ]
-              .filter(
-                Boolean
-              )
-              .join(
-                " "
-              );
+        subtitleTrackText(
+          track
+        );
+
+      const language =
+        normaliseLanguage(
+          track?.lang ||
+            track?.language ||
+            track?.attrs?.LANGUAGE ||
+            ""
+        );
+
+      let score = 0;
 
       if (
-        !isEnglishLanguage(
-          language
-        ) &&
-        !/\b(?:eng|english)\b/i.test(
-          text
+        preferred &&
+        (
+          language === preferred ||
+          language.startsWith(
+            `${preferred}-`
+          ) ||
+          preferred.startsWith(
+            `${language}-`
+          )
         )
       ) {
+        score += 12000;
+      } else if (
+        preferred === "en" &&
+        (
+          isEnglishLanguage(
+            language
+          ) ||
+          /\b(?:eng|english)\b/i.test(
+            text
+          )
+        )
+      ) {
+        score += 11000;
+      } else {
         return;
       }
 
-      let score =
-        10000;
-
       if (
-        type ===
-          "audio" &&
-        /aac|mp4a/i.test(
+        /\b(?:forced|force)\b/i.test(
           text
         )
       ) {
-        score +=
-          1200;
+        score -= 500;
       }
 
       if (
-        type ===
-          "audio" &&
-        /ac-?3|e-?ac-?3|eac3|ddp/i.test(
+        /\b(?:sdh|cc|closed captions?)\b/i.test(
           text
         )
       ) {
-        score +=
-          500;
+        score += 150;
       }
 
       if (
         track?.default ||
-        track?.attrs
-          ?.DEFAULT ===
+        track?.attrs?.DEFAULT ===
           "YES"
       ) {
-        score +=
-          100;
+        score += 100;
       }
 
       if (
-        score >
-        bestScore
+        track?.autoselect ||
+        track?.attrs?.AUTOSELECT ===
+          "YES"
       ) {
-        bestScore =
-          score;
+        score += 50;
+      }
 
-        bestIndex =
-          index;
+      if (score > bestScore) {
+        bestScore = score;
+        bestIndex = index;
       }
     }
   );
@@ -396,1698 +336,1246 @@ const findEnglishTrackIndex = (
   return bestIndex;
 };
 
-const parseChoiceIndex = (
-  choice,
-  prefix
-) => {
-  const text =
-    String(
-      choice || ""
-    );
+const subtitleUrl = (track) =>
+  String(
+    track?.url ||
+      track?.src ||
+      track?.file ||
+      track?.link ||
+      ""
+  ).trim();
 
-  if (
-    !text.startsWith(
-      `${prefix}:`
-    )
-  ) {
-    return -1;
-  }
+const subtitleLanguage = (track) =>
+  String(
+    track?.lang ||
+      track?.language ||
+      track?.languageCode ||
+      track?.langCode ||
+      ""
+  ).trim();
 
-  const index =
-    Number(
-      text.slice(
-        prefix.length +
-          1
-      )
-    );
+const subtitleLabel = (track, index) =>
+  String(
+    track?.label ||
+      track?.name ||
+      track?.title ||
+      subtitleLanguage(track) ||
+      `Subtitle ${index + 1}`
+  ).trim();
 
-  return Number.isInteger(
-    index
-  )
-    ? index
-    : -1;
-};
+const normaliseSubtitleList = (subtitles) => {
+  const seen =
+    new Set();
 
-const chooseHlsLevel = (
-  levels,
-  preference
-) => {
-  const pref =
-    String(
-      preference ||
-        "Auto"
-    ).toLowerCase();
-
-  if (
-    pref === "auto"
-  ) {
-    return -1;
-  }
-
-  const target =
-    pref === "4k" ||
-    pref === "2160p"
-      ? 2160
-      : Number.parseInt(
-          pref,
-          10
-        );
-
-  if (
-    !target ||
-    !Array.isArray(
-      levels
-    ) ||
-    levels.length ===
-      0
-  ) {
-    return -1;
-  }
-
-  const candidates =
-    levels
-      .map(
-        (
-          level,
-          index
-        ) => ({
-          index,
-
-          height:
-            Number(
-              level?.height ||
-                0
-            ),
-
-          bitrate:
-            Number(
-              level?.bitrate ||
-                0
-            ),
-        })
-      )
-      .filter(
-        (
-          item
-        ) =>
-          item.height >
-          0
-      )
-      .sort(
-        (
-          a,
-          b
-        ) =>
-          a.height -
-            b.height ||
-          a.bitrate -
-            b.bitrate
-      );
-
-  if (
-    !candidates.length
-  ) {
-    return -1;
-  }
-
-  const atOrBelow =
-    candidates.filter(
-      (
-        item
-      ) =>
-        item.height <=
-        target
-    );
-
-  if (
-    atOrBelow.length
-  ) {
-    return atOrBelow[
-      atOrBelow.length -
-        1
-    ].index;
-  }
-
-  return candidates[0]
-    .index;
-};
-
-const normaliseExternalSubtitles = (
-  items
-) =>
-  (
-    Array.isArray(
-      items
-    )
-      ? items
+  return (
+    Array.isArray(subtitles)
+      ? subtitles
       : []
   )
     .map(
       (
-        item,
+        track,
         index
-      ) => ({
-        src:
-          String(
-            item?.src ||
-              item?.url ||
-              item?.file ||
-              ""
-          ).trim(),
+      ) => {
+        const raw =
+          typeof track === "string"
+            ? {
+                url: track,
+              }
+            : track || {};
 
-        label:
-          item?.label ||
-          item?.name ||
-          item?.language ||
-          item?.lang ||
-          `Subtitle ${index + 1}`,
+        const src =
+          subtitleUrl(raw);
 
-        lang:
-          item?.lang ||
-          item?.language ||
-          "",
+        if (
+          !src ||
+          seen.has(src)
+        ) {
+          return null;
+        }
 
-        kind:
-          item?.kind ||
-          "subtitles",
+        seen.add(src);
 
-        default:
-          Boolean(
-            item?.default
-          ),
-      })
+        return {
+          id:
+            raw.id ||
+            `subtitle-${index}-${src}`,
+
+          src,
+
+          lang:
+            subtitleLanguage(
+              raw
+            ),
+
+          label:
+            subtitleLabel(
+              raw,
+              index
+            ),
+
+          kind:
+            raw.kind ===
+            "captions"
+              ? "captions"
+              : "subtitles",
+
+          default:
+            Boolean(
+              raw.default
+            ),
+        };
+      }
     )
-    .filter(
-      (
-        item
-      ) =>
-        /^https?:\/\//i.test(
-          item.src
-        )
-    );
+    .filter(Boolean);
+};
 
-const LiveVideo =
-  forwardRef(
-    function LiveVideo(
-      {
-        src,
-        poster,
-        className,
-        sourceLabel = "",
-        isLive = false,
-        onLoadedMetadata,
-        onTimeUpdate,
-        onError,
-        onEnded,
-        onNoAudio,
-        controls = true,
-        qualityPreference = "Auto",
-        audioTrackPreference = "english",
-        subtitleTrackPreference = "english",
-        externalSubtitles = [],
-        onAudioTracksChanged,
-        onSubtitleTracksChanged,
-        onActiveAudioTrackChanged,
-        onActiveSubtitleTrackChanged,
-        onQualityLevelsChanged,
-      },
-      ref
-    ) {
-      const videoRef =
-        useRef(
-          null
-        );
+const isSrtSubtitleUrl = (value) =>
+  /\.srt(?:[?#]|$)/i.test(
+    String(value || "")
+  );
 
-      const hlsRef =
-        useRef(
-          null
-        );
+const isVttSubtitleUrl = (value) =>
+  /\.vtt(?:[?#]|$)/i.test(
+    String(value || "")
+  );
 
-      const mpegPlayerRef =
-        useRef(
-          null
-        );
-
-      const callbacksRef =
-        useRef(
-          {}
-        );
-
-      const preferenceRef =
-        useRef({
-          qualityPreference,
-          audioTrackPreference,
-          subtitleTrackPreference,
-        });
-
-      const safeExternalSubtitles =
-        normaliseExternalSubtitles(
-          externalSubtitles
-        );
-
-      callbacksRef.current =
-        {
-          onError,
-          onNoAudio,
-          onAudioTracksChanged,
-          onSubtitleTracksChanged,
-          onActiveAudioTrackChanged,
-          onActiveSubtitleTrackChanged,
-          onQualityLevelsChanged,
-        };
-
-      preferenceRef.current =
-        {
-          qualityPreference,
-          audioTrackPreference,
-          subtitleTrackPreference,
-        };
-
-      useImperativeHandle(
-        ref,
-        () =>
-          videoRef.current
+const srtToVtt = (text) => {
+  const body =
+    String(text || "")
+      .replace(/^\uFEFF/, "")
+      .replace(
+        /\r\n?/g,
+        "\n"
+      )
+      .replace(
+        /(\d{2}:\d{2}:\d{2}),(\d{3})/g,
+        "$1.$2"
       );
 
-      const publishNativeTracks =
-        () => {
-          const video =
-            videoRef.current;
+  return `WEBVTT\n\n${body}`;
+};
 
-          if (
-            !video
-          ) {
-            return;
-          }
+const LiveVideo = forwardRef(
+  function LiveVideo(
+    {
+      src,
+      poster,
+      className,
+      sourceLabel = "",
+      isLive = false,
+      subtitles = [],
+      subtitlesEnabled = false,
+      preferredSubtitleLanguage = "en",
+      onLoadedMetadata,
+      onTimeUpdate,
+      onError,
+      onEnded,
+      controls = true,
+    },
+    ref
+  ) {
+    const videoRef =
+      useRef(null);
 
-          const audioTracks =
+    const [
+      preparedSubtitles,
+      setPreparedSubtitles,
+    ] = useState([]);
+
+    const externalSubtitleCount =
+      Array.isArray(
+        subtitles
+      )
+        ? subtitles.length
+        : 0;
+
+    useImperativeHandle(
+      ref,
+      () =>
+        videoRef.current
+    );
+
+    useEffect(() => {
+      let cancelled =
+        false;
+
+      const objectUrls =
+        [];
+
+      const input =
+        normaliseSubtitleList(
+          subtitles
+        );
+
+      const prepare =
+        async () => {
+          const next =
             [];
-
-          const nativeAudio =
-            video.audioTracks;
-
-          if (
-            nativeAudio &&
-            typeof nativeAudio.length ===
-              "number"
-          ) {
-            for (
-              let index =
-                0;
-              index <
-              nativeAudio.length;
-              index +=
-                1
-            ) {
-              audioTracks.push(
-                audioDescriptor(
-                  nativeAudio[
-                    index
-                  ],
-                  index,
-                  "native"
-                )
-              );
-            }
-          }
-
-          if (
-            audioTracks.length >
-              0 ||
-            !hlsRef.current
-          ) {
-            callbacksRef.current.onAudioTracksChanged?.(
-              audioTracks
-            );
-          }
-
-          const subtitleTracks =
-            [];
-
-          const nativeText =
-            video.textTracks;
-
-          if (
-            nativeText &&
-            typeof nativeText.length ===
-              "number"
-          ) {
-            for (
-              let index =
-                0;
-              index <
-              nativeText.length;
-              index +=
-                1
-            ) {
-              subtitleTracks.push(
-                subtitleDescriptor(
-                  nativeText[
-                    index
-                  ],
-                  index,
-                  "native"
-                )
-              );
-            }
-          }
-
-          if (
-            subtitleTracks.length >
-              0 ||
-            !hlsRef.current
-          ) {
-            callbacksRef.current.onSubtitleTracksChanged?.(
-              subtitleTracks
-            );
-          }
-        };
-
-      const applyAudioPreference =
-        () => {
-          const video =
-            videoRef.current;
-
-          if (
-            !video
-          ) {
-            return;
-          }
-
-          const choice =
-            preferenceRef
-              .current
-              .audioTrackPreference ||
-            "english";
-
-          const hls =
-            hlsRef.current;
-
-          if (
-            hls &&
-            Array.isArray(
-              hls.audioTracks
-            ) &&
-            hls.audioTracks
-              .length
-          ) {
-            let index =
-              parseChoiceIndex(
-                choice,
-                "hls"
-              );
-
-            if (
-              index <
-                0 &&
-              choice ===
-                "english"
-            ) {
-              index =
-                findEnglishTrackIndex(
-                  hls.audioTracks,
-                  "audio"
-                );
-            }
-
-            if (
-              index < 0
-            ) {
-              index =
-                hls.audioTracks.findIndex(
-                  (
-                    track
-                  ) =>
-                    /aac|mp4a/i.test(
-                      hlsTrackText(
-                        track
-                      )
-                    )
-                );
-            }
-
-            if (
-              index < 0
-            ) {
-              index =
-                0;
-            }
-
-            if (
-              index >=
-                0 &&
-              index <
-                hls
-                  .audioTracks
-                  .length
-            ) {
-              try {
-                hls.audioTrack =
-                  index;
-
-                callbacksRef.current.onActiveAudioTrackChanged?.(
-                  audioDescriptor(
-                    hls.audioTracks[
-                      index
-                    ],
-                    index,
-                    "hls"
-                  )
-                );
-              } catch {
-                // Optional WebView/HLS track switching.
-              }
-            }
-
-            return;
-          }
-
-          const tracks =
-            video.audioTracks;
-
-          if (
-            !tracks ||
-            typeof tracks.length !==
-              "number" ||
-            tracks.length ===
-              0
-          ) {
-            return;
-          }
-
-          let index =
-            parseChoiceIndex(
-              choice,
-              "native"
-            );
-
-          if (
-            index < 0 &&
-            choice ===
-              "english"
-          ) {
-            index =
-              findEnglishTrackIndex(
-                Array.from(
-                  tracks
-                ),
-                "audio"
-              );
-          }
-
-          if (
-            index < 0
-          ) {
-            index = 0;
-          }
 
           for (
-            let current =
-              0;
-            current <
-            tracks.length;
-            current +=
-              1
+            const track of
+            input
           ) {
+            if (
+              cancelled
+            ) {
+              return;
+            }
+
+            if (
+              !isSrtSubtitleUrl(
+                track.src
+              ) ||
+              isVttSubtitleUrl(
+                track.src
+              )
+            ) {
+              next.push(
+                track
+              );
+
+              continue;
+            }
+
             try {
-              tracks[
-                current
-              ].enabled =
-                current ===
-                index;
+              const response =
+                await fetch(
+                  track.src,
+                  {
+                    cache:
+                      "force-cache",
+                  }
+                );
+
+              if (
+                !response.ok
+              ) {
+                next.push(
+                  track
+                );
+
+                continue;
+              }
+
+              const srt =
+                await response.text();
+
+              const blob =
+                new Blob(
+                  [
+                    srtToVtt(
+                      srt
+                    ),
+                  ],
+                  {
+                    type:
+                      "text/vtt",
+                  }
+                );
+
+              const url =
+                URL.createObjectURL(
+                  blob
+                );
+
+              objectUrls.push(
+                url
+              );
+
+              next.push({
+                ...track,
+                src: url,
+              });
             } catch {
-              // Some Chromium builds expose audioTracks as read-only.
+              next.push(
+                track
+              );
             }
           }
 
           if (
-            tracks[
-              index
-            ]
+            !cancelled
           ) {
-            callbacksRef.current.onActiveAudioTrackChanged?.(
-              audioDescriptor(
-                tracks[
-                  index
-                ],
-                index,
-                "native"
-              )
+            setPreparedSubtitles(
+              next
             );
           }
         };
 
-      const applySubtitlePreference =
-        () => {
-          const video =
-            videoRef.current;
+      prepare();
 
-          if (
-            !video
-          ) {
+      return () => {
+        cancelled =
+          true;
+
+        objectUrls.forEach(
+          (url) => {
+            try {
+              URL.revokeObjectURL(
+                url
+              );
+            } catch {
+              // Ignore object URL cleanup errors.
+            }
+          }
+        );
+      };
+    }, [subtitles]);
+
+    useEffect(() => {
+      const video =
+        videoRef.current;
+
+      if (
+        !video ||
+        !src
+      ) {
+        return undefined;
+      }
+
+      let cancelled =
+        false;
+
+      let hls =
+        null;
+
+      let mpegPlayer =
+        null;
+
+      let reported =
+        false;
+
+      let nativeFallbackUsed =
+        false;
+
+      let hlsMediaRecovery =
+        0;
+
+      let hlsNetworkRecovery =
+        0;
+
+      let nativeAudioTimer =
+        null;
+
+      const source =
+        String(
+          src
+        ).trim();
+
+      const hlsSource =
+        isHlsUrl(
+          source,
+          sourceLabel
+        );
+
+      const tsSource =
+        isMpegTsLike(
+          source,
+          sourceLabel
+        );
+
+      const flvSource =
+        isFlvLike(
+          source,
+          sourceLabel
+        );
+
+      const applyHlsSubtitleSelection =
+        (
+          detail = {}
+        ) => {
+          if (!hls) {
             return;
           }
 
-          const choice =
-            preferenceRef
-              .current
-              .subtitleTrackPreference ||
-            "off";
-
-          const hls =
-            hlsRef.current;
-
-          let hlsHandled =
-            false;
+          const requestedIndex =
+            Number(
+              detail?.index
+            );
 
           if (
-            hls &&
-            Array.isArray(
-              hls.subtitleTracks
-            )
+            requestedIndex <
+            0
           ) {
-            let index =
-              -1;
-
-            if (
-              choice.startsWith(
-                "hls:"
-              )
-            ) {
-              index =
-                parseChoiceIndex(
-                  choice,
-                  "hls"
-                );
-            } else if (
-              choice ===
-              "english"
-            ) {
-              index =
-                findEnglishTrackIndex(
-                  hls.subtitleTracks,
-                  "subtitle"
-                );
-            }
-
             try {
+              hls.subtitleDisplay =
+                false;
+
               hls.subtitleTrack =
-                index;
+                -1;
             } catch {
-              // Optional.
+              // Subtitle selection is optional.
             }
 
-            if (
-              index >=
-                0 &&
-              index <
-                hls
-                  .subtitleTracks
-                  .length
-            ) {
-              hlsHandled =
-                true;
-
-              callbacksRef.current.onActiveSubtitleTrackChanged?.(
-                subtitleDescriptor(
-                  hls.subtitleTracks[
-                    index
-                  ],
-                  index,
-                  "hls"
-                )
-              );
-            } else if (
-              choice ===
-              "off"
-            ) {
-              hlsHandled =
-                true;
-
-              callbacksRef.current.onActiveSubtitleTrackChanged?.(
-                null
-              );
-            }
+            return;
           }
 
-          /*
-           * When HLS has already selected an
-           * HLS subtitle track, do not disable
-           * the browser textTracks afterwards.
-           *
-           * Hls.js renders those tracks through
-           * the same HTMLMediaElement text-track
-           * interface.
-           */
+          const selectedTextTrack =
+            video?.textTracks &&
+            requestedIndex <
+              video
+                .textTracks
+                .length
+              ? video
+                  .textTracks[
+                  requestedIndex
+                ]
+              : null;
+
+          const externalTrackSelected =
+            Array.from(
+              video.querySelectorAll(
+                "track"
+              )
+            ).some(
+              (
+                element
+              ) =>
+                element.track ===
+                selectedTextTrack
+            );
+
           if (
-            hlsHandled &&
-            !choice.startsWith(
-              "native:"
-            )
+            externalTrackSelected
           ) {
+            try {
+              hls.subtitleDisplay =
+                false;
+
+              hls.subtitleTrack =
+                -1;
+            } catch {
+              // External WebVTT track remains selected by the controls.
+            }
+
             return;
           }
 
           const tracks =
-            video.textTracks;
+            hls.subtitleTracks ||
+            [];
 
-          if (
-            !tracks ||
-            typeof tracks.length !==
-              "number"
-          ) {
-            return;
-          }
+          const requestedLanguage =
+            normaliseLanguage(
+              detail?.language
+            );
 
-          let nativeIndex =
+          let targetIndex =
             -1;
 
           if (
-            choice !==
-            "off"
+            requestedLanguage
           ) {
-            nativeIndex =
-              parseChoiceIndex(
-                choice,
-                "native"
-              );
+            targetIndex =
+              tracks.findIndex(
+                (track) => {
+                  const language =
+                    normaliseLanguage(
+                      track?.lang ||
+                        track?.language ||
+                        track
+                          ?.attrs
+                          ?.LANGUAGE ||
+                        ""
+                    );
 
-            if (
-              nativeIndex <
-                0 &&
-              choice ===
-                "english"
-            ) {
-              nativeIndex =
-                findEnglishTrackIndex(
-                  Array.from(
-                    tracks
-                  ),
-                  "subtitle"
-                );
-            }
+                  return (
+                    language ===
+                      requestedLanguage ||
+                    language.startsWith(
+                      `${requestedLanguage}-`
+                    ) ||
+                    requestedLanguage.startsWith(
+                      `${language}-`
+                    )
+                  );
+                }
+              );
           }
 
-          for (
-            let current =
-              0;
-            current <
-            tracks.length;
-            current +=
-              1
+          if (
+            targetIndex <
+              0 &&
+            requestedIndex <
+              tracks.length
+          ) {
+            targetIndex =
+              requestedIndex;
+          }
+
+          if (
+            targetIndex >=
+            0
           ) {
             try {
-              tracks[
-                current
-              ].mode =
-                current ===
-                nativeIndex
-                  ? "showing"
-                  : "disabled";
+              hls.subtitleDisplay =
+                true;
+
+              hls.subtitleTrack =
+                targetIndex;
             } catch {
-              // Optional.
+              // Native text tracks may still handle the selection.
             }
           }
+        };
 
-          callbacksRef.current.onActiveSubtitleTrackChanged?.(
-            nativeIndex >=
-                0 &&
-              tracks[
-                nativeIndex
-              ]
-              ? subtitleDescriptor(
-                  tracks[
-                    nativeIndex
-                  ],
-                  nativeIndex,
-                  "native"
-                )
-              : null
+      const onSubtitleSelection =
+        (event) => {
+          applyHlsSubtitleSelection(
+            event?.detail ||
+              {}
           );
         };
 
-      const applyQualityPreference =
+      window.addEventListener(
+        "mg:subtitle-track-selected",
+        onSubtitleSelection
+      );
+
+      const preferEnglishNativeAudio =
         () => {
-          const hls =
-            hlsRef.current;
+          selectEnglishNativeAudioTrack(
+            video
+          );
 
           if (
-            !hls
+            nativeAudioTimer
+          ) {
+            window.clearTimeout(
+              nativeAudioTimer
+            );
+          }
+
+          nativeAudioTimer =
+            window.setTimeout(
+              () => {
+                selectEnglishNativeAudioTrack(
+                  video
+                );
+              },
+              700
+            );
+        };
+
+      const reportError =
+        (error) => {
+          if (
+            cancelled ||
+            reported
           ) {
             return;
           }
 
-          const level =
-            chooseHlsLevel(
-              hls.levels ||
-                [],
-              preferenceRef
-                .current
-                .qualityPreference
+          reported =
+            true;
+
+          if (
+            typeof onError ===
+            "function"
+          ) {
+            onError(
+              error instanceof
+                Error
+                ? error
+                : new Error(
+                    String(
+                      error ||
+                        "The video source could not be played."
+                    )
+                  )
             );
-
-          try {
-            if (
-              level < 0
-            ) {
-              hls.autoLevelCapping =
-                -1;
-
-              hls.currentLevel =
-                -1;
-
-              hls.nextLevel =
-                -1;
-            } else {
-              hls.autoLevelCapping =
-                level;
-
-              hls.currentLevel =
-                level;
-
-              hls.nextLevel =
-                level;
-            }
-          } catch {
-            // HLS quality switching is optional.
           }
         };
 
-      useEffect(
-        () => {
-          applyAudioPreference();
-        },
-        [
-          audioTrackPreference,
-        ]
-      );
-
-      useEffect(
-        () => {
-          applySubtitlePreference();
-        },
-        [
-          subtitleTrackPreference,
-        ]
-      );
-
-      useEffect(
-        () => {
-          applyQualityPreference();
-        },
-        [
-          qualityPreference,
-        ]
-      );
-
-      useEffect(
-        () => {
-          const video =
-            videoRef.current;
-
+      const playAutomatically =
+        async () => {
           if (
-            !video ||
-            !src
+            cancelled
           ) {
-            return undefined;
+            return;
           }
 
-          let cancelled =
-            false;
+          try {
+            video.muted =
+              false;
 
-          let reported =
-            false;
+            delete video
+              .dataset
+              .mgAutoplayMuted;
 
-          let nativeFallbackUsed =
-            false;
+            await video.play();
+          } catch {
+            /*
+             * On Fire TV, do not "succeed" by silently starting muted.
+             */
+            const fireTvLayout =
+              document.documentElement.classList.contains(
+                "mg-tv-layout"
+              ) ||
+              document.body.classList.contains(
+                "mg-tv-layout"
+              );
 
-          let hlsMediaRecovery =
-            0;
+            if (
+              fireTvLayout
+            ) {
+              video.muted =
+                false;
 
-          let hlsNetworkRecovery =
-            0;
+              delete video
+                .dataset
+                .mgAutoplayMuted;
 
-          let nativeTrackTimer =
-            null;
+              return;
+            }
 
-          let audioHealthTimer =
-            null;
-
-          const source =
-            String(
-              src
-            ).trim();
-
-          const hlsSource =
-            isHlsUrl(
-              source,
-              sourceLabel
-            );
-
-          const tsSource =
-            isMpegTsLike(
-              source,
-              sourceLabel
-            );
-
-          const flvSource =
-            isFlvLike(
-              source,
-              sourceLabel
-            );
-
-          const reportError =
-            (
-              error
-            ) => {
-              if (
-                cancelled ||
-                reported
-              ) {
-                return;
-              }
-
-              reported =
+            try {
+              video.muted =
                 true;
 
-              callbacksRef.current.onError?.(
-                error instanceof
-                  Error
-                  ? error
-                  : new Error(
-                      String(
-                        error ||
-                          "The video source could not be played."
-                      )
-                    )
-              );
-            };
+              video.dataset.mgAutoplayMuted =
+                "true";
 
-          const publishAndApplyTracks =
-            () => {
-              publishNativeTracks();
-              applyAudioPreference();
-              applySubtitlePreference();
+              await video.play();
+            } catch {
+              video.muted =
+                false;
 
-              if (
-                nativeTrackTimer
-              ) {
-                window.clearTimeout(
-                  nativeTrackTimer
-                );
-              }
+              delete video
+                .dataset
+                .mgAutoplayMuted;
+            }
+          }
+        };
 
-              nativeTrackTimer =
-                window.setTimeout(
-                  () => {
-                    publishNativeTracks();
-                    applyAudioPreference();
-                    applySubtitlePreference();
-                  },
-                  800
-                );
-            };
+      const resetVideo =
+        () => {
+          try {
+            video.pause();
 
-          const playAutomatically =
-            async () => {
-              if (
-                cancelled
-              ) {
-                return;
-              }
+            video.removeAttribute(
+              "src"
+            );
 
-              try {
-                video.muted =
-                  false;
+            video.load();
+          } catch {
+            // Ignore teardown errors from a source that already failed.
+          }
+        };
 
-                delete video
-                  .dataset
-                  .mgAutoplayMuted;
+      const startNative =
+        () => {
+          if (
+            cancelled
+          ) {
+            return;
+          }
 
-                await video.play();
-              } catch {
-                const fireTvLayout =
-                  document.documentElement.classList.contains(
-                    "mg-tv-layout"
-                  ) ||
-                  document.body.classList.contains(
-                    "mg-tv-layout"
-                  );
+          nativeFallbackUsed =
+            true;
 
+          resetVideo();
+
+          video.src =
+            source;
+
+          video.load();
+
+          preferEnglishNativeAudio();
+
+          playAutomatically();
+        };
+
+      const onNativeError =
+        () => {
+          reportError(
+            new Error(
+              nativeFallbackUsed
+                ? "This device could not decode the selected video/audio format."
+                : "The video source could not be played."
+            )
+          );
+        };
+
+      video.addEventListener(
+        "error",
+        onNativeError
+      );
+
+      video.addEventListener(
+        "loadedmetadata",
+        preferEnglishNativeAudio
+      );
+
+      video.addEventListener(
+        "canplay",
+        preferEnglishNativeAudio
+      );
+
+      const startHls =
+        () => {
+          if (
+            Hls.isSupported()
+          ) {
+            hls =
+              new Hls({
+                enableWorker:
+                  true,
+
+                lowLatencyMode:
+                  Boolean(
+                    isLive
+                  ),
+
+                backBufferLength:
+                  30,
+
+                maxBufferLength:
+                  30,
+
+                maxMaxBufferLength:
+                  60,
+
+                capLevelToPlayerSize:
+                  false,
+
+                startLevel:
+                  -1,
+
+                renderTextTracksNatively:
+                  true,
+              });
+
+            hls.on(
+              Hls.Events.ERROR,
+              (
+                _event,
+                data
+              ) => {
                 if (
-                  fireTvLayout
+                  !data?.fatal ||
+                  cancelled
                 ) {
-                  video.muted =
-                    false;
-
-                  delete video
-                    .dataset
-                    .mgAutoplayMuted;
-
                   return;
                 }
 
                 try {
-                  video.muted =
-                    true;
+                  if (
+                    data.type ===
+                      Hls
+                        .ErrorTypes
+                        .MEDIA_ERROR &&
+                    hlsMediaRecovery <
+                      2
+                  ) {
+                    hlsMediaRecovery +=
+                      1;
 
-                  video.dataset.mgAutoplayMuted =
-                    "true";
+                    hls.recoverMediaError();
 
-                  await video.play();
+                    return;
+                  }
+
+                  if (
+                    data.type ===
+                      Hls
+                        .ErrorTypes
+                        .NETWORK_ERROR &&
+                    hlsNetworkRecovery <
+                      2
+                  ) {
+                    hlsNetworkRecovery +=
+                      1;
+
+                    hls.startLoad();
+
+                    return;
+                  }
                 } catch {
-                  video.muted =
-                    false;
-
-                  delete video
-                    .dataset
-                    .mgAutoplayMuted;
-                }
-              }
-            };
-
-          const resetVideo =
-            () => {
-              try {
-                video.pause();
-
-                video.removeAttribute(
-                  "src"
-                );
-
-                video.load();
-              } catch {
-                // Ignore teardown errors from a source that already failed.
-              }
-            };
-
-          const startNative =
-            () => {
-              if (
-                cancelled
-              ) {
-                return;
-              }
-
-              nativeFallbackUsed =
-                true;
-
-              resetVideo();
-
-              video.src =
-                source;
-
-              video.load();
-
-              publishAndApplyTracks();
-
-              playAutomatically();
-            };
-
-          const onNativeError =
-            () => {
-              reportError(
-                new Error(
-                  nativeFallbackUsed
-                    ? "This device could not decode the selected video/audio format."
-                    : "The video source could not be played."
-                )
-              );
-            };
-
-          const onNativeTracks =
-            () =>
-              publishAndApplyTracks();
-
-          video.addEventListener(
-            "error",
-            onNativeError
-          );
-
-          video.addEventListener(
-            "loadedmetadata",
-            onNativeTracks
-          );
-
-          video.addEventListener(
-            "canplay",
-            onNativeTracks
-          );
-
-          /*
-           * Strong no-audio signal only.
-           *
-           * Chromium/Fire TV exposes
-           * webkitAudioDecodedByteCount on many
-           * builds.
-           *
-           * If video has progressed for 12
-           * seconds, sound is not muted, and
-           * zero audio bytes have been decoded,
-           * ask Media God to fail over to the
-           * next ranked source.
-           */
-          audioHealthTimer =
-            window.setInterval(
-              () => {
-                if (
-                  cancelled ||
-                  video.paused ||
-                  video.muted ||
-                  video.volume ===
-                    0
-                ) {
-                  return;
+                  // Fall through to normal source failover.
                 }
 
-                if (
-                  (
-                    video.currentTime ||
-                    0
-                  ) <
-                    12 ||
-                  video.readyState <
-                    3
-                ) {
-                  return;
-                }
-
-                if (
-                  !(
-                    "webkitAudioDecodedByteCount" in
-                    video
+                reportError(
+                  new Error(
+                    data?.details ||
+                      "HLS playback failed."
                   )
-                ) {
-                  return;
-                }
+                );
+              }
+            );
 
-                const decoded =
-                  Number(
-                    video.webkitAudioDecodedByteCount ||
-                      0
+            const preferEnglishHlsAudio =
+              () => {
+                const tracks =
+                  hls?.audioTracks ||
+                  [];
+
+                const englishIndex =
+                  chooseEnglishHlsTrack(
+                    tracks
                   );
 
                 if (
-                  decoded >
+                  englishIndex >=
                   0
                 ) {
-                  window.clearInterval(
-                    audioHealthTimer
+                  try {
+                    hls.audioTrack =
+                      englishIndex;
+
+                    return;
+                  } catch {
+                    // Continue to codec-only fallback.
+                  }
+                }
+
+                const aacIndex =
+                  tracks.findIndex(
+                    (
+                      track
+                    ) =>
+                      /aac|mp4a/i.test(
+                        hlsTrackText(
+                          track
+                        )
+                      )
                   );
 
-                  audioHealthTimer =
-                    null;
+                if (
+                  aacIndex >=
+                  0
+                ) {
+                  try {
+                    hls.audioTrack =
+                      aacIndex;
+                  } catch {
+                    // Track selection is optional.
+                  }
+                }
+              };
+
+            hls.on(
+              Hls.Events
+                .MANIFEST_PARSED,
+              () => {
+                preferEnglishHlsAudio();
+
+                preferEnglishNativeAudio();
+
+                playAutomatically();
+              }
+            );
+
+            if (
+              Hls.Events
+                .AUDIO_TRACKS_UPDATED
+            ) {
+              hls.on(
+                Hls.Events
+                  .AUDIO_TRACKS_UPDATED,
+                () => {
+                  preferEnglishHlsAudio();
+                }
+              );
+            }
+
+            const preferHlsSubtitles =
+              () => {
+                const tracks =
+                  hls
+                    ?.subtitleTracks ||
+                  [];
+
+                if (
+                  !subtitlesEnabled ||
+                  externalSubtitleCount >
+                    0 ||
+                  tracks.length ===
+                    0
+                ) {
+                  try {
+                    hls.subtitleDisplay =
+                      false;
+
+                    hls.subtitleTrack =
+                      -1;
+                  } catch {
+                    // Subtitle selection is optional.
+                  }
 
                   return;
                 }
 
-                window.clearInterval(
-                  audioHealthTimer
-                );
+                const preferredIndex =
+                  choosePreferredHlsSubtitleTrack(
+                    tracks,
+                    preferredSubtitleLanguage
+                  );
 
-                audioHealthTimer =
-                  null;
+                if (
+                  preferredIndex >=
+                  0
+                ) {
+                  try {
+                    hls.subtitleDisplay =
+                      true;
 
-                callbacksRef.current.onNoAudio?.(
-                  new Error(
-                    "Video is playing but this device decoded no audio."
-                  )
-                );
-              },
-              3000
+                    hls.subtitleTrack =
+                      preferredIndex;
+                  } catch {
+                    // Native text tracks may still be available.
+                  }
+                } else {
+                  try {
+                    hls.subtitleDisplay =
+                      false;
+
+                    hls.subtitleTrack =
+                      -1;
+                  } catch {
+                    // Leave subtitles off when no preferred language exists.
+                  }
+                }
+              };
+
+            if (
+              Hls.Events
+                .SUBTITLE_TRACKS_UPDATED
+            ) {
+              hls.on(
+                Hls.Events
+                  .SUBTITLE_TRACKS_UPDATED,
+                () => {
+                  preferHlsSubtitles();
+                }
+              );
+            }
+
+            hls.on(
+              Hls.Events
+                .MANIFEST_PARSED,
+              () => {
+                preferHlsSubtitles();
+              }
             );
 
-          const startHls =
-            () => {
-              if (
-                Hls.isSupported()
-              ) {
-                const hls =
-                  new Hls({
-                    enableWorker:
-                      true,
-
-                    lowLatencyMode:
-                      Boolean(
-                        isLive
-                      ),
-
-                    backBufferLength:
-                      30,
-
-                    maxBufferLength:
-                      30,
-
-                    maxMaxBufferLength:
-                      90,
-
-                    /*
-                     * DO NOT cap to CSS player
-                     * size.
-                     *
-                     * Fire Stick 4K / 4K Max
-                     * devices can expose a
-                     * 1920x1080 WebView while
-                     * decoding/outputting 2160p.
-                     */
-                    capLevelToPlayerSize:
-                      false,
-
-                    startLevel:
-                      -1,
-                  });
-
-                hlsRef.current =
-                  hls;
-
-                const publishHlsTracks =
-                  () => {
-                    const audio =
-                      (
-                        hls.audioTracks ||
-                        []
-                      ).map(
-                        (
-                          track,
-                          index
-                        ) =>
-                          audioDescriptor(
-                            track,
-                            index,
-                            "hls"
-                          )
-                      );
-
-                    const subtitles =
-                      (
-                        hls.subtitleTracks ||
-                        []
-                      ).map(
-                        (
-                          track,
-                          index
-                        ) =>
-                          subtitleDescriptor(
-                            track,
-                            index,
-                            "hls"
-                          )
-                      );
-
-                    const levels =
-                      (
-                        hls.levels ||
-                        []
-                      ).map(
-                        (
-                          level,
-                          index
-                        ) => ({
-                          id:
-                            `hls-level:${index}`,
-
-                          index,
-
-                          width:
-                            Number(
-                              level?.width ||
-                                0
-                            ),
-
-                          height:
-                            Number(
-                              level?.height ||
-                                0
-                            ),
-
-                          bitrate:
-                            Number(
-                              level?.bitrate ||
-                                0
-                            ),
-
-                          label:
-                            Number(
-                              level?.height ||
-                                0
-                            ) >=
-                            2160
-                              ? "4K"
-                              : level?.height
-                                ? `${level.height}p`
-                                : `Level ${index + 1}`,
-                        })
-                      );
-
-                    callbacksRef.current.onAudioTracksChanged?.(
-                      audio
-                    );
-
-                    callbacksRef.current.onSubtitleTracksChanged?.(
-                      subtitles
-                    );
-
-                    callbacksRef.current.onQualityLevelsChanged?.(
-                      levels
-                    );
-
-                    applyAudioPreference();
-                    applySubtitlePreference();
-                    applyQualityPreference();
-                  };
-
-                hls.on(
-                  Hls.Events
-                    .ERROR,
-                  (
-                    _event,
-                    data
-                  ) => {
-                    if (
-                      !data?.fatal ||
-                      cancelled
-                    ) {
-                      return;
-                    }
-
-                    try {
-                      if (
-                        data.type ===
-                          Hls
-                            .ErrorTypes
-                            .MEDIA_ERROR &&
-                        hlsMediaRecovery <
-                          2
-                      ) {
-                        hlsMediaRecovery +=
-                          1;
-
-                        hls.recoverMediaError();
-
-                        return;
-                      }
-
-                      if (
-                        data.type ===
-                          Hls
-                            .ErrorTypes
-                            .NETWORK_ERROR &&
-                        hlsNetworkRecovery <
-                          2
-                      ) {
-                        hlsNetworkRecovery +=
-                          1;
-
-                        hls.startLoad();
-
-                        return;
-                      }
-                    } catch {
-                      // Fall through to source failover.
-                    }
-
-                    reportError(
-                      new Error(
-                        data?.details ||
-                          "HLS playback failed."
-                      )
-                    );
-                  }
-                );
-
-                hls.on(
-                  Hls.Events
-                    .MANIFEST_PARSED,
-                  () => {
-                    publishHlsTracks();
-                    publishAndApplyTracks();
-                    playAutomatically();
-                  }
-                );
-
-                if (
-                  Hls.Events
-                    .AUDIO_TRACKS_UPDATED
-                ) {
-                  hls.on(
-                    Hls.Events
-                      .AUDIO_TRACKS_UPDATED,
-                    publishHlsTracks
-                  );
-                }
-
-                if (
-                  Hls.Events
-                    .SUBTITLE_TRACKS_UPDATED
-                ) {
-                  hls.on(
-                    Hls.Events
-                      .SUBTITLE_TRACKS_UPDATED,
-                    publishHlsTracks
-                  );
-                }
-
-                if (
-                  Hls.Events
-                    .LEVELS_UPDATED
-                ) {
-                  hls.on(
-                    Hls.Events
-                      .LEVELS_UPDATED,
-                    publishHlsTracks
-                  );
-                }
-
-                hls.loadSource(
-                  source
-                );
-
-                hls.attachMedia(
-                  video
-                );
-
-                return;
-              }
-
-              if (
-                video.canPlayType(
-                  "application/vnd.apple.mpegurl"
-                )
-              ) {
-                startNative();
-
-                return;
-              }
-
-              reportError(
-                new Error(
-                  "HLS is not supported by this device."
-                )
-              );
-            };
-
-          const startMpegTs =
-            async () => {
-              const mpegts =
-                await loadMpegTs();
-
-              if (
-                cancelled
-              ) {
-                return;
-              }
-
-              if (
-                !mpegts?.isSupported?.() ||
-                typeof mpegts?.createPlayer !==
-                  "function"
-              ) {
-                startNative();
-
-                return;
-              }
-
-              try {
-                const type =
-                  mpegTsType(
-                    source,
-                    sourceLabel
-                  );
-
-                const player =
-                  mpegts.createPlayer(
-                    {
-                      type,
-
-                      isLive:
-                        Boolean(
-                          isLive
-                        ),
-
-                      url:
-                        source,
-
-                      cors:
-                        true,
-
-                      withCredentials:
-                        false,
-                    },
-                    {
-                      enableWorker:
-                        true,
-
-                      enableStashBuffer:
-                        !isLive,
-
-                      stashInitialSize:
-                        384 *
-                        1024,
-
-                      lazyLoad:
-                        !isLive,
-
-                      autoCleanupSourceBuffer:
-                        true,
-
-                      autoCleanupMaxBackwardDuration:
-                        60,
-
-                      autoCleanupMinBackwardDuration:
-                        30,
-
-                      fixAudioTimestampGap:
-                        true,
-                    }
-                  );
-
-                mpegPlayerRef.current =
-                  player;
-
-                if (
-                  mpegts.Events
-                    ?.ERROR
-                ) {
-                  player.on(
-                    mpegts
-                      .Events
-                      .ERROR,
-                    (
-                      _errorType,
-                      errorDetail,
-                      errorInfo
-                    ) => {
-                      if (
-                        cancelled
-                      ) {
-                        return;
-                      }
-
-                      try {
-                        player?.destroy?.();
-                      } catch {
-                        // Ignore.
-                      }
-
-                      mpegPlayerRef.current =
-                        null;
-
-                      if (
-                        !nativeFallbackUsed
-                      ) {
-                        startNative();
-
-                        return;
-                      }
-
-                      reportError(
-                        new Error(
-                          String(
-                            errorDetail ||
-                              errorInfo
-                                ?.msg ||
-                              "MPEG-TS/FLV playback failed."
-                          )
-                        )
-                      );
-                    }
-                  );
-                }
-
-                player.attachMediaElement(
-                  video
-                );
-
-                player.load();
-
-                publishAndApplyTracks();
-
-                playAutomatically();
-              } catch {
-                startNative();
-              }
-            };
-
-          resetVideo();
+            hls.loadSource(
+              source
+            );
+
+            hls.attachMedia(
+              video
+            );
+
+            return;
+          }
 
           if (
-            hlsSource
+            video.canPlayType(
+              "application/vnd.apple.mpegurl"
+            )
           ) {
-            startHls();
-          } else if (
-            tsSource ||
-            flvSource
+            startNative();
+
+            return;
+          }
+
+          reportError(
+            new Error(
+              "HLS is not supported by this device."
+            )
+          );
+        };
+
+      const startMpegTs =
+        async () => {
+          const mpegts =
+            await loadMpegTs();
+
+          if (
+            cancelled
           ) {
-            startMpegTs();
-          } else {
+            return;
+          }
+
+          if (
+            !mpegts?.isSupported?.() ||
+            typeof mpegts?.createPlayer !==
+              "function"
+          ) {
+            startNative();
+
+            return;
+          }
+
+          try {
+            const type =
+              mpegTsType(
+                source,
+                sourceLabel
+              );
+
+            mpegPlayer =
+              mpegts.createPlayer(
+                {
+                  type,
+
+                  isLive:
+                    Boolean(
+                      isLive
+                    ),
+
+                  url:
+                    source,
+
+                  cors:
+                    true,
+
+                  withCredentials:
+                    false,
+                },
+                {
+                  enableWorker:
+                    true,
+
+                  enableStashBuffer:
+                    !isLive,
+
+                  stashInitialSize:
+                    384 *
+                    1024,
+
+                  lazyLoad:
+                    !isLive,
+
+                  autoCleanupSourceBuffer:
+                    true,
+
+                  autoCleanupMaxBackwardDuration:
+                    60,
+
+                  autoCleanupMinBackwardDuration:
+                    30,
+
+                  fixAudioTimestampGap:
+                    true,
+                }
+              );
+
+            if (
+              mpegts.Events
+                ?.ERROR
+            ) {
+              mpegPlayer.on(
+                mpegts.Events.ERROR,
+                (
+                  _errorType,
+                  errorDetail,
+                  errorInfo
+                ) => {
+                  if (
+                    cancelled
+                  ) {
+                    return;
+                  }
+
+                  try {
+                    mpegPlayer?.destroy?.();
+                  } catch {
+                    // Ignore.
+                  }
+
+                  mpegPlayer =
+                    null;
+
+                  if (
+                    !nativeFallbackUsed
+                  ) {
+                    startNative();
+
+                    return;
+                  }
+
+                  reportError(
+                    new Error(
+                      String(
+                        errorDetail ||
+                          errorInfo
+                            ?.msg ||
+                          "MPEG-TS/FLV playback failed."
+                      )
+                    )
+                  );
+                }
+              );
+            }
+
+            mpegPlayer.attachMediaElement(
+              video
+            );
+
+            mpegPlayer.load();
+
+            playAutomatically();
+          } catch {
             startNative();
           }
+        };
 
-          return () => {
-            cancelled =
-              true;
+      resetVideo();
 
-            video.removeEventListener(
-              "error",
-              onNativeError
-            );
+      if (
+        hlsSource
+      ) {
+        startHls();
+      } else if (
+        tsSource ||
+        flvSource
+      ) {
+        startMpegTs();
+      } else {
+        startNative();
+      }
 
-            video.removeEventListener(
-              "loadedmetadata",
-              onNativeTracks
-            );
+      return () => {
+        cancelled =
+          true;
 
-            video.removeEventListener(
-              "canplay",
-              onNativeTracks
-            );
+        video.removeEventListener(
+          "error",
+          onNativeError
+        );
 
-            if (
-              nativeTrackTimer
-            ) {
-              window.clearTimeout(
-                nativeTrackTimer
-              );
-            }
+        video.removeEventListener(
+          "loadedmetadata",
+          preferEnglishNativeAudio
+        );
 
-            if (
-              audioHealthTimer
-            ) {
-              window.clearInterval(
-                audioHealthTimer
-              );
-            }
+        video.removeEventListener(
+          "canplay",
+          preferEnglishNativeAudio
+        );
 
-            if (
-              hlsRef.current
-            ) {
-              try {
-                hlsRef.current.destroy();
-              } catch {
-                // Ignore.
-              }
+        window.removeEventListener(
+          "mg:subtitle-track-selected",
+          onSubtitleSelection
+        );
 
-              hlsRef.current =
-                null;
-            }
+        if (
+          nativeAudioTimer
+        ) {
+          window.clearTimeout(
+            nativeAudioTimer
+          );
 
-            if (
-              mpegPlayerRef.current
-            ) {
-              try {
-                mpegPlayerRef.current.pause?.();
+          nativeAudioTimer =
+            null;
+        }
 
-                mpegPlayerRef.current.unload?.();
-
-                mpegPlayerRef.current.detachMediaElement?.();
-
-                mpegPlayerRef.current.destroy?.();
-              } catch {
-                // Ignore.
-              }
-
-              mpegPlayerRef.current =
-                null;
-            }
-
-            callbacksRef.current.onAudioTracksChanged?.(
-              []
-            );
-
-            callbacksRef.current.onSubtitleTracksChanged?.(
-              []
-            );
-
-            callbacksRef.current.onQualityLevelsChanged?.(
-              []
-            );
-
-            resetVideo();
-          };
-        },
-        [
-          src,
-          sourceLabel,
-          isLive,
-        ]
-      );
-
-      return (
-        <video
-          ref={
-            videoRef
+        if (hls) {
+          try {
+            hls.destroy();
+          } catch {
+            // Ignore.
           }
-          poster={
-            poster
+
+          hls =
+            null;
+        }
+
+        if (
+          mpegPlayer
+        ) {
+          try {
+            mpegPlayer.pause?.();
+            mpegPlayer.unload?.();
+            mpegPlayer.detachMediaElement?.();
+            mpegPlayer.destroy?.();
+          } catch {
+            // Ignore.
           }
-          controls={
-            controls
-          }
-          playsInline
-          preload="auto"
-          className={
-            className
-          }
-          onLoadedMetadata={
-            onLoadedMetadata
-          }
-          onTimeUpdate={
-            onTimeUpdate
-          }
-          onEnded={
-            onEnded
-          }
-        >
-          {safeExternalSubtitles.map(
+
+          mpegPlayer =
+            null;
+        }
+
+        resetVideo();
+      };
+    }, [
+      src,
+      sourceLabel,
+      isLive,
+      subtitlesEnabled,
+      preferredSubtitleLanguage,
+      externalSubtitleCount,
+      onError,
+    ]);
+
+    const preferredExternalSubtitleIndex =
+      subtitlesEnabled
+        ? preparedSubtitles.findIndex(
             (
-              track,
-              index
-            ) => (
-              <track
-                key={`${track.src}-${index}`}
-                kind={
-                  track.kind
-                }
-                src={
-                  track.src
-                }
-                srcLang={
-                  track.lang ||
-                  "en"
-                }
-                label={
-                  track.label
-                }
-                default={
-                  track.default
-                }
-              />
-            )
-          )}
-        </video>
-      );
-    }
-  );
+              track
+            ) =>
+              track.default ||
+              isEnglishLanguage(
+                track.lang
+              )
+          )
+        : -1;
+
+    return (
+      <video
+        ref={videoRef}
+        poster={poster}
+        controls={controls}
+        playsInline
+        preload="auto"
+        className={className}
+        onLoadedMetadata={
+          onLoadedMetadata
+        }
+        onTimeUpdate={
+          onTimeUpdate
+        }
+        onEnded={
+          onEnded
+        }
+      >
+        {preparedSubtitles.map(
+          (
+            track,
+            index
+          ) => (
+            <track
+              key={
+                track.id
+              }
+              kind={
+                track.kind
+              }
+              src={
+                track.src
+              }
+              srcLang={
+                track.lang ||
+                undefined
+              }
+              label={
+                track.label
+              }
+              default={
+                index ===
+                preferredExternalSubtitleIndex
+              }
+            />
+          )
+        )}
+      </video>
+    );
+  }
+);
 
 LiveVideo.displayName =
   "LiveVideo";
