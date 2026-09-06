@@ -1,4 +1,5 @@
 import React, {
+  Component,
   useCallback,
   useState,
 } from "react";
@@ -20,16 +21,250 @@ import SearchDialog from "@/components/mg/SearchDialog";
 import DetailModal from "@/components/mg/DetailModal";
 import FireTvRemote from "@/components/mg/FireTvRemote";
 import MediaGodV2Assist from "@/components/mg/MediaGodV2Assist";
-import RdBanner from "@/components/mg/RdBanner";
-
 import {
   PlayerProvider,
 } from "@/components/mg/PlayerProvider";
+import RdBanner from "@/components/mg/RdBanner";
 
-/*
- * Everything that can call usePlayer()
- * MUST live below this component.
- */
+const normaliseMediaType = (
+  item
+) => {
+  const type =
+    String(
+      item?.media_type ||
+        item?.mediaType ||
+        item?.type ||
+        ""
+    ).toLowerCase();
+
+  if (
+    type === "tv" ||
+    type === "series" ||
+    type === "show"
+  ) {
+    return "tv";
+  }
+
+  if (
+    item?.first_air_date ||
+    item?.firstAirDate ||
+    (
+      item?.name &&
+      !item?.title
+    )
+  ) {
+    return "tv";
+  }
+
+  return "movie";
+};
+
+const normaliseSearchSelection =
+  (
+    value
+  ) => {
+    if (
+      !value ||
+      typeof value !==
+        "object"
+    ) {
+      return null;
+    }
+
+    const id =
+      value.id ??
+      value.tmdb_id ??
+      value.tmdbId ??
+      null;
+
+    if (
+      id == null ||
+      id === ""
+    ) {
+      return null;
+    }
+
+    const mediaType =
+      normaliseMediaType(
+        value
+      );
+
+    const title =
+      String(
+        value.title ||
+          value.name ||
+          value.original_title ||
+          value.original_name ||
+          "Untitled"
+      ).trim();
+
+    const date =
+      String(
+        value.release_date ||
+          value.first_air_date ||
+          ""
+      );
+
+    const year =
+      String(
+        value.year ||
+          (
+            /^\d{4}/.test(
+              date
+            )
+              ? date.slice(
+                  0,
+                  4
+                )
+              : ""
+          )
+      );
+
+    return {
+      ...value,
+
+      id,
+
+      tmdb_id:
+        value.tmdb_id ??
+        id,
+
+      tmdbId:
+        value.tmdbId ??
+        id,
+
+      title,
+
+      name:
+        value.name ||
+        title,
+
+      year,
+
+      media_type:
+        mediaType,
+
+      mediaType,
+
+      poster_url:
+        value.poster_url ||
+        value.posterUrl ||
+        "",
+
+      description:
+        value.description ||
+        value.overview ||
+        "",
+    };
+  };
+
+class DetailErrorBoundary
+  extends Component {
+  constructor(
+    props
+  ) {
+    super(
+      props
+    );
+
+    this.state = {
+      hasError:
+        false,
+
+      message:
+        "",
+    };
+  }
+
+  static getDerivedStateFromError(
+    error
+  ) {
+    return {
+      hasError:
+        true,
+
+      message:
+        error?.message ||
+        "The details screen could not be opened.",
+    };
+  }
+
+  componentDidCatch(
+    error,
+    info
+  ) {
+    console.error(
+      "Media God detail screen error:",
+      error,
+      info
+    );
+  }
+
+  componentDidUpdate(
+    prevProps
+  ) {
+    if (
+      prevProps.resetKey !==
+        this.props.resetKey &&
+      this.state.hasError
+    ) {
+      this.setState({
+        hasError:
+          false,
+
+        message:
+          "",
+      });
+    }
+  }
+
+  render() {
+    if (
+      !this.state.hasError
+    ) {
+      return this.props
+        .children;
+    }
+
+    return (
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Details error"
+        className="fixed inset-0 z-[70] bg-black/90 flex items-center justify-center p-4"
+      >
+        <div className="w-full max-w-lg rounded-xl border border-red-500/30 bg-mg-surface p-5 text-white shadow-2xl">
+          <h2 className="text-lg font-bold">
+            Could not open this title
+          </h2>
+
+          <p className="mt-2 text-sm text-white/60">
+            Media God stopped the details screen from crashing the whole app.
+          </p>
+
+          <p className="mt-3 rounded-lg border border-white/10 bg-black/30 p-3 text-xs text-red-300 break-words">
+            {
+              this.state
+                .message
+            }
+          </p>
+
+          <button
+            type="button"
+            onClick={
+              this.props
+                .onClose
+            }
+            className="mt-4 min-h-11 rounded-lg bg-mg-green px-4 py-2 text-sm font-semibold text-black"
+          >
+            Back to Media God
+          </button>
+        </div>
+      </div>
+    );
+  }
+}
+
 function MediaGodApp() {
   const [
     view,
@@ -55,11 +290,6 @@ function MediaGodApp() {
   const handleRemoteBack =
     useCallback(
       () => {
-        /*
-         * If a TMDB/search details
-         * window is open, close that
-         * before navigating Home.
-         */
         if (
           searchResult
         ) {
@@ -80,10 +310,6 @@ function MediaGodApp() {
           return true;
         }
 
-        /*
-         * Fire TV Back from any
-         * section returns to Home.
-         */
         if (
           view !==
           "home"
@@ -95,89 +321,87 @@ function MediaGodApp() {
           return true;
         }
 
-        /*
-         * Consume Back on Home.
-         *
-         * This prevents the Fire Stick
-         * WebView falling backwards into
-         * Base44/browser/login history.
-         */
         return true;
       },
       [
-        view,
         searchOpen,
         searchResult,
+        view,
       ]
     );
 
-  const renderView =
-    () => {
-      switch (
-        view
-      ) {
-        case "movies":
-          return (
-            <MoviesView />
+  const openSearch =
+    useCallback(
+      () => {
+        setSearchResult(
+          null
+        );
+
+        setSearchOpen(
+          true
+        );
+      },
+      []
+    );
+
+  const handleSearchSelect =
+    useCallback(
+      (
+        rawItem
+      ) => {
+        const item =
+          normaliseSearchSelection(
+            rawItem
           );
 
-        case "tv":
-          return (
-            <TvShowsView />
+        if (
+          !item
+        ) {
+          console.error(
+            "Media God received an invalid search result:",
+            rawItem
           );
 
-        case "live":
-          return (
-            <LiveTVView />
-          );
+          return;
+        }
 
-        case "watchlist":
-          return (
-            <WatchlistView />
-          );
+        /*
+         * Close SearchDialog completely before mounting DetailModal.
+         *
+         * This is important on Android / Fire TV WebView because two
+         * full-screen overlays fighting for focus/layout can produce
+         * broken transitions.
+         */
+        setSearchOpen(
+          false
+        );
 
-        case "favorites":
-          return (
-            <FavoritesView />
-          );
+        window.setTimeout(
+          () => {
+            setSearchResult(
+              item
+            );
+          },
+          0
+        );
+      },
+      []
+    );
 
-        case "watchparty":
-          return (
-            <WatchPartyView />
-          );
+  const closeDetails =
+    useCallback(
+      () => {
+        setSearchResult(
+          null
+        );
+      },
+      []
+    );
 
-        case "rdlib":
-          return (
-            <RdLibraryView />
-          );
-
-        case "downloads":
-          return (
-            <DebridDashboard />
-          );
-
-        case "addons":
-          return (
-            <AddonsView />
-          );
-
-        case "roadmap":
-          return (
-            <RoadmapView />
-          );
-
-        case "settings":
-          return (
-            <SettingsView />
-          );
-
-        case "home":
-        default:
-          return (
-            <HomeDashboard />
-          );
-      }
-    };
+  const detailResetKey =
+    searchResult
+      ? `${searchResult.media_type}:${searchResult.id}`
+      : "none";
 
   return (
     <>
@@ -194,81 +418,144 @@ function MediaGodApp() {
           active={
             view
           }
-          onSelect={
-            setView
-          }
-          onSearch={() =>
+          onSelect={(
+            nextView
+          ) => {
             setSearchOpen(
-              true
-            )
+              false
+            );
+
+            setSearchResult(
+              null
+            );
+
+            setView(
+              nextView
+            );
+          }}
+          onSearch={
+            openSearch
           }
         />
 
         <main className="flex-1 min-w-0 w-full flex flex-col overflow-x-hidden">
           <RdBanner
-            onLinkSettings={() =>
+            onLinkSettings={() => {
+              setSearchOpen(
+                false
+              );
+
+              setSearchResult(
+                null
+              );
+
               setView(
                 "settings"
-              )
-            }
+              );
+            }}
           />
 
-          {renderView()}
+          {view ===
+            "home" && (
+            <HomeDashboard />
+          )}
 
-          <SearchDialog
-            open={
-              searchOpen
-            }
-            onOpenChange={
-              setSearchOpen
-            }
-            onSelect={
-              setSearchResult
-            }
-          />
+          {view ===
+            "movies" && (
+            <MoviesView />
+          )}
 
-          {searchResult && (
-            <DetailModal
-              item={
-                searchResult
-              }
-              mediaType={
-                searchResult
-                  ?.media_type ||
-                searchResult
-                  ?.mediaType ||
-                "movie"
-              }
-              onClose={() =>
-                setSearchResult(
-                  null
-                )
-              }
-            />
+          {view ===
+            "tv" && (
+            <TvShowsView />
+          )}
+
+          {view ===
+            "live" && (
+            <LiveTVView />
+          )}
+
+          {view ===
+            "watchlist" && (
+            <WatchlistView />
+          )}
+
+          {view ===
+            "favorites" && (
+            <FavoritesView />
+          )}
+
+          {view ===
+            "watchparty" && (
+            <WatchPartyView />
+          )}
+
+          {view ===
+            "rdlib" && (
+            <RdLibraryView />
+          )}
+
+          {view ===
+            "downloads" && (
+            <DebridDashboard />
+          )}
+
+          {view ===
+            "addons" && (
+            <AddonsView />
+          )}
+
+          {view ===
+            "roadmap" && (
+            <RoadmapView />
+          )}
+
+          {view ===
+            "settings" && (
+            <SettingsView />
           )}
         </main>
       </div>
+
+      <SearchDialog
+        open={
+          searchOpen
+        }
+        onOpenChange={
+          setSearchOpen
+        }
+        onSelect={
+          handleSearchSelect
+        }
+      />
+
+      {searchResult && (
+        <DetailErrorBoundary
+          resetKey={
+            detailResetKey
+          }
+          onClose={
+            closeDetails
+          }
+        >
+          <DetailModal
+            item={
+              searchResult
+            }
+            mediaType={
+              searchResult
+                .media_type
+            }
+            onClose={
+              closeDetails
+            }
+          />
+        </DetailErrorBoundary>
+      )}
     </>
   );
 }
 
-/*
- * IMPORTANT:
- *
- * There is exactly ONE PlayerProvider
- * above the whole Media God interface.
- *
- * MediaCard
- * DetailModal
- * EpisodeSelector
- * StreamSourcesBox
- * ContinueWatching
- * Movies
- * TV
- * Search
- *
- * can all safely call usePlayer().
- */
 export default function Home() {
   return (
     <PlayerProvider>
