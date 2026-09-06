@@ -7,28 +7,16 @@ import React, {
 import {
   ArrowLeft,
   VolumeX,
-  X,
-  Copy,
-  Check,
-  ExternalLink,
-  Link,
-  Download,
   Tv,
   Loader2,
-  Zap,
   RefreshCw,
-  Film,
   Maximize,
 } from "lucide-react";
 
-import { cn } from "@/lib/utils";
 import { base44 } from "@/api/base44Client";
 import CastButton from "@/components/mg/CastButton";
 import LiveVideo from "@/components/mg/LiveVideo";
 import PlayerControls from "@/components/mg/PlayerControls";
-
-const VIDEO_RE =
-  /\.(mp4|mkv|avi|mov|webm|m4v|mpg|mpeg|ts|m2ts)$/i;
 
 const isMagnet = (value) =>
   String(value || "")
@@ -75,47 +63,74 @@ export default function VideoPlayer({
               source?.src ||
               source?.url,
 
-            live: source?.type === "live",
+            live:
+              source?.type === "live",
           },
         ];
 
-  const [activeIdx, setActiveIdx] =
-    useState(0);
+  const [
+    activeIdx,
+    setActiveIdx,
+  ] = useState(0);
 
-  const [copied, setCopied] =
-    useState(false);
+  const [
+    rdResolving,
+    setRdResolving,
+  ] = useState(false);
 
-  const [rdResolving, setRdResolving] =
-    useState(false);
+  const [
+    rdPolling,
+    setRdPolling,
+  ] = useState(false);
 
-  const [rdPolling, setRdPolling] =
-    useState(false);
+  const [
+    rdError,
+    setRdError,
+  ] = useState("");
 
-  const [rdError, setRdError] =
-    useState("");
+  const [
+    rdOverride,
+    setRdOverride,
+  ] = useState(null);
 
-  const [rdOverride, setRdOverride] =
-    useState(null);
+  const [
+    rdFiles,
+    setRdFiles,
+  ] = useState([]);
 
-  const [rdFiles, setRdFiles] =
-    useState([]);
+  const [
+    rdTorrentId,
+    setRdTorrentId,
+  ] = useState(null);
 
-  const [rdTorrentId, setRdTorrentId] =
-    useState(null);
+  const [
+    fileSwitching,
+    setFileSwitching,
+  ] = useState(false);
 
-  const [fileSwitching, setFileSwitching] =
-    useState(false);
-
-  const [failedSources, setFailedSources] =
-    useState(() => new Set());
+  const [
+    failedSources,
+    setFailedSources,
+  ] = useState(
+    () => new Set()
+  );
 
   const failedSourcesRef =
-    useRef(new Set());
+    useRef(
+      new Set()
+    );
 
-  const videoRef = useRef(null);
-  const liveVideoRef = useRef(null);
-  const stageRef = useRef(null);
-  const pollRef = useRef(null);
+  const videoRef =
+    useRef(null);
+
+  const liveVideoRef =
+    useRef(null);
+
+  const stageRef =
+    useRef(null);
+
+  const pollRef =
+    useRef(null);
 
   const active =
     sources[activeIdx] ||
@@ -123,10 +138,16 @@ export default function VideoPlayer({
     {};
 
   const activeUrl =
-    getSourceUrl(active);
+    getSourceUrl(
+      active
+    );
 
-  const markSourceFailed = (index) => {
-    failedSourcesRef.current.add(index);
+  const markSourceFailed = (
+    index
+  ) => {
+    failedSourcesRef.current.add(
+      index
+    );
 
     setFailedSources(
       new Set(
@@ -135,7 +156,9 @@ export default function VideoPlayer({
     );
   };
 
-  const clearSourceFailed = (index) => {
+  const clearSourceFailed = (
+    index
+  ) => {
     if (
       !failedSourcesRef.current.has(
         index
@@ -184,7 +207,8 @@ export default function VideoPlayer({
         );
 
       const torrent =
-        candidate?.type === "rd" ||
+        candidate?.type ===
+          "rd" ||
         candidate?.type ===
           "rd_torrent" ||
         candidate?.type ===
@@ -220,9 +244,17 @@ export default function VideoPlayer({
     if (
       nextIndex === -1
     ) {
-      setRdResolving(false);
-      setRdPolling(false);
-      setRdTorrentId(null);
+      setRdResolving(
+        false
+      );
+
+      setRdPolling(
+        false
+      );
+
+      setRdTorrentId(
+        null
+      );
 
       setRdError(
         `${message} No other playable source is available.`
@@ -231,12 +263,29 @@ export default function VideoPlayer({
       return false;
     }
 
-    setRdOverride(null);
-    setRdFiles([]);
-    setRdTorrentId(null);
-    setRdError("");
-    setRdResolving(false);
-    setRdPolling(false);
+    setRdOverride(
+      null
+    );
+
+    setRdFiles(
+      []
+    );
+
+    setRdTorrentId(
+      null
+    );
+
+    setRdError(
+      ""
+    );
+
+    setRdResolving(
+      false
+    );
+
+    setRdPolling(
+      false
+    );
 
     setActiveIdx(
       nextIndex
@@ -266,68 +315,41 @@ export default function VideoPlayer({
       nextIndex
     );
 
-    setRdOverride(null);
-    setRdFiles([]);
-    setRdTorrentId(null);
-    setRdError("");
-    setRdResolving(false);
-    setRdPolling(false);
+    setRdOverride(
+      null
+    );
+
+    setRdFiles(
+      []
+    );
+
+    setRdTorrentId(
+      null
+    );
+
+    setRdError(
+      ""
+    );
+
+    setRdResolving(
+      false
+    );
+
+    setRdPolling(
+      false
+    );
 
     setActiveIdx(
       nextIndex
     );
   };
 
-  const sourceTypeLabel = (
-    item
-  ) => {
-    const type =
-      String(
-        item?.type ||
-          ""
-      ).toLowerCase();
-
-    if (
-      type === "rd" ||
-      type === "rd_torrent"
-    ) {
-      return "Real-Debrid";
-    }
-
-    if (
-      type === "magnet" ||
-      type === "torrent"
-    ) {
-      return "Torrent / Magnet";
-    }
-
-    if (type === "live") {
-      return "Live";
-    }
-
-    if (type === "youtube") {
-      return "Trailer";
-    }
-
-    if (type === "provider") {
-      return "Provider";
-    }
-
-    if (type === "file") {
-      return "File";
-    }
-
-    if (type === "url") {
-      return "Direct";
-    }
-
-    return "Source";
-  };
-
   const isLive =
-    source?.type === "live" ||
+    source?.type ===
+      "live" ||
     active?.live ||
-    active?.type === "live";
+    active?.type ===
+      "live";
 
   const isYoutube =
     active?.type ===
@@ -346,7 +368,8 @@ export default function VideoPlayer({
       "live";
 
   const isRdSource =
-    active?.type === "rd" ||
+    active?.type ===
+      "rd" ||
     active?.type ===
       "rd_torrent" ||
     active?.type ===
@@ -355,766 +378,985 @@ export default function VideoPlayer({
       activeUrl
     );
 
-  const goFullscreen = () => {
-    const video =
-      videoRef.current;
+  /*
+   * SAFE IN-APP FULLSCREEN
+   *
+   * Do NOT use:
+   *
+   * requestFullscreen()
+   * webkitEnterFullscreen()
+   *
+   * Android WebView can hand those calls
+   * over to the native activity and cause
+   * Media God to close/restart.
+   *
+   * Instead we expand the existing player
+   * over the whole app viewport.
+   */
+  const goFullscreen =
+    () => {
+      const stage =
+        stageRef.current;
 
-    const stage =
-      stageRef.current;
-
-    try {
       if (
-        video &&
-        video.webkitEnterFullscreen
+        !stage
       ) {
-        video.webkitEnterFullscreen();
         return;
       }
 
+      const currentlyFullscreen =
+        stage.dataset
+          .mgFullscreen ===
+        "true";
+
       if (
-        stage?.requestFullscreen
+        currentlyFullscreen
       ) {
-        stage
-          .requestFullscreen()
-          .catch(() => {});
+        const previousStyle =
+          stage.dataset
+            .mgPreviousStyle ||
+          "";
+
+        if (
+          previousStyle
+        ) {
+          stage.setAttribute(
+            "style",
+            previousStyle
+          );
+        } else {
+          stage.removeAttribute(
+            "style"
+          );
+        }
+
+        delete stage.dataset
+          .mgFullscreen;
+
+        delete stage.dataset
+          .mgPreviousStyle;
 
         return;
       }
 
-      if (
-        video?.requestFullscreen
-      ) {
-        video
-          .requestFullscreen()
-          .catch(() => {});
-      }
-    } catch {
-      // Ignore fullscreen errors.
-    }
-  };
+      stage.dataset
+        .mgPreviousStyle =
+        stage.getAttribute(
+          "style"
+        ) || "";
 
-  useEffect(() => {
-    setRdOverride(null);
-    setRdError("");
-    setRdFiles([]);
-    setRdTorrentId(null);
+      stage.dataset
+        .mgFullscreen =
+        "true";
 
-    if (
-      pollRef.current
-    ) {
-      clearTimeout(
-        pollRef.current
+      Object.assign(
+        stage.style,
+        {
+          position:
+            "fixed",
+
+          top:
+            "0",
+
+          right:
+            "0",
+
+          bottom:
+            "0",
+
+          left:
+            "0",
+
+          width:
+            "100vw",
+
+          height:
+            "100vh",
+
+          maxWidth:
+            "none",
+
+          maxHeight:
+            "none",
+
+          margin:
+            "0",
+
+          padding:
+            "0",
+
+          border:
+            "0",
+
+          borderRadius:
+            "0",
+
+          aspectRatio:
+            "auto",
+
+          background:
+            "#000",
+
+          overflow:
+            "hidden",
+
+          zIndex:
+            "2147483647",
+        }
+      );
+    };
+
+  /*
+   * Reset Real-Debrid state
+   * when changing source.
+   */
+  useEffect(
+    () => {
+      setRdOverride(
+        null
       );
 
-      pollRef.current =
-        null;
-    }
-  }, [activeIdx]);
+      setRdError(
+        ""
+      );
 
-  useEffect(() => {
-    if (!active) {
-      return;
-    }
+      setRdFiles(
+        []
+      );
 
-    if (
-      isYoutube ||
-      isProvider ||
-      isDirectFile ||
-      isLive
-    ) {
-      return;
-    }
+      setRdTorrentId(
+        null
+      );
 
-    if (
-      !isRdSource
-    ) {
-      return;
-    }
+      if (
+        pollRef.current
+      ) {
+        clearTimeout(
+          pollRef.current
+        );
 
-    let cancelled =
-      false;
+        pollRef.current =
+          null;
+      }
+    },
+    [
+      activeIdx,
+    ]
+  );
 
-    setRdResolving(true);
-    setRdPolling(false);
-    setRdError("");
-    setRdOverride(null);
-    setRdTorrentId(null);
+  /*
+   * MAIN PLAYBACK RESOLUTION
+   */
+  useEffect(
+    () => {
+      if (
+        !active
+      ) {
+        return;
+      }
 
-    const run =
-      async () => {
-        try {
-          const magnet =
-            active?.magnet ||
-            active?.magnetLink ||
-            active?.src ||
-            active?.url ||
-            "";
+      if (
+        isYoutube ||
+        isProvider ||
+        isDirectFile ||
+        isLive
+      ) {
+        return;
+      }
 
-          if (
-            !magnet
-          ) {
-            throw new Error(
-              "This source did not provide a playable link."
-            );
-          }
+      if (
+        !isRdSource
+      ) {
+        return;
+      }
 
-          if (
-            String(
-              magnet
-            )
-              .toLowerCase()
-              .startsWith(
-                "http://"
-              ) ||
-            String(
-              magnet
-            )
-              .toLowerCase()
-              .startsWith(
-                "https://"
+      let cancelled =
+        false;
+
+      setRdResolving(
+        true
+      );
+
+      setRdPolling(
+        false
+      );
+
+      setRdError(
+        ""
+      );
+
+      setRdOverride(
+        null
+      );
+
+      setRdTorrentId(
+        null
+      );
+
+      const run =
+        async () => {
+          try {
+            const magnet =
+              active?.magnet ||
+              active?.magnetLink ||
+              active?.src ||
+              active?.url ||
+              "";
+
+            if (
+              !magnet
+            ) {
+              throw new Error(
+                "This source did not provide a playable link."
+              );
+            }
+
+            /*
+             * Direct HTTP links
+             * can play directly.
+             */
+            if (
+              String(
+                magnet
               )
+                .toLowerCase()
+                .startsWith(
+                  "http://"
+                ) ||
+              String(
+                magnet
+              )
+                .toLowerCase()
+                .startsWith(
+                  "https://"
+                )
+            ) {
+              if (
+                !cancelled
+              ) {
+                setRdOverride({
+                  src:
+                    magnet,
+
+                  label:
+                    active?.label ||
+                    "Stream",
+
+                  file:
+                    "",
+                });
+
+                setRdResolving(
+                  false
+                );
+              }
+
+              return;
+            }
+
+            /*
+             * Send magnet to
+             * Real-Debrid.
+             */
+            const res =
+              await base44.functions.invoke(
+                "realDebrid",
+                {
+                  action:
+                    "resolve_best",
+
+                  magnet,
+
+                  title:
+                    source?.rdTitle ||
+                    source?.title ||
+                    "",
+
+                  ...(source?.rdYear !=
+                  null
+                    ? {
+                        year:
+                          source.rdYear,
+                      }
+                    : {}),
+
+                  ...(source?.rdSeason !=
+                  null
+                    ? {
+                        season:
+                          source.rdSeason,
+                      }
+                    : {}),
+
+                  ...(source?.rdEpisode !=
+                  null
+                    ? {
+                        episode:
+                          source.rdEpisode,
+                      }
+                    : {}),
+                }
+              );
+
+            if (
+              cancelled
+            ) {
+              return;
+            }
+
+            const data =
+              res?.data ||
+              {};
+
+            if (
+              data.status ===
+                "ready" &&
+              data.stream_url
+            ) {
+              setRdOverride({
+                src:
+                  data.stream_url,
+
+                label:
+                  data.filename ||
+                  active?.label ||
+                  "Real-Debrid Stream",
+
+                file:
+                  currentFilePath(
+                    data.files
+                  ),
+              });
+
+              setRdFiles(
+                data.files ||
+                  []
+              );
+
+              setRdResolving(
+                false
+              );
+
+              return;
+            }
+
+            if (
+              data.torrent_id
+            ) {
+              setRdTorrentId(
+                String(
+                  data.torrent_id
+                )
+              );
+
+              setRdResolving(
+                false
+              );
+
+              return;
+            }
+
+            throw new Error(
+              data.error ||
+                "Real-Debrid could not resolve this source."
+            );
+          } catch (
+            error
           ) {
             if (
               !cancelled
             ) {
+              tryNextSource(
+                error?.message ||
+                  "Unable to resolve this stream."
+              );
+            }
+          }
+        };
+
+      run();
+
+      return () => {
+        cancelled =
+          true;
+
+        if (
+          pollRef.current
+        ) {
+          clearTimeout(
+            pollRef.current
+          );
+
+          pollRef.current =
+            null;
+        }
+      };
+    },
+    [
+      activeIdx,
+      active,
+      activeUrl,
+      source,
+      isYoutube,
+      isProvider,
+      isDirectFile,
+      isLive,
+      isRdSource,
+    ]
+  );
+
+  /*
+   * Poll RD while a torrent
+   * is being prepared.
+   */
+  useEffect(
+    () => {
+      if (
+        !rdTorrentId ||
+        rdOverride
+      ) {
+        return;
+      }
+
+      let cancelled =
+        false;
+
+      let attempts =
+        0;
+
+      setRdPolling(
+        true
+      );
+
+      const tick =
+        async () => {
+          if (
+            cancelled
+          ) {
+            return;
+          }
+
+          attempts +=
+            1;
+
+          try {
+            const res =
+              await base44.functions.invoke(
+                "realDebrid",
+                {
+                  action:
+                    "torrent_info",
+
+                  torrent_id:
+                    rdTorrentId,
+
+                  title:
+                    source?.rdTitle ||
+                    source?.title ||
+                    "",
+
+                  ...(source?.rdYear !=
+                  null
+                    ? {
+                        year:
+                          source.rdYear,
+                      }
+                    : {}),
+
+                  ...(source?.rdSeason !=
+                  null
+                    ? {
+                        season:
+                          source.rdSeason,
+                      }
+                    : {}),
+
+                  ...(source?.rdEpisode !=
+                  null
+                    ? {
+                        episode:
+                          source.rdEpisode,
+                      }
+                    : {}),
+                }
+              );
+
+            if (
+              cancelled
+            ) {
+              return;
+            }
+
+            const data =
+              res?.data ||
+              {};
+
+            if (
+              data.status ===
+                "ready" &&
+              data.stream_url
+            ) {
               setRdOverride({
                 src:
-                  magnet,
+                  data.stream_url,
 
                 label:
-                  active?.label ||
-                  "Stream",
+                  data.filename ||
+                  "Real-Debrid Stream",
 
                 file:
-                  "",
+                  currentFilePath(
+                    data.files
+                  ),
               });
 
-              setRdResolving(
+              setRdFiles(
+                data.files ||
+                  []
+              );
+
+              setRdPolling(
                 false
+              );
+
+              setRdTorrentId(
+                null
+              );
+
+              return;
+            }
+
+            if (
+              data.error
+            ) {
+              setRdError(
+                data.error
+              );
+
+              setRdPolling(
+                false
+              );
+
+              setRdTorrentId(
+                null
+              );
+
+              return;
+            }
+          } catch (
+            error
+          ) {
+            if (
+              !cancelled
+            ) {
+              setRdError(
+                error?.message ||
+                  "Real-Debrid polling failed."
+              );
+
+              setRdPolling(
+                false
+              );
+
+              setRdTorrentId(
+                null
               );
             }
 
             return;
           }
 
-          const res =
-            await base44.functions.invoke(
-              "realDebrid",
-              {
-                action:
-                  "resolve_best",
-
-                magnet,
-
-                title:
-                  source?.rdTitle ||
-                  source?.title ||
-                  "",
-
-                ...(source?.rdYear !=
-                null
-                  ? {
-                      year:
-                        source.rdYear,
-                    }
-                  : {}),
-
-                ...(source?.rdSeason !=
-                null
-                  ? {
-                      season:
-                        source.rdSeason,
-                    }
-                  : {}),
-
-                ...(source?.rdEpisode !=
-                null
-                  ? {
-                      episode:
-                        source.rdEpisode,
-                    }
-                  : {}),
-              }
-            );
-
           if (
-            cancelled
+            attempts <
+            36
           ) {
-            return;
-          }
-
-          const data =
-            res?.data ||
-            {};
-
-          if (
-            data.status ===
-              "ready" &&
-            data.stream_url
-          ) {
-            setRdOverride({
-              src:
-                data.stream_url,
-
-              label:
-                data.filename ||
-                active?.label ||
-                "Real-Debrid Stream",
-
-              file:
-                currentFilePath(
-                  data.files
-                ),
-            });
-
-            setRdFiles(
-              data.files ||
-                []
-            );
-
-            setRdResolving(
+            pollRef.current =
+              setTimeout(
+                tick,
+                5000
+              );
+          } else {
+            setRdPolling(
               false
             );
 
-            return;
-          }
-
-          if (
-            data.torrent_id
-          ) {
             setRdTorrentId(
-              String(
-                data.torrent_id
-              )
+              null
             );
 
-            setRdResolving(
-              false
-            );
-
-            return;
-          }
-
-          throw new Error(
-            data.error ||
-              "Real-Debrid could not resolve this source."
-          );
-        } catch (
-          error
-        ) {
-          if (
-            !cancelled
-          ) {
-            tryNextSource(
-              error?.message ||
-                "Unable to resolve this stream."
+            setRdError(
+              "Real-Debrid is still preparing this file. Please try Check Again shortly."
             );
           }
-        }
-      };
+        };
 
-    run();
-
-    return () => {
-      cancelled =
-        true;
-
-      if (
-        pollRef.current
-      ) {
-        clearTimeout(
-          pollRef.current
+      pollRef.current =
+        setTimeout(
+          tick,
+          2500
         );
 
-        pollRef.current =
-          null;
-      }
-    };
-  }, [
-    activeIdx,
-    active,
-    activeUrl,
-    source,
-    isYoutube,
-    isProvider,
-    isDirectFile,
-    isLive,
-    isRdSource,
-  ]);
-
-  useEffect(() => {
-    if (
-      !rdTorrentId ||
-      rdOverride
-    ) {
-      return;
-    }
-
-    let cancelled =
-      false;
-
-    let attempts =
-      0;
-
-    setRdPolling(
-      true
-    );
-
-    const tick =
-      async () => {
-        if (
-          cancelled
-        ) {
-          return;
-        }
-
-        attempts +=
-          1;
-
-        try {
-          const res =
-            await base44.functions.invoke(
-              "realDebrid",
-              {
-                action:
-                  "torrent_info",
-
-                torrent_id:
-                  rdTorrentId,
-
-                title:
-                  source?.rdTitle ||
-                  source?.title ||
-                  "",
-
-                ...(source?.rdYear !=
-                null
-                  ? {
-                      year:
-                        source.rdYear,
-                    }
-                  : {}),
-
-                ...(source?.rdSeason !=
-                null
-                  ? {
-                      season:
-                        source.rdSeason,
-                    }
-                  : {}),
-
-                ...(source?.rdEpisode !=
-                null
-                  ? {
-                      episode:
-                        source.rdEpisode,
-                    }
-                  : {}),
-              }
-            );
-
-          if (
-            cancelled
-          ) {
-            return;
-          }
-
-          const data =
-            res?.data ||
-            {};
-
-          if (
-            data.status ===
-              "ready" &&
-            data.stream_url
-          ) {
-            setRdOverride({
-              src:
-                data.stream_url,
-
-              label:
-                data.filename ||
-                "Real-Debrid Stream",
-
-              file:
-                currentFilePath(
-                  data.files
-                ),
-            });
-
-            setRdFiles(
-              data.files ||
-                []
-            );
-
-            setRdPolling(
-              false
-            );
-
-            setRdTorrentId(
-              null
-            );
-
-            return;
-          }
-
-          if (
-            data.error
-          ) {
-            setRdError(
-              data.error
-            );
-
-            setRdPolling(
-              false
-            );
-
-            setRdTorrentId(
-              null
-            );
-
-            return;
-          }
-        } catch (
-          error
-        ) {
-          if (
-            !cancelled
-          ) {
-            setRdError(
-              error?.message ||
-                "Real-Debrid polling failed."
-            );
-
-            setRdPolling(
-              false
-            );
-
-            setRdTorrentId(
-              null
-            );
-          }
-
-          return;
-        }
+      return () => {
+        cancelled =
+          true;
 
         if (
-          attempts <
-          36
+          pollRef.current
         ) {
+          clearTimeout(
+            pollRef.current
+          );
+
           pollRef.current =
-            setTimeout(
-              tick,
-              5000
-            );
-        } else {
-          setRdPolling(
-            false
-          );
-
-          setRdTorrentId(
-            null
-          );
-
-          setRdError(
-            "Real-Debrid is still preparing this file. Please try Check Again shortly."
-          );
+            null;
         }
       };
+    },
+    [
+      rdTorrentId,
+      rdOverride,
+      source,
+    ]
+  );
 
-    pollRef.current =
-      setTimeout(
-        tick,
-        2500
+  /*
+   * Clear failed source list
+   * for a new programme/episode.
+   */
+  useEffect(
+    () => {
+      failedSourcesRef.current =
+        new Set();
+
+      setFailedSources(
+        new Set()
+      );
+    },
+    [
+      source?.title,
+      source?.id,
+      source?.rdSeason,
+      source?.rdEpisode,
+    ]
+  );
+
+  /*
+   * Keyboard controls.
+   */
+  useEffect(
+    () => {
+      const onKey =
+        (
+          event
+        ) => {
+          /*
+           * ESC first exits our
+           * safe in-app fullscreen.
+           *
+           * If not fullscreen,
+           * ESC closes player.
+           */
+          if (
+            event.key ===
+            "Escape"
+          ) {
+            const stage =
+              stageRef.current;
+
+            if (
+              stage?.dataset
+                ?.mgFullscreen ===
+              "true"
+            ) {
+              event.preventDefault();
+
+              goFullscreen();
+
+              return;
+            }
+
+            if (
+              !document
+                .fullscreenElement
+            ) {
+              onClose();
+
+              return;
+            }
+          }
+
+          const tag =
+            (
+              event.target
+                ?.tagName ||
+              ""
+            ).toLowerCase();
+
+          if (
+            tag ===
+              "input" ||
+            tag ===
+              "textarea" ||
+            event.target
+              ?.isContentEditable
+          ) {
+            return;
+          }
+
+          const video =
+            stageRef.current
+              ?.querySelector(
+                "video"
+              );
+
+          if (
+            !video
+          ) {
+            return;
+          }
+
+          if (
+            event.key >=
+              "0" &&
+            event.key <=
+              "9" &&
+            video.duration
+          ) {
+            event.preventDefault();
+
+            video.currentTime =
+              video.duration *
+              (
+                parseInt(
+                  event.key,
+                  10
+                ) /
+                10
+              );
+
+            return;
+          }
+
+          switch (
+            event.key
+          ) {
+            case " ":
+            case "k":
+              event.preventDefault();
+
+              if (
+                video.paused
+              ) {
+                video
+                  .play()
+                  .catch(
+                    () => {}
+                  );
+              } else {
+                video.pause();
+              }
+
+              break;
+
+            case "ArrowLeft":
+            case "j":
+              event.preventDefault();
+
+              video.currentTime =
+                Math.max(
+                  0,
+                  (
+                    video.currentTime ||
+                    0
+                  ) -
+                    10
+                );
+
+              break;
+
+            case "ArrowRight":
+            case "l":
+              event.preventDefault();
+
+              if (
+                video.duration
+              ) {
+                video.currentTime =
+                  Math.min(
+                    video.duration,
+                    (
+                      video.currentTime ||
+                      0
+                    ) +
+                      10
+                  );
+              }
+
+              break;
+
+            case "ArrowUp":
+              event.preventDefault();
+
+              video.volume =
+                Math.min(
+                  1,
+                  (
+                    video.volume ??
+                    1
+                  ) +
+                    0.1
+                );
+
+              break;
+
+            case "ArrowDown":
+              event.preventDefault();
+
+              video.volume =
+                Math.max(
+                  0,
+                  (
+                    video.volume ??
+                    1
+                  ) -
+                    0.1
+                );
+
+              break;
+
+            case "f":
+              event.preventDefault();
+
+              goFullscreen();
+
+              break;
+
+            case "m":
+              event.preventDefault();
+
+              video.muted =
+                !video.muted;
+
+              break;
+
+            case "<":
+              event.preventDefault();
+
+              video.playbackRate =
+                Math.max(
+                  0.5,
+                  (
+                    video.playbackRate ||
+                    1
+                  ) -
+                    0.25
+                );
+
+              break;
+
+            case ">":
+              event.preventDefault();
+
+              video.playbackRate =
+                Math.min(
+                  2,
+                  (
+                    video.playbackRate ||
+                    1
+                  ) +
+                    0.25
+                );
+
+              break;
+
+            default:
+              break;
+          }
+        };
+
+      window.addEventListener(
+        "keydown",
+        onKey
       );
 
-    return () => {
-      cancelled =
-        true;
+      document.body.style
+        .overflow =
+        "hidden";
 
-      if (
-        pollRef.current
-      ) {
-        clearTimeout(
-          pollRef.current
+      return () => {
+        window.removeEventListener(
+          "keydown",
+          onKey
         );
 
-        pollRef.current =
-          null;
-      }
-    };
-  }, [
-    rdTorrentId,
-    rdOverride,
-    source,
-  ]);
+        document.body.style
+          .overflow =
+          "";
+      };
+    },
+    [
+      onClose,
+    ]
+  );
 
-  useEffect(() => {
-    failedSourcesRef.current =
-      new Set();
-
-    setFailedSources(
-      new Set()
-    );
-  }, [
-    source?.title,
-    source?.id,
-    source?.rdSeason,
-    source?.rdEpisode,
-  ]);
-
-  useEffect(() => {
-    const onKey = (
-      event
-    ) => {
-      if (
-        event.key ===
-          "Escape" &&
-        !document.fullscreenElement
-      ) {
-        onClose();
-        return;
-      }
-
-      const tag =
-        (
-          event.target?.tagName ||
-          ""
-        ).toLowerCase();
-
-      if (
-        tag ===
-          "input" ||
-        tag ===
-          "textarea" ||
-        event.target
-          ?.isContentEditable
-      ) {
-        return;
-      }
-
+  /*
+   * Autoplay.
+   */
+  useEffect(
+    () => {
       const video =
-        stageRef.current?.querySelector(
-          "video"
-        );
+        videoRef.current;
+
+      const url =
+        rdOverride?.src ||
+        active?.src;
 
       if (
-        !video
+        !video ||
+        !url
       ) {
         return;
       }
 
       if (
-        event.key >=
-          "0" &&
-        event.key <=
-          "9" &&
-        video.duration
+        !rdOverride &&
+        active?.type !==
+          "file" &&
+        active?.type !==
+          "url" &&
+        active?.type !==
+          "live"
       ) {
-        event.preventDefault();
-
-        video.currentTime =
-          video.duration *
-          (parseInt(
-            event.key,
-            10
-          ) /
-            10);
-
         return;
       }
 
-      switch (
-        event.key
-      ) {
-        case " ":
-        case "k":
-          event.preventDefault();
+      video.muted =
+        false;
 
-          if (
-            video.paused
-          ) {
+      video
+        .play()
+        .catch(
+          () => {
+            video.muted =
+              true;
+
             video
               .play()
               .catch(
                 () => {}
               );
-          } else {
-            video.pause();
           }
+        );
+    },
+    [
+      active,
+      rdOverride,
+    ]
+  );
 
-          break;
-
-        case "ArrowLeft":
-        case "j":
-          event.preventDefault();
-
-          video.currentTime =
-            Math.max(
-              0,
-              (video.currentTime ||
-                0) -
-                10
-            );
-
-          break;
-
-        case "ArrowRight":
-        case "l":
-          event.preventDefault();
-
-          if (
-            video.duration
-          ) {
-            video.currentTime =
-              Math.min(
-                video.duration,
-                (video.currentTime ||
-                  0) +
-                  10
-              );
-          }
-
-          break;
-
-        case "ArrowUp":
-          event.preventDefault();
-
-          video.volume =
-            Math.min(
-              1,
-              (video.volume ??
-                1) +
-                0.1
-            );
-
-          break;
-
-        case "ArrowDown":
-          event.preventDefault();
-
-          video.volume =
-            Math.max(
-              0,
-              (video.volume ??
-                1) -
-                0.1
-            );
-
-          break;
-
-        case "f":
-          event.preventDefault();
-          goFullscreen();
-          break;
-
-        case "m":
-          event.preventDefault();
-
-          video.muted =
-            !video.muted;
-
-          break;
-
-        case "<":
-          event.preventDefault();
-
-          video.playbackRate =
-            Math.max(
-              0.5,
-              (video.playbackRate ||
-                1) -
-                0.25
-            );
-
-          break;
-
-        case ">":
-          event.preventDefault();
-
-          video.playbackRate =
-            Math.min(
-              2,
-              (video.playbackRate ||
-                1) +
-                0.25
-            );
-
-          break;
-
-        default:
-          break;
-      }
-    };
-
-    window.addEventListener(
-      "keydown",
-      onKey
-    );
-
-    document.body.style.overflow =
-      "hidden";
-
-    return () => {
-      window.removeEventListener(
-        "keydown",
-        onKey
-      );
-
-      document.body.style.overflow =
-        "";
-    };
-  }, [
-    onClose,
-  ]);
-
-  useEffect(() => {
-    const video =
-      videoRef.current;
-
-    const url =
-      rdOverride?.src ||
-      active?.src;
-
-    if (
-      !video ||
-      !url
-    ) {
-      return;
-    }
-
-    if (
-      !rdOverride &&
-      active?.type !==
-        "file" &&
-      active?.type !==
-        "url" &&
-      active?.type !==
-        "live"
-    ) {
-      return;
-    }
-
-    video.muted =
-      false;
-
-    video
-      .play()
-      .catch(() => {
-        video.muted =
-          true;
-
-        video
-          .play()
-          .catch(
-            () => {}
-          );
-      });
-  }, [
-    active,
-    rdOverride,
-  ]);
-
+  /*
+   * Continue Watching.
+   */
   const lastSaveRef =
     useRef(0);
 
@@ -1123,161 +1365,168 @@ export default function VideoPlayer({
 
   const lastPosRef =
     useRef({
-      t: 0,
-      d: 0,
+      t:
+        0,
+
+      d:
+        0,
     });
 
-  const saveProgress = (
-    time,
-    duration,
-    force = false
-  ) => {
-    if (
-      isLive ||
-      !source?.title
-    ) {
-      return;
-    }
-
-    const url =
-      rdOverride?.src ||
-      active?.src ||
-      active?.url;
-
-    if (
-      !url
-    ) {
-      return;
-    }
-
-    const now =
-      Date.now();
-
-    if (
-      !force &&
-      now -
-        lastSaveRef.current <
-        10000
-    ) {
-      return;
-    }
-
-    lastSaveRef.current =
-      now;
-
-    const key =
-      `${source.title}|${
-        source.rdYear ||
-        source.year ||
-        ""
-      }|${
-        source.rdSeason ||
-        source.season ||
-        ""
-      }|${
-        source.rdEpisode ||
-        source.episode ||
-        ""
-      }`;
-
-    const patch = {
-      progress:
-        time,
-
+  const saveProgress =
+    (
+      time,
       duration,
+      force =
+        false
+    ) => {
+      if (
+        isLive ||
+        !source?.title
+      ) {
+        return;
+      }
 
-      video_url:
-        url,
+      const url =
+        rdOverride?.src ||
+        active?.src ||
+        active?.url;
 
-      poster_url:
-        source.poster ||
-        "",
+      if (
+        !url
+      ) {
+        return;
+      }
 
-      source_type:
-        rdOverride
-          ? "rd"
-          : "file",
-    };
+      const now =
+        Date.now();
 
-    const id =
-      cwIdRef.current[
-        key
-      ];
+      if (
+        !force &&
+        now -
+          lastSaveRef.current <
+          10000
+      ) {
+        return;
+      }
 
-    if (
-      id
-    ) {
+      lastSaveRef.current =
+        now;
+
+      const key =
+        `${source.title}|${
+          source.rdYear ||
+          source.year ||
+          ""
+        }|${
+          source.rdSeason ||
+          source.season ||
+          ""
+        }|${
+          source.rdEpisode ||
+          source.episode ||
+          ""
+        }`;
+
+      const patch = {
+        progress:
+          time,
+
+        duration,
+
+        video_url:
+          url,
+
+        poster_url:
+          source.poster ||
+          "",
+
+        source_type:
+          rdOverride
+            ? "rd"
+            : "file",
+      };
+
+      const id =
+        cwIdRef.current[
+          key
+        ];
+
+      if (
+        id
+      ) {
+        base44.entities.ContinueWatching
+          .update(
+            id,
+            patch
+          )
+          .catch(
+            () => {}
+          );
+
+        return;
+      }
+
       base44.entities.ContinueWatching
-        .update(
-          id,
-          patch
+        .filter({
+          content_key:
+            key,
+        })
+        .then(
+          (
+            rows
+          ) => {
+            if (
+              rows?.length >
+              0
+            ) {
+              cwIdRef.current[
+                key
+              ] =
+                rows[0].id;
+
+              base44.entities.ContinueWatching
+                .update(
+                  rows[0].id,
+                  patch
+                )
+                .catch(
+                  () => {}
+                );
+
+              return;
+            }
+
+            return base44.entities.ContinueWatching
+              .create({
+                content_key:
+                  key,
+
+                title:
+                  source.title,
+
+                year:
+                  source.rdYear ||
+                  source.year ||
+                  "",
+
+                ...patch,
+              })
+              .then(
+                (
+                  created
+                ) => {
+                  cwIdRef.current[
+                    key
+                  ] =
+                    created.id;
+                }
+              );
+          }
         )
         .catch(
           () => {}
         );
-
-      return;
-    }
-
-    base44.entities.ContinueWatching
-      .filter({
-        content_key:
-          key,
-      })
-      .then(
-        (rows) => {
-          if (
-            rows?.length >
-            0
-          ) {
-            cwIdRef.current[
-              key
-            ] =
-              rows[0].id;
-
-            base44.entities.ContinueWatching
-              .update(
-                rows[0].id,
-                patch
-              )
-              .catch(
-                () => {}
-              );
-
-            return;
-          }
-
-          return base44.entities.ContinueWatching
-            .create({
-              content_key:
-                key,
-
-              title:
-                source.title,
-
-              year:
-                source.rdYear ||
-                source.year ||
-                "",
-
-              ...patch,
-            })
-            .then(
-              (
-                created
-              ) => {
-                cwIdRef.current[
-                  key
-                ] =
-                  created.id;
-              }
-            );
-        }
-      )
-      .catch(
-        () => {}
-      );
-  };
+    };
 
   const saveProgressRef =
     useRef(
@@ -1287,70 +1536,82 @@ export default function VideoPlayer({
   saveProgressRef.current =
     saveProgress;
 
-  useEffect(() => {
-    return () => {
-      const {
-        t,
-        d,
-      } =
-        lastPosRef.current;
-
-      if (
-        t > 5
-      ) {
-        saveProgressRef.current?.(
+  useEffect(
+    () => {
+      return () => {
+        const {
           t,
           d,
-          true
-        );
+        } =
+          lastPosRef.current;
+
+        if (
+          t >
+          5
+        ) {
+          saveProgressRef.current?.(
+            t,
+            d,
+            true
+          );
+        }
+      };
+    },
+    []
+  );
+
+  const handleLoadedMetadata =
+    (
+      event
+    ) => {
+      const video =
+        event.target;
+
+      if (
+        source?.startTime &&
+        source.startTime >
+          5
+      ) {
+        try {
+          video.currentTime =
+            source.startTime;
+        } catch {
+          // Ignore.
+        }
       }
     };
-  }, []);
 
-  const handleLoadedMetadata = (
-    event
-  ) => {
-    const video =
-      event.target;
+  const handleTimeUpdate =
+    (
+      event
+    ) => {
+      const video =
+        event.target;
 
-    if (
-      source?.startTime &&
-      source.startTime >
-        5
-    ) {
-      try {
-        video.currentTime =
-          source.startTime;
-      } catch {
-        // Ignore.
-      }
-    }
-  };
+      lastPosRef.current =
+        {
+          t:
+            video.currentTime ||
+            0,
 
-  const handleTimeUpdate = (
-    event
-  ) => {
-    const video =
-      event.target;
+          d:
+            video.duration ||
+            0,
+        };
 
-    lastPosRef.current = {
-      t:
+      saveProgress(
         video.currentTime ||
-        0,
+          0,
 
-      d:
         video.duration ||
-        0,
+          0
+      );
     };
 
-    saveProgress(
-      video.currentTime ||
-        0,
-      video.duration ||
-        0
-    );
-  };
-
+  /*
+   * Select another video
+   * from multi-file RD torrent.
+   */
   const pickFile =
     async (
       file
@@ -1471,12 +1732,18 @@ export default function VideoPlayer({
       );
     };
 
+  /*
+   * No sound:
+   * first force unmute/full volume,
+   * then try next source if one exists.
+   */
   const handleNoSound =
     () => {
       const video =
-        stageRef.current?.querySelector(
-          "video"
-        );
+        stageRef.current
+          ?.querySelector(
+            "video"
+          );
 
       if (
         video
