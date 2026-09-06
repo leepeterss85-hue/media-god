@@ -14,155 +14,164 @@ import { base44 } from "@/api/base44Client";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 import { Image } from "@/components/ui/image";
 
-const fmtTime = (
-  seconds
-) => {
-  if (
-    !seconds ||
-    seconds < 1 ||
-    !isFinite(
-      seconds
-    )
-  ) {
-    return "0:00";
-  }
+const WATCHED_THRESHOLD =
+  0.92;
 
-  const minutes =
-    Math.floor(
-      seconds / 60
-    );
+const fmtTime =
+  (seconds) => {
+    if (
+      !seconds ||
+      seconds < 1 ||
+      !isFinite(
+        seconds
+      )
+    ) {
+      return "0:00";
+    }
 
-  const remainingSeconds =
-    Math.floor(
-      seconds % 60
-    );
-
-  const hours =
-    Math.floor(
-      minutes / 60
-    );
-
-  return hours > 0
-    ? `${hours}:${String(
-        minutes %
+    const minutes =
+      Math.floor(
+        seconds /
           60
-      ).padStart(
-        2,
-        "0"
-      )}:${String(
-        remainingSeconds
-      ).padStart(
-        2,
-        "0"
-      )}`
-    : `${minutes}:${String(
-        remainingSeconds
-      ).padStart(
-        2,
-        "0"
-      )}`;
-};
+      );
 
-const positiveInt = (
-  value
-) => {
-  const number =
-    Number(
-      value
-    );
+    const remainingSeconds =
+      Math.floor(
+        seconds %
+          60
+      );
 
-  return Number.isInteger(
-    number
-  ) &&
-    number > 0
-    ? number
-    : null;
-};
+    const hours =
+      Math.floor(
+        minutes /
+          60
+      );
 
-const parseContentKey = (
-  item
-) => {
-  const key =
-    String(
-      item?.content_key ||
-        ""
-    );
+    return hours > 0
+      ? `${hours}:${String(
+          minutes %
+            60
+        ).padStart(
+          2,
+          "0"
+        )}:${String(
+          remainingSeconds
+        ).padStart(
+          2,
+          "0"
+        )}`
+      : `${minutes}:${String(
+          remainingSeconds
+        ).padStart(
+          2,
+          "0"
+        )}`;
+  };
 
-  if (
-    key.startsWith(
-      "mg2|"
+const positiveInt =
+  (value) => {
+    const number =
+      Number(
+        value
+      );
+
+    return (
+      Number.isInteger(
+        number
+      ) &&
+      number > 0
     )
-  ) {
-    const [
-      ,
-      tmdbId,
-      mediaType,
-      year,
-      season,
-      episode,
-      encodedTitle,
-    ] =
+      ? number
+      : null;
+  };
+
+const parseContentKey =
+  (item) => {
+    const key =
+      String(
+        item?.content_key ||
+        ""
+      );
+
+    if (
+      key.startsWith(
+        "mg2|"
+      )
+    ) {
+      const [
+        ,
+        tmdbId,
+        mediaType,
+        year,
+        season,
+        episode,
+        encodedTitle,
+      ] =
+        key.split(
+          "|"
+        );
+
+      let title =
+        item?.title ||
+        "";
+
+      try {
+        title =
+          decodeURIComponent(
+            encodedTitle ||
+              ""
+          ) ||
+          title;
+      } catch {
+        // Keep entity title.
+      }
+
+      return {
+        tmdbId:
+          tmdbId ||
+          "",
+
+        mediaType:
+          mediaType ===
+          "tv"
+            ? "tv"
+            : "movie",
+
+        year:
+          year ||
+          item?.year ||
+          "",
+
+        season:
+          positiveInt(
+            season
+          ),
+
+        episode:
+          positiveInt(
+            episode
+          ),
+
+        title:
+          String(
+            title ||
+              item?.title ||
+              "Video"
+          )
+            .replace(
+              /\s+[—-]\s+S\d{1,2}E\d{1,3}.*$/i,
+              ""
+            )
+            .trim() ||
+          "Video",
+      };
+    }
+
+    const legacy =
       key.split(
         "|"
       );
 
-    let title =
-      item?.title ||
-      "";
-
-    try {
-      title =
-        decodeURIComponent(
-          encodedTitle ||
-            ""
-        ) ||
-        title;
-    } catch {
-      // Keep entity title.
-    }
-
-    return {
-      tmdbId:
-        tmdbId ||
-        "",
-
-      mediaType:
-        mediaType ===
-        "tv"
-          ? "tv"
-          : "movie",
-
-      year:
-        year ||
-        item?.year ||
-        "",
-
-      season:
-        positiveInt(
-          season
-        ),
-
-      episode:
-        positiveInt(
-          episode
-        ),
-
-      title:
-        title ||
-        item?.title ||
-        "Video",
-    };
-  }
-
-  const legacy =
-    key.split(
-      "|"
-    );
-
-  if (
-    legacy.length >=
-    4
-  ) {
     const season =
       positiveInt(
         legacy[2]
@@ -206,214 +215,268 @@ const parseContentKey = (
         item?.title ||
         "Video",
     };
-  }
-
-  return {
-    tmdbId:
-      "",
-
-    mediaType:
-      "movie",
-
-    year:
-      item?.year ||
-      "",
-
-    season:
-      null,
-
-    episode:
-      null,
-
-    title:
-      item?.title ||
-      "Video",
   };
-};
 
-const progressRatio = (
-  item
-) => {
-  const duration =
-    Number(
-      item?.duration ||
+const progressRatio =
+  (item) => {
+    const duration =
+      Number(
+        item?.duration ||
         0
-    );
+      );
 
-  const progress =
-    Number(
-      item?.progress ||
+    const progress =
+      Number(
+        item?.progress ||
         0
+      );
+
+    if (
+      !duration ||
+      duration <= 0
+    ) {
+      return 0;
+    }
+
+    return Math.max(
+      0,
+      Math.min(
+        1,
+        progress /
+          duration
+      )
     );
+  };
 
-  if (
-    !duration ||
-    duration <= 0
-  ) {
-    return 0;
-  }
+const resolveTmdbId =
+  async (
+    meta
+  ) => {
+    if (
+      meta.tmdbId
+    ) {
+      return String(
+        meta.tmdbId
+      );
+    }
 
-  return Math.max(
-    0,
-    Math.min(
-      1,
-      progress /
-        duration
-    )
-  );
-};
+    if (
+      !meta.title
+    ) {
+      return "";
+    }
+
+    try {
+      const response =
+        await base44.functions.invoke(
+          "getTmdbMovies",
+          {
+            multi_search:
+              meta.title,
+          }
+        );
+
+      const candidates =
+        Array.isArray(
+          response
+            ?.data
+            ?.movies
+        )
+          ? response
+              .data
+              .movies
+          : [];
+
+      const sameType =
+        candidates.filter(
+          (
+            candidate
+          ) =>
+            String(
+              candidate
+                ?.media_type ||
+                ""
+            ) ===
+            meta.mediaType
+        );
+
+      const sameYear =
+        sameType.find(
+          (
+            candidate
+          ) =>
+            meta.year
+              ? String(
+                  candidate
+                    ?.year ||
+                    ""
+                ) ===
+                String(
+                  meta.year
+                )
+              : false
+        );
+
+      const match =
+        sameYear ||
+        sameType[0] ||
+        candidates[0];
+
+      return String(
+        match?.id ||
+          match?.tmdb_id ||
+          ""
+      );
+    } catch {
+      return "";
+    }
+  };
 
 export default function ContinueWatchingRow() {
   const [
     items,
     setItems,
-  ] = useState([]);
+  ] =
+    useState(
+      []
+    );
 
   const [
     loading,
     setLoading,
-  ] = useState(true);
+  ] =
+    useState(
+      true
+    );
 
   const player =
     usePlayer();
 
-  const load = () => {
-    base44.entities.ContinueWatching
-      .list(
-        "-updated_date",
-        40
-      )
-      .then(
-        async (
-          rows
-        ) => {
-          const completed =
-            [];
-
-          const visible =
-            [];
-
-          const seen =
-            new Set();
-
+  const load =
+    () => {
+      base44.entities.ContinueWatching
+        .list(
+          "-updated_date",
+          100
+        )
+        .then(
           (
-            rows ||
-            []
-          ).forEach(
+            rows
+          ) => {
+            const visible =
+              [];
+
+            const seen =
+              new Set();
+
             (
-              item
-            ) => {
-              const ratio =
-                progressRatio(
-                  item
-                );
-
-              /*
-               * Finished movies/episodes
-               * automatically disappear.
-               */
-              if (
-                ratio >=
-                0.96
-              ) {
-                completed.push(
-                  item
-                );
-
-                return;
-              }
-
-              /*
-               * Ignore accidental
-               * 1-2 second plays.
-               */
-              if (
-                Number(
-                  item
-                    ?.progress ||
-                    0
-                ) < 5
-              ) {
-                return;
-              }
-
-              const identity =
-                String(
-                  item
-                    ?.content_key ||
-                    ""
-                ) ||
-                `${item?.title}|${item?.year}|${item?.video_url}`;
-
-              if (
-                seen.has(
-                  identity
-                )
-              ) {
-                return;
-              }
-
-              seen.add(
-                identity
-              );
-
-              visible.push(
+              rows ||
+              []
+            ).forEach(
+              (
                 item
-              );
-            }
-          );
+              ) => {
+                const ratio =
+                  progressRatio(
+                    item
+                  );
 
-          setItems(
-            visible.slice(
-              0,
-              20
-            )
-          );
+                /*
+                 * Finished content stays in
+                 * the database for history,
+                 * but disappears from
+                 * Continue Watching.
+                 */
+                if (
+                  ratio >=
+                  WATCHED_THRESHOLD
+                ) {
+                  return;
+                }
 
-          if (
-            completed.length >
-            0
-          ) {
-            Promise.all(
-              completed.map(
-                (
+                if (
+                  Number(
+                    item?.progress ||
+                      0
+                  ) <
+                  5
+                ) {
+                  return;
+                }
+
+                const meta =
+                  parseContentKey(
+                    item
+                  );
+
+                const identity =
+                  meta.mediaType ===
+                  "tv"
+                    ? `tv:${meta.title}:${meta.season}:${meta.episode}`
+                    : `movie:${meta.title}:${meta.year}`;
+
+                if (
+                  seen.has(
+                    identity
+                  )
+                ) {
+                  return;
+                }
+
+                seen.add(
+                  identity
+                );
+
+                visible.push(
                   item
-                ) =>
-                  base44.entities.ContinueWatching
-                    .delete(
-                      item.id
-                    )
-                    .catch(
-                      () => {}
-                    )
+                );
+              }
+            );
+
+            setItems(
+              visible.slice(
+                0,
+                20
               )
-            ).catch(
-              () => {}
             );
           }
-        }
-      )
-      .catch(
-        () => {}
-      )
-      .finally(
-        () =>
-          setLoading(
-            false
-          )
-      );
-  };
+        )
+        .catch(
+          () => {}
+        )
+        .finally(
+          () =>
+            setLoading(
+              false
+            )
+        );
+    };
 
   useEffect(() => {
     load();
 
-    const unsubscribe =
-      base44.entities.ContinueWatching.subscribe(
-        () =>
-          load()
-      );
+    let unsubscribe =
+      null;
 
-    return unsubscribe;
+    try {
+      unsubscribe =
+        base44.entities.ContinueWatching.subscribe(
+          () =>
+            load()
+        );
+    } catch {
+      unsubscribe =
+        null;
+    }
+
+    return () => {
+      if (
+        typeof unsubscribe ===
+        "function"
+      ) {
+        unsubscribe();
+      }
+    };
   }, []);
 
   const remove =
@@ -458,90 +521,10 @@ export default function ContinueWatchingRow() {
         meta.mediaType ===
         "tv";
 
-      let tmdbId =
-        meta.tmdbId ||
-        "";
-
-      /*
-       * Older Continue Watching
-       * records did not contain a
-       * TMDB id.
-       *
-       * Recover it from title/year
-       * so season switching and next
-       * episode still work after
-       * resuming.
-       */
-      if (
-        !tmdbId &&
-        meta.title
-      ) {
-        try {
-          const response =
-            await base44.functions.invoke(
-              "getTmdbMovies",
-              {
-                multi_search:
-                  meta.title,
-              }
-            );
-
-          const candidates =
-            Array.isArray(
-              response.data
-                ?.movies
-            )
-              ? response.data.movies
-              : [];
-
-          const sameType =
-            candidates.filter(
-              (
-                candidate
-              ) =>
-                String(
-                  candidate
-                    ?.media_type ||
-                    ""
-                ) ===
-                meta.mediaType
-            );
-
-          const sameYear =
-            sameType.find(
-              (
-                candidate
-              ) =>
-                meta.year
-                  ? String(
-                      candidate
-                        ?.year ||
-                        ""
-                    ) ===
-                    String(
-                      meta.year
-                    )
-                  : false
-            );
-
-          const match =
-            sameYear ||
-            sameType[0] ||
-            candidates[0];
-
-          tmdbId =
-            String(
-              match?.id ||
-                match?.tmdb_id ||
-                ""
-            );
-        } catch {
-          /*
-           * PlayerProvider can still
-           * fall back to title/year.
-           */
-        }
-      }
+      const tmdbId =
+        await resolveTmdbId(
+          meta
+        );
 
       const episodeTitle =
         isTv &&
@@ -560,6 +543,12 @@ export default function ContinueWatchingRow() {
             )}`
           : meta.title;
 
+      /*
+       * Old direct URL is kept as
+       * a fast first attempt.
+       * PlayerProvider can still
+       * find another fresh source.
+       */
       const sources =
         item?.video_url
           ? [
@@ -657,7 +646,8 @@ export default function ContinueWatchingRow() {
             progress:
               progressRatio(
                 item
-              ) * 100,
+              ) *
+              100,
           })
         ),
       [
@@ -684,7 +674,7 @@ export default function ContinueWatchingRow() {
           </h2>
 
           <p className="text-[10px] 3xl:text-sm text-white/35">
-            Resume on any device signed into the same Media God account.
+            Resume exactly where you stopped, on any signed-in device.
           </p>
         </div>
       </div>
@@ -706,9 +696,7 @@ export default function ContinueWatchingRow() {
                 )
               }
               role="button"
-              tabIndex={
-                0
-              }
+              tabIndex={0}
               onKeyDown={(
                 event
               ) => {
@@ -765,7 +753,7 @@ export default function ContinueWatchingRow() {
                   meta.season &&
                   meta.episode && (
                     <span className="absolute left-2 top-2 rounded bg-black/75 px-2 py-1 text-[10px] font-semibold text-white">
-                      S
+                      Resume S
                       {String(
                         meta.season
                       ).padStart(
@@ -794,9 +782,7 @@ export default function ContinueWatchingRow() {
               </div>
 
               <div className="mt-1.5 3xl:mt-2 text-white font-semibold text-xs sm:text-sm 3xl:text-base truncate">
-                {
-                  meta.title
-                }
+                {meta.title}
               </div>
 
               <div className="flex items-center justify-between gap-2 text-white/40 text-[10px] sm:text-xs 3xl:text-sm">
