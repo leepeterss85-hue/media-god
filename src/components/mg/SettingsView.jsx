@@ -13,6 +13,7 @@ import {
   Loader2,
   RefreshCw,
   ShieldCheck,
+  Tv,
   Unlink,
   Zap,
 } from "lucide-react";
@@ -28,14 +29,166 @@ const DEFAULT_PREFERENCES = {
   quality: "Auto",
 };
 
+const TV_REMOTE_STORAGE_KEY =
+  "mg:fire-tv-settings-v2";
+
+const DEFAULT_TV_REMOTE_SETTINGS = {
+  remoteMode: "auto",
+  focusStyle: "strong",
+  seekSeconds: 10,
+  wrapNavigation: true,
+  scrollFallback: true,
+  autoFocus: true,
+};
+
 const unwrapError = (
   error,
   fallback
 ) =>
-  error?.response?.data
-    ?.error ||
+  error?.response?.data?.error ||
   error?.message ||
   fallback;
+
+const looksLikeFireTv = () => {
+  if (
+    typeof navigator ===
+    "undefined"
+  ) {
+    return false;
+  }
+
+  const ua =
+    String(
+      navigator.userAgent ||
+        ""
+    );
+
+  const platform =
+    String(
+      navigator.platform ||
+        ""
+    );
+
+  return /(?:AFT[A-Z0-9]*|Fire TV|AmazonWebAppPlatform|Silk)/i.test(
+    `${ua} ${platform}`
+  );
+};
+
+const normaliseRemoteSettings = (
+  value
+) => {
+  const raw =
+    value &&
+    typeof value ===
+      "object"
+      ? value
+      : {};
+
+  const seek =
+    Number(
+      raw.seekSeconds
+    );
+
+  return {
+    remoteMode:
+      raw.remoteMode ===
+      "always"
+        ? "always"
+        : "auto",
+
+    focusStyle:
+      raw.focusStyle ===
+      "standard"
+        ? "standard"
+        : "strong",
+
+    seekSeconds:
+      [10, 20, 30].includes(
+        seek
+      )
+        ? seek
+        : DEFAULT_TV_REMOTE_SETTINGS.seekSeconds,
+
+    wrapNavigation:
+      typeof raw.wrapNavigation ===
+      "boolean"
+        ? raw.wrapNavigation
+        : DEFAULT_TV_REMOTE_SETTINGS.wrapNavigation,
+
+    scrollFallback:
+      typeof raw.scrollFallback ===
+      "boolean"
+        ? raw.scrollFallback
+        : DEFAULT_TV_REMOTE_SETTINGS.scrollFallback,
+
+    autoFocus:
+      typeof raw.autoFocus ===
+      "boolean"
+        ? raw.autoFocus
+        : DEFAULT_TV_REMOTE_SETTINGS.autoFocus,
+  };
+};
+
+const readRemoteSettings =
+  () => {
+    if (
+      typeof window ===
+      "undefined"
+    ) {
+      return DEFAULT_TV_REMOTE_SETTINGS;
+    }
+
+    try {
+      const raw =
+        window.localStorage.getItem(
+          TV_REMOTE_STORAGE_KEY
+        );
+
+      if (!raw) {
+        return DEFAULT_TV_REMOTE_SETTINGS;
+      }
+
+      return normaliseRemoteSettings(
+        JSON.parse(raw)
+      );
+    } catch {
+      return DEFAULT_TV_REMOTE_SETTINGS;
+    }
+  };
+
+const writeRemoteSettings = (
+  settings
+) => {
+  const next =
+    normaliseRemoteSettings(
+      settings
+    );
+
+  if (
+    typeof window !==
+    "undefined"
+  ) {
+    try {
+      window.localStorage.setItem(
+        TV_REMOTE_STORAGE_KEY,
+        JSON.stringify(next)
+      );
+    } catch {
+      // Device-local storage is best effort.
+    }
+
+    window.dispatchEvent(
+      new CustomEvent(
+        "mg:remote-settings-changed",
+        {
+          detail: next,
+        }
+      )
+    );
+  }
+
+  return next;
+};
 
 export default function SettingsView() {
   const [
@@ -62,6 +215,39 @@ export default function SettingsView() {
     setQuality,
   ] = useState(
     DEFAULT_PREFERENCES.quality
+  );
+
+  const [
+    remoteSettings,
+    setRemoteSettings,
+  ] = useState(
+    () =>
+      readRemoteSettings()
+  );
+
+  const [
+    fireTvDetected,
+  ] = useState(
+    () =>
+      looksLikeFireTv()
+  );
+
+  const [
+    remoteActive,
+    setRemoteActive,
+  ] = useState(
+    () => {
+      if (
+        typeof document ===
+        "undefined"
+      ) {
+        return false;
+      }
+
+      return document.body.classList.contains(
+        "mg-fire-tv-mode"
+      );
+    }
   );
 
   const [
@@ -94,6 +280,11 @@ export default function SettingsView() {
     setCopied,
   ] = useState(false);
 
+  const [
+    saving,
+    setSaving,
+  ] = useState(false);
+
   const pollTimerRef =
     useRef(null);
 
@@ -103,10 +294,6 @@ export default function SettingsView() {
   const { toast } =
     useToast();
 
-  /*
-   * Load the signed-in Media God
-   * user and their saved settings.
-   */
   const loadMe =
     useCallback(
       async () => {
@@ -143,13 +330,6 @@ export default function SettingsView() {
       []
     );
 
-  /*
-   * Check RD connection.
-   *
-   * The backend will also refresh
-   * the saved access token when
-   * necessary.
-   */
   const checkRd =
     useCallback(
       async (
@@ -213,7 +393,8 @@ export default function SettingsView() {
             connected:
               false,
 
-            valid: false,
+            valid:
+              false,
 
             error:
               message,
@@ -251,43 +432,147 @@ export default function SettingsView() {
       ]
     );
 
-  /*
-   * Initial Settings load.
-   */
-  useEffect(() => {
-    let mounted =
-      true;
+  useEffect(
+    () => {
+      let mounted =
+        true;
 
-    const load =
-      async () => {
-        await loadMe();
+      const load =
+        async () => {
+          await loadMe();
 
-        if (mounted) {
-          await checkRd(
-            false
+          if (
+            mounted
+          ) {
+            await checkRd(
+              false
+            );
+          }
+        };
+
+      load();
+
+      return () => {
+        mounted =
+          false;
+      };
+    },
+    [
+      checkRd,
+      loadMe,
+    ]
+  );
+
+  useEffect(
+    () => {
+      const handleRemoteStatus =
+        (
+          event
+        ) => {
+          setRemoteActive(
+            Boolean(
+              event?.detail
+                ?.active
+            )
+          );
+        };
+
+      const handleStorage =
+        (
+          event
+        ) => {
+          if (
+            event.key ===
+            TV_REMOTE_STORAGE_KEY
+          ) {
+            setRemoteSettings(
+              readRemoteSettings()
+            );
+          }
+        };
+
+      window.addEventListener(
+        "mg:remote-status",
+        handleRemoteStatus
+      );
+
+      window.addEventListener(
+        "storage",
+        handleStorage
+      );
+
+      return () => {
+        window.removeEventListener(
+          "mg:remote-status",
+          handleRemoteStatus
+        );
+
+        window.removeEventListener(
+          "storage",
+          handleStorage
+        );
+      };
+    },
+    []
+  );
+
+  const updateRemoteSetting =
+    (
+      key,
+      value
+    ) => {
+      setRemoteSettings(
+        (
+          current
+        ) => {
+          const next = {
+            ...current,
+            [key]:
+              value,
+          };
+
+          return writeRemoteSettings(
+            next
           );
         }
-      };
-
-    load();
-
-    return () => {
-      mounted = false;
+      );
     };
-  }, [
-    checkRd,
-    loadMe,
-  ]);
 
-  /*
-   * Save general user settings.
-   */
+  const resetRemoteSettings =
+    () => {
+      const next =
+        writeRemoteSettings(
+          DEFAULT_TV_REMOTE_SETTINGS
+        );
+
+      setRemoteSettings(
+        next
+      );
+
+      toast({
+        title:
+          "TV remote settings reset",
+
+        description:
+          "Media God restored the recommended Fire TV controls for this device.",
+      });
+    };
+
   const save =
     async () => {
+      setSaving(
+        true
+      );
+
       try {
         await base44.auth.updateMe(
           {
             preferences: {
+              ...(
+                me?.preferences ||
+                {}
+              ),
+
               autoplay,
               subs,
               quality,
@@ -302,7 +587,7 @@ export default function SettingsView() {
             "Settings saved",
 
           description:
-            "Your settings are saved to your Media God account.",
+            "Playback settings are saved to your Media God account. TV remote settings are already active on this device.",
         });
       } catch (
         error
@@ -320,12 +605,13 @@ export default function SettingsView() {
           variant:
             "destructive",
         });
+      } finally {
+        setSaving(
+          false
+        );
       }
     };
 
-  /*
-   * Ask RD for a new device code.
-   */
   const startRdConnect =
     async () => {
       if (
@@ -452,10 +738,6 @@ export default function SettingsView() {
       ]
     );
 
-  /*
-   * Check whether the user has
-   * authorised the displayed code.
-   */
   const pollDevice =
     useCallback(
       async (
@@ -472,7 +754,8 @@ export default function SettingsView() {
           Number(
             deviceFlow.expires_in ||
               1800
-          ) * 1000;
+          ) *
+          1000;
 
         if (
           flowStartedAtRef.current &&
@@ -540,7 +823,9 @@ export default function SettingsView() {
         } catch (
           error
         ) {
-          if (manual) {
+          if (
+            manual
+          ) {
             toast({
               title:
                 "Could not confirm Real-Debrid",
@@ -564,83 +849,83 @@ export default function SettingsView() {
       ]
     );
 
-  /*
-   * Automatically check RD at the
-   * interval returned by RD.
-   */
-  useEffect(() => {
-    if (
-      !deviceFlow
-        ?.device_code
-    ) {
-      return undefined;
-    }
-
-    let cancelled =
-      false;
-
-    const intervalMs =
-      Math.max(
-        5,
-        Number(
-          deviceFlow.interval ||
-            5
-        )
-      ) * 1000;
-
-    const schedule =
-      () => {
-        if (
-          cancelled
-        ) {
-          return;
-        }
-
-        pollTimerRef.current =
-          setTimeout(
-            async () => {
-              if (
-                cancelled
-              ) {
-                return;
-              }
-
-              await pollDevice(
-                false
-              );
-
-              schedule();
-            },
-            intervalMs
-          );
-      };
-
-    schedule();
-
-    return () => {
-      cancelled =
-        true;
-
+  useEffect(
+    () => {
       if (
-        pollTimerRef.current
+        !deviceFlow
+          ?.device_code
       ) {
-        clearTimeout(
-          pollTimerRef.current
-        );
-
-        pollTimerRef.current =
-          null;
+        return undefined;
       }
-    };
-  }, [
-    deviceFlow
-      ?.device_code,
 
-    deviceFlow
-      ?.interval,
+      let cancelled =
+        false;
 
-    pollDevice,
-  ]);
+      const intervalMs =
+        Math.max(
+          5,
+          Number(
+            deviceFlow.interval ||
+              5
+          )
+        ) *
+        1000;
+
+      const schedule =
+        () => {
+          if (
+            cancelled
+          ) {
+            return;
+          }
+
+          pollTimerRef.current =
+            setTimeout(
+              async () => {
+                if (
+                  cancelled
+                ) {
+                  return;
+                }
+
+                await pollDevice(
+                  false
+                );
+
+                schedule();
+              },
+              intervalMs
+            );
+        };
+
+      schedule();
+
+      return () => {
+        cancelled =
+          true;
+
+        if (
+          pollTimerRef.current
+        ) {
+          clearTimeout(
+            pollTimerRef.current
+          );
+
+          pollTimerRef.current =
+            null;
+        }
+      };
+    },
+    [
+      deviceFlow
+        ?.device_code,
+
+      deviceFlow
+        ?.interval,
+
+      pollDevice,
+    ]
+  );
 
   const copyCode =
     async () => {
@@ -755,20 +1040,26 @@ export default function SettingsView() {
   }) => (
     <button
       type="button"
-      onClick={onClick}
-      aria-label={label}
-      aria-pressed={on}
+      onClick={
+        onClick
+      }
+      aria-label={
+        label
+      }
+      aria-pressed={
+        on
+      }
       className={cn(
-        "w-11 h-6 3xl:w-14 3xl:h-7 rounded-full transition-colors relative shrink-0",
+        "w-12 h-7 3xl:w-14 3xl:h-8 rounded-full transition-colors relative shrink-0 border",
 
         on
-          ? "bg-mg-green"
-          : "bg-white/20"
+          ? "bg-mg-green border-mg-green"
+          : "bg-white/10 border-white/15"
       )}
     >
       <span
         className={cn(
-          "absolute top-0.5 left-0.5 w-5 h-5 3xl:w-6 3xl:h-6 rounded-full bg-black transition-transform",
+          "absolute top-0.5 left-0.5 w-6 h-6 3xl:w-7 3xl:h-7 rounded-full bg-black transition-transform",
 
           on
             ? "translate-x-5 3xl:translate-x-6"
@@ -785,7 +1076,7 @@ export default function SettingsView() {
     );
 
   return (
-    <div className="w-full max-w-3xl 3xl:max-w-4xl 4xl:max-w-5xl p-4 md:p-6 3xl:p-8 4xl:p-10">
+    <div className="w-full max-w-4xl 3xl:max-w-5xl 4xl:max-w-6xl p-4 md:p-6 3xl:p-8 4xl:p-10">
       <h1 className="text-xl md:text-2xl 3xl:text-3xl 4xl:text-4xl font-bold text-white mb-6 3xl:mb-8">
         Settings
       </h1>
@@ -801,112 +1092,407 @@ export default function SettingsView() {
           </p>
 
           <p className="text-xs 3xl:text-sm text-white/35 mt-1">
-            Your preferences and
-            Real-Debrid connection
-            are saved to this
-            Media God user.
+            Playback preferences and your Real-Debrid connection are saved to this Media God user.
           </p>
         </div>
       )}
 
       <SocialLoginSection />
 
-      <div className="bg-mg-card border border-white/10 rounded-lg 3xl:rounded-xl divide-y divide-white/5">
-        <div className="flex items-center justify-between gap-4 p-4 3xl:p-5">
-          <div>
-            <p className="text-sm 3xl:text-base text-white font-medium">
-              Autoplay
-            </p>
+      <div className="mt-6 bg-mg-card border border-white/10 rounded-lg 3xl:rounded-xl overflow-hidden">
+        <div className="p-4 3xl:p-5 border-b border-white/5">
+          <h2 className="text-sm 3xl:text-lg font-bold text-white">
+            Playback
+          </h2>
 
-            <p className="text-xs 3xl:text-sm text-white/40">
-              Start next episode
-              automatically
-            </p>
-          </div>
-
-          <Toggle
-            on={autoplay}
-            onClick={() =>
-              setAutoplay(
-                !autoplay
-              )
-            }
-            label="Toggle autoplay"
-          />
+          <p className="text-xs 3xl:text-sm text-white/40 mt-1">
+            Default playback behaviour across Media God.
+          </p>
         </div>
 
-        <div className="flex items-center justify-between gap-4 p-4 3xl:p-5">
-          <div>
-            <p className="text-sm 3xl:text-base text-white font-medium">
-              Subtitles
-            </p>
+        <div className="divide-y divide-white/5">
+          <div className="flex items-center justify-between gap-4 p-4 3xl:p-5">
+            <div>
+              <p className="text-sm 3xl:text-base text-white font-medium">
+                Autoplay
+              </p>
 
-            <p className="text-xs 3xl:text-sm text-white/40">
-              Auto-fetch subtitles
-              via OpenSubtitles
-            </p>
+              <p className="text-xs 3xl:text-sm text-white/40">
+                Start the next episode automatically.
+              </p>
+            </div>
+
+            <Toggle
+              on={
+                autoplay
+              }
+              onClick={() =>
+                setAutoplay(
+                  !autoplay
+                )
+              }
+              label="Toggle autoplay"
+            />
           </div>
 
-          <Toggle
-            on={subs}
-            onClick={() =>
-              setSubs(
-                !subs
-              )
-            }
-            label="Toggle subtitles"
-          />
+          <div className="flex items-center justify-between gap-4 p-4 3xl:p-5">
+            <div>
+              <p className="text-sm 3xl:text-base text-white font-medium">
+                Subtitles
+              </p>
+
+              <p className="text-xs 3xl:text-sm text-white/40">
+                Automatically fetch subtitles when available.
+              </p>
+            </div>
+
+            <Toggle
+              on={
+                subs
+              }
+              onClick={() =>
+                setSubs(
+                  !subs
+                )
+              }
+              label="Toggle subtitles"
+            />
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 3xl:p-5">
+            <div>
+              <p className="text-sm 3xl:text-base text-white font-medium">
+                Stream quality
+              </p>
+
+              <p className="text-xs 3xl:text-sm text-white/40">
+                Preferred default quality when several streams are available.
+              </p>
+            </div>
+
+            <select
+              value={
+                quality
+              }
+              onChange={(
+                event
+              ) =>
+                setQuality(
+                  event.target
+                    .value
+                )
+              }
+              aria-label="Stream quality"
+              className="w-full sm:w-auto min-h-11 3xl:min-h-12 bg-mg-surface border border-white/10 rounded-md text-sm 3xl:text-base text-white px-3 py-2 focus:outline-none focus:border-mg-green"
+            >
+              {[
+                "Auto",
+                "4K",
+                "1080p",
+                "720p",
+                "480p",
+              ].map(
+                (
+                  item
+                ) => (
+                  <option
+                    key={
+                      item
+                    }
+                    value={
+                      item
+                    }
+                  >
+                    {
+                      item
+                    }
+                  </option>
+                )
+              )}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-6 3xl:mt-8 bg-mg-card border border-white/10 rounded-lg 3xl:rounded-xl overflow-hidden">
+        <div className="p-4 3xl:p-5 border-b border-white/5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2 3xl:gap-3">
+              <Tv className="w-4 h-4 3xl:w-5 3xl:h-5 text-mg-green" />
+
+              <h2 className="text-sm 3xl:text-lg font-bold text-white">
+                Fire TV & Remote
+              </h2>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 text-[11px] 3xl:text-sm">
+              {fireTvDetected && (
+                <span className="rounded-full border border-mg-green/30 bg-mg-green/10 px-2.5 py-1 font-semibold text-mg-green">
+                  Fire TV detected
+                </span>
+              )}
+
+              <span
+                className={cn(
+                  "rounded-full border px-2.5 py-1 font-semibold",
+
+                  remoteActive
+                    ? "border-mg-green/30 bg-mg-green/10 text-mg-green"
+                    : "border-white/10 bg-white/5 text-white/50"
+                )}
+              >
+                {remoteActive
+                  ? "Remote active"
+                  : "Remote ready"}
+              </span>
+            </div>
+          </div>
+
+          <p className="text-xs 3xl:text-sm text-white/40 mt-2">
+            These controls are stored on this device so your Fire Stick can have its own remote behaviour without changing your phone or computer.
+          </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 3xl:p-5">
-          <div>
-            <p className="text-sm 3xl:text-base text-white font-medium">
-              Stream quality
-            </p>
+        <div className="divide-y divide-white/5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 3xl:p-5">
+            <div>
+              <p className="text-sm 3xl:text-base text-white font-medium">
+                Remote mode
+              </p>
 
-            <p className="text-xs 3xl:text-sm text-white/40">
-              Default playback
-              quality
-            </p>
+              <p className="text-xs 3xl:text-sm text-white/40">
+                Auto detects Fire TV. Always on also enables D-pad support in other TV browsers.
+              </p>
+            </div>
+
+            <select
+              value={
+                remoteSettings.remoteMode
+              }
+              onChange={(
+                event
+              ) =>
+                updateRemoteSetting(
+                  "remoteMode",
+                  event.target
+                    .value
+                )
+              }
+              aria-label="TV remote mode"
+              className="w-full sm:w-44 min-h-11 3xl:min-h-12 bg-mg-surface border border-white/10 rounded-md text-sm 3xl:text-base text-white px-3 py-2 focus:outline-none focus:border-mg-green"
+            >
+              <option value="auto">
+                Auto
+              </option>
+
+              <option value="always">
+                Always on
+              </option>
+            </select>
           </div>
 
-          <select
-            value={quality}
-            onChange={(
-              event
-            ) =>
-              setQuality(
-                event.target
-                  .value
-              )
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 3xl:p-5">
+            <div>
+              <p className="text-sm 3xl:text-base text-white font-medium">
+                Focus highlight
+              </p>
+
+              <p className="text-xs 3xl:text-sm text-white/40">
+                Makes the currently selected remote-control item easier to see from across the room.
+              </p>
+            </div>
+
+            <select
+              value={
+                remoteSettings.focusStyle
+              }
+              onChange={(
+                event
+              ) =>
+                updateRemoteSetting(
+                  "focusStyle",
+                  event.target
+                    .value
+                )
+              }
+              aria-label="Remote focus highlight"
+              className="w-full sm:w-44 min-h-11 3xl:min-h-12 bg-mg-surface border border-white/10 rounded-md text-sm 3xl:text-base text-white px-3 py-2 focus:outline-none focus:border-mg-green"
+            >
+              <option value="strong">
+                Strong
+              </option>
+
+              <option value="standard">
+                Standard
+              </option>
+            </select>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 3xl:p-5">
+            <div>
+              <p className="text-sm 3xl:text-base text-white font-medium">
+                Rewind / fast-forward jump
+              </p>
+
+              <p className="text-xs 3xl:text-sm text-white/40">
+                Amount moved by the Fire TV rewind and fast-forward buttons.
+              </p>
+            </div>
+
+            <select
+              value={String(
+                remoteSettings.seekSeconds
+              )}
+              onChange={(
+                event
+              ) =>
+                updateRemoteSetting(
+                  "seekSeconds",
+                  Number(
+                    event.target
+                      .value
+                  )
+                )
+              }
+              aria-label="Remote seek jump"
+              className="w-full sm:w-44 min-h-11 3xl:min-h-12 bg-mg-surface border border-white/10 rounded-md text-sm 3xl:text-base text-white px-3 py-2 focus:outline-none focus:border-mg-green"
+            >
+              <option value="10">
+                10 seconds
+              </option>
+
+              <option value="20">
+                20 seconds
+              </option>
+
+              <option value="30">
+                30 seconds
+              </option>
+            </select>
+          </div>
+
+          <div className="flex items-center justify-between gap-4 p-4 3xl:p-5">
+            <div>
+              <p className="text-sm 3xl:text-base text-white font-medium">
+                Wrap horizontal rows
+              </p>
+
+              <p className="text-xs 3xl:text-sm text-white/40">
+                Press Left on the first card or Right on the last card to wrap to the other end.
+              </p>
+            </div>
+
+            <Toggle
+              on={
+                remoteSettings.wrapNavigation
+              }
+              onClick={() =>
+                updateRemoteSetting(
+                  "wrapNavigation",
+                  !remoteSettings.wrapNavigation
+                )
+              }
+              label="Toggle remote row wrapping"
+            />
+          </div>
+
+          <div className="flex items-center justify-between gap-4 p-4 3xl:p-5">
+            <div>
+              <p className="text-sm 3xl:text-base text-white font-medium">
+                Scroll at navigation edge
+              </p>
+
+              <p className="text-xs 3xl:text-sm text-white/40">
+                If there is no focusable item in a direction, move the page instead of leaving the remote stuck.
+              </p>
+            </div>
+
+            <Toggle
+              on={
+                remoteSettings.scrollFallback
+              }
+              onClick={() =>
+                updateRemoteSetting(
+                  "scrollFallback",
+                  !remoteSettings.scrollFallback
+                )
+              }
+              label="Toggle remote edge scrolling"
+            />
+          </div>
+
+          <div className="flex items-center justify-between gap-4 p-4 3xl:p-5">
+            <div>
+              <p className="text-sm 3xl:text-base text-white font-medium">
+                Auto-focus new screens
+              </p>
+
+              <p className="text-xs 3xl:text-sm text-white/40">
+                Automatically place remote focus on new pages, dialogs and player controls.
+              </p>
+            </div>
+
+            <Toggle
+              on={
+                remoteSettings.autoFocus
+              }
+              onClick={() =>
+                updateRemoteSetting(
+                  "autoFocus",
+                  !remoteSettings.autoFocus
+                )
+              }
+              label="Toggle remote auto focus"
+            />
+          </div>
+        </div>
+
+        <div className="border-t border-white/5 p-4 3xl:p-5">
+          <div className="grid gap-2 text-xs 3xl:text-sm text-white/50 sm:grid-cols-2">
+            <div className="rounded-lg border border-white/5 bg-black/15 p-3">
+              <span className="font-semibold text-white/80">
+                D-pad
+              </span>{" "}
+              moves focus around Media God.
+            </div>
+
+            <div className="rounded-lg border border-white/5 bg-black/15 p-3">
+              <span className="font-semibold text-white/80">
+                Select
+              </span>{" "}
+              activates the focused button or card.
+            </div>
+
+            <div className="rounded-lg border border-white/5 bg-black/15 p-3">
+              <span className="font-semibold text-white/80">
+                Back
+              </span>{" "}
+              closes overlays first, then returns to Home without falling back to the login page.
+            </div>
+
+            <div className="rounded-lg border border-white/5 bg-black/15 p-3">
+              <span className="font-semibold text-white/80">
+                Play / Pause / Rewind / Fast Forward
+              </span>{" "}
+              control the active video or radio stream when Fire OS sends those keys to the app.
+            </div>
+          </div>
+
+          <p className="mt-3 text-[11px] 3xl:text-sm text-white/35">
+            The Fire TV Home button is controlled by Fire OS and cannot be captured by the web app.
+          </p>
+
+          <button
+            type="button"
+            onClick={
+              resetRemoteSettings
             }
-            className="w-full sm:w-auto min-h-11 3xl:min-h-12 bg-mg-surface border border-white/10 rounded-md text-sm 3xl:text-base text-white px-3 py-2 focus:outline-none focus:border-mg-green"
+            className="mt-4 min-h-11 3xl:min-h-12 inline-flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm 3xl:text-base text-white/75 hover:bg-white/10 hover:text-white"
           >
-            {[
-              "Auto",
-              "4K",
-              "1080p",
-              "720p",
-              "480p",
-            ].map(
-              (
-                item
-              ) => (
-                <option
-                  key={
-                    item
-                  }
-                  value={
-                    item
-                  }
-                >
-                  {
-                    item
-                  }
-                </option>
-              )
-            )}
-          </select>
+            <RefreshCw className="w-4 h-4" />
+
+            Reset TV remote settings
+          </button>
         </div>
       </div>
 
@@ -923,11 +1509,13 @@ export default function SettingsView() {
           {rdChecking ? (
             <span className="inline-flex items-center gap-1.5 text-xs 3xl:text-sm text-white/50">
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
+
               Checking
             </span>
           ) : rdConnected ? (
             <span className="inline-flex items-center gap-1.5 text-xs 3xl:text-sm font-semibold text-mg-green">
               <ShieldCheck className="w-4 h-4" />
+
               Connected
             </span>
           ) : (
@@ -938,15 +1526,7 @@ export default function SettingsView() {
         </div>
 
         <p className="text-xs 3xl:text-sm text-white/45 mb-4">
-          Connect your own
-          Real-Debrid account with
-          its device-code login.
-          Media God saves the
-          connection to the
-          currently signed-in app
-          user, so you do not need
-          to paste a private API
-          token.
+          Connect your own Real-Debrid account with its device-code login. Media God saves the connection to the currently signed-in app user, so you do not need to paste a private API token.
         </p>
 
         {rdConnected && (
@@ -954,6 +1534,7 @@ export default function SettingsView() {
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs 3xl:text-sm">
               <span className="inline-flex items-center gap-1 text-mg-green font-semibold">
                 <Check className="w-3.5 h-3.5 3xl:w-4 3xl:h-4" />
+
                 Ready to play
               </span>
 
@@ -999,8 +1580,7 @@ export default function SettingsView() {
         {deviceFlow ? (
           <div className="rounded-xl border border-mg-green/30 bg-black/20 p-4 3xl:p-6">
             <p className="text-xs 3xl:text-sm font-semibold uppercase tracking-wide text-mg-green mb-2">
-              Your Real-Debrid
-              login code
+              Your Real-Debrid login code
             </p>
 
             <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
@@ -1042,6 +1622,7 @@ export default function SettingsView() {
                 className="min-h-11 3xl:min-h-12 inline-flex items-center justify-center gap-2 bg-mg-green text-black font-semibold text-sm 3xl:text-base px-4 3xl:px-5 py-2.5 rounded-lg hover:bg-mg-green-dim"
               >
                 <ExternalLink className="w-4 h-4" />
+
                 Open Real-Debrid
               </a>
 
@@ -1055,18 +1636,13 @@ export default function SettingsView() {
                 className="min-h-11 3xl:min-h-12 inline-flex items-center justify-center gap-2 border border-white/10 bg-white/5 hover:bg-white/10 text-white text-sm 3xl:text-base px-4 3xl:px-5 py-2.5 rounded-lg"
               >
                 <RefreshCw className="w-4 h-4" />
-                I authorised it —
-                check now
+
+                I authorised it — check now
               </button>
             </div>
 
             <p className="mt-3 text-[11px] 3xl:text-sm text-white/40">
-              Media God is also
-              checking
-              automatically.
-              Keep this screen
-              open until it says
-              Connected.
+              Media God is also checking automatically. Keep this screen open until it says Connected.
             </p>
           </div>
         ) : (
@@ -1142,10 +1718,21 @@ export default function SettingsView() {
 
       <button
         type="button"
-        onClick={save}
-        className="mt-6 3xl:mt-8 min-h-11 3xl:min-h-12 bg-mg-green text-black font-semibold text-sm 3xl:text-base px-5 3xl:px-6 py-2.5 3xl:py-3 rounded-lg hover:bg-mg-green-dim"
+        onClick={
+          save
+        }
+        disabled={
+          saving
+        }
+        className="mt-6 3xl:mt-8 min-h-11 3xl:min-h-12 inline-flex items-center justify-center gap-2 bg-mg-green text-black font-semibold text-sm 3xl:text-base px-5 3xl:px-6 py-2.5 3xl:py-3 rounded-lg hover:bg-mg-green-dim disabled:opacity-60"
       >
-        Save settings
+        {saving && (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        )}
+
+        {saving
+          ? "Saving…"
+          : "Save settings"}
       </button>
     </div>
   );
