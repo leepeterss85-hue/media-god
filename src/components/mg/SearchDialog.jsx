@@ -1,7 +1,6 @@
 import React, {
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
@@ -17,139 +16,237 @@ import {
 import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
 
-const RECENT_KEY =
-  "mg_recent_searches_v2";
+const TMDB_IMAGE_BASE =
+  "https://image.tmdb.org/t/p/w500";
 
-const loadRecent = () => {
-  try {
-    const parsed =
-      JSON.parse(
-        window.localStorage.getItem(
-          RECENT_KEY
-        ) ||
-          "[]"
-      );
+const normaliseMediaType = (
+  value,
+  item = {}
+) => {
+  const type = String(
+    value || ""
+  ).toLowerCase();
 
-    return Array.isArray(
-      parsed
-    )
-      ? parsed
-          .filter(
-            Boolean
-          )
-          .slice(
-            0,
-            8
-          )
-      : [];
-  } catch {
-    return [];
+  if (
+    type === "tv" ||
+    type === "series" ||
+    type === "show"
+  ) {
+    return "tv";
   }
+
+  if (
+    type === "movie" ||
+    type === "film"
+  ) {
+    return "movie";
+  }
+
+  if (
+    item?.first_air_date ||
+    item?.firstAirDate
+  ) {
+    return "tv";
+  }
+
+  if (
+    item?.release_date ||
+    item?.releaseDate
+  ) {
+    return "movie";
+  }
+
+  if (
+    item?.name &&
+    !item?.title
+  ) {
+    return "tv";
+  }
+
+  return "";
 };
 
-const saveRecent = (
-  value
+const posterUrl = (
+  item
 ) => {
-  const query =
-    String(
-      value || ""
-    ).trim();
+  const value = String(
+    item?.poster_url ||
+      item?.posterUrl ||
+      item?.poster_path ||
+      item?.posterPath ||
+      ""
+  ).trim();
 
-  if (!query) {
-    return;
+  if (!value) {
+    return "";
   }
 
-  try {
-    const current =
-      loadRecent();
+  if (
+    /^https?:\/\//i.test(
+      value
+    )
+  ) {
+    return value;
+  }
 
-    const next = [
-      query,
+  return `${TMDB_IMAGE_BASE}${
+    value.startsWith("/")
+      ? value
+      : `/${value}`
+  }`;
+};
 
-      ...current.filter(
-        (
-          item
-        ) =>
-          item.toLowerCase() !==
-          query.toLowerCase()
-      ),
-    ].slice(
-      0,
-      8
+const normaliseSearchResult = (
+  item
+) => {
+  if (
+    !item ||
+    item?.id == null
+  ) {
+    return null;
+  }
+
+  const mediaType =
+    normaliseMediaType(
+      item?.media_type ||
+        item?.mediaType ||
+        item?.type,
+      item
     );
 
-    window.localStorage.setItem(
-      RECENT_KEY,
-      JSON.stringify(
-        next
+  /*
+   * TMDB multi-search also returns people.
+   *
+   * Media God DetailModal supports movies and TV shows,
+   * so never hand unsupported result types to it.
+   */
+  if (!mediaType) {
+    return null;
+  }
+
+  const title = String(
+    item?.title ||
+      item?.name ||
+      item?.original_title ||
+      item?.original_name ||
+      "Untitled"
+  ).trim();
+
+  const date = String(
+    item?.release_date ||
+      item?.first_air_date ||
+      item?.date ||
+      ""
+  );
+
+  const year =
+    item?.year ||
+    (
+      /^\d{4}/.test(
+        date
       )
+        ? date.slice(
+            0,
+            4
+          )
+        : ""
     );
-  } catch {
-    /*
-     * Local storage can be
-     * unavailable in restricted
-     * WebViews.
-     */
-  }
+
+  return {
+    ...item,
+
+    id:
+      item.id,
+
+    title,
+
+    name:
+      item?.name ||
+      title,
+
+    media_type:
+      mediaType,
+
+    mediaType,
+
+    year:
+      year
+        ? String(
+            year
+          )
+        : "",
+
+    poster_url:
+      posterUrl(
+        item
+      ),
+
+    description:
+      item?.description ||
+      item?.overview ||
+      "",
+
+    vote_average:
+      Number(
+        item?.vote_average ||
+          item?.rating ||
+          0
+      ),
+  };
 };
 
-const resultScore = (
-  result,
-  query
+const extractResults = (
+  response
 ) => {
-  const title =
-    String(
-      result?.title ||
-        ""
-    ).toLowerCase();
+  const data =
+    response?.data ||
+    {};
 
-  const needle =
-    String(
-      query || ""
+  const raw =
+    Array.isArray(
+      data?.movies
     )
-      .trim()
-      .toLowerCase();
+      ? data.movies
+      : Array.isArray(
+            data?.results
+          )
+        ? data.results
+        : Array.isArray(
+              data
+            )
+          ? data
+          : [];
 
-  let score =
-    Number(
-      result?.vote_average ||
-        0
+  const seen =
+    new Set();
+
+  return raw
+    .map(
+      normaliseSearchResult
+    )
+    .filter(
+      Boolean
+    )
+    .filter(
+      (item) => {
+        const key =
+          `${item.media_type}:${item.id}`;
+
+        if (
+          seen.has(
+            key
+          )
+        ) {
+          return false;
+        }
+
+        seen.add(
+          key
+        );
+
+        return true;
+      }
     );
-
-  if (!needle) {
-    return score;
-  }
-
-  if (
-    title ===
-    needle
-  ) {
-    score +=
-      1000;
-  } else if (
-    title.startsWith(
-      needle
-    )
-  ) {
-    score +=
-      500;
-  } else if (
-    title.includes(
-      needle
-    )
-  ) {
-    score +=
-      150;
-  }
-
-  if (
-    result?.poster_url
-  ) {
-    score +=
-      10;
-  }
-
-  return score;
 };
 
 export default function SearchDialog({
@@ -160,52 +257,57 @@ export default function SearchDialog({
   const [
     query,
     setQuery,
-  ] = useState("");
+  ] = useState(
+    ""
+  );
 
   const [
     results,
     setResults,
-  ] = useState([]);
+  ] = useState(
+    []
+  );
 
   const [
     loading,
     setLoading,
-  ] = useState(false);
-
-  const [
-    filter,
-    setFilter,
   ] = useState(
-    "all"
+    false
   );
 
   const [
-    recent,
-    setRecent,
-  ] = useState([]);
+    error,
+    setError,
+  ] = useState(
+    ""
+  );
 
-  const cacheRef =
+  const requestRef =
     useRef(
-      new Map()
+      0
     );
 
-  const resultRefs =
-    useRef([]);
+  const inputRef =
+    useRef(
+      null
+    );
 
   const search =
     useCallback(
       async (
         value
       ) => {
-        const clean =
+        const cleanQuery =
           String(
             value ||
               ""
           ).trim();
 
+        const requestId =
+          ++requestRef.current;
+
         if (
-          clean.length <
-          2
+          !cleanQuery
         ) {
           setResults(
             []
@@ -215,35 +317,8 @@ export default function SearchDialog({
             false
           );
 
-          return;
-        }
-
-        const cacheKey =
-          clean.toLowerCase();
-
-        const cached =
-          cacheRef.current.get(
-            cacheKey
-          );
-
-        /*
-         * Stop repeatedly hitting the
-         * backend for the same query.
-         */
-        if (
-          cached &&
-          Date.now() -
-            cached.at <
-            5 *
-              60 *
-              1000
-        ) {
-          setResults(
-            cached.items
-          );
-
-          setLoading(
-            false
+          setError(
+            ""
           );
 
           return;
@@ -253,229 +328,244 @@ export default function SearchDialog({
           true
         );
 
+        setError(
+          ""
+        );
+
         try {
           const response =
             await base44.functions.invoke(
               "getTmdbMovies",
               {
                 multi_search:
-                  clean,
+                  cleanQuery,
               }
             );
 
-          const items =
-            Array.isArray(
-              response.data
-                ?.movies
-            )
-              ? response.data.movies
-              : [];
-
-          cacheRef.current.set(
-            cacheKey,
-            {
-              at:
-                Date.now(),
-
-              items,
-            }
-          );
+          if (
+            requestId !==
+            requestRef.current
+          ) {
+            return;
+          }
 
           setResults(
-            items
+            extractResults(
+              response
+            )
           );
-        } catch {
+        } catch (
+          searchError
+        ) {
+          if (
+            requestId !==
+            requestRef.current
+          ) {
+            return;
+          }
+
           setResults(
             []
           );
-        } finally {
-          setLoading(
-            false
+
+          setError(
+            searchError?.message ||
+              "Search could not be completed."
           );
+        } finally {
+          if (
+            requestId ===
+            requestRef.current
+          ) {
+            setLoading(
+              false
+            );
+          }
         }
       },
       []
     );
 
-  useEffect(() => {
-    const timer =
-      setTimeout(
-        () =>
-          search(
-            query
-          ),
-        250
-      );
+  useEffect(
+    () => {
+      const timer =
+        window.setTimeout(
+          () =>
+            search(
+              query
+            ),
+          300
+        );
 
-    return () =>
-      clearTimeout(
-        timer
-      );
-  }, [
-    query,
-    search,
-  ]);
+      return () =>
+        window.clearTimeout(
+          timer
+        );
+    },
+    [
+      query,
+      search,
+    ]
+  );
 
-  useEffect(() => {
-    if (open) {
-      setRecent(
-        loadRecent()
-      );
+  useEffect(
+    () => {
+      if (!open) {
+        requestRef.current +=
+          1;
 
-      return;
-    }
+        setQuery(
+          ""
+        );
 
-    setQuery(
-      ""
-    );
+        setResults(
+          []
+        );
 
-    setResults(
-      []
-    );
-
-    setFilter(
-      "all"
-    );
-  }, [
-    open,
-  ]);
-
-  useEffect(() => {
-    if (!open) {
-      return undefined;
-    }
-
-    const onKey = (
-      event
-    ) => {
-      if (
-        event.key ===
-        "Escape"
-      ) {
-        onOpenChange(
+        setLoading(
           false
         );
+
+        setError(
+          ""
+        );
+
+        return;
       }
-    };
 
-    window.addEventListener(
-      "keydown",
-      onKey
-    );
+      const timer =
+        window.setTimeout(
+          () => {
+            try {
+              inputRef.current?.focus?.();
+            } catch {
+              /*
+               * Focus is optional on
+               * Android / Fire TV.
+               */
+            }
+          },
+          60
+        );
 
-    return () =>
-      window.removeEventListener(
+      return () =>
+        window.clearTimeout(
+          timer
+        );
+    },
+    [
+      open,
+    ]
+  );
+
+  useEffect(
+    () => {
+      if (!open) {
+        return undefined;
+      }
+
+      const onKey =
+        (
+          event
+        ) => {
+          if (
+            event.key ===
+            "Escape"
+          ) {
+            event.preventDefault();
+
+            onOpenChange(
+              false
+            );
+          }
+        };
+
+      window.addEventListener(
         "keydown",
         onKey
       );
-  }, [
-    open,
-    onOpenChange,
-  ]);
 
-  const filteredResults =
-    useMemo(
-      () => {
-        const clean =
-          String(
-            query ||
-              ""
-          ).trim();
-
-        return [
-          ...results,
-        ]
-          .filter(
-            (
-              result
-            ) => {
-              if (
-                filter ===
-                "all"
-              ) {
-                return true;
-              }
-
-              return (
-                String(
-                  result
-                    ?.media_type ||
-                    ""
-                ) ===
-                filter
-              );
-            }
-          )
-          .sort(
-            (
-              a,
-              b
-            ) =>
-              resultScore(
-                b,
-                clean
-              ) -
-              resultScore(
-                a,
-                clean
-              )
-          );
-      },
-      [
-        results,
-        filter,
-        query,
-      ]
-    );
+      return () => {
+        window.removeEventListener(
+          "keydown",
+          onKey
+        );
+      };
+    },
+    [
+      open,
+      onOpenChange,
+    ]
+  );
 
   if (!open) {
     return null;
   }
 
-  const choose = (
-    result
-  ) => {
-    saveRecent(
-      query ||
-        result?.title
-    );
+  const choose =
+    (
+      rawResult
+    ) => {
+      const result =
+        normaliseSearchResult(
+          rawResult
+        );
 
-    setRecent(
-      loadRecent()
-    );
+      if (
+        !result
+      ) {
+        setError(
+          "That search result is not a movie or TV show."
+        );
 
-    onSelect(
-      result
-    );
+        return;
+      }
 
-    onOpenChange(
-      false
-    );
+      /*
+       * Important on Android / Fire TV:
+       *
+       * Close the search overlay BEFORE
+       * mounting DetailModal.
+       *
+       * This avoids two full-screen dialogs
+       * existing during the same frame.
+       */
+      try {
+        document
+          .activeElement
+          ?.blur?.();
+      } catch {
+        // Optional.
+      }
 
-    setQuery(
-      ""
-    );
+      onOpenChange(
+        false
+      );
 
-    setResults(
-      []
-    );
-  };
+      window.requestAnimationFrame(
+        () => {
+          onSelect?.(
+            result
+          );
+        }
+      );
+    };
 
-  const useRecent = (
-    value
-  ) => {
-    setQuery(
-      value
-    );
-  };
+  const close =
+    () => {
+      onOpenChange(
+        false
+      );
+    };
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Search movies and TV shows"
       className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-start justify-center sm:pt-[7vh] 3xl:pt-[9vh] p-0 sm:px-4"
-      onClick={() =>
-        onOpenChange(
-          false
-        )
+      onClick={
+        close
       }
     >
       <div
@@ -490,6 +580,9 @@ export default function SearchDialog({
           <Search className="w-5 h-5 3xl:w-6 3xl:h-6 4xl:w-7 4xl:h-7 text-white/40 shrink-0" />
 
           <input
+            ref={
+              inputRef
+            }
             value={
               query
             }
@@ -497,29 +590,15 @@ export default function SearchDialog({
               event
             ) =>
               setQuery(
-                event.target
+                event
+                  .target
                   .value
               )
             }
-            onKeyDown={(
-              event
-            ) => {
-              if (
-                event.key ===
-                  "ArrowDown" &&
-                filteredResults.length >
-                  0
-              ) {
-                event.preventDefault();
-
-                resultRefs.current[
-                  0
-                ]?.focus?.();
-              }
-            }}
             placeholder="Search movies, TV shows..."
             className="flex-1 min-w-0 bg-transparent border-0 outline-none text-white text-base sm:text-lg 3xl:text-xl 4xl:text-2xl placeholder:text-white/30"
-            autoFocus
+            autoComplete="off"
+            aria-label="Search"
           />
 
           <button
@@ -535,10 +614,14 @@ export default function SearchDialog({
                 setResults(
                   []
                 );
-              } else {
-                onOpenChange(
-                  false
+
+                setError(
+                  ""
                 );
+
+                inputRef.current?.focus?.();
+              } else {
+                close();
               }
             }}
             className="w-10 h-10 3xl:w-12 3xl:h-12 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/5 shrink-0"
@@ -552,56 +635,7 @@ export default function SearchDialog({
           </button>
         </div>
 
-        <div className="flex items-center gap-2 px-4 sm:px-5 3xl:px-7 py-2.5 border-b border-white/5 overflow-x-auto">
-          {[
-            [
-              "all",
-              "All",
-            ],
-
-            [
-              "movie",
-              "Movies",
-            ],
-
-            [
-              "tv",
-              "TV Shows",
-            ],
-          ].map(
-            ([
-              value,
-              label,
-            ]) => (
-              <button
-                key={
-                  value
-                }
-                type="button"
-                onClick={() =>
-                  setFilter(
-                    value
-                  )
-                }
-                className={
-                  "shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors " +
-                  (
-                    filter ===
-                    value
-                      ? "border-mg-green/40 bg-mg-green/15 text-mg-green"
-                      : "border-white/10 bg-white/5 text-white/55 hover:text-white"
-                  )
-                }
-              >
-                {
-                  label
-                }
-              </button>
-            )
-          )}
-        </div>
-
-        <div className="max-h-[72svh] sm:max-h-[65vh] overflow-y-auto overscroll-contain">
+        <div className="max-h-[75svh] sm:max-h-[68vh] overflow-y-auto overscroll-contain">
           {loading && (
             <div className="p-8 3xl:p-12 text-center text-white/40 flex items-center justify-center gap-2 3xl:text-lg">
               <Loader2 className="w-4 h-4 3xl:w-6 3xl:h-6 animate-spin" />
@@ -611,31 +645,23 @@ export default function SearchDialog({
           )}
 
           {!loading &&
-            query.trim()
-              .length ===
-              1 && (
-              <div className="p-8 text-center text-white/35 text-sm">
-                Type one more character to search.
+            error && (
+              <div className="p-6 3xl:p-10 text-center">
+                <p className="text-sm 3xl:text-lg text-red-300">
+                  {
+                    error
+                  }
+                </p>
               </div>
             )}
 
           {!loading &&
-            query.trim()
-              .length >=
-              2 &&
-            filteredResults.length ===
+            !error &&
+            query &&
+            results.length ===
               0 && (
               <div className="p-8 3xl:p-12 text-center text-white/40 text-sm 3xl:text-lg">
-                No{" "}
-                {filter ===
-                "movie"
-                  ? "movies"
-                  : filter ===
-                      "tv"
-                    ? "TV shows"
-                    : "results"}{" "}
-                found for
-                &quot;
+                No movie or TV results found for &quot;
                 {
                   query
                 }
@@ -644,23 +670,15 @@ export default function SearchDialog({
             )}
 
           {!loading &&
-            filteredResults.length >
+            !error &&
+            results.length >
               0 && (
               <div className="divide-y divide-white/5">
-                {filteredResults.map(
+                {results.map(
                   (
-                    result,
-                    index
+                    result
                   ) => (
                     <button
-                      ref={(
-                        node
-                      ) => {
-                        resultRefs.current[
-                          index
-                        ] =
-                          node;
-                      }}
                       type="button"
                       key={`${result.media_type}-${result.id}`}
                       onClick={() =>
@@ -668,34 +686,8 @@ export default function SearchDialog({
                           result
                         )
                       }
-                      onKeyDown={(
-                        event
-                      ) => {
-                        if (
-                          event.key ===
-                          "ArrowDown"
-                        ) {
-                          event.preventDefault();
-
-                          resultRefs.current[
-                            index +
-                              1
-                          ]?.focus?.();
-                        }
-
-                        if (
-                          event.key ===
-                          "ArrowUp"
-                        ) {
-                          event.preventDefault();
-
-                          resultRefs.current[
-                            index -
-                              1
-                          ]?.focus?.();
-                        }
-                      }}
-                      className="w-full flex items-center gap-3 sm:gap-4 3xl:gap-5 p-3 sm:p-4 3xl:p-5 hover:bg-white/5 focus:bg-white/5 focus:outline-none transition-colors text-left min-h-[78px] 3xl:min-h-[104px]"
+                      className="w-full flex items-center gap-3 sm:gap-4 3xl:gap-5 p-3 sm:p-4 3xl:p-5 hover:bg-white/5 focus:bg-white/10 focus:outline-none transition-colors text-left min-h-[78px] 3xl:min-h-[104px]"
+                      aria-label={`Open ${result.title}`}
                     >
                       <div className="w-11 h-16 sm:w-12 sm:h-17 3xl:w-16 3xl:h-24 4xl:w-20 4xl:h-28 rounded-md 3xl:rounded-lg overflow-hidden bg-mg-card shrink-0">
                         {result.poster_url ? (
@@ -729,10 +721,10 @@ export default function SearchDialog({
                         </p>
 
                         <div className="flex flex-wrap items-center gap-2 3xl:gap-3 text-xs 3xl:text-base text-white/40 mt-1">
-                          <span className="capitalize">
+                          <span>
                             {result.media_type ===
                             "tv"
-                              ? "TV"
+                              ? "TV show"
                               : "Movie"}
                           </span>
 
@@ -776,45 +768,10 @@ export default function SearchDialog({
             )}
 
           {!loading &&
+            !error &&
             !query && (
-              <div className="p-6 3xl:p-10">
-                {recent.length >
-                0 ? (
-                  <>
-                    <p className="text-xs 3xl:text-base font-semibold uppercase tracking-wide text-white/40 mb-3">
-                      Recent searches
-                    </p>
-
-                    <div className="flex flex-wrap gap-2">
-                      {recent.map(
-                        (
-                          item
-                        ) => (
-                          <button
-                            key={
-                              item
-                            }
-                            type="button"
-                            onClick={() =>
-                              useRecent(
-                                item
-                              )
-                            }
-                            className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs 3xl:text-base text-white/65 hover:border-mg-green/40 hover:text-mg-green"
-                          >
-                            {
-                              item
-                            }
-                          </button>
-                        )
-                      )}
-                    </div>
-                  </>
-                ) : (
-                  <div className="p-4 text-center text-white/40 text-sm 3xl:text-lg">
-                    Start typing to search movies and TV shows.
-                  </div>
-                )}
+              <div className="p-8 3xl:p-12 text-center text-white/40 text-sm 3xl:text-lg">
+                Start typing to search movies and TV shows
               </div>
             )}
         </div>
