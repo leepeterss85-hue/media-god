@@ -1,7 +1,4 @@
-import React, {
-  useEffect,
-  useRef,
-} from "react";
+import React, { useEffect, useRef } from "react";
 
 const FOCUSABLE = [
   'button:not([disabled])',
@@ -11,6 +8,17 @@ const FOCUSABLE = [
   'textarea:not([disabled])',
   '[tabindex]:not([tabindex="-1"])',
 ].join(",");
+
+const TV_REMOTE_STORAGE_KEY = "mg:fire-tv-settings-v2";
+
+const DEFAULT_REMOTE_SETTINGS = {
+  remoteMode: "auto",
+  focusStyle: "strong",
+  seekSeconds: 10,
+  wrapNavigation: true,
+  scrollFallback: true,
+  autoFocus: true,
+};
 
 const FIRE_TV_CSS = `
 html.mg-fire-tv-mode,
@@ -61,8 +69,21 @@ body.mg-fire-tv-mode [tabindex]:focus-visible {
   outline: 4px solid hsl(var(--mg-green)) !important;
   outline-offset: 4px !important;
   box-shadow:
-    0 0 0 2px rgba(0, 0, 0, 0.95),
-    0 0 0 8px rgba(0, 255, 0, 0.2) !important;
+    0 0 0 2px rgba(0,0,0,.95),
+    0 0 0 8px rgba(0,255,0,.20) !important;
+}
+
+body.mg-fire-tv-mode.mg-remote-focus-standard button:focus-visible,
+body.mg-fire-tv-mode.mg-remote-focus-standard a:focus-visible,
+body.mg-fire-tv-mode.mg-remote-focus-standard input:focus-visible,
+body.mg-fire-tv-mode.mg-remote-focus-standard select:focus-visible,
+body.mg-fire-tv-mode.mg-remote-focus-standard textarea:focus-visible,
+body.mg-fire-tv-mode.mg-remote-focus-standard [tabindex]:focus-visible {
+  outline-width: 2px !important;
+  outline-offset: 2px !important;
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,.9),
+    0 0 0 5px rgba(0,255,0,.14) !important;
 }
 
 body.mg-fire-tv-mode button:focus-visible,
@@ -82,31 +103,26 @@ body.mg-fire-tv-mode [tabindex] {
   scroll-margin: 12vh 8vw;
 }
 
-/* One clean remote focus target per poster card. */
 body.mg-fire-tv-mode .mg-hover-action {
   opacity: 0 !important;
   pointer-events: none !important;
 }
 
-body.mg-fire-tv-mode
-.group > .relative > .mg-hover-action:first-of-type {
+body.mg-fire-tv-mode .group > .relative > .mg-hover-action:first-of-type {
   opacity: 1 !important;
   pointer-events: auto !important;
   background: transparent !important;
 }
 
-body.mg-fire-tv-mode
-.group > .relative > .mg-hover-action:first-of-type > span {
+body.mg-fire-tv-mode .group > .relative > .mg-hover-action:first-of-type > span {
   opacity: 0 !important;
 }
 
-body.mg-fire-tv-mode
-.group > .relative > .mg-hover-action:first-of-type:focus-visible {
-  background: rgba(0, 0, 0, 0.28) !important;
+body.mg-fire-tv-mode .group > .relative > .mg-hover-action:first-of-type:focus-visible {
+  background: rgba(0,0,0,.28) !important;
 }
 
-body.mg-fire-tv-mode
-.group > .relative > .mg-hover-action:first-of-type:focus-visible > span {
+body.mg-fire-tv-mode .group > .relative > .mg-hover-action:first-of-type:focus-visible > span {
   opacity: 1 !important;
 }
 
@@ -121,18 +137,83 @@ body.mg-fire-tv-mode input[type="range"] {
 }
 `;
 
-const keyCode = (
-  event
-) =>
+const normaliseRemoteSettings = (value) => {
+  const raw =
+    value && typeof value === "object"
+      ? value
+      : {};
+
+  const seekSeconds = Number(
+    raw.seekSeconds
+  );
+
+  return {
+    remoteMode:
+      raw.remoteMode === "always"
+        ? "always"
+        : "auto",
+
+    focusStyle:
+      raw.focusStyle === "standard"
+        ? "standard"
+        : "strong",
+
+    seekSeconds:
+      [10, 20, 30].includes(
+        seekSeconds
+      )
+        ? seekSeconds
+        : DEFAULT_REMOTE_SETTINGS.seekSeconds,
+
+    wrapNavigation:
+      typeof raw.wrapNavigation === "boolean"
+        ? raw.wrapNavigation
+        : DEFAULT_REMOTE_SETTINGS.wrapNavigation,
+
+    scrollFallback:
+      typeof raw.scrollFallback === "boolean"
+        ? raw.scrollFallback
+        : DEFAULT_REMOTE_SETTINGS.scrollFallback,
+
+    autoFocus:
+      typeof raw.autoFocus === "boolean"
+        ? raw.autoFocus
+        : DEFAULT_REMOTE_SETTINGS.autoFocus,
+  };
+};
+
+const readRemoteSettings = () => {
+  if (
+    typeof window ===
+    "undefined"
+  ) {
+    return DEFAULT_REMOTE_SETTINGS;
+  }
+
+  try {
+    const raw =
+      window.localStorage.getItem(
+        TV_REMOTE_STORAGE_KEY
+      );
+
+    return raw
+      ? normaliseRemoteSettings(
+          JSON.parse(raw)
+        )
+      : DEFAULT_REMOTE_SETTINGS;
+  } catch {
+    return DEFAULT_REMOTE_SETTINGS;
+  }
+};
+
+const keyCode = (event) =>
   Number(
     event?.keyCode ||
       event?.which ||
       0
   );
 
-const keyName = (
-  event
-) =>
+const keyName = (event) =>
   String(
     event?.key ||
       event?.code ||
@@ -149,8 +230,7 @@ const directionFromEvent = (
     keyCode(event);
 
   if (
-    key ===
-      "ArrowUp" ||
+    key === "ArrowUp" ||
     code === 19 ||
     code === 38
   ) {
@@ -158,8 +238,7 @@ const directionFromEvent = (
   }
 
   if (
-    key ===
-      "ArrowDown" ||
+    key === "ArrowDown" ||
     code === 20 ||
     code === 40
   ) {
@@ -167,8 +246,7 @@ const directionFromEvent = (
   }
 
   if (
-    key ===
-      "ArrowLeft" ||
+    key === "ArrowLeft" ||
     code === 21 ||
     code === 37
   ) {
@@ -176,8 +254,7 @@ const directionFromEvent = (
   }
 
   if (
-    key ===
-      "ArrowRight" ||
+    key === "ArrowRight" ||
     code === 22 ||
     code === 39
   ) {
@@ -198,8 +275,7 @@ const isSelectKey = (
 
   return (
     key === "Enter" ||
-    key ===
-      "NumpadEnter" ||
+    key === "NumpadEnter" ||
     key === "Select" ||
     key === "Accept" ||
     code === 23 ||
@@ -219,21 +295,18 @@ const isBackKey = (
 
   const tag =
     String(
-      event?.target
-        ?.tagName ||
+      event?.target?.tagName ||
         ""
     ).toLowerCase();
 
   const editing =
     tag === "input" ||
-    tag ===
-      "textarea" ||
+    tag === "textarea" ||
     event?.target
       ?.isContentEditable;
 
   if (
-    key ===
-      "BrowserBack" ||
+    key === "BrowserBack" ||
     key === "GoBack" ||
     key === "Escape" ||
     code === 4 ||
@@ -244,11 +317,8 @@ const isBackKey = (
   }
 
   return (
-    (
-      key ===
-        "Backspace" ||
-      code === 8
-    ) &&
+    (key === "Backspace" ||
+      code === 8) &&
     !editing
   );
 };
@@ -263,8 +333,7 @@ const isMenuKey = (
     keyCode(event);
 
   return (
-    key ===
-      "ContextMenu" ||
+    key === "ContextMenu" ||
     key === "Menu" ||
     code === 82
   );
@@ -280,8 +349,7 @@ const mediaActionFromEvent = (
     keyCode(event);
 
   if (
-    key ===
-      "MediaPlayPause" ||
+    key === "MediaPlayPause" ||
     code === 85 ||
     code === 179
   ) {
@@ -289,24 +357,21 @@ const mediaActionFromEvent = (
   }
 
   if (
-    key ===
-      "MediaPlay" ||
+    key === "MediaPlay" ||
     code === 126
   ) {
     return "play";
   }
 
   if (
-    key ===
-      "MediaPause" ||
+    key === "MediaPause" ||
     code === 127
   ) {
     return "pause";
   }
 
   if (
-    key ===
-      "MediaRewind" ||
+    key === "MediaRewind" ||
     code === 89 ||
     code === 227
   ) {
@@ -314,8 +379,7 @@ const mediaActionFromEvent = (
   }
 
   if (
-    key ===
-      "MediaFastForward" ||
+    key === "MediaFastForward" ||
     code === 90 ||
     code === 228
   ) {
@@ -323,8 +387,7 @@ const mediaActionFromEvent = (
   }
 
   if (
-    key ===
-      "MediaTrackNext" ||
+    key === "MediaTrackNext" ||
     code === 87 ||
     code === 176
   ) {
@@ -332,8 +395,7 @@ const mediaActionFromEvent = (
   }
 
   if (
-    key ===
-      "MediaTrackPrevious" ||
+    key === "MediaTrackPrevious" ||
     code === 88 ||
     code === 177
   ) {
@@ -341,6 +403,31 @@ const mediaActionFromEvent = (
   }
 
   return null;
+};
+
+const looksLikeFireTv = () => {
+  if (
+    typeof navigator ===
+    "undefined"
+  ) {
+    return false;
+  }
+
+  const ua =
+    String(
+      navigator.userAgent ||
+        ""
+    );
+
+  const platform =
+    String(
+      navigator.platform ||
+        ""
+    );
+
+  return /(?:AFT[A-Z0-9]*|Fire TV|AmazonWebAppPlatform|Silk)/i.test(
+    `${ua} ${platform}`
+  );
 };
 
 const visible = (
@@ -382,8 +469,7 @@ const visible = (
 
   while (
     node &&
-    node instanceof
-      HTMLElement
+    node instanceof HTMLElement
   ) {
     if (
       node.hidden ||
@@ -408,8 +494,7 @@ const visible = (
       style.visibility ===
         "hidden" ||
       Number(
-        style.opacity ||
-          1
+        style.opacity || 1
       ) < 0.03 ||
       style.pointerEvents ===
         "none"
@@ -419,8 +504,7 @@ const visible = (
 
     if (
       node === stopAt ||
-      node ===
-        document.body
+      node === document.body
     ) {
       break;
     }
@@ -444,11 +528,9 @@ const topByStacking = (
         ) => {
           const z =
             Number(
-              window
-                .getComputedStyle(
-                  element
-                )
-                .zIndex
+              window.getComputedStyle(
+                element
+              ).zIndex
             );
 
           return {
@@ -468,18 +550,15 @@ const topByStacking = (
           a,
           b
         ) =>
-          a.z ===
-          b.z
+          a.z === b.z
             ? a.index -
               b.index
-            : a.z -
-              b.z
+            : a.z - b.z
       );
 
   return sorted.length
     ? sorted[
-        sorted.length -
-          1
+        sorted.length - 1
       ].element
     : null;
 };
@@ -495,49 +574,43 @@ const seasonPickerScope =
         (
           item
         ) =>
-          visible(
-            item
-          )
+          visible(item)
       );
 
     return (
       close?.closest(
         ".absolute.inset-0"
-      ) ||
-      null
+      ) || null
     );
   };
 
-const modalScope =
-  () => {
-    const picker =
-      seasonPickerScope();
+const modalScope = () => {
+  const picker =
+    seasonPickerScope();
 
-    if (
-      picker &&
-      visible(picker)
-    ) {
-      return picker;
-    }
+  if (
+    picker &&
+    visible(picker)
+  ) {
+    return picker;
+  }
 
-    const overlays =
-      Array.from(
-        document.querySelectorAll(
-          '[role="dialog"], [aria-modal="true"], .fixed.inset-0'
-        )
-      ).filter(
-        (
-          item
-        ) =>
-          visible(
-            item
-          )
-      );
-
-    return topByStacking(
-      overlays
+  const overlays =
+    Array.from(
+      document.querySelectorAll(
+        '[role="dialog"], [aria-modal="true"], .fixed.inset-0'
+      )
+    ).filter(
+      (
+        item
+      ) =>
+        visible(item)
     );
-  };
+
+  return topByStacking(
+    overlays
+  );
+};
 
 const navigationScope =
   () =>
@@ -566,13 +639,11 @@ const centre = (
 ) => ({
   x:
     rect.left +
-    rect.width /
-      2,
+    rect.width / 2,
 
   y:
     rect.top +
-    rect.height /
-      2,
+    rect.height / 2,
 });
 
 const overlap = (
@@ -596,8 +667,7 @@ const overlap = (
 const cardRoot = (
   element
 ) =>
-  element instanceof
-  HTMLElement
+  element instanceof HTMLElement
     ? element.closest(
         "article.group, .group.shrink-0"
       )
@@ -606,8 +676,7 @@ const cardRoot = (
 const rowRoot = (
   element
 ) =>
-  element instanceof
-  HTMLElement
+  element instanceof HTMLElement
     ? element.closest(
         ".overflow-x-auto"
       )
@@ -619,22 +688,16 @@ const scoreDirection = (
   direction
 ) => {
   const from =
-    centre(
-      fromRect
-    );
+    centre(fromRect);
 
   const to =
-    centre(
-      toRect
-    );
+    centre(toRect);
 
   const dx =
-    to.x -
-    from.x;
+    to.x - from.x;
 
   const dy =
-    to.y -
-    from.y;
+    to.y - from.y;
 
   if (
     direction ===
@@ -703,8 +766,7 @@ const scoreDirection = (
     main +
     cross *
       (
-        crossOverlap >
-        0
+        crossOverlap > 0
           ? 0.35
           : 2.2
       ) +
@@ -730,8 +792,7 @@ const focusElement = (
 
   try {
     element.focus({
-      preventScroll:
-        true,
+      preventScroll: true,
     });
   } catch {
     element.focus();
@@ -739,14 +800,9 @@ const focusElement = (
 
   try {
     element.scrollIntoView({
-      block:
-        "center",
-
-      inline:
-        "center",
-
-      behavior:
-        "smooth",
+      block: "center",
+      inline: "center",
+      behavior: "smooth",
     });
   } catch {
     element.scrollIntoView();
@@ -759,13 +815,9 @@ const defaultFocus = (
   scope
 ) => {
   const items =
-    focusables(
-      scope
-    );
+    focusables(scope);
 
-  if (
-    !items.length
-  ) {
+  if (!items.length) {
     return null;
   }
 
@@ -800,8 +852,142 @@ const defaultFocus = (
   return items[0];
 };
 
-const moveFocus = (
+const preferredCardTarget = (
+  card
+) => {
+  if (!card) {
+    return null;
+  }
+
+  const items =
+    Array.from(
+      card.querySelectorAll(
+        FOCUSABLE
+      )
+    ).filter(
+      (
+        item
+      ) =>
+        visible(
+          item,
+          card
+        )
+    );
+
+  const preferred =
+    items.find(
+      (
+        item
+      ) => {
+        const label =
+          String(
+            item.getAttribute(
+              "aria-label"
+            ) || ""
+          ).toLowerCase();
+
+        return (
+          label.startsWith(
+            "play "
+          ) ||
+          label.startsWith(
+            "choose episode"
+          )
+        );
+      }
+    );
+
+  return (
+    preferred ||
+    items[0] ||
+    null
+  );
+};
+
+const rowCardTargets = (
+  row
+) => {
+  if (!row) {
+    return [];
+  }
+
+  return Array.from(
+    row.querySelectorAll(
+      "article.group, .group.shrink-0"
+    )
+  )
+    .filter(
+      (
+        card
+      ) =>
+        visible(
+          card,
+          row
+        )
+    )
+    .map(
+      (
+        card
+      ) =>
+        preferredCardTarget(
+          card
+        )
+    )
+    .filter(Boolean)
+    .sort(
+      (
+        a,
+        b
+      ) =>
+        a.getBoundingClientRect()
+          .left -
+        b.getBoundingClientRect()
+          .left
+    );
+};
+
+const wrapHorizontalFocus = (
+  current,
   direction
+) => {
+  const row =
+    rowRoot(current);
+
+  if (!row) {
+    return false;
+  }
+
+  const targets =
+    rowCardTargets(row);
+
+  if (
+    targets.length < 2
+  ) {
+    return false;
+  }
+
+  const target =
+    direction === "right"
+      ? targets[0]
+      : targets[
+          targets.length - 1
+        ];
+
+  if (
+    !target ||
+    target === current
+  ) {
+    return false;
+  }
+
+  return focusElement(
+    target
+  );
+};
+
+const moveFocus = (
+  direction,
+  settings
 ) => {
   const scope =
     navigationScope();
@@ -810,13 +996,9 @@ const moveFocus = (
     document.activeElement;
 
   const items =
-    focusables(
-      scope
-    );
+    focusables(scope);
 
-  if (
-    !items.length
-  ) {
+  if (!items.length) {
     return false;
   }
 
@@ -843,32 +1025,25 @@ const moveFocus = (
     current.getBoundingClientRect();
 
   const currentCard =
-    cardRoot(
-      current
-    );
+    cardRoot(current);
 
   const currentRow =
-    rowRoot(
-      current
-    );
+    rowRoot(current);
 
   let candidates =
     items.filter(
       (
         item
       ) =>
-        item !==
-        current
+        item !== current
     );
 
   if (
     currentCard &&
     currentRow &&
     (
-      direction ===
-        "left" ||
-      direction ===
-        "right"
+      direction === "left" ||
+      direction === "right"
     )
   ) {
     const cardCandidates =
@@ -877,17 +1052,13 @@ const moveFocus = (
           item
         ) => {
           const card =
-            cardRoot(
-              item
-            );
+            cardRoot(item);
 
           return (
             card &&
             card !==
               currentCard &&
-            rowRoot(
-              item
-            ) ===
+            rowRoot(item) ===
               currentRow
           );
         }
@@ -904,52 +1075,18 @@ const moveFocus = (
         cardCandidates
       ) {
         const card =
-          cardRoot(
-            item
-          );
+          cardRoot(item);
 
         if (
           !byCard.has(
             card
           )
         ) {
-          const preferred =
-            Array.from(
-              card.querySelectorAll(
-                FOCUSABLE
-              )
-            ).find(
-              (
-                candidate
-              ) => {
-                const label =
-                  String(
-                    candidate.getAttribute(
-                      "aria-label"
-                    ) ||
-                      ""
-                  ).toLowerCase();
-
-                return (
-                  visible(
-                    candidate,
-                    card
-                  ) &&
-                  (
-                    label.startsWith(
-                      "play "
-                    ) ||
-                    label.startsWith(
-                      "choose episode"
-                    )
-                  )
-                );
-              }
-            );
-
           byCard.set(
             card,
-            preferred ||
+            preferredCardTarget(
+              card
+            ) ||
               item
           );
         }
@@ -991,16 +1128,118 @@ const moveFocus = (
     }
   }
 
-  return (
+  if (
     best &&
     Number.isFinite(
       bestScore
     )
-  )
-    ? focusElement(
-        best
+  ) {
+    return focusElement(
+      best
+    );
+  }
+
+  if (
+    settings
+      ?.wrapNavigation &&
+    (
+      direction === "left" ||
+      direction === "right"
+    )
+  ) {
+    return wrapHorizontalFocus(
+      current,
+      direction
+    );
+  }
+
+  return false;
+};
+
+const scrollForDirection = (
+  direction
+) => {
+  const current =
+    document.activeElement;
+
+  const row =
+    rowRoot(current);
+
+  if (
+    row &&
+    (
+      direction === "left" ||
+      direction === "right"
+    )
+  ) {
+    const amount =
+      Math.max(
+        180,
+        Math.floor(
+          row.clientWidth *
+            0.72
+        )
+      );
+
+    row.scrollBy({
+      left:
+        direction === "right"
+          ? amount
+          : -amount,
+
+      behavior:
+        "smooth",
+    });
+
+    return true;
+  }
+
+  const verticalAmount =
+    Math.max(
+      240,
+      Math.floor(
+        window.innerHeight *
+          0.66
       )
-    : false;
+    );
+
+  const horizontalAmount =
+    Math.max(
+      240,
+      Math.floor(
+        window.innerWidth *
+          0.66
+      )
+    );
+
+  if (
+    direction === "up" ||
+    direction === "down"
+  ) {
+    window.scrollBy({
+      top:
+        direction === "down"
+          ? verticalAmount
+          : -verticalAmount,
+
+      behavior:
+        "smooth",
+    });
+
+    return true;
+  }
+
+  window.scrollBy({
+    left:
+      direction === "right"
+        ? horizontalAmount
+        : -horizontalAmount,
+
+    behavior:
+      "smooth",
+  });
+
+  return true;
 };
 
 const adjustSelect = (
@@ -1017,8 +1256,7 @@ const adjustSelect = (
   }
 
   const step =
-    direction ===
-      "down"
+    direction === "down"
       ? 1
       : -1;
 
@@ -1032,13 +1270,10 @@ const adjustSelect = (
   while (
     next >= 0 &&
     next <
-      select.options
-        .length
+      select.options.length
   ) {
     const option =
-      select.options[
-        next
-      ];
+      select.options[next];
 
     if (
       !option.disabled &&
@@ -1051,8 +1286,7 @@ const adjustSelect = (
         new Event(
           "input",
           {
-            bubbles:
-              true,
+            bubbles: true,
           }
         )
       );
@@ -1061,8 +1295,7 @@ const adjustSelect = (
         new Event(
           "change",
           {
-            bubbles:
-              true,
+            bubbles: true,
           }
         )
       );
@@ -1070,8 +1303,7 @@ const adjustSelect = (
       return true;
     }
 
-    next +=
-      step;
+    next += step;
   }
 
   return false;
@@ -1110,9 +1342,7 @@ const showPlayerControls =
         scope
       );
 
-    if (
-      !controls
-    ) {
+    if (!controls) {
       return false;
     }
 
@@ -1120,14 +1350,9 @@ const showPlayerControls =
       new MouseEvent(
         "mousemove",
         {
-          bubbles:
-            true,
-
-          cancelable:
-            false,
-
-          view:
-            window,
+          bubbles: true,
+          cancelable: false,
+          view: window,
         }
       )
     );
@@ -1156,12 +1381,10 @@ const focusPlayerControl =
             ) =>
               item.getAttribute(
                 "aria-label"
-              ) ===
-                "Play" ||
+              ) === "Play" ||
               item.getAttribute(
                 "aria-label"
-              ) ===
-                "Pause"
+              ) === "Pause"
           ) ||
           items.find(
             (
@@ -1190,7 +1413,7 @@ const focusPlayerControl =
     );
   };
 
-const activeVideo = () => {
+const activeMedia = () => {
   const scope =
     navigationScope();
 
@@ -1209,11 +1432,49 @@ const activeVideo = () => {
         )
     );
 
-  return videos.length
-    ? videos[
-        videos.length -
-          1
-      ]
+  if (
+    videos.length
+  ) {
+    return videos[
+      videos.length - 1
+    ];
+  }
+
+  const audios =
+    Array.from(
+      document.querySelectorAll(
+        "audio"
+      )
+    ).filter(
+      (
+        audio
+      ) =>
+        Boolean(
+          audio.currentSrc ||
+            audio.src
+        )
+    );
+
+  return (
+    audios.find(
+      (
+        audio
+      ) =>
+        !audio.paused
+    ) ||
+    audios[
+      audios.length - 1
+    ] ||
+    null
+  );
+};
+
+const activeVideo = () => {
+  const media =
+    activeMedia();
+
+  return media instanceof HTMLVideoElement
+    ? media
     : null;
 };
 
@@ -1255,132 +1516,165 @@ const remoteBackButton = (
   return null;
 };
 
-const syntheticEscape =
-  () => {
-    const target =
-      document.activeElement instanceof
-      HTMLElement
-        ? document.activeElement
-        : document.body;
+const syntheticEscape = () => {
+  const target =
+    document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : document.body;
 
-    const event =
-      new KeyboardEvent(
-        "keydown",
-        {
-          key:
-            "Escape",
-
-          code:
-            "Escape",
-
-          bubbles:
-            true,
-
-          cancelable:
-            true,
-        }
-      );
-
-    try {
-      Object.defineProperty(
-        event,
-        "__mgRemoteSynthetic",
-        {
-          value:
-            true,
-        }
-      );
-    } catch {
-      // No-op.
-    }
-
-    target.dispatchEvent(
-      event
-    );
-  };
-
-const looksLikeFireTv =
-  () => {
-    if (
-      typeof navigator ===
-      "undefined"
-    ) {
-      return false;
-    }
-
-    const ua =
-      String(
-        navigator.userAgent ||
-          ""
-      );
-
-    const platform =
-      String(
-        navigator.platform ||
-          ""
-      );
-
-    return /(?:AFT[A-Z0-9]*|Fire TV|AmazonWebAppPlatform|Silk)/i.test(
-      `${ua} ${platform}`
-    );
-  };
-
-const activateRemoteMode = ({
-  tvLayout = false,
-} = {}) => {
-  document
-    .documentElement
-    .classList
-    .add(
-      "mg-fire-tv-mode"
+  const event =
+    new KeyboardEvent(
+      "keydown",
+      {
+        key: "Escape",
+        code: "Escape",
+        bubbles: true,
+        cancelable: true,
+      }
     );
 
-  document
-    .body
-    .classList
-    .add(
-      "mg-fire-tv-mode"
+  try {
+    Object.defineProperty(
+      event,
+      "__mgRemoteSynthetic",
+      {
+        value: true,
+      }
     );
-
-  if (
-    tvLayout
-  ) {
-    document
-      .documentElement
-      .classList
-      .add(
-        "mg-tv-layout"
-      );
-
-    document
-      .body
-      .classList
-      .add(
-        "mg-tv-layout"
-      );
+  } catch {
+    // No-op.
   }
+
+  target.dispatchEvent(
+    event
+  );
+};
+
+const isEditingTarget = (
+  target
+) => {
+  const tag =
+    String(
+      target?.tagName ||
+        ""
+    ).toLowerCase();
+
+  return (
+    tag === "input" ||
+    tag === "textarea" ||
+    target
+      ?.isContentEditable
+  );
+};
+
+const dispatchRemoteStatus = (
+  detail
+) => {
+  if (
+    typeof window ===
+    "undefined"
+  ) {
+    return;
+  }
+
+  window.dispatchEvent(
+    new CustomEvent(
+      "mg:remote-status",
+      {
+        detail,
+      }
+    )
+  );
+};
+
+const applyRemoteClasses = ({
+  active,
+  tvLayout,
+  focusStyle,
+}) => {
+  const html =
+    document.documentElement;
+
+  const body =
+    document.body;
+
+  const standard =
+    Boolean(
+      active &&
+      focusStyle ===
+        "standard"
+    );
+
+  html.classList.toggle(
+    "mg-fire-tv-mode",
+    Boolean(active)
+  );
+
+  body.classList.toggle(
+    "mg-fire-tv-mode",
+    Boolean(active)
+  );
+
+  html.classList.toggle(
+    "mg-tv-layout",
+    Boolean(
+      active &&
+      tvLayout
+    )
+  );
+
+  body.classList.toggle(
+    "mg-tv-layout",
+    Boolean(
+      active &&
+      tvLayout
+    )
+  );
+
+  html.classList.toggle(
+    "mg-remote-focus-standard",
+    standard
+  );
+
+  body.classList.toggle(
+    "mg-remote-focus-standard",
+    standard
+  );
 };
 
 export default function FireTvRemote({
   onBack,
 }) {
   const activeRef =
+    useRef(false);
+
+  const settingsRef =
     useRef(
-      false
+      readRemoteSettings()
     );
 
+  const remoteSeenRef =
+    useRef(false);
+
   const timerRef =
-    useRef(
-      null
-    );
+    useRef(null);
+
+  const directionRepeatRef =
+    useRef({
+      direction: null,
+      at: 0,
+    });
 
   useEffect(() => {
     const fireTv =
       looksLikeFireTv();
 
     const guardActiveRef = {
-      current:
-        false,
+      current: false,
+    };
+
+    const historyGuardEnabledRef = {
+      current: false,
     };
 
     const ensureHistoryGuard =
@@ -1420,46 +1714,17 @@ export default function FireTvRemote({
             window.location.href
           );
         } catch {
-          // Key interception still works.
+          // Key interception still protects Back.
         }
       };
 
-    const activate =
-      () => {
+    const requestDefaultFocus =
+      (
+        delay = 80
+      ) => {
         if (
-          !activeRef.current
-        ) {
-          activeRef.current =
-            true;
-
-          activateRemoteMode({
-            tvLayout:
-              fireTv,
-          });
-        }
-
-        /*
-         * Fire TV Back can arrive as browser history navigation instead
-         * of a keyboard event. Keep a same-page history entry above the
-         * Base44 login page so Back never falls through to it.
-         */
-        if (
-          fireTv
-        ) {
-          ensureHistoryGuard();
-        }
-      };
-
-    if (
-      fireTv
-    ) {
-      activate();
-    }
-
-    const refocusForNewOverlay =
-      () => {
-        if (
-          !activeRef.current
+          !settingsRef.current
+            .autoFocus
         ) {
           return;
         }
@@ -1475,6 +1740,12 @@ export default function FireTvRemote({
         timerRef.current =
           window.setTimeout(
             () => {
+              if (
+                !activeRef.current
+              ) {
+                return;
+              }
+
               const scope =
                 navigationScope();
 
@@ -1482,8 +1753,9 @@ export default function FireTvRemote({
                 document.activeElement;
 
               if (
-                current instanceof
-                  HTMLElement &&
+                current instanceof HTMLElement &&
+                current !==
+                  document.body &&
                 scope.contains(
                   current
                 ) &&
@@ -1509,8 +1781,106 @@ export default function FireTvRemote({
                 );
               }
             },
-            70
+            delay
           );
+      };
+
+    const publishStatus =
+      () => {
+        dispatchRemoteStatus({
+          active:
+            activeRef.current,
+
+          fireTv,
+
+          settings:
+            settingsRef.current,
+        });
+      };
+
+    const syncMode = ({
+      focus = false,
+    } = {}) => {
+      const settings =
+        settingsRef.current;
+
+      const shouldBeActive =
+        fireTv ||
+        settings.remoteMode ===
+          "always" ||
+        remoteSeenRef.current;
+
+      const tvLayout =
+        fireTv ||
+        settings.remoteMode ===
+          "always";
+
+      activeRef.current =
+        shouldBeActive;
+
+      historyGuardEnabledRef.current =
+        fireTv ||
+        settings.remoteMode ===
+          "always";
+
+      applyRemoteClasses({
+        active:
+          shouldBeActive,
+
+        tvLayout,
+
+        focusStyle:
+          settings.focusStyle,
+      });
+
+      if (
+        shouldBeActive &&
+        historyGuardEnabledRef.current
+      ) {
+        ensureHistoryGuard();
+      }
+
+      publishStatus();
+
+      if (
+        shouldBeActive &&
+        focus
+      ) {
+        requestDefaultFocus(
+          60
+        );
+      }
+    };
+
+    const activateFromRemote =
+      () => {
+        remoteSeenRef.current =
+          true;
+
+        syncMode();
+      };
+
+    syncMode({
+      focus:
+        fireTv ||
+        settingsRef.current
+          .remoteMode ===
+          "always",
+    });
+
+    const refocusForNewOverlay =
+      () => {
+        if (
+          !activeRef.current ||
+          !settingsRef.current
+            .autoFocus
+        ) {
+          return;
+        }
+
+        requestDefaultFocus(
+          70
+        );
       };
 
     const handleRemoteBack =
@@ -1527,9 +1897,7 @@ export default function FireTvRemote({
               scope
             );
 
-          if (
-            close
-          ) {
+          if (close) {
             close.click();
           } else {
             syntheticEscape();
@@ -1538,9 +1906,6 @@ export default function FireTvRemote({
           return true;
         }
 
-        /*
-         * Home deliberately consumes Back even when already there.
-         */
         return (
           onBack?.() !==
           false
@@ -1550,7 +1915,8 @@ export default function FireTvRemote({
     const onPopState =
       () => {
         if (
-          !guardActiveRef.current
+          !guardActiveRef.current ||
+          !historyGuardEnabledRef.current
         ) {
           return;
         }
@@ -1567,458 +1933,565 @@ export default function FireTvRemote({
             window.location.href
           );
         } catch {
-          // Ignore.
+          // Ignore history errors.
         }
       };
 
-    const onKeyDown = (
-      event
-    ) => {
-      if (
+    const onSettingsChanged =
+      (
         event
-          ?.__mgRemoteSynthetic
-      ) {
-        return;
-      }
-
-      const direction =
-        directionFromEvent(
-          event
-        );
-
-      const mediaAction =
-        mediaActionFromEvent(
-          event
-        );
-
-      const select =
-        isSelectKey(
-          event
-        );
-
-      const back =
-        isBackKey(
-          event
-        );
-
-      const menu =
-        isMenuKey(
-          event
-        );
-
-      if (
-        !direction &&
-        !mediaAction &&
-        !select &&
-        !back &&
-        !menu
-      ) {
-        return;
-      }
-
-      activate();
-
-      const target =
-        event.target;
-
-      const tag =
-        String(
-          target?.tagName ||
-            ""
-        ).toLowerCase();
-
-      const type =
-        String(
-          target?.type ||
-            ""
-        ).toLowerCase();
-
-      if (
-        direction
-      ) {
-        if (
-          (
-            (
-              tag ===
-                "input" &&
-              type !==
-                "range"
-            ) ||
-            tag ===
-              "textarea" ||
-            target
-              ?.isContentEditable
-          ) &&
-          (
-            direction ===
-              "left" ||
-            direction ===
-              "right"
-          )
-        ) {
-          return;
-        }
-
-        if (
-          tag ===
-            "input" &&
-          type ===
-            "range" &&
-          (
-            direction ===
-              "left" ||
-            direction ===
-              "right"
-          )
-        ) {
-          return;
-        }
-
-        if (
-          tag ===
-            "select" &&
-          (
-            direction ===
-              "up" ||
-            direction ===
-              "down"
-          )
-        ) {
-          event.preventDefault();
-
-          event.stopImmediatePropagation();
-
-          adjustSelect(
-            target,
-            direction
+      ) => {
+        settingsRef.current =
+          normaliseRemoteSettings(
+            event?.detail ||
+              readRemoteSettings()
           );
 
-          return;
-        }
+        syncMode({
+          focus: true,
+        });
+      };
 
-        event.preventDefault();
-
-        event.stopImmediatePropagation();
-
-        const scope =
-          navigationScope();
-
+    const onStorage =
+      (
+        event
+      ) => {
         if (
-          scope !==
-            document.body &&
-          scope.querySelector(
-            "video"
-          )
-        ) {
-          showPlayerControls();
-        }
-
-        window.setTimeout(
-          () =>
-            moveFocus(
-              direction
-            ),
-          scope.querySelector(
-            "video"
-          )
-            ? 20
-            : 0
-        );
-
-        return;
-      }
-
-      if (
-        select
-      ) {
-        const focused =
-          document.activeElement;
-
-        if (
-          focused instanceof
-          HTMLSelectElement
+          event.key !==
+          TV_REMOTE_STORAGE_KEY
         ) {
           return;
         }
 
-        event.preventDefault();
+        settingsRef.current =
+          readRemoteSettings();
 
-        event.stopImmediatePropagation();
+        syncMode({
+          focus: true,
+        });
+      };
+
+    const onKeyDown =
+      (
+        event
+      ) => {
+        if (
+          event?.__mgRemoteSynthetic
+        ) {
+          return;
+        }
+
+        const direction =
+          directionFromEvent(
+            event
+          );
+
+        const mediaAction =
+          mediaActionFromEvent(
+            event
+          );
+
+        const select =
+          isSelectKey(
+            event
+          );
+
+        const back =
+          isBackKey(
+            event
+          );
+
+        const menu =
+          isMenuKey(
+            event
+          );
 
         if (
-          focused instanceof
-            HTMLElement &&
-          focused !==
-            document.body &&
-          visible(
-            focused,
-            navigationScope()
-          )
+          !direction &&
+          !mediaAction &&
+          !select &&
+          !back &&
+          !menu
         ) {
-          const label =
-            String(
-              focused.getAttribute(
-                "aria-label"
-              ) ||
-                ""
-            ).toLowerCase();
+          return;
+        }
 
+        activateFromRemote();
+
+        const settings =
+          settingsRef.current;
+
+        const target =
+          event.target;
+
+        const tag =
+          String(
+            target?.tagName ||
+              ""
+          ).toLowerCase();
+
+        const type =
+          String(
+            target?.type ||
+              ""
+          ).toLowerCase();
+
+        if (direction) {
           if (
-            label ===
-              "play" ||
-            label ===
-              "pause"
+            event.repeat
           ) {
-            const video =
-              activeVideo();
+            const now =
+              Date.now();
+
+            const previous =
+              directionRepeatRef.current;
 
             if (
-              video
-                ?.dataset
-                ?.mgAutoplayMuted ===
-              "true"
+              previous.direction ===
+                direction &&
+              now -
+                previous.at <
+                70
             ) {
-              video.muted =
-                false;
+              event.preventDefault();
+              event.stopImmediatePropagation();
 
-              delete video
-                .dataset
-                .mgAutoplayMuted;
+              return;
             }
+
+            directionRepeatRef.current = {
+              direction,
+              at: now,
+            };
+          } else {
+            directionRepeatRef.current = {
+              direction,
+              at:
+                Date.now(),
+            };
           }
 
-          focused.click();
-        } else {
-          focusElement(
-            defaultFocus(
-              navigationScope()
-            )
-          );
-        }
-
-        return;
-      }
-
-      if (
-        back
-      ) {
-        event.preventDefault();
-
-        event.stopImmediatePropagation();
-
-        handleRemoteBack();
-
-        return;
-      }
-
-      if (
-        menu
-      ) {
-        event.preventDefault();
-
-        event.stopImmediatePropagation();
-
-        const focused =
-          document.activeElement;
-
-        const card =
-          cardRoot(
-            focused
-          );
-
-        if (
-          card
-        ) {
-          const details =
-            Array.from(
-              card.querySelectorAll(
-                "button"
-              )
-            ).find(
+          if (
+            (
               (
-                button
-              ) =>
-                String(
-                  button.textContent ||
-                    ""
-                )
-                  .trim()
-                  .toLowerCase() ===
-                "details"
-            );
+                tag ===
+                  "input" &&
+                type !==
+                  "range"
+              ) ||
+              tag ===
+                "textarea" ||
+              target
+                ?.isContentEditable
+            ) &&
+            (
+              direction ===
+                "left" ||
+              direction ===
+                "right"
+            )
+          ) {
+            return;
+          }
 
           if (
-            details
+            tag === "input" &&
+            type === "range" &&
+            (
+              direction ===
+                "left" ||
+              direction ===
+                "right"
+            )
           ) {
-            details.click();
+            return;
+          }
+
+          if (
+            tag === "select" &&
+            (
+              direction ===
+                "up" ||
+              direction ===
+                "down"
+            )
+          ) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+
+            adjustSelect(
+              target,
+              direction
+            );
 
             return;
           }
-        }
 
-        if (
-          navigationScope().querySelector(
-            "video"
-          )
-        ) {
-          focusPlayerControl();
+          event.preventDefault();
+          event.stopImmediatePropagation();
+
+          const scope =
+            navigationScope();
+
+          if (
+            scope !==
+              document.body &&
+            scope.querySelector(
+              "video"
+            )
+          ) {
+            showPlayerControls();
+          }
+
+          window.setTimeout(
+            () => {
+              const moved =
+                moveFocus(
+                  direction,
+                  settings
+                );
+
+              if (
+                !moved &&
+                settings.scrollFallback
+              ) {
+                scrollForDirection(
+                  direction
+                );
+              }
+            },
+            scope.querySelector(
+              "video"
+            )
+              ? 20
+              : 0
+          );
 
           return;
         }
 
-        focusElement(
-          document.querySelector(
-            'aside button[title="Search"]'
-          )
-        );
+        if (select) {
+          const focused =
+            document.activeElement;
 
-        return;
-      }
+          if (
+            focused instanceof
+            HTMLSelectElement
+          ) {
+            return;
+          }
 
-      if (
-        mediaAction
-      ) {
-        event.preventDefault();
+          event.preventDefault();
+          event.stopImmediatePropagation();
 
-        event.stopImmediatePropagation();
+          if (
+            focused instanceof HTMLElement &&
+            focused !==
+              document.body &&
+            visible(
+              focused,
+              navigationScope()
+            )
+          ) {
+            const label =
+              String(
+                focused.getAttribute(
+                  "aria-label"
+                ) ||
+                  ""
+              ).toLowerCase();
 
-        const video =
-          activeVideo();
+            if (
+              label === "play" ||
+              label === "pause"
+            ) {
+              const video =
+                activeVideo();
 
-        if (
-          mediaAction ===
-          "next"
-        ) {
-          window.dispatchEvent(
-            new CustomEvent(
-              "mg:play-next-episode"
+              if (
+                video?.dataset
+                  ?.mgAutoplayMuted ===
+                "true"
+              ) {
+                video.muted =
+                  false;
+
+                delete video.dataset
+                  .mgAutoplayMuted;
+              }
+            }
+
+            focused.click();
+          } else {
+            focusElement(
+              defaultFocus(
+                navigationScope()
+              )
+            );
+          }
+
+          return;
+        }
+
+        if (back) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+
+          if (
+            isEditingTarget(
+              target
+            )
+          ) {
+            try {
+              target.blur();
+            } catch {
+              // Ignore.
+            }
+
+            requestDefaultFocus(
+              30
+            );
+
+            return;
+          }
+
+          handleRemoteBack();
+
+          return;
+        }
+
+        if (menu) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+
+          const focused =
+            document.activeElement;
+
+          const card =
+            cardRoot(
+              focused
+            );
+
+          if (card) {
+            const details =
+              Array.from(
+                card.querySelectorAll(
+                  "button"
+                )
+              ).find(
+                (
+                  button
+                ) =>
+                  String(
+                    button.textContent ||
+                      ""
+                  )
+                    .trim()
+                    .toLowerCase() ===
+                  "details"
+              );
+
+            if (details) {
+              details.click();
+
+              return;
+            }
+          }
+
+          if (
+            navigationScope().querySelector(
+              "video"
+            )
+          ) {
+            focusPlayerControl();
+
+            return;
+          }
+
+          focusElement(
+            document.querySelector(
+              'aside button[title="Search"]'
             )
           );
 
           return;
         }
 
-        if (
-          !video
-        ) {
-          return;
-        }
+        if (mediaAction) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
 
-        const restoreAutoplayAudio =
-          () => {
-            if (
-              video
-                .dataset
-                ?.mgAutoplayMuted ===
-              "true"
-            ) {
-              video.muted =
-                false;
-
-              delete video
-                .dataset
-                .mgAutoplayMuted;
-            }
-          };
-
-        if (
-          mediaAction ===
-          "playpause"
-        ) {
           if (
-            video.paused
+            mediaAction ===
+            "next"
+          ) {
+            window.dispatchEvent(
+              new CustomEvent(
+                "mg:play-next-episode"
+              )
+            );
+
+            return;
+          }
+
+          const media =
+            activeMedia();
+
+          if (!media) {
+            return;
+          }
+
+          const restoreAutoplayAudio =
+            () => {
+              if (
+                media instanceof
+                  HTMLVideoElement &&
+                media.dataset
+                  ?.mgAutoplayMuted ===
+                  "true"
+              ) {
+                media.muted =
+                  false;
+
+                delete media.dataset
+                  .mgAutoplayMuted;
+              }
+            };
+
+          if (
+            mediaAction ===
+            "playpause"
+          ) {
+            if (
+              media.paused
+            ) {
+              restoreAutoplayAudio();
+
+              media
+                .play()
+                .catch(
+                  () => {}
+                );
+            } else {
+              media.pause();
+            }
+
+            return;
+          }
+
+          if (
+            mediaAction ===
+            "play"
           ) {
             restoreAutoplayAudio();
 
-            video
+            media
               .play()
               .catch(
                 () => {}
               );
-          } else {
-            video.pause();
+
+            return;
           }
 
-          return;
-        }
+          if (
+            mediaAction ===
+            "pause"
+          ) {
+            media.pause();
 
-        if (
-          mediaAction ===
-          "play"
-        ) {
-          restoreAutoplayAudio();
+            return;
+          }
 
-          video
-            .play()
-            .catch(
-              () => {}
-            );
-
-          return;
-        }
-
-        if (
-          mediaAction ===
-          "pause"
-        ) {
-          video.pause();
-
-          return;
-        }
-
-        if (
-          mediaAction ===
-          "rewind"
-        ) {
-          video.currentTime =
-            Math.max(
-              0,
-              (
-                video.currentTime ||
-                0
-              ) -
+          const seekSeconds =
+            Number(
+              settings.seekSeconds ||
                 10
             );
 
-          showPlayerControls();
-
-          return;
-        }
-
-        if (
-          mediaAction ===
-          "fastforward"
-        ) {
           if (
-            video.duration
+            mediaAction ===
+            "rewind"
           ) {
-            video.currentTime =
-              Math.min(
-                video.duration,
-                (
-                  video.currentTime ||
-                  0
-                ) +
-                  10
-              );
+            if (
+              Number.isFinite(
+                media.currentTime
+              )
+            ) {
+              media.currentTime =
+                Math.max(
+                  0,
+                  (
+                    media.currentTime ||
+                    0
+                  ) -
+                    seekSeconds
+                );
+            }
+
+            if (
+              media instanceof
+              HTMLVideoElement
+            ) {
+              showPlayerControls();
+            }
+
+            return;
           }
 
-          showPlayerControls();
+          if (
+            mediaAction ===
+            "fastforward"
+          ) {
+            if (
+              Number.isFinite(
+                media.duration
+              ) &&
+              media.duration > 0
+            ) {
+              media.currentTime =
+                Math.min(
+                  media.duration,
+                  (
+                    media.currentTime ||
+                    0
+                  ) +
+                    seekSeconds
+                );
+            }
 
-          return;
+            if (
+              media instanceof
+              HTMLVideoElement
+            ) {
+              showPlayerControls();
+            }
+
+            return;
+          }
+
+          if (
+            mediaAction ===
+            "previous"
+          ) {
+            if (
+              Number.isFinite(
+                media.currentTime
+              )
+            ) {
+              media.currentTime =
+                0;
+            }
+
+            if (
+              media instanceof
+              HTMLVideoElement
+            ) {
+              showPlayerControls();
+            }
+          }
         }
-
-        if (
-          mediaAction ===
-          "previous"
-        ) {
-          video.currentTime =
-            0;
-
-          showPlayerControls();
-        }
-      }
-    };
+      };
 
     const observer =
       new MutationObserver(
@@ -2036,14 +2509,21 @@ export default function FireTvRemote({
       onPopState
     );
 
+    window.addEventListener(
+      "mg:remote-settings-changed",
+      onSettingsChanged
+    );
+
+    window.addEventListener(
+      "storage",
+      onStorage
+    );
+
     observer.observe(
       document.body,
       {
-        childList:
-          true,
-
-        subtree:
-          true,
+        childList: true,
+        subtree: true,
       }
     );
 
@@ -2059,6 +2539,16 @@ export default function FireTvRemote({
         onPopState
       );
 
+      window.removeEventListener(
+        "mg:remote-settings-changed",
+        onSettingsChanged
+      );
+
+      window.removeEventListener(
+        "storage",
+        onStorage
+      );
+
       observer.disconnect();
 
       if (
@@ -2069,37 +2559,19 @@ export default function FireTvRemote({
         );
       }
 
-      document
-        .documentElement
-        .classList
-        .remove(
-          "mg-fire-tv-mode"
-        );
+      activeRef.current =
+        false;
 
-      document
-        .body
-        .classList
-        .remove(
-          "mg-fire-tv-mode"
-        );
+      applyRemoteClasses({
+        active: false,
+        tvLayout: false,
+        focusStyle:
+          "strong",
+      });
 
-      document
-        .documentElement
-        .classList
-        .remove(
-          "mg-tv-layout"
-        );
-
-      document
-        .body
-        .classList
-        .remove(
-          "mg-tv-layout"
-        );
+      publishStatus();
     };
-  }, [
-    onBack,
-  ]);
+  }, [onBack]);
 
   return (
     <style>
