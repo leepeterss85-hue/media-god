@@ -1,152 +1,1634 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { Search, Wifi, Tv, Loader2 } from "lucide-react";
-import { usePlayer } from "@/components/mg/PlayerProvider";
+export const LIVE_TV_SOURCES = [
+  {
+    id: "free-tv",
+    name: "Free-TV",
+    url: "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8",
+    priority: 100,
+    category: "General",
+  },
+  {
+    id: "freecasthub",
+    name: "FreeCastHub",
+    url: "https://raw.githubusercontent.com/freecasthub/public-iptv/main/playlist.m3u",
+    priority: 95,
+    category: "General",
+  },
+  {
+    id: "freecasthub-sports",
+    name: "FreeCastHub Sports",
+    url: "https://raw.githubusercontent.com/freecasthub/public-iptv/main/sports.m3u",
+    priority: 96,
+    category: "Sports",
+  },
+  {
+    id: "iptv-org-uk",
+    name: "IPTV-org UK",
+    url: "https://iptv-org.github.io/iptv/countries/uk.m3u",
+    priority: 90,
+    category: "United Kingdom",
+  },
+  {
+    id: "iptv-org-sports",
+    name: "IPTV-org Sports",
+    url: "https://iptv-org.github.io/iptv/categories/sports.m3u",
+    priority: 80,
+    category: "Sports",
+  },
+  {
+    id: "iptv-org-movies",
+    name: "IPTV-org Movies",
+    url: "https://iptv-org.github.io/iptv/categories/movies.m3u",
+    priority: 80,
+    category: "Movies",
+  },
+];
 
-// Free-to-air IPTV channels from the public Free-TV/IPTV playlist
-// (https://github.com/Free-TV/IPTV). All channels are publicly available
-// legal broadcasts. The M3U is fetched and parsed client-side.
-const PLAYLIST_URL = "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8";
+export const FREE_TV_PLAYLIST_URL =
+  LIVE_TV_SOURCES[0].url;
 
-function parseM3U(text) {
-  const lines = text.split(/\r?\n/);
-  const out = [];
-  let cur = null;
-  for (const raw of lines) {
-    const t = raw.trim();
-    if (!t) continue;
-    if (t.startsWith("#EXTINF")) {
-      const comma = t.indexOf(",");
-      const name = comma >= 0 ? t.slice(comma + 1).trim() : "";
-      const logo = (t.match(/tvg-logo="([^"]*)"/) || [])[1] || "";
-      const group = (t.match(/group-title="([^"]*)"/) || [])[1] || "Other";
-      cur = { name: name || "Unknown", logo, group, url: "" };
-    } else if (!t.startsWith("#")) {
-      if (cur) {
-        cur.url = t;
-        if (cur.url) out.push(cur);
-        cur = null;
-      }
-    }
-  }
-  return out;
-}
+export const LIVE_TV_REGION = "GB";
 
-export default function FreeTvChannels() {
-  const [all, setAll] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [query, setQuery] = useState("");
-  const [group, setGroup] = useState("All");
-  const player = usePlayer();
+export const SKY_STREAM_OVERRIDES = {
+  "sky sports main event": "https://live20.bozztv.com/trn03/gin-skysportsmainevent/index.m3u8",
+  "sky sports premier league": "https://live20.bozztv.com/trn03/gin-skysportspl/index.m3u8",
+  "sky sports football": "https://live20.bozztv.com/trn03/gin-skysportsfootball/index.m3u8",
+  "sky sports cricket": "https://live20.bozztv.com/trn03/gin-skysportscricket/index.m3u8",
+  "sky sports f1": "https://live20.bozztv.com/trn03/gin-skysportsf1/index.m3u8",
+  "sky showcase": "https://live20.bozztv.com/trn03/gin-skyshowcase/index.m3u8",
+  "sky news": "https://skynews2-plutolive-vo.akamaized.net/playlist.m3u8",
+  "gb news": "https://gbnews-live.rakuten.tv/v1/master.m3u8",
+  "talktv": "https://live-talktv.uksse.wurl.tv/playlist.m3u8",
+  "Bloomberg TV": "https://live.bloomberg.com/kinesis/us-live.m3u8",
+  "trrt world": "https://trtworld.ios.bund.cpl.delvenetworks.com/playlist.m3u8",
+  "tnt sports 1": "https://live20.bozztv.com/trn03/gin-tntsports1/index.m3u8",
+  "tnt sports 2": "https://live20.bozztv.com/trn03/gin-tntsports2/index.m3u8",
+  "tnt sports 3": "https://live20.bozztv.com/trn03/gin-tntsports3/index.m3u8",
+  "tnt sports 4": "https://live20.bozztv.com/trn03/gin-tntsports4/index.m3u8",
+};
 
-  useEffect(() => {
-    let cancelled = false;
-    fetch(PLAYLIST_URL)
-      .then((r) => r.text())
-      .then((txt) => {
-        if (cancelled) return;
-        setAll(parseM3U(txt));
-        setLoading(false);
-      })
-      .catch((e) => {
-        if (cancelled) return;
-        setError(e.message || "Could not load playlist");
-        setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+const CACHE_MS =
+  15 * 60 * 1000;
 
-  const groups = useMemo(() => {
-    const set = new Set(all.map((c) => c.group));
-    return ["All", ...Array.from(set).sort()];
-  }, [all]);
+let cache = null;
+let cacheAt = 0;
+let inflight = null;
 
-  const filtered = useMemo(() => {
-    let list = all;
-    if (group !== "All") list = list.filter((c) => c.group === group);
-    if (query) {
-      const q = query.toLowerCase();
-      list = list.filter((c) => c.name.toLowerCase().includes(q));
-    }
-    return list;
-  }, [all, group, query]);
-
-  const shown = filtered.slice(0, 200);
-
-  const play = (c) => {
-    player.play({
-      title: c.name,
-      poster: c.logo,
-      sources: [{ label: "LIVE", type: "live", src: c.url, live: true }],
-    });
-  };
-
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 gap-3">
-        <Loader2 className="w-6 h-6 text-mg-green animate-spin" />
-        <p className="text-white/50 text-sm">Loading free-to-air channels…</p>
-      </div>
+const attr = (
+  line,
+  name
+) => {
+  const match =
+    String(
+      line || ""
+    ).match(
+      new RegExp(
+        `${name}="([^"]*)"`,
+        "i"
+      )
     );
+
+  return match?.[1] || "";
+};
+
+const cleanChannelName = (
+  value
+) =>
+  String(
+    value || ""
+  )
+    .replace(
+      /[ⓈⒼⓎⓉ]/g,
+      ""
+    )
+    .replace(
+      /\s+/g,
+      " "
+    )
+    .trim();
+
+const normaliseChannelNameForKey =
+  (
+    value
+  ) =>
+    cleanChannelName(
+      value
+    )
+      .toLowerCase()
+      .replace(
+        /\[[^\]]*(?:geo|not 24\/7|sd|hd|fhd|uhd|4k|1080|720|576|480)[^\]]*\]/gi,
+        " "
+      )
+      .replace(
+        /\([^)]*(?:geo|not 24\/7|sd|hd|fhd|uhd|4k|1080|720|576|480)[^)]*\)/gi,
+        " "
+      )
+      .replace(
+        /\b(?:2160p?|4k|uhd|1080p?|fhd|720p?|hd|576p?|480p?|sd)\b/gi,
+        " "
+      )
+      .replace(
+        /\s+/g,
+        " "
+      )
+      .trim();
+
+const classifyUrl = (
+  url
+) => {
+  const value =
+    String(
+      url || ""
+    ).trim();
+
+  const lower =
+    value.toLowerCase();
+
+  if (
+    /(?:youtube\.com|youtu\.be)/i.test(
+      lower
+    ) ||
+    /(?:twitch\.tv)/i.test(
+      lower
+    ) ||
+    /(?:dailymotion\.com|dai\.ly)/i.test(
+      lower
+    )
+  ) {
+    return "external";
   }
-  if (error) {
-    return <p className="text-red-400 text-sm py-10 text-center">{error}</p>;
+
+  return "direct";
+};
+
+const streamFormat = (
+  url
+) => {
+  const value =
+    String(
+      url || ""
+    ).toLowerCase();
+
+  if (
+    /\.m3u8(?:[?#]|$)/i.test(
+      value
+    )
+  ) {
+    return "hls";
+  }
+
+  if (
+    /\.mpd(?:[?#]|$)/i.test(
+      value
+    )
+  ) {
+    return "dash";
+  }
+
+  if (
+    /\.(?:mp3|aac|m4a|ogg|opus)(?:[?#]|$)/i.test(
+      value
+    )
+  ) {
+    return "audio";
+  }
+
+  if (
+    /\.(?:mp4|m4v|webm)(?:[?#]|$)/i.test(
+      value
+    )
+  ) {
+    return "file";
+  }
+
+  if (
+    /\.(?:ts|m2ts)(?:[?#]|$)/i.test(
+      value
+    )
+  ) {
+    return "mpegts";
+  }
+
+  return "unknown";
+};
+
+const isUnsupportedProtocol = (
+  url
+) =>
+  /^(?:rtmp|rtsp|udp|rtp|acestream|sop):/i.test(
+    String(
+      url || ""
+    ).trim()
+  );
+
+const pageIsHttps = () => {
+  if (
+    typeof window ===
+    "undefined"
+  ) {
+    return true;
   }
 
   return (
-    <div>
-      <div className="flex flex-wrap items-center gap-3 mb-4">
-        <div className="relative flex-1 min-w-[200px] max-w-xs">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search channels..."
-            className="w-full bg-mg-card border border-white/10 rounded-lg pl-10 pr-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:border-mg-green"
-          />
-        </div>
-        <select
-          value={group}
-          onChange={(e) => setGroup(e.target.value)}
-          className="bg-mg-card border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mg-green max-w-[180px]"
-        >
-          {groups.map((g) => (
-            <option key={g} value={g} className="bg-mg-card">
-              {g}
-            </option>
-          ))}
-        </select>
-      </div>
+    String(
+      window.location
+        ?.protocol ||
+        "https:"
+    ) === "https:"
+  );
+};
 
-      <p className="text-xs text-white/40 mb-4">
-        FREE-TO-AIR • {filtered.length.toLocaleString()} channels
-        {filtered.length > 200 && " • showing first 200 — refine your search"}
-      </p>
+const isMixedContentUrl = (
+  url
+) =>
+  pageIsHttps() &&
+  /^http:\/\//i.test(
+    String(
+      url || ""
+    ).trim()
+  );
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {shown.map((c, i) => (
-          <button
-            key={(c.url || c.name) + i}
-            onClick={() => play(c)}
-            className="text-left bg-mg-card border border-white/10 rounded-lg p-3 flex items-center gap-3 min-h-[64px] hover:border-mg-green/60 hover:bg-mg-surface transition-colors"
-          >
-            <div className="w-12 h-12 rounded bg-black/30 flex items-center justify-center overflow-hidden shrink-0">
-              {c.logo ? (
-                <img src={c.logo} alt="" className="w-full h-full object-contain" />
-              ) : (
-                <Tv className="w-5 h-5 text-white/30" />
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-white font-semibold text-sm truncate">{c.name}</div>
-              <div className="text-white/40 text-xs truncate">{c.group}</div>
-            </div>
-            <Wifi className="w-4 h-4 text-mg-green shrink-0" />
-          </button>
-        ))}
-      </div>
-    </div>
+const qualityFromText = (
+  value
+) => {
+  const text =
+    String(
+      value || ""
+    ).toLowerCase();
+
+  if (
+    /\b(?:2160p?|4k|uhd)\b/.test(
+      text
+    )
+  ) {
+    return 2160;
+  }
+
+  if (
+    /\b1080p?\b|\bfhd\b/.test(
+      text
+    )
+  ) {
+    return 1080;
+  }
+
+  if (
+    /\b720p?\b|\bhd\b/.test(
+      text
+    )
+  ) {
+    return 720;
+  }
+
+  if (
+    /\b576p?\b/.test(
+      text
+    )
+  ) {
+    return 576;
+  }
+
+  if (
+    /\b480p?\b|\bsd\b/.test(
+      text
+    )
+  ) {
+    return 480;
+  }
+
+  return 0;
+};
+
+const feedSuffix = (
+  tvgId
+) => {
+  const id =
+    String(
+      tvgId || ""
+    );
+
+  const at =
+    id.indexOf(
+      "@"
+    );
+
+  return at >= 0
+    ? id
+        .slice(
+          at + 1
+        )
+        .trim()
+        .toUpperCase()
+    : "";
+};
+
+const looksLikeUkFeed = (
+  channel
+) => {
+  const country =
+    String(
+      channel?.country ||
+        ""
+    ).toUpperCase();
+
+  const group =
+    String(
+      channel?.group ||
+        ""
+    ).toLowerCase();
+
+  const id =
+    String(
+      channel?.tvgId ||
+        channel?.id ||
+        ""
+    ).toLowerCase();
+
+  const suffix =
+    feedSuffix(
+      channel?.tvgId ||
+        channel?.id
+    );
+
+  if (
+    /^(?:US|USA|CA|CANADA|AU|AUS|NZ|IN|INDIA|ASIA|AFRICA)$/i.test(
+      suffix
+    )
+  ) {
+    return false;
+  }
+
+  return (
+    country === "GB" ||
+    country === "UK" ||
+    /(?:^|\.)uk(?:@|$)/i.test(
+      id
+    ) ||
+    group === "uk" ||
+    group.includes(
+      "united kingdom"
+    ) ||
+    group.includes(
+      "great britain"
+    )
+  );
+};
+
+const browserCompatibility = (
+  channel
+) => {
+  const url =
+    String(
+      channel?.url ||
+        ""
+    ).trim();
+
+  const kind =
+    channel?.kind ||
+    classifyUrl(
+      url
+    );
+
+  const format =
+    streamFormat(
+      url
+    );
+
+  if (!url) {
+    return {
+      browserPlayable:
+        false,
+
+      browserReason:
+        "Missing URL",
+
+      format,
+    };
+  }
+
+  if (
+    kind ===
+    "external"
+  ) {
+    return {
+      browserPlayable:
+        true,
+
+      browserReason:
+        "",
+
+      format:
+        "external",
+    };
+  }
+
+  if (
+    isUnsupportedProtocol(
+      url
+    )
+  ) {
+    return {
+      browserPlayable:
+        false,
+
+      browserReason:
+        "Unsupported stream protocol",
+
+      format,
+    };
+  }
+
+  if (
+    format ===
+    "dash"
+  ) {
+    return {
+      browserPlayable:
+        false,
+
+      browserReason:
+        "DASH is not enabled in the current player",
+
+      format,
+    };
+  }
+
+  if (
+    isMixedContentUrl(
+      url
+    )
+  ) {
+    return {
+      browserPlayable:
+        false,
+
+      browserReason:
+        "HTTP stream blocked on HTTPS app",
+
+      format,
+    };
+  }
+
+  if (
+    channel?.requiresHeaders
+  ) {
+    return {
+      browserPlayable:
+        false,
+
+      browserReason:
+        "Stream requires custom request headers",
+
+      format,
+    };
+  }
+
+  return {
+    browserPlayable:
+      true,
+
+    browserReason:
+      "",
+
+    format,
+  };
+};
+
+const sourceScore = (
+  channel
+) => {
+  let score =
+    Number(
+      channel?.sourcePriority ||
+        0
+    ) * 12;
+
+  const quality =
+    Number(
+      channel?.quality ||
+        0
+    );
+
+  const url =
+    String(
+      channel?.url ||
+        ""
+    );
+
+  const format =
+    channel?.format ||
+    streamFormat(
+      url
+    );
+
+  if (
+    /^https:\/\//i.test(
+      url
+    )
+  ) {
+    score +=
+      1800;
+  }
+
+  if (
+    format ===
+    "hls"
+  ) {
+    score +=
+      1600;
+  }
+
+  if (
+    format ===
+    "audio"
+  ) {
+    score +=
+      1400;
+  }
+
+  if (
+    format ===
+    "file"
+  ) {
+    score +=
+      900;
+  }
+
+  if (
+    format ===
+    "mpegts"
+  ) {
+    score +=
+      700;
+  }
+
+  if (
+    quality >=
+    2160
+  ) {
+    score +=
+      800;
+  } else if (
+    quality >=
+    1080
+  ) {
+    score +=
+      650;
+  } else if (
+    quality >=
+    720
+  ) {
+    score +=
+      500;
+  } else if (
+    quality >=
+    576
+  ) {
+    score +=
+      250;
+  } else if (
+    quality > 0
+  ) {
+    score +=
+      80;
+  }
+
+  if (
+    channel?.kind ===
+    "external"
+  ) {
+    score -=
+      400;
+  }
+
+  if (
+    channel?.notAlwaysOn
+  ) {
+    score -=
+      250;
+  }
+
+  if (
+    channel?.standardDefinition
+  ) {
+    score -=
+      80;
+  }
+
+  if (
+    channel
+      ?.geoAvailableHere
+  ) {
+    score +=
+      450;
+  } else if (
+    channel?.geoBlocked
+  ) {
+    score -=
+      1800;
+  }
+
+  if (
+    looksLikeUkFeed(
+      channel
+    ) &&
+    LIVE_TV_REGION ===
+      "GB"
+  ) {
+    score +=
+      1000;
+  }
+
+  if (
+    channel
+      ?.browserPlayable ===
+    false
+  ) {
+    score -=
+      100000;
+  }
+
+  return score;
+};
+
+const inferTags = ({
+  sourceCategory,
+  group,
+  name,
+  country,
+}) => {
+  const tags =
+    new Set();
+
+  const joined =
+    `${sourceCategory || ""} ${
+      group || ""
+    } ${
+      name || ""
+    }`.toLowerCase();
+
+  if (
+    sourceCategory
+  ) {
+    tags.add(
+      sourceCategory
+    );
+  }
+
+  if (
+    /sport/.test(
+      joined
+    )
+  ) {
+    tags.add(
+      "Sports"
+    );
+  }
+
+  if (
+    /movie|cinema|film/.test(
+      joined
+    )
+  ) {
+    tags.add(
+      "Movies"
+    );
+  }
+
+  if (
+    /news/.test(
+      joined
+    )
+  ) {
+    tags.add(
+      "News"
+    );
+  }
+
+  if (
+    /radio|\bfm\b/.test(
+      joined
+    )
+  ) {
+    tags.add(
+      "Radio"
+    );
+  }
+
+  if (
+    /music/.test(
+      joined
+    )
+  ) {
+    tags.add(
+      "Music"
+    );
+  }
+
+  if (
+    /kids|children|family/.test(
+      joined
+    )
+  ) {
+    tags.add(
+      "Kids"
+    );
+  }
+
+  if (
+    /documentary|science/.test(
+      joined
+    )
+  ) {
+    tags.add(
+      "Documentary"
+    );
+  }
+
+  if (
+    /series|entertainment/.test(
+      joined
+    )
+  ) {
+    tags.add(
+      "Entertainment"
+    );
+  }
+
+  if (
+    /united kingdom|\buk\b|great britain/.test(
+      joined
+    ) ||
+    /^(gb|uk)$/i.test(
+      String(
+        country || ""
+      )
+    )
+  ) {
+    tags.add(
+      "United Kingdom"
+    );
+  }
+
+  return [
+    ...tags,
+  ];
+};
+
+const parseExtHttp = (
+  line
+) => {
+  const raw =
+    String(
+      line || ""
+    )
+      .replace(
+        /^#EXTHTTP:/i,
+        ""
+      )
+      .trim();
+
+  if (!raw) {
+    return {};
+  }
+
+  try {
+    const data =
+      JSON.parse(
+        raw
+      );
+
+    return {
+      referrer:
+        data?.referrer ||
+        data?.referer ||
+        data?.Referer ||
+        data?.Referrer ||
+        "",
+
+      userAgent:
+        data?.[
+          "user-agent"
+        ] ||
+        data?.userAgent ||
+        data?.UserAgent ||
+        "",
+    };
+  } catch {
+    return {};
+  }
+};
+
+export function parseFreeTvPlaylist(
+  text,
+  source =
+    LIVE_TV_SOURCES[0]
+) {
+  const lines =
+    String(
+      text || ""
+    ).split(
+      /\r?\n/
+    );
+
+  const channels =
+    [];
+
+  let current =
+    null;
+
+  for (
+    const rawLine of
+    lines
+  ) {
+    const line =
+      rawLine.trim();
+
+    if (!line) {
+      continue;
+    }
+
+    if (
+      line.startsWith(
+        "#EXTINF"
+      )
+    ) {
+      const comma =
+        line.indexOf(
+          ","
+        );
+
+      const rawName =
+        comma >= 0
+          ? line
+              .slice(
+                comma + 1
+              )
+              .trim()
+          : attr(
+              line,
+              "tvg-name"
+            ) ||
+            "Unknown";
+
+      const name =
+        cleanChannelName(
+          rawName
+        ) ||
+        "Unknown";
+
+      const logo =
+        attr(
+          line,
+          "tvg-logo"
+        );
+
+      const tvgId =
+        attr(
+          line,
+          "tvg-id"
+        );
+
+      const country =
+        attr(
+          line,
+          "tvg-country"
+        );
+
+      const group =
+        attr(
+          line,
+          "group-title"
+        ) ||
+        source.category ||
+        country ||
+        "Other";
+
+      const channelNumber =
+        attr(
+          line,
+          "tvg-chno"
+        );
+
+      const quality =
+        qualityFromText(
+          `${rawName} ${line}`
+        );
+
+      const geoRestricted =
+        rawName.includes(
+          "Ⓖ"
+        ) ||
+        /\bgeo[- ]?blocked\b/i.test(
+          rawName
+        ) ||
+        /\bgeo[- ]?restricted\b/i.test(
+          rawName
+        );
+
+      current = {
+        id:
+          tvgId ||
+          "",
+
+        name,
+        rawName,
+        logo,
+        tvgId,
+        country,
+        group,
+        channelNumber,
+
+        url:
+          "",
+
+        kind:
+          "direct",
+
+        format:
+          "unknown",
+
+        standardDefinition:
+          rawName.includes(
+            "Ⓢ"
+          ) ||
+          quality ===
+            480,
+
+        geoRestricted,
+
+        geoAvailableHere:
+          false,
+
+        geoBlocked:
+          false,
+
+        notAlwaysOn:
+          /not 24\/7/i.test(
+            rawName
+          ),
+
+        youtube:
+          rawName.includes(
+            "Ⓨ"
+          ),
+
+        twitch:
+          rawName.includes(
+            "Ⓣ"
+          ),
+
+        insecure:
+          false,
+
+        mixedContent:
+          false,
+
+        requiresHeaders:
+          false,
+
+        referrer:
+          "",
+
+        userAgent:
+          "",
+
+        browserPlayable:
+          true,
+
+        browserReason:
+          "",
+
+        quality,
+
+        sourceId:
+          source.id,
+
+        sourceName:
+          source.name,
+
+        sourcePriority:
+          source.priority,
+
+        sourceCategory:
+          source.category,
+
+        tags:
+          [],
+
+        alternatives:
+          [],
+      };
+
+      continue;
+    }
+
+    if (!current) {
+      continue;
+    }
+
+    if (
+      /^#EXTVLCOPT:http-referrer=/i.test(
+        line
+      )
+    ) {
+      current.referrer =
+        line
+          .replace(
+            /^#EXTVLCOPT:http-referrer=/i,
+            ""
+          )
+          .trim();
+
+      continue;
+    }
+
+    if (
+      /^#EXTVLCOPT:http-user-agent=/i.test(
+        line
+      )
+    ) {
+      current.userAgent =
+        line
+          .replace(
+            /^#EXTVLCOPT:http-user-agent=/i,
+            ""
+          )
+          .trim();
+
+      continue;
+    }
+
+    if (
+      /^#EXTHTTP:/i.test(
+        line
+      )
+    ) {
+      const headers =
+        parseExtHttp(
+          line
+        );
+
+      current.referrer =
+        headers.referrer ||
+        current.referrer;
+
+      current.userAgent =
+        headers.userAgent ||
+        current.userAgent;
+
+      continue;
+    }
+
+    if (
+      line.startsWith(
+        "#"
+      )
+    ) {
+      continue;
+    }
+
+    const url =
+      line;
+
+    current.url =
+      url;
+
+    current.kind =
+      classifyUrl(
+        url
+      );
+
+    current.insecure =
+      /^http:\/\//i.test(
+        url
+      );
+
+    current.mixedContent =
+      isMixedContentUrl(
+        url
+      );
+
+    current.requiresHeaders =
+      Boolean(
+        current.referrer ||
+        current.userAgent
+      );
+
+    current.geoAvailableHere =
+      current.geoRestricted &&
+      LIVE_TV_REGION ===
+        "GB" &&
+      looksLikeUkFeed(
+        current
+      );
+
+    current.geoBlocked =
+      current.geoRestricted &&
+      !current
+        .geoAvailableHere;
+
+    current.tags =
+      inferTags({
+        sourceCategory:
+          current
+            .sourceCategory,
+
+        group:
+          current.group,
+
+        name:
+          current.name,
+
+        country:
+          current.country,
+      });
+
+    const compatibility =
+      browserCompatibility(
+        current
+      );
+
+    current.browserPlayable =
+      compatibility
+        .browserPlayable;
+
+    current.browserReason =
+      compatibility
+        .browserReason;
+
+    current.format =
+      compatibility.format;
+
+    current.score =
+      sourceScore(
+        current
+      );
+
+    current.id =
+      current.id ||
+      `${source.id}:${
+        current.country ||
+        current.group
+      }:${
+        current.name
+      }:${url}`;
+
+    if (url) {
+      channels.push(
+        current
+      );
+    }
+
+    current =
+      null;
+  }
+
+  return channels;
+}
+
+const dedupeKey = (
+  channel
+) => {
+  const tvgId =
+    String(
+      channel?.tvgId ||
+        ""
+    )
+      .trim()
+      .toLowerCase();
+
+  if (tvgId) {
+    return `id:${tvgId}`;
+  }
+
+  const name =
+    normaliseChannelNameForKey(
+      channel?.name
+    );
+
+  const country =
+    String(
+      channel?.country ||
+        ""
+    )
+      .trim()
+      .toLowerCase();
+
+  return `name:${name}|country:${country}`;
+};
+
+const dedupeMergedChannels =
+  (
+    channels
+  ) => {
+    const groups =
+      new Map();
+
+    for (
+      const channel of
+      channels || []
+    ) {
+      if (
+        !channel?.url ||
+        !channel?.name
+      ) {
+        continue;
+      }
+
+      const key =
+        dedupeKey(
+          channel
+        );
+
+      if (
+        !groups.has(
+          key
+        )
+      ) {
+        groups.set(
+          key,
+          []
+        );
+      }
+
+      groups
+        .get(
+          key
+        )
+        .push(
+          channel
+        );
+    }
+
+    const merged =
+      [];
+
+    for (
+      const candidates of
+      groups.values()
+    ) {
+      const uniqueByUrl =
+        [];
+
+      const seenUrls =
+        new Set();
+
+      for (
+        const candidate of
+        candidates
+      ) {
+        const urlKey =
+          String(
+            candidate?.url ||
+              ""
+          ).trim();
+
+        if (
+          !urlKey ||
+          seenUrls.has(
+            urlKey
+          )
+        ) {
+          continue;
+        }
+
+        seenUrls.add(
+          urlKey
+        );
+
+        uniqueByUrl.push(
+          candidate
+        );
+      }
+
+      const browserCandidates =
+        uniqueByUrl.filter(
+          (
+            candidate
+          ) =>
+            candidate
+              ?.browserPlayable !==
+            false
+        );
+
+      if (
+        browserCandidates.length ===
+        0
+      ) {
+        continue;
+      }
+
+      browserCandidates.sort(
+        (
+          a,
+          b
+        ) =>
+          Number(
+            b?.score ||
+              0
+          ) -
+          Number(
+            a?.score ||
+              0
+          )
+      );
+
+      const best =
+        browserCandidates[0];
+
+      if (!best) {
+        continue;
+      }
+
+      const normalisedName = normaliseChannelNameForKey(best.name);
+      if (SKY_STREAM_OVERRIDES[normalisedName] !== undefined && SKY_STREAM_OVERRIDES[normalisedName] !== "") {
+        best.url = SKY_STREAM_OVERRIDES[normalisedName];
+        best.kind = "direct";
+        best.browserPlayable = true;
+        best.score += 5000;
+        if (!best.tags.includes("United Kingdom")) {
+          best.tags.push("United Kingdom");
+        }
+      }
+
+      const tags =
+        new Set();
+
+      const sources =
+        new Set();
+
+      for (
+        const candidate of
+        browserCandidates
+      ) {
+        sources.add(
+          candidate.sourceName
+        );
+
+        for (
+          const tag of
+          candidate.tags ||
+          []
+        ) {
+          tags.add(
+            tag
+          );
+        }
+      }
+
+      const alternatives =
+        browserCandidates
+          .slice(
+            1
+          );
+
+      merged.push({
+        ...best,
+        tags: [
+          ...tags,
+        ],
+        sourceNames: [
+          ...sources,
+        ],
+        alternatives,
+      });
+    }
+
+    return merged;
+  };
+
+export async function getFreeTvChannels(
+  options = {}
+) {
+  const {
+    force = false,
+  } = options;
+
+  const now =
+    Date.now();
+
+  if (
+    !force &&
+    cache &&
+    now -
+      cacheAt <
+      CACHE_MS
+  ) {
+    return cache;
+  }
+
+  if (
+    !force &&
+    inflight
+  ) {
+    return inflight;
+  }
+
+  inflight =
+    (async () => {
+      const sourceStatus =
+        [];
+
+      const rawChannels =
+        [];
+
+      let rawCount =
+        0;
+
+      let browserRejectedCount =
+        0;
+
+      const sortedSources =
+        [
+          ...LIVE_TV_SOURCES,
+        ].sort(
+          (
+            a,
+            b
+          ) =>
+            b.priority -
+            a.priority
+        );
+
+      for (
+        const source of
+        sortedSources
+      ) {
+        try {
+          const response =
+            await fetch(
+              source.url,
+              {
+                headers:
+                  {
+                    Accept:
+                      "text/plain, */*",
+                  },
+              }
+            );
+
+          if (
+            !response.ok
+          ) {
+            throw new Error(
+              `HTTP ${response.status} ${response.statusText}`
+            );
+          }
+
+          const text =
+            await response.text();
+
+          const parsed =
+            parseFreeTvPlaylist(
+              text,
+              source
+            );
+
+          rawCount +=
+            parsed.length;
+
+          for (
+            const channel of
+            parsed
+          ) {
+            if (
+              channel
+                ?.browserPlayable ===
+              false
+            ) {
+              browserRejectedCount +=
+                1;
+            }
+
+            rawChannels.push(
+              channel
+            );
+          }
+
+          sourceStatus.push({
+            id:
+              source.id,
+
+            name:
+              source.name,
+
+            count:
+              parsed.length,
+
+            error:
+              null,
+          });
+        } catch (
+          error
+        ) {
+          sourceStatus.push({
+            id:
+              source.id,
+
+            name:
+              source.name,
+
+            count: 0,
+
+            error:
+              error
+                ?.message ||
+              "Failed to fetch",
+          });
+        }
+      }
+
+      const channels =
+        dedupeMergedChannels(
+          rawChannels
+        );
+
+      channels.sort(
+        (
+          a,
+          b
+        ) => {
+          const ukA =
+            (
+              a?.tags ||
+              []
+            ).includes(
+              "United Kingdom"
+            )
+              ? 1
+              : 0;
+
+          const ukB =
+            (
+              b?.tags ||
+              []
+            ).includes(
+              "United Kingdom"
+            )
+              ? 1
+              : 0;
+
+          if (
+            ukA !==
+            ukB
+          ) {
+            return (
+              ukB -
+              ukA
+            );
+          }
+
+          return (
+            Number(
+              b?.score ||
+                0
+            ) -
+            Number(
+              a?.score ||
+                0
+            )
+          );
+        }
+      );
+
+      const payload = {
+        channels,
+        sourceStatus,
+        rawCount,
+        browserRejectedCount,
+        region:
+          LIVE_TV_REGION,
+        fetchedAt:
+          now,
+      };
+
+      cache =
+        payload;
+
+      cacheAt =
+        now;
+
+      inflight =
+        null;
+
+      return payload;
+    })().catch(
+      (error) => {
+        inflight =
+          null;
+
+        throw error;
+      }
+    );
+
+  return inflight;
+}
+
+export function findChannelsByTitle(query) {
+  if (!cache || !cache.channels) return [];
+  const q = String(query || "").toLowerCase().trim();
+  if (!q) return cache.channels;
+  return cache.channels.filter(ch => 
+    String(ch?.name || "").toLowerCase().includes(q)
   );
 }
