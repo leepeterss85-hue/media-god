@@ -17,11 +17,83 @@ const userAgent =
     ? navigator.userAgent || ''
     : ''
 
-const isFireTv =
+const knownFireTv =
   /\bAFT[A-Z0-9]*\b/i.test(userAgent) ||
   /Fire\s*TV/i.test(userAgent) ||
   /AmazonWebAppPlatform/i.test(userAgent) ||
   /Silk/i.test(userAgent)
+
+const androidNoTouch =
+  /Android/i.test(userAgent) &&
+  typeof navigator !== 'undefined' &&
+  Number(navigator.maxTouchPoints || 0) === 0
+
+let tvRemoteDetected =
+  knownFireTv ||
+  androidNoTouch
+
+const markTvRemoteDetected = () => {
+  const firstDetection = !tvRemoteDetected
+  tvRemoteDetected = true
+
+  if (typeof document !== 'undefined') {
+    document.documentElement.classList.add(
+      'mg-fire-tv',
+      'mg-tv-remote'
+    )
+
+    document.body?.classList.add(
+      'mg-fire-tv',
+      'mg-tv-remote'
+    )
+  }
+
+  if (firstDetection && typeof window !== 'undefined') {
+    window.dispatchEvent(
+      new CustomEvent('mg:tv-remote-detected')
+    )
+  }
+}
+
+const keyCode = (event) =>
+  Number(event?.keyCode || event?.which || 0)
+
+const keyName = (event) =>
+  String(event?.key || event?.code || '')
+
+const isStrongTvRemoteEvent = (event) => {
+  const code = keyCode(event)
+  const key = keyName(event)
+
+  if (
+    code === 4 ||
+    code === 19 ||
+    code === 20 ||
+    code === 21 ||
+    code === 22 ||
+    code === 23 ||
+    code === 82 ||
+    code === 85 ||
+    code === 89 ||
+    code === 90 ||
+    code === 126 ||
+    code === 127 ||
+    code === 166 ||
+    code === 461
+  ) {
+    return true
+  }
+
+  return (
+    key === 'Select' ||
+    key === 'Accept' ||
+    key === 'BrowserBack' ||
+    key === 'GoBack' ||
+    key === 'MediaPlayPause' ||
+    key === 'MediaRewind' ||
+    key === 'MediaFastForward'
+  )
+}
 
 const isVisible = (element) => {
   if (!(element instanceof HTMLElement)) {
@@ -49,14 +121,52 @@ const lastItem = (items) =>
     ? items[items.length - 1]
     : null
 
-const topVisibleOverlay = () => {
-  const playerOverlay = Array.from(
-    document.querySelectorAll('.fixed.inset-0.bg-black\\/95')
+const findPlayerOverlay = () => {
+  const explicit = document.querySelector(
+    '[data-mg-player-root="true"]'
   )
-    .filter(isVisible)
-    .pop()
 
-  if (playerOverlay instanceof HTMLElement) {
+  if (explicit instanceof HTMLElement && isVisible(explicit)) {
+    return explicit
+  }
+
+  const overlays = Array.from(
+    document.querySelectorAll('.fixed.inset-0')
+  ).reverse()
+
+  for (const overlay of overlays) {
+    if (!(overlay instanceof HTMLElement) || !isVisible(overlay)) {
+      continue
+    }
+
+    if (overlay.classList.contains('bg-black/95')) {
+      return overlay
+    }
+
+    if (
+      overlay.querySelector(
+        [
+          'select[aria-label="Choose playback source"]',
+          'select[aria-label="Choose source or quality while loading"]',
+          'button[aria-label="No sound"]',
+          'button[title="No sound"]',
+          'button[aria-label="Back to main menu"]',
+          'video',
+          'iframe',
+        ].join(',')
+      )
+    ) {
+      return overlay
+    }
+  }
+
+  return null
+}
+
+const topVisibleOverlay = () => {
+  const playerOverlay = findPlayerOverlay()
+
+  if (playerOverlay) {
     return playerOverlay
   }
 
@@ -125,8 +235,8 @@ const findBackTarget = (scope) => {
 }
 
 const isBackEvent = (event) => {
-  const key = String(event?.key || event?.code || '')
-  const code = Number(event?.keyCode || event?.which || 0)
+  const key = keyName(event)
+  const code = keyCode(event)
   const tag = String(event?.target?.tagName || '').toLowerCase()
 
   const editing =
@@ -151,11 +261,6 @@ const isBackEvent = (event) => {
   )
 }
 
-/*
- * The navbar is deliberately removed during playback, so it must never be
- * used as the signal that the authenticated Media God app still exists.
- * Home is the only real page in the protected app and always owns <main>.
- */
 const mediaGodAppMounted = () =>
   document.querySelector('#root main') instanceof HTMLElement
 
@@ -170,28 +275,11 @@ const performFireTvBackAction = () => {
 
   lastFireTvBackActionAt = now
 
-  const playerOverlays = Array.from(
-    document.querySelectorAll('.fixed.inset-0.bg-black\\/95')
-  ).filter(isVisible)
-
-  const playerOverlay = lastItem(playerOverlays)
+  const playerOverlay = findPlayerOverlay()
   const playerBack = findBackTarget(playerOverlay)
 
   if (playerBack) {
     playerBack.click()
-    return true
-  }
-
-  const fullscreenButtons = Array.from(
-    document.querySelectorAll(
-      'button[aria-label="Exit fullscreen"]'
-    )
-  ).filter(isVisible)
-
-  const fullscreenExit = lastItem(fullscreenButtons)
-
-  if (fullscreenExit) {
-    fullscreenExit.click()
     return true
   }
 
@@ -231,18 +319,54 @@ const performFireTvBackAction = () => {
     }
   }
 
-  /* Home is the end of the Fire TV Back stack. */
+  /* Home is the end of the TV Back stack. */
   return true
 }
 
+const installTvRemoteDetection = () => {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return
+  }
+
+  const detect = (event) => {
+    if (isStrongTvRemoteEvent(event)) {
+      markTvRemoteDetected()
+    }
+  }
+
+  window.addEventListener('keydown', detect, true)
+  document.addEventListener('keydown', detect, true)
+}
+
 const installFireTvBackHandler = () => {
-  if (!isFireTv || typeof window === 'undefined') {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
     return
   }
 
   const onBackEvent = (event) => {
     if (!isBackEvent(event)) {
       return
+    }
+
+    /*
+     * Do not hijack browser Back on the public auth pages. Once the protected
+     * Media God shell exists, Back belongs to the app and must never fall
+     * through to /login.
+     */
+    if (!mediaGodAppMounted()) {
+      return
+    }
+
+    markTvRemoteDetected()
+
+    if (event.__mgBackHandled) {
+      return
+    }
+
+    try {
+      event.__mgBackHandled = true
+    } catch {
+      // Some WebView event objects are non-extensible.
     }
 
     event.preventDefault()
@@ -256,24 +380,12 @@ const installFireTvBackHandler = () => {
     performFireTvBackAction()
   }
 
-  /* Capture both phases used by different Fire TV/Silk builds. */
   window.addEventListener('keydown', onBackEvent, true)
   document.addEventListener('keydown', onBackEvent, true)
 }
 
-/*
- * Some Fire TV WebViews perform the physical Back action as browser history
- * navigation without delivering a usable keydown first. After Google login,
- * /login can therefore still be the previous browser-history entry.
- *
- * Arm one duplicate history entry only while the authenticated Media God UI
- * is mounted. A native Back pops to the duplicate / entry, we immediately
- * re-arm it, then run the same in-app Back action. The login/auth pages are
- * deliberately left untouched.
- */
 const installFireTvHistoryBackGuard = () => {
   if (
-    !isFireTv ||
     typeof window === 'undefined' ||
     typeof document === 'undefined'
   ) {
@@ -294,8 +406,12 @@ const installFireTvHistoryBackGuard = () => {
       : {}
   }
 
+  const shouldArm = () =>
+    tvRemoteDetected &&
+    mediaGodAppMounted()
+
   const arm = () => {
-    if (!mediaGodAppMounted()) {
+    if (!shouldArm()) {
       armed = false
       return
     }
@@ -332,7 +448,7 @@ const installFireTvHistoryBackGuard = () => {
   }
 
   const onPopState = () => {
-    if (!mediaGodAppMounted()) {
+    if (!shouldArm()) {
       armed = false
       return
     }
@@ -340,7 +456,6 @@ const installFireTvHistoryBackGuard = () => {
     const safeUrl = guardUrl || '/'
     const state = stateObject()
 
-    /* Never expose an authenticated Fire TV session to the login route. */
     if (
       window.location.pathname === '/login' ||
       window.location.pathname === '/register' ||
@@ -357,7 +472,6 @@ const installFireTvHistoryBackGuard = () => {
       )
     }
 
-    /* Re-arm synchronously so a second quick Back cannot reach /login. */
     window.history.pushState(
       {
         ...state,
@@ -371,14 +485,13 @@ const installFireTvHistoryBackGuard = () => {
     guardUrl = safeUrl
     armed = true
 
-    /* If keydown already handled this same press, do not back twice. */
     if (Date.now() - lastFireTvBackActionAt >= 360) {
       performFireTvBackAction()
     }
   }
 
   const observer = new MutationObserver(() => {
-    if (mediaGodAppMounted()) {
+    if (shouldArm()) {
       arm()
     } else {
       armed = false
@@ -391,18 +504,19 @@ const installFireTvHistoryBackGuard = () => {
   })
 
   window.addEventListener('popstate', onPopState)
+  window.addEventListener('mg:tv-remote-detected', arm)
 
   window.setTimeout(arm, 0)
   window.setTimeout(arm, 250)
   window.setTimeout(arm, 750)
 }
 
-if (isFireTv && typeof document !== 'undefined') {
-  document.documentElement.classList.add('mg-fire-tv')
-  document.body?.classList.add('mg-fire-tv')
+if (tvRemoteDetected && typeof document !== 'undefined') {
+  markTvRemoteDetected()
 }
 
 installFireTvStableMode()
+installTvRemoteDetection()
 installFireTvBackHandler()
 installFireTvHistoryBackGuard()
 
