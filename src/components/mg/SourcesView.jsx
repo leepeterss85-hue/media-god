@@ -22,6 +22,7 @@ import {
   getFreeTvChannels,
   parseFreeTvPlaylist,
 } from "@/components/mg/freeTvPlaylist";
+import { base44 } from "@/api/base44Client";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 import {
   addCustomLiveSource,
@@ -39,6 +40,21 @@ import {
 
 const clean = (value) => String(value || "").trim();
 const trimSlash = (value) => clean(value).replace(/\/+$/, "");
+const TORRENT_HASH_RE = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i;
+
+const hashFromMagnetOrHash = (value) => {
+  const raw = clean(value);
+  if (TORRENT_HASH_RE.test(raw)) return raw.toLowerCase();
+  const match = raw.match(/btih:([a-f0-9]{40}|[a-f0-9]{64})/i);
+  return clean(match?.[1]).toLowerCase();
+};
+
+const magnetFromValue = (value) => {
+  const raw = clean(value);
+  if (/^magnet:\?/i.test(raw)) return raw;
+  const hash = hashFromMagnetOrHash(raw);
+  return hash ? `magnet:?xt=urn:btih:${hash}` : "";
+};
 
 const fetchWithTimeout = async (url, options = {}, timeoutMs = 8000) => {
   const controller = new AbortController();
