@@ -675,11 +675,20 @@ export default function PlayerRemote() {
 
         {closed ? (
           <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5 text-center text-sm text-white/60">
-            The TV player has closed. Scan the new QR code the next time you start a film or episode.
+            The TV companion is offline. Open Media God on the TV again to reconnect this pairing.
           </div>
         ) : (
           <>
-            <section className="mt-6 rounded-2xl border border-white/10 bg-white/[0.06] p-4 shadow-2xl">
+            {idle && (
+              <div className="mt-6 rounded-2xl border border-mg-green/25 bg-mg-green/10 p-4 text-center">
+                <p className="text-sm font-bold text-mg-green">TV ready</p>
+                <p className="mt-1 text-xs text-white/55">
+                  Browse below and send a film, episode or Live TV channel straight to the Firestick.
+                </p>
+              </div>
+            )}
+
+            <section className={idle ? "hidden" : "mt-6 rounded-2xl border border-white/10 bg-white/[0.06] p-4 shadow-2xl"}>
               <div className="flex items-center justify-between text-xs text-white/55">
                 <span>{formatTime(current)}</span>
                 <span>{duration > 0 ? formatTime(duration) : "Live / loading"}</span>
@@ -744,7 +753,7 @@ export default function PlayerRemote() {
               </div>
             </section>
 
-            <section className="mt-4 grid gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+            <section className={idle ? "hidden" : "mt-4 grid gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4"}>
               <button
                 onClick={() => send("next_source")}
                 className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-mg-green px-4 text-sm font-bold text-black active:scale-[0.99]"
@@ -1136,7 +1145,7 @@ export default function PlayerRemote() {
 
             <button
               onClick={() => send("exit")}
-              className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-red-400/30 bg-red-500/10 px-4 text-sm font-semibold text-red-200"
+              className={idle ? "hidden" : "mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-red-400/30 bg-red-500/10 px-4 text-sm font-semibold text-red-200"}
             >
               <ArrowLeft className="h-4 w-4" />
               Exit player on TV
