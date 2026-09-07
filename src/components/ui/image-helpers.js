@@ -70,14 +70,24 @@ export function buildTransformUrl(
 }
 
 export function buildSrcSet(parsed, options) {
-  return DEVICE_PIXEL_RATIOS.map(
-    (dpr) =>
-      `${buildTransformUrl(parsed, {
-        ...options,
-        width: options.width * dpr,
-        height: options.height ? options.height * dpr : undefined,
-      })} ${dpr}x`
-  ).join(", ")
+  const requestedMaxDpr = Number(options?.maxDpr || 3)
+  const maxDpr = Number.isFinite(requestedMaxDpr)
+    ? Math.max(1, requestedMaxDpr)
+    : 3
+
+  const ratios = DEVICE_PIXEL_RATIOS.filter((dpr) => dpr <= maxDpr)
+  const effectiveRatios = ratios.length > 0 ? ratios : [1]
+
+  return effectiveRatios
+    .map(
+      (dpr) =>
+        `${buildTransformUrl(parsed, {
+          ...options,
+          width: options.width * dpr,
+          height: options.height ? options.height * dpr : undefined,
+        })} ${dpr}x`
+    )
+    .join(", ")
 }
 
 export function getOriginalImageUrl(src, parsed) {
