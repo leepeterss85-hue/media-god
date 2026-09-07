@@ -9,6 +9,7 @@ import {
   scoreSourceCompatibility,
 } from "@/components/mg/mediaCompatibility";
 import { recordDevicePlaybackReliability } from "@/components/mg/playbackReliability";
+import { readPlaybackPreferences } from "@/components/mg/playbackPreferences";
 
 const STORAGE_KEY =
   "mg:playback-reliability-v1";
@@ -549,7 +550,7 @@ const scoreLabel = (
       {
         deviceProfile,
         qualityPreference:
-          "Auto",
+          readPlaybackPreferences().quality,
       }
     ) +
     sourceBonus(
