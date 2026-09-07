@@ -1684,7 +1684,8 @@ export default function VideoPlayer({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-2 sm:p-3"
+      data-mg-player-root="true"
+      className="fixed inset-0 z-[2147483646] bg-black/95 flex items-center justify-center p-2 sm:p-3"
       onClick={
         onClose
       }
