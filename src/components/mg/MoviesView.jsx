@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Search, Mic, Plus, Check, Play, Globe } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
@@ -59,9 +59,11 @@ export default function MoviesView() {
   const [watched, setWatched] = useState({});
   const [selected, setSelected] = useState(null);
   const { toast } = useToast();
-  const debouncedQuery = useDebouncedValue(query, 400);
+  const requestRef = useRef(0);
+  const debouncedQuery = useDebouncedValue(query, 180);
 
   useEffect(() => {
+    const requestId = ++requestRef.current;
     setLoading(true);
 
     base44.functions
@@ -72,11 +74,21 @@ export default function MoviesView() {
         genre,
         year,
         language,
-        query: debouncedQuery,
+        query: debouncedQuery.trim(),
       })
-      .then((res) => setMovies(res.data?.movies || []))
-      .catch(() => setMovies([]))
-      .finally(() => setLoading(false));
+      .then((res) => {
+        if (requestId !== requestRef.current) return;
+        setMovies(res.data?.movies || []);
+      })
+      .catch(() => {
+        if (requestId !== requestRef.current) return;
+        setMovies([]);
+      })
+      .finally(() => {
+        if (requestId === requestRef.current) {
+          setLoading(false);
+        }
+      });
   }, [country, category, genre, year, language, debouncedQuery]);
 
   const addToWatchlist = async (movie) => {
