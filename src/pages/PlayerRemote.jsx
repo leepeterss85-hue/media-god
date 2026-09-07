@@ -196,6 +196,175 @@ export default function PlayerRemote() {
   }, [session?.media_type, session?.season_number]);
 
   useEffect(() => {
+    const query = browseQuery.trim();
+
+    if (query.length < 2) {
+      setBrowseResults([]);
+      setBrowseSearching(false);
+      return undefined;
+    }
+
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      setBrowseSearching(true);
+
+      try {
+        const response = await base44.functions.invoke(
+          "getTmdbMovies",
+          { multi_search: query }
+        );
+        const raw = response?.data?.movies || [];
+
+        if (!cancelled) {
+          setBrowseResults(
+            raw
+              .filter((item) => item?.id || item?.tmdb_id)
+              .slice(0, 12)
+              .map((item) => {
+                const mediaType =
+                  item?.media_type === "tv" ||
+                  (item?.name && !item?.title)
+                    ? "tv"
+                    : "movie";
+
+                return {
+                  ...item,
+                  id: item?.id || item?.tmdb_id,
+                  mediaType,
+                  title: item?.title || item?.name || "Untitled",
+                  year:
+                    item?.year ||
+                    String(
+                      item?.release_date || item?.first_air_date || ""
+                    ).slice(0, 4),
+                  poster:
+                    item?.poster_url || item?.poster || item?.poster_path || "",
+                };
+              })
+          );
+        }
+      } catch {
+        if (!cancelled) setBrowseResults([]);
+      } finally {
+        if (!cancelled) setBrowseSearching(false);
+      }
+    }, 220);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [browseQuery]);
+
+  useEffect(() => {
+    if (browseTarget?.mediaType !== "tv" || !browseTarget?.id) {
+      setBrowseSeasons([]);
+      setBrowseSeason(0);
+      setBrowseEpisodes([]);
+      setBrowseEpisode(0);
+      return;
+    }
+
+    let cancelled = false;
+    setBrowseLoading(true);
+
+    base44.functions
+      .invoke("getTmdbMovies", {
+        media_type: "tv",
+        movie_id: browseTarget.id,
+      })
+      .then((response) => {
+        if (cancelled) return;
+        const data = response?.data ?? response ?? {};
+        const next = Array.isArray(data?.details?.seasons)
+          ? data.details.seasons
+              .filter(
+                (item) =>
+                  Number(item?.season_number || 0) > 0 &&
+                  Number(item?.episode_count || 0) > 0
+              )
+              .sort(
+                (a, b) =>
+                  Number(a?.season_number || 0) -
+                  Number(b?.season_number || 0)
+              )
+          : [];
+
+        setBrowseSeasons(next);
+        setBrowseSeason(Number(next[0]?.season_number || 1));
+      })
+      .catch(() => {
+        if (!cancelled) setBrowseSeasons([]);
+      })
+      .finally(() => {
+        if (!cancelled) setBrowseLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [browseTarget]);
+
+  useEffect(() => {
+    if (
+      browseTarget?.mediaType !== "tv" ||
+      !browseTarget?.id ||
+      !browseSeason
+    ) {
+      setBrowseEpisodes([]);
+      setBrowseEpisode(0);
+      return;
+    }
+
+    let cancelled = false;
+    setBrowseLoading(true);
+
+    base44.functions
+      .invoke("getTmdbMovies", {
+        media_type: "tv",
+        movie_id: browseTarget.id,
+        season_number: browseSeason,
+      })
+      .then((response) => {
+        if (cancelled) return;
+        const data = response?.data ?? response ?? {};
+        const next = Array.isArray(data?.episodes)
+          ? data.episodes
+              .filter(
+                (item) =>
+                  Number(
+                    item?.episode_number ?? item?.episodeNumber ?? item?.episode ?? 0
+                  ) > 0
+              )
+              .sort(
+                (a, b) =>
+                  Number(a?.episode_number ?? a?.episodeNumber ?? a?.episode ?? 0) -
+                  Number(b?.episode_number ?? b?.episodeNumber ?? b?.episode ?? 0)
+              )
+          : [];
+        setBrowseEpisodes(next);
+        setBrowseEpisode(
+          Number(
+            next[0]?.episode_number ??
+              next[0]?.episodeNumber ??
+              next[0]?.episode ??
+              0
+          )
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setBrowseEpisodes([]);
+      })
+      .finally(() => {
+        if (!cancelled) setBrowseLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [browseTarget, browseSeason]);
+
+  useEffect(() => {
     let cancelled = false;
     let unsubscribe = null;
 
