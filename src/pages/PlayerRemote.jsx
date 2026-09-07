@@ -261,6 +261,42 @@ export default function PlayerRemote() {
   }, [browseQuery]);
 
   useEffect(() => {
+    const query = liveQuery.trim();
+
+    if (query.length < 3) {
+      setLiveResults([]);
+      setLiveSearching(false);
+      return undefined;
+    }
+
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      setLiveSearching(true);
+
+      try {
+        const matches = await findChannelsByTitle(query);
+
+        if (!cancelled) {
+          setLiveResults(
+            (Array.isArray(matches) ? matches : [])
+              .filter((item) => item?.name && item?.url)
+              .slice(0, 12)
+          );
+        }
+      } catch {
+        if (!cancelled) setLiveResults([]);
+      } finally {
+        if (!cancelled) setLiveSearching(false);
+      }
+    }, 240);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [liveQuery]);
+
+  useEffect(() => {
     if (browseTarget?.mediaType !== "tv" || !browseTarget?.id) {
       setBrowseSeasons([]);
       setBrowseSeason(0);
