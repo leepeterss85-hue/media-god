@@ -385,7 +385,7 @@ export default function FireTvRemote() {
 
       const preferred =
         scope.querySelector(
-          'button[aria-label="Back to main menu"], button[aria-label="Back"], button[aria-label="Close details"], button[aria-label="Close search"]'
+          'button[data-mg-player-exit="true"], button[aria-label="Exit player"], button[aria-label="Back to main menu"], button[aria-label="Back"], button[aria-label="Close details"], button[aria-label="Close search"]'
         ) ||
         focusables(scope)[0] ||
         null;
