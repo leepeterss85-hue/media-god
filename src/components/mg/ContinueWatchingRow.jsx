@@ -322,8 +322,8 @@ export default function ContinueWatchingRow() {
   }
 
   return (
-    <section className="mg-fire-tv-resume-section px-3 min-[420px]:px-4 sm:px-6 md:px-8 3xl:px-10 4xl:px-14 pt-2 sm:pt-4">
-      <div className="flex items-center gap-2 3xl:gap-3 mb-3 3xl:mb-4">
+    <section className="mg-fire-tv-resume-section px-4 sm:px-6 md:px-8 3xl:px-10 4xl:px-14 pt-3 sm:pt-5">
+      <div className="flex items-center gap-2.5 3xl:gap-3 mb-4 3xl:mb-5">
         <History className="w-4 h-4 3xl:w-5 3xl:h-5 text-mg-green" />
 
         <div>
@@ -331,14 +331,14 @@ export default function ContinueWatchingRow() {
             Continue Watching
           </h2>
 
-          <p className="text-[10px] 3xl:text-sm text-white/35">
+          <p className="mt-0.5 text-[11px] sm:text-xs 3xl:text-sm text-white/40">
             Pick up exactly where you stopped.
           </p>
         </div>
       </div>
 
       <div
-        className="mg-fire-tv-resume-row flex gap-3 3xl:gap-5 overflow-x-auto overscroll-x-contain pb-3 scrollbar-hide snap-x snap-proximity"
+        className="mg-fire-tv-resume-row flex gap-4 3xl:gap-6 overflow-x-auto overscroll-x-contain pb-4 scrollbar-hide snap-x snap-proximity"
         data-mg-tv-row="true"
         aria-label="Continue Watching"
       >
@@ -367,9 +367,9 @@ export default function ContinueWatchingRow() {
                   resume(item);
                 }
               }}
-              className="mg-fire-tv-resume-card group relative w-36 sm:w-44 md:w-48 xl:w-52 3xl:w-64 4xl:w-72 shrink-0 text-left cursor-pointer snap-start rounded-lg focus:outline-none focus:ring-2 focus:ring-mg-green focus:ring-offset-2 focus:ring-offset-mg-background"
+              className="mg-fire-tv-resume-card group relative w-44 sm:w-52 md:w-56 xl:w-60 3xl:w-72 4xl:w-80 shrink-0 text-left cursor-pointer snap-start rounded-xl focus:outline-none focus:ring-2 focus:ring-mg-green focus:ring-offset-2 focus:ring-offset-mg-background"
             >
-              <div className="relative aspect-video rounded-lg 3xl:rounded-xl overflow-hidden bg-mg-card border border-white/10 group-focus:border-mg-green">
+              <div className="relative aspect-video rounded-xl overflow-hidden bg-mg-card border border-white/10 shadow-lg shadow-black/20 group-focus:border-mg-green">
                 <Image
                   src={item.poster_url}
                   fittingType="fill"
@@ -415,11 +415,11 @@ export default function ContinueWatchingRow() {
                 </div>
               </div>
 
-              <div className="mt-1.5 3xl:mt-2 text-white font-semibold text-xs sm:text-sm 3xl:text-base truncate">
+              <div className="mt-2 text-white font-semibold text-sm sm:text-[15px] 3xl:text-base truncate">
                 {meta.title}
               </div>
 
-              <div className="mt-0.5 min-h-[1rem] text-white/45 text-[10px] sm:text-xs 3xl:text-sm truncate">
+              <div className="mt-1 min-h-[1rem] text-white/50 text-[11px] sm:text-xs 3xl:text-sm truncate">
                 {detailLine || `${Math.round(progress)}% watched`}
               </div>
             </div>
