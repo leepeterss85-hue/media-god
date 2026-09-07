@@ -943,6 +943,76 @@ const LiveVideo = forwardRef(
         onAudioRescueRequest
       );
 
+      const publishHlsAudioTracks = () => {
+        const tracks = Array.isArray(hls?.audioTracks)
+          ? hls.audioTracks.map((track, index) => ({
+              index,
+              language:
+                track?.lang ||
+                track?.attrs?.LANGUAGE ||
+                "",
+              lang:
+                track?.lang ||
+                track?.attrs?.LANGUAGE ||
+                "",
+              label:
+                track?.name ||
+                track?.attrs?.NAME ||
+                `Audio ${index + 1}`,
+              name:
+                track?.name ||
+                track?.attrs?.NAME ||
+                "",
+              audioCodec:
+                track?.audioCodec ||
+                track?.attrs?.CODECS ||
+                "",
+              channels:
+                track?.attrs?.CHANNELS ||
+                "",
+              attrs: track?.attrs || {},
+            }))
+          : [];
+
+        window.dispatchEvent(
+          new CustomEvent("mg:hls-audio-tracks", {
+            detail: {
+              tracks,
+              activeIndex:
+                Number.isFinite(Number(hls?.audioTrack))
+                  ? Number(hls.audioTrack)
+                  : -1,
+            },
+          })
+        );
+      };
+
+      const onHlsAudioSelection = (event) => {
+        if (!hls) return;
+
+        const index = Number(event?.detail?.index);
+        const tracks = Array.isArray(hls.audioTracks) ? hls.audioTracks : [];
+
+        if (!Number.isInteger(index) || index < 0 || index >= tracks.length) {
+          return;
+        }
+
+        try {
+          hls.audioTrack = index;
+          video.muted = false;
+          video.volume = Math.max(0.01, Number(video.volume || 1));
+          video.play().catch(() => {});
+          window.setTimeout(publishHlsAudioTracks, 30);
+        } catch {
+          // HLS track selection is best effort on older WebViews.
+        }
+      };
+
+      window.addEventListener(
+        "mg:hls-audio-track-selected",
+        onHlsAudioSelection
+      );
+
       const preferEnglishNativeAudio =
         () => {
           selectPreferredNativeAudioTrack(
