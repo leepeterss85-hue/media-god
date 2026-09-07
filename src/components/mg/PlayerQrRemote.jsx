@@ -2,6 +2,11 @@ import React, { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { Smartphone } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import {
+  friendlyTrackLabel,
+  readTrackPreferences,
+  writeTrackPreferences,
+} from "@/components/mg/mediaTrackPreferences";
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
@@ -103,6 +108,10 @@ export default function PlayerQrRemote({
           active_file_id: String(activeFileRef.current || ""),
           audio_labels: "[]",
           active_audio_index: -1,
+          subtitle_labels: "[]",
+          active_subtitle_index: -1,
+          subtitle_size: readTrackPreferences().subtitleSize,
+          subtitle_background: readTrackPreferences().subtitleBackground,
           media_type: playerContext?.mediaType === "tv" ? "tv" : "movie",
           tmdb_id: String(playerContext?.tmdbId || ""),
           season_number: Number(playerContext?.season || 0),
@@ -190,6 +199,70 @@ export default function PlayerQrRemote({
                   // Some Android WebViews expose read-only audio track state.
                 }
               }
+
+              const chosen = wanted >= 0 ? tracks[wanted] : null;
+              if (chosen) {
+                writeTrackPreferences({
+                  ...readTrackPreferences(),
+                  audioLanguage:
+                    chosen?.language ||
+                    chosen?.label ||
+                    "en",
+                });
+              }
+            } else if (command === "subtitle" && video?.textTracks) {
+              const wanted = parseNumber(value, -1);
+              const tracks = video.textTracks;
+
+              for (let index = 0; index < tracks.length; index += 1) {
+                try {
+                  tracks[index].mode = index === wanted ? "showing" : "disabled";
+                } catch {
+                  // Some WebViews expose read-only text tracks.
+                }
+              }
+
+              const chosen = wanted >= 0 ? tracks[wanted] : null;
+              writeTrackPreferences({
+                ...readTrackPreferences(),
+                subtitlesEnabled: wanted >= 0,
+                ...(chosen
+                  ? {
+                      subtitleLanguage:
+                        chosen?.language ||
+                        chosen?.label ||
+                        "en",
+                    }
+                  : {}),
+              });
+            } else if (command === "subtitle_style") {
+              let style = {};
+              try {
+                style = JSON.parse(String(value || "{}"));
+              } catch {
+                style = {};
+              }
+
+              writeTrackPreferences({
+                ...readTrackPreferences(),
+                ...(style?.size ? { subtitleSize: style.size } : {}),
+                ...(style?.background
+                  ? { subtitleBackground: style.background }
+                  : {}),
+              });
+            } else if (command === "play_media") {
+              let media = {};
+              try {
+                media = JSON.parse(String(value || "{}"));
+              } catch {
+                media = {};
+              }
+
+              window.dispatchEvent(
+                new CustomEvent("mg:remote-play-media", {
+                  detail: media,
+                })
+              );
             } else if (command === "next_episode") {
               window.dispatchEvent(
                 new CustomEvent("mg:play-next-episode")
@@ -254,16 +327,29 @@ export default function PlayerQrRemote({
           try {
             const audioTracks = [];
             let activeAudioIndex = -1;
+            const subtitleTracks = [];
+            let activeSubtitleIndex = -1;
             const playerContext =
               window.__MG_PLAYER_CONTEXT__ || {};
+            const trackPreferences = readTrackPreferences();
 
             if (video?.audioTracks && typeof video.audioTracks.length === "number") {
               for (let index = 0; index < video.audioTracks.length; index += 1) {
                 const track = video.audioTracks[index];
                 audioTracks.push(
-                  String(track?.label || track?.language || `Audio ${index + 1}`)
+                  friendlyTrackLabel(track, "Audio", index)
                 );
                 if (track?.enabled) activeAudioIndex = index;
+              }
+            }
+
+            if (video?.textTracks && typeof video.textTracks.length === "number") {
+              for (let index = 0; index < video.textTracks.length; index += 1) {
+                const track = video.textTracks[index];
+                subtitleTracks.push(
+                  friendlyTrackLabel(track, "Subtitle", index)
+                );
+                if (track?.mode === "showing") activeSubtitleIndex = index;
               }
             }
 
@@ -283,6 +369,10 @@ export default function PlayerQrRemote({
               active_file_id: String(activeFileRef.current || ""),
               audio_labels: JSON.stringify(audioTracks),
               active_audio_index: activeAudioIndex,
+              subtitle_labels: JSON.stringify(subtitleTracks),
+              active_subtitle_index: activeSubtitleIndex,
+              subtitle_size: trackPreferences.subtitleSize,
+              subtitle_background: trackPreferences.subtitleBackground,
               media_type: playerContext?.mediaType === "tv" ? "tv" : "movie",
               tmdb_id: String(playerContext?.tmdbId || ""),
               season_number: Number(playerContext?.season || 0),
