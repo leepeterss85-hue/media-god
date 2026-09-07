@@ -322,6 +322,23 @@ export default function VideoPlayer({
       activeUrl
     );
 
+  useEffect(() => {
+    recoveryResumeRef.current = 0;
+    autoRecoveryRef.current.lastTime = 0;
+    autoRecoveryRef.current.lastProgressAt = Date.now();
+    autoRecoveryRef.current.lastSwitchAt = 0;
+    autoRecoveryRef.current.abandoned = new Set();
+  }, [
+    source?.tmdbId,
+    source?.tmdb_id,
+    source?.id,
+    source?.title,
+    source?.rdSeason,
+    source?.rdEpisode,
+    source?.season,
+    source?.episode,
+  ]);
+
   const goFullscreen = () => {
     const stage =
       stageRef.current;
