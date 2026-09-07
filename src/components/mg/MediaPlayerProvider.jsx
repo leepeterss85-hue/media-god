@@ -7,6 +7,8 @@ import React, {
   useState,
 } from "react";
 
+import { createPortal } from "react-dom";
+
 import { base44 } from "@/api/base44Client";
 
 import {
@@ -1624,6 +1626,9 @@ export function PlayerProvider({
         close,
 
         hasRd,
+
+        isOpen:
+          Boolean(source),
       }),
       [
         play,
@@ -1631,6 +1636,8 @@ export function PlayerProvider({
         close,
 
         hasRd,
+
+        source,
       ]
     );
 
@@ -1640,16 +1647,19 @@ export function PlayerProvider({
     >
       {children}
 
-      {source && (
-        <VideoPlayer
-          source={
-            source
-          }
-          onClose={
-            close
-          }
-        />
-      )}
+      {source &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <VideoPlayer
+            source={
+              source
+            }
+            onClose={
+              close
+            }
+          />,
+          document.body
+        )}
     </PlayerContext.Provider>
   );
 }
