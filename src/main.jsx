@@ -10,6 +10,7 @@ import ContinueWatchingAssist from '@/components/mg/ContinueWatchingAssist.jsx'
 import { installFireTvStableMode } from '@/components/mg/fireTvStableMode.js'
 import '@/index.css'
 import '@/fire-tv-stable.css'
+import '@/fire-tv-player-failsafe.css'
 
 const userAgent =
   typeof navigator !== 'undefined'
@@ -49,6 +50,16 @@ const lastItem = (items) =>
     : null
 
 const topVisibleOverlay = () => {
+  const playerOverlay = Array.from(
+    document.querySelectorAll('.fixed.inset-0.bg-black\\/95')
+  )
+    .filter(isVisible)
+    .pop()
+
+  if (playerOverlay instanceof HTMLElement) {
+    return playerOverlay
+  }
+
   const overlays = Array.from(
     document.querySelectorAll(
       '[role="dialog"], [aria-modal="true"], .fixed.inset-0'
@@ -140,8 +151,13 @@ const isBackEvent = (event) => {
   )
 }
 
+/*
+ * The navbar is deliberately removed during playback, so it must never be
+ * used as the signal that the authenticated Media God app still exists.
+ * Home is the only real page in the protected app and always owns <main>.
+ */
 const mediaGodAppMounted = () =>
-  document.querySelector('#root .mg-fire-tv-nav') instanceof HTMLElement
+  document.querySelector('#root main') instanceof HTMLElement
 
 let lastFireTvBackActionAt = 0
 
@@ -153,6 +169,18 @@ const performFireTvBackAction = () => {
   }
 
   lastFireTvBackActionAt = now
+
+  const playerOverlays = Array.from(
+    document.querySelectorAll('.fixed.inset-0.bg-black\\/95')
+  ).filter(isVisible)
+
+  const playerOverlay = lastItem(playerOverlays)
+  const playerBack = findBackTarget(playerOverlay)
+
+  if (playerBack) {
+    playerBack.click()
+    return true
+  }
 
   const fullscreenButtons = Array.from(
     document.querySelectorAll(
@@ -212,24 +240,25 @@ const installFireTvBackHandler = () => {
     return
   }
 
-  window.addEventListener(
-    'keydown',
-    (event) => {
-      if (!isBackEvent(event)) {
-        return
-      }
+  const onBackEvent = (event) => {
+    if (!isBackEvent(event)) {
+      return
+    }
 
-      event.preventDefault()
-      event.stopImmediatePropagation()
+    event.preventDefault()
+    event.stopPropagation()
+    event.stopImmediatePropagation()
 
-      if (event.repeat) {
-        return
-      }
+    if (event.repeat) {
+      return
+    }
 
-      performFireTvBackAction()
-    },
-    true
-  )
+    performFireTvBackAction()
+  }
+
+  /* Capture both phases used by different Fire TV/Silk builds. */
+  window.addEventListener('keydown', onBackEvent, true)
+  document.addEventListener('keydown', onBackEvent, true)
 }
 
 /*
@@ -308,8 +337,25 @@ const installFireTvHistoryBackGuard = () => {
       return
     }
 
-    const safeUrl = guardUrl || currentUrl()
+    const safeUrl = guardUrl || '/'
     const state = stateObject()
+
+    /* Never expose an authenticated Fire TV session to the login route. */
+    if (
+      window.location.pathname === '/login' ||
+      window.location.pathname === '/register' ||
+      window.location.pathname === '/forgot-password' ||
+      window.location.pathname === '/reset-password'
+    ) {
+      window.history.replaceState(
+        {
+          ...state,
+          __mgFireTvApp: true,
+        },
+        '',
+        '/'
+      )
+    }
 
     /* Re-arm synchronously so a second quick Back cannot reach /login. */
     window.history.pushState(
@@ -322,6 +368,7 @@ const installFireTvHistoryBackGuard = () => {
       safeUrl
     )
 
+    guardUrl = safeUrl
     armed = true
 
     /* If keydown already handled this same press, do not back twice. */
