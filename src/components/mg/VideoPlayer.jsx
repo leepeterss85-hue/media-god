@@ -18,7 +18,6 @@ import { base44 } from "@/api/base44Client";
 import CastButton from "@/components/mg/CastButton";
 import LiveVideo from "@/components/mg/LiveVideo";
 import PlayerControls from "@/components/mg/PlayerControls";
-import PlayerQrRemote from "@/components/mg/PlayerQrRemote";
 import { readTrackPreferences } from "@/components/mg/mediaTrackPreferences";
 import { readPlaybackPreferences } from "@/components/mg/playbackPreferences";
 import {
@@ -2572,31 +2571,6 @@ export default function VideoPlayer({
           </button>
 
         </div>
-
-        <PlayerQrRemote
-          title={source?.title || "Now playing"}
-          videoRef={videoRef}
-          liveVideoRef={liveVideoRef}
-          sourceLabels={sources.map(sourceDisplayLabel)}
-          activeSourceIndex={activeIdx}
-          onSelectSource={selectSource}
-          onTryNextSource={handleNoSound}
-          fileOptions={rdFiles.map((file) => ({
-            id: file.id,
-            path: file.path,
-            label: file.path,
-          }))}
-          activeFileId={
-            rdFiles.find((file) => file.path === rdOverride?.file)?.id || ""
-          }
-          onSelectFile={(fileId) => {
-            const file = rdFiles.find(
-              (item) => String(item.id) === String(fileId)
-            );
-            if (file) pickFile(file);
-          }}
-          onExit={onClose}
-        />
 
         {displayedError &&
           !busy && (
