@@ -87,12 +87,53 @@ const NAV = [
   },
 ];
 
-const playerAlreadyOpen = () =>
-  typeof document !== "undefined" &&
-  (
+const contextSaysPlayerOpen = () => {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  const context = window.__MG_PLAYER_CONTEXT__;
+
+  return Boolean(
+    context &&
+      (
+        context.mediaType ||
+        context.tmdbId ||
+        context.imdbId ||
+        context.title
+      )
+  );
+};
+
+const domSaysPlayerOpen = () => {
+  if (typeof document === "undefined") {
+    return false;
+  }
+
+  if (
     document.body?.classList.contains("mg-fire-tv-player-open") ||
     document.documentElement.classList.contains("mg-fire-tv-player-open")
+  ) {
+    return true;
+  }
+
+  return Boolean(
+    document.querySelector(
+      [
+        'select[aria-label="Choose playback source"]',
+        'select[aria-label="Choose source or quality while loading"]',
+        'button[aria-label="No sound"]',
+        'button[title="No sound"]',
+        'button[aria-label="Back to main menu"]',
+        '.fixed.inset-0 video',
+      ].join(",")
+    )
   );
+};
+
+const playerAlreadyOpen = () =>
+  contextSaysPlayerOpen() ||
+  domSaysPlayerOpen();
 
 export default function Navbar({
   active,
@@ -103,26 +144,90 @@ export default function Navbar({
     useState(playerAlreadyOpen);
 
   useEffect(() => {
-    const onPlayerVisibility = (event) => {
+    const syncFromEverything = () => {
       setPlayerOpen(
-        Boolean(event?.detail?.open)
+        contextSaysPlayerOpen() ||
+          domSaysPlayerOpen()
       );
     };
+
+    const onPlayerContext = (event) => {
+      const detail = event?.detail || {};
+
+      const open = Boolean(
+        detail.mediaType ||
+          detail.tmdbId ||
+          detail.imdbId ||
+          detail.title
+      );
+
+      setPlayerOpen(open);
+
+      if (open) {
+        document.body?.classList.add(
+          "mg-fire-tv-player-open"
+        );
+        document.documentElement.classList.add(
+          "mg-fire-tv-player-open"
+        );
+      } else {
+        document.body?.classList.remove(
+          "mg-fire-tv-player-open"
+        );
+        document.documentElement.classList.remove(
+          "mg-fire-tv-player-open"
+        );
+      }
+    };
+
+    const onPlayerVisibility = (event) => {
+      if (event?.detail?.open) {
+        setPlayerOpen(true);
+        return;
+      }
+
+      syncFromEverything();
+    };
+
+    window.addEventListener(
+      "mg:player-context",
+      onPlayerContext
+    );
 
     window.addEventListener(
       "mg:player-visibility",
       onPlayerVisibility
     );
 
-    setPlayerOpen(
-      playerAlreadyOpen()
+    const observer = new MutationObserver(
+      syncFromEverything
     );
 
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+
+    const watchdog = window.setInterval(
+      syncFromEverything,
+      100
+    );
+
+    syncFromEverything();
+
     return () => {
+      window.removeEventListener(
+        "mg:player-context",
+        onPlayerContext
+      );
+
       window.removeEventListener(
         "mg:player-visibility",
         onPlayerVisibility
       );
+
+      observer.disconnect();
+      window.clearInterval(watchdog);
     };
   }, []);
 
@@ -136,9 +241,8 @@ export default function Navbar({
     );
 
   /*
-   * Do not merely hide the rail with z-index/CSS during playback.
-   * Remove it from the React tree so stale Fire TV CSS cannot reserve
-   * sidebar width or place it over the video.
+   * Playback owns the entire television. The navbar is physically removed
+   * from the React tree as soon as PlayerProvider publishes a media context.
    */
   if (playerOpen) {
     return null;
