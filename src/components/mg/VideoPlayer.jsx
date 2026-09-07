@@ -839,6 +839,14 @@ export default function VideoPlayer({
                   currentFilePath(
                     data.files
                   ),
+
+                audioRescue:
+                  data.audio_rescue ||
+                  null,
+
+                mediaInfo:
+                  data.media_info ||
+                  null,
               });
 
               setRdFiles(
@@ -1021,6 +1029,14 @@ export default function VideoPlayer({
                   currentFilePath(
                     data.files
                   ),
+
+                audioRescue:
+                  data.audio_rescue ||
+                  null,
+
+                mediaInfo:
+                  data.media_info ||
+                  null,
               });
 
               setRdFiles(
