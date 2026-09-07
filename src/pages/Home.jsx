@@ -421,7 +421,7 @@ function MediaGodApp() {
           findOverlayBackTarget();
 
         if (
-          overlayTarget
+          overlayTarget instanceof HTMLElement
         ) {
           overlayTarget.click();
 
