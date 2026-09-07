@@ -329,20 +329,52 @@ export default function SettingsView() {
             user?.preferences ||
             {};
 
-          setAutoplay(
-            preferences.autoplay ??
-              DEFAULT_PREFERENCES.autoplay
-          );
+          const localPlayback = readPlaybackPreferences();
+          const localTracks = readTrackPreferences();
 
-          setSubs(
-            preferences.subs ??
-              DEFAULT_PREFERENCES.subs
-          );
+          const nextPlayback = writePlaybackPreferences({
+            ...localPlayback,
+            autoNext:
+              preferences.autoplay ??
+              localPlayback.autoNext ??
+              DEFAULT_PREFERENCES.autoplay,
+            quality:
+              preferences.quality ||
+              localPlayback.quality ||
+              DEFAULT_PREFERENCES.quality,
+            autoRecovery:
+              preferences.autoRecovery ??
+              localPlayback.autoRecovery,
+          });
 
-          setQuality(
-            preferences.quality ||
-              DEFAULT_PREFERENCES.quality
-          );
+          const nextTracks = writeTrackPreferences({
+            ...localTracks,
+            subtitlesEnabled:
+              preferences.subs ??
+              localTracks.subtitlesEnabled ??
+              DEFAULT_PREFERENCES.subs,
+            audioLanguage:
+              preferences.audioLanguage ||
+              localTracks.audioLanguage,
+            subtitleLanguage:
+              preferences.subtitleLanguage ||
+              localTracks.subtitleLanguage,
+            preferForcedSubtitles:
+              preferences.preferForcedSubtitles ??
+              localTracks.preferForcedSubtitles,
+            subtitleSize:
+              preferences.subtitleSize ||
+              localTracks.subtitleSize,
+            subtitleBackground:
+              preferences.subtitleBackground ||
+              localTracks.subtitleBackground,
+          });
+
+          setAutoplay(nextPlayback.autoNext);
+          setQuality(nextPlayback.quality);
+          setAutoRecovery(nextPlayback.autoRecovery);
+          setSubs(nextTracks.subtitlesEnabled);
+          setTrackPreferences(nextTracks);
 
           return user;
         } catch {
