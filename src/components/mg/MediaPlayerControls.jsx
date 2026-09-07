@@ -29,6 +29,7 @@ import {
   trackLooksForced,
   writeTrackPreferences,
 } from "@/components/mg/mediaTrackPreferences";
+import { concisePlaybackSourceLabel } from "@/components/mg/playbackSourceLabels";
 
 const formatTime = (seconds) => {
   if (!seconds || !Number.isFinite(Number(seconds))) {
@@ -50,17 +51,8 @@ const formatTime = (seconds) => {
   return `${m}:${String(s).padStart(2, "0")}`;
 };
 
-const sourceLabel = (item, index) => {
-  const label =
-    item?.label ||
-    item?.name ||
-    item?.title ||
-    `Source ${index + 1}`;
-
-  return String(label)
-    .replace(/\s+/g, " ")
-    .trim();
-};
+const sourceLabel = (item, index) =>
+  concisePlaybackSourceLabel(item, index);
 
 const normaliseExternalSubtitle = (item, index) => {
   if (!item) return null;
