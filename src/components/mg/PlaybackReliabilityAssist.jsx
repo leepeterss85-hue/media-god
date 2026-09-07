@@ -8,6 +8,7 @@ import {
   getPlaybackDeviceProfile,
   scoreSourceCompatibility,
 } from "@/components/mg/mediaCompatibility";
+import { recordDevicePlaybackReliability } from "@/components/mg/playbackReliability";
 
 const STORAGE_KEY =
   "mg:playback-reliability-v1";
@@ -334,6 +335,13 @@ const saveReliability = (
 
   writeStore(
     store
+  );
+
+  recordDevicePlaybackReliability(
+    label,
+    kind,
+    value,
+    getPlaybackDeviceProfile()
   );
 };
 
