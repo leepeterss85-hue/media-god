@@ -9,6 +9,7 @@ import {
   Smartphone,
   Volume2,
   VolumeX,
+  SkipBack,
   SkipForward,
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
@@ -39,6 +40,10 @@ export default function PlayerRemote() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [seasons, setSeasons] = useState([]);
+  const [episodes, setEpisodes] = useState([]);
+  const [selectedSeason, setSelectedSeason] = useState(0);
+  const [episodesLoading, setEpisodesLoading] = useState(false);
   const seqRef = useRef(0);
 
   const sourceLabels = useMemo(
@@ -55,6 +60,122 @@ export default function PlayerRemote() {
     () => parseJson(session?.audio_labels, []),
     [session?.audio_labels]
   );
+
+  useEffect(() => {
+    if (
+      session?.media_type !== "tv" ||
+      !session?.tmdb_id
+    ) {
+      setSeasons([]);
+      setEpisodes([]);
+      setSelectedSeason(0);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadSeasons = async () => {
+      try {
+        const response = await base44.functions.invoke(
+          "getTmdbMovies",
+          {
+            media_type: "tv",
+            movie_id: session.tmdb_id,
+          }
+        );
+
+        if (cancelled) return;
+
+        const data = response?.data ?? response ?? {};
+        const nextSeasons = Array.isArray(data?.details?.seasons)
+          ? data.details.seasons
+              .filter((item) => Number(item?.season_number || 0) > 0)
+              .sort(
+                (a, b) =>
+                  Number(a?.season_number || 0) -
+                  Number(b?.season_number || 0)
+              )
+          : [];
+
+        setSeasons(nextSeasons);
+        setSelectedSeason(
+          Number(session?.season_number || nextSeasons[0]?.season_number || 1)
+        );
+      } catch {
+        if (!cancelled) {
+          setSeasons([]);
+        }
+      }
+    };
+
+    loadSeasons();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.media_type, session?.tmdb_id]);
+
+  useEffect(() => {
+    if (
+      session?.media_type !== "tv" ||
+      !session?.tmdb_id ||
+      !selectedSeason
+    ) {
+      setEpisodes([]);
+      return;
+    }
+
+    let cancelled = false;
+    setEpisodesLoading(true);
+
+    base44.functions
+      .invoke("getTmdbMovies", {
+        media_type: "tv",
+        movie_id: session.tmdb_id,
+        season_number: selectedSeason,
+      })
+      .then((response) => {
+        if (cancelled) return;
+        const data = response?.data ?? response ?? {};
+        const nextEpisodes = Array.isArray(data?.episodes)
+          ? data.episodes
+              .filter(
+                (item) =>
+                  Number(
+                    item?.episode_number ??
+                      item?.episodeNumber ??
+                      item?.episode ??
+                      0
+                  ) > 0
+              )
+              .sort(
+                (a, b) =>
+                  Number(a?.episode_number ?? a?.episodeNumber ?? a?.episode ?? 0) -
+                  Number(b?.episode_number ?? b?.episodeNumber ?? b?.episode ?? 0)
+              )
+          : [];
+        setEpisodes(nextEpisodes);
+      })
+      .catch(() => {
+        if (!cancelled) setEpisodes([]);
+      })
+      .finally(() => {
+        if (!cancelled) setEpisodesLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.media_type, session?.tmdb_id, selectedSeason]);
+
+  useEffect(() => {
+    if (
+      session?.media_type === "tv" &&
+      Number(session?.season_number || 0) > 0
+    ) {
+      setSelectedSeason(Number(session.season_number));
+    }
+  }, [session?.media_type, session?.season_number]);
 
   useEffect(() => {
     let cancelled = false;
