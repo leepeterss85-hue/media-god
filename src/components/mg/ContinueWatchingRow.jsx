@@ -322,7 +322,7 @@ export default function ContinueWatchingRow() {
   }
 
   return (
-    <section className="px-3 min-[420px]:px-4 sm:px-6 md:px-8 3xl:px-10 4xl:px-14 pt-2 sm:pt-4">
+    <section className="mg-fire-tv-resume-section px-3 min-[420px]:px-4 sm:px-6 md:px-8 3xl:px-10 4xl:px-14 pt-2 sm:pt-4">
       <div className="flex items-center gap-2 3xl:gap-3 mb-3 3xl:mb-4">
         <History className="w-4 h-4 3xl:w-5 3xl:h-5 text-mg-green" />
 
@@ -338,8 +338,9 @@ export default function ContinueWatchingRow() {
       </div>
 
       <div
-        className="flex gap-3 3xl:gap-5 overflow-x-auto overscroll-x-contain pb-2 scrollbar-hide snap-x snap-proximity"
+        className="mg-fire-tv-resume-row flex gap-3 3xl:gap-5 overflow-x-auto overscroll-x-contain pb-3 scrollbar-hide snap-x snap-proximity"
         data-mg-tv-row="true"
+        aria-label="Continue Watching"
       >
         {displayItems.map(({ item, meta, progress, remaining }) => {
           const episodeLabel =
@@ -386,7 +387,7 @@ export default function ContinueWatchingRow() {
                 <button
                   type="button"
                   onClick={(event) => remove(item.id, event)}
-                  className="absolute top-1 right-1 3xl:top-2 3xl:right-2 w-7 h-7 3xl:w-9 3xl:h-9 rounded-full bg-black/75 text-white/75 hover:text-white hover:bg-black flex items-center justify-center opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-mg-green"
+                  className="mg-fire-tv-secondary-action absolute top-1 right-1 3xl:top-2 3xl:right-2 w-7 h-7 3xl:w-9 3xl:h-9 rounded-full bg-black/75 text-white/75 hover:text-white hover:bg-black flex items-center justify-center opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-mg-green"
                   aria-label={`Remove ${meta.title} from Continue Watching`}
                   title="Remove from Continue Watching"
                 >
