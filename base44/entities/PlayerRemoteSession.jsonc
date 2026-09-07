@@ -49,6 +49,22 @@
       "type": "number",
       "default": -1
     },
+    "subtitle_labels": {
+      "type": "string",
+      "default": "[]"
+    },
+    "active_subtitle_index": {
+      "type": "number",
+      "default": -1
+    },
+    "subtitle_size": {
+      "type": "string",
+      "default": "medium"
+    },
+    "subtitle_background": {
+      "type": "string",
+      "default": "medium"
+    },
     "media_type": {
       "type": "string",
       "default": "movie"
