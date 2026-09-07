@@ -497,6 +497,7 @@ function PlayerAutomationBridge({ children }) {
           return;
         }
 
+        await queueContinueWatching(next);
         await play(next);
       } catch (error) {
         console.error(
@@ -662,6 +663,109 @@ function PlayerAutomationBridge({ children }) {
       advanceToNext(true);
     };
 
+    const onEpisodeCompleted = async (event) => {
+      const detail = event?.detail || {};
+      const current = currentRequestRef.current;
+
+      if (!isTvRequest(current)) {
+        return;
+      }
+
+      const currentSeason = positiveInt(
+        current?.season ?? current?.rdSeason
+      );
+      const currentEpisode = positiveInt(
+        current?.episode ?? current?.rdEpisode
+      );
+
+      if (
+        detail?.season &&
+        detail?.episode &&
+        (
+          positiveInt(detail.season) !== currentSeason ||
+          positiveInt(detail.episode) !== currentEpisode
+        )
+      ) {
+        return;
+      }
+
+      try {
+        const next = await findNextEpisodeRequest(current);
+        if (next) {
+          await queueContinueWatching(next);
+        }
+      } catch {
+        // Continue Watching queue is best effort only.
+      }
+    };
+
+    const onRemotePlayMedia = async (event) => {
+      const detail = event?.detail || {};
+      const mediaType = detail?.mediaType === "tv" ? "tv" : "movie";
+      const tmdbId =
+        detail?.tmdbId ?? detail?.tmdb_id ?? detail?.id ?? null;
+      const title = String(detail?.title || detail?.name || "").trim();
+
+      if (!tmdbId || !title) {
+        publishStatus("Could not send that title to the TV.");
+        return;
+      }
+
+      if (mediaType === "tv") {
+        const seasonNumber = positiveInt(
+          detail?.seasonNumber ?? detail?.season
+        );
+        const episodeNumber = positiveInt(
+          detail?.episodeNumber ?? detail?.episode
+        );
+
+        if (!seasonNumber || !episodeNumber) {
+          publishStatus("Choose a season and episode on your phone first.");
+          return;
+        }
+
+        const request = episodePlaybackRequest({
+          current: {
+            id: tmdbId,
+            tmdbId,
+            title,
+            rdTitle: title,
+            year: detail?.year ?? null,
+            rdYear: detail?.year ?? null,
+            poster: detail?.poster || detail?.poster_url || "",
+            mediaType: "tv",
+            type: "series",
+          },
+          tmdbId,
+          seasonNumber,
+          episodeNumber,
+          episodeItem: detail?.episodeItem || null,
+        });
+
+        if (request) {
+          publishStatus(`Sending ${title} to the TV…`);
+          await play(request);
+        }
+        return;
+      }
+
+      publishStatus(`Sending ${title} to the TV…`);
+      await play({
+        id: tmdbId,
+        tmdbId,
+        tmdb_id: tmdbId,
+        title,
+        poster: detail?.poster || detail?.poster_url || "",
+        year: detail?.year ?? null,
+        mediaType: "movie",
+        type: "movie",
+        rdTitle: title,
+        rdYear: detail?.year ?? null,
+        preferRd: true,
+        sources: [],
+      });
+    };
+
     const onSetAutoNext = (event) => {
       const enabled = Boolean(
         event?.detail?.enabled
@@ -733,6 +837,16 @@ function PlayerAutomationBridge({ children }) {
       onSetAutoNext
     );
 
+    window.addEventListener(
+      "mg:episode-completed",
+      onEpisodeCompleted
+    );
+
+    window.addEventListener(
+      "mg:remote-play-media",
+      onRemotePlayMedia
+    );
+
     document.addEventListener(
       "ended",
       onEnded,
@@ -758,6 +872,16 @@ function PlayerAutomationBridge({ children }) {
       window.removeEventListener(
         "mg:set-auto-next",
         onSetAutoNext
+      );
+
+      window.removeEventListener(
+        "mg:episode-completed",
+        onEpisodeCompleted
+      );
+
+      window.removeEventListener(
+        "mg:remote-play-media",
+        onRemotePlayMedia
       );
 
       document.removeEventListener(
