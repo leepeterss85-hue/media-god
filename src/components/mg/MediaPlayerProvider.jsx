@@ -27,6 +27,15 @@ const FOREIGN_RE =
 const RES_RE =
   /(2160|1080|720|480)p/i;
 
+const AUDIO_AAC_RE =
+  /\b(aac|aac2\.0|aac5\.1|he-aac)\b/i;
+
+const AUDIO_DOLBY_RE =
+  /\b(eac3|e-ac-3|ddp|dd\+|ac3|dolby[ ._-]?digital)\b/i;
+
+const AUDIO_RISKY_RE =
+  /\b(dts(?:-hd)?|truehd|mlp)\b/i;
+
 const unwrap = (response) =>
   response?.data ??
   response ??
@@ -128,9 +137,30 @@ const scoreSource = (item) => {
       ? 5000
       : 0;
 
+  const audioText = String(
+    [
+      item?.label,
+      item?.name,
+      item?.title,
+      item?.description,
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
+
+  const audioCompatibility =
+    AUDIO_AAC_RE.test(audioText)
+      ? 3200
+      : AUDIO_DOLBY_RE.test(audioText)
+        ? 2200
+        : AUDIO_RISKY_RE.test(audioText)
+          ? -4200
+          : 0;
+
   return (
     rdLibraryBonus +
     directBonus +
+    audioCompatibility +
     resolution -
     foreignPenalty
   );
