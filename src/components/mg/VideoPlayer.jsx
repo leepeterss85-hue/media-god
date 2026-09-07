@@ -1605,6 +1605,158 @@ export default function VideoPlayer({
       );
     };
 
+  useEffect(() => {
+    if (isLive || sources.length <= 1) {
+      return undefined;
+    }
+
+    const state = autoRecoveryRef.current;
+    state.lastTime = 0;
+    state.lastProgressAt = Date.now();
+
+    const recover = (video) => {
+      const preferences = readPlaybackPreferences();
+
+      if (!preferences.autoRecovery) {
+        return false;
+      }
+
+      const now = Date.now();
+
+      if (now - Number(state.lastSwitchAt || 0) < 18000) {
+        return false;
+      }
+
+      state.abandoned.add(activeIdx);
++
+      let nextIndex = -1;
+
+      for (let offset = 1; offset <= sources.length; offset += 1) {
+        const index = (activeIdx + offset) % sources.length;
+        const candidate = sources[index];
+        const candidateUrl = getSourceUrl(candidate);
+        const torrentCandidate =
+          candidate?.type === "rd" ||
+          candidate?.type === "rd_torrent" ||
+          candidate?.type === "torrent" ||
+          candidate?.type === "magnet" ||
+          isMagnet(candidateUrl);
+
+        if (
+          index !== activeIdx &&
+          !state.abandoned.has(index) &&
+          (candidateUrl || torrentCandidate)
+        ) {
+          nextIndex = index;
+          break;
+        }
+      }
+
+      if (nextIndex < 0) {
+        setRdError(
+          "Playback stalled and there is no unused backup source left to try."
+        );
+        return false;
+      }
+
+      const resumeAt = Math.max(
+        0,
+        Number(video?.currentTime || lastPosRef.current?.t || 0)
+      );
+      const label = sourceDisplayLabel(active, activeIdx);
+
+      if (resumeAt > 5) {
+        recoveryResumeRef.current = resumeAt;
+      }
+
+      recordPlaybackReliability(label, "failure");
+      markSourceFailed(activeIdx);
+      clearSourceFailed(nextIndex);
+
+      state.lastSwitchAt = now;
+      state.lastTime = 0;
+      state.lastProgressAt = now;
+
+      setRdOverride(null);
+      setRdFiles([]);
+      setRdTorrentId(null);
+      setRdError("");
+      setRdResolving(false);
+      setRdPolling(false);
+      setActiveIdx(nextIndex);
+
+      window.dispatchEvent(
+        new CustomEvent("mg:player-status", {
+          detail: {
+            message:
+              resumeAt > 5
+                ? `Playback stalled — switching source and resuming at ${Math.floor(resumeAt / 60)} min…`
+                : "Playback stalled — switching to a backup source…",
+          },
+        })
+      );
+
+      return true;
+    };
+
+    const timer = window.setInterval(() => {
+      if (
+        document.visibilityState === "hidden" ||
+        rdResolving ||
+        rdPolling ||
+        rdTorrentId
+      ) {
+        state.lastProgressAt = Date.now();
+        return;
+      }
+
+      const video = stageRef.current?.querySelector("video");
+
+      if (
+        !(video instanceof HTMLVideoElement) ||
+        video.paused ||
+        video.ended ||
+        video.seeking
+      ) {
+        state.lastTime = Number(video?.currentTime || 0);
+        state.lastProgressAt = Date.now();
+        return;
+      }
+
+      const currentTime = Number(video.currentTime || 0);
+      const duration = Number(video.duration || 0);
+      const now = Date.now();
+
+      if (duration > 0 && duration - currentTime < 3) {
+        state.lastTime = currentTime;
+        state.lastProgressAt = now;
+        return;
+      }
+
+      if (Math.abs(currentTime - Number(state.lastTime || 0)) >= 0.35) {
+        state.lastTime = currentTime;
+        state.lastProgressAt = now;
+        return;
+      }
+
+      if (now - Number(state.lastProgressAt || now) >= 14000) {
+        recover(video);
+      }
+    }, 1000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [
+    active,
+    activeIdx,
+    isLive,
+    rdPolling,
+    rdResolving,
+    rdTorrentId,
+    sources,
+  ]);
+
   const pickFile =
     async (
       file
