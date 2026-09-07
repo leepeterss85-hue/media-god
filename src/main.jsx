@@ -5,7 +5,9 @@ import FireTvFocusMemory from '@/components/mg/FireTvFocusMemory.jsx'
 import PlaybackReliabilityAssist from '@/components/mg/PlaybackReliabilityAssist.jsx'
 import PlayerEpisodeQuickNav from '@/components/mg/PlayerEpisodeQuickNav.jsx'
 import ContinueWatchingAssist from '@/components/mg/ContinueWatchingAssist.jsx'
+import { installFireTvStableMode } from '@/components/mg/fireTvStableMode.js'
 import '@/index.css'
+import '@/fire-tv-stable.css'
 
 const userAgent =
   typeof navigator !== 'undefined'
@@ -219,6 +221,7 @@ if (isFireTv && typeof document !== 'undefined') {
   document.body?.classList.add('mg-fire-tv')
 }
 
+installFireTvStableMode()
 installFireTvBackHandler()
 
 ReactDOM.createRoot(document.getElementById('root')).render(
