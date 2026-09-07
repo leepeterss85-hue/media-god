@@ -1861,6 +1861,15 @@ export function clearFreeTvCache() {
     null;
 }
 
+if (typeof window !== "undefined") {
+  const marker = "__MG_SOURCE_REGISTRY_CACHE_LISTENER__";
+
+  if (!window[marker]) {
+    window[marker] = true;
+    window.addEventListener(sourceRegistryEvent, clearFreeTvCache);
+  }
+}
+
 export async function findChannelsByTitle(
   title
 ) {
