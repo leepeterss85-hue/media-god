@@ -122,49 +122,82 @@ const hlsTrackText = (track) =>
     .filter(Boolean)
     .join(" ");
 
+const audioCodecSafetyScore = (value) => {
+  const text = String(value || "");
+
+  if (/\b(?:truehd|mlp|dts(?:-?hd)?|dts:x|dca)\b/i.test(text)) {
+    return -9000;
+  }
+
+  if (/\b(?:aac|he-?aac|mp4a)\b/i.test(text)) return 2600;
+  if (/\b(?:e-?ac-?3|eac3|ec-?3|ddp|dd\+)\b/i.test(text)) return 1400;
+  if (/\b(?:ac-?3|ac3|dolby digital)\b/i.test(text)) return 1200;
+  if (/\bopus\b/i.test(text)) return 900;
+  if (/\b(?:mp3|mpeg audio)\b/i.test(text)) return 700;
+  if (/\bflac\b/i.test(text)) return 150;
+
+  return 0;
+};
+
+const audioTrackPreferenceScore = (
+  track,
+  preferredLanguage = "en"
+) => {
+  const text = [
+    track?.language,
+    track?.lang,
+    track?.label,
+    track?.name,
+    track?.audioCodec,
+    track?.attrs?.LANGUAGE,
+    track?.attrs?.NAME,
+    track?.attrs?.GROUP_ID,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const language =
+    track?.language ||
+    track?.lang ||
+    track?.attrs?.LANGUAGE ||
+    track?.name ||
+    "";
+
+  let score = audioCodecSafetyScore(text);
+
+  if (
+    languageMatches(language, preferredLanguage) ||
+    (normaliseLanguage(preferredLanguage) === "en" &&
+      /\b(?:eng|english)\b/i.test(text))
+  ) {
+    score += 10000;
+  }
+
+  if (/\b(?:commentary|audio description|descriptive|visually impaired)\b/i.test(text)) {
+    score -= 3200;
+  }
+
+  if (track?.default || track?.attrs?.DEFAULT === "YES") score += 120;
+  if (track?.autoselect || track?.attrs?.AUTOSELECT === "YES") score += 60;
+
+  return score;
+};
+
 const choosePreferredHlsAudioTrack = (
   tracks,
-  preferredLanguage = "en"
+  preferredLanguage = "en",
+  excludeIndex = -1
 ) => {
   let bestIndex = -1;
   let bestScore = -Infinity;
 
   (tracks || []).forEach((track, index) => {
-    const text =
-      hlsTrackText(track);
+    if (index === excludeIndex) return;
 
-    const language =
-      track?.lang ||
-      track?.attrs?.LANGUAGE ||
-      track?.name ||
-      "";
-
-    let score = 0;
-
-    if (
-      languageMatches(language, preferredLanguage) ||
-      (normaliseLanguage(preferredLanguage) === "en" &&
-        /\b(?:eng|english)\b/i.test(text))
-    ) {
-      score += 10000;
-    } else {
-      return;
-    }
-
-    if (/aac|mp4a/i.test(text)) score += 1200;
-
-    if (
-      /ac-?3|e-?ac-?3|eac3|ddp/i.test(text)
-    ) {
-      score += 500;
-    }
-
-    if (
-      track?.default ||
-      track?.attrs?.DEFAULT === "YES"
-    ) {
-      score += 100;
-    }
+    const score = audioTrackPreferenceScore(
+      track,
+      preferredLanguage
+    );
 
     if (score > bestScore) {
       bestScore = score;
@@ -177,7 +210,8 @@ const choosePreferredHlsAudioTrack = (
 
 const selectPreferredNativeAudioTrack = (
   video,
-  preferredLanguage = "en"
+  preferredLanguage = "en",
+  excludeIndex = -1
 ) => {
   const tracks =
     video?.audioTracks;
@@ -185,40 +219,33 @@ const selectPreferredNativeAudioTrack = (
   if (
     !tracks ||
     typeof tracks.length !== "number" ||
-    tracks.length < 2
+    tracks.length < 1
   ) {
     return false;
   }
 
-  let englishIndex = -1;
+  let bestIndex = -1;
+  let bestScore = -Infinity;
 
   for (
     let index = 0;
     index < tracks.length;
     index += 1
   ) {
-    const track =
-      tracks[index];
+    if (index === excludeIndex) continue;
 
-    const text =
-      `${track?.language || ""} ${track?.label || ""}`;
+    const score = audioTrackPreferenceScore(
+      tracks[index],
+      preferredLanguage
+    );
 
-    if (
-      languageMatches(
-        track?.language,
-        preferredLanguage
-      ) ||
-      (normaliseLanguage(preferredLanguage) === "en" &&
-        /\b(?:eng|english)\b/i.test(text))
-    ) {
-      englishIndex = index;
-      break;
+    if (score > bestScore) {
+      bestScore = score;
+      bestIndex = index;
     }
   }
 
-  if (englishIndex < 0) {
-    return false;
-  }
+  if (bestIndex < 0) return false;
 
   for (
     let index = 0;
@@ -227,13 +254,13 @@ const selectPreferredNativeAudioTrack = (
   ) {
     try {
       tracks[index].enabled =
-        index === englishIndex;
+        index === bestIndex;
     } catch {
       // Some WebViews expose audioTracks as read-only.
     }
   }
 
-  return true;
+  return Boolean(tracks[bestIndex]?.enabled);
 };
 
 const subtitleTrackText = (track) =>
