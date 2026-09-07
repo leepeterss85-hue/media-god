@@ -721,12 +721,23 @@ export default function LiveTVView() {
       "United Kingdom": 0,
       Sports: 0,
       Movies: 0,
+      Favourites: 0,
+      Recent: 0,
     };
 
     for (const channel of channels) {
       const tags = new Set(
         channel?.tags || []
       );
+      const key = channelMemoryKey(channel);
+
+      if (favouriteKeys.has(key)) {
+        counts.Favourites += 1;
+      }
+
+      if (recentKeys.includes(key)) {
+        counts.Recent += 1;
+      }
 
       if (
         tags.has(
@@ -750,7 +761,7 @@ export default function LiveTVView() {
     }
 
     return counts;
-  }, [channels]);
+  }, [channels, favouriteKeys, recentKeys]);
 
   const filtered = useMemo(() => {
     const q = searchText(query);
