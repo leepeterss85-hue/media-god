@@ -517,6 +517,7 @@ if (tvRemoteDetected && typeof document !== 'undefined') {
 
 installFireTvStableMode()
 installTvRemoteDetection()
+window.addEventListener('mg:tv-remote-detected', installFireTvStableMode)
 installFireTvBackHandler()
 installFireTvHistoryBackGuard()
 
