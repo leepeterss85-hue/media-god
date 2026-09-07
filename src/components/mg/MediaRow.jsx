@@ -53,6 +53,7 @@ export default function MediaRow({
 
       <div
         ref={ref}
+        data-mg-tv-row="true"
         className="flex gap-2.5 sm:gap-3 xl:gap-4 3xl:gap-5 4xl:gap-6 overflow-x-auto overscroll-x-contain pb-2 3xl:pb-3 scrollbar-hide snap-x snap-proximity"
       >
         {items.map((item) => (
