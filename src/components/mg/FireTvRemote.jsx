@@ -269,6 +269,18 @@ const directionalTarget = (current, candidates, direction) => {
   return best;
 };
 
+const playerOpen = () => {
+  if (typeof document === "undefined") {
+    return false;
+  }
+
+  const player = document.querySelector(
+    '[data-mg-player-root="true"]'
+  );
+
+  return player instanceof HTMLElement && visible(player);
+};
+
 const activeVideo = () => {
   const overlay = topOverlay();
 
@@ -370,6 +382,15 @@ export default function FireTvRemote() {
         return;
       }
 
+      /*
+       * Full-screen playback deliberately uses normal browser/WebView focus.
+       * Do not force focus or spatial-navigation targets inside the player.
+       */
+      if (playerOpen()) {
+        lastScopeRef.current = null;
+        return;
+      }
+
       const scope = topOverlay();
 
       if (!(scope instanceof HTMLElement)) {
@@ -397,6 +418,14 @@ export default function FireTvRemote() {
 
     const onKeyDown = (event) => {
       if (!isFireTv()) {
+        return;
+      }
+
+      /*
+       * Player screen: no custom D-pad, Select or media-key interception.
+       * Physical Back remains owned by main.jsx as a safety exit only.
+       */
+      if (playerOpen()) {
         return;
       }
 
