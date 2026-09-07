@@ -22,6 +22,7 @@ import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import SocialLoginSection from "@/components/mg/SocialLoginSection";
+import MultiDebridSettings from "@/components/mg/MultiDebridSettings";
 import {
   readTrackPreferences,
   writeTrackPreferences,
@@ -1949,6 +1950,8 @@ export default function SettingsView() {
           </div>
         )}
       </div>
+
+      <MultiDebridSettings />
 
       <button
         type="button"
