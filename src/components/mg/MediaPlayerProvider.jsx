@@ -1910,6 +1910,8 @@ export function PlayerProvider({
 
           hasRd,
 
+          hasDebrid,
+
           sourceDiagnostics: {
             imdbId,
 
