@@ -1343,6 +1343,7 @@ const LiveVideo = forwardRef(
                 .MANIFEST_PARSED,
               () => {
                 preferEnglishHlsAudio();
+                window.setTimeout(publishHlsAudioTracks, 20);
 
                 preferEnglishNativeAudio();
 
@@ -1359,7 +1360,15 @@ const LiveVideo = forwardRef(
                   .AUDIO_TRACKS_UPDATED,
                 () => {
                   preferEnglishHlsAudio();
+                  window.setTimeout(publishHlsAudioTracks, 20);
                 }
+              );
+            }
+
+            if (Hls.Events.AUDIO_TRACK_SWITCHED) {
+              hls.on(
+                Hls.Events.AUDIO_TRACK_SWITCHED,
+                publishHlsAudioTracks
               );
             }
 
@@ -1648,6 +1657,20 @@ const LiveVideo = forwardRef(
         window.removeEventListener(
           "mg:audio-rescue-request",
           onAudioRescueRequest
+        );
+
+        window.removeEventListener(
+          "mg:hls-audio-track-selected",
+          onHlsAudioSelection
+        );
+
+        window.dispatchEvent(
+          new CustomEvent("mg:hls-audio-tracks", {
+            detail: {
+              tracks: [],
+              activeIndex: -1,
+            },
+          })
         );
 
         if (
