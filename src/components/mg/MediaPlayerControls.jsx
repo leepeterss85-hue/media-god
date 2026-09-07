@@ -1085,6 +1085,7 @@ export default function MediaPlayerControls({
 
   return (
     <div
+      data-mg-player-controls="true"
       className="absolute inset-0 z-[60] pointer-events-none"
     >
       {/*
@@ -1283,7 +1284,7 @@ export default function MediaPlayerControls({
           <div />
         )}
 
-        <div className="pointer-events-auto relative bg-gradient-to-t from-black/95 via-black/60 to-transparent px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-12 select-none sm:px-5 sm:pt-16">
+        <div data-mg-player-controls-bottom="true" className="pointer-events-auto relative bg-gradient-to-t from-black/95 via-black/60 to-transparent px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-12 select-none sm:px-5 sm:pt-16">
           {!isLive ? (
             <div className="mb-2 flex items-center gap-2 sm:mb-3">
               <span className="w-11 shrink-0 text-right text-[10px] tabular-nums text-white/85 sm:w-14 sm:text-xs">
