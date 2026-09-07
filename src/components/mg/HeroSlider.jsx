@@ -19,6 +19,10 @@ const GRADIENTS = [
   "from-slate-950 via-zinc-900 to-neutral-950",
 ];
 
+const isFireTvRuntime = () =>
+  typeof document !== "undefined" &&
+  document.documentElement.classList.contains("mg-fire-tv");
+
 export default function HeroSlider({
   items,
   onWatch,
@@ -27,6 +31,7 @@ export default function HeroSlider({
 }) {
   const [idx, setIdx] = useState(0);
   const count = items.length;
+  const fireTv = isFireTvRuntime();
 
   const next = useCallback(
     () => setIdx((current) => (current + 1) % Math.max(count, 1)),
@@ -37,11 +42,16 @@ export default function HeroSlider({
     setIdx((current) => (current - 1 + count) % Math.max(count, 1));
 
   useEffect(() => {
-    if (count <= 1) return undefined;
+    /*
+     * On Fire TV keep the hero stable unless the user changes it manually.
+     * Rotating every few seconds forces large backdrop decode/download work
+     * while the user is trying to navigate rows with the remote.
+     */
+    if (fireTv || count <= 1) return undefined;
 
     const timer = setInterval(next, 8000);
     return () => clearInterval(timer);
-  }, [next, count]);
+  }, [next, count, fireTv]);
 
   useEffect(() => {
     setIdx(0);
@@ -67,6 +77,8 @@ export default function HeroSlider({
           alt={title}
           className="absolute inset-0 w-full h-full object-cover"
           fittingType="fill"
+          loading="eager"
+          fetchPriority="high"
         />
       ) : (
         <div className={cn("absolute inset-0 bg-gradient-to-br", gradient)} />
