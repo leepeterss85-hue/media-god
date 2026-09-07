@@ -1452,66 +1452,72 @@ export function PlayerProvider({
         const imdbId =
           imdbInfo.imdbId;
 
+        const addonArgs = {
+          imdbId,
+          tmdbId,
+          title:
+            request?.rdTitle ||
+            request?.title ||
+            "",
+          year:
+            request?.rdYear ??
+            request?.year ??
+            "",
+          mediaType,
+          season,
+          episode,
+        };
+
+        const skippedAddonLookup = {
+          streams: [],
+          diagnostics: [],
+          addonsChecked: 0,
+          reason: "Source lookup skipped.",
+          status: "SKIPPED",
+          error: "",
+          browserAttempted: false,
+          browserRecovered: 0,
+          browserDiagnostics: [],
+        };
+
+        const fastAddonPromise =
+          !isLive &&
+          !request?.skipAddonLookup
+            ? fetchAddonSources({
+                ...addonArgs,
+                fastMode: true,
+              })
+            : Promise.resolve(skippedAddonLookup);
+
+        fastAddonPromise.then((addonLookup) => {
+          if (
+            Array.isArray(addonLookup?.streams) &&
+            addonLookup.streams.length > 0
+          ) {
+            publishEarlySources(addonLookup.streams, {
+              imdbId,
+              imdbStatus: imdbInfo?.status || "UNKNOWN",
+              addonLookupStatus: "FAST READY",
+              addonsChecked: Number(addonLookup?.addonsChecked || 0),
+              discoveredCount: addonLookup.streams.length,
+            });
+          }
+        });
+
         const addonPromise =
           !isLive &&
-          !request
-            ?.skipAddonLookup
-            ? fetchAddonSources(
-                {
-                  imdbId,
-
-                  tmdbId,
-
-                  title:
-                    request?.rdTitle ||
-                    request?.title ||
-                    "",
-
-                  year:
-                    request?.rdYear ??
-                    request?.year ??
-                    "",
-
-                  mediaType,
-
-                  season,
-
-                  episode,
-                }
-              )
-            : Promise.resolve(
-                {
-                  streams:
-                    [],
-
-                  diagnostics:
-                    [],
-
-                  addonsChecked:
-                    0,
-
-                  reason:
-                    "Source lookup skipped.",
-
-                  status:
-                    "SKIPPED",
-
-                  error:
-                    "",
-
-                  browserAttempted:
-                    false,
-
-                  browserRecovered:
-                    0,
-
-                  browserDiagnostics:
-                    [],
-                }
-              );
+          !request?.skipAddonLookup
+            ? fetchAddonSources({
+                ...addonArgs,
+                fastMode: false,
+              })
+            : Promise.resolve(skippedAddonLookup);
 
         addonPromise.then((addonLookup) => {
-          if (Array.isArray(addonLookup?.streams) && addonLookup.streams.length > 0) {
+          if (
+            Array.isArray(addonLookup?.streams) &&
+            addonLookup.streams.length > 0
+          ) {
             publishEarlySources(addonLookup.streams, {
               imdbId,
               imdbStatus: imdbInfo?.status || "UNKNOWN",
