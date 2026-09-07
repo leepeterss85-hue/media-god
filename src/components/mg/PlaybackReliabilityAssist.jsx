@@ -635,10 +635,11 @@ const activeSourceLabel =
       return "";
     }
 
+    const option = select.options[select.selectedIndex];
+
     return normaliseLabel(
-      select.options[
-        select.selectedIndex
-      ]?.textContent ||
+      option?.dataset?.mgSourceLabel ||
+        option?.textContent ||
         ""
     );
   };
@@ -716,7 +717,8 @@ const pickBestSource =
 
             label:
               normaliseLabel(
-                option.textContent ||
+                option?.dataset?.mgSourceLabel ||
+                  option.textContent ||
                   ""
               ),
 
@@ -727,7 +729,8 @@ const pickBestSource =
               option.disabled
                 ? -Infinity
                 : scoreLabel(
-                    option.textContent ||
+                    option?.dataset?.mgSourceLabel ||
+                      option.textContent ||
                       "",
                     deviceProfile
                   ),
