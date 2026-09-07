@@ -16,12 +16,14 @@ const readJson = (key, fallback) => {
   }
 };
 
-const writeJson = (key, value) => {
+const writeJson = (key, value, notify = true) => {
   if (typeof window === "undefined") return;
 
   try {
     window.localStorage.setItem(key, JSON.stringify(value));
-    window.dispatchEvent(new CustomEvent(SOURCE_EVENT));
+    if (notify) {
+      window.dispatchEvent(new CustomEvent(SOURCE_EVENT));
+    }
   } catch {
     // Device-local source persistence is best effort only.
   }
@@ -184,7 +186,7 @@ export const recordSourceHealth = (id, patch = {}) => {
   };
 
   all[sourceId] = next;
-  writeJson(SOURCE_HEALTH_KEY, all);
+  writeJson(SOURCE_HEALTH_KEY, all, false);
   return next;
 };
 
