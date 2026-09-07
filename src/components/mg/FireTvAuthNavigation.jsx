@@ -153,11 +153,11 @@ const focusPrimary = () => {
 
 export default function FireTvAuthNavigation() {
   useEffect(() => {
-    if (!isFireTv()) return undefined;
-
     let lastMoveAt = 0;
 
     const initialFocus = () => {
+      if (!isFireTv()) return;
+
       const page = authPage();
       if (!(page instanceof HTMLElement)) return;
 
@@ -172,6 +172,8 @@ export default function FireTvAuthNavigation() {
     const timerTwo = window.setTimeout(initialFocus, 350);
 
     const onKeyDown = (event) => {
+      if (!isFireTv()) return;
+
       const page = authPage();
       if (!(page instanceof HTMLElement)) return;
 
@@ -239,6 +241,7 @@ export default function FireTvAuthNavigation() {
     };
 
     window.addEventListener("keydown", onKeyDown, true);
+    window.addEventListener("mg:tv-remote-detected", initialFocus);
 
     const observer = new MutationObserver(initialFocus);
     observer.observe(document.body, {
@@ -250,6 +253,7 @@ export default function FireTvAuthNavigation() {
       window.clearTimeout(timerOne);
       window.clearTimeout(timerTwo);
       window.removeEventListener("keydown", onKeyDown, true);
+      window.removeEventListener("mg:tv-remote-detected", initialFocus);
       observer.disconnect();
     };
   }, []);
