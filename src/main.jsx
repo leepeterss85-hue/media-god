@@ -140,12 +140,77 @@ const isBackEvent = (event) => {
   )
 }
 
+const mediaGodAppMounted = () =>
+  document.querySelector('#root .mg-fire-tv-nav') instanceof HTMLElement
+
+let lastFireTvBackActionAt = 0
+
+const performFireTvBackAction = () => {
+  const now = Date.now()
+
+  if (now - lastFireTvBackActionAt < 240) {
+    return true
+  }
+
+  lastFireTvBackActionAt = now
+
+  const fullscreenButtons = Array.from(
+    document.querySelectorAll(
+      'button[aria-label="Exit fullscreen"]'
+    )
+  ).filter(isVisible)
+
+  const fullscreenExit = lastItem(fullscreenButtons)
+
+  if (fullscreenExit) {
+    fullscreenExit.click()
+    return true
+  }
+
+  const overlay = topVisibleOverlay()
+  const overlayBack = findBackTarget(overlay)
+
+  if (overlayBack) {
+    overlayBack.click()
+    return true
+  }
+
+  const globalBackButtons = Array.from(
+    document.querySelectorAll(
+      'button[data-mg-global-back="true"]'
+    )
+  ).filter(isVisible)
+
+  const globalBack = lastItem(globalBackButtons)
+
+  if (globalBack) {
+    globalBack.click()
+    return true
+  }
+
+  const homeButton = document.querySelector(
+    'aside nav button[title="Home"]'
+  )
+
+  if (homeButton instanceof HTMLElement && isVisible(homeButton)) {
+    const className = String(homeButton.className || '')
+    const isAlreadyHome =
+      className.includes('text-mg-green') ||
+      homeButton.getAttribute('aria-current') === 'page'
+
+    if (!isAlreadyHome) {
+      homeButton.click()
+    }
+  }
+
+  /* Home is the end of the Fire TV Back stack. */
+  return true
+}
+
 const installFireTvBackHandler = () => {
   if (!isFireTv || typeof window === 'undefined') {
     return
   }
-
-  let lastHandledAt = 0
 
   window.addEventListener(
     'keydown',
@@ -157,65 +222,132 @@ const installFireTvBackHandler = () => {
       event.preventDefault()
       event.stopImmediatePropagation()
 
-      const now = Date.now()
-
-      if (event.repeat || now - lastHandledAt < 260) {
+      if (event.repeat) {
         return
       }
 
-      lastHandledAt = now
-
-      const fullscreenButtons = Array.from(
-        document.querySelectorAll(
-          'button[aria-label="Exit fullscreen"]'
-        )
-      ).filter(isVisible)
-
-      const fullscreenExit = lastItem(fullscreenButtons)
-
-      if (fullscreenExit) {
-        fullscreenExit.click()
-        return
-      }
-
-      const overlay = topVisibleOverlay()
-      const overlayBack = findBackTarget(overlay)
-
-      if (overlayBack) {
-        overlayBack.click()
-        return
-      }
-
-      const globalBackButtons = Array.from(
-        document.querySelectorAll(
-          'button[data-mg-global-back="true"]'
-        )
-      ).filter(isVisible)
-
-      const globalBack = lastItem(globalBackButtons)
-
-      if (globalBack) {
-        globalBack.click()
-        return
-      }
-
-      const homeButton = document.querySelector(
-        'aside nav button[title="Home"]'
-      )
-
-      if (homeButton instanceof HTMLElement && isVisible(homeButton)) {
-        const className = String(homeButton.className || '')
-        const isAlreadyHome =
-          className.includes('text-mg-green') ||
-          homeButton.getAttribute('aria-current') === 'page'
-
-        if (!isAlreadyHome) {
-          homeButton.click()
-        }
-      }
+      performFireTvBackAction()
     },
     true
   )
+}
+
+/*
+ * Some Fire TV WebViews perform the physical Back action as browser history
+ * navigation without delivering a usable keydown first. After Google login,
+ * /login can therefore still be the previous browser-history entry.
+ *
+ * Arm one duplicate history entry only while the authenticated Media God UI
+ * is mounted. A native Back pops to the duplicate / entry, we immediately
+ * re-arm it, then run the same in-app Back action. The login/auth pages are
+ * deliberately left untouched.
+ */
+const installFireTvHistoryBackGuard = () => {
+  if (
+    !isFireTv ||
+    typeof window === 'undefined' ||
+    typeof document === 'undefined'
+  ) {
+    return
+  }
+
+  let armed = false
+  let guardUrl = ''
+
+  const currentUrl = () =>
+    `${window.location.pathname}${window.location.search}${window.location.hash}`
+
+  const stateObject = () => {
+    const state = window.history.state
+
+    return state && typeof state === 'object'
+      ? state
+      : {}
+  }
+
+  const arm = () => {
+    if (!mediaGodAppMounted()) {
+      armed = false
+      return
+    }
+
+    const url = currentUrl()
+
+    if (armed && guardUrl === url) {
+      return
+    }
+
+    const state = stateObject()
+
+    window.history.replaceState(
+      {
+        ...state,
+        __mgFireTvApp: true,
+      },
+      '',
+      url
+    )
+
+    window.history.pushState(
+      {
+        ...state,
+        __mgFireTvApp: true,
+        __mgFireTvBackGuard: true,
+      },
+      '',
+      url
+    )
+
+    guardUrl = url
+    armed = true
+  }
+
+  const onPopState = () => {
+    if (!mediaGodAppMounted()) {
+      armed = false
+      return
+    }
+
+    const safeUrl = guardUrl || currentUrl()
+    const state = stateObject()
+
+    /* Re-arm synchronously so a second quick Back cannot reach /login. */
+    window.history.pushState(
+      {
+        ...state,
+        __mgFireTvApp: true,
+        __mgFireTvBackGuard: true,
+      },
+      '',
+      safeUrl
+    )
+
+    armed = true
+
+    /* If keydown already handled this same press, do not back twice. */
+    if (Date.now() - lastFireTvBackActionAt >= 360) {
+      performFireTvBackAction()
+    }
+  }
+
+  const observer = new MutationObserver(() => {
+    if (mediaGodAppMounted()) {
+      arm()
+    } else {
+      armed = false
+    }
+  })
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+  })
+
+  window.addEventListener('popstate', onPopState)
+
+  window.setTimeout(arm, 0)
+  window.setTimeout(arm, 250)
+  window.setTimeout(arm, 750)
 }
 
 if (isFireTv && typeof document !== 'undefined') {
@@ -225,6 +357,7 @@ if (isFireTv && typeof document !== 'undefined') {
 
 installFireTvStableMode()
 installFireTvBackHandler()
+installFireTvHistoryBackGuard()
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <>
