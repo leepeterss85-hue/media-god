@@ -427,6 +427,144 @@ export default function PlayerRemote() {
                   </select>
                 </label>
               )}
+
+              {session?.media_type === "tv" && (
+                <div className="mt-1 grid gap-3 rounded-xl border border-white/10 bg-black/25 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-[0.16em] text-mg-green">
+                        Episode controls
+                      </p>
+                      <p className="mt-1 text-xs text-white/50">
+                        S{Number(session?.season_number || 0)} · E{Number(session?.episode_number || 0)}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        send(
+                          "auto_next",
+                          session?.auto_next === false ? "1" : "0"
+                        )
+                      }
+                      className={
+                        "min-h-10 rounded-lg border px-3 text-xs font-semibold " +
+                        (session?.auto_next === false
+                          ? "border-white/15 bg-white/5 text-white/65"
+                          : "border-mg-green/40 bg-mg-green/15 text-mg-green")
+                      }
+                    >
+                      Auto next {session?.auto_next === false ? "Off" : "On"}
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      disabled={Number(session?.episode_number || 0) <= 1}
+                      onClick={() =>
+                        send(
+                          "episode",
+                          JSON.stringify({
+                            tmdbId: session?.tmdb_id,
+                            season: Number(session?.season_number || 1),
+                            episode: Math.max(
+                              1,
+                              Number(session?.episode_number || 1) - 1
+                            ),
+                          })
+                        )
+                      }
+                      className="remote-btn gap-2 disabled:opacity-35"
+                    >
+                      <SkipBack className="h-4 w-4" />
+                      Previous episode
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => send("next_episode")}
+                      className="remote-btn gap-2"
+                    >
+                      Next episode
+                      <SkipForward className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  {seasons.length > 0 && (
+                    <label>
+                      <span className="mb-1.5 block text-xs font-semibold text-white/60">
+                        Season
+                      </span>
+                      <select
+                        value={selectedSeason}
+                        onChange={(event) =>
+                          setSelectedSeason(Number(event.target.value || 1))
+                        }
+                        className="min-h-12 w-full rounded-xl border border-white/15 bg-[#161616] px-3 text-sm text-white outline-none focus:border-mg-green"
+                      >
+                        {seasons.map((item) => (
+                          <option
+                            key={item.season_number}
+                            value={item.season_number}
+                          >
+                            {item.name || `Season ${item.season_number}`}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+
+                  <label>
+                    <span className="mb-1.5 block text-xs font-semibold text-white/60">
+                      Episode
+                    </span>
+                    <select
+                      value={
+                        selectedSeason === Number(session?.season_number || 0)
+                          ? Number(session?.episode_number || 0)
+                          : ""
+                      }
+                      disabled={episodesLoading || episodes.length === 0}
+                      onChange={(event) => {
+                        const episode = Number(event.target.value || 0);
+                        if (!episode) return;
+                        send(
+                          "episode",
+                          JSON.stringify({
+                            tmdbId: session?.tmdb_id,
+                            season: selectedSeason,
+                            episode,
+                          })
+                        );
+                      }}
+                      className="min-h-12 w-full rounded-xl border border-white/15 bg-[#161616] px-3 text-sm text-white outline-none focus:border-mg-green disabled:opacity-50"
+                    >
+                      <option value="">
+                        {episodesLoading ? "Loading episodes…" : "Choose episode"}
+                      </option>
+                      {episodes.map((item) => {
+                        const episodeNumber = Number(
+                          item?.episode_number ??
+                            item?.episodeNumber ??
+                            item?.episode ??
+                            0
+                        );
+
+                        return (
+                          <option
+                            key={episodeNumber}
+                            value={episodeNumber}
+                          >
+                            E{episodeNumber} · {item?.name || item?.title || `Episode ${episodeNumber}`}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </label>
+                </div>
+              )}
             </section>
 
             <button
