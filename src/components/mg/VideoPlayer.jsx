@@ -18,6 +18,7 @@ import { base44 } from "@/api/base44Client";
 import CastButton from "@/components/mg/CastButton";
 import LiveVideo from "@/components/mg/LiveVideo";
 import PlayerControls from "@/components/mg/PlayerControls";
+import PlayerQrRemote from "@/components/mg/PlayerQrRemote";
 
 const isMagnet = (value) =>
   String(value || "")
@@ -37,6 +38,16 @@ const getSourceUrl = (item) =>
   item?.magnet ||
   item?.magnetLink ||
   "";
+
+const sourceDisplayLabel = (item, index) =>
+  String(
+    item?.label ||
+      item?.name ||
+      item?.title ||
+      `Source ${index + 1}`
+  )
+    .replace(/\s+/g, " ")
+    .trim();
 
 export default function VideoPlayer({
   source,
@@ -1677,23 +1688,47 @@ export default function VideoPlayer({
             "video"
           );
 
-      if (
-        video
-      ) {
-        video.muted =
-          false;
+      if (video) {
+        video.muted = false;
+        video.volume = 1;
 
-        video.volume =
-          1;
-
-        if (
-          video.dataset
-            ?.mgAutoplayMuted ===
-          "true"
-        ) {
-          delete video.dataset
-            .mgAutoplayMuted;
+        if (video.dataset?.mgAutoplayMuted === "true") {
+          delete video.dataset.mgAutoplayMuted;
         }
+
+        const tracks = video.audioTracks;
+
+        if (tracks && typeof tracks.length === "number" && tracks.length > 0) {
+          let currentAudio = -1;
+
+          for (let index = 0; index < tracks.length; index += 1) {
+            if (tracks[index]?.enabled) {
+              currentAudio = index;
+              break;
+            }
+          }
+
+          const wantedAudio =
+            tracks.length > 1
+              ? (currentAudio + 1 + tracks.length) % tracks.length
+              : 0;
+
+          try {
+            for (let index = 0; index < tracks.length; index += 1) {
+              tracks[index].enabled = index === wantedAudio;
+            }
+
+            if (tracks[wantedAudio]?.enabled) {
+              video.play().catch(() => {});
+              setRdError("");
+              return;
+            }
+          } catch {
+            // If the WebView exposes read-only audio tracks, use another source.
+          }
+        }
+
+        video.play().catch(() => {});
       }
 
       if (
@@ -2262,11 +2297,36 @@ export default function VideoPlayer({
             }}
             className="shrink-0 flex min-h-10 items-center gap-1.5 rounded-lg border border-white/10 bg-mg-card px-3 text-xs font-semibold text-white hover:border-mg-green/40 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-mg-green/50"
             aria-label="No sound"
-            title="Try the next source"
+            title="Try another audio track or source"
           >
             <VolumeX className="h-4 w-4" />
-            <span>Try next source</span>
+            <span>Fix audio</span>
           </button>
+
+          <PlayerQrRemote
+            title={source?.title || "Now playing"}
+            videoRef={videoRef}
+            liveVideoRef={liveVideoRef}
+            sourceLabels={sources.map(sourceDisplayLabel)}
+            activeSourceIndex={activeIdx}
+            onSelectSource={selectSource}
+            onTryNextSource={handleNoSound}
+            fileOptions={rdFiles.map((file) => ({
+              id: file.id,
+              path: file.path,
+              label: file.path,
+            }))}
+            activeFileId={
+              rdFiles.find((file) => file.path === rdOverride?.file)?.id || ""
+            }
+            onSelectFile={(fileId) => {
+              const file = rdFiles.find(
+                (item) => String(item.id) === String(fileId)
+              );
+              if (file) pickFile(file);
+            }}
+            onExit={onClose}
+          />
         </div>
 
         {displayedError &&
