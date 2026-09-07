@@ -337,8 +337,11 @@ export default function FireTvPlayerTakeover() {
           force(header, "left", "0");
           force(header, "right", "0");
           force(header, "width", "100vw");
+          force(header, "min-height", "64px");
           force(header, "margin", "0");
-          force(header, "padding", "8px 10px");
+          force(header, "padding", "10px 18px");
+          force(header, "gap", "12px");
+          force(header, "box-sizing", "border-box");
           force(header, "z-index", "2147483647");
         }
 
