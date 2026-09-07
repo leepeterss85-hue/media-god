@@ -1680,6 +1680,10 @@ export default function VideoPlayer({
             index === activeIdx ||
             state.abandoned.has(index) ||
             failedSourcesRef.current.has(index) ||
+            candidate?.diagnostic ||
+            candidate?.type === "status" ||
+            candidate?.type === "provider" ||
+            candidate?.type === "youtube" ||
             (!candidateUrl && !torrentCandidate)
           ) {
             return null;
