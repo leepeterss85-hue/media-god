@@ -1290,6 +1290,44 @@ export default function LiveTVView() {
           </div>
         )}
 
+      {viewMode === "channels" &&
+        quickFilter === "All" &&
+        !query.trim() &&
+        favouriteChannels.length > 0 && (
+          <section className="mb-5">
+            <div className="mb-2 flex items-center gap-2">
+              <Star className="h-4 w-4 fill-current text-mg-green" />
+              <h2 className="text-sm font-bold text-white">Favourite channels</h2>
+            </div>
+            <div
+              data-mg-tv-row="true"
+              className="flex gap-3 overflow-x-auto pb-2 pr-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
+              {favouriteChannels
+                .slice(0, 18)
+                .map(renderQuickChannelCard)}
+            </div>
+          </section>
+        )}
+
+      {viewMode === "channels" &&
+        quickFilter === "All" &&
+        !query.trim() &&
+        recentChannels.length > 0 && (
+          <section className="mb-5">
+            <div className="mb-2 flex items-center gap-2">
+              <Clock3 className="h-4 w-4 text-mg-green" />
+              <h2 className="text-sm font-bold text-white">Recent channels</h2>
+            </div>
+            <div
+              data-mg-tv-row="true"
+              className="flex gap-3 overflow-x-auto pb-2 pr-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
+              {recentChannels.map(renderQuickChannelCard)}
+            </div>
+          </section>
+        )}
+
       <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
         {[
           {
