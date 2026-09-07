@@ -394,7 +394,7 @@ export default function SearchDialog({
             search(
               query
             ),
-          300
+          180
         );
 
       return () =>
