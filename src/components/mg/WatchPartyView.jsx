@@ -193,6 +193,7 @@ export default function WatchPartyView() {
       <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden border border-white/10 mb-4">
         <PartyPlayer
           src={party.video_url}
+          poster={party.poster_url || ""}
           isHost={isHost}
           isPlaying={party.is_playing}
           currentTime={party.current_time}
