@@ -208,21 +208,35 @@ export default function SettingsView() {
     autoplay,
     setAutoplay,
   ] = useState(
-    DEFAULT_PREFERENCES.autoplay
+    () => readPlaybackPreferences().autoNext
   );
 
   const [
     subs,
     setSubs,
   ] = useState(
-    DEFAULT_PREFERENCES.subs
+    () => readTrackPreferences().subtitlesEnabled
   );
 
   const [
     quality,
     setQuality,
   ] = useState(
-    DEFAULT_PREFERENCES.quality
+    () => readPlaybackPreferences().quality
+  );
+
+  const [
+    autoRecovery,
+    setAutoRecovery,
+  ] = useState(
+    () => readPlaybackPreferences().autoRecovery
+  );
+
+  const [
+    trackPreferences,
+    setTrackPreferences,
+  ] = useState(
+    () => readTrackPreferences()
   );
 
   const [
