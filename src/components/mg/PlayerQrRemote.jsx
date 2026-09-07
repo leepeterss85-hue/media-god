@@ -42,9 +42,27 @@ export default function PlayerQrRemote({
   const sessionRef = useRef(null);
   const sourceIndexRef = useRef(activeSourceIndex);
   const activeFileRef = useRef(activeFileId);
+  const titleRef = useRef(title);
+  const sourceLabelsRef = useRef(sourceLabels);
+  const fileOptionsRef = useRef(fileOptions);
+  const callbacksRef = useRef({
+    onSelectSource,
+    onTryNextSource,
+    onSelectFile,
+    onExit,
+  });
 
   sourceIndexRef.current = activeSourceIndex;
   activeFileRef.current = activeFileId;
+  titleRef.current = title;
+  sourceLabelsRef.current = sourceLabels;
+  fileOptionsRef.current = fileOptions;
+  callbacksRef.current = {
+    onSelectSource,
+    onTryNextSource,
+    onSelectFile,
+    onExit,
+  };
 
   const serialisedSourceLabels = useMemo(
     () => JSON.stringify(sourceLabels.map((label) => String(label || ""))),
@@ -80,14 +98,21 @@ export default function PlayerQrRemote({
 
         const created = await base44.entities.PlayerRemoteSession.create({
           session_code: sessionCode,
-          title: title || "Now playing",
+          title: titleRef.current || "Now playing",
           command: "",
           command_seq: 0,
           command_value: "",
-          active_source_index: activeSourceIndex,
-          source_count: sourceLabels.length,
-          source_labels: serialisedSourceLabels,
-          file_labels: serialisedFileLabels,
+          active_source_index: sourceIndexRef.current,
+          source_count: sourceLabelsRef.current.length,
+          source_labels: JSON.stringify(
+            sourceLabelsRef.current.map((label) => String(label || ""))
+          ),
+          file_labels: JSON.stringify(
+            fileOptionsRef.current.map((file) => ({
+              id: String(file?.id ?? ""),
+              label: String(file?.label || file?.path || file?.id || "File"),
+            }))
+          ),
           active_file_id: String(activeFileId || ""),
           audio_labels: "[]",
           active_audio_index: -1,
@@ -155,11 +180,13 @@ export default function PlayerQrRemote({
             } else if (command === "mute_toggle" && video) {
               video.muted = !video.muted;
             } else if (command === "next_source") {
-              onTryNextSource?.();
+              callbacksRef.current.onTryNextSource?.();
             } else if (command === "source") {
-              onSelectSource?.(parseNumber(value, sourceIndexRef.current));
+              callbacksRef.current.onSelectSource?.(
+                parseNumber(value, sourceIndexRef.current)
+              );
             } else if (command === "file") {
-              onSelectFile?.(String(value || ""));
+              callbacksRef.current.onSelectFile?.(String(value || ""));
             } else if (command === "audio" && video?.audioTracks) {
               const wanted = parseNumber(value, -1);
               const tracks = video.audioTracks;
@@ -172,7 +199,7 @@ export default function PlayerQrRemote({
                 }
               }
             } else if (command === "exit") {
-              onExit?.();
+              callbacksRef.current.onExit?.();
             }
           } catch (commandError) {
             console.warn("[Media God] QR remote command failed", commandError);
@@ -210,11 +237,18 @@ export default function PlayerQrRemote({
             }
 
             await base44.entities.PlayerRemoteSession.update(currentSession.id, {
-              title: title || "Now playing",
+              title: titleRef.current || "Now playing",
               active_source_index: sourceIndexRef.current,
-              source_count: sourceLabels.length,
-              source_labels: serialisedSourceLabels,
-              file_labels: serialisedFileLabels,
+              source_count: sourceLabelsRef.current.length,
+              source_labels: JSON.stringify(
+                sourceLabelsRef.current.map((label) => String(label || ""))
+              ),
+              file_labels: JSON.stringify(
+                fileOptionsRef.current.map((file) => ({
+                  id: String(file?.id ?? ""),
+                  label: String(file?.label || file?.path || file?.id || "File"),
+                }))
+              ),
               active_file_id: String(activeFileRef.current || ""),
               audio_labels: JSON.stringify(audioTracks),
               active_audio_index: activeAudioIndex,
