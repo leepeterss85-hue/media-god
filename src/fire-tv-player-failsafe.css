@@ -151,6 +151,14 @@ body.mg-fire-tv-mode [data-mg-player-topbar="true"] svg {
   height: 18px !important;
 }
 
+/* The Fire TV player already owns the full viewport. A second fullscreen
+ * toggle only creates another overlapping control layer. */
+body.mg-fire-tv [data-mg-player-topbar="true"] button[aria-label="Fullscreen"],
+body.mg-fire-tv-stable [data-mg-player-topbar="true"] button[aria-label="Fullscreen"],
+body.mg-fire-tv-mode [data-mg-player-topbar="true"] button[aria-label="Fullscreen"] {
+  display: none !important;
+}
+
 /* One simple playback-options strip for Fire TV. There is no custom spatial
  * navigation on the player; these are normal browser/WebView controls. */
 body.mg-fire-tv [data-mg-player-options-panel="true"],
