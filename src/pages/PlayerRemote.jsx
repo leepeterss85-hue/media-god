@@ -17,6 +17,7 @@ import {
   Captions,
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { findChannelsByTitle } from "@/components/mg/freeTvPlaylist";
 
 const parseJson = (value, fallback) => {
   try {
@@ -57,6 +58,9 @@ export default function PlayerRemote() {
   const [browseEpisodes, setBrowseEpisodes] = useState([]);
   const [browseEpisode, setBrowseEpisode] = useState(0);
   const [browseLoading, setBrowseLoading] = useState(false);
+  const [liveQuery, setLiveQuery] = useState("");
+  const [liveResults, setLiveResults] = useState([]);
+  const [liveSearching, setLiveSearching] = useState(false);
   const seqRef = useRef(0);
 
   const sourceLabels = useMemo(
