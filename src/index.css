@@ -257,48 +257,11 @@ body.mg-fire-tv img {
   backface-visibility: hidden;
 }
 
-/* Keep the standard VideoPlayer inside the usable Firestick height. */
-body.mg-fire-tv .fixed.inset-0.z-50.bg-black\/95 {
-  padding: 0.4rem !important;
-}
-
-body.mg-fire-tv .fixed.inset-0.z-50.bg-black\/95 > div {
-  width: min(100%, calc((100vh - 5.5rem) * 16 / 9)) !important;
-  max-width: 1100px !important;
-}
-
-body.mg-fire-tv .fixed.inset-0.z-50.bg-black\/95 > div > div:nth-child(2) {
-  width: 100% !important;
-  max-height: calc(100vh - 5.5rem) !important;
-}
-
-.mg-fire-tv .mg-fire-tv-player-shell {
-  width: min(100%, calc((100vh - 6rem) * 16 / 9));
-  max-width: 1100px;
-}
-
-.mg-fire-tv .mg-fire-tv-player-stage {
-  width: 100%;
-  max-height: calc(100vh - 6rem);
-}
-
-@media (max-height: 700px) and (orientation: landscape) {
-  body.mg-fire-tv .fixed.inset-0.z-50.bg-black\/95 > div {
-    width: min(100%, calc((100vh - 4.8rem) * 16 / 9)) !important;
-  }
-
-  body.mg-fire-tv .fixed.inset-0.z-50.bg-black\/95 > div > div:nth-child(2) {
-    max-height: calc(100vh - 4.8rem) !important;
-  }
-
-  .mg-fire-tv .mg-fire-tv-player-shell {
-    width: min(100%, calc((100vh - 5.25rem) * 16 / 9));
-  }
-
-  .mg-fire-tv .mg-fire-tv-player-stage {
-    max-height: calc(100vh - 5.25rem);
-  }
-}
+/*
+ * Player sizing intentionally does not live here anymore.
+ * src/fire-tv-player-failsafe.css is the single authoritative Fire TV player
+ * layout and is loaded after all catalogue styles.
+ */
 
 @media (min-width: 1920px) {
   html:not(.mg-fire-tv) {
