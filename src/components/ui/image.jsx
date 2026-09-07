@@ -14,6 +14,10 @@ import {
 const FALLBACK_IMAGE_URL =
   "https://static.wixstatic.com/media/12d367_4f26ccd17f8f4e3a8958306ea08c2332~mv2.png"
 
+const isFireTvRuntime = () =>
+  typeof document !== "undefined" &&
+  document.documentElement.classList.contains("mg-fire-tv")
+
 const ImageWrapper = React.forwardRef(({ aspectRatio, className, style, children }, ref) => (
   <span
     ref={ref}
@@ -26,7 +30,21 @@ const ImageWrapper = React.forwardRef(({ aspectRatio, className, style, children
 ImageWrapper.displayName = "ImageWrapper"
 
 const ResponsiveImage = React.forwardRef(
-  ({ parsed, fittingType, focalPoint, quality, className, style, aspectRatio, onLoad, ...props }, parentRef) => {
+  (
+    {
+      parsed,
+      fittingType,
+      focalPoint,
+      quality,
+      maxDpr,
+      className,
+      style,
+      aspectRatio,
+      onLoad,
+      ...props
+    },
+    parentRef
+  ) => {
     const wrapperRef = React.useRef(null)
     const imgRef = React.useRef(null)
     const size = useSize(wrapperRef)
@@ -50,6 +68,7 @@ const ResponsiveImage = React.forwardRef(
       crop,
       focalPoint: crop ? focalPoint : undefined,
       quality,
+      maxDpr,
     }
 
     // Both layers render only once the container is measured, so the first
@@ -76,6 +95,8 @@ const ResponsiveImage = React.forwardRef(
             })}
             alt=""
             aria-hidden="true"
+            loading="lazy"
+            decoding="async"
             className="w-full h-full inset-0 absolute"
             style={{
               objectFit: fittingType === "fit" ? "contain" : "cover",
@@ -90,6 +111,7 @@ const ResponsiveImage = React.forwardRef(
             src={buildTransformUrl(parsed, options)}
             srcSet={buildSrcSet(parsed, options)}
             loading="lazy"
+            decoding="async"
             className={cn(
               "w-full h-full inset-0 absolute",
               fittingType === "fit" ? "object-contain" : "object-cover"
@@ -130,6 +152,10 @@ const Image = React.forwardRef(
     },
     ref
   ) => {
+    const fireTv = isFireTvRuntime()
+    const effectiveQuality = fireTv ? Math.min(Number(quality || 90), 72) : quality
+    const maxDpr = fireTv ? 2 : 3
+
     const parsedSource = src && src !== FALLBACK_IMAGE_URL ? parseWixMediaUrl(src) : null
     const initialMode = parsedSource ? IMAGE_LOAD_MODE.OPTIMIZED : IMAGE_LOAD_MODE.ORIGINAL
     const [loadState, setLoadState] = React.useState({ src, mode: initialMode })
@@ -147,6 +173,8 @@ const Image = React.forwardRef(
     }
 
     const imageProps = {
+      loading: props.loading || "lazy",
+      decoding: props.decoding || "async",
       ...props,
       onError: handleError,
     }
@@ -186,7 +214,8 @@ const Image = React.forwardRef(
         parsed={parsed}
         fittingType={fittingType}
         focalPoint={focalPoint}
-        quality={quality}
+        quality={effectiveQuality}
+        maxDpr={maxDpr}
         aspectRatio={aspectRatio}
         {...imageProps}
       />
