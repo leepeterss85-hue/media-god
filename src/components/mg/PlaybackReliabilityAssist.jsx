@@ -21,6 +21,12 @@ const NO_SOUND_TTL =
 const GOOD_TTL =
   30 * 24 * 60 * 60 * 1000;
 
+const BUFFER_TTL =
+  48 * 60 * 60 * 1000;
+
+const START_TTL =
+  30 * 24 * 60 * 60 * 1000;
+
 const normaliseLabel = (
   value
 ) =>
@@ -134,6 +140,14 @@ const cleanStore = (
         fresh(
           record.lastGood,
           GOOD_TTL
+        ) ||
+        fresh(
+          record.lastBuffer,
+          BUFFER_TTL
+        ) ||
+        fresh(
+          record.lastStartAt,
+          START_TTL
         )
       ) {
         next[key] =
@@ -147,7 +161,8 @@ const cleanStore = (
 
 const saveReliability = (
   label,
-  kind
+  kind,
+  value = null
 ) => {
   const key =
     sourceKey(
@@ -177,6 +192,21 @@ const saveReliability = (
       0,
 
     lastGood:
+      0,
+
+    buffers:
+      0,
+
+    lastBuffer:
+      0,
+
+    avgStartMs:
+      0,
+
+    startSamples:
+      0,
+
+    lastStartAt:
       0,
 
     ...(store[key] ||
@@ -214,6 +244,66 @@ const saveReliability = (
 
     current.lastNoSound =
       now;
+  }
+
+  if (
+    kind ===
+    "buffer"
+  ) {
+    current.buffers =
+      Number(
+        current.buffers ||
+          0
+      ) +
+      1;
+
+    current.lastBuffer =
+      now;
+  }
+
+  if (
+    kind ===
+    "startup"
+  ) {
+    const startMs =
+      Math.max(
+        0,
+        Math.min(
+          60000,
+          Number(value || 0)
+        )
+      );
+
+    if (startMs > 0) {
+      const samples =
+        Number(
+          current.startSamples ||
+            0
+        );
+
+      const previous =
+        Number(
+          current.avgStartMs ||
+            0
+        );
+
+      current.avgStartMs =
+        samples > 0
+          ? Math.round(
+              previous * 0.7 +
+                startMs * 0.3
+            )
+          : Math.round(
+              startMs
+            );
+
+      current.startSamples =
+        samples +
+        1;
+
+      current.lastStartAt =
+        now;
+    }
   }
 
   if (
@@ -307,12 +397,66 @@ const reliabilityAdjustment = (
 
   if (
     fresh(
+      record.lastBuffer,
+      BUFFER_TTL
+    )
+  ) {
+    score -=
+      Math.min(
+        36000,
+        Number(
+          record.buffers ||
+            0
+        ) *
+          4500
+      );
+  }
+
+  if (
+    fresh(
+      record.lastStartAt,
+      START_TTL
+    )
+  ) {
+    const average =
+      Number(
+        record.avgStartMs ||
+          0
+      );
+
+    if (
+      average > 0 &&
+      average <= 2500
+    ) {
+      score +=
+        9000;
+    } else if (
+      average > 0 &&
+      average <= 5000
+    ) {
+      score +=
+        4500;
+    } else if (
+      average >= 15000
+    ) {
+      score -=
+        16000;
+    } else if (
+      average >= 9000
+    ) {
+      score -=
+        8000;
+    }
+  }
+
+  if (
+    fresh(
       record.lastGood,
       GOOD_TTL
     )
   ) {
     score +=
-      2500;
+      3500;
   }
 
   return score;
