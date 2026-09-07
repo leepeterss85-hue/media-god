@@ -1195,11 +1195,11 @@ export default function SettingsView() {
           <div className="flex items-center justify-between gap-4 p-4 3xl:p-5">
             <div>
               <p className="text-sm 3xl:text-base text-white font-medium">
-                Autoplay
+                Auto next episode
               </p>
 
               <p className="text-xs 3xl:text-sm text-white/40">
-                Start the next episode automatically.
+                Start the next TV episode automatically when the current one finishes.
               </p>
             </div>
 
@@ -1212,7 +1212,25 @@ export default function SettingsView() {
                   !autoplay
                 )
               }
-              label="Toggle autoplay"
+              label="Toggle auto next episode"
+            />
+          </div>
+
+          <div className="flex items-center justify-between gap-4 p-4 3xl:p-5">
+            <div>
+              <p className="text-sm 3xl:text-base text-white font-medium">
+                Automatic playback recovery
+              </p>
+
+              <p className="text-xs 3xl:text-sm text-white/40">
+                If a movie or episode stops progressing for about 14 seconds, switch to an unused backup source and resume at the same position.
+              </p>
+            </div>
+
+            <Toggle
+              on={autoRecovery}
+              onClick={() => setAutoRecovery(!autoRecovery)}
+              label="Toggle automatic playback recovery"
             />
           </div>
 
@@ -1231,11 +1249,14 @@ export default function SettingsView() {
               on={
                 subs
               }
-              onClick={() =>
-                setSubs(
-                  !subs
-                )
-              }
+              onClick={() => {
+                const enabled = !subs;
+                setSubs(enabled);
+                setTrackPreferences((current) => ({
+                  ...current,
+                  subtitlesEnabled: enabled,
+                }));
+              }}
               label="Toggle subtitles"
             />
           </div>
