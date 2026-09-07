@@ -24,6 +24,7 @@ import {
   LIVE_TV_REGION,
 } from "@/components/mg/freeTvPlaylist";
 import { usePlayer } from "@/components/mg/PlayerProvider";
+import { base44 } from "@/api/base44Client";
 import { cn } from "@/lib/utils";
 
 const DEFAULT_FILTER = "All";
@@ -117,6 +118,31 @@ const groupSort = (a, b) => {
   return String(a || "").localeCompare(String(b || ""));
 };
 
+const epgKeyForChannel = (channel, index = 0) =>
+  String(
+    channel?.id ||
+      channel?.tvgId ||
+      `${channel?.name || "channel"}-${index}`
+  );
+
+const formatProgrammeTime = (value) => {
+  const date = new Date(value || 0);
+  if (!Number.isFinite(date.getTime())) return "";
+
+  return date.toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const programmeProgress = (programme, now = Date.now()) => {
+  if (!programme?.start || !programme?.stop) return 0;
+  const start = new Date(programme.start).getTime();
+  const stop = new Date(programme.stop).getTime();
+  if (!start || !stop || stop <= start) return 0;
+  return Math.max(0, Math.min(1, (now - start) / (stop - start)));
+};
+
 const qualityLabel = (channel) => {
   const quality = Number(channel?.quality || 0);
 
@@ -184,6 +210,9 @@ export default function LiveTVView() {
   const [radioSourceIndex, setRadioSourceIndex] = useState(0);
   const [radioPlaying, setRadioPlaying] = useState(false);
   const [radioStatus, setRadioStatus] = useState("");
+  const [epgByKey, setEpgByKey] = useState({});
+  const [epgMatched, setEpgMatched] = useState(0);
+  const [clockTick, setClockTick] = useState(() => Date.now());
 
   const audioRef = useRef(null);
   const player = usePlayer();
@@ -259,6 +288,67 @@ export default function LiveTVView() {
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const timer = window.setInterval(
+      () => setClockTick(Date.now()),
+      60 * 1000
+    );
+
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (channels.length === 0) return undefined;
+
+    let cancelled = false;
+    let timer = null;
+
+    const loadGuide = async () => {
+      const targets = channels
+        .map((channel, index) => ({ channel, index }))
+        .filter(({ channel }) => !isRadioChannel(channel))
+        .slice(0, 350)
+        .map(({ channel, index }) => ({
+          key: epgKeyForChannel(channel, index),
+          tvgId: channel?.tvgId || "",
+          name: channel?.name || "",
+        }));
+
+      if (targets.length === 0) return;
+
+      try {
+        const response = await base44.functions.invoke(
+          "getLiveEpg",
+          { channels: targets }
+        );
+        const data = response?.data ?? response ?? {};
+
+        if (cancelled) return;
+
+        const next = {};
+        (Array.isArray(data?.items) ? data.items : []).forEach((item) => {
+          if (item?.key) next[item.key] = item;
+        });
+
+        setEpgByKey(next);
+        setEpgMatched(Number(data?.matched || 0));
+      } catch {
+        if (!cancelled) {
+          setEpgByKey({});
+          setEpgMatched(0);
+        }
+      }
+    };
+
+    loadGuide();
+    timer = window.setInterval(loadGuide, 5 * 60 * 1000);
+
+    return () => {
+      cancelled = true;
+      if (timer) window.clearInterval(timer);
+    };
+  }, [channels]);
 
   const activeRadioUrls = useMemo(
     () =>
