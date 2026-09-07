@@ -265,50 +265,37 @@ export default function VideoPlayer({
   const findNextPlayableSource = (
     fromIndex
   ) => {
-    for (
-      let offset = 1;
-      offset <= sources.length;
-      offset += 1
-    ) {
-      const index =
-        (fromIndex + offset) %
-        sources.length;
+    const candidates = sources
+      .map((candidate, index) => {
+        const url = getSourceUrl(candidate);
+        const torrent =
+          candidate?.type === "rd" ||
+          candidate?.type === "rd_torrent" ||
+          candidate?.type === "torrent" ||
+          candidate?.type === "magnet" ||
+          isMagnet(url);
 
-      if (
-        failedSourcesRef.current.has(
-          index
-        )
-      ) {
-        continue;
-      }
+        if (
+          index === fromIndex ||
+          failedSourcesRef.current.has(index) ||
+          candidate?.diagnostic ||
+          candidate?.type === "status" ||
+          candidate?.type === "provider" ||
+          candidate?.type === "youtube" ||
+          (!url && !torrent)
+        ) {
+          return null;
+        }
 
-      const candidate =
-        sources[index];
+        return {
+          index,
+          score: recoverySourceScore(candidate, index),
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.score - a.score || a.index - b.index);
 
-      const url =
-        getSourceUrl(
-          candidate
-        );
-
-      const torrent =
-        candidate?.type === "rd" ||
-        candidate?.type ===
-          "rd_torrent" ||
-        candidate?.type ===
-          "torrent" ||
-        candidate?.type ===
-          "magnet" ||
-        isMagnet(url);
-
-      if (
-        url ||
-        torrent
-      ) {
-        return index;
-      }
-    }
-
-    return -1;
+    return candidates[0]?.index ?? -1;
   };
 
   const tryNextSource = (
