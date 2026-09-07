@@ -89,6 +89,8 @@ export default function PlayerQrRemote({
           source_labels: serialisedSourceLabels,
           file_labels: serialisedFileLabels,
           active_file_id: String(activeFileId || ""),
+          audio_labels: "[]",
+          active_audio_index: -1,
           current_time: 0,
           duration: 0,
           paused: true,
@@ -158,6 +160,17 @@ export default function PlayerQrRemote({
               onSelectSource?.(parseNumber(value, sourceIndexRef.current));
             } else if (command === "file") {
               onSelectFile?.(String(value || ""));
+            } else if (command === "audio" && video?.audioTracks) {
+              const wanted = parseNumber(value, -1);
+              const tracks = video.audioTracks;
+
+              for (let index = 0; index < tracks.length; index += 1) {
+                try {
+                  tracks[index].enabled = index === wanted;
+                } catch {
+                  // Some Android WebViews expose read-only audio track state.
+                }
+              }
             } else if (command === "exit") {
               onExit?.();
             }
@@ -183,6 +196,19 @@ export default function PlayerQrRemote({
           const video = getVideo();
 
           try {
+            const audioTracks = [];
+            let activeAudioIndex = -1;
+
+            if (video?.audioTracks && typeof video.audioTracks.length === "number") {
+              for (let index = 0; index < video.audioTracks.length; index += 1) {
+                const track = video.audioTracks[index];
+                audioTracks.push(
+                  String(track?.label || track?.language || `Audio ${index + 1}`)
+                );
+                if (track?.enabled) activeAudioIndex = index;
+              }
+            }
+
             await base44.entities.PlayerRemoteSession.update(currentSession.id, {
               title: title || "Now playing",
               active_source_index: sourceIndexRef.current,
@@ -190,6 +216,8 @@ export default function PlayerQrRemote({
               source_labels: serialisedSourceLabels,
               file_labels: serialisedFileLabels,
               active_file_id: String(activeFileRef.current || ""),
+              audio_labels: JSON.stringify(audioTracks),
+              active_audio_index: activeAudioIndex,
               current_time: video ? Number(video.currentTime || 0) : 0,
               duration:
                 video && Number.isFinite(video.duration)
