@@ -176,6 +176,7 @@ html.mg-fire-tv {
 
 body.mg-fire-tv {
   min-width: 0;
+  scroll-behavior: auto !important;
 }
 
 /* Keep the Firestick menu permanently pinned while focus moves into content. */
@@ -221,6 +222,39 @@ body.mg-fire-tv #root .mg-fire-tv-nav > div:last-child button {
   min-height: 2.45rem !important;
   justify-content: center !important;
   padding: 0.3rem !important;
+}
+
+/*
+ * Fire TV performance mode.
+ * Keep the focus ring and loading spinner responsive, but remove expensive
+ * decorative animation/blur work that makes D-pad movement feel delayed.
+ */
+body.mg-fire-tv [class*="transition-"] {
+  transition-duration: 60ms !important;
+  transition-delay: 0ms !important;
+}
+
+body.mg-fire-tv .mg-hover-action {
+  transition-duration: 0ms !important;
+}
+
+body.mg-fire-tv .animate-pulse {
+  animation: none !important;
+}
+
+body.mg-fire-tv [class*="backdrop-blur"] {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+body.mg-fire-tv .overflow-x-auto,
+body.mg-fire-tv .overflow-y-auto,
+body.mg-fire-tv .overflow-auto {
+  scroll-behavior: auto !important;
+}
+
+body.mg-fire-tv img {
+  backface-visibility: hidden;
 }
 
 /* Keep the standard VideoPlayer inside the usable Firestick height. */
