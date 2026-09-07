@@ -874,6 +874,75 @@ const LiveVideo = forwardRef(
         onSubtitleSelection
       );
 
+      const onAudioRescueRequest = (event) => {
+        const requestId =
+          String(
+            event?.detail?.requestId ||
+              ""
+          );
+
+        const finish = (handled, detail = {}) => {
+          window.dispatchEvent(
+            new CustomEvent("mg:audio-rescue-result", {
+              detail: {
+                requestId,
+                handled,
+                ...detail,
+              },
+            })
+          );
+        };
+
+        if (
+          !hls ||
+          !Array.isArray(hls.audioTracks) ||
+          hls.audioTracks.length < 2
+        ) {
+          finish(false);
+          return;
+        }
+
+        const currentIndex =
+          Number.isFinite(Number(hls.audioTrack))
+            ? Number(hls.audioTrack)
+            : -1;
+
+        const targetIndex =
+          choosePreferredHlsAudioTrack(
+            hls.audioTracks,
+            preferredAudioLanguage,
+            currentIndex
+          );
+
+        if (targetIndex < 0) {
+          finish(false);
+          return;
+        }
+
+        try {
+          hls.audioTrack = targetIndex;
+          video.muted = false;
+          video.volume = 1;
+          video.play().catch(() => {});
+
+          finish(true, {
+            index: targetIndex,
+            label:
+              hlsTrackText(
+                hls.audioTracks[targetIndex]
+              ) ||
+              `Audio ${targetIndex + 1}`,
+          });
+        } catch {
+          finish(false);
+        }
+      };
+
+      window.addEventListener(
+        "mg:audio-rescue-request",
+        onAudioRescueRequest
+      );
+
       const preferEnglishNativeAudio =
         () => {
           selectPreferredNativeAudioTrack(
@@ -1504,6 +1573,11 @@ const LiveVideo = forwardRef(
         window.removeEventListener(
           "mg:subtitle-track-selected",
           onSubtitleSelection
+        );
+
+        window.removeEventListener(
+          "mg:audio-rescue-request",
+          onAudioRescueRequest
         );
 
         if (
