@@ -70,7 +70,7 @@ export default function HeroSlider({
   const year = (item.release_date || item.year || "").slice(0, 4);
 
   return (
-    <section className="relative w-full h-[52svh] min-h-[350px] max-h-[680px] sm:h-[56vh] md:min-h-[430px] 3xl:h-[62vh] 3xl:min-h-[620px] 3xl:max-h-[900px] 4xl:min-h-[760px] 4xl:max-h-[1100px] overflow-hidden">
+    <section className="mg-fire-tv-hero relative w-full h-[52svh] min-h-[350px] max-h-[680px] sm:h-[56vh] md:min-h-[430px] 3xl:h-[62vh] 3xl:min-h-[620px] 3xl:max-h-[900px] 4xl:min-h-[760px] 4xl:max-h-[1100px] overflow-hidden">
       {item.backdrop_url ? (
         <Image
           src={item.backdrop_url}
