@@ -1209,11 +1209,14 @@ export default function VideoPlayer({
   useEffect(
     () => {
       const video =
-        videoRef.current;
+        rdOverride
+          ? videoRef.current
+          : liveVideoRef.current ||
+            videoRef.current;
 
       const url =
         rdOverride?.src ||
-        active?.src;
+        getSourceUrl(active);
 
       if (
         !video ||
@@ -1236,25 +1239,55 @@ export default function VideoPlayer({
 
       video.muted =
         false;
+      video.volume =
+        1;
 
-      video
-        .play()
-        .catch(
-          () => {
-            video.muted =
-              true;
+      if (
+        video.dataset
+          ?.mgAutoplayMuted ===
+        "true"
+      ) {
+        delete video.dataset
+          .mgAutoplayMuted;
+      }
 
-            video.dataset
-              .mgAutoplayMuted =
-              "true";
+      const startPlayback = () => {
+        video
+          .play()
+          .catch(
+            () => {
+              video.muted =
+                true;
 
-            video
-              .play()
-              .catch(
-                () => {}
-              );
-          }
+              video.dataset
+                .mgAutoplayMuted =
+                "true";
+
+              video
+                .play()
+                .catch(
+                  () => {}
+                );
+            }
+          );
+      };
+
+      if (video.readyState >= 2) {
+        startPlayback();
+      } else {
+        video.addEventListener(
+          "canplay",
+          startPlayback,
+          { once: true }
         );
+
+        return () => {
+          video.removeEventListener(
+            "canplay",
+            startPlayback
+          );
+        };
+      }
     },
     [
       active,
@@ -1664,13 +1697,43 @@ export default function VideoPlayer({
       }
 
       if (
-        sources.length >
+        sources.length <=
         1
       ) {
-        tryNextSource(
-          "No sound on this source."
+        setRdError(
+          "No other source is available to try."
         );
+
+        return;
       }
+
+      /*
+       * No Sound is a deliberate user request to move on, so always try the
+       * next source in order. Do not let an old failure-memory entry prevent
+       * that source from being retried.
+       */
+      const nextIndex =
+        (activeIdx + 1) %
+        sources.length;
+
+      markSourceFailed(
+        activeIdx
+      );
+
+      clearSourceFailed(
+        nextIndex
+      );
+
+      setRdOverride(null);
+      setRdFiles([]);
+      setRdTorrentId(null);
+      setRdError("");
+      setRdResolving(false);
+      setRdPolling(false);
+
+      setActiveIdx(
+        nextIndex
+      );
     };
 
   const busy =
