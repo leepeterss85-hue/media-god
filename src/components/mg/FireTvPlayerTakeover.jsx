@@ -48,7 +48,13 @@ export default function FireTvPlayerTakeover() {
       }
 
       remember(element);
-      element.style.setProperty(property, value, "important");
+
+      if (
+        element.style.getPropertyValue(property) !== value ||
+        element.style.getPropertyPriority(property) !== "important"
+      ) {
+        element.style.setProperty(property, value, "important");
+      }
     };
 
     const restoreAll = () => {
@@ -176,8 +182,6 @@ export default function FireTvPlayerTakeover() {
     observer.observe(document.body, {
       childList: true,
       subtree: true,
-      attributes: true,
-      attributeFilter: ["class", "style", "data-mg-fullscreen"],
     });
 
     window.addEventListener("resize", scheduleSync);
