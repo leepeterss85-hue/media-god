@@ -326,6 +326,8 @@ export default async function (req) {
               body.season,
             episode:
               body.episode,
+            forceAudioRescue:
+              body.force_audio_rescue === true,
           }
         );
 
@@ -484,6 +486,8 @@ export default async function (req) {
             body.prefer_english !== false,
           allowTranscode:
             body.allow_transcode !== false,
+          forceAudioRescue:
+            body.force_audio_rescue === true,
         });
 
       if (playable.error) {
@@ -1197,6 +1201,9 @@ async function addMagnet({
             body.episode
           )
         : "",
+
+    forceAudioRescue:
+      body.force_audio_rescue === true,
   };
 
   /*
