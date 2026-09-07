@@ -994,6 +994,14 @@ export default async function (req) {
 
           rd_status:
             stream.rd_status,
+
+          audio_rescue:
+            stream.audio_rescue ||
+            null,
+
+          media_info:
+            stream.media_info ||
+            null,
         });
       }
 
@@ -1746,6 +1754,8 @@ async function resolveStreamable(
       formHeaders,
       preferEnglish: true,
       allowTranscode: true,
+      forceAudioRescue:
+        ep?.forceAudioRescue === true,
     });
 
   if (playable.error) {
@@ -1821,6 +1831,7 @@ async function choosePlayableRdStream({
   formHeaders,
   preferEnglish = true,
   allowTranscode = true,
+  forceAudioRescue = false,
 }) {
   const originalUrl =
     unData?.download ||
@@ -2036,6 +2047,7 @@ async function choosePlayableRdStream({
    * is already safe and either English or not language-labelled.
    */
   if (
+    !forceAudioRescue &&
     firstIsSafe &&
     (
       !preferEnglish ||
@@ -2108,14 +2120,16 @@ async function choosePlayableRdStream({
     transcode?.url
   ) {
     const why =
-      preferEnglish &&
-      englishTracks.length >
-        0 &&
-      !firstIsEnglish
-        ? "English audio exists but is not the likely default track."
-        : !firstIsSafe
-          ? `The original ${firstTrack?.codec || "audio"} track is risky for Fire TV browser playback.`
-          : "A Real-Debrid streaming version is safer for this file.";
+      forceAudioRescue
+        ? "Runtime no-sound recovery requested a browser-safe Real-Debrid transcode."
+        : preferEnglish &&
+            englishTracks.length >
+              0 &&
+            !firstIsEnglish
+          ? "English audio exists but is not the likely default track."
+          : !firstIsSafe
+            ? `The original ${firstTrack?.codec || "audio"} track is risky for Fire TV browser playback.`
+            : "A Real-Debrid streaming version is safer for this file.";
 
     const formatLabel =
       transcode.format ===
@@ -2165,6 +2179,7 @@ async function choosePlayableRdStream({
     "";
 
   if (
+    forceAudioRescue ||
     isHardRiskAudioCodec(
       firstCodec
     )
@@ -2177,10 +2192,14 @@ async function choosePlayableRdStream({
       audio_rescue: {
         used: false,
         state:
-          "known_unsupported_audio_try_next_source",
+          forceAudioRescue
+            ? "forced_audio_rescue_unavailable_try_next_source"
+            : "known_unsupported_audio_try_next_source",
         reason:
           transcode?.error ||
-          "Real-Debrid returned no compatible HLS/MP4/WebM transcode for a known-risky audio codec.",
+          (forceAudioRescue
+            ? "Real-Debrid returned no compatible HLS/MP4/WebM transcode after runtime no-sound detection."
+            : "Real-Debrid returned no compatible HLS/MP4/WebM transcode for a known-risky audio codec."),
         selected_audio:
           englishSafe ||
           englishTracks[0] ||
