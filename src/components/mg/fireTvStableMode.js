@@ -1,5 +1,4 @@
 const FIRE_TV_RE = /(?:AFT[A-Z0-9]*|Fire TV|AmazonWebAppPlatform|Silk)/i;
-const TV_LAYOUT_WIDTH = 1920;
 
 const DIRECTION_KEYS = {
   ArrowUp: "up",
@@ -83,7 +82,7 @@ const focusNow = (element) => {
   try {
     element.scrollIntoView({
       block: "nearest",
-      inline: "center",
+      inline: "nearest",
       behavior: "auto",
     });
   } catch {
@@ -145,7 +144,7 @@ const activeSidebarButton = () => {
   );
 };
 
-const nearestCardIndexByX = (targetRow, x) => {
+const nearestCardByX = (targetRow, x) => {
   const cards = cardsInRow(targetRow);
 
   if (!cards.length) {
@@ -170,8 +169,8 @@ const nearestCardIndexByX = (targetRow, x) => {
 };
 
 const firstUsefulCard = () => {
-  const viewportHeight = window.innerHeight || 0;
   const allRows = rows();
+  const viewportHeight = window.innerHeight || 0;
 
   const row =
     allRows.find((item) => {
@@ -179,8 +178,11 @@ const firstUsefulCard = () => {
       return rect.bottom > 0 && rect.top < viewportHeight;
     }) || allRows[0];
 
-  const card = cardsInRow(row)[0];
-  return cardTarget(card);
+  if (!row) {
+    return null;
+  }
+
+  return cardTarget(cardsInRow(row)[0]);
 };
 
 const heroTarget = () =>
@@ -204,7 +206,7 @@ const moveSidebar = (current, direction) => {
   const index = buttons.indexOf(current);
 
   if (direction === "right") {
-    return focusNow(firstUsefulCard() || heroTarget());
+    return focusNow(heroTarget() || firstUsefulCard());
   }
 
   if (index < 0) {
@@ -219,7 +221,7 @@ const moveSidebar = (current, direction) => {
     return focusNow(buttons[index + 1]);
   }
 
-  return false;
+  return true;
 };
 
 const moveCard = (current, direction) => {
@@ -246,11 +248,11 @@ const moveCard = (current, direction) => {
   }
 
   if (direction === "right") {
-    if (cardIndex >= rowCards.length - 1) {
-      return true;
+    if (cardIndex < rowCards.length - 1) {
+      return focusNow(cardTarget(rowCards[cardIndex + 1]));
     }
 
-    return focusNow(cardTarget(rowCards[cardIndex + 1]));
+    return true;
   }
 
   const allRows = rows();
@@ -260,17 +262,21 @@ const moveCard = (current, direction) => {
 
   if (direction === "up") {
     if (rowIndex > 0) {
-      return focusNow(nearestCardIndexByX(allRows[rowIndex - 1], x));
+      return focusNow(nearestCardByX(allRows[rowIndex - 1], x));
     }
 
     return focusNow(heroTarget() || activeSidebarButton());
   }
 
-  if (direction === "down" && rowIndex >= 0 && rowIndex < allRows.length - 1) {
-    return focusNow(nearestCardIndexByX(allRows[rowIndex + 1], x));
+  if (direction === "down") {
+    if (rowIndex >= 0 && rowIndex < allRows.length - 1) {
+      return focusNow(nearestCardByX(allRows[rowIndex + 1], x));
+    }
+
+    return true;
   }
 
-  return true;
+  return false;
 };
 
 const pageFocusable = () =>
@@ -300,7 +306,7 @@ const pageFocusable = () =>
 
 const genericMove = (current, direction) => {
   if (!(current instanceof HTMLElement)) {
-    return focusNow(activeSidebarButton() || firstUsefulCard() || heroTarget());
+    return focusNow(activeSidebarButton() || heroTarget() || firstUsefulCard());
   }
 
   const from = current.getBoundingClientRect();
@@ -327,7 +333,7 @@ const genericMove = (current, direction) => {
     const horizontal = direction === "left" || direction === "right";
     const main = horizontal ? Math.abs(dx) : Math.abs(dy);
     const cross = horizontal ? Math.abs(dy) : Math.abs(dx);
-    const score = main + cross * 1.8;
+    const score = main + cross * 2.2;
 
     if (score < bestScore) {
       best = candidate;
@@ -348,50 +354,21 @@ const installViewportGuard = () => {
   }
 
   /*
-   * Capture the WebView's visible CSS width BEFORE changing the viewport.
-   * Firestick 4K commonly reports about 960 CSS pixels. We then expose a
-   * stable 1920px TV layout and fit that layout back into the same visible
-   * width. Do not recalculate after the viewport changes or it can jump back
-   * to scale 1 and make the whole interface enormous again.
+   * IMPORTANT: Never zoom the Firestick WebView.
+   * A forced 1920px layout with initial-scale around 0.5 makes Base44 auth
+   * and other screens microscopic on a 4K television. Keep the native
+   * device viewport and make Media God compact with CSS instead.
    */
-  const visibleWidth = Math.max(
-    1,
-    Number(window.innerWidth || 0),
-    Number(document.documentElement.clientWidth || 0)
-  );
-
-  const fitScale =
-    visibleWidth >= 1600
-      ? 1
-      : Math.max(
-          0.25,
-          Math.min(1, visibleWidth / TV_LAYOUT_WIDTH)
-        );
-
-  const scaleText = fitScale.toFixed(4);
-  const desired = [
-    `width=${TV_LAYOUT_WIDTH}`,
-    `initial-scale=${scaleText}`,
-    `minimum-scale=${scaleText}`,
-    `maximum-scale=${scaleText}`,
-    "user-scalable=no",
-    "viewport-fit=cover",
-  ].join(", ");
+  const desired =
+    "width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover";
 
   const restore = () => {
     if (meta.getAttribute("content") !== desired) {
       meta.setAttribute("content", desired);
     }
 
-    document.documentElement.style.setProperty(
-      "--mg-tv-design-width",
-      `${TV_LAYOUT_WIDTH}px`
-    );
-
-    document.documentElement.style.setProperty(
-      "--mg-tv-fit-scale",
-      scaleText
-    );
+    document.documentElement.style.removeProperty("--mg-tv-design-width");
+    document.documentElement.style.removeProperty("--mg-tv-fit-scale");
   };
 
   restore();
@@ -402,7 +379,6 @@ const installViewportGuard = () => {
     attributeFilter: ["content"],
   });
 
-  /* Beat any late viewport write from the older remote helper. */
   window.setTimeout(restore, 80);
   window.setTimeout(restore, 220);
   window.setTimeout(restore, 500);
@@ -410,7 +386,11 @@ const installViewportGuard = () => {
 };
 
 export const installFireTvStableMode = () => {
-  if (!isFireTv() || typeof window === "undefined" || typeof document === "undefined") {
+  if (
+    !isFireTv() ||
+    typeof window === "undefined" ||
+    typeof document === "undefined"
+  ) {
     return;
   }
 
@@ -420,7 +400,6 @@ export const installFireTvStableMode = () => {
 
   window.__MG_FIRE_TV_STABLE_MODE__ = true;
 
-  /* Make Fire TV styling independent of which helper detected the device. */
   document.documentElement.classList.add("mg-fire-tv");
   document.body?.classList.add("mg-fire-tv");
   document.documentElement.classList.add("mg-fire-tv-stable");
@@ -456,7 +435,7 @@ export const installFireTvStableMode = () => {
 
       const now = Date.now();
 
-      if (event.repeat || now - lastMoveAt < 140) {
+      if (event.repeat || now - lastMoveAt < 160) {
         return;
       }
 
