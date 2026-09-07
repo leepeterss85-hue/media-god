@@ -1742,9 +1742,12 @@ export async function getFreeTvChannels({
     return inflight;
   }
 
+  const playlistSources = runtimePlaylistSources();
+  const directChannels = directChannelRows();
+
   inflight =
     Promise.all(
-      LIVE_TV_SOURCES.map(
+      playlistSources.map(
         (
           source
         ) =>
@@ -1757,14 +1760,16 @@ export async function getFreeTvChannels({
         (
           results
         ) => {
-          const allChannels =
-            results.flatMap(
+          const allChannels = [
+            ...directChannels,
+            ...results.flatMap(
               (
                 result
               ) =>
                 result.channels ||
                 []
-            );
+            ),
+          ];
 
           const channels =
             dedupeMergedChannels(
