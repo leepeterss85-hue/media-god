@@ -216,6 +216,7 @@ const queueContinueWatching = async (request) => {
               poster_url: patch.poster_url || row?.poster_url || "",
               title: patch.title,
               year: patch.year,
+              episode_name: patch.episode_name,
             }
           : patch
       );
