@@ -25,6 +25,7 @@ import FireTvRemote from "@/components/mg/FireTvRemote";
 import MediaGodV2Assist from "@/components/mg/MediaGodV2Assist";
 import {
   PlayerProvider,
+  usePlayer,
 } from "@/components/mg/PlayerProvider";
 import RdBanner from "@/components/mg/RdBanner";
 
@@ -379,6 +380,11 @@ class DetailErrorBoundary
 }
 
 function MediaGodApp() {
+  const {
+    isOpen:
+      playerOpen,
+  } = usePlayer();
+
   const [
     view,
     setView,
@@ -557,10 +563,13 @@ function MediaGodApp() {
    * lives inside PlayerProvider rather than Home state.
    */
   const showPageBack =
-    view !== "home" ||
-    searchOpen ||
-    Boolean(
-      searchResult
+    !playerOpen &&
+    (
+      view !== "home" ||
+      searchOpen ||
+      Boolean(
+        searchResult
+      )
     );
 
   return (
@@ -624,29 +633,31 @@ function MediaGodApp() {
       )}
 
       <div className="min-h-screen w-full overflow-x-hidden bg-mg-background text-white flex">
-        <Navbar
-          active={
-            view
-          }
-          onSelect={(
-            nextView
-          ) => {
-            setSearchOpen(
-              false
-            );
-
-            setSearchResult(
-              null
-            );
-
-            setView(
+        {!playerOpen && (
+          <Navbar
+            active={
+              view
+            }
+            onSelect={(
               nextView
-            );
-          }}
-          onSearch={
-            openSearch
-          }
-        />
+            ) => {
+              setSearchOpen(
+                false
+              );
+
+              setSearchResult(
+                null
+              );
+
+              setView(
+                nextView
+              );
+            }}
+            onSearch={
+              openSearch
+            }
+          />
+        )}
 
         <main className="flex-1 min-w-0 w-full flex flex-col overflow-x-hidden">
           <RdBanner
