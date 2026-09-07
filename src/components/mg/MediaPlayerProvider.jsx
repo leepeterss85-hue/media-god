@@ -19,6 +19,12 @@ import {
 } from "@/components/mg/addonBrowserFallback";
 
 import VideoPlayer from "@/components/mg/VideoPlayer";
+import {
+  getPlaybackDeviceProfile,
+  scoreSourceCompatibility,
+} from "@/components/mg/mediaCompatibility";
+import { devicePlaybackReliabilityAdjustment } from "@/components/mg/playbackReliability";
+import { readPlaybackPreferences } from "@/components/mg/playbackPreferences";
 
 const PlayerContext = createContext(null);
 
