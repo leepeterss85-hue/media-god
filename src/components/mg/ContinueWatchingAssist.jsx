@@ -249,33 +249,6 @@ export default function ContinueWatchingAssist() {
         );
       }
 
-      if (completed) {
-        try {
-          const rows = await base44.entities.ContinueWatching.list(
-            "-updated_date",
-            100
-          );
-
-          const matches = (rows || []).filter((row) =>
-            sameContent(parseContentKey(row), context)
-          );
-
-          await Promise.allSettled(
-            matches
-              .filter((row) => row?.id)
-              .map((row) =>
-                base44.entities.ContinueWatching.delete(row.id)
-              )
-          );
-
-          state.recordIdByKey.delete(key);
-        } catch {
-          // Completion cleanup is best effort only.
-        }
-
-        return;
-      }
-
       const patch = {
         progress,
         duration: safeDuration,
