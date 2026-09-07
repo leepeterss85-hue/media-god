@@ -78,18 +78,8 @@ const tokenFor = (user, providerKey) => {
   return provider ? clean(user?.[provider.tokenField]) : "";
 };
 
-const enabledProvidersFor = (user) => {
-  const hasSavedSelection = Array.isArray(user?.debrid_enabled_providers);
-  const saved = hasSavedSelection
-    ? user.debrid_enabled_providers.map(normaliseProvider).filter(Boolean)
-    : [];
-
-  const candidates = hasSavedSelection ? saved : DEFAULT_PRIORITY;
-
-  return candidates.filter(
-    (key, index) => candidates.indexOf(key) === index && tokenFor(user, key)
-  );
-};
+const enabledProvidersFor = (user) =>
+  DEFAULT_PRIORITY.filter((key) => Boolean(tokenFor(user, key)));
 
 const priorityFor = (user) => {
   const saved = Array.isArray(user?.debrid_provider_priority)
@@ -684,15 +674,23 @@ export default async function (req) {
         patch[PROVIDERS[key].tokenField] = clean(tokens[key]);
       });
 
-      if (Array.isArray(body?.enabledProviders)) {
-        patch.debrid_enabled_providers = body.enabledProviders
-          .map(normaliseProvider)
-          .filter((key) => key && key !== "realdebrid");
-
-        if (tokenFor(user, "realdebrid")) {
-          patch.debrid_enabled_providers.unshift("realdebrid");
+      const effectiveToken = (key) => {
+        const tokenField = PROVIDERS[key]?.tokenField;
+        if (!tokenField) return "";
+        if (Object.prototype.hasOwnProperty.call(patch, tokenField)) {
+          return clean(patch[tokenField]);
         }
-      }
+        return tokenFor(user, key);
+      };
+
+      /*
+       * Combined mode: every configured debrid account is always enabled.
+       * Keep this field populated for backwards compatibility with older
+       * frontend builds, but do not require the user to toggle providers.
+       */
+      patch.debrid_enabled_providers = DEFAULT_PRIORITY.filter((key) =>
+        Boolean(effectiveToken(key))
+      );
 
       if (Array.isArray(body?.priority)) {
         patch.debrid_provider_priority = body.priority
@@ -781,21 +779,21 @@ export default async function (req) {
       if (!providerKey && hash) {
         const cacheResult = {};
 
-        for (const key of priority) {
-          const token = tokenFor(user, key);
-          if (!token) continue;
+        await Promise.all(
+          priority.map(async (key) => {
+            const token = tokenFor(user, key);
+            if (!token) return;
 
-          try {
-            const result = await checkCacheForProvider(key, token, [hash]);
-            cacheResult[key] = Boolean(result?.[hash]);
-            if (cacheResult[key]) {
-              providerKey = key;
-              break;
+            try {
+              const result = await checkCacheForProvider(key, token, [hash]);
+              cacheResult[key] = Boolean(result?.[hash]);
+            } catch {
+              cacheResult[key] = false;
             }
-          } catch {
-            cacheResult[key] = false;
-          }
-        }
+          })
+        );
+
+        providerKey = priority.find((key) => cacheResult[key] === true) || "";
       }
 
       providerKey = providerKey || priority[0] || "";
