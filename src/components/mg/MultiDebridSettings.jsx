@@ -44,7 +44,6 @@ export default function MultiDebridSettings() {
   const [priority, setPriority] = useState([]);
   const [tokens, setTokens] = useState({});
   const [dirty, setDirty] = useState({});
-  const [enabled, setEnabled] = useState(() => new Set());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -74,13 +73,6 @@ export default function MultiDebridSettings() {
 
         setStatuses(nextStatuses);
         setPriority(Array.isArray(data?.priority) ? data.priority : []);
-        setEnabled(
-          new Set(
-            nextStatuses
-              .filter((item) => item?.enabled && item?.key !== "realdebrid")
-              .map((item) => item.key)
-          )
-        );
 
         if (showToast) {
           const configured = nextStatuses.filter(
@@ -111,15 +103,6 @@ export default function MultiDebridSettings() {
   useEffect(() => {
     loadStatus(false);
   }, [loadStatus]);
-
-  const toggleEnabled = (key) => {
-    setEnabled((current) => {
-      const next = new Set(current);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  };
 
   const movePriority = (key, direction) => {
     setPriority((current) => {
@@ -154,7 +137,6 @@ export default function MultiDebridSettings() {
       await base44.functions.invoke("multiDebrid", {
         action: "save_tokens",
         tokens: tokenPatch,
-        enabledProviders: Array.from(enabled),
         priority,
       });
 
@@ -166,7 +148,7 @@ export default function MultiDebridSettings() {
       toast({
         title: "Debrid providers saved",
         description:
-          "Media God will use the enabled provider tokens during cache checks and playback resolution.",
+          "Media God will automatically search every connected debrid provider during cache checks and playback resolution.",
       });
     } catch (error) {
       toast({
@@ -183,17 +165,11 @@ export default function MultiDebridSettings() {
     setSaving(true);
 
     try {
-      const nextEnabled = new Set(enabled);
-      nextEnabled.delete(key);
-
       await base44.functions.invoke("multiDebrid", {
         action: "save_tokens",
         tokens: { [key]: "" },
-        enabledProviders: Array.from(nextEnabled),
         priority,
       });
-
-      setEnabled(nextEnabled);
       setTokens((current) => ({ ...current, [key]: "" }));
       setDirty((current) => ({ ...current, [key]: false }));
       await loadStatus(false);
@@ -256,7 +232,7 @@ export default function MultiDebridSettings() {
       </div>
 
       <p className="mt-2 text-xs 3xl:text-sm text-white/45">
-        Real-Debrid keeps its device-code connection above. Add any other debrid accounts you use here. Tokens are stored on the signed-in Media God user and are read by the backend when checking cache or resolving a stream.
+        Real-Debrid keeps its device-code connection above. Add any other debrid accounts you use here. Every connected provider is searched automatically in parallel; Media God then uses your priority order to choose the best cached result.
       </p>
 
       {loading ? (
@@ -270,8 +246,6 @@ export default function MultiDebridSettings() {
             const status = statusByKey.get(provider.key) || {};
             const configured = Boolean(status?.configured);
             const valid = Boolean(status?.valid);
-            const isEnabled = enabled.has(provider.key);
-
             return (
               <div
                 key={provider.key}
@@ -317,16 +291,12 @@ export default function MultiDebridSettings() {
                     )}
                   </div>
 
-                  <label className="flex shrink-0 items-center gap-2 text-xs text-white/65">
-                    <input
-                      type="checkbox"
-                      checked={isEnabled}
-                      onChange={() => toggleEnabled(provider.key)}
-                      disabled={!configured && !dirty[provider.key]}
-                      className="h-4 w-4 accent-[var(--mg-green)]"
-                    />
-                    Enabled
-                  </label>
+                  {configured && valid && (
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-mg-green/20 bg-mg-green/5 px-2 py-1 text-[10px] font-semibold text-mg-green 3xl:text-xs">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      Auto search
+                    </span>
+                  )}
                 </div>
 
                 <div className="mt-3 flex gap-2">
@@ -339,9 +309,6 @@ export default function MultiDebridSettings() {
                         const value = event.target.value;
                         setTokens((current) => ({ ...current, [provider.key]: value }));
                         setDirty((current) => ({ ...current, [provider.key]: true }));
-                        if (value.trim()) {
-                          setEnabled((current) => new Set([...current, provider.key]));
-                        }
                       }}
                       placeholder={configured ? "Saved token — enter a new one to replace" : "API token"}
                       autoComplete="off"
