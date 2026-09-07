@@ -254,6 +254,25 @@ export const playbackReliabilityAdjustment = (
   );
 };
 
+export const hasRecentNoSoundHistory = (
+  label,
+  profile = getPlaybackDeviceProfile()
+) => {
+  const source = baseSourceKey(label);
+  if (!source) return false;
+
+  const store = readStore();
+  const keys = [
+    source,
+    sourceDeviceKey(label, profile),
+    ...traitKeysFor(label, profile),
+  ].filter(Boolean);
+
+  return keys.some((key) =>
+    fresh(store?.[key]?.lastNoSound, NO_SOUND_TTL)
+  );
+};
+
 export const clearPlaybackReliability = () => {
   if (typeof window === "undefined") return;
   try {
