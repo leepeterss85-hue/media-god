@@ -619,6 +619,27 @@ export default function SettingsView() {
       );
 
       try {
+        const nextPlayback = writePlaybackPreferences({
+          autoNext: autoplay,
+          quality,
+          autoRecovery,
+        });
+
+        const nextTracks = writeTrackPreferences({
+          ...trackPreferences,
+          subtitlesEnabled: subs,
+        });
+
+        setTrackPreferences(nextTracks);
+
+        window.dispatchEvent(
+          new CustomEvent("mg:set-auto-next", {
+            detail: {
+              enabled: nextPlayback.autoNext,
+            },
+          })
+        );
+
         await base44.auth.updateMe(
           {
             preferences: {
@@ -627,9 +648,15 @@ export default function SettingsView() {
                 {}
               ),
 
-              autoplay,
-              subs,
-              quality,
+              autoplay: nextPlayback.autoNext,
+              subs: nextTracks.subtitlesEnabled,
+              quality: nextPlayback.quality,
+              autoRecovery: nextPlayback.autoRecovery,
+              audioLanguage: nextTracks.audioLanguage,
+              subtitleLanguage: nextTracks.subtitleLanguage,
+              preferForcedSubtitles: nextTracks.preferForcedSubtitles,
+              subtitleSize: nextTracks.subtitleSize,
+              subtitleBackground: nextTracks.subtitleBackground,
             },
           }
         );
@@ -641,7 +668,7 @@ export default function SettingsView() {
             "Settings saved",
 
           description:
-            "Playback settings are saved to your Media God account. TV remote settings are already active on this device.",
+            "Playback, audio and subtitle preferences are active on this device and saved to your Media God account.",
         });
       } catch (
         error
