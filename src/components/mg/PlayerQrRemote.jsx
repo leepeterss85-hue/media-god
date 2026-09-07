@@ -548,54 +548,69 @@ export default function PlayerQrRemote({ showIdle = false }) {
   }, []);
 
   const playerOpen = Boolean(player?.isOpen);
-  const shouldShow = playerOpen || showIdle;
 
-  if (!shouldShow) return null;
+  /*
+   * Keep the companion session alive at all times, but never place the QR over
+   * Home or the video player. The QR is only visible when the user explicitly
+   * opens Phone Remote from the main menu.
+   */
+  if (!showIdle || playerOpen) return null;
 
   if (!session || !qrUrl) {
-    if (!error) return null;
-
     return (
-      <div
-        data-mg-companion-qr="true"
-        className="fixed bottom-4 right-4 z-[80] rounded-xl border border-white/10 bg-black/85 px-3 py-2 text-xs text-white/55"
-      >
-        Phone companion unavailable
-      </div>
+      <section className="flex flex-1 items-center justify-center p-5 sm:p-8 3xl:p-12">
+        <div className="w-full max-w-xl rounded-2xl border border-white/10 bg-mg-card p-6 text-center shadow-xl 3xl:p-8">
+          <Smartphone className="mx-auto h-10 w-10 text-mg-green 3xl:h-12 3xl:w-12" />
+          <h1 className="mt-3 text-xl font-bold text-white 3xl:text-2xl">
+            Phone Remote
+          </h1>
+          <p className="mt-2 text-sm text-white/50 3xl:text-base">
+            {error || "Preparing your phone pairing…"}
+          </p>
+        </div>
+      </section>
     );
   }
 
   return (
-    <div
-      {...(playerOpen
-        ? { "data-mg-player-qr": "true" }
-        : { "data-mg-companion-qr": "true" })}
-      className={
-        playerOpen
-          ? "fixed right-4 top-16 z-[2147483647] flex items-center gap-2 rounded-xl border border-white/15 bg-black/80 p-2 text-white shadow-xl"
-          : "fixed bottom-4 right-4 z-[80] flex items-center gap-3 rounded-2xl border border-mg-green/25 bg-black/90 p-3 text-white shadow-2xl backdrop-blur"
-      }
-      title="Scan once to browse and control Media God from your phone"
+    <section
+      data-mg-companion-qr="true"
+      className="flex flex-1 items-center justify-center p-5 sm:p-8 3xl:p-12"
+      aria-label="Phone Remote pairing"
     >
-      <img
-        src={qrUrl}
-        alt="QR code for Media God phone companion"
-        className={
-          playerOpen
-            ? "h-20 w-20 rounded-md bg-white p-1"
-            : "h-24 w-24 rounded-lg bg-white p-1"
-        }
-      />
-
-      <div className={playerOpen ? "hidden xl:block" : "min-w-0 max-w-36"}>
-        <div className="flex items-center gap-1.5 text-xs font-bold text-mg-green">
-          <Smartphone className="h-4 w-4" />
-          Phone companion
+      <div className="w-full max-w-2xl rounded-2xl border border-mg-green/25 bg-mg-card p-6 text-center shadow-2xl 3xl:p-10">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-mg-green/10 text-mg-green 3xl:h-14 3xl:w-14">
+          <Smartphone className="h-6 w-6 3xl:h-7 3xl:w-7" />
         </div>
-        <p className="mt-1 text-[10px] leading-snug text-white/55">
-          Scan once. Browse on your phone, send titles to the TV and keep control after Exit.
+
+        <h1 className="mt-4 text-2xl font-bold text-white 3xl:text-3xl">
+          Phone Remote
+        </h1>
+
+        <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-white/55 3xl:text-base">
+          Scan once with your phone. You can browse films, choose TV episodes,
+          launch Live TV and control playback without keeping this screen open.
         </p>
+
+        <div className="mx-auto mt-6 w-fit rounded-2xl bg-white p-3 shadow-xl 3xl:mt-8 3xl:p-4">
+          <img
+            src={qrUrl}
+            alt="QR code for Media God phone remote"
+            className="h-56 w-56 sm:h-64 sm:w-64 3xl:h-72 3xl:w-72"
+          />
+        </div>
+
+        <div className="mx-auto mt-5 max-w-lg rounded-xl border border-white/10 bg-black/20 p-4 text-left">
+          <p className="text-sm font-semibold text-mg-green 3xl:text-base">
+            Pairing ready
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-white/50 3xl:text-sm">
+            After scanning, use Back or choose another Media God menu. The phone
+            remains paired in the background and the QR will not cover the TV or
+            player.
+          </p>
+        </div>
       </div>
-    </div>
+    </section>
   );
 }
