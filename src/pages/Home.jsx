@@ -575,11 +575,7 @@ function MediaGodApp() {
 
   return (
     <>
-      <FireTvRemote
-        onBack={
-          handleRemoteBack
-        }
-      />
+      <FireTvRemote />
 
       <MediaGodV2Assist />
 
