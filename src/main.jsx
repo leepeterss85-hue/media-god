@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import App from '@/App.jsx'
 import FireTvFocusMemory from '@/components/mg/FireTvFocusMemory.jsx'
 import PlaybackReliabilityAssist from '@/components/mg/PlaybackReliabilityAssist.jsx'
+import PlayerEpisodeQuickNav from '@/components/mg/PlayerEpisodeQuickNav.jsx'
 import '@/index.css'
 
 const userAgent =
@@ -223,6 +224,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <>
     <FireTvFocusMemory />
     <PlaybackReliabilityAssist />
+    <PlayerEpisodeQuickNav />
     <App />
   </>
 )
