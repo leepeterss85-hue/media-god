@@ -48,14 +48,24 @@ const idFor = (prefix = "source") => {
 export const sourceRegistryEvent = SOURCE_EVENT;
 
 export const normaliseLiveSource = (value = {}) => {
-  const kind = value?.kind === "direct" ? "direct" : "playlist";
+  const requestedKind = clean(value?.kind).toLowerCase();
+  const kind = ["playlist", "direct", "magnet"].includes(requestedKind)
+    ? requestedKind
+    : "playlist";
+
+  const defaultName =
+    kind === "direct"
+      ? "Custom channel"
+      : kind === "magnet"
+        ? "Debrid source"
+        : "Custom playlist";
 
   return {
     id: clean(value?.id) || idFor(kind),
     kind,
-    name: clean(value?.name) || (kind === "direct" ? "Custom channel" : "Custom playlist"),
+    name: clean(value?.name) || defaultName,
     url: clean(value?.url),
-    category: clean(value?.category) || "Custom",
+    category: clean(value?.category) || (kind === "magnet" ? "Debrid" : "Custom"),
     priority: safePriority(value?.priority, 85),
     active: value?.active !== false,
     logo: clean(value?.logo),
