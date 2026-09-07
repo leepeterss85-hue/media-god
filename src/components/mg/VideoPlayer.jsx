@@ -1986,6 +1986,187 @@ export default function VideoPlayer({
     sources,
   ]);
 
+  useEffect(() => {
+    if (
+      isLive ||
+      isYoutube ||
+      isProvider ||
+      sources.length <= 1 ||
+      rdResolving ||
+      rdPolling ||
+      rdTorrentId ||
+      readPlaybackPreferences().autoRecovery === false
+    ) {
+      return undefined;
+    }
+
+    const generation = prewarmGenerationRef.current;
+    let cancelled = false;
+    let timer = null;
+
+    const prepare = async () => {
+      if (cancelled || generation !== prewarmGenerationRef.current) return;
+
+      const video = stageRef.current?.querySelector("video");
+      if (
+        !(video instanceof HTMLVideoElement) ||
+        video.paused ||
+        video.ended ||
+        video.readyState < 2
+      ) {
+        timer = window.setTimeout(prepare, 1400);
+        return;
+      }
+
+      const nextIndex = findNextPlayableSource(activeIdx);
+      if (nextIndex < 0 || preparedBackupsRef.current.has(nextIndex)) return;
+
+      const candidate = sources[nextIndex];
+      const candidateUrl = getSourceUrl(candidate);
+      const torrentCandidate =
+        candidate?.type === "rd" ||
+        candidate?.type === "rd_torrent" ||
+        candidate?.type === "torrent" ||
+        candidate?.type === "magnet" ||
+        isMagnet(candidateUrl);
+
+      if (!torrentCandidate || !candidateUrl || candidate?.debridCached === false) {
+        return;
+      }
+
+      const hash = magnetHash(candidateUrl);
+      let provider = String(candidate?.debridProvider || "")
+        .toLowerCase()
+        .replace(/[^a-z]/g, "");
+
+      if (!provider && hash && source?.hasDebrid) {
+        try {
+          const cacheResponse = await base44.functions.invoke(
+            "multiDebrid",
+            {
+              action: "check_cache",
+              hashes: [hash],
+              provider_scores: debridProviderScoreHints(),
+            }
+          );
+          provider = String(
+            cacheResponse?.data?.bestProviderByHash?.[hash] || ""
+          )
+            .toLowerCase()
+            .replace(/[^a-z]/g, "");
+        } catch {
+          provider = "";
+        }
+      }
+
+      if (!provider || cancelled || generation !== prewarmGenerationRef.current) {
+        return;
+      }
+
+      try {
+        const startedAt = Date.now();
+
+        if (provider !== "realdebrid") {
+          const response = await base44.functions.invoke(
+            "multiDebrid",
+            {
+              action: "resolve",
+              provider,
+              provider_scores: debridProviderScoreHints(),
+              source: candidateUrl,
+              ...(source?.rdSeason != null ? { season: source.rdSeason } : {}),
+              ...(source?.rdEpisode != null ? { episode: source.rdEpisode } : {}),
+            }
+          );
+          const data = response?.data || {};
+
+          if (data?.url) {
+            recordDebridProviderResult(data.provider || provider, {
+              success: true,
+              latencyMs: Date.now() - startedAt,
+            });
+
+            if (!cancelled && generation === prewarmGenerationRef.current) {
+              preparedBackupsRef.current.set(nextIndex, {
+                sourceUrl: candidateUrl,
+                files: [],
+                override: {
+                  src: data.url,
+                  label:
+                    data.filename ||
+                    data.providerName ||
+                    sourceDisplayLabel(candidate, nextIndex),
+                  file: data.filename || "",
+                  provider: data.provider || provider,
+                },
+              });
+            }
+          }
+
+          return;
+        }
+
+        if (!source?.hasRd) return;
+
+        const response = await base44.functions.invoke(
+          "realDebrid",
+          {
+            action: "resolve_best",
+            magnet: candidateUrl,
+            title: source?.rdTitle || source?.title || "",
+            ...(source?.rdYear != null ? { year: source.rdYear } : {}),
+            ...(source?.rdSeason != null ? { season: source.rdSeason } : {}),
+            ...(source?.rdEpisode != null ? { episode: source.rdEpisode } : {}),
+          }
+        );
+        const data = response?.data || {};
+
+        if (data?.status === "ready" && data?.stream_url) {
+          recordDebridProviderResult("realdebrid", {
+            success: true,
+            latencyMs: Date.now() - startedAt,
+          });
+
+          if (!cancelled && generation === prewarmGenerationRef.current) {
+            preparedBackupsRef.current.set(nextIndex, {
+              sourceUrl: candidateUrl,
+              files: data.files || [],
+              override: {
+                src: data.stream_url,
+                label:
+                  data.filename ||
+                  sourceDisplayLabel(candidate, nextIndex),
+                file: currentFilePath(data.files),
+                provider: "realdebrid",
+                audioRescue: data.audio_rescue || null,
+                mediaInfo: data.media_info || null,
+              },
+            });
+          }
+        }
+      } catch {
+        // Prewarming is optional. Normal resolution remains the fallback.
+      }
+    };
+
+    timer = window.setTimeout(prepare, 3200);
+
+    return () => {
+      cancelled = true;
+      if (timer) window.clearTimeout(timer);
+    };
+  }, [
+    activeIdx,
+    isLive,
+    isProvider,
+    isYoutube,
+    rdPolling,
+    rdResolving,
+    rdTorrentId,
+    source,
+    sources,
+  ]);
+
   const pickFile =
     async (
       file
