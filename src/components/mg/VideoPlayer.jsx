@@ -21,10 +21,12 @@ import PlayerControls from "@/components/mg/PlayerControls";
 import { readTrackPreferences } from "@/components/mg/mediaTrackPreferences";
 import { readPlaybackPreferences } from "@/components/mg/playbackPreferences";
 import {
+  hasRecentNoSoundHistory,
   playbackReliabilityAdjustment,
   recordPlaybackReliability,
 } from "@/components/mg/playbackReliability";
 import {
+  detectStreamTraits,
   getPlaybackDeviceProfile,
   scoreSourceCompatibility,
 } from "@/components/mg/mediaCompatibility";
@@ -172,6 +174,10 @@ export default function VideoPlayer({
   const stageRef = useRef(null);
   const pollRef = useRef(null);
   const recoveryResumeRef = useRef(0);
+  const autoAudioRescueRef = useRef({
+    key: "",
+    timer: null,
+  });
   const autoRecoveryRef = useRef({
     lastTime: 0,
     lastProgressAt: Date.now(),
@@ -2054,8 +2060,10 @@ export default function VideoPlayer({
     };
 
   const handleNoSound =
-    async () => {
-      if (typeof window !== "undefined") {
+    async (options = {}) => {
+      const automatic = options?.automatic === true;
+
+      if (!automatic && typeof window !== "undefined") {
         window.dispatchEvent(
           new CustomEvent("mg:playback-no-sound", {
             detail: {
