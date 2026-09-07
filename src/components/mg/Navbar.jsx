@@ -17,6 +17,7 @@ import {
   Search,
   Settings,
   Shield,
+  Smartphone,
   Tv,
   Users,
 } from "lucide-react";
@@ -79,6 +80,11 @@ const NAV = [
     id: "roadmap",
     label: "Roadmap",
     icon: Calendar,
+  },
+  {
+    id: "remote",
+    label: "Phone Remote",
+    icon: Smartphone,
   },
   {
     id: "settings",
