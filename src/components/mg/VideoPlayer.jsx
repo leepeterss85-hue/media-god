@@ -1666,28 +1666,34 @@ export default function VideoPlayer({
 
       state.abandoned.add(activeIdx);
 
-      let nextIndex = -1;
+      const candidates = sources
+        .map((candidate, index) => {
+          const candidateUrl = getSourceUrl(candidate);
+          const torrentCandidate =
+            candidate?.type === "rd" ||
+            candidate?.type === "rd_torrent" ||
+            candidate?.type === "torrent" ||
+            candidate?.type === "magnet" ||
+            isMagnet(candidateUrl);
 
-      for (let offset = 1; offset <= sources.length; offset += 1) {
-        const index = (activeIdx + offset) % sources.length;
-        const candidate = sources[index];
-        const candidateUrl = getSourceUrl(candidate);
-        const torrentCandidate =
-          candidate?.type === "rd" ||
-          candidate?.type === "rd_torrent" ||
-          candidate?.type === "torrent" ||
-          candidate?.type === "magnet" ||
-          isMagnet(candidateUrl);
+          if (
+            index === activeIdx ||
+            state.abandoned.has(index) ||
+            failedSourcesRef.current.has(index) ||
+            (!candidateUrl && !torrentCandidate)
+          ) {
+            return null;
+          }
 
-        if (
-          index !== activeIdx &&
-          !state.abandoned.has(index) &&
-          (candidateUrl || torrentCandidate)
-        ) {
-          nextIndex = index;
-          break;
-        }
-      }
+          return {
+            index,
+            score: recoverySourceScore(candidate, index),
+          };
+        })
+        .filter(Boolean)
+        .sort((a, b) => b.score - a.score || a.index - b.index);
+
+      const nextIndex = candidates[0]?.index ?? -1;
 
       if (nextIndex < 0) {
         setRdError(
@@ -1706,7 +1712,7 @@ export default function VideoPlayer({
         recoveryResumeRef.current = resumeAt;
       }
 
-      recordPlaybackReliability(label, "failure");
+      recordPlaybackReliability(label, "buffer");
       markSourceFailed(activeIdx);
       clearSourceFailed(nextIndex);
 
@@ -1727,8 +1733,8 @@ export default function VideoPlayer({
           detail: {
             message:
               resumeAt > 5
-                ? `Playback stalled — switching source and resuming at ${Math.floor(resumeAt / 60)} min…`
-                : "Playback stalled — switching to a backup source…",
+                ? `Playback stalled — switching to the best learned backup and resuming at ${Math.floor(resumeAt / 60)} min…`
+                : "Playback stalled — switching to the best learned backup…",
           },
         })
       );
