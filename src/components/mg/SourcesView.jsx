@@ -199,10 +199,25 @@ const searchPlex = async (server, query) => {
   );
 };
 
-const plexDirectUrl = async (result) => {
+const audioInfoLabel = (audio = {}) => {
+  const language = clean(audio?.language || audio?.Language || audio?.lang);
+  const codec = clean(audio?.codec || audio?.Codec).toUpperCase();
+  const channels = Number(audio?.channels || audio?.Channels || audio?.channelCount || 0);
+  const channelLabel =
+    channels >= 8 ? "7.1" : channels >= 6 ? "5.1" : channels >= 2 ? "2.0" : "";
+
+  return [language, codec, channelLabel].filter(Boolean).join(" · ");
+};
+
+const riskyServerAudio = (audio = {}) =>
+  /\b(?:truehd|mlp|dts(?:-?hd)?|dts:x|dca)\b/i.test(
+    `${audio?.codec || audio?.Codec || ""} ${audio?.displayTitle || audio?.DisplayTitle || ""}`
+  );
+
+const plexPlaybackInfo = async (result) => {
   const server = result.server;
   const key = clean(result?.raw?.ratingKey || result?.id);
-  if (!key) return "";
+  if (!key) return null;
 
   const url = new URL(
     `${trimSlash(server.baseUrl)}/library/metadata/${encodeURIComponent(key)}`
@@ -213,18 +228,74 @@ const plexDirectUrl = async (result) => {
   const response = await fetchWithTimeout(url.toString(), {
     headers: serverHeaders(server),
   });
-  if (!response.ok) return "";
+  if (!response.ok) return null;
 
   const data = await response.json();
   const item = data?.MediaContainer?.Metadata?.[0];
-  const part = item?.Media?.[0]?.Part?.[0]?.key;
-  if (!part) return "";
+  const media = item?.Media?.[0];
+  const part = media?.Part?.[0];
+  const partKey = part?.key;
+  if (!partKey) return null;
 
-  const absolute = String(part).startsWith("http")
-    ? String(part)
-    : `${trimSlash(server.baseUrl)}${part}`;
+  const directAbsolute = String(partKey).startsWith("http")
+    ? String(partKey)
+    : `${trimSlash(server.baseUrl)}${partKey}`;
+  const directUrl = withKey(server, directAbsolute);
+  const audioStream = (Array.isArray(part?.Stream) ? part.Stream : []).find(
+    (stream) => Number(stream?.streamType) === 2
+  ) || {};
 
-  return withKey(server, absolute);
+  const transcode = new URL(
+    `${trimSlash(server.baseUrl)}/video/:/transcode/universal/start.m3u8`
+  );
+  transcode.searchParams.set("path", `/library/metadata/${key}`);
+  transcode.searchParams.set("mediaIndex", "0");
+  transcode.searchParams.set("partIndex", "0");
+  transcode.searchParams.set("protocol", "hls");
+  transcode.searchParams.set("directPlay", "0");
+  transcode.searchParams.set("directStream", "1");
+  transcode.searchParams.set("fastSeek", "1");
+  transcode.searchParams.set("audioBoost", "100");
+  transcode.searchParams.set("location", "lan");
+  transcode.searchParams.set("X-Plex-Client-Identifier", "media-god-web");
+  transcode.searchParams.set("X-Plex-Product", "Media God");
+  transcode.searchParams.set("X-Plex-Version", "1.0");
+  transcode.searchParams.set("X-Plex-Platform", "Chrome");
+  transcode.searchParams.set("X-Plex-Device", "Fire TV WebView");
+  if (server.apiKey) transcode.searchParams.set("X-Plex-Token", server.apiKey);
+
+  return {
+    directUrl,
+    transcodeUrl: transcode.toString(),
+    audio: {
+      language: audioStream?.language || audioStream?.languageCode || "",
+      codec: audioStream?.codec || media?.audioCodec || "",
+      channels: audioStream?.channels || media?.audioChannels || 0,
+      displayTitle: audioStream?.displayTitle || audioStream?.title || "",
+    },
+  };
+};
+
+const jellyfinAudioInfo = (result) => {
+  const mediaSource = Array.isArray(result?.raw?.MediaSources)
+    ? result.raw.MediaSources[0]
+    : null;
+  const streams = Array.isArray(mediaSource?.MediaStreams)
+    ? mediaSource.MediaStreams
+    : Array.isArray(result?.raw?.MediaStreams)
+      ? result.raw.MediaStreams
+      : [];
+  const audio = streams.find(
+    (stream) => String(stream?.Type || "").toLowerCase() === "audio"
+  ) || {};
+
+  return {
+    language: audio?.Language || "",
+    codec: audio?.Codec || "",
+    channels: audio?.Channels || 0,
+    displayTitle: audio?.DisplayTitle || audio?.Title || "",
+    mediaSourceId: mediaSource?.Id || "",
+  };
 };
 
 const jellyfinDirectUrl = (result) => {
@@ -233,6 +304,27 @@ const jellyfinDirectUrl = (result) => {
   const url = new URL(`${trimSlash(server.baseUrl)}/Videos/${id}/stream`);
   url.searchParams.set("Static", "true");
   if (server.apiKey) url.searchParams.set("api_key", server.apiKey);
+  return url.toString();
+};
+
+const jellyfinTranscodeUrl = (result, audio = jellyfinAudioInfo(result)) => {
+  const server = result.server;
+  const id = encodeURIComponent(result.id);
+  const url = new URL(`${trimSlash(server.baseUrl)}/Videos/${id}/master.m3u8`);
+
+  url.searchParams.set("VideoCodec", "h264");
+  url.searchParams.set("AudioCodec", "aac");
+  url.searchParams.set("AudioBitrate", "192000");
+  url.searchParams.set("MaxAudioChannels", "6");
+  url.searchParams.set("TranscodingContainer", "ts");
+  url.searchParams.set("TranscodingProtocol", "hls");
+  url.searchParams.set("EnableAutoStreamCopy", "true");
+  url.searchParams.set("BreakOnNonKeyFrames", "true");
+  if (audio?.mediaSourceId) {
+    url.searchParams.set("MediaSourceId", audio.mediaSourceId);
+  }
+  if (server.apiKey) url.searchParams.set("api_key", server.apiKey);
+
   return url.toString();
 };
 
