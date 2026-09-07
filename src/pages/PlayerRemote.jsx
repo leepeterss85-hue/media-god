@@ -543,20 +543,16 @@ export default function PlayerRemote() {
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
-                      disabled={Number(session?.episode_number || 0) <= 1}
-                      onClick={() =>
-                        send(
-                          "episode",
-                          JSON.stringify({
-                            tmdbId: session?.tmdb_id,
-                            season: Number(session?.season_number || 1),
-                            episode: Math.max(
-                              1,
-                              Number(session?.episode_number || 1) - 1
-                            ),
-                          })
+                      disabled={
+                        Number(session?.episode_number || 0) <= 1 &&
+                        !seasons.some(
+                          (item) =>
+                            Number(item?.season_number || 0) <
+                              Number(session?.season_number || 0) &&
+                            Number(item?.episode_count || 0) > 0
                         )
                       }
+                      onClick={playPreviousEpisode}
                       className="remote-btn gap-2 disabled:opacity-35"
                     >
                       <SkipBack className="h-4 w-4" />
