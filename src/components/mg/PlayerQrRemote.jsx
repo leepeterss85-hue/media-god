@@ -151,6 +151,8 @@ export default function PlayerQrRemote({ showIdle = false }) {
   const [error, setError] = useState("");
   const sessionRef = useRef(null);
   const lastCommandSeqRef = useRef(0);
+  const hlsAudioTracksRef = useRef([]);
+  const hlsAudioActiveRef = useRef(-1);
 
   playerRef.current = player;
 
@@ -158,6 +160,21 @@ export default function PlayerQrRemote({ showIdle = false }) {
     let cancelled = false;
     let unsubscribe = null;
     let statusTimer = null;
+
+    const onHlsAudioTracks = (event) => {
+      hlsAudioTracksRef.current = Array.isArray(event?.detail?.tracks)
+        ? event.detail.tracks
+        : [];
+      const activeIndex = Number(event?.detail?.activeIndex);
+      hlsAudioActiveRef.current = Number.isInteger(activeIndex)
+        ? activeIndex
+        : -1;
+    };
+
+    window.addEventListener(
+      "mg:hls-audio-tracks",
+      onHlsAudioTracks
+    );
 
     const ensureSession = async () => {
       const stored = readStoredSession();
@@ -299,23 +316,46 @@ export default function PlayerQrRemote({ showIdle = false }) {
               setSelectValue("Choose playback source", value);
             } else if (command === "file") {
               setSelectValue("Choose file", value);
-            } else if (command === "audio" && video?.audioTracks) {
+            } else if (command === "audio") {
               const wanted = parseNumber(value, -1);
+              const nativeTracks = video?.audioTracks;
 
-              for (let index = 0; index < video.audioTracks.length; index += 1) {
-                try {
-                  video.audioTracks[index].enabled = index === wanted;
-                } catch {
-                  // Some Android WebViews expose read-only audio state.
+              if (
+                nativeTracks &&
+                typeof nativeTracks.length === "number" &&
+                nativeTracks.length > 0
+              ) {
+                for (let index = 0; index < nativeTracks.length; index += 1) {
+                  try {
+                    nativeTracks[index].enabled = index === wanted;
+                  } catch {
+                    // Some Android WebViews expose read-only audio state.
+                  }
                 }
-              }
 
-              const chosen = wanted >= 0 ? video.audioTracks[wanted] : null;
-              if (chosen) {
+                const chosen = wanted >= 0 ? nativeTracks[wanted] : null;
+                if (chosen) {
+                  writeTrackPreferences({
+                    ...readTrackPreferences(),
+                    audioLanguage:
+                      chosen?.language || chosen?.label || "en",
+                  });
+                }
+              } else if (
+                wanted >= 0 &&
+                wanted < hlsAudioTracksRef.current.length
+              ) {
+                const chosen = hlsAudioTracksRef.current[wanted];
+                window.dispatchEvent(
+                  new CustomEvent("mg:hls-audio-track-selected", {
+                    detail: { index: wanted },
+                  })
+                );
+                hlsAudioActiveRef.current = wanted;
                 writeTrackPreferences({
                   ...readTrackPreferences(),
                   audioLanguage:
-                    chosen?.language || chosen?.label || "en",
+                    chosen?.language || chosen?.lang || chosen?.label || "en",
                 });
               }
             } else if (command === "subtitle" && video?.textTracks) {
@@ -476,12 +516,21 @@ export default function PlayerQrRemote({ showIdle = false }) {
           let activeAudioIndex = -1;
           let activeSubtitleIndex = -1;
 
-          if (video?.audioTracks && typeof video.audioTracks.length === "number") {
+          if (
+            video?.audioTracks &&
+            typeof video.audioTracks.length === "number" &&
+            video.audioTracks.length > 0
+          ) {
             for (let index = 0; index < video.audioTracks.length; index += 1) {
               const track = video.audioTracks[index];
               audioTracks.push(friendlyTrackLabel(track, "Audio", index));
               if (track?.enabled) activeAudioIndex = index;
             }
+          } else if (hlsAudioTracksRef.current.length > 0) {
+            hlsAudioTracksRef.current.forEach((track, index) => {
+              audioTracks.push(friendlyTrackLabel(track, "Audio", index));
+            });
+            activeAudioIndex = hlsAudioActiveRef.current;
           }
 
           if (video?.textTracks && typeof video.textTracks.length === "number") {
@@ -553,6 +602,10 @@ export default function PlayerQrRemote({ showIdle = false }) {
       cancelled = true;
       if (unsubscribe) unsubscribe();
       if (statusTimer) window.clearInterval(statusTimer);
+      window.removeEventListener(
+        "mg:hls-audio-tracks",
+        onHlsAudioTracks
+      );
       sessionRef.current = null;
     };
   }, []);
