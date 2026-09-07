@@ -167,13 +167,12 @@ body.mg-fire-tv-mode [data-mg-player-options-panel="true"] {
   position: fixed !important;
   top: 68px !important;
   left: 18px !important;
-  right: 18px !important;
+  right: 116px !important;
   width: auto !important;
   max-width: none !important;
   margin: 0 !important;
   padding: 10px 12px !important;
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto !important;
+  display: flex !important;
   align-items: end !important;
   gap: 10px !important;
   border: 1px solid rgba(255, 255, 255, 0.14) !important;
@@ -190,6 +189,7 @@ body.mg-fire-tv-stable [data-mg-player-options-panel="true"] label,
 body.mg-fire-tv-mode [data-mg-player-options-panel="true"] label {
   display: block !important;
   min-width: 0 !important;
+  flex: 1 1 0 !important;
 }
 
 body.mg-fire-tv [data-mg-player-options-panel="true"] select,
@@ -242,11 +242,36 @@ body.mg-fire-tv-mode [data-mg-no-sound="true"] {
   background: rgba(28, 28, 28, 0.98) !important;
 }
 
+body.mg-fire-tv [data-mg-player-qr="true"],
+body.mg-fire-tv-stable [data-mg-player-qr="true"],
+body.mg-fire-tv-mode [data-mg-player-qr="true"] {
+  position: fixed !important;
+  top: 68px !important;
+  right: 18px !important;
+  z-index: 2147483647 !important;
+  pointer-events: auto !important;
+}
+
+body.mg-fire-tv [data-mg-player-qr="true"] img,
+body.mg-fire-tv-stable [data-mg-player-qr="true"] img,
+body.mg-fire-tv-mode [data-mg-player-qr="true"] img {
+  width: 78px !important;
+  height: 78px !important;
+}
+
 @media (max-width: 760px) {
   body.mg-fire-tv [data-mg-player-options-panel="true"],
   body.mg-fire-tv-stable [data-mg-player-options-panel="true"],
   body.mg-fire-tv-mode [data-mg-player-options-panel="true"] {
-    grid-template-columns: minmax(0, 1fr) auto !important;
+    right: 108px !important;
+    gap: 8px !important;
+    padding: 8px 10px !important;
+  }
+
+  body.mg-fire-tv [data-mg-player-options-panel="true"] button,
+  body.mg-fire-tv-stable [data-mg-player-options-panel="true"] button,
+  body.mg-fire-tv-mode [data-mg-player-options-panel="true"] button {
+    min-width: 110px !important;
   }
 }
 
