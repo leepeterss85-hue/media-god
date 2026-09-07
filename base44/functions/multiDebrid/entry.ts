@@ -93,6 +93,62 @@ const priorityFor = (user) => {
   return ordered;
 };
 
+const providerScoreHints = (body) => {
+  const raw =
+    body?.provider_scores && typeof body.provider_scores === "object"
+      ? body.provider_scores
+      : {};
+  const output = {};
+
+  providerKeys().forEach((key) => {
+    const value = Number(raw?.[key] || 0);
+    output[key] = Number.isFinite(value)
+      ? Math.max(-12000, Math.min(12000, value))
+      : 0;
+  });
+
+  return output;
+};
+
+const providerSelectionScore = ({
+  providerKey,
+  priority,
+  providerStats,
+  hints,
+}) => {
+  const priorityIndex = Math.max(0, priority.indexOf(providerKey));
+  const latencyMs = Number(providerStats?.[providerKey]?.latencyMs || 0);
+  const latencyBonus = latencyMs > 0
+    ? Math.max(-1800, Math.min(1800, 1800 - latencyMs * 0.45))
+    : 0;
+  const learned = Number(hints?.[providerKey] || 0);
+
+  return 20000 - priorityIndex * 2200 + latencyBonus + learned;
+};
+
+const bestCachedProvider = ({
+  hash,
+  priority,
+  cached,
+  providerStats,
+  hints,
+}) => {
+  const candidates = priority
+    .filter((key) => cached?.[key]?.[hash] === true)
+    .map((key) => ({
+      key,
+      score: providerSelectionScore({
+        providerKey: key,
+        priority,
+        providerStats,
+        hints,
+      }),
+    }))
+    .sort((a, b) => b.score - a.score || priority.indexOf(a.key) - priority.indexOf(b.key));
+
+  return candidates[0] || null;
+};
+
 const requestJson = async (url, options = {}, timeoutMs = 12000) => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -737,30 +793,63 @@ export default async function (req) {
 
       const priority = priorityFor(user).filter((key) => requested.includes(key));
       const cached = {};
+      const providerStats = {};
+      const hints = providerScoreHints(body);
 
       await Promise.all(
         priority.map(async (key) => {
           const token = tokenFor(user, key);
           if (!token) return;
+          const startedAt = Date.now();
 
           try {
             cached[key] = await checkCacheForProvider(key, token, hashes);
+            providerStats[key] = {
+              latencyMs: Date.now() - startedAt,
+              error: "",
+            };
           } catch (error) {
             cached[key] = Object.fromEntries(hashes.map((hash) => [hash, false]));
             cached[key].__error = clean(error?.message || "Cache check failed");
+            providerStats[key] = {
+              latencyMs: Date.now() - startedAt,
+              error: clean(error?.message || "Cache check failed"),
+            };
           }
         })
       );
 
       const bestProviderByHash = {};
+      const providerScoresByHash = {};
       hashes.forEach((hash) => {
-        const provider = priority.find((key) => cached?.[key]?.[hash] === true);
-        if (provider) bestProviderByHash[hash] = provider;
+        const best = bestCachedProvider({
+          hash,
+          priority,
+          cached,
+          providerStats,
+          hints,
+        });
+        if (best?.key) bestProviderByHash[hash] = best.key;
+        providerScoresByHash[hash] = Object.fromEntries(
+          priority
+            .filter((key) => cached?.[key]?.[hash] === true)
+            .map((key) => [
+              key,
+              providerSelectionScore({
+                providerKey: key,
+                priority,
+                providerStats,
+                hints,
+              }),
+            ])
+        );
       });
 
       return Response.json({
         cached,
         bestProviderByHash,
+        providerScoresByHash,
+        providerStats,
         providersChecked: priority,
       });
     }
@@ -778,22 +867,43 @@ export default async function (req) {
 
       if (!providerKey && hash) {
         const cacheResult = {};
+        const providerStats = {};
+        const hints = providerScoreHints(body);
 
         await Promise.all(
           priority.map(async (key) => {
             const token = tokenFor(user, key);
             if (!token) return;
+            const startedAt = Date.now();
 
             try {
               const result = await checkCacheForProvider(key, token, [hash]);
               cacheResult[key] = Boolean(result?.[hash]);
-            } catch {
+              providerStats[key] = {
+                latencyMs: Date.now() - startedAt,
+                error: "",
+              };
+            } catch (error) {
               cacheResult[key] = false;
+              providerStats[key] = {
+                latencyMs: Date.now() - startedAt,
+                error: clean(error?.message || "Cache check failed"),
+              };
             }
           })
         );
 
-        providerKey = priority.find((key) => cacheResult[key] === true) || "";
+        const cachedShape = Object.fromEntries(
+          priority.map((key) => [key, { [hash]: cacheResult[key] === true }])
+        );
+        providerKey =
+          bestCachedProvider({
+            hash,
+            priority,
+            cached: cachedShape,
+            providerStats,
+            hints,
+          })?.key || "";
       }
 
       providerKey = providerKey || priority[0] || "";
