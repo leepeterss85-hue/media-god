@@ -1,4 +1,5 @@
 const FIRE_TV_RE = /(?:AFT[A-Z0-9]*|Fire TV|AmazonWebAppPlatform|Silk)/i;
+const TV_LAYOUT_WIDTH = 1920;
 
 const DIRECTION_KEYS = {
   ArrowUp: "up",
@@ -338,9 +339,6 @@ const genericMove = (current, direction) => {
 };
 
 const installViewportGuard = () => {
-  const desired =
-    "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover";
-
   let meta = document.querySelector('meta[name="viewport"]');
 
   if (!meta) {
@@ -349,10 +347,51 @@ const installViewportGuard = () => {
     document.head.appendChild(meta);
   }
 
+  /*
+   * Capture the WebView's visible CSS width BEFORE changing the viewport.
+   * Firestick 4K commonly reports about 960 CSS pixels. We then expose a
+   * stable 1920px TV layout and fit that layout back into the same visible
+   * width. Do not recalculate after the viewport changes or it can jump back
+   * to scale 1 and make the whole interface enormous again.
+   */
+  const visibleWidth = Math.max(
+    1,
+    Number(window.innerWidth || 0),
+    Number(document.documentElement.clientWidth || 0)
+  );
+
+  const fitScale =
+    visibleWidth >= 1600
+      ? 1
+      : Math.max(
+          0.25,
+          Math.min(1, visibleWidth / TV_LAYOUT_WIDTH)
+        );
+
+  const scaleText = fitScale.toFixed(4);
+  const desired = [
+    `width=${TV_LAYOUT_WIDTH}`,
+    `initial-scale=${scaleText}`,
+    `minimum-scale=${scaleText}`,
+    `maximum-scale=${scaleText}`,
+    "user-scalable=no",
+    "viewport-fit=cover",
+  ].join(", ");
+
   const restore = () => {
     if (meta.getAttribute("content") !== desired) {
       meta.setAttribute("content", desired);
     }
+
+    document.documentElement.style.setProperty(
+      "--mg-tv-design-width",
+      `${TV_LAYOUT_WIDTH}px`
+    );
+
+    document.documentElement.style.setProperty(
+      "--mg-tv-fit-scale",
+      scaleText
+    );
   };
 
   restore();
@@ -363,8 +402,11 @@ const installViewportGuard = () => {
     attributeFilter: ["content"],
   });
 
+  /* Beat any late viewport write from the older remote helper. */
+  window.setTimeout(restore, 80);
   window.setTimeout(restore, 220);
   window.setTimeout(restore, 500);
+  window.setTimeout(restore, 1000);
 };
 
 export const installFireTvStableMode = () => {
@@ -377,6 +419,13 @@ export const installFireTvStableMode = () => {
   }
 
   window.__MG_FIRE_TV_STABLE_MODE__ = true;
+
+  /* Make Fire TV styling independent of which helper detected the device. */
+  document.documentElement.classList.add("mg-fire-tv");
+  document.body?.classList.add("mg-fire-tv");
+  document.documentElement.classList.add("mg-fire-tv-stable");
+  document.body?.classList.add("mg-fire-tv-stable");
+
   installViewportGuard();
 
   let lastMoveAt = 0;
@@ -407,7 +456,7 @@ export const installFireTvStableMode = () => {
 
       const now = Date.now();
 
-      if (now - lastMoveAt < 120) {
+      if (event.repeat || now - lastMoveAt < 140) {
         return;
       }
 
