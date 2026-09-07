@@ -1765,17 +1765,20 @@ export default function VideoPlayer({
           <div className="flex items-center gap-2 min-w-0">
             <button
               type="button"
-              onClick={
-                onClose
-              }
+              data-mg-player-exit="true"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onClose?.();
+              }}
               className="shrink-0 flex items-center gap-1.5 min-h-9 rounded-lg border border-white/10 bg-white/5 px-2.5 text-xs font-semibold text-white hover:bg-white/10 hover:border-mg-green/40 focus:outline-none focus:ring-2 focus:ring-mg-green/50"
-              aria-label="Back"
-              title="Back"
+              aria-label="Exit player"
+              title="Exit player"
             >
               <ArrowLeft className="w-4 h-4" />
 
               <span>
-                Back
+                Exit
               </span>
             </button>
 
