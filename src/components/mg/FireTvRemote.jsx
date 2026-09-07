@@ -357,8 +357,13 @@ export default function FireTvRemote() {
      * Its only job now is D-pad/select/media handling inside overlays such as
      * details, episode selectors and the video player.
      */
-    document.documentElement.classList.add("mg-fire-tv-mode");
-    document.body?.classList.add("mg-fire-tv-mode");
+    const activateTvMode = () => {
+      if (!isFireTv()) return;
+      document.documentElement.classList.add("mg-fire-tv-mode");
+      document.body?.classList.add("mg-fire-tv-mode");
+    };
+
+    activateTvMode();
 
     const focusOverlay = () => {
       if (!isFireTv()) {
@@ -462,6 +467,7 @@ export default function FireTvRemote() {
     };
 
     window.addEventListener("keydown", onKeyDown, false);
+    window.addEventListener("mg:tv-remote-detected", activateTvMode);
 
     const observer = new MutationObserver(focusOverlay);
 
@@ -474,6 +480,7 @@ export default function FireTvRemote() {
 
     return () => {
       window.removeEventListener("keydown", onKeyDown, false);
+      window.removeEventListener("mg:tv-remote-detected", activateTvMode);
       observer.disconnect();
       document.documentElement.classList.remove("mg-fire-tv-mode");
       document.body?.classList.remove("mg-fire-tv-mode");
