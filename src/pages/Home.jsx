@@ -583,10 +583,6 @@ function MediaGodApp() {
 
       <MediaGodV2Assist />
 
-      <PlayerQrRemote
-        showIdle={view === "home"}
-      />
-
       {showPageBack && (
         <button
           type="button"
@@ -679,6 +675,10 @@ function MediaGodApp() {
                 "settings"
               );
             }}
+          />
+
+          <PlayerQrRemote
+            showIdle={view === "remote"}
           />
 
           {view ===
