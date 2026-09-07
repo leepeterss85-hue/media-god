@@ -1503,17 +1503,31 @@ export default function LiveTVView() {
                 clockTick
               );
 
+              const memoryKey = channelMemoryKey(channel);
+              const favourite = favouriteKeys.has(memoryKey);
+
               return (
-                <button
+                <div
                   key={`${channel.id}-${index}`}
-                  type="button"
-                  onClick={() =>
-                    playChannel(
-                      channel
-                    )
-                  }
-                  className="group flex min-h-[118px] items-start gap-3 rounded-xl border border-white/10 bg-mg-card p-3 text-left transition-colors hover:border-mg-green/60 hover:bg-mg-surface focus:border-mg-green focus:outline-none"
+                  className="group relative min-h-[118px]"
+                  data-mg-live-tv-channel="true"
                 >
+                  <button
+                    type="button"
+                    onClick={() =>
+                      playChannel(
+                        channel
+                      )
+                    }
+                    onFocus={(event) => {
+                      setFocusedChannelKey(memoryKey);
+                      event.currentTarget.scrollIntoView({
+                        block: "nearest",
+                        inline: "nearest",
+                      });
+                    }}
+                    className="flex h-full min-h-[118px] w-full items-start gap-3 rounded-xl border border-white/10 bg-mg-card p-3 pr-11 text-left transition-colors hover:border-mg-green/60 hover:bg-mg-surface focus:border-mg-green focus:bg-mg-surface focus:outline-none focus:ring-2 focus:ring-mg-green/40"
+                  >
                   <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-black/30">
                     {radio ? (
                       <Radio className="h-5 w-5 text-mg-green/50" />
@@ -1659,14 +1673,46 @@ export default function LiveTVView() {
                     </div>
                   </div>
 
-                  {radio ? (
-                    <Volume2 className="h-4 w-4 shrink-0 text-mg-green" />
-                  ) : external ? (
-                    <ExternalLink className="h-4 w-4 shrink-0 text-white/30" />
-                  ) : (
-                    <Wifi className="h-4 w-4 shrink-0 text-mg-green" />
-                  )}
-                </button>
+                    {radio ? (
+                      <Volume2 className="h-4 w-4 shrink-0 text-mg-green" />
+                    ) : external ? (
+                      <ExternalLink className="h-4 w-4 shrink-0 text-white/30" />
+                    ) : (
+                      <Wifi className="h-4 w-4 shrink-0 text-mg-green" />
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    aria-label={
+                      favourite
+                        ? `Remove ${channel.name} from favourites`
+                        : `Add ${channel.name} to favourites`
+                    }
+                    title={favourite ? "Remove favourite" : "Add favourite"}
+                    onClick={() => toggleFavouriteChannel(channel)}
+                    onFocus={(event) => {
+                      setFocusedChannelKey(memoryKey);
+                      event.currentTarget.scrollIntoView({
+                        block: "nearest",
+                        inline: "nearest",
+                      });
+                    }}
+                    className={cn(
+                      "absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full border bg-black/70 outline-none transition-colors focus:ring-2 focus:ring-mg-green",
+                      favourite
+                        ? "border-mg-green/50 text-mg-green"
+                        : "border-white/10 text-white/45 hover:text-white"
+                    )}
+                  >
+                    <Star
+                      className={cn(
+                        "h-4 w-4",
+                        favourite && "fill-current"
+                      )}
+                    />
+                  </button>
+                </div>
               );
             }
           )}
