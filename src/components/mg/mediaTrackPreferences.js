@@ -1,4 +1,5 @@
 export const MEDIA_TRACK_PREFERENCES_KEY = "mg:media-track-preferences-v1";
+export const MEDIA_TITLE_AUDIO_PREFERENCES_KEY = "mg:title-audio-preferences-v1";
 
 export const DEFAULT_MEDIA_TRACK_PREFERENCES = {
   audioLanguage: "en",
@@ -120,6 +121,136 @@ export const trackLooksForced = (track) =>
   /\bforced\b|\bforeign parts?\b/i.test(
     String(track?.label || track?.name || "")
   );
+
+const audioCodecKey = (track) => {
+  const text = [
+    track?.audioCodec,
+    track?.codec,
+    track?.label,
+    track?.name,
+    track?.attrs?.CODECS,
+    track?.attrs?.NAME,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  if (/\b(?:truehd|mlp)\b/i.test(text)) return "truehd";
+  if (/\b(?:dts(?:-?hd)?|dts:x|dca)\b/i.test(text)) return "dts";
+  if (/\b(?:e-?ac-?3|eac3|ec-?3|ddp|dd\+)\b/i.test(text)) return "eac3";
+  if (/\b(?:ac-?3|ac3|dolby digital)\b/i.test(text)) return "ac3";
+  if (/\b(?:aac|he-?aac|mp4a)\b/i.test(text)) return "aac";
+  if (/\bopus\b/i.test(text)) return "opus";
+  if (/\bflac\b/i.test(text)) return "flac";
+  if (/\b(?:mp3|mpeg audio)\b/i.test(text)) return "mp3";
+  return "";
+};
+
+const audioChannelKey = (track) => {
+  const direct =
+    track?.channels ||
+    track?.channelCount ||
+    track?.attrs?.CHANNELS ||
+    track?.attrs?.CHANNEL_COUNT ||
+    "";
+  const text = `${direct} ${track?.label || ""} ${track?.name || ""}`;
+  const match = text.match(/(?:^|[^0-9])(7\.1|5\.1|2\.1|2\.0|1\.0|8|6|2)(?:[^0-9]|$)/i);
+  if (!match) return "";
+  const value = String(match[1]);
+  if (value === "8") return "7.1";
+  if (value === "6") return "5.1";
+  if (value === "2") return "2.0";
+  return value;
+};
+
+const audioPreferenceContextKey = (context = {}) => {
+  const mediaType = String(context?.mediaType || context?.type || "").toLowerCase();
+  const tmdbId = String(context?.tmdbId || context?.tmdb_id || "").trim();
+  const title = String(context?.title || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .slice(0, 140);
+
+  if (mediaType === "tv" || context?.season != null || context?.episode != null) {
+    return tmdbId ? `tv:${tmdbId}` : title ? `tv-title:${title}` : "";
+  }
+
+  return tmdbId ? `movie:${tmdbId}` : title ? `movie-title:${title}` : "";
+};
+
+const readTitleAudioStore = () => {
+  if (typeof window === "undefined") return {};
+
+  try {
+    const raw = window.localStorage.getItem(MEDIA_TITLE_AUDIO_PREFERENCES_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+const writeTitleAudioStore = (store) => {
+  if (typeof window === "undefined") return;
+
+  try {
+    const entries = Object.entries(store || {})
+      .sort((a, b) => Number(b?.[1]?.updatedAt || 0) - Number(a?.[1]?.updatedAt || 0))
+      .slice(0, 250);
+    window.localStorage.setItem(
+      MEDIA_TITLE_AUDIO_PREFERENCES_KEY,
+      JSON.stringify(Object.fromEntries(entries))
+    );
+  } catch {
+    // Per-title audio memory is best effort only.
+  }
+};
+
+export const audioProfileFromTrack = (track) => ({
+  language: trackLanguage(track),
+  codec: audioCodecKey(track),
+  channels: audioChannelKey(track),
+  commentary: /\bcommentary\b/i.test(String(track?.label || track?.name || "")),
+  descriptive: /\b(?:audio description|descriptive|visually impaired)\b/i.test(
+    String(track?.label || track?.name || "")
+  ),
+});
+
+export const rememberAudioPreference = (context, track) => {
+  const key = audioPreferenceContextKey(context);
+  if (!key || !track) return null;
+
+  const profile = {
+    ...audioProfileFromTrack(track),
+    updatedAt: Date.now(),
+  };
+  const store = readTitleAudioStore();
+  store[key] = profile;
+  writeTitleAudioStore(store);
+  return profile;
+};
+
+export const readRememberedAudioPreference = (context) => {
+  const key = audioPreferenceContextKey(context);
+  if (!key) return null;
+  const profile = readTitleAudioStore()?.[key];
+  return profile && typeof profile === "object" ? profile : null;
+};
+
+export const rememberedAudioTrackScore = (track, profile) => {
+  if (!track || !profile) return 0;
+
+  const candidate = audioProfileFromTrack(track);
+  let score = 0;
+
+  if (profile.language && candidate.language === profile.language) score += 12000;
+  if (profile.codec && candidate.codec === profile.codec) score += 6500;
+  if (profile.channels && candidate.channels === profile.channels) score += 1800;
+  if (profile.commentary === false && candidate.commentary) score -= 7000;
+  if (profile.descriptive === false && candidate.descriptive) score -= 7000;
+
+  return score;
+};
 
 const languageDisplayName = (value) => {
   const language = normaliseLanguage(value, "");
