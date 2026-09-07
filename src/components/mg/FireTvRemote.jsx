@@ -428,14 +428,26 @@ export default function FireTvRemote() {
        * deterministic row navigator deliberately does not own.
        */
       const direction = directionFromEvent(event);
+      const current =
+        document.activeElement instanceof HTMLElement &&
+        scope.contains(document.activeElement)
+          ? document.activeElement
+          : null;
+      const currentTag = String(current?.tagName || "").toLowerCase();
+
+      /*
+       * Native selects must receive Enter/Up/Down themselves on Fire TV.
+       * Preventing those keys stops the Android WebView from opening the
+       * source/file chooser or moving through its options.
+       */
+      if (currentTag === "select") {
+        if (direction || isSelectKey(event)) {
+          return;
+        }
+      }
 
       if (direction) {
         const candidates = focusables(scope);
-        const current =
-          document.activeElement instanceof HTMLElement &&
-          scope.contains(document.activeElement)
-            ? document.activeElement
-            : null;
 
         const target = directionalTarget(
           current,
@@ -452,16 +464,20 @@ export default function FireTvRemote() {
       }
 
       if (isSelectKey(event)) {
-        const current = document.activeElement;
+        const selected = document.activeElement;
 
         if (
-          current instanceof HTMLElement &&
-          scope.contains(current) &&
-          visible(current)
+          selected instanceof HTMLElement &&
+          scope.contains(selected) &&
+          visible(selected)
         ) {
+          if (String(selected.tagName || "").toLowerCase() === "select") {
+            return;
+          }
+
           event.preventDefault();
           event.stopPropagation();
-          current.click();
+          selected.click();
         }
       }
     };
