@@ -462,3 +462,46 @@ body.mg-fire-tv-stable [data-mg-player-controls-bottom="true"] span,
 body.mg-fire-tv-mode [data-mg-player-controls-bottom="true"] span {
   font-size: 12px !important;
 }
+
+/* Keep the Firestick playback surface intentionally simple.
+ * Episode/source/audio management is available from the QR phone remote.
+ */
+body.mg-fire-tv [data-mg-episode-quick-nav="true"],
+body.mg-fire-tv-stable [data-mg-episode-quick-nav="true"],
+body.mg-fire-tv-mode [data-mg-episode-quick-nav="true"],
+body.mg-fire-tv [data-mg-player-controls-spacer="true"],
+body.mg-fire-tv-stable [data-mg-player-controls-spacer="true"],
+body.mg-fire-tv-mode [data-mg-player-controls-spacer="true"] {
+  display: none !important;
+}
+
+body.mg-fire-tv [data-mg-player-seek-row="true"],
+body.mg-fire-tv-stable [data-mg-player-seek-row="true"],
+body.mg-fire-tv-mode [data-mg-player-seek-row="true"] {
+  width: min(860px, calc(100vw - 64px)) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  margin-bottom: 12px !important;
+}
+
+body.mg-fire-tv [data-mg-player-button-row="true"],
+body.mg-fire-tv-stable [data-mg-player-button-row="true"],
+body.mg-fire-tv-mode [data-mg-player-button-row="true"] {
+  width: fit-content !important;
+  max-width: calc(100vw - 64px) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  justify-content: center !important;
+  gap: 14px !important;
+}
+
+body.mg-fire-tv [data-mg-player-button-row="true"] button:focus-visible,
+body.mg-fire-tv-stable [data-mg-player-button-row="true"] button:focus-visible,
+body.mg-fire-tv-mode [data-mg-player-button-row="true"] button:focus-visible,
+body.mg-fire-tv [data-mg-player-exit="true"]:focus-visible,
+body.mg-fire-tv-stable [data-mg-player-exit="true"]:focus-visible,
+body.mg-fire-tv-mode [data-mg-player-exit="true"]:focus-visible {
+  outline: 3px solid #7ee787 !important;
+  outline-offset: 3px !important;
+  transform: scale(1.06) !important;
+}
