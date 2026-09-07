@@ -34,6 +34,7 @@ import {
   debridProviderScoreHints,
   recordDebridProviderResult,
 } from "@/components/mg/debridProviderReliability";
+import { concisePlaybackSourceLabel } from "@/components/mg/playbackSourceLabels";
 
 const isMagnet = (value) =>
   String(value || "")
@@ -3090,19 +3091,16 @@ export default function VideoPlayer({
                               index
                             );
 
-                          const label =
-                            item?.label ||
-                            `Source ${
-                              index +
-                              1
-                            }`;
+                          const rawLabel = sourceDisplayLabel(item, index);
+                          const label = concisePlaybackSourceLabel(item, index);
 
                           return (
                             <option
-                              key={`loading-${index}-${label}`}
+                              key={`loading-${index}-${rawLabel}`}
                               value={
                                 index
                               }
+                              data-mg-source-label={rawLabel}
                             >
                               {failed
                                 ? "Failed — "
@@ -3166,16 +3164,14 @@ export default function VideoPlayer({
                           index
                         );
 
-                      const label =
-                        item?.label ||
-                        `Source ${
-                          index + 1
-                        }`;
+                      const rawLabel = sourceDisplayLabel(item, index);
+                      const label = concisePlaybackSourceLabel(item, index);
 
                       return (
                         <option
-                          key={`${index}-${label}`}
+                          key={`${index}-${rawLabel}`}
                           value={index}
+                          data-mg-source-label={rawLabel}
                         >
                           {failed
                             ? "Failed — "
