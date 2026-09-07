@@ -1033,6 +1033,60 @@ export default function LiveTVView() {
     });
   };
 
+  const renderQuickChannelCard = (channel) => {
+    const memoryKey = channelMemoryKey(channel);
+    const guide = epgByKey[epgKeyForChannel(channel)] || {};
+    const nowProgramme = guide?.now || null;
+    const favourite = favouriteKeys.has(memoryKey);
+
+    return (
+      <button
+        key={memoryKey}
+        type="button"
+        onClick={() => playChannel(channel)}
+        onFocus={(event) => {
+          setFocusedChannelKey(memoryKey);
+          event.currentTarget.scrollIntoView({
+            block: "nearest",
+            inline: "nearest",
+          });
+        }}
+        className="mg-fire-tv-card w-48 shrink-0 rounded-xl border border-white/10 bg-mg-card p-3 text-left outline-none transition-colors focus:border-mg-green focus:bg-mg-surface focus:ring-2 focus:ring-mg-green/40"
+      >
+        <div className="flex items-center gap-3">
+          <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-black/30">
+            <Tv className="h-4 w-4 text-white/25" />
+            {channel.logo && (
+              <img
+                src={channel.logo}
+                alt=""
+                loading="lazy"
+                className="absolute inset-0 h-full w-full object-contain p-1"
+                onError={(event) => {
+                  event.currentTarget.style.display = "none";
+                }}
+              />
+            )}
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <span className="truncate text-xs font-bold text-white">
+                {channel.name}
+              </span>
+              {favourite && (
+                <Star className="h-3.5 w-3.5 shrink-0 fill-current text-mg-green" />
+              )}
+            </div>
+            <div className="mt-1 truncate text-[10px] text-white/40">
+              {nowProgramme?.title || channel.group || "Live TV"}
+            </div>
+          </div>
+        </div>
+      </button>
+    );
+  };
+
   const failedSources =
     sourceStatus.filter(
       (source) =>
