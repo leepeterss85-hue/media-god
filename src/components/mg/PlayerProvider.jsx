@@ -393,11 +393,14 @@ function PlayerAutomationBridge({ children }) {
       }
 
       const detail = {
-        mediaType: isTvRequest(request)
-          ? "tv"
-          : request
-            ? "movie"
-            : null,
+        mediaType:
+          request?.mediaType === "live" || request?.type === "live"
+            ? "live"
+            : isTvRequest(request)
+              ? "tv"
+              : request
+                ? "movie"
+                : null,
 
         tmdbId:
           request?.tmdbId ??
