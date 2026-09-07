@@ -1240,6 +1240,12 @@ export default function LiveTVView() {
           {sourceStatus.length} playlist sources loaded
         </span>
 
+        {epgMatched > 0 && (
+          <span className="text-mg-green/70">
+            Now/Next guide matched to {epgMatched} channels
+          </span>
+        )}
+
         {browserRejectedCount > 0 && (
           <span>
             {browserRejectedCount.toLocaleString()} incompatible/dead-format sources filtered out
@@ -1302,6 +1308,16 @@ export default function LiveTVView() {
                       false
                 ).length;
 
+              const guide = epgByKey[
+                epgKeyForChannel(channel, index)
+              ];
+              const nowProgramme = guide?.now || null;
+              const nextProgramme = guide?.next || null;
+              const nowProgress = programmeProgress(
+                nowProgramme,
+                clockTick
+              );
+
               return (
                 <button
                   key={`${channel.id}-${index}`}
@@ -1311,7 +1327,7 @@ export default function LiveTVView() {
                       channel
                     )
                   }
-                  className="group flex min-h-[92px] items-center gap-3 rounded-xl border border-white/10 bg-mg-card p-3 text-left transition-colors hover:border-mg-green/60 hover:bg-mg-surface focus:border-mg-green focus:outline-none"
+                  className="group flex min-h-[118px] items-start gap-3 rounded-xl border border-white/10 bg-mg-card p-3 text-left transition-colors hover:border-mg-green/60 hover:bg-mg-surface focus:border-mg-green focus:outline-none"
                 >
                   <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-black/30">
                     {radio ? (
@@ -1345,7 +1361,36 @@ export default function LiveTVView() {
                         "Free TV"}
                     </div>
 
-                    <div className="mt-1 truncate text-[10px] text-white/30">
+                    {nowProgramme && (
+                      <div className="mt-2">
+                        <div className="flex min-w-0 items-center gap-1.5">
+                          <span className="shrink-0 rounded bg-mg-green/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-mg-green">
+                            Now
+                          </span>
+                          <span className="truncate text-[11px] font-semibold text-white/85">
+                            {nowProgramme.title}
+                          </span>
+                        </div>
+
+                        <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/10">
+                          <div
+                            className="h-full bg-mg-green"
+                            style={{ width: `${Math.round(nowProgress * 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {nextProgramme && (
+                      <div className="mt-1.5 flex min-w-0 gap-1.5 text-[10px] text-white/45">
+                        <span className="shrink-0 font-semibold text-white/55">
+                          Next {formatProgrammeTime(nextProgramme.start)}
+                        </span>
+                        <span className="truncate">· {nextProgramme.title}</span>
+                      </div>
+                    )}
+
+                    <div className="mt-1.5 truncate text-[10px] text-white/30">
                       {channel.sourceName ||
                         "Public IPTV"}
 
