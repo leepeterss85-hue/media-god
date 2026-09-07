@@ -524,6 +524,58 @@ export default function PlayerRemote() {
     }
   };
 
+  const sendBrowseSelection = async (item = browseTarget) => {
+    if (!item?.id) return;
+
+    if (item.mediaType === "tv") {
+      if (!browseSeason || !browseEpisode) {
+        setError("Choose a season and episode first.");
+        return;
+      }
+
+      const episodeItem = browseEpisodes.find(
+        (episode) =>
+          Number(
+            episode?.episode_number ??
+              episode?.episodeNumber ??
+              episode?.episode ??
+              0
+          ) === Number(browseEpisode)
+      );
+
+      await send(
+        "play_media",
+        JSON.stringify({
+          id: item.id,
+          tmdbId: item.id,
+          title: item.title,
+          year: item.year || "",
+          poster: item.poster || "",
+          mediaType: "tv",
+          season: browseSeason,
+          episode: browseEpisode,
+          episodeItem: episodeItem || null,
+        })
+      );
+    } else {
+      await send(
+        "play_media",
+        JSON.stringify({
+          id: item.id,
+          tmdbId: item.id,
+          title: item.title,
+          year: item.year || "",
+          poster: item.poster || "",
+          mediaType: "movie",
+        })
+      );
+    }
+
+    setBrowseQuery("");
+    setBrowseResults([]);
+    setBrowseTarget(null);
+  };
+
   if (loading) {
     return (
       <main className="min-h-screen bg-black text-white flex items-center justify-center p-6">
