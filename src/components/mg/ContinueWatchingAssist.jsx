@@ -175,6 +175,7 @@ export default function ContinueWatchingAssist() {
     pendingResumeKey: "",
     lookupToken: 0,
     lastSaveAt: 0,
+    completedKey: "",
     lastPosition: {
       time: 0,
       duration: 0,
@@ -229,6 +230,23 @@ export default function ContinueWatchingAssist() {
           video?.src ||
           ""
       ).trim();
+
+      if (
+        completed &&
+        context.mediaType === "tv" &&
+        state.completedKey !== key
+      ) {
+        state.completedKey = key;
+
+        window.dispatchEvent(
+          new CustomEvent("mg:episode-completed", {
+            detail: {
+              ...context,
+              contentKey: key,
+            },
+          })
+        );
+      }
 
       const patch = {
         progress,
@@ -399,6 +417,7 @@ export default function ContinueWatchingAssist() {
         video: null,
       };
       state.lastSaveAt = 0;
+      state.completedKey = "";
       state.pendingResume = 0;
       state.pendingResumeKey = next ? contentKeyFor(next) : "";
 
