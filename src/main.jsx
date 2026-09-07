@@ -4,6 +4,7 @@ import App from '@/App.jsx'
 import FireTvFocusMemory from '@/components/mg/FireTvFocusMemory.jsx'
 import PlaybackReliabilityAssist from '@/components/mg/PlaybackReliabilityAssist.jsx'
 import PlayerEpisodeQuickNav from '@/components/mg/PlayerEpisodeQuickNav.jsx'
+import ContinueWatchingAssist from '@/components/mg/ContinueWatchingAssist.jsx'
 import '@/index.css'
 
 const userAgent =
@@ -225,6 +226,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <FireTvFocusMemory />
     <PlaybackReliabilityAssist />
     <PlayerEpisodeQuickNav />
+    <ContinueWatchingAssist />
     <App />
   </>
 )
