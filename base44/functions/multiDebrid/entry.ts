@@ -79,11 +79,12 @@ const tokenFor = (user, providerKey) => {
 };
 
 const enabledProvidersFor = (user) => {
-  const saved = Array.isArray(user?.debrid_enabled_providers)
+  const hasSavedSelection = Array.isArray(user?.debrid_enabled_providers);
+  const saved = hasSavedSelection
     ? user.debrid_enabled_providers.map(normaliseProvider).filter(Boolean)
     : [];
 
-  const candidates = saved.length ? saved : DEFAULT_PRIORITY;
+  const candidates = hasSavedSelection ? saved : DEFAULT_PRIORITY;
 
   return candidates.filter(
     (key, index) => candidates.indexOf(key) === index && tokenFor(user, key)
@@ -262,11 +263,25 @@ const checkCacheForProvider = async (providerKey, token, hashes) => {
       { headers: authHeaders(token) }
     );
 
-    const magnets = data?.data?.magnets || data?.data?.torrents || [];
-    (Array.isArray(magnets) ? magnets : []).forEach((item) => {
-      const hash = normaliseHash(item?.hash || item?.magnet);
-      if (hash) output[hash] = Boolean(item?.instant ?? item?.ready);
-    });
+    const magnets = data?.data?.magnets || data?.data?.torrents || data?.data || [];
+
+    if (Array.isArray(magnets)) {
+      magnets.forEach((item) => {
+        const hash = normaliseHash(item?.hash || item?.magnet);
+        if (hash) output[hash] = Boolean(item?.instant ?? item?.ready ?? item?.cached);
+      });
+    } else if (magnets && typeof magnets === "object") {
+      hashes.forEach((hash) => {
+        const item = magnets?.[hash] || magnets?.[hash.toUpperCase()];
+        if (item != null) {
+          output[hash] = Boolean(
+            typeof item === "boolean"
+              ? item
+              : item?.instant ?? item?.ready ?? item?.cached ?? item?.available
+          );
+        }
+      });
+    }
 
     return output;
   }
@@ -303,31 +318,22 @@ const checkCacheForProvider = async (providerKey, token, hashes) => {
   }
 
   if (providerKey === "debridlink") {
-    await Promise.all(
-      hashes.map(async (hash) => {
-        try {
-          const data = await requestJson(
-            `${PROVIDERS.debridlink.baseUrl}/seedbox/cached`,
-            {
-              method: "POST",
-              headers: formHeaders(token),
-              body: formBody([["url", toMagnet(hash)]]),
-            }
-          );
-
-          const value = data?.value || data?.data || data;
-          const entry = value?.[hash] || value?.[hash.toUpperCase()] || value;
-          output[hash] = Boolean(
-            entry?.cached ||
-              entry?.instant ||
-              entry?.available ||
-              (Array.isArray(entry?.files) && entry.files.length > 0)
-          );
-        } catch {
-          output[hash] = false;
-        }
-      })
+    const query = new URLSearchParams({ url: hashes.join(",") });
+    const data = await requestJson(
+      `${PROVIDERS.debridlink.baseUrl}/seedbox/cached?${query.toString()}`,
+      { headers: authHeaders(token) }
     );
+
+    const value = data?.value || data?.data || data || {};
+    hashes.forEach((hash) => {
+      const entry = value?.[hash] || value?.[hash.toUpperCase()];
+      output[hash] = Boolean(
+        entry?.cached ||
+          entry?.instant ||
+          entry?.available ||
+          (Array.isArray(entry?.files) && entry.files.length > 0)
+      );
+    });
 
     return output;
   }
