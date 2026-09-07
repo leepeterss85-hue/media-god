@@ -823,6 +823,12 @@ export default function PlaybackReliabilityAssist() {
 
       goodTimer:
         null,
+
+      startTimes:
+        new WeakMap(),
+
+      lastBufferTimes:
+        new WeakMap(),
     });
 
   useEffect(() => {
@@ -967,6 +973,72 @@ export default function PlaybackReliabilityAssist() {
         );
       };
 
+    const onLoadStart =
+      (
+        event
+      ) => {
+        if (
+          !(
+            event.target instanceof
+              HTMLVideoElement
+          )
+        ) {
+          return;
+        }
+
+        state.startTimes.set(
+          event.target,
+          Date.now()
+        );
+      };
+
+    const onBuffer =
+      (
+        event
+      ) => {
+        if (
+          !(
+            event.target instanceof
+              HTMLVideoElement
+          )
+        ) {
+          return;
+        }
+
+        const label =
+          activeSourceLabel();
+
+        if (!label) {
+          return;
+        }
+
+        const previous =
+          Number(
+            state.lastBufferTimes.get(
+              event.target
+            ) ||
+              0
+          );
+
+        if (
+          Date.now() -
+            previous <
+          5000
+        ) {
+          return;
+        }
+
+        state.lastBufferTimes.set(
+          event.target,
+          Date.now()
+        );
+
+        saveReliability(
+          label,
+          "buffer"
+        );
+      };
+
     const onPlaying =
       (
         event
@@ -983,11 +1055,40 @@ export default function PlaybackReliabilityAssist() {
         const video =
           event.target;
 
+        const startedAt =
+          Number(
+            state.startTimes.get(
+              video
+            ) ||
+              0
+          );
+
+        if (
+          startedAt >
+          0
+        ) {
+          state.startTimes.delete(
+            video
+          );
+        }
+
         const label =
           activeSourceLabel();
 
         if (!label) {
           return;
+        }
+
+        if (
+          startedAt >
+          0
+        ) {
+          saveReliability(
+            label,
+            "startup",
+            Date.now() -
+              startedAt
+          );
         }
 
         if (
@@ -1030,6 +1131,24 @@ export default function PlaybackReliabilityAssist() {
     );
 
     document.addEventListener(
+      "loadstart",
+      onLoadStart,
+      true
+    );
+
+    document.addEventListener(
+      "waiting",
+      onBuffer,
+      true
+    );
+
+    document.addEventListener(
+      "stalled",
+      onBuffer,
+      true
+    );
+
+    document.addEventListener(
       "playing",
       onPlaying,
       true
@@ -1063,6 +1182,24 @@ export default function PlaybackReliabilityAssist() {
       document.removeEventListener(
         "click",
         onClick,
+        true
+      );
+
+      document.removeEventListener(
+        "loadstart",
+        onLoadStart,
+        true
+      );
+
+      document.removeEventListener(
+        "waiting",
+        onBuffer,
+        true
+      );
+
+      document.removeEventListener(
+        "stalled",
+        onBuffer,
         true
       );
 
