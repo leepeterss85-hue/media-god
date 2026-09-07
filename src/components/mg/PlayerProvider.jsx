@@ -140,6 +140,13 @@ const episodePlaybackRequest = ({
     rdSeason: resolvedSeason,
     rdEpisode: resolvedEpisode,
 
+    episodeName:
+      String(
+        episodeItem?.name ||
+          episodeItem?.title ||
+          ""
+      ).trim(),
+
     startTime: 0,
     preferRd: true,
 
@@ -190,6 +197,7 @@ const queueContinueWatching = async (request) => {
     source_type: "queued",
     title: seriesTitleFromRequest(request),
     year: String(request?.rdYear ?? request?.year ?? ""),
+    episode_name: String(request?.episodeName || ""),
   };
 
   try {
@@ -431,6 +439,10 @@ function PlayerAutomationBridge({ children }) {
           request?.episode ??
           request?.rdEpisode ??
           null,
+
+        episodeName:
+          request?.episodeName ||
+          "",
 
         autoNext: Boolean(enabled),
       };
