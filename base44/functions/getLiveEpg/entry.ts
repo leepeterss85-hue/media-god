@@ -249,6 +249,10 @@ export default async function (req) {
           ? list.slice(currentIndex + 1).find((item) => item.startMs >= current.stopMs - 60000) || null
           : list.find((item) => item.startMs > nowMs) || null;
 
+      const upcoming = list
+        .filter((item) => item.stopMs > nowMs)
+        .slice(0, 6);
+
       const stripInternal = (item) =>
         item
           ? {
@@ -264,6 +268,7 @@ export default async function (req) {
         guide_id: guideId,
         now: stripInternal(current),
         next: stripInternal(next),
+        upcoming: upcoming.map(stripInternal),
       };
     });
 
