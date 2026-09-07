@@ -5,6 +5,7 @@ import React, {
 } from "react";
 
 import {
+  Clock3,
   History,
   Play,
   X,
@@ -14,652 +15,309 @@ import { base44 } from "@/api/base44Client";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 import { Image } from "@/components/ui/image";
 
-const WATCHED_THRESHOLD =
-  0.92;
+const WATCHED_THRESHOLD = 0.92;
+const MIN_PROGRESS_SECONDS = 5;
 
-const fmtTime =
-  (seconds) => {
-    if (
-      !seconds ||
-      seconds < 1 ||
-      !isFinite(
-        seconds
-      )
-    ) {
-      return "0:00";
-    }
+const positiveInt = (value) => {
+  const number = Number(value);
 
-    const minutes =
-      Math.floor(
-        seconds /
-          60
-      );
+  return Number.isInteger(number) && number > 0
+    ? number
+    : null;
+};
 
-    const remainingSeconds =
-      Math.floor(
-        seconds %
-          60
-      );
+const baseTitle = (value) =>
+  String(value || "")
+    .replace(/\s+[—-]\s+S\d{1,2}E\d{1,3}.*$/i, "")
+    .trim();
 
-    const hours =
-      Math.floor(
-        minutes /
-          60
-      );
+const parseContentKey = (item) => {
+  const key = String(item?.content_key || "");
 
-    return hours > 0
-      ? `${hours}:${String(
-          minutes %
-            60
-        ).padStart(
-          2,
-          "0"
-        )}:${String(
-          remainingSeconds
-        ).padStart(
-          2,
-          "0"
-        )}`
-      : `${minutes}:${String(
-          remainingSeconds
-        ).padStart(
-          2,
-          "0"
-        )}`;
-  };
-
-const positiveInt =
-  (value) => {
-    const number =
-      Number(
-        value
-      );
-
-    return (
-      Number.isInteger(
-        number
-      ) &&
-      number > 0
-    )
-      ? number
-      : null;
-  };
-
-const parseContentKey =
-  (item) => {
-    const key =
-      String(
-        item?.content_key ||
-        ""
-      );
-
-    if (
-      key.startsWith(
-        "mg2|"
-      )
-    ) {
-      const [
-        ,
-        tmdbId,
-        mediaType,
-        year,
-        season,
-        episode,
-        encodedTitle,
-      ] =
-        key.split(
-          "|"
-        );
-
-      let title =
-        item?.title ||
-        "";
-
-      try {
-        title =
-          decodeURIComponent(
-            encodedTitle ||
-              ""
-          ) ||
-          title;
-      } catch {
-        // Keep entity title.
-      }
-
-      return {
-        tmdbId:
-          tmdbId ||
-          "",
-
-        mediaType:
-          mediaType ===
-          "tv"
-            ? "tv"
-            : "movie",
-
-        year:
-          year ||
-          item?.year ||
-          "",
-
-        season:
-          positiveInt(
-            season
-          ),
-
-        episode:
-          positiveInt(
-            episode
-          ),
-
-        title:
-          String(
-            title ||
-              item?.title ||
-              "Video"
-          )
-            .replace(
-              /\s+[—-]\s+S\d{1,2}E\d{1,3}.*$/i,
-              ""
-            )
-            .trim() ||
-          "Video",
-      };
-    }
-
-    const legacy =
-      key.split(
-        "|"
-      );
-
-    const season =
-      positiveInt(
-        legacy[2]
-      );
-
-    const episode =
-      positiveInt(
-        legacy[3]
-      );
-
-    return {
-      tmdbId:
-        "",
-
-      mediaType:
-        season &&
-        episode
-          ? "tv"
-          : "movie",
-
-      year:
-        legacy[1] ||
-        item?.year ||
-        "",
-
+  if (key.startsWith("mg2|")) {
+    const [
+      ,
+      tmdbId,
+      mediaType,
+      year,
       season,
-
       episode,
+      encodedTitle,
+    ] = key.split("|");
 
-      title:
-        String(
-          legacy[0] ||
-            item?.title ||
-            "Video"
-        )
-          .replace(
-            /\s+[—-]\s+S\d{1,2}E\d{1,3}.*$/i,
-            ""
-          )
-          .trim() ||
-        item?.title ||
-        "Video",
-    };
-  };
-
-const progressRatio =
-  (item) => {
-    const duration =
-      Number(
-        item?.duration ||
-        0
-      );
-
-    const progress =
-      Number(
-        item?.progress ||
-        0
-      );
-
-    if (
-      !duration ||
-      duration <= 0
-    ) {
-      return 0;
-    }
-
-    return Math.max(
-      0,
-      Math.min(
-        1,
-        progress /
-          duration
-      )
-    );
-  };
-
-const resolveTmdbId =
-  async (
-    meta
-  ) => {
-    if (
-      meta.tmdbId
-    ) {
-      return String(
-        meta.tmdbId
-      );
-    }
-
-    if (
-      !meta.title
-    ) {
-      return "";
-    }
+    let title = item?.title || "";
 
     try {
-      const response =
-        await base44.functions.invoke(
-          "getTmdbMovies",
-          {
-            multi_search:
-              meta.title,
-          }
-        );
-
-      const candidates =
-        Array.isArray(
-          response
-            ?.data
-            ?.movies
-        )
-          ? response
-              .data
-              .movies
-          : [];
-
-      const sameType =
-        candidates.filter(
-          (
-            candidate
-          ) =>
-            String(
-              candidate
-                ?.media_type ||
-                ""
-            ) ===
-            meta.mediaType
-        );
-
-      const sameYear =
-        sameType.find(
-          (
-            candidate
-          ) =>
-            meta.year
-              ? String(
-                  candidate
-                    ?.year ||
-                    ""
-                ) ===
-                String(
-                  meta.year
-                )
-              : false
-        );
-
-      const match =
-        sameYear ||
-        sameType[0] ||
-        candidates[0];
-
-      return String(
-        match?.id ||
-          match?.tmdb_id ||
-          ""
-      );
+      title = decodeURIComponent(encodedTitle || "") || title;
     } catch {
-      return "";
+      // Keep stored title.
     }
+
+    return {
+      canonical: true,
+      tmdbId: String(tmdbId || ""),
+      mediaType: mediaType === "tv" ? "tv" : "movie",
+      year: String(year || item?.year || ""),
+      season: positiveInt(season),
+      episode: positiveInt(episode),
+      title: baseTitle(title || item?.title || "Video") || "Video",
+    };
+  }
+
+  const parts = key.split("|");
+  const season = positiveInt(parts[2]);
+  const episode = positiveInt(parts[3]);
+
+  return {
+    canonical: false,
+    tmdbId: "",
+    mediaType: season && episode ? "tv" : "movie",
+    year: String(parts[1] || item?.year || ""),
+    season,
+    episode,
+    title:
+      baseTitle(parts[0] || item?.title || "Video") ||
+      item?.title ||
+      "Video",
   };
+};
+
+const progressRatio = (item) => {
+  const progress = Number(item?.progress || 0);
+  const duration = Number(item?.duration || 0);
+
+  if (!duration || duration <= 0) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(1, progress / duration));
+};
+
+const formatRemaining = (item) => {
+  const progress = Number(item?.progress || 0);
+  const duration = Number(item?.duration || 0);
+
+  if (!duration || duration <= progress) {
+    return "";
+  }
+
+  const seconds = Math.max(0, duration - progress);
+  const minutes = Math.max(1, Math.ceil(seconds / 60));
+
+  if (minutes >= 60) {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+
+    return mins > 0
+      ? `${hours}h ${mins}m left`
+      : `${hours}h left`;
+  }
+
+  return `${minutes} min left`;
+};
+
+const identityFor = (meta) => {
+  if (meta.mediaType === "tv") {
+    return [
+      "tv",
+      meta.tmdbId || meta.title.toLowerCase(),
+      meta.season || "",
+      meta.episode || "",
+    ].join(":");
+  }
+
+  return [
+    "movie",
+    meta.tmdbId || meta.title.toLowerCase(),
+    meta.year || "",
+  ].join(":");
+};
+
+const resolveTmdbId = async (meta) => {
+  if (meta.tmdbId) {
+    return String(meta.tmdbId);
+  }
+
+  if (!meta.title) {
+    return "";
+  }
+
+  try {
+    const response = await base44.functions.invoke(
+      "getTmdbMovies",
+      {
+        multi_search: meta.title,
+      }
+    );
+
+    const candidates = Array.isArray(response?.data?.movies)
+      ? response.data.movies
+      : [];
+
+    const sameType = candidates.filter(
+      (candidate) =>
+        String(candidate?.media_type || "") === meta.mediaType
+    );
+
+    const sameYear = meta.year
+      ? sameType.find(
+          (candidate) =>
+            String(candidate?.year || "") === String(meta.year)
+        )
+      : null;
+
+    const match = sameYear || sameType[0] || candidates[0];
+
+    return String(match?.id || match?.tmdb_id || "");
+  } catch {
+    return "";
+  }
+};
 
 export default function ContinueWatchingRow() {
-  const [
-    items,
-    setItems,
-  ] =
-    useState(
-      []
-    );
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const player = usePlayer();
 
-  const [
-    loading,
-    setLoading,
-  ] =
-    useState(
-      true
-    );
+  const load = () => {
+    base44.entities.ContinueWatching
+      .list("-updated_date", 100)
+      .then((rows) => {
+        const sorted = [...(rows || [])]
+          .map((item) => ({
+            item,
+            meta: parseContentKey(item),
+            ratio: progressRatio(item),
+            updatedAt: new Date(
+              item?.updated_date || item?.created_date || 0
+            ).getTime(),
+          }))
+          .filter(
+            ({ item, ratio }) =>
+              Number(item?.progress || 0) >= MIN_PROGRESS_SECONDS &&
+              ratio < WATCHED_THRESHOLD
+          )
+          .sort((a, b) => b.updatedAt - a.updatedAt);
 
-  const player =
-    usePlayer();
+        const byIdentity = new Map();
 
-  const load =
-    () => {
-      base44.entities.ContinueWatching
-        .list(
-          "-updated_date",
-          100
-        )
-        .then(
-          (
-            rows
-          ) => {
-            const visible =
-              [];
+        sorted.forEach((entry) => {
+          const identity = identityFor(entry.meta);
+          const existing = byIdentity.get(identity);
 
-            const seen =
-              new Set();
-
-            (
-              rows ||
-              []
-            ).forEach(
-              (
-                item
-              ) => {
-                const ratio =
-                  progressRatio(
-                    item
-                  );
-
-                /*
-                 * Finished content stays in
-                 * the database for history,
-                 * but disappears from
-                 * Continue Watching.
-                 */
-                if (
-                  ratio >=
-                  WATCHED_THRESHOLD
-                ) {
-                  return;
-                }
-
-                if (
-                  Number(
-                    item?.progress ||
-                      0
-                  ) <
-                  5
-                ) {
-                  return;
-                }
-
-                const meta =
-                  parseContentKey(
-                    item
-                  );
-
-                const identity =
-                  meta.mediaType ===
-                  "tv"
-                    ? `tv:${meta.title}:${meta.season}:${meta.episode}`
-                    : `movie:${meta.title}:${meta.year}`;
-
-                if (
-                  seen.has(
-                    identity
-                  )
-                ) {
-                  return;
-                }
-
-                seen.add(
-                  identity
-                );
-
-                visible.push(
-                  item
-                );
-              }
-            );
-
-            setItems(
-              visible.slice(
-                0,
-                20
-              )
-            );
+          if (!existing) {
+            byIdentity.set(identity, entry);
+            return;
           }
-        )
-        .catch(
-          () => {}
-        )
-        .finally(
-          () =>
-            setLoading(
-              false
-            )
+
+          if (!existing.meta.canonical && entry.meta.canonical) {
+            byIdentity.set(identity, entry);
+          }
+        });
+
+        setItems(
+          Array.from(byIdentity.values())
+            .sort((a, b) => b.updatedAt - a.updatedAt)
+            .slice(0, 20)
+            .map(({ item }) => item)
         );
-    };
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
 
   useEffect(() => {
     load();
 
-    let unsubscribe =
-      null;
+    let unsubscribe = null;
 
     try {
-      unsubscribe =
-        base44.entities.ContinueWatching.subscribe(
-          () =>
-            load()
-        );
+      unsubscribe = base44.entities.ContinueWatching.subscribe(load);
     } catch {
-      unsubscribe =
-        null;
+      unsubscribe = null;
     }
 
     return () => {
-      if (
-        typeof unsubscribe ===
-        "function"
-      ) {
+      if (typeof unsubscribe === "function") {
         unsubscribe();
       }
     };
   }, []);
 
-  const remove =
-    async (
-      id,
-      event
-    ) => {
-      event?.stopPropagation();
+  const remove = async (id, event) => {
+    event?.stopPropagation();
 
-      setItems(
-        (
-          current
-        ) =>
-          current.filter(
-            (
-              item
-            ) =>
-              item.id !==
-              id
-          )
-      );
-
-      try {
-        await base44.entities.ContinueWatching.delete(
-          id
-        );
-      } catch {
-        load();
-      }
-    };
-
-  const resume =
-    async (
-      item
-    ) => {
-      const meta =
-        parseContentKey(
-          item
-        );
-
-      const isTv =
-        meta.mediaType ===
-        "tv";
-
-      const tmdbId =
-        await resolveTmdbId(
-          meta
-        );
-
-      const episodeTitle =
-        isTv &&
-        meta.season &&
-        meta.episode
-          ? `${meta.title} — S${String(
-              meta.season
-            ).padStart(
-              2,
-              "0"
-            )}E${String(
-              meta.episode
-            ).padStart(
-              2,
-              "0"
-            )}`
-          : meta.title;
-
-      /*
-       * Old direct URL is kept as
-       * a fast first attempt.
-       * PlayerProvider can still
-       * find another fresh source.
-       */
-      const sources =
-        item?.video_url
-          ? [
-              {
-                label:
-                  "Resume source",
-
-                type:
-                  "file",
-
-                src:
-                  item.video_url,
-
-                url:
-                  item.video_url,
-              },
-            ]
-          : [];
-
-      player.play({
-        id:
-          tmdbId ||
-          undefined,
-
-        tmdbId:
-          tmdbId ||
-          undefined,
-
-        title:
-          episodeTitle,
-
-        poster:
-          item.poster_url,
-
-        year:
-          meta.year,
-
-        mediaType:
-          meta.mediaType,
-
-        type:
-          isTv
-            ? "series"
-            : "movie",
-
-        season:
-          meta.season ||
-          undefined,
-
-        episode:
-          meta.episode ||
-          undefined,
-
-        rdTitle:
-          meta.title,
-
-        rdYear:
-          meta.year,
-
-        rdSeason:
-          meta.season ||
-          undefined,
-
-        rdEpisode:
-          meta.episode ||
-          undefined,
-
-        startTime:
-          Number(
-            item.progress ||
-              0
-          ),
-
-        preferRd:
-          true,
-
-        sources,
-      });
-    };
-
-  const displayItems =
-    useMemo(
-      () =>
-        items.map(
-          (
-            item
-          ) => ({
-            item,
-
-            meta:
-              parseContentKey(
-                item
-              ),
-
-            progress:
-              progressRatio(
-                item
-              ) *
-              100,
-          })
-        ),
-      [
-        items,
-      ]
+    setItems((current) =>
+      current.filter((item) => item.id !== id)
     );
 
-  if (
-    loading ||
-    displayItems.length ===
-      0
-  ) {
+    try {
+      await base44.entities.ContinueWatching.delete(id);
+    } catch {
+      load();
+    }
+  };
+
+  const resume = async (item) => {
+    const meta = parseContentKey(item);
+    const isTv = meta.mediaType === "tv";
+    const tmdbId = await resolveTmdbId(meta);
+
+    const playbackTitle =
+      isTv && meta.season && meta.episode
+        ? `${meta.title} — S${String(meta.season).padStart(2, "0")}E${String(
+            meta.episode
+          ).padStart(2, "0")}`
+        : meta.title;
+
+    const sources = item?.video_url
+      ? [
+          {
+            label: "Previous resume source",
+            type: "file",
+            src: item.video_url,
+            url: item.video_url,
+          },
+        ]
+      : [];
+
+    player.play({
+      id: tmdbId || undefined,
+      tmdbId: tmdbId || undefined,
+      title: playbackTitle,
+      poster: item.poster_url || "",
+      year: meta.year,
+      mediaType: meta.mediaType,
+      type: isTv ? "series" : "movie",
+      season: meta.season || undefined,
+      episode: meta.episode || undefined,
+      rdTitle: meta.title,
+      rdYear: meta.year,
+      rdSeason: meta.season || undefined,
+      rdEpisode: meta.episode || undefined,
+      startTime: Number(item.progress || 0),
+      preferRd: true,
+      sources,
+    });
+  };
+
+  const displayItems = useMemo(
+    () =>
+      items.map((item) => {
+        const meta = parseContentKey(item);
+        const ratio = progressRatio(item);
+
+        return {
+          item,
+          meta,
+          progress: ratio * 100,
+          remaining: formatRemaining(item),
+        };
+      }),
+    [items]
+  );
+
+  if (loading || displayItems.length === 0) {
     return null;
   }
 
@@ -674,109 +332,84 @@ export default function ContinueWatchingRow() {
           </h2>
 
           <p className="text-[10px] 3xl:text-sm text-white/35">
-            Resume exactly where you stopped, on any signed-in device.
+            Pick up exactly where you stopped.
           </p>
         </div>
       </div>
 
-      <div className="flex gap-3 3xl:gap-5 overflow-x-auto overscroll-x-contain pb-2 scrollbar-hide snap-x snap-proximity">
-        {displayItems.map(
-          ({
-            item,
-            meta,
-            progress,
-          }) => (
+      <div
+        className="flex gap-3 3xl:gap-5 overflow-x-auto overscroll-x-contain pb-2 scrollbar-hide snap-x snap-proximity"
+        data-tv-row="continue-watching"
+      >
+        {displayItems.map(({ item, meta, progress, remaining }) => {
+          const episodeLabel =
+            meta.mediaType === "tv" && meta.season && meta.episode
+              ? `S${String(meta.season).padStart(2, "0")} E${String(
+                  meta.episode
+                ).padStart(2, "0")}`
+              : "";
+
+          const detailLine = [episodeLabel, remaining]
+            .filter(Boolean)
+            .join(" · ");
+
+          return (
             <div
-              key={
-                item.id
-              }
-              onClick={() =>
-                resume(
-                  item
-                )
-              }
+              key={item.id}
+              onClick={() => resume(item)}
               role="button"
               tabIndex={0}
-              onKeyDown={(
-                event
-              ) => {
-                if (
-                  event.key ===
-                    "Enter" ||
-                  event.key ===
-                    " "
-                ) {
+              aria-label={`Resume ${meta.title}${episodeLabel ? ` ${episodeLabel}` : ""}`}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
-
-                  resume(
-                    item
-                  );
+                  resume(item);
                 }
               }}
-              className="group relative w-36 sm:w-44 md:w-48 xl:w-52 3xl:w-64 4xl:w-72 shrink-0 text-left cursor-pointer snap-start"
+              className="group relative w-36 sm:w-44 md:w-48 xl:w-52 3xl:w-64 4xl:w-72 shrink-0 text-left cursor-pointer snap-start rounded-lg focus:outline-none focus:ring-2 focus:ring-mg-green focus:ring-offset-2 focus:ring-offset-mg-background"
             >
-              <div className="relative aspect-video rounded-lg 3xl:rounded-xl overflow-hidden bg-mg-card border border-white/10">
+              <div className="relative aspect-video rounded-lg 3xl:rounded-xl overflow-hidden bg-mg-card border border-white/10 group-focus:border-mg-green">
                 <Image
-                  src={
-                    item.poster_url
-                  }
+                  src={item.poster_url}
                   fittingType="fill"
                   className="w-full h-full object-cover"
                 />
 
                 <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
 
-                <div className="mg-hover-action absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
-                  <div className="w-9 h-9 3xl:w-12 3xl:h-12 4xl:w-14 4xl:h-14 rounded-full bg-mg-green text-black flex items-center justify-center">
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity pointer-events-none">
+                  <div className="w-9 h-9 3xl:w-12 3xl:h-12 4xl:w-14 4xl:h-14 rounded-full bg-mg-green text-black flex items-center justify-center shadow-xl">
                     <Play className="w-4 h-4 3xl:w-6 3xl:h-6 fill-black" />
                   </div>
                 </div>
 
                 <button
                   type="button"
-                  onClick={(
-                    event
-                  ) =>
-                    remove(
-                      item.id,
-                      event
-                    )
-                  }
-                  className="mg-hover-action absolute top-1 right-1 3xl:top-2 3xl:right-2 w-7 h-7 3xl:w-9 3xl:h-9 rounded-full bg-black/70 text-white/80 hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 focus:opacity-100"
-                  aria-label="Remove from Continue Watching"
+                  onClick={(event) => remove(item.id, event)}
+                  className="absolute top-1 right-1 3xl:top-2 3xl:right-2 w-7 h-7 3xl:w-9 3xl:h-9 rounded-full bg-black/75 text-white/75 hover:text-white hover:bg-black flex items-center justify-center opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-mg-green"
+                  aria-label={`Remove ${meta.title} from Continue Watching`}
+                  title="Remove from Continue Watching"
                 >
                   <X className="w-3.5 h-3.5 3xl:w-4 3xl:h-4" />
                 </button>
 
-                {meta.mediaType ===
-                  "tv" &&
-                  meta.season &&
-                  meta.episode && (
-                    <span className="absolute left-2 top-2 rounded bg-black/75 px-2 py-1 text-[10px] font-semibold text-white">
-                      Resume S
-                      {String(
-                        meta.season
-                      ).padStart(
-                        2,
-                        "0"
-                      )}{" "}
-                      E
-                      {String(
-                        meta.episode
-                      ).padStart(
-                        2,
-                        "0"
-                      )}
-                    </span>
-                  )}
+                {episodeLabel && (
+                  <span className="absolute left-2 top-2 rounded bg-black/80 px-2 py-1 text-[10px] font-bold text-white shadow">
+                    {episodeLabel}
+                  </span>
+                )}
+
+                {remaining && (
+                  <span className="absolute left-2 bottom-2 flex items-center gap-1 rounded bg-black/75 px-2 py-1 text-[9px] font-semibold text-white/90">
+                    <Clock3 className="w-3 h-3 text-mg-green" />
+                    {remaining}
+                  </span>
+                )}
 
                 <div className="absolute bottom-0 left-0 right-0 h-1 3xl:h-1.5 bg-white/20">
                   <div
                     className="h-full bg-mg-green"
-                    style={{
-                      width:
-                        `${progress}%`,
-                    }}
+                    style={{ width: `${progress}%` }}
                   />
                 </div>
               </div>
@@ -785,23 +418,12 @@ export default function ContinueWatchingRow() {
                 {meta.title}
               </div>
 
-              <div className="flex items-center justify-between gap-2 text-white/40 text-[10px] sm:text-xs 3xl:text-sm">
-                <span>
-                  {fmtTime(
-                    item.progress
-                  )}
-                </span>
-
-                <span>
-                  {Math.round(
-                    progress
-                  )}
-                  %
-                </span>
+              <div className="mt-0.5 min-h-[1rem] text-white/45 text-[10px] sm:text-xs 3xl:text-sm truncate">
+                {detailLine || `${Math.round(progress)}% watched`}
               </div>
             </div>
-          )
-        )}
+          );
+        })}
       </div>
     </section>
   );
