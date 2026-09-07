@@ -609,7 +609,7 @@ const playbackSelect =
     const candidates =
       Array.from(
         document.querySelectorAll(
-          'select[aria-label="Choose playback source"]'
+          'select[aria-label="Choose playback source"], select[aria-label="Choose source or quality"], select[aria-label="Choose source or quality while loading"]'
         )
       ).filter(
         visible
