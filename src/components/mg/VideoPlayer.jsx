@@ -1698,7 +1698,7 @@ export default function VideoPlayer({
           event.stopPropagation()
         }
       >
-        <div className="flex items-center justify-between mb-2 gap-2">
+        <div data-mg-player-topbar="true" className="flex items-center justify-between mb-2 gap-2">
           <div className="flex items-center gap-2 min-w-0">
             <button
               type="button"
@@ -2083,7 +2083,7 @@ export default function VideoPlayer({
             )}
         </div>
 
-        <div className="mt-2 flex items-center gap-2">
+        <div data-mg-player-source-row="true" className="mt-2 flex items-center gap-2">
           {sources.length >
           1 ? (
             <div className="relative flex-1 min-w-0">
@@ -2167,7 +2167,7 @@ export default function VideoPlayer({
         {rdOverride &&
           rdFiles.length >
             1 && (
-            <div className="mt-2">
+            <div data-mg-player-file-select="true" className="mt-2">
               <select
                 value={
                   rdFiles.find(
