@@ -1758,11 +1758,9 @@ export default function MediaPlayerControls({
                       (track) => (
                         <button
                           type="button"
-                          key={`audio-${track.index}`}
+                          key={`audio-${track.kind || "native"}-${track.index}`}
                           onClick={() => {
-                            chooseAudio(
-                              track.index
-                            );
+                            chooseAudio(track);
                           }}
                           className={cn(
                             "w-full rounded-lg px-3 py-2 text-left text-xs hover:bg-white/10",
@@ -1773,13 +1771,7 @@ export default function MediaPlayerControls({
                               : "text-white"
                           )}
                         >
-                          {
-                            track.label
-                          }
-
-                          {track.language
-                            ? ` · ${track.language}`
-                            : ""}
+                          {track.label}
                         </button>
                       )
                     )
