@@ -298,9 +298,12 @@ export default function SourcesView() {
     const startedAt = Date.now();
 
     try {
+      const hlsLike = /\.m3u8?(?:[?#]|$)/i.test(source.url);
+      const needsBody = source.kind === "playlist" || hlsLike;
       const response = await fetchWithTimeout(
         source.url,
         {
+          method: needsBody ? "GET" : "HEAD",
           cache: "no-store",
           headers: {
             Accept: "application/vnd.apple.mpegurl,text/plain,*/*",
@@ -313,7 +316,7 @@ export default function SourcesView() {
 
       let loaded = 1;
 
-      if (source.kind === "playlist" || /\.m3u8?(?:[?#]|$)/i.test(source.url)) {
+      if (needsBody) {
         const text = await response.text();
         if (source.kind === "playlist") {
           loaded = parseFreeTvPlaylist(text, source).length;
@@ -610,7 +613,22 @@ export default function SourcesView() {
                           <span className="rounded bg-white/5 px-2 py-0.5 text-[10px] uppercase text-white/40">
                             {source.kind}
                           </span>
-                          <span className="text-[10px] text-white/35">Priority {source.priority}</span>
+                          <label className="flex items-center gap-1 text-[10px] text-white/35">
+                            Priority
+                            <input
+                              type="number"
+                              min="1"
+                              max="150"
+                              value={source.priority}
+                              onChange={(event) =>
+                                updateCustomLiveSource(source.id, {
+                                  priority: Number(event.target.value || 85),
+                                })
+                              }
+                              className="h-7 w-14 rounded border border-white/10 bg-black/30 px-1.5 text-[10px] text-white"
+                              aria-label={`Priority for ${source.name}`}
+                            />
+                          </label>
                         </div>
                         <p className="mt-1 truncate text-xs text-white/35">{source.url}</p>
                         {itemHealth?.lastCheckedAt && (
