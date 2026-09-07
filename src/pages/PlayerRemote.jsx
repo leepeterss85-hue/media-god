@@ -948,6 +948,136 @@ export default function PlayerRemote() {
               )}
             </section>
 
+            <section className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+              <div className="flex items-center gap-2">
+                <Search className="h-4 w-4 text-mg-green" />
+                <div>
+                  <p className="text-sm font-bold text-white">Browse & send to TV</p>
+                  <p className="text-xs text-white/45">Search on your phone and start it on the Firestick.</p>
+                </div>
+              </div>
+
+              <label className="relative mt-3 block">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
+                <input
+                  value={browseQuery}
+                  onChange={(event) => {
+                    setBrowseQuery(event.target.value);
+                    setBrowseTarget(null);
+                  }}
+                  placeholder="Search films or TV shows…"
+                  className="min-h-12 w-full rounded-xl border border-white/15 bg-[#161616] pl-10 pr-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-mg-green"
+                />
+              </label>
+
+              {browseSearching && (
+                <p className="mt-3 text-xs text-white/45">Searching…</p>
+              )}
+
+              {browseResults.length > 0 && !browseTarget && (
+                <div className="mt-3 grid gap-2">
+                  {browseResults.map((item) => {
+                    const MediaIcon = item.mediaType === "tv" ? Tv : Film;
+
+                    return (
+                      <button
+                        key={`${item.mediaType}-${item.id}`}
+                        type="button"
+                        onClick={() => {
+                          if (item.mediaType === "movie") {
+                            sendBrowseSelection(item);
+                          } else {
+                            setBrowseTarget(item);
+                          }
+                        }}
+                        className="flex min-h-14 items-center gap-3 rounded-xl border border-white/10 bg-black/25 px-3 text-left active:bg-white/10"
+                      >
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-mg-green/10 text-mg-green">
+                          <MediaIcon className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-white">{item.title}</p>
+                          <p className="text-xs text-white/45">
+                            {item.mediaType === "tv" ? "TV Show" : "Film"}
+                            {item.year ? ` · ${item.year}` : ""}
+                          </p>
+                        </div>
+                        <span className="text-xs font-semibold text-mg-green">
+                          {item.mediaType === "tv" ? "Choose episode" : "Play on TV"}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {browseTarget?.mediaType === "tv" && (
+                <div className="mt-3 grid gap-3 rounded-xl border border-mg-green/20 bg-mg-green/5 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold text-white">{browseTarget.title}</p>
+                      <p className="text-xs text-white/45">Choose the episode to start on the TV.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setBrowseTarget(null)}
+                      className="rounded-lg border border-white/10 px-3 py-2 text-xs text-white/60"
+                    >
+                      Back
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <label>
+                      <span className="mb-1 block text-xs text-white/50">Season</span>
+                      <select
+                        value={browseSeason}
+                        disabled={browseLoading || browseSeasons.length === 0}
+                        onChange={(event) => setBrowseSeason(Number(event.target.value || 0))}
+                        className="min-h-11 w-full rounded-xl border border-white/15 bg-[#161616] px-3 text-sm text-white outline-none focus:border-mg-green disabled:opacity-50"
+                      >
+                        {browseSeasons.map((item) => (
+                          <option key={item.season_number} value={item.season_number}>
+                            {item.name || `Season ${item.season_number}`}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label>
+                      <span className="mb-1 block text-xs text-white/50">Episode</span>
+                      <select
+                        value={browseEpisode}
+                        disabled={browseLoading || browseEpisodes.length === 0}
+                        onChange={(event) => setBrowseEpisode(Number(event.target.value || 0))}
+                        className="min-h-11 w-full rounded-xl border border-white/15 bg-[#161616] px-3 text-sm text-white outline-none focus:border-mg-green disabled:opacity-50"
+                      >
+                        {browseEpisodes.map((item) => {
+                          const number = Number(
+                            item?.episode_number ?? item?.episodeNumber ?? item?.episode ?? 0
+                          );
+                          return (
+                            <option key={number} value={number}>
+                              E{number} · {item?.name || item?.title || `Episode ${number}`}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </label>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={!browseSeason || !browseEpisode || browseLoading}
+                    onClick={() => sendBrowseSelection(browseTarget)}
+                    className="min-h-12 rounded-xl bg-mg-green px-4 text-sm font-bold text-black disabled:opacity-40"
+                  >
+                    Play this episode on TV
+                  </button>
+                </div>
+              )}
+            </section>
+
             <button
               onClick={() => send("exit")}
               className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-red-400/30 bg-red-500/10 px-4 text-sm font-semibold text-red-200"
