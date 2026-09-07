@@ -51,6 +51,11 @@ export default function PlayerRemote() {
     [session?.file_labels]
   );
 
+  const audioLabels = useMemo(
+    () => parseJson(session?.audio_labels, []),
+    [session?.audio_labels]
+  );
+
   useEffect(() => {
     let cancelled = false;
     let unsubscribe = null;
@@ -222,7 +227,11 @@ export default function PlayerRemote() {
 
               <div className="mt-4 flex items-center gap-3">
                 <button onClick={() => send("mute_toggle")} className="remote-btn h-11 w-11 shrink-0" aria-label="Mute or unmute">
-                  Number(session?.volume || 0) <= 0 ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />
+                  {Number(session?.volume || 0) <= 0 ? (
+                    <VolumeX className="h-5 w-5" />
+                  ) : (
+                    <Volume2 className="h-5 w-5" />
+                  )}
                 </button>
 
                 <input
@@ -275,6 +284,23 @@ export default function PlayerRemote() {
                     {fileLabels.map((file) => (
                       <option key={file.id} value={file.id}>
                         {file.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+
+              {audioLabels.length > 0 && (
+                <label>
+                  <span className="mb-1.5 block text-xs font-semibold text-white/60">Audio track</span>
+                  <select
+                    value={Number(session?.active_audio_index ?? -1)}
+                    onChange={(event) => send("audio", event.target.value)}
+                    className="min-h-12 w-full rounded-xl border border-white/15 bg-[#161616] px-3 text-sm text-white outline-none focus:border-mg-green"
+                  >
+                    {audioLabels.map((label, index) => (
+                      <option key={`${index}-${label}`} value={index}>
+                        {label || `Audio ${index + 1}`}
                       </option>
                     ))}
                   </select>
