@@ -766,14 +766,29 @@ export default function LiveTVView() {
   const filtered = useMemo(() => {
     const q = searchText(query);
 
-    return channels.filter(
+    const result = channels.filter(
       (channel) => {
         const tags = new Set(
           channel?.tags || []
         );
+        const key = channelMemoryKey(channel);
 
         if (
-          quickFilter !== "All" &&
+          quickFilter === "Favourites" &&
+          !favouriteKeys.has(key)
+        ) {
+          return false;
+        }
+
+        if (
+          quickFilter === "Recent" &&
+          !recentKeys.includes(key)
+        ) {
+          return false;
+        }
+
+        if (
+          !["All", "Favourites", "Recent"].includes(quickFilter) &&
           !tags.has(quickFilter)
         ) {
           return false;
@@ -821,12 +836,28 @@ export default function LiveTVView() {
         return haystack.includes(q);
       }
     );
+
+    if (quickFilter === "Recent") {
+      const order = new Map(
+        recentKeys.map((key, index) => [key, index])
+      );
+
+      return [...result].sort(
+        (a, b) =>
+          (order.get(channelMemoryKey(a)) ?? 9999) -
+          (order.get(channelMemoryKey(b)) ?? 9999)
+      );
+    }
+
+    return result;
   }, [
     channels,
     group,
     query,
     directOnly,
     quickFilter,
+    favouriteKeys,
+    recentKeys,
   ]);
 
   const shown = filtered.slice(
