@@ -1438,9 +1438,9 @@ export default function LiveTVView() {
         )}
 
         {filtered.length >
-          MAX_VISIBLE && (
+          visibleLimit && (
           <span>
-            Showing first {MAX_VISIBLE}. Use search or filters to narrow the list.
+            Showing first {visibleLimit}. Use search or filters to narrow the list.
           </span>
         )}
       </div>
