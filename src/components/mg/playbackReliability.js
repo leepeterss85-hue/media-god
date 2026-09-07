@@ -146,24 +146,41 @@ const applyEvent = (record, kind, value) => {
   return current;
 };
 
-export const recordPlaybackReliability = (
-  label,
-  kind,
-  value = null,
-  profile = getPlaybackDeviceProfile()
-) => {
+const recordKeys = (label, kind, value, profile, includeGeneric) => {
   const source = baseSourceKey(label);
   if (!source) return;
 
   const store = cleanStore(readStore());
   const deviceKey = sourceDeviceKey(label, profile);
-  const keys = [source, deviceKey, ...traitKeysFor(label, profile)].filter(Boolean);
+  const keys = [
+    ...(includeGeneric ? [source] : []),
+    deviceKey,
+    ...traitKeysFor(label, profile),
+  ].filter(Boolean);
 
   keys.forEach((key) => {
     store[key] = applyEvent(store[key], kind, value);
   });
 
   writeStore(store);
+};
+
+export const recordPlaybackReliability = (
+  label,
+  kind,
+  value = null,
+  profile = getPlaybackDeviceProfile()
+) => {
+  recordKeys(label, kind, value, profile, true);
+};
+
+export const recordDevicePlaybackReliability = (
+  label,
+  kind,
+  value = null,
+  profile = getPlaybackDeviceProfile()
+) => {
+  recordKeys(label, kind, value, profile, false);
 };
 
 const scoreRecord = (record) => {
