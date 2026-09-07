@@ -20,6 +20,8 @@ import LiveVideo from "@/components/mg/LiveVideo";
 import PlayerControls from "@/components/mg/PlayerControls";
 import PlayerQrRemote from "@/components/mg/PlayerQrRemote";
 import { readTrackPreferences } from "@/components/mg/mediaTrackPreferences";
+import { readPlaybackPreferences } from "@/components/mg/playbackPreferences";
+import { recordPlaybackReliability } from "@/components/mg/playbackReliability";
 
 const isMagnet = (value) =>
   String(value || "")
@@ -121,6 +123,13 @@ export default function VideoPlayer({
   const liveVideoRef = useRef(null);
   const stageRef = useRef(null);
   const pollRef = useRef(null);
+  const recoveryResumeRef = useRef(0);
+  const autoRecoveryRef = useRef({
+    lastTime: 0,
+    lastProgressAt: Date.now(),
+    lastSwitchAt: 0,
+    abandoned: new Set(),
+  });
 
   const active =
     sources[activeIdx] ||
