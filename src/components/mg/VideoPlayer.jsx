@@ -1429,20 +1429,31 @@ export default function VideoPlayer({
       lastSaveRef.current =
         now;
 
-      const key =
-        `${source.title}|${
-          source.rdYear ||
-          source.year ||
-          ""
-        }|${
-          source.rdSeason ||
-          source.season ||
-          ""
-        }|${
-          source.rdEpisode ||
-          source.episode ||
-          ""
-        }`;
+      const legacyMediaType =
+        source?.mediaType === "tv" ||
+        source?.type === "series" ||
+        source?.season != null ||
+        source?.episode != null ||
+        source?.rdSeason != null ||
+        source?.rdEpisode != null
+          ? "tv"
+          : "movie";
+
+      const canonicalTitle = String(
+        source?.rdTitle || source?.title || "Video"
+      )
+        .replace(/\s+[—-]\s+S\d{1,2}E\d{1,3}.*$/i, "")
+        .trim();
+
+      const key = [
+        "mg2",
+        source?.tmdbId ?? source?.tmdb_id ?? source?.id ?? "",
+        legacyMediaType,
+        source?.rdYear || source?.year || "",
+        source?.rdSeason || source?.season || "",
+        source?.rdEpisode || source?.episode || "",
+        encodeURIComponent(canonicalTitle),
+      ].join("|");
 
       const patch = {
         progress:
@@ -1513,31 +1524,12 @@ export default function VideoPlayer({
               return;
             }
 
-            return base44.entities.ContinueWatching
-              .create({
-                content_key:
-                  key,
-
-                title:
-                  source.title,
-
-                year:
-                  source.rdYear ||
-                  source.year ||
-                  "",
-
-                ...patch,
-              })
-              .then(
-                (
-                  created
-                ) => {
-                  cwIdRef.current[
-                    key
-                  ] =
-                    created.id;
-                }
-              );
+            /*
+             * ContinueWatchingAssist owns creation of canonical resume rows.
+             * The player may update an existing canonical row, but it must not
+             * create another record and race the canonical tracker.
+             */
+            return null;
           }
         )
         .catch(
