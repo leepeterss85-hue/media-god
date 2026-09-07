@@ -142,8 +142,9 @@ const choosePreferredHlsAudioTrack = (
     let score = 0;
 
     if (
-      isEnglishLanguage(language) ||
-      /\b(?:eng|english)\b/i.test(text)
+      languageMatches(language, preferredLanguage) ||
+      (normaliseLanguage(preferredLanguage) === "en" &&
+        /\b(?:eng|english)\b/i.test(text))
     ) {
       score += 10000;
     } else {
@@ -203,10 +204,12 @@ const selectPreferredNativeAudioTrack = (
       `${track?.language || ""} ${track?.label || ""}`;
 
     if (
-      isEnglishLanguage(
-        track?.language
+      languageMatches(
+        track?.language,
+        preferredLanguage
       ) ||
-      /\b(?:eng|english)\b/i.test(text)
+      (normaliseLanguage(preferredLanguage) === "en" &&
+        /\b(?:eng|english)\b/i.test(text))
     ) {
       englishIndex = index;
       break;
@@ -846,8 +849,9 @@ const LiveVideo = forwardRef(
 
       const preferEnglishNativeAudio =
         () => {
-          selectEnglishNativeAudioTrack(
-            video
+          selectPreferredNativeAudioTrack(
+            video,
+            preferredAudioLanguage
           );
 
           if (
@@ -861,8 +865,9 @@ const LiveVideo = forwardRef(
           nativeAudioTimer =
             window.setTimeout(
               () => {
-                selectEnglishNativeAudioTrack(
-                  video
+                selectPreferredNativeAudioTrack(
+                  video,
+                  preferredAudioLanguage
                 );
               },
               700
@@ -1123,8 +1128,9 @@ const LiveVideo = forwardRef(
                   [];
 
                 const englishIndex =
-                  chooseEnglishHlsTrack(
-                    tracks
+                  choosePreferredHlsAudioTrack(
+                    tracks,
+                    preferredAudioLanguage
                   );
 
                 if (
@@ -1519,6 +1525,7 @@ const LiveVideo = forwardRef(
       isLive,
       subtitlesEnabled,
       preferredSubtitleLanguage,
+      preferredAudioLanguage,
       externalSubtitleCount,
       onError,
     ]);
