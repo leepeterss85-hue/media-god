@@ -22,6 +22,14 @@ import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import SocialLoginSection from "@/components/mg/SocialLoginSection";
+import {
+  readTrackPreferences,
+  writeTrackPreferences,
+} from "@/components/mg/mediaTrackPreferences";
+import {
+  readPlaybackPreferences,
+  writePlaybackPreferences,
+} from "@/components/mg/playbackPreferences";
 
 const DEFAULT_PREFERENCES = {
   autoplay: true,
