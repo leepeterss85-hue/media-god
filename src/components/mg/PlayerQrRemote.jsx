@@ -1,0 +1,269 @@
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import QRCode from "qrcode";
+import { Smartphone } from "lucide-react";
+import { base44 } from "@/api/base44Client";
+
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+const createSessionCode = () => {
+  if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
+  }
+
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}${Math.random()
+    .toString(36)
+    .slice(2)}`;
+};
+
+const parseNumber = (value, fallback = 0) => {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+};
+
+export default function PlayerQrRemote({
+  title = "",
+  videoRef,
+  liveVideoRef,
+  sourceLabels = [],
+  activeSourceIndex = 0,
+  onSelectSource,
+  onTryNextSource,
+  fileOptions = [],
+  activeFileId = "",
+  onSelectFile,
+  onExit,
+}) {
+  const [session, setSession] = useState(null);
+  const [qrUrl, setQrUrl] = useState("");
+  const [error, setError] = useState("");
+  const lastCommandSeqRef = useRef(0);
+  const sessionRef = useRef(null);
+  const sourceIndexRef = useRef(activeSourceIndex);
+  const activeFileRef = useRef(activeFileId);
+
+  sourceIndexRef.current = activeSourceIndex;
+  activeFileRef.current = activeFileId;
+
+  const serialisedSourceLabels = useMemo(
+    () => JSON.stringify(sourceLabels.map((label) => String(label || ""))),
+    [sourceLabels]
+  );
+
+  const serialisedFileLabels = useMemo(
+    () =>
+      JSON.stringify(
+        fileOptions.map((file) => ({
+          id: String(file?.id ?? ""),
+          label: String(file?.label || file?.path || file?.id || "File"),
+        }))
+      ),
+    [fileOptions]
+  );
+
+  const getVideo = () =>
+    liveVideoRef?.current ||
+    videoRef?.current ||
+    null;
+
+  useEffect(() => {
+    let cancelled = false;
+    let unsubscribe = null;
+    let statusTimer = null;
+
+    const start = async () => {
+      try {
+        const sessionCode = createSessionCode();
+        const expiresAt = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();
+        const remoteUrl = `${window.location.origin}/remote/${sessionCode}`;
+
+        const created = await base44.entities.PlayerRemoteSession.create({
+          session_code: sessionCode,
+          title: title || "Now playing",
+          command: "",
+          command_seq: 0,
+          command_value: "",
+          active_source_index: activeSourceIndex,
+          source_count: sourceLabels.length,
+          source_labels: serialisedSourceLabels,
+          file_labels: serialisedFileLabels,
+          active_file_id: String(activeFileId || ""),
+          current_time: 0,
+          duration: 0,
+          paused: true,
+          volume: 1,
+          status: "active",
+          expires_at: expiresAt,
+          last_seen_at: new Date().toISOString(),
+        });
+
+        if (cancelled) {
+          return;
+        }
+
+        sessionRef.current = created;
+        setSession(created);
+
+        const image = await QRCode.toDataURL(remoteUrl, {
+          width: 220,
+          margin: 1,
+          errorCorrectionLevel: "M",
+        });
+
+        if (!cancelled) {
+          setQrUrl(image);
+        }
+
+        const handleCommand = async (record) => {
+          const seq = Number(record?.command_seq || 0);
+
+          if (!record || record.id !== created.id || seq <= lastCommandSeqRef.current) {
+            return;
+          }
+
+          lastCommandSeqRef.current = seq;
+
+          const command = String(record.command || "");
+          const value = record.command_value;
+          const video = getVideo();
+
+          try {
+            if (command === "play_pause" && video) {
+              if (video.paused) {
+                await video.play().catch(() => {});
+              } else {
+                video.pause();
+              }
+            } else if (command === "play" && video) {
+              await video.play().catch(() => {});
+            } else if (command === "pause" && video) {
+              video.pause();
+            } else if (command === "seek_delta" && video) {
+              const delta = parseNumber(value, 0);
+              const duration = Number.isFinite(video.duration) ? video.duration : Infinity;
+              video.currentTime = clamp(video.currentTime + delta, 0, duration);
+            } else if (command === "seek_to" && video) {
+              const duration = Number.isFinite(video.duration) ? video.duration : Infinity;
+              video.currentTime = clamp(parseNumber(value, video.currentTime), 0, duration);
+            } else if (command === "volume" && video) {
+              const volume = clamp(parseNumber(value, video.volume), 0, 1);
+              video.volume = volume;
+              video.muted = volume === 0;
+            } else if (command === "mute_toggle" && video) {
+              video.muted = !video.muted;
+            } else if (command === "next_source") {
+              onTryNextSource?.();
+            } else if (command === "source") {
+              onSelectSource?.(parseNumber(value, sourceIndexRef.current));
+            } else if (command === "file") {
+              onSelectFile?.(String(value || ""));
+            } else if (command === "exit") {
+              onExit?.();
+            }
+          } catch (commandError) {
+            console.warn("[Media God] QR remote command failed", commandError);
+          }
+        };
+
+        unsubscribe = base44.entities.PlayerRemoteSession.subscribe((event) => {
+          if (event.type === "delete") {
+            return;
+          }
+
+          if (event.data?.id === created.id) {
+            handleCommand(event.data);
+          }
+        });
+
+        const publishStatus = async () => {
+          const currentSession = sessionRef.current;
+          if (!currentSession || cancelled) return;
+
+          const video = getVideo();
+
+          try {
+            await base44.entities.PlayerRemoteSession.update(currentSession.id, {
+              title: title || "Now playing",
+              active_source_index: sourceIndexRef.current,
+              source_count: sourceLabels.length,
+              source_labels: serialisedSourceLabels,
+              file_labels: serialisedFileLabels,
+              active_file_id: String(activeFileRef.current || ""),
+              current_time: video ? Number(video.currentTime || 0) : 0,
+              duration:
+                video && Number.isFinite(video.duration)
+                  ? Number(video.duration || 0)
+                  : 0,
+              paused: video ? Boolean(video.paused) : true,
+              volume: video ? Number(video.muted ? 0 : video.volume || 0) : 0,
+              status: "active",
+              last_seen_at: new Date().toISOString(),
+            });
+          } catch {
+            // A temporary network miss should not interrupt playback.
+          }
+        };
+
+        publishStatus();
+        statusTimer = window.setInterval(publishStatus, 2000);
+      } catch (startError) {
+        if (!cancelled) {
+          setError(startError?.message || "Phone remote unavailable");
+        }
+      }
+    };
+
+    start();
+
+    return () => {
+      cancelled = true;
+      if (unsubscribe) unsubscribe();
+      if (statusTimer) window.clearInterval(statusTimer);
+
+      const currentSession = sessionRef.current;
+      sessionRef.current = null;
+
+      if (currentSession?.id) {
+        base44.entities.PlayerRemoteSession.update(currentSession.id, {
+          status: "closed",
+          last_seen_at: new Date().toISOString(),
+        }).catch(() => {});
+      }
+    };
+  }, []);
+
+  if (!session || !qrUrl) {
+    if (!error) return null;
+
+    return (
+      <div data-mg-player-qr="true" className="text-xs text-white/45">
+        Phone remote unavailable
+      </div>
+    );
+  }
+
+  return (
+    <div
+      data-mg-player-qr="true"
+      className="flex shrink-0 items-center gap-2 rounded-xl border border-white/15 bg-black/80 p-2 text-white shadow-xl"
+      title="Scan with your phone to control playback"
+    >
+      <img
+        src={qrUrl}
+        alt="QR code for Media God phone remote"
+        className="h-20 w-20 rounded-md bg-white p-1"
+      />
+
+      <div className="hidden min-w-0 xl:block">
+        <div className="flex items-center gap-1.5 text-xs font-semibold">
+          <Smartphone className="h-4 w-4 text-mg-green" />
+          Phone remote
+        </div>
+        <p className="mt-1 max-w-28 text-[10px] leading-snug text-white/50">
+          Scan to control play, seek, source, audio recovery and Exit.
+        </p>
+      </div>
+    </div>
+  );
+}
