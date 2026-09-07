@@ -12,9 +12,14 @@ import Login from '@/pages/Login';
 import Register from '@/pages/Register';
 import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
+import PlayerRemote from '@/pages/PlayerRemote';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
 const AuthenticatedApp = () => {
+  const isPlayerRemotePath =
+    typeof window !== 'undefined' &&
+    window.location.pathname.startsWith('/remote/');
+
   const {
     isAuthenticated,
     isLoadingAuth,
@@ -22,6 +27,17 @@ const AuthenticatedApp = () => {
     authError,
     navigateToLogin,
   } = useAuth();
+
+  // The QR phone remote is intentionally public and protected by a long,
+  // short-lived bearer session code rather than the TV user's login session.
+  if (isPlayerRemotePath) {
+    return (
+      <Routes>
+        <Route path="/remote/:sessionCode" element={<PlayerRemote />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    );
+  }
 
   // Show loading spinner while checking app public settings or auth
   if (isLoadingPublicSettings || isLoadingAuth) {
