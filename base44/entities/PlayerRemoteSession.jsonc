@@ -41,6 +41,14 @@
       "type": "string",
       "default": ""
     },
+    "audio_labels": {
+      "type": "string",
+      "default": "[]"
+    },
+    "active_audio_index": {
+      "type": "number",
+      "default": -1
+    },
     "current_time": {
       "type": "number",
       "default": 0
