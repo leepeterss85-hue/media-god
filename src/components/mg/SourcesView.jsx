@@ -624,31 +624,68 @@ export default function SourcesView() {
     setMessage("");
 
     try {
-      const url =
-        result.server.type === "plex"
-          ? await plexDirectUrl(result)
-          : jellyfinDirectUrl(result);
+      let directUrl = "";
+      let transcodeUrl = "";
+      let audio = {};
 
-      if (!url) throw new Error("The server did not expose a direct media part");
+      if (result.server.type === "plex") {
+        const info = await plexPlaybackInfo(result);
+        directUrl = clean(info?.directUrl);
+        transcodeUrl = clean(info?.transcodeUrl);
+        audio = info?.audio || {};
+      } else {
+        audio = jellyfinAudioInfo(result);
+        directUrl = jellyfinDirectUrl(result);
+        transcodeUrl = jellyfinTranscodeUrl(result, audio);
+      }
+
+      if (!directUrl && !transcodeUrl) {
+        throw new Error("The server did not expose a playable media path");
+      }
+
+      const riskyAudio = riskyServerAudio(audio);
+      const audioLabel = audioInfoLabel(audio);
+      const directSource = directUrl
+        ? {
+            label: `${result.server.name} · Direct${audioLabel ? ` · ${audioLabel}` : ""}`,
+            type: "url",
+            src: directUrl,
+            url: directUrl,
+            audioCodec: audio?.codec || audio?.Codec || "",
+            playbackPriority: riskyAudio ? 5 : 30,
+          }
+        : null;
+      const transcodeSource = transcodeUrl
+        ? {
+            label: `${result.server.name} · HLS Audio Safe · AAC${riskyAudio ? " · preferred" : " · backup"}`,
+            type: "url",
+            src: transcodeUrl,
+            url: transcodeUrl,
+            audioCodec: "aac",
+            playbackPriority: riskyAudio ? 40 : 15,
+          }
+        : null;
+      const playbackSources = [directSource, transcodeSource].filter(Boolean);
 
       player.play({
         id: `personal:${result.server.id}:${result.id}`,
         title: result.title,
         poster: result.poster || "",
-        mediaType: "movie",
-        type: "movie",
+        mediaType: result.type === "episode" ? "tv" : "movie",
+        type: result.type === "episode" ? "tv" : "movie",
+        season:
+          result.type === "episode"
+            ? Number(result?.raw?.ParentIndexNumber || result?.raw?.parentIndex || 0) || null
+            : null,
+        episode:
+          result.type === "episode"
+            ? Number(result?.raw?.IndexNumber || result?.raw?.index || 0) || null
+            : null,
         noRd: true,
         skipRdLookup: true,
         skipAddonLookup: true,
         allowNonPlaybackFallback: false,
-        sources: [
-          {
-            label: `${result.server.name} · Direct`,
-            type: "url",
-            src: url,
-            url,
-          },
-        ],
+        sources: playbackSources,
       });
     } catch (playError) {
       setError(playError?.message || "Could not start the personal-server item.");
