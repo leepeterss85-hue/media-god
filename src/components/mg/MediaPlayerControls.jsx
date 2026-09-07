@@ -1169,6 +1169,14 @@ export default function MediaPlayerControls({
       data-mg-player-controls="true"
       className="absolute inset-0 z-[60] pointer-events-none"
     >
+      <style>{`
+        video::cue {
+          font-size: ${cueStyle.fontSize};
+          background: ${cueStyle.background};
+          color: white;
+          text-shadow: 0 2px 4px rgba(0,0,0,.95);
+        }
+      `}</style>
       {/*
        * MOBILE WAKE LAYER
        *
