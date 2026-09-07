@@ -1248,6 +1248,10 @@ const LiveVideo = forwardRef(
                 ? Number(hls.audioTrack)
                 : -1;
 
+              if (currentAudio >= 0) {
+                hlsTriedAudioTracks.add(currentAudio);
+              }
+
               if (audioTracks.length > 1) {
                 const targetAudio = choosePreferredHlsAudioTrack(
                   audioTracks,
@@ -1289,6 +1293,10 @@ const LiveVideo = forwardRef(
                   : Number.isInteger(hls.loadLevel) && hls.loadLevel >= 0
                     ? hls.loadLevel
                     : -1;
+              if (currentLevel >= 0) {
+                hlsTriedLevels.add(currentLevel);
+              }
+
               const currentBitrate =
                 currentLevel >= 0
                   ? Number(levels[currentLevel]?.bitrate || Infinity)
