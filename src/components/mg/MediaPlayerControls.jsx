@@ -128,6 +128,8 @@ export default function MediaPlayerControls({
 
   const [audioTracks, setAudioTracks] = useState([]);
   const [selectedAudio, setSelectedAudio] = useState(-1);
+  const hlsAudioTracksRef = useRef([]);
+  const hlsAudioActiveRef = useRef(-1);
   const [trackPreferences, setTrackPreferences] = useState(
     () => readTrackPreferences()
   );
@@ -245,14 +247,29 @@ export default function MediaPlayerControls({
 
         nextAudio.push({
           index,
+          kind: "native",
           label: friendlyTrackLabel(track, "Audio", index),
           language: track?.language || "",
+          raw: track,
         });
 
         if (track?.enabled) {
           activeAudio = index;
         }
       }
+    }
+
+    if (nextAudio.length === 0 && hlsAudioTracksRef.current.length > 0) {
+      hlsAudioTracksRef.current.forEach((track, index) => {
+        nextAudio.push({
+          index: Number.isInteger(Number(track?.index)) ? Number(track.index) : index,
+          kind: "hls",
+          label: friendlyTrackLabel(track, "Audio", index),
+          language: track?.language || track?.lang || "",
+          raw: track,
+        });
+      });
+      activeAudio = hlsAudioActiveRef.current;
     }
 
     const preferences = trackPreferencesRef.current;
@@ -294,7 +311,14 @@ export default function MediaPlayerControls({
             !preferredLanguage || trackLanguage(item) === preferredLanguage
         ) || nextAudio[0];
 
-      if (preferred) {
+      if (preferred?.kind === "hls") {
+        window.dispatchEvent(
+          new CustomEvent("mg:hls-audio-track-selected", {
+            detail: { index: preferred.index },
+          })
+        );
+        activeAudio = preferred.index;
+      } else if (preferred && nativeAudioTracks) {
         try {
           for (let index = 0; index < nativeAudioTracks.length; index += 1) {
             nativeAudioTracks[index].enabled = index === preferred.index;
