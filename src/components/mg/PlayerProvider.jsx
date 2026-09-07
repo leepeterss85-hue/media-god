@@ -153,6 +153,64 @@ const episodePlaybackRequest = ({
   };
 };
 
+const continueWatchingKeyForRequest = (request) => {
+  if (!request) return "";
+
+  const mediaType = isTvRequest(request) ? "tv" : "movie";
+  const tmdbId = String(
+    request?.tmdbId ?? request?.tmdb_id ?? request?.id ?? ""
+  );
+  const year = String(request?.rdYear ?? request?.year ?? "");
+  const season = positiveInt(request?.season ?? request?.rdSeason) || "";
+  const episode = positiveInt(request?.episode ?? request?.rdEpisode) || "";
+  const title = seriesTitleFromRequest(request) || "Video";
+
+  return [
+    "mg2",
+    tmdbId,
+    mediaType,
+    year,
+    season,
+    episode,
+    encodeURIComponent(title),
+  ].join("|");
+};
+
+const queueContinueWatching = async (request) => {
+  if (!request || !isTvRequest(request)) return;
+
+  const key = continueWatchingKeyForRequest(request);
+  if (!key) return;
+
+  const patch = {
+    progress: 5,
+    duration: 0,
+    video_url: "",
+    poster_url: String(request?.poster || request?.poster_url || ""),
+    source_type: "queued",
+    title: seriesTitleFromRequest(request),
+    year: String(request?.rdYear ?? request?.year ?? ""),
+  };
+
+  try {
+    const existing = await base44.entities.ContinueWatching.filter({
+      content_key: key,
+    });
+
+    if (existing?.length) {
+      await base44.entities.ContinueWatching.update(existing[0].id, patch);
+      return;
+    }
+
+    await base44.entities.ContinueWatching.create({
+      content_key: key,
+      ...patch,
+    });
+  } catch {
+    // Queueing the next episode must never interrupt playback.
+  }
+};
+
 const findNextEpisodeRequest = async (current) => {
   if (!isTvRequest(current)) {
     return null;
