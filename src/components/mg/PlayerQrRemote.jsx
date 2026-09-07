@@ -41,7 +41,9 @@ const getPlayerVideo = () => {
     document.querySelectorAll('[data-mg-player-root="true"] video')
   );
 
-  return videos[videos.length - 1] || null;
+  const video = videos[videos.length - 1] || null;
+
+  return video instanceof HTMLVideoElement ? video : null;
 };
 
 const getSelect = (label) => {
@@ -51,7 +53,9 @@ const getSelect = (label) => {
     document.querySelectorAll(`select[aria-label="${label}"]`)
   );
 
-  return matches[matches.length - 1] || null;
+  const select = matches[matches.length - 1] || null;
+
+  return select instanceof HTMLSelectElement ? select : null;
 };
 
 const setSelectValue = (label, value) => {
@@ -284,7 +288,13 @@ export default function PlayerQrRemote({ showIdle = false }) {
             } else if (command === "mute_toggle" && video) {
               video.muted = !video.muted;
             } else if (command === "next_source") {
-              document.querySelector('[data-mg-no-sound="true"]')?.click?.();
+              const fixAudio = document.querySelector(
+                '[data-mg-no-sound="true"]'
+              );
+
+              if (fixAudio instanceof HTMLElement) {
+                fixAudio.click();
+              }
             } else if (command === "source") {
               setSelectValue("Choose playback source", value);
             } else if (command === "file") {
