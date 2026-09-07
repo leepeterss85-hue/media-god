@@ -1682,6 +1682,16 @@ export default function VideoPlayer({
 
   const handleNoSound =
     () => {
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("mg:playback-no-sound", {
+            detail: {
+              label: sourceDisplayLabel(active, activeIdx),
+            },
+          })
+        );
+      }
+
       const video =
         stageRef.current
           ?.querySelector(
