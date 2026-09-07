@@ -2,9 +2,28 @@ import React, { useEffect } from "react";
 
 const FIRE_TV_RE = /(?:AFT[A-Z0-9]*|Fire TV|AmazonWebAppPlatform|Silk)/i;
 
-const isFireTv = () =>
-  typeof navigator !== "undefined" &&
-  FIRE_TV_RE.test(String(navigator.userAgent || ""));
+const isFireTv = () => {
+  if (typeof navigator === "undefined") {
+    return false;
+  }
+
+  const userAgent = String(navigator.userAgent || "");
+  const classDetected =
+    typeof document !== "undefined" &&
+    (
+      document.documentElement.classList.contains("mg-fire-tv") ||
+      document.body?.classList.contains("mg-fire-tv")
+    );
+  const androidNoTouch =
+    /Android/i.test(userAgent) &&
+    Number(navigator.maxTouchPoints || 0) === 0;
+
+  return (
+    FIRE_TV_RE.test(userAgent) ||
+    classDetected ||
+    androidNoTouch
+  );
+};
 
 const visible = (element) => {
   if (!(element instanceof HTMLElement)) return false;
