@@ -254,7 +254,6 @@ const plexPlaybackInfo = async (result) => {
   transcode.searchParams.set("protocol", "hls");
   transcode.searchParams.set("directPlay", "0");
   transcode.searchParams.set("directStream", "1");
-  transcode.searchParams.set("videoResolution", "1920x1080");
   transcode.searchParams.set("videoQuality", "100");
   transcode.searchParams.set("audioCodec", "aac");
   transcode.searchParams.set("audioChannels", "6");
