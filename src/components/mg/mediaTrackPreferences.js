@@ -189,14 +189,28 @@ const audioChannelLabel = (track) => {
 export const friendlyTrackLabel = (track, kind, index) => {
   const rawLabel = String(track?.label || track?.name || "").trim();
   const language = String(track?.language || track?.lang || track?.attrs?.LANGUAGE || "").trim();
+
+  if (kind !== "Audio") {
+    const base = rawLabel || languageDisplayName(language) || `${kind} ${index + 1}`;
+    const languageName = languageDisplayName(language);
+    const languageSuffix =
+      languageName && !base.toLowerCase().includes(languageName.toLowerCase())
+        ? ` · ${languageName}`
+        : "";
+    const forcedSuffix = trackLooksForced(track) && !/forced/i.test(base)
+      ? " · Forced"
+      : "";
+
+    return `${base}${languageSuffix}${forcedSuffix}`;
+  }
+
   const languageName = languageDisplayName(language);
-  const codec = kind === "Audio" ? audioCodecLabel(track) : "";
-  const channels = kind === "Audio" ? audioChannelLabel(track) : "";
+  const codec = audioCodecLabel(track);
+  const channels = audioChannelLabel(track);
   const commentary = /\bcommentary\b/i.test(rawLabel) ? "Commentary" : "";
   const descriptive = /\b(?:audio description|descriptive|visually impaired)\b/i.test(rawLabel)
     ? "Audio description"
     : "";
-  const forced = trackLooksForced(track) ? "Forced" : "";
 
   const parts = [
     languageName,
@@ -204,7 +218,6 @@ export const friendlyTrackLabel = (track, kind, index) => {
     channels,
     commentary,
     descriptive,
-    forced,
   ].filter(Boolean);
 
   if (parts.length > 0) {
