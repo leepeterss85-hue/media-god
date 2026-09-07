@@ -61,6 +61,9 @@ const visible = (element) => {
   );
 };
 
+const mediaGodAppReady = () =>
+  document.querySelector("#root .mg-fire-tv-nav") instanceof HTMLElement;
+
 const overlayOpen = () =>
   Array.from(
     document.querySelectorAll(
@@ -94,7 +97,7 @@ const focusNow = (element) => {
 
 const cardFor = (element) =>
   element instanceof HTMLElement
-    ? element.closest(".mg-fire-tv-card")
+    ? element.closest(".mg-fire-tv-card, .mg-fire-tv-resume-card")
     : null;
 
 const rowFor = (element) =>
@@ -107,6 +110,10 @@ const cardTarget = (card) => {
     return null;
   }
 
+  if (card.matches('[role="button"]') && visible(card)) {
+    return card;
+  }
+
   return (
     Array.from(
       card.querySelectorAll(
@@ -117,7 +124,11 @@ const cardTarget = (card) => {
 };
 
 const cardsInRow = (row) =>
-  Array.from(row?.querySelectorAll?.(".mg-fire-tv-card") || []).filter(visible);
+  Array.from(
+    row?.querySelectorAll?.(
+      ".mg-fire-tv-card, .mg-fire-tv-resume-card"
+    ) || []
+  ).filter(visible);
 
 const rows = () =>
   Array.from(
@@ -129,10 +140,15 @@ const rows = () =>
         a.getBoundingClientRect().top - b.getBoundingClientRect().top
     );
 
-const activeSidebarButton = () => {
-  const buttons = Array.from(
-    document.querySelectorAll("aside button")
+const sidebarButtons = () =>
+  Array.from(
+    document.querySelectorAll(
+      ".mg-fire-tv-nav button:not([disabled])"
+    )
   ).filter(visible);
+
+const activeSidebarButton = () => {
+  const buttons = sidebarButtons();
 
   return (
     buttons.find((button) =>
@@ -143,6 +159,15 @@ const activeSidebarButton = () => {
     null
   );
 };
+
+const heroButtons = () =>
+  Array.from(
+    document.querySelectorAll(
+      '.mg-fire-tv-hero button:not([disabled])'
+    )
+  ).filter(visible);
+
+const heroTarget = () => heroButtons()[0] || null;
 
 const nearestCardByX = (targetRow, x) => {
   const cards = cardsInRow(targetRow);
@@ -185,24 +210,14 @@ const firstUsefulCard = () => {
   return cardTarget(cardsInRow(row)[0]);
 };
 
-const heroTarget = () =>
-  Array.from(
-    document.querySelectorAll(
-      '.mg-fire-tv-hero button:not([disabled])'
-    )
-  ).find(visible) || null;
-
 const moveSidebar = (current, direction) => {
-  const aside = current?.closest?.("aside");
+  const aside = current?.closest?.(".mg-fire-tv-nav");
 
   if (!aside) {
     return false;
   }
 
-  const buttons = Array.from(
-    aside.querySelectorAll("button:not([disabled])")
-  ).filter(visible);
-
+  const buttons = sidebarButtons();
   const index = buttons.indexOf(current);
 
   if (direction === "right") {
@@ -213,15 +228,68 @@ const moveSidebar = (current, direction) => {
     return false;
   }
 
-  if (direction === "up" && index > 0) {
-    return focusNow(buttons[index - 1]);
+  if (direction === "up") {
+    if (index > 0) {
+      return focusNow(buttons[index - 1]);
+    }
+
+    return true;
   }
 
-  if (direction === "down" && index < buttons.length - 1) {
-    return focusNow(buttons[index + 1]);
+  if (direction === "down") {
+    if (index < buttons.length - 1) {
+      return focusNow(buttons[index + 1]);
+    }
+
+    return true;
   }
 
-  return true;
+  if (direction === "left") {
+    return true;
+  }
+
+  return false;
+};
+
+const moveHero = (current, direction) => {
+  const hero = current?.closest?.(".mg-fire-tv-hero");
+
+  if (!hero) {
+    return false;
+  }
+
+  const buttons = heroButtons();
+  const index = buttons.indexOf(current);
+
+  if (index < 0) {
+    return false;
+  }
+
+  if (direction === "left") {
+    if (index > 0) {
+      return focusNow(buttons[index - 1]);
+    }
+
+    return focusNow(activeSidebarButton());
+  }
+
+  if (direction === "right") {
+    if (index < buttons.length - 1) {
+      return focusNow(buttons[index + 1]);
+    }
+
+    return true;
+  }
+
+  if (direction === "down") {
+    return focusNow(firstUsefulCard());
+  }
+
+  if (direction === "up") {
+    return true;
+  }
+
+  return false;
 };
 
 const moveCard = (current, direction) => {
@@ -279,71 +347,6 @@ const moveCard = (current, direction) => {
   return false;
 };
 
-const pageFocusable = () =>
-  Array.from(
-    document.querySelectorAll(
-      'main button:not([disabled]), main a[href], main [role="button"]:not([aria-disabled="true"])'
-    )
-  ).filter((item) => {
-    if (!visible(item)) return false;
-
-    const label = String(item.getAttribute("aria-label") || "").toLowerCase();
-
-    if (label === "scroll left" || label === "scroll right") {
-      return false;
-    }
-
-    if (
-      item.classList.contains("mg-hover-action") &&
-      !label.startsWith("play ") &&
-      !label.startsWith("resume ")
-    ) {
-      return false;
-    }
-
-    return true;
-  });
-
-const genericMove = (current, direction) => {
-  if (!(current instanceof HTMLElement)) {
-    return focusNow(activeSidebarButton() || heroTarget() || firstUsefulCard());
-  }
-
-  const from = current.getBoundingClientRect();
-  const fromX = from.left + from.width / 2;
-  const fromY = from.top + from.height / 2;
-
-  let best = null;
-  let bestScore = Infinity;
-
-  for (const candidate of pageFocusable()) {
-    if (candidate === current) continue;
-
-    const rect = candidate.getBoundingClientRect();
-    const x = rect.left + rect.width / 2;
-    const y = rect.top + rect.height / 2;
-    const dx = x - fromX;
-    const dy = y - fromY;
-
-    if (direction === "left" && dx >= -4) continue;
-    if (direction === "right" && dx <= 4) continue;
-    if (direction === "up" && dy >= -4) continue;
-    if (direction === "down" && dy <= 4) continue;
-
-    const horizontal = direction === "left" || direction === "right";
-    const main = horizontal ? Math.abs(dx) : Math.abs(dy);
-    const cross = horizontal ? Math.abs(dy) : Math.abs(dx);
-    const score = main + cross * 2.2;
-
-    if (score < bestScore) {
-      best = candidate;
-      bestScore = score;
-    }
-  }
-
-  return focusNow(best);
-};
-
 const installViewportGuard = () => {
   let meta = document.querySelector('meta[name="viewport"]');
 
@@ -353,12 +356,6 @@ const installViewportGuard = () => {
     document.head.appendChild(meta);
   }
 
-  /*
-   * IMPORTANT: Never zoom the Firestick WebView.
-   * A forced 1920px layout with initial-scale around 0.5 makes Base44 auth
-   * and other screens microscopic on a 4K television. Keep the native
-   * device viewport and make Media God compact with CSS instead.
-   */
   const desired =
     "width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover";
 
@@ -414,19 +411,66 @@ export const installFireTvStableMode = () => {
     (event) => {
       const direction = keyDirection(event);
 
-      if (!direction || overlayOpen()) {
+      if (!direction) {
         return;
       }
 
-      const tag = String(event?.target?.tagName || "").toLowerCase();
-      const type = String(event?.target?.type || "").toLowerCase();
+      /*
+       * Never take over the Base44 login/auth page. The custom TV navigator
+       * only becomes active after the real Media God sidebar is mounted.
+       */
+      if (!mediaGodAppReady()) {
+        return;
+      }
 
+      /* Player, details, episode picker and popup navigation stay with the
+       * existing FireTvRemote component, which understands those overlays. */
+      if (overlayOpen()) {
+        return;
+      }
+
+      const target = event.target;
+      const tag = String(target?.tagName || "").toLowerCase();
+      const type = String(target?.type || "").toLowerCase();
+
+      /* Keep left/right native inside editable controls and sliders. */
       if (
-        tag === "textarea" ||
-        event?.target?.isContentEditable ||
         (tag === "input" && type !== "range") ||
-        tag === "select"
+        tag === "textarea" ||
+        target?.isContentEditable
       ) {
+        if (direction === "left" || direction === "right") {
+          return;
+        }
+      }
+
+      if (tag === "select" || (tag === "input" && type === "range")) {
+        return;
+      }
+
+      const current = document.activeElement;
+
+      const controlled =
+        current instanceof HTMLElement &&
+        (current.closest(".mg-fire-tv-nav") ||
+          current.closest(".mg-fire-tv-hero") ||
+          cardFor(current));
+
+      /*
+       * On Settings/Addons/Downloads/etc. let the original remote navigator
+       * handle focus. The stable controller only owns the TV surfaces where
+       * deterministic row movement is useful.
+       */
+      if (!controlled) {
+        if (
+          !(current instanceof HTMLElement) ||
+          current === document.body
+        ) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          focusNow(activeSidebarButton() || heroTarget() || firstUsefulCard());
+        }
+
         return;
       }
 
@@ -435,23 +479,23 @@ export const installFireTvStableMode = () => {
 
       const now = Date.now();
 
-      if (event.repeat || now - lastMoveAt < 160) {
+      /* Allow holding the D-pad to repeat, but throttle it enough that one
+       * tap cannot skip multiple cards. */
+      if (now - lastMoveAt < 115) {
         return;
       }
 
       lastMoveAt = now;
 
-      const current = document.activeElement;
-
       if (moveSidebar(current, direction)) {
         return;
       }
 
-      if (moveCard(current, direction)) {
+      if (moveHero(current, direction)) {
         return;
       }
 
-      genericMove(current, direction);
+      moveCard(current, direction);
     },
     true
   );
