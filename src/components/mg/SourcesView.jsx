@@ -561,6 +561,48 @@ export default function SourcesView() {
     }
   };
 
+  const playCustomDebridSource = async (source) => {
+    setError("");
+    setMessage("");
+
+    if (!player?.hasDebrid) {
+      setError("Connect at least one debrid service in Settings first.");
+      return;
+    }
+
+    const magnet = magnetFromValue(source?.url);
+    if (!magnet) {
+      setError("This saved source does not contain a valid magnet or torrent hash.");
+      return;
+    }
+
+    try {
+      await player.play({
+        id: `debrid-source:${source.id}`,
+        title: source.name || "Debrid source",
+        mediaType: "movie",
+        type: "movie",
+        rdTitle: source.name || "Debrid source",
+        preferRd: true,
+        skipAddonLookup: true,
+        skipRdLookup: true,
+        allowNonPlaybackFallback: false,
+        sources: [
+          {
+            label: `${source.name || "Source"} · Combined Debrid`,
+            type: "rd",
+            src: magnet,
+            url: magnet,
+            magnet,
+            addon: "Sources",
+          },
+        ],
+      });
+    } catch (playError) {
+      setError(playError?.message || "Could not start the Combined Debrid source.");
+    }
+  };
+
   return (
     <div className="mx-auto w-full max-w-6xl p-4 sm:p-6 3xl:max-w-7xl 3xl:p-8">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -570,7 +612,7 @@ export default function SourcesView() {
             <h1 className="text-xl font-bold text-white 3xl:text-2xl">Sources</h1>
           </div>
           <p className="mt-1 max-w-3xl text-sm text-white/45">
-            Add your own Live TV playlists/direct feeds and personal Plex, Jellyfin or Emby servers. Custom credentials stay in this device&apos;s local storage.
+            Add Live TV playlists/direct feeds, magnets or torrent hashes, and personal Plex, Jellyfin or Emby servers. Magnet sources use Combined Debrid automatically; personal-server credentials stay on this device.
           </p>
         </div>
 
@@ -603,10 +645,10 @@ export default function SourcesView() {
             <div>
               <h2 className="flex items-center gap-2 font-bold text-white">
                 <Tv className="h-4 w-4 text-mg-green" />
-                Live TV sources
+                Live TV &amp; Debrid sources
               </h2>
               <p className="mt-1 text-xs text-white/40">
-                {builtInCount} built-in free/public source entries · {activeCustomCount} custom active
+                {builtInCount} built-in free/public · {activeCustomCount} custom Live TV · {activeDebridSourceCount} saved Debrid
               </p>
             </div>
           </div>
