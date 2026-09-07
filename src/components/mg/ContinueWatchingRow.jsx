@@ -339,7 +339,7 @@ export default function ContinueWatchingRow() {
 
       <div
         className="flex gap-3 3xl:gap-5 overflow-x-auto overscroll-x-contain pb-2 scrollbar-hide snap-x snap-proximity"
-        data-tv-row="continue-watching"
+        data-mg-tv-row="true"
       >
         {displayItems.map(({ item, meta, progress, remaining }) => {
           const episodeLabel =
@@ -366,7 +366,7 @@ export default function ContinueWatchingRow() {
                   resume(item);
                 }
               }}
-              className="group relative w-36 sm:w-44 md:w-48 xl:w-52 3xl:w-64 4xl:w-72 shrink-0 text-left cursor-pointer snap-start rounded-lg focus:outline-none focus:ring-2 focus:ring-mg-green focus:ring-offset-2 focus:ring-offset-mg-background"
+              className="mg-fire-tv-resume-card group relative w-36 sm:w-44 md:w-48 xl:w-52 3xl:w-64 4xl:w-72 shrink-0 text-left cursor-pointer snap-start rounded-lg focus:outline-none focus:ring-2 focus:ring-mg-green focus:ring-offset-2 focus:ring-offset-mg-background"
             >
               <div className="relative aspect-video rounded-lg 3xl:rounded-xl overflow-hidden bg-mg-card border border-white/10 group-focus:border-mg-green">
                 <Image
