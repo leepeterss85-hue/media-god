@@ -647,6 +647,56 @@ export default function LiveTVView() {
     activeRadioUrls,
   ]);
 
+  const rememberRecentChannel = (channel) => {
+    const key = channelMemoryKey(channel);
+
+    setRecentKeys((current) => {
+      const next = [
+        key,
+        ...current.filter((item) => item !== key),
+      ].slice(0, 30);
+
+      writeStoredList(LIVE_TV_RECENT_KEY, next);
+      return next;
+    });
+  };
+
+  const toggleFavouriteChannel = (channel) => {
+    const key = channelMemoryKey(channel);
+
+    setFavouriteKeys((current) => {
+      const next = new Set(current);
+
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+
+      writeStoredList(LIVE_TV_FAVOURITES_KEY, Array.from(next));
+      return next;
+    });
+  };
+
+  const favouriteChannels = useMemo(
+    () =>
+      channels.filter((channel) =>
+        favouriteKeys.has(channelMemoryKey(channel))
+      ),
+    [channels, favouriteKeys]
+  );
+
+  const recentChannels = useMemo(() => {
+    const byKey = new Map(
+      channels.map((channel) => [channelMemoryKey(channel), channel])
+    );
+
+    return recentKeys
+      .map((key) => byKey.get(key))
+      .filter(Boolean)
+      .slice(0, 18);
+  }, [channels, recentKeys]);
+
   const groups = useMemo(() => {
     const values = Array.from(
       new Set(
