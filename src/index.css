@@ -181,6 +181,51 @@ body.mg-fire-tv {
   min-width: 0;
 }
 
+/* Compact the main left navigation on Fire TV, even when md desktop classes fire. */
+body.mg-fire-tv #root aside.sticky.top-0 {
+  width: var(--mg-tv-sidebar-width) !important;
+}
+
+body.mg-fire-tv #root aside.sticky.top-0 > div:first-child {
+  justify-content: center;
+  padding-left: 0.5rem !important;
+  padding-right: 0.5rem !important;
+}
+
+body.mg-fire-tv #root aside.sticky.top-0 > div:first-child > span,
+body.mg-fire-tv #root aside.sticky.top-0 nav button > span,
+body.mg-fire-tv #root aside.sticky.top-0 > div:last-child button > span {
+  display: none !important;
+}
+
+body.mg-fire-tv #root aside.sticky.top-0 nav,
+body.mg-fire-tv #root aside.sticky.top-0 > div:last-child {
+  padding: 0.35rem !important;
+}
+
+body.mg-fire-tv #root aside.sticky.top-0 nav button,
+body.mg-fire-tv #root aside.sticky.top-0 > div:last-child button {
+  min-height: 2.7rem !important;
+  justify-content: center !important;
+  padding-left: 0.5rem !important;
+  padding-right: 0.5rem !important;
+}
+
+/* Keep the standard VideoPlayer inside the usable TV height. */
+body.mg-fire-tv .fixed.inset-0.z-50.bg-black\/95 {
+  padding: 0.45rem !important;
+}
+
+body.mg-fire-tv .fixed.inset-0.z-50.bg-black\/95 > div {
+  width: min(100%, calc((100vh - 6.25rem) * 16 / 9)) !important;
+  max-width: 1180px !important;
+}
+
+body.mg-fire-tv .fixed.inset-0.z-50.bg-black\/95 > div > div:nth-child(2) {
+  width: 100% !important;
+  max-height: calc(100vh - 6.25rem) !important;
+}
+
 .mg-fire-tv .mg-fire-tv-player-shell {
   width: min(100%, calc((100vh - 7rem) * 16 / 9));
   max-width: 1180px;
@@ -192,6 +237,14 @@ body.mg-fire-tv {
 }
 
 @media (max-height: 700px) and (orientation: landscape) {
+  body.mg-fire-tv .fixed.inset-0.z-50.bg-black\/95 > div {
+    width: min(100%, calc((100vh - 5.5rem) * 16 / 9)) !important;
+  }
+
+  body.mg-fire-tv .fixed.inset-0.z-50.bg-black\/95 > div > div:nth-child(2) {
+    max-height: calc(100vh - 5.5rem) !important;
+  }
+
   .mg-fire-tv .mg-fire-tv-player-shell {
     width: min(100%, calc((100vh - 6rem) * 16 / 9));
   }
@@ -202,19 +255,19 @@ body.mg-fire-tv {
 }
 
 @media (min-width: 1920px) {
-  html {
+  html:not(.mg-fire-tv) {
     font-size: 17px;
   }
 }
 
 @media (min-width: 2560px) {
-  html {
+  html:not(.mg-fire-tv) {
     font-size: 19px;
   }
 }
 
 @media (min-width: 3200px) {
-  html {
+  html:not(.mg-fire-tv) {
     font-size: 21px;
   }
 }
