@@ -21,7 +21,14 @@ import PlayerControls from "@/components/mg/PlayerControls";
 import PlayerQrRemote from "@/components/mg/PlayerQrRemote";
 import { readTrackPreferences } from "@/components/mg/mediaTrackPreferences";
 import { readPlaybackPreferences } from "@/components/mg/playbackPreferences";
-import { recordPlaybackReliability } from "@/components/mg/playbackReliability";
+import {
+  playbackReliabilityAdjustment,
+  recordPlaybackReliability,
+} from "@/components/mg/playbackReliability";
+import {
+  getPlaybackDeviceProfile,
+  scoreSourceCompatibility,
+} from "@/components/mg/mediaCompatibility";
 
 const isMagnet = (value) =>
   String(value || "")
@@ -140,6 +147,36 @@ export default function VideoPlayer({
     getSourceUrl(active);
 
   const trackPreferences = readTrackPreferences();
+
+  const recoverySourceScore = (item, index) => {
+    const label = sourceDisplayLabel(item, index);
+    const deviceProfile = getPlaybackDeviceProfile();
+    const preferences = readPlaybackPreferences();
+
+    const compatibility = scoreSourceCompatibility(
+      item,
+      label,
+      {
+        deviceProfile,
+        qualityPreference: preferences.quality,
+      }
+    );
+
+    const learned = playbackReliabilityAdjustment(
+      label,
+      deviceProfile
+    );
+
+    const directBonus = /^https?:\/\//i.test(
+      String(getSourceUrl(item) || "")
+    )
+      ? 2500
+      : 0;
+
+    const rdBonus = item?.viaRealDebrid ? 5000 : 0;
+
+    return compatibility + learned + directBonus + rdBonus;
+  };
 
   const markSourceFailed = (index) => {
     failedSourcesRef.current.add(index);
