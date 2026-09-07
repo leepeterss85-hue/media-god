@@ -30,6 +30,10 @@ import {
   getPlaybackDeviceProfile,
   scoreSourceCompatibility,
 } from "@/components/mg/mediaCompatibility";
+import {
+  debridProviderScoreHints,
+  recordDebridProviderResult,
+} from "@/components/mg/debridProviderReliability";
 
 const isMagnet = (value) =>
   String(value || "")
@@ -174,6 +178,8 @@ export default function VideoPlayer({
   const stageRef = useRef(null);
   const pollRef = useRef(null);
   const recoveryResumeRef = useRef(0);
+  const preparedBackupsRef = useRef(new Map());
+  const prewarmGenerationRef = useRef(0);
   const autoAudioRescueRef = useRef({
     key: "",
     timer: null,
@@ -413,6 +419,8 @@ export default function VideoPlayer({
     autoRecoveryRef.current.lastProgressAt = Date.now();
     autoRecoveryRef.current.lastSwitchAt = 0;
     autoRecoveryRef.current.abandoned = new Set();
+    preparedBackupsRef.current.clear();
+    prewarmGenerationRef.current += 1;
   }, [
     source?.tmdbId,
     source?.tmdb_id,
@@ -618,6 +626,20 @@ export default function VideoPlayer({
         return;
       }
 
+      const prepared = preparedBackupsRef.current.get(activeIdx);
+      if (
+        prepared?.sourceUrl === activeUrl &&
+        prepared?.override?.src
+      ) {
+        setRdOverride(prepared.override);
+        setRdFiles(prepared.files || []);
+        setRdTorrentId(null);
+        setRdPolling(false);
+        setRdResolving(false);
+        preparedBackupsRef.current.delete(activeIdx);
+        return;
+      }
+
       let cancelled =
         false;
 
@@ -710,6 +732,7 @@ export default function VideoPlayer({
                   {
                     action: "check_cache",
                     hashes: [hash],
+                    provider_scores: debridProviderScoreHints(),
                   }
                 );
 
@@ -725,12 +748,14 @@ export default function VideoPlayer({
             }
 
             if (debridProvider && debridProvider !== "realdebrid") {
+              const resolveStartedAt = Date.now();
               try {
                 const multiResponse = await base44.functions.invoke(
                   "multiDebrid",
                   {
                     action: "resolve",
                     provider: debridProvider,
+                    provider_scores: debridProviderScoreHints(),
                     source: magnet,
                     ...(source?.rdSeason != null
                       ? { season: source.rdSeason }
@@ -745,6 +770,13 @@ export default function VideoPlayer({
 
                 const multiData = multiResponse?.data || {};
                 if (multiData?.url) {
+                  recordDebridProviderResult(
+                    multiData.provider || debridProvider,
+                    {
+                      success: true,
+                      latencyMs: Date.now() - resolveStartedAt,
+                    }
+                  );
                   setRdOverride({
                     src: multiData.url,
                     label:
@@ -765,6 +797,13 @@ export default function VideoPlayer({
                     `${multiData?.providerName || "Debrid provider"} did not return a playable stream.`
                 );
               } catch (multiError) {
+                recordDebridProviderResult(
+                  debridProvider,
+                  {
+                    success: false,
+                    latencyMs: Date.now() - resolveStartedAt,
+                  }
+                );
                 if (!source?.hasRd) {
                   throw multiError;
                 }
