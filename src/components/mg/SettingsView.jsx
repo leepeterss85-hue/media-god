@@ -1241,7 +1241,7 @@ export default function SettingsView() {
               </p>
 
               <p className="text-xs 3xl:text-sm text-white/40">
-                Automatically fetch subtitles when available.
+                Enable your preferred subtitle track automatically when one is available.
               </p>
             </div>
 
@@ -1312,6 +1312,138 @@ export default function SettingsView() {
                 )
               )}
             </select>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 3xl:p-5">
+            <div>
+              <p className="text-sm 3xl:text-base text-white font-medium">
+                Preferred audio language
+              </p>
+              <p className="text-xs 3xl:text-sm text-white/40">
+                Choose the audio track Media God should try first when a source exposes multiple languages.
+              </p>
+            </div>
+
+            <select
+              value={trackPreferences.audioLanguage}
+              onChange={(event) =>
+                setTrackPreferences((current) => ({
+                  ...current,
+                  audioLanguage: event.target.value,
+                }))
+              }
+              aria-label="Preferred audio language"
+              className="w-full sm:w-44 min-h-11 3xl:min-h-12 bg-mg-surface border border-white/10 rounded-md text-sm 3xl:text-base text-white px-3 py-2 focus:outline-none focus:border-mg-green"
+            >
+              <option value="en">English</option>
+              <option value="fr">French</option>
+              <option value="es">Spanish</option>
+              <option value="de">German</option>
+              <option value="it">Italian</option>
+            </select>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 3xl:p-5">
+            <div>
+              <p className="text-sm 3xl:text-base text-white font-medium">
+                Preferred subtitle language
+              </p>
+              <p className="text-xs 3xl:text-sm text-white/40">
+                Used for automatic subtitle selection and forced subtitles.
+              </p>
+            </div>
+
+            <select
+              value={trackPreferences.subtitleLanguage}
+              onChange={(event) =>
+                setTrackPreferences((current) => ({
+                  ...current,
+                  subtitleLanguage: event.target.value,
+                }))
+              }
+              aria-label="Preferred subtitle language"
+              className="w-full sm:w-44 min-h-11 3xl:min-h-12 bg-mg-surface border border-white/10 rounded-md text-sm 3xl:text-base text-white px-3 py-2 focus:outline-none focus:border-mg-green"
+            >
+              <option value="en">English</option>
+              <option value="fr">French</option>
+              <option value="es">Spanish</option>
+              <option value="de">German</option>
+              <option value="it">Italian</option>
+            </select>
+          </div>
+
+          <div className="flex items-center justify-between gap-4 p-4 3xl:p-5">
+            <div>
+              <p className="text-sm 3xl:text-base text-white font-medium">
+                Prefer forced subtitles
+              </p>
+              <p className="text-xs 3xl:text-sm text-white/40">
+                Prefer forced/foreign-parts subtitles before a full subtitle track when both are available.
+              </p>
+            </div>
+
+            <Toggle
+              on={trackPreferences.preferForcedSubtitles}
+              onClick={() =>
+                setTrackPreferences((current) => ({
+                  ...current,
+                  preferForcedSubtitles: !current.preferForcedSubtitles,
+                }))
+              }
+              label="Toggle forced subtitle preference"
+            />
+          </div>
+
+          <div className="grid gap-4 p-4 3xl:p-5 sm:grid-cols-2">
+            <label>
+              <span className="block text-sm 3xl:text-base text-white font-medium">
+                Subtitle size
+              </span>
+              <span className="mt-0.5 block text-xs 3xl:text-sm text-white/40">
+                Saved for this device and the QR remote.
+              </span>
+              <select
+                value={trackPreferences.subtitleSize}
+                onChange={(event) =>
+                  setTrackPreferences((current) => ({
+                    ...current,
+                    subtitleSize: event.target.value,
+                  }))
+                }
+                aria-label="Subtitle size"
+                className="mt-2 w-full min-h-11 3xl:min-h-12 bg-mg-surface border border-white/10 rounded-md text-sm 3xl:text-base text-white px-3 py-2 focus:outline-none focus:border-mg-green"
+              >
+                <option value="small">Small</option>
+                <option value="medium">Medium</option>
+                <option value="large">Large</option>
+                <option value="extra-large">Extra large</option>
+              </select>
+            </label>
+
+            <label>
+              <span className="block text-sm 3xl:text-base text-white font-medium">
+                Subtitle background
+              </span>
+              <span className="mt-0.5 block text-xs 3xl:text-sm text-white/40">
+                Controls the background behind subtitle text.
+              </span>
+              <select
+                value={trackPreferences.subtitleBackground}
+                onChange={(event) =>
+                  setTrackPreferences((current) => ({
+                    ...current,
+                    subtitleBackground: event.target.value,
+                  }))
+                }
+                aria-label="Subtitle background"
+                className="mt-2 w-full min-h-11 3xl:min-h-12 bg-mg-surface border border-white/10 rounded-md text-sm 3xl:text-base text-white px-3 py-2 focus:outline-none focus:border-mg-green"
+              >
+                <option value="none">None</option>
+                <option value="light">Light</option>
+                <option value="medium">Medium</option>
+                <option value="dark">Dark</option>
+              </select>
+            </label>
           </div>
         </div>
       </div>
