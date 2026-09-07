@@ -875,6 +875,13 @@ export default function VideoPlayer({
                 "ready" &&
               data.stream_url
             ) {
+              recordDebridProviderResult(
+                "realdebrid",
+                {
+                  success: true,
+                  latencyMs: Date.now() - rdResolveStartedAt,
+                }
+              );
               setRdOverride({
                 src:
                   data.stream_url,
@@ -933,6 +940,16 @@ export default function VideoPlayer({
           } catch (
             error
           ) {
+            if (rdResolveStartedAt > 0) {
+              recordDebridProviderResult(
+                "realdebrid",
+                {
+                  success: false,
+                  latencyMs: Date.now() - rdResolveStartedAt,
+                }
+              );
+            }
+
             if (
               !cancelled
             ) {
