@@ -15,11 +15,39 @@ const findPlayerOverlay = () => {
     return null;
   }
 
+  /*
+   * The real media element is the most reliable player marker.
+   * Do not depend on a particular control being visible because Fire TV
+   * can hide/re-render controls while video continues playing.
+   */
+  const mediaElements = Array.from(
+    document.querySelectorAll("video, iframe")
+  ).reverse();
+
+  for (const media of mediaElements) {
+    if (!(media instanceof HTMLElement)) {
+      continue;
+    }
+
+    const overlay = media.closest(".fixed.inset-0");
+
+    if (overlay instanceof HTMLElement) {
+      return overlay;
+    }
+  }
+
+  /* Fallback while a stream is still resolving and the video is not mounted. */
+  const overlays = Array.from(
+    document.querySelectorAll(".fixed.inset-0")
+  ).reverse();
+
   return (
-    Array.from(document.querySelectorAll(".fixed.inset-0")).find(
+    overlays.find(
       (element) =>
         element instanceof HTMLElement &&
-        element.querySelector('button[aria-label="No sound"]')
+        (element.querySelector('button[aria-label="No sound"]') ||
+          element.querySelector('button[aria-label="Fullscreen"]') ||
+          element.querySelector('button[aria-label="Back"]'))
     ) || null
   );
 };
@@ -31,9 +59,16 @@ const findStage = (overlay) => {
 
   const media = overlay.querySelector("video, iframe");
 
-  return media?.parentElement instanceof HTMLElement
-    ? media.parentElement
-    : null;
+  if (!(media instanceof HTMLElement)) {
+    return null;
+  }
+
+  /* VideoPlayer mounts media directly inside the stage. */
+  if (media.parentElement instanceof HTMLElement) {
+    return media.parentElement;
+  }
+
+  return null;
 };
 
 export default function FireTvPlayerTakeover() {
@@ -104,17 +139,25 @@ export default function FireTvPlayerTakeover() {
       document.documentElement.classList.add("mg-fire-tv-player-open");
       document.body?.classList.add("mg-fire-tv-player-open");
 
-      const nav = document.querySelector("#root .mg-fire-tv-nav");
+      /*
+       * Hide every Media God navigation rail while playback is active.
+       * querySelectorAll is deliberate: it also covers any duplicated/stale
+       * nav node left temporarily during React transitions.
+       */
+      document.querySelectorAll("#root .mg-fire-tv-nav").forEach((nav) => {
+        if (!(nav instanceof HTMLElement)) {
+          return;
+        }
+
+        force(nav, "display", "none");
+        force(nav, "visibility", "hidden");
+        force(nav, "pointer-events", "none");
+      });
+
       const main = document.querySelector("#root .mg-fire-tv-nav + main");
       const globalBack = document.querySelector(
         'button[data-mg-global-back="true"]'
       );
-
-      if (nav instanceof HTMLElement) {
-        force(nav, "display", "none");
-        force(nav, "visibility", "hidden");
-        force(nav, "pointer-events", "none");
-      }
 
       if (main instanceof HTMLElement) {
         force(main, "width", "100vw");
@@ -132,6 +175,10 @@ export default function FireTvPlayerTakeover() {
         force(globalBack, "display", "none");
       }
 
+      if (document.body instanceof HTMLElement) {
+        force(document.body, "overflow", "hidden");
+      }
+
       force(overlay, "position", "fixed");
       force(overlay, "inset", "0");
       force(overlay, "left", "0");
@@ -144,13 +191,16 @@ export default function FireTvPlayerTakeover() {
       force(overlay, "max-height", "none");
       force(overlay, "margin", "0");
       force(overlay, "padding", "0");
+      force(overlay, "transform", "none");
       force(overlay, "background", "#000");
       force(overlay, "overflow", "hidden");
-      force(overlay, "z-index", "2147483000");
+      force(overlay, "z-index", "2147483646");
 
       const wrapper = overlay.firstElementChild;
 
       if (wrapper instanceof HTMLElement) {
+        force(wrapper, "position", "absolute");
+        force(wrapper, "inset", "0");
         force(wrapper, "width", "100vw");
         force(wrapper, "height", "100vh");
         force(wrapper, "max-width", "none");
@@ -158,6 +208,7 @@ export default function FireTvPlayerTakeover() {
         force(wrapper, "min-width", "0");
         force(wrapper, "margin", "0");
         force(wrapper, "padding", "0");
+        force(wrapper, "transform", "none");
         force(wrapper, "overflow", "hidden");
       }
 
@@ -179,12 +230,13 @@ export default function FireTvPlayerTakeover() {
         force(stage, "border", "0");
         force(stage, "border-radius", "0");
         force(stage, "aspect-ratio", "auto");
+        force(stage, "transform", "none");
         force(stage, "overflow", "hidden");
         force(stage, "background", "#000");
         force(stage, "display", "flex");
         force(stage, "align-items", "center");
         force(stage, "justify-content", "center");
-        force(stage, "z-index", "70");
+        force(stage, "z-index", "2147483646");
       }
 
       overlay.querySelectorAll("video").forEach((video) => {
@@ -194,10 +246,17 @@ export default function FireTvPlayerTakeover() {
 
         force(video, "position", "absolute");
         force(video, "inset", "0");
+        force(video, "left", "0");
+        force(video, "top", "0");
         force(video, "width", "100vw");
         force(video, "height", "100vh");
+        force(video, "min-width", "100vw");
+        force(video, "min-height", "100vh");
         force(video, "max-width", "none");
         force(video, "max-height", "none");
+        force(video, "margin", "0");
+        force(video, "padding", "0");
+        force(video, "transform", "none");
         force(video, "object-fit", "cover");
         force(video, "object-position", "center center");
         force(video, "aspect-ratio", "auto");
@@ -213,9 +272,12 @@ export default function FireTvPlayerTakeover() {
         force(frameElement, "inset", "0");
         force(frameElement, "width", "100vw");
         force(frameElement, "height", "100vh");
+        force(frameElement, "min-width", "100vw");
+        force(frameElement, "min-height", "100vh");
         force(frameElement, "max-width", "none");
         force(frameElement, "max-height", "none");
         force(frameElement, "border", "0");
+        force(frameElement, "transform", "none");
         force(frameElement, "background", "#000");
       });
     };
@@ -246,6 +308,13 @@ export default function FireTvPlayerTakeover() {
       subtree: true,
     });
 
+    /*
+     * Fire TV WebView can change the player DOM without a child mutation
+     * when switching source/fullscreen. Re-assert takeover periodically so
+     * the sidebar can never reappear during playback.
+     */
+    const watchdog = window.setInterval(sync, 250);
+
     window.addEventListener("resize", scheduleSync);
     window.addEventListener("orientationchange", scheduleSync);
 
@@ -253,6 +322,7 @@ export default function FireTvPlayerTakeover() {
 
     return () => {
       observer.disconnect();
+      window.clearInterval(watchdog);
       window.removeEventListener("resize", scheduleSync);
       window.removeEventListener("orientationchange", scheduleSync);
 
