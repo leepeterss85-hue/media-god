@@ -135,7 +135,7 @@ const addonSupportsType = (manifest, mediaType) => {
 
 const fetchJsonWithTimeout = async (
   url,
-  timeoutMs = 10000
+  timeoutMs = 4500
 ) => {
   const controller = new AbortController();
 
