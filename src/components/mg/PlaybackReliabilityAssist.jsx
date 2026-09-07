@@ -939,24 +939,15 @@ export default function PlaybackReliabilityAssist() {
         );
       };
 
-    const onClick =
+    const onNoSound =
       (
         event
       ) => {
-        const button =
-          event.target instanceof
-            Element
-            ? event.target.closest(
-                'button[aria-label="No sound"], button[title="No sound"]'
-              )
-            : null;
-
-        if (!button) {
-          return;
-        }
-
         const label =
-          activeSourceLabel();
+          normaliseLabel(
+            event?.detail?.label ||
+              activeSourceLabel()
+          );
 
         if (!label) {
           return;
@@ -1124,10 +1115,9 @@ export default function PlaybackReliabilityAssist() {
       true
     );
 
-    document.addEventListener(
-      "click",
-      onClick,
-      true
+    window.addEventListener(
+      "mg:playback-no-sound",
+      onNoSound
     );
 
     document.addEventListener(
@@ -1179,10 +1169,9 @@ export default function PlaybackReliabilityAssist() {
         true
       );
 
-      document.removeEventListener(
-        "click",
-        onClick,
-        true
+      window.removeEventListener(
+        "mg:playback-no-sound",
+        onNoSound
       );
 
       document.removeEventListener(
