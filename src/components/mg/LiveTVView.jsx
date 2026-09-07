@@ -860,9 +860,14 @@ export default function LiveTVView() {
     recentKeys,
   ]);
 
+  const visibleLimit =
+    viewMode === "guide"
+      ? GUIDE_VISIBLE
+      : MAX_VISIBLE;
+
   const shown = filtered.slice(
     0,
-    MAX_VISIBLE
+    visibleLimit
   );
 
   const stopRadio = () => {
