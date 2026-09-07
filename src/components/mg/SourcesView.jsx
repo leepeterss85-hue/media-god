@@ -664,6 +664,7 @@ export default function SourcesView() {
               >
                 <option value="playlist">M3U / M3U8 playlist</option>
                 <option value="direct">Direct channel URL</option>
+                <option value="magnet">Magnet / torrent hash</option>
               </select>
 
               <input
@@ -693,7 +694,11 @@ export default function SourcesView() {
               onChange={(event) =>
                 setSourceForm((current) => ({ ...current, url: event.target.value }))
               }
-              placeholder="https://…/playlist.m3u or direct stream URL"
+              placeholder={
+                sourceForm.kind === "magnet"
+                  ? "magnet:?xt=urn:btih:… or torrent hash"
+                  : "https://…/playlist.m3u or direct stream URL"
+              }
               className="min-h-11 rounded-lg border border-white/10 bg-black/35 px-3 text-sm text-white placeholder:text-white/25"
             />
 
@@ -724,7 +729,13 @@ export default function SourcesView() {
                   <div key={source.id} className="rounded-xl border border-white/10 bg-black/20 p-3">
                     <div className="flex items-start gap-3">
                       <div className="mt-0.5 rounded-lg bg-mg-green/10 p-2 text-mg-green">
-                        {source.kind === "playlist" ? <Radio className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                        {source.kind === "playlist" ? (
+                          <Radio className="h-4 w-4" />
+                        ) : source.kind === "magnet" ? (
+                          <Database className="h-4 w-4" />
+                        ) : (
+                          <Play className="h-4 w-4" />
+                        )}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
@@ -778,8 +789,22 @@ export default function SourcesView() {
                         disabled={testingId === source.id}
                         className="min-h-9 rounded-lg border border-white/10 bg-white/5 px-3 text-xs font-semibold text-white disabled:opacity-50"
                       >
-                        {testingId === source.id ? "Testing…" : "Test"}
+                        {testingId === source.id
+                          ? "Testing…"
+                          : source.kind === "magnet"
+                            ? "Check cache"
+                            : "Test"}
                       </button>
+                      {source.kind === "magnet" && (
+                        <button
+                          type="button"
+                          onClick={() => playCustomDebridSource(source)}
+                          disabled={source.active === false || !player?.hasDebrid}
+                          className="flex min-h-9 items-center gap-1 rounded-lg border border-mg-green/30 bg-mg-green/10 px-3 text-xs font-semibold text-mg-green disabled:opacity-40"
+                        >
+                          <Play className="h-3.5 w-3.5" /> Play via Combined Debrid
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => {
