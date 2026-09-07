@@ -696,6 +696,71 @@ export default function PlayerRemote() {
                 </label>
               )}
 
+              {subtitleLabels.length > 0 && (
+                <div className="grid gap-3 rounded-xl border border-white/10 bg-black/25 p-3">
+                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-mg-green">
+                    <Captions className="h-4 w-4" />
+                    Subtitles
+                  </div>
+
+                  <label>
+                    <span className="mb-1.5 block text-xs font-semibold text-white/60">Subtitle track</span>
+                    <select
+                      value={Number(session?.active_subtitle_index ?? -1)}
+                      onChange={(event) => send("subtitle", event.target.value)}
+                      className="min-h-12 w-full rounded-xl border border-white/15 bg-[#161616] px-3 text-sm text-white outline-none focus:border-mg-green"
+                    >
+                      <option value={-1}>Off</option>
+                      {subtitleLabels.map((label, index) => (
+                        <option key={`${index}-${label}`} value={index}>
+                          {label || `Subtitle ${index + 1}`}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <label>
+                      <span className="mb-1.5 block text-xs font-semibold text-white/60">Size</span>
+                      <select
+                        value={session?.subtitle_size || "medium"}
+                        onChange={(event) =>
+                          send(
+                            "subtitle_style",
+                            JSON.stringify({ size: event.target.value })
+                          )
+                        }
+                        className="min-h-11 w-full rounded-xl border border-white/15 bg-[#161616] px-3 text-sm text-white outline-none focus:border-mg-green"
+                      >
+                        <option value="small">Small</option>
+                        <option value="medium">Medium</option>
+                        <option value="large">Large</option>
+                        <option value="extra-large">Extra large</option>
+                      </select>
+                    </label>
+
+                    <label>
+                      <span className="mb-1.5 block text-xs font-semibold text-white/60">Background</span>
+                      <select
+                        value={session?.subtitle_background || "medium"}
+                        onChange={(event) =>
+                          send(
+                            "subtitle_style",
+                            JSON.stringify({ background: event.target.value })
+                          )
+                        }
+                        className="min-h-11 w-full rounded-xl border border-white/15 bg-[#161616] px-3 text-sm text-white outline-none focus:border-mg-green"
+                      >
+                        <option value="none">None</option>
+                        <option value="light">Light</option>
+                        <option value="medium">Medium</option>
+                        <option value="dark">Dark</option>
+                      </select>
+                    </label>
+                  </div>
+                </div>
+              )}
+
               {session?.media_type === "tv" && (
                 <div className="mt-1 grid gap-3 rounded-xl border border-white/10 bg-black/25 p-3">
                   <div className="flex items-center justify-between gap-3">
