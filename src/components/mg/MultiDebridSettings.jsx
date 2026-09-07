@@ -212,7 +212,7 @@ export default function MultiDebridSettings() {
         <div className="flex items-center gap-2 3xl:gap-3">
           <ShieldCheck className="h-4 w-4 3xl:h-5 3xl:w-5 text-mg-green" />
           <h2 className="text-sm 3xl:text-lg font-bold text-white">
-            Additional Debrid Providers
+            Combined Debrid Search
           </h2>
         </div>
 
@@ -227,7 +227,7 @@ export default function MultiDebridSettings() {
           ) : (
             <RefreshCw className="h-4 w-4" />
           )}
-          Test connections
+          Test all connections
         </button>
       </div>
 
@@ -367,7 +367,7 @@ export default function MultiDebridSettings() {
         ) : (
           <Save className="h-4 w-4" />
         )}
-        {saving ? "Saving…" : "Save debrid providers"}
+        {saving ? "Saving…" : "Save combined debrid"}
       </button>
     </div>
   );
