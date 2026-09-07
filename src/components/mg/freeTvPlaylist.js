@@ -1,3 +1,10 @@
+import {
+  healthAdjustedPriority,
+  readCustomLiveSources,
+  recordSourceHealth,
+  sourceRegistryEvent,
+} from "@/components/mg/sourceRegistry";
+
 export const LIVE_TV_SOURCES = [
   {
     id: "free-tv",
@@ -47,6 +54,134 @@ export const FREE_TV_PLAYLIST_URL =
   LIVE_TV_SOURCES[0].url;
 
 export const LIVE_TV_REGION = "GB";
+
+/*
+ * Direct public/free fallback feeds. These do not depend on a community M3U
+ * staying online, so Live TV still has useful channels when a playlist source
+ * is temporarily unavailable. Only free/public broadcaster feeds belong here.
+ */
+export const PUBLIC_DIRECT_CHANNELS = [
+  {
+    id: "france24-en",
+    name: "France 24 English",
+    url: "https://live.france24.com/hls/live/2037218/F24_EN_HI_HLS/master_5000.m3u8",
+    category: "News",
+    country: "FR",
+    priority: 108,
+  },
+  {
+    id: "france24-ar",
+    name: "France 24 Arabic",
+    url: "https://live.france24.com/hls/live/2037222/F24_AR_HI_HLS/master_5000.m3u8",
+    category: "News",
+    country: "FR",
+    priority: 104,
+  },
+  {
+    id: "dw-english",
+    name: "DW English",
+    url: "https://dwamdstream104.akamaized.net/hls/live/2015530/dwstream104/stream03/streamPlaylist.m3u8",
+    category: "News",
+    country: "DE",
+    priority: 106,
+  },
+  {
+    id: "bbc-radio-1",
+    name: "BBC Radio 1",
+    url: "https://as-hls-ww-live.akamaized.net/pool_01505109/live/ww/bbc_radio_one/bbc_radio_one.isml/bbc_radio_one-audio%3d320000.norewind.m3u8",
+    category: "Radio",
+    country: "GB",
+    priority: 112,
+  },
+  {
+    id: "bbc-radio-1xtra",
+    name: "BBC Radio 1Xtra",
+    url: "https://as-hls-ww-live.akamaized.net/pool_92079267/live/ww/bbc_1xtra/bbc_1xtra.isml/bbc_1xtra-audio%3d96000.norewind.m3u8",
+    category: "Radio",
+    country: "GB",
+    priority: 110,
+  },
+  {
+    id: "bbc-radio-2",
+    name: "BBC Radio 2",
+    url: "https://as-hls-ww-live.akamaized.net/pool_74208725/live/ww/bbc_radio_two/bbc_radio_two.isml/bbc_radio_two-audio%3d320000.norewind.m3u8",
+    category: "Radio",
+    country: "GB",
+    priority: 112,
+  },
+  {
+    id: "bbc-radio-3",
+    name: "BBC Radio 3",
+    url: "https://as-hls-ww-live.akamaized.net/pool_23461179/live/ww/bbc_radio_three/bbc_radio_three.isml/bbc_radio_three-audio%3d320000.norewind.m3u8",
+    category: "Radio",
+    country: "GB",
+    priority: 110,
+  },
+  {
+    id: "bbc-radio-4",
+    name: "BBC Radio 4",
+    url: "https://as-hls-ww-live.akamaized.net/pool_55057080/live/ww/bbc_radio_fourfm/bbc_radio_fourfm.isml/bbc_radio_fourfm-audio%3d320000.norewind.m3u8",
+    category: "Radio",
+    country: "GB",
+    priority: 112,
+  },
+  {
+    id: "bbc-radio-4-extra",
+    name: "BBC Radio 4 Extra",
+    url: "https://as-hls-ww-live.akamaized.net/pool_26173715/live/ww/bbc_radio_four_extra/bbc_radio_four_extra.isml/bbc_radio_four_extra-audio%3d96000.norewind.m3u8",
+    category: "Radio",
+    country: "GB",
+    priority: 109,
+  },
+  {
+    id: "bbc-radio-5-live",
+    name: "BBC Radio 5 Live",
+    url: "https://as-hls-ww-live.akamaized.net/pool_89021708/live/ww/bbc_radio_five_live/bbc_radio_five_live.isml/bbc_radio_five_live-audio%3d320000.norewind.m3u8",
+    category: "Radio",
+    country: "GB",
+    priority: 112,
+  },
+  {
+    id: "bbc-radio-5-sports-extra",
+    name: "BBC Radio 5 Sports Extra",
+    url: "https://as-hls-uk-live.akamaized.net/pool_47700285/live/uk/bbc_radio_five_live_sports_extra/bbc_radio_five_live_sports_extra.isml/bbc_radio_five_live_sports_extra-audio%3d96000.norewind.m3u8",
+    category: "Radio",
+    country: "GB",
+    priority: 109,
+  },
+  {
+    id: "bbc-radio-6-music",
+    name: "BBC Radio 6 Music",
+    url: "https://as-hls-ww-live.akamaized.net/pool_81827798/live/ww/bbc_6music/bbc_6music.isml/bbc_6music-audio%3d320000.norewind.m3u8",
+    category: "Radio",
+    country: "GB",
+    priority: 111,
+  },
+  {
+    id: "bbc-asian-network",
+    name: "BBC Asian Network",
+    url: "https://as-hls-ww-live.akamaized.net/pool_22108647/live/ww/bbc_asian_network/bbc_asian_network.isml/bbc_asian_network-audio%3d96000.norewind.m3u8",
+    category: "Radio",
+    country: "GB",
+    priority: 108,
+  },
+  {
+    id: "bbc-world-service",
+    name: "BBC World Service",
+    url: "https://as-hls-ww-live.akamaized.net/pool_87948813/live/ww/bbc_world_service/bbc_world_service.isml/bbc_world_service-audio%3d96000.norewind.m3u8",
+    category: "Radio",
+    country: "GB",
+    priority: 110,
+  },
+  {
+    id: "greatest-hits-radio",
+    name: "Greatest Hits Radio",
+    url: "https://stream-mz.hellorayo.co.uk/net2national.mp3?direct=true",
+    category: "Radio",
+    country: "GB",
+    priority: 103,
+  },
+];
 
 const CACHE_MS =
   15 * 60 * 1000;
