@@ -60,6 +60,7 @@ const parseContentKey = (item) => {
       year: String(year || item?.year || ""),
       season: positiveInt(season),
       episode: positiveInt(episode),
+      episodeName: String(item?.episode_name || "").trim(),
       title: baseTitle(title || item?.title || "Video") || "Video",
     };
   }
@@ -75,6 +76,7 @@ const parseContentKey = (item) => {
     year: String(parts[1] || item?.year || ""),
     season,
     episode,
+    episodeName: String(item?.episode_name || "").trim(),
     title:
       baseTitle(parts[0] || item?.title || "Video") ||
       item?.title ||
