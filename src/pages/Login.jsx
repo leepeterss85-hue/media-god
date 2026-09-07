@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -9,14 +9,59 @@ import AuthLayout from "@/components/AuthLayout";
 import GoogleIcon from "@/components/GoogleIcon";
 import { safeReturnTo } from "@/lib/authReturnTo";
 
+const FIRE_TV_RE = /(?:AFT[A-Z0-9]*|Fire TV|AmazonWebAppPlatform|Silk)/i;
+
+const isFireTv = () =>
+  typeof navigator !== "undefined" &&
+  FIRE_TV_RE.test(String(navigator.userAgent || ""));
+
+const isSelectKey = (event) => {
+  const key = String(event?.key || event?.code || "");
+  const code = Number(event?.keyCode || event?.which || 0);
+
+  return (
+    key === "Enter" ||
+    key === "NumpadEnter" ||
+    key === "Select" ||
+    key === "Accept" ||
+    code === 13 ||
+    code === 23 ||
+    code === 66
+  );
+};
+
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const googleButtonRef = useRef(null);
+  const fireTv = isFireTv();
+
   // Post-login destination (e.g. the MCP OAuth consent page sends users here
   // with returnTo so the grant flow can resume). Same-origin paths only.
   const returnTo = safeReturnTo();
+
+  useEffect(() => {
+    if (!fireTv) return undefined;
+
+    const focusGoogle = () => {
+      const button = googleButtonRef.current;
+
+      if (!(button instanceof HTMLElement)) return;
+
+      try {
+        button.focus({ preventScroll: true });
+      } catch {
+        button.focus();
+      }
+    };
+
+    focusGoogle();
+    const timer = window.setTimeout(focusGoogle, 220);
+
+    return () => window.clearTimeout(timer);
+  }, [fireTv]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -34,6 +79,14 @@ export default function Login() {
 
   const handleGoogle = () => {
     base44.auth.loginWithProvider("google", returnTo);
+  };
+
+  const handleGoogleRemoteKey = (event) => {
+    if (!fireTv || !isSelectKey(event)) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    handleGoogle();
   };
 
   return (
@@ -54,9 +107,13 @@ export default function Login() {
       }
     >
       <Button
+        ref={googleButtonRef}
         variant="outline"
         className="w-full h-12 text-sm font-medium mb-6"
         onClick={handleGoogle}
+        onKeyDown={handleGoogleRemoteKey}
+        autoFocus={fireTv}
+        data-mg-fire-tv-auth-primary="true"
       >
         <GoogleIcon className="w-5 h-5 mr-2" />
         Continue with Google
@@ -86,7 +143,7 @@ export default function Login() {
               id="email"
               type="email"
               autoComplete="email"
-              autoFocus
+              autoFocus={!fireTv}
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
