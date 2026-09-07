@@ -1548,17 +1548,33 @@ export default function VideoPlayer({
       const video =
         event.target;
 
-      if (
-        source?.startTime &&
-        source.startTime >
-          5
-      ) {
+      const recoveryTime = Number(
+        recoveryResumeRef.current || 0
+      );
+      const requestedStart = Number(
+        source?.startTime || 0
+      );
+      const resumeAt =
+        recoveryTime > 5
+          ? recoveryTime
+          : requestedStart > 5
+            ? requestedStart
+            : 0;
+
+      if (resumeAt > 5) {
         try {
+          const duration = Number(video.duration || 0);
           video.currentTime =
-            source.startTime;
+            duration > 0
+              ? Math.min(resumeAt, Math.max(0, duration - 8))
+              : resumeAt;
         } catch {
           // Ignore.
         }
+      }
+
+      if (recoveryTime > 0) {
+        recoveryResumeRef.current = 0;
       }
     };
 
