@@ -76,64 +76,39 @@ export default function VideoPlayer({
     setIsAppFullscreen,
   ] = useState(false);
 
-  const [
-    rdResolving,
-    setRdResolving,
-  ] = useState(false);
+  const [rdResolving, setRdResolving] =
+    useState(false);
 
-  const [
-    rdPolling,
-    setRdPolling,
-  ] = useState(false);
+  const [rdPolling, setRdPolling] =
+    useState(false);
 
-  const [
-    rdError,
-    setRdError,
-  ] = useState("");
+  const [rdError, setRdError] =
+    useState("");
 
-  const [
-    rdOverride,
-    setRdOverride,
-  ] = useState(null);
+  const [rdOverride, setRdOverride] =
+    useState(null);
 
-  const [
-    rdFiles,
-    setRdFiles,
-  ] = useState([]);
+  const [rdFiles, setRdFiles] =
+    useState([]);
 
-  const [
-    rdTorrentId,
-    setRdTorrentId,
-  ] = useState(null);
+  const [rdTorrentId, setRdTorrentId] =
+    useState(null);
 
-  const [
-    fileSwitching,
-    setFileSwitching,
-  ] = useState(false);
+  const [fileSwitching, setFileSwitching] =
+    useState(false);
 
   const [
     failedSources,
     setFailedSources,
-  ] = useState(
-    () => new Set()
-  );
+  ] = useState(() => new Set());
 
   const failedSourcesRef =
-    useRef(
-      new Set()
-    );
+    useRef(new Set());
 
-  const videoRef =
-    useRef(null);
-
-  const liveVideoRef =
-    useRef(null);
-
-  const stageRef =
-    useRef(null);
-
-  const pollRef =
-    useRef(null);
+  const videoRef = useRef(null);
+  const liveVideoRef = useRef(null);
+  const stageRef = useRef(null);
+  const pollRef = useRef(null);
 
   const active =
     sources[activeIdx] ||
@@ -141,16 +116,10 @@ export default function VideoPlayer({
     {};
 
   const activeUrl =
-    getSourceUrl(
-      active
-    );
+    getSourceUrl(active);
 
-  const markSourceFailed = (
-    index
-  ) => {
-    failedSourcesRef.current.add(
-      index
-    );
+  const markSourceFailed = (index) => {
+    failedSourcesRef.current.add(index);
 
     setFailedSources(
       new Set(
@@ -159,9 +128,7 @@ export default function VideoPlayer({
     );
   };
 
-  const clearSourceFailed = (
-    index
-  ) => {
+  const clearSourceFailed = (index) => {
     if (
       !failedSourcesRef.current.has(
         index
@@ -210,8 +177,7 @@ export default function VideoPlayer({
         );
 
       const torrent =
-        candidate?.type ===
-          "rd" ||
+        candidate?.type === "rd" ||
         candidate?.type ===
           "rd_torrent" ||
         candidate?.type ===
@@ -247,17 +213,9 @@ export default function VideoPlayer({
     if (
       nextIndex === -1
     ) {
-      setRdResolving(
-        false
-      );
-
-      setRdPolling(
-        false
-      );
-
-      setRdTorrentId(
-        null
-      );
+      setRdResolving(false);
+      setRdPolling(false);
+      setRdTorrentId(null);
 
       setRdError(
         `${message} No other playable source is available.`
@@ -266,29 +224,12 @@ export default function VideoPlayer({
       return false;
     }
 
-    setRdOverride(
-      null
-    );
-
-    setRdFiles(
-      []
-    );
-
-    setRdTorrentId(
-      null
-    );
-
-    setRdError(
-      ""
-    );
-
-    setRdResolving(
-      false
-    );
-
-    setRdPolling(
-      false
-    );
+    setRdOverride(null);
+    setRdFiles([]);
+    setRdTorrentId(null);
+    setRdError("");
+    setRdResolving(false);
+    setRdPolling(false);
 
     setActiveIdx(
       nextIndex
@@ -318,29 +259,12 @@ export default function VideoPlayer({
       nextIndex
     );
 
-    setRdOverride(
-      null
-    );
-
-    setRdFiles(
-      []
-    );
-
-    setRdTorrentId(
-      null
-    );
-
-    setRdError(
-      ""
-    );
-
-    setRdResolving(
-      false
-    );
-
-    setRdPolling(
-      false
-    );
+    setRdOverride(null);
+    setRdFiles([]);
+    setRdTorrentId(null);
+    setRdError("");
+    setRdResolving(false);
+    setRdPolling(false);
 
     setActiveIdx(
       nextIndex
@@ -348,11 +272,9 @@ export default function VideoPlayer({
   };
 
   const isLive =
-    source?.type ===
-      "live" ||
+    source?.type === "live" ||
     active?.live ||
-    active?.type ===
-      "live";
+    active?.type === "live";
 
   const isYoutube =
     active?.type ===
@@ -363,16 +285,12 @@ export default function VideoPlayer({
     "provider";
 
   const isDirectFile =
-    active?.type ===
-      "file" ||
-    active?.type ===
-      "url" ||
-    active?.type ===
-      "live";
+    active?.type === "file" ||
+    active?.type === "url" ||
+    active?.type === "live";
 
   const isRdSource =
-    active?.type ===
-      "rd" ||
+    active?.type === "rd" ||
     active?.type ===
       "rd_torrent" ||
     active?.type ===
@@ -381,142 +299,139 @@ export default function VideoPlayer({
       activeUrl
     );
 
-  /*
-   * SAFE IN-APP FULLSCREEN
-   *
-   * Never use:
-   *
-   * requestFullscreen()
-   * webkitEnterFullscreen()
-   *
-   * Android WebView can hand those
-   * calls over to the native activity
-   * and close/restart Media God.
-   */
-  const goFullscreen =
-    () => {
-      const stage =
-        stageRef.current;
+  const goFullscreen = () => {
+    const stage =
+      stageRef.current;
 
-      if (
-        !stage
-      ) {
-        return;
-      }
+    if (
+      !stage
+    ) {
+      return;
+    }
 
-      const currentlyFullscreen =
+    /*
+     * IMPORTANT:
+     * Never call requestFullscreen() or
+     * webkitEnterFullscreen() here.
+     *
+     * Android WebView can hand fullscreen over to
+     * the native activity and close/restart the app.
+     * Media God therefore uses safe in-app fullscreen
+     * by expanding the existing stage with CSS.
+     */
+    const currentlyFullscreen =
+      stage.dataset
+        .mgFullscreen ===
+      "true";
+
+    if (
+      currentlyFullscreen
+    ) {
+      const previousStyle =
         stage.dataset
-          .mgFullscreen ===
-        "true";
+          .mgPreviousStyle ||
+        "";
 
       if (
-        currentlyFullscreen
+        previousStyle
       ) {
-        const previousStyle =
-          stage.dataset
-            .mgPreviousStyle ||
-          "";
-
-        if (
+        stage.setAttribute(
+          "style",
           previousStyle
-        ) {
-          stage.setAttribute(
-            "style",
-            previousStyle
-          );
-        } else {
-          stage.removeAttribute(
-            "style"
-          );
-        }
-
-        delete stage.dataset
-          .mgFullscreen;
-
-        delete stage.dataset
-          .mgPreviousStyle;
-
-        setIsAppFullscreen(
-          false
         );
-
-        return;
+      } else {
+        stage.removeAttribute(
+          "style"
+        );
       }
 
-      stage.dataset
-        .mgPreviousStyle =
-        stage.getAttribute(
-          "style"
-        ) || "";
+      delete stage.dataset
+        .mgFullscreen;
 
-      stage.dataset
-        .mgFullscreen =
-        "true";
+      delete stage.dataset
+        .mgPreviousStyle;
 
       setIsAppFullscreen(
-        true
+        false
       );
 
-      Object.assign(
-        stage.style,
-        {
-          position:
-            "fixed",
+      return;
+    }
 
-          top:
-            "0",
+    stage.dataset
+      .mgPreviousStyle =
+      stage.getAttribute(
+        "style"
+      ) || "";
 
-          right:
-            "0",
+    stage.dataset
+      .mgFullscreen =
+      "true";
 
-          bottom:
-            "0",
+    setIsAppFullscreen(
+      true
+    );
 
-          left:
-            "0",
+    Object.assign(
+      stage.style,
+      {
+        position:
+          "fixed",
 
-          width:
-            "100vw",
+        top:
+          "0",
 
-          height:
-            "100vh",
+        right:
+          "0",
 
-          maxWidth:
-            "none",
+        bottom:
+          "0",
 
-          maxHeight:
-            "none",
+        left:
+          "0",
 
-          margin:
-            "0",
+        width:
+          "100vw",
 
-          padding:
-            "0",
+        height:
+          "100vh",
 
-          border:
-            "0",
+        maxWidth:
+          "none",
 
-          borderRadius:
-            "0",
+        maxHeight:
+          "none",
 
-          aspectRatio:
-            "auto",
+        margin:
+          "0",
 
-          background:
-            "#000",
+        padding:
+          "0",
 
-          overflow:
-            "hidden",
+        border:
+          "0",
 
-          zIndex:
-            "2147483647",
-        }
-      );
-    };
+        borderRadius:
+          "0",
+
+        aspectRatio:
+          "auto",
+
+        background:
+          "#000",
+
+        overflow:
+          "hidden",
+
+        zIndex:
+          "2147483647",
+      }
+    );
+  };
 
   /*
-   * Reset RD state whenever
-   * another source is chosen.
+   * Reset RD state whenever the user chooses
+   * another source.
    */
   useEffect(
     () => {
@@ -553,7 +468,7 @@ export default function VideoPlayer({
   );
 
   /*
-   * Real-Debrid resolution.
+   * MAIN PLAYBACK RESOLUTION
    */
   useEffect(
     () => {
@@ -806,9 +721,8 @@ export default function VideoPlayer({
   );
 
   /*
-   * Poll Real-Debrid while a
-   * newly submitted torrent is
-   * being prepared.
+   * Poll Real-Debrid while a newly submitted
+   * torrent is being prepared.
    */
   useEffect(
     () => {
@@ -1038,7 +952,7 @@ export default function VideoPlayer({
   );
 
   /*
-   * Keyboard / TV remote shortcuts.
+   * Keyboard / TV remote controls.
    */
   useEffect(
     () => {
@@ -1087,8 +1001,6 @@ export default function VideoPlayer({
               "input" ||
             tag ===
               "textarea" ||
-            tag ===
-              "select" ||
             event.target
               ?.isContentEditable
           ) {
@@ -1184,4 +1096,1164 @@ export default function VideoPlayer({
                   );
               }
 
-              
+              break;
+
+            case "ArrowUp":
+              event.preventDefault();
+
+              video.volume =
+                Math.min(
+                  1,
+                  (
+                    video.volume ??
+                    1
+                  ) +
+                    0.1
+                );
+
+              break;
+
+            case "ArrowDown":
+              event.preventDefault();
+
+              video.volume =
+                Math.max(
+                  0,
+                  (
+                    video.volume ??
+                    1
+                  ) -
+                    0.1
+                );
+
+              break;
+
+            case "f":
+              event.preventDefault();
+
+              goFullscreen();
+
+              break;
+
+            case "m":
+              event.preventDefault();
+
+              video.muted =
+                !video.muted;
+
+              break;
+
+            case "<":
+              event.preventDefault();
+
+              video.playbackRate =
+                Math.max(
+                  0.5,
+                  (
+                    video.playbackRate ||
+                    1
+                  ) -
+                    0.25
+                );
+
+              break;
+
+            case ">":
+              event.preventDefault();
+
+              video.playbackRate =
+                Math.min(
+                  2,
+                  (
+                    video.playbackRate ||
+                    1
+                  ) +
+                    0.25
+                );
+
+              break;
+
+            default:
+              break;
+          }
+        };
+
+      window.addEventListener(
+        "keydown",
+        onKey
+      );
+
+      document.body.style
+        .overflow =
+        "hidden";
+
+      return () => {
+        window.removeEventListener(
+          "keydown",
+          onKey
+        );
+
+        document.body.style
+          .overflow =
+          "";
+      };
+    },
+    [
+      onClose,
+    ]
+  );
+
+  /*
+   * Autoplay direct/RD video.
+   */
+  useEffect(
+    () => {
+      const video =
+        videoRef.current;
+
+      const url =
+        rdOverride?.src ||
+        active?.src;
+
+      if (
+        !video ||
+        !url
+      ) {
+        return;
+      }
+
+      if (
+        !rdOverride &&
+        active?.type !==
+          "file" &&
+        active?.type !==
+          "url" &&
+        active?.type !==
+          "live"
+      ) {
+        return;
+      }
+
+      video.muted =
+        false;
+
+      video
+        .play()
+        .catch(
+          () => {
+            video.muted =
+              true;
+
+            video.dataset
+              .mgAutoplayMuted =
+              "true";
+
+            video
+              .play()
+              .catch(
+                () => {}
+              );
+          }
+        );
+    },
+    [
+      active,
+      rdOverride,
+    ]
+  );
+
+  /*
+   * Continue Watching.
+   */
+  const lastSaveRef =
+    useRef(0);
+
+  const cwIdRef =
+    useRef({});
+
+  const lastPosRef =
+    useRef({
+      t:
+        0,
+
+      d:
+        0,
+    });
+
+  const saveProgress =
+    (
+      time,
+      duration,
+      force =
+        false
+    ) => {
+      if (
+        isLive ||
+        !source?.title
+      ) {
+        return;
+      }
+
+      const url =
+        rdOverride?.src ||
+        active?.src ||
+        active?.url;
+
+      if (
+        !url
+      ) {
+        return;
+      }
+
+      const now =
+        Date.now();
+
+      if (
+        !force &&
+        now -
+          lastSaveRef.current <
+          10000
+      ) {
+        return;
+      }
+
+      lastSaveRef.current =
+        now;
+
+      const key =
+        `${source.title}|${
+          source.rdYear ||
+          source.year ||
+          ""
+        }|${
+          source.rdSeason ||
+          source.season ||
+          ""
+        }|${
+          source.rdEpisode ||
+          source.episode ||
+          ""
+        }`;
+
+      const patch = {
+        progress:
+          time,
+
+        duration,
+
+        video_url:
+          url,
+
+        poster_url:
+          source.poster ||
+          "",
+
+        source_type:
+          rdOverride
+            ? "rd"
+            : "file",
+      };
+
+      const id =
+        cwIdRef.current[
+          key
+        ];
+
+      if (
+        id
+      ) {
+        base44.entities.ContinueWatching
+          .update(
+            id,
+            patch
+          )
+          .catch(
+            () => {}
+          );
+
+        return;
+      }
+
+      base44.entities.ContinueWatching
+        .filter({
+          content_key:
+            key,
+        })
+        .then(
+          (
+            rows
+          ) => {
+            if (
+              rows?.length >
+              0
+            ) {
+              cwIdRef.current[
+                key
+              ] =
+                rows[0].id;
+
+              base44.entities.ContinueWatching
+                .update(
+                  rows[0].id,
+                  patch
+                )
+                .catch(
+                  () => {}
+                );
+
+              return;
+            }
+
+            return base44.entities.ContinueWatching
+              .create({
+                content_key:
+                  key,
+
+                title:
+                  source.title,
+
+                year:
+                  source.rdYear ||
+                  source.year ||
+                  "",
+
+                ...patch,
+              })
+              .then(
+                (
+                  created
+                ) => {
+                  cwIdRef.current[
+                    key
+                  ] =
+                    created.id;
+                }
+              );
+          }
+        )
+        .catch(
+          () => {}
+        );
+    };
+
+  const saveProgressRef =
+    useRef(
+      saveProgress
+    );
+
+  saveProgressRef.current =
+    saveProgress;
+
+  useEffect(
+    () => {
+      return () => {
+        const {
+          t,
+          d,
+        } =
+          lastPosRef.current;
+
+        if (
+          t >
+          5
+        ) {
+          saveProgressRef.current?.(
+            t,
+            d,
+            true
+          );
+        }
+      };
+    },
+    []
+  );
+
+  const handleLoadedMetadata =
+    (
+      event
+    ) => {
+      const video =
+        event.target;
+
+      if (
+        source?.startTime &&
+        source.startTime >
+          5
+      ) {
+        try {
+          video.currentTime =
+            source.startTime;
+        } catch {
+          // Ignore.
+        }
+      }
+    };
+
+  const handleTimeUpdate =
+    (
+      event
+    ) => {
+      const video =
+        event.target;
+
+      lastPosRef.current =
+        {
+          t:
+            video.currentTime ||
+            0,
+
+          d:
+            video.duration ||
+            0,
+        };
+
+      saveProgress(
+        video.currentTime ||
+          0,
+
+        video.duration ||
+          0
+      );
+    };
+
+  const pickFile =
+    async (
+      file
+    ) => {
+      if (
+        !file?.link
+      ) {
+        setRdError(
+          "This file does not have a Real-Debrid link yet."
+        );
+
+        return;
+      }
+
+      if (
+        rdOverride?.file ===
+        file.path
+      ) {
+        return;
+      }
+
+      setFileSwitching(
+        true
+      );
+
+      setRdError(
+        ""
+      );
+
+      try {
+        const res =
+          await base44.functions.invoke(
+            "realDebrid",
+            {
+              action:
+                "unrestrict_file",
+
+              link:
+                file.link,
+            }
+          );
+
+        const data =
+          res?.data ||
+          {};
+
+        if (
+          data.stream_url
+        ) {
+          setRdOverride({
+            src:
+              data.stream_url,
+
+            label:
+              file.path ||
+              "Real-Debrid File",
+
+            file:
+              file.path ||
+              "",
+          });
+        } else {
+          setRdError(
+            data.error ||
+              "Could not open this file."
+          );
+        }
+      } catch (
+        error
+      ) {
+        setRdError(
+          error?.message ||
+            "Real-Debrid request failed."
+        );
+      } finally {
+        setFileSwitching(
+          false
+        );
+      }
+    };
+
+  const retryResolution =
+    () => {
+      setRdOverride(
+        null
+      );
+
+      setRdFiles(
+        []
+      );
+
+      setRdTorrentId(
+        null
+      );
+
+      setRdError(
+        ""
+      );
+
+      setRdResolving(
+        true
+      );
+
+      const current =
+        activeIdx;
+
+      setActiveIdx(
+        -1
+      );
+
+      setTimeout(
+        () => {
+          setActiveIdx(
+            current
+          );
+        },
+        0
+      );
+    };
+
+  const handleNoSound =
+    () => {
+      const video =
+        stageRef.current
+          ?.querySelector(
+            "video"
+          );
+
+      if (
+        video
+      ) {
+        video.muted =
+          false;
+
+        video.volume =
+          1;
+
+        if (
+          video.dataset
+            ?.mgAutoplayMuted ===
+          "true"
+        ) {
+          delete video.dataset
+            .mgAutoplayMuted;
+        }
+      }
+
+      if (
+        sources.length >
+        1
+      ) {
+        tryNextSource(
+          "No sound on this source."
+        );
+      }
+    };
+
+  const busy =
+    rdResolving ||
+    rdPolling ||
+    !!rdTorrentId;
+
+  const displayedError =
+    rdError ||
+    "";
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-2 sm:p-3"
+      onClick={
+        onClose
+      }
+    >
+      <div
+        className="w-full max-w-[1500px]"
+        onClick={(
+          event
+        ) =>
+          event.stopPropagation()
+        }
+      >
+        <div className="flex items-center justify-between mb-2 gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <button
+              type="button"
+              onClick={
+                onClose
+              }
+              className="shrink-0 flex items-center gap-1.5 min-h-9 rounded-lg border border-white/10 bg-white/5 px-2.5 text-xs font-semibold text-white hover:bg-white/10 hover:border-mg-green/40 focus:outline-none focus:ring-2 focus:ring-mg-green/50"
+              aria-label="Back"
+              title="Back"
+            >
+              <ArrowLeft className="w-4 h-4" />
+
+              <span>
+                Back
+              </span>
+            </button>
+
+            {isLive && (
+              <span className="flex items-center gap-1 text-[10px] font-bold bg-red-600 text-white px-2 py-0.5 rounded shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+
+                LIVE
+              </span>
+            )}
+
+            <h3 className="text-white font-semibold text-sm truncate">
+              {
+                source?.title
+              }
+            </h3>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {(isDirectFile ||
+              isLive ||
+              rdOverride) && (
+              <>
+                <button
+                  type="button"
+                  onClick={
+                    goFullscreen
+                  }
+                  className="min-h-9 min-w-9 flex items-center justify-center rounded-lg bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
+                  aria-label="Fullscreen"
+                  title="Fullscreen"
+                >
+                  <Maximize className="w-4 h-4" />
+                </button>
+
+                <CastButton
+                  url={
+                    rdOverride?.src ||
+                    active?.src ||
+                    active?.url
+                  }
+                  title={
+                    source?.title
+                  }
+                  poster={
+                    source?.poster
+                  }
+                />
+              </>
+            )}
+          </div>
+        </div>
+
+        <div
+          ref={
+            stageRef
+          }
+          className="relative w-full aspect-video bg-black rounded-lg overflow-hidden border border-white/10 flex items-center justify-center"
+        >
+          {busy ? (
+            <div className="flex flex-col items-center gap-3 p-6 text-center">
+              <Loader2 className="w-8 h-8 text-mg-green animate-spin" />
+
+              <p className="text-white/70 text-sm">
+                Loading…
+              </p>
+            </div>
+          ) : rdOverride ? (
+            <>
+              <video
+                key={
+                  rdOverride.src
+                }
+                ref={
+                  videoRef
+                }
+                src={
+                  rdOverride.src
+                }
+                poster={
+                  source?.poster
+                }
+                playsInline
+                controls={
+                  false
+                }
+                onLoadedMetadata={
+                  handleLoadedMetadata
+                }
+                onTimeUpdate={
+                  handleTimeUpdate
+                }
+                onError={() =>
+                  tryNextSource(
+                    "This stream failed during playback."
+                  )
+                }
+                className="w-full h-full object-contain bg-black"
+              />
+
+              <PlayerControls
+                key={
+                  rdOverride.src
+                }
+                videoRef={
+                  videoRef
+                }
+                stageRef={
+                  stageRef
+                }
+                isLive={
+                  isLive
+                }
+                onFullscreen={
+                  goFullscreen
+                }
+                isAppFullscreen={
+                  isAppFullscreen
+                }
+                onBack={
+                  onClose
+                }
+                title={
+                  source?.title ||
+                  ""
+                }
+                sources={
+                  sources
+                }
+                activeIdx={
+                  activeIdx
+                }
+                failedSources={
+                  failedSources
+                }
+                onSelectSource={
+                  selectSource
+                }
+                onNoSound={
+                  handleNoSound
+                }
+              />
+            </>
+          ) : isYoutube ? (
+            <iframe
+              src={
+                active.src
+              }
+              title={
+                source?.title ||
+                "Video"
+              }
+              className="w-full h-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              referrerPolicy="strict-origin-when-cross-origin"
+            />
+          ) : isProvider ? (
+            <iframe
+              src={
+                active.src
+              }
+              title={
+                source?.title ||
+                "Provider"
+              }
+              className="w-full h-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; picture-in-picture; fullscreen"
+              allowFullScreen
+              referrerPolicy="strict-origin-when-cross-origin"
+            />
+          ) : isDirectFile ? (
+            <>
+              <LiveVideo
+                ref={
+                  liveVideoRef
+                }
+                key={
+                  active.src
+                }
+                src={
+                  active.src
+                }
+                poster={
+                  source?.poster
+                }
+                controls={
+                  false
+                }
+                className="w-full h-full object-contain bg-black"
+                onLoadedMetadata={
+                  handleLoadedMetadata
+                }
+                onTimeUpdate={
+                  handleTimeUpdate
+                }
+                onError={() =>
+                  tryNextSource(
+                    "This stream failed during playback."
+                  )
+                }
+              />
+
+              <PlayerControls
+                key={
+                  active.src
+                }
+                videoRef={
+                  liveVideoRef
+                }
+                stageRef={
+                  stageRef
+                }
+                isLive={
+                  isLive
+                }
+                onFullscreen={
+                  goFullscreen
+                }
+                isAppFullscreen={
+                  isAppFullscreen
+                }
+                onBack={
+                  onClose
+                }
+                title={
+                  source?.title ||
+                  ""
+                }
+                sources={
+                  sources
+                }
+                activeIdx={
+                  activeIdx
+                }
+                failedSources={
+                  failedSources
+                }
+                onSelectSource={
+                  selectSource
+                }
+                onNoSound={
+                  handleNoSound
+                }
+              />
+            </>
+          ) : (
+            <div className="flex flex-col items-center gap-3 p-6 text-center">
+              <Loader2 className="w-8 h-8 text-mg-green animate-spin" />
+
+              {isRdSource && (
+                <button
+                  type="button"
+                  onClick={
+                    retryResolution
+                  }
+                  className="flex items-center gap-2 px-3 py-2 rounded-md bg-mg-green text-black text-xs font-semibold hover:bg-mg-green-dim"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+
+                  Try Again
+                </button>
+              )}
+            </div>
+          )}
+
+          {isAppFullscreen &&
+            !rdOverride &&
+            !isDirectFile && (
+              <div className="absolute left-0 right-0 top-0 z-40 flex items-center gap-2 bg-gradient-to-b from-black/90 via-black/55 to-transparent px-3 pb-8 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-5">
+                <button
+                  type="button"
+                  onClick={
+                    onClose
+                  }
+                  className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg bg-black/45 px-3 text-xs font-semibold text-white backdrop-blur hover:bg-black/65 focus:outline-none focus:ring-2 focus:ring-mg-green/50"
+                  aria-label="Back to main menu"
+                  title="Back to main menu"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+
+                  <span className="hidden sm:inline">
+                    Back
+                  </span>
+                </button>
+
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-white sm:text-base">
+                    {
+                      source?.title
+                    }
+                  </p>
+                </div>
+
+                {sources.length >
+                  1 && (
+                  <div className="relative min-w-[9rem] max-w-[46vw] sm:min-w-[14rem] sm:max-w-sm">
+                    <select
+                      value={
+                        activeIdx
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        selectSource(
+                          event.target
+                            .value
+                        )
+                      }
+                      className="w-full appearance-none rounded-lg border border-white/15 bg-black/55 py-2.5 pl-3 pr-9 text-xs text-white outline-none backdrop-blur focus:border-mg-green sm:text-sm"
+                      aria-label="Choose source or quality while loading"
+                    >
+                      {sources.map(
+                        (
+                          item,
+                          index
+                        ) => {
+                          const failed =
+                            failedSources.has(
+                              index
+                            );
+
+                          const label =
+                            item?.label ||
+                            `Source ${
+                              index +
+                              1
+                            }`;
+
+                          return (
+                            <option
+                              key={`loading-${index}-${label}`}
+                              value={
+                                index
+                              }
+                            >
+                              {failed
+                                ? "Failed — "
+                                : ""}
+
+                              {
+                                label
+                              }
+                            </option>
+                          );
+                        }
+                      )}
+                    </select>
+
+                    <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-white/60">
+                      <Tv className="h-4 w-4" />
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={
+                    goFullscreen
+                  }
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-black/45 text-white backdrop-blur hover:bg-black/65 focus:outline-none focus:ring-2 focus:ring-mg-green/50"
+                  aria-label="Exit fullscreen"
+                  title="Exit fullscreen"
+                >
+                  <Minimize className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+        </div>
+
+        <div className="mt-2 flex items-center gap-2">
+          {sources.length >
+          1 ? (
+            <div className="relative flex-1 min-w-0">
+              <select
+                value={
+                  activeIdx
+                }
+                onChange={(
+                  event
+                ) =>
+                  selectSource(
+                    event.target
+                      .value
+                  )
+                }
+                className="w-full appearance-none bg-mg-card border border-white/10 rounded-lg text-white text-xs sm:text-sm pl-3 pr-9 py-2.5 outline-none focus:border-mg-green"
+                aria-label="Choose playback source"
+              >
+                {sources.map(
+                  (
+                    item,
+                    index
+                  ) => {
+                    const failed =
+                      failedSources.has(
+                        index
+                      );
+
+                    const label =
+                      item?.label ||
+                      `Source ${
+                        index +
+                        1
+                      }`;
+
+                    return (
+                      <option
+                        key={`${index}-${label}`}
+                        value={
+                          index
+                        }
+                      >
+                        {failed
+                          ? "Failed — "
+                          : ""}
+
+                        {
+                          label
+                        }
+                      </option>
+                    );
+                  }
+                )}
+              </select>
+
+              <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-white/50">
+                <Tv className="w-4 h-4" />
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1" />
+          )}
+
+          <button
+            type="button"
+            onClick={
+              handleNoSound
+            }
+            className="shrink-0 flex min-h-10 items-center gap-1.5 rounded-lg border border-white/10 bg-mg-card px-3 text-xs font-semibold text-white hover:border-mg-green/40 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-mg-green/50"
+            aria-label="No sound"
+            title="No sound"
+          >
+            <VolumeX className="w-4 h-4" />
+
+            <span>
+              No sound?
+            </span>
+          </button>
+        </div>
+
+        {rdOverride &&
+          rdFiles.length >
+            1 && (
+            <div className="mt-2">
+              <select
+                value={
+                  rdFiles.find(
+                    (
+                      file
+                    ) =>
+                      file.path ===
+                      rdOverride.file
+                  )?.id ||
+                  ""
+                }
+                onChange={(
+                  event
+                ) => {
+                  const file =
+                    rdFiles.find(
+                      (
+                        item
+                      ) =>
+                        String(
+                          item.id
+                        ) ===
+                        String(
+                          event.target
+                            .value
+                        )
+                    );
+
+                  if (
+                    file
+                  ) {
+                    pickFile(
+                      file
+                    );
+                  }
+                }}
+                disabled={
+                  fileSwitching
+                }
+                className="w-full bg-mg-card border border-white/10 rounded-lg text-white text-xs sm:text-sm px-3 py-2.5 outline-none focus:border-mg-green disabled:opacity-60"
+                aria-label="Choose file"
+              >
+                {rdFiles.map(
+                  (
+                    file
+                  ) => (
+                    <option
+                      key={
+                        file.id
+                      }
+                      value={
+                        file.id
+                      }
+                    >
+                      {
+                        file.path
+                      }
+                    </option>
+                  )
+                )}
+              </select>
+            </div>
+          )}
+
+        {displayedError &&
+          !busy && (
+            <div className="mt-2 flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2">
+              <p className="min-w-0 flex-1 truncate text-xs text-red-300">
+                {
+                  displayedError
+                }
+              </p>
+
+              {isRdSource && (
+                <button
+                  type="button"
+                  onClick={
+                    retryResolution
+                  }
+                  className="shrink-0 rounded-md bg-white/10 px-2.5 py-1.5 text-[11px] font-semibold text-white hover:bg-white/15"
+                >
+                  Retry
+                </button>
+              )}
+            </div>
+          )}
+      </div>
+    </div>
+  );
+}
