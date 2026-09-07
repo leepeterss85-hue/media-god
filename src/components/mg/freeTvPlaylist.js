@@ -1575,10 +1575,78 @@ const dedupeMergedChannels =
     );
   };
 
+const runtimePlaylistSources = () => {
+  const custom = readCustomLiveSources()
+    .filter((source) => source.active !== false && source.kind === "playlist")
+    .map((source) => ({
+      ...source,
+      priority: healthAdjustedPriority(source),
+      category: source.category || "Custom",
+    }));
+
+  return [
+    ...LIVE_TV_SOURCES.map((source) => ({
+      ...source,
+      priority: healthAdjustedPriority(source),
+    })),
+    ...custom,
+  ];
+};
+
+const directChannelRows = () => {
+  const custom = readCustomLiveSources()
+    .filter((source) => source.active !== false && source.kind === "direct")
+    .map((source) => ({
+      id: source.tvgId || source.id,
+      name: source.name,
+      url: source.url,
+      logo: source.logo || "",
+      category: source.category || "Custom",
+      country: "",
+      priority: healthAdjustedPriority(source),
+      sourceId: source.id,
+      sourceName: source.name,
+    }));
+
+  const direct = [
+    ...PUBLIC_DIRECT_CHANNELS.map((channel) => ({
+      ...channel,
+      sourceId: `public-direct:${channel.id}`,
+      sourceName: "Public Direct",
+    })),
+    ...custom,
+  ];
+
+  return direct.flatMap((channel) => {
+    const source = {
+      id: channel.sourceId || channel.id,
+      name: channel.sourceName || channel.name,
+      priority: Number(channel.priority || 100),
+      category: channel.category || "Other",
+    };
+
+    const attributes = [
+      channel.id ? `tvg-id="${channel.id}"` : "",
+      channel.logo ? `tvg-logo="${channel.logo}"` : "",
+      channel.country ? `tvg-country="${channel.country}"` : "",
+      channel.category ? `group-title="${channel.category}"` : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    return parseFreeTvPlaylist(
+      `#EXTM3U\n#EXTINF:-1 ${attributes},${channel.name}\n${channel.url}\n`,
+      source
+    );
+  });
+};
+
 const fetchSource =
   async (
     source
   ) => {
+    const startedAt = Date.now();
+
     try {
       const response =
         await fetch(
@@ -1597,44 +1665,58 @@ const fetchSource =
       if (
         !response.ok
       ) {
+        const error = `${source.name} returned ${response.status}`;
+
+        recordSourceHealth(source.id, {
+          success: false,
+          error,
+          latencyMs: Date.now() - startedAt,
+        });
+
         return {
           source,
-
-          channels:
-            [],
-
-          error:
-            `${source.name} returned ${response.status}`,
+          channels: [],
+          error,
         };
       }
 
       const text =
         await response.text();
 
+      const channels = parseFreeTvPlaylist(
+        text,
+        source
+      );
+
+      recordSourceHealth(source.id, {
+        success: channels.length > 0,
+        error: channels.length > 0 ? "" : "Playlist contained no playable channels",
+        latencyMs: Date.now() - startedAt,
+        loaded: channels.length,
+      });
+
       return {
         source,
-
-        channels:
-          parseFreeTvPlaylist(
-            text,
-            source
-          ),
-
-        error:
-          "",
+        channels,
+        error: channels.length > 0 ? "" : "Playlist contained no playable channels",
       };
     } catch (
       error
     ) {
+      const message =
+        error?.message ||
+        `${source.name} could not be loaded`;
+
+      recordSourceHealth(source.id, {
+        success: false,
+        error: message,
+        latencyMs: Date.now() - startedAt,
+      });
+
       return {
         source,
-
-        channels:
-          [],
-
-        error:
-          error?.message ||
-          `${source.name} could not be loaded`,
+        channels: [],
+        error: message,
       };
     }
   };
