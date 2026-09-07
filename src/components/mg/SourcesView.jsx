@@ -279,7 +279,12 @@ export default function SourcesView() {
   }, []);
 
   const builtInCount = LIVE_TV_SOURCES.length + PUBLIC_DIRECT_CHANNELS.length;
-  const activeCustomCount = liveSources.filter((item) => item.active !== false).length;
+  const activeCustomCount = liveSources.filter(
+    (item) => item.active !== false && item.kind !== "magnet"
+  ).length;
+  const activeDebridSourceCount = liveSources.filter(
+    (item) => item.active !== false && item.kind === "magnet"
+  ).length;
   const activeServers = useMemo(
     () => servers.filter((server) => server.active !== false),
     [servers]
@@ -290,12 +295,31 @@ export default function SourcesView() {
     setError("");
     setMessage("");
 
-    if (!clean(sourceForm.name) || !/^https?:\/\//i.test(clean(sourceForm.url))) {
-      setError("Enter a source name and a valid http/https URL.");
+    const name = clean(sourceForm.name);
+    const rawUrl = clean(sourceForm.url);
+    const isDebridSource = sourceForm.kind === "magnet";
+    const resolvedUrl = isDebridSource ? magnetFromValue(rawUrl) : rawUrl;
+
+    if (!name) {
+      setError("Enter a source name.");
       return;
     }
 
-    addCustomLiveSource(sourceForm);
+    if (isDebridSource) {
+      if (!resolvedUrl) {
+        setError("Enter a valid magnet link or torrent hash.");
+        return;
+      }
+    } else if (!/^https?:\/\//i.test(resolvedUrl)) {
+      setError("Enter a valid http/https URL.");
+      return;
+    }
+
+    addCustomLiveSource({
+      ...sourceForm,
+      url: resolvedUrl,
+      category: isDebridSource ? clean(sourceForm.category) || "Debrid" : sourceForm.category,
+    });
     clearFreeTvCache();
     setSourceForm({
       kind: "playlist",
@@ -304,7 +328,11 @@ export default function SourcesView() {
       category: "Custom",
       priority: 85,
     });
-    setMessage("Live source added. It will be merged into Live TV.");
+    setMessage(
+      isDebridSource
+        ? "Debrid source added. Media God will check it across every connected debrid service when you play or test it."
+        : "Live source added. It will be merged into Live TV."
+    );
   };
 
   const testLiveSource = async (source) => {
@@ -314,6 +342,40 @@ export default function SourcesView() {
     const startedAt = Date.now();
 
     try {
+      if (source.kind === "magnet") {
+        const hash = hashFromMagnetOrHash(source.url);
+        if (!hash) throw new Error("Invalid torrent hash or magnet link");
+        if (!player?.hasDebrid) {
+          throw new Error("Connect a debrid service in Settings first");
+        }
+
+        const response = await base44.functions.invoke("multiDebrid", {
+          action: "check_cache",
+          hashes: [hash],
+        });
+        const data = response?.data ?? response ?? {};
+        const provider = clean(data?.bestProviderByHash?.[hash]);
+        const checked = Array.isArray(data?.providersChecked)
+          ? data.providersChecked.length
+          : 0;
+
+        recordSourceHealth(source.id, {
+          success: Boolean(provider),
+          loaded: provider ? 1 : 0,
+          latencyMs: Date.now() - startedAt,
+          error: provider ? "" : "Not cached on connected debrid services",
+        });
+
+        if (!provider) {
+          throw new Error(
+            `Not cached on the ${checked || "connected"} debrid service${checked === 1 ? "" : "s"} checked`
+          );
+        }
+
+        setMessage(`${source.name} is cached · ${provider} selected by Combined Debrid.`);
+        return;
+      }
+
       const hlsLike = /\.m3u8?(?:[?#]|$)/i.test(source.url);
       const needsBody = source.kind === "playlist" || hlsLike;
       const response = await fetchWithTimeout(
