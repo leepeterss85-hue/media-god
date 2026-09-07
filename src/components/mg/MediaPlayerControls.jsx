@@ -343,6 +343,20 @@ export default function MediaPlayerControls({
   useEffect(() => {
     mountedRef.current = true;
 
+    const onHlsAudioTracks = (event) => {
+      const tracks = Array.isArray(event?.detail?.tracks)
+        ? event.detail.tracks
+        : [];
+      const activeIndex = Number(event?.detail?.activeIndex);
+
+      hlsAudioTracksRef.current = tracks;
+      hlsAudioActiveRef.current = Number.isInteger(activeIndex)
+        ? activeIndex
+        : -1;
+
+      window.setTimeout(refreshTrackLists, 0);
+    };
+
     const onPreferencesChanged = (event) => {
       const next = event?.detail || readTrackPreferences();
       trackPreferencesRef.current = next;
@@ -355,12 +369,21 @@ export default function MediaPlayerControls({
       onPreferencesChanged
     );
 
+    window.addEventListener(
+      "mg:hls-audio-tracks",
+      onHlsAudioTracks
+    );
+
     return () => {
       mountedRef.current = false;
       clearHideTimer();
       window.removeEventListener(
         "mg:media-track-preferences-changed",
         onPreferencesChanged
+      );
+      window.removeEventListener(
+        "mg:hls-audio-tracks",
+        onHlsAudioTracks
       );
     };
   }, []);
@@ -1053,39 +1076,43 @@ export default function MediaPlayerControls({
     revealControls();
   };
 
-  const chooseAudio = (index) => {
+  const chooseAudio = (trackChoice) => {
+    const choice =
+      typeof trackChoice === "object" && trackChoice
+        ? trackChoice
+        : audioTracks.find((track) => track.index === Number(trackChoice));
+
+    if (!choice) return;
+
     const video = getVideo();
 
-    const tracks =
-      video?.audioTracks;
+    if (choice.kind === "hls") {
+      window.dispatchEvent(
+        new CustomEvent("mg:hls-audio-track-selected", {
+          detail: { index: choice.index },
+        })
+      );
+      hlsAudioActiveRef.current = choice.index;
+      setSelectedAudio(choice.index);
+    } else {
+      const tracks = video?.audioTracks;
 
-    if (
-      !tracks ||
-      typeof tracks.length !==
-        "number"
-    ) {
-      return;
-    }
-
-    for (
-      let trackIndex = 0;
-      trackIndex <
-      tracks.length;
-      trackIndex += 1
-    ) {
-      try {
-        tracks[
-          trackIndex
-        ].enabled =
-          trackIndex === index;
-      } catch {
-        // Some Android WebViews expose audio tracks as read-only.
+      if (!tracks || typeof tracks.length !== "number") {
+        return;
       }
+
+      for (let trackIndex = 0; trackIndex < tracks.length; trackIndex += 1) {
+        try {
+          tracks[trackIndex].enabled = trackIndex === choice.index;
+        } catch {
+          // Some Android WebViews expose audio tracks as read-only.
+        }
+      }
+
+      setSelectedAudio(choice.index);
     }
 
-    setSelectedAudio(index);
-
-    const chosenTrack = tracks[index];
+    const chosenTrack = choice.raw || choice;
     const nextPreferences = writeTrackPreferences({
       ...trackPreferencesRef.current,
       audioLanguage:
@@ -1097,10 +1124,7 @@ export default function MediaPlayerControls({
     setTrackPreferences(nextPreferences);
 
     setOpenMenu("");
-
-    menuOpenRef.current =
-      false;
-
+    menuOpenRef.current = false;
     revealControls();
   };
 
