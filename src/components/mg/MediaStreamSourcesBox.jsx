@@ -32,6 +32,15 @@ const unwrap = (response) =>
   response ??
   {};
 
+const magnetFromInput = (value) => {
+  const raw = String(value || "").trim();
+  if (/^magnet:\?/i.test(raw)) return raw;
+  if (/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i.test(raw)) {
+    return `magnet:?xt=urn:btih:${raw.toLowerCase()}`;
+  }
+  return "";
+};
+
 const resolveImdbId = async ({
   tmdbId,
   imdbId,
@@ -977,7 +986,7 @@ export default function StreamSourcesBox({
 
       const value =
         window.prompt(
-          "Paste your magnet link here."
+          "Paste your magnet link or torrent hash here."
         );
 
       if (
@@ -987,19 +996,13 @@ export default function StreamSourcesBox({
       }
 
       const magnet =
-        String(
+        magnetFromInput(
           value
-        ).trim();
+        );
 
-      if (
-        !magnet
-          .toLowerCase()
-          .startsWith(
-            "magnet:"
-          )
-      ) {
+      if (!magnet) {
         setMessage(
-          "That is not a valid magnet link."
+          "That is not a valid magnet link or torrent hash."
         );
 
         return;
