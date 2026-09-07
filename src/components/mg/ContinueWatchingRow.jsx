@@ -320,6 +320,7 @@ export default function ContinueWatchingRow() {
       rdYear: meta.year,
       rdSeason: meta.season || undefined,
       rdEpisode: meta.episode || undefined,
+      episodeName: meta.episodeName || "",
       startTime: Number(item.progress || 0),
       preferRd: true,
       sources,
