@@ -11,6 +11,10 @@ import {
   VolumeX,
   SkipBack,
   SkipForward,
+  Search,
+  Film,
+  Tv,
+  Captions,
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
@@ -44,6 +48,15 @@ export default function PlayerRemote() {
   const [episodes, setEpisodes] = useState([]);
   const [selectedSeason, setSelectedSeason] = useState(0);
   const [episodesLoading, setEpisodesLoading] = useState(false);
+  const [browseQuery, setBrowseQuery] = useState("");
+  const [browseResults, setBrowseResults] = useState([]);
+  const [browseSearching, setBrowseSearching] = useState(false);
+  const [browseTarget, setBrowseTarget] = useState(null);
+  const [browseSeasons, setBrowseSeasons] = useState([]);
+  const [browseSeason, setBrowseSeason] = useState(0);
+  const [browseEpisodes, setBrowseEpisodes] = useState([]);
+  const [browseEpisode, setBrowseEpisode] = useState(0);
+  const [browseLoading, setBrowseLoading] = useState(false);
   const seqRef = useRef(0);
 
   const sourceLabels = useMemo(
@@ -59,6 +72,11 @@ export default function PlayerRemote() {
   const audioLabels = useMemo(
     () => parseJson(session?.audio_labels, []),
     [session?.audio_labels]
+  );
+
+  const subtitleLabels = useMemo(
+    () => parseJson(session?.subtitle_labels, []),
+    [session?.subtitle_labels]
   );
 
   useEffect(() => {
