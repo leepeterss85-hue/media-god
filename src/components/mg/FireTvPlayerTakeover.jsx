@@ -2,92 +2,101 @@ import React, { useEffect } from "react";
 
 const FIRE_TV_RE = /(?:AFT[A-Z0-9]*|Fire TV|AmazonWebAppPlatform|Silk)/i;
 
-const isFireTv = () => {
-  if (typeof navigator === "undefined") {
+const isFireTv = () =>
+  typeof navigator !== "undefined" &&
+  FIRE_TV_RE.test(String(navigator.userAgent || ""));
+
+const visible = (element) => {
+  if (!(element instanceof HTMLElement)) {
     return false;
   }
 
-  return FIRE_TV_RE.test(String(navigator.userAgent || ""));
+  const rect = element.getBoundingClientRect();
+
+  if (rect.width < 4 || rect.height < 4) {
+    return false;
+  }
+
+  const style = window.getComputedStyle(element);
+
+  return (
+    style.display !== "none" &&
+    style.visibility !== "hidden" &&
+    Number(style.opacity || 1) > 0.02
+  );
 };
 
-const closestPlayerOverlay = (element) => {
-  if (!(element instanceof HTMLElement)) {
-    return null;
-  }
-
-  const overlay = element.closest(".fixed.inset-0");
-
-  return overlay instanceof HTMLElement
-    ? overlay
-    : null;
-};
-
-const findPlayerOverlay = () => {
-  if (typeof document === "undefined") {
-    return null;
-  }
-
-  /*
-   * Prefer controls that only belong to Media God's real player.
-   * This avoids accidentally selecting a background iframe/video elsewhere
-   * in the application.
-   */
-  const markers = Array.from(
-    document.querySelectorAll(
-      [
-        'button[aria-label="No sound"]',
-        'select[aria-label="Choose playback source"]',
-        'select[aria-label="Choose source or quality while loading"]',
-        'button[aria-label="Back to main menu"]',
-      ].join(",")
-    )
-  ).reverse();
-
-  for (const marker of markers) {
-    const overlay = closestPlayerOverlay(marker);
-
-    if (overlay) {
-      return overlay;
-    }
-  }
-
-  /* Once media mounts, it is the next strongest signal. */
-  const mediaElements = Array.from(
+const findVisibleMedia = () => {
+  const media = Array.from(
     document.querySelectorAll("video, iframe")
-  ).reverse();
+  ).filter(visible);
 
-  for (const media of mediaElements) {
-    const overlay = closestPlayerOverlay(media);
+  if (!media.length) {
+    return null;
+  }
 
-    if (
-      overlay &&
-      (
-        overlay.querySelector('button[aria-label="No sound"]') ||
-        overlay.querySelector('button[aria-label="Fullscreen"]') ||
-        overlay.querySelector('button[aria-label="Back"]')
-      )
-    ) {
-      return overlay;
+  return media
+    .map((element) => {
+      const rect = element.getBoundingClientRect();
+
+      return {
+        element,
+        area: rect.width * rect.height,
+      };
+    })
+    .sort((a, b) => b.area - a.area)[0]?.element || null;
+};
+
+const findPlayerControl = () => {
+  const selectors = [
+    'select[aria-label="Choose playback source"]',
+    'select[aria-label="Choose source or quality while loading"]',
+    'button[aria-label="No sound"]',
+    'button[title="No sound"]',
+    'button[aria-label="Fullscreen"]',
+    'button[aria-label="Exit fullscreen"]',
+    'button[aria-label="Back to main menu"]',
+  ];
+
+  for (const selector of selectors) {
+    const match = Array.from(
+      document.querySelectorAll(selector)
+    ).reverse().find(visible);
+
+    if (match instanceof HTMLElement) {
+      return match;
     }
   }
 
   return null;
 };
 
-const findStage = (overlay) => {
-  if (!(overlay instanceof HTMLElement)) {
-    return null;
+const findPlayerOverlay = (media, control) => {
+  for (const item of [media, control]) {
+    if (!(item instanceof HTMLElement)) {
+      continue;
+    }
+
+    const explicit = item.closest('[data-mg-player-overlay="true"]');
+
+    if (explicit instanceof HTMLElement) {
+      return explicit;
+    }
+
+    const fixed = item.closest(".fixed.inset-0");
+
+    if (fixed instanceof HTMLElement) {
+      return fixed;
+    }
+
+    const dialog = item.closest('[role="dialog"], [aria-modal="true"]');
+
+    if (dialog instanceof HTMLElement) {
+      return dialog;
+    }
   }
 
-  const media = overlay.querySelector("video, iframe");
-
-  if (!(media instanceof HTMLElement)) {
-    return null;
-  }
-
-  return media.parentElement instanceof HTMLElement
-    ? media.parentElement
-    : null;
+  return null;
 };
 
 export default function FireTvPlayerTakeover() {
@@ -96,17 +105,16 @@ export default function FireTvPlayerTakeover() {
       return undefined;
     }
 
-    const originalStyles = new Map();
-    let activeOverlay = null;
+    const originals = new Map();
+    let playerOpen = false;
     let frame = 0;
-    let lastSeenPlayerAt = 0;
 
     const remember = (element) => {
-      if (!(element instanceof HTMLElement) || originalStyles.has(element)) {
+      if (!(element instanceof HTMLElement) || originals.has(element)) {
         return;
       }
 
-      originalStyles.set(element, element.getAttribute("style"));
+      originals.set(element, element.getAttribute("style"));
     };
 
     const force = (element, property, value) => {
@@ -115,17 +123,25 @@ export default function FireTvPlayerTakeover() {
       }
 
       remember(element);
+      element.style.setProperty(property, value, "important");
+    };
 
-      if (
-        element.style.getPropertyValue(property) !== value ||
-        element.style.getPropertyPriority(property) !== "important"
-      ) {
-        element.style.setProperty(property, value, "important");
+    const publish = (open) => {
+      if (playerOpen === open) {
+        return;
       }
+
+      playerOpen = open;
+
+      window.dispatchEvent(
+        new CustomEvent("mg:player-visibility", {
+          detail: { open },
+        })
+      );
     };
 
     const restoreAll = () => {
-      originalStyles.forEach((style, element) => {
+      originals.forEach((style, element) => {
         if (!(element instanceof HTMLElement)) {
           return;
         }
@@ -137,78 +153,19 @@ export default function FireTvPlayerTakeover() {
         }
       });
 
-      originalStyles.clear();
-      activeOverlay = null;
-      lastSeenPlayerAt = 0;
+      originals.clear();
 
       document.documentElement.classList.remove("mg-fire-tv-player-open");
       document.body?.classList.remove("mg-fire-tv-player-open");
     };
 
-    const clearConstrainingAncestors = (overlay) => {
-      let node = overlay.parentElement;
-
-      while (
-        node instanceof HTMLElement &&
-        node !== document.body
-      ) {
-        force(node, "transform", "none");
-        force(node, "filter", "none");
-        force(node, "perspective", "none");
-        force(node, "contain", "none");
-        force(node, "clip-path", "none");
-        force(node, "overflow", "visible");
-        force(node, "max-width", "none");
-
-        node = node.parentElement;
-      }
-
-      if (document.documentElement instanceof HTMLElement) {
-        force(document.documentElement, "overflow", "hidden");
-      }
-
-      if (document.body instanceof HTMLElement) {
-        force(document.body, "overflow", "hidden");
-        force(document.body, "margin", "0");
-        force(document.body, "padding", "0");
-        force(document.body, "width", "100vw");
-        force(document.body, "height", "100vh");
-        force(document.body, "max-width", "none");
-      }
-
-      const root = document.getElementById("root");
-
-      if (root instanceof HTMLElement) {
-        force(root, "width", "100vw");
-        force(root, "height", "100vh");
-        force(root, "max-width", "none");
-        force(root, "margin", "0");
-        force(root, "padding", "0");
-        force(root, "transform", "none");
-        force(root, "overflow", "visible");
-      }
-    };
-
-    const applyTakeover = (overlay) => {
-      if (!(overlay instanceof HTMLElement)) {
-        return;
-      }
-
-      if (activeOverlay && activeOverlay !== overlay) {
-        restoreAll();
-      }
-
-      activeOverlay = overlay;
-      lastSeenPlayerAt = Date.now();
-
+    const apply = (media, control, overlay) => {
       document.documentElement.classList.add("mg-fire-tv-player-open");
       document.body?.classList.add("mg-fire-tv-player-open");
 
-      clearConstrainingAncestors(overlay);
-
-      /* Hide every possible navigation rail while playback is active. */
+      /* The navbar is not allowed to exist visually while media is open. */
       document
-        .querySelectorAll("#root .mg-fire-tv-nav, #root aside")
+        .querySelectorAll("#root .mg-fire-tv-nav")
         .forEach((nav) => {
           if (!(nav instanceof HTMLElement)) {
             return;
@@ -222,171 +179,144 @@ export default function FireTvPlayerTakeover() {
           force(nav, "max-width", "0");
         });
 
-      const main =
-        overlay.closest("main") ||
-        document.querySelector("#root main");
+      const main = document.querySelector("#root main");
 
       if (main instanceof HTMLElement) {
-        force(main, "position", "static");
         force(main, "width", "100vw");
-        force(main, "max-width", "none");
+        force(main, "max-width", "100vw");
         force(main, "min-width", "100vw");
-        force(main, "height", "100vh");
         force(main, "margin", "0");
         force(main, "margin-left", "0");
         force(main, "padding", "0");
         force(main, "flex", "0 0 100vw");
-        force(main, "overflow", "visible");
+        force(main, "overflow", "hidden");
         force(main, "transform", "none");
-        force(main, "filter", "none");
-        force(main, "perspective", "none");
-        force(main, "contain", "none");
       }
 
-      const globalBack = document.querySelector(
-        'button[data-mg-global-back="true"]'
-      );
+      document
+        .querySelectorAll('button[data-mg-global-back="true"]')
+        .forEach((button) => {
+          if (button instanceof HTMLElement) {
+            force(button, "display", "none");
+          }
+        });
 
-      if (globalBack instanceof HTMLElement && !overlay.contains(globalBack)) {
-        force(globalBack, "display", "none");
+      if (document.body instanceof HTMLElement) {
+        force(document.body, "overflow", "hidden");
       }
 
-      force(overlay, "position", "fixed");
-      force(overlay, "inset", "0");
-      force(overlay, "left", "0");
-      force(overlay, "top", "0");
-      force(overlay, "right", "0");
-      force(overlay, "bottom", "0");
-      force(overlay, "width", "100vw");
-      force(overlay, "height", "100vh");
-      force(overlay, "min-width", "100vw");
-      force(overlay, "min-height", "100vh");
-      force(overlay, "max-width", "none");
-      force(overlay, "max-height", "none");
-      force(overlay, "margin", "0");
-      force(overlay, "padding", "0");
-      force(overlay, "transform", "none");
-      force(overlay, "background", "#000");
-      force(overlay, "overflow", "hidden");
-      force(overlay, "z-index", "2147483646");
+      if (overlay instanceof HTMLElement) {
+        force(overlay, "position", "fixed");
+        force(overlay, "inset", "0");
+        force(overlay, "left", "0");
+        force(overlay, "top", "0");
+        force(overlay, "right", "0");
+        force(overlay, "bottom", "0");
+        force(overlay, "width", "100vw");
+        force(overlay, "height", "100vh");
+        force(overlay, "min-width", "100vw");
+        force(overlay, "min-height", "100vh");
+        force(overlay, "max-width", "none");
+        force(overlay, "max-height", "none");
+        force(overlay, "margin", "0");
+        force(overlay, "padding", "0");
+        force(overlay, "transform", "none");
+        force(overlay, "overflow", "hidden");
+        force(overlay, "background", "#000");
+        force(overlay, "z-index", "2147483646");
 
-      const wrapper = overlay.firstElementChild;
+        const wrapper = overlay.firstElementChild;
 
-      if (wrapper instanceof HTMLElement) {
-        force(wrapper, "position", "absolute");
-        force(wrapper, "inset", "0");
-        force(wrapper, "width", "100vw");
-        force(wrapper, "height", "100vh");
-        force(wrapper, "min-width", "100vw");
-        force(wrapper, "min-height", "100vh");
-        force(wrapper, "max-width", "none");
-        force(wrapper, "max-height", "none");
-        force(wrapper, "margin", "0");
-        force(wrapper, "padding", "0");
-        force(wrapper, "transform", "none");
-        force(wrapper, "overflow", "hidden");
+        if (wrapper instanceof HTMLElement) {
+          force(wrapper, "position", "absolute");
+          force(wrapper, "inset", "0");
+          force(wrapper, "width", "100vw");
+          force(wrapper, "height", "100vh");
+          force(wrapper, "max-width", "none");
+          force(wrapper, "max-height", "none");
+          force(wrapper, "margin", "0");
+          force(wrapper, "padding", "0");
+          force(wrapper, "transform", "none");
+          force(wrapper, "overflow", "hidden");
+        }
       }
 
-      const stage = findStage(overlay);
+      const activeMedia =
+        media instanceof HTMLElement
+          ? media
+          : overlay?.querySelector?.("video, iframe") || null;
 
-      if (stage instanceof HTMLElement) {
-        force(stage, "position", "fixed");
-        force(stage, "inset", "0");
-        force(stage, "left", "0");
-        force(stage, "top", "0");
-        force(stage, "right", "0");
-        force(stage, "bottom", "0");
-        force(stage, "width", "100vw");
-        force(stage, "height", "100vh");
-        force(stage, "min-width", "100vw");
-        force(stage, "min-height", "100vh");
-        force(stage, "max-width", "none");
-        force(stage, "max-height", "none");
-        force(stage, "margin", "0");
-        force(stage, "padding", "0");
-        force(stage, "border", "0");
-        force(stage, "border-radius", "0");
-        force(stage, "aspect-ratio", "auto");
-        force(stage, "transform", "none");
-        force(stage, "overflow", "hidden");
-        force(stage, "background", "#000");
-        force(stage, "display", "flex");
-        force(stage, "align-items", "center");
-        force(stage, "justify-content", "center");
-        force(stage, "z-index", "2147483646");
-      }
+      if (activeMedia instanceof HTMLElement) {
+        const stage = activeMedia.parentElement;
 
-      overlay.querySelectorAll("video").forEach((video) => {
-        if (!(video instanceof HTMLElement)) {
-          return;
+        if (stage instanceof HTMLElement) {
+          force(stage, "position", "fixed");
+          force(stage, "inset", "0");
+          force(stage, "width", "100vw");
+          force(stage, "height", "100vh");
+          force(stage, "max-width", "none");
+          force(stage, "max-height", "none");
+          force(stage, "margin", "0");
+          force(stage, "padding", "0");
+          force(stage, "border", "0");
+          force(stage, "border-radius", "0");
+          force(stage, "aspect-ratio", "auto");
+          force(stage, "transform", "none");
+          force(stage, "overflow", "hidden");
+          force(stage, "background", "#000");
+          force(stage, "z-index", "2147483646");
         }
 
-        force(video, "position", "absolute");
-        force(video, "inset", "0");
-        force(video, "left", "0");
-        force(video, "top", "0");
-        force(video, "width", "100vw");
-        force(video, "height", "100vh");
-        force(video, "min-width", "100vw");
-        force(video, "min-height", "100vh");
-        force(video, "max-width", "none");
-        force(video, "max-height", "none");
-        force(video, "margin", "0");
-        force(video, "padding", "0");
-        force(video, "transform", "none");
-        force(video, "object-fit", "cover");
-        force(video, "object-position", "center center");
-        force(video, "aspect-ratio", "auto");
-        force(video, "background", "#000");
-      });
+        force(activeMedia, "position", "fixed");
+        force(activeMedia, "inset", "0");
+        force(activeMedia, "left", "0");
+        force(activeMedia, "top", "0");
+        force(activeMedia, "width", "100vw");
+        force(activeMedia, "height", "100vh");
+        force(activeMedia, "min-width", "100vw");
+        force(activeMedia, "min-height", "100vh");
+        force(activeMedia, "max-width", "none");
+        force(activeMedia, "max-height", "none");
+        force(activeMedia, "margin", "0");
+        force(activeMedia, "padding", "0");
+        force(activeMedia, "transform", "none");
+        force(activeMedia, "object-fit", "cover");
+        force(activeMedia, "object-position", "center center");
+        force(activeMedia, "aspect-ratio", "auto");
+        force(activeMedia, "background", "#000");
+      }
 
-      overlay.querySelectorAll("iframe").forEach((frameElement) => {
-        if (!(frameElement instanceof HTMLElement)) {
-          return;
+      if (control instanceof HTMLElement) {
+        const controlOverlay = control.closest(".fixed.inset-0");
+
+        if (controlOverlay instanceof HTMLElement) {
+          force(controlOverlay, "z-index", "2147483646");
         }
-
-        force(frameElement, "position", "absolute");
-        force(frameElement, "inset", "0");
-        force(frameElement, "width", "100vw");
-        force(frameElement, "height", "100vh");
-        force(frameElement, "min-width", "100vw");
-        force(frameElement, "min-height", "100vh");
-        force(frameElement, "max-width", "none");
-        force(frameElement, "max-height", "none");
-        force(frameElement, "border", "0");
-        force(frameElement, "transform", "none");
-        force(frameElement, "background", "#000");
-      });
+      }
     };
 
     const sync = () => {
       frame = 0;
 
-      const overlay = findPlayerOverlay();
+      const media = findVisibleMedia();
+      const control = findPlayerControl();
+      const overlay = findPlayerOverlay(media, control);
+      const open = Boolean(media || (control && overlay));
 
-      if (overlay) {
-        applyTakeover(overlay);
+      if (open) {
+        apply(media, control, overlay);
+        publish(true);
         return;
       }
 
-      /*
-       * Source switches briefly remove/reinsert the media element. Keep the
-       * takeover alive through that short gap instead of flashing the navbar.
-       */
-      if (
-        activeOverlay &&
-        Date.now() - lastSeenPlayerAt < 1000
-      ) {
-        applyTakeover(activeOverlay);
-        return;
-      }
-
-      if (activeOverlay || originalStyles.size > 0) {
+      if (playerOpen || originals.size > 0) {
         restoreAll();
       }
+
+      publish(false);
     };
 
-    const scheduleSync = () => {
+    const schedule = () => {
       if (frame) {
         return;
       }
@@ -394,33 +324,34 @@ export default function FireTvPlayerTakeover() {
       frame = window.requestAnimationFrame(sync);
     };
 
-    const observer = new MutationObserver(scheduleSync);
+    const observer = new MutationObserver(schedule);
 
     observer.observe(document.body, {
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ["class", "data-mg-fullscreen"],
+      attributeFilter: ["class", "src", "style", "data-mg-fullscreen"],
     });
 
     const watchdog = window.setInterval(sync, 100);
 
-    window.addEventListener("resize", scheduleSync);
-    window.addEventListener("orientationchange", scheduleSync);
+    window.addEventListener("resize", schedule);
+    window.addEventListener("orientationchange", schedule);
 
     sync();
 
     return () => {
       observer.disconnect();
       window.clearInterval(watchdog);
-      window.removeEventListener("resize", scheduleSync);
-      window.removeEventListener("orientationchange", scheduleSync);
+      window.removeEventListener("resize", schedule);
+      window.removeEventListener("orientationchange", schedule);
 
       if (frame) {
         window.cancelAnimationFrame(frame);
       }
 
       restoreAll();
+      publish(false);
     };
   }, []);
 
