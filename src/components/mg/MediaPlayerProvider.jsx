@@ -1489,45 +1489,17 @@ export function PlayerProvider({
                 }
               );
 
-        const rdPromise =
-          !isLive &&
-          hasRd &&
-          !request?.noRd &&
-          !request
-            ?.skipRdLookup
-            ? findRdLibrarySource(
-                {
-                  title:
-                    request?.rdTitle ||
-                    request?.title ||
-                    "",
-
-                  year:
-                    request?.rdYear ??
-                    request?.year ??
-                    null,
-
-                  season,
-
-                  episode,
-                }
-              )
-            : Promise.resolve(
-                {
-                  source:
-                    null,
-
-                  status:
-                    hasRd
-                      ? "SKIPPED"
-                      : "NOT CONNECTED",
-
-                  detail:
-                    hasRd
-                      ? "RD lookup skipped"
-                      : "No RD token",
-                }
-              );
+        addonPromise.then((addonLookup) => {
+          if (Array.isArray(addonLookup?.streams) && addonLookup.streams.length > 0) {
+            publishEarlySources(addonLookup.streams, {
+              imdbId,
+              imdbStatus: imdbInfo?.status || "UNKNOWN",
+              addonLookupStatus: addonLookup?.status || "READY",
+              addonsChecked: Number(addonLookup?.addonsChecked || 0),
+              discoveredCount: addonLookup.streams.length,
+            });
+          }
+        });
 
         const [
           addonLookup,
@@ -1672,8 +1644,15 @@ export function PlayerProvider({
             primary
           );
 
+        if (!isCurrentPlay()) {
+          return false;
+        }
+
         setSource({
           ...request,
+
+          playRequestId:
+            playId,
 
           id:
             request?.id,
@@ -1893,6 +1872,8 @@ export function PlayerProvider({
   const close =
     useCallback(
       () => {
+        playSequenceRef.current += 1;
+
         setSource(
           null
         );
