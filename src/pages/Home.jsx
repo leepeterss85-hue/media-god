@@ -481,15 +481,6 @@ function MediaGodApp() {
       ]
     );
 
-  const handleRemoteBack =
-    useCallback(
-      () =>
-        goBack(),
-      [
-        goBack,
-      ]
-    );
-
   const openSearch =
     useCallback(
       () => {
