@@ -1189,13 +1189,21 @@ export function PlayerProvider({
           if (!mounted) return;
 
           const realDebridConnected = Boolean(user?.rd_token);
-          const anyDebridConnected = Boolean(
-            user?.rd_token ||
-              user?.alldebrid_token ||
-              user?.torbox_token ||
-              user?.premiumize_token ||
-              user?.debridlink_token
-          );
+          const configuredByKey = {
+            realdebrid: realDebridConnected,
+            alldebrid: Boolean(user?.alldebrid_token),
+            torbox: Boolean(user?.torbox_token),
+            premiumize: Boolean(user?.premiumize_token),
+            debridlink: Boolean(user?.debridlink_token),
+          };
+          const savedEnabled = Array.isArray(user?.debrid_enabled_providers)
+            ? user.debrid_enabled_providers
+                .map((value) => String(value || "").toLowerCase().replace(/[^a-z]/g, ""))
+                .filter(Boolean)
+            : null;
+          const anyDebridConnected = savedEnabled
+            ? savedEnabled.some((key) => configuredByKey[key] === true)
+            : Object.values(configuredByKey).some(Boolean);
 
           setHasRd(realDebridConnected);
           setHasDebrid(anyDebridConnected);
