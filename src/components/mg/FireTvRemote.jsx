@@ -344,7 +344,7 @@ export default function FireTvRemote() {
   const lastScopeRef = useRef(null);
 
   useEffect(() => {
-    if (!isFireTv() || typeof document === "undefined") {
+    if (typeof document === "undefined") {
       return undefined;
     }
 
@@ -361,6 +361,10 @@ export default function FireTvRemote() {
     document.body?.classList.add("mg-fire-tv-mode");
 
     const focusOverlay = () => {
+      if (!isFireTv()) {
+        return;
+      }
+
       const scope = topOverlay();
 
       if (!(scope instanceof HTMLElement)) {
@@ -387,6 +391,10 @@ export default function FireTvRemote() {
     };
 
     const onKeyDown = (event) => {
+      if (!isFireTv()) {
+        return;
+      }
+
       const mediaAction = mediaActionFromEvent(event);
 
       if (mediaAction && runMediaAction(mediaAction)) {
