@@ -159,7 +159,6 @@ export default function RecentlyWatchedRow() {
               ? `tv:${normaliseTitle(meta.title)}`
               : `movie:${normaliseTitle(meta.title)}:${meta.year}`;
 
-          // Keep the latest completed episode for each TV series.
           if (seen.has(identity)) {
             continue;
           }
@@ -270,22 +269,27 @@ export default function RecentlyWatchedRow() {
         </div>
       </div>
 
-      <div className="flex gap-3 3xl:gap-5 overflow-x-auto overscroll-x-contain pb-2 scrollbar-hide snap-x snap-proximity">
+      <div
+        className="flex gap-3 3xl:gap-5 overflow-x-auto overscroll-x-contain pb-3 scrollbar-hide snap-x snap-proximity"
+        data-mg-tv-row="true"
+        aria-label="Recently Watched"
+      >
         {displayItems.map(({ item, meta }) => (
           <div
             key={item.id}
             onClick={() => replay(item)}
             role="button"
             tabIndex={0}
+            aria-label={`Replay ${meta.title}`}
             onKeyDown={(event) => {
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
                 replay(item);
               }
             }}
-            className="group relative w-36 sm:w-44 md:w-48 xl:w-52 3xl:w-64 4xl:w-72 shrink-0 text-left cursor-pointer snap-start"
+            className="mg-fire-tv-resume-card group relative w-36 sm:w-44 md:w-48 xl:w-52 3xl:w-64 4xl:w-72 shrink-0 text-left cursor-pointer snap-start rounded-lg focus:outline-none focus:ring-2 focus:ring-mg-green focus:ring-offset-2 focus:ring-offset-mg-background"
           >
-            <div className="relative aspect-video rounded-lg 3xl:rounded-xl overflow-hidden bg-mg-card border border-white/10">
+            <div className="relative aspect-video rounded-lg 3xl:rounded-xl overflow-hidden bg-mg-card border border-white/10 group-focus:border-mg-green">
               <Image
                 src={item.poster_url}
                 fittingType="fill"
@@ -308,7 +312,7 @@ export default function RecentlyWatchedRow() {
                   </span>
                 )}
 
-              <div className="mg-hover-action absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity pointer-events-none">
                 <div className="w-9 h-9 3xl:w-12 3xl:h-12 4xl:w-14 4xl:h-14 rounded-full bg-mg-green text-black flex items-center justify-center">
                   <Play className="w-4 h-4 3xl:w-6 3xl:h-6 fill-black" />
                 </div>
@@ -317,7 +321,7 @@ export default function RecentlyWatchedRow() {
               <button
                 type="button"
                 onClick={(event) => remove(item.id, event)}
-                className="mg-hover-action absolute top-1 right-1 3xl:top-2 3xl:right-2 w-7 h-7 3xl:w-9 3xl:h-9 rounded-full bg-black/70 text-white/80 hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 focus:opacity-100"
+                className="mg-fire-tv-secondary-action absolute top-1 right-1 3xl:top-2 3xl:right-2 w-7 h-7 3xl:w-9 3xl:h-9 rounded-full bg-black/70 text-white/80 hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 focus:opacity-100"
                 aria-label="Remove from watch history"
               >
                 <X className="w-3.5 h-3.5 3xl:w-4 3xl:h-4" />
