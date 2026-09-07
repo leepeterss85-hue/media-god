@@ -1,4 +1,4 @@
-/* Firestick-only compact, deterministic TV layout. */
+/* Firestick-only compact layout. Never zoom the WebView itself. */
 
 html.mg-fire-tv,
 html.mg-fire-tv-mode,
@@ -9,15 +9,19 @@ body.mg-fire-tv-stable {
   scroll-behavior: auto !important;
 }
 
+/*
+ * Keep Base44/login screens readable at the browser's normal scale.
+ * The older Fire TV CSS set the root to 12px; override that here.
+ */
 html.mg-fire-tv,
 html.mg-fire-tv-stable {
-  font-size: 12px !important;
+  font-size: 16px !important;
 }
 
 body.mg-fire-tv,
 body.mg-fire-tv-mode,
 body.mg-fire-tv-stable {
-  --mg-tv-sidebar-width: 5rem;
+  --mg-tv-sidebar-width: 52px;
   min-width: 0 !important;
   overflow-x: hidden !important;
 }
@@ -25,21 +29,16 @@ body.mg-fire-tv-stable {
 body.mg-fire-tv *,
 body.mg-fire-tv-mode *,
 body.mg-fire-tv-stable * {
-  scroll-behavior: auto !important;
   box-sizing: border-box;
+  scroll-behavior: auto !important;
 }
 
-/*
- * Fire TV must always use a narrow icon-only rail.
- * Do not allow Tailwind's md:w-60 desktop sidebar to reappear on a 1920 TV viewport.
- */
+/* Narrow icon-only navigation rail. */
 body.mg-fire-tv #root .mg-fire-tv-nav,
 body.mg-fire-tv-mode #root .mg-fire-tv-nav,
 body.mg-fire-tv-stable #root .mg-fire-tv-nav {
   position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  bottom: 0 !important;
+  inset: 0 auto 0 0 !important;
   z-index: 200 !important;
   width: var(--mg-tv-sidebar-width) !important;
   min-width: var(--mg-tv-sidebar-width) !important;
@@ -63,13 +62,12 @@ body.mg-fire-tv-stable #root .mg-fire-tv-nav + main {
 body.mg-fire-tv #root .mg-fire-tv-nav > div:first-child,
 body.mg-fire-tv-mode #root .mg-fire-tv-nav > div:first-child,
 body.mg-fire-tv-stable #root .mg-fire-tv-nav > div:first-child {
-  height: 4.4rem !important;
-  min-height: 4.4rem !important;
+  height: 48px !important;
+  min-height: 48px !important;
   justify-content: center !important;
-  padding: 0.35rem !important;
+  padding: 5px !important;
 }
 
-/* Hide every text label in the Fire TV sidebar, including MEDIA GOD. */
 body.mg-fire-tv #root .mg-fire-tv-nav > div:first-child > span,
 body.mg-fire-tv #root .mg-fire-tv-nav nav button > span,
 body.mg-fire-tv #root .mg-fire-tv-nav > div:last-child button > span,
@@ -88,8 +86,8 @@ body.mg-fire-tv-mode #root .mg-fire-tv-nav nav,
 body.mg-fire-tv-mode #root .mg-fire-tv-nav > div:last-child,
 body.mg-fire-tv-stable #root .mg-fire-tv-nav nav,
 body.mg-fire-tv-stable #root .mg-fire-tv-nav > div:last-child {
-  padding: 0.25rem !important;
-  gap: 0.1rem !important;
+  padding: 3px !important;
+  gap: 1px !important;
 }
 
 body.mg-fire-tv #root .mg-fire-tv-nav nav button,
@@ -98,54 +96,69 @@ body.mg-fire-tv-mode #root .mg-fire-tv-nav nav button,
 body.mg-fire-tv-mode #root .mg-fire-tv-nav > div:last-child button,
 body.mg-fire-tv-stable #root .mg-fire-tv-nav nav button,
 body.mg-fire-tv-stable #root .mg-fire-tv-nav > div:last-child button {
-  min-height: 3.15rem !important;
-  height: 3.15rem !important;
+  width: 46px !important;
+  min-width: 46px !important;
+  max-width: 46px !important;
+  height: 34px !important;
+  min-height: 34px !important;
   justify-content: center !important;
+  padding: 4px !important;
   gap: 0 !important;
-  padding: 0.25rem !important;
   font-size: 0 !important;
 }
 
 body.mg-fire-tv #root .mg-fire-tv-nav svg,
 body.mg-fire-tv-mode #root .mg-fire-tv-nav svg,
 body.mg-fire-tv-stable #root .mg-fire-tv-nav svg {
-  width: 1.65rem !important;
-  height: 1.65rem !important;
+  width: 18px !important;
+  height: 18px !important;
 }
 
-/* Make sure Home content can never extend underneath/off the right of the TV. */
+/* Main content must always stay inside the visible television width. */
+body.mg-fire-tv main,
+body.mg-fire-tv-mode main,
+body.mg-fire-tv-stable main,
 body.mg-fire-tv main > *,
 body.mg-fire-tv-mode main > *,
 body.mg-fire-tv-stable main > * {
+  min-width: 0 !important;
   max-width: 100% !important;
 }
 
+/* Compact hero sized for the common 960x540 Fire TV CSS viewport. */
 body.mg-fire-tv .mg-fire-tv-hero,
 body.mg-fire-tv-mode .mg-fire-tv-hero,
 body.mg-fire-tv-stable .mg-fire-tv-hero {
   width: 100% !important;
-  height: 42vh !important;
-  min-height: 31rem !important;
-  max-height: 39rem !important;
+  height: 40vh !important;
+  min-height: 190px !important;
+  max-height: 250px !important;
   overflow: hidden !important;
 }
 
 body.mg-fire-tv .mg-fire-tv-hero > div.relative,
 body.mg-fire-tv-mode .mg-fire-tv-hero > div.relative,
 body.mg-fire-tv-stable .mg-fire-tv-hero > div.relative {
+  width: 100% !important;
   max-width: 100% !important;
-  padding-left: 3rem !important;
-  padding-right: 3rem !important;
-  padding-bottom: 4rem !important;
+  padding-left: 20px !important;
+  padding-right: 20px !important;
+  padding-bottom: 24px !important;
+}
+
+body.mg-fire-tv .mg-fire-tv-hero > div.relative > div,
+body.mg-fire-tv-mode .mg-fire-tv-hero > div.relative > div,
+body.mg-fire-tv-stable .mg-fire-tv-hero > div.relative > div {
+  max-width: 58% !important;
 }
 
 body.mg-fire-tv .mg-fire-tv-hero h1,
 body.mg-fire-tv-mode .mg-fire-tv-hero h1,
 body.mg-fire-tv-stable .mg-fire-tv-hero h1 {
-  max-width: 72rem !important;
-  font-size: 3.5rem !important;
+  max-width: 100% !important;
+  font-size: 32px !important;
   line-height: 1.02 !important;
-  margin-bottom: 0.7rem !important;
+  margin-bottom: 5px !important;
   white-space: normal !important;
   overflow-wrap: anywhere;
 }
@@ -153,31 +166,42 @@ body.mg-fire-tv-stable .mg-fire-tv-hero h1 {
 body.mg-fire-tv .mg-fire-tv-hero p,
 body.mg-fire-tv-mode .mg-fire-tv-hero p,
 body.mg-fire-tv-stable .mg-fire-tv-hero p {
-  max-width: 65rem !important;
-  font-size: 1.35rem !important;
-  line-height: 1.28 !important;
-  margin-bottom: 1rem !important;
+  max-width: 100% !important;
+  font-size: 14px !important;
+  line-height: 1.22 !important;
+  margin-bottom: 8px !important;
+  -webkit-line-clamp: 2 !important;
 }
 
 body.mg-fire-tv .mg-fire-tv-hero button,
 body.mg-fire-tv-mode .mg-fire-tv-hero button,
 body.mg-fire-tv-stable .mg-fire-tv-hero button {
-  min-height: 3.6rem !important;
-  padding: 0.65rem 1.2rem !important;
-  font-size: 1.15rem !important;
+  min-height: 38px !important;
+  height: 38px !important;
+  padding: 6px 12px !important;
+  font-size: 13px !important;
 }
 
+body.mg-fire-tv .mg-fire-tv-hero button svg,
+body.mg-fire-tv-mode .mg-fire-tv-hero button svg,
+body.mg-fire-tv-stable .mg-fire-tv-hero button svg {
+  width: 17px !important;
+  height: 17px !important;
+}
+
+/* Poster rows. */
 body.mg-fire-tv .mg-fire-tv-card,
 body.mg-fire-tv-mode .mg-fire-tv-card,
 body.mg-fire-tv-stable .mg-fire-tv-card {
-  width: 10rem !important;
-  max-width: 10rem !important;
+  width: 112px !important;
+  min-width: 112px !important;
+  max-width: 112px !important;
 }
 
 body.mg-fire-tv [data-mg-tv-row="true"],
 body.mg-fire-tv-mode [data-mg-tv-row="true"],
 body.mg-fire-tv-stable [data-mg-tv-row="true"] {
-  gap: 0.8rem !important;
+  gap: 8px !important;
   scroll-snap-type: none !important;
   overscroll-behavior-inline: contain;
 }
@@ -191,22 +215,32 @@ body.mg-fire-tv-stable [data-mg-tv-row="true"] > div {
 body.mg-fire-tv .mg-fire-tv-card p:first-of-type,
 body.mg-fire-tv-mode .mg-fire-tv-card p:first-of-type,
 body.mg-fire-tv-stable .mg-fire-tv-card p:first-of-type {
-  font-size: 0.95rem !important;
-  margin-top: 0.4rem !important;
+  font-size: 12px !important;
+  margin-top: 4px !important;
 }
 
 body.mg-fire-tv .mg-fire-tv-card p:last-of-type,
 body.mg-fire-tv-mode .mg-fire-tv-card p:last-of-type,
 body.mg-fire-tv-stable .mg-fire-tv-card p:last-of-type {
-  font-size: 0.8rem !important;
+  font-size: 10px !important;
 }
 
-body.mg-fire-tv section,
-body.mg-fire-tv-mode section,
-body.mg-fire-tv-stable section {
+body.mg-fire-tv main section:not(.mg-fire-tv-hero),
+body.mg-fire-tv-mode main section:not(.mg-fire-tv-hero),
+body.mg-fire-tv-stable main section:not(.mg-fire-tv-hero) {
+  padding-left: 14px !important;
+  padding-right: 14px !important;
   scroll-margin-top: 0 !important;
 }
 
+body.mg-fire-tv main section:not(.mg-fire-tv-hero) h2,
+body.mg-fire-tv-mode main section:not(.mg-fire-tv-hero) h2,
+body.mg-fire-tv-stable main section:not(.mg-fire-tv-hero) h2 {
+  font-size: 15px !important;
+  line-height: 1.2 !important;
+}
+
+/* Avoid expensive effects and delayed movement on Fire TV. */
 body.mg-fire-tv .backdrop-blur,
 body.mg-fire-tv .backdrop-blur-sm,
 body.mg-fire-tv .backdrop-blur-md,
@@ -238,7 +272,7 @@ body.mg-fire-tv-stable .transition-all,
 body.mg-fire-tv-stable .transition-opacity,
 body.mg-fire-tv-stable .transition-colors,
 body.mg-fire-tv-stable .transition-transform {
-  transition-duration: 35ms !important;
+  transition-duration: 30ms !important;
 }
 
 body.mg-fire-tv button:focus,
@@ -253,12 +287,15 @@ body.mg-fire-tv-stable button:focus,
 body.mg-fire-tv-stable [role="button"]:focus,
 body.mg-fire-tv-stable select:focus,
 body.mg-fire-tv-stable a:focus {
-  scroll-margin: 2rem !important;
+  scroll-margin: 12px !important;
 }
 
-/* Keep player sizing independent from the compact catalogue layout. */
+/*
+ * Do not shrink the login/auth UI or the video player with catalogue rules.
+ * The browser stays at scale 1 and these screens keep normal readable text.
+ */
 body.mg-fire-tv .fixed.inset-0.z-50.bg-black\/95,
 body.mg-fire-tv-mode .fixed.inset-0.z-50.bg-black\/95,
 body.mg-fire-tv-stable .fixed.inset-0.z-50.bg-black\/95 {
-  font-size: 1rem;
+  font-size: 16px !important;
 }
