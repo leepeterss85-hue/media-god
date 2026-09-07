@@ -198,7 +198,19 @@ const queueContinueWatching = async (request) => {
     });
 
     if (existing?.length) {
-      await base44.entities.ContinueWatching.update(existing[0].id, patch);
+      const row = existing[0];
+      const existingProgress = Number(row?.progress || 0);
+
+      await base44.entities.ContinueWatching.update(
+        row.id,
+        existingProgress > 5
+          ? {
+              poster_url: patch.poster_url || row?.poster_url || "",
+              title: patch.title,
+              year: patch.year,
+            }
+          : patch
+      );
       return;
     }
 
