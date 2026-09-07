@@ -121,19 +121,97 @@ export const trackLooksForced = (track) =>
     String(track?.label || track?.name || "")
   );
 
-export const friendlyTrackLabel = (track, kind, index) => {
-  const label = String(track?.label || track?.name || "").trim();
-  const language = String(track?.language || track?.lang || "").trim();
-  const base = label || language || `${kind} ${index + 1}`;
-  const languageSuffix =
-    language && !base.toLowerCase().includes(language.toLowerCase())
-      ? ` · ${language}`
-      : "";
-  const forcedSuffix = trackLooksForced(track) && !/forced/i.test(base)
-    ? " · Forced"
-    : "";
+const languageDisplayName = (value) => {
+  const language = normaliseLanguage(value, "");
+  if (!language) return "";
 
-  return `${base}${languageSuffix}${forcedSuffix}`;
+  const names = {
+    en: "English",
+    fr: "French",
+    es: "Spanish",
+    de: "German",
+    it: "Italian",
+    pt: "Portuguese",
+    nl: "Dutch",
+    pl: "Polish",
+    ja: "Japanese",
+    ko: "Korean",
+    zh: "Chinese",
+    ar: "Arabic",
+    hi: "Hindi",
+  };
+
+  return names[language] || String(value || language).trim();
+};
+
+const audioCodecLabel = (track) => {
+  const text = [
+    track?.audioCodec,
+    track?.codec,
+    track?.label,
+    track?.name,
+    track?.attrs?.CODECS,
+    track?.attrs?.NAME,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  if (/\b(?:truehd|mlp)\b/i.test(text)) return "TrueHD";
+  if (/\b(?:dts(?:-?hd)?|dts:x|dca)\b/i.test(text)) return "DTS";
+  if (/\b(?:e-?ac-?3|eac3|ec-?3|ddp|dd\+)\b/i.test(text)) return "EAC3";
+  if (/\b(?:ac-?3|ac3|dolby digital)\b/i.test(text)) return "AC3";
+  if (/\b(?:aac|he-?aac|mp4a)\b/i.test(text)) return "AAC";
+  if (/\bopus\b/i.test(text)) return "Opus";
+  if (/\bflac\b/i.test(text)) return "FLAC";
+  if (/\b(?:mp3|mpeg audio)\b/i.test(text)) return "MP3";
+  return "";
+};
+
+const audioChannelLabel = (track) => {
+  const direct =
+    track?.channels ||
+    track?.channelCount ||
+    track?.attrs?.CHANNELS ||
+    track?.attrs?.CHANNEL_COUNT ||
+    "";
+
+  const text = `${direct} ${track?.label || ""} ${track?.name || ""}`;
+  const match = text.match(/(?:^|[^0-9])(7\.1|5\.1|2\.1|2\.0|1\.0|8|6|2)(?:[^0-9]|$)/i);
+  if (!match) return "";
+
+  const value = String(match[1]);
+  if (value === "8") return "7.1";
+  if (value === "6") return "5.1";
+  if (value === "2") return "2.0";
+  return value;
+};
+
+export const friendlyTrackLabel = (track, kind, index) => {
+  const rawLabel = String(track?.label || track?.name || "").trim();
+  const language = String(track?.language || track?.lang || track?.attrs?.LANGUAGE || "").trim();
+  const languageName = languageDisplayName(language);
+  const codec = kind === "Audio" ? audioCodecLabel(track) : "";
+  const channels = kind === "Audio" ? audioChannelLabel(track) : "";
+  const commentary = /\bcommentary\b/i.test(rawLabel) ? "Commentary" : "";
+  const descriptive = /\b(?:audio description|descriptive|visually impaired)\b/i.test(rawLabel)
+    ? "Audio description"
+    : "";
+  const forced = trackLooksForced(track) ? "Forced" : "";
+
+  const parts = [
+    languageName,
+    codec,
+    channels,
+    commentary,
+    descriptive,
+    forced,
+  ].filter(Boolean);
+
+  if (parts.length > 0) {
+    return parts.filter((part, partIndex, list) => list.indexOf(part) === partIndex).join(" · ");
+  }
+
+  return rawLabel || language || `${kind} ${index + 1}`;
 };
 
 export const subtitleCueStyle = (preferences = readTrackPreferences()) => {
