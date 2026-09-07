@@ -4,6 +4,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -35,6 +36,91 @@ const AUDIO_DOLBY_RE =
 
 const AUDIO_RISKY_RE =
   /\b(dts(?:-hd)?|truehd|mlp)\b/i;
+
+const PLAYBACK_RELIABILITY_KEY =
+  "mg:playback-reliability-v1";
+
+const reliabilityLabel = (item) =>
+  String(
+    item?.label ||
+      item?.name ||
+      item?.title ||
+      ""
+  )
+    .replace(/^failed\s*[—-]\s*/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const readReliabilityStore = () => {
+  if (typeof window === "undefined") {
+    return {};
+  }
+
+  try {
+    const raw = window.localStorage.getItem(
+      PLAYBACK_RELIABILITY_KEY
+    );
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+const reliabilityAdjustment = (item) => {
+  const label = reliabilityLabel(item);
+  const key = label.toLowerCase().slice(0, 260);
+
+  if (!key) {
+    return 0;
+  }
+
+  const record = readReliabilityStore()[key];
+
+  if (!record || typeof record !== "object") {
+    return 0;
+  }
+
+  const now = Date.now();
+  const fresh = (value, ttl) =>
+    Number(value || 0) > now - ttl;
+
+  let score = 0;
+
+  if (fresh(record.lastNoSound, 7 * 24 * 60 * 60 * 1000)) {
+    score -=
+      500000 +
+      Math.min(200000, Number(record.noSound || 0) * 25000);
+  }
+
+  if (fresh(record.lastFailure, 12 * 60 * 60 * 1000)) {
+    score -=
+      220000 +
+      Math.min(150000, Number(record.failures || 0) * 18000);
+  }
+
+  if (fresh(record.lastBuffer, 48 * 60 * 60 * 1000)) {
+    score -= Math.min(
+      36000,
+      Number(record.buffers || 0) * 4500
+    );
+  }
+
+  if (fresh(record.lastStartAt, 30 * 24 * 60 * 60 * 1000)) {
+    const average = Number(record.avgStartMs || 0);
+
+    if (average > 0 && average <= 2500) score += 9000;
+    else if (average <= 5000) score += 4500;
+    else if (average >= 15000) score -= 16000;
+    else if (average >= 9000) score -= 8000;
+  }
+
+  if (fresh(record.lastGood, 30 * 24 * 60 * 60 * 1000)) {
+    score += 3500;
+  }
+
+  return score;
+};
 
 const unwrap = (response) =>
   response?.data ??
@@ -161,6 +247,7 @@ const scoreSource = (item) => {
     rdLibraryBonus +
     directBonus +
     audioCompatibility +
+    reliabilityAdjustment(item) +
     resolution -
     foreignPenalty
   );
