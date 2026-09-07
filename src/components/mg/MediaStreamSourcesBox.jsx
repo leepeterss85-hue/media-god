@@ -288,9 +288,9 @@ export default function StreamSourcesBox({
   const player =
     usePlayer();
 
-  const hasRd =
+  const hasDebrid =
     Boolean(
-      player?.hasRd
+      player?.hasDebrid
     );
 
   const [
@@ -762,7 +762,7 @@ export default function StreamSourcesBox({
             if (
               stream?.type ===
                 "rd" &&
-              !hasRd
+              !hasDebrid
             ) {
               return false;
             }
@@ -777,7 +777,7 @@ export default function StreamSourcesBox({
       [
         addonStreams,
 
-        hasRd,
+        hasDebrid,
       ]
     );
 
@@ -806,11 +806,11 @@ export default function StreamSourcesBox({
       ]
     );
 
-  const playRealDebrid =
+  const playCombinedDebrid =
     async () => {
-      if (!hasRd) {
+      if (!hasDebrid) {
         setMessage(
-          "Connect Real-Debrid in Settings first."
+          "Connect a debrid service in Settings first."
         );
 
         return;
@@ -875,7 +875,7 @@ export default function StreamSourcesBox({
       } catch (error) {
         setMessage(
           error?.message ||
-          "Real-Debrid playback lookup failed."
+          "Combined Debrid playback lookup failed."
         );
       } finally {
         setRdSearching(
@@ -895,10 +895,10 @@ export default function StreamSourcesBox({
       if (
         stream?.type ===
           "rd" &&
-        !hasRd
+        !hasDebrid
       ) {
         setMessage(
-          "This source needs Real-Debrid. Connect it in Settings first."
+          "This source needs a debrid service. Connect one in Settings first."
         );
 
         return;
@@ -967,9 +967,9 @@ export default function StreamSourcesBox({
 
   const pasteMagnet =
     async () => {
-      if (!hasRd) {
+      if (!hasDebrid) {
         setMessage(
-          "Connect Real-Debrid in Settings first."
+          "Connect a debrid service in Settings first."
         );
 
         return;
@@ -1187,15 +1187,15 @@ export default function StreamSourcesBox({
         "rd",
 
       label:
-        "Real-Debrid",
+        "Combined Debrid",
 
       note:
-        hasRd
-          ? "Your RD library plus selected sources"
-          : "Connect Real-Debrid in Settings",
+        hasDebrid
+          ? "Search addons and resolve through all connected debrid services"
+          : "Connect a debrid service in Settings",
 
       onClick:
-        playRealDebrid,
+        playCombinedDebrid,
     },
 
     ...visibleAddonStreams.map(
@@ -1217,7 +1217,7 @@ export default function StreamSourcesBox({
         note:
           stream?.type ===
           "rd"
-            ? `${stream?.addon || "Addon"} • Real-Debrid source${
+            ? `${stream?.addon || "Addon"} • Combined Debrid source${
                 stream?.browserFallback
                   ? " • Browser fallback"
                   : ""
@@ -1253,7 +1253,7 @@ export default function StreamSourcesBox({
         "Paste Magnet",
 
       note:
-        "Send your own magnet through Real-Debrid",
+        "Send your own magnet through all connected debrid services",
 
       onClick:
         pasteMagnet,
@@ -1510,7 +1510,7 @@ export default function StreamSourcesBox({
 
                   row.kind ===
                     "rd" &&
-                    !hasRd &&
+                    !hasDebrid &&
                     "opacity-60"
                 )}
               >
