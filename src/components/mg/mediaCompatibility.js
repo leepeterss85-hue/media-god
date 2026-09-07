@@ -119,8 +119,24 @@ export const getPlaybackDeviceProfile = () => {
       ? String(navigator.userAgent || "")
       : "";
 
+  const tvClassDetected =
+    typeof document !== "undefined" &&
+    Boolean(
+      document.documentElement?.classList?.contains("mg-fire-tv") ||
+      document.body?.classList?.contains("mg-fire-tv") ||
+      document.body?.classList?.contains("mg-fire-tv-mode") ||
+      document.body?.classList?.contains("mg-fire-tv-stable")
+    );
+
+  const androidNoTouch =
+    /Android/i.test(userAgent) &&
+    typeof navigator !== "undefined" &&
+    Number(navigator.maxTouchPoints || 0) === 0;
+
   const fireTv =
-    FIRE_TV_RE.test(userAgent);
+    FIRE_TV_RE.test(userAgent) ||
+    tvClassDetected ||
+    androidNoTouch;
 
   const width =
     typeof window !== "undefined"
