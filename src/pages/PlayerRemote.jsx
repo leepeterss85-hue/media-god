@@ -1141,6 +1141,58 @@ export default function PlayerRemote() {
                   </button>
                 </div>
               )}
+
+              <div className="mt-5 border-t border-white/10 pt-4">
+                <div className="flex items-center gap-2">
+                  <Tv className="h-4 w-4 text-mg-green" />
+                  <div>
+                    <p className="text-sm font-bold text-white">Live TV</p>
+                    <p className="text-xs text-white/45">Find a channel on your phone and switch the Firestick straight to it.</p>
+                  </div>
+                </div>
+
+                <label className="relative mt-3 block">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
+                  <input
+                    value={liveQuery}
+                    onChange={(event) => setLiveQuery(event.target.value)}
+                    placeholder="Search Live TV channels…"
+                    className="min-h-12 w-full rounded-xl border border-white/15 bg-[#161616] pl-10 pr-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-mg-green"
+                  />
+                </label>
+
+                {liveSearching && (
+                  <p className="mt-3 text-xs text-white/45">Searching channels…</p>
+                )}
+
+                {liveResults.length > 0 && (
+                  <div className="mt-3 grid gap-2">
+                    {liveResults.map((channel, index) => (
+                      <button
+                        key={`${channel?.tvgId || channel?.id || channel?.name}-${index}`}
+                        type="button"
+                        onClick={() => sendLiveChannel(channel)}
+                        className="flex min-h-14 items-center gap-3 rounded-xl border border-white/10 bg-black/25 px-3 text-left active:bg-white/10"
+                      >
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-mg-green/10 text-mg-green">
+                          {channel?.logo ? (
+                            <img src={channel.logo} alt="" className="h-full w-full object-contain p-1" />
+                          ) : (
+                            <Tv className="h-4 w-4" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-white">{channel.name}</p>
+                          <p className="truncate text-xs text-white/45">
+                            {channel.group || channel.country || "Live TV"}
+                          </p>
+                        </div>
+                        <span className="text-xs font-semibold text-mg-green">Watch on TV</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </section>
 
             <button
