@@ -347,3 +347,82 @@ body.mg-fire-tv-mode .fixed.inset-0.z-50.bg-black\/95,
 body.mg-fire-tv-stable .fixed.inset-0.z-50.bg-black\/95 {
   font-size: 16px !important;
 }
+
+/*
+ * Fire TV player takeover.
+ * The navbar is z-200. The original player shell was only z-50, so even a
+ * fullscreen stage inside it could never escape that stacking context.
+ * Put the whole player above the catalogue/nav and make the layer opaque.
+ */
+body.mg-fire-tv .fixed.inset-0.z-50.bg-black\/95,
+body.mg-fire-tv-mode .fixed.inset-0.z-50.bg-black\/95,
+body.mg-fire-tv-stable .fixed.inset-0.z-50.bg-black\/95 {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  background: #000 !important;
+  z-index: 2147483000 !important;
+}
+
+/* The player wrapper must use the whole TV viewport, not the catalogue width. */
+body.mg-fire-tv .fixed.inset-0.z-50.bg-black\/95 > div,
+body.mg-fire-tv-mode .fixed.inset-0.z-50.bg-black\/95 > div,
+body.mg-fire-tv-stable .fixed.inset-0.z-50.bg-black\/95 > div {
+  width: 100% !important;
+  max-width: 100vw !important;
+  min-width: 0 !important;
+}
+
+/* Preserve the source aspect ratio in both normal player and fullscreen. */
+body.mg-fire-tv .fixed.inset-0.z-50.bg-black\/95 video,
+body.mg-fire-tv-mode .fixed.inset-0.z-50.bg-black\/95 video,
+body.mg-fire-tv-stable .fixed.inset-0.z-50.bg-black\/95 video {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain !important;
+  object-position: center center !important;
+  aspect-ratio: auto !important;
+  background: #000 !important;
+}
+
+/* Safe in-app fullscreen: cover the complete Fire TV viewport. */
+body.mg-fire-tv [data-mg-fullscreen="true"],
+body.mg-fire-tv-mode [data-mg-fullscreen="true"],
+body.mg-fire-tv-stable [data-mg-fullscreen="true"] {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  aspect-ratio: auto !important;
+  overflow: hidden !important;
+  background: #000 !important;
+  z-index: 2147483647 !important;
+}
+
+body.mg-fire-tv [data-mg-fullscreen="true"] video,
+body.mg-fire-tv-mode [data-mg-fullscreen="true"] video,
+body.mg-fire-tv-stable [data-mg-fullscreen="true"] video,
+body.mg-fire-tv [data-mg-fullscreen="true"] iframe,
+body.mg-fire-tv-mode [data-mg-fullscreen="true"] iframe,
+body.mg-fire-tv-stable [data-mg-fullscreen="true"] iframe {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: contain !important;
+  object-position: center center !important;
+  aspect-ratio: auto !important;
+  background: #000 !important;
+}
