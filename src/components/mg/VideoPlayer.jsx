@@ -178,6 +178,7 @@ export default function VideoPlayer({
     key: "",
     timer: null,
   });
+  const handleNoSoundRef = useRef(null);
   const autoRecoveryRef = useRef({
     lastTime: 0,
     lastProgressAt: Date.now(),
@@ -2329,6 +2330,122 @@ export default function VideoPlayer({
         nextIndex
       );
     };
+
+  handleNoSoundRef.current = handleNoSound;
+
+  useEffect(() => {
+    const state = autoAudioRescueRef.current;
+
+    if (state.timer) {
+      window.clearTimeout(state.timer);
+      state.timer = null;
+    }
+
+    if (
+      isLive ||
+      isYoutube ||
+      isProvider ||
+      rdResolving ||
+      rdPolling ||
+      rdOverride?.audioRescue?.used ||
+      readPlaybackPreferences().autoRecovery === false
+    ) {
+      return undefined;
+    }
+
+    const mediaInfo =
+      rdOverride?.mediaInfo ||
+      active?.mediaInfo ||
+      active?.media_info ||
+      null;
+    const inspectedAudio = Array.isArray(mediaInfo?.audio_tracks)
+      ? mediaInfo.audio_tracks
+      : [];
+    const firstAudio = inspectedAudio[0] || null;
+    const extraAudioText = inspectedAudio
+      .map((track) =>
+        [
+          track?.codec,
+          track?.language,
+          track?.lang,
+          track?.channels,
+          track?.label,
+        ]
+          .filter(Boolean)
+          .join(" ")
+      )
+      .join(" ");
+    const candidate = rdOverride
+      ? {
+          ...active,
+          label: rdOverride.label || active?.label,
+          audio: extraAudioText,
+        }
+      : active;
+    const traits = detectStreamTraits(candidate, extraAudioText);
+    const label = sourceDisplayLabel(candidate, activeIdx);
+    const profile = getPlaybackDeviceProfile();
+    const knownRisk =
+      traits.audioRisk === true ||
+      firstAudio?.browser_safe === false ||
+      /\b(?:truehd|mlp|dts(?:-?hd)?|dts:x|dca)\b/i.test(
+        `${extraAudioText} ${label}`
+      );
+    const rememberedNoSound = hasRecentNoSoundHistory(label, profile);
+
+    if (!knownRisk && !rememberedNoSound) {
+      return undefined;
+    }
+
+    const key = [
+      source?.id || source?.tmdbId || source?.title || "media",
+      activeIdx,
+      rdOverride?.src || activeUrl,
+    ].join("|");
+
+    if (state.key === key) {
+      return undefined;
+    }
+
+    state.key = key;
+    state.timer = window.setTimeout(() => {
+      state.timer = null;
+
+      const video = stageRef.current?.querySelector("video");
+      if (!(video instanceof HTMLVideoElement)) return;
+      if (video.paused || video.ended || video.readyState < 2) return;
+
+      window.dispatchEvent(
+        new CustomEvent("mg:player-status", {
+          detail: {
+            message: rememberedNoSound
+              ? "Known audio issue detected — applying automatic audio rescue…"
+              : "Audio compatibility risk detected — applying automatic audio rescue…",
+          },
+        })
+      );
+
+      handleNoSoundRef.current?.({ automatic: true });
+    }, 2200);
+
+    return () => {
+      if (state.timer) {
+        window.clearTimeout(state.timer);
+        state.timer = null;
+      }
+    };
+  }, [
+    activeIdx,
+    activeUrl,
+    active,
+    isLive,
+    isYoutube,
+    isProvider,
+    rdOverride,
+    rdResolving,
+    rdPolling,
+    source,
+  ]);
 
   const busy =
     rdResolving ||
