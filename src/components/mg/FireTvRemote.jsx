@@ -16,9 +16,28 @@ const FOCUSABLE = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(",");
 
-const isFireTv = () =>
-  typeof navigator !== "undefined" &&
-  FIRE_TV_RE.test(String(navigator.userAgent || ""));
+const isFireTv = () => {
+  if (typeof navigator === "undefined") {
+    return false;
+  }
+
+  const userAgent = String(navigator.userAgent || "");
+  const classDetected =
+    typeof document !== "undefined" &&
+    (
+      document.documentElement.classList.contains("mg-fire-tv") ||
+      document.body?.classList.contains("mg-fire-tv")
+    );
+  const androidNoTouch =
+    /Android/i.test(userAgent) &&
+    Number(navigator.maxTouchPoints || 0) === 0;
+
+  return (
+    FIRE_TV_RE.test(userAgent) ||
+    classDetected ||
+    androidNoTouch
+  );
+};
 
 const keyCode = (event) =>
   Number(event?.keyCode || event?.which || 0);
@@ -376,13 +395,25 @@ export default function FireTvRemote() {
         return;
       }
 
-      const scope = topOverlay();
+      const overlay = topOverlay();
+      const appMain = document.querySelector("#root main");
+      const scope =
+        overlay instanceof HTMLElement
+          ? overlay
+          : appMain instanceof HTMLElement
+            ? document.querySelector("#root")
+            : null;
 
       if (!(scope instanceof HTMLElement)) {
         return;
       }
 
-      /* main.jsx owns Back before this handler sees it. */
+      /*
+       * main.jsx owns Back before this handler sees it. When no overlay is
+       * open, this provides generic spatial navigation for Settings, Addons,
+       * Downloads and every other authenticated main-app control that the
+       * deterministic row navigator deliberately does not own.
+       */
       const direction = directionFromEvent(event);
 
       if (direction) {
