@@ -1231,7 +1231,7 @@ export default function LiveTVView() {
           </div>
         )}
 
-      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
         {[
           {
             id: "All",
@@ -1252,6 +1252,16 @@ export default function LiveTVView() {
             id: "Movies",
             label: "Movies",
             icon: Film,
+          },
+          {
+            id: "Favourites",
+            label: "Favourites",
+            icon: Star,
+          },
+          {
+            id: "Recent",
+            label: "Recent",
+            icon: Clock3,
           },
         ].map((item) => {
           const Icon =
