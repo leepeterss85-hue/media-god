@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from '@/App.jsx'
 import FireTvFocusMemory from '@/components/mg/FireTvFocusMemory.jsx'
+import PlaybackReliabilityAssist from '@/components/mg/PlaybackReliabilityAssist.jsx'
 import '@/index.css'
 
 const userAgent =
@@ -221,6 +222,7 @@ installFireTvBackHandler()
 ReactDOM.createRoot(document.getElementById('root')).render(
   <>
     <FireTvFocusMemory />
+    <PlaybackReliabilityAssist />
     <App />
   </>
 )
