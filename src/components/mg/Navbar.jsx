@@ -99,7 +99,7 @@ export default function Navbar({
     );
 
   return (
-    <aside className="sticky top-0 z-30 flex h-screen w-16 shrink-0 flex-col border-r border-white/5 bg-mg-surface md:w-60">
+    <aside className="mg-fire-tv-nav sticky top-0 z-30 flex h-screen w-16 shrink-0 flex-col border-r border-white/5 bg-mg-surface md:w-60">
       <div className="flex h-14 shrink-0 items-center gap-2 border-b border-white/5 px-3 md:px-4">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border-2 border-mg-green">
           <Shield className="h-4 w-4 text-mg-green" />
