@@ -263,8 +263,17 @@ const scoreSource = (item) => {
     label,
     deviceProfile
   );
+  const explicitPriority =
+    Math.max(
+      -100,
+      Math.min(
+        100,
+        Number(item?.playbackPriority || 0)
+      )
+    ) * 10000;
 
   return (
+    explicitPriority +
     rdLibraryBonus +
     directBonus +
     audioCompatibility +
