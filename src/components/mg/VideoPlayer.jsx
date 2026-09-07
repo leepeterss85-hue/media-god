@@ -68,6 +68,38 @@ const sourceDisplayLabel = (item, index) =>
     .replace(/\s+/g, " ")
     .trim();
 
+const audioTrackScore = (track, preferredLanguage = "en") => {
+  const text = `${track?.language || ""} ${track?.label || ""}`;
+  const language = String(track?.language || "").toLowerCase();
+  const preferred = String(preferredLanguage || "").toLowerCase();
+
+  let score = 0;
+
+  if (
+    preferred &&
+    (
+      language === preferred ||
+      language.startsWith(`${preferred}-`) ||
+      (preferred === "en" && /\b(?:eng|english)\b/i.test(text))
+    )
+  ) {
+    score += 10000;
+  }
+
+  if (/\b(?:aac|he-?aac|mp4a)\b/i.test(text)) score += 2600;
+  else if (/\b(?:e-?ac-?3|eac3|ec-?3|ddp|dd\+)\b/i.test(text)) score += 1400;
+  else if (/\b(?:ac-?3|ac3|dolby digital)\b/i.test(text)) score += 1200;
+  else if (/\bopus\b/i.test(text)) score += 900;
+  else if (/\b(?:mp3|mpeg audio)\b/i.test(text)) score += 700;
+  else if (/\b(?:truehd|mlp|dts(?:-?hd)?|dts:x|dca)\b/i.test(text)) score -= 9000;
+
+  if (/\b(?:commentary|audio description|descriptive|visually impaired)\b/i.test(text)) {
+    score -= 3200;
+  }
+
+  return score;
+};
+
 export default function VideoPlayer({
   source,
   onClose,
