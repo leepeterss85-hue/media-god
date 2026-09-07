@@ -254,6 +254,11 @@ const plexPlaybackInfo = async (result) => {
   transcode.searchParams.set("protocol", "hls");
   transcode.searchParams.set("directPlay", "0");
   transcode.searchParams.set("directStream", "1");
+  transcode.searchParams.set("videoResolution", "1920x1080");
+  transcode.searchParams.set("videoQuality", "100");
+  transcode.searchParams.set("audioCodec", "aac");
+  transcode.searchParams.set("audioChannels", "6");
+  transcode.searchParams.set("audioBitrate", "192");
   transcode.searchParams.set("fastSeek", "1");
   transcode.searchParams.set("audioBoost", "100");
   transcode.searchParams.set("location", "lan");
@@ -312,13 +317,17 @@ const jellyfinTranscodeUrl = (result, audio = jellyfinAudioInfo(result)) => {
   const id = encodeURIComponent(result.id);
   const url = new URL(`${trimSlash(server.baseUrl)}/Videos/${id}/master.m3u8`);
 
-  url.searchParams.set("VideoCodec", "h264");
+  url.searchParams.set("VideoCodec", "h264,hevc");
   url.searchParams.set("AudioCodec", "aac");
   url.searchParams.set("AudioBitrate", "192000");
   url.searchParams.set("MaxAudioChannels", "6");
   url.searchParams.set("TranscodingContainer", "ts");
   url.searchParams.set("TranscodingProtocol", "hls");
+  url.searchParams.set("EnableDirectPlay", "false");
+  url.searchParams.set("EnableDirectStream", "true");
   url.searchParams.set("EnableAutoStreamCopy", "true");
+  url.searchParams.set("AllowVideoStreamCopy", "true");
+  url.searchParams.set("AllowAudioStreamCopy", "false");
   url.searchParams.set("BreakOnNonKeyFrames", "true");
   if (audio?.mediaSourceId) {
     url.searchParams.set("MediaSourceId", audio.mediaSourceId);
