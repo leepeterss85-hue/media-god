@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from '@/App.jsx'
+import FireTvFocusMemory from '@/components/mg/FireTvFocusMemory.jsx'
 import '@/index.css'
 
 const userAgent =
@@ -218,5 +219,8 @@ if (isFireTv && typeof document !== 'undefined') {
 installFireTvBackHandler()
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <App />
+  <>
+    <FireTvFocusMemory />
+    <App />
+  </>
 )
