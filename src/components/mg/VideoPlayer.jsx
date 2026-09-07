@@ -665,6 +665,8 @@ export default function VideoPlayer({
 
       const run =
         async () => {
+          let rdResolveStartedAt = 0;
+
           try {
             const magnet =
               active?.magnet ||
@@ -817,6 +819,7 @@ export default function VideoPlayer({
               );
             }
 
+            rdResolveStartedAt = Date.now();
             const res =
               await base44.functions.invoke(
                 "realDebrid",
