@@ -511,6 +511,8 @@ const lookupAddon = async ({
   type,
   streamId,
   mediaType,
+  manifestTimeoutMs = 3000,
+  streamTimeoutMs = 5000,
 }) => {
   const addonName =
     clean(addon?.name) ||
@@ -564,7 +566,7 @@ const lookupAddon = async ({
   const manifestResult =
     await fetchJsonWithTimeout(
       manifestUrl,
-      7000
+      manifestTimeoutMs
     );
 
   if (
@@ -648,7 +650,7 @@ const lookupAddon = async ({
   const result =
     await fetchJsonWithTimeout(
       targetUrl,
-      12000
+      streamTimeoutMs
     );
 
   if (
@@ -1009,22 +1011,31 @@ export default async function (req) {
           : imdbId
         : `search:${title}`;
 
+    const fastMode =
+      body?.fast_mode === true ||
+      body?.fastMode === true;
+
+    const selectedAddons =
+      activeAddons.slice(
+        0,
+        fastMode ? 6 : 30
+      );
+
     const settled =
       await Promise.allSettled(
-        activeAddons
-          .slice(
-            0,
-            30
-          )
-          .map(
-            (addon) =>
-              lookupAddon({
-                addon,
-                type,
-                streamId,
-                mediaType,
-              })
-          )
+        selectedAddons.map(
+          (addon) =>
+            lookupAddon({
+              addon,
+              type,
+              streamId,
+              mediaType,
+              manifestTimeoutMs:
+                fastMode ? 900 : 3000,
+              streamTimeoutMs:
+                fastMode ? 1800 : 5000,
+            })
+        )
       );
 
     const streams =
@@ -1083,7 +1094,10 @@ export default async function (req) {
       diagnostics,
 
       addons_checked:
-        activeAddons.length,
+        selectedAddons.length,
+
+      fast_mode:
+        fastMode,
 
       media_type:
         mediaType,
