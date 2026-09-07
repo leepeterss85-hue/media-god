@@ -1457,6 +1457,122 @@ export default function LiveTVView() {
             Try All, another group, or a different search.
           </div>
         </div>
+      ) : viewMode === "guide" ? (
+        <div className="grid gap-2" data-mg-live-tv-guide="true">
+          {shown.map((channel, index) => {
+            const memoryKey = channelMemoryKey(channel);
+            const guide = epgByKey[epgKeyForChannel(channel)] || {};
+            const upcoming = Array.isArray(guide?.upcoming)
+              ? guide.upcoming.slice(0, 4)
+              : [guide?.now, guide?.next].filter(Boolean);
+            const currentStart = String(guide?.now?.start || "");
+
+            return (
+              <div
+                key={`guide-${channel.id || memoryKey}-${index}`}
+                data-mg-tv-row="true"
+                className="grid min-h-[84px] gap-2 rounded-xl border border-white/8 bg-mg-card/70 p-2 md:grid-cols-[220px_minmax(0,1fr)]"
+              >
+                <button
+                  type="button"
+                  onClick={() => playChannel(channel)}
+                  onFocus={(event) => {
+                    setFocusedChannelKey(memoryKey);
+                    event.currentTarget.scrollIntoView({
+                      block: "nearest",
+                      inline: "nearest",
+                    });
+                  }}
+                  className={cn(
+                    "mg-fire-tv-card flex min-h-[68px] items-center gap-3 rounded-lg border bg-black/25 px-3 text-left outline-none transition-colors focus:border-mg-green focus:bg-mg-surface focus:ring-2 focus:ring-mg-green/35",
+                    focusedChannelKey === memoryKey
+                      ? "border-mg-green/35"
+                      : "border-white/8"
+                  )}
+                >
+                  <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-black/30">
+                    <Tv className="h-4 w-4 text-white/25" />
+                    {channel.logo && (
+                      <img
+                        src={channel.logo}
+                        alt=""
+                        loading="lazy"
+                        className="absolute inset-0 h-full w-full object-contain p-1"
+                        onError={(event) => {
+                          event.currentTarget.style.display = "none";
+                        }}
+                      />
+                    )}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-bold text-white">
+                      {channel.name}
+                    </div>
+                    <div className="mt-0.5 truncate text-[10px] text-white/40">
+                      {channel.group || channel.country || "Live TV"}
+                    </div>
+                  </div>
+
+                  {favouriteKeys.has(memoryKey) && (
+                    <Star className="h-4 w-4 shrink-0 fill-current text-mg-green" />
+                  )}
+                </button>
+
+                <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                  {upcoming.length > 0 ? (
+                    upcoming.map((programme, programmeIndex) => {
+                      const isNow =
+                        Boolean(currentStart) &&
+                        String(programme?.start || "") === currentStart;
+                      const progress = isNow
+                        ? programmeProgress(programme, clockTick)
+                        : 0;
+
+                      return (
+                        <div
+                          key={`${programme?.start || programmeIndex}-${programme?.title || "programme"}`}
+                          className={cn(
+                            "min-w-0 rounded-lg border px-3 py-2",
+                            isNow
+                              ? "border-mg-green/30 bg-mg-green/8"
+                              : "border-white/8 bg-black/20"
+                          )}
+                        >
+                          <div className="flex items-center gap-1.5 text-[10px] font-semibold">
+                            <span className={isNow ? "text-mg-green" : "text-white/45"}>
+                              {isNow ? "NOW" : formatProgrammeTime(programme?.start)}
+                            </span>
+                            {!isNow && programme?.stop && (
+                              <span className="text-white/25">
+                                – {formatProgrammeTime(programme.stop)}
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-1 truncate text-xs font-semibold text-white/85">
+                            {programme?.title || "Programme"}
+                          </div>
+                          {isNow && (
+                            <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/10">
+                              <div
+                                className="h-full bg-mg-green"
+                                style={{ width: `${Math.round(progress * 100)}%` }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="col-span-full flex min-h-[68px] items-center rounded-lg border border-white/8 bg-black/20 px-3 text-xs text-white/35">
+                      Guide information is not available for this channel yet.
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 3xl:grid-cols-4 4xl:grid-cols-5">
           {shown.map(
