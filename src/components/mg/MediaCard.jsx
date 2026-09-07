@@ -91,7 +91,7 @@ export default function MediaCard({
   };
 
   return (
-    <article className="group shrink-0 w-28 min-[420px]:w-32 sm:w-36 md:w-40 xl:w-44 3xl:w-52 4xl:w-60">
+    <article className="mg-fire-tv-card group shrink-0 w-28 min-[420px]:w-32 sm:w-36 md:w-40 xl:w-44 3xl:w-52 4xl:w-60">
       <div className="relative aspect-[2/3] rounded-md 3xl:rounded-lg overflow-hidden border border-white/10 bg-mg-card">
         <Image
           src={item.poster_url}
