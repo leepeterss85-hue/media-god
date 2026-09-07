@@ -256,6 +256,87 @@ export default function PlayerRemote() {
     }
   };
 
+  const playPreviousEpisode = async () => {
+    const currentSeason = Number(session?.season_number || 0);
+    const currentEpisode = Number(session?.episode_number || 0);
+
+    if (!currentSeason || !currentEpisode || !session?.tmdb_id) {
+      return;
+    }
+
+    if (currentEpisode > 1) {
+      await send(
+        "episode",
+        JSON.stringify({
+          tmdbId: session.tmdb_id,
+          season: currentSeason,
+          episode: currentEpisode - 1,
+        })
+      );
+      return;
+    }
+
+    const previousSeason = [...seasons]
+      .filter(
+        (item) =>
+          Number(item?.season_number || 0) < currentSeason &&
+          Number(item?.episode_count || 0) > 0
+      )
+      .sort(
+        (a, b) =>
+          Number(b?.season_number || 0) -
+          Number(a?.season_number || 0)
+      )[0];
+
+    const previousSeasonNumber = Number(previousSeason?.season_number || 0);
+
+    if (!previousSeasonNumber) {
+      return;
+    }
+
+    try {
+      const response = await base44.functions.invoke(
+        "getTmdbMovies",
+        {
+          media_type: "tv",
+          movie_id: session.tmdb_id,
+          season_number: previousSeasonNumber,
+        }
+      );
+
+      const data = response?.data ?? response ?? {};
+      const previousEpisodes = Array.isArray(data?.episodes)
+        ? data.episodes
+            .map((item) =>
+              Number(
+                item?.episode_number ??
+                  item?.episodeNumber ??
+                  item?.episode ??
+                  0
+              )
+            )
+            .filter((value) => value > 0)
+        : [];
+
+      const lastEpisode = previousEpisodes.length
+        ? Math.max(...previousEpisodes)
+        : Number(previousSeason?.episode_count || 0);
+
+      if (lastEpisode > 0) {
+        await send(
+          "episode",
+          JSON.stringify({
+            tmdbId: session.tmdb_id,
+            season: previousSeasonNumber,
+            episode: lastEpisode,
+          })
+        );
+      }
+    } catch {
+      // If previous-season metadata is unavailable, leave playback unchanged.
+    }
+  };
+
   if (loading) {
     return (
       <main className="min-h-screen bg-black text-white flex items-center justify-center p-6">
