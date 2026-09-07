@@ -215,15 +215,11 @@ const scoreRecord = (record) => {
   return score;
 };
 
-export const playbackReliabilityAdjustment = (
-  label,
-  profile = getPlaybackDeviceProfile()
-) => {
+const deviceAndTraitAdjustment = (label, profile) => {
   const source = baseSourceKey(label);
   if (!source) return 0;
 
   const store = readStore();
-  const generic = scoreRecord(store[source]);
   const deviceSpecific = scoreRecord(store[sourceDeviceKey(label, profile)]);
   const traitScores = traitKeysFor(label, profile)
     .map((key) => scoreRecord(store[key]))
@@ -234,7 +230,28 @@ export const playbackReliabilityAdjustment = (
     return total + capped * 0.16;
   }, 0);
 
-  return Math.round(generic * 0.25 + deviceSpecific + traitAdjustment);
+  return Math.round(deviceSpecific + traitAdjustment);
+};
+
+export const devicePlaybackReliabilityAdjustment = (
+  label,
+  profile = getPlaybackDeviceProfile()
+) => deviceAndTraitAdjustment(label, profile);
+
+export const playbackReliabilityAdjustment = (
+  label,
+  profile = getPlaybackDeviceProfile()
+) => {
+  const source = baseSourceKey(label);
+  if (!source) return 0;
+
+  const store = readStore();
+  const generic = scoreRecord(store[source]);
+
+  return Math.round(
+    generic * 0.25 +
+      deviceAndTraitAdjustment(label, profile)
+  );
 };
 
 export const clearPlaybackReliability = () => {
