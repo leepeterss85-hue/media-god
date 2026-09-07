@@ -161,6 +161,46 @@
   }
 }
 
+/*
+ * Fire TV / Firestick often exposes a much smaller CSS viewport than the
+ * physical television resolution (commonly around 960x540). Keep the UI
+ * compact in that environment instead of letting tablet/desktop breakpoints
+ * consume a large percentage of the screen.
+ */
+.mg-fire-tv {
+  --mg-tv-sidebar-width: 4.5rem;
+}
+
+.mg-fire-tv html,
+html.mg-fire-tv {
+  font-size: 14px;
+}
+
+.mg-fire-tv body,
+body.mg-fire-tv {
+  min-width: 0;
+}
+
+.mg-fire-tv .mg-fire-tv-player-shell {
+  width: min(100%, calc((100vh - 7rem) * 16 / 9));
+  max-width: 1180px;
+}
+
+.mg-fire-tv .mg-fire-tv-player-stage {
+  width: 100%;
+  max-height: calc(100vh - 7rem);
+}
+
+@media (max-height: 700px) and (orientation: landscape) {
+  .mg-fire-tv .mg-fire-tv-player-shell {
+    width: min(100%, calc((100vh - 6rem) * 16 / 9));
+  }
+
+  .mg-fire-tv .mg-fire-tv-player-stage {
+    max-height: calc(100vh - 6rem);
+  }
+}
+
 @media (min-width: 1920px) {
   html {
     font-size: 17px;
