@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from '@/App.jsx'
 import FireTvFocusMemory from '@/components/mg/FireTvFocusMemory.jsx'
+import FireTvAuthNavigation from '@/components/mg/FireTvAuthNavigation.jsx'
 import PlaybackReliabilityAssist from '@/components/mg/PlaybackReliabilityAssist.jsx'
 import PlayerEpisodeQuickNav from '@/components/mg/PlayerEpisodeQuickNav.jsx'
 import ContinueWatchingAssist from '@/components/mg/ContinueWatchingAssist.jsx'
@@ -227,6 +228,7 @@ installFireTvBackHandler()
 ReactDOM.createRoot(document.getElementById('root')).render(
   <>
     <FireTvFocusMemory />
+    <FireTvAuthNavigation />
     <PlaybackReliabilityAssist />
     <PlayerEpisodeQuickNav />
     <ContinueWatchingAssist />
