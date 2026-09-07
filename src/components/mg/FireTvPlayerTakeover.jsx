@@ -10,46 +10,68 @@ const isFireTv = () => {
   return FIRE_TV_RE.test(String(navigator.userAgent || ""));
 };
 
+const closestPlayerOverlay = (element) => {
+  if (!(element instanceof HTMLElement)) {
+    return null;
+  }
+
+  const overlay = element.closest(".fixed.inset-0");
+
+  return overlay instanceof HTMLElement
+    ? overlay
+    : null;
+};
+
 const findPlayerOverlay = () => {
   if (typeof document === "undefined") {
     return null;
   }
 
   /*
-   * The real media element is the most reliable player marker.
-   * Do not depend on a particular control being visible because Fire TV
-   * can hide/re-render controls while video continues playing.
+   * Prefer controls that only belong to Media God's real player.
+   * This avoids accidentally selecting a background iframe/video elsewhere
+   * in the application.
    */
+  const markers = Array.from(
+    document.querySelectorAll(
+      [
+        'button[aria-label="No sound"]',
+        'select[aria-label="Choose playback source"]',
+        'select[aria-label="Choose source or quality while loading"]',
+        'button[aria-label="Back to main menu"]',
+      ].join(",")
+    )
+  ).reverse();
+
+  for (const marker of markers) {
+    const overlay = closestPlayerOverlay(marker);
+
+    if (overlay) {
+      return overlay;
+    }
+  }
+
+  /* Once media mounts, it is the next strongest signal. */
   const mediaElements = Array.from(
     document.querySelectorAll("video, iframe")
   ).reverse();
 
   for (const media of mediaElements) {
-    if (!(media instanceof HTMLElement)) {
-      continue;
-    }
+    const overlay = closestPlayerOverlay(media);
 
-    const overlay = media.closest(".fixed.inset-0");
-
-    if (overlay instanceof HTMLElement) {
+    if (
+      overlay &&
+      (
+        overlay.querySelector('button[aria-label="No sound"]') ||
+        overlay.querySelector('button[aria-label="Fullscreen"]') ||
+        overlay.querySelector('button[aria-label="Back"]')
+      )
+    ) {
       return overlay;
     }
   }
 
-  /* Fallback while a stream is still resolving and the video is not mounted. */
-  const overlays = Array.from(
-    document.querySelectorAll(".fixed.inset-0")
-  ).reverse();
-
-  return (
-    overlays.find(
-      (element) =>
-        element instanceof HTMLElement &&
-        (element.querySelector('button[aria-label="No sound"]') ||
-          element.querySelector('button[aria-label="Fullscreen"]') ||
-          element.querySelector('button[aria-label="Back"]'))
-    ) || null
-  );
+  return null;
 };
 
 const findStage = (overlay) => {
@@ -63,12 +85,9 @@ const findStage = (overlay) => {
     return null;
   }
 
-  /* VideoPlayer mounts media directly inside the stage. */
-  if (media.parentElement instanceof HTMLElement) {
-    return media.parentElement;
-  }
-
-  return null;
+  return media.parentElement instanceof HTMLElement
+    ? media.parentElement
+    : null;
 };
 
 export default function FireTvPlayerTakeover() {
@@ -80,6 +99,7 @@ export default function FireTvPlayerTakeover() {
     const originalStyles = new Map();
     let activeOverlay = null;
     let frame = 0;
+    let lastSeenPlayerAt = 0;
 
     const remember = (element) => {
       if (!(element instanceof HTMLElement) || originalStyles.has(element)) {
@@ -119,14 +139,58 @@ export default function FireTvPlayerTakeover() {
 
       originalStyles.clear();
       activeOverlay = null;
+      lastSeenPlayerAt = 0;
 
       document.documentElement.classList.remove("mg-fire-tv-player-open");
       document.body?.classList.remove("mg-fire-tv-player-open");
     };
 
+    const clearConstrainingAncestors = (overlay) => {
+      let node = overlay.parentElement;
+
+      while (
+        node instanceof HTMLElement &&
+        node !== document.body
+      ) {
+        force(node, "transform", "none");
+        force(node, "filter", "none");
+        force(node, "perspective", "none");
+        force(node, "contain", "none");
+        force(node, "clip-path", "none");
+        force(node, "overflow", "visible");
+        force(node, "max-width", "none");
+
+        node = node.parentElement;
+      }
+
+      if (document.documentElement instanceof HTMLElement) {
+        force(document.documentElement, "overflow", "hidden");
+      }
+
+      if (document.body instanceof HTMLElement) {
+        force(document.body, "overflow", "hidden");
+        force(document.body, "margin", "0");
+        force(document.body, "padding", "0");
+        force(document.body, "width", "100vw");
+        force(document.body, "height", "100vh");
+        force(document.body, "max-width", "none");
+      }
+
+      const root = document.getElementById("root");
+
+      if (root instanceof HTMLElement) {
+        force(root, "width", "100vw");
+        force(root, "height", "100vh");
+        force(root, "max-width", "none");
+        force(root, "margin", "0");
+        force(root, "padding", "0");
+        force(root, "transform", "none");
+        force(root, "overflow", "visible");
+      }
+    };
+
     const applyTakeover = (overlay) => {
       if (!(overlay instanceof HTMLElement)) {
-        restoreAll();
         return;
       }
 
@@ -135,48 +199,56 @@ export default function FireTvPlayerTakeover() {
       }
 
       activeOverlay = overlay;
+      lastSeenPlayerAt = Date.now();
 
       document.documentElement.classList.add("mg-fire-tv-player-open");
       document.body?.classList.add("mg-fire-tv-player-open");
 
-      /*
-       * Hide every Media God navigation rail while playback is active.
-       * querySelectorAll is deliberate: it also covers any duplicated/stale
-       * nav node left temporarily during React transitions.
-       */
-      document.querySelectorAll("#root .mg-fire-tv-nav").forEach((nav) => {
-        if (!(nav instanceof HTMLElement)) {
-          return;
-        }
+      clearConstrainingAncestors(overlay);
 
-        force(nav, "display", "none");
-        force(nav, "visibility", "hidden");
-        force(nav, "pointer-events", "none");
-      });
+      /* Hide every possible navigation rail while playback is active. */
+      document
+        .querySelectorAll("#root .mg-fire-tv-nav, #root aside")
+        .forEach((nav) => {
+          if (!(nav instanceof HTMLElement)) {
+            return;
+          }
 
-      const main = document.querySelector("#root .mg-fire-tv-nav + main");
+          force(nav, "display", "none");
+          force(nav, "visibility", "hidden");
+          force(nav, "pointer-events", "none");
+          force(nav, "width", "0");
+          force(nav, "min-width", "0");
+          force(nav, "max-width", "0");
+        });
+
+      const main =
+        overlay.closest("main") ||
+        document.querySelector("#root main");
+
+      if (main instanceof HTMLElement) {
+        force(main, "position", "static");
+        force(main, "width", "100vw");
+        force(main, "max-width", "none");
+        force(main, "min-width", "100vw");
+        force(main, "height", "100vh");
+        force(main, "margin", "0");
+        force(main, "margin-left", "0");
+        force(main, "padding", "0");
+        force(main, "flex", "0 0 100vw");
+        force(main, "overflow", "visible");
+        force(main, "transform", "none");
+        force(main, "filter", "none");
+        force(main, "perspective", "none");
+        force(main, "contain", "none");
+      }
+
       const globalBack = document.querySelector(
         'button[data-mg-global-back="true"]'
       );
 
-      if (main instanceof HTMLElement) {
-        force(main, "width", "100vw");
-        force(main, "max-width", "100vw");
-        force(main, "min-width", "100vw");
-        force(main, "margin-left", "0");
-        force(main, "flex", "0 0 100vw");
-        force(main, "overflow", "hidden");
-        force(main, "transform", "none");
-        force(main, "filter", "none");
-        force(main, "perspective", "none");
-      }
-
       if (globalBack instanceof HTMLElement && !overlay.contains(globalBack)) {
         force(globalBack, "display", "none");
-      }
-
-      if (document.body instanceof HTMLElement) {
-        force(document.body, "overflow", "hidden");
       }
 
       force(overlay, "position", "fixed");
@@ -187,6 +259,8 @@ export default function FireTvPlayerTakeover() {
       force(overlay, "bottom", "0");
       force(overlay, "width", "100vw");
       force(overlay, "height", "100vh");
+      force(overlay, "min-width", "100vw");
+      force(overlay, "min-height", "100vh");
       force(overlay, "max-width", "none");
       force(overlay, "max-height", "none");
       force(overlay, "margin", "0");
@@ -203,9 +277,10 @@ export default function FireTvPlayerTakeover() {
         force(wrapper, "inset", "0");
         force(wrapper, "width", "100vw");
         force(wrapper, "height", "100vh");
+        force(wrapper, "min-width", "100vw");
+        force(wrapper, "min-height", "100vh");
         force(wrapper, "max-width", "none");
         force(wrapper, "max-height", "none");
-        force(wrapper, "min-width", "0");
         force(wrapper, "margin", "0");
         force(wrapper, "padding", "0");
         force(wrapper, "transform", "none");
@@ -223,6 +298,8 @@ export default function FireTvPlayerTakeover() {
         force(stage, "bottom", "0");
         force(stage, "width", "100vw");
         force(stage, "height", "100vh");
+        force(stage, "min-width", "100vw");
+        force(stage, "min-height", "100vh");
         force(stage, "max-width", "none");
         force(stage, "max-height", "none");
         force(stage, "margin", "0");
@@ -284,11 +361,27 @@ export default function FireTvPlayerTakeover() {
 
     const sync = () => {
       frame = 0;
+
       const overlay = findPlayerOverlay();
 
       if (overlay) {
         applyTakeover(overlay);
-      } else if (activeOverlay || originalStyles.size > 0) {
+        return;
+      }
+
+      /*
+       * Source switches briefly remove/reinsert the media element. Keep the
+       * takeover alive through that short gap instead of flashing the navbar.
+       */
+      if (
+        activeOverlay &&
+        Date.now() - lastSeenPlayerAt < 1000
+      ) {
+        applyTakeover(activeOverlay);
+        return;
+      }
+
+      if (activeOverlay || originalStyles.size > 0) {
         restoreAll();
       }
     };
@@ -306,14 +399,11 @@ export default function FireTvPlayerTakeover() {
     observer.observe(document.body, {
       childList: true,
       subtree: true,
+      attributes: true,
+      attributeFilter: ["class", "data-mg-fullscreen"],
     });
 
-    /*
-     * Fire TV WebView can change the player DOM without a child mutation
-     * when switching source/fullscreen. Re-assert takeover periodically so
-     * the sidebar can never reappear during playback.
-     */
-    const watchdog = window.setInterval(sync, 250);
+    const watchdog = window.setInterval(sync, 100);
 
     window.addEventListener("resize", scheduleSync);
     window.addEventListener("orientationchange", scheduleSync);
