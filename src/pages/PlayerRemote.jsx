@@ -462,7 +462,7 @@ export default function PlayerRemote() {
     };
   }, [sessionCode]);
 
-  const send = async (command, value = "") => {
+  const send = async (command, value) => {
     if (!session?.id || busy) return;
 
     const nextSeq = Math.max(seqRef.current, Number(session.command_seq || 0)) + 1;
