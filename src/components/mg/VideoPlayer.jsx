@@ -2149,154 +2149,125 @@ export default function VideoPlayer({
             )}
         </div>
 
-        <div data-mg-player-source-row="true" className="mt-2 flex items-center gap-2">
-          {sources.length >
-          1 ? (
-            <div className="relative flex-1 min-w-0">
-              <select
-                value={
-                  activeIdx
-                }
-                onChange={(
-                  event
-                ) =>
-                  selectSource(
-                    event.target
-                      .value
-                  )
-                }
-                className="w-full appearance-none bg-mg-card border border-white/10 rounded-lg text-white text-xs sm:text-sm pl-3 pr-9 py-2.5 outline-none focus:border-mg-green"
-                aria-label="Choose playback source"
-              >
-                {sources.map(
-                  (
-                    item,
-                    index
-                  ) => {
-                    const failed =
-                      failedSources.has(
-                        index
+        <div
+          data-mg-player-options-panel="true"
+          className="mt-2 flex items-end gap-2"
+        >
+          {sources.length > 1 && (
+            <label className="min-w-0 flex-1">
+              <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-white/50">
+                Source
+              </span>
+
+              <div className="relative">
+                <select
+                  value={activeIdx}
+                  onChange={(event) =>
+                    selectSource(
+                      event.target.value
+                    )
+                  }
+                  className="w-full appearance-none rounded-lg border border-white/10 bg-mg-card py-2.5 pl-3 pr-9 text-xs text-white outline-none focus:border-mg-green sm:text-sm"
+                  aria-label="Choose playback source"
+                >
+                  {sources.map(
+                    (item, index) => {
+                      const failed =
+                        failedSources.has(
+                          index
+                        );
+
+                      const label =
+                        item?.label ||
+                        `Source ${
+                          index + 1
+                        }`;
+
+                      return (
+                        <option
+                          key={`${index}-${label}`}
+                          value={index}
+                        >
+                          {failed
+                            ? "Failed — "
+                            : ""}
+                          {label}
+                        </option>
+                      );
+                    }
+                  )}
+                </select>
+
+                <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-white/50">
+                  <Tv className="h-4 w-4" />
+                </div>
+              </div>
+            </label>
+          )}
+
+          {rdOverride &&
+            rdFiles.length > 1 && (
+              <label className="min-w-0 flex-1">
+                <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-white/50">
+                  File
+                </span>
+
+                <select
+                  value={
+                    rdFiles.find(
+                      (file) =>
+                        file.path ===
+                        rdOverride.file
+                    )?.id || ""
+                  }
+                  onChange={(event) => {
+                    const file =
+                      rdFiles.find(
+                        (item) =>
+                          String(item.id) ===
+                          String(
+                            event.target.value
+                          )
                       );
 
-                    const label =
-                      item?.label ||
-                      `Source ${
-                        index +
-                        1
-                      }`;
-
-                    return (
+                    if (file) {
+                      pickFile(file);
+                    }
+                  }}
+                  disabled={fileSwitching}
+                  className="w-full rounded-lg border border-white/10 bg-mg-card px-3 py-2.5 text-xs text-white outline-none focus:border-mg-green disabled:opacity-60 sm:text-sm"
+                  aria-label="Choose file"
+                >
+                  {rdFiles.map(
+                    (file) => (
                       <option
-                        key={`${index}-${label}`}
-                        value={
-                          index
-                        }
+                        key={file.id}
+                        value={file.id}
                       >
-                        {failed
-                          ? "Failed — "
-                          : ""}
-
-                        {
-                          label
-                        }
+                        {file.path}
                       </option>
-                    );
-                  }
-                )}
-              </select>
-
-              <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-white/50">
-                <Tv className="w-4 h-4" />
-              </div>
-            </div>
-          ) : (
-            <div className="flex-1" />
-          )}
+                    )
+                  )}
+                </select>
+              </label>
+            )}
 
           <button
             type="button"
-            onClick={
-              handleNoSound
-            }
+            data-mg-no-sound="true"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              handleNoSound();
+            }}
             className="shrink-0 flex min-h-10 items-center gap-1.5 rounded-lg border border-white/10 bg-mg-card px-3 text-xs font-semibold text-white hover:border-mg-green/40 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-mg-green/50"
             aria-label="No sound"
-            title="No sound"
+            title="Try the next source"
           >
-            <VolumeX className="w-4 h-4" />
-
-            <span>
-              No sound?
-            </span>
+            <VolumeX className="h-4 w-4" />
+            <span>Try next source</span>
           </button>
         </div>
-
-        {rdOverride &&
-          rdFiles.length >
-            1 && (
-            <div data-mg-player-file-select="true" className="mt-2">
-              <select
-                value={
-                  rdFiles.find(
-                    (
-                      file
-                    ) =>
-                      file.path ===
-                      rdOverride.file
-                  )?.id ||
-                  ""
-                }
-                onChange={(
-                  event
-                ) => {
-                  const file =
-                    rdFiles.find(
-                      (
-                        item
-                      ) =>
-                        String(
-                          item.id
-                        ) ===
-                        String(
-                          event.target
-                            .value
-                        )
-                    );
-
-                  if (
-                    file
-                  ) {
-                    pickFile(
-                      file
-                    );
-                  }
-                }}
-                disabled={
-                  fileSwitching
-                }
-                className="w-full bg-mg-card border border-white/10 rounded-lg text-white text-xs sm:text-sm px-3 py-2.5 outline-none focus:border-mg-green disabled:opacity-60"
-                aria-label="Choose file"
-              >
-                {rdFiles.map(
-                  (
-                    file
-                  ) => (
-                    <option
-                      key={
-                        file.id
-                      }
-                      value={
-                        file.id
-                      }
-                    >
-                      {
-                        file.path
-                      }
-                    </option>
-                  )
-                )}
-              </select>
-            </div>
-          )}
 
         {displayedError &&
           !busy && (
