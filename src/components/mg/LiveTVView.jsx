@@ -17,6 +17,10 @@ import {
   Tv,
   Volume2,
   Wifi,
+  Star,
+  Clock3,
+  LayoutGrid,
+  ListVideo,
 } from "lucide-react";
 
 import {
@@ -29,6 +33,30 @@ import { cn } from "@/lib/utils";
 
 const DEFAULT_FILTER = "All";
 const MAX_VISIBLE = 400;
+const GUIDE_VISIBLE = 120;
+const LIVE_TV_FAVOURITES_KEY = "mg_live_tv_favourites_v1";
+const LIVE_TV_RECENT_KEY = "mg_live_tv_recent_v1";
+
+const readStoredList = (key) => {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const value = JSON.parse(window.localStorage.getItem(key) || "[]");
+    return Array.isArray(value) ? value.filter(Boolean).map(String) : [];
+  } catch {
+    return [];
+  }
+};
+
+const writeStoredList = (key, values) => {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.setItem(key, JSON.stringify(values));
+  } catch {
+    // Favourites and recent channels are a convenience only.
+  }
+};
 
 const BBC_RADIO_STREAMS = {
   "bbc radio 1":
@@ -85,6 +113,14 @@ const searchText = (value) => String(value || "").toLowerCase().trim();
 
 const normaliseStationName = (value) =>
   searchText(value).replace(/\s+/g, " ").replace(/\s+(uk|hd|fhd)$/i, "").trim();
+
+const channelMemoryKey = (channel) =>
+  String(
+    channel?.tvgId ||
+      channel?.id ||
+      normaliseStationName(channel?.name) ||
+      "channel"
+  );
 
 const isRadioChannel = (channel) => {
   const name = searchText(channel?.name);
