@@ -848,11 +848,11 @@ const findRdLibrarySource = async ({
 
 const orderSources = ({
   sources,
-  hasRd,
+  hasDebrid,
   preferRd,
 }) => {
   const usable =
-    hasRd
+    hasDebrid
       ? sources
       : sources.filter(
           (item) =>
@@ -880,7 +880,7 @@ const orderSources = ({
     );
 
   const rdMagnets =
-    hasRd
+    hasDebrid
       ? usable.filter(
           isMagnetSource
         )
@@ -1169,6 +1169,14 @@ export function PlayerProvider({
       false
     );
 
+  const [
+    hasDebrid,
+    setHasDebrid,
+  ] =
+    useState(
+      false
+    );
+
   const playSequenceRef = useRef(0);
 
   useEffect(() => {
@@ -1182,11 +1190,17 @@ export function PlayerProvider({
           if (
             mounted
           ) {
-            setHasRd(
-              Boolean(
-                user?.rd_token
-              )
+            const realDebridConnected = Boolean(user?.rd_token);
+            const anyDebridConnected = Boolean(
+              user?.rd_token ||
+                user?.alldebrid_token ||
+                user?.torbox_token ||
+                user?.premiumize_token ||
+                user?.debridlink_token
             );
+
+            setHasRd(realDebridConnected);
+            setHasDebrid(anyDebridConnected);
           }
         }
       )
@@ -1195,6 +1209,9 @@ export function PlayerProvider({
           mounted
         ) {
           setHasRd(
+            false
+          );
+          setHasDebrid(
             false
           );
         }
@@ -1273,7 +1290,7 @@ export function PlayerProvider({
         const initialOrderedSources =
           orderSources({
             sources: dedupeSources(originalSources),
-            hasRd,
+            hasDebrid,
             preferRd: Boolean(request?.preferRd),
           });
 
@@ -1330,6 +1347,7 @@ export function PlayerProvider({
           src: getSourceUrl(initialPrimary),
           url: getSourceUrl(initialPrimary),
           hasRd,
+          hasDebrid,
           sourceDiagnostics: {
             phase: "searching",
             tmdbId,
@@ -1337,6 +1355,7 @@ export function PlayerProvider({
             season,
             episode,
             rdConnected: hasRd,
+            debridConnected: hasDebrid,
           },
         });
 
@@ -1375,7 +1394,7 @@ export function PlayerProvider({
                 ...existing,
                 ...originalSources,
               ]),
-              hasRd,
+              hasDebrid,
               preferRd: Boolean(request?.preferRd),
             });
 
@@ -1598,7 +1617,7 @@ export function PlayerProvider({
             sources:
               combined,
 
-            hasRd,
+            hasDebrid,
 
             preferRd:
               Boolean(
@@ -1936,6 +1955,7 @@ export function PlayerProvider({
       },
       [
         hasRd,
+        hasDebrid,
       ]
     );
 
@@ -1960,6 +1980,8 @@ export function PlayerProvider({
 
         hasRd,
 
+        hasDebrid,
+
         isOpen:
           Boolean(source),
       }),
@@ -1969,6 +1991,8 @@ export function PlayerProvider({
         close,
 
         hasRd,
+
+        hasDebrid,
 
         source,
       ]
