@@ -162,95 +162,107 @@
 }
 
 /*
- * Fire TV / Firestick often exposes a much smaller CSS viewport than the
- * physical television resolution (commonly around 960x540). Keep the UI
- * compact in that environment instead of letting tablet/desktop breakpoints
- * consume a large percentage of the screen.
+ * Fire TV / Firestick compact layout.
+ * Firestick commonly exposes a 960x540-style CSS viewport, so desktop
+ * breakpoints must not be allowed to make the UI huge.
  */
 .mg-fire-tv {
-  --mg-tv-sidebar-width: 4.5rem;
+  --mg-tv-sidebar-width: 4rem;
 }
 
-.mg-fire-tv html,
 html.mg-fire-tv {
-  font-size: 14px;
+  font-size: 12px !important;
 }
 
-.mg-fire-tv body,
 body.mg-fire-tv {
   min-width: 0;
 }
 
-/* Compact the main left navigation on Fire TV, even when md desktop classes fire. */
-body.mg-fire-tv #root aside.sticky.top-0 {
+/* Keep the Firestick menu permanently pinned while focus moves into content. */
+body.mg-fire-tv #root .mg-fire-tv-nav {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  bottom: 0 !important;
+  z-index: 200 !important;
   width: var(--mg-tv-sidebar-width) !important;
+  height: 100vh !important;
+  min-height: 100vh !important;
+  overflow: hidden !important;
 }
 
-body.mg-fire-tv #root aside.sticky.top-0 > div:first-child {
-  justify-content: center;
-  padding-left: 0.5rem !important;
-  padding-right: 0.5rem !important;
+body.mg-fire-tv #root .mg-fire-tv-nav + main {
+  width: calc(100% - var(--mg-tv-sidebar-width)) !important;
+  margin-left: var(--mg-tv-sidebar-width) !important;
+  flex: 1 1 calc(100% - var(--mg-tv-sidebar-width)) !important;
 }
 
-body.mg-fire-tv #root aside.sticky.top-0 > div:first-child > span,
-body.mg-fire-tv #root aside.sticky.top-0 nav button > span,
-body.mg-fire-tv #root aside.sticky.top-0 > div:last-child button > span {
+body.mg-fire-tv #root .mg-fire-tv-nav > div:first-child {
+  height: 3.5rem !important;
+  justify-content: center !important;
+  padding-left: 0.35rem !important;
+  padding-right: 0.35rem !important;
+}
+
+body.mg-fire-tv #root .mg-fire-tv-nav > div:first-child > span,
+body.mg-fire-tv #root .mg-fire-tv-nav nav button > span,
+body.mg-fire-tv #root .mg-fire-tv-nav > div:last-child button > span {
   display: none !important;
 }
 
-body.mg-fire-tv #root aside.sticky.top-0 nav,
-body.mg-fire-tv #root aside.sticky.top-0 > div:last-child {
-  padding: 0.35rem !important;
+body.mg-fire-tv #root .mg-fire-tv-nav nav,
+body.mg-fire-tv #root .mg-fire-tv-nav > div:last-child {
+  gap: 0.15rem !important;
+  padding: 0.3rem !important;
 }
 
-body.mg-fire-tv #root aside.sticky.top-0 nav button,
-body.mg-fire-tv #root aside.sticky.top-0 > div:last-child button {
-  min-height: 2.7rem !important;
+body.mg-fire-tv #root .mg-fire-tv-nav nav button,
+body.mg-fire-tv #root .mg-fire-tv-nav > div:last-child button {
+  min-height: 2.45rem !important;
   justify-content: center !important;
-  padding-left: 0.5rem !important;
-  padding-right: 0.5rem !important;
+  padding: 0.3rem !important;
 }
 
-/* Keep the standard VideoPlayer inside the usable TV height. */
+/* Keep the standard VideoPlayer inside the usable Firestick height. */
 body.mg-fire-tv .fixed.inset-0.z-50.bg-black\/95 {
-  padding: 0.45rem !important;
+  padding: 0.4rem !important;
 }
 
 body.mg-fire-tv .fixed.inset-0.z-50.bg-black\/95 > div {
-  width: min(100%, calc((100vh - 6.25rem) * 16 / 9)) !important;
-  max-width: 1180px !important;
+  width: min(100%, calc((100vh - 5.5rem) * 16 / 9)) !important;
+  max-width: 1100px !important;
 }
 
 body.mg-fire-tv .fixed.inset-0.z-50.bg-black\/95 > div > div:nth-child(2) {
   width: 100% !important;
-  max-height: calc(100vh - 6.25rem) !important;
+  max-height: calc(100vh - 5.5rem) !important;
 }
 
 .mg-fire-tv .mg-fire-tv-player-shell {
-  width: min(100%, calc((100vh - 7rem) * 16 / 9));
-  max-width: 1180px;
+  width: min(100%, calc((100vh - 6rem) * 16 / 9));
+  max-width: 1100px;
 }
 
 .mg-fire-tv .mg-fire-tv-player-stage {
   width: 100%;
-  max-height: calc(100vh - 7rem);
+  max-height: calc(100vh - 6rem);
 }
 
 @media (max-height: 700px) and (orientation: landscape) {
   body.mg-fire-tv .fixed.inset-0.z-50.bg-black\/95 > div {
-    width: min(100%, calc((100vh - 5.5rem) * 16 / 9)) !important;
+    width: min(100%, calc((100vh - 4.8rem) * 16 / 9)) !important;
   }
 
   body.mg-fire-tv .fixed.inset-0.z-50.bg-black\/95 > div > div:nth-child(2) {
-    max-height: calc(100vh - 5.5rem) !important;
+    max-height: calc(100vh - 4.8rem) !important;
   }
 
   .mg-fire-tv .mg-fire-tv-player-shell {
-    width: min(100%, calc((100vh - 6rem) * 16 / 9));
+    width: min(100%, calc((100vh - 5.25rem) * 16 / 9));
   }
 
   .mg-fire-tv .mg-fire-tv-player-stage {
-    max-height: calc(100vh - 6rem);
+    max-height: calc(100vh - 5.25rem);
   }
 }
 
