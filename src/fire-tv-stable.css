@@ -1,0 +1,118 @@
+/* Firestick-only compact, deterministic TV layout. */
+
+html.mg-fire-tv,
+html.mg-fire-tv-mode,
+body.mg-fire-tv,
+body.mg-fire-tv-mode {
+  scroll-behavior: auto !important;
+}
+
+body.mg-fire-tv * {
+  scroll-behavior: auto !important;
+}
+
+body.mg-fire-tv .mg-fire-tv-nav {
+  width: 3.5rem !important;
+}
+
+body.mg-fire-tv .mg-fire-tv-nav + main {
+  width: calc(100% - 3.5rem) !important;
+  margin-left: 3.5rem !important;
+  flex-basis: calc(100% - 3.5rem) !important;
+}
+
+body.mg-fire-tv .mg-fire-tv-nav nav,
+body.mg-fire-tv .mg-fire-tv-nav > div:last-child {
+  padding: 0.2rem !important;
+  gap: 0.08rem !important;
+}
+
+body.mg-fire-tv .mg-fire-tv-nav nav button,
+body.mg-fire-tv .mg-fire-tv-nav > div:last-child button {
+  min-height: 2.2rem !important;
+  padding: 0.2rem !important;
+}
+
+body.mg-fire-tv .mg-fire-tv-nav svg {
+  width: 1.15rem !important;
+  height: 1.15rem !important;
+}
+
+body.mg-fire-tv .mg-fire-tv-hero {
+  height: 38vh !important;
+  min-height: 0 !important;
+  max-height: 260px !important;
+}
+
+body.mg-fire-tv .mg-fire-tv-hero h1 {
+  font-size: 2.35rem !important;
+  line-height: 1.05 !important;
+  margin-bottom: 0.45rem !important;
+}
+
+body.mg-fire-tv .mg-fire-tv-hero p {
+  font-size: 0.9rem !important;
+  line-height: 1.25 !important;
+  margin-bottom: 0.75rem !important;
+}
+
+body.mg-fire-tv .mg-fire-tv-hero button {
+  min-height: 2.65rem !important;
+  padding: 0.45rem 0.8rem !important;
+  font-size: 0.9rem !important;
+}
+
+body.mg-fire-tv .mg-fire-tv-card {
+  width: 8.5rem !important;
+}
+
+body.mg-fire-tv [data-mg-tv-row="true"] {
+  gap: 0.7rem !important;
+  scroll-snap-type: none !important;
+  overscroll-behavior-inline: contain;
+}
+
+body.mg-fire-tv [data-mg-tv-row="true"] > div {
+  scroll-snap-align: none !important;
+}
+
+body.mg-fire-tv .mg-fire-tv-card p:first-of-type {
+  font-size: 0.82rem !important;
+  margin-top: 0.35rem !important;
+}
+
+body.mg-fire-tv .mg-fire-tv-card p:last-of-type {
+  font-size: 0.72rem !important;
+}
+
+body.mg-fire-tv section {
+  scroll-margin-top: 0 !important;
+}
+
+body.mg-fire-tv .backdrop-blur,
+body.mg-fire-tv .backdrop-blur-sm,
+body.mg-fire-tv .backdrop-blur-md,
+body.mg-fire-tv .backdrop-blur-lg,
+body.mg-fire-tv .backdrop-blur-xl {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+body.mg-fire-tv .transition-all,
+body.mg-fire-tv .transition-opacity,
+body.mg-fire-tv .transition-colors,
+body.mg-fire-tv .transition-transform {
+  transition-duration: 40ms !important;
+}
+
+body.mg-fire-tv button:focus,
+body.mg-fire-tv [role="button"]:focus,
+body.mg-fire-tv select:focus,
+body.mg-fire-tv a:focus {
+  scroll-margin: 2rem !important;
+}
+
+/* Keep player sizing from the previous fix; only compact page chrome/cards. */
+body.mg-fire-tv .fixed.inset-0.z-50.bg-black\/95 {
+  font-size: 1rem;
+}
