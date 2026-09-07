@@ -18,6 +18,14 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import {
+  friendlyTrackLabel,
+  readTrackPreferences,
+  subtitleCueStyle,
+  trackLanguage,
+  trackLooksForced,
+  writeTrackPreferences,
+} from "@/components/mg/mediaTrackPreferences";
 
 const formatTime = (seconds) => {
   if (!seconds || !Number.isFinite(Number(seconds))) {
@@ -120,8 +128,13 @@ export default function MediaPlayerControls({
 
   const [audioTracks, setAudioTracks] = useState([]);
   const [selectedAudio, setSelectedAudio] = useState(-1);
+  const [trackPreferences, setTrackPreferences] = useState(
+    () => readTrackPreferences()
+  );
 
   const hideTimerRef = useRef(null);
+  const trackPreferencesRef = useRef(trackPreferences);
+  trackPreferencesRef.current = trackPreferences;
 
   const playingRef = useRef(false);
   const seekingRef = useRef(false);
@@ -198,14 +211,9 @@ export default function MediaPlayerControls({
 
         nextSubtitles.push({
           index,
-
-          label:
-            track?.label ||
-            track?.language ||
-            `Subtitle ${index + 1}`,
-
-          language:
-            track?.language || "",
+          label: friendlyTrackLabel(track, "Subtitle", index),
+          language: track?.language || "",
+          forced: trackLooksForced(track),
         });
 
         if (
@@ -237,14 +245,8 @@ export default function MediaPlayerControls({
 
         nextAudio.push({
           index,
-
-          label:
-            track?.label ||
-            track?.language ||
-            `Audio ${index + 1}`,
-
-          language:
-            track?.language || "",
+          label: friendlyTrackLabel(track, "Audio", index),
+          language: track?.language || "",
         });
 
         if (track?.enabled) {
@@ -253,21 +255,61 @@ export default function MediaPlayerControls({
       }
     }
 
-    setSubtitleTracks(
-      nextSubtitles
-    );
+    const preferences = trackPreferencesRef.current;
 
-    setSelectedSubtitle(
-      activeSubtitle
-    );
+    if (
+      activeSubtitle < 0 &&
+      preferences.subtitlesEnabled &&
+      nextSubtitles.length > 0
+    ) {
+      const preferredLanguage = preferences.subtitleLanguage;
+      const forcedMatch = preferences.preferForcedSubtitles
+        ? nextSubtitles.find(
+            (item) =>
+              item.forced &&
+              (!preferredLanguage || trackLanguage(item) === preferredLanguage)
+          )
+        : null;
+      const languageMatch = nextSubtitles.find(
+        (item) =>
+          !preferredLanguage || trackLanguage(item) === preferredLanguage
+      );
+      const preferred = forcedMatch || languageMatch || nextSubtitles[0];
 
-    setAudioTracks(
-      nextAudio
-    );
+      if (preferred) {
+        try {
+          video.textTracks[preferred.index].mode = "showing";
+          activeSubtitle = preferred.index;
+        } catch {
+          // Some WebViews expose read-only text track state.
+        }
+      }
+    }
 
-    setSelectedAudio(
-      activeAudio
-    );
+    if (activeAudio < 0 && nextAudio.length > 0) {
+      const preferredLanguage = preferences.audioLanguage;
+      const preferred =
+        nextAudio.find(
+          (item) =>
+            !preferredLanguage || trackLanguage(item) === preferredLanguage
+        ) || nextAudio[0];
+
+      if (preferred) {
+        try {
+          for (let index = 0; index < nativeAudioTracks.length; index += 1) {
+            nativeAudioTracks[index].enabled = index === preferred.index;
+          }
+          activeAudio = preferred.index;
+        } catch {
+          // Some Android WebViews expose read-only audio track state.
+        }
+      }
+    }
+
+    setSubtitleTracks(nextSubtitles);
+    setSelectedSubtitle(activeSubtitle);
+    setAudioTracks(nextAudio);
+    setSelectedAudio(activeAudio);
 
     setPlaybackRate(
       video.playbackRate || 1
@@ -277,9 +319,25 @@ export default function MediaPlayerControls({
   useEffect(() => {
     mountedRef.current = true;
 
+    const onPreferencesChanged = (event) => {
+      const next = event?.detail || readTrackPreferences();
+      trackPreferencesRef.current = next;
+      setTrackPreferences(next);
+      window.setTimeout(refreshTrackLists, 30);
+    };
+
+    window.addEventListener(
+      "mg:media-track-preferences-changed",
+      onPreferencesChanged
+    );
+
     return () => {
       mountedRef.current = false;
       clearHideTimer();
+      window.removeEventListener(
+        "mg:media-track-preferences-changed",
+        onPreferencesChanged
+      );
     };
   }, []);
 
@@ -949,9 +1007,19 @@ export default function MediaPlayerControls({
       }
     }
 
-    setSelectedSubtitle(
-      index
-    );
+    setSelectedSubtitle(index);
+
+    const chosenTrack =
+      index >= 0 ? video.textTracks[index] : null;
+    const nextPreferences = writeTrackPreferences({
+      ...trackPreferencesRef.current,
+      subtitlesEnabled: index >= 0,
+      ...(chosenTrack
+        ? { subtitleLanguage: trackLanguage(chosenTrack) || "en" }
+        : {}),
+    });
+    trackPreferencesRef.current = nextPreferences;
+    setTrackPreferences(nextPreferences);
 
     setOpenMenu("");
 
@@ -992,6 +1060,17 @@ export default function MediaPlayerControls({
     }
 
     setSelectedAudio(index);
+
+    const chosenTrack = tracks[index];
+    const nextPreferences = writeTrackPreferences({
+      ...trackPreferencesRef.current,
+      audioLanguage:
+        trackLanguage(chosenTrack) ||
+        trackPreferencesRef.current.audioLanguage ||
+        "en",
+    });
+    trackPreferencesRef.current = nextPreferences;
+    setTrackPreferences(nextPreferences);
 
     setOpenMenu("");
 
@@ -1082,6 +1161,8 @@ export default function MediaPlayerControls({
     !playing ||
     seeking ||
     Boolean(openMenu);
+
+  const cueStyle = subtitleCueStyle(trackPreferences);
 
   return (
     <div
