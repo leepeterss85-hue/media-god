@@ -1817,8 +1817,21 @@ export function PlayerProvider({
           const lockedIndex = orderedSources.findIndex(
             (item) => getSourceUrl(item) === fastStartPrimaryUrl
           );
+          const lockedItem = lockedIndex >= 0 ? orderedSources[lockedIndex] : null;
+          const lockedIsKnownUncachedMagnet = Boolean(
+            lockedItem &&
+              isMagnetSource(lockedItem) &&
+              lockedItem?.debridCacheChecked &&
+              !lockedItem?.debridCached
+          );
+          const cachedAlternativeExists = orderedSources.some(
+            (item, index) => index !== lockedIndex && item?.debridCached === true
+          );
 
-          if (lockedIndex > 0) {
+          if (
+            lockedIndex > 0 &&
+            !(lockedIsKnownUncachedMagnet && cachedAlternativeExists)
+          ) {
             const [locked] = orderedSources.splice(lockedIndex, 1);
             orderedSources.unshift(locked);
           }
