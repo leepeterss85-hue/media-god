@@ -797,6 +797,18 @@ const findRdLibrarySource = async ({
 
           viaRealDebrid:
             true,
+
+          rdTorrentId:
+            data?.torrent_id ||
+            "",
+
+          audioRescue:
+            data?.audio_rescue ||
+            null,
+
+          mediaInfo:
+            data?.media_info ||
+            null,
         },
 
         status:
