@@ -2434,7 +2434,7 @@ export default function VideoPlayer({
             </div>
           ) : rdOverride ? (
             <>
-              <video
+              <LiveVideo
                 key={
                   rdOverride.src
                 }
@@ -2444,12 +2444,30 @@ export default function VideoPlayer({
                 src={
                   rdOverride.src
                 }
+                sourceLabel={
+                  rdOverride?.label ||
+                  active?.label ||
+                  "Real-Debrid Stream"
+                }
                 poster={
                   source?.poster
                 }
-                playsInline
                 controls={
                   false
+                }
+                subtitles={
+                  Array.isArray(active?.subtitles)
+                    ? active.subtitles
+                    : []
+                }
+                subtitlesEnabled={
+                  trackPreferences.subtitlesEnabled
+                }
+                preferredSubtitleLanguage={
+                  trackPreferences.subtitleLanguage
+                }
+                preferredAudioLanguage={
+                  trackPreferences.audioLanguage
                 }
                 onLoadedMetadata={
                   handleLoadedMetadata
