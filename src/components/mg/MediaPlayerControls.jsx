@@ -5,8 +5,7 @@ import React, {
 } from "react";
 
 import {
-  Captions,
-  Check,
+  ArrowLeft,
   Play,
   Pause,
   Volume2,
@@ -15,155 +14,158 @@ import {
   Minimize,
   RotateCcw,
   RotateCw,
+  Tv,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
 const formatTime = (seconds) => {
-  if (!seconds || !isFinite(seconds)) return "0:00";
-
-  const s = Math.floor(seconds % 60);
-  const m = Math.floor((seconds / 60) % 60);
-  const h = Math.floor(seconds / 3600);
-
-  if (h > 0) {
-    return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  if (
+    !seconds ||
+    !Number.isFinite(
+      Number(seconds)
+    )
+  ) {
+    return "0:00";
   }
 
-  return `${m}:${String(s).padStart(2, "0")}`;
+  const total =
+    Math.max(
+      0,
+      Math.floor(
+        Number(seconds)
+      )
+    );
+
+  const s =
+    total % 60;
+
+  const m =
+    Math.floor(
+      total / 60
+    ) % 60;
+
+  const h =
+    Math.floor(
+      total / 3600
+    );
+
+  if (
+    h > 0
+  ) {
+    return `${h}:${String(
+      m
+    ).padStart(
+      2,
+      "0"
+    )}:${String(
+      s
+    ).padStart(
+      2,
+      "0"
+    )}`;
+  }
+
+  return `${m}:${String(
+    s
+  ).padStart(
+    2,
+    "0"
+  )}`;
 };
 
-const normaliseLanguage = (value) =>
-  String(value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/_/g, "-");
+const sourceLabel = (
+  item,
+  index
+) => {
+  const label =
+    item?.label ||
+    item?.name ||
+    item?.title ||
+    `Source ${
+      index + 1
+    }`;
 
-const friendlyLanguage = (value) => {
-  const language = normaliseLanguage(value);
+  return String(
+    label
+  )
+    .replace(
+      /\s+/g,
+      " "
+    )
+    .trim();
+};
 
-  const names = {
-    en: "English",
-    eng: "English",
-    "en-gb": "English (UK)",
-    "en-us": "English (US)",
-    es: "Spanish",
-    spa: "Spanish",
-    fr: "French",
-    fra: "French",
-    fre: "French",
-    de: "German",
-    deu: "German",
-    ger: "German",
-    it: "Italian",
-    ita: "Italian",
-    pt: "Portuguese",
-    por: "Portuguese",
-    nl: "Dutch",
-    nld: "Dutch",
-    dut: "Dutch",
-    pl: "Polish",
-    pol: "Polish",
-    sv: "Swedish",
-    swe: "Swedish",
-    da: "Danish",
-    dan: "Danish",
-    no: "Norwegian",
-    nor: "Norwegian",
-    fi: "Finnish",
-    fin: "Finnish",
-    cs: "Czech",
-    ces: "Czech",
-    cze: "Czech",
-    ro: "Romanian",
-    ron: "Romanian",
-    rum: "Romanian",
-    hu: "Hungarian",
-    hun: "Hungarian",
-    tr: "Turkish",
-    tur: "Turkish",
-    ar: "Arabic",
-    ara: "Arabic",
-    he: "Hebrew",
-    heb: "Hebrew",
-    ja: "Japanese",
-    jpn: "Japanese",
-    ko: "Korean",
-    kor: "Korean",
-    zh: "Chinese",
-    zho: "Chinese",
-    chi: "Chinese",
-    ru: "Russian",
-    rus: "Russian",
-    uk: "Ukrainian",
-    ukr: "Ukrainian",
+const normaliseExternalSubtitle = (
+  item,
+  index
+) => {
+  if (
+    !item
+  ) {
+    return null;
+  }
+
+  if (
+    typeof item ===
+    "string"
+  ) {
+    return {
+      src:
+        item,
+
+      lang:
+        "en",
+
+      label:
+        `Subtitle ${
+          index + 1
+        }`,
+    };
+  }
+
+  const src =
+    item.url ||
+    item.src ||
+    item.file ||
+    item.link ||
+    "";
+
+  if (
+    !src
+  ) {
+    return null;
+  }
+
+  const lang =
+    item.lang ||
+    item.language ||
+    item.srclang ||
+    "en";
+
+  const label =
+    item.label ||
+    item.name ||
+    item.language ||
+    item.lang ||
+    `Subtitle ${
+      index + 1
+    }`;
+
+  return {
+    src,
+
+    lang:
+      String(
+        lang ||
+        "en"
+      ),
+
+    label:
+      String(
+        label
+      ),
   };
-
-  if (names[language]) {
-    return names[language];
-  }
-
-  const base = language.split("-")[0];
-
-  if (names[base]) {
-    return names[base];
-  }
-
-  return value || "Subtitle";
-};
-
-const getTextTracks = (video) => {
-  const list = video?.textTracks;
-
-  if (!list || typeof list.length !== "number") {
-    return [];
-  }
-
-  const tracks = [];
-
-  for (let index = 0; index < list.length; index += 1) {
-    const track = list[index];
-
-    if (!track) continue;
-
-    const language = track.language || "";
-    const rawLabel = String(track.label || "").trim();
-    const languageLabel = friendlyLanguage(language);
-
-    let label =
-      rawLabel ||
-      languageLabel ||
-      `Subtitle ${index + 1}`;
-
-    if (
-      rawLabel &&
-      language &&
-      !rawLabel
-        .toLowerCase()
-        .includes(
-          String(language).toLowerCase()
-        ) &&
-      rawLabel.toLowerCase() !==
-        languageLabel.toLowerCase()
-    ) {
-      label =
-        `${rawLabel} • ${languageLabel}`;
-    }
-
-    tracks.push({
-      index,
-      label,
-      language,
-      kind:
-        track.kind ||
-        "subtitles",
-      showing:
-        track.mode ===
-        "showing",
-    });
-  }
-
-  return tracks;
 };
 
 export default function MediaPlayerControls({
@@ -171,447 +173,944 @@ export default function MediaPlayerControls({
   stageRef,
   isLive = false,
   onFullscreen,
+  isAppFullscreen = false,
+  onBack,
+  title = "",
+  sources = [],
+  activeIdx = 0,
+  failedSources,
+  onSelectSource,
+  onNoSound,
 }) {
   const [
     playing,
     setPlaying,
-  ] = useState(false);
+  ] =
+    useState(false);
 
   const [
     muted,
     setMuted,
-  ] = useState(false);
+  ] =
+    useState(false);
 
   const [
     volume,
     setVolume,
-  ] = useState(1);
+  ] =
+    useState(1);
 
   const [
     current,
     setCurrent,
-  ] = useState(0);
+  ] =
+    useState(0);
 
   const [
     duration,
     setDuration,
-  ] = useState(0);
-
-  const [
-    fullscreen,
-    setFullscreen,
-  ] = useState(false);
+  ] =
+    useState(0);
 
   const [
     showControls,
     setShowControls,
-  ] = useState(true);
+  ] =
+    useState(true);
 
   const [
     seeking,
     setSeeking,
-  ] = useState(false);
+  ] =
+    useState(false);
+
+  const [
+    openMenu,
+    setOpenMenu,
+  ] =
+    useState("");
+
+  const [
+    playbackRate,
+    setPlaybackRate,
+  ] =
+    useState(1);
 
   const [
     subtitleTracks,
     setSubtitleTracks,
-  ] = useState([]);
+  ] =
+    useState([]);
 
   const [
-    activeSubtitle,
-    setActiveSubtitle,
-  ] = useState(-1);
+    selectedSubtitle,
+    setSelectedSubtitle,
+  ] =
+    useState(-1);
 
   const [
-    subtitleMenuOpen,
-    setSubtitleMenuOpen,
-  ] = useState(false);
+    audioTracks,
+    setAudioTracks,
+  ] =
+    useState([]);
 
-  const hideTimer =
+  const [
+    selectedAudio,
+    setSelectedAudio,
+  ] =
+    useState(-1);
+
+  const hideTimerRef =
     useRef(null);
 
-  const barRef =
-    useRef(null);
+  const playingRef =
+    useRef(false);
 
-  const subtitleRefreshTimers =
-    useRef([]);
+  const seekingRef =
+    useRef(false);
 
-  const getVideo = () =>
-    videoRef?.current;
+  const menuOpenRef =
+    useRef(false);
+
+  const mountedRef =
+    useRef(true);
+
+  const getVideo =
+    () =>
+      videoRef?.current ||
+      null;
 
   const clearHideTimer =
     () => {
       if (
-        hideTimer.current
+        hideTimerRef.current
       ) {
-        clearTimeout(
-          hideTimer.current
+        window.clearTimeout(
+          hideTimerRef.current
         );
 
-        hideTimer.current =
+        hideTimerRef.current =
           null;
       }
     };
 
-  const revealControls =
-    () => {
-      setShowControls(
-        true
-      );
-
+  const scheduleHide =
+    (
+      delay =
+        3000
+    ) => {
       clearHideTimer();
 
-      hideTimer.current =
-        setTimeout(
+      if (
+        !playingRef.current ||
+        seekingRef.current ||
+        menuOpenRef.current
+      ) {
+        return;
+      }
+
+      hideTimerRef.current =
+        window.setTimeout(
           () => {
             if (
-              playing &&
-              !seeking &&
-              !subtitleMenuOpen
+              mountedRef.current &&
+              playingRef.current &&
+              !seekingRef.current &&
+              !menuOpenRef.current
             ) {
               setShowControls(
                 false
               );
             }
           },
-          2800
+          delay
         );
     };
 
-  const syncSubtitleTracks =
+  const revealControls =
+    (
+      delay =
+        3000
+    ) => {
+      setShowControls(
+        true
+      );
+
+      scheduleHide(
+        delay
+      );
+    };
+
+  const refreshTrackLists =
     () => {
       const video =
         getVideo();
 
-      if (!video) {
+      if (
+        !video
+      ) {
         setSubtitleTracks(
           []
         );
 
-        setActiveSubtitle(
+        setSelectedSubtitle(
+          -1
+        );
+
+        setAudioTracks(
+          []
+        );
+
+        setSelectedAudio(
           -1
         );
 
         return;
       }
 
-      const tracks =
-        getTextTracks(
-          video
-        );
+      const nextSubtitles =
+        [];
 
-      const showing =
-        tracks.find(
-          (
-            track
-          ) =>
-            track.showing
-        );
+      let activeSubtitle =
+        -1;
+
+      if (
+        video.textTracks
+      ) {
+        for (
+          let index = 0;
+          index <
+          video.textTracks
+            .length;
+          index += 1
+        ) {
+          const track =
+            video.textTracks[
+              index
+            ];
+
+          nextSubtitles.push(
+            {
+              index,
+
+              label:
+                track?.label ||
+                track?.language ||
+                `Subtitle ${
+                  index + 1
+                }`,
+
+              language:
+                track?.language ||
+                "",
+            }
+          );
+
+          if (
+            track?.mode ===
+            "showing"
+          ) {
+            activeSubtitle =
+              index;
+          }
+        }
+      }
+
+      const nextAudio =
+        [];
+
+      let activeAudio =
+        -1;
+
+      const nativeAudioTracks =
+        video.audioTracks;
+
+      if (
+        nativeAudioTracks &&
+        typeof nativeAudioTracks
+          .length ===
+          "number"
+      ) {
+        for (
+          let index = 0;
+          index <
+          nativeAudioTracks
+            .length;
+          index += 1
+        ) {
+          const track =
+            nativeAudioTracks[
+              index
+            ];
+
+          nextAudio.push(
+            {
+              index,
+
+              label:
+                track?.label ||
+                track?.language ||
+                `Audio ${
+                  index + 1
+                }`,
+
+              language:
+                track?.language ||
+                "",
+            }
+          );
+
+          if (
+            track?.enabled
+          ) {
+            activeAudio =
+              index;
+          }
+        }
+      }
 
       setSubtitleTracks(
-        tracks
+        nextSubtitles
       );
 
-      setActiveSubtitle(
-        showing
-          ? showing.index
-          : -1
+      setSelectedSubtitle(
+        activeSubtitle
+      );
+
+      setAudioTracks(
+        nextAudio
+      );
+
+      setSelectedAudio(
+        activeAudio
+      );
+
+      setPlaybackRate(
+        video.playbackRate ||
+        1
       );
     };
 
-  useEffect(() => {
-    const video =
-      getVideo();
+  useEffect(
+    () => {
+      mountedRef.current =
+        true;
 
-    if (!video) {
-      return;
-    }
+      return () => {
+        mountedRef.current =
+          false;
 
-    const onPlay =
-      () =>
-        setPlaying(
-          true
-        );
-
-    const onPause =
-      () =>
-        setPlaying(
-          false
-        );
-
-    const onTime =
-      () => {
-        if (!seeking) {
-          setCurrent(
-            video.currentTime ||
-              0
-          );
-        }
+        clearHideTimer();
       };
+    },
+    []
+  );
 
-    const onDur =
-      () => {
-        setDuration(
-          video.duration ||
-            0
-        );
-      };
+  /*
+   * Add subtitles supplied by
+   * streaming add-ons to the
+   * actual video element.
+   */
+  useEffect(
+    () => {
+      const video =
+        getVideo();
 
-    const onVol =
-      () => {
-        setMuted(
-          video.muted
-        );
+      const activeSource =
+        sources?.[
+          activeIdx
+        ];
 
-        setVolume(
-          video.volume
-        );
-      };
+      if (
+        !video
+      ) {
+        return undefined;
+      }
 
-    const onTracksChanged =
-      () => {
-        syncSubtitleTracks();
-      };
-
-    video.addEventListener(
-      "play",
-      onPlay
-    );
-
-    video.addEventListener(
-      "pause",
-      onPause
-    );
-
-    video.addEventListener(
-      "timeupdate",
-      onTime
-    );
-
-    video.addEventListener(
-      "durationchange",
-      onDur
-    );
-
-    video.addEventListener(
-      "loadedmetadata",
-      onDur
-    );
-
-    video.addEventListener(
-      "loadedmetadata",
-      onTracksChanged
-    );
-
-    video.addEventListener(
-      "loadeddata",
-      onTracksChanged
-    );
-
-    video.addEventListener(
-      "volumechange",
-      onVol
-    );
-
-    const textTracks =
-      video.textTracks;
-
-    if (
-      textTracks?.addEventListener
-    ) {
-      textTracks.addEventListener(
-        "addtrack",
-        onTracksChanged
-      );
-
-      textTracks.addEventListener(
-        "removetrack",
-        onTracksChanged
-      );
-
-      textTracks.addEventListener(
-        "change",
-        onTracksChanged
-      );
-    }
-
-    setMuted(
-      video.muted
-    );
-
-    setVolume(
-      video.volume
-    );
-
-    setPlaying(
-      !video.paused
-    );
-
-    setCurrent(
-      video.currentTime ||
-        0
-    );
-
-    setDuration(
-      video.duration ||
-        0
-    );
-
-    syncSubtitleTracks();
-
-    subtitleRefreshTimers.current.forEach(
-      (
-        timer
-      ) =>
-        clearTimeout(
-          timer
-        )
-    );
-
-    subtitleRefreshTimers.current =
-      [
-        250,
-        800,
-        1600,
-        3000,
-      ].map(
-        (
-          delay
-        ) =>
-          setTimeout(
-            syncSubtitleTracks,
-            delay
+      const existing =
+        Array.from(
+          video.querySelectorAll(
+            "track[data-mg-external-subtitle='true']"
           )
+        );
+
+      existing.forEach(
+        (
+          track
+        ) =>
+          track.remove()
       );
 
-    return () => {
-      video.removeEventListener(
+      const raw =
+        Array.isArray(
+          activeSource
+            ?.subtitles
+        )
+          ? activeSource.subtitles
+          : [];
+
+      const externalTracks =
+        raw
+          .map(
+            normaliseExternalSubtitle
+          )
+          .filter(
+            Boolean
+          );
+
+      const created =
+        externalTracks.map(
+          (
+            track
+          ) => {
+            const element =
+              document.createElement(
+                "track"
+              );
+
+            element.kind =
+              "subtitles";
+
+            element.src =
+              track.src;
+
+            element.srclang =
+              track.lang;
+
+            element.label =
+              track.label;
+
+            element.default =
+              false;
+
+            element.dataset
+              .mgExternalSubtitle =
+              "true";
+
+            video.appendChild(
+              element
+            );
+
+            return element;
+          }
+        );
+
+      const timer =
+        window.setTimeout(
+          () => {
+            refreshTrackLists();
+          },
+          250
+        );
+
+      return () => {
+        window.clearTimeout(
+          timer
+        );
+
+        created.forEach(
+          (
+            track
+          ) => {
+            try {
+              track.remove();
+            } catch {
+              // Ignore cleanup errors.
+            }
+          }
+        );
+      };
+    },
+    [
+      videoRef,
+      sources,
+      activeIdx,
+    ]
+  );
+
+  /*
+   * Keep control state synced
+   * with the actual video.
+   */
+  useEffect(
+    () => {
+      const video =
+        getVideo();
+
+      if (
+        !video
+      ) {
+        return undefined;
+      }
+
+      const onPlay =
+        () => {
+          playingRef.current =
+            true;
+
+          setPlaying(
+            true
+          );
+
+          setShowControls(
+            true
+          );
+
+          scheduleHide(
+            2200
+          );
+        };
+
+      const onPlaying =
+        () => {
+          playingRef.current =
+            true;
+
+          setPlaying(
+            true
+          );
+
+          scheduleHide(
+            2200
+          );
+        };
+
+      const onPause =
+        () => {
+          playingRef.current =
+            false;
+
+          setPlaying(
+            false
+          );
+
+          clearHideTimer();
+
+          setShowControls(
+            true
+          );
+        };
+
+      const onEnded =
+        () => {
+          playingRef.current =
+            false;
+
+          setPlaying(
+            false
+          );
+
+          clearHideTimer();
+
+          setShowControls(
+            true
+          );
+        };
+
+      const onWaiting =
+        () => {
+          setShowControls(
+            true
+          );
+        };
+
+      const onTime =
+        () => {
+          if (
+            !seekingRef.current
+          ) {
+            setCurrent(
+              video.currentTime ||
+              0
+            );
+          }
+        };
+
+      const onDuration =
+        () => {
+          setDuration(
+            video.duration ||
+            0
+          );
+
+          refreshTrackLists();
+        };
+
+      const onVolumeChange =
+        () => {
+          setMuted(
+            Boolean(
+              video.muted
+            )
+          );
+
+          setVolume(
+            Number.isFinite(
+              video.volume
+            )
+              ? video.volume
+              : 1
+          );
+        };
+
+      const onRateChange =
+        () => {
+          setPlaybackRate(
+            video.playbackRate ||
+            1
+          );
+        };
+
+      video.addEventListener(
         "play",
         onPlay
       );
 
-      video.removeEventListener(
+      video.addEventListener(
+        "playing",
+        onPlaying
+      );
+
+      video.addEventListener(
         "pause",
         onPause
       );
 
-      video.removeEventListener(
+      video.addEventListener(
+        "ended",
+        onEnded
+      );
+
+      video.addEventListener(
+        "waiting",
+        onWaiting
+      );
+
+      video.addEventListener(
         "timeupdate",
         onTime
       );
 
-      video.removeEventListener(
+      video.addEventListener(
         "durationchange",
-        onDur
+        onDuration
       );
 
-      video.removeEventListener(
+      video.addEventListener(
         "loadedmetadata",
-        onDur
+        onDuration
       );
 
-      video.removeEventListener(
-        "loadedmetadata",
-        onTracksChanged
-      );
-
-      video.removeEventListener(
+      video.addEventListener(
         "loadeddata",
-        onTracksChanged
+        refreshTrackLists
       );
 
-      video.removeEventListener(
+      video.addEventListener(
         "volumechange",
-        onVol
+        onVolumeChange
       );
+
+      video.addEventListener(
+        "ratechange",
+        onRateChange
+      );
+
+      playingRef.current =
+        !video.paused &&
+        !video.ended;
+
+      setPlaying(
+        playingRef.current
+      );
+
+      setMuted(
+        Boolean(
+          video.muted
+        )
+      );
+
+      setVolume(
+        Number.isFinite(
+          video.volume
+        )
+          ? video.volume
+          : 1
+      );
+
+      setCurrent(
+        video.currentTime ||
+        0
+      );
+
+      setDuration(
+        video.duration ||
+        0
+      );
+
+      setPlaybackRate(
+        video.playbackRate ||
+        1
+      );
+
+      refreshTrackLists();
 
       if (
-        textTracks?.removeEventListener
+        playingRef.current
       ) {
-        textTracks.removeEventListener(
-          "addtrack",
-          onTracksChanged
+        scheduleHide(
+          2600
         );
-
-        textTracks.removeEventListener(
-          "removetrack",
-          onTracksChanged
-        );
-
-        textTracks.removeEventListener(
-          "change",
-          onTracksChanged
+      } else {
+        setShowControls(
+          true
         );
       }
 
-      subtitleRefreshTimers.current.forEach(
-        (
-          timer
-        ) =>
-          clearTimeout(
-            timer
-          )
+      return () => {
+        video.removeEventListener(
+          "play",
+          onPlay
+        );
+
+        video.removeEventListener(
+          "playing",
+          onPlaying
+        );
+
+        video.removeEventListener(
+          "pause",
+          onPause
+        );
+
+        video.removeEventListener(
+          "ended",
+          onEnded
+        );
+
+        video.removeEventListener(
+          "waiting",
+          onWaiting
+        );
+
+        video.removeEventListener(
+          "timeupdate",
+          onTime
+        );
+
+        video.removeEventListener(
+          "durationchange",
+          onDuration
+        );
+
+        video.removeEventListener(
+          "loadedmetadata",
+          onDuration
+        );
+
+        video.removeEventListener(
+          "loadeddata",
+          refreshTrackLists
+        );
+
+        video.removeEventListener(
+          "volumechange",
+          onVolumeChange
+        );
+
+        video.removeEventListener(
+          "ratechange",
+          onRateChange
+        );
+
+        clearHideTimer();
+      };
+    },
+    [
+      videoRef,
+    ]
+  );
+
+  /*
+   * IMPORTANT FULLSCREEN FIX:
+   *
+   * Wake listeners live on the
+   * video STAGE, not the hidden
+   * controls overlay.
+   *
+   * This means a touch, mouse,
+   * pointer or TV/keyboard input
+   * can always bring controls back.
+   */
+  useEffect(
+    () => {
+      const stage =
+        stageRef?.current;
+
+      if (
+        !stage
+      ) {
+        return undefined;
+      }
+
+      const wake =
+        () => {
+          revealControls();
+        };
+
+      const wakeLonger =
+        () => {
+          revealControls(
+            4200
+          );
+        };
+
+      stage.addEventListener(
+        "pointerdown",
+        wakeLonger,
+        true
       );
 
-      subtitleRefreshTimers.current =
-        [];
+      stage.addEventListener(
+        "pointermove",
+        wake,
+        true
+      );
 
-      clearHideTimer();
-    };
-  }, [
-    videoRef,
-    seeking,
-  ]);
+      stage.addEventListener(
+        "touchstart",
+        wakeLonger,
+        {
+          passive:
+            true,
 
-  useEffect(() => {
-    const onFs =
-      () => {
-        setFullscreen(
-          Boolean(
-            document.fullscreenElement
-          )
+          capture:
+            true,
+        }
+      );
+
+      stage.addEventListener(
+        "mousemove",
+        wake,
+        true
+      );
+
+      stage.addEventListener(
+        "wheel",
+        wake,
+        {
+          passive:
+            true,
+
+          capture:
+            true,
+        }
+      );
+
+      window.addEventListener(
+        "keydown",
+        wakeLonger,
+        true
+      );
+
+      return () => {
+        stage.removeEventListener(
+          "pointerdown",
+          wakeLonger,
+          true
+        );
+
+        stage.removeEventListener(
+          "pointermove",
+          wake,
+          true
+        );
+
+        stage.removeEventListener(
+          "touchstart",
+          wakeLonger,
+          true
+        );
+
+        stage.removeEventListener(
+          "mousemove",
+          wake,
+          true
+        );
+
+        stage.removeEventListener(
+          "wheel",
+          wake,
+          true
+        );
+
+        window.removeEventListener(
+          "keydown",
+          wakeLonger,
+          true
         );
       };
+    },
+    [
+      stageRef,
+    ]
+  );
 
-    document.addEventListener(
-      "fullscreenchange",
-      onFs
-    );
-
-    return () => {
-      document.removeEventListener(
-        "fullscreenchange",
-        onFs
-      );
-    };
-  }, []);
-
-  useEffect(() => {
-    if (
-      subtitleMenuOpen
-    ) {
+  /*
+   * Always show controls briefly
+   * when entering/exiting
+   * in-app fullscreen.
+   */
+  useEffect(
+    () => {
       setShowControls(
         true
       );
 
-      clearHideTimer();
-    } else {
-      revealControls();
-    }
-  }, [
-    subtitleMenuOpen,
-  ]);
+      if (
+        playingRef.current
+      ) {
+        scheduleHide(
+          isAppFullscreen
+            ? 3000
+            : 3600
+        );
+      }
+    },
+    [
+      isAppFullscreen,
+    ]
+  );
 
   const togglePlay =
     () => {
       const video =
         getVideo();
 
-      if (!video) return;
+      if (
+        !video
+      ) {
+        return;
+      }
+
+      revealControls();
 
       if (
-        video.paused
+        video.paused ||
+        video.ended
       ) {
+        if (
+          video.dataset
+            ?.mgAutoplayMuted ===
+          "true"
+        ) {
+          video.muted =
+            false;
+
+          delete video.dataset
+            .mgAutoplayMuted;
+        }
+
         video
           .play()
           .catch(
@@ -627,10 +1126,16 @@ export default function MediaPlayerControls({
       const video =
         getVideo();
 
-      if (!video) return;
+      if (
+        !video
+      ) {
+        return;
+      }
 
       video.muted =
         !video.muted;
+
+      revealControls();
     };
 
   const onVolume =
@@ -640,7 +1145,11 @@ export default function MediaPlayerControls({
       const video =
         getVideo();
 
-      if (!video) return;
+      if (
+        !video
+      ) {
+        return;
+      }
 
       const nextVolume =
         Number(
@@ -654,6 +1163,8 @@ export default function MediaPlayerControls({
       video.muted =
         nextVolume ===
         0;
+
+      revealControls();
     };
 
   const seekTo =
@@ -674,8 +1185,7 @@ export default function MediaPlayerControls({
         Number(
           event.target
             .value
-        ) /
-        100;
+        ) / 100;
 
       video.currentTime =
         ratio *
@@ -684,6 +1194,38 @@ export default function MediaPlayerControls({
       setCurrent(
         video.currentTime
       );
+
+      revealControls(
+        4200
+      );
+    };
+
+  const startSeeking =
+    () => {
+      seekingRef.current =
+        true;
+
+      setSeeking(
+        true
+      );
+
+      clearHideTimer();
+
+      setShowControls(
+        true
+      );
+    };
+
+  const finishSeeking =
+    () => {
+      seekingRef.current =
+        false;
+
+      setSeeking(
+        false
+      );
+
+      revealControls();
     };
 
   const skip =
@@ -693,14 +1235,19 @@ export default function MediaPlayerControls({
       const video =
         getVideo();
 
-      if (!video) return;
+      if (
+        !video
+      ) {
+        return;
+      }
 
-      video.currentTime =
+      const next =
         Math.max(
           0,
           Math.min(
             video.duration ||
-              0,
+              Number.MAX_SAFE_INTEGER,
+
             (
               video.currentTime ||
               0
@@ -708,9 +1255,114 @@ export default function MediaPlayerControls({
               delta
           )
         );
+
+      video.currentTime =
+        next;
+
+      setCurrent(
+        next
+      );
+
+      revealControls();
     };
 
-  const selectSubtitle =
+  const changeRate =
+    (
+      event
+    ) => {
+      const video =
+        getVideo();
+
+      if (
+        !video
+      ) {
+        return;
+      }
+
+      const rate =
+        Number(
+          event.target
+            .value
+        ) || 1;
+
+      video.playbackRate =
+        rate;
+
+      setPlaybackRate(
+        rate
+      );
+
+      revealControls();
+    };
+
+  const toggleFullscreen =
+    () => {
+      revealControls(
+        4200
+      );
+
+      /*
+       * Do not call native browser
+       * fullscreen here.
+       * VideoPlayer supplies our
+       * safe CSS fullscreen method.
+       */
+      if (
+        typeof onFullscreen ===
+        "function"
+      ) {
+        onFullscreen();
+      }
+    };
+
+  const chooseSubtitle =
+    (
+      index
+    ) => {
+      const video =
+        getVideo();
+
+      if (
+        !video?.textTracks
+      ) {
+        return;
+      }
+
+      for (
+        let trackIndex = 0;
+        trackIndex <
+        video.textTracks
+          .length;
+        trackIndex += 1
+      ) {
+        try {
+          video.textTracks[
+            trackIndex
+          ].mode =
+            trackIndex ===
+            index
+              ? "showing"
+              : "disabled";
+        } catch {
+          // Read-only track.
+        }
+      }
+
+      setSelectedSubtitle(
+        index
+      );
+
+      setOpenMenu(
+        ""
+      );
+
+      menuOpenRef.current =
+        false;
+
+      revealControls();
+    };
+
+  const chooseAudio =
     (
       index
     ) => {
@@ -718,7 +1370,7 @@ export default function MediaPlayerControls({
         getVideo();
 
       const tracks =
-        video?.textTracks;
+        video?.audioTracks;
 
       if (
         !tracks ||
@@ -729,8 +1381,7 @@ export default function MediaPlayerControls({
       }
 
       for (
-        let trackIndex =
-          0;
+        let trackIndex = 0;
         trackIndex <
         tracks.length;
         trackIndex += 1
@@ -738,185 +1389,378 @@ export default function MediaPlayerControls({
         try {
           tracks[
             trackIndex
-          ].mode =
+          ].enabled =
             trackIndex ===
-            index
-              ? "showing"
-              : "disabled";
+            index;
         } catch {
-          // Some WebViews expose track mode as read-only.
+          // Some WebViews make
+          // audio tracks read-only.
         }
       }
 
-      setActiveSubtitle(
+      setSelectedAudio(
         index
       );
 
-      setSubtitleMenuOpen(
-        false
+      setOpenMenu(
+        ""
       );
+
+      menuOpenRef.current =
+        false;
+
+      revealControls();
+    };
+
+  const toggleMenu =
+    (
+      name
+    ) => {
+      setOpenMenu(
+        (
+          currentMenu
+        ) => {
+          const nextMenu =
+            currentMenu ===
+            name
+              ? ""
+              : name;
+
+          menuOpenRef.current =
+            Boolean(
+              nextMenu
+            );
+
+          if (
+            nextMenu
+          ) {
+            clearHideTimer();
+
+            setShowControls(
+              true
+            );
+          } else {
+            scheduleHide();
+          }
+
+          return nextMenu;
+        }
+      );
+    };
+
+  const focusControl =
+    () => {
+      clearHideTimer();
 
       setShowControls(
         true
       );
-
-      window.dispatchEvent(
-        new CustomEvent(
-          "mg:subtitle-track-selected",
-          {
-            detail: {
-              index,
-
-              language:
-                index >=
-                0
-                  ? subtitleTracks.find(
-                      (
-                        track
-                      ) =>
-                        track.index ===
-                        index
-                    )
-                      ?.language ||
-                    ""
-                  : "",
-            },
-          }
-        )
-      );
     };
 
-  const toggleFullscreen =
+  const blurControl =
     () => {
       if (
-        onFullscreen
+        !menuOpenRef.current
       ) {
-        onFullscreen();
+        scheduleHide();
+      }
+    };
 
-        return;
+  const sourceFailed =
+    (
+      index
+    ) => {
+      if (
+        !failedSources
+      ) {
+        return false;
       }
 
-      stageRef?.current
-        ?.requestFullscreen?.()
-        .catch(
-          () => {}
+      if (
+        typeof failedSources
+          .has ===
+        "function"
+      ) {
+        return failedSources.has(
+          index
         );
+      }
+
+      if (
+        Array.isArray(
+          failedSources
+        )
+      ) {
+        return failedSources.includes(
+          index
+        );
+      }
+
+      return false;
     };
 
   const progress =
-    duration
-      ? (
-          current /
-          duration
-        ) *
-        100
+    duration > 0
+      ? Math.min(
+          100,
+          Math.max(
+            0,
+            (
+              current /
+              duration
+            ) *
+              100
+          )
+        )
       : 0;
+
+  const controlsVisible =
+    showControls ||
+    !playing ||
+    seeking ||
+    Boolean(
+      openMenu
+    );
 
   return (
     <div
       className={cn(
-        "absolute inset-0 flex flex-col justify-end transition-opacity duration-200",
+        "absolute inset-0 z-[60] flex flex-col justify-between transition-opacity duration-200",
 
-        showControls
-          ? "opacity-100"
+        controlsVisible
+          ? "opacity-100 pointer-events-auto"
           : "opacity-0 pointer-events-none"
       )}
-      onMouseMove={
-        revealControls
+      aria-hidden={
+        !controlsVisible
       }
-      onTouchStart={
-        revealControls
-      }
-      onMouseLeave={() => {
-        clearHideTimer();
-
-        if (
-          playing &&
-          !seeking &&
-          !subtitleMenuOpen
-        ) {
-          setShowControls(
-            false
-          );
-        }
-      }}
-      onClick={(
-        event
-      ) => {
-        if (
-          event.target ===
-          event.currentTarget
-        ) {
-          togglePlay();
-        }
-      }}
     >
-      <div className="bg-gradient-to-t from-black/80 via-black/30 to-transparent px-3 pb-2 pt-8 select-none">
-        {!isLive && (
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] text-white/80 tabular-nums w-12 text-right">
+      {isAppFullscreen ? (
+        <div className="flex items-center gap-2 bg-gradient-to-b from-black/90 via-black/55 to-transparent px-3 pb-10 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-5">
+          <button
+            type="button"
+            onClick={() =>
+              onBack?.()
+            }
+            onFocus={
+              focusControl
+            }
+            onBlur={
+              blurControl
+            }
+            className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg bg-black/45 px-3 text-xs font-semibold text-white backdrop-blur hover:bg-black/65 focus:outline-none focus:ring-2 focus:ring-mg-green/60 sm:text-sm"
+            aria-label="Back to main menu"
+            title="Back to main menu"
+          >
+            <ArrowLeft className="h-4 w-4" />
+
+            <span className="hidden sm:inline">
+              Back
+            </span>
+          </button>
+
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-white sm:text-base">
+              {title ||
+                "Now playing"}
+            </p>
+          </div>
+
+          {sources.length >
+          1 ? (
+            <div className="relative min-w-[7.5rem] max-w-[42vw] sm:min-w-[13rem] sm:max-w-sm">
+              <select
+                value={
+                  activeIdx
+                }
+                onChange={(
+                  event
+                ) =>
+                  onSelectSource?.(
+                    event.target
+                      .value
+                  )
+                }
+                onFocus={
+                  focusControl
+                }
+                onBlur={
+                  blurControl
+                }
+                className="w-full appearance-none rounded-lg border border-white/15 bg-black/55 py-2.5 pl-3 pr-8 text-xs text-white outline-none backdrop-blur focus:border-mg-green sm:text-sm"
+                aria-label="Choose source or quality"
+                title="Choose source or quality"
+              >
+                {sources.map(
+                  (
+                    item,
+                    index
+                  ) => (
+                    <option
+                      key={`${index}-${sourceLabel(
+                        item,
+                        index
+                      )}`}
+                      value={
+                        index
+                      }
+                    >
+                      {sourceFailed(
+                        index
+                      )
+                        ? "Failed — "
+                        : ""}
+
+                      {sourceLabel(
+                        item,
+                        index
+                      )}
+                    </option>
+                  )
+                )}
+              </select>
+
+              <div className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-white/60">
+                <Tv className="h-4 w-4" />
+              </div>
+            </div>
+          ) : null}
+
+          {typeof onNoSound ===
+          "function" ? (
+            <button
+              type="button"
+              onClick={
+                onNoSound
+              }
+              onFocus={
+                focusControl
+              }
+              onBlur={
+                blurControl
+              }
+              className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg bg-black/45 px-2.5 text-xs font-semibold text-white backdrop-blur hover:bg-black/65 focus:outline-none focus:ring-2 focus:ring-mg-green/60"
+              aria-label="No sound"
+              title="No sound"
+            >
+              <VolumeX className="h-4 w-4" />
+
+              <span className="hidden md:inline">
+                No sound?
+              </span>
+            </button>
+          ) : null}
+
+          <button
+            type="button"
+            onClick={
+              toggleFullscreen
+            }
+            onFocus={
+              focusControl
+            }
+            onBlur={
+              blurControl
+            }
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-black/45 text-white backdrop-blur hover:bg-black/65 focus:outline-none focus:ring-2 focus:ring-mg-green/60"
+            aria-label="Exit fullscreen"
+            title="Exit fullscreen"
+          >
+            <Minimize className="h-4 w-4" />
+          </button>
+        </div>
+      ) : (
+        <div />
+      )}
+
+      <div className="relative bg-gradient-to-t from-black/95 via-black/60 to-transparent px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-12 select-none sm:px-5 sm:pt-16">
+        {!isLive ? (
+          <div className="mb-2 flex items-center gap-2 sm:mb-3">
+            <span className="w-11 shrink-0 text-right text-[10px] tabular-nums text-white/85 sm:w-14 sm:text-xs">
               {formatTime(
                 current
               )}
             </span>
 
             <input
-              ref={
-                barRef
-              }
               type="range"
-              min={0}
-              max={100}
-              step={0.1}
+              min={
+                0
+              }
+              max={
+                100
+              }
+              step={
+                0.1
+              }
               value={
                 progress
               }
               onChange={
                 seekTo
               }
-              onPointerDown={() =>
-                setSeeking(
-                  true
-                )
+              onPointerDown={
+                startSeeking
               }
-              onPointerUp={() =>
-                setSeeking(
-                  false
-                )
+              onPointerUp={
+                finishSeeking
               }
-              className="flex-1 h-1.5 accent-mg-green cursor-pointer"
-              aria-label="Seek"
+              onTouchStart={
+                startSeeking
+              }
+              onTouchEnd={
+                finishSeeking
+              }
+              onFocus={
+                focusControl
+              }
+              onBlur={
+                blurControl
+              }
+              className="h-1.5 min-w-0 flex-1 cursor-pointer accent-mg-green sm:h-2"
+              aria-label="Seek through video"
             />
 
-            <span className="text-[10px] text-white/60 tabular-nums w-12">
+            <span className="w-11 shrink-0 text-[10px] tabular-nums text-white/65 sm:w-14 sm:text-xs">
               {formatTime(
                 duration
               )}
             </span>
           </div>
-        )}
+        ) : null}
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 sm:gap-3">
           <button
             type="button"
             onClick={
               togglePlay
             }
-            className="text-white hover:text-mg-green transition-colors"
+            onFocus={
+              focusControl
+            }
+            onBlur={
+              blurControl
+            }
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-black transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-mg-green sm:h-11 sm:w-11"
             aria-label={
+              playing
+                ? "Pause"
+                : "Play"
+            }
+            title={
               playing
                 ? "Pause"
                 : "Play"
             }
           >
             {playing ? (
-              <Pause className="w-5 h-5" />
+              <Pause className="h-5 w-5 fill-current" />
             ) : (
-              <Play className="w-5 h-5" />
+              <Play className="ml-0.5 h-5 w-5 fill-current" />
             )}
           </button>
 
-          {!isLive && (
+          {!isLive ? (
             <>
               <button
                 type="button"
@@ -925,10 +1769,17 @@ export default function MediaPlayerControls({
                     -10
                   )
                 }
-                className="text-white/80 hover:text-white transition-colors"
+                onFocus={
+                  focusControl
+                }
+                onBlur={
+                  blurControl
+                }
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black/40 text-white hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green/60 sm:h-10 sm:w-10"
                 aria-label="Back 10 seconds"
+                title="Back 10 seconds"
               >
-                <RotateCcw className="w-4 h-4" />
+                <RotateCcw className="h-4 w-4" />
               </button>
 
               <button
@@ -938,22 +1789,40 @@ export default function MediaPlayerControls({
                     10
                   )
                 }
-                className="text-white/80 hover:text-white transition-colors"
+                onFocus={
+                  focusControl
+                }
+                onBlur={
+                  blurControl
+                }
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black/40 text-white hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green/60 sm:h-10 sm:w-10"
                 aria-label="Forward 10 seconds"
+                title="Forward 10 seconds"
               >
-                <RotateCw className="w-4 h-4" />
+                <RotateCw className="h-4 w-4" />
               </button>
             </>
-          )}
+          ) : null}
 
-          <div className="flex items-center gap-1.5 group">
+          <div className="group flex items-center gap-1.5">
             <button
               type="button"
               onClick={
                 toggleMute
               }
-              className="text-white/80 hover:text-white transition-colors"
+              onFocus={
+                focusControl
+              }
+              onBlur={
+                blurControl
+              }
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black/40 text-white hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green/60 sm:h-10 sm:w-10"
               aria-label={
+                muted
+                  ? "Unmute"
+                  : "Mute"
+              }
+              title={
                 muted
                   ? "Unmute"
                   : "Mute"
@@ -962,17 +1831,23 @@ export default function MediaPlayerControls({
               {muted ||
               volume ===
                 0 ? (
-                <VolumeX className="w-4 h-4" />
+                <VolumeX className="h-4 w-4" />
               ) : (
-                <Volume2 className="w-4 h-4" />
+                <Volume2 className="h-4 w-4" />
               )}
             </button>
 
             <input
               type="range"
-              min={0}
-              max={1}
-              step={0.05}
+              min={
+                0
+              }
+              max={
+                1
+              }
+              step={
+                0.05
+              }
               value={
                 muted
                   ? 0
@@ -981,148 +1856,242 @@ export default function MediaPlayerControls({
               onChange={
                 onVolume
               }
-              className="w-0 group-hover:w-16 transition-all h-1 accent-mg-green cursor-pointer"
+              onFocus={
+                focusControl
+              }
+              onBlur={
+                blurControl
+              }
+              className="hidden h-1 w-16 cursor-pointer accent-mg-green sm:block lg:w-20"
               aria-label="Volume"
             />
           </div>
 
-          <div className="flex-1" />
+          <div className="min-w-0 flex-1" />
 
-          {subtitleTracks.length >
-            0 && (
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => {
-                  setSubtitleMenuOpen(
-                    (
-                      open
-                    ) =>
-                      !open
-                  );
+          {!isLive ? (
+            <select
+              value={
+                playbackRate
+              }
+              onChange={
+                changeRate
+              }
+              onFocus={
+                focusControl
+              }
+              onBlur={
+                blurControl
+              }
+              className="h-9 rounded-lg border border-white/15 bg-black/45 px-2 text-xs font-semibold text-white outline-none focus:border-mg-green sm:h-10"
+              aria-label="Playback speed"
+              title="Playback speed"
+            >
+              <option value={0.5}>
+                0.5x
+              </option>
 
-                  setShowControls(
-                    true
-                  );
-                }}
-                className={cn(
-                  "transition-colors rounded p-1",
+              <option value={0.75}>
+                0.75x
+              </option>
 
-                  activeSubtitle >=
+              <option value={1}>
+                1x
+              </option>
+
+              <option value={1.25}>
+                1.25x
+              </option>
+
+              <option value={1.5}>
+                1.5x
+              </option>
+
+              <option value={2}>
+                2x
+              </option>
+            </select>
+          ) : null}
+
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() =>
+                toggleMenu(
+                  "subtitles"
+                )
+              }
+              onFocus={
+                focusControl
+              }
+              className={cn(
+                "h-9 rounded-lg border px-2.5 text-xs font-semibold outline-none sm:h-10",
+
+                selectedSubtitle >=
                   0
-                    ? "text-mg-green"
-                    : "text-white/80 hover:text-white"
-                )}
-                aria-label="Subtitles"
-                aria-expanded={
-                  subtitleMenuOpen
-                }
-                title="Subtitles"
-              >
-                <Captions className="w-5 h-5" />
-              </button>
+                  ? "border-mg-green/60 bg-mg-green/15 text-mg-green"
+                  : "border-white/15 bg-black/45 text-white"
+              )}
+              aria-label="Subtitles"
+              title="Subtitles"
+            >
+              CC
+            </button>
 
-              {subtitleMenuOpen && (
-                <div
-                  className="absolute bottom-9 right-0 w-56 max-h-72 overflow-y-auto rounded-lg border border-white/15 bg-black/95 shadow-2xl p-1.5 z-[120]"
-                  onClick={(
-                    event
-                  ) =>
-                    event.stopPropagation()
+            {openMenu ===
+            "subtitles" ? (
+              <div className="absolute bottom-12 right-0 z-[80] max-h-64 w-52 overflow-y-auto rounded-xl border border-white/15 bg-black/95 p-1.5 shadow-2xl backdrop-blur sm:w-60">
+                <button
+                  type="button"
+                  onClick={() =>
+                    chooseSubtitle(
+                      -1
+                    )
                   }
+                  className={cn(
+                    "w-full rounded-lg px-3 py-2 text-left text-xs hover:bg-white/10",
+
+                    selectedSubtitle <
+                      0
+                      ? "text-mg-green"
+                      : "text-white"
+                  )}
                 >
-                  <div className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-white/45">
-                    Subtitles
-                  </div>
+                  Off
+                </button>
 
-                  <button
-                    type="button"
-                    onClick={() =>
-                      selectSubtitle(
-                        -1
-                      )
-                    }
-                    className={cn(
-                      "w-full min-h-10 rounded-md px-2.5 py-2 text-left text-xs flex items-center justify-between gap-3 hover:bg-white/10",
-
-                      activeSubtitle ===
-                        -1
-                        ? "text-mg-green bg-white/5"
-                        : "text-white/80"
-                    )}
-                    aria-label="Subtitles off"
-                  >
-                    <span>
-                      Off
-                    </span>
-
-                    {activeSubtitle ===
-                      -1 && (
-                      <Check className="w-3.5 h-3.5 shrink-0" />
-                    )}
-                  </button>
-
-                  {subtitleTracks.map(
+                {subtitleTracks.length >
+                0 ? (
+                  subtitleTracks.map(
                     (
                       track
                     ) => (
                       <button
-                        key={`${track.index}-${track.language}-${track.label}`}
                         type="button"
+                        key={`subtitle-${track.index}`}
                         onClick={() =>
-                          selectSubtitle(
+                          chooseSubtitle(
                             track.index
                           )
                         }
                         className={cn(
-                          "w-full min-h-10 rounded-md px-2.5 py-2 text-left text-xs flex items-center justify-between gap-3 hover:bg-white/10",
+                          "w-full rounded-lg px-3 py-2 text-left text-xs hover:bg-white/10",
 
-                          activeSubtitle ===
+                          selectedSubtitle ===
                             track.index
-                            ? "text-mg-green bg-white/5"
-                            : "text-white/80"
+                            ? "text-mg-green"
+                            : "text-white"
                         )}
-                        aria-label={`Subtitle ${track.label}`}
                       >
-                        <span className="min-w-0">
-                          <span className="block truncate font-medium">
-                            {
-                              track.label
-                            }
-                          </span>
+                        {
+                          track.label
+                        }
 
-                          {track.kind ===
-                            "captions" && (
-                            <span className="block text-[9px] text-white/35 mt-0.5">
-                              Closed captions
-                            </span>
-                          )}
-                        </span>
-
-                        {activeSubtitle ===
-                          track.index && (
-                          <Check className="w-3.5 h-3.5 shrink-0" />
-                        )}
+                        {track.language
+                          ? ` · ${track.language}`
+                          : ""}
                       </button>
                     )
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+                  )
+                ) : (
+                  <p className="px-3 py-2 text-xs leading-relaxed text-white/45">
+                    No subtitle tracks are available from this source.
+                  </p>
+                )}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() =>
+                toggleMenu(
+                  "audio"
+                )
+              }
+              onFocus={
+                focusControl
+              }
+              className="h-9 rounded-lg border border-white/15 bg-black/45 px-2.5 text-xs font-semibold text-white outline-none focus:border-mg-green sm:h-10"
+              aria-label="Audio track"
+              title="Audio track"
+            >
+              Audio
+            </button>
+
+            {openMenu ===
+            "audio" ? (
+              <div className="absolute bottom-12 right-0 z-[80] max-h-64 w-52 overflow-y-auto rounded-xl border border-white/15 bg-black/95 p-1.5 shadow-2xl backdrop-blur sm:w-60">
+                {audioTracks.length >
+                0 ? (
+                  audioTracks.map(
+                    (
+                      track
+                    ) => (
+                      <button
+                        type="button"
+                        key={`audio-${track.index}`}
+                        onClick={() =>
+                          chooseAudio(
+                            track.index
+                          )
+                        }
+                        className={cn(
+                          "w-full rounded-lg px-3 py-2 text-left text-xs hover:bg-white/10",
+
+                          selectedAudio ===
+                            track.index
+                            ? "text-mg-green"
+                            : "text-white"
+                        )}
+                      >
+                        {
+                          track.label
+                        }
+
+                        {track.language
+                          ? ` · ${track.language}`
+                          : ""}
+                      </button>
+                    )
+                  )
+                ) : (
+                  <p className="px-3 py-2 text-xs leading-relaxed text-white/45">
+                    This browser or source does not expose separate audio tracks.
+                  </p>
+                )}
+              </div>
+            ) : null}
+          </div>
 
           <button
             type="button"
             onClick={
               toggleFullscreen
             }
-            className="text-white/80 hover:text-white transition-colors"
-            aria-label="Fullscreen"
+            onFocus={
+              focusControl
+            }
+            onBlur={
+              blurControl
+            }
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black/40 text-white hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green/60 sm:h-10 sm:w-10"
+            aria-label={
+              isAppFullscreen
+                ? "Exit fullscreen"
+                : "Fullscreen"
+            }
+            title={
+              isAppFullscreen
+                ? "Exit fullscreen"
+                : "Fullscreen"
+            }
           >
-            {fullscreen ? (
-              <Minimize className="w-4 h-4" />
+            {isAppFullscreen ? (
+              <Minimize className="h-4 w-4" />
             ) : (
-              <Maximize className="w-4 h-4" />
+              <Maximize className="h-4 w-4" />
             )}
           </button>
         </div>
