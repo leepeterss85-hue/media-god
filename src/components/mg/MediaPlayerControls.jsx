@@ -51,6 +51,16 @@ const formatTime = (seconds) => {
   return `${m}:${String(s).padStart(2, "0")}`;
 };
 
+const sourceRawLabel = (item, index) =>
+  String(
+    item?.label ||
+      item?.name ||
+      item?.title ||
+      `Source ${index + 1}`
+  )
+    .replace(/\s+/g, " ")
+    .trim();
+
 const sourceLabel = (item, index) =>
   concisePlaybackSourceLabel(item, index);
 
@@ -1366,13 +1376,14 @@ export default function MediaPlayerControls({
                       index
                     ) => (
                       <option
-                        key={`${index}-${sourceLabel(
+                        key={`${index}-${sourceRawLabel(
                           item,
                           index
                         )}`}
                         value={
                           index
                         }
+                        data-mg-source-label={sourceRawLabel(item, index)}
                       >
                         {sourceFailed(
                           index
