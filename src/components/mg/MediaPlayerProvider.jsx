@@ -420,6 +420,7 @@ const fetchServerAddonSources = async ({
   mediaType,
   season,
   episode,
+  fastMode = false,
 }) => {
   if (!imdbId) {
     return {
@@ -496,6 +497,9 @@ const fetchServerAddonSources = async ({
             "tv"
               ? "tv"
               : "movie",
+
+          fast_mode:
+            Boolean(fastMode),
 
           ...(season != null
             ? {
@@ -585,6 +589,7 @@ const fetchAddonSources = async (
     );
 
   if (
+    args?.fastMode ||
     !shouldUseBrowserAddonFallback(
       server
     )
