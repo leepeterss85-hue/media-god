@@ -1254,9 +1254,18 @@ export function PlayerProvider({
             preferRd: Boolean(request?.preferRd),
           });
 
+        const initialPlayableSources =
+          initialOrderedSources.filter(
+            (item) =>
+              isDirectSource(item) ||
+              isMagnetSource(item) ||
+              item?.type === "live" ||
+              item?.live
+          );
+
         const initialSources =
-          initialOrderedSources.length > 0
-            ? initialOrderedSources
+          initialPlayableSources.length > 0
+            ? initialPlayableSources
             : [
                 {
                   label: "Finding the fastest source…",
