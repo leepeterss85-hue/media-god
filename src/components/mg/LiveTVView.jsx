@@ -1321,7 +1321,7 @@ export default function LiveTVView() {
         })}
       </div>
 
-      <div className="mb-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_240px_auto]">
+      <div className="mb-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_220px_auto_auto]">
         <label className="relative block">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
 
@@ -1374,6 +1374,38 @@ export default function LiveTVView() {
         >
           Direct streams only
         </button>
+
+        <div className="grid h-11 grid-cols-2 overflow-hidden rounded-lg border border-white/10 bg-mg-card">
+          <button
+            type="button"
+            onClick={() => setViewMode("channels")}
+            aria-label="Channel cards view"
+            className={cn(
+              "flex min-w-11 items-center justify-center gap-1.5 px-2 text-xs font-semibold outline-none transition-colors focus:ring-2 focus:ring-inset focus:ring-mg-green",
+              viewMode === "channels"
+                ? "bg-mg-green text-black"
+                : "text-white/60 hover:text-white"
+            )}
+          >
+            <LayoutGrid className="h-4 w-4" />
+            <span className="hidden xl:inline">Channels</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setViewMode("guide")}
+            aria-label="TV Guide view"
+            className={cn(
+              "flex min-w-11 items-center justify-center gap-1.5 px-2 text-xs font-semibold outline-none transition-colors focus:ring-2 focus:ring-inset focus:ring-mg-green",
+              viewMode === "guide"
+                ? "bg-mg-green text-black"
+                : "text-white/60 hover:text-white"
+            )}
+          >
+            <ListVideo className="h-4 w-4" />
+            <span className="hidden xl:inline">Guide</span>
+          </button>
+        </div>
       </div>
 
       <div className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-white/40 sm:text-xs">
