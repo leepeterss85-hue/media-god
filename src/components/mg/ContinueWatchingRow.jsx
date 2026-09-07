@@ -185,7 +185,7 @@ export default function ContinueWatchingRow() {
     base44.entities.ContinueWatching
       .list("-updated_date", 100)
       .then((rows) => {
-        const sorted = [...(rows || [])]
+        const entries = [...(rows || [])]
           .map((item) => ({
             item,
             meta: parseContentKey(item),
@@ -195,15 +195,15 @@ export default function ContinueWatchingRow() {
             ).getTime(),
           }))
           .filter(
-            ({ item, ratio }) =>
-              Number(item?.progress || 0) >= MIN_PROGRESS_SECONDS &&
-              ratio < WATCHED_THRESHOLD
+            ({ item }) =>
+              Number(item?.progress || 0) >= MIN_PROGRESS_SECONDS
           )
           .sort((a, b) => b.updatedAt - a.updatedAt);
 
         const byIdentity = new Map();
+        const duplicateIds = new Set();
 
-        sorted.forEach((entry) => {
+        entries.forEach((entry) => {
           const identity = identityFor(entry.meta);
           const existing = byIdentity.get(identity);
 
@@ -212,17 +212,40 @@ export default function ContinueWatchingRow() {
             return;
           }
 
-          if (!existing.meta.canonical && entry.meta.canonical) {
+          const existingCompleted = existing.ratio >= WATCHED_THRESHOLD;
+          const entryCompleted = entry.ratio >= WATCHED_THRESHOLD;
+
+          const replaceExisting =
+            (!existingCompleted && entryCompleted) ||
+            (existingCompleted === entryCompleted &&
+              !existing.meta.canonical &&
+              entry.meta.canonical);
+
+          if (replaceExisting) {
+            if (existing.item?.id) duplicateIds.add(existing.item.id);
             byIdentity.set(identity, entry);
+          } else if (entry.item?.id) {
+            duplicateIds.add(entry.item.id);
           }
         });
 
+        const winners = Array.from(byIdentity.values());
+
         setItems(
-          Array.from(byIdentity.values())
+          winners
+            .filter(({ ratio }) => ratio < WATCHED_THRESHOLD)
             .sort((a, b) => b.updatedAt - a.updatedAt)
             .slice(0, 20)
             .map(({ item }) => item)
         );
+
+        if (duplicateIds.size > 0) {
+          Promise.allSettled(
+            Array.from(duplicateIds).map((id) =>
+              base44.entities.ContinueWatching.delete(id)
+            )
+          ).catch(() => {});
+        }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
