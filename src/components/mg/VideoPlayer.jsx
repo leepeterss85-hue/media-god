@@ -2408,12 +2408,26 @@ export default function VideoPlayer({
     }
 
     state.key = key;
-    state.timer = window.setTimeout(() => {
+
+    const attemptRescue = (remainingChecks = 4) => {
       state.timer = null;
 
       const video = stageRef.current?.querySelector("video");
-      if (!(video instanceof HTMLVideoElement)) return;
-      if (video.paused || video.ended || video.readyState < 2) return;
+      const ready =
+        video instanceof HTMLVideoElement &&
+        !video.paused &&
+        !video.ended &&
+        video.readyState >= 2;
+
+      if (!ready) {
+        if (remainingChecks > 0) {
+          state.timer = window.setTimeout(
+            () => attemptRescue(remainingChecks - 1),
+            1200
+          );
+        }
+        return;
+      }
 
       window.dispatchEvent(
         new CustomEvent("mg:player-status", {
@@ -2426,7 +2440,12 @@ export default function VideoPlayer({
       );
 
       handleNoSoundRef.current?.({ automatic: true });
-    }, 2200);
+    };
+
+    state.timer = window.setTimeout(
+      () => attemptRescue(4),
+      2200
+    );
 
     return () => {
       if (state.timer) {
