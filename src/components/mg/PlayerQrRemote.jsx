@@ -7,6 +7,7 @@ import { findChannelsByTitle } from "@/components/mg/freeTvPlaylist";
 import {
   friendlyTrackLabel,
   readTrackPreferences,
+  rememberAudioPreference,
   writeTrackPreferences,
 } from "@/components/mg/mediaTrackPreferences";
 
@@ -335,6 +336,10 @@ export default function PlayerQrRemote({ showIdle = false }) {
 
                 const chosen = wanted >= 0 ? nativeTracks[wanted] : null;
                 if (chosen) {
+                  rememberAudioPreference(
+                    window.__MG_PLAYER_CONTEXT__ || {},
+                    chosen
+                  );
                   writeTrackPreferences({
                     ...readTrackPreferences(),
                     audioLanguage:
@@ -352,6 +357,10 @@ export default function PlayerQrRemote({ showIdle = false }) {
                   })
                 );
                 hlsAudioActiveRef.current = wanted;
+                rememberAudioPreference(
+                  window.__MG_PLAYER_CONTEXT__ || {},
+                  chosen
+                );
                 writeTrackPreferences({
                   ...readTrackPreferences(),
                   audioLanguage:
