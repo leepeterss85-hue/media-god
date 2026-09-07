@@ -23,6 +23,7 @@ import SearchDialog from "@/components/mg/SearchDialog";
 import DetailModal from "@/components/mg/DetailModal";
 import FireTvRemote from "@/components/mg/FireTvRemote";
 import MediaGodV2Assist from "@/components/mg/MediaGodV2Assist";
+import PlayerQrRemote from "@/components/mg/PlayerQrRemote";
 import {
   PlayerProvider,
   usePlayer,
@@ -581,6 +582,10 @@ function MediaGodApp() {
       />
 
       <MediaGodV2Assist />
+
+      <PlayerQrRemote
+        showIdle={view === "home"}
+      />
 
       {showPageBack && (
         <button
