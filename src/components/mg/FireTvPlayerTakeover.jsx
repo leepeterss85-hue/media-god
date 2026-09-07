@@ -24,6 +24,18 @@ const findPlayerOverlay = () => {
   );
 };
 
+const findStage = (overlay) => {
+  if (!(overlay instanceof HTMLElement)) {
+    return null;
+  }
+
+  const media = overlay.querySelector("video, iframe");
+
+  return media?.parentElement instanceof HTMLElement
+    ? media.parentElement
+    : null;
+};
+
 export default function FireTvPlayerTakeover() {
   useEffect(() => {
     if (!isFireTv() || typeof document === "undefined") {
@@ -131,16 +143,48 @@ export default function FireTvPlayerTakeover() {
       force(overlay, "max-width", "none");
       force(overlay, "max-height", "none");
       force(overlay, "margin", "0");
+      force(overlay, "padding", "0");
       force(overlay, "background", "#000");
+      force(overlay, "overflow", "hidden");
       force(overlay, "z-index", "2147483000");
 
       const wrapper = overlay.firstElementChild;
 
       if (wrapper instanceof HTMLElement) {
-        force(wrapper, "width", "100%");
+        force(wrapper, "width", "100vw");
+        force(wrapper, "height", "100vh");
         force(wrapper, "max-width", "none");
+        force(wrapper, "max-height", "none");
         force(wrapper, "min-width", "0");
-        force(wrapper, "margin", "0 auto");
+        force(wrapper, "margin", "0");
+        force(wrapper, "padding", "0");
+        force(wrapper, "overflow", "hidden");
+      }
+
+      const stage = findStage(overlay);
+
+      if (stage instanceof HTMLElement) {
+        force(stage, "position", "fixed");
+        force(stage, "inset", "0");
+        force(stage, "left", "0");
+        force(stage, "top", "0");
+        force(stage, "right", "0");
+        force(stage, "bottom", "0");
+        force(stage, "width", "100vw");
+        force(stage, "height", "100vh");
+        force(stage, "max-width", "none");
+        force(stage, "max-height", "none");
+        force(stage, "margin", "0");
+        force(stage, "padding", "0");
+        force(stage, "border", "0");
+        force(stage, "border-radius", "0");
+        force(stage, "aspect-ratio", "auto");
+        force(stage, "overflow", "hidden");
+        force(stage, "background", "#000");
+        force(stage, "display", "flex");
+        force(stage, "align-items", "center");
+        force(stage, "justify-content", "center");
+        force(stage, "z-index", "70");
       }
 
       overlay.querySelectorAll("video").forEach((video) => {
@@ -148,13 +192,31 @@ export default function FireTvPlayerTakeover() {
           return;
         }
 
-        force(video, "width", "100%");
-        force(video, "height", "100%");
-        force(video, "max-width", "100%");
-        force(video, "max-height", "100%");
-        force(video, "object-fit", "contain");
+        force(video, "position", "absolute");
+        force(video, "inset", "0");
+        force(video, "width", "100vw");
+        force(video, "height", "100vh");
+        force(video, "max-width", "none");
+        force(video, "max-height", "none");
+        force(video, "object-fit", "cover");
         force(video, "object-position", "center center");
+        force(video, "aspect-ratio", "auto");
         force(video, "background", "#000");
+      });
+
+      overlay.querySelectorAll("iframe").forEach((frameElement) => {
+        if (!(frameElement instanceof HTMLElement)) {
+          return;
+        }
+
+        force(frameElement, "position", "absolute");
+        force(frameElement, "inset", "0");
+        force(frameElement, "width", "100vw");
+        force(frameElement, "height", "100vh");
+        force(frameElement, "max-width", "none");
+        force(frameElement, "max-height", "none");
+        force(frameElement, "border", "0");
+        force(frameElement, "background", "#000");
       });
     };
 
