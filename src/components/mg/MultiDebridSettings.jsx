@@ -161,6 +161,7 @@ export default function MultiDebridSettings() {
       setTokens({});
       setDirty({});
       await loadStatus(false);
+      window.dispatchEvent(new CustomEvent("mg:debrid-providers-changed"));
 
       toast({
         title: "Debrid providers saved",
@@ -196,6 +197,7 @@ export default function MultiDebridSettings() {
       setTokens((current) => ({ ...current, [key]: "" }));
       setDirty((current) => ({ ...current, [key]: false }));
       await loadStatus(false);
+      window.dispatchEvent(new CustomEvent("mg:debrid-providers-changed"));
 
       toast({
         title: "Provider disconnected",
