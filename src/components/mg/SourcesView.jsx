@@ -359,18 +359,17 @@ export default function SourcesView() {
           ? data.providersChecked.length
           : 0;
 
-        recordSourceHealth(source.id, {
-          success: Boolean(provider),
-          loaded: provider ? 1 : 0,
-          latencyMs: Date.now() - startedAt,
-          error: provider ? "" : "Not cached on connected debrid services",
-        });
-
         if (!provider) {
           throw new Error(
             `Not cached on the ${checked || "connected"} debrid service${checked === 1 ? "" : "s"} checked`
           );
         }
+
+        recordSourceHealth(source.id, {
+          success: true,
+          loaded: 1,
+          latencyMs: Date.now() - startedAt,
+        });
 
         setMessage(`${source.name} is cached · ${provider} selected by Combined Debrid.`);
         return;
