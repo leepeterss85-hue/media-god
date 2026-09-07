@@ -928,6 +928,9 @@ export default function LiveTVView() {
       return;
     }
 
+    rememberRecentChannel(channel);
+    setFocusedChannelKey(channelMemoryKey(channel));
+
     if (
       isRadioChannel(channel)
     ) {
