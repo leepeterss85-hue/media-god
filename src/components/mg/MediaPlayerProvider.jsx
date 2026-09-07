@@ -1141,6 +1141,8 @@ export function PlayerProvider({
       false
     );
 
+  const playSequenceRef = useRef(0);
+
   useEffect(() => {
     let mounted =
       true;
@@ -1181,6 +1183,10 @@ export function PlayerProvider({
       async (
         request = {}
       ) => {
+        const playId = ++playSequenceRef.current;
+        const isCurrentPlay = () =>
+          playSequenceRef.current === playId;
+
         const originalSources =
           Array.isArray(
             request?.sources
@@ -1235,6 +1241,165 @@ export function PlayerProvider({
           request?.tmdb_id ??
           request?.id ??
           "";
+
+        const initialOrderedSources =
+          orderSources({
+            sources: dedupeSources(originalSources),
+            hasRd,
+            preferRd: Boolean(request?.preferRd),
+          });
+
+        const initialSources =
+          initialOrderedSources.length > 0
+            ? initialOrderedSources
+            : [
+                {
+                  label: "Finding the fastest source…",
+                  type: "status",
+                  src: "",
+                  url: "",
+                  diagnostic: true,
+                },
+              ];
+
+        const initialPrimary = initialSources[0] || {};
+        const suppliedImdbId = String(
+          request?.imdbId || request?.imdb_id || ""
+        ).trim();
+
+        /*
+         * FAST START: open the player immediately. Source discovery continues
+         * in the background and replaces this loading row as soon as either
+         * Real-Debrid or an addon returns something playable.
+         */
+        setSource({
+          ...request,
+          playRequestId: playId,
+          id: request?.id,
+          tmdbId,
+          imdbId: suppliedImdbId,
+          title: request?.title || "Video",
+          poster: request?.poster || request?.poster_url || "",
+          year: request?.year,
+          mediaType,
+          season,
+          episode,
+          rdTitle: request?.rdTitle || request?.title || "",
+          rdYear: request?.rdYear ?? request?.year ?? null,
+          rdSeason: request?.rdSeason ?? season,
+          rdEpisode: request?.rdEpisode ?? episode,
+          sources: initialSources,
+          src: getSourceUrl(initialPrimary),
+          url: getSourceUrl(initialPrimary),
+          hasRd,
+          sourceDiagnostics: {
+            phase: "searching",
+            tmdbId,
+            mediaType,
+            season,
+            episode,
+            rdConnected: hasRd,
+          },
+        });
+
+        const publishEarlySources = (
+          incomingSources,
+          diagnosticsPatch = {}
+        ) => {
+          if (!isCurrentPlay()) {
+            return;
+          }
+
+          const incoming = Array.isArray(incomingSources)
+            ? incomingSources.filter(Boolean)
+            : [];
+
+          if (incoming.length === 0) {
+            return;
+          }
+
+          setSource((current) => {
+            if (
+              !current ||
+              current.playRequestId !== playId ||
+              !isCurrentPlay()
+            ) {
+              return current;
+            }
+
+            const existing = Array.isArray(current.sources)
+              ? current.sources.filter((item) => !item?.diagnostic)
+              : [];
+
+            const ordered = orderSources({
+              sources: dedupeSources([
+                ...incoming,
+                ...existing,
+                ...originalSources,
+              ]),
+              hasRd,
+              preferRd: Boolean(request?.preferRd),
+            });
+
+            const playable = ordered.filter(
+              (item) =>
+                isDirectSource(item) ||
+                isMagnetSource(item) ||
+                item?.type === "live" ||
+                item?.live
+            );
+
+            if (playable.length === 0) {
+              return {
+                ...current,
+                sourceDiagnostics: {
+                  ...(current.sourceDiagnostics || {}),
+                  ...diagnosticsPatch,
+                },
+              };
+            }
+
+            const primary = ordered[0] || {};
+
+            return {
+              ...current,
+              sources: ordered,
+              src: getSourceUrl(primary),
+              url: getSourceUrl(primary),
+              sourceDiagnostics: {
+                ...(current.sourceDiagnostics || {}),
+                phase: "fast-start",
+                ...diagnosticsPatch,
+              },
+            };
+          });
+        };
+
+        const rdPromise =
+          !isLive &&
+          hasRd &&
+          !request?.noRd &&
+          !request?.skipRdLookup
+            ? findRdLibrarySource({
+                title: request?.rdTitle || request?.title || "",
+                year: request?.rdYear ?? request?.year ?? null,
+                season,
+                episode,
+              })
+            : Promise.resolve({
+                source: null,
+                status: hasRd ? "SKIPPED" : "NOT CONNECTED",
+                detail: hasRd ? "RD lookup skipped" : "No RD token",
+              });
+
+        rdPromise.then((rdLookup) => {
+          if (rdLookup?.source) {
+            publishEarlySources([rdLookup.source], {
+              rdLookupStatus: rdLookup?.status || "READY",
+              rdLookupDetail: rdLookup?.detail || "",
+            });
+          }
+        });
 
         const imdbInfo =
           isLive
