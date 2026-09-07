@@ -1,4 +1,10 @@
-/* Firestick-only compact layout. Never zoom the WebView itself. */
+/*
+ * Firestick catalogue layout only.
+ *
+ * This file must never resize or zoom the browser viewport and must never
+ * size the video player. Player layout lives only in
+ * fire-tv-player-failsafe.css.
+ */
 
 html.mg-fire-tv,
 html.mg-fire-tv-mode,
@@ -9,10 +15,7 @@ body.mg-fire-tv-stable {
   scroll-behavior: auto !important;
 }
 
-/*
- * Keep Base44/login screens readable at the browser's normal scale.
- * The older Fire TV CSS set the root to 12px; override that here.
- */
+/* Keep Base44/login screens at the normal readable browser scale. */
 html.mg-fire-tv,
 html.mg-fire-tv-stable {
   font-size: 16px !important;
@@ -114,7 +117,7 @@ body.mg-fire-tv-stable #root .mg-fire-tv-nav svg {
   height: 19px !important;
 }
 
-/* Main content must always stay inside the visible television width. */
+/* Main catalogue content. */
 body.mg-fire-tv main,
 body.mg-fire-tv-mode main,
 body.mg-fire-tv-stable main,
@@ -125,7 +128,6 @@ body.mg-fire-tv-stable main > * {
   max-width: 100% !important;
 }
 
-/* Give the Home screen more breathing room without growing it back to desktop scale. */
 body.mg-fire-tv .mg-fire-tv-hero + div.flex.flex-col,
 body.mg-fire-tv-mode .mg-fire-tv-hero + div.flex.flex-col,
 body.mg-fire-tv-stable .mg-fire-tv-hero + div.flex.flex-col {
@@ -134,7 +136,6 @@ body.mg-fire-tv-stable .mg-fire-tv-hero + div.flex.flex-col {
   padding-bottom: 30px !important;
 }
 
-/* Hero sized for the common 960x540 Fire TV CSS viewport. */
 body.mg-fire-tv .mg-fire-tv-hero,
 body.mg-fire-tv-mode .mg-fire-tv-hero,
 body.mg-fire-tv-stable .mg-fire-tv-hero {
@@ -198,7 +199,7 @@ body.mg-fire-tv-stable .mg-fire-tv-hero button svg {
   height: 17px !important;
 }
 
-/* Poster rows: a little larger and less cramped than the previous pass. */
+/* Poster rows. */
 body.mg-fire-tv .mg-fire-tv-card,
 body.mg-fire-tv-mode .mg-fire-tv-card,
 body.mg-fire-tv-stable .mg-fire-tv-card {
@@ -236,7 +237,7 @@ body.mg-fire-tv-stable .mg-fire-tv-card p:last-of-type {
   font-size: 10px !important;
 }
 
-/* Continue/Recently Watched are wide 16:9 cards, with one TV focus target each. */
+/* Continue / Recently Watched. */
 body.mg-fire-tv .mg-fire-tv-resume-card,
 body.mg-fire-tv-mode .mg-fire-tv-resume-card,
 body.mg-fire-tv-stable .mg-fire-tv-resume-card {
@@ -253,8 +254,6 @@ body.mg-fire-tv-stable .mg-fire-tv-resume-card:focus {
   box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.92) !important;
 }
 
-/* The nested remove button is useful for mouse/touch but must not create a
- * second Firestick D-pad target inside a resume tile. */
 body.mg-fire-tv .mg-fire-tv-secondary-action,
 body.mg-fire-tv-mode .mg-fire-tv-secondary-action,
 body.mg-fire-tv-stable .mg-fire-tv-secondary-action {
@@ -288,7 +287,7 @@ body.mg-fire-tv-stable main section:not(.mg-fire-tv-hero) h2 {
   line-height: 1.25 !important;
 }
 
-/* Avoid expensive effects and delayed movement on Fire TV. */
+/* Firestick performance tweaks. */
 body.mg-fire-tv .backdrop-blur,
 body.mg-fire-tv .backdrop-blur-sm,
 body.mg-fire-tv .backdrop-blur-md,
@@ -338,91 +337,9 @@ body.mg-fire-tv-stable a:focus {
   scroll-margin: 16px !important;
 }
 
-/*
- * Do not shrink the login/auth UI or the video player with catalogue rules.
- * The browser stays at scale 1 and these screens keep normal readable text.
- */
+/* Keep player text readable; sizing is handled by the player failsafe file. */
 body.mg-fire-tv .fixed.inset-0.z-50.bg-black\/95,
 body.mg-fire-tv-mode .fixed.inset-0.z-50.bg-black\/95,
 body.mg-fire-tv-stable .fixed.inset-0.z-50.bg-black\/95 {
   font-size: 16px !important;
-}
-
-/*
- * Fire TV player takeover.
- * The navbar is z-200. The original player shell was only z-50, so even a
- * fullscreen stage inside it could never escape that stacking context.
- * Put the whole player above the catalogue/nav and make the layer opaque.
- */
-body.mg-fire-tv .fixed.inset-0.z-50.bg-black\/95,
-body.mg-fire-tv-mode .fixed.inset-0.z-50.bg-black\/95,
-body.mg-fire-tv-stable .fixed.inset-0.z-50.bg-black\/95 {
-  position: fixed !important;
-  inset: 0 !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  max-width: none !important;
-  max-height: none !important;
-  margin: 0 !important;
-  background: #000 !important;
-  z-index: 2147483000 !important;
-}
-
-/* The player wrapper must use the whole TV viewport, not the catalogue width. */
-body.mg-fire-tv .fixed.inset-0.z-50.bg-black\/95 > div,
-body.mg-fire-tv-mode .fixed.inset-0.z-50.bg-black\/95 > div,
-body.mg-fire-tv-stable .fixed.inset-0.z-50.bg-black\/95 > div {
-  width: 100% !important;
-  max-width: 100vw !important;
-  min-width: 0 !important;
-}
-
-/* Preserve the source aspect ratio in both normal player and fullscreen. */
-body.mg-fire-tv .fixed.inset-0.z-50.bg-black\/95 video,
-body.mg-fire-tv-mode .fixed.inset-0.z-50.bg-black\/95 video,
-body.mg-fire-tv-stable .fixed.inset-0.z-50.bg-black\/95 video {
-  width: 100% !important;
-  height: 100% !important;
-  max-width: 100% !important;
-  max-height: 100% !important;
-  object-fit: contain !important;
-  object-position: center center !important;
-  aspect-ratio: auto !important;
-  background: #000 !important;
-}
-
-/* Safe in-app fullscreen: cover the complete Fire TV viewport. */
-body.mg-fire-tv [data-mg-fullscreen="true"],
-body.mg-fire-tv-mode [data-mg-fullscreen="true"],
-body.mg-fire-tv-stable [data-mg-fullscreen="true"] {
-  position: fixed !important;
-  inset: 0 !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  max-width: none !important;
-  max-height: none !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  aspect-ratio: auto !important;
-  overflow: hidden !important;
-  background: #000 !important;
-  z-index: 2147483647 !important;
-}
-
-body.mg-fire-tv [data-mg-fullscreen="true"] video,
-body.mg-fire-tv-mode [data-mg-fullscreen="true"] video,
-body.mg-fire-tv-stable [data-mg-fullscreen="true"] video,
-body.mg-fire-tv [data-mg-fullscreen="true"] iframe,
-body.mg-fire-tv-mode [data-mg-fullscreen="true"] iframe,
-body.mg-fire-tv-stable [data-mg-fullscreen="true"] iframe {
-  width: 100% !important;
-  height: 100% !important;
-  max-width: none !important;
-  max-height: none !important;
-  object-fit: contain !important;
-  object-position: center center !important;
-  aspect-ratio: auto !important;
-  background: #000 !important;
 }
