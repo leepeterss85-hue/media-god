@@ -616,6 +616,21 @@ export default function PlayerRemote() {
     setBrowseTarget(null);
   };
 
+  const sendLiveChannel = async (channel) => {
+    if (!channel?.name) return;
+
+    await send(
+      "play_live",
+      JSON.stringify({
+        id: channel?.tvgId || channel?.id || "",
+        name: channel.name,
+      })
+    );
+
+    setLiveQuery("");
+    setLiveResults([]);
+  };
+
   if (loading) {
     return (
       <main className="min-h-screen bg-black text-white flex items-center justify-center p-6">
@@ -640,6 +655,7 @@ export default function PlayerRemote() {
   }
 
   const closed = session?.status === "closed";
+  const idle = session?.status === "idle" || !session?.media_type;
   const current = Number(session?.current_time || 0);
   const duration = Number(session?.duration || 0);
   const progress = duration > 0 ? Math.min(100, Math.max(0, (current / duration) * 100)) : 0;
