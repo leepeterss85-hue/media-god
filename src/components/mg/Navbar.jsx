@@ -1,4 +1,7 @@
-import React from "react";
+import React, {
+  useEffect,
+  useState,
+} from "react";
 
 import {
   Activity,
@@ -84,11 +87,45 @@ const NAV = [
   },
 ];
 
+const playerAlreadyOpen = () =>
+  typeof document !== "undefined" &&
+  (
+    document.body?.classList.contains("mg-fire-tv-player-open") ||
+    document.documentElement.classList.contains("mg-fire-tv-player-open")
+  );
+
 export default function Navbar({
   active,
   onSelect,
   onSearch,
 }) {
+  const [playerOpen, setPlayerOpen] =
+    useState(playerAlreadyOpen);
+
+  useEffect(() => {
+    const onPlayerVisibility = (event) => {
+      setPlayerOpen(
+        Boolean(event?.detail?.open)
+      );
+    };
+
+    window.addEventListener(
+      "mg:player-visibility",
+      onPlayerVisibility
+    );
+
+    setPlayerOpen(
+      playerAlreadyOpen()
+    );
+
+    return () => {
+      window.removeEventListener(
+        "mg:player-visibility",
+        onPlayerVisibility
+      );
+    };
+  }, []);
+
   const linkClass = (id) =>
     cn(
       "flex min-h-11 w-full items-center gap-3 rounded-md text-sm font-medium transition-colors",
@@ -97,6 +134,15 @@ export default function Navbar({
         ? "bg-mg-green/15 text-mg-green"
         : "text-white/60 hover:bg-white/5 hover:text-white focus:bg-white/5 focus:text-white"
     );
+
+  /*
+   * Do not merely hide the rail with z-index/CSS during playback.
+   * Remove it from the React tree so stale Fire TV CSS cannot reserve
+   * sidebar width or place it over the video.
+   */
+  if (playerOpen) {
+    return null;
+  }
 
   return (
     <aside className="mg-fire-tv-nav sticky top-0 z-30 flex h-screen w-16 shrink-0 flex-col border-r border-white/5 bg-mg-surface md:w-60">
