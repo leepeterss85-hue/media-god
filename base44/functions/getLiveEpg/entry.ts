@@ -190,13 +190,21 @@ export default async function (req) {
     const windowEnd = nowMs + 12 * 60 * 60 * 1000;
     const programmesByGuide = new Map();
     const programmeRegex =
-      /<programme\s+([^>]*\s)?start="([^"]+)"([^>]*\s)?stop="([^"]+)"([^>]*\s)?channel="([^"]+)"[^>]*>([\s\S]*?)<\/programme>/gi;
+      /<programme\s+([^>]+)>([\s\S]*?)<\/programme>/gi;
     let match;
 
     while ((match = programmeRegex.exec(xml))) {
-      const start = parseXmlTvDate(match[2]);
-      const stop = parseXmlTvDate(match[4]);
-      const guideId = decodeXml(match[6]);
+      const attributes = match[1] || "";
+      const block = match[2] || "";
+      const startText =
+        attributes.match(/\bstart="([^"]+)"/i)?.[1] || "";
+      const stopText =
+        attributes.match(/\bstop="([^"]+)"/i)?.[1] || "";
+      const channelText =
+        attributes.match(/\bchannel="([^"]+)"/i)?.[1] || "";
+      const start = parseXmlTvDate(startText);
+      const stop = parseXmlTvDate(stopText);
+      const guideId = decodeXml(channelText);
 
       if (!wantedGuideIds.has(guideId) || !start || !stop) {
         continue;
@@ -206,10 +214,10 @@ export default async function (req) {
         continue;
       }
 
-      const titleMatch = match[7].match(
+      const titleMatch = block.match(
         /<title(?:\s[^>]*)?>([\s\S]*?)<\/title>/i
       );
-      const descMatch = match[7].match(
+      const descMatch = block.match(
         /<desc(?:\s[^>]*)?>([\s\S]*?)<\/desc>/i
       );
       const entry = {
