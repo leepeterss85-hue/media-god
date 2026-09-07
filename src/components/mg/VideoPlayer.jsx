@@ -1628,7 +1628,7 @@ export default function VideoPlayer({
       }
 
       state.abandoned.add(activeIdx);
-+
+
       let nextIndex = -1;
 
       for (let offset = 1; offset <= sources.length; offset += 1) {
