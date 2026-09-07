@@ -19,6 +19,7 @@ import CastButton from "@/components/mg/CastButton";
 import LiveVideo from "@/components/mg/LiveVideo";
 import PlayerControls from "@/components/mg/PlayerControls";
 import PlayerQrRemote from "@/components/mg/PlayerQrRemote";
+import { readTrackPreferences } from "@/components/mg/mediaTrackPreferences";
 
 const isMagnet = (value) =>
   String(value || "")
@@ -128,6 +129,8 @@ export default function VideoPlayer({
 
   const activeUrl =
     getSourceUrl(active);
+
+  const trackPreferences = readTrackPreferences();
 
   const markSourceFailed = (index) => {
     failedSourcesRef.current.add(index);
@@ -2012,6 +2015,20 @@ export default function VideoPlayer({
                 }
                 controls={
                   false
+                }
+                subtitles={
+                  Array.isArray(active?.subtitles)
+                    ? active.subtitles
+                    : []
+                }
+                subtitlesEnabled={
+                  trackPreferences.subtitlesEnabled
+                }
+                preferredSubtitleLanguage={
+                  trackPreferences.subtitleLanguage
+                }
+                preferredAudioLanguage={
+                  trackPreferences.audioLanguage
                 }
                 className="w-full h-full object-contain bg-black"
                 onLoadedMetadata={
