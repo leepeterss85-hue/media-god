@@ -416,7 +416,9 @@ export default function SourcesView() {
         latencyMs: Date.now() - startedAt,
       });
       setError(
-        `${source.name}: ${testError?.message || "test failed"}. A browser CORS block can also cause this even when a source works in another player.`
+        source.kind === "magnet"
+          ? `${source.name}: ${testError?.message || "debrid cache check failed"}.`
+          : `${source.name}: ${testError?.message || "test failed"}. A browser CORS block can also cause this even when a source works in another player.`
       );
     } finally {
       setTestingId("");
@@ -720,7 +722,7 @@ export default function SourcesView() {
           <div className="mt-4 grid gap-2">
             {liveSources.length === 0 ? (
               <div className="rounded-xl border border-dashed border-white/10 p-4 text-sm text-white/35">
-                No custom Live TV sources yet. Built-in sources still work normally.
+                No custom Live TV or Debrid sources yet. Built-in sources still work normally.
               </div>
             ) : (
               liveSources.map((source) => {
