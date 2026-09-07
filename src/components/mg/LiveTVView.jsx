@@ -352,8 +352,8 @@ export default function LiveTVView() {
         .map((channel, index) => ({ channel, index }))
         .filter(({ channel }) => !isRadioChannel(channel))
         .slice(0, 350)
-        .map(({ channel, index }) => ({
-          key: epgKeyForChannel(channel, index),
+        .map(({ channel }) => ({
+          key: epgKeyForChannel(channel),
           tvgId: channel?.tvgId || "",
           name: channel?.name || "",
         }));
@@ -1494,7 +1494,7 @@ export default function LiveTVView() {
                 ).length;
 
               const guide = epgByKey[
-                epgKeyForChannel(channel, index)
+                epgKeyForChannel(channel)
               ];
               const nowProgramme = guide?.now || null;
               const nextProgramme = guide?.next || null;
