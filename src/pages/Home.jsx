@@ -15,6 +15,7 @@ import WatchlistView from "@/components/mg/WatchlistView";
 import RdLibraryView from "@/components/mg/RdLibraryView";
 import DebridDashboard from "@/components/mg/DebridDashboard";
 import AddonsView from "@/components/mg/AddonsView";
+import SourcesView from "@/components/mg/SourcesView";
 import RoadmapView from "@/components/mg/RoadmapView";
 import SettingsView from "@/components/mg/SettingsView";
 import WatchPartyView from "@/components/mg/WatchPartyView";
@@ -716,6 +717,11 @@ function MediaGodApp() {
           {view ===
             "addons" && (
             <AddonsView />
+          )}
+
+          {view ===
+            "sources" && (
+            <SourcesView />
           )}
 
           {view ===
