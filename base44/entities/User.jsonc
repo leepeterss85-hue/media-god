@@ -4,23 +4,81 @@
     "preferences": {
       "type": "object",
       "properties": {
-        "autoplay": { "type": "boolean", "default": true },
-        "subs": { "type": "boolean", "default": true },
+        "autoplay": {
+          "type": "boolean",
+          "default": true
+        },
+        "subs": {
+          "type": "boolean",
+          "default": true
+        },
         "quality": {
           "type": "string",
-          "enum": ["Auto", "4K", "1080p", "720p", "480p"],
+          "enum": [
+            "Auto",
+            "4K",
+            "1080p",
+            "720p",
+            "480p"
+          ],
           "default": "Auto"
         }
       }
     },
-    "rd_token": { "type": "string" },
-    "rd_refresh_token": { "type": "string" },
-    "rd_client_id": { "type": "string" },
-    "rd_client_secret": { "type": "string" },
-    "rd_token_expires_at": { "type": "string" },
-    "rd_connected_at": { "type": "string" },
-    "alldebrid_token": { "type": "string" },
-    "premiumize_token": { "type": "string" },
-    "debridlink_token": { "type": "string" }
-  }
+    "rd_token": {
+      "type": "string"
+    },
+    "rd_refresh_token": {
+      "type": "string"
+    },
+    "rd_client_id": {
+      "type": "string"
+    },
+    "rd_client_secret": {
+      "type": "string"
+    },
+    "rd_token_expires_at": {
+      "type": "string"
+    },
+    "rd_connected_at": {
+      "type": "string"
+    },
+    "alldebrid_token": {
+      "type": "string"
+    },
+    "torbox_token": {
+      "type": "string"
+    },
+    "premiumize_token": {
+      "type": "string"
+    },
+    "debridlink_token": {
+      "type": "string"
+    },
+    "debrid_enabled_providers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "debrid_provider_priority": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "name": "User",
+  "required": [
+    "preferences",
+    "rd_token",
+    "rd_refresh_token",
+    "rd_client_id",
+    "rd_client_secret",
+    "rd_token_expires_at",
+    "rd_connected_at",
+    "alldebrid_token",
+    "premiumize_token",
+    "debridlink_token"
+  ]
 }
