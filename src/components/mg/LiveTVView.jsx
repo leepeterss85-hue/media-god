@@ -249,6 +249,14 @@ export default function LiveTVView() {
   const [epgByKey, setEpgByKey] = useState({});
   const [epgMatched, setEpgMatched] = useState(0);
   const [clockTick, setClockTick] = useState(() => Date.now());
+  const [viewMode, setViewMode] = useState("channels");
+  const [favouriteKeys, setFavouriteKeys] = useState(
+    () => new Set(readStoredList(LIVE_TV_FAVOURITES_KEY))
+  );
+  const [recentKeys, setRecentKeys] = useState(
+    () => readStoredList(LIVE_TV_RECENT_KEY)
+  );
+  const [focusedChannelKey, setFocusedChannelKey] = useState("");
 
   const audioRef = useRef(null);
   const player = usePlayer();
