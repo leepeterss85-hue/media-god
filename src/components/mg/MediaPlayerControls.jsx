@@ -20,7 +20,10 @@ import {
 import { cn } from "@/lib/utils";
 import {
   friendlyTrackLabel,
+  readRememberedAudioPreference,
   readTrackPreferences,
+  rememberAudioPreference,
+  rememberedAudioTrackScore,
   subtitleCueStyle,
   trackLanguage,
   trackLooksForced,
@@ -303,29 +306,49 @@ export default function MediaPlayerControls({
       }
     }
 
-    if (activeAudio < 0 && nextAudio.length > 0) {
+    if (nextAudio.length > 0) {
       const preferredLanguage = preferences.audioLanguage;
-      const preferred =
+      const context =
+        typeof window !== "undefined"
+          ? window.__MG_PLAYER_CONTEXT__ || { title }
+          : { title };
+      const remembered = readRememberedAudioPreference(context);
+      const rememberedRanked = remembered
+        ? nextAudio
+            .map((item) => ({
+              item,
+              score: rememberedAudioTrackScore(item.raw || item, remembered),
+            }))
+            .sort((a, b) => b.score - a.score || a.item.index - b.item.index)
+        : [];
+      const rememberedPreferred =
+        rememberedRanked[0]?.score > 0
+          ? rememberedRanked[0].item
+          : null;
+      const languagePreferred =
         nextAudio.find(
           (item) =>
             !preferredLanguage || trackLanguage(item) === preferredLanguage
         ) || nextAudio[0];
+      const preferred = rememberedPreferred || languagePreferred;
 
-      if (preferred?.kind === "hls") {
-        window.dispatchEvent(
-          new CustomEvent("mg:hls-audio-track-selected", {
-            detail: { index: preferred.index },
-          })
-        );
-        activeAudio = preferred.index;
-      } else if (preferred && nativeAudioTracks) {
-        try {
-          for (let index = 0; index < nativeAudioTracks.length; index += 1) {
-            nativeAudioTracks[index].enabled = index === preferred.index;
-          }
+      if (preferred && preferred.index !== activeAudio) {
+        if (preferred.kind === "hls") {
+          window.dispatchEvent(
+            new CustomEvent("mg:hls-audio-track-selected", {
+              detail: { index: preferred.index },
+            })
+          );
           activeAudio = preferred.index;
-        } catch {
-          // Some Android WebViews expose read-only audio track state.
+        } else if (nativeAudioTracks) {
+          try {
+            for (let index = 0; index < nativeAudioTracks.length; index += 1) {
+              nativeAudioTracks[index].enabled = index === preferred.index;
+            }
+            activeAudio = preferred.index;
+          } catch {
+            // Some Android WebViews expose read-only audio track state.
+          }
         }
       }
     }
@@ -1113,6 +1136,12 @@ export default function MediaPlayerControls({
     }
 
     const chosenTrack = choice.raw || choice;
+    const context =
+      typeof window !== "undefined"
+        ? window.__MG_PLAYER_CONTEXT__ || { title }
+        : { title };
+    rememberAudioPreference(context, chosenTrack);
+
     const nextPreferences = writeTrackPreferences({
       ...trackPreferencesRef.current,
       audioLanguage:
