@@ -375,7 +375,11 @@ export default function ContinueWatchingRow() {
                 ).padStart(2, "0")}`
               : "";
 
-          const detailLine = [episodeLabel, remaining]
+          const detailLine = [
+            episodeLabel,
+            meta.episodeName,
+            remaining,
+          ]
             .filter(Boolean)
             .join(" · ");
 
