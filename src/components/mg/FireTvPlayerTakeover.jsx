@@ -6,97 +6,63 @@ const isFireTv = () =>
   typeof navigator !== "undefined" &&
   FIRE_TV_RE.test(String(navigator.userAgent || ""));
 
-const visible = (element) => {
-  if (!(element instanceof HTMLElement)) {
-    return false;
-  }
+const isElement = (value) =>
+  typeof HTMLElement !== "undefined" &&
+  value instanceof HTMLElement;
 
-  const rect = element.getBoundingClientRect();
+const PLAYER_CONTROL_SELECTOR = [
+  'select[aria-label="Choose playback source"]',
+  'select[aria-label="Choose source or quality while loading"]',
+  'button[aria-label="No sound"]',
+  'button[title="No sound"]',
+  'button[aria-label="Fullscreen"]',
+  'button[aria-label="Exit fullscreen"]',
+  'button[aria-label="Back to main menu"]',
+].join(",");
 
-  if (rect.width < 4 || rect.height < 4) {
-    return false;
-  }
-
-  const style = window.getComputedStyle(element);
-
-  return (
-    style.display !== "none" &&
-    style.visibility !== "hidden" &&
-    Number(style.opacity || 1) > 0.02
-  );
-};
-
-const findVisibleMedia = () => {
-  const media = Array.from(
-    document.querySelectorAll("video, iframe")
-  ).filter(visible);
-
-  if (!media.length) {
+const findPlayerOverlay = () => {
+  if (typeof document === "undefined") {
     return null;
   }
 
-  return media
-    .map((element) => {
-      const rect = element.getBoundingClientRect();
+  /*
+   * VideoPlayer's outer shell is the only Media God overlay that uses
+   * bg-black/95. Detect that shell first so the navbar disappears before
+   * the stream has even finished mounting its <video> element.
+   */
+  const overlays = Array.from(
+    document.querySelectorAll(".fixed.inset-0")
+  ).reverse();
 
-      return {
-        element,
-        area: rect.width * rect.height,
-      };
-    })
-    .sort((a, b) => b.area - a.area)[0]?.element || null;
-};
-
-const findPlayerControl = () => {
-  const selectors = [
-    'select[aria-label="Choose playback source"]',
-    'select[aria-label="Choose source or quality while loading"]',
-    'button[aria-label="No sound"]',
-    'button[title="No sound"]',
-    'button[aria-label="Fullscreen"]',
-    'button[aria-label="Exit fullscreen"]',
-    'button[aria-label="Back to main menu"]',
-  ];
-
-  for (const selector of selectors) {
-    const match = Array.from(
-      document.querySelectorAll(selector)
-    ).reverse().find(visible);
-
-    if (match instanceof HTMLElement) {
-      return match;
-    }
-  }
-
-  return null;
-};
-
-const findPlayerOverlay = (media, control) => {
-  for (const item of [media, control]) {
-    if (!(item instanceof HTMLElement)) {
+  for (const overlay of overlays) {
+    if (!isElement(overlay)) {
       continue;
     }
 
-    const explicit = item.closest('[data-mg-player-overlay="true"]');
+    const isPlayerShell =
+      overlay.classList.contains("bg-black/95") ||
+      Boolean(overlay.querySelector(PLAYER_CONTROL_SELECTOR));
 
-    if (explicit instanceof HTMLElement) {
-      return explicit;
-    }
-
-    const fixed = item.closest(".fixed.inset-0");
-
-    if (fixed instanceof HTMLElement) {
-      return fixed;
-    }
-
-    const dialog = item.closest('[role="dialog"], [aria-modal="true"]');
-
-    if (dialog instanceof HTMLElement) {
-      return dialog;
+    if (isPlayerShell) {
+      return overlay;
     }
   }
 
   return null;
+};
+
+const findActiveMedia = (overlay) => {
+  if (!isElement(overlay)) {
+    return null;
+  }
+
+  const media = Array.from(
+    overlay.querySelectorAll("video, iframe")
+  );
+
+  return media.length
+    ? media[media.length - 1]
+    : null;
 };
 
 export default function FireTvPlayerTakeover() {
@@ -105,20 +71,22 @@ export default function FireTvPlayerTakeover() {
       return undefined;
     }
 
-    const originals = new Map();
-    let playerOpen = false;
+    const originalStyles = new Map();
+    let activeOverlay = null;
+    let lastSeenAt = 0;
     let frame = 0;
+    let publishedOpen = false;
 
     const remember = (element) => {
-      if (!(element instanceof HTMLElement) || originals.has(element)) {
+      if (!isElement(element) || originalStyles.has(element)) {
         return;
       }
 
-      originals.set(element, element.getAttribute("style"));
+      originalStyles.set(element, element.getAttribute("style"));
     };
 
     const force = (element, property, value) => {
-      if (!(element instanceof HTMLElement)) {
+      if (!isElement(element)) {
         return;
       }
 
@@ -127,11 +95,11 @@ export default function FireTvPlayerTakeover() {
     };
 
     const publish = (open) => {
-      if (playerOpen === open) {
+      if (publishedOpen === open) {
         return;
       }
 
-      playerOpen = open;
+      publishedOpen = open;
 
       window.dispatchEvent(
         new CustomEvent("mg:player-visibility", {
@@ -140,9 +108,9 @@ export default function FireTvPlayerTakeover() {
       );
     };
 
-    const restoreAll = () => {
-      originals.forEach((style, element) => {
-        if (!(element instanceof HTMLElement)) {
+    const restoreStyles = () => {
+      originalStyles.forEach((style, element) => {
+        if (!isElement(element)) {
           return;
         }
 
@@ -153,21 +121,56 @@ export default function FireTvPlayerTakeover() {
         }
       });
 
-      originals.clear();
+      originalStyles.clear();
+      activeOverlay = null;
+      lastSeenAt = 0;
 
       document.documentElement.classList.remove("mg-fire-tv-player-open");
       document.body?.classList.remove("mg-fire-tv-player-open");
+
+      publish(false);
     };
 
-    const apply = (media, control, overlay) => {
+    const clearConstrainingAncestors = (overlay) => {
+      let node = overlay?.parentElement || null;
+
+      while (isElement(node) && node !== document.body) {
+        force(node, "transform", "none");
+        force(node, "filter", "none");
+        force(node, "perspective", "none");
+        force(node, "contain", "none");
+        force(node, "clip-path", "none");
+        force(node, "overflow", "visible");
+        force(node, "max-width", "none");
+        force(node, "max-height", "none");
+        force(node, "margin-left", "0");
+
+        node = node.parentElement;
+      }
+    };
+
+    const apply = (overlay) => {
+      if (!isElement(overlay)) {
+        return;
+      }
+
+      if (activeOverlay && activeOverlay !== overlay) {
+        restoreStyles();
+      }
+
+      activeOverlay = overlay;
+      lastSeenAt = Date.now();
+
       document.documentElement.classList.add("mg-fire-tv-player-open");
       document.body?.classList.add("mg-fire-tv-player-open");
+      publish(true);
 
-      /* The navbar is not allowed to exist visually while media is open. */
+      clearConstrainingAncestors(overlay);
+
       document
         .querySelectorAll("#root .mg-fire-tv-nav")
         .forEach((nav) => {
-          if (!(nav instanceof HTMLElement)) {
+          if (!isElement(nav)) {
             return;
           }
 
@@ -177,83 +180,101 @@ export default function FireTvPlayerTakeover() {
           force(nav, "width", "0");
           force(nav, "min-width", "0");
           force(nav, "max-width", "0");
+          force(nav, "flex-basis", "0");
         });
 
       const main = document.querySelector("#root main");
 
-      if (main instanceof HTMLElement) {
+      if (isElement(main)) {
+        force(main, "position", "static");
         force(main, "width", "100vw");
-        force(main, "max-width", "100vw");
         force(main, "min-width", "100vw");
+        force(main, "max-width", "100vw");
+        force(main, "height", "100vh");
         force(main, "margin", "0");
         force(main, "margin-left", "0");
         force(main, "padding", "0");
         force(main, "flex", "0 0 100vw");
-        force(main, "overflow", "hidden");
+        force(main, "overflow", "visible");
         force(main, "transform", "none");
+        force(main, "filter", "none");
+        force(main, "perspective", "none");
+        force(main, "contain", "none");
+      }
+
+      if (isElement(document.body)) {
+        force(document.body, "overflow", "hidden");
+        force(document.body, "margin", "0");
+        force(document.body, "padding", "0");
+      }
+
+      const root = document.getElementById("root");
+
+      if (isElement(root)) {
+        force(root, "width", "100vw");
+        force(root, "max-width", "100vw");
+        force(root, "margin", "0");
+        force(root, "padding", "0");
+        force(root, "transform", "none");
+        force(root, "overflow", "visible");
       }
 
       document
         .querySelectorAll('button[data-mg-global-back="true"]')
         .forEach((button) => {
-          if (button instanceof HTMLElement) {
+          if (isElement(button)) {
             force(button, "display", "none");
           }
         });
 
-      if (document.body instanceof HTMLElement) {
-        force(document.body, "overflow", "hidden");
+      force(overlay, "position", "fixed");
+      force(overlay, "inset", "0");
+      force(overlay, "left", "0");
+      force(overlay, "top", "0");
+      force(overlay, "right", "0");
+      force(overlay, "bottom", "0");
+      force(overlay, "width", "100vw");
+      force(overlay, "height", "100vh");
+      force(overlay, "min-width", "100vw");
+      force(overlay, "min-height", "100vh");
+      force(overlay, "max-width", "none");
+      force(overlay, "max-height", "none");
+      force(overlay, "margin", "0");
+      force(overlay, "padding", "0");
+      force(overlay, "transform", "none");
+      force(overlay, "overflow", "hidden");
+      force(overlay, "background", "#000");
+      force(overlay, "z-index", "2147483646");
+
+      const wrapper = overlay.firstElementChild;
+
+      if (isElement(wrapper)) {
+        force(wrapper, "position", "absolute");
+        force(wrapper, "inset", "0");
+        force(wrapper, "width", "100vw");
+        force(wrapper, "height", "100vh");
+        force(wrapper, "min-width", "100vw");
+        force(wrapper, "min-height", "100vh");
+        force(wrapper, "max-width", "none");
+        force(wrapper, "max-height", "none");
+        force(wrapper, "margin", "0");
+        force(wrapper, "padding", "0");
+        force(wrapper, "transform", "none");
+        force(wrapper, "overflow", "hidden");
       }
 
-      if (overlay instanceof HTMLElement) {
-        force(overlay, "position", "fixed");
-        force(overlay, "inset", "0");
-        force(overlay, "left", "0");
-        force(overlay, "top", "0");
-        force(overlay, "right", "0");
-        force(overlay, "bottom", "0");
-        force(overlay, "width", "100vw");
-        force(overlay, "height", "100vh");
-        force(overlay, "min-width", "100vw");
-        force(overlay, "min-height", "100vh");
-        force(overlay, "max-width", "none");
-        force(overlay, "max-height", "none");
-        force(overlay, "margin", "0");
-        force(overlay, "padding", "0");
-        force(overlay, "transform", "none");
-        force(overlay, "overflow", "hidden");
-        force(overlay, "background", "#000");
-        force(overlay, "z-index", "2147483646");
+      const media = findActiveMedia(overlay);
 
-        const wrapper = overlay.firstElementChild;
+      if (isElement(media)) {
+        const stage = media.parentElement;
 
-        if (wrapper instanceof HTMLElement) {
-          force(wrapper, "position", "absolute");
-          force(wrapper, "inset", "0");
-          force(wrapper, "width", "100vw");
-          force(wrapper, "height", "100vh");
-          force(wrapper, "max-width", "none");
-          force(wrapper, "max-height", "none");
-          force(wrapper, "margin", "0");
-          force(wrapper, "padding", "0");
-          force(wrapper, "transform", "none");
-          force(wrapper, "overflow", "hidden");
-        }
-      }
-
-      const activeMedia =
-        media instanceof HTMLElement
-          ? media
-          : overlay?.querySelector?.("video, iframe") || null;
-
-      if (activeMedia instanceof HTMLElement) {
-        const stage = activeMedia.parentElement;
-
-        if (stage instanceof HTMLElement) {
+        if (isElement(stage)) {
           force(stage, "position", "fixed");
           force(stage, "inset", "0");
           force(stage, "width", "100vw");
           force(stage, "height", "100vh");
+          force(stage, "min-width", "100vw");
+          force(stage, "min-height", "100vh");
           force(stage, "max-width", "none");
           force(stage, "max-height", "none");
           force(stage, "margin", "0");
@@ -264,33 +285,27 @@ export default function FireTvPlayerTakeover() {
           force(stage, "transform", "none");
           force(stage, "overflow", "hidden");
           force(stage, "background", "#000");
-          force(stage, "z-index", "2147483646");
         }
 
-        force(activeMedia, "position", "fixed");
-        force(activeMedia, "inset", "0");
-        force(activeMedia, "left", "0");
-        force(activeMedia, "top", "0");
-        force(activeMedia, "width", "100vw");
-        force(activeMedia, "height", "100vh");
-        force(activeMedia, "min-width", "100vw");
-        force(activeMedia, "min-height", "100vh");
-        force(activeMedia, "max-width", "none");
-        force(activeMedia, "max-height", "none");
-        force(activeMedia, "margin", "0");
-        force(activeMedia, "padding", "0");
-        force(activeMedia, "transform", "none");
-        force(activeMedia, "object-fit", "cover");
-        force(activeMedia, "object-position", "center center");
-        force(activeMedia, "aspect-ratio", "auto");
-        force(activeMedia, "background", "#000");
-      }
+        force(media, "position", "absolute");
+        force(media, "inset", "0");
+        force(media, "width", "100vw");
+        force(media, "height", "100vh");
+        force(media, "min-width", "100vw");
+        force(media, "min-height", "100vh");
+        force(media, "max-width", "none");
+        force(media, "max-height", "none");
+        force(media, "margin", "0");
+        force(media, "padding", "0");
+        force(media, "transform", "none");
+        force(media, "background", "#000");
 
-      if (control instanceof HTMLElement) {
-        const controlOverlay = control.closest(".fixed.inset-0");
-
-        if (controlOverlay instanceof HTMLElement) {
-          force(controlOverlay, "z-index", "2147483646");
+        if (media.tagName === "VIDEO") {
+          force(media, "object-fit", "cover");
+          force(media, "object-position", "center center");
+          force(media, "aspect-ratio", "auto");
+        } else {
+          force(media, "border", "0");
         }
       }
     };
@@ -298,22 +313,22 @@ export default function FireTvPlayerTakeover() {
     const sync = () => {
       frame = 0;
 
-      const media = findVisibleMedia();
-      const control = findPlayerControl();
-      const overlay = findPlayerOverlay(media, control);
-      const open = Boolean(media || (control && overlay));
+      const overlay = findPlayerOverlay();
 
-      if (open) {
-        apply(media, control, overlay);
-        publish(true);
+      if (overlay) {
+        apply(overlay);
         return;
       }
 
-      if (playerOpen || originals.size > 0) {
-        restoreAll();
+      /* Keep the takeover alive during brief source-switch DOM gaps. */
+      if (activeOverlay && Date.now() - lastSeenAt < 900) {
+        apply(activeOverlay);
+        return;
       }
 
-      publish(false);
+      if (activeOverlay || originalStyles.size > 0) {
+        restoreStyles();
+      }
     };
 
     const schedule = () => {
@@ -330,10 +345,10 @@ export default function FireTvPlayerTakeover() {
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ["class", "src", "style", "data-mg-fullscreen"],
+      attributeFilter: ["class", "style", "data-mg-fullscreen"],
     });
 
-    const watchdog = window.setInterval(sync, 100);
+    const watchdog = window.setInterval(sync, 80);
 
     window.addEventListener("resize", schedule);
     window.addEventListener("orientationchange", schedule);
@@ -350,8 +365,7 @@ export default function FireTvPlayerTakeover() {
         window.cancelAnimationFrame(frame);
       }
 
-      restoreAll();
-      publish(false);
+      restoreStyles();
     };
   }, []);
 
