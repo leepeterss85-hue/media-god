@@ -7,6 +7,7 @@ import {
   Activity,
   Bookmark,
   Calendar,
+  Database,
   Film,
   HardDrive,
   Heart,
@@ -75,6 +76,11 @@ const NAV = [
     id: "addons",
     label: "Addons",
     icon: Puzzle,
+  },
+  {
+    id: "sources",
+    label: "Sources",
+    icon: Database,
   },
   {
     id: "roadmap",
