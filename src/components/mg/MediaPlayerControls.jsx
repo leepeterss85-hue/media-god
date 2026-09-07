@@ -1149,7 +1149,7 @@ export default function MediaPlayerControls({
         )}
       >
         {isAppFullscreen ? (
-          <div className="pointer-events-auto flex items-center gap-2 bg-gradient-to-b from-black/90 via-black/55 to-transparent px-3 pb-10 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-5">
+          <div data-mg-player-control-topbar="true" className="pointer-events-auto flex items-center gap-2 bg-gradient-to-b from-black/90 via-black/55 to-transparent px-3 pb-10 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-5">
             <button
               type="button"
               onClick={() => {
