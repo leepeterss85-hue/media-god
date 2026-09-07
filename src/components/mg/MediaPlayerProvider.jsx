@@ -25,6 +25,7 @@ import {
 } from "@/components/mg/mediaCompatibility";
 import { devicePlaybackReliabilityAdjustment } from "@/components/mg/playbackReliability";
 import { readPlaybackPreferences } from "@/components/mg/playbackPreferences";
+import { debridProviderScoreHints } from "@/components/mg/debridProviderReliability";
 
 const PlayerContext = createContext(null);
 
@@ -142,6 +143,19 @@ const getSourceUrl = (item) =>
       ""
   ).trim();
 
+const sourceMagnetHash = (item) => {
+  const raw = getSourceUrl(item);
+  const match = raw.match(/btih:([a-f0-9]{40}|[a-f0-9]{64})/i);
+  const hash = String(
+    match?.[1] ||
+      (/^[a-f0-9]{40}$|^[a-f0-9]{64}$/i.test(raw) ? raw : "")
+  )
+    .toLowerCase()
+    .trim();
+
+  return hash;
+};
+
 const isMagnetSource = (item) => {
   const value =
     getSourceUrl(
@@ -192,6 +206,55 @@ const normaliseSource = (item) => {
 
 const dedupeSources = (items) =>
   mergeAddonStreams(items);
+
+const annotateDebridCache = async (items, hasDebrid) => {
+  const sources = Array.isArray(items) ? items : [];
+  if (!hasDebrid) return sources;
+
+  const hashes = sources
+    .filter(isMagnetSource)
+    .map(sourceMagnetHash)
+    .filter(Boolean)
+    .filter((hash, index, list) => list.indexOf(hash) === index)
+    .slice(0, 80);
+
+  if (hashes.length === 0) return sources;
+
+  try {
+    const response = await base44.functions.invoke(
+      "multiDebrid",
+      {
+        action: "check_cache",
+        hashes,
+        provider_scores: debridProviderScoreHints(),
+      }
+    );
+    const data = unwrap(response);
+    const cached = data?.cached || {};
+    const best = data?.bestProviderByHash || {};
+    const providerStats = data?.providerStats || {};
+
+    return sources.map((item) => {
+      const hash = sourceMagnetHash(item);
+      if (!hash) return item;
+
+      const cachedProviders = Object.keys(cached).filter(
+        (key) => cached?.[key]?.[hash] === true
+      );
+
+      return {
+        ...item,
+        debridCacheChecked: true,
+        debridCached: cachedProviders.length > 0,
+        cachedProviders,
+        debridProvider: best?.[hash] || item?.debridProvider || "",
+        debridProviderStats: providerStats,
+      };
+    });
+  } catch {
+    return sources;
+  }
+};
 
 const scoreSource = (item) => {
   const label =
@@ -271,9 +334,15 @@ const scoreSource = (item) => {
         Number(item?.playbackPriority || 0)
       )
     ) * 10000;
+  const debridCacheScore = item?.debridCached
+    ? 32000 + Math.min(6000, Number(item?.cachedProviders?.length || 0) * 1200)
+    : item?.debridCacheChecked && isMagnetSource(item)
+      ? -9000
+      : 0;
 
   return (
     explicitPriority +
+    debridCacheScore +
     rdLibraryBonus +
     directBonus +
     audioCompatibility +
@@ -1633,10 +1702,20 @@ export function PlayerProvider({
             ]
           );
 
+        const cacheAnnotatedCombined =
+          await annotateDebridCache(
+            combined,
+            hasDebrid
+          );
+
+        if (!isCurrentPlay()) {
+          return;
+        }
+
         let orderedSources =
           orderSources({
             sources:
-              combined,
+              cacheAnnotatedCombined,
 
             hasDebrid,
 
