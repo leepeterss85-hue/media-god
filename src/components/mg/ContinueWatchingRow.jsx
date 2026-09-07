@@ -205,26 +205,26 @@ export default function ContinueWatchingRow() {
 
         entries.forEach((entry) => {
           const identity = identityFor(entry.meta);
-          const existing = byIdentity.get(identity);
+          const state =
+            entry.ratio >= WATCHED_THRESHOLD
+              ? "completed"
+              : "resume";
+          const stateIdentity = `${identity}:${state}`;
+          const existing = byIdentity.get(stateIdentity);
 
+          /*
+           * Entries are already newest-first. Keep the newest row for each
+           * content/state pair so a fresh replay cannot be hidden by an older
+           * completed record. Completed history and in-progress resume state
+           * deliberately remain separate because Recently Watched uses the
+           * completed rows.
+           */
           if (!existing) {
-            byIdentity.set(identity, entry);
+            byIdentity.set(stateIdentity, entry);
             return;
           }
 
-          const existingCompleted = existing.ratio >= WATCHED_THRESHOLD;
-          const entryCompleted = entry.ratio >= WATCHED_THRESHOLD;
-
-          const replaceExisting =
-            (!existingCompleted && entryCompleted) ||
-            (existingCompleted === entryCompleted &&
-              !existing.meta.canonical &&
-              entry.meta.canonical);
-
-          if (replaceExisting) {
-            if (existing.item?.id) duplicateIds.add(existing.item.id);
-            byIdentity.set(identity, entry);
-          } else if (entry.item?.id) {
+          if (entry.item?.id) {
             duplicateIds.add(entry.item.id);
           }
         });
