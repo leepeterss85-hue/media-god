@@ -34,6 +34,16 @@ const isMagnet = (value) =>
     .toLowerCase()
     .startsWith("magnet:");
 
+const magnetHash = (value) => {
+  const raw = String(value || "").trim();
+  const match = raw.match(/btih:([a-f0-9]{40}|[a-f0-9]{64})/i);
+  const hash = String(match?.[1] || (/^[a-f0-9]{40}$|^[a-f0-9]{64}$/i.test(raw) ? raw : ""))
+    .toLowerCase()
+    .trim();
+
+  return hash;
+};
+
 const currentFilePath = (files) =>
   (
     files?.find((file) => file.selected) ||
@@ -647,6 +657,86 @@ export default function VideoPlayer({
               }
 
               return;
+            }
+
+            const hash = magnetHash(magnet);
+            let debridProvider = String(active?.debridProvider || "")
+              .toLowerCase()
+              .replace(/[^a-z]/g, "");
+
+            if (!debridProvider && hash && source?.hasDebrid) {
+              try {
+                const cacheResponse = await base44.functions.invoke(
+                  "multiDebrid",
+                  {
+                    action: "check_cache",
+                    hashes: [hash],
+                  }
+                );
+
+                const cacheData = cacheResponse?.data || {};
+                debridProvider = String(
+                  cacheData?.bestProviderByHash?.[hash] || ""
+                )
+                  .toLowerCase()
+                  .replace(/[^a-z]/g, "");
+              } catch {
+                debridProvider = "";
+              }
+            }
+
+            if (debridProvider && debridProvider !== "realdebrid") {
+              try {
+                const multiResponse = await base44.functions.invoke(
+                  "multiDebrid",
+                  {
+                    action: "resolve",
+                    provider: debridProvider,
+                    source: magnet,
+                    ...(source?.rdSeason != null
+                      ? { season: source.rdSeason }
+                      : {}),
+                    ...(source?.rdEpisode != null
+                      ? { episode: source.rdEpisode }
+                      : {}),
+                  }
+                );
+
+                if (cancelled) return;
+
+                const multiData = multiResponse?.data || {};
+                if (multiData?.url) {
+                  setRdOverride({
+                    src: multiData.url,
+                    label:
+                      multiData.filename ||
+                      multiData.providerName ||
+                      active?.label ||
+                      "Debrid Stream",
+                    file: multiData.filename || "",
+                    provider: multiData.provider || debridProvider,
+                  });
+                  setRdFiles([]);
+                  setRdResolving(false);
+                  return;
+                }
+
+                throw new Error(
+                  multiData?.error ||
+                    `${multiData?.providerName || "Debrid provider"} did not return a playable stream.`
+                );
+              } catch (multiError) {
+                if (!source?.hasRd) {
+                  throw multiError;
+                }
+                /* Existing Real-Debrid resolver remains the safe fallback. */
+              }
+            }
+
+            if (!source?.hasRd && source?.hasDebrid) {
+              throw new Error(
+                "No enabled debrid provider reported this source as cached."
+              );
             }
 
             const res =
