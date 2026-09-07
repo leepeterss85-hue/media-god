@@ -1263,6 +1263,7 @@ export function PlayerProvider({
               ];
 
         const initialPrimary = initialSources[0] || {};
+        let fastStartPrimaryUrl = getSourceUrl(initialPrimary);
         const suppliedImdbId = String(
           request?.imdbId || request?.imdb_id || ""
         ).trim();
@@ -1359,7 +1360,22 @@ export function PlayerProvider({
               };
             }
 
+            if (fastStartPrimaryUrl) {
+              const lockedIndex = ordered.findIndex(
+                (item) => getSourceUrl(item) === fastStartPrimaryUrl
+              );
+
+              if (lockedIndex > 0) {
+                const [locked] = ordered.splice(lockedIndex, 1);
+                ordered.unshift(locked);
+              }
+            }
+
             const primary = ordered[0] || {};
+
+            if (!fastStartPrimaryUrl) {
+              fastStartPrimaryUrl = getSourceUrl(primary);
+            }
 
             return {
               ...current,
@@ -1633,6 +1649,17 @@ export function PlayerProvider({
                 true,
             },
           ];
+        }
+
+        if (fastStartPrimaryUrl) {
+          const lockedIndex = orderedSources.findIndex(
+            (item) => getSourceUrl(item) === fastStartPrimaryUrl
+          );
+
+          if (lockedIndex > 0) {
+            const [locked] = orderedSources.splice(lockedIndex, 1);
+            orderedSources.unshift(locked);
+          }
         }
 
         const primary =
