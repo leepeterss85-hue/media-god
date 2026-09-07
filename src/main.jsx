@@ -35,6 +35,11 @@ const isVisible = (element) => {
   )
 }
 
+const lastItem = (items) =>
+  items.length > 0
+    ? items[items.length - 1]
+    : null
+
 const topVisibleOverlay = () => {
   const overlays = Array.from(
     document.querySelectorAll(
@@ -46,7 +51,7 @@ const topVisibleOverlay = () => {
     return null
   }
 
-  return overlays
+  const sorted = overlays
     .map((element, index) => {
       const zIndex = Number(window.getComputedStyle(element).zIndex)
 
@@ -61,7 +66,8 @@ const topVisibleOverlay = () => {
         ? a.index - b.index
         : a.zIndex - b.zIndex
     )
-    .at(-1)?.element || null
+
+  return lastItem(sorted)?.element || null
 }
 
 const findBackTarget = (scope) => {
@@ -151,13 +157,13 @@ const installFireTvBackHandler = () => {
 
       lastHandledAt = now
 
-      const fullscreenExit = Array.from(
+      const fullscreenButtons = Array.from(
         document.querySelectorAll(
           'button[aria-label="Exit fullscreen"]'
         )
-      )
-        .filter(isVisible)
-        .at(-1)
+      ).filter(isVisible)
+
+      const fullscreenExit = lastItem(fullscreenButtons)
 
       if (fullscreenExit) {
         fullscreenExit.click()
@@ -172,13 +178,13 @@ const installFireTvBackHandler = () => {
         return
       }
 
-      const globalBack = Array.from(
+      const globalBackButtons = Array.from(
         document.querySelectorAll(
           'button[data-mg-global-back="true"]'
         )
-      )
-        .filter(isVisible)
-        .at(-1)
+      ).filter(isVisible)
+
+      const globalBack = lastItem(globalBackButtons)
 
       if (globalBack) {
         globalBack.click()
@@ -190,8 +196,9 @@ const installFireTvBackHandler = () => {
       )
 
       if (homeButton instanceof HTMLElement && isVisible(homeButton)) {
+        const className = String(homeButton.className || '')
         const isAlreadyHome =
-          homeButton.className.includes('text-mg-green') ||
+          className.includes('text-mg-green') ||
           homeButton.getAttribute('aria-current') === 'page'
 
         if (!isAlreadyHome) {
