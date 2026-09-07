@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { Smartphone } from "lucide-react";
 import { base44 } from "@/api/base44Client";
@@ -64,22 +64,6 @@ export default function PlayerQrRemote({
     onExit,
   };
 
-  const serialisedSourceLabels = useMemo(
-    () => JSON.stringify(sourceLabels.map((label) => String(label || ""))),
-    [sourceLabels]
-  );
-
-  const serialisedFileLabels = useMemo(
-    () =>
-      JSON.stringify(
-        fileOptions.map((file) => ({
-          id: String(file?.id ?? ""),
-          label: String(file?.label || file?.path || file?.id || "File"),
-        }))
-      ),
-    [fileOptions]
-  );
-
   const getVideo = () =>
     liveVideoRef?.current ||
     videoRef?.current ||
@@ -113,7 +97,7 @@ export default function PlayerQrRemote({
               label: String(file?.label || file?.path || file?.id || "File"),
             }))
           ),
-          active_file_id: String(activeFileId || ""),
+          active_file_id: String(activeFileRef.current || ""),
           audio_labels: "[]",
           active_audio_index: -1,
           current_time: 0,
