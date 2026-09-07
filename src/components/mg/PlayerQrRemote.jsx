@@ -80,6 +80,9 @@ export default function PlayerQrRemote({
         const expiresAt = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();
         const remoteUrl = `${window.location.origin}/remote/${sessionCode}`;
 
+        const playerContext =
+          window.__MG_PLAYER_CONTEXT__ || {};
+
         const created = await base44.entities.PlayerRemoteSession.create({
           session_code: sessionCode,
           title: titleRef.current || "Now playing",
@@ -100,6 +103,11 @@ export default function PlayerQrRemote({
           active_file_id: String(activeFileRef.current || ""),
           audio_labels: "[]",
           active_audio_index: -1,
+          media_type: playerContext?.mediaType === "tv" ? "tv" : "movie",
+          tmdb_id: String(playerContext?.tmdbId || ""),
+          season_number: Number(playerContext?.season || 0),
+          episode_number: Number(playerContext?.episode || 0),
+          auto_next: playerContext?.autoNext !== false,
           current_time: 0,
           duration: 0,
           paused: true,
@@ -182,6 +190,43 @@ export default function PlayerQrRemote({
                   // Some Android WebViews expose read-only audio track state.
                 }
               }
+            } else if (command === "next_episode") {
+              window.dispatchEvent(
+                new CustomEvent("mg:play-next-episode")
+              );
+            } else if (command === "episode") {
+              let detail = {};
+
+              try {
+                detail = JSON.parse(String(value || "{}"));
+              } catch {
+                detail = {};
+              }
+
+              window.dispatchEvent(
+                new CustomEvent("mg:play-specific-episode", {
+                  detail: {
+                    tmdbId:
+                      detail?.tmdbId ||
+                      window.__MG_PLAYER_CONTEXT__?.tmdbId ||
+                      null,
+                    seasonNumber: parseNumber(detail?.season, 0),
+                    episodeNumber: parseNumber(detail?.episode, 0),
+                    seriesTitle:
+                      window.__MG_PLAYER_CONTEXT__?.title ||
+                      titleRef.current ||
+                      "TV Show",
+                  },
+                })
+              );
+            } else if (command === "auto_next") {
+              const enabled = String(value) !== "0" && String(value) !== "false";
+
+              window.dispatchEvent(
+                new CustomEvent("mg:set-auto-next", {
+                  detail: { enabled },
+                })
+              );
             } else if (command === "exit") {
               callbacksRef.current.onExit?.();
             }
@@ -209,6 +254,8 @@ export default function PlayerQrRemote({
           try {
             const audioTracks = [];
             let activeAudioIndex = -1;
+            const playerContext =
+              window.__MG_PLAYER_CONTEXT__ || {};
 
             if (video?.audioTracks && typeof video.audioTracks.length === "number") {
               for (let index = 0; index < video.audioTracks.length; index += 1) {
@@ -236,6 +283,11 @@ export default function PlayerQrRemote({
               active_file_id: String(activeFileRef.current || ""),
               audio_labels: JSON.stringify(audioTracks),
               active_audio_index: activeAudioIndex,
+              media_type: playerContext?.mediaType === "tv" ? "tv" : "movie",
+              tmdb_id: String(playerContext?.tmdbId || ""),
+              season_number: Number(playerContext?.season || 0),
+              episode_number: Number(playerContext?.episode || 0),
+              auto_next: playerContext?.autoNext !== false,
               current_time: video ? Number(video.currentTime || 0) : 0,
               duration:
                 video && Number.isFinite(video.duration)
