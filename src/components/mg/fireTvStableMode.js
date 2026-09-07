@@ -28,7 +28,22 @@ const isFireTv = () => {
     return false;
   }
 
-  return FIRE_TV_RE.test(String(navigator.userAgent || ""));
+  const userAgent = String(navigator.userAgent || "");
+  const classDetected =
+    typeof document !== "undefined" &&
+    (
+      document.documentElement.classList.contains("mg-fire-tv") ||
+      document.body?.classList.contains("mg-fire-tv")
+    );
+  const androidNoTouch =
+    /Android/i.test(userAgent) &&
+    Number(navigator.maxTouchPoints || 0) === 0;
+
+  return (
+    FIRE_TV_RE.test(userAgent) ||
+    classDetected ||
+    androidNoTouch
+  );
 };
 
 const visible = (element) => {
@@ -62,7 +77,33 @@ const visible = (element) => {
 };
 
 const mediaGodAppReady = () =>
-  document.querySelector("#root .mg-fire-tv-nav") instanceof HTMLElement;
+  document.querySelector("#root main") instanceof HTMLElement;
+
+const MAIN_FOCUSABLE = [
+  'button:not([disabled])',
+  'a[href]',
+  'input:not([disabled]):not([type="hidden"])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[role="button"]:not([aria-disabled="true"])',
+  '[role="menuitem"]:not([aria-disabled="true"])',
+  '[role="option"]:not([aria-disabled="true"])',
+  '[role="tab"]:not([aria-disabled="true"])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(",");
+
+const firstMainFocusable = () => {
+  const main = document.querySelector("#root main");
+
+  if (!(main instanceof HTMLElement)) {
+    return null;
+  }
+
+  return (
+    Array.from(main.querySelectorAll(MAIN_FOCUSABLE)).find(visible) ||
+    null
+  );
+};
 
 const overlayOpen = () =>
   Array.from(
@@ -221,7 +262,11 @@ const moveSidebar = (current, direction) => {
   const index = buttons.indexOf(current);
 
   if (direction === "right") {
-    return focusNow(heroTarget() || firstUsefulCard());
+    return focusNow(
+      heroTarget() ||
+      firstUsefulCard() ||
+      firstMainFocusable()
+    );
   }
 
   if (index < 0) {
