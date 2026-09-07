@@ -1180,46 +1180,45 @@ export function PlayerProvider({
   const playSequenceRef = useRef(0);
 
   useEffect(() => {
-    let mounted =
-      true;
+    let mounted = true;
 
-    base44.auth
-      .me()
-      .then(
-        (user) => {
-          if (
-            mounted
-          ) {
-            const realDebridConnected = Boolean(user?.rd_token);
-            const anyDebridConnected = Boolean(
-              user?.rd_token ||
-                user?.alldebrid_token ||
-                user?.torbox_token ||
-                user?.premiumize_token ||
-                user?.debridlink_token
-            );
+    const syncDebridConnections = () => {
+      base44.auth
+        .me()
+        .then((user) => {
+          if (!mounted) return;
 
-            setHasRd(realDebridConnected);
-            setHasDebrid(anyDebridConnected);
-          }
-        }
-      )
-      .catch(() => {
-        if (
-          mounted
-        ) {
-          setHasRd(
-            false
+          const realDebridConnected = Boolean(user?.rd_token);
+          const anyDebridConnected = Boolean(
+            user?.rd_token ||
+              user?.alldebrid_token ||
+              user?.torbox_token ||
+              user?.premiumize_token ||
+              user?.debridlink_token
           );
-          setHasDebrid(
-            false
-          );
-        }
-      });
+
+          setHasRd(realDebridConnected);
+          setHasDebrid(anyDebridConnected);
+        })
+        .catch(() => {
+          if (!mounted) return;
+          setHasRd(false);
+          setHasDebrid(false);
+        });
+    };
+
+    syncDebridConnections();
+    window.addEventListener(
+      "mg:debrid-providers-changed",
+      syncDebridConnections
+    );
 
     return () => {
-      mounted =
-        false;
+      mounted = false;
+      window.removeEventListener(
+        "mg:debrid-providers-changed",
+        syncDebridConnections
+      );
     };
   }, []);
 
