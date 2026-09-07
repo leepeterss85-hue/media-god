@@ -49,6 +49,26 @@
       "type": "number",
       "default": -1
     },
+    "media_type": {
+      "type": "string",
+      "default": "movie"
+    },
+    "tmdb_id": {
+      "type": "string",
+      "default": ""
+    },
+    "season_number": {
+      "type": "number",
+      "default": 0
+    },
+    "episode_number": {
+      "type": "number",
+      "default": 0
+    },
+    "auto_next": {
+      "type": "boolean",
+      "default": true
+    },
     "current_time": {
       "type": "number",
       "default": 0
