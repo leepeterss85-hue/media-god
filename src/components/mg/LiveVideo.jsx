@@ -696,6 +696,15 @@ const LiveVideo = forwardRef(
       let hlsNetworkRecovery =
         0;
 
+      let hlsVariantRecovery =
+        0;
+
+      const hlsTriedAudioTracks =
+        new Set();
+
+      const hlsTriedLevels =
+        new Set();
+
       let nativeAudioTimer =
         null;
 
@@ -1229,6 +1238,110 @@ const LiveVideo = forwardRef(
                   true,
               });
 
+            const tryAlternativeHlsVariant = () => {
+              if (!hls || hlsVariantRecovery >= 4) return "";
+
+              const audioTracks = Array.isArray(hls.audioTracks)
+                ? hls.audioTracks
+                : [];
+              const currentAudio = Number.isFinite(Number(hls.audioTrack))
+                ? Number(hls.audioTrack)
+                : -1;
+
+              if (audioTracks.length > 1) {
+                const targetAudio = choosePreferredHlsAudioTrack(
+                  audioTracks,
+                  preferredAudioLanguage,
+                  currentAudio
+                );
+
+                if (
+                  targetAudio >= 0 &&
+                  targetAudio !== currentAudio &&
+                  !hlsTriedAudioTracks.has(targetAudio)
+                ) {
+                  hlsTriedAudioTracks.add(targetAudio);
+                  hlsVariantRecovery += 1;
+
+                  try {
+                    hls.audioTrack = targetAudio;
+                    window.setTimeout(publishHlsAudioTracks, 20);
+                    window.dispatchEvent(
+                      new CustomEvent("mg:player-status", {
+                        detail: {
+                          message: "HLS recovery · trying another audio rendition…",
+                        },
+                      })
+                    );
+                    return "audio";
+                  } catch {
+                    // Continue to a video rendition fallback.
+                  }
+                }
+              }
+
+              const levels = Array.isArray(hls.levels) ? hls.levels : [];
+              if (levels.length < 2) return "";
+
+              const currentLevel =
+                Number.isInteger(hls.currentLevel) && hls.currentLevel >= 0
+                  ? hls.currentLevel
+                  : Number.isInteger(hls.loadLevel) && hls.loadLevel >= 0
+                    ? hls.loadLevel
+                    : -1;
+              const currentBitrate =
+                currentLevel >= 0
+                  ? Number(levels[currentLevel]?.bitrate || Infinity)
+                  : Infinity;
+              const candidates = levels
+                .map((level, index) => ({
+                  index,
+                  bitrate: Number(level?.bitrate || level?.maxBitrate || 0),
+                }))
+                .filter(
+                  (item) =>
+                    item.index !== currentLevel &&
+                    !hlsTriedLevels.has(item.index) &&
+                    (currentBitrate === Infinity || item.bitrate < currentBitrate)
+                )
+                .sort((a, b) => b.bitrate - a.bitrate || b.index - a.index);
+              const target =
+                candidates[0] ||
+                levels
+                  .map((level, index) => ({
+                    index,
+                    bitrate: Number(level?.bitrate || level?.maxBitrate || 0),
+                  }))
+                  .filter(
+                    (item) =>
+                      item.index !== currentLevel &&
+                      !hlsTriedLevels.has(item.index)
+                  )
+                  .sort((a, b) => a.bitrate - b.bitrate || a.index - b.index)[0];
+
+              if (!target) return "";
+
+              hlsTriedLevels.add(target.index);
+              hlsVariantRecovery += 1;
+
+              try {
+                hls.autoLevelCapping = target.index;
+                hls.nextLevel = target.index;
+                hls.loadLevel = target.index;
+                hls.startLoad(-1);
+                window.dispatchEvent(
+                  new CustomEvent("mg:player-status", {
+                    detail: {
+                      message: "HLS recovery · trying a more stable quality…",
+                    },
+                  })
+                );
+                return "level";
+              } catch {
+                return "";
+              }
+            };
+
             hls.on(
               Hls.Events.ERROR,
               (
@@ -1247,32 +1360,37 @@ const LiveVideo = forwardRef(
                     data.type ===
                       Hls
                         .ErrorTypes
-                        .MEDIA_ERROR &&
-                    hlsMediaRecovery <
-                      2
+                        .MEDIA_ERROR
                   ) {
-                    hlsMediaRecovery +=
-                      1;
+                    const variant = tryAlternativeHlsVariant();
+                    if (variant) {
+                      hls.recoverMediaError();
+                      return;
+                    }
 
-                    hls.recoverMediaError();
-
-                    return;
+                    if (hlsMediaRecovery < 2) {
+                      hlsMediaRecovery += 1;
+                      hls.recoverMediaError();
+                      return;
+                    }
                   }
 
                   if (
                     data.type ===
                       Hls
                         .ErrorTypes
-                        .NETWORK_ERROR &&
-                    hlsNetworkRecovery <
-                      2
+                        .NETWORK_ERROR
                   ) {
-                    hlsNetworkRecovery +=
-                      1;
+                    const variant = tryAlternativeHlsVariant();
+                    if (variant) {
+                      return;
+                    }
 
-                    hls.startLoad();
-
-                    return;
+                    if (hlsNetworkRecovery < 2) {
+                      hlsNetworkRecovery += 1;
+                      hls.startLoad();
+                      return;
+                    }
                   }
                 } catch {
                   // Fall through to normal source failover.
