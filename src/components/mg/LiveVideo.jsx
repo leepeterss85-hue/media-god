@@ -91,20 +91,24 @@ const normaliseLanguage = (value) =>
     .toLowerCase()
     .replace(/_/g, "-");
 
-const isEnglishLanguage = (value) => {
-  const language =
-    normaliseLanguage(value);
+const languageMatches = (value, preferredLanguage = "en") => {
+  const language = normaliseLanguage(value);
+  const preferred = normaliseLanguage(preferredLanguage || "en");
 
-  return (
-    language === "en" ||
-    language === "eng" ||
-    language.startsWith("en-") ||
-    language === "english" ||
-    /\benglish\b/i.test(
-      String(value || "")
-    )
-  );
+  if (preferred === "en") {
+    return (
+      language === "en" ||
+      language === "eng" ||
+      language.startsWith("en-") ||
+      language === "english" ||
+      /\benglish\b/i.test(String(value || ""))
+    );
+  }
+
+  return language === preferred || language.startsWith(`${preferred}-`);
 };
+
+const isEnglishLanguage = (value) => languageMatches(value, "en");
 
 const hlsTrackText = (track) =>
   [
@@ -118,7 +122,10 @@ const hlsTrackText = (track) =>
     .filter(Boolean)
     .join(" ");
 
-const chooseEnglishHlsTrack = (tracks) => {
+const choosePreferredHlsAudioTrack = (
+  tracks,
+  preferredLanguage = "en"
+) => {
   let bestIndex = -1;
   let bestScore = -Infinity;
 
@@ -167,7 +174,10 @@ const chooseEnglishHlsTrack = (tracks) => {
   return bestIndex;
 };
 
-const selectEnglishNativeAudioTrack = (video) => {
+const selectPreferredNativeAudioTrack = (
+  video,
+  preferredLanguage = "en"
+) => {
   const tracks =
     video?.audioTracks;
 
@@ -467,6 +477,7 @@ const LiveVideo = forwardRef(
       subtitles = [],
       subtitlesEnabled = false,
       preferredSubtitleLanguage = "en",
+      preferredAudioLanguage = "en",
       onLoadedMetadata,
       onTimeUpdate,
       onError,
