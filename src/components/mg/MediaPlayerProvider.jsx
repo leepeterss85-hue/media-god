@@ -249,11 +249,28 @@ const scoreSource = (item) => {
           ? -4200
           : 0;
 
+  const deviceProfile = getPlaybackDeviceProfile();
+  const playbackPreferences = readPlaybackPreferences();
+  const compatibilityScore = scoreSourceCompatibility(
+    item,
+    audioText,
+    {
+      deviceProfile,
+      qualityPreference: playbackPreferences.quality,
+    }
+  );
+  const deviceLearning = devicePlaybackReliabilityAdjustment(
+    label,
+    deviceProfile
+  );
+
   return (
     rdLibraryBonus +
     directBonus +
     audioCompatibility +
+    compatibilityScore +
     reliabilityAdjustment(item) +
+    deviceLearning +
     resolution -
     foreignPenalty
   );
