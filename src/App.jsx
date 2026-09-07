@@ -15,7 +15,13 @@ import ResetPassword from '@/pages/ResetPassword';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+  const {
+    isAuthenticated,
+    isLoadingAuth,
+    isLoadingPublicSettings,
+    authError,
+    navigateToLogin,
+  } = useAuth();
 
   // Show loading spinner while checking app public settings or auth
   if (isLoadingPublicSettings || isLoadingAuth) {
@@ -26,24 +32,31 @@ const AuthenticatedApp = () => {
     );
   }
 
-  // Handle authentication errors
+  // Handle authentication errors. Do not let a stale auth_required state
+  // push an already authenticated Fire TV session back into the login flow.
   if (authError) {
     if (authError.type === 'user_not_registered') {
       return <UserNotRegisteredError />;
-    } else if (authError.type === 'auth_required') {
-      // Redirect to login automatically
+    } else if (authError.type === 'auth_required' && !isAuthenticated) {
       navigateToLogin();
       return null;
     }
   }
 
-  // Render the main app
+  const publicOnly = (element) =>
+    isAuthenticated
+      ? <Navigate to="/" replace />
+      : element;
+
+  // Render the main app. Auth screens are public-only: if Fire TV/WebView
+  // browser history lands on /login after Google sign-in, immediately replace
+  // it with Home instead of showing the login box again.
   return (
     <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/login" element={publicOnly(<Login />)} />
+      <Route path="/register" element={publicOnly(<Register />)} />
+      <Route path="/forgot-password" element={publicOnly(<ForgotPassword />)} />
+      <Route path="/reset-password" element={publicOnly(<ResetPassword />)} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route path="/" element={<Home />} />
       </Route>
@@ -52,9 +65,7 @@ const AuthenticatedApp = () => {
   );
 };
 
-
 function App() {
-
   return (
     <AuthProvider>
       <QueryClientProvider client={queryClientInstance}>
