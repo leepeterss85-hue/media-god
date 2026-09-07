@@ -2054,7 +2054,7 @@ export default function VideoPlayer({
     };
 
   const handleNoSound =
-    () => {
+    async () => {
       if (typeof window !== "undefined") {
         window.dispatchEvent(
           new CustomEvent("mg:playback-no-sound", {
@@ -2071,6 +2071,15 @@ export default function VideoPlayer({
             "video"
           );
 
+      const resumeAt = Math.max(
+        0,
+        Number(
+          video?.currentTime ||
+            lastPosRef.current?.t ||
+            0
+        )
+      );
+
       if (video) {
         video.muted = false;
         video.volume = 1;
@@ -2081,37 +2090,197 @@ export default function VideoPlayer({
 
         const tracks = video.audioTracks;
 
-        if (tracks && typeof tracks.length === "number" && tracks.length > 0) {
+        if (
+          tracks &&
+          typeof tracks.length === "number" &&
+          tracks.length > 1
+        ) {
           let currentAudio = -1;
+
+          const candidates = [];
 
           for (let index = 0; index < tracks.length; index += 1) {
             if (tracks[index]?.enabled) {
               currentAudio = index;
-              break;
             }
+
+            candidates.push({
+              index,
+              score: audioTrackScore(
+                tracks[index],
+                trackPreferences.audioLanguage
+              ),
+            });
           }
 
-          const wantedAudio =
-            tracks.length > 1
-              ? (currentAudio + 1 + tracks.length) % tracks.length
-              : 0;
+          const wantedAudio = candidates
+            .filter((item) => item.index !== currentAudio)
+            .sort((a, b) => b.score - a.score || a.index - b.index)[0]?.index;
 
-          try {
-            for (let index = 0; index < tracks.length; index += 1) {
-              tracks[index].enabled = index === wantedAudio;
-            }
+          if (wantedAudio != null) {
+            try {
+              for (let index = 0; index < tracks.length; index += 1) {
+                tracks[index].enabled = index === wantedAudio;
+              }
 
-            if (tracks[wantedAudio]?.enabled) {
-              video.play().catch(() => {});
-              setRdError("");
-              return;
+              if (tracks[wantedAudio]?.enabled) {
+                video.play().catch(() => {});
+                setRdError("");
+
+                window.dispatchEvent(
+                  new CustomEvent("mg:player-status", {
+                    detail: {
+                      message: `Audio switched to ${tracks[wantedAudio]?.label || tracks[wantedAudio]?.language || `track ${wantedAudio + 1}`}.`,
+                    },
+                  })
+                );
+
+                return;
+              }
+            } catch {
+              // Continue to HLS/RD audio rescue.
             }
-          } catch {
-            // If the WebView exposes read-only audio tracks, use another source.
           }
         }
 
         video.play().catch(() => {});
+      }
+
+      if (typeof window !== "undefined") {
+        const hlsHandled = await new Promise((resolve) => {
+          const requestId = `audio-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+          let timer = null;
+
+          const finish = (handled) => {
+            if (timer) window.clearTimeout(timer);
+            window.removeEventListener("mg:audio-rescue-result", onResult);
+            resolve(Boolean(handled));
+          };
+
+          const onResult = (event) => {
+            if (String(event?.detail?.requestId || "") !== requestId) return;
+            finish(event?.detail?.handled === true);
+          };
+
+          window.addEventListener("mg:audio-rescue-result", onResult);
+          window.dispatchEvent(
+            new CustomEvent("mg:audio-rescue-request", {
+              detail: { requestId },
+            })
+          );
+
+          timer = window.setTimeout(() => finish(false), 350);
+        });
+
+        if (hlsHandled) {
+          setRdError("");
+          return;
+        }
+      }
+
+      if (
+        source?.hasRd &&
+        !rdOverride?.audioRescue?.used
+      ) {
+        const activeTorrentId = String(
+          active?.rdTorrentId ||
+            rdTorrentId ||
+            (active?.type === "rd_torrent" && !isMagnet(activeUrl)
+              ? activeUrl
+              : "")
+        ).trim();
+
+        const activeMagnet =
+          active?.magnet ||
+          active?.magnetLink ||
+          (isMagnet(activeUrl) ? activeUrl : "");
+
+        const rescueRequest =
+          activeTorrentId
+            ? {
+                action: "torrent_info",
+                torrent_id: activeTorrentId,
+              }
+            : activeMagnet
+              ? {
+                  action: "resolve_best",
+                  magnet: activeMagnet,
+                }
+              : null;
+
+        if (rescueRequest) {
+          try {
+            setRdResolving(true);
+            setRdError("");
+
+            const response = await base44.functions.invoke(
+              "realDebrid",
+              {
+                ...rescueRequest,
+                title:
+                  source?.rdTitle ||
+                  source?.title ||
+                  "",
+                ...(source?.rdYear != null
+                  ? { year: source.rdYear }
+                  : {}),
+                ...(source?.rdSeason != null
+                  ? { season: source.rdSeason }
+                  : {}),
+                ...(source?.rdEpisode != null
+                  ? { episode: source.rdEpisode }
+                  : {}),
+                force_audio_rescue: true,
+                allow_transcode: true,
+                prefer_english: true,
+              }
+            );
+
+            const data = response?.data || {};
+
+            if (
+              data?.status === "ready" &&
+              data?.stream_url &&
+              data?.audio_rescue?.used
+            ) {
+              if (resumeAt > 5) {
+                recoveryResumeRef.current = resumeAt;
+              }
+
+              setRdOverride({
+                src: data.stream_url,
+                label:
+                  data.filename ||
+                  `${sourceDisplayLabel(active, activeIdx)} [Audio Rescue]`,
+                file: currentFilePath(data.files),
+                audioRescue: data.audio_rescue,
+                mediaInfo: data.media_info || null,
+              });
+
+              setRdFiles(data.files || []);
+              setRdTorrentId(null);
+              setRdPolling(false);
+              setRdResolving(false);
+
+              window.dispatchEvent(
+                new CustomEvent("mg:player-status", {
+                  detail: {
+                    message:
+                      resumeAt > 5
+                        ? "Audio Rescue loaded a compatible stream and kept your position."
+                        : "Audio Rescue loaded a compatible stream.",
+                  },
+                })
+              );
+
+              return;
+            }
+          } catch {
+            // Fall through to the next ranked source.
+          } finally {
+            setRdResolving(false);
+          }
+        }
       }
 
       if (
@@ -2119,20 +2288,19 @@ export default function VideoPlayer({
         1
       ) {
         setRdError(
-          "No other source is available to try."
+          "No compatible alternate audio track or backup source is available."
         );
 
         return;
       }
 
-      /*
-       * No Sound is a deliberate user request to move on, so always try the
-       * next source in order. Do not let an old failure-memory entry prevent
-       * that source from being retried.
-       */
       const nextIndex =
         (activeIdx + 1) %
         sources.length;
+
+      if (resumeAt > 5) {
+        recoveryResumeRef.current = resumeAt;
+      }
 
       markSourceFailed(
         activeIdx
