@@ -28,6 +28,10 @@
     "source_type": {
       "type": "string",
       "default": "file"
+    },
+    "episode_name": {
+      "type": "string",
+      "default": ""
     }
   },
   "required": [
