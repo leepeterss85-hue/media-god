@@ -2707,15 +2707,16 @@ export default function VideoPlayer({
     const traits = detectStreamTraits(candidate, extraAudioText);
     const label = sourceDisplayLabel(candidate, activeIdx);
     const profile = getPlaybackDeviceProfile();
-    const knownRisk =
-      traits.audioRisk === true ||
-      firstAudio?.browser_safe === false ||
-      /\b(?:truehd|mlp|dts(?:-?hd)?|dts:x|dca)\b/i.test(
-        `${extraAudioText} ${label}`
-      );
     const rememberedNoSound = hasRecentNoSoundHistory(label, profile);
 
-    if (!knownRisk && !rememberedNoSound) {
+    /*
+     * Do not abandon a stream purely because metadata says DTS/TrueHD.
+     * Fire TV hardware support can be better than WebView codec reporting.
+     * Automatic rescue is reserved for sources that this device has actually
+     * produced without sound before. First-time risky codecs remain playable
+     * and the user can still force the full rescue chain with Fix audio.
+     */
+    if (!rememberedNoSound) {
       return undefined;
     }
 
@@ -2848,6 +2849,9 @@ export default function VideoPlayer({
         video.readyState >= 2 &&
         remainingChecks < 4 &&
         currentTime > previousTime + 0.2;
+      const hardFailure =
+        video instanceof HTMLVideoElement &&
+        (Boolean(video.error) || video.networkState === HTMLMediaElement.NETWORK_NO_SOURCE);
 
       if (clearlyPlaying) {
         return;
@@ -2856,8 +2860,17 @@ export default function VideoPlayer({
       if (remainingChecks > 0) {
         state.timer = window.setTimeout(
           () => rescue(remainingChecks - 1, currentTime),
-          1200
+          1500
         );
+        return;
+      }
+
+      /*
+       * A slow start is not proof of incompatibility. Only switch here after
+       * the browser reports a real decode/source failure. The normal 14-second
+       * stall recovery remains responsible for genuine buffering stalls.
+       */
+      if (!hardFailure) {
         return;
       }
 
@@ -2939,7 +2952,7 @@ export default function VideoPlayer({
 
     state.timer = window.setTimeout(
       () => rescue(4, 0),
-      2500
+      3200
     );
 
     return () => {
