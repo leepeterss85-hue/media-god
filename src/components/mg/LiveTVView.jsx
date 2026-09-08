@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils";
 import {
   liveTvUrlScore,
   prewarmLiveTvUrl,
+  recordLiveTvPlaybackResult,
 } from "@/components/mg/liveTvPlaybackLearning";
 
 const DEFAULT_FILTER = "All";
@@ -426,10 +427,26 @@ export default function LiveTVView() {
   }, [channels]);
 
   const activeRadioUrls = useMemo(
-    () =>
-      radioStation
+    () => {
+      const urls = radioStation
         ? radioUrlsFor(radioStation)
-        : [],
+        : [];
+
+      return urls
+        .map((url, index) => ({
+          url,
+          index,
+          score:
+            liveTvUrlScore(url) +
+            (index === 0 ? 900 : 0),
+        }))
+        .sort(
+          (a, b) =>
+            b.score - a.score ||
+            a.index - b.index
+        )
+        .map((item) => item.url);
+    },
     [radioStation]
   );
 
