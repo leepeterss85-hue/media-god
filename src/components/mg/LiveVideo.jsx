@@ -603,6 +603,67 @@ const LiveVideo = forwardRef(
     );
 
     useEffect(() => {
+      const video = videoRef.current;
+
+      if (!video) {
+        return undefined;
+      }
+
+      const forceInlinePlayback = () => {
+        try {
+          video.disablePictureInPicture = true;
+        } catch {
+          // Older WebViews may not expose the property.
+        }
+
+        try {
+          video.disableRemotePlayback = true;
+        } catch {
+          // Remote playback is optional on older WebViews.
+        }
+
+        try {
+          if (
+            document.pictureInPictureElement === video &&
+            typeof document.exitPictureInPicture === "function"
+          ) {
+            document.exitPictureInPicture().catch(() => {});
+          }
+        } catch {
+          // Picture-in-picture may not exist on this device.
+        }
+
+        try {
+          if (
+            typeof video.webkitSetPresentationMode === "function" &&
+            video.webkitPresentationMode === "picture-in-picture"
+          ) {
+            video.webkitSetPresentationMode("inline");
+          }
+        } catch {
+          // WebKit presentation mode is best effort only.
+        }
+      };
+
+      const onEnterPictureInPicture = () => {
+        forceInlinePlayback();
+      };
+
+      forceInlinePlayback();
+      video.addEventListener(
+        "enterpictureinpicture",
+        onEnterPictureInPicture
+      );
+
+      return () => {
+        video.removeEventListener(
+          "enterpictureinpicture",
+          onEnterPictureInPicture
+        );
+      };
+    }, []);
+
+    useEffect(() => {
       let cancelled =
         false;
 
@@ -1928,6 +1989,9 @@ const LiveVideo = forwardRef(
         poster={poster}
         controls={controls}
         playsInline
+        disablePictureInPicture
+        disableRemotePlayback
+        controlsList="nodownload noremoteplayback"
         preload="auto"
         className={className}
         onLoadedMetadata={
