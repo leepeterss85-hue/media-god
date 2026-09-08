@@ -68,6 +68,7 @@ export const playNativeFireTv = ({
   startPositionMs = 0,
   live = false,
   headers = {},
+  mimeType = "",
   audioLanguage = "en",
   subtitleLanguage = "en",
   subtitlesEnabled = true,
@@ -91,6 +92,7 @@ export const playNativeFireTv = ({
       headers && typeof headers === "object" && !Array.isArray(headers)
         ? headers
         : {},
+    mimeType: String(mimeType || "").trim(),
     audioLanguage: String(audioLanguage || "en"),
     subtitleLanguage: String(subtitleLanguage || "en"),
     subtitlesEnabled: Boolean(subtitlesEnabled),
