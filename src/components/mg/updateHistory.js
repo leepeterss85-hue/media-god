@@ -1,5 +1,26 @@
 export const UPDATE_HISTORY = [
   {
+    id: "search-settings-addons-performance-v1",
+    date: "8 September 2026",
+    title: "Search, details, settings and performance improved",
+    summary:
+      "Search and title details are cleaner on Fire Stick, Settings/Addons are easier to operate with a remote, and several unnecessary network, image and DOM workloads have been reduced.",
+    changes: [
+      "Search now waits for at least two characters and uses a slightly calmer debounce to avoid unnecessary backend searches while typing.",
+      "Search renders at most 60 results at once and lazy-loads result artwork to reduce memory and image decoding work.",
+      "Search gained stronger Fire TV focus states plus accessible loading and error announcements.",
+      "Opening title details on Fire TV now puts the first useful focus on Play instead of Close, while Back still closes the dialog normally.",
+      "Details now lazy-load poster, provider and cast artwork and cap the visible cast row at 20 people to reduce image memory use.",
+      "Play, Watchlist, Favorites and provider links in Details now have clearer remote focus and action labels.",
+      "Settings now describes the current stall-recovery behaviour accurately, including the longer grace period used for torrents.",
+      "Search, Details, Settings and Addons now share stronger Fire TV safe-zone and D-pad focus treatment.",
+      "Addons now blocks duplicate manifest URLs before creating another configured addon.",
+      "Addon add, enable/disable and delete actions are locked while another addon mutation is running to prevent duplicate writes.",
+      "Addon changes update the local list immediately instead of reloading the entire addon collection after every small change.",
+      "Navbar player-state monitoring is now animation-frame batched, uses a 750ms safety watchdog instead of 100ms polling, and skips watchdog DOM work while hidden.",
+    ],
+  },
+  {
     id: "home-live-tv-polish-v1",
     date: "8 September 2026",
     title: "Home screen and Live TV polished",
