@@ -261,20 +261,27 @@ const playableChannelCandidates = (channel) => {
   const nativeFireTv = isNativeFireTvPlayerAvailable();
 
   return [channel, ...(channel?.alternatives || [])]
-    .filter(
-      (candidate) =>
-        candidate?.kind === "direct" &&
-        candidate?.url &&
-        (
-          candidate?.browserPlayable !== false ||
-          (
-            nativeFireTv &&
-            candidate?.format === "dash" &&
-            !candidate?.requiresHeaders &&
-            !candidate?.mixedContent
-          )
-        )
-    )
+    .filter((candidate) => {
+      if (candidate?.kind !== "direct" || !candidate?.url) {
+        return false;
+      }
+
+      if (candidate?.browserPlayable !== false) {
+        return true;
+      }
+
+      /*
+       * The dedicated Fire TV build plays through native Media3, not Chromium.
+       * Keep HTTP, DASH, header-required and other device-only candidates that
+       * a browser correctly rejected. Media3 gets the final decoder/network
+       * decision and normal web/mobile users never see these extra candidates.
+       */
+      return (
+        nativeFireTv &&
+        /^https?:\/\//i.test(String(candidate.url || "")) &&
+        candidate?.geoBlocked !== true
+      );
+    })
     .map((candidate, index) => ({
       candidate,
       index,
@@ -912,6 +919,7 @@ export default function LiveTVView() {
     const counts = {
       All: channels.length,
       "United Kingdom": 0,
+      Worldwide: 0,
       Sports: 0,
       Movies: 0,
       Favourites: 0,
@@ -938,6 +946,10 @@ export default function LiveTVView() {
         )
       ) {
         counts["United Kingdom"] += 1;
+      }
+
+      if (tags.has("Worldwide")) {
+        counts.Worldwide += 1;
       }
 
       if (
@@ -1595,7 +1607,7 @@ export default function LiveTVView() {
           </section>
         )}
 
-      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-7">
         {[
           {
             id: "All",
@@ -1605,6 +1617,11 @@ export default function LiveTVView() {
           {
             id: "United Kingdom",
             label: "UK",
+            icon: Globe2,
+          },
+          {
+            id: "Worldwide",
+            label: "Worldwide",
             icon: Globe2,
           },
           {
