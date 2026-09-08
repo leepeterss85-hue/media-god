@@ -41,7 +41,7 @@ const DEFAULT_PRIORITY = [
   "debridlink",
 ];
 
-const VIDEO_RE = /\.(?:mp4|mkv|avi|mov|webm|m4v|mpg|mpeg|ts|m2ts)(?:$|[?#])/i;
+const VIDEO_RE = /\.(?:mp4|mkv|avi|mov|webm|m4v|mpg|mpeg|ts|m2ts|mts|vob|ogv|3gp|3g2|wmv|asf|f4v|mxf|divx)(?:$|[?#])/i;
 
 const clean = (value) => String(value ?? "").trim();
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
