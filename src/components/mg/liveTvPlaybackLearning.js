@@ -115,8 +115,11 @@ const ensurePreconnect = (url) => {
     const origin = new URL(url).origin;
     if (!origin || origin === "null") return;
 
-    const selector = `link[data-mg-live-preconnect="${CSS.escape(origin)}"]`;
-    if (!document.querySelector(selector)) {
+    const existing = Array.from(
+      document.querySelectorAll('link[data-mg-live-preconnect]')
+    ).some((link) => link?.dataset?.mgLivePreconnect === origin);
+
+    if (!existing) {
       const preconnect = document.createElement("link");
       preconnect.rel = "preconnect";
       preconnect.href = origin;
