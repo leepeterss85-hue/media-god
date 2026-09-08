@@ -256,7 +256,15 @@ const playableChannelCandidates = (channel) => {
       (candidate) =>
         candidate?.kind === "direct" &&
         candidate?.url &&
-        (candidate?.browserPlayable !== false || nativeFireTv)
+        (
+          candidate?.browserPlayable !== false ||
+          (
+            nativeFireTv &&
+            candidate?.format === "dash" &&
+            !candidate?.requiresHeaders &&
+            !candidate?.mixedContent
+          )
+        )
     )
     .map((candidate, index) => ({
       candidate,
@@ -607,9 +615,23 @@ export default function LiveTVView() {
 
       setRadioPlaying(false);
 
+      const fallback = officialLiveFallback(radioStation);
+
       setRadioStatus(
-        "This radio stream is currently unavailable."
+        fallback
+          ? "This direct radio stream is unavailable. Use the official station player instead."
+          : "This radio stream is currently unavailable."
       );
+
+      if (fallback) {
+        setChannelNotice(
+          `${radioStation?.name || "This station"} is available from its official player.`
+        );
+        setChannelNoticeAction({
+          label: fallback.label,
+          url: fallback.url,
+        });
+      }
     };
 
     const handlePlaying = () => {
@@ -1112,8 +1134,28 @@ export default function LiveTVView() {
     if (
       isRadioChannel(channel)
     ) {
-      if (radioUrlsFor(channel).length > 0) {
+      const radioUrls = radioUrlsFor(channel);
+
+      if (radioUrls.length > 0) {
+        setChannelNotice("");
+        setChannelNoticeAction(null);
         openRadio(channel);
+      } else {
+        const fallback = officialLiveFallback(channel);
+
+        setChannelNotice(
+          fallback
+            ? `${channel.name || "This station"} does not currently expose a direct audio feed that Media God can play. Use the official station player instead.`
+            : `${channel.name || "This station"} does not currently have a playable audio stream.`
+        );
+        setChannelNoticeAction(
+          fallback
+            ? {
+                label: fallback.label,
+                url: fallback.url,
+              }
+            : null
+        );
       }
 
       return;
@@ -1133,18 +1175,18 @@ export default function LiveTVView() {
     const candidates = playableChannelCandidates(channel);
 
     if (candidates.length === 0) {
-      const officialUrl = officialBbcLiveUrl(channel);
+      const fallback = officialLiveFallback(channel);
 
       setChannelNotice(
-        officialUrl
-          ? `${channel.name || "This BBC channel"} does not have a direct stream this device can play. BBC live TV remains subject to the BBC’s UK availability rules; you can use the official BBC iPlayer feed instead.`
+        fallback
+          ? `${channel.name || "This channel"} does not have a direct stream this device can play. Use the broadcaster’s official live service instead.`
           : `${channel.name || "This channel"} does not currently have a browser-playable stream.`
       );
       setChannelNoticeAction(
-        officialUrl
+        fallback
           ? {
-              label: "Open BBC iPlayer",
-              url: officialUrl,
+              label: fallback.label,
+              url: fallback.url,
             }
           : null
       );
@@ -1184,6 +1226,10 @@ export default function LiveTVView() {
             live: true,
             sourceName:
               candidate.sourceName,
+            officialUrl:
+              candidate.officialUrl || channel.officialUrl || "",
+            officialLabel:
+              candidate.officialLabel || channel.officialLabel || "",
           };
         }
       );
@@ -1205,6 +1251,12 @@ export default function LiveTVView() {
         "live",
 
       noRd: true,
+
+      officialUrl:
+        channel.officialUrl || officialLiveFallback(channel)?.url || "",
+
+      officialLabel:
+        channel.officialLabel || officialLiveFallback(channel)?.label || "",
 
       sources: directSources,
     });
