@@ -44,6 +44,16 @@ export const browserCodecSupport = {
     'video/mp4; codecs="av01.0.05M.08, mp4a.40.2"'
   ),
 
+  vp8Vorbis:
+    canPlay(
+      VIDEO_PROBE,
+      'video/webm; codecs="vp8, vorbis"'
+    ) ||
+    canPlay(
+      VIDEO_PROBE,
+      'video/webm; codecs="vp8, opus"'
+    ),
+
   vp9Opus:
     canPlay(
       VIDEO_PROBE,
@@ -134,6 +144,22 @@ export const browserCodecSupport = {
       VIDEO_PROBE,
       'video/mp4; codecs="avc1.4D401F, ec-3"'
     ),
+
+  ac4:
+    canPlay(
+      AUDIO_PROBE,
+      'audio/mp4; codecs="ac-4"'
+    ) ||
+    canPlay(
+      VIDEO_PROBE,
+      'video/mp4; codecs="avc1.4D401F, ac-4"'
+    ),
+
+  xheAac:
+    canPlay(
+      AUDIO_PROBE,
+      'audio/mp4; codecs="mp4a.40.42"'
+    ),
 };
 
 const FIRE_TV_RE =
@@ -159,7 +185,23 @@ export const getPlaybackDeviceProfile = () => {
     typeof navigator !== "undefined" &&
     Number(navigator.maxTouchPoints || 0) === 0;
 
+  let nativeFireTv = false;
+
+  if (typeof window !== "undefined") {
+    try {
+      const nativeBridge = window.MediaGodNative;
+      nativeFireTv = Boolean(
+        nativeBridge &&
+          typeof nativeBridge.play === "function" &&
+          (typeof nativeBridge.isAvailable !== "function" || nativeBridge.isAvailable() !== false)
+      );
+    } catch {
+      nativeFireTv = false;
+    }
+  }
+
   const fireTv =
+    nativeFireTv ||
     FIRE_TV_RE.test(userAgent) ||
     tvClassDetected ||
     androidNoTouch;
@@ -209,6 +251,7 @@ export const getPlaybackDeviceProfile = () => {
 
     fireTv,
     isFireTv: fireTv,
+    nativeFireTv,
     fourKAllowed,
 
     width,
@@ -375,6 +418,14 @@ export const detectStreamTraits = (
   ) {
     traits.container =
       "hls";
+  } else if (
+    has(
+      joined,
+      /\.mpd(?:[?#\s]|$)|\bmpeg[ -]?dash\b|\bdash\b/i
+    )
+  ) {
+    traits.container =
+      "dash";
   } else if (
     has(
       joined,
@@ -548,6 +599,22 @@ export const detectStreamTraits = (
   } else if (
     has(
       text,
+      /\b(?:vp8|vp08)\b/i
+    )
+  ) {
+    traits.video =
+      "vp8";
+  } else if (
+    has(
+      text,
+      /\bh\.?263\b/i
+    )
+  ) {
+    traits.video =
+      "h263";
+  } else if (
+    has(
+      text,
       /\bmpeg[ -]?2\b/i
     )
   ) {
@@ -583,6 +650,20 @@ export const detectStreamTraits = (
    * labels because release names often contain several tags.
    */
   if (
+    has(
+      text,
+      /\b(?:ac-?4|ac4)\b/i
+    )
+  ) {
+    traits.audio = "ac4";
+  } else if (
+    has(
+      text,
+      /\b(?:xhe-?aac|xheaac|usac|mpeg-?h[ ._-]?3d[ ._-]?audio)\b/i
+    )
+  ) {
+    traits.audio = "xheaac";
+  } else if (
     has(
       text,
       /\b(?:true[ ._-]?hd|true-hd|mlp)(?:[ ._-]?(?:atmos|7\.1|5\.1))?\b/i
@@ -840,13 +921,35 @@ const audioSupport = (
       : false;
   }
 
+  if (audio === "ac4") {
+    if (browserCodecSupport.ac4) {
+      return true;
+    }
+
+    return deviceProfile?.nativeFireTv ? null : false;
+  }
+
+  if (audio === "xheaac") {
+    if (browserCodecSupport.xheAac || browserCodecSupport.aac) {
+      return true;
+    }
+
+    return deviceProfile?.nativeFireTv ? null : false;
+  }
+
   if (
     audio ===
       "dts" ||
     audio ===
       "truehd"
   ) {
-    return false;
+    /*
+     * Current Fire TV hardware varies by model/receiver. Media3 can use the
+     * device decoder or HDMI passthrough when available, so the dedicated
+     * native player gets a real attempt instead of being rejected from a
+     * browser codec probe. Web/mobile browsers still treat these as unsafe.
+     */
+    return deviceProfile?.nativeFireTv ? null : false;
   }
 
   return null;
@@ -1032,6 +1135,7 @@ export const hasSevereVideoRisk = (
   if (
     traits.container === "mkv" &&
     traits.video === "av1" &&
+    !deviceProfile?.nativeFireTv &&
     !browserCodecSupport.av1Aac
   ) {
     return true;
@@ -1139,6 +1243,11 @@ export const scoreSourceCompatibility = (
       7000;
   } else if (
     traits.container ===
+    "dash"
+  ) {
+    score += deviceProfile.nativeFireTv ? 7200 : 6000;
+  } else if (
+    traits.container ===
       "mp4" ||
     traits.container ===
       "m4v"
@@ -1167,8 +1276,7 @@ export const scoreSourceCompatibility = (
     traits.container ===
     "mkv"
   ) {
-    score -=
-      1200;
+    score += deviceProfile.nativeFireTv ? 2600 : -1200;
   } else if (
     traits.container ===
     "avi"
@@ -1209,8 +1317,8 @@ export const scoreSourceCompatibility = (
     "av1"
   ) {
     score +=
-      browserCodecSupport.av1Aac
-        ? 2400
+      browserCodecSupport.av1Aac || deviceProfile.nativeFireTv
+        ? 3200
         : -1600;
   } else if (
     traits.video ===
@@ -1221,9 +1329,20 @@ export const scoreSourceCompatibility = (
         ? 2200
         : -800;
   } else if (
+    traits.video === "vp8"
+  ) {
+    score +=
+      browserCodecSupport.vp8Vorbis || deviceProfile.nativeFireTv
+        ? 1800
+        : -500;
+  } else if (
+    traits.video === "h263"
+  ) {
+    score += deviceProfile.nativeFireTv ? 900 : -300;
+  } else if (
     traits.video === "mpeg2"
   ) {
-    score += deviceProfile.fireTv ? 1400 : 300;
+    score += deviceProfile.nativeFireTv ? 2200 : deviceProfile.fireTv ? 1400 : 300;
   } else if (
     traits.video === "mpeg4"
   ) {
@@ -1300,6 +1419,26 @@ export const scoreSourceCompatibility = (
           ? 2200
           : -2000;
   } else if (
+    traits.audio === "ac4"
+  ) {
+    const supported = audioSupport("ac4", deviceProfile);
+    score +=
+      supported === true
+        ? 5200
+        : supported === null
+          ? 1700
+          : -2600;
+  } else if (
+    traits.audio === "xheaac"
+  ) {
+    const supported = audioSupport("xheaac", deviceProfile);
+    score +=
+      supported === true
+        ? 6500
+        : supported === null
+          ? 1800
+          : -1800;
+  } else if (
     traits.audio ===
     "flac"
   ) {
@@ -1322,16 +1461,16 @@ export const scoreSourceCompatibility = (
     "dts"
   ) {
     /*
-     * Prefer safer audio when everything else is equal, but never make a
-     * cached DTS torrent effectively unusable. RD/HLS audio rescue can handle
-     * it after the stream is resolved and Fire TV may decode it directly.
+     * Prefer safer audio when everything else is equal. The native Fire TV
+     * player is allowed to try DTS/DTS-HD because current Fire TV hardware can
+     * expose decoder/passthrough support that a WebView probe cannot see.
      */
-    score -= 18000;
+    score -= deviceProfile.nativeFireTv ? 5000 : 18000;
   } else if (
     traits.audio ===
     "truehd"
   ) {
-    score -= 22000;
+    score -= deviceProfile.nativeFireTv ? 9000 : 22000;
   }
 
   if (
