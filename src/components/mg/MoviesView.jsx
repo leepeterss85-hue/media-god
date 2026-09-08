@@ -119,7 +119,7 @@ export default function MoviesView() {
   };
 
   return (
-    <div className="w-full p-3 min-[420px]:p-4 md:p-6 3xl:p-8 4xl:p-10">
+    <div data-mg-library-view="true" className="w-full p-3 min-[420px]:p-4 md:p-6 3xl:p-8 4xl:p-10">
       <div className="flex flex-col gap-3 3xl:gap-4 mb-5 3xl:mb-8">
         <div className="flex gap-2 3xl:gap-3 overflow-x-auto scrollbar-hide pb-1">
           {CATEGORIES.map((item) => (
@@ -205,7 +205,7 @@ export default function MoviesView() {
       </div>
 
       {loading ? (
-        <div className={gridClass}>
+        <div data-mg-library-grid="true" className={gridClass}>
           {Array.from({ length: 20 }).map((_, index) => (
             <div
               key={index}
@@ -214,15 +214,16 @@ export default function MoviesView() {
           ))}
         </div>
       ) : (
-        <div className={gridClass}>
+        <div data-mg-library-grid="true" className={gridClass}>
           {movies.map((movie) => (
-            <article key={movie.id} className="group min-w-0">
+            <article key={movie.id} className="mg-fire-tv-library-card group min-w-0">
               <div className="relative aspect-[2/3] rounded-md 3xl:rounded-lg overflow-hidden border border-white/10 bg-mg-card">
                 <Image
                   src={movie.poster_url}
                   alt={movie.title}
                   className="w-full h-full object-cover"
                   fittingType="fill"
+                  loading="lazy"
                 />
 
                 <button
