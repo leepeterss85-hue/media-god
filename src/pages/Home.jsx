@@ -30,6 +30,7 @@ import {
   usePlayer,
 } from "@/components/mg/PlayerProvider";
 import RdBanner from "@/components/mg/RdBanner";
+import PlaybackUpdateNotice from "@/components/mg/PlaybackUpdateNotice";
 
 const normaliseMediaType = (
   item
@@ -570,6 +571,10 @@ function MediaGodApp() {
       <FireTvRemote />
 
       <MediaGodV2Assist />
+
+      <PlaybackUpdateNotice
+        enabled={!playerOpen}
+      />
 
       {showPageBack && (
         <button
