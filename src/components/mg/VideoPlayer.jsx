@@ -18,6 +18,10 @@ import { base44 } from "@/api/base44Client";
 import CastButton from "@/components/mg/CastButton";
 import LiveVideo from "@/components/mg/LiveVideo";
 import PlayerControls from "@/components/mg/PlayerControls";
+import {
+  isNativeFireTvPlayerAvailable,
+  playNativeFireTv,
+} from "@/components/mg/nativeFireTvBridge";
 import { readTrackPreferences } from "@/components/mg/mediaTrackPreferences";
 import { readPlaybackPreferences } from "@/components/mg/playbackPreferences";
 import {
@@ -189,6 +193,9 @@ export default function VideoPlayer({
   const [fileSwitching, setFileSwitching] =
     useState(false);
 
+  const [nativeFallbackUrl, setNativeFallbackUrl] =
+    useState("");
+
   const [
     failedSources,
     setFailedSources,
@@ -204,6 +211,10 @@ export default function VideoPlayer({
   const recoveryResumeRef = useRef(0);
   const rdResolutionQueueRef = useRef(Promise.resolve());
   const torrentFailoverTimerRef = useRef(null);
+  const nativePlaybackRef = useRef({
+    requestId: "",
+    url: "",
+  });
 
   useEffect(() => {
     return () => {
