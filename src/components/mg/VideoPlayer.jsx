@@ -3206,10 +3206,8 @@ export default function VideoPlayer({
                 onTimeUpdate={
                   handleTimeUpdate
                 }
-                onError={() =>
-                  tryNextSource(
-                    "This stream failed during playback."
-                  )
+                onError={
+                  handleRdPlaybackError
                 }
                 className="w-full h-full object-contain bg-black"
               />
