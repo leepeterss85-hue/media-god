@@ -1175,6 +1175,18 @@ export const scoreSourceCompatibility = (
   ) {
     score -=
       4500;
+  } else if (
+    ["mov", "f4v", "3gp"].includes(traits.container)
+  ) {
+    score += 1800;
+  } else if (
+    traits.container === "ogv"
+  ) {
+    score += 700;
+  } else if (
+    ["vob", "wmv", "asf", "mxf", "divx"].includes(traits.container)
+  ) {
+    score -= 2200;
   }
 
   if (
@@ -1205,9 +1217,25 @@ export const scoreSourceCompatibility = (
     "vp9"
   ) {
     score +=
-      browserCodecSupport.vp9Opus
+      browserCodecSupport.vp9Opus || deviceProfile.fireTv
         ? 2200
         : -800;
+  } else if (
+    traits.video === "mpeg2"
+  ) {
+    score += deviceProfile.fireTv ? 1400 : 300;
+  } else if (
+    traits.video === "mpeg4"
+  ) {
+    score += 900;
+  } else if (
+    traits.video === "vc1"
+  ) {
+    score -= 1800;
+  } else if (
+    traits.video === "theora"
+  ) {
+    score += 200;
   }
 
   /*
@@ -1278,7 +1306,17 @@ export const scoreSourceCompatibility = (
     score +=
       browserCodecSupport.flac
         ? 1800
-        : -1800;
+        : deviceProfile.fireTv
+          ? 300
+          : -1800;
+  } else if (traits.audio === "vorbis") {
+    score += browserCodecSupport.vorbis ? 1600 : -700;
+  } else if (traits.audio === "alac") {
+    score += browserCodecSupport.alac ? 1200 : deviceProfile.fireTv ? 200 : -900;
+  } else if (traits.audio === "pcm") {
+    score += browserCodecSupport.pcm ? 1300 : deviceProfile.fireTv ? 300 : -700;
+  } else if (traits.audio === "mp2") {
+    score += deviceProfile.fireTv ? 500 : -500;
   } else if (
     traits.audio ===
     "dts"
@@ -1444,6 +1482,15 @@ const prettyContainer = {
 
   mov:
     "MOV",
+
+  vob: "VOB",
+  ogv: "OGV",
+  "3gp": "3GP",
+  wmv: "WMV",
+  asf: "ASF",
+  f4v: "F4V",
+  mxf: "MXF",
+  divx: "DIVX",
 };
 
 const prettyVideo = {
@@ -1461,6 +1508,10 @@ const prettyVideo = {
 
   mpeg2:
     "MPEG-2",
+
+  mpeg4: "MPEG-4/Xvid",
+  vc1: "VC-1",
+  theora: "Theora",
 };
 
 const prettyAudio = {
@@ -1487,6 +1538,18 @@ const prettyAudio = {
 
   truehd:
     "TrueHD",
+
+  vorbis:
+    "Vorbis",
+
+  alac:
+    "ALAC",
+
+  pcm:
+    "PCM/LPCM",
+
+  mp2:
+    "MP2",
 };
 
 export const describeSourceCompatibility = (
