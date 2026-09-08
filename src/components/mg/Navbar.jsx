@@ -226,9 +226,14 @@ export default function Navbar({
       subtree: true,
     });
 
+    /*
+     * Player context/visibility events and the DOM observer are the primary
+     * signals. This slower watchdog is only a safety net, avoiding ten full
+     * player-state DOM scans every second while the app is idle.
+     */
     const watchdog = window.setInterval(
       syncFromEverything,
-      100
+      750
     );
 
     syncFromEverything();
