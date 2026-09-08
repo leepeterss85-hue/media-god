@@ -1832,7 +1832,6 @@ export default function LiveTVView() {
                     }
                     onFocus={(event) => {
                       setFocusedChannelKey(memoryKey);
-                      prewarmChannel(channel);
                       event.currentTarget.scrollIntoView({
                         block: "nearest",
                         inline: "nearest",
@@ -2005,7 +2004,6 @@ export default function LiveTVView() {
                     onClick={() => toggleFavouriteChannel(channel)}
                     onFocus={(event) => {
                       setFocusedChannelKey(memoryKey);
-                      prewarmChannel(channel);
                       event.currentTarget.scrollIntoView({
                         block: "nearest",
                         inline: "nearest",
