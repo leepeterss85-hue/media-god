@@ -1165,7 +1165,7 @@ export default function LiveTVView() {
             inline: "nearest",
           });
         }}
-        className="mg-fire-tv-card w-48 shrink-0 rounded-xl border border-white/10 bg-mg-card p-3 text-left outline-none transition-colors focus:border-mg-green focus:bg-mg-surface focus:ring-2 focus:ring-mg-green/40"
+        className="mg-fire-tv-card mg-live-tv-card w-48 shrink-0 rounded-xl border border-white/10 bg-mg-card p-3 text-left outline-none transition-colors focus:border-mg-green focus:bg-mg-surface focus:ring-2 focus:ring-mg-green/40"
       >
         <div className="flex items-center gap-3">
           <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-black/30">
@@ -1704,7 +1704,7 @@ export default function LiveTVView() {
                     });
                   }}
                   className={cn(
-                    "mg-fire-tv-card flex min-h-[68px] items-center gap-3 rounded-lg border bg-black/25 px-3 text-left outline-none transition-colors focus:border-mg-green focus:bg-mg-surface focus:ring-2 focus:ring-mg-green/35",
+                    "mg-fire-tv-card mg-live-tv-card flex min-h-[68px] items-center gap-3 rounded-lg border bg-black/25 px-3 text-left outline-none transition-colors focus:border-mg-green focus:bg-mg-surface focus:ring-2 focus:ring-mg-green/35",
                     focusedChannelKey === memoryKey
                       ? "border-mg-green/35"
                       : "border-white/8"
