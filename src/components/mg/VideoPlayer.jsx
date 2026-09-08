@@ -36,6 +36,7 @@ import {
   recordDebridProviderResult,
 } from "@/components/mg/debridProviderReliability";
 import { concisePlaybackSourceLabel } from "@/components/mg/playbackSourceLabels";
+import { recordLiveTvPlaybackResult } from "@/components/mg/liveTvPlaybackLearning";
 
 const isMagnet = (value) =>
   String(value || "")
@@ -423,6 +424,91 @@ export default function VideoPlayer({
     source?.rdEpisode,
     source?.season,
     source?.episode,
+  ]);
+
+  useEffect(() => {
+    if (!isLive) {
+      return undefined;
+    }
+
+    const url = String(activeUrl || "").trim();
+    if (!/^https?:\/\//i.test(url)) {
+      return undefined;
+    }
+
+    const startedAt =
+      typeof performance !== "undefined" && performance.now
+        ? performance.now()
+        : Date.now();
+    let successRecorded = false;
+    let stallRecorded = false;
+    let attachTimer = null;
+    let video = null;
+
+    const onPlaying = () => {
+      if (successRecorded) return;
+      successRecorded = true;
+
+      const now =
+        typeof performance !== "undefined" && performance.now
+          ? performance.now()
+          : Date.now();
+
+      recordLiveTvPlaybackResult(url, {
+        success: true,
+        startupMs: Math.max(0, now - startedAt),
+      });
+    };
+
+    const onError = () => {
+      recordLiveTvPlaybackResult(url, {
+        success: false,
+        startupMs: 0,
+      });
+    };
+
+    const onStalled = () => {
+      if (stallRecorded) return;
+      stallRecorded = true;
+      recordLiveTvPlaybackResult(url, {
+        success: false,
+        stalled: true,
+      });
+    };
+
+    const attach = () => {
+      video = stageRef.current?.querySelector("video") || null;
+      if (!(video instanceof HTMLVideoElement)) {
+        attachTimer = window.setTimeout(attach, 120);
+        return;
+      }
+
+      video.addEventListener("playing", onPlaying);
+      video.addEventListener("error", onError);
+      video.addEventListener("stalled", onStalled);
+
+      if (!video.paused && video.readyState >= 2) {
+        onPlaying();
+      }
+    };
+
+    attach();
+
+    return () => {
+      if (attachTimer) {
+        window.clearTimeout(attachTimer);
+      }
+
+      if (video instanceof HTMLVideoElement) {
+        video.removeEventListener("playing", onPlaying);
+        video.removeEventListener("error", onError);
+        video.removeEventListener("stalled", onStalled);
+      }
+    };
+  }, [
+    activeIdx,
+    activeUrl,
+    isLive,
   ]);
 
   const goFullscreen = () => {
