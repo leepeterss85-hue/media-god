@@ -1879,6 +1879,10 @@ async function resolveStreamable(
       playable.audio_rescue ||
       null,
 
+    video_rescue:
+      playable.video_rescue ||
+      null,
+
     media_info:
       playable.media_info ||
       null,
@@ -2222,6 +2226,14 @@ async function choosePlayableRdStream({
   if (
     transcode?.url
   ) {
+    const audioTranscodeNeeded =
+      forceAudioRescue ||
+      !firstIsSafe ||
+      (
+        preferEnglish &&
+        englishTracks.length > 0 &&
+        !firstIsEnglish
+      );
     const why =
       forceAudioRescue
         ? "Runtime no-sound recovery requested a browser-safe Real-Debrid transcode."
@@ -2253,9 +2265,11 @@ async function choosePlayableRdStream({
       filename:
         `${originalFilename || mediaInfo?.filename || "Real-Debrid Stream"} [${formatLabel}${videoCompatibilityRescue ? " Compatibility" : " Audio Rescue"}]`,
       audio_rescue: {
-        used: true,
+        used: audioTranscodeNeeded,
         state:
-          "transcoded",
+          audioTranscodeNeeded
+            ? "transcoded"
+            : "not_needed_video_compatibility",
         reason: why,
         selected_audio:
           englishSafe ||
@@ -2266,6 +2280,19 @@ async function choosePlayableRdStream({
           transcode.format,
         quality:
           transcode.quality,
+      },
+      video_rescue: {
+        used: videoCompatibilityRescue,
+        state:
+          videoCompatibilityRescue
+            ? "transcoded_for_video_compatibility"
+            : "not_needed",
+        reason:
+          videoCompatibilityRescue
+            ? why
+            : "",
+        format: transcode.format,
+        quality: transcode.quality,
       },
       media_info:
         mediaSummary,
