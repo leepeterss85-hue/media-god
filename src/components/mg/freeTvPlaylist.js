@@ -1578,14 +1578,27 @@ const dedupeMergedChannels =
             false
         );
 
+      /*
+       * Keep an official broadcaster row visible even on an older browser
+       * that cannot play its MPEG-DASH feed itself. Live TV can then offer
+       * the broadcaster's official viewing page instead of making BBC One,
+       * BBC Two, etc. disappear completely from the catalogue.
+       */
+      const visibleCandidates =
+        browserCandidates.length > 0
+          ? browserCandidates
+          : uniqueByUrl.filter((candidate) =>
+              Boolean(candidate?.officialUrl)
+            );
+
       if (
-        browserCandidates.length ===
+        visibleCandidates.length ===
         0
       ) {
         continue;
       }
 
-      browserCandidates.sort(
+      visibleCandidates.sort(
         (
           a,
           b
@@ -1601,7 +1614,7 @@ const dedupeMergedChannels =
       );
 
       const best =
-        browserCandidates[0];
+        visibleCandidates[0];
 
       if (!best) {
         continue;
@@ -1615,7 +1628,7 @@ const dedupeMergedChannels =
 
       for (
         const candidate of
-        browserCandidates
+        visibleCandidates
       ) {
         (
           candidate.tags ||
@@ -1650,12 +1663,12 @@ const dedupeMergedChannels =
         ],
 
         alternatives:
-          browserCandidates.slice(
+          visibleCandidates.slice(
             1
           ),
 
         duplicateCount:
-          browserCandidates.length,
+          visibleCandidates.length,
 
         rejectedSourceCount:
           Math.max(
