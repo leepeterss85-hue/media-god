@@ -2877,6 +2877,12 @@ export default function VideoPlayer({
         active?.headers ||
         active?.requestHeaders ||
         {},
+      audioLanguage: trackPreferences.audioLanguage,
+      subtitleLanguage: trackPreferences.subtitleLanguage,
+      subtitlesEnabled: trackPreferences.subtitlesEnabled,
+      subtitles: Array.isArray(active?.subtitles)
+        ? active.subtitles
+        : [],
     });
 
     if (!started) {
