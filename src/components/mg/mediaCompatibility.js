@@ -898,6 +898,17 @@ const audioSupport = (
     return null;
   }
 
+  const nativeSupport =
+    nativeCodecSupportFor(
+      deviceProfile,
+      "audio",
+      audio
+    );
+
+  if (nativeSupport === true) {
+    return true;
+  }
+
   if (
     audio ===
     "aac"
