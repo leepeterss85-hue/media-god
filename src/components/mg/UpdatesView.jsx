@@ -9,6 +9,7 @@ import {
 
 import {
   ALL_UPDATE_COUNT,
+  RELEASED_UPDATE_COUNT,
   UPDATE_HISTORY,
 } from "@/components/mg/updateHistory";
 
@@ -41,7 +42,7 @@ export default function UpdatesView() {
                 {ALL_UPDATE_COUNT}
               </p>
               <p className="text-xs text-white/40">
-                across {UPDATE_HISTORY.length} releases
+                across {RELEASED_UPDATE_COUNT} released updates
               </p>
             </div>
           </div>
@@ -57,12 +58,17 @@ export default function UpdatesView() {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      {releaseIndex === 0 && (
+                      {release.status === "planned" ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-mg-green/30 bg-mg-green/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-mg-green">
+                          <Sparkles className="h-3 w-3" />
+                          Coming next
+                        </span>
+                      ) : releaseIndex === 1 ? (
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-mg-green px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-black">
                           <Sparkles className="h-3 w-3" />
-                          Latest
+                          Latest released
                         </span>
-                      )}
+                      ) : null}
 
                       <span className="inline-flex items-center gap-1.5 text-xs font-medium text-white/45">
                         <CalendarDays className="h-3.5 w-3.5" />
@@ -80,7 +86,7 @@ export default function UpdatesView() {
                   </div>
 
                   <div className="shrink-0 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs font-semibold text-white/50">
-                    {release.changes.length} changes
+                    {release.changes.length} {release.status === "planned" ? "planned" : "changes"}
                   </div>
                 </div>
               </div>
