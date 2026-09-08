@@ -1970,27 +1970,24 @@ async function choosePlayableRdStream({
   };
 
   /*
-   * A successful mediaInfos response with zero audio tracks means
-   * the file really has no audio to decode. Skip it immediately.
+   * MediaInfos can occasionally be incomplete for otherwise playable files.
+   * Keep the unrestricted stream available and let the player prove whether
+   * audio is really absent before discarding the source.
    */
   if (
     audioTracks.length ===
     0
   ) {
     return {
-      error:
-        "This file contains no audio track. Media God will try another source.",
-      error_code:
-        "NO_AUDIO_TRACK",
+      stream_url: originalUrl,
+      filename: originalFilename,
       audio_rescue: {
         used: false,
-        state:
-          "no_audio_track",
+        state: "no_audio_metadata_original_probe",
         reason:
-          "Real-Debrid media inspection reported zero audio tracks.",
+          "Real-Debrid media inspection exposed no audio tracks, so Media God is probing the original stream instead of rejecting it.",
       },
-      media_info:
-        mediaSummary,
+      media_info: mediaSummary,
     };
   }
 
@@ -2194,59 +2191,50 @@ async function choosePlayableRdStream({
     firstTrack?.codec ||
     "";
 
-  if (
-    forceAudioRescue ||
-    isHardRiskAudioCodec(
-      firstCodec
-    )
-  ) {
+  if (forceAudioRescue) {
     return {
       error:
-        `The selected source uses ${firstCodec || "an unsupported audio codec"} and Real-Debrid could not create a compatible audio stream. Media God will try another source.`,
-      error_code:
-        "AUDIO_RESCUE_UNAVAILABLE",
+        `Audio Rescue could not create a compatible stream for ${firstCodec || "this audio track"}. Media God will try another source.`,
+      error_code: "AUDIO_RESCUE_UNAVAILABLE",
       audio_rescue: {
         used: false,
-        state:
-          forceAudioRescue
-            ? "forced_audio_rescue_unavailable_try_next_source"
-            : "known_unsupported_audio_try_next_source",
+        state: "forced_audio_rescue_unavailable_try_next_source",
         reason:
           transcode?.error ||
-          (forceAudioRescue
-            ? "Real-Debrid returned no compatible HLS/MP4/WebM transcode after runtime no-sound detection."
-            : "Real-Debrid returned no compatible HLS/MP4/WebM transcode for a known-risky audio codec."),
+          "Real-Debrid returned no compatible HLS/MP4/WebM transcode after runtime no-sound detection.",
         selected_audio:
           englishSafe ||
           englishTracks[0] ||
           firstTrack ||
           null,
       },
-      media_info:
-        mediaSummary,
+      media_info: mediaSummary,
     };
   }
 
+  const hardRisk = isHardRiskAudioCodec(firstCodec);
+
   return {
-    stream_url:
-      originalUrl,
+    stream_url: originalUrl,
     filename:
-      `${originalFilename || mediaInfo?.filename || "Real-Debrid Stream"} [Audio Rescue Fallback]`,
+      `${originalFilename || mediaInfo?.filename || "Real-Debrid Stream"}${hardRisk ? " [Original Audio Probe]" : " [Audio Rescue Fallback]"}`,
     audio_rescue: {
       used: false,
-      state:
-        "transcode_unavailable_original_fallback",
+      state: hardRisk
+        ? "hard_codec_original_probe"
+        : "transcode_unavailable_original_fallback",
       reason:
         transcode?.error ||
-        "No usable Real-Debrid transcode was returned. The codec is not a known hard-failure codec, so the original stream is kept as a final compatibility fallback.",
+        (hardRisk
+          ? "No compatible transcode was returned. Media God keeps the original DTS/TrueHD-style stream available because Fire TV hardware support can exceed WebView codec reporting."
+          : "No usable Real-Debrid transcode was returned, so the original stream is kept as a final compatibility fallback."),
       selected_audio:
         englishSafe ||
         englishTracks[0] ||
         firstTrack ||
         null,
     },
-    media_info:
-      mediaSummary,
+    media_info: mediaSummary,
   };
 }
 
