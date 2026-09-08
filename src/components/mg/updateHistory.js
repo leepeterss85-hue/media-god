@@ -3,7 +3,7 @@ export const UPDATE_HISTORY = [
     id: "playback-live-tv-next",
     date: "Coming next",
     status: "planned",
-    title: "Playback and Live TV improvements",
+    title: "Playback & Live TV improved",
     summary:
       "The next Media God release will improve both on-demand playback and Live TV together, with a focus on quicker starts, better recovery and easier source switching.",
     changes: [
