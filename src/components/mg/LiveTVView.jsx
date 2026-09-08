@@ -35,6 +35,10 @@ import {
   prewarmLiveTvUrl,
   recordLiveTvPlaybackResult,
 } from "@/components/mg/liveTvPlaybackLearning";
+import {
+  isNativeFireTvPlayerAvailable,
+  openNativeFireTvExternalUrl,
+} from "@/components/mg/nativeFireTvBridge";
 
 const DEFAULT_FILTER = "All";
 const MAX_VISIBLE = 400;
@@ -119,6 +123,50 @@ const searchText = (value) => String(value || "").toLowerCase().trim();
 const normaliseStationName = (value) =>
   searchText(value).replace(/\s+/g, " ").replace(/\s+(uk|hd|fhd)$/i, "").trim();
 
+const BBC_IPLAYER_LIVE = [
+  [/^bbc one\b/i, "https://www.bbc.co.uk/iplayer/live/bbcone"],
+  [/^bbc two\b/i, "https://www.bbc.co.uk/iplayer/live/bbctwo"],
+  [/^bbc three\b/i, "https://www.bbc.co.uk/iplayer/live/bbcthree"],
+  [/^bbc four\b/i, "https://www.bbc.co.uk/iplayer/live/bbcfour"],
+  [/^bbc news\b/i, "https://www.bbc.co.uk/iplayer/live/bbcnews"],
+  [/^bbc parliament\b/i, "https://www.bbc.co.uk/iplayer/live/bbcparliament"],
+  [/^cbbc\b/i, "https://www.bbc.co.uk/iplayer/live/cbbc"],
+  [/^cbeebies\b/i, "https://www.bbc.co.uk/iplayer/live/cbeebies"],
+  [/^bbc scotland\b/i, "https://www.bbc.co.uk/iplayer/live/bbcscotland"],
+  [/^bbc alba\b/i, "https://www.bbc.co.uk/iplayer/live/bbcalba"],
+];
+
+const officialBbcLiveUrl = (channel) => {
+  const explicit = String(channel?.officialUrl || "").trim();
+  if (/^https?:\/\//i.test(explicit)) return explicit;
+
+  const name = String(channel?.name || "").trim();
+  return BBC_IPLAYER_LIVE.find(([pattern]) => pattern.test(name))?.[1] || "";
+};
+
+const openOfficialLiveUrl = (url) => {
+  const target = String(url || "").trim();
+  if (!/^https?:\/\//i.test(target)) return false;
+
+  if (openNativeFireTvExternalUrl(target)) {
+    return true;
+  }
+
+  try {
+    const opened = window.open(target, "_blank", "noopener,noreferrer");
+    if (opened) return true;
+  } catch {
+    // Fall through to same-window navigation.
+  }
+
+  try {
+    window.location.assign(target);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 const channelMemoryKey = (channel) =>
   String(
     channel?.tvgId ||
@@ -196,13 +244,15 @@ const qualityLabel = (channel) => {
   return "";
 };
 
-const playableChannelCandidates = (channel) =>
-  [channel, ...(channel?.alternatives || [])]
+const playableChannelCandidates = (channel) => {
+  const nativeFireTv = isNativeFireTvPlayerAvailable();
+
+  return [channel, ...(channel?.alternatives || [])]
     .filter(
       (candidate) =>
         candidate?.kind === "direct" &&
         candidate?.url &&
-        candidate?.browserPlayable !== false
+        (candidate?.browserPlayable !== false || nativeFireTv)
     )
     .map((candidate, index) => ({
       candidate,
@@ -215,6 +265,7 @@ const playableChannelCandidates = (channel) =>
     }))
     .sort((a, b) => b.score - a.score || a.index - b.index)
     .map(({ candidate }) => candidate);
+};
 
 const prewarmChannel = (channel) => {
   const candidate = playableChannelCandidates(channel)[0];
@@ -272,6 +323,7 @@ export default function LiveTVView() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [channelNotice, setChannelNotice] = useState("");
+  const [channelNoticeAction, setChannelNoticeAction] = useState(null);
   const [query, setQuery] = useState("");
   const [group, setGroup] = useState(DEFAULT_FILTER);
   const [quickFilter, setQuickFilter] = useState(DEFAULT_FILTER);
@@ -1071,11 +1123,7 @@ export default function LiveTVView() {
       "external"
     ) {
       if (channel.url) {
-        window.open(
-          channel.url,
-          "_blank",
-          "noopener,noreferrer"
-        );
+        openOfficialLiveUrl(channel.url);
       }
 
       return;
@@ -1084,14 +1132,27 @@ export default function LiveTVView() {
     const candidates = playableChannelCandidates(channel);
 
     if (candidates.length === 0) {
+      const officialUrl = officialBbcLiveUrl(channel);
+
       setChannelNotice(
-        `${channel.name || "This channel"} does not currently have a browser-playable stream.`
+        officialUrl
+          ? `${channel.name || "This BBC channel"} does not have a direct stream this device can play. BBC live TV remains subject to the BBC’s UK availability rules; you can use the official BBC iPlayer feed instead.`
+          : `${channel.name || "This channel"} does not currently have a browser-playable stream.`
+      );
+      setChannelNoticeAction(
+        officialUrl
+          ? {
+              label: "Open BBC iPlayer",
+              url: officialUrl,
+            }
+          : null
       );
       return;
     }
 
     stopRadio();
     setChannelNotice("");
+    setChannelNoticeAction(null);
     prewarmChannel(channel);
 
     const directSources = candidates
@@ -1381,10 +1442,25 @@ export default function LiveTVView() {
       {channelNotice && !error && (
         <div className="mb-4 flex items-start gap-3 rounded-lg border border-amber-500/25 bg-amber-500/5 p-3 text-sm text-amber-100/85">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          <div className="min-w-0 flex-1">{channelNotice}</div>
+          <div className="min-w-0 flex-1">
+            <div>{channelNotice}</div>
+            {channelNoticeAction?.url && (
+              <button
+                type="button"
+                onClick={() => openOfficialLiveUrl(channelNoticeAction.url)}
+                className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-lg border border-amber-300/30 bg-black/25 px-3 py-2 text-xs font-bold text-white outline-none hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-mg-green"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                {channelNoticeAction.label || "Open official stream"}
+              </button>
+            )}
+          </div>
           <button
             type="button"
-            onClick={() => setChannelNotice("")}
+            onClick={() => {
+              setChannelNotice("");
+              setChannelNoticeAction(null);
+            }}
             className="shrink-0 rounded-md px-2 py-1 text-xs font-semibold text-white/60 hover:bg-white/5 hover:text-white"
           >
             Dismiss
