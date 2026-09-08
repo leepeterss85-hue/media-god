@@ -111,6 +111,14 @@ export default function AddonsManager() {
     );
 
   const [
+    mutating,
+    setMutating,
+  ] =
+    useState(
+      false
+    );
+
+  const [
     health,
     setHealth,
   ] =
@@ -245,8 +253,26 @@ export default function AddonsManager() {
         return;
       }
 
+      if (
+        addons.some(
+          (addon) =>
+            normaliseManifestUrl(addon?.url) === url
+        )
+      ) {
+        setError(
+          "That addon manifest is already configured."
+        );
+        return;
+      }
+
+      if (mutating) {
+        return;
+      }
+
+      setMutating(true);
+
       try {
-        await base44.entities.Addon.create(
+        const created = await base44.entities.Addon.create(
           {
             name,
 
@@ -260,6 +286,15 @@ export default function AddonsManager() {
           }
         );
 
+        if (created?.id) {
+          setAddons((current) => [
+            created,
+            ...current.filter((addon) => addon?.id !== created.id),
+          ]);
+        } else {
+          await loadAddons();
+        }
+
         setNewName(
           ""
         );
@@ -272,11 +307,12 @@ export default function AddonsManager() {
           "Addon saved. Use Test active to confirm the manifest is reachable."
         );
 
-        await loadAddons();
       } catch {
         setError(
           "Failed to add the addon."
         );
+      } finally {
+        setMutating(false);
       }
     };
 
@@ -292,6 +328,12 @@ export default function AddonsManager() {
         ""
       );
 
+      if (mutating) {
+        return;
+      }
+
+      setMutating(true);
+
       try {
         const nextActive =
           addon?.active ===
@@ -299,7 +341,7 @@ export default function AddonsManager() {
           addon?.installed ===
             false;
 
-        await base44.entities.Addon.update(
+        const updated = await base44.entities.Addon.update(
           addon.id,
           {
             active:
@@ -310,11 +352,24 @@ export default function AddonsManager() {
           }
         );
 
-        await loadAddons();
+        setAddons((current) =>
+          current.map((item) =>
+            item?.id === addon.id
+              ? {
+                  ...item,
+                  ...(updated || {}),
+                  active: nextActive,
+                  installed: nextActive,
+                }
+              : item
+          )
+        );
       } catch {
         setError(
           "Failed to update the addon status."
         );
+      } finally {
+        setMutating(false);
       }
     };
 
@@ -330,16 +385,26 @@ export default function AddonsManager() {
         ""
       );
 
+      if (mutating) {
+        return;
+      }
+
+      setMutating(true);
+
       try {
         await base44.entities.Addon.delete(
           id
         );
 
-        await loadAddons();
+        setAddons((current) =>
+          current.filter((addon) => addon?.id !== id)
+        );
       } catch {
         setError(
           "Failed to delete the addon."
         );
+      } finally {
+        setMutating(false);
       }
     };
 
