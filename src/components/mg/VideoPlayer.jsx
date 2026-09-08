@@ -2336,6 +2336,85 @@ export default function VideoPlayer({
     async (
       file
     ) => {
+      const provider = String(rdOverride?.provider || "realdebrid")
+        .toLowerCase()
+        .replace(/[^a-z]/g, "");
+
+      if (
+        rdOverride?.file === file.path ||
+        rdOverride?.file === file.name
+      ) {
+        return;
+      }
+
+      if (provider !== "realdebrid") {
+        const sourceUrl = String(
+          rdOverride?.sourceUrl || getSourceUrl(active) || ""
+        ).trim();
+
+        if (!sourceUrl) {
+          setRdError("This debrid file no longer has its torrent source.");
+          return;
+        }
+
+        setFileSwitching(true);
+        setRdError("");
+
+        try {
+          const response = await base44.functions.invoke(
+            "multiDebrid",
+            {
+              action: "resolve",
+              provider,
+              provider_scores: debridProviderScoreHints(),
+              source: sourceUrl,
+              selected_file: {
+                id: file?.id,
+                index: file?.index,
+                path: file?.path,
+                name: file?.name,
+              },
+              ...(source?.rdSeason != null ? { season: source.rdSeason } : {}),
+              ...(source?.rdEpisode != null ? { episode: source.rdEpisode } : {}),
+            }
+          );
+
+          const data = response?.data || {};
+          if (!data?.url) {
+            throw new Error(
+              data?.error || "The selected debrid file did not return a playable stream."
+            );
+          }
+
+          setRdOverride({
+            src: data.url,
+            label:
+              data.filename ||
+              file?.path ||
+              file?.name ||
+              "Debrid File",
+            file:
+              data.selectedFile ||
+              file?.path ||
+              file?.name ||
+              "",
+            provider: data.provider || provider,
+            sourceUrl,
+          });
+          setRdFiles(
+            Array.isArray(data.files) ? data.files : rdFiles
+          );
+        } catch (error) {
+          setRdError(
+            error?.message || "Debrid file selection failed."
+          );
+        } finally {
+          setFileSwitching(false);
+        }
+
+        return;
+      }
+
       if (
         !file?.link
       ) {
@@ -2343,13 +2422,6 @@ export default function VideoPlayer({
           "This file does not have a Real-Debrid link yet."
         );
 
-        return;
-      }
-
-      if (
-        rdOverride?.file ===
-        file.path
-      ) {
         return;
       }
 
