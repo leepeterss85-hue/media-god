@@ -237,6 +237,24 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
           </button>
         </div>
 
+        {showFallback && release.fallbackApkUrl && (
+          <div className="mt-4 rounded-xl border border-amber-400/25 bg-amber-400/5 p-3">
+            <p className="text-sm font-semibold text-amber-200">
+              Download did not open?
+            </p>
+            <p className="mt-1 text-xs leading-5 text-white/60">
+              Try the backup download below. If this Fire Stick still blocks it, open the Downloader app and use the same permanent Media God APK address.
+            </p>
+            <button
+              type="button"
+              onClick={installFromBackup}
+              className="mt-3 min-h-11 rounded-lg border border-amber-300/30 bg-black/30 px-4 py-2 text-sm font-semibold text-white outline-none focus:ring-2 focus:ring-mg-green"
+            >
+              Try backup download
+            </button>
+          </div>
+        )}
+
         <p className="mt-4 text-xs text-white/45">
           Android/Fire OS will always ask you to confirm an APK installation. Media God does not bypass that security screen.
         </p>
