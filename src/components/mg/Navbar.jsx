@@ -217,8 +217,21 @@ export default function Navbar({
       onPlayerVisibility
     );
 
+    let syncFrame = 0;
+
+    const scheduleSync = () => {
+      if (syncFrame) {
+        return;
+      }
+
+      syncFrame = window.requestAnimationFrame(() => {
+        syncFrame = 0;
+        syncFromEverything();
+      });
+    };
+
     const observer = new MutationObserver(
-      syncFromEverything
+      scheduleSync
     );
 
     observer.observe(document.body, {
@@ -229,10 +242,15 @@ export default function Navbar({
     /*
      * Player context/visibility events and the DOM observer are the primary
      * signals. This slower watchdog is only a safety net, avoiding ten full
-     * player-state DOM scans every second while the app is idle.
+     * player-state DOM scans every second while the app is idle. It also does
+     * no DOM work while the tab/app is hidden.
      */
     const watchdog = window.setInterval(
-      syncFromEverything,
+      () => {
+        if (document.visibilityState !== "hidden") {
+          scheduleSync();
+        }
+      },
       750
     );
 
@@ -251,6 +269,10 @@ export default function Navbar({
 
       observer.disconnect();
       window.clearInterval(watchdog);
+
+      if (syncFrame) {
+        window.cancelAnimationFrame(syncFrame);
+      }
     };
   }, []);
 
