@@ -1,5 +1,20 @@
 export const UPDATE_HISTORY = [
   {
+    id: "fire-tv-app-updater-v1",
+    date: "8 September 2026",
+    title: "Fire TV app update detection added",
+    suppressNotice: true,
+    summary:
+      "The Fire Stick web wrapper can now detect the dedicated Media God Fire TV app and offer its permanent APK download, while the native Fire TV build reports its installed version to the web app.",
+    changes: [
+      "Added a Fire TV-only update checker that does not appear on normal phones, tablets or desktop browsers.",
+      "Legacy Wix/Base44 Fire Stick installs now receive a migration prompt for the dedicated Fire TV app instead of needing a manually supplied APK link.",
+      "The dedicated native Fire TV shell now exposes package name, version code and version name to Media God so current builds do not show false update prompts.",
+      "Added a permanent GitHub release download address for the latest Fire TV APK instead of relying on expiring workflow artifacts.",
+      "The native Fire TV bridge can open the update download in an external browser while retaining Android/Fire OS installation confirmation.",
+    ],
+  },
+  {
     id: "fire-tv-catalogue-scale-v1",
     date: "8 September 2026",
     title: "Fire Stick screen scale and card layout corrected",
@@ -268,7 +283,9 @@ export const UPDATE_HISTORY = [
 ];
 
 export const LATEST_UPDATE = UPDATE_HISTORY.find(
-  (release) => release.status !== "planned"
+  (release) =>
+    release.status !== "planned" &&
+    release.suppressNotice !== true
 );
 
 export const ALL_UPDATE_COUNT = UPDATE_HISTORY.reduce(
