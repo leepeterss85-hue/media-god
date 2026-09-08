@@ -11,22 +11,20 @@ import {
 } from "lucide-react";
 
 const RELEASE_ID =
-  "playback-fe5221a";
+  "source-debrid-subtitles-v1";
 
 const STORAGE_KEY =
   `mg:release-notice:${RELEASE_ID}`;
 
 const CHANGES = [
-  "Broader torrent playback support with less aggressive codec rejection on Fire TV.",
-  "DTS, DTS-HD and TrueHD sources stay playable when Real-Debrid cannot create a transcode.",
-  "Better support for HEVC/H.265, AV1, VP9, HDR and Dolby Vision without blanket Fire TV blocking.",
-  "More video containers recognised, including MP4, MKV, M4V, MOV, WebM, MPEG, TS/M2TS, AVI, VOB, OGV, WMV, ASF, F4V, MXF and DIVX-style files.",
-  "Broader audio handling for AAC, AC3, EAC3/DD+, DTS, TrueHD, FLAC, ALAC, Opus, Vorbis, PCM/LPCM, MP2 and MP3.",
-  "Smarter multi-file torrent selection that avoids samples, trailers, extras and bonus clips.",
-  "Improved torrent file picker with quality, HDR, codec, audio, channels, container and file size when available.",
-  "Fixed Real-Debrid file-link mapping so alternate files inside a torrent can actually be opened.",
-  "Difficult video codecs/containers can use a Real-Debrid compatibility stream, while the original file remains available as a fallback.",
-  "Audio Rescue and Video Compatibility Rescue now work independently instead of blocking each other.",
+  "New source sorting: Best, Cached, 4K, 1080p, Compatible or Smallest.",
+  "Source choices keep showing useful quality, HDR, video, audio, cache and debrid-provider information when available.",
+  "Multi-file torrent selection now works across AllDebrid, TorBox, Premiumize and Debrid-Link as well as Real-Debrid.",
+  "You can switch to another video file from a supported debrid torrent without leaving the player.",
+  "Subtitle choices are remembered per film or series, including whether subtitles were turned off.",
+  "Forced and foreign-parts subtitles are selected more intelligently, while SDH captions can be preferred or kept behind cleaner dialogue subtitles.",
+  "Subtitle timing can now be moved earlier or later in 0.5-second steps and reset instantly.",
+  "Embedded, HLS and external/addon subtitles now share smarter language, forced and SDH selection.",
 ];
 
 const alreadySeen = () => {
@@ -134,11 +132,11 @@ export default function PlaybackUpdateNotice({
               id="mg-playback-update-title"
               className="text-2xl font-black text-white sm:text-3xl"
             >
-              More formats. Better torrents. Fewer playback failures.
+              Better sources, debrid files and subtitles.
             </h2>
 
             <p className="mt-2 text-sm leading-6 text-white/60 sm:text-base">
-              Media God has had a major video, audio and torrent compatibility upgrade.
+              Media God now gives you more control over source quality, debrid files and subtitle playback.
             </p>
           </div>
 
