@@ -1557,14 +1557,18 @@ export default function VideoPlayer({
               return;
             }
 
-            if (
-              !document
-                .fullscreenElement
-            ) {
-              onClose();
+            const nativeFullscreenElement =
+              document.fullscreenElement ||
+              document.webkitFullscreenElement ||
+              null;
 
+            if (nativeFullscreenElement) {
+              goFullscreen();
               return;
             }
+
+            onClose();
+            return;
           }
 
           const tag =
