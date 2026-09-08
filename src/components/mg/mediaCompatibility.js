@@ -860,6 +860,7 @@ export const hasSevereVideoRisk = (
 
   if (
     traits.video === "av1" &&
+    !deviceProfile?.fireTv &&
     !browserCodecSupport.av1Aac
   ) {
     return true;
@@ -867,6 +868,7 @@ export const hasSevereVideoRisk = (
 
   if (
     traits.video === "vp9" &&
+    !deviceProfile?.fireTv &&
     !browserCodecSupport.vp9Opus
   ) {
     return true;
@@ -926,7 +928,12 @@ export const scoreSourceCompatibility = (
       deviceProfile
     )
   ) {
-    score -= 50000;
+    /*
+     * Keep unusual video formats available. Browser/WebView codec probes can
+     * under-report Fire TV hardware decode support, so this is a ranking hint,
+     * never a reason to effectively blacklist a torrent.
+     */
+    score -= 9000;
   }
 
   if (
