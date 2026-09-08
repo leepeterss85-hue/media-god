@@ -885,7 +885,7 @@ export default function PlaybackReliabilityAssist() {
         );
 
         showMessage(
-          "Source failed · trying the next stream…",
+          "Source failure remembered · player recovery is handling it…",
           2200
         );
       };
@@ -910,7 +910,7 @@ export default function PlaybackReliabilityAssist() {
         );
 
         showMessage(
-          "Audio issue remembered · trying another source…",
+          "Audio issue remembered · player recovery is handling it…",
           2400
         );
       };
