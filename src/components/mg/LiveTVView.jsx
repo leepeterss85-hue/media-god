@@ -1985,8 +1985,9 @@ export default function LiveTVView() {
           })}
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 3xl:grid-cols-4 4xl:grid-cols-5">
-          {shown.map(
+        <>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 3xl:grid-cols-4 4xl:grid-cols-5">
+            {shown.map(
             (
               channel,
               index
@@ -2242,8 +2243,28 @@ export default function LiveTVView() {
                 </div>
               );
             }
+            )}
+          </div>
+
+          {filtered.length > shown.length && (
+            <div className="mt-5 flex justify-center">
+              <button
+                type="button"
+                onClick={() =>
+                  setChannelVisibleLimit((current) =>
+                    Math.min(filtered.length, current + MAX_VISIBLE)
+                  )
+                }
+                className="min-h-11 rounded-lg border border-white/10 bg-mg-card px-5 text-sm font-bold text-white/75 outline-none hover:border-mg-green/50 hover:text-white focus-visible:ring-2 focus-visible:ring-mg-green"
+              >
+                Show more channels · {Math.min(
+                  MAX_VISIBLE,
+                  filtered.length - shown.length
+                ).toLocaleString()} more
+              </button>
+            </div>
           )}
-        </div>
+        </>
       )}
     </div>
   );
