@@ -23,6 +23,7 @@ class MainActivity : Activity() {
 
     private lateinit var webView: WebView
     private var playerOpen = false
+    private var pendingNativeResultScript: String? = null
 
     @SuppressLint("SetJavaScriptEnabled", "JavascriptInterface")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -95,6 +96,11 @@ class MainActivity : Activity() {
         webView.onResume()
         webView.resumeTimers()
         injectFireTvBootstrap()
+
+        pendingNativeResultScript?.let { script ->
+            pendingNativeResultScript = null
+            dispatchJavascript(script)
+        }
     }
 
     override fun onPause() {
@@ -170,9 +176,8 @@ class MainActivity : Activity() {
             put("message", data?.getStringExtra(PlayerActivity.EXTRA_MESSAGE).orEmpty())
         }
 
-        dispatchJavascript(
+        pendingNativeResultScript =
             "window.dispatchEvent(new CustomEvent('mg:native-player-result',{detail:JSON.parse(${JSONObject.quote(result.toString())})}));"
-        )
     }
 
     private fun enterImmersiveMode() {
