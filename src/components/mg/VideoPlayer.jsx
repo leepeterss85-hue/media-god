@@ -38,7 +38,10 @@ import {
   concisePlaybackSourceLabel,
   torrentFileLabel,
 } from "@/components/mg/playbackSourceLabels";
-import { recordLiveTvPlaybackResult } from "@/components/mg/liveTvPlaybackLearning";
+import {
+  liveTvUrlScore,
+  recordLiveTvPlaybackResult,
+} from "@/components/mg/liveTvPlaybackLearning";
 import {
   readSourceSortMode,
   sortSourceEntries,
@@ -278,8 +281,12 @@ export default function VideoPlayer({
       : 0;
 
     const rdBonus = item?.viaRealDebrid ? 5000 : 0;
+    const liveBonus =
+      item?.live || item?.type === "live"
+        ? liveTvUrlScore(getSourceUrl(item))
+        : 0;
 
-    return compatibility + learned + directBonus + rdBonus;
+    return compatibility + learned + directBonus + rdBonus + liveBonus;
   };
 
   const markSourceFailed = (index) => {
