@@ -1322,17 +1322,16 @@ export const scoreSourceCompatibility = (
     "dts"
   ) {
     /*
-     * Known high-risk Fire TV / WebView audio.
-     * Keep it available only as an Audio Rescue candidate.
+     * Prefer safer audio when everything else is equal, but never make a
+     * cached DTS torrent effectively unusable. RD/HLS audio rescue can handle
+     * it after the stream is resolved and Fire TV may decode it directly.
      */
-    score -=
-      100000;
+    score -= 18000;
   } else if (
     traits.audio ===
     "truehd"
   ) {
-    score -=
-      110000;
+    score -= 22000;
   }
 
   if (
@@ -1406,42 +1405,18 @@ export const orderSourcesForPlayback = (
       }
     );
 
-  const hasSaferAlternative =
-    list.some(
-      (entry) =>
-        !entry.severeAudioRisk
-    );
-
   return list
     .sort(
       (
         a,
         b
-      ) => {
-        /*
-         * If any safer source exists, DTS/TrueHD sources ALWAYS
-         * go behind every safer alternative.
-         *
-         * They are not deleted because the Real-Debrid backend
-         * can still attempt Audio Rescue if every safer source fails.
-         */
-        if (
-          hasSaferAlternative &&
-          a.severeAudioRisk !==
-            b.severeAudioRisk
-        ) {
-          return a.severeAudioRisk
-            ? 1
-            : -1;
-        }
-
-        return (
-          b.score -
-            a.score ||
-          a.index -
-            b.index
-        );
-      }
+      ) =>
+        b.score -
+          a.score ||
+        Number(a.severeAudioRisk) -
+          Number(b.severeAudioRisk) ||
+        a.index -
+          b.index
     )
     .map(
       ({ item }) =>
