@@ -21,6 +21,7 @@ const CHANGES = [
   "Source choices keep showing useful quality, HDR, video, audio, cache and debrid-provider information when available.",
   "Multi-file torrent selection now works across AllDebrid, TorBox, Premiumize and Debrid-Link as well as Real-Debrid.",
   "You can switch to another video file from a supported debrid torrent without leaving the player.",
+  "If one cached debrid service fails to resolve a torrent, Media God can try the next cached connected service before giving up on it.",
   "Subtitle choices are remembered per film or series, including whether subtitles were turned off.",
   "Forced and foreign-parts subtitles are selected more intelligently, while SDH captions can be preferred or kept behind cleaner dialogue subtitles.",
   "Subtitle timing can now be moved earlier or later in 0.5-second steps and reset instantly.",
