@@ -1487,20 +1487,25 @@ export default function VideoPlayer({
         (
           event
         ) => {
-          if (
-            event.key ===
-            "Escape"
-          ) {
+          const backKey =
+            event.key === "Escape" ||
+            event.key === "Backspace" ||
+            event.key === "BrowserBack" ||
+            event.key === "GoBack" ||
+            Number(event.keyCode || event.which || 0) === 4;
+
+          if (backKey) {
             const stage =
               stageRef.current;
+
+            event.preventDefault();
+            event.stopPropagation();
 
             if (
               stage?.dataset
                 ?.mgFullscreen ===
               "true"
             ) {
-              event.preventDefault();
-
               goFullscreen();
 
               return;
