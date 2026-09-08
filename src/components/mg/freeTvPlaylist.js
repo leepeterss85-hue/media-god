@@ -36,6 +36,13 @@ export const LIVE_TV_SOURCES = [
     category: "United Kingdom",
   },
   {
+    id: "iptv-org-worldwide",
+    name: "IPTV-org Worldwide",
+    url: "https://iptv-org.github.io/iptv/index.country.m3u",
+    priority: 72,
+    category: "Worldwide",
+  },
+  {
     id: "iptv-org-sports",
     name: "IPTV-org Sports",
     url: "https://iptv-org.github.io/iptv/categories/sports.m3u",
@@ -303,6 +310,51 @@ export const PUBLIC_DIRECT_CHANNELS = [
     priority: 118,
     sourceName: "5 Official",
     officialUrl: "https://www.5.tv/",
+  },
+  /*
+   * Verified worldwide public/news fallbacks. These sit alongside, rather
+   * than replace, playlist candidates. They give major international channels
+   * a stable direct source when a community entry changes or disappears.
+   */
+  {
+    id: "AlJazeera.qa@English",
+    name: "Al Jazeera English",
+    url: "https://live-hls-apps-aje-fa.getaj.net/AJE/index.m3u8",
+    category: "News",
+    country: "QA",
+    priority: 118,
+    sourceName: "Al Jazeera Official",
+    officialUrl: "https://www.aljazeera.com/live/",
+  },
+  {
+    id: "NHKWorldJapan.jp@SD",
+    name: "NHK World-Japan",
+    url: "https://masterpl.hls.nhkworld.jp/hls/w/live/smarttv.m3u8",
+    category: "News",
+    country: "JP",
+    priority: 116,
+    sourceName: "NHK World Official",
+    officialUrl: "https://www3.nhk.or.jp/nhkworld/en/live/",
+  },
+  {
+    id: "ABCNewsLive1.us@SD",
+    name: "ABC News Live",
+    url: "https://abcnews-streams.akamaized.net/hls/live/2023560/abcnewshudson1/master.m3u8",
+    category: "News",
+    country: "US",
+    priority: 114,
+    sourceName: "ABC News Official",
+    officialUrl: "https://abcnews.com/Live",
+  },
+  {
+    id: "VoATV.us@SD",
+    name: "VOA TV Africa",
+    url: "https://voa-ingest.akamaized.net/hls/live/2033874/tvmc06/playlist.m3u8",
+    category: "News",
+    country: "US",
+    priority: 110,
+    sourceName: "VOA Official",
+    officialUrl: "https://www.voanews.com/",
   },
   {
     id: "france24-en",
