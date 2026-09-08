@@ -30,6 +30,10 @@ import {
 import { usePlayer } from "@/components/mg/PlayerProvider";
 import { base44 } from "@/api/base44Client";
 import { cn } from "@/lib/utils";
+import {
+  liveTvUrlScore,
+  prewarmLiveTvUrl,
+} from "@/components/mg/liveTvPlaybackLearning";
 
 const DEFAULT_FILTER = "All";
 const MAX_VISIBLE = 400;
@@ -189,6 +193,34 @@ const qualityLabel = (channel) => {
   if (quality > 0) return "SD";
 
   return "";
+};
+
+const playableChannelCandidates = (channel) =>
+  [channel, ...(channel?.alternatives || [])]
+    .filter(
+      (candidate) =>
+        candidate?.kind === "direct" &&
+        candidate?.url &&
+        candidate?.browserPlayable !== false
+    )
+    .map((candidate, index) => ({
+      candidate,
+      index,
+      score:
+        liveTvUrlScore(candidate.url) +
+        Number(candidate?.sourcePriority || 0) * 30 +
+        Number(candidate?.quality || 0) * 2 +
+        (index === 0 ? 900 : 0),
+    }))
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .map(({ candidate }) => candidate);
+
+const prewarmChannel = (channel) => {
+  playableChannelCandidates(channel)
+    .slice(0, 2)
+    .forEach((candidate) => {
+      prewarmLiveTvUrl(candidate.url);
+    });
 };
 
 const radioUrlsFor = (channel) => {
@@ -697,6 +729,30 @@ export default function LiveTVView() {
       .slice(0, 18);
   }, [channels, recentKeys]);
 
+  useEffect(() => {
+    const likely = [
+      ...favouriteChannels,
+      ...recentChannels,
+    ]
+      .filter((channel, index, list) =>
+        list.findIndex(
+          (item) => channelMemoryKey(item) === channelMemoryKey(channel)
+        ) === index
+      )
+      .slice(0, 6);
+
+    const timers = likely.map((channel, index) =>
+      window.setTimeout(
+        () => prewarmChannel(channel),
+        250 + index * 220
+      )
+    );
+
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
+  }, [favouriteChannels, recentChannels]);
+
   const groups = useMemo(() => {
     const values = Array.from(
       new Set(
@@ -957,18 +1013,9 @@ export default function LiveTVView() {
       return;
     }
 
-    const directSources = [
-      channel,
-      ...(channel.alternatives || []),
-    ]
-      .filter(
-        (candidate) =>
-          candidate?.kind ===
-            "direct" &&
-          candidate?.url &&
-          candidate?.browserPlayable !==
-            false
-      )
+    prewarmChannel(channel);
+
+    const directSources = playableChannelCandidates(channel)
       .map(
         (
           candidate,
@@ -1046,6 +1093,7 @@ export default function LiveTVView() {
         onClick={() => playChannel(channel)}
         onFocus={(event) => {
           setFocusedChannelKey(memoryKey);
+          prewarmChannel(channel);
           event.currentTarget.scrollIntoView({
             block: "nearest",
             inline: "nearest",
