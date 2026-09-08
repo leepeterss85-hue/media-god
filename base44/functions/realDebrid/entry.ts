@@ -1329,6 +1329,10 @@ async function addMagnet({
       stream.stream_url ||
       "",
 
+    fallback_stream_url:
+      stream.fallback_stream_url ||
+      "",
+
     filename:
       stream.filename ||
       "",
