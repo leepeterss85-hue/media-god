@@ -29,6 +29,37 @@ export const nativeFireTvDisplayInfo = () => {
   }
 };
 
+export const nativeFireTvAppInfo = () => {
+  const native = bridge();
+
+  if (!native || typeof native.getAppInfo !== "function") {
+    return null;
+  }
+
+  try {
+    const value = native.getAppInfo();
+    return typeof value === "string" ? JSON.parse(value) : value || null;
+  } catch {
+    return null;
+  }
+};
+
+export const openNativeFireTvExternalUrl = (url) => {
+  const native = bridge();
+  const target = String(url || "").trim();
+
+  if (!native || typeof native.openExternalUrl !== "function" || !/^https?:\/\//i.test(target)) {
+    return false;
+  }
+
+  try {
+    const result = native.openExternalUrl(target);
+    return result !== false && result !== "false" && result !== "error";
+  } catch {
+    return false;
+  }
+};
+
 export const playNativeFireTv = ({
   requestId,
   url,
