@@ -218,7 +218,50 @@ const episodeMatchScore = (name, season, episode) => {
   return patterns.some((pattern) => pattern.test(text)) ? 1000000000000 : 0;
 };
 
-const chooseVideo = (files, season = null, episode = null) => {
+const selectedFileMatches = (item, selectedFile, index) => {
+  if (selectedFile == null || selectedFile === "") return false;
+
+  const requested =
+    typeof selectedFile === "object" && selectedFile
+      ? selectedFile
+      : { key: selectedFile };
+  const candidates = [
+    requested?.id,
+    requested?.index,
+    requested?.path,
+    requested?.name,
+    requested?.key,
+  ]
+    .filter((value) => value != null && value !== "")
+    .map((value) => clean(value).toLowerCase());
+
+  if (!candidates.length) return false;
+
+  const itemValues = [
+    item?.id,
+    index,
+    item?.path,
+    item?.name,
+  ]
+    .filter((value) => value != null && value !== "")
+    .map((value) => clean(value).toLowerCase());
+
+  return candidates.some((value) => itemValues.includes(value));
+};
+
+const chooseVideo = (files, season = null, episode = null, selectedFile = null) => {
+  const requested = (files || []).find((item, index) =>
+    selectedFileMatches(item, selectedFile, index)
+  );
+
+  if (
+    requested &&
+    (requested?.url || requested?.id != null) &&
+    VIDEO_RE.test(clean(requested?.name || requested?.path))
+  ) {
+    return requested;
+  }
+
   const usable = (files || [])
     .filter((item) => item?.url && VIDEO_RE.test(clean(item?.name || item?.path)))
     .map((item) => {
@@ -249,6 +292,26 @@ const chooseVideo = (files, season = null, episode = null) => {
 
   return usable[0] || null;
 };
+
+const selectableFiles = (files, chosen = null) =>
+  (Array.isArray(files) ? files : [])
+    .filter((item) => VIDEO_RE.test(clean(item?.name || item?.path)))
+    .map((item, index) => ({
+      id: item?.id != null ? item.id : index,
+      index,
+      name: clean(item?.name || item?.path || `File ${index + 1}`),
+      path: clean(item?.path || item?.name || ""),
+      size: Number(item?.size || 0),
+      extension:
+        clean(item?.name || item?.path)
+          .split(".")
+          .pop()
+          ?.toLowerCase() || "",
+      selected:
+        item === chosen ||
+        (chosen?.id != null && item?.id != null && String(item.id) === String(chosen.id)) ||
+        (chosen?.path && clean(item?.path) === clean(chosen.path)),
+    }));
 
 const flattenAllDebridFiles = (nodes, output = []) => {
   (Array.isArray(nodes) ? nodes : []).forEach((node) => {
