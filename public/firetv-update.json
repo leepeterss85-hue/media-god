@@ -3,7 +3,7 @@
   "versionCode": 2,
   "versionName": "1.1.0",
   "title": "Media God Fire TV",
-  "message": "Fire TV 1.1 improves Live TV reliability, MPEG-DASH playback and codec handling with Media3 decoder fallback."
+  "message": "Fire TV 1.1 improves Live TV reliability, MPEG-DASH playback and codec handling with Media3 decoder fallback.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4372217",
   "downloaderAddress": "tinyurl.com/2aofccoa",
