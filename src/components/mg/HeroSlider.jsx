@@ -122,7 +122,8 @@ export default function HeroSlider({
             <button
               type="button"
               onClick={() => onWatch(item)}
-              className="min-h-11 3xl:min-h-12 flex items-center gap-2 bg-mg-green text-black font-semibold text-sm sm:text-base 3xl:text-lg px-4 sm:px-5 3xl:px-7 py-2.5 3xl:py-3 rounded-lg hover:bg-mg-green-dim"
+              className="min-h-11 3xl:min-h-12 flex items-center gap-2 bg-mg-green text-black font-semibold text-sm sm:text-base 3xl:text-lg px-4 sm:px-5 3xl:px-7 py-2.5 3xl:py-3 rounded-lg hover:bg-mg-green-dim focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-white focus-visible:ring-offset-3 focus-visible:ring-offset-black"
+              aria-label={`Watch ${title}`}
             >
               <Play className="w-5 h-5 3xl:w-6 3xl:h-6 fill-black" />
               Watch Now
@@ -131,7 +132,8 @@ export default function HeroSlider({
             <button
               type="button"
               onClick={() => onWatchlist(item)}
-              className="min-h-11 3xl:min-h-12 flex items-center gap-2 bg-white/15 hover:bg-white/25 text-white font-semibold text-sm sm:text-base 3xl:text-lg px-4 sm:px-5 3xl:px-7 py-2.5 3xl:py-3 rounded-lg"
+              className="min-h-11 3xl:min-h-12 flex items-center gap-2 bg-white/15 hover:bg-white/25 text-white font-semibold text-sm sm:text-base 3xl:text-lg px-4 sm:px-5 3xl:px-7 py-2.5 3xl:py-3 rounded-lg focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-mg-green focus-visible:ring-offset-3 focus-visible:ring-offset-black"
+              aria-label={`Add ${title} to Watchlist`}
             >
               <Plus className="w-5 h-5 3xl:w-6 3xl:h-6" />
               <span className="hidden min-[390px]:inline">Watchlist</span>
@@ -140,7 +142,8 @@ export default function HeroSlider({
             <button
               type="button"
               onClick={() => onDetails(item)}
-              className="min-h-11 3xl:min-h-12 flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-semibold text-sm sm:text-base 3xl:text-lg px-4 sm:px-5 3xl:px-7 py-2.5 3xl:py-3 rounded-lg border border-white/20"
+              className="min-h-11 3xl:min-h-12 flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-semibold text-sm sm:text-base 3xl:text-lg px-4 sm:px-5 3xl:px-7 py-2.5 3xl:py-3 rounded-lg border border-white/20 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-mg-green focus-visible:ring-offset-3 focus-visible:ring-offset-black"
+              aria-label={`View details for ${title}`}
             >
               <Info className="w-5 h-5 3xl:w-6 3xl:h-6" />
               <span className="hidden min-[390px]:inline">Details</span>
@@ -152,8 +155,8 @@ export default function HeroSlider({
       <button
         type="button"
         onClick={prev}
-        className="hidden sm:flex absolute left-3 md:left-4 3xl:left-6 top-1/2 -translate-y-1/2 w-10 h-10 3xl:w-14 3xl:h-14 4xl:w-16 4xl:h-16 rounded-full bg-black/40 backdrop-blur items-center justify-center hover:bg-black/60 text-white"
-        aria-label="Previous"
+        className="hidden sm:flex absolute left-3 md:left-4 3xl:left-6 top-1/2 -translate-y-1/2 w-10 h-10 3xl:w-14 3xl:h-14 4xl:w-16 4xl:h-16 rounded-full bg-black/40 backdrop-blur items-center justify-center hover:bg-black/60 text-white focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-mg-green"
+        aria-label="Previous featured title"
       >
         <ChevronLeft className="w-6 h-6 3xl:w-8 3xl:h-8" />
       </button>
@@ -161,8 +164,8 @@ export default function HeroSlider({
       <button
         type="button"
         onClick={next}
-        className="hidden sm:flex absolute right-3 md:right-4 3xl:right-6 top-1/2 -translate-y-1/2 w-10 h-10 3xl:w-14 3xl:h-14 4xl:w-16 4xl:h-16 rounded-full bg-black/40 backdrop-blur items-center justify-center hover:bg-black/60 text-white"
-        aria-label="Next"
+        className="hidden sm:flex absolute right-3 md:right-4 3xl:right-6 top-1/2 -translate-y-1/2 w-10 h-10 3xl:w-14 3xl:h-14 4xl:w-16 4xl:h-16 rounded-full bg-black/40 backdrop-blur items-center justify-center hover:bg-black/60 text-white focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-mg-green"
+        aria-label="Next featured title"
       >
         <ChevronRight className="w-6 h-6 3xl:w-8 3xl:h-8" />
       </button>
@@ -179,7 +182,8 @@ export default function HeroSlider({
                 ? "bg-mg-green w-6 3xl:w-9"
                 : "bg-white/30 w-2 3xl:w-2.5 hover:bg-white/50"
             )}
-            aria-label={`Slide ${index + 1}`}
+            aria-label={`Show featured title ${index + 1}`}
+            aria-current={index === idx ? "true" : undefined}
           />
         ))}
       </div>
