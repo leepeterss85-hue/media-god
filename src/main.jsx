@@ -382,8 +382,55 @@ const installFireTvBackHandler = () => {
     performFireTvBackAction()
   }
 
+  const onNativeBack = () => {
+    if (!mediaGodAppMounted()) {
+      return
+    }
+
+    markTvRemoteDetected()
+    performFireTvBackAction()
+  }
+
   window.addEventListener('keydown', onBackEvent, true)
   document.addEventListener('keydown', onBackEvent, true)
+  window.addEventListener('mg:native-back', onNativeBack)
+}
+
+const installFireTvMediaLifecycle = () => {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return
+  }
+
+  const pauseWebMedia = () => {
+    document.querySelectorAll('video, audio').forEach((media) => {
+      try {
+        if (!media.paused) {
+          media.dataset.mgWasPlayingBeforePause = 'true'
+          media.pause()
+        }
+      } catch {
+        // A provider-owned element may reject direct control.
+      }
+    })
+  }
+
+  const publishResume = () => {
+    window.dispatchEvent(new CustomEvent('mg:fire-tv-app-resume'))
+  }
+
+  const onVisibility = () => {
+    if (document.visibilityState === 'hidden') {
+      pauseWebMedia()
+      return
+    }
+
+    publishResume()
+  }
+
+  document.addEventListener('visibilitychange', onVisibility)
+  document.addEventListener('webkitvisibilitychange', onVisibility)
+  document.addEventListener('pause', pauseWebMedia)
+  document.addEventListener('resume', publishResume)
 }
 
 const installFireTvHistoryBackGuard = () => {
@@ -521,6 +568,7 @@ installFireTvStableMode()
 installTvRemoteDetection()
 window.addEventListener('mg:tv-remote-detected', installFireTvStableMode)
 installFireTvBackHandler()
+installFireTvMediaLifecycle()
 installFireTvHistoryBackGuard()
 
 ReactDOM.createRoot(document.getElementById('root')).render(
