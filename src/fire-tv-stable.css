@@ -25,8 +25,8 @@ body.mg-fire-tv,
 body.mg-fire-tv-mode,
 body.mg-fire-tv-stable {
   --mg-tv-sidebar-width: 52px;
-  --mg-tv-safe-x: max(24px, 5vw);
-  --mg-tv-safe-y: max(14px, 5vh);
+  --mg-tv-safe-x: 5vw;
+  --mg-tv-safe-y: 5vh;
   min-width: 0 !important;
   overflow-x: hidden !important;
 }
