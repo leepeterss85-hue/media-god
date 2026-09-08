@@ -1627,24 +1627,24 @@ export default function LiveTVView() {
           {filtered.length.toLocaleString()} matching channels
         </span>
 
-        <span>
+        <span data-mg-live-tv-technical="true">
           {rawCount.toLocaleString()} raw entries merged into{" "}
           {channels.length.toLocaleString()} visible channels
         </span>
 
-        <span>
+        <span data-mg-live-tv-technical="true">
           {workingSources.length}/
           {sourceStatus.length} playlist sources loaded
         </span>
 
         {epgMatched > 0 && (
-          <span className="text-mg-green/70">
+          <span data-mg-live-tv-technical="true" className="text-mg-green/70">
             Now/Next guide matched to {epgMatched} channels
           </span>
         )}
 
         {browserRejectedCount > 0 && (
-          <span>
+          <span data-mg-live-tv-technical="true">
             {browserRejectedCount.toLocaleString()} incompatible/dead-format sources filtered out
           </span>
         )}
