@@ -1652,7 +1652,11 @@ const dedupeKey = (
         ""
     )
       .trim()
-      .toLowerCase();
+      .toLowerCase()
+      // Resolution-only suffixes describe the same station, not a region.
+      // Keeping them separate produced duplicate ITV/5 rows when an official
+      // launch entry and an HD community entry were both present.
+      .replace(/@(sd|hd|fhd|uhd|4k)$/i, "");
 
   if (tvgId) {
     return `id:${tvgId}`;
