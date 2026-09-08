@@ -173,6 +173,21 @@ const summariseAudioTrack = (track, key = "") => ({
   ),
 });
 
+const summariseVideoTrack = (track, key = "") => ({
+  key,
+  stream: track?.stream || "",
+  codec: track?.codec || "",
+  profile: track?.profile || "",
+  width: track?.width ?? null,
+  height: track?.height ?? null,
+  fps: track?.fps ?? track?.frame_rate ?? null,
+});
+
+const needsVideoCodecRescue = (codec) =>
+  /(?:vc-?1|wmv3|wvc1|mpeg-?4|mp4v|xvid|divx|theora)/i.test(
+    String(codec || "")
+  );
+
 export default async function (req) {
   try {
     const base44 =
@@ -2000,6 +2015,15 @@ async function choosePlayableRdStream({
         )
     );
 
+  const videoObject =
+    mediaInfo?.details?.video &&
+    typeof mediaInfo.details.video === "object"
+      ? mediaInfo.details.video
+      : {};
+  const videoTracks = Object.entries(videoObject).map(
+    ([key, track]) => summariseVideoTrack(track, key)
+  );
+
   const mediaSummary = {
     filename:
       mediaInfo?.filename ||
@@ -2018,12 +2042,19 @@ async function choosePlayableRdStream({
       null,
     audio_tracks:
       audioTracks,
+    video_tracks:
+      videoTracks,
   };
 
   const videoContainerRescue =
     /\.(?:avi|wmv|asf|vob|mxf|divx|ogv|3gp|3g2|f4v)$/i.test(
       originalFilename || mediaInfo?.filename || ""
     );
+  const videoCodecRescue = videoTracks.some((track) =>
+    needsVideoCodecRescue(track?.codec)
+  );
+  const videoCompatibilityRescue =
+    videoContainerRescue || videoCodecRescue;
 
   /*
    * MediaInfos can occasionally be incomplete for otherwise playable files.
@@ -2033,7 +2064,7 @@ async function choosePlayableRdStream({
   if (
     audioTracks.length ===
       0 &&
-    !videoContainerRescue
+    !videoCompatibilityRescue
   ) {
     return {
       stream_url: originalUrl,
@@ -2119,7 +2150,7 @@ async function choosePlayableRdStream({
    */
   if (
     !forceAudioRescue &&
-    !videoContainerRescue &&
+    !videoCompatibilityRescue &&
     firstIsSafe &&
     (
       !preferEnglish ||
@@ -2194,8 +2225,8 @@ async function choosePlayableRdStream({
     const why =
       forceAudioRescue
         ? "Runtime no-sound recovery requested a browser-safe Real-Debrid transcode."
-        : videoContainerRescue
-          ? "The original container is awkward for browser/WebView playback, so Media God selected Real-Debrid's compatibility stream."
+        : videoCompatibilityRescue
+          ? "The original video codec/container is awkward for browser/WebView playback, so Media God selected Real-Debrid's compatibility stream."
           : preferEnglish &&
               englishTracks.length >
                 0 &&
@@ -2220,7 +2251,7 @@ async function choosePlayableRdStream({
       fallback_stream_url:
         originalUrl,
       filename:
-        `${originalFilename || mediaInfo?.filename || "Real-Debrid Stream"} [${formatLabel}${videoContainerRescue ? " Compatibility" : " Audio Rescue"}]`,
+        `${originalFilename || mediaInfo?.filename || "Real-Debrid Stream"} [${formatLabel}${videoCompatibilityRescue ? " Compatibility" : " Audio Rescue"}]`,
       audio_rescue: {
         used: true,
         state:
