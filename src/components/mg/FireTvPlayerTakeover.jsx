@@ -164,6 +164,16 @@ export default function FireTvPlayerTakeover() {
         return;
       }
 
+      const currentValue = element.style.getPropertyValue(property);
+      const currentPriority = element.style.getPropertyPriority(property);
+
+      if (
+        currentValue === value &&
+        currentPriority === "important"
+      ) {
+        return;
+      }
+
       remember(element);
       element.style.setProperty(
         property,
