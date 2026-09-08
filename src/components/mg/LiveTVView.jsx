@@ -354,6 +354,7 @@ export default function LiveTVView() {
   const [epgMatched, setEpgMatched] = useState(0);
   const [clockTick, setClockTick] = useState(() => Date.now());
   const [viewMode, setViewMode] = useState("channels");
+  const [channelVisibleLimit, setChannelVisibleLimit] = useState(MAX_VISIBLE);
   const [favouriteKeys, setFavouriteKeys] = useState(
     () => new Set(readStoredList(LIVE_TV_FAVOURITES_KEY))
   );
@@ -1068,7 +1069,7 @@ export default function LiveTVView() {
   const visibleLimit =
     viewMode === "guide"
       ? GUIDE_VISIBLE
-      : MAX_VISIBLE;
+      : channelVisibleLimit;
 
   const shown = filtered.slice(
     0,
@@ -1077,6 +1078,7 @@ export default function LiveTVView() {
 
   useEffect(() => {
     setFocusedChannelKey("");
+    setChannelVisibleLimit(MAX_VISIBLE);
   }, [quickFilter, group, query, directOnly, viewMode]);
 
   const resetFilters = () => {
