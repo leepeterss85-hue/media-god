@@ -39,6 +39,13 @@ import {
   torrentFileLabel,
 } from "@/components/mg/playbackSourceLabels";
 import { recordLiveTvPlaybackResult } from "@/components/mg/liveTvPlaybackLearning";
+import {
+  readSourceSortMode,
+  sortSourceEntries,
+  SOURCE_SELECTOR_SORT_EVENT,
+  SOURCE_SORT_OPTIONS,
+  writeSourceSortMode,
+} from "@/components/mg/sourceSelectorPreferences";
 
 const isMagnet = (value) =>
   String(value || "")
@@ -149,6 +156,10 @@ export default function VideoPlayer({
   const [activeIdx, setActiveIdx] =
     useState(0);
 
+  const [sourceSortMode, setSourceSortMode] = useState(
+    () => readSourceSortMode()
+  );
+
   const [
     isAppFullscreen,
     setIsAppFullscreen,
@@ -206,6 +217,11 @@ export default function VideoPlayer({
     abandoned: new Set(),
   });
 
+  const sortedSourceEntries = sortSourceEntries(
+    sources,
+    sourceSortMode
+  );
+
   const active =
     sources[activeIdx] ||
     sources[0] ||
@@ -215,6 +231,26 @@ export default function VideoPlayer({
     getSourceUrl(active);
 
   const trackPreferences = readTrackPreferences();
+
+  useEffect(() => {
+    const onSourceSortChanged = (event) => {
+      setSourceSortMode(
+        String(event?.detail?.mode || readSourceSortMode())
+      );
+    };
+
+    window.addEventListener(
+      SOURCE_SELECTOR_SORT_EVENT,
+      onSourceSortChanged
+    );
+
+    return () => {
+      window.removeEventListener(
+        SOURCE_SELECTOR_SORT_EVENT,
+        onSourceSortChanged
+      );
+    };
+  }, []);
 
   const recoverySourceScore = (item, index) => {
     const label = sourceDisplayLabel(item, index);
