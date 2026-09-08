@@ -1,5 +1,26 @@
 export const UPDATE_HISTORY = [
   {
+    id: "live-tv-codec-compatibility-v2",
+    date: "8 September 2026",
+    title: "Live TV and codec compatibility improved",
+    summary:
+      "Live TV now keeps reliable broadcaster fallbacks, supports BBC MPEG-DASH feeds, avoids stale channel overrides and gives the native Fire TV player more chances to decode difficult video and audio formats.",
+    changes: [
+      "Added MPEG-DASH playback to the web player using dash.js while the dedicated Fire TV app continues to use Media3 natively.",
+      "Added stable official BBC One, Two, Three, Four, News, Parliament, CBBC and CBeebies entries with BBC iPlayer fallback instead of silently losing the channels.",
+      "Removed stale hard-coded Live TV overrides that could replace current working playlist feeds with dead GB News, Talk, Bloomberg, TRT or other URLs.",
+      "Updated the built-in GB News, Talk, Bloomberg TV Europe and TRT World public feeds to currently responding endpoints.",
+      "Added official service fallbacks for BBC, ITVX, Channel 4, 5, Sky News, GB News, Talk, Bloomberg, TRT World, France 24 and DW when a direct feed is unavailable.",
+      "The player itself now offers the broadcaster's official service after every direct Live TV backup has failed.",
+      "Commercial UK public-service channels that normally require their broadcaster platform are no longer promoted from unknown community relay URLs as if they were official direct streams.",
+      "Codec detection now recognises DASH, VP8, H.263, AC-4 and xHE-AAC/USAC in addition to the existing H.264, HEVC, AV1, VP9, MPEG-2, AAC, AC3/EAC3, DTS, TrueHD, Opus, FLAC and other formats.",
+      "The dedicated Fire TV app distinguishes native Media3 playback from the older WebView so browser codec probes no longer bury formats the native hardware may decode.",
+      "Native Fire TV source ranking is more tolerant of AV1, MKV, MPEG-2, DTS and TrueHD while still preferring safer AAC/AC3/EAC3 sources when available.",
+      "Media3 decoder fallback is enabled so Fire TV can try another available hardware/software decoder before abandoning a source.",
+      "Fire TV APK version increased to 1.1.0 / version code 2 so already-installed native builds can detect this player update.",
+    ],
+  },
+  {
     id: "fire-tv-app-updater-v1",
     date: "8 September 2026",
     title: "Fire TV app update detection added",
