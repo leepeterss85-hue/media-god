@@ -62,6 +62,102 @@ export const LIVE_TV_REGION = "GB";
  * is temporarily unavailable. Only free/public broadcaster feeds belong here.
  */
 export const PUBLIC_DIRECT_CHANNELS = [
+  /*
+   * Official BBC television fallbacks.
+   *
+   * These are BBC CDN feeds, not proxy/unlocked copies. BBC applies its own
+   * UK availability rules at the CDN, so Media God does not bypass regional
+   * restrictions. Keeping them here means BBC One/Two/etc do not disappear
+   * just because a community playlist temporarily drops or changes an entry.
+   */
+  {
+    id: "BBCOne.uk@London",
+    name: "BBC One London",
+    url: "https://vs-cmaf-push-uk-live.akamaized.net/x=4/i=urn:bbc:pips:service:bbc_one_london/iptv_hd_abr_v1.mpd",
+    category: "General",
+    country: "GB",
+    priority: 132,
+    sourceName: "BBC Official",
+    geoRestricted: true,
+    officialUrl: "https://www.bbc.co.uk/iplayer/live/bbcone",
+  },
+  {
+    id: "BBCTwo.uk@HD",
+    name: "BBC Two",
+    url: "https://vs-cmaf-push-uk-live.akamaized.net/x=4/i=urn:bbc:pips:service:bbc_two_hd/iptv_hd_abr_v1.mpd",
+    category: "General",
+    country: "GB",
+    priority: 132,
+    sourceName: "BBC Official",
+    geoRestricted: true,
+    officialUrl: "https://www.bbc.co.uk/iplayer/live/bbctwo",
+  },
+  {
+    id: "BBCThree.uk@SD",
+    name: "BBC Three",
+    url: "https://vs-cmaf-pushb-uk-live.akamaized.net/x=4/i=urn:bbc:pips:service:bbc_three_hd/iptv_hd_abr_v1.mpd",
+    category: "General",
+    country: "GB",
+    priority: 128,
+    sourceName: "BBC Official",
+    geoRestricted: true,
+    officialUrl: "https://www.bbc.co.uk/iplayer/live/bbcthree",
+  },
+  {
+    id: "BBCFour.uk@UK",
+    name: "BBC Four",
+    url: "https://vs-cmaf-pushb-uk.live.fastly.md.bbci.co.uk/x=4/i=urn:bbc:pips:service:bbc_four_hd/iptv_hd_abr_v1.mpd",
+    category: "Culture",
+    country: "GB",
+    priority: 128,
+    sourceName: "BBC Official",
+    geoRestricted: true,
+    officialUrl: "https://www.bbc.co.uk/iplayer/live/bbcfour",
+  },
+  {
+    id: "BBCNews.uk@UK",
+    name: "BBC News",
+    url: "https://vs-cmaf-push-uk-live.akamaized.net/x=4/i=urn:bbc:pips:service:bbc_news_channel_hd/iptv_hd_abr_v1.mpd",
+    category: "News",
+    country: "GB",
+    priority: 130,
+    sourceName: "BBC Official",
+    geoRestricted: true,
+    officialUrl: "https://www.bbc.co.uk/iplayer/live/bbcnews",
+  },
+  {
+    id: "BBCParliament.uk@SD",
+    name: "BBC Parliament",
+    url: "https://vs-cmaf-pushb-uk-live.akamaized.net/x=4/i=urn:bbc:pips:service:bbc_parliament/iptv_hd_abr_v1.mpd",
+    category: "Legislative",
+    country: "GB",
+    priority: 126,
+    sourceName: "BBC Official",
+    geoRestricted: true,
+    officialUrl: "https://www.bbc.co.uk/iplayer/live/bbcparliament",
+  },
+  {
+    id: "CBBC.uk@HD",
+    name: "CBBC",
+    url: "https://vs-cmaf-pushb-uk-live.akamaized.net/x=4/i=urn:bbc:pips:service:cbbc_hd/iptv_hd_abr_v1.mpd",
+    category: "Kids",
+    country: "GB",
+    priority: 124,
+    sourceName: "BBC Official",
+    geoRestricted: true,
+    officialUrl: "https://www.bbc.co.uk/iplayer/live/cbbc",
+  },
+  {
+    id: "CBeebies.uk@HD",
+    name: "CBeebies",
+    url: "https://vs-cmaf-pushb-uk-live.akamaized.net/x=4/i=urn:bbc:pips:service:cbeebies_hd/iptv_hd_abr_v1.mpd",
+    category: "Kids",
+    country: "GB",
+    priority: 124,
+    sourceName: "BBC Official",
+    geoRestricted: true,
+    officialUrl: "https://www.bbc.co.uk/iplayer/live/cbeebies",
+  },
   {
     id: "france24-en",
     name: "France 24 English",
@@ -599,12 +695,21 @@ const browserCompatibility = (
     format ===
     "dash"
   ) {
+    const mseAvailable =
+      typeof window !== "undefined" &&
+      Boolean(
+        window.MediaSource ||
+          window.WebKitMediaSource
+      );
+
     return {
       browserPlayable:
-        false,
+        mseAvailable,
 
       browserReason:
-        "DASH is not enabled in the current player",
+        mseAvailable
+          ? ""
+          : "MPEG-DASH needs Media Source Extensions on this device",
 
       format,
     };
@@ -1657,7 +1762,7 @@ const directChannelRows = () => {
     ...PUBLIC_DIRECT_CHANNELS.map((channel) => ({
       ...channel,
       sourceId: `public-direct:${channel.id}`,
-      sourceName: "Public Direct",
+      sourceName: channel.sourceName || "Public Direct",
     })),
     ...custom,
   ];
@@ -1682,7 +1787,20 @@ const directChannelRows = () => {
     return parseFreeTvPlaylist(
       `#EXTM3U\n#EXTINF:-1 ${attributes},${channel.name}\n${channel.url}\n`,
       source
-    );
+    ).map((row) => ({
+      ...row,
+      geoRestricted: Boolean(channel.geoRestricted || row.geoRestricted),
+      geoAvailableHere:
+        Boolean(channel.geoRestricted) && LIVE_TV_REGION === "GB"
+          ? true
+          : row.geoAvailableHere,
+      geoBlocked:
+        Boolean(channel.geoRestricted) && LIVE_TV_REGION !== "GB"
+          ? true
+          : row.geoBlocked,
+      officialUrl: channel.officialUrl || row.officialUrl || "",
+      officialSource: Boolean(channel.sourceName === "BBC Official"),
+    }));
   });
 };
 
