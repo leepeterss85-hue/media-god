@@ -467,7 +467,7 @@ const checkCacheForProvider = async (providerKey, token, hashes) => {
   return output;
 };
 
-const resolveRealDebrid = async ({ token, source, season, episode }) => {
+const resolveRealDebrid = async ({ token, source, season, episode, selectedFile }) => {
   const addData = await requestJson(
     `${PROVIDERS.realdebrid.baseUrl}/torrents/addMagnet`,
     {
@@ -506,7 +506,7 @@ const resolveRealDebrid = async ({ token, source, season, episode }) => {
     url: clean(links[index] || ""),
   }));
 
-  const chosen = chooseVideo(files, season, episode) || files.find((file) => file.url);
+  const chosen = chooseVideo(files, season, episode, selectedFile) || files.find((file) => file.url);
   if (!chosen?.url) throw new Error("Real-Debrid produced no playable file link.");
 
   const unrestricted = await requestJson(
@@ -526,10 +526,12 @@ const resolveRealDebrid = async ({ token, source, season, episode }) => {
     filename: clean(unrestricted?.filename || chosen.name),
     size: Number(unrestricted?.filesize || chosen.size || 0),
     provider: "realdebrid",
+    files: selectableFiles(files, chosen),
+    selectedFile: clean(chosen?.path || chosen?.name || ""),
   };
 };
 
-const resolveAllDebrid = async ({ token, source, season, episode }) => {
+const resolveAllDebrid = async ({ token, source, season, episode, selectedFile }) => {
   const uploaded = await requestJson(
     `${PROVIDERS.alldebrid.baseUrl}/magnet/upload`,
     {
@@ -565,7 +567,7 @@ const resolveAllDebrid = async ({ token, source, season, episode }) => {
   );
 
   const files = flattenAllDebridFiles(filesData?.data?.magnets?.[0]?.files || []);
-  const chosen = chooseVideo(files, season, episode) || files.find((file) => file.url);
+  const chosen = chooseVideo(files, season, episode, selectedFile) || files.find((file) => file.url);
   if (!chosen?.url) throw new Error("AllDebrid produced no playable file link.");
 
   const unlocked = await requestJson(
@@ -585,10 +587,12 @@ const resolveAllDebrid = async ({ token, source, season, episode }) => {
     filename: clean(unlocked?.data?.filename || chosen.name),
     size: Number(unlocked?.data?.filesize || chosen.size || 0),
     provider: "alldebrid",
+    files: selectableFiles(files, chosen),
+    selectedFile: clean(chosen?.path || chosen?.name || ""),
   };
 };
 
-const resolvePremiumize = async ({ token, source, season, episode }) => {
+const resolvePremiumize = async ({ token, source, season, episode, selectedFile }) => {
   const data = await requestJson(
     `${PROVIDERS.premiumize.baseUrl}/transfer/directdl`,
     {
@@ -606,7 +610,7 @@ const resolvePremiumize = async ({ token, source, season, episode }) => {
     url: clean(file?.link || ""),
   }));
 
-  const chosen = chooseVideo(files, season, episode) || files.find((file) => file.url);
+  const chosen = chooseVideo(files, season, episode, selectedFile) || files.find((file) => file.url);
   if (!chosen?.url) throw new Error("Premiumize did not return a playable file.");
 
   return {
@@ -614,10 +618,12 @@ const resolvePremiumize = async ({ token, source, season, episode }) => {
     filename: chosen.name,
     size: chosen.size,
     provider: "premiumize",
+    files: selectableFiles(files, chosen),
+    selectedFile: clean(chosen?.path || chosen?.name || ""),
   };
 };
 
-const resolveDebridLink = async ({ token, source, season, episode }) => {
+const resolveDebridLink = async ({ token, source, season, episode, selectedFile }) => {
   const data = await requestJson(
     `${PROVIDERS.debridlink.baseUrl}/seedbox/add`,
     {
@@ -639,7 +645,7 @@ const resolveDebridLink = async ({ token, source, season, episode }) => {
     url: clean(file?.downloadUrl || file?.download_url || file?.link || ""),
   }));
 
-  const chosen = chooseVideo(files, season, episode) || files.find((file) => file.url);
+  const chosen = chooseVideo(files, season, episode, selectedFile) || files.find((file) => file.url);
   if (!chosen?.url) throw new Error("Debrid-Link did not return a playable file.");
 
   return {
@@ -647,10 +653,12 @@ const resolveDebridLink = async ({ token, source, season, episode }) => {
     filename: chosen.name,
     size: chosen.size,
     provider: "debridlink",
+    files: selectableFiles(files, chosen),
+    selectedFile: clean(chosen?.path || chosen?.name || ""),
   };
 };
 
-const resolveTorBox = async ({ token, source, season, episode }) => {
+const resolveTorBox = async ({ token, source, season, episode, selectedFile }) => {
   const form = new FormData();
   form.append("magnet", toMagnet(source));
   form.append("seed", "3");
@@ -711,6 +719,8 @@ const resolveTorBox = async ({ token, source, season, episode }) => {
     filename: chosen.name,
     size: chosen.size,
     provider: "torbox",
+    files: selectableFiles(files, chosen),
+    selectedFile: clean(chosen?.path || chosen?.name || ""),
   };
 };
 
@@ -720,21 +730,22 @@ const resolveForProvider = async ({
   source,
   season,
   episode,
+  selectedFile,
 }) => {
   if (providerKey === "realdebrid") {
-    return resolveRealDebrid({ token, source, season, episode });
+    return resolveRealDebrid({ token, source, season, episode, selectedFile });
   }
   if (providerKey === "alldebrid") {
-    return resolveAllDebrid({ token, source, season, episode });
+    return resolveAllDebrid({ token, source, season, episode, selectedFile });
   }
   if (providerKey === "torbox") {
-    return resolveTorBox({ token, source, season, episode });
+    return resolveTorBox({ token, source, season, episode, selectedFile });
   }
   if (providerKey === "premiumize") {
-    return resolvePremiumize({ token, source, season, episode });
+    return resolvePremiumize({ token, source, season, episode, selectedFile });
   }
   if (providerKey === "debridlink") {
-    return resolveDebridLink({ token, source, season, episode });
+    return resolveDebridLink({ token, source, season, episode, selectedFile });
   }
 
   throw new Error("Unsupported debrid provider.");
@@ -1002,6 +1013,7 @@ export default async function (req) {
         source,
         season: Number(body?.season || 0) || null,
         episode: Number(body?.episode || 0) || null,
+        selectedFile: body?.selected_file ?? null,
       });
 
       return Response.json({
