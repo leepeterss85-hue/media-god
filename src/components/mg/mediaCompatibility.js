@@ -89,6 +89,32 @@ export const browserCodecSupport = {
       'audio/mp4; codecs="fLaC"'
     ),
 
+  vorbis:
+    canPlay(
+      AUDIO_PROBE,
+      'audio/ogg; codecs="vorbis"'
+    ) ||
+    canPlay(
+      AUDIO_PROBE,
+      'audio/webm; codecs="vorbis"'
+    ),
+
+  alac:
+    canPlay(
+      AUDIO_PROBE,
+      'audio/mp4; codecs="alac"'
+    ),
+
+  pcm:
+    canPlay(
+      AUDIO_PROBE,
+      "audio/wav"
+    ) ||
+    canPlay(
+      AUDIO_PROBE,
+      'audio/wav; codecs="1"'
+    ),
+
   ac3:
     canPlay(
       AUDIO_PROBE,
@@ -429,6 +455,62 @@ export const detectStreamTraits = (
   ) {
     traits.container =
       "mov";
+  } else if (
+    has(
+      joined,
+      /\.vob(?:[?#\s]|$)|\bvob\b/i
+    )
+  ) {
+    traits.container = "vob";
+  } else if (
+    has(
+      joined,
+      /\.ogv(?:[?#\s]|$)|\bogv\b|\bogg video\b/i
+    )
+  ) {
+    traits.container = "ogv";
+  } else if (
+    has(
+      joined,
+      /\.(?:3gp|3g2)(?:[?#\s]|$)|\b3gp\b|\b3g2\b/i
+    )
+  ) {
+    traits.container = "3gp";
+  } else if (
+    has(
+      joined,
+      /\.wmv(?:[?#\s]|$)|\bwmv\b/i
+    )
+  ) {
+    traits.container = "wmv";
+  } else if (
+    has(
+      joined,
+      /\.asf(?:[?#\s]|$)|\basf\b/i
+    )
+  ) {
+    traits.container = "asf";
+  } else if (
+    has(
+      joined,
+      /\.f4v(?:[?#\s]|$)|\bf4v\b/i
+    )
+  ) {
+    traits.container = "f4v";
+  } else if (
+    has(
+      joined,
+      /\.mxf(?:[?#\s]|$)|\bmxf\b/i
+    )
+  ) {
+    traits.container = "mxf";
+  } else if (
+    has(
+      joined,
+      /\.divx(?:[?#\s]|$)|\bdivx\b/i
+    )
+  ) {
+    traits.container = "divx";
   }
 
   if (
@@ -471,6 +553,27 @@ export const detectStreamTraits = (
   ) {
     traits.video =
       "mpeg2";
+  } else if (
+    has(
+      text,
+      /\b(?:mpeg[ -]?4|mp4v|xvid|divx)\b/i
+    )
+  ) {
+    traits.video = "mpeg4";
+  } else if (
+    has(
+      text,
+      /\b(?:vc-?1|wmv3|wvc1)\b/i
+    )
+  ) {
+    traits.video = "vc1";
+  } else if (
+    has(
+      text,
+      /\btheora\b/i
+    )
+  ) {
+    traits.video = "theora";
   }
 
   /*
@@ -541,6 +644,34 @@ export const detectStreamTraits = (
   ) {
     traits.audio =
       "flac";
+  } else if (
+    has(
+      text,
+      /\b(?:alac|apple lossless)\b/i
+    )
+  ) {
+    traits.audio = "alac";
+  } else if (
+    has(
+      text,
+      /\bvorbis\b/i
+    )
+  ) {
+    traits.audio = "vorbis";
+  } else if (
+    has(
+      text,
+      /\b(?:pcm|lpcm|s16le|s24le|wav)\b/i
+    )
+  ) {
+    traits.audio = "pcm";
+  } else if (
+    has(
+      text,
+      /\b(?:mp2|mpeg[ -]?1 layer[ -]?2)\b/i
+    )
+  ) {
+    traits.audio = "mp2";
   } else if (
     has(
       text,
@@ -657,6 +788,22 @@ const audioSupport = (
     "flac"
   ) {
     return browserCodecSupport.flac;
+  }
+
+  if (audio === "vorbis") {
+    return browserCodecSupport.vorbis;
+  }
+
+  if (audio === "alac") {
+    return browserCodecSupport.alac;
+  }
+
+  if (audio === "pcm") {
+    return browserCodecSupport.pcm;
+  }
+
+  if (audio === "mp2") {
+    return deviceProfile?.fireTv ? null : false;
   }
 
   if (
