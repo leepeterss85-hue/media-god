@@ -129,6 +129,15 @@ const OFFICIAL_LIVE_FALLBACKS = [
   [/^trt world\b/i, "https://www.trtworld.com/live/europe", "Open TRT World"],
   [/^france 24\b/i, "https://www.france24.com/en/live", "Open France 24"],
   [/^dw english\b/i, "https://www.dw.com/en/live-tv/channel-english", "Open DW"],
+  [/^al jazeera english\b/i, "https://www.aljazeera.com/live/", "Open Al Jazeera"],
+  [/^nhk world(?:-japan)?\b/i, "https://www3.nhk.or.jp/nhkworld/en/live/", "Open NHK World"],
+  [/^abc news live\b/i, "https://abcnews.com/Live", "Open ABC News Live"],
+  [/^cbs news\b/i, "https://www.cbsnews.com/live/", "Open CBS News"],
+  [/^nbc news now\b/i, "https://www.nbcnews.com/now", "Open NBC News NOW"],
+  [/^euronews\b/i, "https://www.euronews.com/live", "Open Euronews"],
+  [/^cgtn\b/i, "https://www.cgtn.com/tv", "Open CGTN"],
+  [/^arirang tv\b/i, "https://www.arirang.com/tv", "Open Arirang"],
+  [/^voa\b/i, "https://www.voanews.com/", "Open VOA"],
   [/^greatest hits radio\b/i, "https://www.hellorayo.co.uk/greatest-hits/london", "Open Rayo"],
 ];
 
@@ -198,7 +207,7 @@ const isRadioStreamUrl = (url) =>
   isHlsUrl(url) || /\.(?:mp3|aac|m4a|ogg|opus)(?:[?#]|$)/i.test(String(url || ""));
 
 const groupSort = (a, b) => {
-  const preferred = ["United Kingdom", "Sports", "Movies"];
+  const preferred = ["United Kingdom", "International", "United States", "Sports", "Movies"];
   const ai = preferred.indexOf(a);
   const bi = preferred.indexOf(b);
 
