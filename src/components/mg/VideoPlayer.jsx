@@ -35,7 +35,10 @@ import {
   debridProviderScoreHints,
   recordDebridProviderResult,
 } from "@/components/mg/debridProviderReliability";
-import { concisePlaybackSourceLabel } from "@/components/mg/playbackSourceLabels";
+import {
+  concisePlaybackSourceLabel,
+  torrentFileLabel,
+} from "@/components/mg/playbackSourceLabels";
 import { recordLiveTvPlaybackResult } from "@/components/mg/liveTvPlaybackLearning";
 
 const isMagnet = (value) =>
@@ -2316,12 +2319,21 @@ export default function VideoPlayer({
               data.stream_url,
 
             label:
+              data.filename ||
               file.path ||
               "Real-Debrid File",
 
             file:
               file.path ||
               "",
+
+            audioRescue:
+              data.audio_rescue ||
+              null,
+
+            mediaInfo:
+              data.media_info ||
+              null,
           });
         } else {
           setRdError(
@@ -2683,7 +2695,6 @@ export default function VideoPlayer({
     const inspectedAudio = Array.isArray(mediaInfo?.audio_tracks)
       ? mediaInfo.audio_tracks
       : [];
-    const firstAudio = inspectedAudio[0] || null;
     const extraAudioText = inspectedAudio
       .map((track) =>
         [
@@ -2704,7 +2715,6 @@ export default function VideoPlayer({
           audio: extraAudioText,
         }
       : active;
-    const traits = detectStreamTraits(candidate, extraAudioText);
     const label = sourceDisplayLabel(candidate, activeIdx);
     const profile = getPlaybackDeviceProfile();
     const rememberedNoSound = hasRecentNoSoundHistory(label, profile);
@@ -3506,12 +3516,13 @@ export default function VideoPlayer({
                   aria-label="Choose file"
                 >
                   {rdFiles.map(
-                    (file) => (
+                    (file, index) => (
                       <option
                         key={file.id}
                         value={file.id}
+                        title={file.path || ""}
                       >
-                        {file.path}
+                        {torrentFileLabel(file, index)}
                       </option>
                     )
                   )}
