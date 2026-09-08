@@ -281,6 +281,8 @@ export default function MediaPlayerControls({
           label: friendlyTrackLabel(track, "Subtitle", index),
           language: track?.language || "",
           forced: trackLooksForced(track),
+          sdh: trackLooksSdh(track),
+          raw: track,
         });
 
         if (
@@ -339,34 +341,79 @@ export default function MediaPlayerControls({
 
     const preferences = trackPreferencesRef.current;
 
+    const subtitleContext =
+      typeof window !== "undefined"
+        ? window.__MG_PLAYER_CONTEXT__ || { title }
+        : { title };
+    const rememberedSubtitle = readRememberedSubtitlePreference(subtitleContext);
+    const subtitlesWanted =
+      rememberedSubtitle
+        ? rememberedSubtitle.enabled !== false
+        : preferences.subtitlesEnabled;
+
+    if (rememberedSubtitle?.enabled === false && activeSubtitle >= 0) {
+      for (let index = 0; index < video.textTracks.length; index += 1) {
+        try {
+          video.textTracks[index].mode = "disabled";
+        } catch {
+          // Some WebViews expose read-only text track state.
+        }
+      }
+      activeSubtitle = -1;
+    }
+
     if (
       activeSubtitle < 0 &&
-      preferences.subtitlesEnabled &&
+      subtitlesWanted &&
       nextSubtitles.length > 0
     ) {
       const preferredLanguage = preferences.subtitleLanguage;
-      const forcedMatch = preferences.preferForcedSubtitles
-        ? nextSubtitles.find(
-            (item) =>
-              item.forced &&
-              (!preferredLanguage || trackLanguage(item) === preferredLanguage)
-          )
-        : null;
-      const languageMatch = nextSubtitles.find(
-        (item) =>
-          !preferredLanguage || trackLanguage(item) === preferredLanguage
-      );
-      const preferred = forcedMatch || languageMatch || nextSubtitles[0];
+      const ranked = nextSubtitles
+        .map((item) => {
+          let score = rememberedSubtitleTrackScore(
+            item.raw || item,
+            rememberedSubtitle
+          );
+          const language = trackLanguage(item.raw || item);
+
+          if (!preferredLanguage || language === preferredLanguage) {
+            score += 10000;
+          }
+
+          if (item.forced) {
+            score += preferences.preferForcedSubtitles ? 4200 : -500;
+          }
+
+          if (item.sdh) {
+            score += preferences.preferSdhSubtitles ? 1200 : -1400;
+          } else if (!preferences.preferSdhSubtitles) {
+            score += 500;
+          }
+
+          return { item, score };
+        })
+        .sort((a, b) => b.score - a.score || a.item.index - b.item.index);
+      const preferred = ranked[0]?.item || nextSubtitles[0];
 
       if (preferred) {
         try {
           video.textTracks[preferred.index].mode = "showing";
+          window.dispatchEvent(
+            new CustomEvent("mg:subtitle-track-selected", {
+              detail: { index: preferred.index },
+            })
+          );
           activeSubtitle = preferred.index;
         } catch {
           // Some WebViews expose read-only text track state.
         }
       }
     }
+
+    applySubtitleOffset(
+      video,
+      preferences.subtitleOffsetSeconds
+    );
 
     if (nextAudio.length > 0) {
       const preferredLanguage = preferences.audioLanguage;
