@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
 import android.graphics.Color
+import android.net.Uri
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.View
@@ -240,6 +241,38 @@ class MainActivity : Activity() {
                 put("logicalWidth", 960)
                 put("logicalHeight", 540)
             }.toString()
+        }
+
+        @JavascriptInterface
+        fun getAppInfo(): String =
+            JSONObject().apply {
+                put("native", true)
+                put("platform", "fire-tv")
+                put("packageName", packageName)
+                put("versionCode", BuildConfig.VERSION_CODE)
+                put("versionName", BuildConfig.VERSION_NAME)
+            }.toString()
+
+        @JavascriptInterface
+        fun openExternalUrl(url: String): Boolean {
+            val target = url.trim()
+
+            if (!(target.startsWith("https://") || target.startsWith("http://"))) {
+                return false
+            }
+
+            runOnUiThread {
+                try {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(target)).apply {
+                        addCategory(Intent.CATEGORY_BROWSABLE)
+                    }
+                    startActivity(intent)
+                } catch (_: Throwable) {
+                    webView.loadUrl(target)
+                }
+            }
+
+            return true
         }
 
         @JavascriptInterface
