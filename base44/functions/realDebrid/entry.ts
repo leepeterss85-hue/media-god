@@ -1981,7 +1981,8 @@ async function choosePlayableRdStream({
    */
   if (
     audioTracks.length ===
-    0
+      0 &&
+    !videoContainerRescue
   ) {
     return {
       stream_url: originalUrl,
@@ -2029,6 +2030,7 @@ async function choosePlayableRdStream({
 
   const explicitlyForeignOnly =
     preferEnglish &&
+    audioTracks.length > 0 &&
     englishTracks.length ===
       0 &&
     unknownLanguageTracks.length ===
