@@ -30,7 +30,11 @@ import {
 const MPEGTS_CDN =
   "https://cdn.jsdelivr.net/npm/mpegts.js@1.8.0/dist/mpegts.min.js";
 
+const DASHJS_CDN =
+  "https://cdn.jsdelivr.net/npm/dashjs@4.7.4/dist/dash.all.min.js";
+
 let mpegTsLoader = null;
+let dashJsLoader = null;
 
 const loadMpegTs = () => {
   if (typeof window === "undefined") {
@@ -75,8 +79,56 @@ const loadMpegTs = () => {
   return mpegTsLoader;
 };
 
+const loadDashJs = () => {
+  if (typeof window === "undefined") {
+    return Promise.resolve(null);
+  }
+
+  if (window.dashjs) {
+    return Promise.resolve(window.dashjs);
+  }
+
+  if (dashJsLoader) {
+    return dashJsLoader;
+  }
+
+  dashJsLoader = new Promise((resolve) => {
+    const existing = document.querySelector(
+      'script[data-mg-dashjs="true"]'
+    );
+
+    const finish = () => resolve(window.dashjs || null);
+
+    if (existing) {
+      existing.addEventListener("load", finish, { once: true });
+      existing.addEventListener("error", () => resolve(null), {
+        once: true,
+      });
+
+      window.setTimeout(finish, 3000);
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = DASHJS_CDN;
+    script.async = true;
+    script.crossOrigin = "anonymous";
+    script.dataset.mgDashjs = "true";
+    script.onload = finish;
+    script.onerror = () => resolve(null);
+    document.head.appendChild(script);
+  });
+
+  return dashJsLoader;
+};
+
 const isHlsUrl = (src, sourceLabel = "") =>
   /\.m3u8(?:[?#\s]|$)|\bhls\b/i.test(
+    `${String(src || "")} ${String(sourceLabel || "")}`
+  );
+
+const isDashUrl = (src, sourceLabel = "") =>
+  /\.mpd(?:[?#\s]|$)|\bmpeg[- ]?dash\b|\bdash\b/i.test(
     `${String(src || "")} ${String(sourceLabel || "")}`
   );
 
@@ -807,6 +859,9 @@ const LiveVideo = forwardRef(
       let hls =
         null;
 
+      let dashPlayer =
+        null;
+
       let mpegPlayer =
         null;
 
@@ -841,6 +896,12 @@ const LiveVideo = forwardRef(
 
       const hlsSource =
         isHlsUrl(
+          source,
+          sourceLabel
+        );
+
+      const dashSource =
+        isDashUrl(
           source,
           sourceLabel
         );
@@ -1732,6 +1793,93 @@ const LiveVideo = forwardRef(
           );
         };
 
+      const startDash =
+        async () => {
+          const dashjs =
+            await loadDashJs();
+
+          if (cancelled) {
+            return;
+          }
+
+          if (
+            !dashjs?.MediaPlayer ||
+            !(window.MediaSource || window.WebKitMediaSource)
+          ) {
+            reportError(
+              new Error(
+                "MPEG-DASH is not supported by this browser."
+              )
+            );
+            return;
+          }
+
+          try {
+            dashPlayer =
+              dashjs.MediaPlayer().create();
+
+            try {
+              dashPlayer.updateSettings?.({
+                streaming: {
+                  lowLatencyEnabled: Boolean(isLive),
+                  buffer: {
+                    stableBufferTime: isLive ? 8 : 12,
+                    bufferTimeAtTopQuality: isLive ? 12 : 20,
+                  },
+                },
+              });
+            } catch {
+              // Settings are optional across dash.js versions.
+            }
+
+            const events =
+              dashjs.MediaPlayer.events || {};
+
+            if (events.STREAM_INITIALIZED) {
+              dashPlayer.on(
+                events.STREAM_INITIALIZED,
+                () => {
+                  if (!cancelled) {
+                    preferEnglishNativeAudio();
+                    playAutomatically();
+                  }
+                }
+              );
+            }
+
+            if (events.ERROR) {
+              dashPlayer.on(
+                events.ERROR,
+                (event) => {
+                  if (cancelled || reported) return;
+
+                  const message =
+                    event?.event?.message ||
+                    event?.error?.message ||
+                    event?.message ||
+                    "MPEG-DASH playback failed.";
+
+                  reportError(
+                    new Error(String(message))
+                  );
+                }
+              );
+            }
+
+            dashPlayer.initialize(
+              video,
+              source,
+              false
+            );
+          } catch (error) {
+            reportError(
+              error instanceof Error
+                ? error
+                : new Error("MPEG-DASH playback failed.")
+            );
+          }
+        };
+
       const startMpegTs =
         async () => {
           const mpegts =
@@ -1874,6 +2022,10 @@ const LiveVideo = forwardRef(
       ) {
         startHls();
       } else if (
+        dashSource
+      ) {
+        startDash();
+      } else if (
         tsSource ||
         flvSource
       ) {
@@ -1944,6 +2096,17 @@ const LiveVideo = forwardRef(
           }
 
           hls =
+            null;
+        }
+
+        if (dashPlayer) {
+          try {
+            dashPlayer.reset?.();
+          } catch {
+            // Ignore.
+          }
+
+          dashPlayer =
             null;
         }
 
