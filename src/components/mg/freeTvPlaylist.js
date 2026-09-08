@@ -46,14 +46,14 @@ export const LIVE_TV_SOURCES = [
     name: "Gigoplast TV",
     url: "https://raw.githubusercontent.com/gigoplast/iptv-1/master/tv.m3u",
     priority: 85,
-    category: "General",
+    category: "Gigoplast",
   },
   {
     id: "gigoplast-premium",
     name: "Gigoplast Premium",
     url: "https://raw.githubusercontent.com/gigoplast/iptv-1/master/OSN%20%2C%20BEIN%20%2CART%20%2CFOX%20%2C%20SKY.m3u8",
     priority: 84,
-    category: "Sports & Entertainment",
+    category: "Gigoplast",
   },
 ];
 
@@ -365,6 +365,13 @@ export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
       country: current.country,
     });
 
+    if (source.id.startsWith("gigoplast")) {
+      current.group = "Gigoplast";
+      if (!current.tags.includes("Sports & Entertainment")) {
+        current.tags.push("Sports & Entertainment");
+      }
+    }
+
     const compatibility = browserCompatibility(current);
     current.browserPlayable = compatibility.browserPlayable;
     current.browserReason = compatibility.browserReason;
@@ -380,6 +387,9 @@ export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
 }
 
 const dedupeKey = (channel) => {
+  if (channel?.sourceId?.startsWith("gigoplast")) {
+    return `gigo:${channel.sourceId}:${channel.url}`;
+  }
   const tvgId = String(channel?.tvgId || "").trim().toLowerCase();
   if (tvgId) return `id:${tvgId}`;
   const name = normaliseChannelNameForKey(channel?.name);
@@ -465,7 +475,6 @@ export async function getFreeTvChannels(options = {}) {
           headers: { Accept: "text/plain, */*" },
         });
 
-        // Fallback proxy route if direct GitHub raw CORS fails
         if (!response.ok) {
           const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(source.url)}`;
           response = await fetch(proxyUrl);
