@@ -911,10 +911,18 @@ export default function VideoPlayer({
                       multiData.providerName ||
                       active?.label ||
                       "Debrid Stream",
-                    file: multiData.filename || "",
+                    file:
+                      multiData.selectedFile ||
+                      multiData.filename ||
+                      "",
                     provider: multiData.provider || debridProvider,
+                    sourceUrl: magnet,
                   });
-                  setRdFiles([]);
+                  setRdFiles(
+                    Array.isArray(multiData.files)
+                      ? multiData.files
+                      : []
+                  );
                   setRdResolving(false);
                   return;
                 }
@@ -2243,15 +2251,16 @@ export default function VideoPlayer({
             if (!cancelled && generation === prewarmGenerationRef.current) {
               preparedBackupsRef.current.set(nextIndex, {
                 sourceUrl: candidateUrl,
-                files: [],
+                files: Array.isArray(data.files) ? data.files : [],
                 override: {
                   src: data.url,
                   label:
                     data.filename ||
                     data.providerName ||
                     sourceDisplayLabel(candidate, nextIndex),
-                  file: data.filename || "",
+                  file: data.selectedFile || data.filename || "",
                   provider: data.provider || provider,
+                  sourceUrl: candidateUrl,
                 },
               });
             }
