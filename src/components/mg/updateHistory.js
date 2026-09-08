@@ -1,5 +1,19 @@
 export const UPDATE_HISTORY = [
   {
+    id: "gigoplast-public-source-v1",
+    date: "8 September 2026",
+    title: "Additional worldwide public TV backups added",
+    summary:
+      "Media God now includes selected public/free broadcaster feeds discovered in the gigoplast/iptv-1 repository without importing its adult, PPV, movie or subscription-channel lists.",
+    changes: [
+      "Added a verified CGTN Documentary HLS backup from the repository.",
+      "Added a verified Arirang TV HLS backup from the repository.",
+      "Added a verified DW Latinoamerica HLS backup from the repository.",
+      "Kept the new entries below existing higher-priority working sources so they act as backups rather than replacing known-good channels.",
+      "Excluded the repository's Adultivo list, movie-file catalogue, PPV entries and OSN/BEIN/SKY subscription-channel collections.",
+    ],
+  },
+  {
     id: "worldwide-live-tv-codecs-v1",
     date: "8 September 2026",
     title: "Worldwide Live TV and device codecs expanded",
