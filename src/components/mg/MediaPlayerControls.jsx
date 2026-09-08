@@ -534,6 +534,25 @@ export default function MediaPlayerControls({
     };
   }, []);
 
+  useEffect(() => {
+    const apply = () => {
+      applySubtitleOffset(
+        getVideo(),
+        trackPreferences.subtitleOffsetSeconds
+      );
+    };
+
+    apply();
+    const timer = window.setInterval(apply, 900);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [
+    activeIdx,
+    trackPreferences.subtitleOffsetSeconds,
+  ]);
+
   /*
    * Add subtitles supplied by an add-on
    * to the actual HTML video element.
@@ -1204,6 +1223,23 @@ export default function MediaPlayerControls({
 
     const chosenTrack =
       index >= 0 ? video.textTracks[index] : null;
+    const context =
+      typeof window !== "undefined"
+        ? window.__MG_PLAYER_CONTEXT__ || { title }
+        : { title };
+
+    rememberSubtitlePreference(
+      context,
+      chosenTrack,
+      index >= 0
+    );
+
+    window.dispatchEvent(
+      new CustomEvent("mg:subtitle-track-selected", {
+        detail: { index },
+      })
+    );
+
     const nextPreferences = writeTrackPreferences({
       ...trackPreferencesRef.current,
       subtitlesEnabled: index >= 0,
@@ -1220,6 +1256,37 @@ export default function MediaPlayerControls({
       false;
 
     revealControls();
+  };
+
+  const changeSubtitleOffset = (delta) => {
+    const currentOffset = Number(
+      trackPreferencesRef.current.subtitleOffsetSeconds || 0
+    );
+    const nextOffset = Math.max(
+      -10,
+      Math.min(10, Math.round((currentOffset + Number(delta || 0)) * 10) / 10)
+    );
+    const nextPreferences = writeTrackPreferences({
+      ...trackPreferencesRef.current,
+      subtitleOffsetSeconds: nextOffset,
+    });
+
+    trackPreferencesRef.current = nextPreferences;
+    setTrackPreferences(nextPreferences);
+    applySubtitleOffset(getVideo(), nextOffset);
+    revealControls(5000);
+  };
+
+  const resetSubtitleOffset = () => {
+    const nextPreferences = writeTrackPreferences({
+      ...trackPreferencesRef.current,
+      subtitleOffsetSeconds: 0,
+    });
+
+    trackPreferencesRef.current = nextPreferences;
+    setTrackPreferences(nextPreferences);
+    applySubtitleOffset(getVideo(), 0);
+    revealControls(5000);
   };
 
   const chooseAudio = (trackChoice) => {
