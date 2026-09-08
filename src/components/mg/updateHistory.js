@@ -1,5 +1,24 @@
 export const UPDATE_HISTORY = [
   {
+    id: "home-live-tv-polish-v1",
+    date: "8 September 2026",
+    title: "Home screen and Live TV polished",
+    summary:
+      "Home navigation is cleaner on Fire Stick and Live TV now does less background work, handles channel selection more clearly and keeps its TV layout separate from poster-card sizing.",
+    changes: [
+      "Improved focus rings and accessible labels on the Home hero Watch, Watchlist, Details and featured-title controls.",
+      "Removed the six tiny hero pagination focus stops on Fire TV while keeping the larger previous and next featured controls.",
+      "Tightened Home row spacing on television and removed the low-value footer from the Fire TV scroll path.",
+      "Live TV no longer prewarms streams merely because D-pad focus moves across channels, favourites or recent channels.",
+      "Only the best source for the channel the user actually selects is prewarmed before Live TV playback starts.",
+      "Starting a television channel now stops any radio stream that was still playing in the Live TV view.",
+      "Live TV channels can now launch from a working direct backup even when their primary channel URL is unavailable.",
+      "A channel with no browser-playable source now shows a dismissible channel notice instead of being reported as a playlist-loading failure.",
+      "Live TV filters, search, group selector and view controls gained clearer focus states, accessibility state and a one-button Reset filters action.",
+      "Fixed Fire TV Live TV quick/guide card sizing so those controls no longer inherit the 118px Home poster-card width; technical playlist statistics are also hidden on television.",
+    ],
+  },
+  {
     id: "fire-tv-playback-hardening-v1",
     date: "8 September 2026",
     title: "Fire Stick and playback stability hardened",
