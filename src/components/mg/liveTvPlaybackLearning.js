@@ -46,8 +46,9 @@ export const recordLiveTvPlaybackResult = (
 
   const store = readStore();
   const current = store[key] && typeof store[key] === "object" ? store[key] : {};
+  const failed = !success && !stalled;
   const successes = Number(current.successes || 0) + (success ? 1 : 0);
-  const failures = Number(current.failures || 0) + (!success ? 1 : 0);
+  const failures = Number(current.failures || 0) + (failed ? 1 : 0);
   const stalls = Number(current.stalls || 0) + (stalled ? 1 : 0);
   const previousAverage = Number(current.avgStartupMs || 0);
   const measuredStartup = Math.max(0, Math.min(60000, Number(startupMs || 0)));
@@ -64,7 +65,7 @@ export const recordLiveTvPlaybackResult = (
     stalls,
     avgStartupMs,
     lastGood: success ? Date.now() : Number(current.lastGood || 0),
-    lastFailure: !success ? Date.now() : Number(current.lastFailure || 0),
+    lastFailure: failed ? Date.now() : Number(current.lastFailure || 0),
     updatedAt: Date.now(),
   };
 
