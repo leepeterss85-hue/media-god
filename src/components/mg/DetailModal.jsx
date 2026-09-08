@@ -1175,6 +1175,7 @@ export default function DetailModal({
       role="dialog"
       aria-modal="true"
       aria-label={`${displayTitle} details`}
+      data-mg-detail-dialog="true"
       className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4 3xl:p-8"
       onClick={() =>
         onClose?.()
@@ -1191,7 +1192,7 @@ export default function DetailModal({
           onClick={() =>
             onClose?.()
           }
-          className="absolute top-3 right-3 3xl:top-5 3xl:right-5 z-20 w-10 h-10 3xl:w-12 3xl:h-12 rounded-full bg-black/70 text-white flex items-center justify-center hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-mg-green"
+          className="absolute top-3 right-3 3xl:top-5 3xl:right-5 z-20 w-10 h-10 3xl:w-12 3xl:h-12 rounded-full bg-black/70 text-white flex items-center justify-center hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-mg-green focus:ring-offset-2 focus:ring-offset-black"
           aria-label="Close details"
         >
           <X className="w-5 h-5 3xl:w-6 3xl:h-6" />
@@ -1230,6 +1231,7 @@ export default function DetailModal({
                     }
                     className="w-full h-full object-cover"
                     fittingType="fill"
+                    loading="lazy"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-white/25">
@@ -1303,7 +1305,8 @@ export default function DetailModal({
             <button
               type="button"
               onClick={play}
-              className="flex-1 min-w-[140px] flex items-center justify-center gap-2 bg-mg-green text-black font-semibold text-sm 3xl:text-lg py-2.5 3xl:py-3.5 rounded-lg 3xl:rounded-xl hover:bg-mg-green-dim focus:outline-none focus:ring-2 focus:ring-white"
+              className="flex-1 min-w-[140px] flex items-center justify-center gap-2 bg-mg-green text-black font-semibold text-sm 3xl:text-lg py-2.5 3xl:py-3.5 rounded-lg 3xl:rounded-xl hover:bg-mg-green-dim focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black"
+              aria-label={`Play ${displayTitle}`}
             >
               <Play className="w-4 h-4 3xl:w-5 3xl:h-5 fill-black" />
               Play
@@ -1317,7 +1320,8 @@ export default function DetailModal({
               disabled={
                 added
               }
-              className="flex items-center justify-center gap-1.5 bg-mg-card border border-white/10 text-white text-sm 3xl:text-lg font-semibold px-4 3xl:px-6 py-2.5 3xl:py-3.5 rounded-lg 3xl:rounded-xl hover:bg-white/10 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-mg-green"
+              className="flex items-center justify-center gap-1.5 bg-mg-card border border-white/10 text-white text-sm 3xl:text-lg font-semibold px-4 3xl:px-6 py-2.5 3xl:py-3.5 rounded-lg 3xl:rounded-xl hover:bg-white/10 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-mg-green focus:ring-offset-2 focus:ring-offset-black"
+              aria-label={added ? `${displayTitle} is in Watchlist` : `Add ${displayTitle} to Watchlist`}
             >
               {added ? (
                 <Check className="w-4 h-4 3xl:w-5 3xl:h-5 text-mg-green" />
@@ -1335,7 +1339,8 @@ export default function DetailModal({
               onClick={
                 toggleFavorite
               }
-              className="flex items-center justify-center gap-1.5 bg-mg-card border border-white/10 text-white text-sm 3xl:text-lg font-semibold px-4 3xl:px-6 py-2.5 3xl:py-3.5 rounded-lg 3xl:rounded-xl hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-mg-green"
+              className="flex items-center justify-center gap-1.5 bg-mg-card border border-white/10 text-white text-sm 3xl:text-lg font-semibold px-4 3xl:px-6 py-2.5 3xl:py-3.5 rounded-lg 3xl:rounded-xl hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-mg-green focus:ring-offset-2 focus:ring-offset-black"
+              aria-label={favorited ? `Remove ${displayTitle} from Favorites` : `Add ${displayTitle} to Favorites`}
             >
               <Heart
                 className={
@@ -1507,7 +1512,7 @@ export default function DetailModal({
                             );
 
                             const className =
-                              "group flex items-center gap-2 3xl:gap-3 bg-mg-card border border-white/10 rounded-lg 3xl:rounded-xl pl-1.5 3xl:pl-2 pr-3 3xl:pr-4 py-1.5 3xl:py-2 hover:border-mg-green transition-colors";
+                              "group flex items-center gap-2 3xl:gap-3 bg-mg-card border border-white/10 rounded-lg 3xl:rounded-xl pl-1.5 3xl:pl-2 pr-3 3xl:pr-4 py-1.5 3xl:py-2 hover:border-mg-green transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mg-green";
 
                             if (
                               provider.link
@@ -1580,7 +1585,7 @@ export default function DetailModal({
               </div>
             ) : cast.length > 0 ? (
               <div className="flex gap-3 3xl:gap-5 overflow-x-auto pb-1 3xl:pb-2">
-                {cast.map(
+                {cast.slice(0, 20).map(
                   (
                     person,
                     index
@@ -1600,6 +1605,7 @@ export default function DetailModal({
                             }
                             className="w-full h-full object-cover"
                             fittingType="fill"
+                            loading="lazy"
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-white/30 text-lg 3xl:text-2xl">
