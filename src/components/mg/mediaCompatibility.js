@@ -920,6 +920,16 @@ export const scoreSourceCompatibility = (
     0;
 
   if (
+    hasSevereVideoRisk(
+      item,
+      extraText,
+      deviceProfile
+    )
+  ) {
+    score -= 50000;
+  }
+
+  if (
     item?.viaRealDebrid
   ) {
     score +=
