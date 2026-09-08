@@ -287,7 +287,13 @@ class PlayerActivity : Activity() {
             .setUri(streamUrl)
             .setMediaId(requestId.ifBlank { streamUrl })
 
-        inferPrimaryMimeType(streamUrl)?.let(builder::setMimeType)
+        val explicitMimeType = payload.optString("mimeType").trim()
+
+        if (explicitMimeType.isNotBlank()) {
+            builder.setMimeType(explicitMimeType)
+        } else {
+            inferPrimaryMimeType(streamUrl)?.let(builder::setMimeType)
+        }
 
         val subtitleConfigurations = buildSubtitleConfigurations(
             payload.optJSONArray("subtitles") ?: JSONArray()
