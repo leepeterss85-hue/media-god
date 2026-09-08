@@ -2459,6 +2459,52 @@ export default function VideoPlayer({
     );
   };
 
+  const handleDirectPlaybackError = () => {
+    const fallback = String(
+      active?.fallbackSrc || active?.fallback_stream_url || ""
+    ).trim();
+
+    if (fallback && fallback !== activeUrl) {
+      const video = stageRef.current?.querySelector("video");
+      const resumeAt = Math.max(
+        0,
+        Number(video?.currentTime || lastPosRef.current?.t || 0)
+      );
+
+      if (resumeAt > 5) {
+        recoveryResumeRef.current = resumeAt;
+      }
+
+      setRdOverride({
+        src: fallback,
+        label: `${sourceDisplayLabel(active, activeIdx)} [Original fallback]`,
+        file: "",
+        fallbackSrc: "",
+        fallbackTried: true,
+        audioRescue: {
+          ...(active?.audioRescue || {}),
+          used: false,
+          state: "original_stream_fallback_after_transcode_error",
+        },
+        mediaInfo: active?.mediaInfo || active?.media_info || null,
+      });
+
+      window.dispatchEvent(
+        new CustomEvent("mg:player-status", {
+          detail: {
+            message:
+              "Compatibility stream failed — trying the original Real-Debrid file…",
+          },
+        })
+      );
+      return;
+    }
+
+    tryNextSource(
+      "This stream failed during playback."
+    );
+  };
+
   const handleNoSound =
     async (options = {}) => {
       const automatic = options?.automatic === true;
@@ -3322,10 +3368,8 @@ export default function VideoPlayer({
                 onTimeUpdate={
                   handleTimeUpdate
                 }
-                onError={() =>
-                  tryNextSource(
-                    "This stream failed during playback."
-                  )
+                onError={
+                  handleDirectPlaybackError
                 }
               />
 
