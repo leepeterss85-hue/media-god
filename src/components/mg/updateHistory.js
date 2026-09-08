@@ -1,5 +1,23 @@
 export const UPDATE_HISTORY = [
   {
+    id: "fire-tv-catalogue-scale-v1",
+    date: "8 September 2026",
+    title: "Fire Stick screen scale and card layout corrected",
+    summary:
+      "The Fire Stick catalogue now uses one consistent television scale instead of inheriting oversized 3xl/4xl desktop controls and coarse-pointer hover overlays.",
+    changes: [
+      "Reduced the Fire TV hero height, title, synopsis and action sizes so the home screen no longer feels vertically stretched.",
+      "Reduced Continue Watching and Recently Watched card widths and spacing so more items fit evenly across the television.",
+      "Standardised Home poster cards at a fixed television width with consistent 2:3 artwork proportions.",
+      "Stopped Fire OS coarse-pointer detection from forcing every hidden hover action visible at the same time.",
+      "Removed the persistent giant Play, Details and Watchlist bubbles visible across every Home poster in the Fire Stick layout.",
+      "Fire TV catalogue posters now expose one clean full-poster focus target; selecting a Home poster opens Details first for consistent remote controls.",
+      "Removed low-value row arrow and hero arrow focus controls on Fire TV so D-pad navigation stays on useful content.",
+      "Movies and TV Shows now use fixed 112px Fire TV grid columns instead of changing size with 3xl/4xl desktop breakpoints.",
+      "Movies and TV Shows filter controls, poster text and artwork now use a fixed compact television scale regardless of the CSS resolution reported by Fire OS.",
+    ],
+  },
+  {
     id: "search-settings-addons-performance-v1",
     date: "8 September 2026",
     title: "Search, details, settings and performance improved",
