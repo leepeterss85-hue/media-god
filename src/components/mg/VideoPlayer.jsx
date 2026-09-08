@@ -355,6 +355,77 @@ export default function VideoPlayer({
     return candidates[0]?.index ?? -1;
   };
 
+  const switchToSource = (
+    nextIndex,
+    {
+      preservePosition = true,
+      statusMessage = "",
+    } = {}
+  ) => {
+    const currentVideo =
+      stageRef.current?.querySelector("video");
+    const currentIsLive =
+      source?.type === "live" ||
+      active?.live ||
+      active?.type === "live";
+    const resumeAt =
+      preservePosition && !currentIsLive
+        ? Math.max(
+            0,
+            Number(
+              currentVideo?.currentTime ||
+                lastPosRef.current?.t ||
+                0
+            )
+          )
+        : 0;
+
+    if (resumeAt > 5) {
+      recoveryResumeRef.current = resumeAt;
+    }
+
+    clearSourceFailed(nextIndex);
+    setRdTorrentId(null);
+    setRdError("");
+    setRdResolving(false);
+    setRdPolling(false);
+
+    const prepared =
+      preparedBackupsRef.current.get(nextIndex);
+    const candidate = sources[nextIndex];
+    const candidateUrl = getSourceUrl(candidate);
+
+    if (
+      prepared?.override?.src &&
+      (!prepared.sourceUrl || prepared.sourceUrl === candidateUrl)
+    ) {
+      setRdOverride(prepared.override);
+      setRdFiles(
+        Array.isArray(prepared.files)
+          ? prepared.files
+          : []
+      );
+    } else {
+      setRdOverride(null);
+      setRdFiles([]);
+    }
+
+    setActiveIdx(nextIndex);
+
+    if (statusMessage) {
+      window.dispatchEvent(
+        new CustomEvent("mg:player-status", {
+          detail: {
+            message:
+              resumeAt > 5
+                ? `${statusMessage} Resuming at ${Math.floor(resumeAt / 60)} min…`
+                : statusMessage,
+          },
+        })
+      );
+    }
+  };
+
   const tryNextSource = (
     message =
       "This source could not be played."
@@ -382,16 +453,13 @@ export default function VideoPlayer({
       return false;
     }
 
-    setRdOverride(null);
-    setRdFiles([]);
-    setRdTorrentId(null);
-    setRdError("");
-    setRdResolving(false);
-    setRdPolling(false);
-
-    setActiveIdx(
-      nextIndex
-    );
+    switchToSource(nextIndex, {
+      preservePosition: true,
+      statusMessage:
+        source?.type === "live" || active?.live || active?.type === "live"
+          ? "Live stream failed — trying the best available backup…"
+          : "Source failed — switching to the best available backup…",
+    });
 
     return true;
   };
@@ -408,25 +476,19 @@ export default function VideoPlayer({
       ) ||
       nextIndex < 0 ||
       nextIndex >=
-        sources.length
+        sources.length ||
+      nextIndex === activeIdx
     ) {
       return;
     }
 
-    clearSourceFailed(
-      nextIndex
-    );
-
-    setRdOverride(null);
-    setRdFiles([]);
-    setRdTorrentId(null);
-    setRdError("");
-    setRdResolving(false);
-    setRdPolling(false);
-
-    setActiveIdx(
-      nextIndex
-    );
+    switchToSource(nextIndex, {
+      preservePosition: true,
+      statusMessage:
+        source?.type === "live" || active?.live || active?.type === "live"
+          ? "Switching Live TV source…"
+          : "Switching source…",
+    });
   };
 
   const isLive =
