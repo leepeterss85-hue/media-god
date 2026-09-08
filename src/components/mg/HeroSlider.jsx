@@ -170,7 +170,7 @@ export default function HeroSlider({
         <ChevronRight className="w-6 h-6 3xl:w-8 3xl:h-8" />
       </button>
 
-      <div className="absolute bottom-3 sm:bottom-4 3xl:bottom-6 left-1/2 -translate-x-1/2 flex gap-2 3xl:gap-3">
+      <div data-mg-hero-pagination="true" className="absolute bottom-3 sm:bottom-4 3xl:bottom-6 left-1/2 -translate-x-1/2 flex gap-2 3xl:gap-3">
         {items.slice(0, 6).map((_, index) => (
           <button
             type="button"
