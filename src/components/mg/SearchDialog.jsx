@@ -638,7 +638,7 @@ export default function SearchDialog({
 
         <div className="max-h-[75svh] sm:max-h-[68vh] overflow-y-auto overscroll-contain">
           {loading && (
-            <div className="p-8 3xl:p-12 text-center text-white/40 flex items-center justify-center gap-2 3xl:text-lg">
+            <div role="status" aria-live="polite" className="p-8 3xl:p-12 text-center text-white/40 flex items-center justify-center gap-2 3xl:text-lg">
               <Loader2 className="w-4 h-4 3xl:w-6 3xl:h-6 animate-spin" />
 
               Searching...
@@ -647,7 +647,7 @@ export default function SearchDialog({
 
           {!loading &&
             error && (
-              <div className="p-6 3xl:p-10 text-center">
+              <div role="alert" className="p-6 3xl:p-10 text-center">
                 <p className="text-sm 3xl:text-lg text-red-300">
                   {
                     error
