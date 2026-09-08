@@ -202,8 +202,6 @@ export default function VideoPlayer({
   const stageRef = useRef(null);
   const pollRef = useRef(null);
   const recoveryResumeRef = useRef(0);
-  const preparedBackupsRef = useRef(new Map());
-  const prewarmGenerationRef = useRef(0);
   const torrentFailoverTimerRef = useRef(null);
   const autoAudioRescueRef = useRef({
     key: "",
@@ -396,26 +394,8 @@ export default function VideoPlayer({
     setRdResolving(false);
     setRdPolling(false);
 
-    const prepared =
-      preparedBackupsRef.current.get(nextIndex);
-    const candidate = sources[nextIndex];
-    const candidateUrl = getSourceUrl(candidate);
-
-    if (
-      prepared?.override?.src &&
-      (!prepared.sourceUrl || prepared.sourceUrl === candidateUrl)
-    ) {
-      setRdOverride(prepared.override);
-      setRdFiles(
-        Array.isArray(prepared.files)
-          ? prepared.files
-          : []
-      );
-    } else {
-      setRdOverride(null);
-      setRdFiles([]);
-    }
-
+    setRdOverride(null);
+    setRdFiles([]);
     setActiveIdx(nextIndex);
 
     if (statusMessage) {
@@ -568,9 +548,6 @@ export default function VideoPlayer({
     autoRecoveryRef.current.lastProgressAt = Date.now();
     autoRecoveryRef.current.lastSwitchAt = 0;
     autoRecoveryRef.current.abandoned = new Set();
-    preparedBackupsRef.current.clear();
-    prewarmGenerationRef.current += 1;
-
     if (torrentFailoverTimerRef.current) {
       window.clearTimeout(torrentFailoverTimerRef.current);
       torrentFailoverTimerRef.current = null;
@@ -865,20 +842,6 @@ export default function VideoPlayer({
       if (
         !isRdSource
       ) {
-        return;
-      }
-
-      const prepared = preparedBackupsRef.current.get(activeIdx);
-      if (
-        prepared?.sourceUrl === activeUrl &&
-        prepared?.override?.src
-      ) {
-        setRdOverride(prepared.override);
-        setRdFiles(prepared.files || []);
-        setRdTorrentId(null);
-        setRdPolling(false);
-        setRdResolving(false);
-        preparedBackupsRef.current.delete(activeIdx);
         return;
       }
 
