@@ -93,6 +93,28 @@ const sourceDisplayLabel = (item, index) =>
     .replace(/\s+/g, " ")
     .trim();
 
+const isDesktopFullscreenBrowser = () => {
+  if (typeof window === "undefined" || typeof navigator === "undefined") {
+    return false;
+  }
+
+  const ua = `${navigator.userAgent || ""} ${navigator.platform || ""}`;
+
+  // Fire TV / Android WebViews must keep using Media God's safe in-app
+  // fullscreen. Native fullscreen there can hand playback to the host
+  // activity, restart the wrapper, or create picture-in-picture issues.
+  if (
+    /(?:\bAFT[A-Z0-9]*\b|Fire\s*TV|AmazonWebAppPlatform|Silk|MediaGodFireTV|Android|iPhone|iPad|iPod|Mobile)/i.test(
+      ua
+    )
+  ) {
+    return false;
+  }
+
+  // Only opt desktop-class browsers into the browser Fullscreen API.
+  return /(?:Windows NT|Macintosh|Mac OS X|CrOS|X11|Linux x86_64)/i.test(ua);
+};
+
 const audioTrackScore = (track, preferredLanguage = "en") => {
   const text = `${track?.language || ""} ${track?.label || ""}`;
   const language = String(track?.language || "").toLowerCase();
@@ -673,135 +695,123 @@ export default function VideoPlayer({
     isLive,
   ]);
 
-  const goFullscreen = () => {
-    const stage =
-      stageRef.current;
+  const restoreInAppFullscreen = (stage) => {
+    if (!stage) return;
 
-    if (
-      !stage
-    ) {
+    const previousStyle = stage.dataset.mgPreviousStyle || "";
+
+    if (previousStyle) {
+      stage.setAttribute("style", previousStyle);
+    } else {
+      stage.removeAttribute("style");
+    }
+
+    delete stage.dataset.mgFullscreen;
+    delete stage.dataset.mgPreviousStyle;
+    setIsAppFullscreen(false);
+  };
+
+  const goFullscreen = async () => {
+    const stage = stageRef.current;
+
+    if (!stage) {
       return;
     }
 
     /*
-     * IMPORTANT:
-     * Never call requestFullscreen() or
-     * webkitEnterFullscreen() here.
-     *
-     * Android WebView can hand fullscreen over to
-     * the native activity and close/restart the app.
-     * Media God therefore uses safe in-app fullscreen
-     * by expanding the existing stage with CSS.
+     * Desktop browsers should use the real Fullscreen API so Windows/macOS
+     * chrome, the taskbar and dock are hidden. Fire TV, Android and mobile
+     * wrappers deliberately stay on Media God's safe CSS fullscreen because
+     * native WebView fullscreen can restart the host activity or interfere
+     * with playback.
      */
-    const currentlyFullscreen =
-      stage.dataset
-        .mgFullscreen ===
-      "true";
+    if (isDesktopFullscreenBrowser()) {
+      const nativeFullscreenElement =
+        document.fullscreenElement || document.webkitFullscreenElement || null;
 
-    if (
-      currentlyFullscreen
-    ) {
-      const previousStyle =
-        stage.dataset
-          .mgPreviousStyle ||
-        "";
+      if (nativeFullscreenElement) {
+        try {
+          if (document.exitFullscreen) {
+            await document.exitFullscreen();
+          } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+          }
+        } catch {
+          // The fullscreenchange handler will keep state correct if the
+          // browser has already started exiting fullscreen itself.
+        }
 
-      if (
-        previousStyle
-      ) {
-        stage.setAttribute(
-          "style",
-          previousStyle
-        );
-      } else {
-        stage.removeAttribute(
-          "style"
-        );
+        return;
       }
 
-      delete stage.dataset
-        .mgFullscreen;
+      try {
+        if (stage.requestFullscreen) {
+          await stage.requestFullscreen({ navigationUI: "hide" });
+        } else if (stage.webkitRequestFullscreen) {
+          stage.webkitRequestFullscreen();
+        } else {
+          throw new Error("Browser fullscreen is unavailable.");
+        }
 
-      delete stage.dataset
-        .mgPreviousStyle;
+        setIsAppFullscreen(true);
+        return;
+      } catch {
+        // If a desktop browser blocks the Fullscreen API, fall back to the
+        // existing in-app fullscreen instead of breaking the fullscreen button.
+      }
+    }
 
-      setIsAppFullscreen(
-        false
-      );
+    const currentlyFullscreen = stage.dataset.mgFullscreen === "true";
 
+    if (currentlyFullscreen) {
+      restoreInAppFullscreen(stage);
       return;
     }
 
-    stage.dataset
-      .mgPreviousStyle =
-      stage.getAttribute(
-        "style"
-      ) || "";
+    stage.dataset.mgPreviousStyle = stage.getAttribute("style") || "";
+    stage.dataset.mgFullscreen = "true";
+    setIsAppFullscreen(true);
 
-    stage.dataset
-      .mgFullscreen =
-      "true";
-
-    setIsAppFullscreen(
-      true
-    );
-
-    Object.assign(
-      stage.style,
-      {
-        position:
-          "fixed",
-
-        top:
-          "0",
-
-        right:
-          "0",
-
-        bottom:
-          "0",
-
-        left:
-          "0",
-
-        width:
-          "100vw",
-
-        height:
-          "100vh",
-
-        maxWidth:
-          "none",
-
-        maxHeight:
-          "none",
-
-        margin:
-          "0",
-
-        padding:
-          "0",
-
-        border:
-          "0",
-
-        borderRadius:
-          "0",
-
-        aspectRatio:
-          "auto",
-
-        background:
-          "#000",
-
-        overflow:
-          "hidden",
-
-        zIndex:
-          "2147483647",
-      }
-    );
+    Object.assign(stage.style, {
+      position: "fixed",
+      top: "0",
+      right: "0",
+      bottom: "0",
+      left: "0",
+      width: "100vw",
+      height: "100vh",
+      maxWidth: "none",
+      maxHeight: "none",
+      margin: "0",
+      padding: "0",
+      border: "0",
+      borderRadius: "0",
+      aspectRatio: "auto",
+      background: "#000",
+      overflow: "hidden",
+      zIndex: "2147483647",
+    });
   };
+
+  useEffect(() => {
+    const syncFullscreenState = () => {
+      if (!isDesktopFullscreenBrowser()) return;
+
+      const stage = stageRef.current;
+      const fullscreenElement =
+        document.fullscreenElement || document.webkitFullscreenElement || null;
+
+      setIsAppFullscreen(Boolean(stage && fullscreenElement === stage));
+    };
+
+    document.addEventListener("fullscreenchange", syncFullscreenState);
+    document.addEventListener("webkitfullscreenchange", syncFullscreenState);
+
+    return () => {
+      document.removeEventListener("fullscreenchange", syncFullscreenState);
+      document.removeEventListener("webkitfullscreenchange", syncFullscreenState);
+    };
+  }, []);
 
   /*
    * Reset RD state whenever the user chooses
