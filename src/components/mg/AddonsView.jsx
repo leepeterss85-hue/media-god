@@ -544,7 +544,7 @@ export default function AddonsManager() {
     };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto text-white space-y-6">
+    <div data-mg-addons-view="true" className="p-4 sm:p-6 max-w-4xl mx-auto text-white space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">
@@ -563,9 +563,9 @@ export default function AddonsManager() {
               testActiveAddons
             }
             disabled={
-              testing
+              testing || loading || mutating
             }
-            className="flex items-center gap-2 px-3 py-1.5 bg-green-700 hover:bg-green-600 disabled:opacity-60 rounded-lg text-sm transition"
+            className="flex min-h-11 items-center gap-2 px-3 py-2 bg-green-700 hover:bg-green-600 disabled:opacity-60 rounded-lg text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mg-green"
           >
             {testing ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -581,7 +581,8 @@ export default function AddonsManager() {
             onClick={
               loadAddons
             }
-            className="flex items-center gap-2 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-sm transition"
+            disabled={loading || testing || mutating}
+            className="flex min-h-11 items-center gap-2 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-60 rounded-lg text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mg-green"
           >
             <RefreshCw className="w-4 h-4" />
 
@@ -654,7 +655,9 @@ export default function AddonsManager() {
                 event.target.value
               )
             }
-            className="px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-sm focus:outline-none focus:border-green-500"
+            aria-label="Addon name"
+            disabled={mutating}
+            className="min-h-11 px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-sm focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/30 disabled:opacity-60"
           />
 
           <input
@@ -670,13 +673,19 @@ export default function AddonsManager() {
                 event.target.value
               )
             }
-            className="px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-sm focus:outline-none focus:border-green-500"
+            aria-label="Addon manifest URL"
+            inputMode="url"
+            autoCapitalize="none"
+            autoCorrect="off"
+            disabled={mutating}
+            className="min-h-11 px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-sm focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/30 disabled:opacity-60"
           />
         </div>
 
         <button
           type="submit"
-          className="flex items-center justify-center gap-2 w-full py-2 bg-green-600 hover:bg-green-500 font-semibold rounded-lg text-sm transition"
+          disabled={mutating || !clean(newName) || !clean(newUrl)}
+          className="flex min-h-11 items-center justify-center gap-2 w-full py-2 bg-green-600 hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-50 font-semibold rounded-lg text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mg-green"
         >
           <Plus className="w-4 h-4" />
 
@@ -778,7 +787,9 @@ export default function AddonsManager() {
                           addon
                         )
                       }
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                      disabled={mutating}
+                      aria-pressed={isActive}
+                      className={`min-h-10 px-3 py-1.5 rounded-lg text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mg-green disabled:opacity-50 ${
                         isActive
                           ? "bg-zinc-800 hover:bg-zinc-700 text-gray-300"
                           : "bg-green-600 hover:bg-green-500 text-white"
@@ -796,7 +807,8 @@ export default function AddonsManager() {
                           addon.id
                         )
                       }
-                      className="p-1.5 bg-red-950/40 hover:bg-red-900 border border-red-900/50 text-red-400 rounded-lg transition"
+                      disabled={mutating}
+                      className="min-h-10 min-w-10 p-1.5 bg-red-950/40 hover:bg-red-900 border border-red-900/50 text-red-400 rounded-lg transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 disabled:opacity-50"
                       title="Delete Addon"
                       aria-label={`Delete ${
                         addon?.name ||
