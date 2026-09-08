@@ -28,6 +28,7 @@ import {
 import {
   detectStreamTraits,
   getPlaybackDeviceProfile,
+  hasSevereVideoRisk,
   scoreSourceCompatibility,
 } from "@/components/mg/mediaCompatibility";
 import {
@@ -182,6 +183,10 @@ export default function VideoPlayer({
   const preparedBackupsRef = useRef(new Map());
   const prewarmGenerationRef = useRef(0);
   const autoAudioRescueRef = useRef({
+    key: "",
+    timer: null,
+  });
+  const autoVideoRescueRef = useRef({
     key: "",
     timer: null,
   });
@@ -2692,6 +2697,180 @@ export default function VideoPlayer({
     rdResolving,
     rdPolling,
     source,
+  ]);
+
+  useEffect(() => {
+    const state = autoVideoRescueRef.current;
+
+    if (state.timer) {
+      window.clearTimeout(state.timer);
+      state.timer = null;
+    }
+
+    if (
+      isLive ||
+      isYoutube ||
+      isProvider ||
+      rdResolving ||
+      rdPolling ||
+      rdTorrentId ||
+      sources.length <= 1 ||
+      readPlaybackPreferences().autoRecovery === false
+    ) {
+      return undefined;
+    }
+
+    const candidate = rdOverride
+      ? {
+          ...active,
+          src: rdOverride.src || activeUrl,
+          url: rdOverride.src || activeUrl,
+          label: rdOverride.label || active?.label,
+        }
+      : active;
+    const profile = getPlaybackDeviceProfile();
+    const label = sourceDisplayLabel(candidate, activeIdx);
+
+    if (!hasSevereVideoRisk(candidate, label, profile)) {
+      return undefined;
+    }
+
+    const key = [
+      source?.id || source?.tmdbId || source?.title || "media",
+      activeIdx,
+      rdOverride?.src || activeUrl,
+    ].join("|");
+
+    if (state.key === key) {
+      return undefined;
+    }
+
+    state.key = key;
+
+    const rescue = (remainingChecks = 4, previousTime = 0) => {
+      state.timer = null;
+
+      const video = stageRef.current?.querySelector("video");
+      const currentTime = Number(video?.currentTime || 0);
+      const clearlyPlaying =
+        video instanceof HTMLVideoElement &&
+        !video.paused &&
+        !video.ended &&
+        video.readyState >= 2 &&
+        (currentTime > 0.5 || currentTime > previousTime + 0.2);
+
+      if (clearlyPlaying) {
+        return;
+      }
+
+      if (remainingChecks > 0) {
+        state.timer = window.setTimeout(
+          () => rescue(remainingChecks - 1, currentTime),
+          1200
+        );
+        return;
+      }
+
+      const alternatives = sources
+        .map((item, index) => {
+          if (
+            index === activeIdx ||
+            failedSourcesRef.current.has(index) ||
+            item?.diagnostic ||
+            item?.type === "status" ||
+            item?.type === "provider" ||
+            item?.type === "youtube"
+          ) {
+            return null;
+          }
+
+          const url = getSourceUrl(item);
+          const playable =
+            Boolean(url) ||
+            item?.type === "rd" ||
+            item?.type === "rd_torrent" ||
+            item?.type === "torrent" ||
+            item?.type === "magnet";
+
+          if (!playable) return null;
+
+          return {
+            index,
+            severe: hasSevereVideoRisk(
+              item,
+              sourceDisplayLabel(item, index),
+              profile
+            ),
+            score: recoverySourceScore(item, index),
+          };
+        })
+        .filter(Boolean)
+        .sort(
+          (a, b) =>
+            Number(a.severe) - Number(b.severe) ||
+            b.score - a.score ||
+            a.index - b.index
+        );
+
+      const nextIndex = alternatives.find((item) => !item.severe)?.index ?? -1;
+      if (nextIndex < 0) {
+        return;
+      }
+
+      const resumeAt = Math.max(
+        0,
+        Number(video?.currentTime || lastPosRef.current?.t || 0)
+      );
+
+      if (resumeAt > 5) {
+        recoveryResumeRef.current = resumeAt;
+      }
+
+      recordPlaybackReliability(label, "failure");
+      markSourceFailed(activeIdx);
+      clearSourceFailed(nextIndex);
+      setRdOverride(null);
+      setRdFiles([]);
+      setRdTorrentId(null);
+      setRdError("");
+      setRdResolving(false);
+      setRdPolling(false);
+      setActiveIdx(nextIndex);
+
+      window.dispatchEvent(
+        new CustomEvent("mg:player-status", {
+          detail: {
+            message:
+              "Video compatibility rescue · switching to a safer source…",
+          },
+        })
+      );
+    };
+
+    state.timer = window.setTimeout(
+      () => rescue(4, 0),
+      2500
+    );
+
+    return () => {
+      if (state.timer) {
+        window.clearTimeout(state.timer);
+        state.timer = null;
+      }
+    };
+  }, [
+    active,
+    activeIdx,
+    activeUrl,
+    isLive,
+    isProvider,
+    isYoutube,
+    rdOverride,
+    rdPolling,
+    rdResolving,
+    rdTorrentId,
+    source,
+    sources,
   ]);
 
   const busy =
