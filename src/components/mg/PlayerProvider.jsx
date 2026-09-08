@@ -880,8 +880,8 @@ function PlayerAutomationBridge({ children }) {
 
       const target = event?.target;
       if (
-        typeof HTMLMediaElement !== "undefined" &&
-        !(target instanceof HTMLMediaElement)
+        typeof HTMLVideoElement !== "undefined" &&
+        !(target instanceof HTMLVideoElement)
       ) {
         return;
       }
