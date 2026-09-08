@@ -3787,6 +3787,12 @@ export default function VideoPlayer({
                 src={
                   active.src
                 }
+                sourceLabel={
+                  active?.format ||
+                  active?.mimeType ||
+                  active?.label ||
+                  "Direct Stream"
+                }
                 poster={
                   source?.poster
                 }
