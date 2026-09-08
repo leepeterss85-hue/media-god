@@ -30,6 +30,11 @@ import {
   writeTrackPreferences,
 } from "@/components/mg/mediaTrackPreferences";
 import { concisePlaybackSourceLabel } from "@/components/mg/playbackSourceLabels";
+import {
+  readSourceSortMode,
+  sortSourceEntries,
+  SOURCE_SELECTOR_SORT_EVENT,
+} from "@/components/mg/sourceSelectorPreferences";
 
 const formatTime = (seconds) => {
   if (!seconds || !Number.isFinite(Number(seconds))) {
@@ -127,6 +132,9 @@ export default function MediaPlayerControls({
   const [seeking, setSeeking] = useState(false);
   const [openMenu, setOpenMenu] = useState("");
   const [playbackRate, setPlaybackRate] = useState(1);
+  const [sourceSortMode, setSourceSortMode] = useState(
+    () => readSourceSortMode()
+  );
 
   const [subtitleTracks, setSubtitleTracks] = useState([]);
   const [selectedSubtitle, setSelectedSubtitle] = useState(-1);
@@ -137,6 +145,11 @@ export default function MediaPlayerControls({
   const hlsAudioActiveRef = useRef(-1);
   const [trackPreferences, setTrackPreferences] = useState(
     () => readTrackPreferences()
+  );
+
+  const sortedSourceEntries = sortSourceEntries(
+    sources,
+    sourceSortMode
   );
 
   const hideTimerRef = useRef(null);
@@ -394,9 +407,19 @@ export default function MediaPlayerControls({
       onPreferencesChanged
     );
 
+    const onSourceSortChanged = (event) => {
+      setSourceSortMode(
+        String(event?.detail?.mode || readSourceSortMode())
+      );
+    };
+
     window.addEventListener(
       "mg:hls-audio-tracks",
       onHlsAudioTracks
+    );
+    window.addEventListener(
+      SOURCE_SELECTOR_SORT_EVENT,
+      onSourceSortChanged
     );
 
     return () => {
@@ -409,6 +432,10 @@ export default function MediaPlayerControls({
       window.removeEventListener(
         "mg:hls-audio-tracks",
         onHlsAudioTracks
+      );
+      window.removeEventListener(
+        SOURCE_SELECTOR_SORT_EVENT,
+        onSourceSortChanged
       );
     };
   }, []);
@@ -1370,11 +1397,11 @@ export default function MediaPlayerControls({
                   aria-label="Choose source or quality"
                   title="Choose source or quality"
                 >
-                  {sources.map(
-                    (
+                  {sortedSourceEntries.map(
+                    ({
                       item,
-                      index
-                    ) => (
+                      index,
+                    }) => (
                       <option
                         key={`${index}-${sourceRawLabel(
                           item,
