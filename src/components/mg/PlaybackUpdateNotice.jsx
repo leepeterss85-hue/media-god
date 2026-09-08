@@ -10,23 +10,16 @@ import {
   X,
 } from "lucide-react";
 
+import { LATEST_UPDATE } from "@/components/mg/updateHistory";
+
 const RELEASE_ID =
-  "source-debrid-subtitles-v1";
+  LATEST_UPDATE.id;
 
 const STORAGE_KEY =
   `mg:release-notice:${RELEASE_ID}`;
 
-const CHANGES = [
-  "New source sorting: Best, Cached, 4K, 1080p, Compatible or Smallest.",
-  "Source choices keep showing useful quality, HDR, video, audio, cache and debrid-provider information when available.",
-  "Multi-file torrent selection now works across AllDebrid, TorBox, Premiumize and Debrid-Link as well as Real-Debrid.",
-  "You can switch to another video file from a supported debrid torrent without leaving the player.",
-  "If one cached debrid service fails to resolve a torrent, Media God can try the next cached connected service before giving up on it.",
-  "Subtitle choices are remembered per film or series, including whether subtitles were turned off.",
-  "Forced and foreign-parts subtitles are selected more intelligently, while SDH captions can be preferred or kept behind cleaner dialogue subtitles.",
-  "Subtitle timing can now be moved earlier or later in 0.5-second steps and reset instantly.",
-  "Embedded, HLS and external/addon subtitles now share smarter language, forced and SDH selection.",
-];
+const CHANGES =
+  LATEST_UPDATE.changes;
 
 const alreadySeen = () => {
   if (typeof window === "undefined") {
@@ -126,18 +119,18 @@ export default function PlaybackUpdateNotice({
           <div className="pr-12">
             <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-mg-green/25 bg-mg-green/10 px-3 py-1 text-xs font-bold uppercase tracking-wide text-mg-green">
               <Sparkles className="h-3.5 w-3.5" />
-              New playback update
+              New Media God update
             </div>
 
             <h2
               id="mg-playback-update-title"
               className="text-2xl font-black text-white sm:text-3xl"
             >
-              Better sources, debrid files and subtitles.
+              {LATEST_UPDATE.title}
             </h2>
 
             <p className="mt-2 text-sm leading-6 text-white/60 sm:text-base">
-              Media God now gives you more control over source quality, debrid files and subtitle playback.
+              {LATEST_UPDATE.summary}
             </p>
           </div>
 
@@ -165,7 +158,7 @@ export default function PlaybackUpdateNotice({
           </button>
 
           <p className="mt-2 text-center text-[10px] text-white/30 sm:text-xs">
-            This message is shown once for this playback update.
+            This message is shown once for this Media God update. The full history is always available from Updates in the sidebar.
           </p>
         </div>
       </div>
