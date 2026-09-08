@@ -3855,12 +3855,13 @@ export default function VideoPlayer({
           <button
             type="button"
             data-mg-no-sound="true"
+            disabled={busy || fileSwitching}
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
               handleNoSound();
             }}
-            className="shrink-0 flex min-h-10 items-center gap-1.5 rounded-lg border border-white/10 bg-mg-card px-3 text-xs font-semibold text-white hover:border-mg-green/40 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-mg-green/50"
+            className="shrink-0 flex min-h-10 items-center gap-1.5 rounded-lg border border-white/10 bg-mg-card px-3 text-xs font-semibold text-white hover:border-mg-green/40 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-mg-green/50 disabled:cursor-not-allowed disabled:opacity-45"
             aria-label="No sound"
             title="Try another audio track or source"
           >
