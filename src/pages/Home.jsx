@@ -17,6 +17,7 @@ import DebridDashboard from "@/components/mg/DebridDashboard";
 import AddonsView from "@/components/mg/AddonsView";
 import SourcesView from "@/components/mg/SourcesView";
 import RoadmapView from "@/components/mg/RoadmapView";
+import UpdatesView from "@/components/mg/UpdatesView";
 import SettingsView from "@/components/mg/SettingsView";
 import WatchPartyView from "@/components/mg/WatchPartyView";
 import FavoritesView from "@/components/mg/FavoritesView";
@@ -732,6 +733,11 @@ function MediaGodApp() {
           {view ===
             "roadmap" && (
             <RoadmapView />
+          )}
+
+          {view ===
+            "updates" && (
+            <UpdatesView />
           )}
 
           {view ===
