@@ -3495,7 +3495,7 @@ export default function VideoPlayer({
                 "Video"
               }
               className="w-full h-full"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope"
               allowFullScreen
               referrerPolicy="strict-origin-when-cross-origin"
             />
@@ -3509,7 +3509,7 @@ export default function VideoPlayer({
                 "Provider"
               }
               className="w-full h-full"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; picture-in-picture; fullscreen"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen"
               allowFullScreen
               referrerPolicy="strict-origin-when-cross-origin"
             />
