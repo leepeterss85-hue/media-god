@@ -13,6 +13,7 @@ import {
   Heart,
   Home as HomeIcon,
   MonitorPlay,
+  Megaphone,
   Power,
   Puzzle,
   Search,
@@ -86,6 +87,11 @@ const NAV = [
     id: "roadmap",
     label: "Roadmap",
     icon: Calendar,
+  },
+  {
+    id: "updates",
+    label: "Updates",
+    icon: Megaphone,
   },
   {
     id: "remote",
