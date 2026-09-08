@@ -94,28 +94,6 @@ const BBC_RADIO_STREAMS = {
 
 const RADIO_STREAM_OVERRIDES = {
   ...BBC_RADIO_STREAMS,
-  "greatest hits radio":
-    "https://stream-mz.hellorayo.co.uk/net2national.mp3?direct=true",
-  "greatest hits radio uk":
-    "https://stream-mz.hellorayo.co.uk/net2national.mp3?direct=true",
-};
-
-const SKY_STREAM_OVERRIDES = {
-  "sky sports main event": "https://live20.bozztv.com/trn03/gin-skysportsmainevent/index.m3u8",
-  "sky sports premier league": "https://live20.bozztv.com/trn03/gin-skysportspl/index.m3u8",
-  "sky sports football": "https://live20.bozztv.com/trn03/gin-skysportsfootball/index.m3u8",
-  "sky sports cricket": "https://live20.bozztv.com/trn03/gin-skysportscricket/index.m3u8",
-  "sky sports f1": "https://live20.bozztv.com/trn03/gin-skysportsf1/index.m3u8",
-  "sky showcase": "https://live20.bozztv.com/trn03/gin-skyshowcase/index.m3u8",
-  "sky news": "https://skynews2-plutolive-vo.akamaized.net/playlist.m3u8",
-  "gb news": "https://gbnews-live.rakuten.tv/v1/master.m3u8",
-  "talktv": "https://live-talktv.uksse.wurl.tv/playlist.m3u8",
-  "Bloomberg TV": "https://live.bloomberg.com/kinesis/us-live.m3u8",
-  "trrt world": "https://trtworld.ios.bund.cpl.delvenetworks.com/playlist.m3u8",
-  "tnt sports 1": "https://live20.bozztv.com/trn03/gin-tntsports1/index.m3u8",
-  "tnt sports 2": "https://live20.bozztv.com/trn03/gin-tntsports2/index.m3u8",
-  "tnt sports 3": "https://live20.bozztv.com/trn03/gin-tntsports3/index.m3u8",
-  "tnt sports 4": "https://live20.bozztv.com/trn03/gin-tntsports4/index.m3u8",
 };
 
 const searchText = (value) => String(value || "").toLowerCase().trim();
@@ -123,25 +101,49 @@ const searchText = (value) => String(value || "").toLowerCase().trim();
 const normaliseStationName = (value) =>
   searchText(value).replace(/\s+/g, " ").replace(/\s+(uk|hd|fhd)$/i, "").trim();
 
-const BBC_IPLAYER_LIVE = [
-  [/^bbc one\b/i, "https://www.bbc.co.uk/iplayer/live/bbcone"],
-  [/^bbc two\b/i, "https://www.bbc.co.uk/iplayer/live/bbctwo"],
-  [/^bbc three\b/i, "https://www.bbc.co.uk/iplayer/live/bbcthree"],
-  [/^bbc four\b/i, "https://www.bbc.co.uk/iplayer/live/bbcfour"],
-  [/^bbc news\b/i, "https://www.bbc.co.uk/iplayer/live/bbcnews"],
-  [/^bbc parliament\b/i, "https://www.bbc.co.uk/iplayer/live/bbcparliament"],
-  [/^cbbc\b/i, "https://www.bbc.co.uk/iplayer/live/cbbc"],
-  [/^cbeebies\b/i, "https://www.bbc.co.uk/iplayer/live/cbeebies"],
-  [/^bbc scotland\b/i, "https://www.bbc.co.uk/iplayer/live/bbcscotland"],
-  [/^bbc alba\b/i, "https://www.bbc.co.uk/iplayer/live/bbcalba"],
+const OFFICIAL_LIVE_FALLBACKS = [
+  [/^bbc one\b/i, "https://www.bbc.co.uk/iplayer/live/bbcone", "Open BBC iPlayer"],
+  [/^bbc two\b/i, "https://www.bbc.co.uk/iplayer/live/bbctwo", "Open BBC iPlayer"],
+  [/^bbc three\b/i, "https://www.bbc.co.uk/iplayer/live/bbcthree", "Open BBC iPlayer"],
+  [/^bbc four\b/i, "https://www.bbc.co.uk/iplayer/live/bbcfour", "Open BBC iPlayer"],
+  [/^bbc news\b/i, "https://www.bbc.co.uk/iplayer/live/bbcnews", "Open BBC iPlayer"],
+  [/^bbc parliament\b/i, "https://www.bbc.co.uk/iplayer/live/bbcparliament", "Open BBC iPlayer"],
+  [/^cbbc\b/i, "https://www.bbc.co.uk/iplayer/live/cbbc", "Open BBC iPlayer"],
+  [/^cbeebies\b/i, "https://www.bbc.co.uk/iplayer/live/cbeebies", "Open BBC iPlayer"],
+  [/^bbc scotland\b/i, "https://www.bbc.co.uk/iplayer/live/bbcscotland", "Open BBC iPlayer"],
+  [/^bbc alba\b/i, "https://www.bbc.co.uk/iplayer/live/bbcalba", "Open BBC iPlayer"],
+  [/^itv\s*1\b/i, "https://www.itv.com/watch?channel=itv", "Open ITVX"],
+  [/^itv\s*2\b/i, "https://www.itv.com/watch?channel=itv2", "Open ITVX"],
+  [/^itv\s*3\b/i, "https://www.itv.com/watch?channel=itv3", "Open ITVX"],
+  [/^itv\s*4\b/i, "https://www.itv.com/watch?channel=itv4", "Open ITVX"],
+  [/^itv\s*be\b/i, "https://www.itv.com/watch?channel=itvbe", "Open ITVX"],
+  [/^channel\s*4\b/i, "https://www.channel4.com/now/c4", "Open Channel 4"],
+  [/^e4\b/i, "https://www.channel4.com/now/e4", "Open Channel 4"],
+  [/^(?:more4|film4)\b/i, "https://www.channel4.com/now", "Open Channel 4"],
+  [/^channel\s*5\b/i, "https://www.5.tv/", "Open 5"],
+  [/^5(?:usa|star|action|select)\b/i, "https://www.5.tv/", "Open 5"],
+  [/^sky news\b/i, "https://news.sky.com/watch-live", "Open Sky News"],
+  [/^gb news\b/i, "https://www.gbnews.com/", "Open GB News"],
+  [/^(?:talk|talktv)\b/i, "https://talk.tv/play/talkradio?video=true", "Open Talk"],
+  [/^bloomberg\b/i, "https://www.bloomberg.com/live", "Open Bloomberg"],
+  [/^trt world\b/i, "https://www.trtworld.com/live/europe", "Open TRT World"],
+  [/^france 24\b/i, "https://www.france24.com/en/live", "Open France 24"],
+  [/^dw english\b/i, "https://www.dw.com/en/live-tv/channel-english", "Open DW"],
+  [/^greatest hits radio\b/i, "https://www.hellorayo.co.uk/greatest-hits/london", "Open Rayo"],
 ];
 
-const officialBbcLiveUrl = (channel) => {
-  const explicit = String(channel?.officialUrl || "").trim();
-  if (/^https?:\/\//i.test(explicit)) return explicit;
-
+const officialLiveFallback = (channel) => {
   const name = String(channel?.name || "").trim();
-  return BBC_IPLAYER_LIVE.find(([pattern]) => pattern.test(name))?.[1] || "";
+  const matched = OFFICIAL_LIVE_FALLBACKS.find(([pattern]) => pattern.test(name));
+  const explicit = String(channel?.officialUrl || "").trim();
+  const url = /^https?:\/\//i.test(explicit) ? explicit : matched?.[1] || "";
+
+  if (!url) return null;
+
+  return {
+    url,
+    label: String(channel?.officialLabel || matched?.[2] || "Open official live service"),
+  };
 };
 
 const openOfficialLiveUrl = (url) => {
@@ -192,6 +194,8 @@ const isRadioChannel = (channel) => {
 };
 
 const isHlsUrl = (url) => /\.m3u8(?:[?#]|$)/i.test(String(url || ""));
+const isRadioStreamUrl = (url) =>
+  isHlsUrl(url) || /\.(?:mp3|aac|m4a|ogg|opus)(?:[?#]|$)/i.test(String(url || ""));
 
 const groupSort = (a, b) => {
   const preferred = ["United Kingdom", "Sports", "Movies"];
@@ -282,7 +286,7 @@ const radioUrlsFor = (channel) => {
   const add = (value) => {
     const url = String(value || "").trim();
 
-    if (!url || seen.has(url)) {
+    if (!url || seen.has(url) || !isRadioStreamUrl(url)) {
       return;
     }
 
@@ -293,16 +297,6 @@ const radioUrlsFor = (channel) => {
   const normalised = normaliseStationName(channel?.name);
 
   add(RADIO_STREAM_OVERRIDES[normalised]);
-
-  if (normalised.startsWith("greatest hits radio")) {
-    add(
-      "https://stream-mz.hellorayo.co.uk/net2national.mp3?direct=true"
-    );
-
-    add(
-      "https://stream-mz.planetradio.co.uk/net2national.mp3"
-    );
-  }
 
   add(channel?.url);
 
