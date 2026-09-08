@@ -44,6 +44,30 @@ export const nativeFireTvAppInfo = () => {
   }
 };
 
+export const nativeFireTvCodecInfo = () => {
+  const native = bridge();
+
+  if (!native || typeof native.getCodecInfo !== "function") {
+    return null;
+  }
+
+  try {
+    const value = native.getCodecInfo();
+    const parsed = typeof value === "string" ? JSON.parse(value) : value || null;
+
+    if (!parsed || typeof parsed !== "object") {
+      return null;
+    }
+
+    return {
+      video: Array.isArray(parsed.video) ? parsed.video.map(String) : [],
+      audio: Array.isArray(parsed.audio) ? parsed.audio.map(String) : [],
+    };
+  } catch {
+    return null;
+  }
+};
+
 export const openNativeFireTvExternalUrl = (url) => {
   const native = bridge();
   const target = String(url || "").trim();
