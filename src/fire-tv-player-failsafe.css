@@ -91,13 +91,13 @@ body.mg-fire-tv [data-mg-player-root="true"] > div > div:first-child,
 body.mg-fire-tv-stable [data-mg-player-root="true"] > div > div:first-child,
 body.mg-fire-tv-mode [data-mg-player-root="true"] > div > div:first-child {
   position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  width: 100vw !important;
-  min-height: 64px !important;
+  top: max(14px, 5vh) !important;
+  left: max(24px, 5vw) !important;
+  right: max(24px, 5vw) !important;
+  width: auto !important;
+  min-height: 52px !important;
   margin: 0 !important;
-  padding: 10px 18px !important;
+  padding: 6px 0 !important;
   gap: 12px !important;
   box-sizing: border-box !important;
   z-index: 2147483647 !important;
@@ -165,9 +165,9 @@ body.mg-fire-tv [data-mg-player-options-panel="true"],
 body.mg-fire-tv-stable [data-mg-player-options-panel="true"],
 body.mg-fire-tv-mode [data-mg-player-options-panel="true"] {
   position: fixed !important;
-  top: 68px !important;
-  left: 18px !important;
-  right: 116px !important;
+  top: calc(max(14px, 5vh) + 58px) !important;
+  left: max(24px, 5vw) !important;
+  right: max(150px, calc(5vw + 102px)) !important;
   width: auto !important;
   max-width: none !important;
   margin: 0 !important;
@@ -246,8 +246,8 @@ body.mg-fire-tv [data-mg-player-qr="true"],
 body.mg-fire-tv-stable [data-mg-player-qr="true"],
 body.mg-fire-tv-mode [data-mg-player-qr="true"] {
   position: fixed !important;
-  top: 68px !important;
-  right: 18px !important;
+  top: max(14px, 5vh) !important;
+  right: max(24px, 5vw) !important;
   z-index: 2147483647 !important;
   pointer-events: auto !important;
 }
@@ -345,9 +345,6 @@ body.mg-fire-tv-mode [data-mg-player-root="true"] iframe {
  * The TV shows only Exit/title, QR and essential playback controls.
  * Source, torrent-file, audio and episode management live on the phone remote.
  */
-body.mg-fire-tv [data-mg-player-options-panel="true"],
-body.mg-fire-tv-stable [data-mg-player-options-panel="true"],
-body.mg-fire-tv-mode [data-mg-player-options-panel="true"],
 body.mg-fire-tv [data-mg-player-loading-topbar="true"],
 body.mg-fire-tv-stable [data-mg-player-loading-topbar="true"],
 body.mg-fire-tv-mode [data-mg-player-loading-topbar="true"] {
@@ -392,8 +389,8 @@ body.mg-fire-tv-mode [data-mg-player-topbar="true"] h3 {
 body.mg-fire-tv [data-mg-player-qr="true"],
 body.mg-fire-tv-stable [data-mg-player-qr="true"],
 body.mg-fire-tv-mode [data-mg-player-qr="true"] {
-  top: 12px !important;
-  right: 16px !important;
+  top: max(14px, 5vh) !important;
+  right: max(24px, 5vw) !important;
   padding: 5px !important;
   border-radius: 10px !important;
   background: rgba(0, 0, 0, 0.78) !important;
@@ -419,7 +416,7 @@ body.mg-fire-tv-mode [data-mg-player-controls-bottom="true"] {
   left: 0 !important;
   right: 0 !important;
   bottom: 0 !important;
-  padding: 58px 22px 18px !important;
+  padding: 58px max(24px, 5vw) max(14px, 5vh) !important;
   background: linear-gradient(to top, rgba(0, 0, 0, 0.94), rgba(0, 0, 0, 0.56) 58%, transparent) !important;
 }
 
@@ -466,9 +463,6 @@ body.mg-fire-tv-mode [data-mg-player-controls-bottom="true"] span {
 /* Keep the Firestick playback surface intentionally simple.
  * Episode/source/audio management is available from the QR phone remote.
  */
-body.mg-fire-tv [data-mg-episode-quick-nav="true"],
-body.mg-fire-tv-stable [data-mg-episode-quick-nav="true"],
-body.mg-fire-tv-mode [data-mg-episode-quick-nav="true"],
 body.mg-fire-tv [data-mg-player-controls-spacer="true"],
 body.mg-fire-tv-stable [data-mg-player-controls-spacer="true"],
 body.mg-fire-tv-mode [data-mg-player-controls-spacer="true"] {
@@ -478,7 +472,7 @@ body.mg-fire-tv-mode [data-mg-player-controls-spacer="true"] {
 body.mg-fire-tv [data-mg-player-seek-row="true"],
 body.mg-fire-tv-stable [data-mg-player-seek-row="true"],
 body.mg-fire-tv-mode [data-mg-player-seek-row="true"] {
-  width: min(860px, calc(100vw - 64px)) !important;
+  width: min(860px, 90vw) !important;
   margin-left: auto !important;
   margin-right: auto !important;
   margin-bottom: 12px !important;
@@ -488,7 +482,7 @@ body.mg-fire-tv [data-mg-player-button-row="true"],
 body.mg-fire-tv-stable [data-mg-player-button-row="true"],
 body.mg-fire-tv-mode [data-mg-player-button-row="true"] {
   width: fit-content !important;
-  max-width: calc(100vw - 64px) !important;
+  max-width: 90vw !important;
   margin-left: auto !important;
   margin-right: auto !important;
   justify-content: center !important;
