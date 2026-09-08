@@ -1,5 +1,24 @@
 export const UPDATE_HISTORY = [
   {
+    id: "fire-tv-playback-hardening-v1",
+    date: "8 September 2026",
+    title: "Fire Stick and playback stability hardened",
+    summary:
+      "The player now has one source-switch authority, serialized torrent resolution and calmer Fire TV layout handling so recovery systems no longer fight each other.",
+    changes: [
+      "PlaybackReliabilityAssist is now learning-only and can no longer change the active source behind the player.",
+      "All normal, audio-rescue and video-compatibility source changes now pass through the same central player switch routine.",
+      "Torrent and debrid resolution is serialized so two main torrent resolutions cannot run at the same time.",
+      "Fix audio is disabled while debrid resolution or torrent-file switching is already in progress.",
+      "Fire TV player takeover no longer reacts to the inline style changes it writes itself.",
+      "The Fire TV takeover watchdog was reduced from roughly 16 checks per second to 4 while keeping mutation-based updates.",
+      "The JavaScript Fire TV header fallback now matches the 5% television safe zone instead of forcing controls back to the screen edge.",
+      "Legacy native requestFullscreen fallback was removed from the old party-player control surface so it cannot reintroduce Android WebView fullscreen problems.",
+      "Reliability messages now report learning/recovery accurately instead of implying the helper itself is switching sources.",
+      "Fire TV player CSS comments were corrected so future changes do not accidentally hide the on-TV source and torrent-file controls again.",
+    ],
+  },
+  {
     id: "torrent-player-stability-v1",
     date: "8 September 2026",
     title: "Torrent playback and Fire TV player stability fixed",
