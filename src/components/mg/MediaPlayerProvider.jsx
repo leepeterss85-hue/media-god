@@ -1313,6 +1313,120 @@ export function PlayerProvider({
     };
   }, []);
 
+  const prepare =
+    useCallback(
+      async (
+        request = {}
+      ) => {
+        const originalSources =
+          Array.isArray(request?.sources)
+            ? request.sources.map(normaliseSource).filter(Boolean)
+            : [];
+
+        const isLive =
+          request?.type === "live" ||
+          request?.mediaType === "live" ||
+          originalSources.some(
+            (item) => item?.live || item?.type === "live"
+          );
+
+        const mediaType =
+          request?.mediaType === "tv" ||
+          request?.type === "series" ||
+          request?.season != null ||
+          request?.episode != null ||
+          request?.rdSeason != null ||
+          request?.rdEpisode != null
+            ? "tv"
+            : "movie";
+
+        const season = request?.season ?? request?.rdSeason ?? null;
+        const episode = request?.episode ?? request?.rdEpisode ?? null;
+        const tmdbId =
+          request?.tmdbId ?? request?.tmdb_id ?? request?.id ?? "";
+
+        if (isLive) {
+          const ordered = orderSources({
+            sources: dedupeSources(originalSources),
+            hasDebrid,
+            preferRd: false,
+          });
+
+          return {
+            sources: ordered,
+            imdbId: String(request?.imdbId || request?.imdb_id || "").trim(),
+            preparedAt: Date.now(),
+          };
+        }
+
+        const imdbInfo = await resolveImdbInfo({
+          ...request,
+          tmdbId,
+          mediaType,
+        });
+        const imdbId = imdbInfo?.imdbId || "";
+
+        const addonPromise =
+          request?.skipAddonLookup
+            ? Promise.resolve({ streams: [] })
+            : fetchAddonSources({
+                imdbId,
+                tmdbId,
+                title: request?.rdTitle || request?.title || "",
+                year: request?.rdYear ?? request?.year ?? "",
+                mediaType,
+                season,
+                episode,
+                fastMode: false,
+              });
+
+        const rdPromise =
+          hasRd && !request?.noRd && !request?.skipRdLookup
+            ? findRdLibrarySource({
+                title: request?.rdTitle || request?.title || "",
+                year: request?.rdYear ?? request?.year ?? null,
+                season,
+                episode,
+              })
+            : Promise.resolve({ source: null });
+
+        const [addonLookup, rdLookup] = await Promise.all([
+          addonPromise,
+          rdPromise,
+        ]);
+
+        const combined = dedupeSources([
+          ...(rdLookup?.source ? [rdLookup.source] : []),
+          ...(addonLookup?.streams || []),
+          ...originalSources,
+        ]);
+
+        const cacheAnnotated = await annotateDebridCache(
+          combined,
+          hasDebrid
+        );
+
+        const ordered = orderSources({
+          sources: cacheAnnotated,
+          hasDebrid,
+          preferRd: Boolean(request?.preferRd),
+        }).filter(
+          (item) =>
+            isDirectSource(item) ||
+            isMagnetSource(item) ||
+            item?.type === "live" ||
+            item?.live
+        );
+
+        return {
+          sources: ordered,
+          imdbId,
+          preparedAt: Date.now(),
+        };
+      },
+      [hasRd, hasDebrid]
+    );
+
   const play =
     useCallback(
       async (
@@ -2091,6 +2205,8 @@ export function PlayerProvider({
       () => ({
         play,
 
+        prepare,
+
         close,
 
         hasRd,
@@ -2102,6 +2218,8 @@ export function PlayerProvider({
       }),
       [
         play,
+
+        prepare,
 
         close,
 
