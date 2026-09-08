@@ -356,6 +356,42 @@ export const PUBLIC_DIRECT_CHANNELS = [
     sourceName: "VOA Official",
     officialUrl: "https://www.voanews.com/",
   },
+  /*
+   * Public/free broadcaster streams discovered in gigoplast/iptv-1.
+   * The repository also contains adult, PPV and subscription-channel lists;
+   * those are intentionally not imported. Only independently responding
+   * public broadcaster endpoints are kept here as low-priority backups.
+   */
+  {
+    id: "CGTNDocumentary.cn@gigoplast",
+    name: "CGTN Documentary",
+    url: "https://news.cgtn.com/resource/live/document/cgtn-doc.m3u8",
+    category: "Documentary",
+    country: "CN",
+    priority: 104,
+    sourceName: "Gigoplast Public / CGTN",
+    officialUrl: "https://www.cgtn.com/documentary",
+  },
+  {
+    id: "ArirangTV.kr@gigoplast",
+    name: "Arirang TV",
+    url: "http://amdlive.ctnd.com.edgesuite.net/arirang_1ch/smil:arirang_1ch.smil/playlist.m3u8",
+    category: "Entertainment",
+    country: "KR",
+    priority: 102,
+    sourceName: "Gigoplast Public / Arirang",
+    officialUrl: "https://www.arirang.com/tv",
+  },
+  {
+    id: "DW.de@LatinoamericaGigoplast",
+    name: "DW Latinoamerica",
+    url: "https://dwamdstream104.akamaized.net/hls/live/2015530/dwstream104/stream05/streamPlaylist.m3u8",
+    category: "News",
+    country: "DE",
+    priority: 102,
+    sourceName: "Gigoplast Public / DW",
+    officialUrl: "https://www.dw.com/es/",
+  },
   {
     id: "france24-en",
     name: "France 24 English",
