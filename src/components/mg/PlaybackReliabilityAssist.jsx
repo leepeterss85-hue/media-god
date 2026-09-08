@@ -780,34 +780,17 @@ const pickBestSource =
           )
         : 0;
 
-    const shouldSwitch =
-      best.index !==
-        select.selectedIndex &&
-      (
-        currentPenalty <
-          -100000 ||
-        !current ||
-        best.score -
-          current.score >=
-          3000
-      );
-
-    if (
-      shouldSwitch &&
-      chooseIndex(
-        select,
-        best.index
-      )
-    ) {
-      return best;
-    }
+    /*
+     * Learning only.
+     *
+     * VideoPlayer is the single authority allowed to change playback
+     * sources. This assist records reliability and can identify which source
+     * scores best, but it must never dispatch a selector change itself.
+     */
+    void currentPenalty;
 
     return {
-      ...(
-        current ||
-        best
-      ),
-
+      ...best,
       changed:
         false,
     };
