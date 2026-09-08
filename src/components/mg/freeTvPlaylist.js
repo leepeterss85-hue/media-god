@@ -792,6 +792,14 @@ const looksLikeUkFeed = (
   );
 };
 
+const requiresOfficialUkPlatform = (channel) => {
+  const name = String(channel?.name || "").trim();
+
+  return /^(?:ITV(?:1|2|3|4|Be)?|Channel\s*4|E4|More4|Film4|Channel\s*5|5USA|5STAR|5ACTION|5SELECT)\b/i.test(
+    name
+  );
+};
+
 const browserCompatibility = (
   channel
 ) => {
@@ -837,6 +845,23 @@ const browserCompatibility = (
 
       format:
         "external",
+    };
+  }
+
+  /*
+   * ITV, Channel 4 and 5 normally deliver live television through their own
+   * authenticated/DRM web players. Do not promote unknown relay URLs from
+   * community playlists as if they were official streams. Their official
+   * launch entries remain visible and open the broadcaster's own player.
+   */
+  if (
+    kind === "direct" &&
+    requiresOfficialUkPlatform(channel)
+  ) {
+    return {
+      browserPlayable: false,
+      browserReason: "Use the broadcaster's official live service",
+      format,
     };
   }
 
