@@ -1910,8 +1910,21 @@ const dedupeMergedChannels =
         uniqueByUrl.find((candidate) => Boolean(candidate?.officialUrl)) ||
         null;
 
+      const worldwideCountryGroup =
+        uniqueByUrl.find(
+          (candidate) =>
+            candidate?.sourceCategory === "Worldwide" &&
+            String(candidate?.group || "").trim()
+        )?.group || "";
+
       merged.push({
         ...best,
+
+        group:
+          worldwideCountryGroup || best?.group || "",
+
+        countryName:
+          worldwideCountryGroup || best?.countryName || "",
 
         tags: [
           ...tags,
