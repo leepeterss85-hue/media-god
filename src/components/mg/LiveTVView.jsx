@@ -1840,10 +1840,11 @@ export default function LiveTVView() {
           </span>
         )}
 
-        {filtered.length >
-          visibleLimit && (
+        {filtered.length > visibleLimit && (
           <span>
-            Showing first {visibleLimit}. Use search or filters to narrow the list.
+            {viewMode === "guide"
+              ? `Guide showing first ${visibleLimit.toLocaleString()}. Use country/search filters to narrow it.`
+              : `Showing ${shown.length.toLocaleString()} of ${filtered.length.toLocaleString()} channels. Load more below or narrow by country/search.`}
           </span>
         )}
       </div>
