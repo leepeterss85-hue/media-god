@@ -4,7 +4,7 @@ const RD_BASE =
   "https://api.real-debrid.com/rest/1.0";
 
 const VIDEO_RE =
-  /\.(mp4|mkv|avi|mov|webm|m4v|mpg|mpeg|ts|m2ts)$/i;
+  /\.(mp4|mkv|avi|mov|webm|m4v|mpg|mpeg|ts|m2ts|mts|vob|ogv|3gp|3g2|wmv|asf|f4v|mxf|divx)$/i;
 
 const normalise = (value) =>
   String(value || "")
@@ -1347,31 +1347,47 @@ function buildFileEntries(
   info,
   target
 ) {
-  const files =
-    (info.files || []).filter(
-      isVideoFile
+  const allFiles = Array.isArray(info?.files) ? info.files : [];
+  const files = allFiles.filter(isVideoFile);
+  const links = Array.isArray(info?.links) ? info.links : [];
+  const linkById = new Map();
+
+  if (links.length === allFiles.length) {
+    allFiles.forEach((file, index) => {
+      if (links[index]) linkById.set(file.id, links[index]);
+    });
+  } else {
+    const selectedFiles = allFiles.filter(
+      (file) => file?.selected === 1 || file?.selected === true
     );
+
+    if (selectedFiles.length > 0 && links.length === selectedFiles.length) {
+      selectedFiles.forEach((file, index) => {
+        if (links[index]) linkById.set(file.id, links[index]);
+      });
+    } else if (links.length === files.length) {
+      files.forEach((file, index) => {
+        if (links[index]) linkById.set(file.id, links[index]);
+      });
+    }
+  }
 
   return files.map(
     (file) => ({
-      id:
-        file.id,
-
-      path:
-        file.path || "",
-
-      bytes:
-        file.bytes || 0,
-
-      link:
-        file.link || "",
-
-      selected:
-        !!(
-          target &&
-          file.id ===
-            target.id
-        ),
+      id: file.id,
+      path: file.path || "",
+      bytes: file.bytes || 0,
+      link: file.link || linkById.get(file.id) || "",
+      rd_selected: file?.selected === 1 || file?.selected === true,
+      extension:
+        String(file.path || "")
+          .split(".")
+          .pop()
+          ?.toLowerCase() || "",
+      selected: !!(
+        target &&
+        file.id === target.id
+      ),
     })
   );
 }
