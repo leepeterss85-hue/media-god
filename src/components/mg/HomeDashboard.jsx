@@ -721,7 +721,7 @@ export default function HomeDashboard() {
   }
 
   return (
-    <div className="w-full min-w-0">
+    <div className="w-full min-w-0" data-mg-home-dashboard="true">
       <HeroSlider
         items={hero}
         onWatch={open}
@@ -729,7 +729,7 @@ export default function HomeDashboard() {
         onWatchlist={onWatchlist}
       />
 
-      <div className="flex flex-col gap-6 3xl:gap-8 4xl:gap-10 py-5 sm:py-6 3xl:py-8">
+      <div data-mg-home-content="true" className="flex flex-col gap-6 3xl:gap-8 4xl:gap-10 py-5 sm:py-6 3xl:py-8">
 
         {/* FIRST ROW UNDER HERO */}
         <ContinueWatchingRow />
@@ -846,7 +846,7 @@ export default function HomeDashboard() {
         />
       </div>
 
-      <footer className="border-t border-white/5 py-6 3xl:py-8 mt-4 px-4 sm:px-6 3xl:px-10 text-center text-white/40 text-xs 3xl:text-sm">
+      <footer data-mg-home-footer="true" className="border-t border-white/5 py-6 3xl:py-8 mt-4 px-4 sm:px-6 3xl:px-10 text-center text-white/40 text-xs 3xl:text-sm">
         Media God — Your ultimate streaming destination
       </footer>
 
