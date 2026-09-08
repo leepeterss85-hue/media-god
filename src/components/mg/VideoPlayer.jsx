@@ -202,6 +202,7 @@ export default function VideoPlayer({
   const stageRef = useRef(null);
   const pollRef = useRef(null);
   const recoveryResumeRef = useRef(0);
+  const rdResolutionQueueRef = useRef(Promise.resolve());
   const torrentFailoverTimerRef = useRef(null);
 
   useEffect(() => {
@@ -1214,7 +1215,17 @@ export default function VideoPlayer({
           }
         };
 
-      run();
+      const queuedRun = rdResolutionQueueRef.current
+        .catch(() => {})
+        .then(() => {
+          if (cancelled) {
+            return undefined;
+          }
+
+          return run();
+        });
+
+      rdResolutionQueueRef.current = queuedRun.catch(() => {});
 
       return () => {
         cancelled =
