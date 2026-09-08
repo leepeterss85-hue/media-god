@@ -217,11 +217,11 @@ const playableChannelCandidates = (channel) =>
     .map(({ candidate }) => candidate);
 
 const prewarmChannel = (channel) => {
-  playableChannelCandidates(channel)
-    .slice(0, 2)
-    .forEach((candidate) => {
-      prewarmLiveTvUrl(candidate.url);
-    });
+  const candidate = playableChannelCandidates(channel)[0];
+
+  if (candidate?.url) {
+    prewarmLiveTvUrl(candidate.url);
+  }
 };
 
 const radioUrlsFor = (channel) => {
@@ -804,29 +804,6 @@ export default function LiveTVView() {
       .slice(0, 18);
   }, [channels, recentKeys]);
 
-  useEffect(() => {
-    const likely = [
-      ...favouriteChannels,
-      ...recentChannels,
-    ]
-      .filter((channel, index, list) =>
-        list.findIndex(
-          (item) => channelMemoryKey(item) === channelMemoryKey(channel)
-        ) === index
-      )
-      .slice(0, 6);
-
-    const timers = likely.map((channel, index) =>
-      window.setTimeout(
-        () => prewarmChannel(channel),
-        250 + index * 220
-      )
-    );
-
-    return () => {
-      timers.forEach((timer) => window.clearTimeout(timer));
-    };
-  }, [favouriteChannels, recentChannels]);
 
   const groups = useMemo(() => {
     const values = Array.from(
