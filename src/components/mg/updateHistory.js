@@ -1,5 +1,25 @@
 export const UPDATE_HISTORY = [
   {
+    id: "playback-live-tv-next",
+    date: "Coming next",
+    status: "planned",
+    title: "Playback and Live TV improvements",
+    summary:
+      "The next Media God release will improve both on-demand playback and Live TV together, with a focus on quicker starts, better recovery and easier source switching.",
+    changes: [
+      "Improve automatic playback recovery when the first movie or episode source fails.",
+      "Make source switching faster and clearer while a film or episode is already playing.",
+      "Improve Fire TV playback controls so source, torrent file, audio and episode choices remain easy to reach with the remote.",
+      "Improve handling of streams that start with video but no usable audio.",
+      "Improve resume behaviour after automatic source failover so playback returns close to the previous position.",
+      "Improve Live TV channel startup and reduce unnecessary retries before a working stream is found.",
+      "Improve Live TV failover so a broken channel source can move to another available stream automatically.",
+      "Improve Live TV buffering and stall detection so frozen channels recover more quickly.",
+      "Improve Fire TV D-pad and Back-button behaviour inside the Live TV player and channel browser.",
+      "Keep Live TV source reliability learning so channels that work well on the device are preferred next time.",
+    ],
+  },
+  {
     id: "fire-tv-repair-v1",
     date: "8 September 2026",
     title: "Fire Stick playback and screen fit repaired",
@@ -153,9 +173,18 @@ export const UPDATE_HISTORY = [
   },
 ];
 
-export const LATEST_UPDATE = UPDATE_HISTORY[0];
+export const LATEST_UPDATE = UPDATE_HISTORY.find(
+  (release) => release.status !== "planned"
+);
 
 export const ALL_UPDATE_COUNT = UPDATE_HISTORY.reduce(
-  (total, release) => total + release.changes.length,
+  (total, release) =>
+    release.status === "planned"
+      ? total
+      : total + release.changes.length,
   0
 );
+
+export const RELEASED_UPDATE_COUNT = UPDATE_HISTORY.filter(
+  (release) => release.status !== "planned"
+).length;
