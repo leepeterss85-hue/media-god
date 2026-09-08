@@ -1799,6 +1799,10 @@ async function resolveStreamable(
     stream_url:
       playable.stream_url,
 
+    fallback_stream_url:
+      playable.fallback_stream_url ||
+      "",
+
     filename:
       playable.filename ||
       unData.filename ||
@@ -2166,6 +2170,8 @@ async function choosePlayableRdStream({
     return {
       stream_url:
         transcode.url,
+      fallback_stream_url:
+        originalUrl,
       filename:
         `${originalFilename || mediaInfo?.filename || "Real-Debrid Stream"} [${formatLabel}${videoContainerRescue ? " Compatibility" : " Audio Rescue"}]`,
       audio_rescue: {
