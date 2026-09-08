@@ -271,6 +271,7 @@ export default function LiveTVView() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const [channelNotice, setChannelNotice] = useState("");
   const [query, setQuery] = useState("");
   const [group, setGroup] = useState(DEFAULT_FILTER);
   const [quickFilter, setQuickFilter] = useState(DEFAULT_FILTER);
@@ -1083,14 +1084,14 @@ export default function LiveTVView() {
     const candidates = playableChannelCandidates(channel);
 
     if (candidates.length === 0) {
-      setError(
+      setChannelNotice(
         `${channel.name || "This channel"} does not currently have a browser-playable stream.`
       );
       return;
     }
 
     stopRadio();
-    setError("");
+    setChannelNotice("");
     prewarmChannel(channel);
 
     const directSources = candidates
@@ -1374,6 +1375,20 @@ export default function LiveTVView() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {channelNotice && !error && (
+        <div className="mb-4 flex items-start gap-3 rounded-lg border border-amber-500/25 bg-amber-500/5 p-3 text-sm text-amber-100/85">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div className="min-w-0 flex-1">{channelNotice}</div>
+          <button
+            type="button"
+            onClick={() => setChannelNotice("")}
+            className="shrink-0 rounded-md px-2 py-1 text-xs font-semibold text-white/60 hover:bg-white/5 hover:text-white"
+          >
+            Dismiss
+          </button>
         </div>
       )}
 
