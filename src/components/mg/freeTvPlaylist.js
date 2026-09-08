@@ -62,50 +62,6 @@ export const FREE_TV_PLAYLIST_URL =
 
 export const LIVE_TV_REGION = "GB";
 
-export const PUBLIC_DIRECT_CHANNELS = [
-  {
-    id: "bbc-one-london",
-    name: "BBC One London",
-    url: "https://vs-cmaf-push-uk.live.fastly.md.bbci.co.uk/pool_050701/uk/bbc_one_london/bbc_one_london.isml/bbc_one_london.m3u8",
-  },
-  {
-    id: "bbc-two-england",
-    name: "BBC Two England",
-    url: "https://vs-cmaf-push-uk.live.fastly.md.bbci.co.uk/pool_050703/uk/bbc_two_england/bbc_two_england.isml/bbc_two_england.m3u8",
-  },
-  {
-    id: "sky-news-uk",
-    name: "Sky News UK",
-    url: "https://skynews2-plutolive-vo.akamaized.net/playlist.m3u8",
-  },
-  {
-    id: "gb-news",
-    name: "GB News",
-    url: "https://gbnews-live.rakuten.tv/v1/master.m3u8",
-  },
-  {
-    id: "talk-tv",
-    name: "Talk TV",
-    url: "https://live-talktv.uksse.wurl.tv/playlist.m3u8",
-  },
-  {
-    id: "bloomberg-tv",
-    name: "Bloomberg TV",
-    url: "https://live.bloomberg.com/kinesis/us-live.m3u8",
-  },
-  {
-    id: "trt-world",
-    name: "TRT World",
-    url: "https://trtworld.ios.bund.cpl.delvenetworks.com/playlist.m3u8",
-  },
-];
-
-export const clearFreeTvCache = () => {
-  cache = null;
-  cacheAt = 0;
-  inflight = null;
-};
-
 export const SKY_STREAM_OVERRIDES = {
   "sky sports main event": "https://live20.bozztv.com/trn03/gin-skysportsmainevent/index.m3u8",
   "sky sports premier league": "https://live20.bozztv.com/trn03/gin-skysportspl/index.m3u8",
