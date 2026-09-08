@@ -1037,7 +1037,7 @@ export default function LiveTVView() {
   };
 
   const playChannel = (channel) => {
-    if (!channel?.url) {
+    if (!channel) {
       return;
     }
 
@@ -1047,7 +1047,9 @@ export default function LiveTVView() {
     if (
       isRadioChannel(channel)
     ) {
-      openRadio(channel);
+      if (radioUrlsFor(channel).length > 0) {
+        openRadio(channel);
+      }
 
       return;
     }
@@ -1056,18 +1058,31 @@ export default function LiveTVView() {
       channel.kind ===
       "external"
     ) {
-      window.open(
-        channel.url,
-        "_blank",
-        "noopener,noreferrer"
-      );
+      if (channel.url) {
+        window.open(
+          channel.url,
+          "_blank",
+          "noopener,noreferrer"
+        );
+      }
 
       return;
     }
 
+    const candidates = playableChannelCandidates(channel);
+
+    if (candidates.length === 0) {
+      setError(
+        `${channel.name || "This channel"} does not currently have a browser-playable stream.`
+      );
+      return;
+    }
+
+    stopRadio();
+    setError("");
     prewarmChannel(channel);
 
-    const directSources = playableChannelCandidates(channel)
+    const directSources = candidates
       .map(
         (
           candidate,
@@ -1117,18 +1132,7 @@ export default function LiveTVView() {
 
       noRd: true,
 
-      sources:
-        directSources.length > 0
-          ? directSources
-          : [
-              {
-                label: "LIVE",
-                type: "live",
-                src: channel.url,
-                url: channel.url,
-                live: true,
-              },
-            ],
+      sources: directSources,
     });
   };
 
@@ -1145,7 +1149,6 @@ export default function LiveTVView() {
         onClick={() => playChannel(channel)}
         onFocus={(event) => {
           setFocusedChannelKey(memoryKey);
-          prewarmChannel(channel);
           event.currentTarget.scrollIntoView({
             block: "nearest",
             inline: "nearest",
