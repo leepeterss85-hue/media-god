@@ -230,12 +230,19 @@ body.mg-fire-tv-stable [data-mg-hero-pagination="true"] {
 }
 
 /* Poster rows. */
-body.mg-fire-tv .mg-fire-tv-card,
-body.mg-fire-tv-mode .mg-fire-tv-card,
-body.mg-fire-tv-stable .mg-fire-tv-card {
+body.mg-fire-tv .mg-fire-tv-card:not(.mg-live-tv-card),
+body.mg-fire-tv-mode .mg-fire-tv-card:not(.mg-live-tv-card),
+body.mg-fire-tv-stable .mg-fire-tv-card:not(.mg-live-tv-card) {
   width: 118px !important;
   min-width: 118px !important;
   max-width: 118px !important;
+}
+
+body.mg-fire-tv .mg-live-tv-card,
+body.mg-fire-tv-mode .mg-live-tv-card,
+body.mg-fire-tv-stable .mg-live-tv-card {
+  min-width: 0 !important;
+  max-width: none !important;
 }
 
 body.mg-fire-tv [data-mg-tv-row="true"],
