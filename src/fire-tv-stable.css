@@ -131,12 +131,21 @@ body.mg-fire-tv-stable main > * {
   max-width: 100% !important;
 }
 
-body.mg-fire-tv .mg-fire-tv-hero + div.flex.flex-col,
-body.mg-fire-tv-mode .mg-fire-tv-hero + div.flex.flex-col,
-body.mg-fire-tv-stable .mg-fire-tv-hero + div.flex.flex-col {
-  gap: 24px !important;
-  padding-top: 18px !important;
-  padding-bottom: 26px !important;
+body.mg-fire-tv [data-mg-home-content="true"],
+body.mg-fire-tv-mode [data-mg-home-content="true"],
+body.mg-fire-tv-stable [data-mg-home-content="true"] {
+  gap: 22px !important;
+  padding-top: 16px !important;
+  padding-bottom: 20px !important;
+}
+
+body.mg-fire-tv [data-mg-home-footer="true"],
+body.mg-fire-tv-mode [data-mg-home-footer="true"],
+body.mg-fire-tv-stable [data-mg-home-footer="true"],
+body.mg-fire-tv [data-mg-live-tv-technical="true"],
+body.mg-fire-tv-mode [data-mg-live-tv-technical="true"],
+body.mg-fire-tv-stable [data-mg-live-tv-technical="true"] {
+  display: none !important;
 }
 
 body.mg-fire-tv .mg-fire-tv-hero,
