@@ -461,10 +461,20 @@ export async function getFreeTvChannels(options = {}) {
 
     for (const source of sortedSources) {
       try {
-        const response = await fetch(source.url, {
+        let response = await fetch(source.url, {
           headers: { Accept: "text/plain, */*" },
         });
-        if (!response.ok) throw new Error(`HTTP ${response.status} ${response.statusText}`);
+
+        // Fallback proxy route if direct GitHub raw CORS fails
+        if (!response.ok) {
+          const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(source.url)}`;
+          response = await fetch(proxyUrl);
+        }
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status} ${response.statusText}`);
+        }
+
         const text = await response.text();
         const parsed = parseFreeTvPlaylist(text, source);
         rawCount += parsed.length;
