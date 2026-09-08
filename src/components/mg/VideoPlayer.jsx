@@ -3757,9 +3757,9 @@ export default function VideoPlayer({
                   value={
                     rdFiles.find(
                       (file) =>
-                        file.path ===
-                        rdOverride.file
-                    )?.id || ""
+                        file.path === rdOverride.file ||
+                        file.name === rdOverride.file
+                    )?.id ?? ""
                   }
                   onChange={(event) => {
                     const file =
