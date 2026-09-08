@@ -445,9 +445,16 @@ export default function VideoPlayer({
     active?.type ===
       "rd_torrent" ||
     active?.type ===
+      "torrent" ||
+    active?.type ===
       "magnet" ||
     isMagnet(
       activeUrl
+    ) ||
+    Boolean(
+      magnetHash(
+        activeUrl
+      )
     );
 
   useEffect(() => {
@@ -3772,7 +3779,7 @@ export default function VideoPlayer({
             rdFiles.length > 1 && (
               <label className="min-w-0 flex-1">
                 <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-white/50">
-                  File
+                  Torrent file
                 </span>
 
                 <select
