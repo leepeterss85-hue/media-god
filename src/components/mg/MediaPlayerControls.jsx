@@ -21,12 +21,16 @@ import { cn } from "@/lib/utils";
 import {
   friendlyTrackLabel,
   readRememberedAudioPreference,
+  readRememberedSubtitlePreference,
   readTrackPreferences,
   rememberAudioPreference,
+  rememberSubtitlePreference,
   rememberedAudioTrackScore,
+  rememberedSubtitleTrackScore,
   subtitleCueStyle,
   trackLanguage,
   trackLooksForced,
+  trackLooksSdh,
   writeTrackPreferences,
 } from "@/components/mg/mediaTrackPreferences";
 import { concisePlaybackSourceLabel } from "@/components/mg/playbackSourceLabels";
@@ -68,6 +72,49 @@ const sourceRawLabel = (item, index) =>
 
 const sourceLabel = (item, index) =>
   concisePlaybackSourceLabel(item, index);
+
+const subtitleCueOriginalTimes = new WeakMap();
+
+const applySubtitleOffset = (video, offsetSeconds = 0) => {
+  if (!video?.textTracks) return;
+
+  const offset = Math.max(-10, Math.min(10, Number(offsetSeconds || 0)));
+
+  for (let trackIndex = 0; trackIndex < video.textTracks.length; trackIndex += 1) {
+    const track = video.textTracks[trackIndex];
+    let cues = null;
+
+    try {
+      cues = track?.cues;
+    } catch {
+      cues = null;
+    }
+
+    if (!cues) continue;
+
+    for (let cueIndex = 0; cueIndex < cues.length; cueIndex += 1) {
+      const cue = cues[cueIndex];
+      if (!cue) continue;
+
+      let original = subtitleCueOriginalTimes.get(cue);
+      if (!original) {
+        original = {
+          startTime: Number(cue.startTime || 0),
+          endTime: Number(cue.endTime || 0),
+        };
+        subtitleCueOriginalTimes.set(cue, original);
+      }
+
+      try {
+        const startTime = Math.max(0, original.startTime + offset);
+        cue.startTime = startTime;
+        cue.endTime = Math.max(startTime + 0.05, original.endTime + offset);
+      } catch {
+        // Some WebViews expose immutable cue timings.
+      }
+    }
+  }
+};
 
 const normaliseExternalSubtitle = (item, index) => {
   if (!item) return null;
