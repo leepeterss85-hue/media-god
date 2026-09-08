@@ -91,7 +91,7 @@ export default function TvShowsView() {
     featured;
 
   return (
-    <div className="w-full p-3 min-[420px]:p-4 md:p-6 3xl:p-8 4xl:p-10">
+    <div data-mg-library-view="true" className="w-full p-3 min-[420px]:p-4 md:p-6 3xl:p-8 4xl:p-10">
       {showFeatured && (
         <FeaturedSpotlight
           tmdbId={featured.tmdb_id}
@@ -198,7 +198,7 @@ export default function TvShowsView() {
       </div>
 
       {loading ? (
-        <div className={gridClass}>
+        <div data-mg-library-grid="true" className={gridClass}>
           {Array.from({ length: 20 }).map((_, index) => (
             <div
               key={index}
@@ -207,15 +207,16 @@ export default function TvShowsView() {
           ))}
         </div>
       ) : (
-        <div className={gridClass}>
+        <div data-mg-library-grid="true" className={gridClass}>
           {shows.map((show) => (
-            <article key={show.id} className="group min-w-0">
+            <article key={show.id} className="mg-fire-tv-library-card group min-w-0">
               <div className="relative aspect-[2/3] rounded-md 3xl:rounded-lg overflow-hidden border border-white/10 bg-mg-card">
                 <Image
                   src={show.poster_url}
                   alt={show.title}
                   className="w-full h-full object-cover"
                   fittingType="fill"
+                  loading="lazy"
                 />
 
                 <button
