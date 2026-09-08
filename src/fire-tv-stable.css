@@ -202,6 +202,24 @@ body.mg-fire-tv-stable .mg-fire-tv-hero button svg {
   height: 17px !important;
 }
 
+body.mg-fire-tv .mg-fire-tv-hero button:focus-visible,
+body.mg-fire-tv-mode .mg-fire-tv-hero button:focus-visible,
+body.mg-fire-tv-stable .mg-fire-tv-hero button:focus-visible {
+  outline: 3px solid hsl(var(--mg-green)) !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.86) !important;
+  transform: none !important;
+}
+
+/* The large previous/next controls are enough on television. Removing the
+ * tiny pagination dots keeps D-pad focus from stopping on six low-value
+ * controls under the hero. */
+body.mg-fire-tv [data-mg-hero-pagination="true"],
+body.mg-fire-tv-mode [data-mg-hero-pagination="true"],
+body.mg-fire-tv-stable [data-mg-hero-pagination="true"] {
+  display: none !important;
+}
+
 /* Poster rows. */
 body.mg-fire-tv .mg-fire-tv-card,
 body.mg-fire-tv-mode .mg-fire-tv-card,
