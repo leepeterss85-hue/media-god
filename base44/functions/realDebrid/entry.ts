@@ -1969,6 +1969,11 @@ async function choosePlayableRdStream({
       audioTracks,
   };
 
+  const videoContainerRescue =
+    /\.(?:avi|wmv|asf|vob|mxf|divx|ogv|3gp|3g2|f4v)$/i.test(
+      originalFilename || mediaInfo?.filename || ""
+    );
+
   /*
    * MediaInfos can occasionally be incomplete for otherwise playable files.
    * Keep the unrestricted stream available and let the player prove whether
@@ -2061,6 +2066,7 @@ async function choosePlayableRdStream({
    */
   if (
     !forceAudioRescue &&
+    !videoContainerRescue &&
     firstIsSafe &&
     (
       !preferEnglish ||
@@ -2135,14 +2141,16 @@ async function choosePlayableRdStream({
     const why =
       forceAudioRescue
         ? "Runtime no-sound recovery requested a browser-safe Real-Debrid transcode."
-        : preferEnglish &&
-            englishTracks.length >
-              0 &&
-            !firstIsEnglish
-          ? "English audio exists but is not the likely default track."
-          : !firstIsSafe
-            ? `The original ${firstTrack?.codec || "audio"} track is risky for Fire TV browser playback.`
-            : "A Real-Debrid streaming version is safer for this file.";
+        : videoContainerRescue
+          ? "The original container is awkward for browser/WebView playback, so Media God selected Real-Debrid's compatibility stream."
+          : preferEnglish &&
+              englishTracks.length >
+                0 &&
+              !firstIsEnglish
+            ? "English audio exists but is not the likely default track."
+            : !firstIsSafe
+              ? `The original ${firstTrack?.codec || "audio"} track is risky for Fire TV browser playback.`
+              : "A Real-Debrid streaming version is safer for this file.";
 
     const formatLabel =
       transcode.format ===
@@ -2157,7 +2165,7 @@ async function choosePlayableRdStream({
       stream_url:
         transcode.url,
       filename:
-        `${originalFilename || mediaInfo?.filename || "Real-Debrid Stream"} [${formatLabel} Audio Rescue]`,
+        `${originalFilename || mediaInfo?.filename || "Real-Debrid Stream"} [${formatLabel}${videoContainerRescue ? " Compatibility" : " Audio Rescue"}]`,
       audio_rescue: {
         used: true,
         state:
