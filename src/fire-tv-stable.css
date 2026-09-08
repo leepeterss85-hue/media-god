@@ -25,6 +25,8 @@ body.mg-fire-tv,
 body.mg-fire-tv-mode,
 body.mg-fire-tv-stable {
   --mg-tv-sidebar-width: 52px;
+  --mg-tv-safe-x: max(24px, 5vw);
+  --mg-tv-safe-y: max(14px, 5vh);
   min-width: 0 !important;
   overflow-x: hidden !important;
 }
@@ -41,24 +43,25 @@ body.mg-fire-tv #root .mg-fire-tv-nav,
 body.mg-fire-tv-mode #root .mg-fire-tv-nav,
 body.mg-fire-tv-stable #root .mg-fire-tv-nav {
   position: fixed !important;
-  inset: 0 auto 0 0 !important;
+  inset: var(--mg-tv-safe-y) auto var(--mg-tv-safe-y) var(--mg-tv-safe-x) !important;
   z-index: 200 !important;
   width: var(--mg-tv-sidebar-width) !important;
   min-width: var(--mg-tv-sidebar-width) !important;
   max-width: var(--mg-tv-sidebar-width) !important;
-  height: 100vh !important;
-  min-height: 100vh !important;
+  height: calc(100vh - var(--mg-tv-safe-y) - var(--mg-tv-safe-y)) !important;
+  min-height: 0 !important;
   overflow: hidden !important;
 }
 
 body.mg-fire-tv #root .mg-fire-tv-nav + main,
 body.mg-fire-tv-mode #root .mg-fire-tv-nav + main,
 body.mg-fire-tv-stable #root .mg-fire-tv-nav + main {
-  width: calc(100vw - var(--mg-tv-sidebar-width)) !important;
-  max-width: calc(100vw - var(--mg-tv-sidebar-width)) !important;
+  width: calc(100vw - var(--mg-tv-safe-x) - var(--mg-tv-safe-x) - var(--mg-tv-sidebar-width)) !important;
+  max-width: calc(100vw - var(--mg-tv-safe-x) - var(--mg-tv-safe-x) - var(--mg-tv-sidebar-width)) !important;
   min-width: 0 !important;
-  margin-left: var(--mg-tv-sidebar-width) !important;
-  flex: 0 0 calc(100vw - var(--mg-tv-sidebar-width)) !important;
+  margin-left: calc(var(--mg-tv-safe-x) + var(--mg-tv-sidebar-width)) !important;
+  margin-right: var(--mg-tv-safe-x) !important;
+  flex: 0 0 calc(100vw - var(--mg-tv-safe-x) - var(--mg-tv-safe-x) - var(--mg-tv-sidebar-width)) !important;
   overflow-x: hidden !important;
 }
 
