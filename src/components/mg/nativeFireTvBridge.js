@@ -37,6 +37,10 @@ export const playNativeFireTv = ({
   startPositionMs = 0,
   live = false,
   headers = {},
+  audioLanguage = "en",
+  subtitleLanguage = "en",
+  subtitlesEnabled = true,
+  subtitles = [],
 }) => {
   const native = bridge();
   const streamUrl = String(url || "").trim();
@@ -56,6 +60,20 @@ export const playNativeFireTv = ({
       headers && typeof headers === "object" && !Array.isArray(headers)
         ? headers
         : {},
+    audioLanguage: String(audioLanguage || "en"),
+    subtitleLanguage: String(subtitleLanguage || "en"),
+    subtitlesEnabled: Boolean(subtitlesEnabled),
+    subtitles: Array.isArray(subtitles)
+      ? subtitles
+          .map((track) => ({
+            url: String(track?.url || track?.src || "").trim(),
+            language: String(track?.language || track?.lang || "").trim(),
+            label: String(track?.label || track?.name || "").trim(),
+            mimeType: String(track?.mimeType || track?.mime_type || "").trim(),
+          }))
+          .filter((track) => /^https?:\/\//i.test(track.url))
+          .slice(0, 20)
+      : [],
   };
 
   try {
