@@ -993,6 +993,10 @@ export default function VideoPlayer({
                   data.fallback_stream_url ||
                   "",
 
+                videoRescue:
+                  data.video_rescue ||
+                  null,
+
                 mediaInfo:
                   data.media_info ||
                   null,
@@ -1196,6 +1200,10 @@ export default function VideoPlayer({
                 fallbackSrc:
                   data.fallback_stream_url ||
                   "",
+
+                videoRescue:
+                  data.video_rescue ||
+                  null,
 
                 mediaInfo:
                   data.media_info ||
@@ -2250,6 +2258,7 @@ export default function VideoPlayer({
                 provider: "realdebrid",
                 audioRescue: data.audio_rescue || null,
                 fallbackSrc: data.fallback_stream_url || "",
+                videoRescue: data.video_rescue || null,
                 mediaInfo: data.media_info || null,
               },
             });
@@ -2347,6 +2356,10 @@ export default function VideoPlayer({
             fallbackSrc:
               data.fallback_stream_url ||
               "",
+
+            videoRescue:
+              data.video_rescue ||
+              null,
 
             mediaInfo:
               data.media_info ||
@@ -2710,6 +2723,7 @@ export default function VideoPlayer({
                 audioRescue: data.audio_rescue,
                 fallbackSrc: data.fallback_stream_url || "",
                 fallbackTried: rdOverride?.fallbackTried === true,
+                videoRescue: data.video_rescue || null,
                 mediaInfo: data.media_info || null,
               });
 
