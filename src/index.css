@@ -156,7 +156,7 @@
 }
 
 @media (hover: none), (pointer: coarse) {
-  .mg-hover-action {
+  html:not(.mg-fire-tv):not(.mg-fire-tv-mode):not(.mg-fire-tv-stable) .mg-hover-action {
     opacity: 1 !important;
   }
 }
