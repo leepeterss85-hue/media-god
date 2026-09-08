@@ -1305,6 +1305,7 @@ export default function DetailModal({
             <button
               type="button"
               onClick={play}
+              data-mg-detail-primary="true"
               className="flex-1 min-w-[140px] flex items-center justify-center gap-2 bg-mg-green text-black font-semibold text-sm 3xl:text-lg py-2.5 3xl:py-3.5 rounded-lg 3xl:rounded-xl hover:bg-mg-green-dim focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black"
               aria-label={`Play ${displayTitle}`}
             >
@@ -1486,6 +1487,7 @@ export default function DetailModal({
                                       provider.logo
                                     }
                                     alt=""
+                                    loading="lazy"
                                     className="w-8 h-8 3xl:w-11 3xl:h-11 rounded object-contain"
                                     onError={(
                                       event
