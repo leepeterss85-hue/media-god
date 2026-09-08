@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
 import android.graphics.Color
+import android.media.MediaCodecList
 import android.net.Uri
 import android.os.Bundle
 import android.view.KeyEvent
@@ -15,6 +16,7 @@ import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import org.json.JSONArray
 import org.json.JSONObject
 
 class MainActivity : Activity() {
@@ -252,6 +254,34 @@ class MainActivity : Activity() {
                 put("versionCode", BuildConfig.VERSION_CODE)
                 put("versionName", BuildConfig.VERSION_NAME)
             }.toString()
+
+        @JavascriptInterface
+        fun getCodecInfo(): String {
+            val videoTypes = sortedSetOf<String>()
+            val audioTypes = sortedSetOf<String>()
+
+            try {
+                MediaCodecList(MediaCodecList.ALL_CODECS).codecInfos
+                    .filter { !it.isEncoder }
+                    .forEach { info ->
+                        info.supportedTypes.forEach { rawType ->
+                            val type = rawType.trim().lowercase()
+
+                            when {
+                                type.startsWith("video/") -> videoTypes.add(type)
+                                type.startsWith("audio/") -> audioTypes.add(type)
+                            }
+                        }
+                    }
+            } catch (_: Throwable) {
+                // Some older Fire OS builds expose incomplete codec lists.
+            }
+
+            return JSONObject().apply {
+                put("video", JSONArray(videoTypes.toList()))
+                put("audio", JSONArray(audioTypes.toList()))
+            }.toString()
+        }
 
         @JavascriptInterface
         fun openExternalUrl(url: String): Boolean {
