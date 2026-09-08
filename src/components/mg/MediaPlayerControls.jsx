@@ -38,6 +38,8 @@ import {
   readSourceSortMode,
   sortSourceEntries,
   SOURCE_SELECTOR_SORT_EVENT,
+  SOURCE_SORT_OPTIONS,
+  writeSourceSortMode,
 } from "@/components/mg/sourceSelectorPreferences";
 
 const formatTime = (seconds) => {
@@ -1535,6 +1537,27 @@ export default function MediaPlayerControls({
                   "Now playing"}
               </p>
             </div>
+
+            {sources.length > 1 ? (
+              <select
+                value={sourceSortMode}
+                onChange={(event) => {
+                  const next = writeSourceSortMode(event.target.value);
+                  setSourceSortMode(next);
+                }}
+                onFocus={focusControl}
+                onBlur={blurControl}
+                className="hidden min-h-10 w-[7.5rem] shrink-0 rounded-lg border border-white/15 bg-black/55 px-2 text-xs text-white outline-none backdrop-blur focus:border-mg-green md:block"
+                aria-label="Sort playback sources"
+                title="Sort playback sources"
+              >
+                {SOURCE_SORT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            ) : null}
 
             {sources.length > 1 ? (
               <div className="relative min-w-[7.5rem] max-w-[42vw] sm:min-w-[13rem] sm:max-w-sm">
