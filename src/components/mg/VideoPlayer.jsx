@@ -3588,6 +3588,21 @@ export default function VideoPlayer({
                 Loading…
               </p>
             </div>
+          ) : useNativePlayback ? (
+            <div
+              data-mg-native-fire-tv-player="true"
+              className="flex flex-col items-center gap-3 p-6 text-center"
+            >
+              <Loader2 className="w-8 h-8 text-mg-green animate-spin" />
+
+              <p className="text-white/80 text-sm font-semibold">
+                Opening Fire TV player…
+              </p>
+
+              <p className="max-w-md text-white/45 text-xs">
+                Media God is handing this stream to the native Fire TV video engine.
+              </p>
+            </div>
           ) : rdOverride ? (
             <>
               <LiveVideo
