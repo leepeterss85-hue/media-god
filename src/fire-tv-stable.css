@@ -310,6 +310,119 @@ body.mg-fire-tv-stable .mg-fire-tv-card:not(.mg-live-tv-card) > div > button.mg-
   height: 16px !important;
 }
 
+body.mg-fire-tv [data-mg-library-view="true"],
+body.mg-fire-tv-mode [data-mg-library-view="true"],
+body.mg-fire-tv-stable [data-mg-library-view="true"] {
+  padding: 14px !important;
+}
+
+body.mg-fire-tv [data-mg-library-view="true"] > div:first-child,
+body.mg-fire-tv-mode [data-mg-library-view="true"] > div:first-child,
+body.mg-fire-tv-stable [data-mg-library-view="true"] > div:first-child {
+  gap: 8px !important;
+  margin-bottom: 12px !important;
+}
+
+body.mg-fire-tv [data-mg-library-view="true"] input,
+body.mg-fire-tv [data-mg-library-view="true"] select,
+body.mg-fire-tv-mode [data-mg-library-view="true"] input,
+body.mg-fire-tv-mode [data-mg-library-view="true"] select,
+body.mg-fire-tv-stable [data-mg-library-view="true"] input,
+body.mg-fire-tv-stable [data-mg-library-view="true"] select {
+  min-height: 36px !important;
+  height: 36px !important;
+  padding-top: 5px !important;
+  padding-bottom: 5px !important;
+  font-size: 11px !important;
+}
+
+body.mg-fire-tv [data-mg-library-view="true"] button,
+body.mg-fire-tv-mode [data-mg-library-view="true"] button,
+body.mg-fire-tv-stable [data-mg-library-view="true"] button {
+  font-size: 11px !important;
+}
+
+body.mg-fire-tv [data-mg-library-grid="true"],
+body.mg-fire-tv-mode [data-mg-library-grid="true"],
+body.mg-fire-tv-stable [data-mg-library-grid="true"] {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, 112px) !important;
+  justify-content: start !important;
+  align-items: start !important;
+  gap: 10px !important;
+}
+
+body.mg-fire-tv .mg-fire-tv-library-card,
+body.mg-fire-tv-mode .mg-fire-tv-library-card,
+body.mg-fire-tv-stable .mg-fire-tv-library-card {
+  width: 112px !important;
+  min-width: 112px !important;
+  max-width: 112px !important;
+}
+
+body.mg-fire-tv .mg-fire-tv-library-card > div,
+body.mg-fire-tv-mode .mg-fire-tv-library-card > div,
+body.mg-fire-tv-stable .mg-fire-tv-library-card > div {
+  aspect-ratio: 2 / 3 !important;
+  border-radius: 6px !important;
+}
+
+body.mg-fire-tv .mg-fire-tv-library-card > div > button.mg-hover-action,
+body.mg-fire-tv-mode .mg-fire-tv-library-card > div > button.mg-hover-action,
+body.mg-fire-tv-stable .mg-fire-tv-library-card > div > button.mg-hover-action {
+  opacity: 0 !important;
+}
+
+body.mg-fire-tv .mg-fire-tv-library-card > div > button.mg-hover-action:not(:first-of-type),
+body.mg-fire-tv-mode .mg-fire-tv-library-card > div > button.mg-hover-action:not(:first-of-type),
+body.mg-fire-tv-stable .mg-fire-tv-library-card > div > button.mg-hover-action:not(:first-of-type) {
+  display: none !important;
+}
+
+body.mg-fire-tv .mg-fire-tv-library-card > div > button.mg-hover-action:first-of-type,
+body.mg-fire-tv-mode .mg-fire-tv-library-card > div > button.mg-hover-action:first-of-type,
+body.mg-fire-tv-stable .mg-fire-tv-library-card > div > button.mg-hover-action:first-of-type {
+  display: flex !important;
+  opacity: 1 !important;
+  background: transparent !important;
+}
+
+body.mg-fire-tv .mg-fire-tv-library-card > div > button.mg-hover-action:first-of-type > span,
+body.mg-fire-tv-mode .mg-fire-tv-library-card > div > button.mg-hover-action:first-of-type > span,
+body.mg-fire-tv-stable .mg-fire-tv-library-card > div > button.mg-hover-action:first-of-type > span {
+  width: 34px !important;
+  height: 34px !important;
+  opacity: 0 !important;
+}
+
+body.mg-fire-tv .mg-fire-tv-library-card > div > button.mg-hover-action:first-of-type:focus-visible,
+body.mg-fire-tv-mode .mg-fire-tv-library-card > div > button.mg-hover-action:first-of-type:focus-visible,
+body.mg-fire-tv-stable .mg-fire-tv-library-card > div > button.mg-hover-action:first-of-type:focus-visible {
+  outline: 3px solid hsl(var(--mg-green)) !important;
+  outline-offset: 2px !important;
+}
+
+body.mg-fire-tv .mg-fire-tv-library-card > div > button.mg-hover-action:first-of-type:focus-visible > span,
+body.mg-fire-tv-mode .mg-fire-tv-library-card > div > button.mg-hover-action:first-of-type:focus-visible > span,
+body.mg-fire-tv-stable .mg-fire-tv-library-card > div > button.mg-hover-action:first-of-type:focus-visible > span {
+  opacity: 1 !important;
+}
+
+body.mg-fire-tv .mg-fire-tv-library-card > div > button.mg-hover-action:first-of-type svg,
+body.mg-fire-tv-mode .mg-fire-tv-library-card > div > button.mg-hover-action:first-of-type svg,
+body.mg-fire-tv-stable .mg-fire-tv-library-card > div > button.mg-hover-action:first-of-type svg {
+  width: 16px !important;
+  height: 16px !important;
+}
+
+body.mg-fire-tv .mg-fire-tv-library-card p,
+body.mg-fire-tv-mode .mg-fire-tv-library-card p,
+body.mg-fire-tv-stable .mg-fire-tv-library-card p {
+  margin-top: 4px !important;
+  font-size: 10px !important;
+  line-height: 1.15 !important;
+}
+
 body.mg-fire-tv [data-mg-tv-row="true"],
 body.mg-fire-tv-mode [data-mg-tv-row="true"],
 body.mg-fire-tv-stable [data-mg-tv-row="true"] {
