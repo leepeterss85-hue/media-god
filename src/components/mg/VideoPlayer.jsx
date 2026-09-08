@@ -20,6 +20,7 @@ import LiveVideo from "@/components/mg/LiveVideo";
 import PlayerControls from "@/components/mg/PlayerControls";
 import {
   isNativeFireTvPlayerAvailable,
+  openNativeFireTvExternalUrl,
   playNativeFireTv,
 } from "@/components/mg/nativeFireTvBridge";
 import { readTrackPreferences } from "@/components/mg/mediaTrackPreferences";
@@ -92,6 +93,32 @@ const sourceDisplayLabel = (item, index) =>
   )
     .replace(/\s+/g, " ")
     .trim();
+
+const openExternalPlaybackFallback = (url) => {
+  const target = String(url || "").trim();
+
+  if (!/^https?:\/\//i.test(target)) {
+    return false;
+  }
+
+  if (openNativeFireTvExternalUrl(target)) {
+    return true;
+  }
+
+  try {
+    const opened = window.open(target, "_blank", "noopener,noreferrer");
+    if (opened) return true;
+  } catch {
+    // Fall through to same-window navigation.
+  }
+
+  try {
+    window.location.assign(target);
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 const isDesktopFullscreenBrowser = () => {
   if (typeof window === "undefined" || typeof navigator === "undefined") {
@@ -4104,6 +4131,21 @@ export default function VideoPlayer({
                   displayedError
                 }
               </p>
+
+              {isLive &&
+                (source?.officialUrl || active?.officialUrl) && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openExternalPlaybackFallback(
+                        source?.officialUrl || active?.officialUrl
+                      )
+                    }
+                    className="shrink-0 rounded-md bg-white/10 px-2.5 py-1.5 text-[11px] font-semibold text-white hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green/50"
+                  >
+                    {source?.officialLabel || active?.officialLabel || "Open official"}
+                  </button>
+                )}
 
               {isRdSource && (
                 <button
