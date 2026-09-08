@@ -294,6 +294,10 @@ const audioCodecLabel = (track) => {
   if (/\b(?:aac|he-?aac|mp4a)\b/i.test(text)) return "AAC";
   if (/\bopus\b/i.test(text)) return "Opus";
   if (/\bflac\b/i.test(text)) return "FLAC";
+  if (/\b(?:alac|apple lossless)\b/i.test(text)) return "ALAC";
+  if (/\bvorbis\b/i.test(text)) return "Vorbis";
+  if (/\b(?:pcm|lpcm)\b/i.test(text)) return "PCM";
+  if (/\bmp2\b/i.test(text)) return "MP2";
   if (/\b(?:mp3|mpeg audio)\b/i.test(text)) return "MP3";
   return "";
 };
