@@ -395,6 +395,71 @@ body.mg-fire-tv-stable a:focus {
   scroll-margin: 16px !important;
 }
 
+/* Search, details, Settings and Addons stay inside the same TV-safe area and
+ * expose an obvious D-pad focus target without changing their phone/desktop
+ * layouts. */
+body.mg-fire-tv [data-mg-search-dialog="true"],
+body.mg-fire-tv-mode [data-mg-search-dialog="true"],
+body.mg-fire-tv-stable [data-mg-search-dialog="true"],
+body.mg-fire-tv [data-mg-detail-dialog="true"],
+body.mg-fire-tv-mode [data-mg-detail-dialog="true"],
+body.mg-fire-tv-stable [data-mg-detail-dialog="true"] {
+  padding: 5vh 5vw !important;
+  align-items: center !important;
+}
+
+body.mg-fire-tv [data-mg-search-dialog="true"] > div,
+body.mg-fire-tv-mode [data-mg-search-dialog="true"] > div,
+body.mg-fire-tv-stable [data-mg-search-dialog="true"] > div,
+body.mg-fire-tv [data-mg-detail-dialog="true"] > div,
+body.mg-fire-tv-mode [data-mg-detail-dialog="true"] > div,
+body.mg-fire-tv-stable [data-mg-detail-dialog="true"] > div {
+  max-height: 90vh !important;
+  border-radius: 14px !important;
+}
+
+body.mg-fire-tv [data-mg-search-dialog="true"] button:focus-visible,
+body.mg-fire-tv-mode [data-mg-search-dialog="true"] button:focus-visible,
+body.mg-fire-tv-stable [data-mg-search-dialog="true"] button:focus-visible,
+body.mg-fire-tv [data-mg-detail-dialog="true"] button:focus-visible,
+body.mg-fire-tv-mode [data-mg-detail-dialog="true"] button:focus-visible,
+body.mg-fire-tv-stable [data-mg-detail-dialog="true"] button:focus-visible,
+body.mg-fire-tv [data-mg-detail-dialog="true"] a:focus-visible,
+body.mg-fire-tv-mode [data-mg-detail-dialog="true"] a:focus-visible,
+body.mg-fire-tv-stable [data-mg-detail-dialog="true"] a:focus-visible,
+body.mg-fire-tv [data-mg-settings-view="true"] button:focus-visible,
+body.mg-fire-tv [data-mg-settings-view="true"] select:focus-visible,
+body.mg-fire-tv [data-mg-settings-view="true"] input:focus-visible,
+body.mg-fire-tv [data-mg-settings-view="true"] a:focus-visible,
+body.mg-fire-tv-mode [data-mg-settings-view="true"] button:focus-visible,
+body.mg-fire-tv-mode [data-mg-settings-view="true"] select:focus-visible,
+body.mg-fire-tv-mode [data-mg-settings-view="true"] input:focus-visible,
+body.mg-fire-tv-mode [data-mg-settings-view="true"] a:focus-visible,
+body.mg-fire-tv-stable [data-mg-settings-view="true"] button:focus-visible,
+body.mg-fire-tv-stable [data-mg-settings-view="true"] select:focus-visible,
+body.mg-fire-tv-stable [data-mg-settings-view="true"] input:focus-visible,
+body.mg-fire-tv-stable [data-mg-settings-view="true"] a:focus-visible,
+body.mg-fire-tv [data-mg-addons-view="true"] button:focus-visible,
+body.mg-fire-tv [data-mg-addons-view="true"] input:focus-visible,
+body.mg-fire-tv-mode [data-mg-addons-view="true"] button:focus-visible,
+body.mg-fire-tv-mode [data-mg-addons-view="true"] input:focus-visible,
+body.mg-fire-tv-stable [data-mg-addons-view="true"] button:focus-visible,
+body.mg-fire-tv-stable [data-mg-addons-view="true"] input:focus-visible {
+  outline: 3px solid hsl(var(--mg-green)) !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.88) !important;
+}
+
+body.mg-fire-tv [data-mg-settings-view="true"],
+body.mg-fire-tv-mode [data-mg-settings-view="true"],
+body.mg-fire-tv-stable [data-mg-settings-view="true"],
+body.mg-fire-tv [data-mg-addons-view="true"],
+body.mg-fire-tv-mode [data-mg-addons-view="true"],
+body.mg-fire-tv-stable [data-mg-addons-view="true"] {
+  padding-top: 18px !important;
+  padding-bottom: 24px !important;
+}
+
 /* Keep player text readable; sizing is handled by the player failsafe file. */
 body.mg-fire-tv .fixed.inset-0.z-50.bg-black\/95,
 body.mg-fire-tv-mode .fixed.inset-0.z-50.bg-black\/95,
