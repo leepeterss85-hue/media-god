@@ -270,6 +270,7 @@ export default function AddonsManager() {
       }
 
       setMutating(true);
+      setHealth([]);
 
       try {
         const created = await base44.entities.Addon.create(
@@ -333,6 +334,7 @@ export default function AddonsManager() {
       }
 
       setMutating(true);
+      setHealth([]);
 
       try {
         const nextActive =
@@ -390,6 +392,7 @@ export default function AddonsManager() {
       }
 
       setMutating(true);
+      setHealth([]);
 
       try {
         await base44.entities.Addon.delete(
@@ -610,7 +613,7 @@ export default function AddonsManager() {
       </div>
 
       {error && (
-        <div className="p-3 bg-red-900/50 border border-red-700 rounded-lg text-sm">
+        <div role="alert" className="p-3 bg-red-900/50 border border-red-700 rounded-lg text-sm">
           {
             error
           }
@@ -618,7 +621,7 @@ export default function AddonsManager() {
       )}
 
       {message && (
-        <div className="p-3 bg-zinc-900 border border-zinc-700 rounded-lg text-sm text-gray-300">
+        <div role="status" aria-live="polite" className="p-3 bg-zinc-900 border border-zinc-700 rounded-lg text-sm text-gray-300">
           {
             message
           }
