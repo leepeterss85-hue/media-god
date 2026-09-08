@@ -888,6 +888,10 @@ const findRdLibrarySource = async ({
             data?.fallback_stream_url ||
             "",
 
+          videoRescue:
+            data?.video_rescue ||
+            null,
+
           mediaInfo:
             data?.media_info ||
             null,
