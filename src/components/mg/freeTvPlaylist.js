@@ -1832,7 +1832,7 @@ const dedupeMergedChannels =
        */
       const visibleCandidates =
         browserCandidates.length > 0
-          ? browserCandidates
+          ? [...browserCandidates]
           : uniqueByUrl.filter((candidate) =>
               Boolean(candidate?.officialUrl)
             );
@@ -1874,7 +1874,7 @@ const dedupeMergedChannels =
 
       for (
         const candidate of
-        visibleCandidates
+        uniqueByUrl
       ) {
         (
           candidate.tags ||
@@ -1897,6 +1897,19 @@ const dedupeMergedChannels =
         }
       }
 
+      const rankedAlternatives = uniqueByUrl
+        .filter((candidate) => candidate !== best)
+        .sort(
+          (a, b) =>
+            Number(b?.browserPlayable !== false) -
+              Number(a?.browserPlayable !== false) ||
+            Number(b?.score || 0) - Number(a?.score || 0)
+        );
+
+      const officialCandidate =
+        uniqueByUrl.find((candidate) => Boolean(candidate?.officialUrl)) ||
+        null;
+
       merged.push({
         ...best,
 
@@ -1908,13 +1921,21 @@ const dedupeMergedChannels =
           ...sources,
         ],
 
-        alternatives:
-          visibleCandidates.slice(
-            1
-          ),
+        /*
+         * Keep device-only/header-required candidates as backups. Browser
+         * playback filters them back out, while the native Fire TV bridge can
+         * pass their headers and cleartext URL to Media3 when appropriate.
+         */
+        alternatives: rankedAlternatives,
+
+        officialUrl:
+          best?.officialUrl || officialCandidate?.officialUrl || "",
+
+        officialLabel:
+          best?.officialLabel || officialCandidate?.officialLabel || "",
 
         duplicateCount:
-          visibleCandidates.length,
+          uniqueByUrl.length,
 
         rejectedSourceCount:
           Math.max(
