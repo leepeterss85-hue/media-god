@@ -161,7 +161,7 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
           </ol>
 
           <div
-            className="my-3 rounded-xl border-2 border-mg-green bg-black px-4 py-3 text-center font-mono text-lg font-bold tracking-wide text-mg-green"
+            className="my-3 rounded-xl border-2 border-mg-green bg-black px-4 py-4 text-center font-mono text-3xl sm:text-4xl font-black tracking-[0.18em] text-mg-green"
             aria-label={`Downloader code ${downloaderCode}`}
           >
             {downloaderCode}
