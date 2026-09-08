@@ -2956,31 +2956,26 @@ export default function VideoPlayer({
       }
 
       const nextIndex =
-        (activeIdx + 1) %
-        sources.length;
+        findNextPlayableSource(activeIdx);
+
+      if (nextIndex < 0) {
+        setRdError(
+          "No compatible alternate audio track or backup source is available."
+        );
+        return;
+      }
 
       if (resumeAt > 5) {
         recoveryResumeRef.current = resumeAt;
       }
 
-      markSourceFailed(
-        activeIdx
-      );
+      markSourceFailed(activeIdx);
 
-      clearSourceFailed(
-        nextIndex
-      );
-
-      setRdOverride(null);
-      setRdFiles([]);
-      setRdTorrentId(null);
-      setRdError("");
-      setRdResolving(false);
-      setRdPolling(false);
-
-      setActiveIdx(
-        nextIndex
-      );
+      switchToSource(nextIndex, {
+        preservePosition: true,
+        statusMessage:
+          "Audio rescue could not recover this stream — trying the best backup source…",
+      });
     };
 
   handleNoSoundRef.current = handleNoSound;
@@ -3195,8 +3190,8 @@ export default function VideoPlayer({
 
       /*
        * A slow start is not proof of incompatibility. Only switch here after
-       * the browser reports a real decode/source failure. The normal 14-second
-       * stall recovery remains responsible for genuine buffering stalls.
+       * the browser reports a real decode/source failure. The normal stall
+       * recovery remains responsible for genuine buffering stalls.
        */
       if (!hardFailure) {
         return;
@@ -3259,23 +3254,12 @@ export default function VideoPlayer({
 
       recordPlaybackReliability(label, "failure");
       markSourceFailed(activeIdx);
-      clearSourceFailed(nextIndex);
-      setRdOverride(null);
-      setRdFiles([]);
-      setRdTorrentId(null);
-      setRdError("");
-      setRdResolving(false);
-      setRdPolling(false);
-      setActiveIdx(nextIndex);
 
-      window.dispatchEvent(
-        new CustomEvent("mg:player-status", {
-          detail: {
-            message:
-              "Video compatibility rescue · switching to a safer source…",
-          },
-        })
-      );
+      switchToSource(nextIndex, {
+        preservePosition: true,
+        statusMessage:
+          "Video compatibility rescue · switching to a safer source…",
+      });
     };
 
     state.timer = window.setTimeout(
