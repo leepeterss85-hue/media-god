@@ -10,6 +10,11 @@ import {
   isFlvLike,
   isMpegTsLike,
 } from "@/components/mg/mediaCompatibility";
+import {
+  readRememberedSubtitlePreference,
+  readTrackPreferences,
+  rememberedSubtitleTrackScore,
+} from "@/components/mg/mediaTrackPreferences";
 
 /*
  * Extra container / codec bridge for Chromium and Fire TV.
@@ -289,6 +294,17 @@ const choosePreferredHlsSubtitleTrack = (
       preferredLanguage
     );
 
+  const preferences = readTrackPreferences();
+  const context =
+    typeof window !== "undefined"
+      ? window.__MG_PLAYER_CONTEXT__ || {}
+      : {};
+  const remembered = readRememberedSubtitlePreference(context);
+
+  if (remembered?.enabled === false) {
+    return -1;
+  }
+
   let bestIndex = -1;
   let bestScore = -Infinity;
 
@@ -338,21 +354,20 @@ const choosePreferredHlsSubtitleTrack = (
         return;
       }
 
-      if (
-        /\b(?:forced|force)\b/i.test(
-          text
-        )
-      ) {
-        score -= 500;
+      const forced = /\b(?:forced|force|foreign parts?)\b/i.test(text);
+      const sdh = /\b(?:sdh|hoh|hearing[ ._-]?impaired|closed captions?|cc)\b/i.test(text);
+
+      if (forced) {
+        score += preferences.preferForcedSubtitles ? 4200 : -500;
       }
 
-      if (
-        /\b(?:sdh|cc|closed captions?)\b/i.test(
-          text
-        )
-      ) {
-        score += 150;
+      if (sdh) {
+        score += preferences.preferSdhSubtitles ? 1200 : -1400;
+      } else if (!preferences.preferSdhSubtitles) {
+        score += 500;
       }
+
+      score += rememberedSubtitleTrackScore(track, remembered);
 
       if (
         track?.default ||
