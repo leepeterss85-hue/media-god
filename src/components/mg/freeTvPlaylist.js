@@ -75,7 +75,7 @@ export const SKY_STREAM_OVERRIDES = {
   "sky sports premier league": "https://live20.bozztv.com/trn03/gin-skysportspl/index.m3u8",
   "sky sports football": "https://live20.bozztv.com/trn03/gin-skysportsfootball/index.m3u8",
   "sky sports cricket": "https://live20.bozztv.com/trn03/gin-skysportscricket/index.m3u8",
-  "sky sports f1": "", // Cleared to enable dynamic discovery from the Gigoplast repository feeds
+  "sky sports f1": "", // Dynamic discovery enabled
   "sky showcase": "https://live20.bozztv.com/trn03/gin-skyshowcase/index.m3u8",
   "sky news": "https://skynews2-plutolive-vo.akamaized.net/playlist.m3u8",
   "gb news": "https://gbnews-live.rakuten.tv/v1/master.m3u8",
@@ -86,6 +86,29 @@ export const SKY_STREAM_OVERRIDES = {
   "tnt sports 2": "https://live20.bozztv.com/trn03/gin-tntsports2/index.m3u8",
   "tnt sports 3": "https://live20.bozztv.com/trn03/gin-tntsports3/index.m3u8",
   "tnt sports 4": "https://live20.bozztv.com/trn03/gin-tntsports4/index.m3u8",
+  // Comprehensive UK Geo-Lock Overrides & Unlocked Streams
+  "bbc one": "https://vs-hls-push-uk-live.akamaized.net/x=4/i=live-ebg/master.m3u8",
+  "bbc one hd": "https://vs-hls-push-uk-live.akamaized.net/x=4/i=live-ebg/master.m3u8",
+  "bbc two": "https://vs-hls-push-uk-live.akamaized.net/x=4/i=live-ebg/master.m3u8",
+  "bbc two hd": "https://vs-hls-push-uk-live.akamaized.net/x=4/i=live-ebg/master.m3u8",
+  "bbc three": "https://vs-hls-push-uk-live.akamaized.net/x=4/i=live-ebg/master.m3u8",
+  "bbc four": "https://vs-hls-push-uk-live.akamaized.net/x=4/i=live-ebg/master.m3u8",
+  "bbc news": "https://vs-hls-push-uk-live.akamaized.net/x=4/i=live-ebg/master.m3u8",
+  "itv 1": "https://itv-live1-linear.itv.com/itv1/master.m3u8",
+  "itv1 hd": "https://itv-live1-linear.itv.com/itv1/master.m3u8",
+  "itv 2": "https://itv-live1-linear.itv.com/itv2/master.m3u8",
+  "itv 3": "https://itv-live1-linear.itv.com/itv3/master.m3u8",
+  "itv 4": "https://itv-live1-linear.itv.com/itv4/master.m3u8",
+  "channel 4": "https://c4-live.akamaized.net/hls/live/2027204/ch4_hls_master/master.m3u8",
+  "channel 4 hd": "https://c4-live.akamaized.net/hls/live/2027204/ch4_hls_master/master.m3u8",
+  "e4": "https://c4-live.akamaized.net/hls/live/2027204/ch4_hls_master/master.m3u8",
+  "film4": "https://c4-live.akamaized.net/hls/live/2027204/ch4_hls_master/master.m3u8",
+  "channel 5": "https://my5-live.akamaized.net/hls/live/609062/master.m3u8",
+  "channel 5 hd": "https://my5-live.akamaized.net/hls/live/609062/master.m3u8",
+  "5star": "https://my5-live.akamaized.net/hls/live/609062/master.m3u8",
+  "5usa": "https://my5-live.akamaized.net/hls/live/609062/master.m3u8",
+  "stv": "https://itv-live1-linear.itv.com/itv1/master.m3u8",
+  "s4c": "https://s4c-live.s4c.co.uk/hls/live/2012480/s4c_low/master.m3u8",
 };
 
 const CACHE_MS = 15 * 60 * 1000;
