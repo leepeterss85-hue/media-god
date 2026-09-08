@@ -14,7 +14,7 @@ on:
       - ".github/workflows/fire-tv-apk.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-fire-tv-apk:
@@ -46,10 +46,29 @@ jobs:
       - name: Build debug APK
         run: gradle -p firetv-android :app:assembleDebug --stacktrace
 
+      - name: Prepare named Fire TV APK
+        run: cp firetv-android/app/build/outputs/apk/debug/app-debug.apk Media-God-Fire-TV.apk
+
       - name: Upload Fire TV APK
         uses: actions/upload-artifact@v4
         with:
           name: Media-God-Fire-TV
-          path: firetv-android/app/build/outputs/apk/debug/app-debug.apk
+          path: Media-God-Fire-TV.apk
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish stable latest Fire TV download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view firetv-latest --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release create firetv-latest \
+              --repo "${{ github.repository }}" \
+              --target "$GITHUB_SHA" \
+              --title "Media God Fire TV" \
+              --notes "Latest sideloadable Media God build for Amazon Fire TV and Fire Stick."
+          fi
+
+          gh release upload firetv-latest Media-God-Fire-TV.apk \
+            --repo "${{ github.repository }}" \
+            --clobber
