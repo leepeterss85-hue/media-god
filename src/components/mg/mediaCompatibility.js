@@ -1,3 +1,5 @@
+import { nativeFireTvCodecInfo } from "@/components/mg/nativeFireTvBridge";
+
 const VIDEO_PROBE =
   typeof document !== "undefined"
     ? document.createElement("video")
@@ -164,6 +166,53 @@ export const browserCodecSupport = {
 
 const FIRE_TV_RE =
   /(?:AFT[A-Z0-9]*|Fire TV|AmazonWebAppPlatform|Silk)/i;
+
+const NATIVE_VIDEO_MIME = {
+  h264: ["video/avc"],
+  hevc: ["video/hevc"],
+  av1: ["video/av01", "video/av1"],
+  vp9: ["video/x-vnd.on2.vp9"],
+  vp8: ["video/x-vnd.on2.vp8"],
+  h263: ["video/3gpp"],
+  mpeg2: ["video/mpeg2"],
+  mpeg4: ["video/mp4v-es"],
+  vc1: ["video/wvc1", "video/x-ms-wmv"],
+};
+
+const NATIVE_AUDIO_MIME = {
+  aac: ["audio/mp4a-latm"],
+  xheaac: ["audio/mp4a-latm"],
+  ac3: ["audio/ac3", "audio/ac-3"],
+  eac3: ["audio/eac3", "audio/e-ac-3", "audio/eac3-joc"],
+  ac4: ["audio/ac4"],
+  dts: ["audio/vnd.dts", "audio/vnd.dts.hd"],
+  truehd: ["audio/true-hd"],
+  opus: ["audio/opus"],
+  flac: ["audio/flac"],
+  vorbis: ["audio/vorbis"],
+  mp3: ["audio/mpeg"],
+  mp2: ["audio/mpeg-l2"],
+  pcm: ["audio/raw"],
+};
+
+const nativeCodecSupportFor = (deviceProfile, kind, codec) => {
+  if (!deviceProfile?.nativeFireTv || !codec) return null;
+
+  const available = Array.isArray(deviceProfile?.nativeCodecSupport?.[kind])
+    ? deviceProfile.nativeCodecSupport[kind].map((value) => String(value).toLowerCase())
+    : [];
+
+  if (available.length === 0) return null;
+
+  const expected =
+    kind === "video"
+      ? NATIVE_VIDEO_MIME[codec] || []
+      : NATIVE_AUDIO_MIME[codec] || [];
+
+  if (expected.length === 0) return null;
+
+  return expected.some((mime) => available.includes(mime.toLowerCase()));
+};
 
 export const getPlaybackDeviceProfile = () => {
   const userAgent =
