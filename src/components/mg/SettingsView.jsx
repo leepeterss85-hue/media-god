@@ -1403,6 +1403,28 @@ export default function SettingsView() {
             />
           </div>
 
+          <div className="flex items-center justify-between gap-4 p-4 3xl:p-5">
+            <div>
+              <p className="text-sm 3xl:text-base text-white font-medium">
+                Prefer SDH subtitles
+              </p>
+              <p className="text-xs 3xl:text-sm text-white/40">
+                Prefer hearing-impaired/SDH captions. Leave off to favour cleaner dialogue subtitles when both are available.
+              </p>
+            </div>
+
+            <Toggle
+              on={trackPreferences.preferSdhSubtitles}
+              onClick={() =>
+                setTrackPreferences((current) => ({
+                  ...current,
+                  preferSdhSubtitles: !current.preferSdhSubtitles,
+                }))
+              }
+              label="Toggle SDH subtitle preference"
+            />
+          </div>
+
           <div className="grid gap-4 p-4 3xl:p-5 sm:grid-cols-2">
             <label>
               <span className="block text-sm 3xl:text-base text-white font-medium">
