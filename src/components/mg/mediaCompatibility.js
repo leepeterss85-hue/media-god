@@ -255,6 +255,11 @@ export const getPlaybackDeviceProfile = () => {
     tvClassDetected ||
     androidNoTouch;
 
+  const nativeCodecSupport =
+    nativeFireTv
+      ? nativeFireTvCodecInfo() || { video: [], audio: [] }
+      : { video: [], audio: [] };
+
   const width =
     typeof window !== "undefined"
       ? Math.max(
@@ -301,6 +306,7 @@ export const getPlaybackDeviceProfile = () => {
     fireTv,
     isFireTv: fireTv,
     nativeFireTv,
+    nativeCodecSupport,
     fourKAllowed,
 
     width,
