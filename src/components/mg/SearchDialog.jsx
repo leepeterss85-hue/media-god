@@ -658,7 +658,7 @@ export default function SearchDialog({
 
           {!loading &&
             !error &&
-            query &&
+            query.trim().length >= 2 &&
             results.length ===
               0 && (
               <div className="p-8 3xl:p-12 text-center text-white/40 text-sm 3xl:text-lg">
@@ -771,7 +771,7 @@ export default function SearchDialog({
 
           {!loading &&
             !error &&
-            !query && (
+            query.trim().length < 2 && (
               <div className="p-8 3xl:p-12 text-center text-white/40 text-sm 3xl:text-lg">
                 Type at least 2 characters to search movies and TV shows
               </div>
