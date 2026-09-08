@@ -2274,42 +2274,20 @@ export default function VideoPlayer({
         return false;
       }
 
-      const resumeAt = Math.max(
-        0,
-        Number(video?.currentTime || lastPosRef.current?.t || 0)
-      );
       const label = sourceDisplayLabel(active, activeIdx);
-
-      if (resumeAt > 5) {
-        recoveryResumeRef.current = resumeAt;
-      }
 
       recordPlaybackReliability(label, "buffer");
       markSourceFailed(activeIdx);
-      clearSourceFailed(nextIndex);
 
       state.lastSwitchAt = now;
       state.lastTime = 0;
       state.lastProgressAt = now;
 
-      setRdOverride(null);
-      setRdFiles([]);
-      setRdTorrentId(null);
-      setRdError("");
-      setRdResolving(false);
-      setRdPolling(false);
-      setActiveIdx(nextIndex);
-
-      window.dispatchEvent(
-        new CustomEvent("mg:player-status", {
-          detail: {
-            message:
-              resumeAt > 5
-                ? `Playback stalled — switching to the best learned backup and resuming at ${Math.floor(resumeAt / 60)} min…`
-                : "Playback stalled — switching to the best learned backup…",
-          },
-        })
-      );
+      switchToSource(nextIndex, {
+        preservePosition: true,
+        statusMessage:
+          "Playback stalled — switching to the best learned backup…",
+      });
 
       return true;
     };
