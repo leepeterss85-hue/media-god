@@ -848,11 +848,12 @@ export default function VideoPlayer({
             }
 
             const hash = magnetHash(magnet);
-            let debridProvider = String(active?.debridProvider || "")
+            const explicitProvider = String(active?.debridProvider || "")
               .toLowerCase()
               .replace(/[^a-z]/g, "");
+            let debridProviders = explicitProvider ? [explicitProvider] : [];
 
-            if (!debridProvider && hash && source?.hasDebrid) {
+            if (hash && source?.hasDebrid) {
               try {
                 const cacheResponse = await base44.functions.invoke(
                   "multiDebrid",
@@ -864,17 +865,41 @@ export default function VideoPlayer({
                 );
 
                 const cacheData = cacheResponse?.data || {};
-                debridProvider = String(
+                const best = String(
                   cacheData?.bestProviderByHash?.[hash] || ""
                 )
                   .toLowerCase()
                   .replace(/[^a-z]/g, "");
+                const ranked = Object.entries(
+                  cacheData?.providerScoresByHash?.[hash] || {}
+                )
+                  .sort((a, b) => Number(b?.[1] || 0) - Number(a?.[1] || 0))
+                  .map(([provider]) =>
+                    String(provider || "")
+                      .toLowerCase()
+                      .replace(/[^a-z]/g, "")
+                  )
+                  .filter(Boolean);
+
+                debridProviders = [
+                  explicitProvider,
+                  best,
+                  ...ranked,
+                ].filter(
+                  (provider, index, list) =>
+                    provider && list.indexOf(provider) === index
+                );
               } catch {
-                debridProvider = "";
+                // An explicit provider can still be tried when cache ranking fails.
               }
             }
 
-            if (debridProvider && debridProvider !== "realdebrid") {
+            let lastMultiError = null;
+            const alternateProviders = debridProviders.filter(
+              (provider) => provider !== "realdebrid"
+            );
+
+            for (const debridProvider of alternateProviders) {
               const resolveStartedAt = Date.now();
               try {
                 const multiResponse = await base44.functions.invoke(
@@ -896,42 +921,43 @@ export default function VideoPlayer({
                 if (cancelled) return;
 
                 const multiData = multiResponse?.data || {};
-                if (multiData?.url) {
-                  recordDebridProviderResult(
-                    multiData.provider || debridProvider,
-                    {
-                      success: true,
-                      latencyMs: Date.now() - resolveStartedAt,
-                    }
+                if (!multiData?.url) {
+                  throw new Error(
+                    multiData?.error ||
+                      `${multiData?.providerName || "Debrid provider"} did not return a playable stream.`
                   );
-                  setRdOverride({
-                    src: multiData.url,
-                    label:
-                      multiData.filename ||
-                      multiData.providerName ||
-                      active?.label ||
-                      "Debrid Stream",
-                    file:
-                      multiData.selectedFile ||
-                      multiData.filename ||
-                      "",
-                    provider: multiData.provider || debridProvider,
-                    sourceUrl: magnet,
-                  });
-                  setRdFiles(
-                    Array.isArray(multiData.files)
-                      ? multiData.files
-                      : []
-                  );
-                  setRdResolving(false);
-                  return;
                 }
 
-                throw new Error(
-                  multiData?.error ||
-                    `${multiData?.providerName || "Debrid provider"} did not return a playable stream.`
+                recordDebridProviderResult(
+                  multiData.provider || debridProvider,
+                  {
+                    success: true,
+                    latencyMs: Date.now() - resolveStartedAt,
+                  }
                 );
+                setRdOverride({
+                  src: multiData.url,
+                  label:
+                    multiData.filename ||
+                    multiData.providerName ||
+                    active?.label ||
+                    "Debrid Stream",
+                  file:
+                    multiData.selectedFile ||
+                    multiData.filename ||
+                    "",
+                  provider: multiData.provider || debridProvider,
+                  sourceUrl: magnet,
+                });
+                setRdFiles(
+                  Array.isArray(multiData.files)
+                    ? multiData.files
+                    : []
+                );
+                setRdResolving(false);
+                return;
               } catch (multiError) {
+                lastMultiError = multiError;
                 recordDebridProviderResult(
                   debridProvider,
                   {
@@ -939,16 +965,12 @@ export default function VideoPlayer({
                     latencyMs: Date.now() - resolveStartedAt,
                   }
                 );
-                if (!source?.hasRd) {
-                  throw multiError;
-                }
-                /* Existing Real-Debrid resolver remains the safe fallback. */
               }
             }
 
             if (!source?.hasRd && source?.hasDebrid) {
-              throw new Error(
-                "No enabled debrid provider reported this source as cached."
+              throw lastMultiError || new Error(
+                "No connected debrid provider could resolve this cached source."
               );
             }
 
