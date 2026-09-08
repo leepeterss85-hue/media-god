@@ -472,6 +472,27 @@ export default function LiveTVView() {
     let cancelled = false;
     let sourceFailed = false;
     let recoveryAttempts = 0;
+    let startupTimer = null;
+    let stallTimer = null;
+    let successRecorded = false;
+    const startedAt =
+      typeof performance !== "undefined" && performance.now
+        ? performance.now()
+        : Date.now();
+
+    const clearStartupTimer = () => {
+      if (startupTimer) {
+        window.clearTimeout(startupTimer);
+        startupTimer = null;
+      }
+    };
+
+    const clearStallTimer = () => {
+      if (stallTimer) {
+        window.clearTimeout(stallTimer);
+        stallTimer = null;
+      }
+    };
 
     setRadioStatus("Loading radio…");
     setRadioPlaying(false);
@@ -490,6 +511,7 @@ export default function LiveTVView() {
         setRadioPlaying(true);
         setRadioStatus("");
       } catch {
+        clearStartupTimer();
         setRadioPlaying(false);
         setRadioStatus(
           "Press Play to start the radio."
@@ -497,7 +519,7 @@ export default function LiveTVView() {
       }
     };
 
-    const failToNext = () => {
+    const failToNext = ({ stalled = false } = {}) => {
       if (
         cancelled ||
         sourceFailed
@@ -506,6 +528,13 @@ export default function LiveTVView() {
       }
 
       sourceFailed = true;
+      clearStartupTimer();
+      clearStallTimer();
+
+      recordLiveTvPlaybackResult(url, {
+        success: false,
+        stalled,
+      });
 
       if (
         radioSourceIndex + 1 <
@@ -530,6 +559,22 @@ export default function LiveTVView() {
     };
 
     const handlePlaying = () => {
+      clearStartupTimer();
+      clearStallTimer();
+
+      if (!successRecorded) {
+        successRecorded = true;
+        const now =
+          typeof performance !== "undefined" && performance.now
+            ? performance.now()
+            : Date.now();
+
+        recordLiveTvPlaybackResult(url, {
+          success: true,
+          startupMs: Math.max(0, now - startedAt),
+        });
+      }
+
       setRadioPlaying(true);
       setRadioStatus("");
     };
@@ -539,11 +584,17 @@ export default function LiveTVView() {
     };
 
     const handleStalled = () => {
-      if (!cancelled) {
-        setRadioStatus(
-          "Radio stalled — reconnecting…"
-        );
-      }
+      if (cancelled || sourceFailed) return;
+
+      setRadioStatus(
+        "Radio stalled — trying to recover…"
+      );
+
+      clearStallTimer();
+      stallTimer = window.setTimeout(
+        () => failToNext({ stalled: true }),
+        7000
+      );
     };
 
     const handleError = () => {
@@ -568,6 +619,11 @@ export default function LiveTVView() {
     audio.addEventListener(
       "error",
       handleError
+    );
+
+    startupTimer = window.setTimeout(
+      () => failToNext(),
+      12000
     );
 
     try {
@@ -651,6 +707,8 @@ export default function LiveTVView() {
 
     return () => {
       cancelled = true;
+      clearStartupTimer();
+      clearStallTimer();
 
       audio.removeEventListener(
         "playing",
