@@ -64,6 +64,12 @@ export const LIVE_TV_REGION = "GB";
 
 export const PUBLIC_DIRECT_CHANNELS = [];
 
+export function clearFreeTvCache() {
+  cache = null;
+  cacheAt = 0;
+  inflight = null;
+}
+
 export const SKY_STREAM_OVERRIDES = {
   "sky sports main event": "https://live20.bozztv.com/trn03/gin-skysportsmainevent/index.m3u8",
   "sky sports premier league": "https://live20.bozztv.com/trn03/gin-skysportspl/index.m3u8",
