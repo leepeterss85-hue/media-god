@@ -353,6 +353,10 @@ export default async function (req) {
           stream.stream_url ||
           "",
 
+        fallback_stream_url:
+          stream.fallback_stream_url ||
+          "",
+
         filename:
           stream.filename ||
           "",
@@ -509,6 +513,10 @@ export default async function (req) {
       return Response.json({
         stream_url:
           playable.stream_url,
+
+        fallback_stream_url:
+          playable.fallback_stream_url ||
+          "",
 
         filename:
           playable.filename ||
@@ -983,6 +991,10 @@ export default async function (req) {
 
           stream_url:
             stream.stream_url,
+
+          fallback_stream_url:
+            stream.fallback_stream_url ||
+            "",
 
           filename:
             stream.filename ||
