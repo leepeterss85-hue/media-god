@@ -203,6 +203,16 @@ export default function VideoPlayer({
   const pollRef = useRef(null);
   const recoveryResumeRef = useRef(0);
   const torrentFailoverTimerRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (torrentFailoverTimerRef.current) {
+        window.clearTimeout(torrentFailoverTimerRef.current);
+        torrentFailoverTimerRef.current = null;
+      }
+    };
+  }, []);
+
   const autoAudioRescueRef = useRef({
     key: "",
     timer: null,
