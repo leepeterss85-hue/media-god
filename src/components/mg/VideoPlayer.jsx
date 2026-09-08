@@ -204,6 +204,7 @@ export default function VideoPlayer({
   const recoveryResumeRef = useRef(0);
   const preparedBackupsRef = useRef(new Map());
   const prewarmGenerationRef = useRef(0);
+  const torrentFailoverTimerRef = useRef(null);
   const autoAudioRescueRef = useRef({
     key: "",
     timer: null,
@@ -362,6 +363,11 @@ export default function VideoPlayer({
       statusMessage = "",
     } = {}
   ) => {
+    if (torrentFailoverTimerRef.current) {
+      window.clearTimeout(torrentFailoverTimerRef.current);
+      torrentFailoverTimerRef.current = null;
+    }
+
     const currentVideo =
       stageRef.current?.querySelector("video");
     const currentIsLive =
@@ -453,6 +459,36 @@ export default function VideoPlayer({
       return false;
     }
 
+    const activeTorrentLike =
+      active?.type === "rd" ||
+      active?.type === "rd_torrent" ||
+      active?.type === "torrent" ||
+      active?.type === "magnet" ||
+      isMagnet(activeUrl) ||
+      Boolean(magnetHash(activeUrl));
+
+    if (activeTorrentLike) {
+      if (torrentFailoverTimerRef.current) {
+        return true;
+      }
+
+      setRdResolving(false);
+      setRdPolling(false);
+      setRdTorrentId(null);
+      setRdError(`${message} Trying one backup torrent source…`);
+
+      torrentFailoverTimerRef.current = window.setTimeout(() => {
+        torrentFailoverTimerRef.current = null;
+        switchToSource(nextIndex, {
+          preservePosition: true,
+          statusMessage:
+            "Torrent source failed — trying the next best source…",
+        });
+      }, 1800);
+
+      return true;
+    }
+
     switchToSource(nextIndex, {
       preservePosition: true,
       statusMessage:
@@ -534,6 +570,11 @@ export default function VideoPlayer({
     autoRecoveryRef.current.abandoned = new Set();
     preparedBackupsRef.current.clear();
     prewarmGenerationRef.current += 1;
+
+    if (torrentFailoverTimerRef.current) {
+      window.clearTimeout(torrentFailoverTimerRef.current);
+      torrentFailoverTimerRef.current = null;
+    }
   }, [
     source?.tmdbId,
     source?.tmdb_id,
