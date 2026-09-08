@@ -221,13 +221,30 @@ const episodeMatchScore = (name, season, episode) => {
 const chooseVideo = (files, season = null, episode = null) => {
   const usable = (files || [])
     .filter((item) => item?.url && VIDEO_RE.test(clean(item?.name || item?.path)))
-    .map((item) => ({
-      ...item,
-      size: Number(item?.size || 0),
-      score:
-        episodeMatchScore(item?.name || item?.path, season, episode) +
-        Number(item?.size || 0),
-    }))
+    .map((item) => {
+      const name = clean(item?.name || item?.path);
+      const extension = name.toLowerCase().split(".").pop() || "";
+      const extrasPenalty =
+        /\b(?:sample|trailer|teaser|featurette|extras?|bonus|behind[ ._-]?the[ ._-]?scenes|interview|deleted[ ._-]?scene|proof)\b/i.test(name)
+          ? 10_000_000_000_000
+          : 0;
+      const containerBonus =
+        ["mp4", "m4v", "mkv", "webm", "mov"].includes(extension)
+          ? 350_000_000_000
+          : ["ts", "m2ts", "mts", "mpg", "mpeg", "f4v", "3gp", "3g2", "ogv"].includes(extension)
+            ? 120_000_000_000
+            : 0;
+
+      return {
+        ...item,
+        size: Number(item?.size || 0),
+        score:
+          episodeMatchScore(name, season, episode) +
+          containerBonus +
+          Number(item?.size || 0) -
+          extrasPenalty,
+      };
+    })
     .sort((a, b) => b.score - a.score);
 
   return usable[0] || null;
