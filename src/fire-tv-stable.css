@@ -245,6 +245,65 @@ body.mg-fire-tv-stable .mg-live-tv-card {
   max-width: none !important;
 }
 
+/* Fire OS reports a coarse pointer, which used to force every hover action
+ * visible at once. Keep one full-poster focus target and hide secondary
+ * Details/Watchlist bubbles so rows stay clean and even. */
+body.mg-fire-tv .mg-fire-tv-card:not(.mg-live-tv-card) > div,
+body.mg-fire-tv-mode .mg-fire-tv-card:not(.mg-live-tv-card) > div,
+body.mg-fire-tv-stable .mg-fire-tv-card:not(.mg-live-tv-card) > div {
+  aspect-ratio: 2 / 3 !important;
+  border-radius: 6px !important;
+}
+
+body.mg-fire-tv .mg-fire-tv-card:not(.mg-live-tv-card) > div > button.mg-hover-action,
+body.mg-fire-tv-mode .mg-fire-tv-card:not(.mg-live-tv-card) > div > button.mg-hover-action,
+body.mg-fire-tv-stable .mg-fire-tv-card:not(.mg-live-tv-card) > div > button.mg-hover-action {
+  opacity: 0 !important;
+}
+
+body.mg-fire-tv .mg-fire-tv-card:not(.mg-live-tv-card) > div > button.mg-hover-action:not(:first-of-type),
+body.mg-fire-tv-mode .mg-fire-tv-card:not(.mg-live-tv-card) > div > button.mg-hover-action:not(:first-of-type),
+body.mg-fire-tv-stable .mg-fire-tv-card:not(.mg-live-tv-card) > div > button.mg-hover-action:not(:first-of-type) {
+  display: none !important;
+}
+
+body.mg-fire-tv .mg-fire-tv-card:not(.mg-live-tv-card) > div > button.mg-hover-action:first-of-type,
+body.mg-fire-tv-mode .mg-fire-tv-card:not(.mg-live-tv-card) > div > button.mg-hover-action:first-of-type,
+body.mg-fire-tv-stable .mg-fire-tv-card:not(.mg-live-tv-card) > div > button.mg-hover-action:first-of-type {
+  display: flex !important;
+  opacity: 1 !important;
+  background: transparent !important;
+  outline: none !important;
+}
+
+body.mg-fire-tv .mg-fire-tv-card:not(.mg-live-tv-card) > div > button.mg-hover-action:first-of-type > span,
+body.mg-fire-tv-mode .mg-fire-tv-card:not(.mg-live-tv-card) > div > button.mg-hover-action:first-of-type > span,
+body.mg-fire-tv-stable .mg-fire-tv-card:not(.mg-live-tv-card) > div > button.mg-hover-action:first-of-type > span {
+  width: 34px !important;
+  height: 34px !important;
+  opacity: 0 !important;
+}
+
+body.mg-fire-tv .mg-fire-tv-card:not(.mg-live-tv-card) > div > button.mg-hover-action:first-of-type:focus-visible,
+body.mg-fire-tv-mode .mg-fire-tv-card:not(.mg-live-tv-card) > div > button.mg-hover-action:first-of-type:focus-visible,
+body.mg-fire-tv-stable .mg-fire-tv-card:not(.mg-live-tv-card) > div > button.mg-hover-action:first-of-type:focus-visible {
+  outline: 3px solid hsl(var(--mg-green)) !important;
+  outline-offset: 2px !important;
+}
+
+body.mg-fire-tv .mg-fire-tv-card:not(.mg-live-tv-card) > div > button.mg-hover-action:first-of-type:focus-visible > span,
+body.mg-fire-tv-mode .mg-fire-tv-card:not(.mg-live-tv-card) > div > button.mg-hover-action:first-of-type:focus-visible > span,
+body.mg-fire-tv-stable .mg-fire-tv-card:not(.mg-live-tv-card) > div > button.mg-hover-action:first-of-type:focus-visible > span {
+  opacity: 1 !important;
+}
+
+body.mg-fire-tv .mg-fire-tv-card:not(.mg-live-tv-card) > div > button.mg-hover-action:first-of-type svg,
+body.mg-fire-tv-mode .mg-fire-tv-card:not(.mg-live-tv-card) > div > button.mg-hover-action:first-of-type svg,
+body.mg-fire-tv-stable .mg-fire-tv-card:not(.mg-live-tv-card) > div > button.mg-hover-action:first-of-type svg {
+  width: 16px !important;
+  height: 16px !important;
+}
+
 body.mg-fire-tv [data-mg-tv-row="true"],
 body.mg-fire-tv-mode [data-mg-tv-row="true"],
 body.mg-fire-tv-stable [data-mg-tv-row="true"] {
@@ -305,6 +364,37 @@ body.mg-fire-tv .mg-fire-tv-resume-section .mg-fire-tv-resume-row,
 body.mg-fire-tv-mode .mg-fire-tv-resume-section .mg-fire-tv-resume-row,
 body.mg-fire-tv-stable .mg-fire-tv-resume-section .mg-fire-tv-resume-row {
   gap: 10px !important;
+}
+
+body.mg-fire-tv .mg-fire-tv-resume-card > div:first-child,
+body.mg-fire-tv-mode .mg-fire-tv-resume-card > div:first-child,
+body.mg-fire-tv-stable .mg-fire-tv-resume-card > div:first-child {
+  border-radius: 7px !important;
+}
+
+body.mg-fire-tv .mg-fire-tv-resume-card > div:nth-child(2),
+body.mg-fire-tv-mode .mg-fire-tv-resume-card > div:nth-child(2),
+body.mg-fire-tv-stable .mg-fire-tv-resume-card > div:nth-child(2) {
+  margin-top: 5px !important;
+  font-size: 11px !important;
+  line-height: 1.15 !important;
+}
+
+body.mg-fire-tv .mg-fire-tv-resume-card > div:nth-child(3),
+body.mg-fire-tv-mode .mg-fire-tv-resume-card > div:nth-child(3),
+body.mg-fire-tv-stable .mg-fire-tv-resume-card > div:nth-child(3) {
+  margin-top: 2px !important;
+  min-height: 0 !important;
+  font-size: 9px !important;
+  line-height: 1.1 !important;
+}
+
+body.mg-fire-tv .mg-fire-tv-resume-section > div:first-child p,
+body.mg-fire-tv-mode .mg-fire-tv-resume-section > div:first-child p,
+body.mg-fire-tv-stable .mg-fire-tv-resume-section > div:first-child p {
+  margin-top: 1px !important;
+  font-size: 9px !important;
+  line-height: 1.15 !important;
 }
 
 body.mg-fire-tv .mg-fire-tv-resume-card:focus,
