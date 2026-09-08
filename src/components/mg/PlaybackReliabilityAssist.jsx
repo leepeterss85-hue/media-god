@@ -644,50 +644,6 @@ const activeSourceLabel =
     );
   };
 
-const chooseIndex = (
-  select,
-  index
-) => {
-  if (
-    !select ||
-    index <
-      0 ||
-    index >=
-      select.options.length ||
-    select.selectedIndex ===
-      index
-  ) {
-    return false;
-  }
-
-  select.value =
-    String(
-      index
-    );
-
-  select.dispatchEvent(
-    new Event(
-      "input",
-      {
-        bubbles:
-          true,
-      }
-    )
-  );
-
-  select.dispatchEvent(
-    new Event(
-      "change",
-      {
-        bubbles:
-          true,
-      }
-    )
-  );
-
-  return true;
-};
-
 const pickBestSource =
   () => {
     const select =
