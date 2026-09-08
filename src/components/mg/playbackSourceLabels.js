@@ -64,7 +64,9 @@ export const concisePlaybackSourceLabel = (item, index = 0) => {
   else if (/\b(?:mpeg[ ._-]?4|mp4v|xvid|divx)\b/i.test(text)) pushUnique(parts, "MPEG-4");
   else if (/\b(?:vc-?1|wmv3|wvc1)\b/i.test(text)) pushUnique(parts, "VC-1");
 
-  if (/\b(?:truehd|mlp)\b/i.test(text)) pushUnique(parts, "TrueHD");
+  if (/\b(?:ac-?4|ac4)\b/i.test(text)) pushUnique(parts, "AC4");
+  else if (/\b(?:xhe-?aac|xheaac|usac)\b/i.test(text)) pushUnique(parts, "xHE-AAC");
+  else if (/\b(?:truehd|mlp)\b/i.test(text)) pushUnique(parts, "TrueHD");
   else if (/\b(?:dts(?:-?hd)?|dts:x|dca)\b/i.test(text)) pushUnique(parts, "DTS");
   else if (/\b(?:e-?ac-?3|eac3|ec-?3|ddp|dd\+)\b/i.test(text)) pushUnique(parts, "EAC3");
   else if (/\b(?:ac-?3|ac3|dolby digital)\b/i.test(text)) pushUnique(parts, "AC3");
@@ -142,7 +144,9 @@ export const torrentFileLabel = (file, index = 0) => {
   else if (/\b(?:mpeg[ ._-]?4|mp4v|xvid|divx)\b/i.test(text)) pushUnique(parts, "MPEG-4");
   else if (/\b(?:vc-?1|wmv3|wvc1)\b/i.test(text)) pushUnique(parts, "VC-1");
 
-  if (/\b(?:truehd|mlp)\b/i.test(text)) pushUnique(parts, "TrueHD");
+  if (/\b(?:ac-?4|ac4)\b/i.test(text)) pushUnique(parts, "AC4");
+  else if (/\b(?:xhe-?aac|xheaac|usac)\b/i.test(text)) pushUnique(parts, "xHE-AAC");
+  else if (/\b(?:truehd|mlp)\b/i.test(text)) pushUnique(parts, "TrueHD");
   else if (/\b(?:dts(?:-?hd)?|dts:x|dca)\b/i.test(text)) pushUnique(parts, "DTS");
   else if (/\b(?:e-?ac-?3|eac3|ec-?3|ddp|dd\+)\b/i.test(text)) pushUnique(parts, "EAC3");
   else if (/\b(?:ac-?3|ac3)\b/i.test(text)) pushUnique(parts, "AC3");
