@@ -15,6 +15,7 @@ import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
@@ -203,7 +204,17 @@ class PlayerActivity : Activity() {
         val mediaSourceFactory = DefaultMediaSourceFactory(this)
             .setDataSourceFactory(dataSourceFactory)
 
-        val exoPlayer = ExoPlayer.Builder(this)
+        /*
+         * Fire TV models expose different hardware decoders and HDMI
+         * passthrough combinations. Let Media3 fall back to another decoder
+         * when the preferred one rejects a stream instead of immediately
+         * returning the source to the web player. This materially helps HEVC,
+         * AV1, VP9, MPEG-2, AC3/EAC3 and model-dependent DTS playback.
+         */
+        val renderersFactory = DefaultRenderersFactory(this)
+            .setEnableDecoderFallback(true)
+
+        val exoPlayer = ExoPlayer.Builder(this, renderersFactory)
             .setMediaSourceFactory(mediaSourceFactory)
             .build()
 
