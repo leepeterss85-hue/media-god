@@ -386,6 +386,10 @@ export default async function (req) {
           stream.audio_rescue ||
           null,
 
+        video_rescue:
+          stream.video_rescue ||
+          null,
+
         media_info:
           stream.media_info ||
           null,
@@ -540,6 +544,10 @@ export default async function (req) {
 
         audio_rescue:
           playable.audio_rescue ||
+          null,
+
+        video_rescue:
+          playable.video_rescue ||
           null,
 
         media_info:
@@ -1026,6 +1034,10 @@ export default async function (req) {
             stream.audio_rescue ||
             null,
 
+          video_rescue:
+            stream.video_rescue ||
+            null,
+
           media_info:
             stream.media_info ||
             null,
@@ -1361,6 +1373,10 @@ async function addMagnet({
 
     audio_rescue:
       stream.audio_rescue ||
+      null,
+
+    video_rescue:
+      stream.video_rescue ||
       null,
 
     media_info:
