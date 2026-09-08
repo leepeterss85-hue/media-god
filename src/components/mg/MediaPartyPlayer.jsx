@@ -286,12 +286,14 @@ export default function MediaPlayerControls({
   };
 
   const toggleFullscreen = () => {
+    /*
+     * Never hand fullscreen to Android/Fire TV WebView. If this legacy
+     * control surface is reused, fullscreen must be supplied by the same
+     * safe in-app fullscreen handler used by the main player.
+     */
     if (onFullscreen) {
       onFullscreen();
-      return;
     }
-
-    stageRef?.current?.requestFullscreen?.().catch(() => {});
   };
 
   const chooseEpisode = () => {
