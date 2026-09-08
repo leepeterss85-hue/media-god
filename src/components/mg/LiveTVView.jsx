@@ -357,18 +357,25 @@ export default function LiveTVView() {
 
       let loadedChannels = Array.isArray(result?.channels) ? result.channels : [];
 
-      loadedChannels = loadedChannels.map((ch) => {
-        const norm = normaliseStationName(ch.name);
-        if (SKY_STREAM_OVERRIDES[norm] !== undefined && SKY_STREAM_OVERRIDES[norm] !== "") {
-          return {
-            ...ch,
-            url: SKY_STREAM_OVERRIDES[norm],
-            kind: "direct",
-            browserPlayable: true,
-            tags: Array.from(new Set([...(ch.tags || []), "United Kingdom", "Sports"])),
-          };
+      /*
+       * Never overwrite a current playlist result with an old hard-coded TV
+       * URL. Several channels (GB News, Talk, Bloomberg, TRT) had perfectly
+       * good current feeds replaced by stale endpoints here. Instead, attach
+       * an official broadcaster fallback while preserving the ranked direct
+       * candidates returned by freeTvPlaylist.
+       */
+      loadedChannels = loadedChannels.map((channel) => {
+        const fallback = officialLiveFallback(channel);
+
+        if (!fallback) {
+          return channel;
         }
-        return ch;
+
+        return {
+          ...channel,
+          officialUrl: channel.officialUrl || fallback.url,
+          officialLabel: channel.officialLabel || fallback.label,
+        };
       });
 
       setChannels(loadedChannels);
