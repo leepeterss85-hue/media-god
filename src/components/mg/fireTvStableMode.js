@@ -401,8 +401,15 @@ const installViewportGuard = () => {
     document.head.appendChild(meta);
   }
 
+  /*
+   * Fire TV has one logical Android display space: 960 x 540dp. A generic
+   * mobile WebView wrapper can otherwise report its raw desktop-like surface
+   * and trigger 3xl/4xl web breakpoints. Pinning the TV viewport to Amazon's
+   * logical coordinates makes the catalogue deterministic at 1080p, 720p and
+   * 480p output while the platform handles physical-pixel scaling.
+   */
   const desired =
-    "width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover";
+    "width=960, height=540, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover";
 
   const restore = () => {
     if (meta.getAttribute("content") !== desired) {
