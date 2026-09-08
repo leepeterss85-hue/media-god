@@ -342,8 +342,8 @@ body.mg-fire-tv-mode [data-mg-player-root="true"] iframe {
 }
 
 /* Final Firestick fullscreen cleanup.
- * The TV shows only Exit/title, QR and essential playback controls.
- * Source, torrent-file, audio and episode management live on the phone remote.
+ * The TV shows Exit/title, QR and essential playback controls while keeping
+ * the dedicated source/torrent-file/Fix-audio strip available on screen.
  */
 body.mg-fire-tv [data-mg-player-loading-topbar="true"],
 body.mg-fire-tv-stable [data-mg-player-loading-topbar="true"],
@@ -461,7 +461,8 @@ body.mg-fire-tv-mode [data-mg-player-controls-bottom="true"] span {
 }
 
 /* Keep the Firestick playback surface intentionally simple.
- * Episode/source/audio management is available from the QR phone remote.
+ * Detailed track controls stay compact while the source/torrent options strip
+ * remains available directly on the television.
  */
 body.mg-fire-tv [data-mg-player-controls-spacer="true"],
 body.mg-fire-tv-stable [data-mg-player-controls-spacer="true"],
