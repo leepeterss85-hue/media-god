@@ -843,6 +843,54 @@ export const hasSevereAudioRisk = (
   );
 };
 
+export const hasSevereVideoRisk = (
+  item,
+  extraText = "",
+  deviceProfile = getPlaybackDeviceProfile()
+) => {
+  const traits = detectStreamTraits(item, extraText);
+
+  if (traits.resolution >= 4320) {
+    return true;
+  }
+
+  if (traits.container === "avi") {
+    return true;
+  }
+
+  if (
+    traits.video === "av1" &&
+    !browserCodecSupport.av1Aac
+  ) {
+    return true;
+  }
+
+  if (
+    traits.video === "vp9" &&
+    !browserCodecSupport.vp9Opus
+  ) {
+    return true;
+  }
+
+  if (
+    traits.video === "hevc" &&
+    !deviceProfile?.fireTv &&
+    !browserCodecSupport.hevcAac
+  ) {
+    return true;
+  }
+
+  if (
+    traits.container === "mkv" &&
+    traits.video === "av1" &&
+    !browserCodecSupport.av1Aac
+  ) {
+    return true;
+  }
+
+  return false;
+};
+
 export const scoreSourceCompatibility = (
   item,
   extraText = "",
