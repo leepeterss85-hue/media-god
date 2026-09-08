@@ -363,6 +363,12 @@ export default function SettingsView() {
             preferForcedSubtitles:
               preferences.preferForcedSubtitles ??
               localTracks.preferForcedSubtitles,
+            preferSdhSubtitles:
+              preferences.preferSdhSubtitles ??
+              localTracks.preferSdhSubtitles,
+            subtitleOffsetSeconds:
+              preferences.subtitleOffsetSeconds ??
+              localTracks.subtitleOffsetSeconds,
             subtitleSize:
               preferences.subtitleSize ||
               localTracks.subtitleSize,
@@ -656,6 +662,8 @@ export default function SettingsView() {
               audioLanguage: nextTracks.audioLanguage,
               subtitleLanguage: nextTracks.subtitleLanguage,
               preferForcedSubtitles: nextTracks.preferForcedSubtitles,
+              preferSdhSubtitles: nextTracks.preferSdhSubtitles,
+              subtitleOffsetSeconds: nextTracks.subtitleOffsetSeconds,
               subtitleSize: nextTracks.subtitleSize,
               subtitleBackground: nextTracks.subtitleBackground,
             },
