@@ -42,10 +42,10 @@ android {
 }
 
 dependencies {
-    val media3Version = "1.11.0"
-
-    implementation("androidx.core:core-ktx:1.19.0")
-    implementation("androidx.webkit:webkit:1.17.0")
+    // Keep the native player on a Fire OS-friendly Media3 generation rather
+    // than pulling the newest AndroidX stack, which currently requires API
+    // 36/37 just to compile. Fire TV playback does not need those APIs.
+    val media3Version = "1.5.1"
 
     implementation("androidx.media3:media3-exoplayer:$media3Version")
     implementation("androidx.media3:media3-exoplayer-hls:$media3Version")
