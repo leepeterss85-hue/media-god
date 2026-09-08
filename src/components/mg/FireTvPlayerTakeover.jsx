@@ -343,13 +343,13 @@ export default function FireTvPlayerTakeover() {
 
         if (isElement(header)) {
           force(header, "position", "fixed");
-          force(header, "top", "0");
-          force(header, "left", "0");
-          force(header, "right", "0");
-          force(header, "width", "100vw");
-          force(header, "min-height", "64px");
+          force(header, "top", "5vh");
+          force(header, "left", "5vw");
+          force(header, "right", "5vw");
+          force(header, "width", "auto");
+          force(header, "min-height", "52px");
           force(header, "margin", "0");
-          force(header, "padding", "10px 18px");
+          force(header, "padding", "6px 0");
           force(header, "gap", "12px");
           force(header, "box-sizing", "border-box");
           force(header, "z-index", "2147483647");
@@ -448,10 +448,10 @@ export default function FireTvPlayerTakeover() {
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ["class", "style", "data-mg-fullscreen"],
+      attributeFilter: ["class", "data-mg-fullscreen"],
     });
 
-    const watchdog = window.setInterval(sync, 60);
+    const watchdog = window.setInterval(sync, 250);
 
     window.addEventListener("resize", schedule);
     window.addEventListener("orientationchange", schedule);
