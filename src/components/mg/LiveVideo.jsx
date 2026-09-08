@@ -489,6 +489,52 @@ const normaliseSubtitleList = (subtitles) => {
     .filter(Boolean);
 };
 
+const choosePreferredExternalSubtitleIndex = (
+  tracks,
+  subtitlesEnabled,
+  preferredSubtitleLanguage = "en"
+) => {
+  if (!subtitlesEnabled) return -1;
+
+  const preferences = readTrackPreferences();
+  const context =
+    typeof window !== "undefined"
+      ? window.__MG_PLAYER_CONTEXT__ || {}
+      : {};
+  const remembered = readRememberedSubtitlePreference(context);
+
+  if (remembered?.enabled === false) return -1;
+
+  const ranked = (Array.isArray(tracks) ? tracks : [])
+    .map((track, index) => {
+      const text = subtitleTrackText(track);
+      const language = subtitleLanguage(track);
+      let score = rememberedSubtitleTrackScore(track, remembered);
+
+      if (languageMatches(language, preferredSubtitleLanguage)) {
+        score += 12000;
+      } else if (
+        normaliseLanguage(preferredSubtitleLanguage) === "en" &&
+        /\b(?:eng|english)\b/i.test(`${language} ${text}`)
+      ) {
+        score += 11000;
+      }
+
+      const forced = /\b(?:forced|force|foreign parts?)\b/i.test(text);
+      const sdh = /\b(?:sdh|hoh|hearing[ ._-]?impaired|closed captions?|cc)\b/i.test(text);
+
+      if (forced) score += preferences.preferForcedSubtitles ? 4200 : -500;
+      if (sdh) score += preferences.preferSdhSubtitles ? 1200 : -1400;
+      else if (!preferences.preferSdhSubtitles) score += 500;
+      if (track?.default) score += 100;
+
+      return { index, score };
+    })
+    .sort((a, b) => b.score - a.score || a.index - b.index);
+
+  return ranked[0]?.index ?? -1;
+};
+
 const isSrtSubtitleUrl = (value) =>
   /\.srt(?:[?#]|$)/i.test(
     String(value || "")
@@ -1870,17 +1916,11 @@ const LiveVideo = forwardRef(
     ]);
 
     const preferredExternalSubtitleIndex =
-      subtitlesEnabled
-        ? preparedSubtitles.findIndex(
-            (
-              track
-            ) =>
-              track.default ||
-              isEnglishLanguage(
-                track.lang
-              )
-          )
-        : -1;
+      choosePreferredExternalSubtitleIndex(
+        preparedSubtitles,
+        subtitlesEnabled,
+        preferredSubtitleLanguage
+      );
 
     return (
       <video
