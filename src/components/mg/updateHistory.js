@@ -1,5 +1,29 @@
 export const UPDATE_HISTORY = [
   {
+    id: "worldwide-live-tv-codecs-v1",
+    date: "8 September 2026",
+    title: "Worldwide Live TV and device codecs expanded",
+    summary:
+      "Media God now loads the worldwide IPTV-org country catalogue as a low-priority source, preserves existing working sources, keeps native-only backups for Fire TV and uses the device's real decoder list when ranking difficult formats.",
+    changes: [
+      "Added IPTV-org Worldwide as a low-priority catalogue source with roughly fourteen thousand current country-grouped entries, while keeping existing Free-TV, FreeCastHub and UK sources at higher priority.",
+      "Worldwide candidates are merged as backups instead of replacing an already working higher-priority source.",
+      "Merged channels retain worldwide country grouping so the Live TV group selector can be used to browse by country.",
+      "Added a Worldwide quick filter and incremental Show more loading so the global catalogue remains usable without rendering thousands of cards at once.",
+      "Preserved browser-incompatible candidates as hidden native Fire TV backups instead of discarding them during deduplication.",
+      "Native Fire TV can now attempt HTTP, header-required and other Media3-compatible direct feeds that normal browser playback correctly avoids.",
+      "Playlist Referer and User-Agent requirements are passed through to the native Fire TV player when supplied by the source.",
+      "Known HLS and DASH MIME types are passed to Media3 explicitly, improving streams whose URLs do not clearly identify the adaptive format.",
+      "Added verified direct fallbacks for Al Jazeera English, NHK World-Japan, ABC News Live and VOA TV Africa alongside the existing international direct feeds.",
+      "Added official-service fallbacks for Al Jazeera, NHK World, ABC News Live, CBS News, NBC News NOW, Euronews, CGTN, Arirang and VOA.",
+      "The native Fire TV shell now reports the decoder MIME types actually installed on that device rather than relying only on browser codec probes.",
+      "Source ranking gives a positive boost to codecs the specific Fire TV explicitly reports, including model-dependent HEVC, AV1, VP9, MPEG-2, DTS and other formats.",
+      "Media3 decoder fallback remains enabled, and unsupported Real-Debrid/VOD sources continue to use Media God's existing compatibility/audio rescue path where available.",
+      "A broad worldwide sample check returned playable HLS media for 34 of 42 sampled country feeds; unavailable/geo-blocked examples remain eligible for backup or official-service fallback rather than being treated as universally working.",
+      "Fire TV APK version increased to 1.2.0 / version code 3 so installed native builds can detect the worldwide/player update.",
+    ],
+  },
+  {
     id: "live-tv-codec-compatibility-v2",
     date: "8 September 2026",
     title: "Live TV and codec compatibility improved",
