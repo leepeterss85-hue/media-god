@@ -30,7 +30,7 @@ export default function MediaRow({
           {title}
         </h2>
 
-        <div className="hidden sm:flex gap-1.5 3xl:gap-2">
+        <div data-mg-row-arrows="true" className="hidden sm:flex gap-1.5 3xl:gap-2">
           <button
             type="button"
             onClick={() => scroll(-1)}
