@@ -2720,6 +2720,185 @@ export default function VideoPlayer({
     );
   };
 
+  /*
+   * Dedicated Fire TV builds expose MediaGodNative.play(). Once Media God has
+   * resolved a real HTTP media URL, hand that URL to Android Media3 instead
+   * of creating another WebView <video> decoder. The generic web/mobile app
+   * does not expose the bridge and therefore keeps the existing LiveVideo
+   * path unchanged.
+   */
+  const nativeFireTvPlayer =
+    isNativeFireTvPlayerAvailable();
+
+  const nativePlaybackUrl =
+    nativeFireTvPlayer
+      ? String(
+          rdOverride?.src ||
+            (isDirectFile ? activeUrl : "") ||
+            ""
+        ).trim()
+      : "";
+
+  const useNativePlayback =
+    nativeFireTvPlayer &&
+    /^https?:\/\//i.test(nativePlaybackUrl) &&
+    nativeFallbackUrl !== nativePlaybackUrl;
+
+  useEffect(() => {
+    if (!nativeFireTvPlayer) {
+      return undefined;
+    }
+
+    const onNativeResult = (event) => {
+      const detail = event?.detail || {};
+      const activeRequest = nativePlaybackRef.current;
+
+      if (
+        !activeRequest.requestId ||
+        String(detail.requestId || "") !== activeRequest.requestId
+      ) {
+        return;
+      }
+
+      const positionSeconds = Math.max(
+        0,
+        Number(detail.positionMs || 0) / 1000
+      );
+      const durationSeconds = Math.max(
+        0,
+        Number(detail.durationMs || 0) / 1000
+      );
+
+      if (positionSeconds > 0) {
+        lastPosRef.current = {
+          t: positionSeconds,
+          d: durationSeconds,
+        };
+
+        if (!isLive && positionSeconds > 5) {
+          saveProgress(
+            positionSeconds,
+            durationSeconds,
+            true
+          );
+        }
+      }
+
+      nativePlaybackRef.current = {
+        requestId: "",
+        url: "",
+      };
+
+      const reason = String(detail.reason || "back").toLowerCase();
+
+      if (reason === "error") {
+        if (positionSeconds > 5) {
+          recoveryResumeRef.current = positionSeconds;
+        }
+
+        window.dispatchEvent(
+          new CustomEvent("mg:player-status", {
+            detail: {
+              message:
+                detail.message ||
+                "Fire TV native player could not play this source — trying a backup…",
+            },
+          })
+        );
+
+        if (rdOverride) {
+          handleRdPlaybackError();
+        } else {
+          handleDirectPlaybackError();
+        }
+
+        return;
+      }
+
+      onClose?.();
+    };
+
+    window.addEventListener(
+      "mg:native-player-result",
+      onNativeResult
+    );
+
+    return () => {
+      window.removeEventListener(
+        "mg:native-player-result",
+        onNativeResult
+      );
+    };
+  }, [
+    nativeFireTvPlayer,
+    isLive,
+    rdOverride,
+    onClose,
+  ]);
+
+  useEffect(() => {
+    if (!useNativePlayback || !nativePlaybackUrl) {
+      return;
+    }
+
+    const current = nativePlaybackRef.current;
+
+    if (current.url === nativePlaybackUrl && current.requestId) {
+      return;
+    }
+
+    const resumeSeconds = Math.max(
+      0,
+      Number(
+        recoveryResumeRef.current ||
+          lastPosRef.current?.t ||
+          source?.startTime ||
+          0
+      )
+    );
+
+    const requestId =
+      `mg-${Date.now()}-${activeIdx}-${Math.random().toString(36).slice(2, 8)}`;
+
+    nativePlaybackRef.current = {
+      requestId,
+      url: nativePlaybackUrl,
+    };
+
+    const started = playNativeFireTv({
+      requestId,
+      url: nativePlaybackUrl,
+      title: source?.title || sourceDisplayLabel(active, activeIdx),
+      poster: source?.poster || "",
+      startPositionMs: Math.round(resumeSeconds * 1000),
+      live: isLive,
+      headers:
+        rdOverride?.headers ||
+        active?.headers ||
+        active?.requestHeaders ||
+        {},
+    });
+
+    if (!started) {
+      nativePlaybackRef.current = {
+        requestId: "",
+        url: "",
+      };
+
+      /* If an unexpected old/custom wrapper exposes a broken bridge, fall
+       * back to the proven browser player for this exact URL only. */
+      setNativeFallbackUrl(nativePlaybackUrl);
+    }
+  }, [
+    active,
+    activeIdx,
+    isLive,
+    nativePlaybackUrl,
+    rdOverride,
+    source,
+    useNativePlayback,
+  ]);
+
   const handleNoSound =
     async (options = {}) => {
       const automatic = options?.automatic === true;
