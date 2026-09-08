@@ -307,7 +307,7 @@ export default function SearchDialog({
           ++requestRef.current;
 
         if (
-          !cleanQuery
+          cleanQuery.length < 2
         ) {
           setResults(
             []
@@ -394,7 +394,7 @@ export default function SearchDialog({
             search(
               query
             ),
-          180
+          260
         );
 
       return () =>
@@ -563,6 +563,7 @@ export default function SearchDialog({
       role="dialog"
       aria-modal="true"
       aria-label="Search movies and TV shows"
+      data-mg-search-dialog="true"
       className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-start justify-center sm:pt-[7vh] 3xl:pt-[9vh] p-0 sm:px-4"
       onClick={
         close
@@ -596,7 +597,7 @@ export default function SearchDialog({
               )
             }
             placeholder="Search movies, TV shows..."
-            className="flex-1 min-w-0 bg-transparent border-0 outline-none text-white text-base sm:text-lg 3xl:text-xl 4xl:text-2xl placeholder:text-white/30"
+            className="flex-1 min-w-0 bg-transparent border-0 outline-none text-white text-base sm:text-lg 3xl:text-xl 4xl:text-2xl placeholder:text-white/30 focus-visible:ring-0"
             autoComplete="off"
             aria-label="Search"
           />
@@ -624,7 +625,7 @@ export default function SearchDialog({
                 close();
               }
             }}
-            className="w-10 h-10 3xl:w-12 3xl:h-12 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/5 shrink-0"
+            className="w-10 h-10 3xl:w-12 3xl:h-12 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/5 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mg-green"
             aria-label={
               query
                 ? "Clear search"
@@ -674,7 +675,7 @@ export default function SearchDialog({
             results.length >
               0 && (
               <div className="divide-y divide-white/5">
-                {results.map(
+                {results.slice(0, 60).map(
                   (
                     result
                   ) => (
@@ -686,7 +687,7 @@ export default function SearchDialog({
                           result
                         )
                       }
-                      className="w-full flex items-center gap-3 sm:gap-4 3xl:gap-5 p-3 sm:p-4 3xl:p-5 hover:bg-white/5 focus:bg-white/10 focus:outline-none transition-colors text-left min-h-[78px] 3xl:min-h-[104px]"
+                      className="w-full flex items-center gap-3 sm:gap-4 3xl:gap-5 p-3 sm:p-4 3xl:p-5 hover:bg-white/5 focus:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-mg-green transition-colors text-left min-h-[78px] 3xl:min-h-[104px]"
                       aria-label={`Open ${result.title}`}
                     >
                       <div className="w-11 h-16 sm:w-12 sm:h-17 3xl:w-16 3xl:h-24 4xl:w-20 4xl:h-28 rounded-md 3xl:rounded-lg overflow-hidden bg-mg-card shrink-0">
@@ -700,6 +701,7 @@ export default function SearchDialog({
                             }
                             className="w-full h-full object-cover"
                             fittingType="fill"
+                            loading="lazy"
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-white/30">
@@ -771,7 +773,7 @@ export default function SearchDialog({
             !error &&
             !query && (
               <div className="p-8 3xl:p-12 text-center text-white/40 text-sm 3xl:text-lg">
-                Start typing to search movies and TV shows
+                Type at least 2 characters to search movies and TV shows
               </div>
             )}
         </div>
