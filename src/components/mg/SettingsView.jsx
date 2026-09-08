@@ -1166,7 +1166,7 @@ export default function SettingsView() {
     );
 
   return (
-    <div className="w-full max-w-4xl 3xl:max-w-5xl 4xl:max-w-6xl p-4 md:p-6 3xl:p-8 4xl:p-10">
+    <div data-mg-settings-view="true" className="w-full max-w-4xl 3xl:max-w-5xl 4xl:max-w-6xl p-4 md:p-6 3xl:p-8 4xl:p-10">
       <h1 className="text-xl md:text-2xl 3xl:text-3xl 4xl:text-4xl font-bold text-white mb-6 3xl:mb-8">
         Settings
       </h1>
@@ -1232,7 +1232,7 @@ export default function SettingsView() {
               </p>
 
               <p className="text-xs 3xl:text-sm text-white/40">
-                If a movie or episode stops progressing for about 14 seconds, switch to an unused backup source and resume at the same position.
+                If a movie or episode genuinely stalls, switch to an unused backup source and resume at the same position. Torrent streams receive a longer grace period before switching.
               </p>
             </div>
 
@@ -1991,7 +1991,8 @@ export default function SettingsView() {
         disabled={
           saving
         }
-        className="mt-6 3xl:mt-8 min-h-11 3xl:min-h-12 inline-flex items-center justify-center gap-2 bg-mg-green text-black font-semibold text-sm 3xl:text-base px-5 3xl:px-6 py-2.5 3xl:py-3 rounded-lg hover:bg-mg-green-dim disabled:opacity-60"
+        data-mg-settings-save="true"
+        className="mt-6 3xl:mt-8 min-h-11 3xl:min-h-12 inline-flex items-center justify-center gap-2 bg-mg-green text-black font-semibold text-sm 3xl:text-base px-5 3xl:px-6 py-2.5 3xl:py-3 rounded-lg hover:bg-mg-green-dim disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-mg-background"
       >
         {saving && (
           <Loader2 className="w-4 h-4 animate-spin" />
