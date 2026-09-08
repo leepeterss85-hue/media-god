@@ -26,7 +26,6 @@ import {
   recordPlaybackReliability,
 } from "@/components/mg/playbackReliability";
 import {
-  detectStreamTraits,
   getPlaybackDeviceProfile,
   hasSevereVideoRisk,
   scoreSourceCompatibility,
@@ -102,8 +101,13 @@ const audioTrackScore = (track, preferredLanguage = "en") => {
   else if (/\b(?:e-?ac-?3|eac3|ec-?3|ddp|dd\+)\b/i.test(text)) score += 1400;
   else if (/\b(?:ac-?3|ac3|dolby digital)\b/i.test(text)) score += 1200;
   else if (/\bopus\b/i.test(text)) score += 900;
+  else if (/\bflac\b/i.test(text)) score += 850;
+  else if (/\b(?:alac|apple lossless)\b/i.test(text)) score += 750;
+  else if (/\bvorbis\b/i.test(text)) score += 700;
+  else if (/\b(?:pcm|lpcm)\b/i.test(text)) score += 650;
   else if (/\b(?:mp3|mpeg audio)\b/i.test(text)) score += 700;
-  else if (/\b(?:truehd|mlp|dts(?:-?hd)?|dts:x|dca)\b/i.test(text)) score -= 9000;
+  else if (/\bmp2\b/i.test(text)) score += 350;
+  else if (/\b(?:truehd|mlp|dts(?:-?hd)?|dts:x|dca)\b/i.test(text)) score -= 5000;
 
   if (/\b(?:commentary|audio description|descriptive|visually impaired)\b/i.test(text)) {
     score -= 3200;
