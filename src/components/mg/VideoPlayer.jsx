@@ -2411,6 +2411,54 @@ export default function VideoPlayer({
       );
     };
 
+  const handleRdPlaybackError = () => {
+    const fallback = String(rdOverride?.fallbackSrc || "").trim();
+
+    if (
+      fallback &&
+      fallback !== rdOverride?.src &&
+      rdOverride?.fallbackTried !== true
+    ) {
+      const video = stageRef.current?.querySelector("video");
+      const resumeAt = Math.max(
+        0,
+        Number(video?.currentTime || lastPosRef.current?.t || 0)
+      );
+
+      if (resumeAt > 5) {
+        recoveryResumeRef.current = resumeAt;
+      }
+
+      setRdOverride((current) => ({
+        ...(current || {}),
+        src: fallback,
+        label: `${current?.label || sourceDisplayLabel(active, activeIdx)} [Original fallback]`,
+        fallbackSrc: "",
+        fallbackTried: true,
+        audioRescue: {
+          ...(current?.audioRescue || {}),
+          used: false,
+          state: "original_stream_fallback_after_transcode_error",
+        },
+      }));
+
+      window.dispatchEvent(
+        new CustomEvent("mg:player-status", {
+          detail: {
+            message:
+              "Compatibility stream failed — trying the original torrent file…",
+          },
+        })
+      );
+
+      return;
+    }
+
+    tryNextSource(
+      "This stream failed during playback."
+    );
+  };
+
   const handleNoSound =
     async (options = {}) => {
       const automatic = options?.automatic === true;
@@ -2615,6 +2663,7 @@ export default function VideoPlayer({
                 file: currentFilePath(data.files),
                 audioRescue: data.audio_rescue,
                 fallbackSrc: data.fallback_stream_url || "",
+                fallbackTried: rdOverride?.fallbackTried === true,
                 mediaInfo: data.media_info || null,
               });
 
