@@ -2268,8 +2268,18 @@ export default function VideoPlayer({
       }
 
       const now = Date.now();
+      const activeTorrentLike =
+        active?.type === "rd" ||
+        active?.type === "rd_torrent" ||
+        active?.type === "torrent" ||
+        active?.type === "magnet" ||
+        isMagnet(activeUrl) ||
+        Boolean(magnetHash(activeUrl));
+      const recoveryCooldownMs = activeTorrentLike
+        ? 30000
+        : 18000;
 
-      if (now - Number(state.lastSwitchAt || 0) < 18000) {
+      if (now - Number(state.lastSwitchAt || 0) < recoveryCooldownMs) {
         return false;
       }
 
@@ -2373,7 +2383,18 @@ export default function VideoPlayer({
         return;
       }
 
-      if (now - Number(state.lastProgressAt || now) >= 14000) {
+      const activeTorrentLike =
+        active?.type === "rd" ||
+        active?.type === "rd_torrent" ||
+        active?.type === "torrent" ||
+        active?.type === "magnet" ||
+        isMagnet(activeUrl) ||
+        Boolean(magnetHash(activeUrl));
+      const stallThresholdMs = activeTorrentLike
+        ? 28000
+        : 16000;
+
+      if (now - Number(state.lastProgressAt || now) >= stallThresholdMs) {
         recover(video);
       }
     }, 1000);
