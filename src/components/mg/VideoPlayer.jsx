@@ -2090,6 +2090,127 @@ export default function VideoPlayer({
     };
 
   useEffect(() => {
+    if (!isLive || sources.length <= 1) {
+      return undefined;
+    }
+
+    let video = null;
+    let attachTimer = null;
+    let startupTimer = null;
+    let stallTimer = null;
+    let switched = false;
+
+    const clearStartup = () => {
+      if (startupTimer) {
+        window.clearTimeout(startupTimer);
+        startupTimer = null;
+      }
+    };
+
+    const clearStall = () => {
+      if (stallTimer) {
+        window.clearTimeout(stallTimer);
+        stallTimer = null;
+      }
+    };
+
+    const switchLiveSource = (
+      message,
+      { stalled = false } = {}
+    ) => {
+      if (switched) return;
+      switched = true;
+      clearStartup();
+      clearStall();
+
+      const url = String(activeUrl || "").trim();
+      if (/^https?:\/\//i.test(url)) {
+        recordLiveTvPlaybackResult(url, {
+          success: false,
+          stalled,
+        });
+      }
+
+      tryNextSource(message);
+    };
+
+    const armStallRecovery = () => {
+      if (switched) return;
+      clearStall();
+      stallTimer = window.setTimeout(
+        () =>
+          switchLiveSource(
+            "Live TV stopped responding.",
+            { stalled: true }
+          ),
+        8500
+      );
+    };
+
+    const onPlaying = () => {
+      clearStartup();
+      clearStall();
+    };
+
+    const onWaiting = () => {
+      armStallRecovery();
+    };
+
+    const onStalled = () => {
+      armStallRecovery();
+    };
+
+    const attach = () => {
+      video = stageRef.current?.querySelector("video") || null;
+
+      if (!(video instanceof HTMLVideoElement)) {
+        attachTimer = window.setTimeout(attach, 120);
+        return;
+      }
+
+      video.addEventListener("playing", onPlaying);
+      video.addEventListener("canplay", onPlaying);
+      video.addEventListener("waiting", onWaiting);
+      video.addEventListener("stalled", onStalled);
+
+      if (!video.paused && video.readyState >= 2) {
+        onPlaying();
+      }
+    };
+
+    attach();
+
+    startupTimer = window.setTimeout(
+      () =>
+        switchLiveSource(
+          "Live TV took too long to start."
+        ),
+      12000
+    );
+
+    return () => {
+      clearStartup();
+      clearStall();
+
+      if (attachTimer) {
+        window.clearTimeout(attachTimer);
+      }
+
+      if (video instanceof HTMLVideoElement) {
+        video.removeEventListener("playing", onPlaying);
+        video.removeEventListener("canplay", onPlaying);
+        video.removeEventListener("waiting", onWaiting);
+        video.removeEventListener("stalled", onStalled);
+      }
+    };
+  }, [
+    activeIdx,
+    activeUrl,
+    isLive,
+    sources,
+  ]);
+
+  useEffect(() => {
     if (isLive || sources.length <= 1) {
       return undefined;
     }
