@@ -1,11 +1,14 @@
 export const MEDIA_TRACK_PREFERENCES_KEY = "mg:media-track-preferences-v1";
 export const MEDIA_TITLE_AUDIO_PREFERENCES_KEY = "mg:title-audio-preferences-v1";
+export const MEDIA_TITLE_SUBTITLE_PREFERENCES_KEY = "mg:title-subtitle-preferences-v1";
 
 export const DEFAULT_MEDIA_TRACK_PREFERENCES = {
   audioLanguage: "en",
   subtitlesEnabled: true,
   subtitleLanguage: "en",
   preferForcedSubtitles: true,
+  preferSdhSubtitles: false,
+  subtitleOffsetSeconds: 0,
   subtitleSize: "medium",
   subtitleBackground: "medium",
 };
@@ -58,6 +61,19 @@ export const normaliseTrackPreferences = (value) => {
       typeof raw.preferForcedSubtitles === "boolean"
         ? raw.preferForcedSubtitles
         : DEFAULT_MEDIA_TRACK_PREFERENCES.preferForcedSubtitles,
+    preferSdhSubtitles:
+      typeof raw.preferSdhSubtitles === "boolean"
+        ? raw.preferSdhSubtitles
+        : DEFAULT_MEDIA_TRACK_PREFERENCES.preferSdhSubtitles,
+    subtitleOffsetSeconds: Math.max(
+      -10,
+      Math.min(
+        10,
+        Number.isFinite(Number(raw.subtitleOffsetSeconds))
+          ? Math.round(Number(raw.subtitleOffsetSeconds) * 10) / 10
+          : DEFAULT_MEDIA_TRACK_PREFERENCES.subtitleOffsetSeconds
+      )
+    ),
     subtitleSize: ["small", "medium", "large", "extra-large"].includes(
       raw.subtitleSize
     )
@@ -122,6 +138,11 @@ export const trackLooksForced = (track) =>
     String(track?.label || track?.name || "")
   );
 
+export const trackLooksSdh = (track) =>
+  /\b(?:sdh|hoh|hearing[ ._-]?impaired|hearing[ ._-]?imp|closed captions?|cc)\b/i.test(
+    String(track?.label || track?.name || "")
+  );
+
 const audioCodecKey = (track) => {
   const text = [
     track?.audioCodec,
@@ -162,7 +183,7 @@ const audioChannelKey = (track) => {
   return value;
 };
 
-const audioPreferenceContextKey = (context = {}) => {
+const mediaPreferenceContextKey = (context = {}) => {
   const mediaType = String(context?.mediaType || context?.type || "").toLowerCase();
   const tmdbId = String(context?.tmdbId || context?.tmdb_id || "").trim();
   const title = String(context?.title || "")
@@ -217,7 +238,7 @@ export const audioProfileFromTrack = (track) => ({
 });
 
 export const rememberAudioPreference = (context, track) => {
-  const key = audioPreferenceContextKey(context);
+  const key = mediaPreferenceContextKey(context);
   if (!key || !track) return null;
 
   const profile = {
@@ -231,10 +252,85 @@ export const rememberAudioPreference = (context, track) => {
 };
 
 export const readRememberedAudioPreference = (context) => {
-  const key = audioPreferenceContextKey(context);
+  const key = mediaPreferenceContextKey(context);
   if (!key) return null;
   const profile = readTitleAudioStore()?.[key];
   return profile && typeof profile === "object" ? profile : null;
+};
+
+const readTitleSubtitleStore = () => {
+  if (typeof window === "undefined") return {};
+
+  try {
+    const raw = window.localStorage.getItem(MEDIA_TITLE_SUBTITLE_PREFERENCES_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+const writeTitleSubtitleStore = (store) => {
+  if (typeof window === "undefined") return;
+
+  try {
+    const entries = Object.entries(store || {})
+      .sort((a, b) => Number(b?.[1]?.updatedAt || 0) - Number(a?.[1]?.updatedAt || 0))
+      .slice(0, 250);
+    window.localStorage.setItem(
+      MEDIA_TITLE_SUBTITLE_PREFERENCES_KEY,
+      JSON.stringify(Object.fromEntries(entries))
+    );
+  } catch {
+    // Per-title subtitle memory is best effort only.
+  }
+};
+
+export const subtitleProfileFromTrack = (track) => ({
+  language: trackLanguage(track),
+  forced: trackLooksForced(track),
+  sdh: trackLooksSdh(track),
+  label: String(track?.label || track?.name || "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 120),
+});
+
+export const rememberSubtitlePreference = (context, track, enabled = true) => {
+  const key = mediaPreferenceContextKey(context);
+  if (!key) return null;
+
+  const profile = {
+    ...(track ? subtitleProfileFromTrack(track) : {}),
+    enabled: Boolean(enabled),
+    updatedAt: Date.now(),
+  };
+  const store = readTitleSubtitleStore();
+  store[key] = profile;
+  writeTitleSubtitleStore(store);
+  return profile;
+};
+
+export const readRememberedSubtitlePreference = (context) => {
+  const key = mediaPreferenceContextKey(context);
+  if (!key) return null;
+  const profile = readTitleSubtitleStore()?.[key];
+  return profile && typeof profile === "object" ? profile : null;
+};
+
+export const rememberedSubtitleTrackScore = (track, profile) => {
+  if (!track || !profile || profile.enabled === false) return 0;
+
+  const candidate = subtitleProfileFromTrack(track);
+  let score = 0;
+
+  if (profile.language && candidate.language === profile.language) score += 12000;
+  if (candidate.forced === Boolean(profile.forced)) score += 5500;
+  if (candidate.sdh === Boolean(profile.sdh)) score += 3200;
+  if (profile.label && candidate.label === profile.label) score += 7000;
+
+  return score;
 };
 
 export const rememberedAudioTrackScore = (track, profile) => {
@@ -335,8 +431,11 @@ export const friendlyTrackLabel = (track, kind, index) => {
     const forcedSuffix = trackLooksForced(track) && !/forced/i.test(base)
       ? " · Forced"
       : "";
+    const sdhSuffix = trackLooksSdh(track) && !/\b(?:sdh|hoh)\b/i.test(base)
+      ? " · SDH"
+      : "";
 
-    return `${base}${languageSuffix}${forcedSuffix}`;
+    return `${base}${languageSuffix}${forcedSuffix}${sdhSuffix}`;
   }
 
   const languageName = languageDisplayName(language);
