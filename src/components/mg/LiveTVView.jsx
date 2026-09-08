@@ -1228,6 +1228,22 @@ export default function LiveTVView() {
           const quality =
             qualityLabel(candidate);
 
+          const headers = {
+            ...(candidate?.referrer
+              ? { Referer: candidate.referrer }
+              : {}),
+            ...(candidate?.userAgent
+              ? { "User-Agent": candidate.userAgent }
+              : {}),
+          };
+
+          const mimeType =
+            candidate?.format === "hls"
+              ? "application/x-mpegURL"
+              : candidate?.format === "dash"
+                ? "application/dash+xml"
+                : "";
+
           return {
             label:
               index === 0
@@ -1247,6 +1263,9 @@ export default function LiveTVView() {
             live: true,
             sourceName:
               candidate.sourceName,
+            format: candidate.format || "",
+            mimeType,
+            headers,
             officialUrl:
               candidate.officialUrl || channel.officialUrl || "",
             officialLabel:
