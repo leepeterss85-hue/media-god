@@ -3532,11 +3532,11 @@ export default function VideoPlayer({
                       className="w-full appearance-none rounded-lg border border-white/15 bg-black/55 py-2.5 pl-3 pr-9 text-xs text-white outline-none backdrop-blur focus:border-mg-green sm:text-sm"
                       aria-label="Choose source or quality while loading"
                     >
-                      {sources.map(
-                        (
+                      {sortedSourceEntries.map(
+                        ({
                           item,
-                          index
-                        ) => {
+                          index,
+                        }) => {
                           const failed =
                             failedSources.has(
                               index
@@ -3592,6 +3592,30 @@ export default function VideoPlayer({
           className="mt-2 flex items-end gap-2"
         >
           {sources.length > 1 && (
+            <label className="w-[7.5rem] shrink-0 sm:w-[9rem]">
+              <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-white/50">
+                Sort
+              </span>
+
+              <select
+                value={sourceSortMode}
+                onChange={(event) => {
+                  const next = writeSourceSortMode(event.target.value);
+                  setSourceSortMode(next);
+                }}
+                className="w-full rounded-lg border border-white/10 bg-mg-card px-2 py-2.5 text-xs text-white outline-none focus:border-mg-green sm:text-sm"
+                aria-label="Sort playback sources"
+              >
+                {SOURCE_SORT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          {sources.length > 1 && (
             <label className="min-w-0 flex-1">
               <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-white/50">
                 Source
@@ -3608,8 +3632,8 @@ export default function VideoPlayer({
                   className="w-full appearance-none rounded-lg border border-white/10 bg-mg-card py-2.5 pl-3 pr-9 text-xs text-white outline-none focus:border-mg-green sm:text-sm"
                   aria-label="Choose playback source"
                 >
-                  {sources.map(
-                    (item, index) => {
+                  {sortedSourceEntries.map(
+                    ({ item, index }) => {
                       const failed =
                         failedSources.has(
                           index
