@@ -3,6 +3,17 @@ import { Play, Plus, Check } from "lucide-react";
 import { Image } from "@/components/ui/image";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 
+const isFireTvRuntime = () =>
+  typeof document !== "undefined" &&
+  (
+    document.documentElement.classList.contains("mg-fire-tv") ||
+    document.documentElement.classList.contains("mg-fire-tv-mode") ||
+    document.documentElement.classList.contains("mg-fire-tv-stable") ||
+    document.body?.classList.contains("mg-fire-tv") ||
+    document.body?.classList.contains("mg-fire-tv-mode") ||
+    document.body?.classList.contains("mg-fire-tv-stable")
+  );
+
 const getMediaType = (item) => {
   const value = String(
     item?.media_type ||
@@ -31,11 +42,12 @@ export default function MediaCard({
     const tmdbId = item.id || item.tmdb_id;
 
     /*
-     * A TV card must not start a generic title/season pack.
-     * Open the show's details first so the user can choose the
-     * exact season and episode, just like everywhere else.
+     * Fire TV gets one clean focus target per poster. Selecting a catalogue
+     * card opens Details first, where Play/Watchlist/Favorite are presented
+     * at a consistent television scale. TV cards also always open Details so
+     * the user can choose the exact season and episode.
      */
-    if (mediaType === "tv" && onOpen) {
+    if ((isFireTvRuntime() || mediaType === "tv") && onOpen) {
       onOpen({
         ...item,
         id: tmdbId,
