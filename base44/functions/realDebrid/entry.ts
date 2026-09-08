@@ -1450,17 +1450,22 @@ function chooseVideoFile(
 
     const patterns = [
       new RegExp(
-        `s0*${season}e0*${episode}(?!\\d)`,
+        `s0*${season}[ ._-]*e0*${episode}(?!\\d)`,
         "i"
       ),
 
       new RegExp(
-        `s${season}e${episode}(?!\\d)`,
+        `(?:^|\\D)0*${season}x0*${episode}(?!\\d)`,
         "i"
       ),
 
       new RegExp(
-        `${season}x${episode}(?!\\d)`,
+        `season[ ._-]*0*${season}.*(?:episode|ep)[ ._-]*0*${episode}(?!\\d)`,
+        "i"
+      ),
+
+      new RegExp(
+        `s0*${season}[ ._-]+(?:ep?|episode)[ ._-]*0*${episode}(?!\\d)`,
         "i"
       ),
     ];
@@ -1489,20 +1494,46 @@ function chooseVideoFile(
   }
 
   /*
-   * Movie / fallback:
-   * choose the largest video file.
-   *
-   * This avoids selecting tiny samples, subtitles,
-   * trailers or featurettes when the torrent contains
-   * multiple video files.
+   * Movie / fallback: rank the likely main feature instead of blindly using
+   * the largest file. Size still matters, but title/year matching and common
+   * extras/sample markers are stronger signals.
    */
+  const titleWords = String(ep?.title || "")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((word) => word.length >= 3 && !["the", "and", "with"].includes(word));
+  const year = String(ep?.year || "").trim();
+
+  const scoreFile = (file) => {
+    const path = String(file?.path || "");
+    const text = path.toLowerCase();
+    const extension = text.split(".").pop() || "";
+    let score = Number(file?.bytes || 0);
+
+    if (/\b(?:sample|trailer|teaser|featurette|extras?|bonus|behind[ ._-]?the[ ._-]?scenes|interview|deleted[ ._-]?scene|proof)\b/i.test(text)) {
+      score -= 10_000_000_000_000;
+    }
+
+    if (titleWords.length > 0) {
+      const matched = titleWords.filter((word) => text.includes(word)).length;
+      score += matched * 900_000_000_000;
+      if (matched === titleWords.length) score += 2_500_000_000_000;
+    }
+
+    if (year && text.includes(year)) score += 700_000_000_000;
+
+    if (["mp4", "m4v", "mkv", "webm", "mov"].includes(extension)) {
+      score += 350_000_000_000;
+    } else if (["ts", "m2ts", "mts", "mpg", "mpeg", "f4v", "3gp", "3g2", "ogv"].includes(extension)) {
+      score += 120_000_000_000;
+    }
+
+    return score;
+  };
+
   return files
     .slice()
-    .sort(
-      (a, b) =>
-        (b.bytes || 0) -
-        (a.bytes || 0)
-    )[0];
+    .sort((a, b) => scoreFile(b) - scoreFile(a))[0];
 }
 
 /*
