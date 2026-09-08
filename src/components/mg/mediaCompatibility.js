@@ -1235,6 +1235,13 @@ export const scoreSourceCompatibility = (
     options?.qualityPreference ||
     "Auto";
 
+  const nativeVideoSupport =
+    nativeCodecSupportFor(
+      deviceProfile,
+      "video",
+      traits.video
+    );
+
   let score =
     0;
 
@@ -1367,56 +1374,69 @@ export const scoreSourceCompatibility = (
     traits.video ===
     "h264"
   ) {
-    score +=
-      6500;
+    score += nativeVideoSupport === true ? 7600 : 6500;
   } else if (
     traits.video ===
     "hevc"
   ) {
     score +=
-      browserCodecSupport.hevcAac ||
-      deviceProfile.fireTv
-        ? 3600
-        : -1400;
+      nativeVideoSupport === true
+        ? 5200
+        : browserCodecSupport.hevcAac || deviceProfile.fireTv
+          ? 3600
+          : -1400;
   } else if (
     traits.video ===
     "av1"
   ) {
     score +=
-      browserCodecSupport.av1Aac || deviceProfile.nativeFireTv
-        ? 3200
-        : -1600;
+      nativeVideoSupport === true
+        ? 4600
+        : browserCodecSupport.av1Aac || deviceProfile.nativeFireTv
+          ? 3200
+          : -1600;
   } else if (
     traits.video ===
     "vp9"
   ) {
     score +=
-      browserCodecSupport.vp9Opus || deviceProfile.fireTv
-        ? 2200
-        : -800;
+      nativeVideoSupport === true
+        ? 4000
+        : browserCodecSupport.vp9Opus || deviceProfile.fireTv
+          ? 2200
+          : -800;
   } else if (
     traits.video === "vp8"
   ) {
     score +=
-      browserCodecSupport.vp8Vorbis || deviceProfile.nativeFireTv
-        ? 1800
-        : -500;
+      nativeVideoSupport === true
+        ? 3000
+        : browserCodecSupport.vp8Vorbis || deviceProfile.nativeFireTv
+          ? 1800
+          : -500;
   } else if (
     traits.video === "h263"
   ) {
-    score += deviceProfile.nativeFireTv ? 900 : -300;
+    score += nativeVideoSupport === true ? 2000 : deviceProfile.nativeFireTv ? 900 : -300;
   } else if (
     traits.video === "mpeg2"
   ) {
-    score += deviceProfile.nativeFireTv ? 2200 : deviceProfile.fireTv ? 1400 : 300;
+    score +=
+      nativeVideoSupport === true
+        ? 3400
+        : deviceProfile.nativeFireTv
+          ? 2200
+          : deviceProfile.fireTv
+            ? 1400
+            : 300;
   } else if (
     traits.video === "mpeg4"
   ) {
-    score += 900;
+    score += nativeVideoSupport === true ? 2200 : 900;
   } else if (
     traits.video === "vc1"
   ) {
-    score -= 1800;
+    score += nativeVideoSupport === true ? 1200 : -1800;
   } else if (
     traits.video === "theora"
   ) {
@@ -1527,16 +1547,27 @@ export const scoreSourceCompatibility = (
     "dts"
   ) {
     /*
-     * Prefer safer audio when everything else is equal. The native Fire TV
-     * player is allowed to try DTS/DTS-HD because current Fire TV hardware can
-     * expose decoder/passthrough support that a WebView probe cannot see.
+     * Prefer safer audio when everything else is equal, but positively rank
+     * DTS when this exact Fire TV reports a DTS decoder/passthrough MIME type.
      */
-    score -= deviceProfile.nativeFireTv ? 5000 : 18000;
+    const supported = audioSupport("dts", deviceProfile);
+    score +=
+      supported === true
+        ? 3000
+        : deviceProfile.nativeFireTv
+          ? -5000
+          : -18000;
   } else if (
     traits.audio ===
     "truehd"
   ) {
-    score -= deviceProfile.nativeFireTv ? 9000 : 22000;
+    const supported = audioSupport("truehd", deviceProfile);
+    score +=
+      supported === true
+        ? 2200
+        : deviceProfile.nativeFireTv
+          ? -9000
+          : -22000;
   }
 
   if (
