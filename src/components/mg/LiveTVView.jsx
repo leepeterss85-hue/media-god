@@ -978,6 +978,17 @@ export default function LiveTVView() {
     visibleLimit
   );
 
+  useEffect(() => {
+    setFocusedChannelKey("");
+  }, [quickFilter, group, query, directOnly, viewMode]);
+
+  const resetFilters = () => {
+    setQuery("");
+    setGroup(DEFAULT_FILTER);
+    setQuickFilter(DEFAULT_FILTER);
+    setDirectOnly(false);
+  };
+
   const stopRadio = () => {
     try {
       audioRef.current?.pause();
@@ -1483,12 +1494,13 @@ export default function LiveTVView() {
                 setGroup("All");
               }}
               className={cn(
-                "flex min-h-12 items-center justify-between gap-2 rounded-lg border px-3 text-sm font-semibold transition-colors",
+                "flex min-h-12 items-center justify-between gap-2 rounded-lg border px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mg-green focus-visible:ring-offset-2 focus-visible:ring-offset-mg-background",
 
                 active
                   ? "border-mg-green bg-mg-green text-black"
                   : "border-white/10 bg-mg-card text-white/70 hover:border-mg-green/50 hover:text-white"
               )}
+              aria-pressed={active}
             >
               <span className="flex items-center gap-2">
                 <Icon className="h-4 w-4" />
@@ -1528,7 +1540,8 @@ export default function LiveTVView() {
               )
             }
             placeholder="Search channel, country, source or category…"
-            className="h-11 w-full rounded-lg border border-white/10 bg-mg-card pl-10 pr-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-mg-green"
+            aria-label="Search Live TV channels"
+            className="h-11 w-full rounded-lg border border-white/10 bg-mg-card pl-10 pr-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-mg-green focus:ring-2 focus:ring-mg-green/30"
           />
         </label>
 
@@ -1539,7 +1552,8 @@ export default function LiveTVView() {
               event.target.value
             )
           }
-          className="h-11 rounded-lg border border-white/10 bg-mg-card px-3 text-sm text-white outline-none focus:border-mg-green"
+          aria-label="Filter Live TV by group"
+          className="h-11 rounded-lg border border-white/10 bg-mg-card px-3 text-sm text-white outline-none focus:border-mg-green focus:ring-2 focus:ring-mg-green/30"
         >
           {groups.map((item) => (
             <option
@@ -1559,6 +1573,7 @@ export default function LiveTVView() {
                 !current
             )
           }
+          aria-pressed={directOnly}
           className={cn(
             "h-11 rounded-lg border px-4 text-sm font-semibold transition-colors",
 
@@ -1575,6 +1590,7 @@ export default function LiveTVView() {
             type="button"
             onClick={() => setViewMode("channels")}
             aria-label="Channel cards view"
+            aria-pressed={viewMode === "channels"}
             className={cn(
               "flex min-w-11 items-center justify-center gap-1.5 px-2 text-xs font-semibold outline-none transition-colors focus:ring-2 focus:ring-inset focus:ring-mg-green",
               viewMode === "channels"
@@ -1590,6 +1606,7 @@ export default function LiveTVView() {
             type="button"
             onClick={() => setViewMode("guide")}
             aria-label="TV Guide view"
+            aria-pressed={viewMode === "guide"}
             className={cn(
               "flex min-w-11 items-center justify-center gap-1.5 px-2 text-xs font-semibold outline-none transition-colors focus:ring-2 focus:ring-inset focus:ring-mg-green",
               viewMode === "guide"
@@ -1651,6 +1668,14 @@ export default function LiveTVView() {
           <div className="mt-1 text-sm text-white/40">
             Try All, another group, or a different search.
           </div>
+
+          <button
+            type="button"
+            onClick={resetFilters}
+            className="mt-4 min-h-10 rounded-lg border border-white/10 bg-white/5 px-4 text-sm font-semibold text-white/70 hover:border-mg-green/50 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mg-green"
+          >
+            Reset filters
+          </button>
         </div>
       ) : viewMode === "guide" ? (
         <div className="grid gap-2" data-mg-live-tv-guide="true">
