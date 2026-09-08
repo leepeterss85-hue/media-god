@@ -160,6 +160,20 @@ const episodePlaybackRequest = ({
   };
 };
 
+const episodeIdentityForRequest = (request) => {
+  if (!request || !isTvRequest(request)) return "";
+
+  const tmdbId = String(
+    request?.tmdbId ?? request?.tmdb_id ?? request?.id ?? ""
+  ).trim();
+  const season = positiveInt(request?.season ?? request?.rdSeason);
+  const episode = positiveInt(request?.episode ?? request?.rdEpisode);
+
+  return tmdbId && season && episode
+    ? `${tmdbId}:s${season}:e${episode}`
+    : "";
+};
+
 const continueWatchingKeyForRequest = (request) => {
   if (!request) return "";
 
@@ -390,6 +404,13 @@ function PlayerAutomationBridge({ children }) {
 
   const currentRequestRef = useRef(null);
   const advancingRef = useRef(false);
+  const nextEpisodePreloadRef = useRef({
+    currentKey: "",
+    next: null,
+    prepared: null,
+    promise: null,
+  });
+  const lastPreloadCheckRef = useRef(0);
 
   const [autoNext, setAutoNext] = useState(
     readAutoNext
@@ -513,9 +534,18 @@ function PlayerAutomationBridge({ children }) {
             : "Episode finished — loading next episode…"
         );
 
-        const next = await findNextEpisodeRequest(
-          current
-        );
+        const currentKey = episodeIdentityForRequest(current);
+        const preload = nextEpisodePreloadRef.current;
+        const cachedPreload =
+          currentKey && preload.currentKey === currentKey
+            ? preload
+            : null;
+
+        const next =
+          cachedPreload?.next ||
+          (await findNextEpisodeRequest(
+            current
+          ));
 
         if (!next) {
           publishStatus(
@@ -525,8 +555,30 @@ function PlayerAutomationBridge({ children }) {
           return;
         }
 
-        await queueContinueWatching(next);
-        await play(next);
+        const prepared = cachedPreload?.prepared;
+        const preparedFresh =
+          prepared &&
+          Number(prepared?.preparedAt || 0) > Date.now() - 15 * 60 * 1000 &&
+          Array.isArray(prepared?.sources) &&
+          prepared.sources.length > 0;
+
+        const nextRequest = preparedFresh
+          ? {
+              ...next,
+              imdbId: prepared?.imdbId || next?.imdbId || next?.imdb_id || "",
+              sources: prepared.sources,
+            }
+          : next;
+
+        nextEpisodePreloadRef.current = {
+          currentKey: "",
+          next: null,
+          prepared: null,
+          promise: null,
+        };
+
+        await queueContinueWatching(nextRequest);
+        await play(nextRequest);
       } catch (error) {
         console.error(
           "[Media God] Next episode failed",
@@ -816,6 +868,100 @@ function PlayerAutomationBridge({ children }) {
       );
     };
 
+    const onTimeUpdate = (event) => {
+      if (!autoNext || advancingRef.current) {
+        return;
+      }
+
+      const current = currentRequestRef.current;
+      if (!isTvRequest(current)) {
+        return;
+      }
+
+      const target = event?.target;
+      if (
+        typeof HTMLMediaElement !== "undefined" &&
+        !(target instanceof HTMLMediaElement)
+      ) {
+        return;
+      }
+
+      const duration = Number(target?.duration || 0);
+      const currentTime = Number(target?.currentTime || 0);
+
+      if (!Number.isFinite(duration) || duration < 180 || currentTime < 60) {
+        return;
+      }
+
+      const remaining = duration - currentTime;
+      const preloadWindow = Math.min(150, Math.max(75, duration * 0.12));
+
+      if (remaining > preloadWindow) {
+        return;
+      }
+
+      const now = Date.now();
+      if (now - Number(lastPreloadCheckRef.current || 0) < 8000) {
+        return;
+      }
+      lastPreloadCheckRef.current = now;
+
+      const currentKey = episodeIdentityForRequest(current);
+      if (!currentKey) return;
+
+      const existing = nextEpisodePreloadRef.current;
+      if (
+        existing.currentKey === currentKey &&
+        (existing.prepared || existing.promise)
+      ) {
+        return;
+      }
+
+      const preloadPromise = (async () => {
+        try {
+          const next = await findNextEpisodeRequest(current);
+          if (!next) return null;
+
+          const prepared =
+            typeof core.prepare === "function"
+              ? await core.prepare(next)
+              : null;
+
+          if (
+            episodeIdentityForRequest(currentRequestRef.current) !== currentKey
+          ) {
+            return null;
+          }
+
+          nextEpisodePreloadRef.current = {
+            currentKey,
+            next,
+            prepared,
+            promise: null,
+          };
+
+          return prepared;
+        } catch {
+          if (nextEpisodePreloadRef.current.currentKey === currentKey) {
+            nextEpisodePreloadRef.current = {
+              currentKey,
+              next: null,
+              prepared: null,
+              promise: null,
+            };
+          }
+          return null;
+        }
+      })();
+
+      nextEpisodePreloadRef.current = {
+        currentKey,
+        next: null,
+        prepared: null,
+        promise: preloadPromise,
+      };
+    };
+
     const onEnded = (event) => {
       if (!autoNext) {
         return;
@@ -876,6 +1022,12 @@ function PlayerAutomationBridge({ children }) {
     );
 
     document.addEventListener(
+      "timeupdate",
+      onTimeUpdate,
+      true
+    );
+
+    document.addEventListener(
       "ended",
       onEnded,
       true
@@ -910,6 +1062,12 @@ function PlayerAutomationBridge({ children }) {
       window.removeEventListener(
         "mg:remote-play-media",
         onRemotePlayMedia
+      );
+
+      document.removeEventListener(
+        "timeupdate",
+        onTimeUpdate,
+        true
       );
 
       document.removeEventListener(
