@@ -1911,6 +1911,47 @@ export default function MediaPlayerControls({
                     Off
                   </button>
 
+                  <div className="mx-1 my-1.5 rounded-lg border border-white/10 bg-white/5 p-2">
+                    <div className="mb-1.5 flex items-center justify-between gap-2 text-[10px] text-white/55">
+                      <span>Subtitle sync</span>
+                      <span className="font-semibold text-white/80">
+                        {Number(trackPreferences.subtitleOffsetSeconds || 0) === 0
+                          ? "0.0s"
+                          : `${Number(trackPreferences.subtitleOffsetSeconds || 0) > 0 ? "+" : ""}${Number(trackPreferences.subtitleOffsetSeconds || 0).toFixed(1)}s`}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => changeSubtitleOffset(-0.5)}
+                        className="rounded-md bg-white/8 px-2 py-1.5 text-[11px] font-semibold text-white hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green/50"
+                        aria-label="Show subtitles half a second earlier"
+                        title="Earlier by 0.5 seconds"
+                      >
+                        -0.5s
+                      </button>
+                      <button
+                        type="button"
+                        onClick={resetSubtitleOffset}
+                        className="rounded-md bg-white/8 px-2 py-1.5 text-[11px] font-semibold text-white hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green/50"
+                        aria-label="Reset subtitle timing"
+                        title="Reset subtitle timing"
+                      >
+                        Reset
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => changeSubtitleOffset(0.5)}
+                        className="rounded-md bg-white/8 px-2 py-1.5 text-[11px] font-semibold text-white hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green/50"
+                        aria-label="Show subtitles half a second later"
+                        title="Later by 0.5 seconds"
+                      >
+                        +0.5s
+                      </button>
+                    </div>
+                  </div>
+
                   {subtitleTracks.length >
                   0 ? (
                     subtitleTracks.map(
