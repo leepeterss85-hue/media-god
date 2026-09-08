@@ -5,6 +5,7 @@ import {
   nativeFireTvAppInfo,
   openNativeFireTvExternalUrl,
 } from "@/components/mg/nativeFireTvBridge";
+import { base44 } from "@/api/base44Client";
 
 const SESSION_DISMISS_PREFIX = "mg:fire-tv-app-update-dismissed:";
 
@@ -71,6 +72,7 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
   const [visible, setVisible] = useState(false);
   const [opening, setOpening] = useState(false);
   const [showFallback, setShowFallback] = useState(false);
+  const [downloadError, setDownloadError] = useState("");
 
   const checkForUpdate = useCallback(async () => {
     if (!enabled || !looksLikeFireTv()) {
@@ -145,29 +147,59 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
     setVisible(false);
   };
 
-  const install = () => {
-    setOpening(true);
-    setShowFallback(false);
+  const prepareDirectDownload = async () => {
+    const response = await base44.functions.invoke(
+      "getFireTvApkLink",
+      {}
+    );
+    const data = response?.data ?? response ?? {};
+    const directUrl = resolveDownloadUrl(data?.url);
 
-    const opened = openDownload(release.apkUrl, Boolean(nativeInfo));
-
-    if (!opened) {
-      setOpening(false);
-      setShowFallback(true);
-      return;
+    if (!/^https:\/\/(?:[^/]+\.)?githubusercontent\.com\//i.test(directUrl)) {
+      throw new Error(
+        data?.error ||
+          "Media God could not prepare the direct APK download."
+      );
     }
 
-    window.setTimeout(() => {
+    return directUrl;
+  };
+
+  const install = async () => {
+    setOpening(true);
+    setShowFallback(false);
+    setDownloadError("");
+
+    try {
+      /*
+       * Do not send Fire TV to github.com.  Media God's backend first
+       * resolves the short GitHub release link into the final signed
+       * release-assets.githubusercontent.com APK URL.  That endpoint is a
+       * plain Android package download and avoids Silk trying to render the
+       * GitHub website, which older Fire Stick browsers can hang on.
+       */
+      const directUrl = await prepareDirectDownload();
+      const opened = openDownload(directUrl, Boolean(nativeInfo));
+
+      if (!opened) {
+        throw new Error("Fire TV did not open the APK download.");
+      }
+
+      window.setTimeout(() => {
+        setOpening(false);
+        setShowFallback(true);
+      }, 2500);
+    } catch (error) {
       setOpening(false);
+      setDownloadError(
+        error?.message || "The Fire TV download could not be opened."
+      );
       setShowFallback(true);
-    }, 1800);
+    }
   };
 
   const installFromBackup = () => {
-    const opened = openDownload(release.fallbackApkUrl, Boolean(nativeInfo));
-    if (!opened) {
-      setShowFallback(true);
-    }
+    install();
   };
 
   return (
@@ -237,20 +269,26 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
           </button>
         </div>
 
-        {showFallback && release.fallbackApkUrl && (
+        {showFallback && (
           <div className="mt-4 rounded-xl border border-amber-400/25 bg-amber-400/5 p-3">
             <p className="text-sm font-semibold text-amber-200">
               Download did not open?
             </p>
             <p className="mt-1 text-xs leading-5 text-white/60">
-              Try the backup download below. If this Fire Stick still blocks it, open the Downloader app and use the same permanent Media God APK address.
+              Media God now uses the direct APK file server rather than the GitHub website. Retry once; you should see a Fire OS download/install prompt instead of a GitHub page.
             </p>
+            {downloadError && (
+              <p className="mt-2 text-xs text-red-300">
+                {downloadError}
+              </p>
+            )}
             <button
               type="button"
               onClick={installFromBackup}
-              className="mt-3 min-h-11 rounded-lg border border-amber-300/30 bg-black/30 px-4 py-2 text-sm font-semibold text-white outline-none focus:ring-2 focus:ring-mg-green"
+              disabled={opening}
+              className="mt-3 min-h-11 rounded-lg border border-amber-300/30 bg-black/30 px-4 py-2 text-sm font-semibold text-white outline-none disabled:opacity-60 focus:ring-2 focus:ring-mg-green"
             >
-              Try backup download
+              Retry direct download
             </button>
           </div>
         )}
