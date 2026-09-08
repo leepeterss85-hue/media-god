@@ -441,6 +441,7 @@ export default function VideoPlayer({
         ? performance.now()
         : Date.now();
     let successRecorded = false;
+    let failureRecorded = false;
     let stallRecorded = false;
     let attachTimer = null;
     let video = null;
@@ -461,6 +462,8 @@ export default function VideoPlayer({
     };
 
     const onError = () => {
+      if (failureRecorded) return;
+      failureRecorded = true;
       recordLiveTvPlaybackResult(url, {
         success: false,
         startupMs: 0,
@@ -2843,7 +2846,8 @@ export default function VideoPlayer({
         !video.paused &&
         !video.ended &&
         video.readyState >= 2 &&
-        (currentTime > 0.5 || currentTime > previousTime + 0.2);
+        remainingChecks < 4 &&
+        currentTime > previousTime + 0.2;
 
       if (clearlyPlaying) {
         return;
