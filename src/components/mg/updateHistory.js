@@ -1,5 +1,23 @@
 export const UPDATE_HISTORY = [
   {
+    id: "torrent-player-stability-v1",
+    date: "8 September 2026",
+    title: "Torrent playback and Fire TV player stability fixed",
+    summary:
+      "Torrent playback is calmer and more predictable, with background torrent resolving removed and picture-in-picture blocked from interfering with normal Fire TV playback.",
+    changes: [
+      "Stopped Media God from pre-resolving a backup torrent a few seconds after playback begins.",
+      "Backup torrents are now resolved only after a genuine failure or when the user explicitly chooses another source.",
+      "Torrent failover is now sequential with a short pause instead of rapidly jumping through sources.",
+      "Torrent playback now gets up to 28 seconds without progress before stall recovery switches source.",
+      "Automatic torrent recovery now has a 30-second cooldown between source switches.",
+      "Picture-in-picture is explicitly disabled on the main video element and any accidental PiP session is pushed back to inline playback.",
+      "Embedded video providers no longer receive picture-in-picture permission from the Media God player.",
+      "Remote playback is disabled on the main player so Fire TV playback stays on the intended screen.",
+      "Pending delayed torrent failover is cancelled when the player closes or the user changes title/source.",
+    ],
+  },
+  {
     id: "playback-live-tv-v1",
     date: "8 September 2026",
     title: "Playback & Live TV improved",
