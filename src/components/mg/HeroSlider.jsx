@@ -154,6 +154,7 @@ export default function HeroSlider({
 
       <button
         type="button"
+        data-mg-hero-arrow="true"
         onClick={prev}
         className="hidden sm:flex absolute left-3 md:left-4 3xl:left-6 top-1/2 -translate-y-1/2 w-10 h-10 3xl:w-14 3xl:h-14 4xl:w-16 4xl:h-16 rounded-full bg-black/40 backdrop-blur items-center justify-center hover:bg-black/60 text-white focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-mg-green"
         aria-label="Previous featured title"
@@ -163,6 +164,7 @@ export default function HeroSlider({
 
       <button
         type="button"
+        data-mg-hero-arrow="true"
         onClick={next}
         className="hidden sm:flex absolute right-3 md:right-4 3xl:right-6 top-1/2 -translate-y-1/2 w-10 h-10 3xl:w-14 3xl:h-14 4xl:w-16 4xl:h-16 rounded-full bg-black/40 backdrop-blur items-center justify-center hover:bg-black/60 text-white focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-mg-green"
         aria-label="Next featured title"
