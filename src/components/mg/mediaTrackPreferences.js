@@ -155,6 +155,8 @@ const audioCodecKey = (track) => {
     .filter(Boolean)
     .join(" ");
 
+  if (/\b(?:ac-?4|ac4)\b/i.test(text)) return "ac4";
+  if (/\b(?:xhe-?aac|xheaac|usac)\b/i.test(text)) return "xheaac";
   if (/\b(?:truehd|mlp)\b/i.test(text)) return "truehd";
   if (/\b(?:dts(?:-?hd)?|dts:x|dca)\b/i.test(text)) return "dts";
   if (/\b(?:e-?ac-?3|eac3|ec-?3|ddp|dd\+)\b/i.test(text)) return "eac3";
@@ -383,6 +385,8 @@ const audioCodecLabel = (track) => {
     .filter(Boolean)
     .join(" ");
 
+  if (/\b(?:ac-?4|ac4)\b/i.test(text)) return "AC4";
+  if (/\b(?:xhe-?aac|xheaac|usac)\b/i.test(text)) return "xHE-AAC";
   if (/\b(?:truehd|mlp)\b/i.test(text)) return "TrueHD";
   if (/\b(?:dts(?:-?hd)?|dts:x|dca)\b/i.test(text)) return "DTS";
   if (/\b(?:e-?ac-?3|eac3|ec-?3|ddp|dd\+)\b/i.test(text)) return "EAC3";
