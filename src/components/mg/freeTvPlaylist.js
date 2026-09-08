@@ -4,6 +4,7 @@ import {
   recordSourceHealth,
   sourceRegistryEvent,
 } from "@/components/mg/sourceRegistry";
+import { liveTvUrlScore } from "@/components/mg/liveTvPlaybackLearning";
 
 export const LIVE_TV_SOURCES = [
   {
@@ -658,6 +659,10 @@ const sourceScore = (
       channel?.sourcePriority ||
         0
     ) * 12;
+
+  score += Math.round(
+    liveTvUrlScore(channel?.url) * 0.35
+  );
 
   const quality =
     Number(
