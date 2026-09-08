@@ -225,7 +225,13 @@ body.mg-fire-tv-stable .mg-fire-tv-hero button:focus-visible {
  * controls under the hero. */
 body.mg-fire-tv [data-mg-hero-pagination="true"],
 body.mg-fire-tv-mode [data-mg-hero-pagination="true"],
-body.mg-fire-tv-stable [data-mg-hero-pagination="true"] {
+body.mg-fire-tv-stable [data-mg-hero-pagination="true"],
+body.mg-fire-tv [data-mg-hero-arrow="true"],
+body.mg-fire-tv-mode [data-mg-hero-arrow="true"],
+body.mg-fire-tv-stable [data-mg-hero-arrow="true"],
+body.mg-fire-tv [data-mg-row-arrows="true"],
+body.mg-fire-tv-mode [data-mg-row-arrows="true"],
+body.mg-fire-tv-stable [data-mg-row-arrows="true"] {
   display: none !important;
 }
 
