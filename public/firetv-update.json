@@ -4,6 +4,7 @@
   "versionName": "1.0.0",
   "title": "Media God Fire TV",
   "message": "A dedicated Fire TV build is available with TV-specific sizing, D-pad handling and native Media3 playback.",
-  "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
+  "apkUrl": "/api/functions/fireTvDownload",
+  "fallbackApkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/firetv-latest"
 }
