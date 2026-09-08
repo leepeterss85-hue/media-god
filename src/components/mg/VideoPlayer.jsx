@@ -2918,6 +2918,11 @@ export default function VideoPlayer({
         active?.headers ||
         active?.requestHeaders ||
         {},
+      mimeType:
+        rdOverride?.mimeType ||
+        active?.mimeType ||
+        active?.mime_type ||
+        "",
       audioLanguage: trackPreferences.audioLanguage,
       subtitleLanguage: trackPreferences.subtitleLanguage,
       subtitlesEnabled: trackPreferences.subtitlesEnabled,
