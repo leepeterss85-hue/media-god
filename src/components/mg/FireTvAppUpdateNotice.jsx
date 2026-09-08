@@ -29,25 +29,35 @@ const looksLikeFireTv = () => {
   );
 };
 
-const openInBrowser = (url) => {
-  const target = String(url || "").trim();
+const resolveDownloadUrl = (url) => {
+  const value = String(url || "").trim();
+
+  if (!value) {
+    return "";
+  }
+
+  try {
+    return new URL(value, window.location.origin).toString();
+  } catch {
+    return "";
+  }
+};
+
+const openDownload = (url, preferNative = false) => {
+  const target = resolveDownloadUrl(url);
 
   if (!/^https?:\/\//i.test(target)) {
     return false;
   }
 
-  if (openNativeFireTvExternalUrl(target)) {
+  if (preferNative && openNativeFireTvExternalUrl(target)) {
     return true;
   }
 
   try {
-    const opened = window.open(target, "_blank", "noopener,noreferrer");
-    if (opened) return true;
-  } catch {
-    // Fall through to a normal navigation below.
-  }
-
-  try {
+    // Keep legacy Wix/Base44 Fire Stick installs in the same WebView instead
+    // of asking that wrapper to open a second GitHub browser window.  The
+    // Media God backend endpoint responds as an APK attachment.
     window.location.assign(target);
     return true;
   } catch {
@@ -60,6 +70,7 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
   const [nativeInfo, setNativeInfo] = useState(null);
   const [visible, setVisible] = useState(false);
   const [opening, setOpening] = useState(false);
+  const [showFallback, setShowFallback] = useState(false);
 
   const checkForUpdate = useCallback(async () => {
     if (!enabled || !looksLikeFireTv()) {
@@ -81,7 +92,7 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
       const appInfo = nativeFireTvAppInfo();
       const currentCode = Number(appInfo?.versionCode || 0);
 
-      if (!latestCode || !/^https?:\/\//i.test(String(nextRelease?.apkUrl || ""))) {
+      if (!latestCode || !resolveDownloadUrl(nextRelease?.apkUrl)) {
         return;
       }
 
@@ -136,14 +147,27 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
 
   const install = () => {
     setOpening(true);
-    const opened = openInBrowser(release.apkUrl);
+    setShowFallback(false);
+
+    const opened = openDownload(release.apkUrl, Boolean(nativeInfo));
 
     if (!opened) {
       setOpening(false);
+      setShowFallback(true);
       return;
     }
 
-    window.setTimeout(() => setOpening(false), 1200);
+    window.setTimeout(() => {
+      setOpening(false);
+      setShowFallback(true);
+    }, 1800);
+  };
+
+  const installFromBackup = () => {
+    const opened = openDownload(release.fallbackApkUrl, Boolean(nativeInfo));
+    if (!opened) {
+      setShowFallback(true);
+    }
   };
 
   return (
