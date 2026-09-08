@@ -4,7 +4,7 @@ import { Download, Tv, X } from "lucide-react";
 import { nativeFireTvAppInfo } from "@/components/mg/nativeFireTvBridge";
 
 const SESSION_DISMISS_PREFIX = "mg:fire-tv-app-update-dismissed:";
-const DEFAULT_DOWNLOADER_ADDRESS = "tinyurl.com/2aofccoa";
+const DEFAULT_DOWNLOADER_CODE = "4372217";
 
 const looksLikeFireTv = () => {
   if (typeof window === "undefined" || typeof navigator === "undefined") {
@@ -91,8 +91,8 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
 
   const latestCode = Number(release.versionCode || 0);
   const migration = !nativeInfo;
-  const downloaderAddress = String(
-    release.downloaderAddress || DEFAULT_DOWNLOADER_ADDRESS
+  const downloaderCode = String(
+    release.downloaderCode || DEFAULT_DOWNLOADER_CODE
   ).trim();
 
   const dismiss = () => {
@@ -157,18 +157,18 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
 
           <ol className="mt-3 space-y-2 text-sm leading-5 text-white/75">
             <li><span className="font-bold text-white">1.</span> Press Home and open the <span className="font-semibold text-white">Downloader</span> app.</li>
-            <li><span className="font-bold text-white">2.</span> Enter this address:</li>
+            <li><span className="font-bold text-white">2.</span> Enter this Downloader code:</li>
           </ol>
 
           <div
             className="my-3 rounded-xl border-2 border-mg-green bg-black px-4 py-3 text-center font-mono text-lg font-bold tracking-wide text-mg-green"
-            aria-label={`Downloader address ${downloaderAddress}`}
+            aria-label={`Downloader code ${downloaderCode}`}
           >
-            {downloaderAddress}
+            {downloaderCode}
           </div>
 
           <ol start="3" className="space-y-2 text-sm leading-5 text-white/75">
-            <li><span className="font-bold text-white">3.</span> Select <span className="font-semibold text-white">Go</span>. Downloader will fetch the Media God APK.</li>
+            <li><span className="font-bold text-white">3.</span> Select <span className="font-semibold text-white">Go</span>. Downloader will open the Media God APK.</li>
             <li><span className="font-bold text-white">4.</span> Choose <span className="font-semibold text-white">Install</span> when Fire OS asks.</li>
             {migration && (
               <li><span className="font-bold text-white">5.</span> Open <span className="font-semibold text-white">Media God Fire TV</span>. It installs alongside the old app the first time.</li>
