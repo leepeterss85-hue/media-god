@@ -14,6 +14,10 @@ import {
 } from "@/components/mg/updateHistory";
 
 export default function UpdatesView() {
+  const latestReleasedIndex = UPDATE_HISTORY.findIndex(
+    (release) => release.status !== "planned"
+  );
+
   return (
     <section className="w-full flex-1 px-4 pb-10 pt-5 sm:px-6 lg:px-8 3xl:px-10 3xl:pt-8">
       <div className="mx-auto w-full max-w-6xl">
@@ -63,7 +67,7 @@ export default function UpdatesView() {
                           <Sparkles className="h-3 w-3" />
                           Coming next
                         </span>
-                      ) : releaseIndex === 1 ? (
+                      ) : releaseIndex === latestReleasedIndex ? (
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-mg-green px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-black">
                           <Sparkles className="h-3 w-3" />
                           Latest released
