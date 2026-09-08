@@ -1,3 +1,5 @@
+let nativeCodecInfoCache = null;
+
 const bridge = () => {
   if (typeof window === "undefined") {
     return null;
@@ -45,6 +47,10 @@ export const nativeFireTvAppInfo = () => {
 };
 
 export const nativeFireTvCodecInfo = () => {
+  if (nativeCodecInfoCache) {
+    return nativeCodecInfoCache;
+  }
+
   const native = bridge();
 
   if (!native || typeof native.getCodecInfo !== "function") {
@@ -59,10 +65,12 @@ export const nativeFireTvCodecInfo = () => {
       return null;
     }
 
-    return {
+    nativeCodecInfoCache = {
       video: Array.isArray(parsed.video) ? parsed.video.map(String) : [],
       audio: Array.isArray(parsed.audio) ? parsed.audio.map(String) : [],
     };
+
+    return nativeCodecInfoCache;
   } catch {
     return null;
   }
