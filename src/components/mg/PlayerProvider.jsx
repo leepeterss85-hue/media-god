@@ -509,6 +509,12 @@ function PlayerAutomationBridge({ children }) {
 
   const close = useCallback(() => {
     currentRequestRef.current = null;
+    nextEpisodePreloadRef.current = {
+      currentKey: "",
+      next: null,
+      prepared: null,
+      promise: null,
+    };
     publishContext(null);
     core.close();
   }, [core, publishContext]);
@@ -536,10 +542,23 @@ function PlayerAutomationBridge({ children }) {
 
         const currentKey = episodeIdentityForRequest(current);
         const preload = nextEpisodePreloadRef.current;
-        const cachedPreload =
+        let cachedPreload =
           currentKey && preload.currentKey === currentKey
             ? preload
             : null;
+
+        if (cachedPreload?.promise && !cachedPreload?.next) {
+          await Promise.race([
+            cachedPreload.promise,
+            new Promise((resolve) => window.setTimeout(resolve, 1200)),
+          ]);
+
+          const refreshed = nextEpisodePreloadRef.current;
+          cachedPreload =
+            currentKey && refreshed.currentKey === currentKey
+              ? refreshed
+              : cachedPreload;
+        }
 
         const next =
           cachedPreload?.next ||
