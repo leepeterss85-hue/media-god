@@ -1,13 +1,10 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Download, RefreshCw, Tv, X } from "lucide-react";
+import { Download, Tv, X } from "lucide-react";
 
-import {
-  nativeFireTvAppInfo,
-  openNativeFireTvExternalUrl,
-} from "@/components/mg/nativeFireTvBridge";
-import { base44 } from "@/api/base44Client";
+import { nativeFireTvAppInfo } from "@/components/mg/nativeFireTvBridge";
 
 const SESSION_DISMISS_PREFIX = "mg:fire-tv-app-update-dismissed:";
+const DEFAULT_DOWNLOADER_ADDRESS = "tinyurl.com/2aofccoa";
 
 const looksLikeFireTv = () => {
   if (typeof window === "undefined" || typeof navigator === "undefined") {
@@ -30,49 +27,10 @@ const looksLikeFireTv = () => {
   );
 };
 
-const resolveDownloadUrl = (url) => {
-  const value = String(url || "").trim();
-
-  if (!value) {
-    return "";
-  }
-
-  try {
-    return new URL(value, window.location.origin).toString();
-  } catch {
-    return "";
-  }
-};
-
-const openDownload = (url, preferNative = false) => {
-  const target = resolveDownloadUrl(url);
-
-  if (!/^https?:\/\//i.test(target)) {
-    return false;
-  }
-
-  if (preferNative && openNativeFireTvExternalUrl(target)) {
-    return true;
-  }
-
-  try {
-    // Keep legacy Wix/Base44 Fire Stick installs in the same WebView instead
-    // of asking that wrapper to open a second GitHub browser window.  The
-    // Media God backend endpoint responds as an APK attachment.
-    window.location.assign(target);
-    return true;
-  } catch {
-    return false;
-  }
-};
-
 export default function FireTvAppUpdateNotice({ enabled = true }) {
   const [release, setRelease] = useState(null);
   const [nativeInfo, setNativeInfo] = useState(null);
   const [visible, setVisible] = useState(false);
-  const [opening, setOpening] = useState(false);
-  const [showFallback, setShowFallback] = useState(false);
-  const [downloadError, setDownloadError] = useState("");
 
   const checkForUpdate = useCallback(async () => {
     if (!enabled || !looksLikeFireTv()) {
@@ -94,7 +52,7 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
       const appInfo = nativeFireTvAppInfo();
       const currentCode = Number(appInfo?.versionCode || 0);
 
-      if (!latestCode || !resolveDownloadUrl(nextRelease?.apkUrl)) {
+      if (!latestCode) {
         return;
       }
 
@@ -133,6 +91,9 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
 
   const latestCode = Number(release.versionCode || 0);
   const migration = !nativeInfo;
+  const downloaderAddress = String(
+    release.downloaderAddress || DEFAULT_DOWNLOADER_ADDRESS
+  ).trim();
 
   const dismiss = () => {
     try {
@@ -145,61 +106,6 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
     }
 
     setVisible(false);
-  };
-
-  const prepareDirectDownload = async () => {
-    const response = await base44.functions.invoke(
-      "getFireTvApkLink",
-      {}
-    );
-    const data = response?.data ?? response ?? {};
-    const directUrl = resolveDownloadUrl(data?.url);
-
-    if (!/^https:\/\/(?:[^/]+\.)?githubusercontent\.com\//i.test(directUrl)) {
-      throw new Error(
-        data?.error ||
-          "Media God could not prepare the direct APK download."
-      );
-    }
-
-    return directUrl;
-  };
-
-  const install = async () => {
-    setOpening(true);
-    setShowFallback(false);
-    setDownloadError("");
-
-    try {
-      /*
-       * Do not send Fire TV to github.com.  Media God's backend first
-       * resolves the short GitHub release link into the final signed
-       * release-assets.githubusercontent.com APK URL.  That endpoint is a
-       * plain Android package download and avoids Silk trying to render the
-       * GitHub website, which older Fire Stick browsers can hang on.
-       */
-      const directUrl = await prepareDirectDownload();
-      const opened = openDownload(directUrl, Boolean(nativeInfo));
-
-      if (!opened) {
-        throw new Error("Fire TV did not open the APK download.");
-      }
-
-      window.setTimeout(() => {
-        setOpening(false);
-        setShowFallback(true);
-      }, 2500);
-    } catch (error) {
-      setOpening(false);
-      setDownloadError(
-        error?.message || "The Fire TV download could not be opened."
-      );
-      setShowFallback(true);
-    }
-  };
-
-  const installFromBackup = () => {
-    install();
   };
 
   return (
@@ -222,14 +128,13 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
             </p>
             <h2 className="mt-1 text-xl font-bold text-white">
               {migration
-                ? "Dedicated Media God Fire TV app available"
+                ? "Install the dedicated Media God Fire TV app"
                 : `Media God Fire TV ${release.versionName || "update"} available`}
             </h2>
             <p className="mt-2 text-sm leading-6 text-white/70">
               {migration
-                ? "This older Wix/Base44 APK cannot be replaced in place because it has a different Android signing key. The new Fire TV version will install alongside it the first time, then becomes the Fire Stick version to use."
-                : release.message ||
-                  "A newer Fire TV build is ready. Download it and Android will open the normal install/update screen."}
+                ? "Silk does not support this APK download, so the first Fire TV install uses Downloader instead. This is a one-time move from the older Wix/Base44 app to the dedicated TV app."
+                : "A newer Fire TV build is available. Use Downloader to install the update."}
             </p>
           </div>
 
@@ -244,57 +149,50 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
           </button>
         </div>
 
-        <div className="mt-5 flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={install}
-            disabled={opening}
-            autoFocus
-            className="flex min-h-12 items-center gap-2 rounded-xl bg-mg-green px-5 py-3 font-bold text-black outline-none transition disabled:opacity-60 focus:ring-4 focus:ring-mg-green/40"
-          >
-            {opening ? (
-              <RefreshCw className="h-5 w-5 animate-spin" />
-            ) : (
-              <Download className="h-5 w-5" />
-            )}
-            {migration ? "Install Fire TV version" : "Download update"}
-          </button>
+        <div className="mt-5 rounded-xl border border-mg-green/30 bg-black/25 p-4">
+          <div className="flex items-center gap-2 text-sm font-bold text-white">
+            <Download className="h-5 w-5 text-mg-green" />
+            Install with Downloader
+          </div>
 
+          <ol className="mt-3 space-y-2 text-sm leading-5 text-white/75">
+            <li><span className="font-bold text-white">1.</span> Press Home and open the <span className="font-semibold text-white">Downloader</span> app.</li>
+            <li><span className="font-bold text-white">2.</span> Enter this address:</li>
+          </ol>
+
+          <div
+            className="my-3 rounded-xl border-2 border-mg-green bg-black px-4 py-3 text-center font-mono text-lg font-bold tracking-wide text-mg-green"
+            aria-label={`Downloader address ${downloaderAddress}`}
+          >
+            {downloaderAddress}
+          </div>
+
+          <ol start="3" className="space-y-2 text-sm leading-5 text-white/75">
+            <li><span className="font-bold text-white">3.</span> Select <span className="font-semibold text-white">Go</span>. Downloader will fetch the Media God APK.</li>
+            <li><span className="font-bold text-white">4.</span> Choose <span className="font-semibold text-white">Install</span> when Fire OS asks.</li>
+            {migration && (
+              <li><span className="font-bold text-white">5.</span> Open <span className="font-semibold text-white">Media God Fire TV</span>. It installs alongside the old app the first time.</li>
+            )}
+          </ol>
+
+          <p className="mt-3 text-xs leading-5 text-white/50">
+            If Downloader is not installed, search for “Downloader” in the Amazon Appstore first. If Fire OS asks for permission, allow Downloader to install unknown apps.
+          </p>
+        </div>
+
+        <div className="mt-5 flex justify-end">
           <button
             type="button"
             onClick={dismiss}
-            className="min-h-12 rounded-xl border border-white/15 bg-black/25 px-5 py-3 font-semibold text-white outline-none hover:bg-white/5 focus:ring-2 focus:ring-mg-green"
+            autoFocus
+            className="min-h-12 rounded-xl border border-white/15 bg-black/25 px-5 py-3 font-semibold text-white outline-none hover:bg-white/5 focus:ring-4 focus:ring-mg-green/40"
           >
             Later
           </button>
         </div>
 
-        {showFallback && (
-          <div className="mt-4 rounded-xl border border-amber-400/25 bg-amber-400/5 p-3">
-            <p className="text-sm font-semibold text-amber-200">
-              Download did not open?
-            </p>
-            <p className="mt-1 text-xs leading-5 text-white/60">
-              Media God now uses the direct APK file server rather than the GitHub website. Retry once; you should see a Fire OS download/install prompt instead of a GitHub page.
-            </p>
-            {downloadError && (
-              <p className="mt-2 text-xs text-red-300">
-                {downloadError}
-              </p>
-            )}
-            <button
-              type="button"
-              onClick={installFromBackup}
-              disabled={opening}
-              className="mt-3 min-h-11 rounded-lg border border-amber-300/30 bg-black/30 px-4 py-2 text-sm font-semibold text-white outline-none disabled:opacity-60 focus:ring-2 focus:ring-mg-green"
-            >
-              Retry direct download
-            </button>
-          </div>
-        )}
-
         <p className="mt-4 text-xs text-white/45">
-          Android/Fire OS will always ask you to confirm an APK installation. Media God does not bypass that security screen.
+          No Silk browser download is used. The APK remains hosted from Media God’s permanent Fire TV release.
         </p>
       </div>
     </div>
