@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 5,
-  "versionName": "1.4.0",
+  "versionCode": 6,
+  "versionName": "1.4.1",
   "title": "Media God Fire TV",
-  "message": "Fire TV 1.4 fixes account sign-in by using the real Media God app, adds the same Google, Facebook, Microsoft, Apple and email/password account paths, and restores cross-device account preferences.",
+  "message": "Fire TV 1.4.1 fixes Live TV native-player handoff loops and permanent loading spinners, preserves native playback return events, and falls back safely if the native player cannot open.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4372217",
   "downloaderAddress": "tinyurl.com/2aofccoa",
