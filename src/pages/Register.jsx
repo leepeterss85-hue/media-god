@@ -18,6 +18,7 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [socialLoading, setSocialLoading] = useState(null);
   const [showOtp, setShowOtp] = useState(false);
   const [otpCode, setOtpCode] = useState("");
 
@@ -68,8 +69,19 @@ export default function Register() {
     }
   };
 
-  const handleGoogle = () => {
-    base44.auth.loginWithProvider("google", safeReturnTo());
+  const handleSocial = (provider) => {
+    setError("");
+    setSocialLoading(provider);
+
+    try {
+      base44.auth.loginWithProvider(
+        provider,
+        mediaGodAuthReturnUrl(safeReturnTo())
+      );
+    } catch (err) {
+      setSocialLoading(null);
+      setError(err?.message || `Could not start ${provider} sign-up`);
+    }
   };
 
   if (showOtp) {
