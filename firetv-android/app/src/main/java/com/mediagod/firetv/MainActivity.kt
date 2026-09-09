@@ -25,7 +25,9 @@ class MainActivity : Activity() {
     }
 
     private lateinit var webView: WebView
-    private var playerOpen = false
+    private val nativePlayerLock = Any()
+    @Volatile private var playerOpen = false
+    @Volatile private var activeNativeRequestId = ""
     private var pendingNativeResultScript: String? = null
 
     @SuppressLint("SetJavaScriptEnabled", "JavascriptInterface")
@@ -169,18 +171,39 @@ class MainActivity : Activity() {
             return
         }
 
-        playerOpen = false
+        val expectedRequestId = synchronized(nativePlayerLock) {
+            val value = activeNativeRequestId
+            playerOpen = false
+            activeNativeRequestId = ""
+            value
+        }
+
+        val returnedRequestId =
+            data?.getStringExtra(PlayerActivity.EXTRA_REQUEST_ID).orEmpty().ifBlank {
+                expectedRequestId
+            }
 
         val result = JSONObject().apply {
-            put("requestId", data?.getStringExtra(PlayerActivity.EXTRA_REQUEST_ID).orEmpty())
+            put("requestId", returnedRequestId)
             put("reason", data?.getStringExtra(PlayerActivity.EXTRA_REASON) ?: "back")
             put("positionMs", data?.getLongExtra(PlayerActivity.EXTRA_POSITION_MS, 0L) ?: 0L)
             put("durationMs", data?.getLongExtra(PlayerActivity.EXTRA_DURATION_MS, 0L) ?: 0L)
             put("message", data?.getStringExtra(PlayerActivity.EXTRA_MESSAGE).orEmpty())
         }
 
-        pendingNativeResultScript =
+        val resultScript =
             "window.dispatchEvent(new CustomEvent('mg:native-player-result',{detail:JSON.parse(${JSONObject.quote(result.toString())})}));"
+
+        /*
+         * Fire OS devices do not all order onActivityResult/onResume in the
+         * same way. Dispatch now and also keep the same event queued for
+         * onResume. If the immediate dispatch succeeds, the duplicate resume
+         * event is harmless because the web player has already cleared the
+         * matching request id. If it cannot run while the WebView is paused,
+         * the queued copy guarantees delivery when Media God becomes active.
+         */
+        pendingNativeResultScript = resultScript
+        dispatchJavascript(resultScript)
     }
 
     private fun enterImmersiveMode() {
@@ -318,13 +341,33 @@ class MainActivity : Activity() {
                 return "error"
             }
 
-            runOnUiThread {
+            val requestId = payload.optString("requestId").trim().ifBlank {
+                "native-${System.currentTimeMillis()}"
+            }
+            payload.put("requestId", requestId)
+
+            val accepted = synchronized(nativePlayerLock) {
                 if (playerOpen) {
-                    return@runOnUiThread
+                    false
+                } else {
+                    playerOpen = true
+                    activeNativeRequestId = requestId
+                    true
                 }
+            }
 
-                playerOpen = true
+            /*
+             * Do not tell JavaScript that playback started when an earlier
+             * native activity is still considered open. The old code checked
+             * playerOpen only later on the UI thread, returned "true"
+             * immediately, and left the web player spinning forever because
+             * no Activity was actually launched for the new request.
+             */
+            if (!accepted) {
+                return "busy"
+            }
 
+            runOnUiThread {
                 val intent = Intent(this@MainActivity, PlayerActivity::class.java).apply {
                     putExtra(PlayerActivity.EXTRA_PAYLOAD, payload.toString())
                 }
@@ -333,10 +376,15 @@ class MainActivity : Activity() {
                     @Suppress("DEPRECATION")
                     startActivityForResult(intent, REQUEST_NATIVE_PLAYER)
                 } catch (error: Throwable) {
-                    playerOpen = false
+                    synchronized(nativePlayerLock) {
+                        playerOpen = false
+                        if (activeNativeRequestId == requestId) {
+                            activeNativeRequestId = ""
+                        }
+                    }
 
                     val result = JSONObject().apply {
-                        put("requestId", payload.optString("requestId"))
+                        put("requestId", requestId)
                         put("reason", "error")
                         put("positionMs", 0)
                         put("durationMs", 0)
