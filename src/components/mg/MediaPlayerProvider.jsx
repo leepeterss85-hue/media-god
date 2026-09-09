@@ -2084,6 +2084,12 @@ export function PlayerProvider({
 
           imdbId,
 
+          imdb_id:
+            imdbId,
+
+          rdImdbId:
+            imdbId,
+
           title:
             request?.title ||
             "Video",
