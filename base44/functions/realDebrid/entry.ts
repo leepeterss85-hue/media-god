@@ -1326,7 +1326,7 @@ async function addMagnet({
    * present in the user's library.
    */
   const addRes =
-    await fetch(
+    await rdFetch(
       `${RD_BASE}/torrents/addMagnet`,
       {
         method: "POST",
@@ -1336,20 +1336,27 @@ async function addMagnet({
           `magnet=${encodeURIComponent(
             magnet
           )}`,
+      },
+      {
+        attempts: 3,
       }
     );
 
   if (!addRes.ok) {
-    const text =
-      await addRes.text();
-
-    return Response.json(
-      {
-        error:
-          `addMagnet failed: ${addRes.status} ${text}`,
-      },
-      { status: 502 }
-    );
+    return Response.json({
+      status: "failed",
+      error:
+        await rdFailureMessage(
+          addRes,
+          "Real-Debrid could not add this torrent"
+        ),
+      upstream_status:
+        addRes.status,
+      retryable:
+        isRetryableRdStatus(
+          addRes.status
+        ),
+    });
   }
 
   const addData =
@@ -1373,16 +1380,40 @@ async function addMagnet({
   /*
    * Select all files first.
    */
-  await fetch(
-    `${RD_BASE}/torrents/selectFiles/${torrentId}`,
-    {
-      method: "POST",
-      headers:
-        formHeaders,
-      body:
-        "files=all",
-    }
-  );
+  const selectAllRes =
+    await rdFetch(
+      `${RD_BASE}/torrents/selectFiles/${torrentId}`,
+      {
+        method: "POST",
+        headers:
+          formHeaders,
+        body:
+          "files=all",
+      },
+      {
+        attempts: 3,
+      }
+    );
+
+  if (
+    !selectAllRes.ok &&
+    selectAllRes.status !== 202
+  ) {
+    return Response.json({
+      status: "failed",
+      error:
+        await rdFailureMessage(
+          selectAllRes,
+          "Real-Debrid could not select the torrent files"
+        ),
+      upstream_status:
+        selectAllRes.status,
+      retryable:
+        isRetryableRdStatus(
+          selectAllRes.status
+        ),
+    });
+  }
 
   const metadata = {
     title:
@@ -1494,13 +1525,14 @@ async function addMagnet({
     );
 
   if (stream.error) {
-    return Response.json(
-      {
-        error:
-          stream.error,
-      },
-      { status: 502 }
-    );
+    return Response.json({
+      status: "failed",
+      error:
+        stream.error,
+      error_code:
+        stream.error_code ||
+        "RD_RESOLVE_FAILED",
+    });
   }
 
   return Response.json({
