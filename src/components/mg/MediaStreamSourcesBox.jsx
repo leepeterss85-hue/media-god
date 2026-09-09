@@ -402,30 +402,32 @@ export default function StreamSourcesBox({
     let cancelled =
       false;
 
-    findChannelsByTitle(
-      title
-    )
-      .then(
-        (matches) => {
-          if (
-            !cancelled
-          ) {
-            setLiveMatches(
-              matches ||
-              []
-            );
-          }
-        }
-      )
-      .catch(() => {
-        if (
-          !cancelled
-        ) {
-          setLiveMatches(
-            []
-          );
-        }
-      });
+    try {
+      const matches =
+        findChannelsByTitle(
+          title
+        );
+
+      if (
+        !cancelled
+      ) {
+        setLiveMatches(
+          Array.isArray(
+            matches
+          )
+            ? matches
+            : []
+        );
+      }
+    } catch {
+      if (
+        !cancelled
+      ) {
+        setLiveMatches(
+          []
+        );
+      }
+    }
 
     return () => {
       cancelled =
