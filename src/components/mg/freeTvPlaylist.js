@@ -35,6 +35,30 @@ export const LIVE_TV_SOURCES = [
     category: "United Kingdom",
   },
   {
+    id: "tubi-us-buddy",
+    name: "Tubi US",
+    url: "https://raw.githubusercontent.com/BuddyChewChew/tubi-scraper/refs/heads/main/tubi_playlist.m3u",
+    priority: 98,
+    category: "United States",
+    country: "US",
+  },
+  {
+    id: "xumo-us-buddy",
+    name: "Xumo US",
+    url: "https://raw.githubusercontent.com/BuddyChewChew/xumo-playlist-generator/refs/heads/main/playlists/xumo_playlist.m3u",
+    priority: 97,
+    category: "United States",
+    country: "US",
+  },
+  {
+    id: "plex-us-buddy",
+    name: "Plex US",
+    url: "https://raw.githubusercontent.com/BuddyChewChew/app-m3u-generator/main/playlists/plex_us.m3u",
+    priority: 94,
+    category: "United States",
+    country: "US",
+  },
+  {
     id: "samsung-tv-plus-community",
     name: "Samsung TV Plus Community",
     url: "https://gist.githubusercontent.com/cmj/b978c6f0974b703ddaec3396d5e866f8/raw/tvplus.m3u8",
@@ -432,8 +456,98 @@ const normaliseChannelNameForKey = (value) =>
       /\b(?:2160p?|4k|uhd|1080p?|fhd|720p?|hd|576p?|480p?|sd)\b/gi,
       " "
     )
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9.!+]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+
+const FAST_CHANNEL_CANONICAL_IDS = new Map([
+  ["acc digital network", "acc-digital-network"],
+  ["accdn", "acc-digital-network"],
+  ["all reality we tv", "all-reality-we-tv"],
+  ["all reality by we tv", "all-reality-we-tv"],
+  ["all weddings we tv", "all-weddings-we-tv"],
+  ["all weddings by we tv", "all-weddings-we-tv"],
+  ["ax men", "ax-men"],
+  ["bounce xl", "bounce-xl"],
+  ["buzzr", "buzzr"],
+  ["crime 360", "crime-360"],
+  ["a and e crime 360", "crime-360"],
+  ["a.e crime 360", "crime-360"],
+  ["crime thrillher", "crime-thrillher"],
+  ["degrassi", "degrassi"],
+  ["fubo sports network", "fubo-sports-network"],
+  ["gravitas movies", "gravitas-movies"],
+  ["ion", "ion"],
+  ["ion plus", "ion-plus"],
+  ["inwild", "inwild"],
+  ["inwonder", "inwonder"],
+  ["lifetime movie favorites", "lifetime-movie-favorites"],
+  ["movie favorites by lifetime", "lifetime-movie-favorites"],
+  ["midnight pulp", "midnight-pulp"],
+  ["outdoor america", "outdoor-america"],
+  ["portlandia", "portlandia"],
+  ["powernation", "powernation"],
+  ["pursuit up", "pursuit-up"],
+  ["scripps news", "scripps-news"],
+  ["shout! factory", "shout-factory"],
+  ["shout! factory tv", "shout-factory"],
+  ["shout! tv", "shout-factory"],
+  ["stingray naturescape", "stingray-naturescape"],
+  ["the design network", "the-design-network"],
+  ["the walking dead universe", "walking-dead-universe"],
+  ["weatherspy", "weatherspy"],
+  ["weather spy", "weatherspy"],
+  ["world poker tour", "world-poker-tour"],
+]);
+
+const STALE_SOURCE_CHANNEL_NAMES = {
+  "samsung-tv-plus-community": new Set([
+    "acc digital network",
+    "all reality we tv",
+    "all weddings we tv",
+    "ax men",
+    "bounce xl",
+    "buzzr",
+    "crime 360",
+    "crime thrillher",
+    "degrassi",
+    "ftf",
+    "gravitas movies",
+    "ion",
+    "ion plus",
+    "magellan tv now",
+    "mavtv select",
+    "midnight pulp",
+    "movie favorites by lifetime",
+    "outdoor america",
+    "pocket.watch",
+    "portlandia",
+    "powernation",
+    "pursuit up",
+    "scripps news",
+    "shout! factory",
+    "sony canal comedias",
+    "stingray naturescape",
+    "the design network",
+    "the preview channel",
+    "the walking dead universe",
+    "weatherspy",
+    "world poker tour",
+    "fubo sports network",
+  ]),
+  "samsung-tv-plus-uk-kilirushi": new Set([
+    "comedy channel",
+    "inwild",
+    "inwonder",
+  ]),
+};
+
+const isKnownStaleSourceChannel = (channel) => {
+  const staleNames = STALE_SOURCE_CHANNEL_NAMES[channel?.sourceId];
+  if (!staleNames) return false;
+  return staleNames.has(normaliseChannelNameForKey(channel?.name));
+};
 
 const classifyUrl = (url) => {
   const value = String(url || "").trim().toLowerCase();
@@ -599,7 +713,10 @@ export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
       const name = cleanChannelName(rawName) || "Unknown";
       const logo = attr(line, "tvg-logo");
       const tvgId = attr(line, "tvg-id");
-      const country = attr(line, "tvg-country") || countryFromTvgId(tvgId);
+      const country =
+        attr(line, "tvg-country") ||
+        countryFromTvgId(tvgId) ||
+        String(source?.country || "").trim().toUpperCase();
       const group = attr(line, "group-title") || source.category || country || "Other";
       const channelNumber = attr(line, "tvg-chno");
       const quality = qualityFromText(`${rawName} ${line}`);
@@ -693,7 +810,9 @@ export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
     current.score = sourceScore(current);
     current.id = current.id || `${source.id}:${current.country || current.group}:${current.name}:${url}`;
 
-    if (url) channels.push(current);
+    if (url && !isKnownStaleSourceChannel(current)) {
+      channels.push(current);
+    }
     current = null;
   }
 
@@ -708,6 +827,11 @@ const dedupeKey = (channel) => {
 
   const name = normaliseChannelNameForKey(channel?.name);
   const tvgId = String(channel?.tvgId || "").trim().toLowerCase();
+
+  const fastCanonicalId = FAST_CHANNEL_CANONICAL_IDS.get(name);
+  if (fastCanonicalId) {
+    return `fast:${fastCanonicalId}`;
+  }
 
   // Samsung TV Plus uses its own opaque channel id for Sky Mix. Canonicalise
   // that single known id for merging only, so the Samsung feed becomes a real
