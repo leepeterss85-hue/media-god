@@ -1,4 +1,4 @@
-package com.mediagod.firetv
+package com.mediagod.mobile
 
 import android.app.Activity
 import android.content.Intent
@@ -196,7 +196,7 @@ class PlayerActivity : Activity() {
 
         val dataSourceFactory = DefaultHttpDataSource.Factory()
             .setAllowCrossProtocolRedirects(true)
-            .setUserAgent("MediaGodFireTV/1.0")
+            .setUserAgent("MediaGodMobile/1.0")
 
         if (headers.isNotEmpty()) {
             dataSourceFactory.setDefaultRequestProperties(headers)
@@ -206,8 +206,8 @@ class PlayerActivity : Activity() {
             .setDataSourceFactory(dataSourceFactory)
 
         /*
-         * Fire TV models expose different hardware decoders and HDMI
-         * passthrough combinations. Let Media3 fall back to another decoder
+         * Android phones and tablets expose a wide mix of hardware decoders.
+         * Let Media3 fall back to another decoder when the preferred decoder
          * when the preferred one rejects a stream instead of immediately
          * returning the source to the web player. This materially helps HEVC,
          * AV1, VP9, MPEG-2, AC3/EAC3 and model-dependent DTS playback.
@@ -268,7 +268,7 @@ class PlayerActivity : Activity() {
 
                 finishWithResult(
                     "error",
-                    error.message ?: "Native Fire TV playback failed"
+                    error.message ?: "Native Android playback failed"
                 )
             }
         })
