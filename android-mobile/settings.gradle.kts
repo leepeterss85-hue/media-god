@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "MediaGodFireTV"
+rootProject.name = "MediaGodMobile"
 include(":app")
