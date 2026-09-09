@@ -507,13 +507,14 @@ export default async function (req) {
         );
 
       if (stream.error) {
-        return Response.json(
-          {
-            error:
-              stream.error,
-          },
-          { status: 502 }
-        );
+        return Response.json({
+          status: "failed",
+          error:
+            stream.error,
+          error_code:
+            stream.error_code ||
+            "RD_TORRENT_INFO_FAILED",
+        });
       }
 
       return Response.json({
@@ -631,7 +632,7 @@ export default async function (req) {
       }
 
       const unRes =
-        await fetch(
+        await rdFetch(
           `${RD_BASE}/unrestrict/link`,
           {
             method: "POST",
@@ -641,20 +642,23 @@ export default async function (req) {
               `link=${encodeURIComponent(
                 link
               )}`,
+          },
+          {
+            attempts: 3,
           }
         );
 
       if (!unRes.ok) {
-        const text =
-          await unRes.text();
-
-        return Response.json(
-          {
-            error:
-              `unrestrict failed: ${unRes.status} ${text}`,
-          },
-          { status: 502 }
-        );
+        return Response.json({
+          status: "failed",
+          error:
+            await rdFailureMessage(
+              unRes,
+              "Real-Debrid could not unrestrict this file"
+            ),
+          error_code:
+            `RD_UNRESTRICT_${unRes.status}`,
+        });
       }
 
       const unData =
@@ -674,19 +678,17 @@ export default async function (req) {
         });
 
       if (playable.error) {
-        return Response.json(
-          {
-            error:
-              playable.error,
-            error_code:
-              playable.error_code ||
-              "AUDIO_RESCUE_FAILED",
-            audio_rescue:
-              playable.audio_rescue ||
-              null,
-          },
-          { status: 502 }
-        );
+        return Response.json({
+          status: "failed",
+          error:
+            playable.error,
+          error_code:
+            playable.error_code ||
+            "AUDIO_RESCUE_FAILED",
+          audio_rescue:
+            playable.audio_rescue ||
+            null,
+        });
       }
 
       return Response.json({
@@ -1368,13 +1370,13 @@ async function addMagnet({
     );
 
   if (!torrentId) {
-    return Response.json(
-      {
-        error:
-          "Real-Debrid did not return a torrent id.",
-      },
-      { status: 502 }
-    );
+    return Response.json({
+      status: "failed",
+      error:
+        "Real-Debrid did not return a torrent id.",
+      error_code:
+        "RD_NO_TORRENT_ID",
+    });
   }
 
   /*
