@@ -3954,7 +3954,7 @@ export default function VideoPlayer({
                       ? "bg-red-500/15 text-red-300"
                       : playerUiStatus === "Ready" || playerUiStatus === "Live"
                         ? "bg-mg-green/15 text-mg-green"
-                        : "bg-white/8 text-white/60"
+                        : "bg-white/10 text-white/60"
                   }`}
                 >
                   <span className={`h-1.5 w-1.5 rounded-full ${
@@ -4416,8 +4416,29 @@ export default function VideoPlayer({
 
         <div
           data-mg-player-options-panel="true"
-          className="mt-2 flex items-end gap-2"
+          className="mt-2 flex flex-wrap items-end gap-2 rounded-xl border border-white/10 bg-black/65 p-2.5 shadow-lg backdrop-blur-md sm:p-3"
         >
+          <div className="flex w-full min-w-0 items-center justify-between gap-2 border-b border-white/5 pb-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-mg-green/15 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-mg-green">
+                <span className="h-1.5 w-1.5 rounded-full bg-mg-green" />
+                Current
+              </span>
+
+              <span
+                className="truncate text-xs font-medium text-white/75 sm:text-sm"
+                title={sourceDisplayLabel(active, activeIdx)}
+              >
+                {activeSourceLabel}
+              </span>
+            </div>
+
+            {selectableSourceCount > 0 && (
+              <span className="shrink-0 text-[10px] font-medium text-white/35 sm:text-xs">
+                {selectableSourceCount} {selectableSourceCount === 1 ? "source" : "sources"}
+              </span>
+            )}
+          </div>
           {sources.length > 1 && (
             <label className="w-[7.5rem] shrink-0 sm:w-[9rem]">
               <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-white/50">
