@@ -1,5 +1,20 @@
 export const UPDATE_HISTORY = [
   {
+    id: "bbc-regions-itv-live-repair-v1",
+    date: "9 September 2026",
+    title: "BBC regional channels grouped and ITV restored",
+    summary:
+      "BBC One/Two regional variants now sit behind the main BBC rows as backups, while ITV1, ITV2, ITV3, ITV4 and ITVBe remain visible with correct UK availability and ITVX fallback.",
+    changes: [
+      "Merged BBC One Scotland, Northern Ireland, Wales, London and English regional feeds into the main BBC One source group instead of showing them as separate duplicates.",
+      "Merged BBC Two Northern Ireland and Wales variants into the main BBC Two source group.",
+      "Enabled the existing dash.js playback path for BBC MPEG-DASH regional streams instead of rejecting .mpd feeds before the player sees them.",
+      "Restored visible ITV1, ITV2, ITV3, ITV4 and ITVBe rows using the official ITVX live pages as the safe fallback.",
+      "Kept existing direct ITV playlist candidates as backups so the native Fire TV player can still try compatible direct streams before falling back to ITVX.",
+      "Corrected UK geo-state merging so BBC/ITV rows are not labelled Geo Restricted when Media God is operating in its GB region.",
+    ],
+  },
+  {
     id: "gigoplast-public-source-v1",
     date: "8 September 2026",
     title: "Additional worldwide public TV backups added",
