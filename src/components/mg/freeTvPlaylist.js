@@ -1,5 +1,3 @@
-import { readLiveTvSettings } from "@/components/mg/liveTvPreferences";
-
 export const LIVE_TV_SOURCES = [
   {
     id: "free-tv",
@@ -347,7 +345,6 @@ export const PUBLIC_DIRECT_CHANNELS = [
 export function clearFreeTvCache() {
   cache = null;
   cacheAt = 0;
-  cacheRegionalLock = null;
   inflight = null;
 }
 
@@ -372,7 +369,6 @@ const CACHE_MS = 15 * 60 * 1000;
 
 let cache = null;
 let cacheAt = 0;
-let cacheRegionalLock = null;
 let inflight = null;
 
 const attr = (line, name) => {
@@ -477,19 +473,6 @@ const looksLikeUkFeed = (channel) => {
   );
 };
 
-const regionalAvailability = (channel, regionalLock) => {
-  const restricted = Boolean(channel?.geoRestricted);
-  const availableInConfiguredRegion =
-    LIVE_TV_REGION === "GB" && looksLikeUkFeed(channel);
-
-  return {
-    geoAvailableHere:
-      restricted && regionalLock && availableInConfiguredRegion,
-    geoBlocked:
-      restricted && regionalLock && !availableInConfiguredRegion,
-  };
-};
-
 const browserCompatibility = (channel) => {
   const url = String(channel?.url || "").trim();
   const kind = channel?.kind || classifyUrl(url);
@@ -560,7 +543,6 @@ const parseExtHttp = (line) => {
 export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
   const lines = String(text || "").split(/\r?\n/);
   const channels = [];
-  const regionalLock = Boolean(readLiveTvSettings().regionalLock);
   let current = null;
 
   for (const rawLine of lines) {
@@ -643,9 +625,11 @@ export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
     current.mixedContent = false; // Handled by worker proxy wrapper
     current.requiresHeaders = Boolean(current.referrer || current.userAgent);
 
-    const geoState = regionalAvailability(current, regionalLock);
-    current.geoAvailableHere = geoState.geoAvailableHere;
-    current.geoBlocked = geoState.geoBlocked;
+    current.geoAvailableHere =
+      current.geoRestricted &&
+      LIVE_TV_REGION === "GB" &&
+      looksLikeUkFeed(current);
+    current.geoBlocked = false;
 
     current.tags = inferTags({
       sourceCategory: current.sourceCategory,
@@ -747,18 +731,9 @@ const dedupeMergedChannels = (channels) => {
 export async function getFreeTvChannels(options = {}) {
   const { force = false } = options;
   const now = Date.now();
-  const regionalLock = Boolean(readLiveTvSettings().regionalLock);
 
-  if (
-    !force &&
-    cache &&
-    cacheRegionalLock === regionalLock &&
-    now - cacheAt < CACHE_MS
-  ) {
-    return cache;
-  }
-
-  if (!force && inflight && cacheRegionalLock === regionalLock) return inflight;
+  if (!force && cache && now - cacheAt < CACHE_MS) return cache;
+  if (!force && inflight) return inflight;
 
   inflight = (async () => {
     const sourceStatus = [];
@@ -810,7 +785,6 @@ export async function getFreeTvChannels(options = {}) {
     const payload = { channels, sourceStatus, rawCount, browserRejectedCount, region: LIVE_TV_REGION, fetchedAt: now };
     cache = payload;
     cacheAt = now;
-    cacheRegionalLock = regionalLock;
     inflight = null;
     return payload;
   })().catch((error) => {
