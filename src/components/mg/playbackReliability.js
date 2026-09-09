@@ -3,12 +3,12 @@ import {
   getPlaybackDeviceProfile,
 } from "@/components/mg/mediaCompatibility";
 
-export const PLAYBACK_RELIABILITY_KEY = "mg:playback-reliability-v1";
+export const PLAYBACK_RELIABILITY_KEY = "mg:playback-reliability-v2";
 
-const FAILURE_TTL = 12 * 60 * 60 * 1000;
-const NO_SOUND_TTL = 7 * 24 * 60 * 60 * 1000;
+const FAILURE_TTL = 20 * 60 * 1000;
+const NO_SOUND_TTL = 6 * 60 * 60 * 1000;
 const GOOD_TTL = 30 * 24 * 60 * 60 * 1000;
-const BUFFER_TTL = 48 * 60 * 60 * 1000;
+const BUFFER_TTL = 6 * 60 * 60 * 1000;
 const START_TTL = 30 * 24 * 60 * 60 * 1000;
 
 export const normaliseReliabilityLabel = (value) =>
@@ -189,15 +189,15 @@ const scoreRecord = (record) => {
   let score = 0;
 
   if (fresh(record.lastNoSound, NO_SOUND_TTL)) {
-    score -= 500000 + Math.min(200000, Number(record.noSound || 0) * 25000);
+    score -= 18000 + Math.min(12000, Number(record.noSound || 0) * 3000);
   }
 
   if (fresh(record.lastFailure, FAILURE_TTL)) {
-    score -= 220000 + Math.min(150000, Number(record.failures || 0) * 18000);
+    score -= 5000 + Math.min(5000, Number(record.failures || 0) * 1000);
   }
 
   if (fresh(record.lastBuffer, BUFFER_TTL)) {
-    score -= Math.min(36000, Number(record.buffers || 0) * 4500);
+    score -= Math.min(6000, Number(record.buffers || 0) * 1500);
   }
 
   if (fresh(record.lastStartAt, START_TTL)) {
@@ -226,8 +226,8 @@ const deviceAndTraitAdjustment = (label, profile) => {
     .filter(Number.isFinite);
 
   const traitAdjustment = traitScores.reduce((total, score) => {
-    const capped = Math.max(-180000, Math.min(18000, score));
-    return total + capped * 0.16;
+    const capped = Math.max(-30000, Math.min(12000, score));
+    return total + capped * 0.12;
   }, 0);
 
   return Math.round(deviceSpecific + traitAdjustment);
