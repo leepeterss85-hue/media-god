@@ -22,6 +22,74 @@
             "480p"
           ],
           "default": "Auto"
+        },
+        "autoRecovery": {
+          "type": "boolean",
+          "default": true
+        },
+        "audioLanguage": {
+          "type": "string",
+          "default": "en"
+        },
+        "subtitleLanguage": {
+          "type": "string",
+          "default": "en"
+        },
+        "preferForcedSubtitles": {
+          "type": "boolean",
+          "default": true
+        },
+        "preferSdhSubtitles": {
+          "type": "boolean",
+          "default": false
+        },
+        "subtitleOffsetSeconds": {
+          "type": "number",
+          "default": 0
+        },
+        "subtitleSize": {
+          "type": "string",
+          "enum": [
+            "small",
+            "medium",
+            "large",
+            "extra-large"
+          ],
+          "default": "medium"
+        },
+        "subtitleBackground": {
+          "type": "string",
+          "enum": [
+            "none",
+            "light",
+            "medium",
+            "dark"
+          ],
+          "default": "medium"
+        },
+        "sourceSortMode": {
+          "type": "string",
+          "enum": [
+            "best",
+            "cached",
+            "4k",
+            "1080p",
+            "compatible",
+            "smallest"
+          ],
+          "default": "best"
+        },
+        "liveTvFavourites": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "liveTvRecent": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
