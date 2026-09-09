@@ -427,6 +427,110 @@ body.mg-fire-tv-stable .mg-fire-tv-library-card p {
   line-height: 1.15 !important;
 }
 
+/* Fire TV TV Shows tidy-up. Keep one compact, predictable remote path:
+ * category row -> search -> four filters -> poster grid. The large featured
+ * banner and per-card genre buttons add low-value focus stops on a remote, so
+ * they stay available on touch/desktop but are removed from the TV surface. */
+body.mg-fire-tv [data-mg-tv-shows-featured="true"],
+body.mg-fire-tv-mode [data-mg-tv-shows-featured="true"],
+body.mg-fire-tv-stable [data-mg-tv-shows-featured="true"],
+body.mg-fire-tv [data-mg-tv-show-genres="true"],
+body.mg-fire-tv-mode [data-mg-tv-show-genres="true"],
+body.mg-fire-tv-stable [data-mg-tv-show-genres="true"] {
+  display: none !important;
+}
+
+body.mg-fire-tv [data-mg-tv-shows-view="true"] > div:nth-child(2),
+body.mg-fire-tv-mode [data-mg-tv-shows-view="true"] > div:nth-child(2),
+body.mg-fire-tv-stable [data-mg-tv-shows-view="true"] > div:nth-child(2) {
+  gap: 7px !important;
+  margin-bottom: 10px !important;
+}
+
+body.mg-fire-tv [data-mg-tv-category-row="true"],
+body.mg-fire-tv-mode [data-mg-tv-category-row="true"],
+body.mg-fire-tv-stable [data-mg-tv-category-row="true"] {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 6px !important;
+  overflow: visible !important;
+  padding: 0 !important;
+}
+
+body.mg-fire-tv [data-mg-tv-category-row="true"] button,
+body.mg-fire-tv-mode [data-mg-tv-category-row="true"] button,
+body.mg-fire-tv-stable [data-mg-tv-category-row="true"] button {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 36px !important;
+  height: 36px !important;
+  padding: 4px 6px !important;
+  font-size: 10.5px !important;
+  white-space: nowrap !important;
+}
+
+body.mg-fire-tv [data-mg-tv-filter-row="true"],
+body.mg-fire-tv-mode [data-mg-tv-filter-row="true"],
+body.mg-fire-tv-stable [data-mg-tv-filter-row="true"] {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 6px !important;
+  align-items: center !important;
+}
+
+body.mg-fire-tv [data-mg-tv-search="true"],
+body.mg-fire-tv-mode [data-mg-tv-search="true"],
+body.mg-fire-tv-stable [data-mg-tv-search="true"] {
+  grid-column: 1 / -1 !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+}
+
+body.mg-fire-tv [data-mg-tv-filter-row="true"] > *,
+body.mg-fire-tv-mode [data-mg-tv-filter-row="true"] > *,
+body.mg-fire-tv-stable [data-mg-tv-filter-row="true"] > * {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+}
+
+body.mg-fire-tv [data-mg-tv-filter-row="true"] select,
+body.mg-fire-tv-mode [data-mg-tv-filter-row="true"] select,
+body.mg-fire-tv-stable [data-mg-tv-filter-row="true"] select {
+  width: 100% !important;
+  min-width: 0 !important;
+  padding-left: 8px !important;
+  padding-right: 20px !important;
+  text-overflow: ellipsis !important;
+}
+
+body.mg-fire-tv [data-mg-tv-filter-row="true"] input:focus-visible,
+body.mg-fire-tv [data-mg-tv-filter-row="true"] select:focus-visible,
+body.mg-fire-tv [data-mg-tv-category-row="true"] button:focus-visible,
+body.mg-fire-tv-mode [data-mg-tv-filter-row="true"] input:focus-visible,
+body.mg-fire-tv-mode [data-mg-tv-filter-row="true"] select:focus-visible,
+body.mg-fire-tv-mode [data-mg-tv-category-row="true"] button:focus-visible,
+body.mg-fire-tv-stable [data-mg-tv-filter-row="true"] input:focus-visible,
+body.mg-fire-tv-stable [data-mg-tv-filter-row="true"] select:focus-visible,
+body.mg-fire-tv-stable [data-mg-tv-category-row="true"] button:focus-visible {
+  outline: 3px solid hsl(var(--mg-green)) !important;
+  outline-offset: 2px !important;
+  border-color: hsl(var(--mg-green)) !important;
+}
+
+body.mg-fire-tv [data-mg-tv-shows-grid="true"],
+body.mg-fire-tv-mode [data-mg-tv-shows-grid="true"],
+body.mg-fire-tv-stable [data-mg-tv-shows-grid="true"] {
+  margin-top: 2px !important;
+}
+
+body.mg-fire-tv [data-mg-tv-show-card="true"],
+body.mg-fire-tv-mode [data-mg-tv-show-card="true"],
+body.mg-fire-tv-stable [data-mg-tv-show-card="true"] {
+  scroll-margin: 76px 12px 24px !important;
+}
+
 body.mg-fire-tv [data-mg-tv-row="true"],
 body.mg-fire-tv-mode [data-mg-tv-row="true"],
 body.mg-fire-tv-stable [data-mg-tv-row="true"] {
