@@ -1,5 +1,21 @@
 export const UPDATE_HISTORY = [
   {
+    id: "fire-tv-remote-fullscreen-chrome-v1",
+    date: "9 September 2026",
+    title: "Fire TV remote control and fullscreen cleanup fixed",
+    summary:
+      "The Fire Stick remote now moves properly between player controls, while fullscreen hides the title/Exit bar and source/torrent options box until the user exits fullscreen.",
+    changes: [
+      "Stopped player keyboard shortcuts from stealing D-pad arrows while a button, select, slider or other real player control is focused.",
+      "Restored Fire TV spatial navigation inside the player instead of disabling custom remote handling whenever playback is open.",
+      "Select/OK now activates focused player buttons once, while native selects and sliders keep their own Fire OS behaviour.",
+      "Physical media Play/Pause, Rewind and Fast Forward keys continue to control the active video while the player UI is open.",
+      "Entering Fire TV fullscreen now hides the film title, Exit/Back bar and the source/torrent/Fix-audio options panel.",
+      "Fullscreen transport, subtitle, audio, speed and volume controls can still be revealed with the remote and continue to auto-hide over the picture.",
+      "Pressing Back while in fullscreen still exits fullscreen first before closing the player.",
+    ],
+  },
+  {
     id: "fire-tv-player-controls-sidebar-v1",
     date: "9 September 2026",
     title: "Fire TV torrent controls and full navigation restored",
