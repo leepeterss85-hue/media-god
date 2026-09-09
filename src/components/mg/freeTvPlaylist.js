@@ -28,6 +28,13 @@ export const LIVE_TV_SOURCES = [
     category: "United Kingdom",
   },
   {
+    id: "iptv-org-worldwide",
+    name: "IPTV-org Worldwide",
+    url: "https://iptv-org.github.io/iptv/index.m3u",
+    priority: 70,
+    category: "Worldwide",
+  },
+  {
     id: "iptv-org-sports",
     name: "IPTV-org Sports",
     url: "https://iptv-org.github.io/iptv/categories/sports.m3u",
