@@ -11,13 +11,13 @@ android {
         applicationId = "com.mediagod.firetv"
         minSdk = 23
         targetSdk = 35
-        versionCode = 4
-        versionName = "1.3.0"
+        versionCode = 5
+        versionName = "1.4.0"
 
         buildConfigField(
             "String",
             "MEDIA_GOD_URL",
-            "\"https://aura-connect-ab1f9d62.base44.app/\""
+            "\"https://mysterious-media-vault-pro.base44.app/\""
         )
     }
 
