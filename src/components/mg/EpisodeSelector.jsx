@@ -959,7 +959,10 @@ export default function EpisodeSelector({
   }
 
   return (
-    <div className="mt-5">
+    <div
+      id="mg-episode-selector"
+      className="mt-5"
+    >
       <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
         <h3 className="text-white/80 text-xs font-bold uppercase tracking-wider">
           Episodes
