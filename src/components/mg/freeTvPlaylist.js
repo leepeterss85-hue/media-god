@@ -62,6 +62,13 @@ export const LIVE_TV_SOURCES = [
     priority: 84,
     category: "Gigoplast",
   },
+  {
+    id: "nimeyer-uk-list",
+    name: "Nimeyer UK Gist",
+    url: "https://gist.githubusercontent.com/nimeyer22/4dc9fe46ca393956801bf65625168477/raw/UKList.m3u",
+    priority: 98,
+    category: "United Kingdom",
+  },
 ];
 
 export const FREE_TV_PLAYLIST_URL =
@@ -690,10 +697,10 @@ export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
       country: current.country,
     });
 
-    if (source.id.startsWith("gigoplast")) {
-      current.group = "Gigoplast";
-      if (!current.tags.includes("Sports & Entertainment")) {
-        current.tags.push("Sports & Entertainment");
+    if (source.id.startsWith("gigoplast") || source.id === "nimeyer-uk-list") {
+      current.group = "United Kingdom";
+      if (!current.tags.includes("United Kingdom")) {
+        current.tags.push("United Kingdom");
       }
     }
 
@@ -712,68 +719,15 @@ export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
 }
 
 const dedupeKey = (channel) => {
-  if (channel?.sourceId?.startsWith("gigoplast")) {
-    return `gigo:${channel.sourceId}:${channel.url}`;
+  if (channel?.sourceId?.startsWith("gigoplast") || channel?.sourceId === "nimeyer-uk-list") {
+    return `custom:${channel.sourceId}:${channel.url}`;
   }
-
-  const family = canonicalUkChannelFamily(channel);
-  if (family) return `uk-family:${family}`;
-
   const tvgId = String(channel?.tvgId || "").trim().toLowerCase();
   if (tvgId) return `id:${tvgId}`;
   const name = normaliseChannelNameForKey(channel?.name);
   const country = String(channel?.country || "").trim().toLowerCase();
   return `name:${name}|country:${country}`;
 };
-
-const publicDirectRows = () =>
-  PUBLIC_DIRECT_CHANNELS.map((channel) => {
-    const sourcePriority = Number(channel.priority || 120);
-    const tags = inferTags({
-      sourceCategory: "United Kingdom",
-      group: "United Kingdom",
-      name: channel.name,
-      country: channel.country || "GB",
-    });
-
-    return {
-      id: channel.id,
-      name: channel.name,
-      rawName: channel.name,
-      logo: channel.logo || "",
-      tvgId: channel.tvgId || channel.id,
-      country: channel.country || "GB",
-      group: "United Kingdom",
-      channelNumber: "",
-      url: channel.url,
-      kind: channel.kind || "external",
-      format: channel.kind === "external" ? "external" : streamFormat(channel.url),
-      standardDefinition: false,
-      geoRestricted: false,
-      geoAvailableHere: LIVE_TV_REGION === "GB",
-      geoBlocked: false,
-      notAlwaysOn: false,
-      youtube: false,
-      twitch: false,
-      insecure: false,
-      mixedContent: false,
-      requiresHeaders: false,
-      referrer: "",
-      userAgent: "",
-      browserPlayable: true,
-      browserReason: "",
-      quality: 0,
-      sourceId: `public-direct:${channel.id}`,
-      sourceName: channel.sourceName || "Official Broadcaster",
-      sourcePriority,
-      sourceCategory: "United Kingdom",
-      tags,
-      alternatives: [],
-      officialUrl: channel.officialUrl || channel.url,
-      officialLabel: channel.officialLabel || "Open official service",
-      score: sourcePriority * 12 + 3000,
-    };
-  });
 
 const dedupeMergedChannels = (channels) => {
   const groups = new Map();
@@ -795,17 +749,10 @@ const dedupeMergedChannels = (channels) => {
       uniqueByUrl.push(candidate);
     }
 
-    const family = canonicalUkChannelFamily(uniqueByUrl[0]);
     const browserCandidates = uniqueByUrl.filter((candidate) => candidate?.browserPlayable !== false);
     if (browserCandidates.length === 0) continue;
 
-    browserCandidates.sort((a, b) => {
-      const exactA = family && isExactFamilyName(a, family) ? 1 : 0;
-      const exactB = family && isExactFamilyName(b, family) ? 1 : 0;
-      if (exactA !== exactB) return exactB - exactA;
-      return Number(b?.score || 0) - Number(a?.score || 0);
-    });
-
+    browserCandidates.sort((a, b) => Number(b?.score || 0) - Number(a?.score || 0));
     const best = browserCandidates[0];
     if (!best) continue;
 
@@ -822,39 +769,17 @@ const dedupeMergedChannels = (channels) => {
 
     const tags = new Set();
     const sources = new Set();
-    for (const candidate of uniqueByUrl) {
-      if (candidate.sourceName) sources.add(candidate.sourceName);
+    for (const candidate of browserCandidates) {
+      sources.add(candidate.sourceName);
       for (const tag of candidate.tags || []) tags.add(tag);
     }
 
-    if (family) tags.add("United Kingdom");
-
-    const alternatives = uniqueByUrl
-      .filter((candidate) => candidate !== best)
-      .sort((a, b) => {
-        const browserA = a?.browserPlayable !== false ? 1 : 0;
-        const browserB = b?.browserPlayable !== false ? 1 : 0;
-        if (browserA !== browserB) return browserB - browserA;
-        return Number(b?.score || 0) - Number(a?.score || 0);
-      });
-
-    const officialCandidate = uniqueByUrl.find((candidate) => candidate?.officialUrl);
-    const ukAvailable = Boolean(family && LIVE_TV_REGION === "GB");
-
+    const alternatives = browserCandidates.slice(1);
     merged.push({
       ...best,
-      name: family ? canonicalFamilyName(family) : best.name,
-      geoAvailableHere: ukAvailable || best.geoAvailableHere,
-      geoBlocked: ukAvailable ? false : best.geoBlocked,
       tags: [...tags],
       sourceNames: [...sources],
       alternatives,
-      officialUrl: best.officialUrl || officialCandidate?.officialUrl || "",
-      officialLabel: best.officialLabel || officialCandidate?.officialLabel || "",
-      regionalSourceCount:
-        family === "bbc-one" || family === "bbc-two"
-          ? uniqueByUrl.filter((candidate) => !isExactFamilyName(candidate, family)).length
-          : 0,
     });
   }
 
@@ -873,10 +798,6 @@ export async function getFreeTvChannels(options = {}) {
     const rawChannels = [];
     let rawCount = 0;
     let browserRejectedCount = 0;
-
-    const directRows = publicDirectRows();
-    rawChannels.push(...directRows);
-    rawCount += directRows.length;
 
     const sortedSources = [...LIVE_TV_SOURCES].sort((a, b) => b.priority - a.priority);
 
