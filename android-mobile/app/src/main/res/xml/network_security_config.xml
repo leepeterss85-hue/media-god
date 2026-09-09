@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Some public Live TV playlists still expose HTTP stream URLs. The
+         catalogue itself stays HTTPS; cleartext is allowed only so Media3 can
+         open those legacy channel URLs when the user selects them. -->
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>
