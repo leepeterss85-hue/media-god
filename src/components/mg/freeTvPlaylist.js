@@ -256,11 +256,11 @@ const classifyUrl = (url) => {
 
 const streamFormat = (url) => {
   const value = String(url || "").toLowerCase();
-  if (/\.m3u8(?:[?#]|$)/i.test(value)) return "hls";
-  if (/\.mpd(?:[?#]|$)/i.test(value)) return "dash";
-  if (/\.(?:mp3|aac|m4a|ogg|opus)(?:[?#]|$)/i.test(value)) return "audio";
-  if (/\.(?:mp4|m4v|webm)(?:[?#]|$)/i.test(value)) return "file";
-  if (/\.(?:ts|m2ts)(?:[?#]|$)/i.test(value)) return "mpegts";
+  if (/\.m3u8(?:[?#&]|$)/i.test(value)) return "hls";
+  if (/\.mpd(?:[?#&]|$)/i.test(value)) return "dash";
+  if (/\.(?:mp3|aac|m4a|ogg|opus)(?:[?#&]|$)/i.test(value)) return "audio";
+  if (/\.(?:mp4|m4v|webm)(?:[?#&]|$)/i.test(value)) return "file";
+  if (/\.(?:ts|m2ts)(?:[?#&]|$)/i.test(value)) return "mpegts";
   return "unknown";
 };
 
