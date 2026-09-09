@@ -1,5 +1,22 @@
 export const UPDATE_HISTORY = [
   {
+    id: "fire-tv-player-close-tv-shows-remote-v1",
+    date: "9 September 2026",
+    title: "Fire TV player exit and TV Shows navigation repaired",
+    summary:
+      "Closing playback now fully resets Fire TV player state so the navigation returns and the next title opens normally, while TV Shows has a cleaner remote-first layout and focus path.",
+    changes: [
+      "Core player Exit/Back now clears the shared Media God player context, visibility state and Fire TV player-open marker immediately.",
+      "The enhanced auto-next/episode request state is reset when the core player closes so a stale previous title cannot interfere with the next playback attempt.",
+      "The navigation bar no longer trusts a stale Fire TV body class when the real player DOM is gone.",
+      "Closing a film now restores the catalogue/navigation state instead of leaving the app in the hidden-navigation state that could lead to a white screen on the next title.",
+      "TV Shows now has a compact Fire TV category row, full-width search and four aligned filters before the poster grid.",
+      "The large TV Shows featured banner and per-card genre buttons are removed from the Fire TV focus path while remaining unchanged on phone, tablet and desktop.",
+      "D-pad directions now move cleanly out of catalogue filter selects; OK still opens the native Fire OS chooser, while player source/torrent selects keep their native behaviour.",
+      "TV Shows controls and poster cards gained clearer Fire TV focus rings and scroll positioning for remote use.",
+    ],
+  },
+  {
     id: "fire-tv-remote-fullscreen-chrome-v1",
     date: "9 September 2026",
     title: "Fire TV remote control and fullscreen cleanup fixed",
