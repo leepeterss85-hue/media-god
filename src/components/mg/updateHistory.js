@@ -1,5 +1,22 @@
 export const UPDATE_HISTORY = [
   {
+    id: "nimeyer22-public-uk-channels-v1",
+    date: "9 September 2026",
+    title: "Additional public UK Live TV fallbacks added",
+    summary:
+      "Media God now uses the nimeyer22 UK channel list as a discovery reference for additional free/public channels while avoiding its credentialed premium IPTV relay URLs.",
+    changes: [
+      "Added official fallback entries for BBC ALBA, CBBC, CBeebies, BBC News and BBC Parliament through BBC iPlayer.",
+      "Added official S4C Clic and STV Player fallbacks for S4C and STV.",
+      "Added official Channel 4 service fallbacks for Channel 4, E4, More4 and Film4.",
+      "Added official 5 service fallbacks for Channel 5, 5USA, 5STAR, 5ACTION and 5SELECT.",
+      "Kept existing working direct playlist sources at higher priority, so these additions act as safe fallbacks rather than replacing streams that already play.",
+      "Public fallback rows now keep the broadcaster-specific action label instead of incorrectly labelling every external fallback as ITVX.",
+      "Matched official fallback rows to standard TVG IDs so they merge with existing channel rows instead of creating unnecessary duplicates.",
+      "Did not import Sky Sports, TNT/BT Sport, Eurosport, PPV, EPL match feeds or other credentialed premium relay URLs from the gist.",
+    ],
+  },
+  {
     id: "fire-tv-player-close-tv-shows-remote-v1",
     date: "9 September 2026",
     title: "Fire TV player exit and TV Shows navigation repaired",
