@@ -4356,7 +4356,7 @@ export default function VideoPlayer({
                             .value
                         )
                       }
-                      className="w-full appearance-none rounded-lg border border-white/15 bg-black/55 py-2.5 pl-3 pr-9 text-xs text-white outline-none backdrop-blur focus:border-mg-green sm:text-sm"
+                      className="min-h-11 w-full appearance-none rounded-lg border border-white/15 bg-black/60 py-2.5 pl-3 pr-9 text-xs font-medium text-white outline-none backdrop-blur transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/30 sm:min-h-10 sm:text-sm"
                       aria-label="Choose source or quality while loading"
                     >
                       {sortedSourceEntries.map(
@@ -4381,8 +4381,10 @@ export default function VideoPlayer({
                               data-mg-source-label={rawLabel}
                             >
                               {failed
-                                ? "Failed — "
-                                : ""}
+                                ? "Unavailable • "
+                                : index === activeIdx
+                                  ? "Playing • "
+                                  : ""}
 
                               {
                                 label
@@ -4517,8 +4519,8 @@ export default function VideoPlayer({
 
           {rdOverride &&
             rdFiles.length > 1 && (
-              <label className="min-w-0 flex-1">
-                <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-white/50">
+              <label className="min-w-[12rem] flex-1 basis-[18rem]">
+                <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.12em] text-white/40">
                   Torrent file
                 </span>
 
@@ -4545,7 +4547,7 @@ export default function VideoPlayer({
                     }
                   }}
                   disabled={fileSwitching}
-                  className="w-full rounded-lg border border-white/10 bg-mg-card px-3 py-2.5 text-xs text-white outline-none focus:border-mg-green disabled:opacity-60 sm:text-sm"
+                  className="min-h-11 w-full rounded-lg border border-white/10 bg-mg-card px-3 py-2.5 text-xs font-medium text-white outline-none transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/30 disabled:opacity-60 sm:min-h-10 sm:text-sm"
                   aria-label="Choose file"
                 >
                   {rdFiles.map(
