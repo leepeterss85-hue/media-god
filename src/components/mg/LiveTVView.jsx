@@ -23,10 +23,7 @@ import {
   ListVideo,
 } from "lucide-react";
 
-import {
-  getFreeTvChannels,
-  LIVE_TV_REGION,
-} from "@/components/mg/freeTvPlaylist";
+import { getFreeTvChannels } from "@/components/mg/freeTvPlaylist";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 import { base44 } from "@/api/base44Client";
 import { cn } from "@/lib/utils";
@@ -335,7 +332,6 @@ export default function LiveTVView() {
   const [sourceStatus, setSourceStatus] = useState([]);
   const [rawCount, setRawCount] = useState(0);
   const [browserRejectedCount, setBrowserRejectedCount] = useState(0);
-  const [region, setRegion] = useState(LIVE_TV_REGION || "GB");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -431,13 +427,6 @@ export default function LiveTVView() {
         )
       );
 
-      setRegion(
-        String(
-          result?.region ||
-            LIVE_TV_REGION ||
-            "GB"
-        ).toUpperCase()
-      );
     } catch (loadError) {
       setError(
         loadError?.message ||
