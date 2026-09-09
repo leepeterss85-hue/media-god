@@ -39,6 +39,23 @@ import {
 
 const DEFAULT_FILTER = "All";
 const MAX_VISIBLE = 400;
+
+const countryDisplayName = (code) => {
+  const value = String(code || "").trim().toUpperCase();
+  if (!value) return "";
+
+  try {
+    if (typeof Intl !== "undefined" && typeof Intl.DisplayNames === "function") {
+      const displayNames = new Intl.DisplayNames(["en"], { type: "region" });
+      const label = displayNames.of(value);
+      if (label && label !== value) return `${label} (${value})`;
+    }
+  } catch {
+    // Fall back to the ISO-style country code.
+  }
+
+  return value;
+};
 const GUIDE_VISIBLE = 120;
 const LIVE_TV_FAVOURITES_KEY = "mg_live_tv_favourites_v1";
 const LIVE_TV_RECENT_KEY = "mg_live_tv_recent_v1";
@@ -339,6 +356,7 @@ export default function LiveTVView() {
   const [channelNoticeAction, setChannelNoticeAction] = useState(null);
   const [query, setQuery] = useState("");
   const [group, setGroup] = useState(DEFAULT_FILTER);
+  const [countryFilter, setCountryFilter] = useState(DEFAULT_FILTER);
   const [quickFilter, setQuickFilter] = useState(DEFAULT_FILTER);
   const [directOnly, setDirectOnly] = useState(false);
   const [radioStation, setRadioStation] = useState(null);
@@ -915,6 +933,20 @@ export default function LiveTVView() {
     ];
   }, [channels]);
 
+  const countries = useMemo(() => {
+    const values = Array.from(
+      new Set(
+        channels
+          .map((channel) => String(channel?.country || "").trim().toUpperCase())
+          .filter(Boolean)
+      )
+    ).sort((a, b) =>
+      countryDisplayName(a).localeCompare(countryDisplayName(b))
+    );
+
+    return ["All", ...values];
+  }, [channels]);
+
   const quickCounts = useMemo(() => {
     const counts = {
       All: channels.length,
@@ -1007,6 +1039,13 @@ export default function LiveTVView() {
         }
 
         if (
+          countryFilter !== "All" &&
+          String(channel?.country || "").trim().toUpperCase() !== countryFilter
+        ) {
+          return false;
+        }
+
+        if (
           directOnly &&
           channel?.kind !== "direct"
         ) {
@@ -1058,6 +1097,7 @@ export default function LiveTVView() {
   }, [
     channels,
     group,
+    countryFilter,
     query,
     directOnly,
     quickFilter,
@@ -1078,11 +1118,12 @@ export default function LiveTVView() {
   useEffect(() => {
     setFocusedChannelKey("");
     setChannelVisibleLimit(MAX_VISIBLE);
-  }, [quickFilter, group, query, directOnly, viewMode]);
+  }, [quickFilter, group, countryFilter, query, directOnly, viewMode]);
 
   const resetFilters = () => {
     setQuery("");
     setGroup(DEFAULT_FILTER);
+    setCountryFilter(DEFAULT_FILTER);
     setQuickFilter(DEFAULT_FILTER);
     setDirectOnly(false);
   };
@@ -1717,7 +1758,7 @@ export default function LiveTVView() {
         })}
       </div>
 
-      <div className="mb-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_220px_auto_auto]">
+      <div className="mb-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_200px_220px_auto_auto]">
         <label className="relative block">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
 
@@ -1750,6 +1791,21 @@ export default function LiveTVView() {
               value={item}
             >
               {item}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={countryFilter}
+          onChange={(event) =>
+            setCountryFilter(event.target.value)
+          }
+          aria-label="Filter Live TV by country"
+          className="h-11 rounded-lg border border-white/10 bg-mg-card px-3 text-sm text-white outline-none focus:border-mg-green focus:ring-2 focus:ring-mg-green/30"
+        >
+          {countries.map((code) => (
+            <option key={code} value={code}>
+              {code === "All" ? "All countries" : countryDisplayName(code)}
             </option>
           ))}
         </select>
@@ -2173,9 +2229,9 @@ export default function LiveTVView() {
                         </span>
                       )}
 
-                      {channel.geoAvailableHere && (
-                        <span className="rounded bg-mg-green/10 px-1.5 py-0.5 text-[9px] font-bold uppercase text-mg-green">
-                          UK Available
+                      {channel.country && (
+                        <span className="rounded bg-white/5 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white/60">
+                          {String(channel.country).toUpperCase()}
                         </span>
                       )}
 
