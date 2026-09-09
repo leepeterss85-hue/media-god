@@ -3184,6 +3184,22 @@ export default function VideoPlayer({
       subtitles: Array.isArray(active?.subtitles)
         ? active.subtitles
         : [],
+      sources: isLive
+        ? sources.map((candidate, index) => {
+            const baseLabel = sourceDisplayLabel(candidate, index);
+            const provider = String(candidate?.sourceName || "").trim();
+
+            return {
+              ...candidate,
+              label:
+                provider && !baseLabel.toLowerCase().includes(provider.toLowerCase())
+                  ? `${baseLabel} • ${provider}`
+                  : baseLabel,
+              url: getSourceUrl(candidate),
+            };
+          })
+        : [],
+      activeSourceIndex: activeIdx,
     });
 
     if (!started) {
