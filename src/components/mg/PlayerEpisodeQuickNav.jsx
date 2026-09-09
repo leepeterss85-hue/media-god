@@ -527,7 +527,7 @@ export default function PlayerEpisodeQuickNav() {
 
   const controls = (
     <div
-      className="absolute left-1/2 top-2 z-[85] flex -translate-x-1/2 items-center gap-1.5 rounded-xl border border-white/10 bg-black/65 p-1.5 shadow-xl backdrop-blur-md sm:top-3 sm:gap-2"
+      className="absolute right-2 top-2 z-[85] flex items-center rounded-xl border border-white/10 bg-black/70 p-1 shadow-xl backdrop-blur-md sm:right-3 sm:top-3"
       data-mg-episode-quick-nav="true"
     >
       <button
@@ -535,14 +535,14 @@ export default function PlayerEpisodeQuickNav() {
         onClick={
           chooseEpisodes
         }
-        className="flex min-h-9 items-center gap-1.5 rounded-lg bg-mg-green/15 px-2.5 text-xs font-semibold text-mg-green hover:bg-mg-green/25 focus:outline-none focus:ring-2 focus:ring-mg-green sm:min-h-10 sm:px-3 sm:text-sm"
+        className="flex min-h-10 items-center gap-1.5 rounded-lg bg-mg-green/15 px-3 text-xs font-semibold text-mg-green transition hover:bg-mg-green/25 focus:bg-mg-green/25 focus:outline-none focus:ring-2 focus:ring-mg-green sm:min-h-10 sm:text-sm"
         aria-label="Episodes"
         title="Episodes"
       >
         <ListVideo className="h-4 w-4" />
 
         <span>
-          Episodes
+          Back to episodes
         </span>
       </button>
 
