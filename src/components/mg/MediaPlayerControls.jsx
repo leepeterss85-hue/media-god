@@ -42,6 +42,21 @@ import {
   writeSourceSortMode,
 } from "@/components/mg/sourceSelectorPreferences";
 
+const isFireTvControlsRuntime = () => {
+  if (typeof document === "undefined" || typeof navigator === "undefined") {
+    return false;
+  }
+
+  const ua = String(navigator.userAgent || "");
+  return (
+    /(?:AFT[A-Z0-9]*|Fire TV|AmazonWebAppPlatform|Silk|MediaGodFireTV)/i.test(ua) ||
+    document.documentElement.classList.contains("mg-fire-tv") ||
+    document.documentElement.classList.contains("mg-fire-tv-mode") ||
+    document.body?.classList.contains("mg-fire-tv") ||
+    document.body?.classList.contains("mg-fire-tv-mode")
+  );
+};
+
 const formatTime = (seconds) => {
   if (!seconds || !Number.isFinite(Number(seconds))) {
     return "0:00";
@@ -1386,6 +1401,19 @@ export default function MediaPlayerControls({
     clearHideTimer();
 
     setShowControls(true);
+
+    /*
+     * TV focus stays on the last D-pad control even after the viewer stops
+     * interacting. Do not let that persistent focus pin the overlay forever;
+     * while video is playing the chrome should still fade away naturally.
+     */
+    if (
+      isFireTvControlsRuntime() &&
+      playingRef.current &&
+      !menuOpenRef.current
+    ) {
+      scheduleHide(3600);
+    }
   };
 
   const blurControl = () => {
