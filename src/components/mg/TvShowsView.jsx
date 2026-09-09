@@ -91,8 +91,13 @@ export default function TvShowsView() {
     featured;
 
   return (
-    <div data-mg-library-view="true" className="w-full p-3 min-[420px]:p-4 md:p-6 3xl:p-8 4xl:p-10">
+    <div
+      data-mg-library-view="true"
+      data-mg-tv-shows-view="true"
+      className="w-full p-3 min-[420px]:p-4 md:p-6 3xl:p-8 4xl:p-10"
+    >
       {showFeatured && (
+        <div data-mg-tv-shows-featured="true">
         <FeaturedSpotlight
           tmdbId={featured.tmdb_id}
           title={featured.title}
@@ -105,6 +110,7 @@ export default function TvShowsView() {
             })
           }
         />
+        </div>
       )}
 
       <div className="flex flex-col gap-3 3xl:gap-4 mb-5 3xl:mb-8">
@@ -115,12 +121,16 @@ export default function TvShowsView() {
           </h1>
         </div>
 
-        <div className="flex gap-2 3xl:gap-3 overflow-x-auto scrollbar-hide pb-1">
+        <div
+          data-mg-tv-category-row="true"
+          className="flex gap-2 3xl:gap-3 overflow-x-auto scrollbar-hide pb-1"
+        >
           {CATEGORIES.map((item) => (
             <button
               key={item.id}
               type="button"
               onClick={() => setCategory(item.id)}
+              aria-label={`TV category ${item.label}`}
               className={
                 "min-h-10 3xl:min-h-12 px-3 3xl:px-5 py-1.5 3xl:py-2 rounded-md text-xs sm:text-sm 3xl:text-base 4xl:text-lg font-semibold whitespace-nowrap transition-colors " +
                 (category === item.id
@@ -133,13 +143,20 @@ export default function TvShowsView() {
           ))}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-center gap-2.5 3xl:gap-4">
-          <div className="relative sm:col-span-2 lg:flex-1 lg:min-w-[260px] lg:max-w-2xl 3xl:max-w-3xl">
+        <div
+          data-mg-tv-filter-row="true"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-center gap-2.5 3xl:gap-4"
+        >
+          <div
+            data-mg-tv-search="true"
+            className="relative sm:col-span-2 lg:flex-1 lg:min-w-[260px] lg:max-w-2xl 3xl:max-w-3xl"
+          >
             <Search className="w-4 h-4 3xl:w-5 3xl:h-5 absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search shows..."
+              aria-label="Search TV shows"
               className="w-full min-h-11 3xl:min-h-12 bg-mg-card border border-white/10 rounded-lg pl-10 3xl:pl-11 pr-3 py-2.5 3xl:py-3 text-sm 3xl:text-base 4xl:text-lg text-white placeholder:text-white/40 focus:outline-none focus:border-mg-green"
             />
           </div>
@@ -149,6 +166,7 @@ export default function TvShowsView() {
             <select
               value={country}
               onChange={(event) => setCountry(event.target.value)}
+              aria-label="Filter TV shows by country"
               className={`${selectClass} pl-10 3xl:pl-11`}
             >
               {COUNTRIES.map((item) => (
@@ -162,6 +180,7 @@ export default function TvShowsView() {
           <select
             value={genre}
             onChange={(event) => setGenre(event.target.value)}
+            aria-label="Filter TV shows by genre"
             className={selectClass}
           >
             {GENRES_TV.map((item) => (
@@ -174,6 +193,7 @@ export default function TvShowsView() {
           <select
             value={year}
             onChange={(event) => setYear(event.target.value)}
+            aria-label="Filter TV shows by year"
             className={selectClass}
           >
             {YEARS.map((item) => (
@@ -186,6 +206,7 @@ export default function TvShowsView() {
           <select
             value={language}
             onChange={(event) => setLanguage(event.target.value)}
+            aria-label="Filter TV shows by language"
             className={selectClass}
           >
             {LANGUAGES.map((item) => (
@@ -207,9 +228,17 @@ export default function TvShowsView() {
           ))}
         </div>
       ) : (
-        <div data-mg-library-grid="true" className={gridClass}>
+        <div
+          data-mg-library-grid="true"
+          data-mg-tv-shows-grid="true"
+          className={gridClass}
+        >
           {shows.map((show) => (
-            <article key={show.id} className="mg-fire-tv-library-card group min-w-0">
+            <article
+              key={show.id}
+              data-mg-tv-show-card="true"
+              className="mg-fire-tv-library-card group min-w-0"
+            >
               <div className="relative aspect-[2/3] rounded-md 3xl:rounded-lg overflow-hidden border border-white/10 bg-mg-card">
                 <Image
                   src={show.poster_url}
@@ -239,11 +268,13 @@ export default function TvShowsView() {
                 {show.year}
               </p>
 
-              <GenreTags
-                genreIds={show.genre_ids}
-                labelMap={GENRE_LABELS_TV}
-                onSelect={setGenre}
-              />
+              <div data-mg-tv-show-genres="true">
+                <GenreTags
+                  genreIds={show.genre_ids}
+                  labelMap={GENRE_LABELS_TV}
+                  onSelect={setGenre}
+                />
+              </div>
             </article>
           ))}
         </div>
