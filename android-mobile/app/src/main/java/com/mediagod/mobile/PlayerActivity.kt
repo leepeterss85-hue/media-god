@@ -207,8 +207,8 @@ class PlayerActivity : Activity() {
 
         /*
          * Android phones and tablets expose a wide mix of hardware decoders.
-         * Let Media3 fall back to another decoder when the preferred decoder
-         * when the preferred one rejects a stream instead of immediately
+         * Let Media3 fall back to another decoder when the preferred one
+         * rejects a stream instead of immediately
          * returning the source to the web player. This materially helps HEVC,
          * AV1, VP9, MPEG-2, AC3/EAC3 and model-dependent DTS playback.
          */
