@@ -130,14 +130,36 @@ const visible = (element) => {
     return false;
   }
 
-  const style = window.getComputedStyle(element);
+  /*
+   * A child can report opacity:1 even when a parent control layer is
+   * opacity:0. Fire TV was therefore moving focus onto buttons that were
+   * visually hidden. Walk the ancestor chain so only genuinely visible
+   * controls participate in D-pad navigation.
+   */
+  let node = element;
 
-  return (
-    style.display !== "none" &&
-    style.visibility !== "hidden" &&
-    style.pointerEvents !== "none" &&
-    Number(style.opacity || 1) > 0.03
-  );
+  while (node instanceof HTMLElement) {
+    if (
+      node.hidden ||
+      node.getAttribute("aria-hidden") === "true"
+    ) {
+      return false;
+    }
+
+    const style = window.getComputedStyle(node);
+
+    if (
+      style.display === "none" ||
+      style.visibility === "hidden" ||
+      Number(style.opacity || 1) <= 0.03
+    ) {
+      return false;
+    }
+
+    node = node.parentElement;
+  }
+
+  return window.getComputedStyle(element).pointerEvents !== "none";
 };
 
 const topOverlay = () => {
@@ -407,10 +429,17 @@ export default function FireTvRemote() {
          * of pinning the top box on screen.
          */
         if (lastScopeRef.current === scope) {
+          /*
+           * Do not steal focus back to Play/Pause when the viewer deliberately
+           * moved to Source, Torrent file, subtitles, audio or another player
+           * control. Only recover focus when it has genuinely escaped the
+           * player or the previously focused control is no longer visible.
+           */
           if (
             mediaControls instanceof HTMLElement &&
             (!(active instanceof HTMLElement) ||
-              !mediaControls.contains(active))
+              !scope.contains(active) ||
+              !visible(active))
           ) {
             const transport =
               mediaControls.querySelector(
@@ -478,6 +507,12 @@ export default function FireTvRemote() {
       if (mediaAction && runMediaAction(mediaAction)) {
         event.preventDefault();
         event.stopPropagation();
+        event.stopImmediatePropagation();
+
+        window.dispatchEvent(
+          new CustomEvent("mg:player-reveal-controls")
+        );
+
         return;
       }
 
@@ -566,6 +601,22 @@ export default function FireTvRemote() {
       }
 
       if (direction) {
+        if (
+          player instanceof HTMLElement &&
+          (!(current instanceof HTMLElement) || !visible(current))
+        ) {
+          const preferred = player.querySelector(
+            '[data-mg-player-controls="true"] button[aria-label="Pause"], [data-mg-player-controls="true"] button[aria-label="Play"]'
+          );
+
+          if (focusElement(preferred)) {
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+            return;
+          }
+        }
+
         const mediaControls =
           player instanceof HTMLElement
             ? player.querySelector('[data-mg-player-controls="true"]')
@@ -636,7 +687,7 @@ export default function FireTvRemote() {
       }
     };
 
-    window.addEventListener("keydown", onKeyDown, false);
+    window.addEventListener("keydown", onKeyDown, true);
     window.addEventListener("mg:tv-remote-detected", activateTvMode);
 
     const observer = new MutationObserver(focusOverlay);
@@ -649,7 +700,7 @@ export default function FireTvRemote() {
     focusOverlay();
 
     return () => {
-      window.removeEventListener("keydown", onKeyDown, false);
+      window.removeEventListener("keydown", onKeyDown, true);
       window.removeEventListener("mg:tv-remote-detected", activateTvMode);
       observer.disconnect();
       document.documentElement.classList.remove("mg-fire-tv-mode");
