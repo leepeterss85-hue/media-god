@@ -313,6 +313,50 @@ const resolveRecommendationSeed = async ({
   }
 };
 
+class HomeDetailErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { failed: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch(error) {
+    console.error("[Media God] Home details display failed", error);
+  }
+
+  render() {
+    if (!this.state.failed) {
+      return this.props.children;
+    }
+
+    return (
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Home details recovery"
+        className="fixed inset-0 z-[2147483645] flex items-center justify-center bg-black/90 p-4 text-white"
+      >
+        <div className="w-full max-w-md rounded-xl border border-white/10 bg-mg-card p-5 text-center shadow-2xl">
+          <h2 className="text-base font-bold">Display recovered</h2>
+          <p className="mt-2 text-sm text-white/55">
+            This title hit a display error. Media God kept the Home screen running so you can return and try another title.
+          </p>
+          <button
+            type="button"
+            onClick={this.props.onClose}
+            className="mt-4 min-h-11 rounded-lg bg-mg-green px-4 text-sm font-bold text-black focus:outline-none focus:ring-2 focus:ring-white/70"
+          >
+            Back to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
+}
+
 export default function HomeDashboard() {
   const [rows, setRows] = useState({});
   const [loading, setLoading] = useState(true);
@@ -368,26 +412,63 @@ export default function HomeDashboard() {
   useEffect(() => {
     let cancelled = false;
 
-    const fetchRow = (params) =>
-      base44.functions
-        .invoke("getTmdbMovies", params)
-        .then((response) => response?.data?.movies || [])
-        .catch(() => []);
+    const unwrapMovies = (response) => {
+      const first = response?.data ?? response ?? {};
+      const payload =
+        first &&
+        typeof first === "object" &&
+        !Array.isArray(first) &&
+        first.data &&
+        typeof first.data === "object" &&
+        !Array.isArray(first.data)
+          ? first.data
+          : first;
 
-    const fetchWatchlist = () =>
-      base44.entities.WatchlistItem
-        .list("-created_date", 40)
-        .catch(() => []);
+      return Array.isArray(payload?.movies) ? payload.movies : [];
+    };
 
-    const fetchFavorites = () =>
-      base44.entities.Favorite
-        .list("-created_date", 40)
-        .catch(() => []);
+    const fetchRow = async (params, fallbackType = "") => {
+      try {
+        const response = await base44.functions.invoke("getTmdbMovies", params);
+        return unwrapMovies(response).map((item) => ({
+          ...item,
+          media_type:
+            item?.media_type ||
+            item?.mediaType ||
+            fallbackType ||
+            mediaTypeOf(item),
+        }));
+      } catch {
+        return [];
+      }
+    };
 
-    const fetchHistory = () =>
-      base44.entities.ContinueWatching
-        .list("-updated_date", 100)
-        .catch(() => []);
+    const fetchWatchlist = async () => {
+      try {
+        const rows = await base44.entities.WatchlistItem.list("-created_date", 40);
+        return Array.isArray(rows) ? rows : [];
+      } catch {
+        return [];
+      }
+    };
+
+    const fetchFavorites = async () => {
+      try {
+        const rows = await base44.entities.Favorite.list("-created_date", 40);
+        return Array.isArray(rows) ? rows : [];
+      } catch {
+        return [];
+      }
+    };
+
+    const fetchHistory = async () => {
+      try {
+        const rows = await base44.entities.ContinueWatching.list("-updated_date", 100);
+        return Array.isArray(rows) ? rows : [];
+      } catch {
+        return [];
+      }
+    };
 
     Promise.all([
       fetchRow({
@@ -395,24 +476,24 @@ export default function HomeDashboard() {
         category: "movie_released_today",
         date: todayKey,
         region: "GB",
-      }),
+      }, "movie"),
 
       fetchRow({
         media_type: "tv",
         category: "tv_airing_today",
         timezone: "Europe/London",
-      }),
+      }, "tv"),
 
       fetchRow({
         media_type: "movie",
         category: "now_playing",
         region: "GB",
-      }),
+      }, "movie"),
 
       fetchRow({
         media_type: "tv",
         category: "tv_on_the_air",
-      }),
+      }, "tv"),
 
       fetchRow({
         category: "trending",
@@ -422,18 +503,18 @@ export default function HomeDashboard() {
         media_type: "movie",
         category: "popular",
         region: "GB",
-      }),
+      }, "movie"),
 
       fetchRow({
         media_type: "tv",
         category: "tv_popular",
-      }),
+      }, "tv"),
 
       fetchRow({
         media_type: "movie",
         category: "top_rated",
         region: "GB",
-      }),
+      }, "movie"),
 
       fetchWatchlist(),
       fetchFavorites(),
@@ -634,9 +715,14 @@ export default function HomeDashboard() {
   ]);
 
   const open = (item) => {
+    const resolvedType = mediaTypeOf(item);
+
     setSelected({
       ...item,
       id: item?.id || item?.tmdb_id || item?.tmdbId,
+      tmdb_id: item?.tmdb_id || item?.tmdbId || item?.id,
+      media_type: resolvedType,
+      mediaType: resolvedType,
     });
   };
 
@@ -851,11 +937,16 @@ export default function HomeDashboard() {
       </footer>
 
       {selected && (
-        <DetailModal
-          item={selected}
-          mediaType={selected.media_type || "movie"}
+        <HomeDetailErrorBoundary
+          key={selected?.id || selected?.tmdb_id || selected?.title || "home-detail"}
           onClose={() => setSelected(null)}
-        />
+        >
+          <DetailModal
+            item={selected}
+            mediaType={mediaTypeOf(selected)}
+            onClose={() => setSelected(null)}
+          />
+        </HomeDetailErrorBoundary>
       )}
     </div>
   );
