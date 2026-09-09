@@ -548,10 +548,53 @@ const STALE_SOURCE_CHANNEL_NAMES = {
   ]),
 };
 
+const SKY_MIX_NATIVE_BACKUP_SOURCES = [
+  {
+    id: "sky-mix-uk-tuner-pass",
+    name: "Sky Mix UK Tuner Backup",
+    url: "http://86.180.115.121:1990/stream/channelid/914757818?profile=pass",
+    priority: 118,
+    category: "United Kingdom",
+    country: "GB",
+    tvgId: "SkyMix.uk@TunerPass",
+  },
+  {
+    id: "sky-mix-uk-tuner-webm",
+    name: "Sky Mix UK Freeview Tuner Backup",
+    url: "http://82.68.56.43:9981/stream/channelid/625070336?profile=webtv-vp8-vorbis-webm",
+    priority: 116,
+    category: "United Kingdom",
+    country: "GB",
+    tvgId: "SkyMix.uk@FreeviewTuner",
+  },
+];
+
 const isKnownStaleSourceChannel = (channel) => {
+  const name = normaliseFastAliasName(channel?.name);
+  const url = String(channel?.url || "").trim().toLowerCase();
+
+  // Samsung now publishes Sky Mix as a Widevine-licensed service rather than
+  // an ordinary open HLS feed. Media God's generic Live TV player must not
+  // keep selecting the old Samsung relay as if it were a normal direct stream.
+  if (
+    name === "sky mix" &&
+    channel?.sourceId === "samsung-tv-plus-gb-buddy"
+  ) {
+    return true;
+  }
+
+  // The historical IPTV-org Sky Mix URL has repeatedly timed out and should
+  // not outrank the newer UK tuner backups below.
+  if (
+    name === "sky mix" &&
+    url === "http://188.138.29.131/skymix/index.m3u8"
+  ) {
+    return true;
+  }
+
   const staleNames = STALE_SOURCE_CHANNEL_NAMES[channel?.sourceId];
   if (!staleNames) return false;
-  return staleNames.has(normaliseFastAliasName(channel?.name));
+  return staleNames.has(name);
 };
 
 const classifyUrl = (url) => {
@@ -951,6 +994,35 @@ export async function getFreeTvChannels(options = {}) {
       } catch (error) {
         sourceStatus.push({ id: source.id, name: source.name, count: 0, error: error?.message || "Failed to fetch" });
       }
+    }
+
+    /*
+     * Sky Mix is still free-to-air in the UK, but its Samsung TV Plus copy is
+     * now licence-protected and the old public HLS endpoint is dead. Keep two
+     * independently published UK tuner feeds as native-only fallbacks. They
+     * are HTTP endpoints, so Chromium will correctly reject them as mixed
+     * content while Fire TV/Android Media3 can still try them directly.
+     */
+    for (const source of SKY_MIX_NATIVE_BACKUP_SOURCES) {
+      const playlist = [
+        "#EXTM3U",
+        `#EXTINF:-1 tvg-id="${source.tvgId}" tvg-country="GB" group-title="United Kingdom",Sky Mix`,
+        source.url,
+      ].join("\n");
+      const parsed = parseFreeTvPlaylist(playlist, source);
+
+      rawCount += parsed.length;
+      for (const channel of parsed) {
+        if (channel?.browserPlayable === false) browserRejectedCount += 1;
+        rawChannels.push(channel);
+      }
+
+      sourceStatus.push({
+        id: source.id,
+        name: source.name,
+        count: parsed.length,
+        error: null,
+      });
     }
 
     const channels = dedupeMergedChannels(rawChannels);
