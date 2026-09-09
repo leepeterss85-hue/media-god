@@ -123,12 +123,12 @@ const loadDashJs = () => {
 };
 
 const isHlsUrl = (src, sourceLabel = "") =>
-  /\.m3u8(?:[?#\s]|$)|\bhls\b|mpegurl|mpeg-url/i.test(
+  /\.m3u8(?:[?#&\s]|$)|\bhls\b|mpegurl|mpeg-url/i.test(
     `${String(src || "")} ${String(sourceLabel || "")}`
   );
 
 const isDashUrl = (src, sourceLabel = "") =>
-  /\.mpd(?:[?#\s]|$)|\bmpeg[- ]?dash\b|\bdash\b/i.test(
+  /\.mpd(?:[?#&\s]|$)|\bmpeg[- ]?dash\b|\bdash\b/i.test(
     `${String(src || "")} ${String(sourceLabel || "")}`
   );
 
