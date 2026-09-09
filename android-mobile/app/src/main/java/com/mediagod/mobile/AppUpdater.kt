@@ -42,13 +42,7 @@ class AppUpdater(
         Build.VERSION.SDK_INT < Build.VERSION_CODES.O ||
             activity.packageManager.canRequestPackageInstalls()
 
-    fun startUpdate(url: String, versionName: String): String {
-        val requestedUrl = url.trim()
-
-        if (requestedUrl != STABLE_UPDATE_URL) {
-            return "error"
-        }
-
+    fun startUpdate(versionName: String): String {
         pendingUpdateFile()?.takeIf { it.exists() }?.let { apk ->
             activity.runOnUiThread {
                 openInstallerOrRequestPermission(apk)
