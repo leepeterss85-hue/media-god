@@ -96,7 +96,7 @@ class MainActivity : Activity() {
         super.onResume()
         webView.onResume()
         webView.resumeTimers()
-        injectFireTvBootstrap()
+        injectMobileBootstrap()
 
         pendingNativeResultScript?.let { script ->
             pendingNativeResultScript = null
