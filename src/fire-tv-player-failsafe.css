@@ -173,6 +173,7 @@ body.mg-fire-tv-mode [data-mg-player-options-panel="true"] {
   margin: 0 !important;
   padding: 10px 12px !important;
   display: flex !important;
+  flex-wrap: wrap !important;
   align-items: end !important;
   gap: 10px !important;
   border: 1px solid rgba(255, 255, 255, 0.14) !important;
@@ -189,7 +190,7 @@ body.mg-fire-tv-stable [data-mg-player-options-panel="true"] label,
 body.mg-fire-tv-mode [data-mg-player-options-panel="true"] label {
   display: block !important;
   min-width: 0 !important;
-  flex: 1 1 0 !important;
+  flex: 1 1 150px !important;
 }
 
 body.mg-fire-tv [data-mg-player-options-panel="true"] select,
@@ -225,7 +226,7 @@ body.mg-fire-tv-stable [data-mg-player-options-panel="true"] button,
 body.mg-fire-tv-mode [data-mg-player-options-panel="true"] button {
   min-height: 46px !important;
   height: 46px !important;
-  min-width: 148px !important;
+  min-width: 124px !important;
   padding: 0 14px !important;
   border-radius: 9px !important;
   border: 1px solid rgba(255, 255, 255, 0.2) !important;
