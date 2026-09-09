@@ -17,9 +17,13 @@ import {
 const LIVE_TV_FAVOURITES_KEY = "mg_live_tv_favourites_v1";
 const LIVE_TV_RECENT_KEY = "mg_live_tv_recent_v1";
 const ACCOUNT_PREFERENCE_EVENT = "mg:account-preferences-changed";
+const LIVE_TV_SYNC_INTERVAL_MS = 2000;
 
 let pendingPatch = {};
 let flushTimer = null;
+
+const hasOwn = (object, key) =>
+  Boolean(object) && Object.prototype.hasOwnProperty.call(object, key);
 
 const storageHas = (key) => {
   if (typeof window === "undefined") return false;
@@ -55,8 +59,10 @@ const writeStoredArray = (key, value) => {
   }
 };
 
-const hasOwn = (object, key) =>
-  Boolean(object) && Object.prototype.hasOwnProperty.call(object, key);
+const cleanPatch = (patch) =>
+  Object.fromEntries(
+    Object.entries(patch || {}).filter(([, value]) => value !== undefined)
+  );
 
 const localAccountPreferenceSeed = () => {
   const patch = {};
@@ -82,8 +88,9 @@ const localAccountPreferenceSeed = () => {
 
   if (storageHas(SOURCE_SELECTOR_SORT_KEY)) {
     try {
-      patch.sourceSortMode =
-        String(window.localStorage.getItem(SOURCE_SELECTOR_SORT_KEY) || "best");
+      patch.sourceSortMode = String(
+        window.localStorage.getItem(SOURCE_SELECTOR_SORT_KEY) || "best"
+      );
     } catch {
       // Ignore inaccessible storage.
     }
@@ -169,9 +176,9 @@ export const hydrateAccountPreferences = async (user) => {
   }
 
   // Existing installations may already have useful device-local settings
-  // from before account sync existed. Seed only keys that are genuinely
-  // present in local storage and missing from the account; a brand-new device
-  // therefore cannot overwrite an established account with defaults.
+  // from before account sync existed. Seed only keys that genuinely exist on
+  // the device and are missing from the account; a new device never replaces
+  // established account values with defaults.
   const seed = missingRemoteSeed(remote, localAccountPreferenceSeed());
 
   if (Object.keys(seed).length > 0) {
@@ -190,7 +197,7 @@ export const hydrateAccountPreferences = async (user) => {
 
 const flushPreferencePatch = async () => {
   flushTimer = null;
-  const patch = pendingPatch;
+  const patch = cleanPatch(pendingPatch);
   pendingPatch = {};
 
   if (Object.keys(patch).length === 0) return;
@@ -214,11 +221,13 @@ const flushPreferencePatch = async () => {
 };
 
 export const queueAccountPreferencePatch = (patch) => {
-  if (!patch || typeof patch !== "object") return;
+  if (typeof window === "undefined" || !patch || typeof patch !== "object") {
+    return;
+  }
 
   pendingPatch = {
     ...pendingPatch,
-    ...patch,
+    ...cleanPatch(patch),
   };
 
   if (flushTimer) {
@@ -269,11 +278,34 @@ export const installAccountPreferenceSync = () => {
   window.addEventListener("mg:source-selector-sort-changed", onSourceSort);
   window.addEventListener(ACCOUNT_PREFERENCE_EVENT, onExplicitPatch);
 
+  // Live TV favourites/recent channels pre-date the account-sync event bus.
+  // Watch their two small local lists and mirror changes to the signed-in
+  // Media God user without touching device-only Fire TV navigation settings.
+  let lastLiveTvSnapshot = JSON.stringify({
+    favourites: readStoredArray(LIVE_TV_FAVOURITES_KEY),
+    recent: readStoredArray(LIVE_TV_RECENT_KEY),
+  });
+
+  const liveTvTimer = window.setInterval(() => {
+    const favourites = readStoredArray(LIVE_TV_FAVOURITES_KEY);
+    const recent = readStoredArray(LIVE_TV_RECENT_KEY);
+    const snapshot = JSON.stringify({ favourites, recent });
+
+    if (snapshot === lastLiveTvSnapshot) return;
+    lastLiveTvSnapshot = snapshot;
+
+    queueAccountPreferencePatch({
+      liveTvFavourites: favourites,
+      liveTvRecent: recent,
+    });
+  }, LIVE_TV_SYNC_INTERVAL_MS);
+
   return () => {
     window.removeEventListener("mg:playback-preferences-changed", onPlayback);
     window.removeEventListener("mg:media-track-preferences-changed", onTracks);
     window.removeEventListener("mg:source-selector-sort-changed", onSourceSort);
     window.removeEventListener(ACCOUNT_PREFERENCE_EVENT, onExplicitPatch);
+    window.clearInterval(liveTvTimer);
 
     if (flushTimer) {
       window.clearTimeout(flushTimer);
