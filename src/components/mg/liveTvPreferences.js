@@ -4,16 +4,9 @@ export const DEFAULT_LIVE_TV_SETTINGS = {
   regionalLock: false,
 };
 
-export const normaliseLiveTvSettings = (value) => {
-  const raw = value && typeof value === "object" ? value : {};
-
-  return {
-    regionalLock:
-      typeof raw.regionalLock === "boolean"
-        ? raw.regionalLock
-        : DEFAULT_LIVE_TV_SETTINGS.regionalLock,
-  };
-};
+export const normaliseLiveTvSettings = () => ({
+  regionalLock: false,
+});
 
 export const readLiveTvSettings = () => {
   if (typeof window === "undefined") {
