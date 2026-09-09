@@ -1,5 +1,22 @@
 export const UPDATE_HISTORY = [
   {
+    id: "fire-tv-player-controls-sidebar-v1",
+    date: "9 September 2026",
+    title: "Fire TV torrent controls and full navigation restored",
+    summary:
+      "The dedicated Fire TV app now keeps Media God's full movie/episode/torrent player controls and a labelled side navigation bar, while native Media3 remains available for Live TV and difficult codecs.",
+    changes: [
+      "Stopped normal movie, episode and torrent playback from immediately leaving Media God's full player UI for the native Fire TV activity.",
+      "Restored the on-TV playback source selector and multi-file torrent selector for Real-Debrid/debrid sources.",
+      "Restored playback speed, volume, subtitle controls and audio-track controls in the Fire TV player.",
+      "Kept Live TV on the native Media3 path for stronger HLS/DASH/header and codec support.",
+      "Added a Native decoder button so a movie or torrent can still be handed to Media3 when a difficult codec needs the native Fire TV decoder.",
+      "Pressing Back from a manually opened native decoder now returns to the Media God player instead of closing the title.",
+      "Expanded the Fire TV navigation rail into a labelled side navigation bar with Home, Movies, TV Shows, Live TV, Watchlist, Favorites and the existing Media God sections.",
+      "Kept D-pad focus handling and TV safe-zone sizing while making the wider sidebar and advanced player controls fit the 960×540 Fire TV logical viewport.",
+    ],
+  },
+  {
     id: "worldwide-https-streams-v2",
     date: "9 September 2026",
     title: "Worldwide HTTPS Live TV restored and improved",
