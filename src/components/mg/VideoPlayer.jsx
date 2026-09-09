@@ -3017,11 +3017,23 @@ export default function VideoPlayer({
         !isLive
       ) {
         /*
-         * One native Back press must mean one navigation step. Closing the
-         * player here reveals the episode selector/details screen that opened
-         * it, rather than inserting an extra source-selector stop in between.
+         * Return from native playback to Media God's source/torrent selector.
+         * This keeps every source, Real-Debrid option, torrent-file picker,
+         * Native decoder and Fix audio control reachable without immediately
+         * relaunching the same native stream. A second Back from this selector
+         * closes the player and returns to the episode/details screen.
          */
-        onClose?.();
+        setForceNativePlayback(false);
+        setNativeFallbackUrl(String(activeRequest.url || "").trim());
+
+        window.dispatchEvent(
+          new CustomEvent("mg:player-status", {
+            detail: {
+              message:
+                `Playback paused — choose another source/torrent file, use Fix audio, or resume in the ${nativePlayerName} player.`,
+            },
+          })
+        );
         return;
       }
 
