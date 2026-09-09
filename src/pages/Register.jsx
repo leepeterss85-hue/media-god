@@ -155,14 +155,24 @@ export default function Register() {
         </>
       }
     >
-      <Button
-        variant="outline"
-        className="w-full h-12 text-sm font-medium mb-6"
-        onClick={handleGoogle}
-      >
-        <GoogleIcon className="w-5 h-5 mr-2" />
-        Continue with Google
-      </Button>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-6">
+        {SOCIAL_LOGIN_PROVIDERS.map(({ id, label, Icon }) => (
+          <Button
+            key={id}
+            variant="outline"
+            className="w-full h-12 text-sm font-medium"
+            onClick={() => handleSocial(id)}
+            disabled={socialLoading !== null}
+          >
+            {socialLoading === id ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Icon className="w-5 h-5 mr-2" />
+            )}
+            Continue with {label}
+          </Button>
+        ))}
+      </div>
 
       <div className="relative mb-6">
         <div className="absolute inset-0 flex items-center">
