@@ -9,7 +9,6 @@ import {
   Clock,
   ExternalLink,
   Heart,
-  ListVideo,
   Play,
   Plus,
   Star,
@@ -907,11 +906,6 @@ export default function DetailModal({
       return;
     }
 
-    if (resolvedMediaType === "tv") {
-      goToEpisodes();
-      return;
-    }
-
     player.play({
       id:
         itemId,
@@ -965,41 +959,6 @@ export default function DetailModal({
     });
 
     onClose?.();
-  };
-
-  const goToEpisodes = () => {
-    const target =
-      document.getElementById(
-        "mg-episode-selector"
-      );
-
-    if (target) {
-      target.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-
-      const focusTarget =
-        target.querySelector(
-          'select[aria-label="Choose season"], button'
-        );
-
-      window.setTimeout(
-        () => focusTarget?.focus?.(),
-        250
-      );
-    }
-  };
-
-  const primaryAction = () => {
-    if (
-      resolvedMediaType === "tv"
-    ) {
-      goToEpisodes();
-      return;
-    }
-
-    play();
   };
 
   const addToWatchlist =
@@ -1345,30 +1304,13 @@ export default function DetailModal({
           <div className="flex flex-wrap gap-2 3xl:gap-3 mt-4 3xl:mt-6">
             <button
               type="button"
-              onClick={primaryAction}
-              disabled={
-                resolvedMediaType === "tv" &&
-                loading
-              }
+              onClick={play}
               data-mg-detail-primary="true"
-              className="flex-1 min-w-[140px] flex items-center justify-center gap-2 bg-mg-green text-black font-semibold text-sm 3xl:text-lg py-2.5 3xl:py-3.5 rounded-lg 3xl:rounded-xl hover:bg-mg-green-dim disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black"
-              aria-label={
-                resolvedMediaType === "tv"
-                  ? `Choose an episode of ${displayTitle}`
-                  : `Play ${displayTitle}`
-              }
+              className="flex-1 min-w-[140px] flex items-center justify-center gap-2 bg-mg-green text-black font-semibold text-sm 3xl:text-lg py-2.5 3xl:py-3.5 rounded-lg 3xl:rounded-xl hover:bg-mg-green-dim focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black"
+              aria-label={`Play ${displayTitle}`}
             >
-              {resolvedMediaType === "tv" ? (
-                <ListVideo className="w-4 h-4 3xl:w-5 3xl:h-5" />
-              ) : (
-                <Play className="w-4 h-4 3xl:w-5 3xl:h-5 fill-black" />
-              )}
-
-              {resolvedMediaType === "tv"
-                ? loading
-                  ? "Loading Episodes…"
-                  : "Choose Episode"
-                : "Play"}
+              <Play className="w-4 h-4 3xl:w-5 3xl:h-5 fill-black" />
+              Play
             </button>
 
             <button
@@ -1415,38 +1357,38 @@ export default function DetailModal({
             </button>
           </div>
 
-          {resolvedMediaType === "movie" && (
-            <StreamSourcesBox
-              title={
-                displayTitle
-              }
-              poster={
-                displayPoster
-              }
-              trailerUrl={
-                trailerUrl
-              }
-              providers={
-                providers
-              }
-              loading={
-                loading
-              }
-              rdYear={
-                safeItem.year
-              }
-              tmdbId={
-                itemId
-              }
-              imdbId={
-                firstText(
-                  safeItem.imdb_id,
-                  details.imdb_id
-                )
-              }
-              mediaType="movie"
-            />
-          )}
+          <StreamSourcesBox
+            title={
+              displayTitle
+            }
+            poster={
+              displayPoster
+            }
+            trailerUrl={
+              trailerUrl
+            }
+            providers={
+              providers
+            }
+            loading={
+              loading
+            }
+            rdYear={
+              safeItem.year
+            }
+            tmdbId={
+              itemId
+            }
+            imdbId={
+              firstText(
+                safeItem.imdb_id,
+                details.imdb_id
+              )
+            }
+            mediaType={
+              resolvedMediaType
+            }
+          />
 
           <div className="mt-5 3xl:mt-8">
             <h3 className="text-white/80 text-xs 3xl:text-base font-bold uppercase tracking-wider mb-1.5 3xl:mb-2">

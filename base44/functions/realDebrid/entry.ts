@@ -153,166 +153,6 @@ const sleep = (ms) =>
     setTimeout(resolve, ms)
   );
 
-const RD_RETRYABLE_STATUSES = new Set([
-  408,
-  425,
-  429,
-  500,
-  502,
-  503,
-  504,
-]);
-
-const isRetryableRdStatus = (status) =>
-  RD_RETRYABLE_STATUSES.has(
-    Number(status)
-  );
-
-const rdRetryDelayMs = (
-  response,
-  attempt
-) => {
-  const retryAfter =
-    response?.headers?.get?.(
-      "retry-after"
-    ) || "";
-
-  if (/^\d+(?:\.\d+)?$/.test(retryAfter)) {
-    return Math.min(
-      3000,
-      Math.max(
-        250,
-        Math.round(
-          Number(retryAfter) *
-            1000
-        )
-      )
-    );
-  }
-
-  const retryAt =
-    Date.parse(retryAfter);
-
-  if (
-    Number.isFinite(retryAt)
-  ) {
-    return Math.min(
-      3000,
-      Math.max(
-        250,
-        retryAt - Date.now()
-      )
-    );
-  }
-
-  return [
-    300,
-    750,
-    1500,
-    2500,
-  ][attempt] || 2500;
-};
-
-async function rdFetch(
-  url,
-  options = {},
-  {
-    attempts = 3,
-  } = {}
-) {
-  let lastError = null;
-
-  for (
-    let attempt = 0;
-    attempt < attempts;
-    attempt += 1
-  ) {
-    try {
-      const response =
-        await fetch(
-          url,
-          options
-        );
-
-      if (
-        !isRetryableRdStatus(
-          response.status
-        ) ||
-        attempt ===
-          attempts - 1
-      ) {
-        return response;
-      }
-
-      await sleep(
-        rdRetryDelayMs(
-          response,
-          attempt
-        )
-      );
-    } catch (error) {
-      lastError = error;
-
-      if (
-        attempt ===
-        attempts - 1
-      ) {
-        throw error;
-      }
-
-      await sleep(
-        [300, 750, 1500][
-          attempt
-        ] || 1500
-      );
-    }
-  }
-
-  throw (
-    lastError ||
-    new Error(
-      "Real-Debrid request failed."
-    )
-  );
-}
-
-const rdFailureMessage = async (
-  response,
-  label
-) => {
-  let detail = "";
-
-  try {
-    const text =
-      String(
-        await response.text()
-      ).trim();
-
-    if (text) {
-      try {
-        const parsed =
-          JSON.parse(text);
-
-        detail =
-          parsed?.error_description ||
-          parsed?.error ||
-          parsed?.message ||
-          text;
-      } catch {
-        detail = text;
-      }
-    }
-  } catch {
-    detail = "";
-  }
-
-  return `${label} (${response.status})${
-    detail
-      ? `: ${String(detail).slice(0, 280)}`
-      : ""
-  }`;
-};
-
 const summariseAudioTrack = (track, key = "") => ({
   key,
   stream: track?.stream || "",
@@ -507,14 +347,13 @@ export default async function (req) {
         );
 
       if (stream.error) {
-        return Response.json({
-          status: "failed",
-          error:
-            stream.error,
-          error_code:
-            stream.error_code ||
-            "RD_TORRENT_INFO_FAILED",
-        });
+        return Response.json(
+          {
+            error:
+              stream.error,
+          },
+          { status: 502 }
+        );
       }
 
       return Response.json({
@@ -632,7 +471,7 @@ export default async function (req) {
       }
 
       const unRes =
-        await rdFetch(
+        await fetch(
           `${RD_BASE}/unrestrict/link`,
           {
             method: "POST",
@@ -642,23 +481,20 @@ export default async function (req) {
               `link=${encodeURIComponent(
                 link
               )}`,
-          },
-          {
-            attempts: 3,
           }
         );
 
       if (!unRes.ok) {
-        return Response.json({
-          status: "failed",
-          error:
-            await rdFailureMessage(
-              unRes,
-              "Real-Debrid could not unrestrict this file"
-            ),
-          error_code:
-            `RD_UNRESTRICT_${unRes.status}`,
-        });
+        const text =
+          await unRes.text();
+
+        return Response.json(
+          {
+            error:
+              `unrestrict failed: ${unRes.status} ${text}`,
+          },
+          { status: 502 }
+        );
       }
 
       const unData =
@@ -678,17 +514,19 @@ export default async function (req) {
         });
 
       if (playable.error) {
-        return Response.json({
-          status: "failed",
-          error:
-            playable.error,
-          error_code:
-            playable.error_code ||
-            "AUDIO_RESCUE_FAILED",
-          audio_rescue:
-            playable.audio_rescue ||
-            null,
-        });
+        return Response.json(
+          {
+            error:
+              playable.error,
+            error_code:
+              playable.error_code ||
+              "AUDIO_RESCUE_FAILED",
+            audio_rescue:
+              playable.audio_rescue ||
+              null,
+          },
+          { status: 502 }
+        );
       }
 
       return Response.json({
@@ -1328,7 +1166,7 @@ async function addMagnet({
    * present in the user's library.
    */
   const addRes =
-    await rdFetch(
+    await fetch(
       `${RD_BASE}/torrents/addMagnet`,
       {
         method: "POST",
@@ -1338,27 +1176,20 @@ async function addMagnet({
           `magnet=${encodeURIComponent(
             magnet
           )}`,
-      },
-      {
-        attempts: 3,
       }
     );
 
   if (!addRes.ok) {
-    return Response.json({
-      status: "failed",
-      error:
-        await rdFailureMessage(
-          addRes,
-          "Real-Debrid could not add this torrent"
-        ),
-      upstream_status:
-        addRes.status,
-      retryable:
-        isRetryableRdStatus(
-          addRes.status
-        ),
-    });
+    const text =
+      await addRes.text();
+
+    return Response.json(
+      {
+        error:
+          `addMagnet failed: ${addRes.status} ${text}`,
+      },
+      { status: 502 }
+    );
   }
 
   const addData =
@@ -1370,52 +1201,28 @@ async function addMagnet({
     );
 
   if (!torrentId) {
-    return Response.json({
-      status: "failed",
-      error:
-        "Real-Debrid did not return a torrent id.",
-      error_code:
-        "RD_NO_TORRENT_ID",
-    });
+    return Response.json(
+      {
+        error:
+          "Real-Debrid did not return a torrent id.",
+      },
+      { status: 502 }
+    );
   }
 
   /*
    * Select all files first.
    */
-  const selectAllRes =
-    await rdFetch(
-      `${RD_BASE}/torrents/selectFiles/${torrentId}`,
-      {
-        method: "POST",
-        headers:
-          formHeaders,
-        body:
-          "files=all",
-      },
-      {
-        attempts: 3,
-      }
-    );
-
-  if (
-    !selectAllRes.ok &&
-    selectAllRes.status !== 202
-  ) {
-    return Response.json({
-      status: "failed",
-      error:
-        await rdFailureMessage(
-          selectAllRes,
-          "Real-Debrid could not select the torrent files"
-        ),
-      upstream_status:
-        selectAllRes.status,
-      retryable:
-        isRetryableRdStatus(
-          selectAllRes.status
-        ),
-    });
-  }
+  await fetch(
+    `${RD_BASE}/torrents/selectFiles/${torrentId}`,
+    {
+      method: "POST",
+      headers:
+        formHeaders,
+      body:
+        "files=all",
+    }
+  );
 
   const metadata = {
     title:
@@ -1527,14 +1334,13 @@ async function addMagnet({
     );
 
   if (stream.error) {
-    return Response.json({
-      status: "failed",
-      error:
-        stream.error,
-      error_code:
-        stream.error_code ||
-        "RD_RESOLVE_FAILED",
-    });
+    return Response.json(
+      {
+        error:
+          stream.error,
+      },
+      { status: 502 }
+    );
   }
 
   return Response.json({
@@ -1776,14 +1582,11 @@ async function resolveStreamable(
     `${RD_BASE}/torrents/info/${torrentId}`;
 
   const infoRes =
-    await rdFetch(
+    await fetch(
       infoUrl,
       {
         headers:
           authHeaders,
-      },
-      {
-        attempts: 3,
       }
     );
 
@@ -1805,7 +1608,7 @@ async function resolveStreamable(
     "waiting_files_selection"
   ) {
     const selectRes =
-      await rdFetch(
+      await fetch(
         `${RD_BASE}/torrents/selectFiles/${torrentId}`,
         {
           method:
@@ -1816,9 +1619,6 @@ async function resolveStreamable(
 
           body:
             "files=all",
-        },
-        {
-          attempts: 3,
         }
       );
 
@@ -1835,14 +1635,11 @@ async function resolveStreamable(
      * Fetch fresh torrent information.
      */
     const retryRes =
-      await rdFetch(
+      await fetch(
         infoUrl,
         {
           headers:
             authHeaders,
-        },
-        {
-          attempts: 3,
         }
       );
 
@@ -2008,7 +1805,7 @@ async function resolveStreamable(
    * Turn the RD file link into a direct download/stream URL.
    */
   const unRes =
-    await rdFetch(
+    await fetch(
       `${RD_BASE}/unrestrict/link`,
       {
         method:
@@ -2021,21 +1818,16 @@ async function resolveStreamable(
           `link=${encodeURIComponent(
             targetLink
           )}`,
-      },
-      {
-        attempts: 3,
       }
     );
 
   if (!unRes.ok) {
+    const text =
+      await unRes.text();
+
     return {
       error:
-        await rdFailureMessage(
-          unRes,
-          "Real-Debrid could not unrestrict this file"
-        ),
-      error_code:
-        `RD_UNRESTRICT_${unRes.status}`,
+        `unrestrict failed: ${unRes.status} ${text}`,
     };
   }
 

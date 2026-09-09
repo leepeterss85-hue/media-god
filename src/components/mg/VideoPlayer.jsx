@@ -20,7 +20,6 @@ import LiveVideo from "@/components/mg/LiveVideo";
 import PlayerControls from "@/components/mg/PlayerControls";
 import {
   isNativeFireTvPlayerAvailable,
-  nativeFireTvAppInfo,
   openNativeFireTvExternalUrl,
   playNativeFireTv,
 } from "@/components/mg/nativeFireTvBridge";
@@ -1513,16 +1512,16 @@ export default function VideoPlayer({
             if (
               data.error
             ) {
+              setRdError(
+                data.error
+              );
+
               setRdPolling(
                 false
               );
 
               setRdTorrentId(
                 null
-              );
-
-              tryNextSource(
-                data.error
               );
 
               return;
@@ -1533,17 +1532,17 @@ export default function VideoPlayer({
             if (
               !cancelled
             ) {
+              setRdError(
+                error?.message ||
+                  "Real-Debrid polling failed."
+              );
+
               setRdPolling(
                 false
               );
 
               setRdTorrentId(
                 null
-              );
-
-              tryNextSource(
-                error?.message ||
-                  "Real-Debrid polling failed."
               );
             }
 
@@ -2880,20 +2879,6 @@ export default function VideoPlayer({
   const nativeFireTvPlayer =
     isNativeFireTvPlayerAvailable();
 
-  const nativeAppInfo =
-    nativeFireTvPlayer
-      ? nativeFireTvAppInfo()
-      : null;
-
-  const nativeMobileRuntime =
-    String(nativeAppInfo?.platform || "").toLowerCase() ===
-    "android-mobile";
-
-  const nativePlayerName =
-    nativeMobileRuntime
-      ? "Android"
-      : "Fire TV";
-
   const nativePlaybackUrl =
     nativeFireTvPlayer
       ? String(
@@ -2920,12 +2905,7 @@ export default function VideoPlayer({
    */
   const useNativePlayback =
     nativePlaybackAvailable &&
-    (
-      isLive ||
-      forceNativePlayback ||
-      nativeMobileRuntime ||
-      isFireTvRemoteRuntime()
-    );
+    (isLive || forceNativePlayback || isFireTvRemoteRuntime());
 
   const fireTvNativeSelectorMode =
     nativeFireTvPlayer &&
@@ -2998,7 +2978,7 @@ export default function VideoPlayer({
             detail: {
               message:
                 detail.message ||
-                `${nativePlayerName} native player could not play this source — trying a backup…`,
+                "Fire TV native player could not play this source — trying a backup…",
             },
           })
         );
@@ -3017,11 +2997,10 @@ export default function VideoPlayer({
         !isLive
       ) {
         /*
-         * Return from native playback to Media God's source/torrent selector.
-         * This keeps every source, Real-Debrid option, torrent-file picker,
-         * Native decoder and Fix audio control reachable without immediately
-         * relaunching the same native stream. A second Back from this selector
-         * closes the player and returns to the episode/details screen.
+         * Return to Media God's source/torrent selector without immediately
+         * sending the same URL back to Media3 and without asking WebView to
+         * decode it. Choosing another source/file clears this URL lock; the
+         * Resume button below clears it explicitly for the current source.
          */
         setForceNativePlayback(false);
         setNativeFallbackUrl(String(activeRequest.url || "").trim());
@@ -3030,7 +3009,7 @@ export default function VideoPlayer({
           new CustomEvent("mg:player-status", {
             detail: {
               message:
-                `Playback paused — choose another source/torrent file, use Fix audio, or resume in the ${nativePlayerName} player.`,
+                "Playback paused — choose another source/file or resume in the Fire TV player.",
             },
           })
         );
@@ -3056,7 +3035,6 @@ export default function VideoPlayer({
     isLive,
     rdOverride,
     forceNativePlayback,
-    nativePlayerName,
     onClose,
   ]);
 
@@ -3093,20 +3071,6 @@ export default function VideoPlayer({
       requestId,
       url: nativePlaybackUrl,
     };
-
-    try {
-      document
-        .querySelectorAll('[data-mg-player-root="true"] video, [data-mg-player-root="true"] audio')
-        .forEach((media) => {
-          try {
-            media.pause();
-          } catch {
-            // Native handoff still proceeds if a provider-owned element resists pause.
-          }
-        });
-    } catch {
-      // Best-effort duplicate-playback prevention.
-    }
 
     const started = playNativeFireTv({
       requestId,
@@ -3148,7 +3112,7 @@ export default function VideoPlayer({
         new CustomEvent("mg:player-status", {
           detail: {
             message:
-              `${nativePlayerName} player was busy or could not open — using the fallback player.`,
+              "Fire TV player was busy or could not open — using the fallback player.",
           },
         })
       );
@@ -3181,7 +3145,7 @@ export default function VideoPlayer({
         new CustomEvent("mg:player-status", {
           detail: {
             message:
-              `${nativePlayerName} player did not open correctly — switched to the fallback player.`,
+              "Fire TV player did not open correctly — switched to the fallback player.",
           },
         })
       );
@@ -3191,7 +3155,6 @@ export default function VideoPlayer({
     activeIdx,
     isLive,
     nativePlaybackUrl,
-    nativePlayerName,
     rdOverride,
     source,
     useNativePlayback,
@@ -3781,15 +3744,6 @@ export default function VideoPlayer({
     rdPolling ||
     !!rdTorrentId;
 
-  const busyLabel =
-    rdPolling
-      ? "Real-Debrid is preparing this file…"
-      : rdResolving
-        ? "Finding the best playable stream…"
-        : rdTorrentId
-          ? "Preparing torrent…"
-          : "Loading…";
-
   const displayedError =
     rdError ||
     "";
@@ -3798,7 +3752,6 @@ export default function VideoPlayer({
     <div
       data-mg-player-root="true"
       data-mg-player-fullscreen={isAppFullscreen ? "true" : "false"}
-      data-mg-native-selector-mode={fireTvNativeSelectorMode ? "true" : "false"}
       className="fixed inset-0 z-[2147483646] bg-black/95 flex items-center justify-center p-2 sm:p-3"
       onClick={
         onClose
@@ -3894,7 +3847,7 @@ export default function VideoPlayer({
               <Loader2 className="w-8 h-8 text-mg-green animate-spin" />
 
               <p className="text-white/70 text-sm">
-                {busyLabel}
+                Loading…
               </p>
             </div>
           ) : fireTvNativeSelectorMode ? (
@@ -3905,11 +3858,11 @@ export default function VideoPlayer({
               <Tv className="h-9 w-9 text-mg-green" />
 
               <p className="text-white/85 text-sm font-semibold">
-                {nativePlayerName} playback paused
+                Fire TV playback paused
               </p>
 
               <p className="max-w-md text-white/50 text-xs">
-                Use the source and torrent-file selectors below, or resume the current source in the native {nativePlayerName} player.
+                Use the source and torrent-file selectors below, or resume the current source in the native Fire TV player.
               </p>
 
               <button
@@ -3920,7 +3873,7 @@ export default function VideoPlayer({
                 }}
                 className="mt-1 min-h-10 rounded-lg bg-mg-green px-4 text-xs font-bold text-black focus:outline-none focus:ring-2 focus:ring-white/70"
               >
-                Resume {nativePlayerName} playback
+                Resume Fire TV playback
               </button>
             </div>
           ) : useNativePlayback ? (
@@ -3931,11 +3884,11 @@ export default function VideoPlayer({
               <Loader2 className="w-8 h-8 text-mg-green animate-spin" />
 
               <p className="text-white/80 text-sm font-semibold">
-                Opening {nativePlayerName} player…
+                Opening Fire TV player…
               </p>
 
               <p className="max-w-md text-white/45 text-xs">
-                Media God is handing this stream to the native {nativePlayerName} video engine.
+                Media God is handing this stream to the native Fire TV video engine.
               </p>
             </div>
           ) : rdOverride ? (
@@ -4410,8 +4363,8 @@ export default function VideoPlayer({
                   setForceNativePlayback(true);
                 }}
                 className="shrink-0 flex min-h-10 items-center gap-1.5 rounded-lg border border-white/10 bg-mg-card px-3 text-xs font-semibold text-white hover:border-mg-green/40 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-mg-green/50"
-                aria-label={`Open native ${nativePlayerName} decoder`}
-                title={`Use the native ${nativePlayerName} Media3 decoder for difficult video or audio codecs`}
+                aria-label="Open native Fire TV decoder"
+                title="Use Media3 for difficult video or audio codecs"
               >
                 <Tv className="h-4 w-4" />
                 <span>Native decoder</span>
@@ -4439,11 +4392,8 @@ export default function VideoPlayer({
 
         {displayedError &&
           !busy && (
-            <div
-              role="alert"
-              className="mt-2 flex items-start gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2"
-            >
-              <p className="min-w-0 flex-1 whitespace-normal break-words text-xs leading-5 text-red-300">
+            <div className="mt-2 flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2">
+              <p className="min-w-0 flex-1 truncate text-xs text-red-300">
                 {
                   displayedError
                 }

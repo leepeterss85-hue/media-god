@@ -5,8 +5,6 @@ import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
@@ -50,10 +48,6 @@ class PlayerActivity : Activity() {
     private var shouldPlayWhenReady = true
     private var resultSent = false
     private var genericHttpsMimeRetryIndex = 0
-    private val watchdogHandler = Handler(Looper.getMainLooper())
-    private var startupWatchdog: Runnable? = null
-    private var bufferingWatchdog: Runnable? = null
-    private var playbackStarted = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -107,18 +101,9 @@ class PlayerActivity : Activity() {
         super.onResume()
         enterImmersiveMode()
         playerView.requestFocus()
-
-        player?.let { activePlayer ->
-            if (!playbackStarted) {
-                armStartupWatchdog(activePlayer)
-            } else if (activePlayer.playbackState == Player.STATE_BUFFERING) {
-                armBufferingWatchdog(activePlayer)
-            }
-        }
     }
 
     override fun onPause() {
-        cancelPlaybackWatchdogs()
         player?.let {
             restorePositionMs = max(0L, it.currentPosition)
             shouldPlayWhenReady = it.playWhenReady
@@ -257,52 +242,19 @@ class PlayerActivity : Activity() {
         exoPlayer.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 if (isPlaying) {
-                    playbackStarted = true
-                    cancelStartupWatchdog()
-                    cancelBufferingWatchdog()
                     window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                 } else {
                     window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-
-                    if (
-                        playbackStarted &&
-                        exoPlayer.playWhenReady &&
-                        exoPlayer.playbackState == Player.STATE_BUFFERING
-                    ) {
-                        armBufferingWatchdog(exoPlayer)
-                    }
                 }
             }
 
-            override fun onRenderedFirstFrame() {
-                playbackStarted = true
-                cancelStartupWatchdog()
-            }
-
             override fun onPlaybackStateChanged(playbackState: Int) {
-                when (playbackState) {
-                    Player.STATE_BUFFERING -> {
-                        if (playbackStarted) {
-                            armBufferingWatchdog(exoPlayer)
-                        }
-                    }
-
-                    Player.STATE_READY -> {
-                        cancelBufferingWatchdog()
-                    }
-
-                    Player.STATE_ENDED -> {
-                        cancelPlaybackWatchdogs()
-                        finishWithResult("ended")
-                    }
-
-                    else -> Unit
+                if (playbackState == Player.STATE_ENDED) {
+                    finishWithResult("ended")
                 }
             }
 
             override fun onPlayerError(error: PlaybackException) {
-                cancelPlaybackWatchdogs()
-
                 /*
                  * Extensionless HTTPS live endpoints are common in IPTV/CDN
                  * lists. Media3 cannot always infer whether those URLs are
@@ -311,7 +263,6 @@ class PlayerActivity : Activity() {
                  * before returning the failure to the web catalogue.
                  */
                 if (retryUnknownHttpsSourceType(exoPlayer)) {
-                    armStartupWatchdog(exoPlayer)
                     return
                 }
 
@@ -340,7 +291,6 @@ class PlayerActivity : Activity() {
             exoPlayer.play()
         }
 
-        armStartupWatchdog(exoPlayer)
         playerView.showController()
     }
 
@@ -436,8 +386,6 @@ class PlayerActivity : Activity() {
         val resumePlayback = activePlayer.playWhenReady || shouldPlayWhenReady
 
         return try {
-            cancelPlaybackWatchdogs()
-            playbackStarted = false
             activePlayer.stop()
             activePlayer.clearMediaItems()
             activePlayer.setMediaItem(buildMediaItem(retryMimeType))
@@ -456,87 +404,6 @@ class PlayerActivity : Activity() {
         } catch (_: Throwable) {
             false
         }
-    }
-
-    private fun cancelStartupWatchdog() {
-        startupWatchdog?.let(watchdogHandler::removeCallbacks)
-        startupWatchdog = null
-    }
-
-    private fun cancelBufferingWatchdog() {
-        bufferingWatchdog?.let(watchdogHandler::removeCallbacks)
-        bufferingWatchdog = null
-    }
-
-    private fun cancelPlaybackWatchdogs() {
-        cancelStartupWatchdog()
-        cancelBufferingWatchdog()
-    }
-
-    private fun armStartupWatchdog(activePlayer: ExoPlayer) {
-        cancelStartupWatchdog()
-
-        val task = Runnable {
-            startupWatchdog = null
-
-            if (
-                resultSent ||
-                player !== activePlayer ||
-                playbackStarted ||
-                activePlayer.isPlaying
-            ) {
-                return@Runnable
-            }
-
-            if (retryUnknownHttpsSourceType(activePlayer)) {
-                armStartupWatchdog(activePlayer)
-                return@Runnable
-            }
-
-            finishWithResult(
-                "error",
-                "This source did not start within 15 seconds. Media God is returning to try another source."
-            )
-        }
-
-        startupWatchdog = task
-        watchdogHandler.postDelayed(task, 15_000L)
-    }
-
-    private fun armBufferingWatchdog(activePlayer: ExoPlayer) {
-        if (!playbackStarted || !activePlayer.playWhenReady) {
-            return
-        }
-
-        cancelBufferingWatchdog()
-        val positionAtStart = max(0L, activePlayer.currentPosition)
-
-        val task = Runnable {
-            bufferingWatchdog = null
-
-            if (
-                resultSent ||
-                player !== activePlayer ||
-                activePlayer.playbackState != Player.STATE_BUFFERING
-            ) {
-                return@Runnable
-            }
-
-            val currentPosition = max(0L, activePlayer.currentPosition)
-
-            if (currentPosition > positionAtStart + 1_000L) {
-                armBufferingWatchdog(activePlayer)
-                return@Runnable
-            }
-
-            finishWithResult(
-                "error",
-                "Playback stalled for more than 25 seconds. Media God is returning to try another source."
-            )
-        }
-
-        bufferingWatchdog = task
-        watchdogHandler.postDelayed(task, 25_000L)
     }
 
     private fun inferSubtitleMimeType(url: String): String {
@@ -567,7 +434,6 @@ class PlayerActivity : Activity() {
     }
 
     private fun releasePlayer() {
-        cancelPlaybackWatchdogs()
         val activePlayer = player ?: return
 
         restorePositionMs = max(0L, activePlayer.currentPosition)

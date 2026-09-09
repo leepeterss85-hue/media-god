@@ -116,22 +116,6 @@ body.mg-fire-tv-mode [data-mg-player-qr="true"] {
   transition: opacity 180ms ease, visibility 180ms ease !important;
 }
 
-/* Returning from native Media3 playback is a deliberate source/torrent
- * selection state. Never let the normal playback auto-hide state make those
- * controls disappear: the user must be able to switch source, torrent file,
- * native decoder or audio rescue before resuming playback. */
-body.mg-fire-tv [data-mg-player-root="true"][data-mg-native-selector-mode="true"] [data-mg-player-topbar="true"],
-body.mg-fire-tv-stable [data-mg-player-root="true"][data-mg-native-selector-mode="true"] [data-mg-player-topbar="true"],
-body.mg-fire-tv-mode [data-mg-player-root="true"][data-mg-native-selector-mode="true"] [data-mg-player-topbar="true"],
-body.mg-fire-tv [data-mg-player-root="true"][data-mg-native-selector-mode="true"] [data-mg-player-options-panel="true"],
-body.mg-fire-tv-stable [data-mg-player-root="true"][data-mg-native-selector-mode="true"] [data-mg-player-options-panel="true"],
-body.mg-fire-tv-mode [data-mg-player-root="true"][data-mg-native-selector-mode="true"] [data-mg-player-options-panel="true"] {
-  display: flex !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-  pointer-events: auto !important;
-}
-
 /* True in-app fullscreen is picture-first on Fire TV. The title/Exit bar and
  * source/torrent/Fix-audio options remain completely absent in fullscreen;
  * the lower transport/advanced controls can still be revealed with the
