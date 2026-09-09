@@ -31,6 +31,10 @@ import {
   readPlaybackPreferences,
   writePlaybackPreferences,
 } from "@/components/mg/playbackPreferences";
+import {
+  readLiveTvSettings,
+  writeLiveTvSettings,
+} from "@/components/mg/liveTvPreferences";
 
 const DEFAULT_PREFERENCES = {
   autoplay: true,
@@ -246,6 +250,13 @@ export default function SettingsView() {
   ] = useState(
     () =>
       readRemoteSettings()
+  );
+
+  const [
+    liveTvSettings,
+    setLiveTvSettings,
+  ] = useState(
+    () => readLiveTvSettings()
   );
 
   const [
@@ -596,6 +607,20 @@ export default function SettingsView() {
             next
           );
         }
+      );
+    };
+
+  const updateLiveTvSetting =
+    (
+      key,
+      value
+    ) => {
+      setLiveTvSettings(
+        (current) =>
+          writeLiveTvSettings({
+            ...current,
+            [key]: value,
+          })
       );
     };
 
@@ -1554,6 +1579,29 @@ export default function SettingsView() {
                 Always on
               </option>
             </select>
+          </div>
+
+          <div className="flex items-center justify-between gap-4 p-4 3xl:p-5">
+            <div>
+              <p className="text-sm 3xl:text-base text-white font-medium">
+                Live TV regional lock
+              </p>
+
+              <p className="text-xs 3xl:text-sm text-white/40">
+                Keep this off to let Media God try every Live TV channel and backup even when a playlist labels the feed as geo-restricted.
+              </p>
+            </div>
+
+            <Toggle
+              on={liveTvSettings.regionalLock}
+              onClick={() =>
+                updateLiveTvSetting(
+                  "regionalLock",
+                  !liveTvSettings.regionalLock
+                )
+              }
+              label="Toggle Live TV regional lock"
+            />
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 3xl:p-5">
