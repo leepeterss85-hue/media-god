@@ -136,6 +136,7 @@ const OFFICIAL_LIVE_FALLBACKS = [
   [/^(?:more4|film4)\b/i, "https://www.channel4.com/now", "Open Channel 4"],
   [/^channel\s*5\b/i, "https://www.5.tv/", "Open 5"],
   [/^5(?:usa|star|action|select)\b/i, "https://www.5.tv/", "Open 5"],
+  [/^sky mix\b/i, "https://www.sky.com/watch/channel/pick", "Open Sky Mix on Sky"],
   [/^sky news\b/i, "https://news.sky.com/watch-live", "Open Sky News"],
   [/^gb news\b/i, "https://www.gbnews.com/", "Open GB News"],
   [/^(?:talk|talktv)\b/i, "https://talk.tv/play/talkradio?video=true", "Open Talk"],
