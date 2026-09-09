@@ -456,8 +456,13 @@ const normaliseChannelNameForKey = (value) =>
       /\b(?:2160p?|4k|uhd|1080p?|fhd|720p?|hd|576p?|480p?|sd)\b/gi,
       " "
     )
+    .replace(/\s+/g, " ")
+    .trim();
+
+const normaliseFastAliasName = (value) =>
+  normaliseChannelNameForKey(value)
     .replace(/&/g, " and ")
-    .replace(/[^a-z0-9.!+]+/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 
@@ -473,7 +478,7 @@ const FAST_CHANNEL_CANONICAL_IDS = new Map([
   ["buzzr", "buzzr"],
   ["crime 360", "crime-360"],
   ["a and e crime 360", "crime-360"],
-  ["a.e crime 360", "crime-360"],
+  ["a e crime 360", "crime-360"],
   ["crime thrillher", "crime-thrillher"],
   ["degrassi", "degrassi"],
   ["fubo sports network", "fubo-sports-network"],
@@ -521,12 +526,12 @@ const STALE_SOURCE_CHANNEL_NAMES = {
     "midnight pulp",
     "movie favorites by lifetime",
     "outdoor america",
-    "pocket.watch",
+    "pocket watch",
     "portlandia",
     "powernation",
     "pursuit up",
     "scripps news",
-    "shout! factory",
+    "shout factory",
     "sony canal comedias",
     "stingray naturescape",
     "the design network",
@@ -546,7 +551,7 @@ const STALE_SOURCE_CHANNEL_NAMES = {
 const isKnownStaleSourceChannel = (channel) => {
   const staleNames = STALE_SOURCE_CHANNEL_NAMES[channel?.sourceId];
   if (!staleNames) return false;
-  return staleNames.has(normaliseChannelNameForKey(channel?.name));
+  return staleNames.has(normaliseFastAliasName(channel?.name));
 };
 
 const classifyUrl = (url) => {
@@ -826,9 +831,10 @@ const dedupeKey = (channel) => {
   }
 
   const name = normaliseChannelNameForKey(channel?.name);
+  const fastAliasName = normaliseFastAliasName(channel?.name);
   const tvgId = String(channel?.tvgId || "").trim().toLowerCase();
 
-  const fastCanonicalId = FAST_CHANNEL_CANONICAL_IDS.get(name);
+  const fastCanonicalId = FAST_CHANNEL_CANONICAL_IDS.get(fastAliasName);
   if (fastCanonicalId) {
     return `fast:${fastCanonicalId}`;
   }
