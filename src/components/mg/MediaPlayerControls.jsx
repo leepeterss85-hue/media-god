@@ -1579,7 +1579,7 @@ export default function MediaPlayerControls({
               onBlur={
                 blurControl
               }
-              className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg bg-black/45 px-3 text-xs font-semibold text-white backdrop-blur hover:bg-black/65 focus:outline-none focus:ring-2 focus:ring-mg-green/60 sm:text-sm"
+              className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-black/50 px-3 text-xs font-semibold text-white backdrop-blur transition hover:bg-black/70 focus:bg-black/70 focus:outline-none focus:ring-2 focus:ring-mg-green sm:min-h-10 sm:text-sm"
               aria-label="Back to main menu"
               title="Back to main menu"
             >
@@ -1606,7 +1606,7 @@ export default function MediaPlayerControls({
                 }}
                 onFocus={focusControl}
                 onBlur={blurControl}
-                className="hidden min-h-10 w-[7.5rem] shrink-0 rounded-lg border border-white/15 bg-black/55 px-2 text-xs text-white outline-none backdrop-blur focus:border-mg-green md:block"
+                className="hidden min-h-10 w-[7.5rem] shrink-0 rounded-lg border border-white/15 bg-black/60 px-2 text-xs font-medium text-white outline-none backdrop-blur transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/30 md:block"
                 aria-label="Sort playback sources"
                 title="Sort playback sources"
               >
@@ -1636,7 +1636,7 @@ export default function MediaPlayerControls({
                   onBlur={
                     blurControl
                   }
-                  className="w-full appearance-none rounded-lg border border-white/15 bg-black/55 py-2.5 pl-3 pr-8 text-xs text-white outline-none backdrop-blur focus:border-mg-green sm:text-sm"
+                  className="min-h-10 w-full appearance-none rounded-lg border border-white/15 bg-black/60 py-2.5 pl-3 pr-8 text-xs font-medium text-white outline-none backdrop-blur transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/30 sm:text-sm"
                   aria-label="Choose source or quality"
                   title="Choose source or quality"
                 >
@@ -1658,8 +1658,10 @@ export default function MediaPlayerControls({
                         {sourceFailed(
                           index
                         )
-                          ? "Failed — "
-                          : ""}
+                          ? "Unavailable • "
+                          : index === activeIdx
+                            ? "Playing • "
+                            : ""}
 
                         {sourceLabel(
                           item,
@@ -1689,7 +1691,7 @@ export default function MediaPlayerControls({
                 onBlur={
                   blurControl
                 }
-                className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg bg-black/45 px-2.5 text-xs font-semibold text-white backdrop-blur hover:bg-black/65 focus:outline-none focus:ring-2 focus:ring-mg-green/60"
+                className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-black/50 px-2.5 text-xs font-semibold text-white/80 backdrop-blur transition hover:bg-black/70 hover:text-white focus:bg-black/70 focus:outline-none focus:ring-2 focus:ring-mg-green"
                 aria-label="No sound"
                 title="No sound"
               >
