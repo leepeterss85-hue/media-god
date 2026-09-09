@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { UserPlus, Mail, Lock, Loader2 } from "lucide-react";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import AuthLayout from "@/components/AuthLayout";
-import GoogleIcon from "@/components/GoogleIcon";
+import { SOCIAL_LOGIN_PROVIDERS } from "@/components/mg/SocialLoginSection";
+import { mediaGodAuthReturnUrl } from "@/lib/mediaGodAuth";
 import { toast } from "@/components/ui/use-toast";
 import { safeReturnTo } from "@/lib/authReturnTo";
 
