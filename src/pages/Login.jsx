@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LogIn, Mail, Lock, Loader2 } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
-import GoogleIcon from "@/components/GoogleIcon";
+import { SOCIAL_LOGIN_PROVIDERS } from "@/components/mg/SocialLoginSection";
 import { safeReturnTo } from "@/lib/authReturnTo";
+import { mediaGodAuthReturnUrl } from "@/lib/mediaGodAuth";
 
 const FIRE_TV_RE = /(?:AFT[A-Z0-9]*|Fire TV|AmazonWebAppPlatform|Silk)/i;
 
@@ -35,6 +36,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [socialLoading, setSocialLoading] = useState(null);
   const googleButtonRef = useRef(null);
   const fireTv = isFireTv();
 
@@ -77,8 +79,19 @@ export default function Login() {
     }
   };
 
-  const handleGoogle = () => {
-    base44.auth.loginWithProvider("google", returnTo);
+  const handleSocial = (provider) => {
+    setError("");
+    setSocialLoading(provider);
+
+    try {
+      base44.auth.loginWithProvider(
+        provider,
+        mediaGodAuthReturnUrl(returnTo)
+      );
+    } catch (err) {
+      setSocialLoading(null);
+      setError(err?.message || `Could not start ${provider} sign-in`);
+    }
   };
 
   const handleGoogleRemoteKey = (event) => {
@@ -86,7 +99,7 @@ export default function Login() {
 
     event.preventDefault();
     event.stopPropagation();
-    handleGoogle();
+    handleSocial("google");
   };
 
   return (
@@ -106,18 +119,28 @@ export default function Login() {
         </>
       }
     >
-      <Button
-        ref={googleButtonRef}
-        variant="outline"
-        className="w-full h-12 text-sm font-medium mb-6"
-        onClick={handleGoogle}
-        onKeyDown={handleGoogleRemoteKey}
-        autoFocus={fireTv}
-        data-mg-fire-tv-auth-primary="true"
-      >
-        <GoogleIcon className="w-5 h-5 mr-2" />
-        Continue with Google
-      </Button>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-6">
+        {SOCIAL_LOGIN_PROVIDERS.map(({ id, label, Icon }, index) => (
+          <Button
+            key={id}
+            ref={index === 0 ? googleButtonRef : undefined}
+            variant="outline"
+            className="w-full h-12 text-sm font-medium"
+            onClick={() => handleSocial(id)}
+            onKeyDown={id === "google" ? handleGoogleRemoteKey : undefined}
+            autoFocus={fireTv && index === 0}
+            disabled={socialLoading !== null}
+            data-mg-fire-tv-auth-primary={index === 0 ? "true" : undefined}
+          >
+            {socialLoading === id ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Icon className="w-5 h-5 mr-2" />
+            )}
+            Continue with {label}
+          </Button>
+        ))}
+      </div>
 
       <div className="relative mb-6">
         <div className="absolute inset-0 flex items-center">
