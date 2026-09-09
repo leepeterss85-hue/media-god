@@ -36,6 +36,13 @@ class AppUpdater(
             return "error"
         }
 
+        pendingUpdateFile()?.takeIf { it.exists() }?.let { apk ->
+            activity.runOnUiThread {
+                openInstallerOrRequestPermission(apk)
+            }
+            return "started"
+        }
+
         if (!downloading.compareAndSet(false, true)) {
             return "busy"
         }
@@ -79,22 +86,19 @@ class AppUpdater(
     }
 
     fun onResume() {
-        if (!installPermissionGranted()) {
-            return
-        }
+        val apk = pendingUpdateFile() ?: return
 
-        val path = activity.getSharedPreferences(PREFS, 0)
-            .getString(KEY_PENDING_UPDATE_PATH, "")
-            .orEmpty()
-            .trim()
-
-        if (path.isBlank()) {
-            return
-        }
-
-        val apk = File(path)
         if (!apk.exists()) {
             clearPendingUpdate()
+            return
+        }
+
+        if (!installPermissionGranted()) {
+            sendStatus(
+                status = "permission_required",
+                message = "Fire OS still needs permission for Media God to install updates. You can retry or choose Later.",
+                progress = 100,
+            )
             return
         }
 
@@ -270,6 +274,15 @@ class AppUpdater(
                 progress = 100,
             )
         }
+    }
+
+    private fun pendingUpdateFile(): File? {
+        val path = activity.getSharedPreferences(PREFS, 0)
+            .getString(KEY_PENDING_UPDATE_PATH, "")
+            .orEmpty()
+            .trim()
+
+        return path.takeIf { it.isNotBlank() }?.let(::File)
     }
 
     private fun clearPendingUpdate() {
