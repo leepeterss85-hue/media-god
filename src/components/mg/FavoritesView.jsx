@@ -61,7 +61,7 @@ export default function FavoritesView() {
   }
 
   return (
-    <div className="p-4 max-w-6xl mx-auto">
+    <div data-mg-library-view="true" data-mg-favorites-view="true" className="p-4 max-w-6xl mx-auto">
       <div className="flex items-center gap-2 mb-4">
         <Heart className="w-6 h-6 text-mg-green" />
         <h2 className="text-xl font-bold text-white">Favorites</h2>
