@@ -477,8 +477,7 @@ const looksLikeUkFeed = (channel) => {
   );
 };
 
-const regionalAvailability = (channel) => {
-  const regionalLock = Boolean(readLiveTvSettings().regionalLock);
+const regionalAvailability = (channel, regionalLock) => {
   const restricted = Boolean(channel?.geoRestricted);
   const availableInConfiguredRegion =
     LIVE_TV_REGION === "GB" && looksLikeUkFeed(channel);
@@ -561,6 +560,7 @@ const parseExtHttp = (line) => {
 export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
   const lines = String(text || "").split(/\r?\n/);
   const channels = [];
+  const regionalLock = Boolean(readLiveTvSettings().regionalLock);
   let current = null;
 
   for (const rawLine of lines) {
@@ -643,7 +643,7 @@ export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
     current.mixedContent = false; // Handled by worker proxy wrapper
     current.requiresHeaders = Boolean(current.referrer || current.userAgent);
 
-    const geoState = regionalAvailability(current);
+    const geoState = regionalAvailability(current, regionalLock);
     current.geoAvailableHere = geoState.geoAvailableHere;
     current.geoBlocked = geoState.geoBlocked;
 
