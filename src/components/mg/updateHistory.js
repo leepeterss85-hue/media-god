@@ -1,5 +1,21 @@
 export const UPDATE_HISTORY = [
   {
+    id: "fire-tv-player-autohide-remote-v2",
+    date: "9 September 2026",
+    title: "Fire TV player chrome and D-pad control repaired",
+    summary:
+      "Fire TV playback controls now behave like television controls: they wake on remote input, focus the real transport controls and fade away again instead of staying pinned over the picture.",
+    changes: [
+      "Removed the old Fire TV takeover code that forced the player header, video and source box into permanent inline fullscreen positions.",
+      "The film title, Exit row, source/torrent options and QR helper now auto-hide while playback continues in normal player mode.",
+      "Fullscreen keeps the title/Exit/source box completely off the picture while transport, subtitles, audio, speed and volume remain available on demand.",
+      "The first D-pad or OK press after the controls have hidden wakes the overlay and focuses Play/Pause instead of seeking or changing an invisible control.",
+      "D-pad navigation now prioritises the real media-control surface before the outer source/torrent controls.",
+      "OK opens source/torrent selectors, Left/Right adjusts sliders, and Up/Down can leave sliders and move between control rows.",
+      "Persistent Fire TV focus no longer prevents the controls from fading away after a few seconds of inactivity.",
+    ],
+  },
+  {
     id: "nimeyer22-public-uk-channels-v1",
     date: "9 September 2026",
     title: "Additional public UK Live TV fallbacks added",
