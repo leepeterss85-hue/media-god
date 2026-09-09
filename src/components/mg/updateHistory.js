@@ -1,5 +1,20 @@
 export const UPDATE_HISTORY = [
   {
+    id: "fire-tv-white-screen-native-vod-v1",
+    date: "9 September 2026",
+    title: "Fire TV white-screen playback repaired",
+    summary:
+      "Resolved movies, episodes and torrent files now return to Android Media3 for the actual Fire TV video surface, while Media God's web UI remains available for source and torrent-file selection.",
+    changes: [
+      "Restored the stable Fire TV architecture used by the original dedicated build: WebView resolves/selects media, native Media3 decodes and renders it.",
+      "Pressing Back from native VOD now returns to a safe Media God selector screen instead of closing the app or decoding the same stream in WebView.",
+      "Changing source or torrent file automatically hands the newly resolved URL back to Media3; the current source can also be resumed explicitly.",
+      "Provider/external web pages are no longer promoted as direct media merely because they use HTTPS; explicit direct, HLS, DASH and extensionless typed stream sources remain supported.",
+      "Added a player-specific React recovery boundary so a player render failure cannot take down the whole Media God interface as a blank page.",
+      "Live TV keeps native Media3 playback and existing codec/header handling.",
+    ],
+  },
+  {
     id: "fire-tv-all-pages-remote-audit-v1",
     date: "9 September 2026",
     title: "Fire Stick remote navigation audited across every page",
