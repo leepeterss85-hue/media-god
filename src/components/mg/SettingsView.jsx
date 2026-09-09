@@ -31,10 +31,6 @@ import {
   readPlaybackPreferences,
   writePlaybackPreferences,
 } from "@/components/mg/playbackPreferences";
-import {
-  readLiveTvSettings,
-  writeLiveTvSettings,
-} from "@/components/mg/liveTvPreferences";
 
 const DEFAULT_PREFERENCES = {
   autoplay: true,
@@ -250,13 +246,6 @@ export default function SettingsView() {
   ] = useState(
     () =>
       readRemoteSettings()
-  );
-
-  const [
-    liveTvSettings,
-    setLiveTvSettings,
-  ] = useState(
-    () => readLiveTvSettings()
   );
 
   const [
@@ -607,20 +596,6 @@ export default function SettingsView() {
             next
           );
         }
-      );
-    };
-
-  const updateLiveTvSetting =
-    (
-      key,
-      value
-    ) => {
-      setLiveTvSettings(
-        (current) =>
-          writeLiveTvSettings({
-            ...current,
-            [key]: value,
-          })
       );
     };
 
@@ -1584,24 +1559,17 @@ export default function SettingsView() {
           <div className="flex items-center justify-between gap-4 p-4 3xl:p-5">
             <div>
               <p className="text-sm 3xl:text-base text-white font-medium">
-                Live TV regional lock
+                Live TV regional filtering
               </p>
 
               <p className="text-xs 3xl:text-sm text-white/40">
-                Keep this off to let Media God try every Live TV channel and backup even when a playlist labels the feed as geo-restricted.
+                Disabled. Media God does not hide or reject Live TV channels because a playlist marks them as geo-restricted; it still tries the available stream and backups.
               </p>
             </div>
 
-            <Toggle
-              on={liveTvSettings.regionalLock}
-              onClick={() =>
-                updateLiveTvSetting(
-                  "regionalLock",
-                  !liveTvSettings.regionalLock
-                )
-              }
-              label="Toggle Live TV regional lock"
-            />
+            <span className="rounded-full border border-mg-green/30 bg-mg-green/10 px-3 py-1.5 text-xs 3xl:text-sm font-semibold text-mg-green">
+              Off
+            </span>
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 3xl:p-5">
