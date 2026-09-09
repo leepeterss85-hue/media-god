@@ -47,6 +47,7 @@ dependencies {
     // 36/37 just to compile. Fire TV playback does not need those APIs.
     val media3Version = "1.5.1"
 
+    implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.media3:media3-exoplayer:$media3Version")
     implementation("androidx.media3:media3-exoplayer-hls:$media3Version")
     implementation("androidx.media3:media3-exoplayer-dash:$media3Version")
