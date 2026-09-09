@@ -74,7 +74,9 @@ export const LIVE_TV_SOURCES = [
 export const FREE_TV_PLAYLIST_URL =
   LIVE_TV_SOURCES[0].url;
 
-export const LIVE_TV_REGION = "GB";
+// Media God does not apply an app-side geographic region lock.
+// Country metadata is retained for browsing/searching only.
+export const LIVE_TV_REGION = "GLOBAL";
 
 export const PUBLIC_DIRECT_CHANNELS = [
   {
@@ -348,22 +350,14 @@ export function clearFreeTvCache() {
   inflight = null;
 }
 
-export const SKY_STREAM_OVERRIDES = {
-  "sky mix": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-skyshowcase/index.m3u8",
-  "sky sports main event": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-skysportsmainevent/index.m3u8",
-  "sky sports premier league": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-skysportspl/index.m3u8",
-  "sky sports football": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-skysportsfootball/index.m3u8",
-  "sky sports cricket": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-skysportscricket/index.m3u8",
-  "sky sports f1": "", 
-  "sky sports arena": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-skysportsarena/index.m3u8",
-  "sky sports golf": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-skysportsgolf/index.m3u8",
-  "sky sports action": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-skysportsaction/index.m3u8",
-  "sky showcase": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-skyshowcase/index.m3u8",
-  "bt sport 1": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-tntsports1/index.m3u8",
-  "bt sport 2": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-tntsports2/index.m3u8",
-  "tnt sports 1": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-tntsports1/index.m3u8",
-  "tnt sports 2": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-tntsports2/index.m3u8",
-};
+/*
+ * Do not force a channel onto a hard-coded relay URL. The former Worker
+ * endpoint now serves the Base44 HTML app rather than media, so overriding a
+ * healthy playlist candidate with it breaks playback. Keep this export for
+ * compatibility with older imports, but source selection now relies entirely
+ * on the live playlist candidates and their backups.
+ */
+export const SKY_STREAM_OVERRIDES = {};
 
 const CACHE_MS = 15 * 60 * 1000;
 
@@ -449,6 +443,18 @@ const qualityFromText = (value) => {
   return 0;
 };
 
+const countryFromTvgId = (value) => {
+  const id = String(value || "").trim();
+  if (!id) return "";
+
+  const base = id.split("@")[0];
+  const match = base.match(/\.([a-z]{2})$/i);
+  if (!match) return "";
+
+  const code = match[1].toUpperCase();
+  return code === "UK" ? "GB" : code;
+};
+
 const feedSuffix = (tvgId) => {
   const id = String(tvgId || "");
   const at = id.indexOf("@");
@@ -485,7 +491,7 @@ const browserCompatibility = (channel) => {
   if (kind === "external") return { browserPlayable: true, browserReason: "", format: "external" };
   if (isUnsupportedProtocol(url)) return { browserPlayable: false, browserReason: "Unsupported stream protocol", format };
   if (format === "dash") return { browserPlayable: true, browserReason: "", format };
-  if (isMixedContentUrl(url)) return { browserPlayable: true, browserReason: "", format }; // Allow via worker proxy
+  if (isMixedContentUrl(url)) return { browserPlayable: false, browserReason: "HTTP stream requires native playback", format };
   if (channel?.requiresHeaders) return { browserPlayable: false, browserReason: "Stream requires custom request headers", format };
 
   return { browserPlayable: true, browserReason: "", format };
@@ -508,7 +514,7 @@ const sourceScore = (channel) => {
   else if (quality >= 720) score += 500;
   else if (quality > 0) score += 80;
 
-  if (looksLikeUkFeed(channel) && LIVE_TV_REGION === "GB") score += 2000;
+  // Country is metadata only. Do not prefer or penalise a source by region.
   if (channel?.browserPlayable === false) score -= 100000;
 
   return score;
@@ -558,7 +564,7 @@ export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
       const name = cleanChannelName(rawName) || "Unknown";
       const logo = attr(line, "tvg-logo");
       const tvgId = attr(line, "tvg-id");
-      const country = attr(line, "tvg-country");
+      const country = attr(line, "tvg-country") || countryFromTvgId(tvgId);
       const group = attr(line, "group-title") || source.category || country || "Other";
       const channelNumber = attr(line, "tvg-chno");
       const quality = qualityFromText(`${rawName} ${line}`);
@@ -614,24 +620,21 @@ export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
     }
     if (line.startsWith("#")) continue;
 
-    let url = line;
-    // Route all custom or Gist stream URLs through your Cloudflare Worker proxy to bypass geo/IP limits
-    if (/^(?:http|https):\/\//i.test(url) && !url.includes("media-god1.leepeterss85.workers.dev")) {
-      if (source.id === "nimeyer-uk-list" || source.id.includes("gigoplast") || current.geoRestricted || looksLikeUkFeed(current)) {
-        url = `https://media-god1.leepeterss85.workers.dev/?url=${encodeURIComponent(url)}`;
-      }
-    }
+    // Preserve the playlist's real stream URL. Media God must not force
+    // country-tagged channels through a relay; doing so can turn a valid
+    // source into a dead HTML response and prevents native Android playback
+    // from trying the broadcaster/CDN endpoint directly.
+    const url = line;
 
     current.url = url;
     current.kind = classifyUrl(url);
     current.insecure = /^http:\/\//i.test(url);
-    current.mixedContent = false; // Handled by worker proxy wrapper
+    current.mixedContent = isMixedContentUrl(url);
     current.requiresHeaders = Boolean(current.referrer || current.userAgent);
 
-    current.geoAvailableHere =
-      current.geoRestricted &&
-      LIVE_TV_REGION === "GB" &&
-      looksLikeUkFeed(current);
+    // Geographic markers from upstream playlists are informational only.
+    // Media God itself never rejects or hides a channel because of them.
+    current.geoAvailableHere = false;
     current.geoBlocked = false;
 
     current.tags = inferTags({
@@ -694,32 +697,29 @@ const dedupeMergedChannels = (channels) => {
       uniqueByUrl.push(candidate);
     }
 
-    const browserCandidates = uniqueByUrl.filter((candidate) => candidate?.browserPlayable !== false);
-    if (browserCandidates.length === 0) continue;
+    // Keep native-capable HTTP(S) candidates even when Chromium cannot play
+    // them (mixed content or custom headers). Fire TV/Android Media3 can still
+    // use these as the primary stream or a backup. Only truly unsupported
+    // protocols are discarded here.
+    const usableCandidates = uniqueByUrl.filter(
+      (candidate) =>
+        candidate?.browserPlayable !== false ||
+        /^https?:\/\//i.test(String(candidate?.url || ""))
+    );
+    if (usableCandidates.length === 0) continue;
 
-    browserCandidates.sort((a, b) => Number(b?.score || 0) - Number(a?.score || 0));
-    const best = browserCandidates[0];
+    usableCandidates.sort((a, b) => Number(b?.score || 0) - Number(a?.score || 0));
+    const best = usableCandidates[0];
     if (!best) continue;
-
-    const normalisedName = normaliseChannelNameForKey(best.name);
-    if (SKY_STREAM_OVERRIDES[normalisedName] !== undefined && SKY_STREAM_OVERRIDES[normalisedName] !== "") {
-      best.url = SKY_STREAM_OVERRIDES[normalisedName];
-      best.kind = "direct";
-      best.browserPlayable = true;
-      best.score += 5000;
-      if (!best.tags.includes("United Kingdom")) {
-        best.tags.push("United Kingdom");
-      }
-    }
 
     const tags = new Set();
     const sources = new Set();
-    for (const candidate of browserCandidates) {
+    for (const candidate of usableCandidates) {
       sources.add(candidate.sourceName);
       for (const tag of candidate.tags || []) tags.add(tag);
     }
 
-    const alternatives = browserCandidates.slice(1);
+    const alternatives = usableCandidates.slice(1);
     merged.push({
       ...best,
       tags: [...tags],
@@ -748,20 +748,19 @@ export async function getFreeTvChannels(options = {}) {
 
     for (const source of sortedSources) {
       try {
-        let response = await fetch(source.url, {
+        const response = await fetch(source.url, {
           headers: { Accept: "text/plain, */*" },
         });
-
-        if (!response.ok) {
-          const proxyUrl = `https://media-god1.leepeterss85.workers.dev/?url=${encodeURIComponent(source.url)}`;
-          response = await fetch(proxyUrl);
-        }
 
         if (!response.ok) {
           throw new Error(`HTTP ${response.status} ${response.statusText}`);
         }
 
         const text = await response.text();
+        if (!/#EXTINF:/i.test(text)) {
+          throw new Error("Source did not return an M3U playlist");
+        }
+
         const parsed = parseFreeTvPlaylist(text, source);
         rawCount += parsed.length;
 
@@ -778,12 +777,9 @@ export async function getFreeTvChannels(options = {}) {
 
     const channels = dedupeMergedChannels(rawChannels);
 
-    channels.sort((a, b) => {
-      const ukA = (a?.tags || []).includes("United Kingdom") ? 1 : 0;
-      const ukB = (b?.tags || []).includes("United Kingdom") ? 1 : 0;
-      if (ukA !== ukB) return ukB - ukA;
-      return Number(b?.score || 0) - Number(a?.score || 0);
-    });
+    channels.sort((a, b) =>
+      Number(b?.score || 0) - Number(a?.score || 0)
+    );
 
     const payload = { channels, sourceStatus, rawCount, browserRejectedCount, region: LIVE_TV_REGION, fetchedAt: now };
     cache = payload;
