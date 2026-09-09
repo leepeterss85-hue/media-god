@@ -449,10 +449,12 @@ export default function LiveTVView() {
   useEffect(() => {
     const handleSettingsChanged = (event) => {
       setLiveTvSettings(event?.detail || readLiveTvSettings());
+      load(true);
     };
 
     const handleStorage = () => {
       setLiveTvSettings(readLiveTvSettings());
+      load(true);
     };
 
     window.addEventListener(
