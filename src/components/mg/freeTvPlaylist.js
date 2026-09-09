@@ -21,6 +21,41 @@ export const LIVE_TV_SOURCES = [
     category: "Sports",
   },
   {
+    id: "samsung-tv-plus-gb-buddy",
+    name: "Samsung TV Plus GB",
+    url: "https://raw.githubusercontent.com/BuddyChewChew/app-m3u-generator/refs/heads/main/playlists/samsungtvplus_gb.m3u",
+    priority: 120,
+    category: "United Kingdom",
+  },
+  {
+    id: "samsung-tv-plus-uk-kilirushi",
+    name: "Samsung TV Plus UK Mirror",
+    url: "https://raw.githubusercontent.com/kilirushi/iptv/master/uk_samsung.m3u",
+    priority: 88,
+    category: "United Kingdom",
+  },
+  {
+    id: "samsung-tv-plus-community",
+    name: "Samsung TV Plus Community",
+    url: "https://gist.githubusercontent.com/cmj/b978c6f0974b703ddaec3396d5e866f8/raw/tvplus.m3u8",
+    priority: 76,
+    category: "Worldwide",
+  },
+  {
+    id: "jpt-free-tv-uk",
+    name: "JPT Free-TV UK Mirror",
+    url: "https://gitea.jpt.land/jpt/IPTV/raw/branch/master/playlists/playlist_uk.m3u8",
+    priority: 91,
+    category: "United Kingdom",
+  },
+  {
+    id: "jpt-free-tv-global",
+    name: "JPT Free-TV Global Mirror",
+    url: "https://gitea.jpt.land/jpt/IPTV/raw/branch/master/playlist.m3u8",
+    priority: 69,
+    category: "Worldwide",
+  },
+  {
     id: "iptv-org-uk",
     name: "IPTV-org UK",
     url: "https://iptv-org.github.io/iptv/countries/uk.m3u",
@@ -670,9 +705,19 @@ const dedupeKey = (channel) => {
   if (channel?.sourceId === "nimeyer-uk-list" || channel?.sourceId?.startsWith("gigoplast")) {
     return `repo:${channel.sourceId}:${channel.url}`;
   }
-  const tvgId = String(channel?.tvgId || "").trim().toLowerCase();
-  if (tvgId && !tvgId.includes("01tv.fr")) return `id:${tvgId}`;
+
   const name = normaliseChannelNameForKey(channel?.name);
+  const tvgId = String(channel?.tvgId || "").trim().toLowerCase();
+
+  // Samsung TV Plus uses its own opaque channel id for Sky Mix. Canonicalise
+  // that single known id for merging only, so the Samsung feed becomes a real
+  // backup/primary candidate for the existing SkyMix.uk channel instead of a
+  // duplicate card. Preserve the original tvgId on the channel object.
+  if (tvgId === "gbbd3100006xm" && name === "sky mix") {
+    return "id:skymix.uk";
+  }
+
+  if (tvgId && !tvgId.includes("01tv.fr")) return `id:${tvgId}`;
   const country = String(channel?.country || "").trim().toLowerCase();
   return `name:${name}|country:${country}`;
 };
