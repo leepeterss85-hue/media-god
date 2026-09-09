@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 3,
-  "versionName": "1.2.0",
+  "versionCode": 4,
+  "versionName": "1.3.0",
   "title": "Media God Fire TV",
-  "message": "Fire TV 1.2 adds worldwide Live TV, device-reported codec support, native request headers and stronger HLS/DASH playback.",
+  "message": "Fire TV 1.3 accepts generic HTTPS media sources and automatically retries extensionless streams as HLS or MPEG-DASH.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4372217",
   "downloaderAddress": "tinyurl.com/2aofccoa",
