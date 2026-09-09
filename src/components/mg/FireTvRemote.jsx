@@ -566,7 +566,21 @@ export default function FireTvRemote() {
       }
 
       if (direction) {
-        const candidates = focusables(scope);
+        const mediaControls =
+          player instanceof HTMLElement
+            ? player.querySelector('[data-mg-player-controls="true"]')
+            : null;
+        const mediaCandidates =
+          mediaControls instanceof HTMLElement
+            ? focusables(mediaControls)
+            : [];
+        const allCandidates = focusables(scope);
+        const candidates = [
+          ...mediaCandidates,
+          ...allCandidates.filter(
+            (candidate) => !mediaCandidates.includes(candidate)
+          ),
+        ];
 
         const target = directionalTarget(
           current,
@@ -585,6 +599,25 @@ export default function FireTvRemote() {
 
       if (isSelectKey(event)) {
         const selected = document.activeElement;
+
+        if (
+          player instanceof HTMLElement &&
+          (!(selected instanceof HTMLElement) ||
+            !player.contains(selected) ||
+            !visible(selected))
+        ) {
+          const preferred = player.querySelector(
+            '[data-mg-player-controls="true"] button[aria-label="Pause"], [data-mg-player-controls="true"] button[aria-label="Play"]'
+          );
+
+          if (focusElement(preferred)) {
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+          }
+
+          return;
+        }
 
         if (
           selected instanceof HTMLElement &&
