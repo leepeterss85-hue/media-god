@@ -803,19 +803,14 @@ export async function fetchBrowserAddonStreams({
 
   const settled =
     await Promise.allSettled(
-      activeAddons
-        .slice(
-          0,
-          30
-        )
-        .map(
-          (addon) =>
-            fetchOneAddon({
-              addon,
-              type,
-              streamId,
-            })
-        )
+      activeAddons.map(
+        (addon) =>
+          fetchOneAddon({
+            addon,
+            type,
+            streamId,
+          })
+      )
     );
 
   const streams =
@@ -827,9 +822,6 @@ export async function fetchBrowserAddonStreams({
             ? result.value.streams
             : []
       )
-    ).slice(
-      0,
-      80
     );
 
   const diagnostics =
