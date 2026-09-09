@@ -104,6 +104,21 @@ body.mg-fire-tv-mode [data-mg-player-root="true"][data-mg-controls-visible="fals
   pointer-events: none !important;
 }
 
+/* Native playback Back returns to an explicit source/torrent selector state.
+ * Keep that selector visible even if the normal Fire TV playback chrome had
+ * auto-hidden before native Media3 was opened. */
+body.mg-fire-tv [data-mg-player-root="true"][data-mg-native-selector-mode="true"] [data-mg-player-topbar="true"],
+body.mg-fire-tv-stable [data-mg-player-root="true"][data-mg-native-selector-mode="true"] [data-mg-player-topbar="true"],
+body.mg-fire-tv-mode [data-mg-player-root="true"][data-mg-native-selector-mode="true"] [data-mg-player-topbar="true"],
+body.mg-fire-tv [data-mg-player-root="true"][data-mg-native-selector-mode="true"] [data-mg-player-options-panel="true"],
+body.mg-fire-tv-stable [data-mg-player-root="true"][data-mg-native-selector-mode="true"] [data-mg-player-options-panel="true"],
+body.mg-fire-tv-mode [data-mg-player-root="true"][data-mg-native-selector-mode="true"] [data-mg-player-options-panel="true"] {
+  display: flex !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
 body.mg-fire-tv [data-mg-player-topbar="true"],
 body.mg-fire-tv-stable [data-mg-player-topbar="true"],
 body.mg-fire-tv-mode [data-mg-player-topbar="true"],

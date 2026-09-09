@@ -763,6 +763,13 @@ export default function EpisodeSelector({
         item?.poster ||
         "";
 
+      const showImdbId =
+        String(
+          item?.imdb_id ||
+            item?.imdbId ||
+            ""
+        ).trim();
+
       player.play({
         id:
           item?.id ||
@@ -784,6 +791,15 @@ export default function EpisodeSelector({
             ?.tmdb_id ||
           item
             ?.tmdbId,
+
+        imdbId:
+          showImdbId,
+
+        imdb_id:
+          showImdbId,
+
+        rdImdbId:
+          showImdbId,
 
         title:
           episodeTitle,
@@ -943,7 +959,10 @@ export default function EpisodeSelector({
   }
 
   return (
-    <div className="mt-5">
+    <div
+      id="mg-episode-selector"
+      className="mt-5"
+    >
       <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
         <h3 className="text-white/80 text-xs font-bold uppercase tracking-wider">
           Episodes
