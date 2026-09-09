@@ -394,7 +394,36 @@ export default function FireTvRemote() {
           return;
         }
 
+        const mediaControls = scope.querySelector(
+          '[data-mg-player-controls="true"]'
+        );
+        const active = document.activeElement;
+
+        /*
+         * VideoPlayer can mount its transport controls a moment after the
+         * outer Exit/source chrome. If Exit received focus first, move focus
+         * to the real Play/Pause control as soon as the transport layer is
+         * available so the TV remote starts from the media controls instead
+         * of pinning the top box on screen.
+         */
         if (lastScopeRef.current === scope) {
+          if (
+            mediaControls instanceof HTMLElement &&
+            (!(active instanceof HTMLElement) ||
+              !mediaControls.contains(active))
+          ) {
+            const transport =
+              mediaControls.querySelector(
+                'button[aria-label="Pause"], button[aria-label="Play"]'
+              ) ||
+              focusables(mediaControls)[0] ||
+              null;
+
+            window.setTimeout(() => {
+              focusElement(transport);
+            }, 30);
+          }
+
           return;
         }
 
@@ -402,7 +431,7 @@ export default function FireTvRemote() {
 
         const preferred =
           scope.querySelector(
-            'button[aria-label="Pause"], button[aria-label="Play"], select[aria-label="Choose playback source"], select[aria-label="Choose file"], button[data-mg-player-exit="true"], button[aria-label="Exit player"]'
+            '[data-mg-player-controls="true"] button[aria-label="Pause"], [data-mg-player-controls="true"] button[aria-label="Play"], select[aria-label="Choose playback source"], select[aria-label="Choose file"], button[data-mg-player-exit="true"], button[aria-label="Exit player"]'
           ) ||
           focusables(scope)[0] ||
           null;
@@ -475,44 +504,66 @@ export default function FireTvRemote() {
        * deterministic row navigator deliberately does not own.
        */
       const direction = directionFromEvent(event);
-      const current =
-        document.activeElement instanceof HTMLElement &&
-        scope.contains(document.activeElement) &&
-        visible(document.activeElement)
-          ? document.activeElement
-          : null;
-      const currentTag = String(current?.tagName || "").toLowerCase();
-
-      const currentInsidePlayer =
-        player instanceof HTMLElement &&
-        current instanceof HTMLElement &&
-        player.contains(current);
-
-      /*
-       * Player selects/sliders keep their native Fire OS handling so source,
-       * torrent file, subtitle and range controls can be adjusted normally.
-       * Catalogue filter selects are different: OK opens the Android chooser,
-       * but D-pad directions should move between the filters/cards instead of
-       * trapping focus inside one select forever.
-       */
-      if (currentTag === "select") {
-        if (isSelectKey(event)) {
-          return;
-        }
-
-        if (currentInsidePlayer && direction) {
-          return;
-        }
-      }
-
-      if (
-        currentTag === "input" &&
-        String(current?.type || "").toLowerCase() === "range"
-      ) {
-        if (direction || isSelectKey(event)) {
-          return;
-        }
-      }
+      const selectKey = isSelectKey(event);
++
++      /*
++       * When playback chrome has auto-hidden, the first D-pad/OK press should
++       * wake it rather than seek, change volume or jump to an invisible
++       * control. MediaPlayerControls listens for this event and re-renders the
++       * controls; then focus lands on Play/Pause in the same interaction.
++       */
++      if (
++        player instanceof HTMLElement &&
++        player.dataset.mgControlsVisible === "false" &&
++        (direction || selectKey)
++      ) {
++        event.preventDefault();
++        event.stopPropagation();
++        event.stopImmediatePropagation();
++
++        window.dispatchEvent(
++          new CustomEvent("mg:player-reveal-controls")
++        );
++
++        window.setTimeout(() => {
++          const currentPlayer = document.querySelector(
++            '[data-mg-player-root="true"]'
++          );
++          const preferred = currentPlayer?.querySelector(
++            '[data-mg-player-controls="true"] button[aria-label="Pause"], [data-mg-player-controls="true"] button[aria-label="Play"]'
++          );
++          focusElement(preferred);
++        }, 55);
++
++        return;
++      }
++
++      const current =
++        document.activeElement instanceof HTMLElement &&
++        scope.contains(document.activeElement) &&
++        visible(document.activeElement)
++          ? document.activeElement
++          : null;
++      const currentTag = String(current?.tagName || "").toLowerCase();
++
++      /*
++       * OK opens native select choosers. Arrow keys stay available to Media
++       * God's spatial navigator so a source/torrent selector never traps the
++       * Fire Stick remote. For sliders, Left/Right still adjust the value
++       * natively while Up/Down move to the next row of controls.
++       */
++      if (currentTag === "select" && selectKey) {
++        return;
++      }
++
++      if (
++        currentTag === "input" &&
++        String(current?.type || "").toLowerCase() === "range"
++      ) {
++        if (selectKey || direction === "left" || direction === "right") {
++          return;
++        }
++      }
 
       if (direction) {
         const candidates = focusables(scope);
