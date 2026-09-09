@@ -715,6 +715,43 @@ body.mg-fire-tv-stable a:focus {
   scroll-margin: 16px !important;
 }
 
+/* Every authenticated page gets the same unmistakable television focus ring.
+ * This covers pages that do not have a custom Fire TV stylesheet of their own
+ * (Watchlist, Favorites, Watch Party, RD Library, Sources, Roadmap, Updates,
+ * Downloads, etc.) without changing phone/tablet/desktop presentation. */
+body.mg-fire-tv #root main button:focus-visible,
+body.mg-fire-tv #root main a:focus-visible,
+body.mg-fire-tv #root main input:focus-visible,
+body.mg-fire-tv #root main select:focus-visible,
+body.mg-fire-tv #root main textarea:focus-visible,
+body.mg-fire-tv #root main [role="button"]:focus-visible,
+body.mg-fire-tv #root main [role="menuitem"]:focus-visible,
+body.mg-fire-tv #root main [role="tab"]:focus-visible,
+body.mg-fire-tv-mode #root main button:focus-visible,
+body.mg-fire-tv-mode #root main a:focus-visible,
+body.mg-fire-tv-mode #root main input:focus-visible,
+body.mg-fire-tv-mode #root main select:focus-visible,
+body.mg-fire-tv-mode #root main textarea:focus-visible,
+body.mg-fire-tv-mode #root main [role="button"]:focus-visible,
+body.mg-fire-tv-mode #root main [role="menuitem"]:focus-visible,
+body.mg-fire-tv-mode #root main [role="tab"]:focus-visible,
+body.mg-fire-tv-stable #root main button:focus-visible,
+body.mg-fire-tv-stable #root main a:focus-visible,
+body.mg-fire-tv-stable #root main input:focus-visible,
+body.mg-fire-tv-stable #root main select:focus-visible,
+body.mg-fire-tv-stable #root main textarea:focus-visible,
+body.mg-fire-tv-stable #root main [role="button"]:focus-visible,
+body.mg-fire-tv-stable #root main [role="menuitem"]:focus-visible,
+body.mg-fire-tv-stable #root main [role="tab"]:focus-visible,
+body.mg-fire-tv .mg-fire-tv-nav button:focus-visible,
+body.mg-fire-tv-mode .mg-fire-tv-nav button:focus-visible,
+body.mg-fire-tv-stable .mg-fire-tv-nav button:focus-visible {
+  outline: 3px solid hsl(var(--mg-green)) !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.88) !important;
+  scroll-margin: 18px !important;
+}
+
 /* Search, details, Settings and Addons stay inside the same TV-safe area and
  * expose an obvious D-pad focus target without changing their phone/desktop
  * layouts. */
