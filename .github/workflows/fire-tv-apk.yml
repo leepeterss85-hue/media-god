@@ -16,9 +16,19 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: media-god-fire-tv-apk
+  cancel-in-progress: false
+
 jobs:
   build-fire-tv-apk:
     runs-on: ubuntu-latest
+    env:
+      FIRETV_KEYSTORE_PATH: firetv-release.jks
+      FIRETV_KEYSTORE_BASE64: ${{ secrets.FIRETV_KEYSTORE_BASE64 }}
+      FIRETV_KEYSTORE_PASSWORD: ${{ secrets.FIRETV_KEYSTORE_PASSWORD }}
+      FIRETV_KEY_ALIAS: ${{ secrets.FIRETV_KEY_ALIAS }}
+      FIRETV_KEY_PASSWORD: ${{ secrets.FIRETV_KEY_PASSWORD }}
 
     steps:
       - name: Check out repository
@@ -43,11 +53,37 @@ jobs:
         with:
           gradle-version: "8.11.1"
 
-      - name: Build debug APK
-        run: gradle -p firetv-android :app:assembleDebug --stacktrace
+      - name: Restore permanent Fire TV signing key
+        run: |
+          set -euo pipefail
+
+          if [ -z "$FIRETV_KEYSTORE_BASE64" ] || \
+             [ -z "$FIRETV_KEYSTORE_PASSWORD" ] || \
+             [ -z "$FIRETV_KEY_ALIAS" ] || \
+             [ -z "$FIRETV_KEY_PASSWORD" ]; then
+            echo "Fire TV signing secrets are not configured."
+            echo "Required: FIRETV_KEYSTORE_BASE64, FIRETV_KEYSTORE_PASSWORD, FIRETV_KEY_ALIAS, FIRETV_KEY_PASSWORD"
+            exit 1
+          fi
+
+          printf '%s' "$FIRETV_KEYSTORE_BASE64" \
+            | base64 --decode \
+            > "firetv-android/app/$FIRETV_KEYSTORE_PATH"
+
+          keytool -list \
+            -keystore "firetv-android/app/$FIRETV_KEYSTORE_PATH" \
+            -storepass "$FIRETV_KEYSTORE_PASSWORD" \
+            -alias "$FIRETV_KEY_ALIAS" \
+            >/dev/null
+
+      - name: Build signed release APK
+        run: gradle -p firetv-android :app:assembleRelease --stacktrace
 
       - name: Prepare named Fire TV APK
-        run: cp firetv-android/app/build/outputs/apk/debug/app-debug.apk Media-God-Fire-TV.apk
+        run: cp firetv-android/app/build/outputs/apk/release/app-release.apk Media-God-Fire-TV.apk
+
+      - name: Verify APK signing identity
+        run: keytool -printcert -jarfile Media-God-Fire-TV.apk | grep -E "Owner:|SHA256:" || true
 
       - name: Upload Fire TV APK
         uses: actions/upload-artifact@v4
@@ -61,14 +97,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if ! gh release view firetv-latest --repo "${{ github.repository }}" >/dev/null 2>&1; then
+          if ! gh release view firetv-latest --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release create firetv-latest \
-              --repo "${{ github.repository }}" \
+              --repo "$GITHUB_REPOSITORY" \
               --target "$GITHUB_SHA" \
               --title "Media God Fire TV" \
               --notes "Latest sideloadable Media God build for Amazon Fire TV and Fire Stick."
           fi
 
           gh release upload firetv-latest Media-God-Fire-TV.apk \
-            --repo "${{ github.repository }}" \
+            --repo "$GITHUB_REPOSITORY" \
             --clobber
