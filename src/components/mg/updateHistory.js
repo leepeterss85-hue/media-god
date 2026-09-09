@@ -1,5 +1,23 @@
 export const UPDATE_HISTORY = [
   {
+    id: "fire-tv-all-pages-remote-audit-v1",
+    date: "9 September 2026",
+    title: "Fire Stick remote navigation audited across every page",
+    summary:
+      "Media God's Fire TV navigation now uses row-and-column movement across normal pages and dialogs, with hidden hover-only cards repaired and text-entry controls keeping their native caret behaviour.",
+    changes: [
+      "Audited Home, Movies, TV Shows, Live TV, Watchlist, Favorites, Watch Party, RD Library, Downloads, Addons, Sources, Roadmap, Updates, Phone Remote, Settings, Search, Details and the season/episode controls.",
+      "Normal Fire TV pages now move to the nearest visual row first and then the nearest matching column instead of choosing an arbitrary diagonal control anywhere on screen.",
+      "At the left edge of an authenticated page, D-pad Left reliably returns to the currently selected side-navigation item.",
+      "Text inputs and textareas keep Left/Right for cursor movement on Search, Sources, Addons and Watch Party while Up/Down still exits to neighbouring controls.",
+      "Select controls open with OK and no longer trap D-pad navigation; range sliders keep native Left/Right adjustment while Up/Down changes control rows.",
+      "Watchlist and Favorites cards now expose one real Fire TV poster action instead of placing focus inside invisible hover-only overlays.",
+      "Search opens with focus in the search box, while Details continues to prefer its primary action and dialogs stay inside their own focus scope.",
+      "Home's deterministic row navigator now rejects controls hidden by an invisible parent, matching the rest of the Fire TV focus system.",
+      "All authenticated pages and dialogs now share a clear green Fire TV focus ring and focused controls scroll into view automatically.",
+    ],
+  },
+  {
     id: "fire-tv-tv-shows-remote-map-v1",
     date: "9 September 2026",
     title: "TV Shows Fire Stick navigation fixed",
