@@ -123,7 +123,7 @@ const loadDashJs = () => {
 };
 
 const isHlsUrl = (src, sourceLabel = "") =>
-  /\.m3u8(?:[?#\s]|$)|\bhls\b/i.test(
+  /\.m3u8(?:[?#\s]|$)|\bhls\b|mpegurl|mpeg-url/i.test(
     `${String(src || "")} ${String(sourceLabel || "")}`
   );
 
@@ -917,6 +917,22 @@ const LiveVideo = forwardRef(
           source,
           sourceLabel
         );
+
+      /*
+       * Some providers expose a real media endpoint as a plain HTTPS URL with
+       * no .m3u8/.mpd/.mp4 suffix. Give those links a safe playback chain:
+       * native media element first, then HLS, then DASH. Known formats keep
+       * their normal direct path and never pay this extra fallback cost.
+       */
+      const genericHttpsSource =
+        /^https:\/\//i.test(source) &&
+        !hlsSource &&
+        !dashSource &&
+        !tsSource &&
+        !flvSource;
+
+      let genericHttpsHlsFallbackTried = false;
+      let genericHttpsDashFallbackTried = false;
 
       const applyHlsSubtitleSelection =
         (
