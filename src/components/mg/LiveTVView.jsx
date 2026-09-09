@@ -241,6 +241,17 @@ const epgKeyForChannel = (channel, index = 0) =>
       `${channel?.name || "channel"}-${index}`
   );
 
+const isUkGuideChannel = (channel) => {
+  const country = String(channel?.country || "").trim().toUpperCase();
+  const tvgId = String(channel?.tvgId || "").trim();
+
+  return (
+    country === "GB" ||
+    country === "UK" ||
+    /\.uk(?:@|$)/i.test(tvgId)
+  );
+};
+
 const formatProgrammeTime = (value) => {
   const date = new Date(value || 0);
   if (!Number.isFinite(date.getTime())) return "";
@@ -479,12 +490,16 @@ export default function LiveTVView() {
     const loadGuide = async () => {
       const targets = channels
         .map((channel, index) => ({ channel, index }))
-        .filter(({ channel }) => !isRadioChannel(channel))
+        .filter(
+          ({ channel }) =>
+            !isRadioChannel(channel) && isUkGuideChannel(channel)
+        )
         .slice(0, 350)
         .map(({ channel }) => ({
           key: epgKeyForChannel(channel),
           tvgId: channel?.tvgId || "",
           name: channel?.name || "",
+          country: channel?.country || "",
         }));
 
       if (targets.length === 0) return;
@@ -1317,7 +1332,7 @@ export default function LiveTVView() {
         }
       );
 
-    player.play({
+    const playbackRequest = {
       id:
         channel.tvgId ||
         channel.id,
@@ -1342,7 +1357,26 @@ export default function LiveTVView() {
         channel.officialLabel || officialLiveFallback(channel)?.label || "",
 
       sources: directSources,
-    });
+    };
+
+    /*
+     * Desktop browsers can keep MediaSource/HLS state alive for a short time
+     * after a channel switch. When another Live TV channel is chosen while the
+     * web player is already open, fully close the old portal first and launch
+     * the new request on the next animation frame. Native Android/Fire TV is
+     * deliberately left on its existing handoff path.
+     */
+    if (!isNativeFireTvPlayerAvailable() && player.isOpen) {
+      player.close();
+
+      window.requestAnimationFrame(() => {
+        player.play(playbackRequest);
+      });
+
+      return;
+    }
+
+    player.play(playbackRequest);
   };
 
   const renderQuickChannelCard = (channel) => {
