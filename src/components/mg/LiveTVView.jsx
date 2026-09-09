@@ -27,7 +27,6 @@ import {
   getFreeTvChannels,
   LIVE_TV_REGION,
 } from "@/components/mg/freeTvPlaylist";
-import { readLiveTvSettings } from "@/components/mg/liveTvPreferences";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 import { base44 } from "@/api/base44Client";
 import { cn } from "@/lib/utils";
@@ -279,8 +278,7 @@ const playableChannelCandidates = (channel) => {
        */
       return (
         nativeFireTv &&
-        /^https?:\/\//i.test(String(candidate.url || "")) &&
-        candidate?.geoBlocked !== true
+        /^https?:\/\//i.test(String(candidate.url || ""))
       );
     })
     .map((candidate, index) => ({
@@ -338,7 +336,6 @@ export default function LiveTVView() {
   const [rawCount, setRawCount] = useState(0);
   const [browserRejectedCount, setBrowserRejectedCount] = useState(0);
   const [region, setRegion] = useState(LIVE_TV_REGION || "GB");
-  const [liveTvSettings, setLiveTvSettings] = useState(() => readLiveTvSettings());
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -392,16 +389,27 @@ export default function LiveTVView() {
        * candidates returned by freeTvPlaylist.
        */
       loadedChannels = loadedChannels.map((channel) => {
-        const fallback = officialLiveFallback(channel);
+        const unlockedChannel = {
+          ...channel,
+          geoBlocked: false,
+          alternatives: Array.isArray(channel?.alternatives)
+            ? channel.alternatives.map((candidate) => ({
+                ...candidate,
+                geoBlocked: false,
+              }))
+            : [],
+        };
+
+        const fallback = officialLiveFallback(unlockedChannel);
 
         if (!fallback) {
-          return channel;
+          return unlockedChannel;
         }
 
         return {
-          ...channel,
-          officialUrl: channel.officialUrl || fallback.url,
-          officialLabel: channel.officialLabel || fallback.label,
+          ...unlockedChannel,
+          officialUrl: unlockedChannel.officialUrl || fallback.url,
+          officialLabel: unlockedChannel.officialLabel || fallback.label,
         };
       });
 
@@ -444,32 +452,6 @@ export default function LiveTVView() {
   useEffect(() => {
     load(false);
 
-  }, []);
-
-  useEffect(() => {
-    const handleSettingsChanged = (event) => {
-      setLiveTvSettings(event?.detail || readLiveTvSettings());
-      load(true);
-    };
-
-    const handleStorage = () => {
-      setLiveTvSettings(readLiveTvSettings());
-      load(true);
-    };
-
-    window.addEventListener(
-      "mg:live-tv-settings-changed",
-      handleSettingsChanged
-    );
-    window.addEventListener("storage", handleStorage);
-
-    return () => {
-      window.removeEventListener(
-        "mg:live-tv-settings-changed",
-        handleSettingsChanged
-      );
-      window.removeEventListener("storage", handleStorage);
-    };
   }, []);
 
   useEffect(() => {
@@ -1457,11 +1439,7 @@ export default function LiveTVView() {
       <div className="mb-4 flex items-center gap-2 rounded-lg border border-mg-green/20 bg-mg-green/5 px-3 py-2 text-xs text-mg-green">
         <CheckCircle2 className="h-4 w-4 shrink-0" />
 
-        {liveTvSettings.regionalLock
-          ? region === "GB"
-            ? "Regional lock on — UK-marked feeds remain available in Great Britain."
-            : "Regional lock on — playlist geo restrictions are respected."
-          : "Regional lock off — geo-marked Live TV channels and backups remain eligible for playback."}
+        Regional filtering disabled — Media God keeps geo-marked Live TV channels and backups eligible for playback.
       </div>
 
       {radioStation && (
@@ -2209,12 +2187,6 @@ export default function LiveTVView() {
                       {channel.geoAvailableHere && (
                         <span className="rounded bg-mg-green/10 px-1.5 py-0.5 text-[9px] font-bold uppercase text-mg-green">
                           UK Available
-                        </span>
-                      )}
-
-                      {channel.geoBlocked && (
-                        <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase text-amber-300">
-                          Geo Restricted
                         </span>
                       )}
 
