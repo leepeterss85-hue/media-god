@@ -120,6 +120,22 @@ const openExternalPlaybackFallback = (url) => {
   }
 };
 
+const isFireTvRemoteRuntime = () => {
+  if (typeof navigator === "undefined" || typeof document === "undefined") {
+    return false;
+  }
+
+  const ua = String(navigator.userAgent || "");
+
+  return (
+    /(?:\bAFT[A-Z0-9]*\b|Fire\s*TV|AmazonWebAppPlatform|Silk|MediaGodFireTV)/i.test(ua) ||
+    document.documentElement.classList.contains("mg-fire-tv") ||
+    document.documentElement.classList.contains("mg-fire-tv-mode") ||
+    document.body?.classList.contains("mg-fire-tv") ||
+    document.body?.classList.contains("mg-fire-tv-mode")
+  );
+};
+
 const isDesktopFullscreenBrowser = () => {
   if (typeof window === "undefined" || typeof navigator === "undefined") {
     return false;
@@ -1614,6 +1630,38 @@ export default function VideoPlayer({
 
             onClose();
             return;
+          }
+
+          /*
+           * FireTvRemote is the sole owner of D-pad/OK/media navigation while
+           * this player is running on Fire TV. The desktop keyboard shortcuts
+           * below must not also turn the same Arrow keys into seek/volume
+           * commands, otherwise one remote press has two competing meanings.
+           */
+          if (isFireTvRemoteRuntime()) {
+            const remoteCode = Number(event.keyCode || event.which || 0);
+            const remoteKey = String(event.key || event.code || "");
+            const fireTvNavigationKey =
+              remoteKey === "ArrowLeft" ||
+              remoteKey === "ArrowRight" ||
+              remoteKey === "ArrowUp" ||
+              remoteKey === "ArrowDown" ||
+              remoteKey === "Enter" ||
+              remoteKey === "NumpadEnter" ||
+              remoteKey === "Select" ||
+              remoteKey === "Accept" ||
+              remoteKey === "MediaPlayPause" ||
+              remoteKey === "MediaPlay" ||
+              remoteKey === "MediaPause" ||
+              remoteKey === "MediaRewind" ||
+              remoteKey === "MediaFastForward" ||
+              [13, 19, 20, 21, 22, 23, 66, 85, 89, 90, 126, 127, 179, 227, 228].includes(
+                remoteCode
+              );
+
+            if (fireTvNavigationKey) {
+              return;
+            }
           }
 
           const tag =
