@@ -1627,6 +1627,34 @@ const LiveVideo = forwardRef(
                   // Fall through to normal source failover.
                 }
 
+                if (
+                  genericHttpsSource &&
+                  !genericHttpsDashFallbackTried
+                ) {
+                  genericHttpsDashFallbackTried = true;
+
+                  try {
+                    hls?.destroy?.();
+                  } catch {
+                    // Continue with the DASH fallback.
+                  }
+
+                  hls = null;
+                  resetVideo();
+
+                  window.dispatchEvent(
+                    new CustomEvent("mg:player-status", {
+                      detail: {
+                        message:
+                          "HTTPS source was not HLS — trying MPEG-DASH…",
+                      },
+                    })
+                  );
+
+                  startDash();
+                  return;
+                }
+
                 reportError(
                   new Error(
                     data?.details ||
