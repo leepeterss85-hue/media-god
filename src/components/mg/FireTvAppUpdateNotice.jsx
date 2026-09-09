@@ -1,7 +1,11 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { Download, Tv, X } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Download, Loader2, Tv, X } from "lucide-react";
 
-import { nativeFireTvAppInfo } from "@/components/mg/nativeFireTvBridge";
+import {
+  nativeFireTvAppInfo,
+  nativeFireTvSelfUpdateAvailable,
+  startNativeFireTvUpdate,
+} from "@/components/mg/nativeFireTvBridge";
 
 const SESSION_DISMISS_PREFIX = "mg:fire-tv-app-update-dismissed:";
 const DEFAULT_DOWNLOADER_CODE = "4372217";
@@ -31,6 +35,11 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
   const [release, setRelease] = useState(null);
   const [nativeInfo, setNativeInfo] = useState(null);
   const [visible, setVisible] = useState(false);
+  const [updateState, setUpdateState] = useState({
+    status: "idle",
+    message: "",
+    progress: 0,
+  });
 
   const checkForUpdate = useCallback(async () => {
     if (!enabled || !looksLikeFireTv()) {
@@ -85,17 +94,55 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
     };
   }, [checkForUpdate]);
 
-  if (!enabled || !visible || !release) {
-    return null;
-  }
+  useEffect(() => {
+    const handleUpdateStatus = (event) => {
+      const detail = event?.detail || {};
 
-  const latestCode = Number(release.versionCode || 0);
+      setUpdateState({
+        status: String(detail?.status || "idle"),
+        message: String(detail?.message || ""),
+        progress: Math.max(0, Math.min(100, Number(detail?.progress || 0))),
+      });
+    };
+
+    window.addEventListener("mg:fire-tv-update-status", handleUpdateStatus);
+
+    return () => {
+      window.removeEventListener(
+        "mg:fire-tv-update-status",
+        handleUpdateStatus
+      );
+    };
+  }, []);
+
+  const latestCode = Number(release?.versionCode || 0);
   const migration = !nativeInfo;
   const downloaderCode = String(
-    release.downloaderCode || DEFAULT_DOWNLOADER_CODE
+    release?.downloaderCode || DEFAULT_DOWNLOADER_CODE
   ).trim();
 
+  const canSelfUpdate = useMemo(
+    () =>
+      Boolean(
+        nativeInfo?.selfUpdateSupported &&
+          nativeFireTvSelfUpdateAvailable() &&
+          release?.apkUrl
+      ),
+    [nativeInfo, release]
+  );
+
+  const updateBusy = [
+    "downloading",
+    "downloaded",
+    "permission",
+    "installer",
+  ].includes(updateState.status);
+
   const dismiss = () => {
+    if (updateBusy) {
+      return;
+    }
+
     try {
       window.sessionStorage?.setItem(
         `${SESSION_DISMISS_PREFIX}${latestCode}`,
@@ -107,6 +154,40 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
 
     setVisible(false);
   };
+
+  const startUpdate = () => {
+    if (!canSelfUpdate || updateBusy) {
+      return;
+    }
+
+    setUpdateState({
+      status: "starting",
+      message: "Starting Media God update…",
+      progress: 0,
+    });
+
+    const result = startNativeFireTvUpdate({
+      url: release?.apkUrl,
+      versionName: release?.versionName,
+    });
+
+    if (result === "started") {
+      return;
+    }
+
+    setUpdateState({
+      status: "error",
+      message:
+        result === "busy"
+          ? "Another Media God update is already running."
+          : "The in-app updater could not start. Use the Downloader fallback below.",
+      progress: 0,
+    });
+  };
+
+  if (!enabled || !visible || !release) {
+    return null;
+  }
 
   return (
     <div
@@ -133,15 +214,18 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
             </h2>
             <p className="mt-2 text-sm leading-6 text-white/70">
               {migration
-                ? "Silk does not support this APK download, so the first Fire TV install uses Downloader instead. This is a one-time move from the older Wix/Base44 app to the dedicated TV app."
-                : "A newer Fire TV build is available. Use Downloader to install the update."}
+                ? "This is the one-time move into the dedicated Media God Fire TV app."
+                : canSelfUpdate
+                  ? "Media God can download this update itself. Fire OS will ask you to approve installation before anything is replaced."
+                  : "This installed build does not yet contain the self-updater. Use Downloader once; Media God 1.4.1 and later can update from inside the app."}
             </p>
           </div>
 
           <button
             type="button"
             onClick={dismiss}
-            className="rounded-lg p-2 text-white/60 outline-none hover:bg-white/10 hover:text-white focus:ring-2 focus:ring-mg-green"
+            disabled={updateBusy}
+            className="rounded-lg p-2 text-white/60 outline-none hover:bg-white/10 hover:text-white focus:ring-2 focus:ring-mg-green disabled:opacity-30"
             aria-label="Later"
             title="Later"
           >
@@ -149,51 +233,102 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
           </button>
         </div>
 
-        <div className="mt-5 rounded-xl border border-mg-green/30 bg-black/25 p-4">
-          <div className="flex items-center gap-2 text-sm font-bold text-white">
-            <Download className="h-5 w-5 text-mg-green" />
-            Install with Downloader
-          </div>
+        {canSelfUpdate && (
+          <div className="mt-5 rounded-xl border border-mg-green/35 bg-black/25 p-4">
+            <div className="flex items-center gap-2 text-sm font-bold text-white">
+              {updateBusy || updateState.status === "starting" ? (
+                <Loader2 className="h-5 w-5 animate-spin text-mg-green" />
+              ) : (
+                <Download className="h-5 w-5 text-mg-green" />
+              )}
+              Update inside Media God
+            </div>
 
-          <ol className="mt-3 space-y-2 text-sm leading-5 text-white/75">
-            <li><span className="font-bold text-white">1.</span> Press Home and open the <span className="font-semibold text-white">Downloader</span> app.</li>
-            <li><span className="font-bold text-white">2.</span> Enter this Downloader code:</li>
-          </ol>
+            <p className="mt-2 text-sm leading-5 text-white/65">
+              {updateState.message ||
+                "Press Update now. Media God will download the APK and hand it to the Fire OS installer."}
+            </p>
 
-          <div
-            className="my-3 rounded-xl border-2 border-mg-green bg-black px-4 py-4 text-center font-mono text-3xl sm:text-4xl font-black tracking-[0.18em] text-mg-green"
-            aria-label={`Downloader code ${downloaderCode}`}
-          >
-            {downloaderCode}
-          </div>
-
-          <ol start="3" className="space-y-2 text-sm leading-5 text-white/75">
-            <li><span className="font-bold text-white">3.</span> Select <span className="font-semibold text-white">Go</span>. Downloader will open the Media God APK.</li>
-            <li><span className="font-bold text-white">4.</span> Choose <span className="font-semibold text-white">Install</span> when Fire OS asks.</li>
-            {migration && (
-              <li><span className="font-bold text-white">5.</span> Open <span className="font-semibold text-white">Media God Fire TV</span>. It installs alongside the old app the first time.</li>
+            {(updateState.status === "downloading" ||
+              updateState.status === "downloaded") && (
+              <div className="mt-3">
+                <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="h-full bg-mg-green transition-[width] duration-300"
+                    style={{ width: `${updateState.progress}%` }}
+                  />
+                </div>
+                <p className="mt-1 text-right text-xs text-white/50">
+                  {Math.round(updateState.progress)}%
+                </p>
+              </div>
             )}
-          </ol>
 
-          <p className="mt-3 text-xs leading-5 text-white/50">
-            If Downloader is not installed, search for “Downloader” in the Amazon Appstore first. If Fire OS asks for permission, allow Downloader to install unknown apps.
-          </p>
-        </div>
+            {updateState.status === "permission" && (
+              <p className="mt-3 rounded-lg border border-amber-400/30 bg-amber-400/10 p-3 text-xs leading-5 text-amber-100">
+                Fire OS has opened the one-time “Install unknown apps” permission for Media God. Allow it, then return to Media God and the installer will continue automatically.
+              </p>
+            )}
+
+            {updateState.status === "error" && (
+              <p className="mt-3 rounded-lg border border-red-400/30 bg-red-400/10 p-3 text-xs leading-5 text-red-100">
+                {updateState.message}
+              </p>
+            )}
+
+            <button
+              type="button"
+              onClick={startUpdate}
+              disabled={updateBusy || updateState.status === "starting"}
+              autoFocus
+              className="mt-4 min-h-12 w-full rounded-xl bg-mg-green px-5 py-3 font-bold text-black outline-none hover:brightness-110 focus:ring-4 focus:ring-mg-green/40 disabled:cursor-wait disabled:opacity-60"
+            >
+              {updateBusy || updateState.status === "starting"
+                ? "Updating…"
+                : `Update now${release.versionName ? ` to ${release.versionName}` : ""}`}
+            </button>
+          </div>
+        )}
+
+        {!canSelfUpdate && (
+          <div className="mt-5 rounded-xl border border-mg-green/30 bg-black/25 p-4">
+            <div className="flex items-center gap-2 text-sm font-bold text-white">
+              <Download className="h-5 w-5 text-mg-green" />
+              One-time Downloader install
+            </div>
+
+            <ol className="mt-3 space-y-2 text-sm leading-5 text-white/75">
+              <li>
+                <span className="font-bold text-white">1.</span> Open the Downloader app on Fire TV.
+              </li>
+              <li>
+                <span className="font-bold text-white">2.</span> Enter this code:
+              </li>
+            </ol>
+
+            <div
+              className="my-3 rounded-xl border-2 border-mg-green bg-black px-4 py-4 text-center font-mono text-3xl sm:text-4xl font-black tracking-[0.18em] text-mg-green"
+              aria-label={`Downloader code ${downloaderCode}`}
+            >
+              {downloaderCode}
+            </div>
+
+            <p className="text-xs leading-5 text-white/50">
+              Install this version once. From Media God 1.4.1 onward, future Fire TV updates can use the in-app Update now button.
+            </p>
+          </div>
+        )}
 
         <div className="mt-5 flex justify-end">
           <button
             type="button"
             onClick={dismiss}
-            autoFocus
-            className="min-h-12 rounded-xl border border-white/15 bg-black/25 px-5 py-3 font-semibold text-white outline-none hover:bg-white/5 focus:ring-4 focus:ring-mg-green/40"
+            disabled={updateBusy}
+            className="min-h-12 rounded-xl border border-white/15 bg-black/25 px-5 py-3 font-semibold text-white outline-none hover:bg-white/5 focus:ring-4 focus:ring-mg-green/40 disabled:opacity-30"
           >
             Later
           </button>
         </div>
-
-        <p className="mt-4 text-xs text-white/45">
-          No Silk browser download is used. The APK remains hosted from Media God’s permanent Fire TV release.
-        </p>
       </div>
     </div>
   );
