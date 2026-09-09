@@ -29,6 +29,7 @@ class MainActivity : Activity() {
     @Volatile private var playerOpen = false
     @Volatile private var activeNativeRequestId = ""
     private var pendingNativeResultScript: String? = null
+    private lateinit var appUpdater: AppUpdater
 
     @SuppressLint("SetJavaScriptEnabled", "JavascriptInterface")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -81,6 +82,12 @@ class MainActivity : Activity() {
 
         setContentView(webView)
 
+        appUpdater = AppUpdater(this) { detail ->
+            dispatchJavascript(
+                "window.dispatchEvent(new CustomEvent('mg:fire-tv-update-status',{detail:JSON.parse(${JSONObject.quote(detail.toString())})}));"
+            )
+        }
+
         if (savedInstanceState == null) {
             webView.loadUrl(BuildConfig.MEDIA_GOD_URL)
         } else {
@@ -105,6 +112,10 @@ class MainActivity : Activity() {
         pendingNativeResultScript?.let { script ->
             pendingNativeResultScript = null
             dispatchJavascript(script)
+        }
+
+        if (::appUpdater.isInitialized) {
+            appUpdater.onResume()
         }
     }
 
@@ -276,6 +287,11 @@ class MainActivity : Activity() {
                 put("packageName", packageName)
                 put("versionCode", BuildConfig.VERSION_CODE)
                 put("versionName", BuildConfig.VERSION_NAME)
+                put("selfUpdateSupported", ::appUpdater.isInitialized && appUpdater.isSupported())
+                put(
+                    "updateInstallPermissionGranted",
+                    ::appUpdater.isInitialized && appUpdater.installPermissionGranted()
+                )
             }.toString()
 
         @JavascriptInterface
@@ -327,6 +343,14 @@ class MainActivity : Activity() {
 
             return true
         }
+
+        @JavascriptInterface
+        fun startUpdate(url: String, versionName: String): String =
+            if (::appUpdater.isInitialized) {
+                appUpdater.startUpdate(url, versionName)
+            } else {
+                "error"
+            }
 
         @JavascriptInterface
         fun play(payloadJson: String): String {
