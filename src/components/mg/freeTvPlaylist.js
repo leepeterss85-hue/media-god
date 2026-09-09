@@ -484,7 +484,7 @@ const regionalAvailability = (channel, regionalLock) => {
 
   return {
     geoAvailableHere:
-      restricted && (!regionalLock || availableInConfiguredRegion),
+      restricted && regionalLock && availableInConfiguredRegion,
     geoBlocked:
       restricted && regionalLock && !availableInConfiguredRegion,
   };
