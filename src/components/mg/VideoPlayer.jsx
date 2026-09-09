@@ -283,12 +283,18 @@ export default function VideoPlayer({
     requestId: "",
     url: "",
   });
+  const nativeLaunchTimerRef = useRef(null);
 
   useEffect(() => {
     return () => {
       if (torrentFailoverTimerRef.current) {
         window.clearTimeout(torrentFailoverTimerRef.current);
         torrentFailoverTimerRef.current = null;
+      }
+
+      if (nativeLaunchTimerRef.current) {
+        window.clearTimeout(nativeLaunchTimerRef.current);
+        nativeLaunchTimerRef.current = null;
       }
     };
   }, []);
@@ -2924,6 +2930,11 @@ export default function VideoPlayer({
         return;
       }
 
+      if (nativeLaunchTimerRef.current) {
+        window.clearTimeout(nativeLaunchTimerRef.current);
+        nativeLaunchTimerRef.current = null;
+      }
+
       const positionSeconds = Math.max(
         0,
         Number(detail.positionMs || 0) / 1000
@@ -3051,6 +3062,11 @@ export default function VideoPlayer({
     const requestId =
       `mg-${Date.now()}-${activeIdx}-${Math.random().toString(36).slice(2, 8)}`;
 
+    if (nativeLaunchTimerRef.current) {
+      window.clearTimeout(nativeLaunchTimerRef.current);
+      nativeLaunchTimerRef.current = null;
+    }
+
     nativePlaybackRef.current = {
       requestId,
       url: nativePlaybackUrl,
@@ -3087,10 +3103,53 @@ export default function VideoPlayer({
         url: "",
       };
 
-      /* If an unexpected old/custom wrapper exposes a broken bridge, fall
-       * back to the proven browser player for this exact URL only. */
+      /* If an unexpected old/custom wrapper exposes a broken/busy bridge,
+       * fall back instead of leaving the player on an endless handoff spinner. */
+      setForceNativePlayback(false);
       setNativeFallbackUrl(nativePlaybackUrl);
+
+      window.dispatchEvent(
+        new CustomEvent("mg:player-status", {
+          detail: {
+            message:
+              "Fire TV player was busy or could not open — using the fallback player.",
+          },
+        })
+      );
+
+      return;
     }
+
+    /*
+     * MainActivity pauses WebView timers while PlayerActivity owns the screen,
+     * so this timeout only meaningfully expires when the native activity did
+     * not actually take over, or when Fire OS returns without delivering the
+     * expected result event. Either way, never leave Live TV spinning forever.
+     */
+    nativeLaunchTimerRef.current = window.setTimeout(() => {
+      const pending = nativePlaybackRef.current;
+
+      if (pending.requestId !== requestId) {
+        return;
+      }
+
+      nativePlaybackRef.current = {
+        requestId: "",
+        url: "",
+      };
+      nativeLaunchTimerRef.current = null;
+      setForceNativePlayback(false);
+      setNativeFallbackUrl(nativePlaybackUrl);
+
+      window.dispatchEvent(
+        new CustomEvent("mg:player-status", {
+          detail: {
+            message:
+              "Fire TV player did not open correctly — switched to the fallback player.",
+          },
+        })
+      );
+    }, 5500);
   }, [
     active,
     activeIdx,
