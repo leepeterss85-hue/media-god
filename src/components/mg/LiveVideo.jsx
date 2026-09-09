@@ -1383,6 +1383,26 @@ const LiveVideo = forwardRef(
 
       const onNativeError =
         () => {
+          if (
+            genericHttpsSource &&
+            !genericHttpsHlsFallbackTried
+          ) {
+            genericHttpsHlsFallbackTried = true;
+
+            window.dispatchEvent(
+              new CustomEvent("mg:player-status", {
+                detail: {
+                  message:
+                    "HTTPS stream type not advertised — trying HLS playback…",
+                },
+              })
+            );
+
+            resetVideo();
+            startHls();
+            return;
+          }
+
           reportError(
             new Error(
               nativeFallbackUsed
