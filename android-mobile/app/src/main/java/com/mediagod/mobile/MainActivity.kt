@@ -296,6 +296,14 @@ class MainActivity : Activity() {
         }
 
         @JavascriptInterface
+        fun exitApp(): Boolean {
+            runOnUiThread {
+                finishAndRemoveTask()
+            }
+            return true
+        }
+
+        @JavascriptInterface
         fun openExternalUrl(url: String): Boolean {
             val target = url.trim()
 
