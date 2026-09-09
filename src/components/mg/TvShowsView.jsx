@@ -113,7 +113,10 @@ export default function TvShowsView() {
         </div>
       )}
 
-      <div className="flex flex-col gap-3 3xl:gap-4 mb-5 3xl:mb-8">
+      <div
+        data-mg-tv-shows-controls="true"
+        className="flex flex-col gap-3 3xl:gap-4 mb-5 3xl:mb-8"
+      >
         <div className="flex items-center gap-2 3xl:gap-3">
           <Globe className="w-5 h-5 3xl:w-6 3xl:h-6 text-mg-green" />
           <h1 className="text-xl md:text-2xl 3xl:text-3xl 4xl:text-4xl font-bold text-white tracking-wide">
