@@ -99,7 +99,7 @@ const AUDIO_RISKY_RE =
   /\b(dts(?:-hd)?|truehd|mlp)\b/i;
 
 const PLAYBACK_RELIABILITY_KEY =
-  "mg:playback-reliability-v1";
+  "mg:playback-reliability-v2";
 
 const reliabilityLabel = (item) =>
   String(
