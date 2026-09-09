@@ -1441,6 +1441,27 @@ export default function MediaPlayerControls({
     seeking ||
     Boolean(openMenu);
 
+  useEffect(() => {
+    const stage = stageRef?.current;
+    const root = stage?.closest?.(
+      '[data-mg-player-root="true"]'
+    );
+
+    if (!(root instanceof HTMLElement)) {
+      return undefined;
+    }
+
+    root.dataset.mgControlsVisible = controlsVisible
+      ? "true"
+      : "false";
+
+    return () => {
+      if (root.dataset.mgControlsVisible != null) {
+        delete root.dataset.mgControlsVisible;
+      }
+    };
+  }, [controlsVisible, stageRef]);
+
   const cueStyle = subtitleCueStyle(trackPreferences);
 
   return (
