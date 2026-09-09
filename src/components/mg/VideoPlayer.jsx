@@ -2888,15 +2888,25 @@ export default function VideoPlayer({
     nativeFallbackUrl !== nativePlaybackUrl;
 
   /*
-   * Keep the full Media God player UI for movies, episodes and torrents on
-   * Fire TV so source sorting, torrent-file selection, subtitles, audio and
-   * advanced controls stay available. Live TV still prefers Media3 because
-   * its codec/header support is materially better there. VOD can opt into
-   * Media3 with the Native decoder button when a difficult codec needs it.
+   * Fire TV must not decode resolved VOD inside the WebView. The original
+   * dedicated build was stable because Media3 owned the actual video surface;
+   * keeping VOD in <video> reintroduced renderer/codec white-screen failures.
+   *
+   * Media God's web player remains the source/torrent selection surface, but
+   * every resolved HTTP media URL is handed to native Media3 for playback.
+   * Back from Media3 enters a safe selector mode rather than starting the same
+   * URL in WebView again.
    */
   const useNativePlayback =
     nativePlaybackAvailable &&
-    (isLive || forceNativePlayback);
+    (isLive || forceNativePlayback || isFireTvRemoteRuntime());
+
+  const fireTvNativeSelectorMode =
+    nativeFireTvPlayer &&
+    !isLive &&
+    !forceNativePlayback &&
+    /^https?:\/\//i.test(nativePlaybackUrl) &&
+    nativeFallbackUrl === nativePlaybackUrl;
 
   useEffect(() => {
     if (!nativeFireTvPlayer) {
