@@ -66,14 +66,30 @@ const visible = (element) => {
     return false;
   }
 
-  const style = window.getComputedStyle(element);
+  let node = element;
 
-  return (
-    style.display !== "none" &&
-    style.visibility !== "hidden" &&
-    Number(style.opacity || 1) > 0.03 &&
-    style.pointerEvents !== "none"
-  );
+  while (node instanceof HTMLElement) {
+    if (
+      node.hidden ||
+      node.getAttribute("aria-hidden") === "true"
+    ) {
+      return false;
+    }
+
+    const style = window.getComputedStyle(node);
+
+    if (
+      style.display === "none" ||
+      style.visibility === "hidden" ||
+      Number(style.opacity || 1) <= 0.03
+    ) {
+      return false;
+    }
+
+    node = node.parentElement;
+  }
+
+  return window.getComputedStyle(element).pointerEvents !== "none";
 };
 
 const mediaGodAppReady = () =>
