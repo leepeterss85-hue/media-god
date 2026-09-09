@@ -4603,7 +4603,7 @@ export default function VideoPlayer({
             title="Try another audio track or source"
           >
             <VolumeX className="h-4 w-4" />
-            <span className="hidden xs:inline sm:inline">Fix audio</span>
+            <span className="hidden sm:inline">Fix audio</span>
           </button>
 
         </div>
@@ -4611,7 +4611,7 @@ export default function VideoPlayer({
         {displayedError &&
           !busy && (
             <div
-              className="mt-2 flex items-center gap-2 rounded-xl border border-amber-400/20 bg-amber-400/8 px-3 py-2.5 shadow-sm"
+              className="mt-2 flex items-center gap-2 rounded-xl border border-amber-400/20 bg-amber-400/10 px-3 py-2.5 shadow-sm"
               title={displayedError}
             >
               <span className="h-2 w-2 shrink-0 rounded-full bg-amber-300/80" />
