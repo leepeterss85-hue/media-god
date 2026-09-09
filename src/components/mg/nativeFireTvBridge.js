@@ -143,8 +143,15 @@ export const playNativeFireTv = ({
 
   try {
     const result = native.play(JSON.stringify(payload));
+    const status = String(result ?? "").trim().toLowerCase();
 
-    return result !== false && result !== "false" && result !== "error";
+    return (
+      result !== false &&
+      status !== "" &&
+      status !== "false" &&
+      status !== "error" &&
+      status !== "busy"
+    );
   } catch {
     return false;
   }
