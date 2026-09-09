@@ -47,6 +47,7 @@ class PlayerActivity : Activity() {
     private var restorePositionMs = 0L
     private var shouldPlayWhenReady = true
     private var resultSent = false
+    private var genericHttpsMimeRetryIndex = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -254,6 +255,17 @@ class PlayerActivity : Activity() {
             }
 
             override fun onPlayerError(error: PlaybackException) {
+                /*
+                 * Extensionless HTTPS live endpoints are common in IPTV/CDN
+                 * lists. Media3 cannot always infer whether those URLs are
+                 * HLS or DASH from the address alone, so retry an otherwise
+                 * unknown HTTPS source with explicit adaptive MIME types
+                 * before returning the failure to the web catalogue.
+                 */
+                if (retryUnknownHttpsSourceType(exoPlayer)) {
+                    return
+                }
+
                 finishWithResult(
                     "error",
                     error.message ?: "Native Fire TV playback failed"
@@ -282,12 +294,15 @@ class PlayerActivity : Activity() {
         playerView.showController()
     }
 
-    private fun buildMediaItem(): MediaItem {
+    private fun buildMediaItem(mimeTypeOverride: String? = null): MediaItem {
         val builder = MediaItem.Builder()
             .setUri(streamUrl)
             .setMediaId(requestId.ifBlank { streamUrl })
 
-        val explicitMimeType = payload.optString("mimeType").trim()
+        val explicitMimeType =
+            mimeTypeOverride?.trim().orEmpty().ifBlank {
+                payload.optString("mimeType").trim()
+            }
 
         if (explicitMimeType.isNotBlank()) {
             builder.setMimeType(explicitMimeType)
@@ -346,6 +361,48 @@ class PlayerActivity : Activity() {
             lower.endsWith(".m3u8") -> MimeTypes.APPLICATION_M3U8
             lower.endsWith(".mpd") -> MimeTypes.APPLICATION_MPD
             else -> null
+        }
+    }
+
+    private fun retryUnknownHttpsSourceType(activePlayer: ExoPlayer): Boolean {
+        if (!streamUrl.startsWith("https://")) {
+            return false
+        }
+
+        val suppliedMime = payload.optString("mimeType").trim()
+        if (suppliedMime.isNotBlank() || inferPrimaryMimeType(streamUrl) != null) {
+            return false
+        }
+
+        val retryMimeType = when (genericHttpsMimeRetryIndex) {
+            0 -> MimeTypes.APPLICATION_M3U8
+            1 -> MimeTypes.APPLICATION_MPD
+            else -> return false
+        }
+
+        genericHttpsMimeRetryIndex += 1
+
+        val positionMs = max(0L, activePlayer.currentPosition)
+        val resumePlayback = activePlayer.playWhenReady || shouldPlayWhenReady
+
+        return try {
+            activePlayer.stop()
+            activePlayer.clearMediaItems()
+            activePlayer.setMediaItem(buildMediaItem(retryMimeType))
+            activePlayer.prepare()
+
+            if (!live && positionMs > 0L) {
+                activePlayer.seekTo(positionMs)
+            }
+
+            activePlayer.playWhenReady = resumePlayback
+            if (resumePlayback) {
+                activePlayer.play()
+            }
+
+            true
+        } catch (_: Throwable) {
+            false
         }
     }
 
