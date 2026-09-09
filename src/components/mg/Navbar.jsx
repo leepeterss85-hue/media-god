@@ -128,10 +128,17 @@ const domSaysPlayerOpen = () => {
     return false;
   }
 
-  if (
-    document.body?.classList.contains("mg-fire-tv-player-open") ||
-    document.documentElement.classList.contains("mg-fire-tv-player-open")
-  ) {
+  /*
+   * Trust the actual player DOM, not a body/html marker that may have been
+   * left behind by an interrupted Fire TV WebView transition. A stale class
+   * must never be allowed to keep the navigation hidden after the player
+   * portal has gone away.
+   */
+  const explicitPlayer = document.querySelector(
+    '[data-mg-player-root="true"]'
+  );
+
+  if (explicitPlayer instanceof HTMLElement) {
     return true;
   }
 
@@ -204,7 +211,14 @@ export default function Navbar({
         return;
       }
 
-      syncFromEverything();
+      document.body?.classList.remove(
+        "mg-fire-tv-player-open"
+      );
+      document.documentElement.classList.remove(
+        "mg-fire-tv-player-open"
+      );
+
+      setPlayerOpen(false);
     };
 
     window.addEventListener(
