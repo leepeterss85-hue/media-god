@@ -282,11 +282,15 @@ const playerOpen = () => {
 };
 
 const activeVideo = () => {
-  const overlay = topOverlay();
+  const player = document.querySelector('[data-mg-player-root="true"]');
+  const scope =
+    player instanceof HTMLElement && visible(player)
+      ? player
+      : topOverlay();
 
-  if (overlay instanceof HTMLElement) {
+  if (scope instanceof HTMLElement) {
     const media = Array.from(
-      overlay.querySelectorAll("video")
+      scope.querySelectorAll("video")
     ).filter(visible);
 
     if (media.length) {
@@ -382,12 +386,31 @@ export default function FireTvRemote() {
         return;
       }
 
-      /*
-       * Full-screen playback deliberately uses normal browser/WebView focus.
-       * Do not force focus or spatial-navigation targets inside the player.
-       */
       if (playerOpen()) {
-        lastScopeRef.current = null;
+        const scope = document.querySelector('[data-mg-player-root="true"]');
+
+        if (!(scope instanceof HTMLElement)) {
+          lastScopeRef.current = null;
+          return;
+        }
+
+        if (lastScopeRef.current === scope) {
+          return;
+        }
+
+        lastScopeRef.current = scope;
+
+        const preferred =
+          scope.querySelector(
+            'button[aria-label="Pause"], button[aria-label="Play"], select[aria-label="Choose playback source"], select[aria-label="Choose file"], button[data-mg-player-exit="true"], button[aria-label="Exit player"]'
+          ) ||
+          focusables(scope)[0] ||
+          null;
+
+        window.setTimeout(() => {
+          focusElement(preferred);
+        }, 40);
+
         return;
       }
 
@@ -421,14 +444,6 @@ export default function FireTvRemote() {
         return;
       }
 
-      /*
-       * Player screen: no custom D-pad, Select or media-key interception.
-       * Physical Back remains owned by main.jsx as a safety exit only.
-       */
-      if (playerOpen()) {
-        return;
-      }
-
       const mediaAction = mediaActionFromEvent(event);
 
       if (mediaAction && runMediaAction(mediaAction)) {
@@ -437,14 +452,17 @@ export default function FireTvRemote() {
         return;
       }
 
+      const player = document.querySelector('[data-mg-player-root="true"]');
       const overlay = topOverlay();
       const appMain = document.querySelector("#root main");
       const scope =
-        overlay instanceof HTMLElement
-          ? overlay
-          : appMain instanceof HTMLElement
-            ? document.querySelector("#root")
-            : null;
+        player instanceof HTMLElement && visible(player)
+          ? player
+          : overlay instanceof HTMLElement
+            ? overlay
+            : appMain instanceof HTMLElement
+              ? document.querySelector("#root")
+              : null;
 
       if (!(scope instanceof HTMLElement)) {
         return;
@@ -469,7 +487,10 @@ export default function FireTvRemote() {
        * Preventing those keys stops the Android WebView from opening the
        * source/file chooser or moving through its options.
        */
-      if (currentTag === "select") {
+      if (
+        currentTag === "select" ||
+        (currentTag === "input" && String(current?.type || "").toLowerCase() === "range")
+      ) {
         if (direction || isSelectKey(event)) {
           return;
         }
@@ -487,6 +508,7 @@ export default function FireTvRemote() {
         if (target && focusElement(target)) {
           event.preventDefault();
           event.stopPropagation();
+          event.stopImmediatePropagation();
         }
 
         return;
@@ -506,6 +528,7 @@ export default function FireTvRemote() {
 
           event.preventDefault();
           event.stopPropagation();
+          event.stopImmediatePropagation();
           selected.click();
         }
       }
