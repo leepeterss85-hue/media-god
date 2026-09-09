@@ -3017,22 +3017,11 @@ export default function VideoPlayer({
         !isLive
       ) {
         /*
-         * Return to Media God's source/torrent selector without immediately
-         * sending the same URL back to Media3 and without asking WebView to
-         * decode it. Choosing another source/file clears this URL lock; the
-         * Resume button below clears it explicitly for the current source.
+         * One native Back press must mean one navigation step. Closing the
+         * player here reveals the episode selector/details screen that opened
+         * it, rather than inserting an extra source-selector stop in between.
          */
-        setForceNativePlayback(false);
-        setNativeFallbackUrl(String(activeRequest.url || "").trim());
-
-        window.dispatchEvent(
-          new CustomEvent("mg:player-status", {
-            detail: {
-              message:
-                `Playback paused — choose another source/file or resume in the ${nativePlayerName} player.`,
-            },
-          })
-        );
+        onClose?.();
         return;
       }
 
@@ -3780,6 +3769,15 @@ export default function VideoPlayer({
     rdPolling ||
     !!rdTorrentId;
 
+  const busyLabel =
+    rdPolling
+      ? "Real-Debrid is preparing this file…"
+      : rdResolving
+        ? "Finding the best playable stream…"
+        : rdTorrentId
+          ? "Preparing torrent…"
+          : "Loading…";
+
   const displayedError =
     rdError ||
     "";
@@ -3883,7 +3881,7 @@ export default function VideoPlayer({
               <Loader2 className="w-8 h-8 text-mg-green animate-spin" />
 
               <p className="text-white/70 text-sm">
-                Loading…
+                {busyLabel}
               </p>
             </div>
           ) : fireTvNativeSelectorMode ? (
@@ -4428,8 +4426,11 @@ export default function VideoPlayer({
 
         {displayedError &&
           !busy && (
-            <div className="mt-2 flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2">
-              <p className="min-w-0 flex-1 truncate text-xs text-red-300">
+            <div
+              role="alert"
+              className="mt-2 flex items-start gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2"
+            >
+              <p className="min-w-0 flex-1 whitespace-normal break-words text-xs leading-5 text-red-300">
                 {
                   displayedError
                 }
