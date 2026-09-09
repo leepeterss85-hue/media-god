@@ -94,6 +94,34 @@ const sourceDisplayLabel = (item, index) =>
     .replace(/\s+/g, " ")
     .trim();
 
+const friendlyPlaybackError = (value) => {
+  const message = String(value || "").replace(/\s+/g, " ").trim();
+
+  if (!message) {
+    return "";
+  }
+
+  if (/\b451\b|infringing[_ -]?file|copyright|infringing/i.test(message)) {
+    return "This torrent was rejected by Real-Debrid — trying another source.";
+  }
+
+  if (/\b502\b|bad gateway|temporarily unavailable/i.test(message)) {
+    return "The source service is temporarily unavailable — trying another source.";
+  }
+
+  if (/no other playable source/i.test(message)) {
+    return "No working source was found. Choose another source or try again.";
+  }
+
+  if (/no sound|audio/i.test(message) && /fail|error|unsupported/i.test(message)) {
+    return "This source has an audio problem. Try Fix audio or another source.";
+  }
+
+  return message.length > 170
+    ? `${message.slice(0, 167)}…`
+    : message;
+};
+
 const openExternalPlaybackFallback = (url) => {
   const target = String(url || "").trim();
 
