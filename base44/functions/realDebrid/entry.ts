@@ -153,6 +153,166 @@ const sleep = (ms) =>
     setTimeout(resolve, ms)
   );
 
+const RD_RETRYABLE_STATUSES = new Set([
+  408,
+  425,
+  429,
+  500,
+  502,
+  503,
+  504,
+]);
+
+const isRetryableRdStatus = (status) =>
+  RD_RETRYABLE_STATUSES.has(
+    Number(status)
+  );
+
+const rdRetryDelayMs = (
+  response,
+  attempt
+) => {
+  const retryAfter =
+    response?.headers?.get?.(
+      "retry-after"
+    ) || "";
+
+  if (/^\d+(?:\.\d+)?$/.test(retryAfter)) {
+    return Math.min(
+      3000,
+      Math.max(
+        250,
+        Math.round(
+          Number(retryAfter) *
+            1000
+        )
+      )
+    );
+  }
+
+  const retryAt =
+    Date.parse(retryAfter);
+
+  if (
+    Number.isFinite(retryAt)
+  ) {
+    return Math.min(
+      3000,
+      Math.max(
+        250,
+        retryAt - Date.now()
+      )
+    );
+  }
+
+  return [
+    300,
+    750,
+    1500,
+    2500,
+  ][attempt] || 2500;
+};
+
+async function rdFetch(
+  url,
+  options = {},
+  {
+    attempts = 3,
+  } = {}
+) {
+  let lastError = null;
+
+  for (
+    let attempt = 0;
+    attempt < attempts;
+    attempt += 1
+  ) {
+    try {
+      const response =
+        await fetch(
+          url,
+          options
+        );
+
+      if (
+        !isRetryableRdStatus(
+          response.status
+        ) ||
+        attempt ===
+          attempts - 1
+      ) {
+        return response;
+      }
+
+      await sleep(
+        rdRetryDelayMs(
+          response,
+          attempt
+        )
+      );
+    } catch (error) {
+      lastError = error;
+
+      if (
+        attempt ===
+        attempts - 1
+      ) {
+        throw error;
+      }
+
+      await sleep(
+        [300, 750, 1500][
+          attempt
+        ] || 1500
+      );
+    }
+  }
+
+  throw (
+    lastError ||
+    new Error(
+      "Real-Debrid request failed."
+    )
+  );
+}
+
+const rdFailureMessage = async (
+  response,
+  label
+) => {
+  let detail = "";
+
+  try {
+    const text =
+      String(
+        await response.text()
+      ).trim();
+
+    if (text) {
+      try {
+        const parsed =
+          JSON.parse(text);
+
+        detail =
+          parsed?.error_description ||
+          parsed?.error ||
+          parsed?.message ||
+          text;
+      } catch {
+        detail = text;
+      }
+    }
+  } catch {
+    detail = "";
+  }
+
+  return `${label} (${response.status})${
+    detail
+      ? `: ${String(detail).slice(0, 280)}`
+      : ""
+  }`;
+};
+
 const summariseAudioTrack = (track, key = "") => ({
   key,
   stream: track?.stream || "",
