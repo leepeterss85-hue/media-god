@@ -3992,7 +3992,7 @@ export default function VideoPlayer({
                   onClick={
                     goFullscreen
                   }
-                  className="min-h-9 min-w-9 flex items-center justify-center rounded-lg bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
+                  className="flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/70 transition hover:border-mg-green/30 hover:bg-white/10 hover:text-white focus:bg-white/10 focus:outline-none focus:ring-2 focus:ring-mg-green sm:min-h-10 sm:min-w-10"
                   aria-label="Fullscreen"
                   title="Fullscreen"
                 >
@@ -4021,15 +4021,23 @@ export default function VideoPlayer({
           ref={
             stageRef
           }
-          className="relative w-full aspect-video bg-black rounded-lg overflow-hidden border border-white/10 flex items-center justify-center"
+          className="relative flex min-h-[34vh] w-full items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-black shadow-2xl sm:min-h-0 sm:aspect-video"
         >
           {busy ? (
-            <div className="flex flex-col items-center gap-3 p-6 text-center">
-              <Loader2 className="w-8 h-8 text-mg-green animate-spin" />
+            <div className="flex max-w-md flex-col items-center gap-3 p-6 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full border border-mg-green/20 bg-mg-green/5">
+                <Loader2 className="h-7 w-7 animate-spin text-mg-green" />
+              </div>
 
-              <p className="text-white/70 text-sm">
-                Loading…
-              </p>
+              <div>
+                <p className="text-sm font-semibold text-white/85 sm:text-base">
+                  {playerUiStatus}
+                </p>
+
+                <p className="mt-1 line-clamp-2 text-xs text-white/45">
+                  {activeSourceLabel || "Finding the best available source…"}
+                </p>
+              </div>
             </div>
           ) : fireTvNativeSelectorMode ? (
             <div
