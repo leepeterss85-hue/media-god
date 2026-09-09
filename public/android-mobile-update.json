@@ -1,0 +1,10 @@
+{
+  "channel": "android-mobile",
+  "versionCode": 1,
+  "versionName": "1.0.0",
+  "title": "Media God Mobile",
+  "message": "Media God Mobile 1.0.0 is the first dedicated phone and tablet build, with touch-first responsive sizing, native Android playback and secure in-app updates for future releases.",
+  "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
+  "downloaderCode": "",
+  "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
+}
