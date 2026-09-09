@@ -2997,10 +2997,18 @@ export default function VideoPlayer({
         !isLive
       ) {
         /*
+<<<<<<< HEAD
          * Return to Media God's source/torrent selector without immediately
          * sending the same URL back to Media3 and without asking WebView to
          * decode it. Choosing another source/file clears this URL lock; the
          * Resume button below clears it explicitly for the current source.
+=======
+         * Return from native playback to Media God's source/torrent selector.
+         * This keeps every source, Real-Debrid option, torrent-file picker,
+         * Native decoder and Fix audio control reachable without immediately
+         * relaunching the same native stream. A second Back from this selector
+         * closes the player and returns to the episode/details screen.
+>>>>>>> c27df2b (External agent changes)
          */
         setForceNativePlayback(false);
         setNativeFallbackUrl(String(activeRequest.url || "").trim());
@@ -3009,7 +3017,11 @@ export default function VideoPlayer({
           new CustomEvent("mg:player-status", {
             detail: {
               message:
+<<<<<<< HEAD
                 "Playback paused — choose another source/file or resume in the Fire TV player.",
+=======
+                `Playback paused — choose another source/torrent file, use Fix audio, or resume in the ${nativePlayerName} player.`,
+>>>>>>> c27df2b (External agent changes)
             },
           })
         );
