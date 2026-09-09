@@ -3898,21 +3898,21 @@ export default function VideoPlayer({
       data-mg-player-root="true"
       data-mg-player-fullscreen={isAppFullscreen ? "true" : "false"}
       data-mg-native-selector-mode={fireTvNativeSelectorMode ? "true" : "false"}
-      className="fixed inset-0 z-[2147483646] bg-black/95 flex items-center justify-center p-2 sm:p-3"
+      className="fixed inset-0 z-[2147483646] bg-black/95 flex items-center justify-center p-2 sm:p-3 md:p-4"
       onClick={
         onClose
       }
     >
       <div
-        className="w-full max-w-[1500px]"
+        className="flex max-h-[calc(100dvh-1rem)] w-full max-w-[1600px] flex-col sm:max-h-[calc(100dvh-1.5rem)]"
         onClick={(
           event
         ) =>
           event.stopPropagation()
         }
       >
-        <div data-mg-player-topbar="true" className="flex items-center justify-between mb-2 gap-2">
-          <div className="flex items-center gap-2 min-w-0">
+        <div data-mg-player-topbar="true" className="mb-2 flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/70 px-2.5 py-2 shadow-lg backdrop-blur-md sm:px-3">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
             <button
               type="button"
               data-mg-player-exit="true"
@@ -3921,7 +3921,7 @@ export default function VideoPlayer({
                 event.stopPropagation();
                 onClose?.();
               }}
-              className="shrink-0 flex items-center gap-1.5 min-h-9 rounded-lg border border-white/10 bg-white/5 px-2.5 text-xs font-semibold text-white hover:bg-white/10 hover:border-mg-green/40 focus:outline-none focus:ring-2 focus:ring-mg-green/50"
+              className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 text-xs font-semibold text-white transition hover:border-mg-green/40 hover:bg-white/10 focus:bg-white/10 focus:outline-none focus:ring-2 focus:ring-mg-green sm:min-h-10"
               aria-label="Exit player"
               title="Exit player"
             >
@@ -3940,11 +3940,46 @@ export default function VideoPlayer({
               </span>
             )}
 
-            <h3 className="text-white font-semibold text-sm truncate">
-              {
-                source?.title
-              }
-            </h3>
+            <div className="min-w-0 flex-1">
+              <h3 className="truncate text-sm font-semibold text-white sm:text-base">
+                {
+                  source?.title
+                }
+              </h3>
+
+              <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[10px] text-white/45 sm:text-[11px]">
+                <span
+                  className={`inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 font-semibold ${
+                    playerUiStatus === "Source issue"
+                      ? "bg-red-500/15 text-red-300"
+                      : playerUiStatus === "Ready" || playerUiStatus === "Live"
+                        ? "bg-mg-green/15 text-mg-green"
+                        : "bg-white/8 text-white/60"
+                  }`}
+                >
+                  <span className={`h-1.5 w-1.5 rounded-full ${
+                    playerUiStatus === "Source issue"
+                      ? "bg-red-400"
+                      : playerUiStatus === "Ready" || playerUiStatus === "Live"
+                        ? "bg-mg-green"
+                        : "bg-white/50"
+                  }`} />
+                  {playerUiStatus}
+                </span>
+
+                {selectableSourceCount > 0 && (
+                  <span className="shrink-0">
+                    {selectableSourceCount} {selectableSourceCount === 1 ? "source" : "sources"}
+                  </span>
+                )}
+
+                {failedSourceCount > 0 && (
+                  <span className="shrink-0 text-white/30">
+                    · {failedSourceCount} unavailable
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
