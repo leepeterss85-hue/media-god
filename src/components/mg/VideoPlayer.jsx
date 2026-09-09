@@ -1513,16 +1513,16 @@ export default function VideoPlayer({
             if (
               data.error
             ) {
-              setRdError(
-                data.error
-              );
-
               setRdPolling(
                 false
               );
 
               setRdTorrentId(
                 null
+              );
+
+              tryNextSource(
+                data.error
               );
 
               return;
@@ -1533,17 +1533,17 @@ export default function VideoPlayer({
             if (
               !cancelled
             ) {
-              setRdError(
-                error?.message ||
-                  "Real-Debrid polling failed."
-              );
-
               setRdPolling(
                 false
               );
 
               setRdTorrentId(
                 null
+              );
+
+              tryNextSource(
+                error?.message ||
+                  "Real-Debrid polling failed."
               );
             }
 
