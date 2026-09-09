@@ -382,6 +382,9 @@ const cleanChannelName = (value) =>
   String(value || "")
     .replace(/[ⓈⒼⓎⓉ]/g, "")
     .replace(/\|\.uk\.\|/gi, "")
+    .replace(/\[[^\]]*geo[- ]?(?:blocked|restricted)?[^\]]*\]/gi, " ")
+    .replace(/\([^)]*geo[- ]?(?:blocked|restricted)?[^)]*\)/gi, " ")
+    .replace(/\bgeo[- ]?(?:blocked|restricted)\b/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
 
