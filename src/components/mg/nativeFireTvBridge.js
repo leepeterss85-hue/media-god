@@ -130,6 +130,8 @@ export const playNativeFireTv = ({
   subtitleLanguage = "en",
   subtitlesEnabled = true,
   subtitles = [],
+  sources = [],
+  activeSourceIndex = 0,
 }) => {
   const native = bridge();
   const streamUrl = String(url || "").trim();
@@ -164,6 +166,31 @@ export const playNativeFireTv = ({
           .filter((track) => /^https?:\/\//i.test(track.url))
           .slice(0, 20)
       : [],
+    sources: Array.isArray(sources)
+      ? sources
+          .map((item, index) => ({
+            label: String(
+              item?.label || item?.name || item?.sourceName || `Source ${index + 1}`
+            )
+              .replace(/\s+/g, " ")
+              .trim(),
+            sourceName: String(item?.sourceName || "").replace(/\s+/g, " ").trim(),
+            url: String(item?.url || item?.src || "").trim(),
+            mimeType: String(item?.mimeType || item?.mime_type || "").trim(),
+            headers:
+              item?.headers &&
+              typeof item.headers === "object" &&
+              !Array.isArray(item.headers)
+                ? item.headers
+                : item?.requestHeaders &&
+                    typeof item.requestHeaders === "object" &&
+                    !Array.isArray(item.requestHeaders)
+                  ? item.requestHeaders
+                  : {},
+          }))
+          .filter((item) => /^https?:\/\//i.test(item.url))
+      : [],
+    activeSourceIndex: Math.max(0, Number(activeSourceIndex || 0)),
   };
 
   try {
