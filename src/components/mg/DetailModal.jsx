@@ -907,6 +907,11 @@ export default function DetailModal({
       return;
     }
 
+    if (resolvedMediaType === "tv") {
+      goToEpisodes();
+      return;
+    }
+
     player.play({
       id:
         itemId,
