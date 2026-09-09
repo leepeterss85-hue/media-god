@@ -4576,7 +4576,7 @@ export default function VideoPlayer({
                   event.stopPropagation();
                   setForceNativePlayback(true);
                 }}
-                className="shrink-0 flex min-h-10 items-center gap-1.5 rounded-lg border border-white/10 bg-mg-card px-3 text-xs font-semibold text-white hover:border-mg-green/40 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-mg-green/50"
+                className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-mg-card px-3 text-xs font-semibold text-white transition hover:border-mg-green/40 hover:bg-white/10 focus:bg-white/10 focus:outline-none focus:ring-2 focus:ring-mg-green sm:min-h-10"
                 aria-label="Open native Fire TV decoder"
                 title="Use Media3 for difficult video or audio codecs"
               >
@@ -4594,12 +4594,16 @@ export default function VideoPlayer({
               event.stopPropagation();
               handleNoSound();
             }}
-            className="shrink-0 flex min-h-10 items-center gap-1.5 rounded-lg border border-white/10 bg-mg-card px-3 text-xs font-semibold text-white hover:border-mg-green/40 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-mg-green/50 disabled:cursor-not-allowed disabled:opacity-45"
+            className={`flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-mg-green disabled:cursor-not-allowed disabled:opacity-45 sm:min-h-10 ${
+              audioNeedsAttention
+                ? "border-amber-400/35 bg-amber-400/10 text-amber-200 hover:bg-amber-400/15"
+                : "border-white/10 bg-mg-card text-white/75 hover:border-mg-green/35 hover:bg-white/10 hover:text-white"
+            }`}
             aria-label="No sound"
             title="Try another audio track or source"
           >
             <VolumeX className="h-4 w-4" />
-            <span>Fix audio</span>
+            <span className="hidden xs:inline sm:inline">Fix audio</span>
           </button>
 
         </div>
