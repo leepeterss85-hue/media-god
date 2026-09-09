@@ -53,6 +53,9 @@ jobs:
         with:
           gradle-version: "8.11.1"
 
+      - name: Validate Fire TV Android source
+        run: gradle -p firetv-android :app:assembleDebug --stacktrace
+
       - name: Restore permanent Fire TV signing key
         run: |
           set -euo pipefail
