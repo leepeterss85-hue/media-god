@@ -507,8 +507,9 @@ function PlayerAutomationBridge({ children }) {
     [core, publishContext]
   );
 
-  const close = useCallback(() => {
+  const resetEnhancedPlayerState = useCallback(() => {
     currentRequestRef.current = null;
+    advancingRef.current = false;
     nextEpisodePreloadRef.current = {
       currentKey: "",
       next: null,
@@ -516,8 +517,40 @@ function PlayerAutomationBridge({ children }) {
       promise: null,
     };
     publishContext(null);
+  }, [publishContext]);
+
+  const close = useCallback(() => {
+    resetEnhancedPlayerState();
     core.close();
-  }, [core, publishContext]);
+  }, [core, resetEnhancedPlayerState]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return undefined;
+    }
+
+    /*
+     * The core provider owns the actual VideoPlayer portal. Its close event
+     * therefore has to clear the enhanced TV/auto-next request state too.
+     * This prevents an ended/stale episode request from surviving after Exit
+     * and trying to reopen or blank the next title.
+     */
+    const onCorePlayerClosed = () => {
+      resetEnhancedPlayerState();
+    };
+
+    window.addEventListener(
+      "mg:core-player-closed",
+      onCorePlayerClosed
+    );
+
+    return () => {
+      window.removeEventListener(
+        "mg:core-player-closed",
+        onCorePlayerClosed
+      );
+    };
+  }, [resetEnhancedPlayerState]);
 
   const advanceToNext = useCallback(
     async (manual = false) => {
