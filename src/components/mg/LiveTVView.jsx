@@ -27,6 +27,7 @@ import {
   getFreeTvChannels,
   LIVE_TV_REGION,
 } from "@/components/mg/freeTvPlaylist";
+import { readLiveTvSettings } from "@/components/mg/liveTvPreferences";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 import { base44 } from "@/api/base44Client";
 import { cn } from "@/lib/utils";
@@ -337,6 +338,7 @@ export default function LiveTVView() {
   const [rawCount, setRawCount] = useState(0);
   const [browserRejectedCount, setBrowserRejectedCount] = useState(0);
   const [region, setRegion] = useState(LIVE_TV_REGION || "GB");
+  const [liveTvSettings, setLiveTvSettings] = useState(() => readLiveTvSettings());
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -442,6 +444,30 @@ export default function LiveTVView() {
   useEffect(() => {
     load(false);
 
+  }, []);
+
+  useEffect(() => {
+    const handleSettingsChanged = (event) => {
+      setLiveTvSettings(event?.detail || readLiveTvSettings());
+    };
+
+    const handleStorage = () => {
+      setLiveTvSettings(readLiveTvSettings());
+    };
+
+    window.addEventListener(
+      "mg:live-tv-settings-changed",
+      handleSettingsChanged
+    );
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      window.removeEventListener(
+        "mg:live-tv-settings-changed",
+        handleSettingsChanged
+      );
+      window.removeEventListener("storage", handleStorage);
+    };
   }, []);
 
   useEffect(() => {
@@ -1426,13 +1452,15 @@ export default function LiveTVView() {
         </button>
       </div>
 
-      {region === "GB" && (
-        <div className="mb-4 flex items-center gap-2 rounded-lg border border-mg-green/20 bg-mg-green/5 px-3 py-2 text-xs text-mg-green">
-          <CheckCircle2 className="h-4 w-4 shrink-0" />
+      <div className="mb-4 flex items-center gap-2 rounded-lg border border-mg-green/20 bg-mg-green/5 px-3 py-2 text-xs text-mg-green">
+        <CheckCircle2 className="h-4 w-4 shrink-0" />
 
-          UK mode active — UK geo-restricted feeds are treated as available in Great Britain.
-        </div>
-      )}
+        {liveTvSettings.regionalLock
+          ? region === "GB"
+            ? "Regional lock on — UK-marked feeds remain available in Great Britain."
+            : "Regional lock on — playlist geo restrictions are respected."
+          : "Regional lock off — geo-marked Live TV channels and backups remain eligible for playback."}
+      </div>
 
       {radioStation && (
         <div className="mb-5 rounded-xl border border-mg-green/40 bg-mg-card p-4 shadow-lg">
