@@ -5,9 +5,16 @@ import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
+import android.widget.FrameLayout
+import android.widget.Spinner
+import android.widget.TextView
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -34,11 +41,22 @@ class PlayerActivity : Activity() {
         const val EXTRA_MESSAGE = "mg_message"
     }
 
+    private data class NativeSource(
+        val label: String,
+        val url: String,
+        val headers: Map<String, String>,
+        val mimeType: String
+    )
+
     private lateinit var playerView: PlayerView
+    private lateinit var sourceSpinner: Spinner
     private var player: ExoPlayer? = null
     private var mediaSession: MediaSession? = null
 
     private var payload = JSONObject()
+    private var nativeSources: List<NativeSource> = emptyList()
+    private var activeSourceIndex = 0
+    private var sourceSelectorReady = false
     private var requestId = ""
     private var streamUrl = ""
     private var title = ""
@@ -65,6 +83,15 @@ class PlayerActivity : Activity() {
         initialPositionMs = max(0L, payload.optLong("startPositionMs", 0L))
         restorePositionMs = initialPositionMs
 
+        nativeSources = readNativeSources()
+        if (nativeSources.isNotEmpty()) {
+            val requestedIndex = payload.optInt("activeSourceIndex", 0)
+                .coerceIn(0, nativeSources.lastIndex)
+            val urlIndex = nativeSources.indexOfFirst { it.url == streamUrl }
+            activeSourceIndex = if (urlIndex >= 0) urlIndex else requestedIndex
+            streamUrl = nativeSources[activeSourceIndex].url
+        }
+
         if (!(streamUrl.startsWith("https://") || streamUrl.startsWith("http://"))) {
             finishWithResult("error", "Invalid stream URL")
             return
@@ -77,6 +104,7 @@ class PlayerActivity : Activity() {
         enterImmersiveMode()
 
         playerView = PlayerView(this).apply {
+            id = View.generateViewId()
             setBackgroundColor(Color.BLACK)
             useController = true
             controllerAutoShow = true
@@ -88,7 +116,30 @@ class PlayerActivity : Activity() {
             contentDescription = if (title.isBlank()) "Media God player" else title
         }
 
-        setContentView(playerView)
+        sourceSpinner = buildSourceSpinner()
+        playerView.nextFocusUpId = sourceSpinner.id
+        sourceSpinner.nextFocusDownId = playerView.id
+
+        val root = FrameLayout(this).apply {
+            setBackgroundColor(Color.BLACK)
+            addView(
+                playerView,
+                FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
+            )
+            addView(
+                sourceSpinner,
+                FrameLayout.LayoutParams(dp(360), dp(48)).apply {
+                    gravity = Gravity.TOP or Gravity.END
+                    topMargin = dp(18)
+                    marginEnd = dp(22)
+                }
+            )
+        }
+
+        setContentView(root)
         playerView.requestFocus()
     }
 
