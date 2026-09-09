@@ -576,6 +576,37 @@ export default function VideoPlayer({
       Boolean(magnetHash(activeUrl));
 
     if (activeTorrentLike) {
+      const rdRejectedTorrent =
+        /(?:\b451\b|infringing[_ -]?file|copyright|infringing)/i.test(
+          String(message || "")
+        );
+
+      /*
+       * RD 451 / infringing_file means this exact torrent hash has been
+       * refused upstream. Waiting and retrying the same quality is pointless;
+       * move immediately to the next source in the user's visible sort order.
+       * With 4K selected this exhausts all remaining 4K, then 1080p, before
+       * considering 720p.
+       */
+      if (rdRejectedTorrent) {
+        setRdResolving(false);
+        setRdPolling(false);
+        setRdTorrentId(null);
+        setRdError("");
+
+        switchToSource(nextIndex, {
+          preservePosition: true,
+          statusMessage:
+            sourceSortMode === "4k"
+              ? "Real-Debrid rejected that torrent — trying the next 4K/1080p source…"
+              : sourceSortMode === "1080p"
+                ? "Real-Debrid rejected that torrent — trying the next 1080p source…"
+                : "Real-Debrid rejected that torrent — trying the next source…",
+        });
+
+        return true;
+      }
+
       if (torrentFailoverTimerRef.current) {
         return true;
       }
