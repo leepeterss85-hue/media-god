@@ -530,10 +530,36 @@ body.mg-fire-tv-mode [data-mg-player-button-row="true"] {
 body.mg-fire-tv [data-mg-player-button-row="true"] button:focus-visible,
 body.mg-fire-tv-stable [data-mg-player-button-row="true"] button:focus-visible,
 body.mg-fire-tv-mode [data-mg-player-button-row="true"] button:focus-visible,
+body.mg-fire-tv [data-mg-player-root="true"] select:focus-visible,
+body.mg-fire-tv-stable [data-mg-player-root="true"] select:focus-visible,
+body.mg-fire-tv-mode [data-mg-player-root="true"] select:focus-visible,
+body.mg-fire-tv [data-mg-player-root="true"] input[type="range"]:focus-visible,
+body.mg-fire-tv-stable [data-mg-player-root="true"] input[type="range"]:focus-visible,
+body.mg-fire-tv-mode [data-mg-player-root="true"] input[type="range"]:focus-visible,
 body.mg-fire-tv [data-mg-player-exit="true"]:focus-visible,
 body.mg-fire-tv-stable [data-mg-player-exit="true"]:focus-visible,
 body.mg-fire-tv-mode [data-mg-player-exit="true"]:focus-visible {
   outline: 3px solid #7ee787 !important;
   outline-offset: 3px !important;
+}
+
+body.mg-fire-tv [data-mg-player-button-row="true"] button:focus-visible,
+body.mg-fire-tv-stable [data-mg-player-button-row="true"] button:focus-visible,
+body.mg-fire-tv-mode [data-mg-player-button-row="true"] button:focus-visible,
+body.mg-fire-tv [data-mg-player-exit="true"]:focus-visible,
+body.mg-fire-tv-stable [data-mg-player-exit="true"]:focus-visible,
+body.mg-fire-tv-mode [data-mg-player-exit="true"]:focus-visible {
   transform: scale(1.06) !important;
+}
+
+body.mg-fire-tv [data-mg-player-root="true"] select:focus-visible,
+body.mg-fire-tv-stable [data-mg-player-root="true"] select:focus-visible,
+body.mg-fire-tv-mode [data-mg-player-root="true"] select:focus-visible {
+  border-color: #7ee787 !important;
+}
+
+body.mg-fire-tv [data-mg-player-root="true"] input[type="range"]:focus-visible,
+body.mg-fire-tv-stable [data-mg-player-root="true"] input[type="range"]:focus-visible,
+body.mg-fire-tv-mode [data-mg-player-root="true"] input[type="range"]:focus-visible {
+  accent-color: #7ee787 !important;
 }
