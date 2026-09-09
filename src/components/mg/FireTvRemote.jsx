@@ -505,65 +505,65 @@ export default function FireTvRemote() {
        */
       const direction = directionFromEvent(event);
       const selectKey = isSelectKey(event);
-+
-+      /*
-+       * When playback chrome has auto-hidden, the first D-pad/OK press should
-+       * wake it rather than seek, change volume or jump to an invisible
-+       * control. MediaPlayerControls listens for this event and re-renders the
-+       * controls; then focus lands on Play/Pause in the same interaction.
-+       */
-+      if (
-+        player instanceof HTMLElement &&
-+        player.dataset.mgControlsVisible === "false" &&
-+        (direction || selectKey)
-+      ) {
-+        event.preventDefault();
-+        event.stopPropagation();
-+        event.stopImmediatePropagation();
-+
-+        window.dispatchEvent(
-+          new CustomEvent("mg:player-reveal-controls")
-+        );
-+
-+        window.setTimeout(() => {
-+          const currentPlayer = document.querySelector(
-+            '[data-mg-player-root="true"]'
-+          );
-+          const preferred = currentPlayer?.querySelector(
-+            '[data-mg-player-controls="true"] button[aria-label="Pause"], [data-mg-player-controls="true"] button[aria-label="Play"]'
-+          );
-+          focusElement(preferred);
-+        }, 55);
-+
-+        return;
-+      }
-+
-+      const current =
-+        document.activeElement instanceof HTMLElement &&
-+        scope.contains(document.activeElement) &&
-+        visible(document.activeElement)
-+          ? document.activeElement
-+          : null;
-+      const currentTag = String(current?.tagName || "").toLowerCase();
-+
-+      /*
-+       * OK opens native select choosers. Arrow keys stay available to Media
-+       * God's spatial navigator so a source/torrent selector never traps the
-+       * Fire Stick remote. For sliders, Left/Right still adjust the value
-+       * natively while Up/Down move to the next row of controls.
-+       */
-+      if (currentTag === "select" && selectKey) {
-+        return;
-+      }
-+
-+      if (
-+        currentTag === "input" &&
-+        String(current?.type || "").toLowerCase() === "range"
-+      ) {
-+        if (selectKey || direction === "left" || direction === "right") {
-+          return;
-+        }
-+      }
+
+      /*
+       * When playback chrome has auto-hidden, the first D-pad/OK press should
+       * wake it rather than seek, change volume or jump to an invisible
+       * control. MediaPlayerControls listens for this event and re-renders the
+       * controls; then focus lands on Play/Pause in the same interaction.
+       */
+      if (
+        player instanceof HTMLElement &&
+        player.dataset.mgControlsVisible === "false" &&
+        (direction || selectKey)
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+
+        window.dispatchEvent(
+          new CustomEvent("mg:player-reveal-controls")
+        );
+
+        window.setTimeout(() => {
+          const currentPlayer = document.querySelector(
+            '[data-mg-player-root="true"]'
+          );
+          const preferred = currentPlayer?.querySelector(
+            '[data-mg-player-controls="true"] button[aria-label="Pause"], [data-mg-player-controls="true"] button[aria-label="Play"]'
+          );
+          focusElement(preferred);
+        }, 55);
+
+        return;
+      }
+
+      const current =
+        document.activeElement instanceof HTMLElement &&
+        scope.contains(document.activeElement) &&
+        visible(document.activeElement)
+          ? document.activeElement
+          : null;
+      const currentTag = String(current?.tagName || "").toLowerCase();
+
+      /*
+       * OK opens native select choosers. Arrow keys stay available to Media
+       * God's spatial navigator so a source/torrent selector never traps the
+       * Fire Stick remote. For sliders, Left/Right still adjust the value
+       * natively while Up/Down move to the next row of controls.
+       */
+      if (currentTag === "select" && selectKey) {
+        return;
+      }
+
+      if (
+        currentTag === "input" &&
+        String(current?.type || "").toLowerCase() === "range"
+      ) {
+        if (selectKey || direction === "left" || direction === "right") {
+          return;
+        }
+      }
 
       if (direction) {
         const candidates = focusables(scope);
