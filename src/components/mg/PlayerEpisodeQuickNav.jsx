@@ -536,8 +536,8 @@ export default function PlayerEpisodeQuickNav() {
           chooseEpisodes
         }
         className="flex min-h-10 items-center gap-1.5 rounded-lg bg-mg-green/15 px-3 text-xs font-semibold text-mg-green transition hover:bg-mg-green/25 focus:bg-mg-green/25 focus:outline-none focus:ring-2 focus:ring-mg-green sm:min-h-10 sm:text-sm"
-        aria-label="Episodes"
-        title="Episodes"
+        aria-label="Back to episodes"
+        title="Back to episodes"
       >
         <ListVideo className="h-4 w-4" />
 
