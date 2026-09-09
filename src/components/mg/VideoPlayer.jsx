@@ -2866,6 +2866,8 @@ export default function VideoPlayer({
           recoveryResumeRef.current = positionSeconds;
         }
 
+        setForceNativePlayback(false);
+
         window.dispatchEvent(
           new CustomEvent("mg:player-status", {
             detail: {
@@ -2882,6 +2884,15 @@ export default function VideoPlayer({
           handleDirectPlaybackError();
         }
 
+        return;
+      }
+
+      if (
+        reason === "back" &&
+        forceNativePlayback &&
+        !isLive
+      ) {
+        setForceNativePlayback(false);
         return;
       }
 
