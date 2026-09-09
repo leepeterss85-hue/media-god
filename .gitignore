@@ -30,3 +30,7 @@ dist-ssr
 .env
 .vite
 base44/.app.jsonc
+
+# Fire TV signing keys must never be committed
+firetv-android/app/*.jks
+firetv-android/app/*.keystore
