@@ -307,24 +307,51 @@ const annotateDebridCache = async (items, hasDebrid) => {
     .filter(isMagnetSource)
     .map(sourceMagnetHash)
     .filter(Boolean)
-    .filter((hash, index, list) => list.indexOf(hash) === index)
-    .slice(0, 80);
+    .filter((hash, index, list) => list.indexOf(hash) === index);
 
   if (hashes.length === 0) return sources;
 
   try {
-    const response = await base44.functions.invoke(
-      "multiDebrid",
-      {
-        action: "check_cache",
-        hashes,
-        provider_scores: debridProviderScoreHints(),
-      }
+    const batches = [];
+
+    for (let index = 0; index < hashes.length; index += 80) {
+      batches.push(hashes.slice(index, index + 80));
+    }
+
+    const settled = await Promise.allSettled(
+      batches.map(async (batch) => {
+        const response = await base44.functions.invoke(
+          "multiDebrid",
+          {
+            action: "check_cache",
+            hashes: batch,
+            provider_scores: debridProviderScoreHints(),
+          }
+        );
+
+        return unwrap(response);
+      })
     );
-    const data = unwrap(response);
-    const cached = data?.cached || {};
-    const best = data?.bestProviderByHash || {};
-    const providerStats = data?.providerStats || {};
+
+    const cached = {};
+    const best = {};
+    const providerStats = {};
+
+    settled.forEach((result) => {
+      if (result.status !== "fulfilled") return;
+
+      const data = result.value || {};
+
+      Object.entries(data?.cached || {}).forEach(([provider, values]) => {
+        cached[provider] = {
+          ...(cached[provider] || {}),
+          ...(values || {}),
+        };
+      });
+
+      Object.assign(best, data?.bestProviderByHash || {});
+      Object.assign(providerStats, data?.providerStats || {});
+    });
 
     return sources.map((item) => {
       const hash = sourceMagnetHash(item);
