@@ -586,51 +586,67 @@ export default function EpisodeSelector({
       []
     );
 
-    base44.functions
-      .invoke(
-        "getTmdbMovies",
-        {
-          media_type:
-            "tv",
+    const loadEpisodes =
+      async () => {
+        try {
+          const response =
+            await base44.functions.invoke(
+              "getTmdbMovies",
+              {
+                media_type:
+                  "tv",
 
-          movie_id:
-            item?.id ||
-            item
-              ?.tmdb_id ||
-            item
-              ?.tmdbId,
+                movie_id:
+                  item?.id ||
+                  item
+                    ?.tmdb_id ||
+                  item
+                    ?.tmdbId,
 
-          season_number:
-            Number(
-              season
-            ),
-        }
-      )
-      .then(
-        (
-          response
-        ) => {
+                season_number:
+                  Number(
+                    season
+                  ),
+              }
+            );
+
           if (
             !mounted
           ) {
             return;
           }
 
+          const first =
+            response?.data ??
+            response ??
+            {};
+
+          const payload =
+            first &&
+            typeof first ===
+              "object" &&
+            !Array.isArray(
+              first
+            ) &&
+            first.data &&
+            typeof first.data ===
+              "object" &&
+            !Array.isArray(
+              first.data
+            )
+              ? first.data
+              : first;
+
           setEpisodes(
             Array.isArray(
-              response
-                ?.data
+              payload
                 ?.episodes
             )
-              ? response
-                  .data
+              ? payload
                   .episodes
               : []
           );
-        }
-      )
-      .catch(
-        () => {
+        } catch {
           if (
             mounted
           ) {
@@ -638,10 +654,7 @@ export default function EpisodeSelector({
               []
             );
           }
-        }
-      )
-      .finally(
-        () => {
+        } finally {
           if (
             mounted
           ) {
@@ -650,7 +663,9 @@ export default function EpisodeSelector({
             );
           }
         }
-      );
+      };
+
+    loadEpisodes();
 
     return () => {
       mounted =
