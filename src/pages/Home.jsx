@@ -33,6 +33,7 @@ import {
 import RdBanner from "@/components/mg/RdBanner";
 import PlaybackUpdateNotice from "@/components/mg/PlaybackUpdateNotice";
 import FireTvAppUpdateNotice from "@/components/mg/FireTvAppUpdateNotice";
+import AndroidMobileAppUpdateNotice from "@/components/mg/AndroidMobileAppUpdateNotice";
 
 const normaliseMediaType = (
   item
@@ -575,6 +576,10 @@ function MediaGodApp() {
       <MediaGodV2Assist />
 
       <FireTvAppUpdateNotice
+        enabled={!playerOpen}
+      />
+
+      <AndroidMobileAppUpdateNotice
         enabled={!playerOpen}
       />
 
