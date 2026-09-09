@@ -202,9 +202,9 @@ const isRadioChannel = (channel) => {
   );
 };
 
-const isHlsUrl = (url) => /\.m3u8(?:[?#]|$)/i.test(String(url || ""));
+const isHlsUrl = (url) => /\.m3u8(?:[?#&]|$)/i.test(String(url || ""));
 const isRadioStreamUrl = (url) =>
-  isHlsUrl(url) || /\.(?:mp3|aac|m4a|ogg|opus)(?:[?#]|$)/i.test(String(url || ""));
+  isHlsUrl(url) || /\.(?:mp3|aac|m4a|ogg|opus)(?:[?#&]|$)/i.test(String(url || ""));
 
 const groupSort = (a, b) => {
   const preferred = ["United Kingdom", "International", "United States", "Sports", "Movies"];
