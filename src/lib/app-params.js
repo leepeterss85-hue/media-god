@@ -1,3 +1,6 @@
+const MEDIA_GOD_APP_ID = '6a95b85c1b5a8657bf3906c8';
+const DEFAULT_BASE44_APP_BASE_URL = 'https://app.base44.com';
+
 const isNode = typeof window === 'undefined';
 const windowObj = isNode ? { localStorage: new Map() } : window;
 const storage = windowObj.localStorage;
@@ -35,19 +38,37 @@ const getAppParamValue = (paramName, { defaultValue = undefined, removeFromUrl =
 }
 
 const getAppParams = () => {
-	if (getAppParamValue("clear_access_token") === 'true') {
+	const clearAccessToken = getAppParamValue("clear_access_token", { removeFromUrl: true });
+	if (clearAccessToken === 'true') {
 		storage.removeItem('base44_access_token');
 		storage.removeItem('token');
+		storage.removeItem('base44_clear_access_token');
 	}
+
+	// Media God must never inherit an app_id or app_base_url from another
+	// Base44 workspace. A stale query/local-storage value here is enough to
+	// authenticate the user successfully and then send them to the wrong app.
+	const canonicalAppId = import.meta.env.VITE_BASE44_APP_ID || MEDIA_GOD_APP_ID;
+	const canonicalAppBaseUrl =
+		import.meta.env.VITE_BASE44_APP_BASE_URL || DEFAULT_BASE44_APP_BASE_URL;
+
+	if (!isNode) {
+		try {
+			storage.setItem('base44_app_id', canonicalAppId);
+			storage.setItem('base44_app_base_url', canonicalAppBaseUrl);
+		} catch {
+			// Storage can be unavailable in privacy modes; runtime constants still win.
+		}
+	}
+
 	return {
-		appId: getAppParamValue("app_id", { defaultValue: import.meta.env.VITE_BASE44_APP_ID }),
+		appId: canonicalAppId,
 		token: getAppParamValue("access_token", { removeFromUrl: true }),
-		fromUrl: getAppParamValue("from_url", { defaultValue: window.location.href }),
+		fromUrl: getAppParamValue("from_url", { defaultValue: isNode ? '' : window.location.href }),
 		functionsVersion: getAppParamValue("functions_version", { defaultValue: import.meta.env.VITE_BASE44_FUNCTIONS_VERSION }),
-		appBaseUrl: getAppParamValue("app_base_url", { defaultValue: import.meta.env.VITE_BASE44_APP_BASE_URL }),
+		appBaseUrl: canonicalAppBaseUrl,
 	}
 }
-
 
 export const appParams = {
 	...getAppParams()
