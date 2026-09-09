@@ -1841,6 +1841,25 @@ const LiveVideo = forwardRef(
           }
 
           if (
+            genericHttpsSource &&
+            !genericHttpsDashFallbackTried
+          ) {
+            genericHttpsDashFallbackTried = true;
+
+            window.dispatchEvent(
+              new CustomEvent("mg:player-status", {
+                detail: {
+                  message:
+                    "HLS engine unavailable — trying HTTPS source as MPEG-DASH…",
+                },
+              })
+            );
+
+            startDash();
+            return;
+          }
+
+          if (
             video.canPlayType(
               "application/vnd.apple.mpegurl"
             )
