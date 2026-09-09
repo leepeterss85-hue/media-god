@@ -4610,10 +4610,15 @@ export default function VideoPlayer({
 
         {displayedError &&
           !busy && (
-            <div className="mt-2 flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2">
-              <p className="min-w-0 flex-1 truncate text-xs text-red-300">
+            <div
+              className="mt-2 flex items-center gap-2 rounded-xl border border-amber-400/20 bg-amber-400/8 px-3 py-2.5 shadow-sm"
+              title={displayedError}
+            >
+              <span className="h-2 w-2 shrink-0 rounded-full bg-amber-300/80" />
+
+              <p className="min-w-0 flex-1 text-xs font-medium leading-relaxed text-amber-100/80 sm:text-sm">
                 {
-                  displayedError
+                  friendlyError
                 }
               </p>
 
@@ -4626,7 +4631,7 @@ export default function VideoPlayer({
                         source?.officialUrl || active?.officialUrl
                       )
                     }
-                    className="shrink-0 rounded-md bg-white/10 px-2.5 py-1.5 text-[11px] font-semibold text-white hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green/50"
+                    className="min-h-9 shrink-0 rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green"
                   >
                     {source?.officialLabel || active?.officialLabel || "Open official"}
                   </button>
@@ -4638,7 +4643,7 @@ export default function VideoPlayer({
                   onClick={
                     retryResolution
                   }
-                  className="shrink-0 rounded-md bg-white/10 px-2.5 py-1.5 text-[11px] font-semibold text-white hover:bg-white/15"
+                  className="min-h-9 shrink-0 rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green"
                 >
                   Retry
                 </button>
