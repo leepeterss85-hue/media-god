@@ -3,25 +3,71 @@ import { Play, Star } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
 
+const unwrapFunctionData = (response) => {
+  const first = response?.data ?? response ?? {};
+
+  if (
+    first &&
+    typeof first === "object" &&
+    !Array.isArray(first) &&
+    first.data &&
+    typeof first.data === "object" &&
+    !Array.isArray(first.data)
+  ) {
+    return first.data;
+  }
+
+  return first;
+};
+
 export default function FeaturedSpotlight({ tmdbId, title, onOpen }) {
   const [data, setData] = useState(null);
 
   useEffect(() => {
-    base44.functions
-      .invoke("getTmdbMovies", {
-        media_type: "tv",
-        movie_id: tmdbId,
-      })
-      .then((res) => setData(res.data))
-      .catch(() => setData(null));
+    let cancelled = false;
+
+    const loadFeatured = async () => {
+      if (!tmdbId) {
+        setData(null);
+        return;
+      }
+
+      try {
+        const response = await base44.functions.invoke("getTmdbMovies", {
+          media_type: "tv",
+          movie_id: tmdbId,
+        });
+
+        if (cancelled) {
+          return;
+        }
+
+        setData(unwrapFunctionData(response));
+      } catch (error) {
+        if (!cancelled) {
+          console.warn("[Media God] Featured TV show could not load", error);
+          setData(null);
+        }
+      }
+    };
+
+    loadFeatured();
+
+    return () => {
+      cancelled = true;
+    };
   }, [tmdbId]);
 
-  const details = data?.details || {};
-  const backdrop = details.backdrop_url || "";
-  const overview = details.overview || "";
-  const rating = details.rating || "";
-  const genres = details.genres || [];
-  const release = details.release_date || "";
+  const details =
+    data && typeof data === "object" && !Array.isArray(data)
+      ? data.details || {}
+      : {};
+
+  const backdrop = details.backdrop_url || details.backdropUrl || "";
+  const overview = details.overview || details.description || "";
+  const rating = details.rating || details.vote_average || "";
+  const genres = Array.isArray(details.genres) ? details.genres : [];
+  const release = details.release_date || details.first_air_date || "";
 
   return (
     <section className="relative w-full overflow-hidden rounded-xl 3xl:rounded-2xl border border-white/10 bg-mg-card mb-5 3xl:mb-8">
@@ -56,11 +102,18 @@ export default function FeaturedSpotlight({ tmdbId, title, onOpen }) {
             </span>
           )}
 
-          {genres.slice(0, 3).map((genre) => (
-            <span key={genre} className="hidden sm:inline">
-              {genre}
-            </span>
-          ))}
+          {genres.slice(0, 3).map((genre, index) => {
+            const label =
+              typeof genre === "string"
+                ? genre
+                : genre?.name || genre?.title || "";
+
+            return label ? (
+              <span key={`${label}-${index}`} className="hidden sm:inline">
+                {label}
+              </span>
+            ) : null;
+          })}
         </div>
 
         {overview && (
@@ -72,7 +125,7 @@ export default function FeaturedSpotlight({ tmdbId, title, onOpen }) {
         <button
           type="button"
           onClick={onOpen}
-          className="mt-3 3xl:mt-5 min-h-11 3xl:min-h-12 inline-flex items-center gap-2 bg-mg-green text-black font-semibold text-sm md:text-base 3xl:text-lg px-4 3xl:px-6 py-2.5 3xl:py-3 rounded-lg w-fit hover:bg-mg-green-dim"
+          className="mt-3 3xl:mt-5 min-h-11 3xl:min-h-12 inline-flex items-center gap-2 bg-mg-green text-black font-semibold text-sm md:text-base 3xl:text-lg px-4 3xl:px-6 py-2.5 3xl:py-3 rounded-lg w-fit hover:bg-mg-green-dim focus:outline-none focus:ring-2 focus:ring-white/70"
         >
           <Play className="w-4 h-4 3xl:w-5 3xl:h-5 fill-black" />
           View Details
