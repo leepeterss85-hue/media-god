@@ -4440,8 +4440,8 @@ export default function VideoPlayer({
             )}
           </div>
           {sources.length > 1 && (
-            <label className="w-[7.5rem] shrink-0 sm:w-[9rem]">
-              <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-white/50">
+            <label className="w-[6.75rem] shrink-0 sm:w-[8.5rem]">
+              <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.12em] text-white/40">
                 Sort
               </span>
 
@@ -4451,7 +4451,7 @@ export default function VideoPlayer({
                   const next = writeSourceSortMode(event.target.value);
                   setSourceSortMode(next);
                 }}
-                className="w-full rounded-lg border border-white/10 bg-mg-card px-2 py-2.5 text-xs text-white outline-none focus:border-mg-green sm:text-sm"
+                className="min-h-11 w-full rounded-lg border border-white/10 bg-mg-card px-2 py-2.5 text-xs font-medium text-white outline-none transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/30 sm:min-h-10 sm:text-sm"
                 aria-label="Sort playback sources"
               >
                 {SOURCE_SORT_OPTIONS.map((option) => (
@@ -4464,9 +4464,9 @@ export default function VideoPlayer({
           )}
 
           {sources.length > 1 && (
-            <label className="min-w-0 flex-1">
-              <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-white/50">
-                Source
+            <label className="min-w-[12rem] flex-1 basis-[16rem]">
+              <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.12em] text-white/40">
+                Source / quality
               </span>
 
               <div className="relative">
@@ -4477,7 +4477,7 @@ export default function VideoPlayer({
                       event.target.value
                     )
                   }
-                  className="w-full appearance-none rounded-lg border border-white/10 bg-mg-card py-2.5 pl-3 pr-9 text-xs text-white outline-none focus:border-mg-green sm:text-sm"
+                  className="min-h-11 w-full appearance-none rounded-lg border border-white/10 bg-mg-card py-2.5 pl-3 pr-9 text-xs font-medium text-white outline-none transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/30 sm:min-h-10 sm:text-sm"
                   aria-label="Choose playback source"
                 >
                   {sortedSourceEntries.map(
@@ -4497,8 +4497,10 @@ export default function VideoPlayer({
                           data-mg-source-label={rawLabel}
                         >
                           {failed
-                            ? "Failed — "
-                            : ""}
+                            ? "Unavailable • "
+                            : index === activeIdx
+                              ? "Playing • "
+                              : ""}
                           {label}
                         </option>
                       );
