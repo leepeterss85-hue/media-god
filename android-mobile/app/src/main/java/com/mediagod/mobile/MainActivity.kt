@@ -326,9 +326,9 @@ class MainActivity : Activity() {
         }
 
         @JavascriptInterface
-        fun startUpdate(url: String, versionName: String): String =
+        fun startUpdate(_url: String, versionName: String): String =
             if (::appUpdater.isInitialized) {
-                appUpdater.startUpdate(url, versionName)
+                appUpdater.startUpdate(versionName)
             } else {
                 "error"
             }
