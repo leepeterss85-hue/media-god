@@ -88,7 +88,7 @@ export const startNativeFireTvUpdate = ({ url, versionName = "" }) => {
   if (
     !native ||
     typeof native.startUpdate !== "function" ||
-    !/^https?:\/\//i.test(target)
+    !/^https:\/\//i.test(target)
   ) {
     return "error";
   }
