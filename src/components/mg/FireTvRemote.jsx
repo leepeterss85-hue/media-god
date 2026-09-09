@@ -477,7 +477,8 @@ export default function FireTvRemote() {
       const direction = directionFromEvent(event);
       const current =
         document.activeElement instanceof HTMLElement &&
-        scope.contains(document.activeElement)
+        scope.contains(document.activeElement) &&
+        visible(document.activeElement)
           ? document.activeElement
           : null;
       const currentTag = String(current?.tagName || "").toLowerCase();
