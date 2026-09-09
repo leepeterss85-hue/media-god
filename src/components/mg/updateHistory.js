@@ -1,5 +1,20 @@
 export const UPDATE_HISTORY = [
   {
+    id: "fire-tv-controls-single-owner-v3",
+    date: "9 September 2026",
+    title: "Fire TV player controls made deterministic",
+    summary:
+      "The Fire Stick remote now has one control owner inside playback, removing the remaining clashes between desktop keyboard shortcuts, hidden controls and D-pad focus.",
+    changes: [
+      "FireTvRemote now owns D-pad, OK and media-key navigation on Fire TV; VideoPlayer no longer interprets the same Arrow keys as desktop seek/volume shortcuts.",
+      "Hidden controls inside an opacity-zero parent are no longer treated as focusable, preventing the remote from landing on invisible buttons.",
+      "Opening source, torrent-file, subtitle or audio controls no longer triggers an observer that steals focus back to Play/Pause.",
+      "When focus genuinely escapes the player, the next remote interaction recovers cleanly to Play/Pause.",
+      "Physical Play/Pause, Rewind and Fast Forward keys wake the control overlay while performing their media action.",
+      "Fire TV player selects and seek/volume sliders now have clear green focus outlines so the currently controlled item is always visible.",
+    ],
+  },
+  {
     id: "fire-tv-player-autohide-remote-v2",
     date: "9 September 2026",
     title: "Fire TV player chrome and D-pad control repaired",
