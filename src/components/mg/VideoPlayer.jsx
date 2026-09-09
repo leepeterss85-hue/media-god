@@ -1624,13 +1624,21 @@ export default function VideoPlayer({
             ).toLowerCase();
 
           if (
-            tag ===
-              "input" ||
-            tag ===
-              "textarea" ||
-            event.target
-              ?.isContentEditable
+            tag === "input" ||
+            tag === "select" ||
+            tag === "button" ||
+            tag === "a" ||
+            tag === "textarea" ||
+            event.target?.isContentEditable
           ) {
+            /*
+             * Let FireTvRemote / the native WebView own D-pad movement,
+             * Select and range/select adjustments while a real player control
+             * is focused. Without this guard VideoPlayer was turning every
+             * ArrowLeft/Right into a 10-second seek and every ArrowUp/Down
+             * into a volume change, so the remote could not move between the
+             * source, torrent, subtitle, audio and transport controls.
+             */
             return;
           }
 
@@ -3583,6 +3591,7 @@ export default function VideoPlayer({
   return (
     <div
       data-mg-player-root="true"
+      data-mg-player-fullscreen={isAppFullscreen ? "true" : "false"}
       className="fixed inset-0 z-[2147483646] bg-black/95 flex items-center justify-center p-2 sm:p-3"
       onClick={
         onClose
