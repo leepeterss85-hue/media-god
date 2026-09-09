@@ -318,11 +318,13 @@ const performFireTvBackAction = () => {
 
     if (!isAlreadyHome) {
       homeButton.click()
+      return true
     }
+
+    return false
   }
 
-  /* Home is the end of the TV Back stack. */
-  return true
+  return false
 }
 
 const installTvRemoteDetection = () => {
@@ -384,6 +386,24 @@ const installFireTvBackHandler = () => {
 
   const onNativeBack = () => {
     if (!mediaGodAppMounted()) {
+      return
+    }
+
+    const mobileNative =
+      document.documentElement.classList.contains('mg-android-mobile') ||
+      document.body?.classList.contains('mg-android-mobile')
+
+    if (mobileNative) {
+      const handled = performFireTvBackAction()
+
+      if (!handled) {
+        try {
+          window.MediaGodNative?.exitApp?.()
+        } catch {
+          // Android can always fall back to the next Back press.
+        }
+      }
+
       return
     }
 
