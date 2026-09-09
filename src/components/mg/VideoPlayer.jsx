@@ -612,6 +612,27 @@ export default function VideoPlayer({
     active?.type ===
     "provider";
 
+  const activeType = String(active?.type || "").trim().toLowerCase();
+  const activeMediaHint = [
+    active?.format,
+    active?.mimeType,
+    active?.mime_type,
+    active?.contentType,
+    active?.content_type,
+    active?.label,
+    active?.name,
+    activeUrl,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const activeLooksLikeMedia =
+    /\.(?:m3u8|mpd|mp4|m4v|mkv|webm|mov|avi|ts|m2ts|flv|mpg|mpeg)(?:[?#&/]|$)/i.test(
+      String(activeUrl || "")
+    ) ||
+    /(?:\bhls\b|mpegurl|mpeg-url|\bdash\b|mpeg[- ]?dash|video\/|audio\/|application\/(?:vnd\.apple\.mpegurl|x-mpegurl|dash\+xml))/i.test(
+      activeMediaHint
+    );
+
   const isGenericHttpsStream =
     /^https:\/\//i.test(String(activeUrl || "").trim()) &&
     ![
@@ -621,13 +642,20 @@ export default function VideoPlayer({
       "status",
       "torrent",
       "magnet",
-    ].includes(String(active?.type || "").toLowerCase()) &&
-    !isMagnet(activeUrl);
+    ].includes(activeType) &&
+    !isMagnet(activeUrl) &&
+    (
+      ["url", "file", "live", "direct", "stream"].includes(activeType) ||
+      Boolean(active?.live) ||
+      activeLooksLikeMedia
+    );
 
   const isDirectFile =
-    active?.type === "file" ||
-    active?.type === "url" ||
-    active?.type === "live" ||
+    activeType === "file" ||
+    activeType === "url" ||
+    activeType === "live" ||
+    activeType === "direct" ||
+    activeType === "stream" ||
     isGenericHttpsStream;
 
   const isRdSource =
