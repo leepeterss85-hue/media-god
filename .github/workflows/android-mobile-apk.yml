@@ -1,0 +1,113 @@
+name: Build Android Mobile APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "android-mobile/**"
+      - "public/android-mobile-update.json"
+      - "src/components/mg/AndroidMobileAppUpdateNotice.jsx"
+      - "src/components/mg/nativeFireTvBridge.js"
+      - "src/components/mg/VideoPlayer.jsx"
+      - "src/pages/Home.jsx"
+      - ".github/workflows/android-mobile-apk.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: media-god-android-mobile-apk
+  cancel-in-progress: false
+
+jobs:
+  build-android-mobile-apk:
+    runs-on: ubuntu-latest
+    env:
+      MOBILE_KEYSTORE_PATH: mobile-release.jks
+      MOBILE_KEYSTORE_BASE64: ${{ secrets.FIRETV_KEYSTORE_BASE64 }}
+      MOBILE_KEYSTORE_PASSWORD: ${{ secrets.FIRETV_KEYSTORE_PASSWORD }}
+      MOBILE_KEY_ALIAS: ${{ secrets.FIRETV_KEY_ALIAS }}
+      MOBILE_KEY_PASSWORD: ${{ secrets.FIRETV_KEY_PASSWORD }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+
+      - name: Validate Android phone and tablet source
+        run: gradle -p android-mobile :app:assembleDebug --stacktrace
+
+      - name: Restore permanent Media God signing key
+        run: |
+          set -euo pipefail
+
+          if [ -z "$MOBILE_KEYSTORE_BASE64" ] || \
+             [ -z "$MOBILE_KEYSTORE_PASSWORD" ] || \
+             [ -z "$MOBILE_KEY_ALIAS" ] || \
+             [ -z "$MOBILE_KEY_PASSWORD" ]; then
+            echo "Media God signing secrets are not configured."
+            exit 1
+          fi
+
+          printf '%s' "$MOBILE_KEYSTORE_BASE64" \
+            | base64 --decode \
+            > "android-mobile/app/$MOBILE_KEYSTORE_PATH"
+
+          keytool -list \
+            -keystore "android-mobile/app/$MOBILE_KEYSTORE_PATH" \
+            -storepass "$MOBILE_KEYSTORE_PASSWORD" \
+            -alias "$MOBILE_KEY_ALIAS" \
+            >/dev/null
+
+      - name: Build signed Android Mobile release APK
+        run: gradle -p android-mobile :app:assembleRelease --stacktrace
+
+      - name: Prepare named Android Mobile APK
+        run: cp android-mobile/app/build/outputs/apk/release/app-release.apk Media-God-Android-Mobile.apk
+
+      - name: Verify Android Mobile APK signing identity
+        run: keytool -printcert -jarfile Media-God-Android-Mobile.apk | grep -E "Owner:|SHA256:" || true
+
+      - name: Upload Android Mobile APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Media-God-Android-Mobile
+          path: Media-God-Android-Mobile.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish stable Android Mobile download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view android-mobile-latest --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create android-mobile-latest \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "Media God Mobile - Android Phone and Tablet" \
+              --notes "Latest sideloadable Media God Mobile build for Android phones and tablets. This is separate from the Fire TV APK."
+          fi
+
+          gh release upload android-mobile-latest Media-God-Android-Mobile.apk \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
