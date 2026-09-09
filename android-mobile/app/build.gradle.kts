@@ -4,15 +4,15 @@ plugins {
 }
 
 android {
-    namespace = "com.mediagod.firetv"
+    namespace = "com.mediagod.mobile"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.mediagod.firetv"
+        applicationId = "com.mediagod.mobile"
         minSdk = 23
         targetSdk = 35
-        versionCode = 7
-        versionName = "1.4.2"
+        versionCode = 1
+        versionName = "1.0.0"
 
         buildConfigField(
             "String",
@@ -24,13 +24,13 @@ android {
     signingConfigs {
         create("release") {
             val signingFile =
-                System.getenv("FIRETV_KEYSTORE_PATH")
-                    ?: "firetv-release.jks"
+                System.getenv("MOBILE_KEYSTORE_PATH")
+                    ?: "mobile-release.jks"
 
             storeFile = file(signingFile)
-            storePassword = System.getenv("FIRETV_KEYSTORE_PASSWORD")
-            keyAlias = System.getenv("FIRETV_KEY_ALIAS")
-            keyPassword = System.getenv("FIRETV_KEY_PASSWORD")
+            storePassword = System.getenv("MOBILE_KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("MOBILE_KEY_ALIAS")
+            keyPassword = System.getenv("MOBILE_KEY_PASSWORD")
         }
     }
 
@@ -56,9 +56,6 @@ android {
 }
 
 dependencies {
-    // Keep the native player on a Fire OS-friendly Media3 generation rather
-    // than pulling the newest AndroidX stack, which currently requires API
-    // 36/37 just to compile. Fire TV playback does not need those APIs.
     val media3Version = "1.5.1"
 
     implementation("androidx.core:core-ktx:1.13.1")
