@@ -363,14 +363,18 @@ const rowAwareTarget = (current, candidates, direction) => {
     return horizontal[0]?.candidate || null;
   }
 
+  const verticalThreshold = Math.max(
+    10,
+    Math.min(30, currentRect.height * 0.35)
+  );
   const vertical = usable
     .map((candidate) => {
       const to = centre(candidate);
       const dx = Math.abs(to.x - from.x);
       const dy = to.y - from.y;
 
-      if (direction === "up" && dy >= -2) return null;
-      if (direction === "down" && dy <= 2) return null;
+      if (direction === "up" && dy >= -verticalThreshold) return null;
+      if (direction === "down" && dy <= verticalThreshold) return null;
 
       return {
         candidate,
