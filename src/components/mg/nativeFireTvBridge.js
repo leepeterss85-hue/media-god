@@ -76,6 +76,31 @@ export const nativeFireTvCodecInfo = () => {
   }
 };
 
+export const nativeFireTvSelfUpdateAvailable = () => {
+  const native = bridge();
+  return Boolean(native && typeof native.startUpdate === "function");
+};
+
+export const startNativeFireTvUpdate = ({ url, versionName = "" }) => {
+  const native = bridge();
+  const target = String(url || "").trim();
+
+  if (
+    !native ||
+    typeof native.startUpdate !== "function" ||
+    !/^https?:\/\//i.test(target)
+  ) {
+    return "error";
+  }
+
+  try {
+    const result = native.startUpdate(target, String(versionName || ""));
+    return String(result || "error").trim().toLowerCase();
+  } catch {
+    return "error";
+  }
+};
+
 export const openNativeFireTvExternalUrl = (url) => {
   const native = bridge();
   const target = String(url || "").trim();
