@@ -278,99 +278,91 @@ export default function EpisodeSelector({
       true;
 
     const loadProgress =
-      () => {
+      async () => {
         setProgressLoading(
           true
         );
 
-        base44.entities.ContinueWatching
-          .list(
-            "-updated_date",
-            100
-          )
-          .then(
+        try {
+          const rows =
+            await base44.entities.ContinueWatching.list(
+              "-updated_date",
+              100
+            );
+
+          if (
+            !mounted
+          ) {
+            return;
+          }
+
+          const matching =
             (
-              rows
-            ) => {
-              if (
-                !mounted
-              ) {
-                return;
-              }
-
-              const matching =
-                (
-                  rows ||
-                  []
-                ).filter(
-                  (
+              Array.isArray(rows)
+                ? rows
+                : []
+            ).filter(
+              (
+                record
+              ) => {
+                const parsed =
+                  parseProgressRecord(
                     record
-                  ) => {
-                    const parsed =
-                      parseProgressRecord(
-                        record
-                      );
+                  );
 
-                    if (
-                      parsed.mediaType !==
-                        "tv" ||
-                      !parsed.season ||
-                      !parsed.episode
-                    ) {
-                      return false;
-                    }
+                if (
+                  parsed.mediaType !==
+                    "tv" ||
+                  !parsed.season ||
+                  !parsed.episode
+                ) {
+                  return false;
+                }
 
-                    if (
-                      parsed.tmdbId &&
-                      tmdbId &&
-                      parsed.tmdbId ===
-                        tmdbId
-                    ) {
-                      return true;
-                    }
+                if (
+                  parsed.tmdbId &&
+                  tmdbId &&
+                  parsed.tmdbId ===
+                    tmdbId
+                ) {
+                  return true;
+                }
 
-                    const storedTitle =
-                      String(
-                        record
-                          ?.title ||
-                          record
-                            ?.content_key ||
-                          ""
-                      ).toLowerCase();
+                const storedTitle =
+                  String(
+                    record
+                      ?.title ||
+                      record
+                        ?.content_key ||
+                      ""
+                  ).toLowerCase();
 
-                    return storedTitle.includes(
-                      showTitle.toLowerCase()
-                    );
-                  }
-                );
-
-              setProgressRows(
-                matching
-              );
-            }
-          )
-          .catch(
-            () => {
-              if (
-                mounted
-              ) {
-                setProgressRows(
-                  []
+                return storedTitle.includes(
+                  showTitle.toLowerCase()
                 );
               }
-            }
-          )
-          .finally(
-            () => {
-              if (
-                mounted
-              ) {
-                setProgressLoading(
-                  false
-                );
-              }
-            }
+            );
+
+          setProgressRows(
+            matching
           );
+        } catch {
+          if (
+            mounted
+          ) {
+            setProgressRows(
+              []
+            );
+          }
+        } finally {
+          if (
+            mounted
+          ) {
+            setProgressLoading(
+              false
+            );
+          }
+        }
       };
 
     loadProgress();
