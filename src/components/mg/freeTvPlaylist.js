@@ -713,7 +713,10 @@ const dedupeKey = (channel) => {
   // that single known id for merging only, so the Samsung feed becomes a real
   // backup/primary candidate for the existing SkyMix.uk channel instead of a
   // duplicate card. Preserve the original tvgId on the channel object.
-  if (tvgId === "gbbd3100006xm" && name === "sky mix") {
+  if (
+    name === "sky mix" &&
+    (tvgId === "gbbd3100006xm" || /^skymix\.uk(?:@.*)?$/i.test(tvgId))
+  ) {
     return "id:skymix.uk";
   }
 
