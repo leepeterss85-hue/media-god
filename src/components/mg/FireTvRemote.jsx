@@ -291,6 +291,149 @@ const directionalTarget = (current, candidates, direction) => {
   return best;
 };
 
+const nearestByX = (source, candidates) => {
+  if (!(source instanceof HTMLElement) || !candidates.length) {
+    return candidates[0] || null;
+  }
+
+  const sourceX = centre(source).x;
+
+  return [...candidates].sort(
+    (a, b) =>
+      Math.abs(centre(a).x - sourceX) -
+      Math.abs(centre(b).x - sourceX)
+  )[0] || null;
+};
+
+const tvShowsRemoteTarget = (current, direction) => {
+  const view = document.querySelector(
+    '[data-mg-tv-shows-view="true"]'
+  );
+
+  if (
+    !(view instanceof HTMLElement) ||
+    !visible(view) ||
+    !(current instanceof HTMLElement) ||
+    !view.contains(current)
+  ) {
+    return null;
+  }
+
+  const categoryRow = view.querySelector(
+    '[data-mg-tv-category-row="true"]'
+  );
+  const categories = categoryRow instanceof HTMLElement
+    ? focusables(categoryRow).filter(
+        (item) => String(item.tagName || "").toLowerCase() === "button"
+      )
+    : [];
+  const search = view.querySelector(
+    '[data-mg-tv-search="true"] input'
+  );
+  const filterRow = view.querySelector(
+    '[data-mg-tv-filter-row="true"]'
+  );
+  const filters = filterRow instanceof HTMLElement
+    ? Array.from(filterRow.querySelectorAll("select")).filter(visible)
+    : [];
+  const cards = Array.from(
+    view.querySelectorAll(
+      '[data-mg-tv-show-card="true"] button[aria-label^="Open "]'
+    )
+  ).filter(visible);
+
+  const categoryIndex = categories.indexOf(current);
+
+  if (categoryIndex >= 0) {
+    if (direction === "left") {
+      return categories[categoryIndex - 1] || null;
+    }
+
+    if (direction === "right") {
+      return categories[categoryIndex + 1] || current;
+    }
+
+    if (direction === "down") {
+      return search instanceof HTMLElement && visible(search)
+        ? search
+        : filters[0] || cards[0] || current;
+    }
+
+    if (direction === "up") {
+      return current;
+    }
+  }
+
+  if (search instanceof HTMLElement && current === search) {
+    if (direction === "up") {
+      return (
+        categories.find(
+          (item) => item.getAttribute("aria-pressed") === "true"
+        ) ||
+        categories[0] ||
+        current
+      );
+    }
+
+    if (direction === "down") {
+      return filters[0] || cards[0] || current;
+    }
+
+    return null;
+  }
+
+  const filterIndex = filters.indexOf(current);
+
+  if (filterIndex >= 0) {
+    if (direction === "left") {
+      return filters[filterIndex - 1] || null;
+    }
+
+    if (direction === "right") {
+      return filters[filterIndex + 1] || current;
+    }
+
+    if (direction === "up") {
+      return search instanceof HTMLElement && visible(search)
+        ? search
+        : categories[0] || current;
+    }
+
+    if (direction === "down") {
+      const firstRowTop = cards[0]?.getBoundingClientRect?.().top;
+      const firstRow = Number.isFinite(firstRowTop)
+        ? cards.filter(
+            (card) =>
+              Math.abs(card.getBoundingClientRect().top - firstRowTop) < 24
+          )
+        : cards;
+
+      return nearestByX(current, firstRow) || current;
+    }
+  }
+
+  if (cards.includes(current)) {
+    const cardTarget = directionalTarget(current, cards, direction);
+
+    if (cardTarget) {
+      return cardTarget;
+    }
+
+    if (direction === "up") {
+      return nearestByX(current, filters) ||
+        (search instanceof HTMLElement && visible(search) ? search : current);
+    }
+
+    if (direction === "left") {
+      return null;
+    }
+
+    return current;
+  }
+
+  return null;
+};
+
 const playerOpen = () => {
   if (typeof document === "undefined") {
     return false;
@@ -601,6 +744,39 @@ export default function FireTvRemote() {
       }
 
       if (direction) {
+        const tvShowsView = document.querySelector(
+          '[data-mg-tv-shows-view="true"]'
+        );
+        const currentInsideTvShows =
+          tvShowsView instanceof HTMLElement &&
+          current instanceof HTMLElement &&
+          tvShowsView.contains(current);
+
+        /*
+         * TV Shows has a deliberate television focus path:
+         * categories -> search -> country/genre/year/language -> poster grid.
+         * Left/Right inside the search field remain native so the caret can be
+         * moved when the Fire TV keyboard/search box is in use.
+         */
+        if (
+          currentInsideTvShows &&
+          currentTag === "input" &&
+          (direction === "left" || direction === "right")
+        ) {
+          return;
+        }
+
+        if (currentInsideTvShows) {
+          const tvTarget = tvShowsRemoteTarget(current, direction);
+
+          if (tvTarget && focusElement(tvTarget)) {
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+            return;
+          }
+        }
+
         if (
           player instanceof HTMLElement &&
           (!(current instanceof HTMLElement) || !visible(current))
