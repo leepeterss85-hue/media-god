@@ -62,7 +62,63 @@ export const FREE_TV_PLAYLIST_URL =
 
 export const LIVE_TV_REGION = "GB";
 
-export const PUBLIC_DIRECT_CHANNELS = [];
+export const PUBLIC_DIRECT_CHANNELS = [
+  {
+    id: "ITV1.uk@Official",
+    name: "ITV1",
+    url: "https://www.itv.com/watch?channel=itv",
+    category: "General",
+    country: "GB",
+    priority: 132,
+    sourceName: "ITVX Official",
+    officialUrl: "https://www.itv.com/watch?channel=itv",
+    kind: "external",
+  },
+  {
+    id: "ITV2.uk@Official",
+    name: "ITV2",
+    url: "https://www.itv.com/watch?channel=itv2",
+    category: "General",
+    country: "GB",
+    priority: 130,
+    sourceName: "ITVX Official",
+    officialUrl: "https://www.itv.com/watch?channel=itv2",
+    kind: "external",
+  },
+  {
+    id: "ITV3.uk@Official",
+    name: "ITV3",
+    url: "https://www.itv.com/watch?channel=itv3",
+    category: "General",
+    country: "GB",
+    priority: 128,
+    sourceName: "ITVX Official",
+    officialUrl: "https://www.itv.com/watch?channel=itv3",
+    kind: "external",
+  },
+  {
+    id: "ITV4.uk@Official",
+    name: "ITV4",
+    url: "https://www.itv.com/watch?channel=itv4",
+    category: "General",
+    country: "GB",
+    priority: 128,
+    sourceName: "ITVX Official",
+    officialUrl: "https://www.itv.com/watch?channel=itv4",
+    kind: "external",
+  },
+  {
+    id: "ITVBe.uk@Official",
+    name: "ITVBe",
+    url: "https://www.itv.com/watch?channel=itvbe",
+    category: "General",
+    country: "GB",
+    priority: 126,
+    sourceName: "ITVX Official",
+    officialUrl: "https://www.itv.com/watch?channel=itvbe",
+    kind: "external",
+  },
+];
 
 export function clearFreeTvCache() {
   cache = null;
@@ -148,6 +204,39 @@ const normaliseChannelNameForKey = (value) =>
     .replace(/\s+/g, " ")
     .trim();
 
+const canonicalUkChannelFamily = (channel) => {
+  const name = normaliseChannelNameForKey(channel?.name);
+  const id = String(channel?.tvgId || channel?.id || "").toLowerCase();
+  const text = `${name} ${id}`;
+
+  if (/^bbc one\b/i.test(name) || /\bbbcOne\.uk\b/i.test(id)) return "bbc-one";
+  if (/^bbc two\b/i.test(name) || /\bbbcTwo\.uk\b/i.test(id)) return "bbc-two";
+  if (/^itv\s*1\b/i.test(name) || /\bitv1\.uk\b/i.test(id)) return "itv1";
+  if (/^itv\s*2\b/i.test(name) || /\bitv2\.uk\b/i.test(id)) return "itv2";
+  if (/^itv\s*3\b/i.test(name) || /\bitv3\.uk\b/i.test(id)) return "itv3";
+  if (/^itv\s*4\b/i.test(name) || /\bitv4\.uk\b/i.test(id)) return "itv4";
+  if (/^itv\s*be\b/i.test(name) || /\bitvbe\.uk\b/i.test(id)) return "itvbe";
+
+  return "";
+};
+
+const canonicalFamilyName = (family) =>
+  ({
+    "bbc-one": "BBC One",
+    "bbc-two": "BBC Two",
+    itv1: "ITV1",
+    itv2: "ITV2",
+    itv3: "ITV3",
+    itv4: "ITV4",
+    itvbe: "ITVBe",
+  })[family] || "";
+
+const isExactFamilyName = (candidate, family) => {
+  const expected = normaliseChannelNameForKey(canonicalFamilyName(family));
+  const actual = normaliseChannelNameForKey(candidate?.name);
+  return Boolean(expected && actual === expected);
+};
+
 const classifyUrl = (url) => {
   const value = String(url || "").trim().toLowerCase();
   if (
@@ -225,7 +314,7 @@ const browserCompatibility = (channel) => {
   if (!url) return { browserPlayable: false, browserReason: "Missing URL", format };
   if (kind === "external") return { browserPlayable: true, browserReason: "", format: "external" };
   if (isUnsupportedProtocol(url)) return { browserPlayable: false, browserReason: "Unsupported stream protocol", format };
-  if (format === "dash") return { browserPlayable: false, browserReason: "DASH is not enabled in the current player", format };
+  if (format === "dash") return { browserPlayable: true, browserReason: "", format };
   if (isMixedContentUrl(url)) return { browserPlayable: false, browserReason: "HTTP stream blocked on HTTPS app", format };
   if (channel?.requiresHeaders) return { browserPlayable: false, browserReason: "Stream requires custom request headers", format };
 
