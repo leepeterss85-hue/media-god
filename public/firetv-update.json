@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 7,
-  "versionName": "1.4.2",
+  "versionCode": 8,
+  "versionName": "1.4.3",
   "title": "Media God Fire TV",
-  "message": "Fire TV 1.4.2 is the first permanently signed Media God Fire TV build with the built-in Update now installer for future releases, and includes the Live TV native-player handoff fix.",
+  "message": "Fire TV 1.4.3 adds native startup and stall watchdogs, cleaner Back navigation, duplicate-playback protection, and a hardened updater that verifies the official signed Media God APK before installation.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4372217",
   "downloaderAddress": "tinyurl.com/2aofccoa",
