@@ -591,10 +591,23 @@ export default function VideoPlayer({
     active?.type ===
     "provider";
 
+  const isGenericHttpsStream =
+    /^https:\/\//i.test(String(activeUrl || "").trim()) &&
+    ![
+      "youtube",
+      "provider",
+      "external",
+      "status",
+      "torrent",
+      "magnet",
+    ].includes(String(active?.type || "").toLowerCase()) &&
+    !isMagnet(activeUrl);
+
   const isDirectFile =
     active?.type === "file" ||
     active?.type === "url" ||
-    active?.type === "live";
+    active?.type === "live" ||
+    isGenericHttpsStream;
 
   const isRdSource =
     active?.type === "rd" ||
