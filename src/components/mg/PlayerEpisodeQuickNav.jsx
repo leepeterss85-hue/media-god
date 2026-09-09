@@ -533,29 +533,6 @@ export default function PlayerEpisodeQuickNav() {
       <button
         type="button"
         onClick={
-          playPrevious
-        }
-        disabled={
-          previousBusy
-        }
-        className="flex min-h-9 items-center gap-1 rounded-lg px-2.5 text-xs font-semibold text-white/85 hover:bg-white/10 hover:text-white disabled:opacity-45 focus:outline-none focus:ring-2 focus:ring-mg-green sm:min-h-10 sm:px-3 sm:text-sm"
-        aria-label="Previous episode"
-        title="Previous episode"
-      >
-        {previousBusy ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <ChevronLeft className="h-4 w-4" />
-        )}
-
-        <span className="hidden sm:inline">
-          Previous
-        </span>
-      </button>
-
-      <button
-        type="button"
-        onClick={
           chooseEpisodes
         }
         className="flex min-h-9 items-center gap-1.5 rounded-lg bg-mg-green/15 px-2.5 text-xs font-semibold text-mg-green hover:bg-mg-green/25 focus:outline-none focus:ring-2 focus:ring-mg-green sm:min-h-10 sm:px-3 sm:text-sm"
@@ -569,21 +546,6 @@ export default function PlayerEpisodeQuickNav() {
         </span>
       </button>
 
-      <button
-        type="button"
-        onClick={
-          playNext
-        }
-        className="flex min-h-9 items-center gap-1 rounded-lg px-2.5 text-xs font-semibold text-white/85 hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-mg-green sm:min-h-10 sm:px-3 sm:text-sm"
-        aria-label="Next episode"
-        title="Next episode"
-      >
-        <span className="hidden sm:inline">
-          Next
-        </span>
-
-        <ChevronRight className="h-4 w-4" />
-      </button>
     </div>
   );
 
