@@ -1,6 +1,8 @@
 package com.mediagod.firetv
 
 import android.content.Intent
+import android.content.pm.PackageInfo
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
@@ -10,6 +12,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.security.MessageDigest
 import java.util.concurrent.atomic.AtomicBoolean
 
 class AppUpdater(
@@ -20,6 +23,15 @@ class AppUpdater(
         private const val PREFS = "media_god_updater"
         private const val KEY_PENDING_UPDATE_PATH = "pending_update_path"
         private const val UPDATE_FILE_NAME = "Media-God-Fire-TV.apk"
+        private const val STABLE_UPDATE_URL =
+            "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk"
+
+        private val TRUSTED_UPDATE_HOSTS = setOf(
+            "github.com",
+            "release-assets.githubusercontent.com",
+            "objects.githubusercontent.com",
+            "github-releases.githubusercontent.com",
+        )
     }
 
     private val downloading = AtomicBoolean(false)
@@ -31,8 +43,9 @@ class AppUpdater(
             activity.packageManager.canRequestPackageInstalls()
 
     fun startUpdate(url: String, versionName: String): String {
-        val target = url.trim()
-        if (!(target.startsWith("https://") || target.startsWith("http://"))) {
+        val requestedUrl = url.trim()
+
+        if (requestedUrl != STABLE_UPDATE_URL) {
             return "error"
         }
 
@@ -52,14 +65,15 @@ class AppUpdater(
                 sendStatus(
                     status = "downloading",
                     message = if (versionName.isBlank()) {
-                        "Downloading Media God update…"
+                        "Downloading Media God Fire TV update…"
                     } else {
-                        "Downloading Media God $versionName…"
+                        "Downloading Media God Fire TV $versionName…"
                     },
                     progress = 0,
                 )
 
-                val apk = downloadUpdate(target)
+                val apk = downloadUpdate(STABLE_UPDATE_URL)
+                verifyDownloadedApk(apk)
 
                 activity.getSharedPreferences(PREFS, 0)
                     .edit()
@@ -76,7 +90,7 @@ class AppUpdater(
                 clearPendingUpdate()
                 sendStatus(
                     status = "error",
-                    message = error.message ?: "Could not download the Media God update.",
+                    message = error.message ?: "Could not download the Media God Fire TV update.",
                     progress = 0,
                 )
             }
@@ -96,14 +110,25 @@ class AppUpdater(
         if (!installPermissionGranted()) {
             sendStatus(
                 status = "permission_required",
-                message = "Fire OS still needs permission for Media God to install updates. You can retry or choose Later.",
+                message = "Fire OS still needs permission for Media God Fire TV to install updates. You can retry or choose Later.",
                 progress = 100,
             )
             return
         }
 
-        clearPendingUpdate()
-        openInstaller(apk)
+        try {
+            verifyDownloadedApk(apk)
+            clearPendingUpdate()
+            openInstaller(apk)
+        } catch (error: Throwable) {
+            clearPendingUpdate()
+            apk.delete()
+            sendStatus(
+                status = "error",
+                message = error.message ?: "The downloaded update could not be verified.",
+                progress = 100,
+            )
+        }
     }
 
     private fun downloadUpdate(url: String): File {
@@ -118,7 +143,7 @@ class AppUpdater(
         tempFile.delete()
         finalFile.delete()
 
-        var currentUrl = url
+        var currentUrl = validateTrustedHttpsUrl(url)
         var connection: HttpURLConnection? = null
 
         try {
@@ -130,7 +155,10 @@ class AppUpdater(
                     readTimeout = 90_000
                     requestMethod = "GET"
                     setRequestProperty("User-Agent", "MediaGodFireTV/${BuildConfig.VERSION_NAME}")
-                    setRequestProperty("Accept", "application/vnd.android.package-archive, application/octet-stream, */*")
+                    setRequestProperty(
+                        "Accept",
+                        "application/vnd.android.package-archive, application/octet-stream, */*"
+                    )
                 }
 
                 val responseCode = connection!!.responseCode
@@ -138,7 +166,9 @@ class AppUpdater(
                 if (responseCode in 300..399) {
                     val location = connection!!.getHeaderField("Location")
                         ?: throw IllegalStateException("Update download redirect was missing its destination.")
-                    currentUrl = URL(URL(currentUrl), location).toString()
+                    currentUrl = validateTrustedHttpsUrl(
+                        URL(URL(currentUrl), location).toString()
+                    )
                     return@repeat
                 }
 
@@ -178,7 +208,7 @@ class AppUpdater(
                                     lastPublishedProgress = progress
                                     sendStatus(
                                         status = "downloading",
-                                        message = "Downloading Media God update…",
+                                        message = "Downloading Media God Fire TV update…",
                                         progress = progress,
                                     )
                                 }
@@ -200,7 +230,7 @@ class AppUpdater(
 
                 sendStatus(
                     status = "downloaded",
-                    message = "Update downloaded. Opening Fire OS installer…",
+                    message = "Update downloaded and verified. Opening Fire OS installer…",
                     progress = 100,
                 )
 
@@ -213,11 +243,112 @@ class AppUpdater(
         throw IllegalStateException("Too many redirects while downloading the update.")
     }
 
+    private fun validateTrustedHttpsUrl(rawUrl: String): String {
+        val parsed = URL(rawUrl)
+        val host = parsed.host.lowercase()
+
+        if (parsed.protocol.lowercase() != "https" || host !in TRUSTED_UPDATE_HOSTS) {
+            throw IllegalStateException("Update download was redirected to an untrusted address.")
+        }
+
+        return parsed.toString()
+    }
+
+    private fun verifyDownloadedApk(apk: File) {
+        val archiveInfo = getArchivePackageInfo(apk)
+            ?: throw IllegalStateException("Downloaded file is not a valid Android APK.")
+
+        if (archiveInfo.packageName != BuildConfig.APPLICATION_ID) {
+            throw IllegalStateException("Downloaded APK is not Media God Fire TV.")
+        }
+
+        if (versionCodeOf(archiveInfo) <= BuildConfig.VERSION_CODE.toLong()) {
+            throw IllegalStateException("Downloaded APK is not newer than this Media God Fire TV version.")
+        }
+
+        val currentInfo = getInstalledPackageInfo()
+        val currentSigners = signerDigests(currentInfo)
+        val archiveSigners = signerDigests(archiveInfo)
+
+        if (
+            currentSigners.isEmpty() ||
+            archiveSigners.isEmpty() ||
+            currentSigners.intersect(archiveSigners).isEmpty()
+        ) {
+            throw IllegalStateException("Downloaded APK signing identity does not match Media God Fire TV.")
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun getArchivePackageInfo(apk: File): PackageInfo? =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            activity.packageManager.getPackageArchiveInfo(
+                apk.absolutePath,
+                PackageManager.GET_SIGNING_CERTIFICATES,
+            )
+        } else {
+            activity.packageManager.getPackageArchiveInfo(
+                apk.absolutePath,
+                PackageManager.GET_SIGNATURES,
+            )
+        }
+
+    @Suppress("DEPRECATION")
+    private fun getInstalledPackageInfo(): PackageInfo =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            activity.packageManager.getPackageInfo(
+                activity.packageName,
+                PackageManager.GET_SIGNING_CERTIFICATES,
+            )
+        } else {
+            activity.packageManager.getPackageInfo(
+                activity.packageName,
+                PackageManager.GET_SIGNATURES,
+            )
+        }
+
+    @Suppress("DEPRECATION")
+    private fun versionCodeOf(info: PackageInfo): Long =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            info.longVersionCode
+        } else {
+            info.versionCode.toLong()
+        }
+
+    @Suppress("DEPRECATION")
+    private fun signerDigests(info: PackageInfo): Set<String> {
+        val signatures =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                info.signingInfo?.apkContentsSigners ?: emptyArray()
+            } else {
+                info.signatures ?: emptyArray()
+            }
+
+        return signatures.map { signature ->
+            val digest = MessageDigest.getInstance("SHA-256")
+                .digest(signature.toByteArray())
+            digest.joinToString("") { byte -> "%02x".format(byte) }
+        }.toSet()
+    }
+
     private fun openInstallerOrRequestPermission(apk: File) {
+        try {
+            verifyDownloadedApk(apk)
+        } catch (error: Throwable) {
+            clearPendingUpdate()
+            apk.delete()
+            sendStatus(
+                status = "error",
+                message = error.message ?: "The downloaded update could not be verified.",
+                progress = 100,
+            )
+            return
+        }
+
         if (!installPermissionGranted()) {
             sendStatus(
                 status = "permission",
-                message = "Allow Media God to install unknown apps once, then return here to continue the update.",
+                message = "Allow Media God Fire TV to install unknown apps once, then return here to continue the update.",
                 progress = 100,
             )
 
@@ -262,7 +393,7 @@ class AppUpdater(
 
             sendStatus(
                 status = "installer",
-                message = "Fire OS is ready to install the Media God update.",
+                message = "Fire OS is ready to install the Media God Fire TV update.",
                 progress = 100,
             )
 
