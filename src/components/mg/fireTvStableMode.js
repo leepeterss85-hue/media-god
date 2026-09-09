@@ -267,6 +267,164 @@ const firstUsefulCard = () => {
   return cardTarget(cardsInRow(row)[0]);
 };
 
+const liveTvCardFor = (element) =>
+  element instanceof HTMLElement
+    ? element.closest('[data-mg-live-tv-channel="true"]')
+    : null;
+
+const liveTvCards = () =>
+  Array.from(
+    document.querySelectorAll('[data-mg-live-tv-channel="true"]')
+  ).filter(visible);
+
+const liveTvCardTarget = (card) => {
+  if (!(card instanceof HTMLElement)) {
+    return null;
+  }
+
+  return (
+    Array.from(card.children).find(
+      (item) =>
+        item instanceof HTMLElement &&
+        String(item.tagName || "").toLowerCase() === "button" &&
+        visible(item)
+    ) ||
+    Array.from(card.querySelectorAll('button:not([disabled])')).find(visible) ||
+    null
+  );
+};
+
+const firstLiveTvTarget = () =>
+  liveTvCardTarget(liveTvCards()[0]);
+
+const nearestExternalFocusable = (current, direction) => {
+  const main = document.querySelector("#root main");
+
+  if (!(main instanceof HTMLElement) || !(current instanceof HTMLElement)) {
+    return null;
+  }
+
+  const currentRect = current.getBoundingClientRect();
+  const currentX = currentRect.left + currentRect.width / 2;
+  const currentY = currentRect.top + currentRect.height / 2;
+
+  let best = null;
+  let bestScore = Infinity;
+
+  for (const candidate of Array.from(main.querySelectorAll(MAIN_FOCUSABLE))) {
+    if (
+      !(candidate instanceof HTMLElement) ||
+      candidate === current ||
+      !visible(candidate) ||
+      liveTvCardFor(candidate)
+    ) {
+      continue;
+    }
+
+    const rect = candidate.getBoundingClientRect();
+    const x = rect.left + rect.width / 2;
+    const y = rect.top + rect.height / 2;
+    const dx = x - currentX;
+    const dy = y - currentY;
+
+    if (direction === "up" && dy >= -6) continue;
+    if (direction === "down" && dy <= 6) continue;
+    if (direction === "left" && dx >= -6) continue;
+    if (direction === "right" && dx <= 6) continue;
+
+    const primary =
+      direction === "up" || direction === "down"
+        ? Math.abs(dy)
+        : Math.abs(dx);
+    const cross =
+      direction === "up" || direction === "down"
+        ? Math.abs(dx)
+        : Math.abs(dy);
+    const score = primary + cross * 2.5;
+
+    if (score < bestScore) {
+      best = candidate;
+      bestScore = score;
+    }
+  }
+
+  return best;
+};
+
+const moveLiveTvCard = (current, direction) => {
+  const card = liveTvCardFor(current);
+
+  if (!(card instanceof HTMLElement)) {
+    return false;
+  }
+
+  const currentRect = card.getBoundingClientRect();
+  const currentX = currentRect.left + currentRect.width / 2;
+  const currentY = currentRect.top + currentRect.height / 2;
+
+  let best = null;
+  let bestScore = Infinity;
+
+  for (const candidate of liveTvCards()) {
+    if (candidate === card) {
+      continue;
+    }
+
+    const rect = candidate.getBoundingClientRect();
+    const x = rect.left + rect.width / 2;
+    const y = rect.top + rect.height / 2;
+    const dx = x - currentX;
+    const dy = y - currentY;
+
+    if (direction === "left" && dx >= -6) continue;
+    if (direction === "right" && dx <= 6) continue;
+    if (direction === "up" && dy >= -6) continue;
+    if (direction === "down" && dy <= 6) continue;
+
+    const verticalOverlap =
+      Math.min(currentRect.bottom, rect.bottom) -
+        Math.max(currentRect.top, rect.top) >
+      Math.min(currentRect.height, rect.height) * 0.35;
+    const horizontalOverlap =
+      Math.min(currentRect.right, rect.right) -
+        Math.max(currentRect.left, rect.left) >
+      Math.min(currentRect.width, rect.width) * 0.35;
+
+    const primary =
+      direction === "up" || direction === "down"
+        ? Math.abs(dy)
+        : Math.abs(dx);
+    const cross =
+      direction === "up" || direction === "down"
+        ? Math.abs(dx)
+        : Math.abs(dy);
+    const aligned =
+      direction === "up" || direction === "down"
+        ? horizontalOverlap
+        : verticalOverlap;
+    const score = primary + cross * (aligned ? 0.18 : 3.2);
+
+    if (score < bestScore) {
+      best = candidate;
+      bestScore = score;
+    }
+  }
+
+  if (best) {
+    return focusNow(liveTvCardTarget(best));
+  }
+
+  if (direction === "left") {
+    return focusNow(activeSidebarButton());
+  }
+
+  if (direction === "up" || direction === "down") {
+    return focusNow(nearestExternalFocusable(current, direction)) || true;
+  }
+
+  return true;
+};
+
 const moveSidebar = (current, direction) => {
   const aside = current?.closest?.(".mg-fire-tv-nav");
 
@@ -281,6 +439,7 @@ const moveSidebar = (current, direction) => {
     return focusNow(
       heroTarget() ||
       firstUsefulCard() ||
+      firstLiveTvTarget() ||
       firstMainFocusable()
     );
   }
@@ -522,6 +681,7 @@ export const installFireTvStableMode = () => {
         current instanceof HTMLElement &&
         (current.closest(".mg-fire-tv-nav") ||
           current.closest(".mg-fire-tv-hero") ||
+          liveTvCardFor(current) ||
           cardFor(current));
 
       /*
@@ -560,6 +720,10 @@ export const installFireTvStableMode = () => {
       }
 
       if (moveHero(current, direction)) {
+        return;
+      }
+
+      if (moveLiveTvCard(current, direction)) {
         return;
       }
 
