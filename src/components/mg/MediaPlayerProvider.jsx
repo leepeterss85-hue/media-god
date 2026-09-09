@@ -2376,14 +2376,22 @@ export function PlayerProvider({
       {source &&
         typeof document !== "undefined" &&
         createPortal(
-          <VideoPlayer
-            source={
-              source
+          <PlayerRenderBoundary
+            key={
+              source?.playRequestId ||
+              `${source?.title || "player"}-${source?.src || source?.url || ""}`
             }
-            onClose={
-              close
-            }
-          />,
+            onClose={close}
+          >
+            <VideoPlayer
+              source={
+                source
+              }
+              onClose={
+                close
+              }
+            />
+          </PlayerRenderBoundary>,
           document.body
         )}
     </PlayerContext.Provider>
