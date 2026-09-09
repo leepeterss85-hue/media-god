@@ -4047,11 +4047,11 @@ export default function VideoPlayer({
               <Tv className="h-9 w-9 text-mg-green" />
 
               <p className="text-white/85 text-sm font-semibold">
-                Fire TV playback paused
+                Native playback paused
               </p>
 
               <p className="max-w-md text-white/50 text-xs">
-                Use the source and torrent-file selectors below, or resume the current source in the native Fire TV player.
+                Choose another source or torrent file below, use Fix audio if needed, or resume this source in the native player.
               </p>
 
               <button
@@ -4062,7 +4062,7 @@ export default function VideoPlayer({
                 }}
                 className="mt-1 min-h-10 rounded-lg bg-mg-green px-4 text-xs font-bold text-black focus:outline-none focus:ring-2 focus:ring-white/70"
               >
-                Resume Fire TV playback
+                Resume native playback
               </button>
             </div>
           ) : useNativePlayback ? (
@@ -4073,11 +4073,11 @@ export default function VideoPlayer({
               <Loader2 className="w-8 h-8 text-mg-green animate-spin" />
 
               <p className="text-white/80 text-sm font-semibold">
-                Opening Fire TV player…
+                Opening native player…
               </p>
 
               <p className="max-w-md text-white/45 text-xs">
-                Media God is handing this stream to the native Fire TV video engine.
+                Media God is handing this stream to the Android native video engine.
               </p>
             </div>
           ) : rdOverride ? (
@@ -4383,7 +4383,9 @@ export default function VideoPlayer({
                               {failed
                                 ? "Unavailable • "
                                 : index === activeIdx
-                                  ? "Playing • "
+                                  ? busy
+                                    ? "Selected • "
+                                    : "Playing • "
                                   : ""}
 
                               {
@@ -4577,7 +4579,7 @@ export default function VideoPlayer({
                   setForceNativePlayback(true);
                 }}
                 className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-mg-card px-3 text-xs font-semibold text-white transition hover:border-mg-green/40 hover:bg-white/10 focus:bg-white/10 focus:outline-none focus:ring-2 focus:ring-mg-green sm:min-h-10"
-                aria-label="Open native Fire TV decoder"
+                aria-label="Open native decoder"
                 title="Use Media3 for difficult video or audio codecs"
               >
                 <Tv className="h-4 w-4" />
