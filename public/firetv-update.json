@@ -3,7 +3,7 @@
   "versionCode": 6,
   "versionName": "1.4.1",
   "title": "Media God Fire TV",
-  "message": "Fire TV 1.4.1 fixes Live TV native-player handoff loops and permanent loading spinners, preserves native playback return events, and falls back safely if the native player cannot open.",
+  "message": "Fire TV 1.4.1 fixes Live TV native-player handoff loops and permanent loading spinners and introduces Media God’s built-in Fire TV updater for future releases.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4372217",
   "downloaderAddress": "tinyurl.com/2aofccoa",
