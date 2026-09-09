@@ -86,6 +86,24 @@ body.mg-fire-tv-mode [data-mg-player-root="true"] > div > div:nth-child(2) {
   z-index: 2147483645 !important;
 }
 
+/* Player chrome follows the same auto-hide state as the transport controls.
+ * This generic rule keeps phone/tablet/desktop playback picture-first too;
+ * PlayerControls' existing tap/mouse/remote wake layer restores the chrome.
+ * No source or playback behaviour is changed here. */
+[data-mg-player-root="true"][data-mg-controls-visible="false"] [data-mg-player-topbar="true"],
+[data-mg-player-root="true"][data-mg-controls-visible="false"] [data-mg-player-options-panel="true"],
+[data-mg-player-root="true"][data-mg-controls-visible="false"] [data-mg-episode-quick-nav="true"] {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+[data-mg-player-topbar="true"],
+[data-mg-player-options-panel="true"],
+[data-mg-episode-quick-nav="true"] {
+  transition: opacity 180ms ease, visibility 180ms ease;
+}
+
 /* Fire TV player chrome follows the same auto-hide state as the transport
  * controls. While a film is playing, the title/Exit row, source/torrent box
  * and QR helper disappear after a short delay in both normal player mode and
