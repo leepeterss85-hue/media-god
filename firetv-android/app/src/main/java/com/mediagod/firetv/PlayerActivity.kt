@@ -198,6 +198,18 @@ class PlayerActivity : Activity() {
                     }
                 }
 
+                KeyEvent.KEYCODE_DPAD_UP -> {
+                    if (
+                        live &&
+                        sourceSpinner.visibility == View.VISIBLE &&
+                        !sourceSpinner.hasFocus()
+                    ) {
+                        sourceSpinner.requestFocus()
+                        playerView.showController()
+                        return true
+                    }
+                }
+
                 KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
                 KeyEvent.KEYCODE_HEADSETHOOK -> {
                     activePlayer?.let {
