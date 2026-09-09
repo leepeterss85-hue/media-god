@@ -86,6 +86,22 @@ body.mg-fire-tv-mode [data-mg-player-root="true"] > div > div:nth-child(2) {
   z-index: 2147483645 !important;
 }
 
+/* True in-app fullscreen is picture-first on Fire TV. The catalogue player
+ * chrome stays available before fullscreen, but the title/Exit bar and the
+ * source/torrent/Fix-audio options box must disappear once fullscreen is
+ * entered. MediaPlayerControls can then reveal only the transport/advanced
+ * controls on demand and auto-hide them again over the video. */
+body.mg-fire-tv [data-mg-player-root="true"][data-mg-player-fullscreen="true"] [data-mg-player-topbar="true"],
+body.mg-fire-tv-stable [data-mg-player-root="true"][data-mg-player-fullscreen="true"] [data-mg-player-topbar="true"],
+body.mg-fire-tv-mode [data-mg-player-root="true"][data-mg-player-fullscreen="true"] [data-mg-player-topbar="true"],
+body.mg-fire-tv [data-mg-player-root="true"][data-mg-player-fullscreen="true"] [data-mg-player-options-panel="true"],
+body.mg-fire-tv-stable [data-mg-player-root="true"][data-mg-player-fullscreen="true"] [data-mg-player-options-panel="true"],
+body.mg-fire-tv-mode [data-mg-player-root="true"][data-mg-player-fullscreen="true"] [data-mg-player-options-panel="true"] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
 /* Keep the small player header above the picture, without reserving height. */
 body.mg-fire-tv [data-mg-player-root="true"] > div > div:first-child,
 body.mg-fire-tv-stable [data-mg-player-root="true"] > div > div:first-child,
