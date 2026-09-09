@@ -3837,6 +3837,62 @@ export default function VideoPlayer({
     rdError ||
     "";
 
+  const friendlyError =
+    friendlyPlaybackError(
+      displayedError
+    );
+
+  const activeSourceLabel =
+    concisePlaybackSourceLabel(
+      active,
+      activeIdx
+    );
+
+  const selectableSourceCount =
+    sources.filter(
+      (item) =>
+        item &&
+        !item?.diagnostic &&
+        item?.type !== "status" &&
+        item?.type !== "provider" &&
+        item?.type !== "youtube"
+    ).length;
+
+  const failedSourceCount =
+    Array.from(
+      failedSources
+    ).filter(
+      (index) =>
+        Number.isInteger(
+          Number(index)
+        )
+    ).length;
+
+  const audioNeedsAttention =
+    hasRecentNoSoundHistory(
+      sourceDisplayLabel(
+        active,
+        activeIdx
+      )
+    );
+
+  const playerUiStatus =
+    displayedError && !busy
+      ? "Source issue"
+      : rdResolving
+        ? "Resolving"
+        : rdPolling || rdTorrentId
+          ? "Preparing"
+          : fireTvNativeSelectorMode
+            ? "Choose source"
+            : useNativePlayback
+              ? "Opening player"
+              : rdOverride || isDirectFile
+                ? "Ready"
+                : isLive
+                  ? "Live"
+                  : "Loading";
+
   return (
     <div
       data-mg-player-root="true"
