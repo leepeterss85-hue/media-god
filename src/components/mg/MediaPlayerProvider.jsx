@@ -171,15 +171,47 @@ const isMagnetSource = (item) => {
   );
 };
 
+const DIRECT_MEDIA_TYPES = new Set([
+  "url",
+  "file",
+  "live",
+  "direct",
+  "stream",
+]);
+
+const MEDIA_URL_RE =
+  /\.(?:m3u8|mpd|mp4|m4v|mkv|webm|mov|avi|ts|m2ts|flv|mpg|mpeg)(?:[?#&/]|$)/i;
+
+const MEDIA_HINT_RE =
+  /(?:\bhls\b|mpegurl|mpeg-url|\bdash\b|mpeg[- ]?dash|video\/|audio\/|application\/(?:vnd\.apple\.mpegurl|x-mpegurl|dash\+xml))/i;
+
 const isDirectSource = (item) => {
-  const value =
-    getSourceUrl(item);
+  const value = getSourceUrl(item);
+  const type = String(item?.type || "").trim().toLowerCase();
+  const hintText = [
+    item?.format,
+    item?.mimeType,
+    item?.mime_type,
+    item?.contentType,
+    item?.content_type,
+    item?.label,
+    item?.name,
+    value,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const explicitMedia =
+    DIRECT_MEDIA_TYPES.has(type) ||
+    Boolean(item?.live) ||
+    MEDIA_URL_RE.test(value) ||
+    MEDIA_HINT_RE.test(hintText);
 
   return (
     /^https?:\/\//i.test(value) &&
     !isMagnetSource(item) &&
-    item?.type !== "provider" &&
-    item?.type !== "youtube"
+    !["provider", "youtube", "external", "status"].includes(type) &&
+    explicitMedia
   );
 };
 
