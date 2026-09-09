@@ -430,14 +430,61 @@ export default function HomeDashboard() {
     const fetchRow = async (params, fallbackType = "") => {
       try {
         const response = await base44.functions.invoke("getTmdbMovies", params);
-        return unwrapMovies(response).map((item) => ({
-          ...item,
-          media_type:
-            item?.media_type ||
-            item?.mediaType ||
-            fallbackType ||
-            mediaTypeOf(item),
-        }));
+
+        return unwrapMovies(response)
+          .map((item) => {
+            const id =
+              item?.tmdb_id ??
+              item?.tmdbId ??
+              item?.id ??
+              null;
+
+            const resolvedType =
+              fallbackType ||
+              mediaTypeOf(item);
+
+            const releaseDate =
+              item?.release_date ||
+              item?.releaseDate ||
+              item?.first_air_date ||
+              item?.firstAirDate ||
+              "";
+
+            return {
+              ...item,
+              id,
+              tmdb_id: id,
+              tmdbId: id,
+              title:
+                item?.title ||
+                item?.name ||
+                item?.original_title ||
+                item?.original_name ||
+                "Untitled",
+              poster_url:
+                item?.poster_url ||
+                item?.posterUrl ||
+                item?.poster ||
+                "",
+              description:
+                item?.description ||
+                item?.overview ||
+                "",
+              year:
+                item?.year ||
+                (/^\d{4}/.test(String(releaseDate))
+                  ? String(releaseDate).slice(0, 4)
+                  : ""),
+              release_date: releaseDate,
+              media_type: resolvedType,
+              mediaType: resolvedType,
+              type:
+                resolvedType === "tv"
+                  ? "tv"
+                  : "movie",
+            };
+          })
+          .filter((item) => item.id != null && item.id !== "");
       } catch {
         return [];
       }
@@ -714,15 +761,47 @@ export default function HomeDashboard() {
     rows.topRated,
   ]);
 
-  const open = (item) => {
-    const resolvedType = mediaTypeOf(item);
+  const open = (item, forcedType = "") => {
+    const resolvedType =
+      forcedType ||
+      mediaTypeOf(item);
+
+    const id =
+      item?.tmdb_id ??
+      item?.tmdbId ??
+      item?.id ??
+      null;
+
+    if (id == null || id === "") {
+      return;
+    }
 
     setSelected({
       ...item,
-      id: item?.id || item?.tmdb_id || item?.tmdbId,
-      tmdb_id: item?.tmdb_id || item?.tmdbId || item?.id,
+      id,
+      tmdb_id: id,
+      tmdbId: id,
+      title:
+        item?.title ||
+        item?.name ||
+        item?.original_title ||
+        item?.original_name ||
+        "Untitled",
+      poster_url:
+        item?.poster_url ||
+        item?.posterUrl ||
+        item?.poster ||
+        "",
+      description:
+        item?.description ||
+        item?.overview ||
+        "",
       media_type: resolvedType,
       mediaType: resolvedType,
+      type:
+        resolvedType === "tv"
+          ? "tv"
+          : "movie",
     });
   };
 
@@ -844,7 +923,7 @@ export default function HomeDashboard() {
           <MediaRow
             title="More TV Airing Today"
             items={rows.moreTVToday}
-            onOpen={open}
+            onOpen={(item) => open(item, "tv")}
             onWatchlist={onWatchlist}
             watched={watched}
           />
@@ -861,7 +940,7 @@ export default function HomeDashboard() {
         <MediaRow
           title="New & On TV"
           items={rows.newTV}
-          onOpen={open}
+          onOpen={(item) => open(item, "tv")}
           onWatchlist={onWatchlist}
           watched={watched}
         />
@@ -943,7 +1022,7 @@ export default function HomeDashboard() {
         >
           <DetailModal
             item={selected}
-            mediaType={mediaTypeOf(selected)}
+            mediaType={selected?.media_type || mediaTypeOf(selected)}
             onClose={() => setSelected(null)}
           />
         </HomeDetailErrorBoundary>
