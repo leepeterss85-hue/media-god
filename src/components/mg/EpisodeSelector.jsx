@@ -763,6 +763,13 @@ export default function EpisodeSelector({
         item?.poster ||
         "";
 
+      const showImdbId =
+        String(
+          item?.imdb_id ||
+            item?.imdbId ||
+            ""
+        ).trim();
+
       player.play({
         id:
           item?.id ||
@@ -784,6 +791,15 @@ export default function EpisodeSelector({
             ?.tmdb_id ||
           item
             ?.tmdbId,
+
+        imdbId:
+          showImdbId,
+
+        imdb_id:
+          showImdbId,
+
+        rdImdbId:
+          showImdbId,
 
         title:
           episodeTitle,
