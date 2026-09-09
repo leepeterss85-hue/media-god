@@ -1,5 +1,20 @@
 export const UPDATE_HISTORY = [
   {
+    id: "fire-tv-tv-shows-remote-map-v1",
+    date: "9 September 2026",
+    title: "TV Shows Fire Stick navigation fixed",
+    summary:
+      "TV Shows now uses a deterministic Fire Stick focus path instead of the generic nearest-control algorithm, preventing random jumps between filters, the sidebar and poster rows.",
+    changes: [
+      "D-pad order is now Categories → Search → Country/Genre/Year/Language → poster grid.",
+      "Left/Right move predictably within category, filter and poster rows while Up/Down move between the intended rows.",
+      "Moving up from the first poster row returns to the nearest TV filter instead of jumping elsewhere in the app.",
+      "Moving down from the filters enters the first poster row at the closest matching column.",
+      "Left/Right inside the TV search field remain available for text-caret movement instead of being hijacked by spatial navigation.",
+      "The active TV category now exposes aria-pressed state so returning upward from search restores the selected category correctly.",
+    ],
+  },
+  {
     id: "fire-tv-controls-single-owner-v3",
     date: "9 September 2026",
     title: "Fire TV player controls made deterministic",
