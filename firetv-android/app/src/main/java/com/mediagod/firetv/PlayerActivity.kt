@@ -190,6 +190,14 @@ class PlayerActivity : Activity() {
                     return true
                 }
 
+                KeyEvent.KEYCODE_MENU -> {
+                    if (live && sourceSpinner.visibility == View.VISIBLE) {
+                        sourceSpinner.requestFocus()
+                        sourceSpinner.performClick()
+                        return true
+                    }
+                }
+
                 KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
                 KeyEvent.KEYCODE_HEADSETHOOK -> {
                     activePlayer?.let {
@@ -227,23 +235,178 @@ class PlayerActivity : Activity() {
         return super.dispatchKeyEvent(event)
     }
 
+    private fun dp(value: Int): Int =
+        (value * resources.displayMetrics.density).toInt()
+
+    private fun readHeaders(json: JSONObject?): Map<String, String> {
+        if (json == null) return emptyMap()
+
+        val result = linkedMapOf<String, String>()
+        val keys = json.keys()
+
+        while (keys.hasNext()) {
+            val key = keys.next()
+            val value = json.optString(key).trim()
+            if (key.isNotBlank() && value.isNotBlank()) {
+                result[key] = value
+            }
+        }
+
+        return result
+    }
+
+    private fun readNativeSources(): List<NativeSource> {
+        val result = mutableListOf<NativeSource>()
+        val seenUrls = linkedSetOf<String>()
+        val sourceArray = payload.optJSONArray("sources") ?: JSONArray()
+
+        for (index in 0 until sourceArray.length()) {
+            val item = sourceArray.optJSONObject(index) ?: continue
+            val url = item.optString("url").trim()
+
+            if (
+                !(url.startsWith("https://") || url.startsWith("http://")) ||
+                !seenUrls.add(url)
+            ) {
+                continue
+            }
+
+            val label = item.optString("label").trim().ifBlank {
+                item.optString("sourceName").trim().ifBlank {
+                    "Source ${result.size + 1}"
+                }
+            }
+
+            result.add(
+                NativeSource(
+                    label = label,
+                    url = url,
+                    headers = readHeaders(item.optJSONObject("headers")),
+                    mimeType = item.optString("mimeType").trim()
+                )
+            )
+        }
+
+        if (
+            (streamUrl.startsWith("https://") || streamUrl.startsWith("http://")) &&
+            seenUrls.add(streamUrl)
+        ) {
+            result.add(
+                0,
+                NativeSource(
+                    label = "Current source",
+                    url = streamUrl,
+                    headers = readHeaders(payload.optJSONObject("headers")),
+                    mimeType = payload.optString("mimeType").trim()
+                )
+            )
+        }
+
+        return result
+    }
+
+    private fun buildSourceSpinner(): Spinner {
+        val labels = nativeSources.mapIndexed { index, item ->
+            "${index + 1}. ${item.label}"
+        }
+
+        val sourceAdapter = object : ArrayAdapter<String>(
+            this,
+            android.R.layout.simple_spinner_item,
+            labels
+        ) {
+            private fun style(view: View, dropdown: Boolean): View {
+                val text = view as? TextView ?: return view
+                text.setTextColor(Color.WHITE)
+                text.setBackgroundColor(
+                    if (dropdown) Color.rgb(24, 24, 24)
+                    else Color.argb(220, 12, 12, 12)
+                )
+                text.textSize = 14f
+                text.gravity = Gravity.CENTER_VERTICAL
+                text.minHeight = dp(48)
+                text.setPadding(dp(14), 0, dp(14), 0)
+                return text
+            }
+
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View =
+                style(super.getView(position, convertView, parent), false)
+
+            override fun getDropDownView(
+                position: Int,
+                convertView: View?,
+                parent: ViewGroup
+            ): View = style(super.getDropDownView(position, convertView, parent), true)
+        }.apply {
+            setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        }
+
+        return Spinner(this, Spinner.MODE_DROPDOWN).apply {
+            id = View.generateViewId()
+            adapter = sourceAdapter
+            visibility = if (live && nativeSources.size > 1) View.VISIBLE else View.GONE
+            isFocusable = true
+            isFocusableInTouchMode = false
+            contentDescription = "Choose Live TV source"
+            setSelection(activeSourceIndex.coerceIn(0, maxOf(0, nativeSources.lastIndex)), false)
+
+            onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+                override fun onNothingSelected(parent: AdapterView<*>?) = Unit
+
+                override fun onItemSelected(
+                    parent: AdapterView<*>?,
+                    view: View?,
+                    position: Int,
+                    id: Long
+                ) {
+                    if (!sourceSelectorReady || position == activeSourceIndex) {
+                        return
+                    }
+
+                    switchNativeSource(position)
+                }
+            }
+
+            post {
+                sourceSelectorReady = true
+            }
+        }
+    }
+
+    private fun switchNativeSource(index: Int) {
+        if (
+            index !in nativeSources.indices ||
+            index == activeSourceIndex ||
+            resultSent
+        ) {
+            return
+        }
+
+        activeSourceIndex = index
+        streamUrl = nativeSources[index].url
+        genericHttpsMimeRetryIndex = 0
+        releasePlayer()
+        initialisePlayer()
+        sourceSpinner.setSelection(activeSourceIndex, false)
+        playerView.showController()
+        playerView.requestFocus()
+    }
+
+    private fun currentSourceHeaders(): Map<String, String> =
+        nativeSources.getOrNull(activeSourceIndex)?.headers
+            ?: readHeaders(payload.optJSONObject("headers"))
+
+    private fun currentSourceMimeType(): String =
+        nativeSources.getOrNull(activeSourceIndex)?.mimeType
+            ?.takeIf { it.isNotBlank() }
+            ?: payload.optString("mimeType").trim()
+
     private fun initialisePlayer() {
         if (player != null || resultSent) {
             return
         }
 
-        val headers = mutableMapOf<String, String>()
-        val headerJson = payload.optJSONObject("headers")
-        if (headerJson != null) {
-            val keys = headerJson.keys()
-            while (keys.hasNext()) {
-                val key = keys.next()
-                val value = headerJson.optString(key)
-                if (key.isNotBlank() && value.isNotBlank()) {
-                    headers[key] = value
-                }
-            }
-        }
+        val headers = currentSourceHeaders()
 
         val dataSourceFactory = DefaultHttpDataSource.Factory()
             .setAllowCrossProtocolRedirects(true)
@@ -352,7 +515,7 @@ class PlayerActivity : Activity() {
 
         val explicitMimeType =
             mimeTypeOverride?.trim().orEmpty().ifBlank {
-                payload.optString("mimeType").trim()
+                currentSourceMimeType()
             }
 
         if (explicitMimeType.isNotBlank()) {
