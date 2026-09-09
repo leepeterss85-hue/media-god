@@ -553,10 +553,19 @@ const SKY_MIX_NATIVE_BACKUP_SOURCES = [
     id: "sky-mix-uk-tuner-pass",
     name: "Sky Mix UK Tuner Backup",
     url: "http://86.180.115.121:1990/stream/channelid/914757818?profile=pass",
-    priority: 118,
+    priority: 120,
     category: "United Kingdom",
     country: "GB",
     tvgId: "SkyMix.uk@TunerPass",
+  },
+  {
+    id: "sky-mix-uk-jpt-direct",
+    name: "Sky Mix UK JPT Direct Backup",
+    url: "http://92.114.85.79:8000/play/a0c7",
+    priority: 118,
+    category: "United Kingdom",
+    country: "GB",
+    tvgId: "SkyMix.uk@JPTDirect",
   },
   {
     id: "sky-mix-uk-tuner-webm",
@@ -566,6 +575,15 @@ const SKY_MIX_NATIVE_BACKUP_SOURCES = [
     category: "United Kingdom",
     country: "GB",
     tvgId: "SkyMix.uk@FreeviewTuner",
+  },
+  {
+    id: "sky-mix-uk-legacy-tuner",
+    name: "Sky Mix UK Legacy Tuner Backup",
+    url: "http://80.194.62.172:50002/stream/channelid/1848745953",
+    priority: 114,
+    category: "United Kingdom",
+    country: "GB",
+    tvgId: "SkyMix.uk@LegacyTuner",
   },
 ];
 
