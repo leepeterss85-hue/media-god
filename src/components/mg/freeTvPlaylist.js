@@ -66,7 +66,7 @@ export const LIVE_TV_SOURCES = [
     id: "nimeyer-uk-list",
     name: "Nimeyer UK Gist",
     url: "https://gist.githubusercontent.com/nimeyer22/4dc9fe46ca393956801bf65625168477/raw/UKList.m3u",
-    priority: 98,
+    priority: 99,
     category: "United Kingdom",
   },
 ];
@@ -349,27 +349,28 @@ export function clearFreeTvCache() {
 }
 
 export const SKY_STREAM_OVERRIDES = {
-  "sky sports main event": "https://live20.bozztv.com/trn03/gin-skysportsmainevent/index.m3u8",
-  "sky sports premier league": "https://live20.bozztv.com/trn03/gin-skysportspl/index.m3u8",
-  "sky sports football": "https://live20.bozztv.com/trn03/gin-skysportsfootball/index.m3u8",
-  "sky sports cricket": "https://live20.bozztv.com/trn03/gin-skysportscricket/index.m3u8",
+  "sky one": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-skyshowcase/index.m3u8",
+  "sky sports main event": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-skysportsmainevent/index.m3u8",
+  "sky sports premier league": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-skysportspl/index.m3u8",
+  "sky sports football": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-skysportsfootball/index.m3u8",
+  "sky sports cricket": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-skysportscricket/index.m3u8",
   "sky sports f1": "", 
   "sky sports arena": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-skysportsarena/index.m3u8",
   "sky sports golf": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-skysportsgolf/index.m3u8",
   "sky sports action": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-skysportsaction/index.m3u8",
-  "sky showcase": "https://live20.bozztv.com/trn03/gin-skyshowcase/index.m3u8",
+  "sky showcase": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-skyshowcase/index.m3u8",
   "sky cinema premiere": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-skycinemapremier/index.m3u8",
   "sky cinema action": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-skycinemaaction/index.m3u8",
-  "sky news": "https://skynews2-plutolive-vo.akamaized.net/playlist.m3u8",
-  "gb news": "https://gbnews-live.rakuten.tv/v1/master.m3u8",
-  "talktv": "https://live-talktv.uksse.wurl.tv/playlist.m3u8",
-  "bloomberg tv": "https://live.bloomberg.com/kinesis/us-live.m3u8",
-  "trt world": "https://trtworld.ios.bund.cpl.delvenetworks.com/playlist.m3u8",
-  "tnt sports 1": "https://live20.bozztv.com/trn03/gin-tntsports1/index.m3u8",
-  "tnt sports 2": "https://live20.bozztv.com/trn03/gin-tntsports2/index.m3u8",
-  "tnt sports 3": "https://live20.bozztv.com/trn03/gin-tntsports3/index.m3u8",
-  "tnt sports 4": "https://live20.bozztv.com/trn03/gin-tntsports4/index.m3u8",
-  // Geo-Lock Override Channels Routed via media-god1.leepeterss85.workers.dev
+  "sky news": "https://media-god1.leepeterss85.workers.dev/?url=https://skynews2-plutolive-vo.akamaized.net/playlist.m3u8",
+  "gb news": "https://media-god1.leepeterss85.workers.dev/?url=https://gbnews-live.rakuten.tv/v1/master.m3u8",
+  "talktv": "https://media-god1.leepeterss85.workers.dev/?url=https://live-talktv.uksse.wurl.tv/playlist.m3u8",
+  "bloomberg tv": "https://media-god1.leepeterss85.workers.dev/?url=https://live.bloomberg.com/kinesis/us-live.m3u8",
+  "trt world": "https://media-god1.leepeterss85.workers.dev/?url=https://trtworld.ios.bund.cpl.delvenetworks.com/playlist.m3u8",
+  "tnt sports 1": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-tntsports1/index.m3u8",
+  "tnt sports 2": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-tntsports2/index.m3u8",
+  "tnt sports 3": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-tntsports3/index.m3u8",
+  "tnt sports 4": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-tntsports4/index.m3u8",
+  // Core UK Broadcaster Overrides Routed via Worker Proxy
   "bbc one": "https://media-god1.leepeterss85.workers.dev/?url=https://vs-hls-push-uk-live.akamaized.net/x=4/i=live-ebg/master.m3u8",
   "bbc one hd": "https://media-god1.leepeterss85.workers.dev/?url=https://vs-hls-push-uk-live.akamaized.net/x=4/i=live-ebg/master.m3u8",
   "bbc two": "https://media-god1.leepeterss85.workers.dev/?url=https://vs-hls-push-uk-live.akamaized.net/x=4/i=live-ebg/master.m3u8",
@@ -687,14 +688,21 @@ export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
     }
     if (line.startsWith("#")) continue;
 
-    const url = line;
+    let url = line;
+    // Automatically force UK-oriented or geo-locked streams through your Cloudflare Worker proxy
+    if (/^(?:http|https):\/\//i.test(url) && !url.includes("media-god1.leepeterss85.workers.dev")) {
+      if (source.id === "nimeyer-uk-list" || source.id.includes("uk") || source.id.includes("gigoplast") || current.geoRestricted || looksLikeUkFeed(current)) {
+        url = `https://media-god1.leepeterss85.workers.dev/?url=${encodeURIComponent(url)}`;
+      }
+    }
+
     current.url = url;
     current.kind = classifyUrl(url);
     current.insecure = /^http:\/\//i.test(url);
     current.mixedContent = isMixedContentUrl(url);
     current.requiresHeaders = Boolean(current.referrer || current.userAgent);
     current.geoAvailableHere = current.geoRestricted && LIVE_TV_REGION === "GB" && looksLikeUkFeed(current);
-    current.geoBlocked = current.geoRestricted && !current.geoAvailableHere;
+    current.geoBlocked = false; // Bypassed via worker proxy routing
     current.tags = inferTags({
       sourceCategory: current.sourceCategory,
       group: current.group,
@@ -842,7 +850,7 @@ export async function getFreeTvChannels(options = {}) {
       const ukA = (a?.tags || []).includes("United Kingdom") ? 1 : 0;
       const ukB = (b?.tags || []).includes("United Kingdom") ? 1 : 0;
       if (ukA !== ukB) return ukB - ukA;
-      return Number(b?.score || 0) - Number(a?.score || 0);
+      return Number(b?.score || 0) - Number(b?.score || 0);
     });
 
     const payload = { channels, sourceStatus, rawCount, browserRejectedCount, region: LIVE_TV_REGION, fetchedAt: now };
