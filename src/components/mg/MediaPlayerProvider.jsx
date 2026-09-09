@@ -2204,6 +2204,48 @@ export function PlayerProvider({
         setSource(
           null
         );
+
+        /*
+         * VideoPlayer is rendered by this core provider, so its Exit/Back
+         * button calls this close routine directly. Always clear the shared
+         * player signals here as well as in the enhanced wrapper; otherwise
+         * Fire TV can keep thinking playback is open after the portal has
+         * disappeared, which leaves the navigation hidden and can poison the
+         * next playback attempt.
+         */
+        if (typeof window !== "undefined") {
+          window.__MG_PLAYER_CONTEXT__ = null;
+
+          if (typeof document !== "undefined") {
+            document.documentElement.classList.remove(
+              "mg-fire-tv-player-open"
+            );
+            document.body?.classList.remove(
+              "mg-fire-tv-player-open"
+            );
+
+            const focused = document.activeElement;
+            if (focused instanceof HTMLElement) {
+              focused.blur?.();
+            }
+          }
+
+          window.dispatchEvent(
+            new CustomEvent("mg:player-context", {
+              detail: {},
+            })
+          );
+
+          window.dispatchEvent(
+            new CustomEvent("mg:player-visibility", {
+              detail: { open: false },
+            })
+          );
+
+          window.dispatchEvent(
+            new CustomEvent("mg:core-player-closed")
+          );
+        }
       },
       []
     );
