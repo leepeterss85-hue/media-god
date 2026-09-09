@@ -440,9 +440,9 @@ body.mg-fire-tv-stable [data-mg-tv-show-genres="true"] {
   display: none !important;
 }
 
-body.mg-fire-tv [data-mg-tv-shows-view="true"] > div:nth-child(2),
-body.mg-fire-tv-mode [data-mg-tv-shows-view="true"] > div:nth-child(2),
-body.mg-fire-tv-stable [data-mg-tv-shows-view="true"] > div:nth-child(2) {
+body.mg-fire-tv [data-mg-tv-shows-controls="true"],
+body.mg-fire-tv-mode [data-mg-tv-shows-controls="true"],
+body.mg-fire-tv-stable [data-mg-tv-shows-controls="true"] {
   gap: 7px !important;
   margin-bottom: 10px !important;
 }
