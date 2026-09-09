@@ -254,12 +254,54 @@ const qualityLabel = (channel) => {
   return "";
 };
 
+const LEGACY_LIVE_TV_PROXY_HOST =
+  "media-god1.leepeterss85.workers.dev";
+
+const unwrapLegacyLiveTvProxyUrl = (value) => {
+  const url = String(value || "").trim();
+  if (!url) return "";
+
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname.toLowerCase() !== LEGACY_LIVE_TV_PROXY_HOST) {
+      return url;
+    }
+
+    const target = String(parsed.searchParams.get("url") || "").trim();
+    return /^https?:\/\//i.test(target) ? target : url;
+  } catch {
+    return url;
+  }
+};
+
+const isLegacyLiveTvProxyUrl = (value) => {
+  try {
+    const parsed = new URL(String(value || "").trim());
+    return (
+      parsed.hostname.toLowerCase() === LEGACY_LIVE_TV_PROXY_HOST &&
+      /^https?:\/\//i.test(String(parsed.searchParams.get("url") || ""))
+    );
+  } catch {
+    return false;
+  }
+};
+
 const playableChannelCandidates = (channel) => {
-  const nativeFireTv = isNativeFireTvPlayerAvailable();
+  const nativeAndroid = isNativeFireTvPlayerAvailable();
 
   return [channel, ...(channel?.alternatives || [])]
     .filter((candidate) => {
       if (candidate?.kind !== "direct" || !candidate?.url) {
+        return false;
+      }
+
+      /*
+       * The old Media God workers.dev URL now serves the Base44 HTML shell,
+       * not a media proxy. Browser playback must not be sent to that page.
+       * Native Android builds can bypass it safely and give Media3 the real
+       * upstream URL instead.
+       */
+      if (!nativeAndroid && isLegacyLiveTvProxyUrl(candidate.url)) {
         return false;
       }
 
@@ -268,25 +310,41 @@ const playableChannelCandidates = (channel) => {
       }
 
       /*
-       * The dedicated Fire TV build plays through native Media3, not Chromium.
+       * Fire TV and Android Mobile play through native Media3, not Chromium.
        * Keep HTTP, DASH, header-required and other device-only candidates that
        * a browser correctly rejected. Media3 gets the final decoder/network
-       * decision and normal web/mobile users never see these extra candidates.
+       * decision while normal browser users never see these extra candidates.
        */
       return (
-        nativeFireTv &&
+        nativeAndroid &&
         /^https?:\/\//i.test(String(candidate.url || ""))
       );
     })
-    .map((candidate, index) => ({
-      candidate,
-      index,
-      score:
-        liveTvUrlScore(candidate.url) +
-        Number(candidate?.sourcePriority || 0) * 30 +
-        Number(candidate?.quality || 0) * 2 +
-        (index === 0 ? 900 : 0),
-    }))
+    .map((candidate, index) => {
+      const playbackUrl = nativeAndroid
+        ? unwrapLegacyLiveTvProxyUrl(candidate.url)
+        : String(candidate.url || "").trim();
+
+      const playbackCandidate =
+        playbackUrl && playbackUrl !== candidate.url
+          ? {
+              ...candidate,
+              url: playbackUrl,
+              src: playbackUrl,
+              legacyProxyBypassed: true,
+            }
+          : candidate;
+
+      return {
+        candidate: playbackCandidate,
+        index,
+        score:
+          liveTvUrlScore(playbackUrl || candidate.url) +
+          Number(candidate?.sourcePriority || 0) * 30 +
+          Number(candidate?.quality || 0) * 2 +
+          (index === 0 ? 900 : 0),
+      };
+    })
     .sort((a, b) => b.score - a.score || a.index - b.index)
     .map(({ candidate }) => candidate);
 };
