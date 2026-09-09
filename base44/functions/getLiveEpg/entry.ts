@@ -115,7 +115,18 @@ const channelNames = (xml) => {
 };
 
 const findGuideId = (target, lookup) => {
+  const country = clean(target?.country).toUpperCase();
   const tvgId = clean(target?.tvgId);
+
+  /*
+   * This function uses a UK-only XMLTV feed. Never attach that guide to a
+   * channel explicitly identified as another country; global Live TV sources
+   * often reuse similar channel names and would otherwise receive unrelated UK
+   * programmes.
+   */
+  if (country && country !== "GB" && country !== "UK") {
+    return "";
+  }
 
   if (tvgId && lookup.byId.has(tvgId)) {
     return tvgId;
@@ -131,19 +142,12 @@ const findGuideId = (target, lookup) => {
     return lookup.byName.get(name);
   }
 
-  if (name) {
-    for (const [guideName, id] of lookup.byName.entries()) {
-      if (
-        guideName.length >= 4 &&
-        (guideName === name ||
-          guideName.startsWith(`${name} `) ||
-          name.startsWith(`${guideName} `))
-      ) {
-        return id;
-      }
-    }
-  }
-
+  /*
+   * Do not use prefix/substring matching here. A loose match such as one guide
+   * name starting with another can assign the same programme schedule to an
+   * unrelated channel. Exact normalised IDs/names are intentionally preferred
+   * over showing confident-looking but incorrect Now/Next information.
+   */
   return "";
 };
 
@@ -175,12 +179,19 @@ export default async function (req) {
     const lookup = channelNames(xml);
     const guideIdByClientKey = new Map();
     const wantedGuideIds = new Set();
+    const usedGuideIds = new Set();
 
     targets.forEach((target, index) => {
       const clientKey = clean(target?.key) || String(index);
       const guideId = findGuideId(target, lookup);
 
-      if (guideId) {
+      /*
+       * One XMLTV channel may describe only one visible Live TV row in this
+       * request. This prevents a guide-key collision from painting the same
+       * programme title across multiple unrelated channel cards.
+       */
+      if (guideId && !usedGuideIds.has(guideId)) {
+        usedGuideIds.add(guideId);
         guideIdByClientKey.set(clientKey, guideId);
         wantedGuideIds.add(guideId);
       }
