@@ -1,4 +1,4 @@
-package com.mediagod.firetv
+package com.mediagod.mobile
 
 import android.annotation.SuppressLint
 import android.app.Activity
@@ -8,8 +8,6 @@ import android.media.MediaCodecList
 import android.net.Uri
 import android.os.Bundle
 import android.view.KeyEvent
-import android.view.View
-import android.view.WindowManager
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
@@ -35,18 +33,10 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        window.setFlags(
-            WindowManager.LayoutParams.FLAG_FULLSCREEN,
-            WindowManager.LayoutParams.FLAG_FULLSCREEN
-        )
-        enterImmersiveMode()
-
         webView = WebView(this).apply {
             setBackgroundColor(Color.BLACK)
             isFocusable = true
             isFocusableInTouchMode = true
-            setOnLongClickListener { true }
-
             settings.apply {
                 javaScriptEnabled = true
                 domStorageEnabled = true
@@ -60,14 +50,14 @@ class MainActivity : Activity() {
                 setSupportZoom(false)
                 mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
                 userAgentString =
-                    "${userAgentString} MediaGodFireTV/1.0 AmazonWebAppPlatform FireTV"
+                    "${userAgentString} MediaGodMobile/1.0 AndroidMobile"
             }
 
             webChromeClient = WebChromeClient()
             webViewClient = object : WebViewClient() {
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
-                    injectFireTvBootstrap()
+                    injectMobileBootstrap()
                     requestFocus()
                 }
             }
@@ -84,7 +74,7 @@ class MainActivity : Activity() {
 
         appUpdater = AppUpdater(this) { detail ->
             dispatchJavascript(
-                "window.dispatchEvent(new CustomEvent('mg:fire-tv-update-status',{detail:JSON.parse(${JSONObject.quote(detail.toString())})}));"
+                "window.dispatchEvent(new CustomEvent('mg:android-mobile-update-status',{detail:JSON.parse(${JSONObject.quote(detail.toString())})}));"
             )
         }
 
@@ -104,7 +94,6 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
-        enterImmersiveMode()
         webView.onResume()
         webView.resumeTimers()
         injectFireTvBootstrap()
@@ -140,13 +129,6 @@ class MainActivity : Activity() {
         super.onDestroy()
     }
 
-    override fun onWindowFocusChanged(hasFocus: Boolean) {
-        super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) {
-            enterImmersiveMode()
-        }
-    }
-
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
         if (keyCode == KeyEvent.KEYCODE_BACK) {
             val url = webView.url.orEmpty()
@@ -174,7 +156,7 @@ class MainActivity : Activity() {
         return super.onKeyDown(keyCode, event)
     }
 
-    @Deprecated("Deprecated in Android; retained for Fire OS compatibility")
+    @Deprecated("Deprecated in Android; retained for broad Android compatibility")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
 
@@ -206,7 +188,7 @@ class MainActivity : Activity() {
             "window.dispatchEvent(new CustomEvent('mg:native-player-result',{detail:JSON.parse(${JSONObject.quote(result.toString())})}));"
 
         /*
-         * Fire OS devices do not all order onActivityResult/onResume in the
+         * Android devices do not all order onActivityResult/onResume in the
          * same way. Dispatch now and also keep the same event queued for
          * onResume. If the immediate dispatch succeeds, the duplicate resume
          * event is harmless because the web player has already cleared the
@@ -217,18 +199,7 @@ class MainActivity : Activity() {
         dispatchJavascript(resultScript)
     }
 
-    private fun enterImmersiveMode() {
-        @Suppress("DEPRECATION")
-        window.decorView.systemUiVisibility =
-            View.SYSTEM_UI_FLAG_FULLSCREEN or
-                View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
-                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
-                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
-                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
-                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-    }
-
-    private fun injectFireTvBootstrap() {
+    private fun injectMobileBootstrap() {
         if (!::webView.isInitialized) return
 
         dispatchJavascript(
@@ -237,12 +208,14 @@ class MainActivity : Activity() {
               try {
                 var html=document.documentElement;
                 var body=document.body;
-                html.classList.add('mg-fire-tv','mg-fire-tv-stable','mg-tv-remote','mg-native-fire-tv');
-                if(body){body.classList.add('mg-fire-tv','mg-fire-tv-stable','mg-tv-remote','mg-native-fire-tv');}
+                var remove=['mg-fire-tv','mg-fire-tv-stable','mg-tv-remote','mg-native-fire-tv'];
+                remove.forEach(function(name){html.classList.remove(name);if(body){body.classList.remove(name);}});
+                html.classList.add('mg-android-mobile','mg-native-android-mobile','mg-touch-device');
+                if(body){body.classList.add('mg-android-mobile','mg-native-android-mobile','mg-touch-device');}
                 var meta=document.querySelector('meta[name="viewport"]');
                 if(!meta){meta=document.createElement('meta');meta.name='viewport';document.head.appendChild(meta);}
-                meta.setAttribute('content','width=960, height=540, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
-                window.dispatchEvent(new CustomEvent('mg:tv-remote-detected'));
+                meta.setAttribute('content','width=device-width, initial-scale=1.0, viewport-fit=cover');
+                window.dispatchEvent(new CustomEvent('mg:android-mobile-detected'));
               } catch(e) {}
             })();
             """.trimIndent()
@@ -271,11 +244,11 @@ class MainActivity : Activity() {
 
             return JSONObject().apply {
                 put("native", true)
-                put("platform", "fire-tv")
+                put("platform", "android-mobile")
                 put("widthDp", configuration.screenWidthDp)
                 put("heightDp", configuration.screenHeightDp)
-                put("logicalWidth", 960)
-                put("logicalHeight", 540)
+                put("logicalWidth", configuration.screenWidthDp)
+                put("logicalHeight", configuration.screenHeightDp)
             }.toString()
         }
 
@@ -283,7 +256,7 @@ class MainActivity : Activity() {
         fun getAppInfo(): String =
             JSONObject().apply {
                 put("native", true)
-                put("platform", "fire-tv")
+                put("platform", "android-mobile")
                 put("packageName", packageName)
                 put("versionCode", BuildConfig.VERSION_CODE)
                 put("versionName", BuildConfig.VERSION_NAME)
@@ -412,7 +385,7 @@ class MainActivity : Activity() {
                         put("reason", "error")
                         put("positionMs", 0)
                         put("durationMs", 0)
-                        put("message", error.message ?: "Could not open Fire TV player")
+                        put("message", error.message ?: "Could not open Android player")
                     }
 
                     dispatchJavascript(
