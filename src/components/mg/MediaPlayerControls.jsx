@@ -1660,7 +1660,9 @@ export default function MediaPlayerControls({
                         )
                           ? "Unavailable • "
                           : index === activeIdx
-                            ? "Playing • "
+                            ? playing
+                              ? "Playing • "
+                              : "Selected • "
                             : ""}
 
                         {sourceLabel(
