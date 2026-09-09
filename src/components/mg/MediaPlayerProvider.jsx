@@ -148,22 +148,28 @@ const reliabilityAdjustment = (item) => {
 
   let score = 0;
 
-  if (fresh(record.lastNoSound, 7 * 24 * 60 * 60 * 1000)) {
+  /*
+   * Reliability history is only a tie-breaker. A temporary backend/502
+   * failure must never poison an otherwise good 4K/1080p torrent for half a
+   * day. Genuine no-audio failures still carry a meaningful (but bounded)
+   * penalty so a proven working 1080p source can beat a broken 4K source.
+   */
+  if (fresh(record.lastNoSound, 6 * 60 * 60 * 1000)) {
     score -=
-      500000 +
-      Math.min(200000, Number(record.noSound || 0) * 25000);
+      18000 +
+      Math.min(12000, Number(record.noSound || 0) * 3000);
   }
 
-  if (fresh(record.lastFailure, 12 * 60 * 60 * 1000)) {
+  if (fresh(record.lastFailure, 20 * 60 * 1000)) {
     score -=
-      220000 +
-      Math.min(150000, Number(record.failures || 0) * 18000);
+      5000 +
+      Math.min(5000, Number(record.failures || 0) * 1000);
   }
 
-  if (fresh(record.lastBuffer, 48 * 60 * 60 * 1000)) {
+  if (fresh(record.lastBuffer, 6 * 60 * 60 * 1000)) {
     score -= Math.min(
-      36000,
-      Number(record.buffers || 0) * 4500
+      6000,
+      Number(record.buffers || 0) * 1500
     );
   }
 
@@ -400,6 +406,35 @@ const scoreSource = (item) => {
 
   const deviceProfile = getPlaybackDeviceProfile();
   const playbackPreferences = readPlaybackPreferences();
+
+  const qualityPreference = String(
+    playbackPreferences.quality || "Auto"
+  ).toLowerCase();
+
+  const preferredResolution =
+    qualityPreference === "4k" || qualityPreference === "2160p"
+      ? 2160
+      : Number.parseInt(qualityPreference, 10) || 0;
+
+  const resolutionPriority = preferredResolution
+    ? resolution === preferredResolution
+      ? 100000
+      : resolution > preferredResolution
+        ? 25000
+        : Math.max(
+            12000,
+            60000 - Math.abs(preferredResolution - resolution) * 20
+          )
+    : resolution >= 2160
+      ? 90000
+      : resolution >= 1080
+        ? 60000
+        : resolution >= 720
+          ? 25000
+          : resolution >= 480
+            ? 8000
+            : 0;
+
   const compatibilityScore = scoreSourceCompatibility(
     item,
     audioText,
@@ -435,6 +470,7 @@ const scoreSource = (item) => {
     compatibilityScore +
     reliabilityAdjustment(item) +
     deviceLearning +
+    resolutionPriority +
     resolution -
     foreignPenalty
   );
