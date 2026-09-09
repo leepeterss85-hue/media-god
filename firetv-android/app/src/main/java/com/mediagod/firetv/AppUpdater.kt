@@ -142,7 +142,11 @@ class AppUpdater(
                     throw IllegalStateException("Update download failed with HTTP $responseCode.")
                 }
 
-                val expectedBytes = connection!!.contentLengthLong.coerceAtLeast(0L)
+                val expectedBytes =
+                    connection!!.getHeaderField("Content-Length")
+                        ?.toLongOrNull()
+                        ?.coerceAtLeast(0L)
+                        ?: 0L
                 var copied = 0L
                 var lastPublishedProgress = -1
 
