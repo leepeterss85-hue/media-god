@@ -2983,10 +2983,25 @@ export default function VideoPlayer({
 
       if (
         reason === "back" &&
-        forceNativePlayback &&
         !isLive
       ) {
+        /*
+         * Return to Media God's source/torrent selector without immediately
+         * sending the same URL back to Media3 and without asking WebView to
+         * decode it. Choosing another source/file clears this URL lock; the
+         * Resume button below clears it explicitly for the current source.
+         */
         setForceNativePlayback(false);
+        setNativeFallbackUrl(String(activeRequest.url || "").trim());
+
+        window.dispatchEvent(
+          new CustomEvent("mg:player-status", {
+            detail: {
+              message:
+                "Playback paused — choose another source/file or resume in the Fire TV player.",
+            },
+          })
+        );
         return;
       }
 
