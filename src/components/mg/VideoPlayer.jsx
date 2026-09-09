@@ -3791,6 +3791,32 @@ export default function VideoPlayer({
                 Loading…
               </p>
             </div>
+          ) : fireTvNativeSelectorMode ? (
+            <div
+              data-mg-native-fire-tv-selector="true"
+              className="flex flex-col items-center gap-3 p-6 text-center"
+            >
+              <Tv className="h-9 w-9 text-mg-green" />
+
+              <p className="text-white/85 text-sm font-semibold">
+                Fire TV playback paused
+              </p>
+
+              <p className="max-w-md text-white/50 text-xs">
+                Use the source and torrent-file selectors below, or resume the current source in the native Fire TV player.
+              </p>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setNativeFallbackUrl("");
+                  setForceNativePlayback(true);
+                }}
+                className="mt-1 min-h-10 rounded-lg bg-mg-green px-4 text-xs font-bold text-black focus:outline-none focus:ring-2 focus:ring-white/70"
+              >
+                Resume Fire TV playback
+              </button>
+            </div>
           ) : useNativePlayback ? (
             <div
               data-mg-native-fire-tv-player="true"
