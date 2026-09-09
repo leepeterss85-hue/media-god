@@ -420,24 +420,16 @@ body.mg-fire-tv-mode [data-mg-player-controls-bottom="true"] {
   background: linear-gradient(to top, rgba(0, 0, 0, 0.94), rgba(0, 0, 0, 0.56) 58%, transparent) !important;
 }
 
-body.mg-fire-tv [data-mg-player-controls-bottom="true"] select[aria-label="Playback speed"],
-body.mg-fire-tv-stable [data-mg-player-controls-bottom="true"] select[aria-label="Playback speed"],
-body.mg-fire-tv-mode [data-mg-player-controls-bottom="true"] select[aria-label="Playback speed"],
-body.mg-fire-tv [data-mg-player-controls-bottom="true"] button[aria-label="Subtitles"],
-body.mg-fire-tv-stable [data-mg-player-controls-bottom="true"] button[aria-label="Subtitles"],
-body.mg-fire-tv-mode [data-mg-player-controls-bottom="true"] button[aria-label="Subtitles"],
-body.mg-fire-tv [data-mg-player-controls-bottom="true"] button[aria-label="Audio track"],
-body.mg-fire-tv-stable [data-mg-player-controls-bottom="true"] button[aria-label="Audio track"],
-body.mg-fire-tv-mode [data-mg-player-controls-bottom="true"] button[aria-label="Audio track"],
+/* The Fire TV app now keeps the same advanced media controls as the web
+ * player. The player already owns the full television, so only the redundant
+ * fullscreen toggle stays hidden. Speed, volume, subtitles and audio tracks
+ * remain visible and D-pad focusable. */
 body.mg-fire-tv [data-mg-player-controls-bottom="true"] button[aria-label="Fullscreen"],
 body.mg-fire-tv-stable [data-mg-player-controls-bottom="true"] button[aria-label="Fullscreen"],
 body.mg-fire-tv-mode [data-mg-player-controls-bottom="true"] button[aria-label="Fullscreen"],
 body.mg-fire-tv [data-mg-player-controls-bottom="true"] button[aria-label="Exit fullscreen"],
 body.mg-fire-tv-stable [data-mg-player-controls-bottom="true"] button[aria-label="Exit fullscreen"],
-body.mg-fire-tv-mode [data-mg-player-controls-bottom="true"] button[aria-label="Exit fullscreen"],
-body.mg-fire-tv [data-mg-player-controls-bottom="true"] input[aria-label="Volume"],
-body.mg-fire-tv-stable [data-mg-player-controls-bottom="true"] input[aria-label="Volume"],
-body.mg-fire-tv-mode [data-mg-player-controls-bottom="true"] input[aria-label="Volume"] {
+body.mg-fire-tv-mode [data-mg-player-controls-bottom="true"] button[aria-label="Exit fullscreen"] {
   display: none !important;
 }
 
@@ -460,14 +452,13 @@ body.mg-fire-tv-mode [data-mg-player-controls-bottom="true"] span {
   font-size: 12px !important;
 }
 
-/* Keep the Firestick playback surface intentionally simple.
- * Detailed track controls stay compact while the source/torrent options strip
- * remains available directly on the television.
- */
+/* Keep a real spacer between transport controls and the advanced controls so
+ * speed, subtitles and audio track menus are easy to reach with the remote. */
 body.mg-fire-tv [data-mg-player-controls-spacer="true"],
 body.mg-fire-tv-stable [data-mg-player-controls-spacer="true"],
 body.mg-fire-tv-mode [data-mg-player-controls-spacer="true"] {
-  display: none !important;
+  display: block !important;
+  flex: 1 1 auto !important;
 }
 
 body.mg-fire-tv [data-mg-player-seek-row="true"],
@@ -482,12 +473,12 @@ body.mg-fire-tv-mode [data-mg-player-seek-row="true"] {
 body.mg-fire-tv [data-mg-player-button-row="true"],
 body.mg-fire-tv-stable [data-mg-player-button-row="true"],
 body.mg-fire-tv-mode [data-mg-player-button-row="true"] {
-  width: fit-content !important;
+  width: min(860px, 90vw) !important;
   max-width: 90vw !important;
   margin-left: auto !important;
   margin-right: auto !important;
-  justify-content: center !important;
-  gap: 14px !important;
+  justify-content: flex-start !important;
+  gap: 12px !important;
 }
 
 body.mg-fire-tv [data-mg-player-button-row="true"] button:focus-visible,
