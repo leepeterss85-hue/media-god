@@ -245,6 +245,9 @@ export default function VideoPlayer({
   const [nativeFallbackUrl, setNativeFallbackUrl] =
     useState("");
 
+  const [forceNativePlayback, setForceNativePlayback] =
+    useState(false);
+
   const [
     failedSources,
     setFailedSources,
@@ -467,6 +470,8 @@ export default function VideoPlayer({
 
     setRdOverride(null);
     setRdFiles([]);
+    setForceNativePlayback(false);
+    setNativeFallbackUrl("");
     setActiveIdx(nextIndex);
 
     if (statusMessage) {
@@ -2793,10 +2798,21 @@ export default function VideoPlayer({
         ).trim()
       : "";
 
-  const useNativePlayback =
+  const nativePlaybackAvailable =
     nativeFireTvPlayer &&
     /^https?:\/\//i.test(nativePlaybackUrl) &&
     nativeFallbackUrl !== nativePlaybackUrl;
+
+  /*
+   * Keep the full Media God player UI for movies, episodes and torrents on
+   * Fire TV so source sorting, torrent-file selection, subtitles, audio and
+   * advanced controls stay available. Live TV still prefers Media3 because
+   * its codec/header support is materially better there. VOD can opt into
+   * Media3 with the Native decoder button when a difficult codec needs it.
+   */
+  const useNativePlayback =
+    nativePlaybackAvailable &&
+    (isLive || forceNativePlayback);
 
   useEffect(() => {
     if (!nativeFireTvPlayer) {
@@ -2887,6 +2903,7 @@ export default function VideoPlayer({
     nativeFireTvPlayer,
     isLive,
     rdOverride,
+    forceNativePlayback,
     onClose,
   ]);
 
@@ -4126,6 +4143,26 @@ export default function VideoPlayer({
                   )}
                 </select>
               </label>
+            )}
+
+          {nativePlaybackAvailable &&
+            !isLive &&
+            !forceNativePlayback && (
+              <button
+                type="button"
+                data-mg-native-decoder="true"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setForceNativePlayback(true);
+                }}
+                className="shrink-0 flex min-h-10 items-center gap-1.5 rounded-lg border border-white/10 bg-mg-card px-3 text-xs font-semibold text-white hover:border-mg-green/40 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-mg-green/50"
+                aria-label="Open native Fire TV decoder"
+                title="Use Media3 for difficult video or audio codecs"
+              >
+                <Tv className="h-4 w-4" />
+                <span>Native decoder</span>
+              </button>
             )}
 
           <button
