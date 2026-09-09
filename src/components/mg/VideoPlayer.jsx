@@ -20,6 +20,7 @@ import LiveVideo from "@/components/mg/LiveVideo";
 import PlayerControls from "@/components/mg/PlayerControls";
 import {
   isNativeFireTvPlayerAvailable,
+  nativeFireTvAppInfo,
   openNativeFireTvExternalUrl,
   playNativeFireTv,
 } from "@/components/mg/nativeFireTvBridge";
@@ -2879,6 +2880,20 @@ export default function VideoPlayer({
   const nativeFireTvPlayer =
     isNativeFireTvPlayerAvailable();
 
+  const nativeAppInfo =
+    nativeFireTvPlayer
+      ? nativeFireTvAppInfo()
+      : null;
+
+  const nativeMobileRuntime =
+    String(nativeAppInfo?.platform || "").toLowerCase() ===
+    "android-mobile";
+
+  const nativePlayerName =
+    nativeMobileRuntime
+      ? "Android"
+      : "Fire TV";
+
   const nativePlaybackUrl =
     nativeFireTvPlayer
       ? String(
@@ -2905,7 +2920,12 @@ export default function VideoPlayer({
    */
   const useNativePlayback =
     nativePlaybackAvailable &&
-    (isLive || forceNativePlayback || isFireTvRemoteRuntime());
+    (
+      isLive ||
+      forceNativePlayback ||
+      nativeMobileRuntime ||
+      isFireTvRemoteRuntime()
+    );
 
   const fireTvNativeSelectorMode =
     nativeFireTvPlayer &&
@@ -2978,7 +2998,7 @@ export default function VideoPlayer({
             detail: {
               message:
                 detail.message ||
-                "Fire TV native player could not play this source — trying a backup…",
+                `${nativePlayerName} native player could not play this source — trying a backup…`,
             },
           })
         );
@@ -3009,7 +3029,7 @@ export default function VideoPlayer({
           new CustomEvent("mg:player-status", {
             detail: {
               message:
-                "Playback paused — choose another source/file or resume in the Fire TV player.",
+                `Playback paused — choose another source/file or resume in the ${nativePlayerName} player.`,
             },
           })
         );
@@ -3035,6 +3055,7 @@ export default function VideoPlayer({
     isLive,
     rdOverride,
     forceNativePlayback,
+    nativePlayerName,
     onClose,
   ]);
 
@@ -3071,6 +3092,20 @@ export default function VideoPlayer({
       requestId,
       url: nativePlaybackUrl,
     };
+
+    try {
+      document
+        .querySelectorAll('[data-mg-player-root="true"] video, [data-mg-player-root="true"] audio')
+        .forEach((media) => {
+          try {
+            media.pause();
+          } catch {
+            // Native handoff still proceeds if a provider-owned element resists pause.
+          }
+        });
+    } catch {
+      // Best-effort duplicate-playback prevention.
+    }
 
     const started = playNativeFireTv({
       requestId,
@@ -3112,7 +3147,7 @@ export default function VideoPlayer({
         new CustomEvent("mg:player-status", {
           detail: {
             message:
-              "Fire TV player was busy or could not open — using the fallback player.",
+              `${nativePlayerName} player was busy or could not open — using the fallback player.`,
           },
         })
       );
@@ -3145,7 +3180,7 @@ export default function VideoPlayer({
         new CustomEvent("mg:player-status", {
           detail: {
             message:
-              "Fire TV player did not open correctly — switched to the fallback player.",
+              `${nativePlayerName} player did not open correctly — switched to the fallback player.`,
           },
         })
       );
@@ -3155,6 +3190,7 @@ export default function VideoPlayer({
     activeIdx,
     isLive,
     nativePlaybackUrl,
+    nativePlayerName,
     rdOverride,
     source,
     useNativePlayback,
@@ -3858,11 +3894,11 @@ export default function VideoPlayer({
               <Tv className="h-9 w-9 text-mg-green" />
 
               <p className="text-white/85 text-sm font-semibold">
-                Fire TV playback paused
+                {nativePlayerName} playback paused
               </p>
 
               <p className="max-w-md text-white/50 text-xs">
-                Use the source and torrent-file selectors below, or resume the current source in the native Fire TV player.
+                Use the source and torrent-file selectors below, or resume the current source in the native {nativePlayerName} player.
               </p>
 
               <button
@@ -3873,7 +3909,7 @@ export default function VideoPlayer({
                 }}
                 className="mt-1 min-h-10 rounded-lg bg-mg-green px-4 text-xs font-bold text-black focus:outline-none focus:ring-2 focus:ring-white/70"
               >
-                Resume Fire TV playback
+                Resume {nativePlayerName} playback
               </button>
             </div>
           ) : useNativePlayback ? (
@@ -3884,11 +3920,11 @@ export default function VideoPlayer({
               <Loader2 className="w-8 h-8 text-mg-green animate-spin" />
 
               <p className="text-white/80 text-sm font-semibold">
-                Opening Fire TV player…
+                Opening {nativePlayerName} player…
               </p>
 
               <p className="max-w-md text-white/45 text-xs">
-                Media God is handing this stream to the native Fire TV video engine.
+                Media God is handing this stream to the native {nativePlayerName} video engine.
               </p>
             </div>
           ) : rdOverride ? (
@@ -4363,8 +4399,8 @@ export default function VideoPlayer({
                   setForceNativePlayback(true);
                 }}
                 className="shrink-0 flex min-h-10 items-center gap-1.5 rounded-lg border border-white/10 bg-mg-card px-3 text-xs font-semibold text-white hover:border-mg-green/40 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-mg-green/50"
-                aria-label="Open native Fire TV decoder"
-                title="Use Media3 for difficult video or audio codecs"
+                aria-label={`Open native ${nativePlayerName} decoder`}
+                title={`Use the native ${nativePlayerName} Media3 decoder for difficult video or audio codecs`}
               >
                 <Tv className="h-4 w-4" />
                 <span>Native decoder</span>
