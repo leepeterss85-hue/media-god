@@ -483,14 +483,31 @@ export default function FireTvRemote() {
           : null;
       const currentTag = String(current?.tagName || "").toLowerCase();
 
+      const currentInsidePlayer =
+        player instanceof HTMLElement &&
+        current instanceof HTMLElement &&
+        player.contains(current);
+
       /*
-       * Native selects must receive Enter/Up/Down themselves on Fire TV.
-       * Preventing those keys stops the Android WebView from opening the
-       * source/file chooser or moving through its options.
+       * Player selects/sliders keep their native Fire OS handling so source,
+       * torrent file, subtitle and range controls can be adjusted normally.
+       * Catalogue filter selects are different: OK opens the Android chooser,
+       * but D-pad directions should move between the filters/cards instead of
+       * trapping focus inside one select forever.
        */
+      if (currentTag === "select") {
+        if (isSelectKey(event)) {
+          return;
+        }
+
+        if (currentInsidePlayer && direction) {
+          return;
+        }
+      }
+
       if (
-        currentTag === "select" ||
-        (currentTag === "input" && String(current?.type || "").toLowerCase() === "range")
+        currentTag === "input" &&
+        String(current?.type || "").toLowerCase() === "range"
       ) {
         if (direction || isSelectKey(event)) {
           return;
