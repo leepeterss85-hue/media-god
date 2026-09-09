@@ -1016,10 +1016,9 @@ export default async function (req) {
       body?.fastMode === true;
 
     const selectedAddons =
-      activeAddons.slice(
-        0,
-        fastMode ? 6 : 30
-      );
+      fastMode
+        ? activeAddons.slice(0, 6)
+        : activeAddons;
 
     const settled =
       await Promise.allSettled(
@@ -1047,9 +1046,6 @@ export default async function (req) {
               ? result.value.streams
               : []
         )
-      ).slice(
-        0,
-        80
       );
 
     const diagnostics =
