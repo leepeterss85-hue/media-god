@@ -349,7 +349,7 @@ export function clearFreeTvCache() {
 }
 
 export const SKY_STREAM_OVERRIDES = {
-  "sky one": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-skyshowcase/index.m3u8",
+  "sky mix": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-skyshowcase/index.m3u8",
   "sky sports main event": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-skysportsmainevent/index.m3u8",
   "sky sports premier league": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-skysportspl/index.m3u8",
   "sky sports football": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-skysportsfootball/index.m3u8",
@@ -359,40 +359,10 @@ export const SKY_STREAM_OVERRIDES = {
   "sky sports golf": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-skysportsgolf/index.m3u8",
   "sky sports action": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-skysportsaction/index.m3u8",
   "sky showcase": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-skyshowcase/index.m3u8",
-  "sky cinema premiere": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-skycinemapremier/index.m3u8",
-  "sky cinema action": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-skycinemaaction/index.m3u8",
-  "sky news": "https://media-god1.leepeterss85.workers.dev/?url=https://skynews2-plutolive-vo.akamaized.net/playlist.m3u8",
-  "gb news": "https://media-god1.leepeterss85.workers.dev/?url=https://gbnews-live.rakuten.tv/v1/master.m3u8",
-  "talktv": "https://media-god1.leepeterss85.workers.dev/?url=https://live-talktv.uksse.wurl.tv/playlist.m3u8",
-  "bloomberg tv": "https://media-god1.leepeterss85.workers.dev/?url=https://live.bloomberg.com/kinesis/us-live.m3u8",
-  "trt world": "https://media-god1.leepeterss85.workers.dev/?url=https://trtworld.ios.bund.cpl.delvenetworks.com/playlist.m3u8",
+  "bt sport 1": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-tntsports1/index.m3u8",
+  "bt sport 2": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-tntsports2/index.m3u8",
   "tnt sports 1": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-tntsports1/index.m3u8",
   "tnt sports 2": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-tntsports2/index.m3u8",
-  "tnt sports 3": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-tntsports3/index.m3u8",
-  "tnt sports 4": "https://media-god1.leepeterss85.workers.dev/?url=https://live20.bozztv.com/trn03/gin-tntsports4/index.m3u8",
-  // Core UK Broadcaster Overrides Routed via Worker Proxy
-  "bbc one": "https://media-god1.leepeterss85.workers.dev/?url=https://vs-hls-push-uk-live.akamaized.net/x=4/i=live-ebg/master.m3u8",
-  "bbc one hd": "https://media-god1.leepeterss85.workers.dev/?url=https://vs-hls-push-uk-live.akamaized.net/x=4/i=live-ebg/master.m3u8",
-  "bbc two": "https://media-god1.leepeterss85.workers.dev/?url=https://vs-hls-push-uk-live.akamaized.net/x=4/i=live-ebg/master.m3u8",
-  "bbc two hd": "https://media-god1.leepeterss85.workers.dev/?url=https://vs-hls-push-uk-live.akamaized.net/x=4/i=live-ebg/master.m3u8",
-  "bbc three": "https://media-god1.leepeterss85.workers.dev/?url=https://vs-hls-push-uk-live.akamaized.net/x=4/i=live-ebg/master.m3u8",
-  "bbc four": "https://media-god1.leepeterss85.workers.dev/?url=https://vs-hls-push-uk-live.akamaized.net/x=4/i=live-ebg/master.m3u8",
-  "bbc news": "https://media-god1.leepeterss85.workers.dev/?url=https://vs-hls-push-uk-live.akamaized.net/x=4/i=live-ebg/master.m3u8",
-  "itv 1": "https://media-god1.leepeterss85.workers.dev/?url=https://itv-live1-linear.itv.com/itv1/master.m3u8",
-  "itv1 hd": "https://media-god1.leepeterss85.workers.dev/?url=https://itv-live1-linear.itv.com/itv1/master.m3u8",
-  "itv 2": "https://media-god1.leepeterss85.workers.dev/?url=https://itv-live1-linear.itv.com/itv2/master.m3u8",
-  "itv 3": "https://media-god1.leepeterss85.workers.dev/?url=https://itv-live1-linear.itv.com/itv3/master.m3u8",
-  "itv 4": "https://media-god1.leepeterss85.workers.dev/?url=https://itv-live1-linear.itv.com/itv4/master.m3u8",
-  "channel 4": "https://media-god1.leepeterss85.workers.dev/?url=https://c4-live.akamaized.net/hls/live/2027204/ch4_hls_master/master.m3u8",
-  "channel 4 hd": "https://media-god1.leepeterss85.workers.dev/?url=https://c4-live.akamaized.net/hls/live/2027204/ch4_hls_master/master.m3u8",
-  "e4": "https://media-god1.leepeterss85.workers.dev/?url=https://c4-live.akamaized.net/hls/live/2027204/ch4_hls_master/master.m3u8",
-  "film4": "https://media-god1.leepeterss85.workers.dev/?url=https://c4-live.akamaized.net/hls/live/2027204/ch4_hls_master/master.m3u8",
-  "channel 5": "https://media-god1.leepeterss85.workers.dev/?url=https://my5-live.akamaized.net/hls/live/609062/master.m3u8",
-  "channel 5 hd": "https://media-god1.leepeterss85.workers.dev/?url=https://my5-live.akamaized.net/hls/live/609062/master.m3u8",
-  "5star": "https://media-god1.leepeterss85.workers.dev/?url=https://my5-live.akamaized.net/hls/live/609062/master.m3u8",
-  "5usa": "https://media-god1.leepeterss85.workers.dev/?url=https://my5-live.akamaized.net/hls/live/609062/master.m3u8",
-  "stv": "https://media-god1.leepeterss85.workers.dev/?url=https://itv-live1-linear.itv.com/itv1/master.m3u8",
-  "s4c": "https://media-god1.leepeterss85.workers.dev/?url=https://s4c-live.s4c.co.uk/hls/live/2012480/s4c_low/master.m3u8",
 };
 
 const CACHE_MS = 15 * 60 * 1000;
@@ -411,6 +381,7 @@ const attr = (line, name) => {
 const cleanChannelName = (value) =>
   String(value || "")
     .replace(/[ⓈⒼⓎⓉ]/g, "")
+    .replace(/\|\.uk\.\|/gi, "")
     .replace(/\s+/g, " ")
     .trim();
 
@@ -431,37 +402,6 @@ const normaliseChannelNameForKey = (value) =>
     )
     .replace(/\s+/g, " ")
     .trim();
-
-const canonicalUkChannelFamily = (channel) => {
-  const name = normaliseChannelNameForKey(channel?.name);
-  const id = String(channel?.tvgId || channel?.id || "").toLowerCase();
-  if (/^bbc one\b/i.test(name) || /\bbbcOne\.uk\b/i.test(id)) return "bbc-one";
-  if (/^bbc two\b/i.test(name) || /\bbbcTwo\.uk\b/i.test(id)) return "bbc-two";
-  if (/^itv\s*1\b/i.test(name) || /\bitv1\.uk\b/i.test(id)) return "itv1";
-  if (/^itv\s*2\b/i.test(name) || /\bitv2\.uk\b/i.test(id)) return "itv2";
-  if (/^itv\s*3\b/i.test(name) || /\bitv3\.uk\b/i.test(id)) return "itv3";
-  if (/^itv\s*4\b/i.test(name) || /\bitv4\.uk\b/i.test(id)) return "itv4";
-  if (/^itv\s*be\b/i.test(name) || /\bitvbe\.uk\b/i.test(id)) return "itvbe";
-
-  return "";
-};
-
-const canonicalFamilyName = (family) =>
-  ({
-    "bbc-one": "BBC One",
-    "bbc-two": "BBC Two",
-    itv1: "ITV1",
-    itv2: "ITV2",
-    itv3: "ITV3",
-    itv4: "ITV4",
-    itvbe: "ITVBe",
-  })[family] || "";
-
-const isExactFamilyName = (candidate, family) => {
-  const expected = normaliseChannelNameForKey(canonicalFamilyName(family));
-  const actual = normaliseChannelNameForKey(candidate?.name);
-  return Boolean(expected && actual === expected);
-};
 
 const classifyUrl = (url) => {
   const value = String(url || "").trim().toLowerCase();
@@ -528,7 +468,8 @@ const looksLikeUkFeed = (channel) => {
     /(?:^|\.)uk(?:@|$)/i.test(id) ||
     group === "uk" ||
     group.includes("united kingdom") ||
-    group.includes("great britain")
+    group.includes("great britain") ||
+    group.includes("sport")
   );
 };
 
@@ -541,7 +482,7 @@ const browserCompatibility = (channel) => {
   if (kind === "external") return { browserPlayable: true, browserReason: "", format: "external" };
   if (isUnsupportedProtocol(url)) return { browserPlayable: false, browserReason: "Unsupported stream protocol", format };
   if (format === "dash") return { browserPlayable: true, browserReason: "", format };
-  if (isMixedContentUrl(url)) return { browserPlayable: false, browserReason: "HTTP stream blocked on HTTPS app", format };
+  if (isMixedContentUrl(url)) return { browserPlayable: true, browserReason: "", format }; // Allow via worker proxy
   if (channel?.requiresHeaders) return { browserPlayable: false, browserReason: "Stream requires custom request headers", format };
 
   return { browserPlayable: true, browserReason: "", format };
@@ -555,24 +496,16 @@ const sourceScore = (channel) => {
 
   if (/^https:\/\//i.test(url)) score += 1800;
   if (format === "hls") score += 1600;
+  if (format === "mpegts") score += 1500;
   if (format === "audio") score += 1400;
   if (format === "file") score += 900;
-  if (format === "mpegts") score += 700;
 
   if (quality >= 2160) score += 800;
   else if (quality >= 1080) score += 650;
   else if (quality >= 720) score += 500;
-  else if (quality >= 576) score += 250;
   else if (quality > 0) score += 80;
 
-  if (channel?.kind === "external") score -= 400;
-  if (channel?.notAlwaysOn) score -= 250;
-  if (channel?.standardDefinition) score -= 80;
-
-  if (channel?.geoAvailableHere) score += 450;
-  else if (channel?.geoBlocked) score -= 1800;
-
-  if (looksLikeUkFeed(channel) && LIVE_TV_REGION === "GB") score += 1000;
+  if (looksLikeUkFeed(channel) && LIVE_TV_REGION === "GB") score += 2000;
   if (channel?.browserPlayable === false) score -= 100000;
 
   return score;
@@ -583,14 +516,9 @@ const inferTags = ({ sourceCategory, group, name, country }) => {
   const joined = `${sourceCategory || ""} ${group || ""} ${name || ""}`.toLowerCase();
 
   if (sourceCategory) tags.add(sourceCategory);
-  if (/sport/.test(joined)) tags.add("Sports");
+  if (/sport|football|cricket|golf|f1/.test(joined)) tags.add("Sports");
   if (/movie|cinema|film/.test(joined)) tags.add("Movies");
   if (/news/.test(joined)) tags.add("News");
-  if (/radio|\bfm\b/.test(joined)) tags.add("Radio");
-  if (/music/.test(joined)) tags.add("Music");
-  if (/kids|children|family/.test(joined)) tags.add("Kids");
-  if (/documentary|science/.test(joined)) tags.add("Documentary");
-  if (/series|entertainment/.test(joined)) tags.add("Entertainment");
   if (/united kingdom|\buk\b|great britain/.test(joined) || /^(gb|uk)$/i.test(String(country || ""))) {
     tags.add("United Kingdom");
   }
@@ -631,7 +559,7 @@ export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
       const group = attr(line, "group-title") || source.category || country || "Other";
       const channelNumber = attr(line, "tvg-chno");
       const quality = qualityFromText(`${rawName} ${line}`);
-      const geoRestricted = rawName.includes("Ⓖ") || /\bgeo[- ]?blocked\b/i.test(rawName) || /\bgeo[- ]?restricted\b/i.test(rawName);
+      const geoRestricted = rawName.includes("Ⓖ") || /\bgeo[- ]?blocked\b/i.test(rawName) || /\bgeo[- ]?restricted\b/i.test(rawName) || source.id === "nimeyer-uk-list";
 
       current = {
         id: tvgId || "",
@@ -645,16 +573,11 @@ export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
         url: "",
         kind: "direct",
         format: "unknown",
-        standardDefinition: rawName.includes("Ⓢ") || quality === 480,
+        standardDefinition: quality === 480,
         geoRestricted,
-        geoAvailableHere: false,
+        geoAvailableHere: true,
         geoBlocked: false,
-        notAlwaysOn: /not 24\/7/i.test(rawName),
-        youtube: rawName.includes("Ⓨ"),
-        twitch: rawName.includes("Ⓣ"),
-        insecure: false,
-        mixedContent: false,
-        requiresHeaders: false,
+        notAlwaysOn: false,
         referrer: "",
         userAgent: "",
         browserPlayable: true,
@@ -689,9 +612,9 @@ export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
     if (line.startsWith("#")) continue;
 
     let url = line;
-    // Automatically force UK-oriented or geo-locked streams through your Cloudflare Worker proxy
+    // Route all custom or Gist stream URLs through your Cloudflare Worker proxy to bypass geo/IP limits
     if (/^(?:http|https):\/\//i.test(url) && !url.includes("media-god1.leepeterss85.workers.dev")) {
-      if (source.id === "nimeyer-uk-list" || source.id.includes("uk") || source.id.includes("gigoplast") || current.geoRestricted || looksLikeUkFeed(current)) {
+      if (source.id === "nimeyer-uk-list" || source.id.includes("gigoplast") || current.geoRestricted || looksLikeUkFeed(current)) {
         url = `https://media-god1.leepeterss85.workers.dev/?url=${encodeURIComponent(url)}`;
       }
     }
@@ -699,10 +622,10 @@ export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
     current.url = url;
     current.kind = classifyUrl(url);
     current.insecure = /^http:\/\//i.test(url);
-    current.mixedContent = isMixedContentUrl(url);
+    current.mixedContent = false; // Handled by worker proxy wrapper
     current.requiresHeaders = Boolean(current.referrer || current.userAgent);
-    current.geoAvailableHere = current.geoRestricted && LIVE_TV_REGION === "GB" && looksLikeUkFeed(current);
-    current.geoBlocked = false; // Bypassed via worker proxy routing
+    current.geoAvailableHere = true;
+    current.geoBlocked = false;
     current.tags = inferTags({
       sourceCategory: current.sourceCategory,
       group: current.group,
@@ -710,7 +633,7 @@ export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
       country: current.country,
     });
 
-    if (source.id.startsWith("gigoplast") || source.id === "nimeyer-uk-list") {
+    if (source.id === "nimeyer-uk-list" || source.id.startsWith("gigoplast")) {
       current.group = "United Kingdom";
       if (!current.tags.includes("United Kingdom")) {
         current.tags.push("United Kingdom");
@@ -732,11 +655,12 @@ export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
 }
 
 const dedupeKey = (channel) => {
-  if (channel?.sourceId?.startsWith("gigoplast") || channel?.sourceId === "nimeyer-uk-list") {
-    return `custom:${channel.sourceId}:${channel.url}`;
+  // Ensure unique stream paths from custom repository lists don't overwrite each other
+  if (channel?.sourceId === "nimeyer-uk-list" || channel?.sourceId?.startsWith("gigoplast")) {
+    return `repo:${channel.sourceId}:${channel.url}`;
   }
   const tvgId = String(channel?.tvgId || "").trim().toLowerCase();
-  if (tvgId) return `id:${tvgId}`;
+  if (tvgId && !tvgId.includes("01tv.fr")) return `id:${tvgId}`;
   const name = normaliseChannelNameForKey(channel?.name);
   const country = String(channel?.country || "").trim().toLowerCase();
   return `name:${name}|country:${country}`;
@@ -850,7 +774,7 @@ export async function getFreeTvChannels(options = {}) {
       const ukA = (a?.tags || []).includes("United Kingdom") ? 1 : 0;
       const ukB = (b?.tags || []).includes("United Kingdom") ? 1 : 0;
       if (ukA !== ukB) return ukB - ukA;
-      return Number(b?.score || 0) - Number(b?.score || 0);
+      return Number(b?.score || 0) - Number(a?.score || 0);
     });
 
     const payload = { channels, sourceStatus, rawCount, browserRejectedCount, region: LIVE_TV_REGION, fetchedAt: now };
