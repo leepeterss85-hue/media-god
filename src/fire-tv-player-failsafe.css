@@ -86,11 +86,40 @@ body.mg-fire-tv-mode [data-mg-player-root="true"] > div > div:nth-child(2) {
   z-index: 2147483645 !important;
 }
 
-/* True in-app fullscreen is picture-first on Fire TV. The catalogue player
- * chrome stays available before fullscreen, but the title/Exit bar and the
- * source/torrent/Fix-audio options box must disappear once fullscreen is
- * entered. MediaPlayerControls can then reveal only the transport/advanced
- * controls on demand and auto-hide them again over the video. */
+/* Fire TV player chrome follows the same auto-hide state as the transport
+ * controls. While a film is playing, the title/Exit row, source/torrent box
+ * and QR helper disappear after a short delay in both normal player mode and
+ * fullscreen. Any D-pad/OK/media-key interaction wakes the controls again. */
+body.mg-fire-tv [data-mg-player-root="true"][data-mg-controls-visible="false"] [data-mg-player-topbar="true"],
+body.mg-fire-tv-stable [data-mg-player-root="true"][data-mg-controls-visible="false"] [data-mg-player-topbar="true"],
+body.mg-fire-tv-mode [data-mg-player-root="true"][data-mg-controls-visible="false"] [data-mg-player-topbar="true"],
+body.mg-fire-tv [data-mg-player-root="true"][data-mg-controls-visible="false"] [data-mg-player-options-panel="true"],
+body.mg-fire-tv-stable [data-mg-player-root="true"][data-mg-controls-visible="false"] [data-mg-player-options-panel="true"],
+body.mg-fire-tv-mode [data-mg-player-root="true"][data-mg-controls-visible="false"] [data-mg-player-options-panel="true"],
+body.mg-fire-tv [data-mg-player-root="true"][data-mg-controls-visible="false"] [data-mg-player-qr="true"],
+body.mg-fire-tv-stable [data-mg-player-root="true"][data-mg-controls-visible="false"] [data-mg-player-qr="true"],
+body.mg-fire-tv-mode [data-mg-player-root="true"][data-mg-controls-visible="false"] [data-mg-player-qr="true"] {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+body.mg-fire-tv [data-mg-player-topbar="true"],
+body.mg-fire-tv-stable [data-mg-player-topbar="true"],
+body.mg-fire-tv-mode [data-mg-player-topbar="true"],
+body.mg-fire-tv [data-mg-player-options-panel="true"],
+body.mg-fire-tv-stable [data-mg-player-options-panel="true"],
+body.mg-fire-tv-mode [data-mg-player-options-panel="true"],
+body.mg-fire-tv [data-mg-player-qr="true"],
+body.mg-fire-tv-stable [data-mg-player-qr="true"],
+body.mg-fire-tv-mode [data-mg-player-qr="true"] {
+  transition: opacity 180ms ease, visibility 180ms ease !important;
+}
+
+/* True in-app fullscreen is picture-first on Fire TV. The title/Exit bar and
+ * source/torrent/Fix-audio options remain completely absent in fullscreen;
+ * the lower transport/advanced controls can still be revealed with the
+ * remote and auto-hide again. */
 body.mg-fire-tv [data-mg-player-root="true"][data-mg-player-fullscreen="true"] [data-mg-player-topbar="true"],
 body.mg-fire-tv-stable [data-mg-player-root="true"][data-mg-player-fullscreen="true"] [data-mg-player-topbar="true"],
 body.mg-fire-tv-mode [data-mg-player-root="true"][data-mg-player-fullscreen="true"] [data-mg-player-topbar="true"],
