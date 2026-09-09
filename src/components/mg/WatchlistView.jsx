@@ -47,14 +47,14 @@ export default function WatchlistView() {
   };
 
   return (
-    <div className="p-4 md:p-6">
+    <div data-mg-library-view="true" data-mg-watchlist-view="true" className="p-4 md:p-6">
       <h1 className="text-xl font-bold text-white mb-1">Watchlist</h1>
       <p className="text-sm text-white/50 mb-6">
         {items.length} saved {items.length === 1 ? "title" : "titles"}
       </p>
 
       {loading ? (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+        <div data-mg-library-grid="true" className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="aspect-[2/3] bg-mg-card rounded-md animate-pulse" />
           ))}
@@ -67,9 +67,9 @@ export default function WatchlistView() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+        <div data-mg-library-grid="true" className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
           {items.map((m) => (
-            <div key={m.id} className="group">
+            <div key={m.id} data-mg-watchlist-card="true" className="mg-fire-tv-library-card group">
               <div className="relative aspect-[2/3] rounded-md overflow-hidden border border-white/10 bg-mg-card">
                 <Image
                   src={m.poster_url}
@@ -77,22 +77,26 @@ export default function WatchlistView() {
                   className="w-full h-full object-cover"
                   fittingType="fill"
                 />
-                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                  <button
-                    onClick={() => playItem(m)}
-                    className="w-9 h-9 rounded-full bg-mg-green text-black flex items-center justify-center"
-                    title="Play"
-                  >
-                    <Play className="w-4 h-4 fill-black" />
-                  </button>
-                  <button
-                    onClick={() => remove(m)}
-                    className="w-9 h-9 rounded-full bg-red-600 text-white flex items-center justify-center"
-                    title="Remove"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => playItem(m)}
+                  className="mg-hover-action absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity"
+                  aria-label={`Play ${m.title}`}
+                  title="Play"
+                >
+                  <span className="w-10 h-10 rounded-full bg-mg-green text-black flex items-center justify-center">
+                    <Play className="w-5 h-5 fill-black" />
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => remove(m)}
+                  className="mg-hover-action absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-black/60 text-white/80 hover:text-white hover:bg-red-600 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  aria-label={`Remove ${m.title} from Watchlist`}
+                  title="Remove"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
               </div>
               <p className="mt-2 text-sm text-white truncate">{m.title}</p>
               <p className="text-xs text-white/40">{m.year}</p>
