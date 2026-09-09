@@ -1,5 +1,20 @@
 export const UPDATE_HISTORY = [
   {
+    id: "generic-https-stream-playback-v1",
+    date: "9 September 2026",
+    title: "Generic HTTPS stream playback added",
+    summary:
+      "Media God now accepts direct HTTPS media URLs even when the source type or file extension is missing, with HLS/DASH fallback on web and native Fire TV.",
+    changes: [
+      "HTTPS media URLs with unfamiliar or blank source types can now enter the direct player instead of being ignored.",
+      "Known web pages/providers remain excluded so normal HTTPS websites are not mistaken for video streams.",
+      "HLS MIME labels such as application/x-mpegURL are recognised alongside .m3u8 URLs.",
+      "Extensionless HTTPS sources now try native playback first, then HLS, then MPEG-DASH in the web player.",
+      "The dedicated Fire TV Media3 player now retries unknown extensionless HTTPS streams as HLS and DASH before failing over to another source.",
+      "Fire TV APK version increased to 1.3.0 / version code 4 so installed native builds can detect the HTTPS player update.",
+    ],
+  },
+  {
     id: "bbc-regions-itv-live-repair-v1",
     date: "9 September 2026",
     title: "BBC regional channels grouped and ITV restored",
