@@ -21,9 +21,23 @@ android {
         )
     }
 
+    signingConfigs {
+        create("release") {
+            val signingFile =
+                System.getenv("FIRETV_KEYSTORE_PATH")
+                    ?: "firetv-release.jks"
+
+            storeFile = file(signingFile)
+            storePassword = System.getenv("FIRETV_KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("FIRETV_KEY_ALIAS")
+            keyPassword = System.getenv("FIRETV_KEY_PASSWORD")
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 
