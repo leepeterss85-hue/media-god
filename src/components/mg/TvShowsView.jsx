@@ -134,6 +134,7 @@ export default function TvShowsView() {
               type="button"
               onClick={() => setCategory(item.id)}
               aria-label={`TV category ${item.label}`}
+              aria-pressed={category === item.id}
               className={
                 "min-h-10 3xl:min-h-12 px-3 3xl:px-5 py-1.5 3xl:py-2 rounded-md text-xs sm:text-sm 3xl:text-base 4xl:text-lg font-semibold whitespace-nowrap transition-colors " +
                 (category === item.id
