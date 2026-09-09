@@ -453,6 +453,7 @@ const resolveImdbInfo = async ({
   tmdb_id,
   imdbId,
   imdb_id,
+  rdImdbId,
   mediaType,
   title,
   year,
@@ -461,6 +462,7 @@ const resolveImdbInfo = async ({
     String(
       imdbId ||
       imdb_id ||
+      rdImdbId ||
       ""
     ).trim();
 
@@ -1448,7 +1450,12 @@ export function PlayerProvider({
 
           return {
             sources: ordered,
-            imdbId: String(request?.imdbId || request?.imdb_id || "").trim(),
+            imdbId: String(
+              request?.imdbId ||
+                request?.imdb_id ||
+                request?.rdImdbId ||
+                ""
+            ).trim(),
             preparedAt: Date.now(),
           };
         }
@@ -1617,7 +1624,10 @@ export function PlayerProvider({
         const initialPrimary = initialSources[0] || {};
         let fastStartPrimaryUrl = getSourceUrl(initialPrimary);
         const suppliedImdbId = String(
-          request?.imdbId || request?.imdb_id || ""
+          request?.imdbId ||
+            request?.imdb_id ||
+            request?.rdImdbId ||
+            ""
         ).trim();
 
         /*
@@ -1631,6 +1641,8 @@ export function PlayerProvider({
           id: request?.id,
           tmdbId,
           imdbId: suppliedImdbId,
+          imdb_id: suppliedImdbId,
+          rdImdbId: suppliedImdbId,
           title: request?.title || "Video",
           poster: request?.poster || request?.poster_url || "",
           year: request?.year,
@@ -1777,6 +1789,7 @@ export function PlayerProvider({
                 imdbId:
                   request?.imdbId ||
                   request?.imdb_id ||
+                  request?.rdImdbId ||
                   "",
 
                 status:
