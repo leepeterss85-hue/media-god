@@ -1,5 +1,20 @@
 export const UPDATE_HISTORY = [
   {
+    id: "worldwide-https-streams-v2",
+    date: "9 September 2026",
+    title: "Worldwide HTTPS Live TV restored and improved",
+    summary:
+      "The worldwide IPTV-org catalogue is restored as a low-priority source and extensionless/query-string HTTPS streams now reach the correct HLS/DASH playback path more reliably.",
+    changes: [
+      "Restored IPTV-org Worldwide using its current global index, currently exposing roughly thirteen thousand entries.",
+      "Kept the worldwide source below the existing UK and preferred sources so known-good channels are not replaced.",
+      "Confirmed extensionless HTTPS sources remain eligible for the generic direct-stream player instead of being filtered out.",
+      "Recognised .m3u8 and .mpd markers inside query strings, including URLs where another parameter follows with an ampersand.",
+      "Worldwide extensionless HTTPS sources continue to use the native-video to HLS to DASH fallback chain when their format cannot be identified from the URL.",
+      "A live sample of worldwide extensionless HTTPS endpoints returned media from multiple countries and broadcasters, while dead/geo-restricted endpoints remain available only through normal source failover.",
+    ],
+  },
+  {
     id: "generic-https-stream-playback-v1",
     date: "9 September 2026",
     title: "Generic HTTPS stream playback added",
