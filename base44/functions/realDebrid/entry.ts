@@ -1774,11 +1774,14 @@ async function resolveStreamable(
     `${RD_BASE}/torrents/info/${torrentId}`;
 
   const infoRes =
-    await fetch(
+    await rdFetch(
       infoUrl,
       {
         headers:
           authHeaders,
+      },
+      {
+        attempts: 3,
       }
     );
 
@@ -1800,7 +1803,7 @@ async function resolveStreamable(
     "waiting_files_selection"
   ) {
     const selectRes =
-      await fetch(
+      await rdFetch(
         `${RD_BASE}/torrents/selectFiles/${torrentId}`,
         {
           method:
@@ -1811,6 +1814,9 @@ async function resolveStreamable(
 
           body:
             "files=all",
+        },
+        {
+          attempts: 3,
         }
       );
 
@@ -1827,11 +1833,14 @@ async function resolveStreamable(
      * Fetch fresh torrent information.
      */
     const retryRes =
-      await fetch(
+      await rdFetch(
         infoUrl,
         {
           headers:
             authHeaders,
+        },
+        {
+          attempts: 3,
         }
       );
 
@@ -1997,7 +2006,7 @@ async function resolveStreamable(
    * Turn the RD file link into a direct download/stream URL.
    */
   const unRes =
-    await fetch(
+    await rdFetch(
       `${RD_BASE}/unrestrict/link`,
       {
         method:
@@ -2010,16 +2019,21 @@ async function resolveStreamable(
           `link=${encodeURIComponent(
             targetLink
           )}`,
+      },
+      {
+        attempts: 3,
       }
     );
 
   if (!unRes.ok) {
-    const text =
-      await unRes.text();
-
     return {
       error:
-        `unrestrict failed: ${unRes.status} ${text}`,
+        await rdFailureMessage(
+          unRes,
+          "Real-Debrid could not unrestrict this file"
+        ),
+      error_code:
+        `RD_UNRESTRICT_${unRes.status}`,
     };
   }
 
