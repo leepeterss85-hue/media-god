@@ -217,7 +217,7 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
                 ? "This is the one-time move into the dedicated Media God Fire TV app."
                 : canSelfUpdate
                   ? "Media God can download this update itself. Fire OS will ask you to approve installation before anything is replaced."
-                  : "This installed build does not yet contain the self-updater. Use Downloader once; Media God 1.4.1 and later can update from inside the app."}
+                  : "This installed build does not yet contain the self-updater. Use Downloader once; Media God 1.4.2 and later can update from inside the app."}
             </p>
           </div>
 
@@ -319,7 +319,7 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
             </div>
 
             <p className="text-xs leading-5 text-white/50">
-              Install this version once. From Media God 1.4.1 onward, future Fire TV updates can use the in-app Update now button.
+              Install this version once. From Media God 1.4.2 onward, future Fire TV updates can use the in-app Update now button.
             </p>
           </div>
         )}
