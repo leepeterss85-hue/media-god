@@ -264,9 +264,12 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
               </div>
             )}
 
-            {updateState.status === "permission" && (
+            {(updateState.status === "permission" ||
+              updateState.status === "permission_required") && (
               <p className="mt-3 rounded-lg border border-amber-400/30 bg-amber-400/10 p-3 text-xs leading-5 text-amber-100">
-                Fire OS has opened the one-time “Install unknown apps” permission for Media God. Allow it, then return to Media God and the installer will continue automatically.
+                {updateState.status === "permission"
+                  ? "Fire OS has opened the one-time “Install unknown apps” permission for Media God. Allow it, then return to Media God and the installer will continue automatically."
+                  : "Installation permission was not enabled. You can retry the permission screen now or choose Later."}
               </p>
             )}
 
@@ -285,7 +288,9 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
             >
               {updateBusy || updateState.status === "starting"
                 ? "Updating…"
-                : `Update now${release.versionName ? ` to ${release.versionName}` : ""}`}
+                : updateState.status === "permission_required"
+                  ? "Allow installation"
+                  : `Update now${release.versionName ? ` to ${release.versionName}` : ""}`}
             </button>
           </div>
         )}
