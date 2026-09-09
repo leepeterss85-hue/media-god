@@ -969,6 +969,11 @@ export default function MediaPlayerControls({
       true
     );
 
+    window.addEventListener(
+      "mg:player-reveal-controls",
+      wakeLonger
+    );
+
     return () => {
       stage.removeEventListener(
         "pointerdown",
@@ -1004,6 +1009,11 @@ export default function MediaPlayerControls({
         "keydown",
         wakeLonger,
         true
+      );
+
+      window.removeEventListener(
+        "mg:player-reveal-controls",
+        wakeLonger
       );
     };
   }, [
