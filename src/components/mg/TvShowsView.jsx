@@ -49,6 +49,50 @@ const gridClass =
 const selectClass =
   "w-full sm:w-auto min-h-11 3xl:min-h-12 appearance-none bg-mg-card border border-white/10 rounded-lg px-3 pr-8 py-2.5 3xl:py-3 text-sm 3xl:text-base 4xl:text-lg text-white focus:outline-none focus:border-mg-green cursor-pointer";
 
+class TvDetailErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { failed: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch(error) {
+    console.error("[Media God] TV show details display failed", error);
+  }
+
+  render() {
+    if (!this.state.failed) {
+      return this.props.children;
+    }
+
+    return (
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="TV show display recovery"
+        className="fixed inset-0 z-[2147483645] flex items-center justify-center bg-black/90 p-4 text-white"
+      >
+        <div className="w-full max-w-md rounded-xl border border-white/10 bg-mg-card p-5 text-center shadow-2xl">
+          <h2 className="text-base font-bold">Show display recovered</h2>
+          <p className="mt-2 text-sm text-white/55">
+            This show hit a display error. Media God kept the app open so you can return to TV Shows and try again.
+          </p>
+          <button
+            type="button"
+            onClick={this.props.onClose}
+            className="mt-4 min-h-11 rounded-lg bg-mg-green px-4 text-sm font-bold text-black focus:outline-none focus:ring-2 focus:ring-white/70"
+          >
+            Back to TV Shows
+          </button>
+        </div>
+      </div>
+    );
+  }
+}
+
 export default function TvShowsView() {
   const [shows, setShows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -62,21 +106,55 @@ export default function TvShowsView() {
   const debouncedQuery = useDebouncedValue(query, 400);
 
   useEffect(() => {
-    setLoading(true);
+    let cancelled = false;
 
-    base44.functions
-      .invoke("getTmdbMovies", {
-        media_type: "tv",
-        category,
-        country,
-        genre,
-        year,
-        language,
-        query: debouncedQuery,
-      })
-      .then((res) => setShows(res.data?.movies || []))
-      .catch(() => setShows([]))
-      .finally(() => setLoading(false));
+    const loadShows = async () => {
+      setLoading(true);
+
+      try {
+        const response = await base44.functions.invoke("getTmdbMovies", {
+          media_type: "tv",
+          category,
+          country,
+          genre,
+          year,
+          language,
+          query: String(debouncedQuery || "").trim(),
+        });
+
+        if (cancelled) {
+          return;
+        }
+
+        const first = response?.data ?? response ?? {};
+        const payload =
+          first &&
+          typeof first === "object" &&
+          !Array.isArray(first) &&
+          first.data &&
+          typeof first.data === "object" &&
+          !Array.isArray(first.data)
+            ? first.data
+            : first;
+
+        setShows(Array.isArray(payload?.movies) ? payload.movies : []);
+      } catch (loadError) {
+        if (!cancelled) {
+          console.error("[Media God] TV show library failed to load", loadError);
+          setShows([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadShows();
+
+    return () => {
+      cancelled = true;
+    };
   }, [country, category, genre, year, language, debouncedQuery]);
 
   const featured = FEATURED_SHOWS.find((item) => item.title === "Debris");
@@ -291,11 +369,16 @@ export default function TvShowsView() {
       )}
 
       {selected && (
-        <DetailModal
-          item={selected}
-          mediaType="tv"
+        <TvDetailErrorBoundary
+          key={selected?.id || selected?.tmdb_id || selected?.title || "tv-detail"}
           onClose={() => setSelected(null)}
-        />
+        >
+          <DetailModal
+            item={selected}
+            mediaType="tv"
+            onClose={() => setSelected(null)}
+          />
+        </TvDetailErrorBoundary>
       )}
     </div>
   );
