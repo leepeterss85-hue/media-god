@@ -24,7 +24,7 @@ html.mg-fire-tv-stable {
 body.mg-fire-tv,
 body.mg-fire-tv-mode,
 body.mg-fire-tv-stable {
-  --mg-tv-sidebar-width: 52px;
+  --mg-tv-sidebar-width: 176px;
   --mg-tv-safe-x: 5vw;
   --mg-tv-safe-y: 5vh;
   min-width: 0 !important;
@@ -38,7 +38,7 @@ body.mg-fire-tv-stable * {
   scroll-behavior: auto !important;
 }
 
-/* Narrow icon-only navigation rail. */
+/* Full Fire TV side navigation with readable labels and D-pad focus. */
 body.mg-fire-tv #root .mg-fire-tv-nav,
 body.mg-fire-tv-mode #root .mg-fire-tv-nav,
 body.mg-fire-tv-stable #root .mg-fire-tv-nav {
@@ -70,8 +70,8 @@ body.mg-fire-tv-mode #root .mg-fire-tv-nav > div:first-child,
 body.mg-fire-tv-stable #root .mg-fire-tv-nav > div:first-child {
   height: 46px !important;
   min-height: 46px !important;
-  justify-content: center !important;
-  padding: 5px !important;
+  justify-content: flex-start !important;
+  padding: 5px 9px !important;
 }
 
 body.mg-fire-tv #root .mg-fire-tv-nav > div:first-child > span,
@@ -83,7 +83,11 @@ body.mg-fire-tv-mode #root .mg-fire-tv-nav > div:last-child button > span,
 body.mg-fire-tv-stable #root .mg-fire-tv-nav > div:first-child > span,
 body.mg-fire-tv-stable #root .mg-fire-tv-nav nav button > span,
 body.mg-fire-tv-stable #root .mg-fire-tv-nav > div:last-child button > span {
-  display: none !important;
+  display: block !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
 }
 
 body.mg-fire-tv #root .mg-fire-tv-nav nav,
@@ -102,15 +106,15 @@ body.mg-fire-tv-mode #root .mg-fire-tv-nav nav button,
 body.mg-fire-tv-mode #root .mg-fire-tv-nav > div:last-child button,
 body.mg-fire-tv-stable #root .mg-fire-tv-nav nav button,
 body.mg-fire-tv-stable #root .mg-fire-tv-nav > div:last-child button {
-  width: 46px !important;
-  min-width: 46px !important;
-  max-width: 46px !important;
-  height: 34px !important;
-  min-height: 34px !important;
-  justify-content: center !important;
-  padding: 4px !important;
-  gap: 0 !important;
-  font-size: 0 !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  justify-content: flex-start !important;
+  padding: 4px 8px !important;
+  gap: 8px !important;
+  font-size: 12px !important;
 }
 
 body.mg-fire-tv #root .mg-fire-tv-nav svg,
