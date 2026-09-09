@@ -417,6 +417,26 @@ export default function VideoPlayer({
   const findNextPlayableSource = (
     fromIndex
   ) => {
+    /*
+     * Automatic failover must follow the same source ordering the user sees
+     * in the selector. Previously the 4K/1080p sort only changed the dropdown
+     * display while recovery used a separate compatibility score; that could
+     * jump from a rejected 4K torrent straight to 720p even though unused 4K
+     * or 1080p alternatives were still listed.
+     */
+    const selectorRankByIndex =
+      new Map(
+        sortedSourceEntries.map(
+          (entry, rank) => [
+            entry.index,
+            rank,
+          ]
+        )
+      );
+
+    const obeySelectorOrder =
+      sourceSortMode !== "best";
+
     const candidates = sources
       .map((candidate, index) => {
         const url = getSourceUrl(candidate);
@@ -441,11 +461,21 @@ export default function VideoPlayer({
 
         return {
           index,
+          selectorRank:
+            selectorRankByIndex.get(index) ??
+            Number.MAX_SAFE_INTEGER,
           score: recoverySourceScore(candidate, index),
         };
       })
       .filter(Boolean)
-      .sort((a, b) => b.score - a.score || a.index - b.index);
+      .sort((a, b) =>
+        obeySelectorOrder
+          ? a.selectorRank - b.selectorRank ||
+            b.score - a.score ||
+            a.index - b.index
+          : b.score - a.score ||
+            a.index - b.index
+      );
 
     return candidates[0]?.index ?? -1;
   };
