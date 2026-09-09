@@ -1184,18 +1184,19 @@ export default function LiveTVView() {
       return;
     }
 
+    const candidates = playableChannelCandidates(channel);
+
     if (
       channel.kind ===
-      "external"
+        "external" &&
+      candidates.length === 0
     ) {
-      if (channel.url) {
-        openOfficialLiveUrl(channel.url);
+      if (channel.officialUrl || channel.url) {
+        openOfficialLiveUrl(channel.officialUrl || channel.url);
       }
 
       return;
     }
-
-    const candidates = playableChannelCandidates(channel);
 
     if (candidates.length === 0) {
       const fallback = officialLiveFallback(channel);
