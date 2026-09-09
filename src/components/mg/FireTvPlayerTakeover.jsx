@@ -13,13 +13,11 @@ const visible = (element) => {
   }
 
   const rect = element.getBoundingClientRect();
-
   if (rect.width < 2 || rect.height < 2) {
     return false;
   }
 
   const style = window.getComputedStyle(element);
-
   return (
     style.display !== "none" &&
     style.visibility !== "hidden" &&
@@ -32,49 +30,13 @@ const findPlayerOverlay = () => {
     return null;
   }
 
-  const explicit = document.querySelector(
+  const player = document.querySelector(
     '[data-mg-player-root="true"]'
   );
 
-  if (isElement(explicit) && visible(explicit)) {
-    return explicit;
-  }
-
-  const overlays = Array.from(
-    document.querySelectorAll(".fixed.inset-0")
-  ).reverse();
-
-  for (const overlay of overlays) {
-    if (!isElement(overlay) || !visible(overlay)) {
-      continue;
-    }
-
-    if (overlay.classList.contains("bg-black/95")) {
-      return overlay;
-    }
-
-    const hasPlaybackControl = Boolean(
-      overlay.querySelector(
-        [
-          'select[aria-label="Choose playback source"]',
-          'select[aria-label="Choose source or quality while loading"]',
-          'button[aria-label="No sound"]',
-          'button[title="No sound"]',
-          'button[aria-label="Back to main menu"]',
-        ].join(",")
-      )
-    );
-
-    const hasMedia = Boolean(
-      overlay.querySelector("video, iframe")
-    );
-
-    if (hasPlaybackControl || hasMedia) {
-      return overlay;
-    }
-  }
-
-  return null;
+  return isElement(player) && visible(player)
+    ? player
+    : null;
 };
 
 const remoteCode = (event) =>
@@ -118,7 +80,10 @@ const isStrongTvRemoteEvidence = (event) => {
 };
 
 const initialTvEnvironment = () => {
-  if (typeof navigator === "undefined") {
+  if (
+    typeof navigator === "undefined" ||
+    typeof document === "undefined"
+  ) {
     return false;
   }
 
@@ -133,6 +98,17 @@ const initialTvEnvironment = () => {
   );
 };
 
+/*
+ * Fire TV player lifecycle helper.
+ *
+ * Older versions of this component forcibly rewrote the player, wrapper,
+ * header, video and navigation with inline !important styles. That made the
+ * film title / Exit / source box sit permanently over the picture and also
+ * fought the real player controls and D-pad focus handling.
+ *
+ * VideoPlayer and the Fire TV CSS now own sizing/fullscreen. This helper only
+ * publishes whether playback is open and marks a Fire TV environment.
+ */
 export default function FireTvPlayerTakeover() {
   useEffect(() => {
     if (
@@ -142,45 +118,9 @@ export default function FireTvPlayerTakeover() {
       return undefined;
     }
 
-    const originalStyles = new Map();
     let tvEnvironment = initialTvEnvironment();
-    let activeOverlay = null;
     let frame = 0;
     let publishedOpen = false;
-
-    const remember = (element) => {
-      if (!isElement(element) || originalStyles.has(element)) {
-        return;
-      }
-
-      originalStyles.set(
-        element,
-        element.getAttribute("style")
-      );
-    };
-
-    const force = (element, property, value) => {
-      if (!isElement(element)) {
-        return;
-      }
-
-      const currentValue = element.style.getPropertyValue(property);
-      const currentPriority = element.style.getPropertyPriority(property);
-
-      if (
-        currentValue === value &&
-        currentPriority === "important"
-      ) {
-        return;
-      }
-
-      remember(element);
-      element.style.setProperty(
-        property,
-        value,
-        "important"
-      );
-    };
 
     const publish = (open) => {
       if (publishedOpen === open) {
@@ -217,194 +157,6 @@ export default function FireTvPlayerTakeover() {
       );
     };
 
-    const restore = () => {
-      originalStyles.forEach((style, element) => {
-        if (!isElement(element)) {
-          return;
-        }
-
-        if (style == null || style === "") {
-          element.removeAttribute("style");
-        } else {
-          element.setAttribute("style", style);
-        }
-      });
-
-      originalStyles.clear();
-      activeOverlay = null;
-
-      document.documentElement.classList.remove(
-        "mg-fire-tv-player-open"
-      );
-      document.body?.classList.remove(
-        "mg-fire-tv-player-open"
-      );
-
-      publish(false);
-    };
-
-    const clearStackingAncestors = (overlay) => {
-      let node = overlay?.parentElement || null;
-
-      while (isElement(node) && node !== document.body) {
-        force(node, "transform", "none");
-        force(node, "filter", "none");
-        force(node, "perspective", "none");
-        force(node, "contain", "none");
-        force(node, "isolation", "auto");
-        force(node, "clip-path", "none");
-        force(node, "overflow", "visible");
-        force(node, "max-width", "none");
-        force(node, "max-height", "none");
-        force(node, "z-index", "auto");
-
-        node = node.parentElement;
-      }
-    };
-
-    const apply = (overlay) => {
-      if (!tvEnvironment || !isElement(overlay)) {
-        return;
-      }
-
-      if (activeOverlay && activeOverlay !== overlay) {
-        restore();
-      }
-
-      activeOverlay = overlay;
-
-      document.documentElement.classList.add(
-        "mg-fire-tv-player-open"
-      );
-      document.body?.classList.add(
-        "mg-fire-tv-player-open"
-      );
-
-      publish(true);
-      clearStackingAncestors(overlay);
-
-      document
-        .querySelectorAll("#root .mg-fire-tv-nav")
-        .forEach((nav) => {
-          force(nav, "display", "none");
-          force(nav, "visibility", "hidden");
-          force(nav, "pointer-events", "none");
-          force(nav, "width", "0");
-          force(nav, "min-width", "0");
-          force(nav, "max-width", "0");
-          force(nav, "flex-basis", "0");
-        });
-
-      document
-        .querySelectorAll(
-          'button[data-mg-global-back="true"]'
-        )
-        .forEach((button) => {
-          force(button, "display", "none");
-        });
-
-      force(overlay, "position", "fixed");
-      force(overlay, "inset", "0");
-      force(overlay, "top", "0");
-      force(overlay, "right", "0");
-      force(overlay, "bottom", "0");
-      force(overlay, "left", "0");
-      force(overlay, "width", "100vw");
-      force(overlay, "height", "100vh");
-      force(overlay, "min-width", "100vw");
-      force(overlay, "min-height", "100vh");
-      force(overlay, "max-width", "none");
-      force(overlay, "max-height", "none");
-      force(overlay, "margin", "0");
-      force(overlay, "padding", "0");
-      force(overlay, "transform", "none");
-      force(overlay, "overflow", "hidden");
-      force(overlay, "background", "#000");
-      force(overlay, "z-index", "2147483646");
-
-      const wrapper = overlay.firstElementChild;
-
-      if (isElement(wrapper)) {
-        force(wrapper, "position", "fixed");
-        force(wrapper, "inset", "0");
-        force(wrapper, "width", "100vw");
-        force(wrapper, "height", "100vh");
-        force(wrapper, "min-width", "100vw");
-        force(wrapper, "min-height", "100vh");
-        force(wrapper, "max-width", "none");
-        force(wrapper, "max-height", "none");
-        force(wrapper, "margin", "0");
-        force(wrapper, "padding", "0");
-        force(wrapper, "transform", "none");
-        force(wrapper, "overflow", "hidden");
-
-        const header = wrapper.children?.[0];
-        const stage = wrapper.children?.[1];
-
-        if (isElement(header)) {
-          force(header, "position", "fixed");
-          force(header, "top", "5vh");
-          force(header, "left", "5vw");
-          force(header, "right", "5vw");
-          force(header, "width", "auto");
-          force(header, "min-height", "52px");
-          force(header, "margin", "0");
-          force(header, "padding", "6px 0");
-          force(header, "gap", "12px");
-          force(header, "box-sizing", "border-box");
-          force(header, "z-index", "2147483647");
-        }
-
-        if (isElement(stage)) {
-          force(stage, "position", "fixed");
-          force(stage, "inset", "0");
-          force(stage, "width", "100vw");
-          force(stage, "height", "100vh");
-          force(stage, "min-width", "100vw");
-          force(stage, "min-height", "100vh");
-          force(stage, "max-width", "none");
-          force(stage, "max-height", "none");
-          force(stage, "margin", "0");
-          force(stage, "padding", "0");
-          force(stage, "border", "0");
-          force(stage, "border-radius", "0");
-          force(stage, "aspect-ratio", "auto");
-          force(stage, "background", "#000");
-          force(stage, "overflow", "hidden");
-          force(stage, "z-index", "2147483645");
-        }
-      }
-
-      overlay
-        .querySelectorAll("video, iframe")
-        .forEach((media) => {
-          if (!isElement(media)) {
-            return;
-          }
-
-          force(media, "position", "absolute");
-          force(media, "inset", "0");
-          force(media, "width", "100vw");
-          force(media, "height", "100vh");
-          force(media, "min-width", "100vw");
-          force(media, "min-height", "100vh");
-          force(media, "max-width", "none");
-          force(media, "max-height", "none");
-          force(media, "margin", "0");
-          force(media, "padding", "0");
-          force(media, "transform", "none");
-          force(media, "background", "#000");
-
-          if (media.tagName === "VIDEO") {
-            force(media, "object-fit", "contain");
-            force(media, "object-position", "center center");
-            force(media, "aspect-ratio", "auto");
-          } else {
-            force(media, "border", "0");
-          }
-        });
-    };
-
     const sync = () => {
       frame = 0;
 
@@ -412,15 +164,28 @@ export default function FireTvPlayerTakeover() {
         return;
       }
 
-      const overlay = findPlayerOverlay();
+      const player = findPlayerOverlay();
+      const open = Boolean(player);
 
-      if (overlay) {
-        apply(overlay);
-        return;
-      }
+      document.documentElement.classList.toggle(
+        "mg-fire-tv-player-open",
+        open
+      );
+      document.body?.classList.toggle(
+        "mg-fire-tv-player-open",
+        open
+      );
 
-      if (activeOverlay || originalStyles.size > 0) {
-        restore();
+      publish(open);
+
+      if (!open) {
+        const focused = document.activeElement;
+        if (
+          isElement(focused) &&
+          focused.closest?.('[data-mg-player-root="true"]')
+        ) {
+          focused.blur?.();
+        }
       }
     };
 
@@ -440,18 +205,19 @@ export default function FireTvPlayerTakeover() {
     };
 
     window.addEventListener("keydown", onKeyDown, true);
-    document.addEventListener("keydown", onKeyDown, true);
 
     const observer = new MutationObserver(schedule);
-
     observer.observe(document.body, {
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ["class", "data-mg-fullscreen"],
+      attributeFilter: [
+        "class",
+        "style",
+        "data-mg-player-fullscreen",
+        "data-mg-fullscreen",
+      ],
     });
-
-    const watchdog = window.setInterval(sync, 250);
 
     window.addEventListener("resize", schedule);
     window.addEventListener("orientationchange", schedule);
@@ -460,9 +226,7 @@ export default function FireTvPlayerTakeover() {
 
     return () => {
       observer.disconnect();
-      window.clearInterval(watchdog);
       window.removeEventListener("keydown", onKeyDown, true);
-      document.removeEventListener("keydown", onKeyDown, true);
       window.removeEventListener("resize", schedule);
       window.removeEventListener("orientationchange", schedule);
 
@@ -470,7 +234,13 @@ export default function FireTvPlayerTakeover() {
         window.cancelAnimationFrame(frame);
       }
 
-      restore();
+      document.documentElement.classList.remove(
+        "mg-fire-tv-player-open"
+      );
+      document.body?.classList.remove(
+        "mg-fire-tv-player-open"
+      );
+      publish(false);
     };
   }, []);
 
