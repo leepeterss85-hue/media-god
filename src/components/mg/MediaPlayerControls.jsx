@@ -1785,7 +1785,7 @@ export default function MediaPlayerControls({
               onBlur={
                 blurControl
               }
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-black transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-mg-green sm:h-11 sm:w-11"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-black transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-mg-green focus:ring-offset-2 focus:ring-offset-black sm:h-11 sm:w-11"
               aria-label={
                 playing
                   ? "Pause"
@@ -1817,7 +1817,7 @@ export default function MediaPlayerControls({
                   onBlur={
                     blurControl
                   }
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black/40 text-white hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green/60 sm:h-10 sm:w-10"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/45 text-white transition hover:bg-white/15 focus:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green sm:h-10 sm:w-10"
                   aria-label="Back 10 seconds"
                   title="Back 10 seconds"
                 >
@@ -1835,7 +1835,7 @@ export default function MediaPlayerControls({
                   onBlur={
                     blurControl
                   }
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black/40 text-white hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green/60 sm:h-10 sm:w-10"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/45 text-white transition hover:bg-white/15 focus:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green sm:h-10 sm:w-10"
                   aria-label="Forward 10 seconds"
                   title="Forward 10 seconds"
                 >
@@ -1856,7 +1856,7 @@ export default function MediaPlayerControls({
                 onBlur={
                   blurControl
                 }
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black/40 text-white hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green/60 sm:h-10 sm:w-10"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/45 text-white transition hover:bg-white/15 focus:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green sm:h-10 sm:w-10"
                 aria-label={
                   muted
                     ? "Unmute"
@@ -1916,7 +1916,7 @@ export default function MediaPlayerControls({
                 onBlur={
                   blurControl
                 }
-                className="h-9 rounded-lg border border-white/15 bg-black/45 px-2 text-xs font-semibold text-white outline-none focus:border-mg-green sm:h-10"
+                className="h-10 rounded-lg border border-white/15 bg-black/45 px-2 text-xs font-semibold text-white outline-none transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/40 sm:h-10"
                 aria-label="Playback speed"
                 title="Playback speed"
               >
@@ -1958,7 +1958,7 @@ export default function MediaPlayerControls({
                   focusControl
                 }
                 className={cn(
-                  "h-9 rounded-lg border px-2.5 text-xs font-semibold outline-none sm:h-10",
+                  "h-10 rounded-lg border px-2.5 text-xs font-semibold outline-none transition focus:ring-2 focus:ring-mg-green/40 sm:h-10",
 
                   selectedSubtitle >=
                     0
@@ -2085,7 +2085,7 @@ export default function MediaPlayerControls({
                 onFocus={
                   focusControl
                 }
-                className="h-9 rounded-lg border border-white/15 bg-black/45 px-2.5 text-xs font-semibold text-white outline-none focus:border-mg-green sm:h-10"
+                className="h-10 rounded-lg border border-white/15 bg-black/45 px-2.5 text-xs font-semibold text-white outline-none transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/40 sm:h-10"
                 aria-label="Audio track"
                 title="Audio track"
               >
@@ -2138,7 +2138,7 @@ export default function MediaPlayerControls({
               onBlur={
                 blurControl
               }
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black/40 text-white hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green/60 sm:h-10 sm:w-10"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/45 text-white transition hover:bg-white/15 focus:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green sm:h-10 sm:w-10"
               aria-label={
                 isAppFullscreen
                   ? "Exit fullscreen"
