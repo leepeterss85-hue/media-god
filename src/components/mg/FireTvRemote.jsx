@@ -305,6 +305,103 @@ const nearestByX = (source, candidates) => {
   )[0] || null;
 };
 
+const activeSidebarTarget = () => {
+  const buttons = Array.from(
+    document.querySelectorAll(
+      '.mg-fire-tv-nav button:not([disabled])'
+    )
+  ).filter(visible);
+
+  return (
+    buttons.find((button) =>
+      String(button.className || "").includes("text-mg-green")
+    ) ||
+    buttons[0] ||
+    null
+  );
+};
+
+const rowAwareTarget = (current, candidates, direction) => {
+  if (!(current instanceof HTMLElement)) {
+    return candidates[0] || null;
+  }
+
+  const usable = candidates.filter(
+    (candidate) => candidate !== current && visible(candidate)
+  );
+
+  if (!usable.length) {
+    return null;
+  }
+
+  const currentRect = current.getBoundingClientRect();
+  const from = centre(current);
+  const horizontalBand = Math.max(
+    22,
+    Math.min(64, currentRect.height * 0.7 + 12)
+  );
+
+  if (direction === "left" || direction === "right") {
+    const horizontal = usable
+      .map((candidate) => {
+        const to = centre(candidate);
+        const dx = to.x - from.x;
+        const dy = Math.abs(to.y - from.y);
+
+        if (direction === "left" && dx >= -2) return null;
+        if (direction === "right" && dx <= 2) return null;
+        if (dy > horizontalBand) return null;
+
+        return {
+          candidate,
+          score: Math.abs(dx) + dy * 4,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.score - b.score);
+
+    return horizontal[0]?.candidate || null;
+  }
+
+  const vertical = usable
+    .map((candidate) => {
+      const to = centre(candidate);
+      const dx = Math.abs(to.x - from.x);
+      const dy = to.y - from.y;
+
+      if (direction === "up" && dy >= -2) return null;
+      if (direction === "down" && dy <= 2) return null;
+
+      return {
+        candidate,
+        primary: Math.abs(dy),
+        x: dx,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.primary - b.primary || a.x - b.x);
+
+  if (!vertical.length) {
+    return null;
+  }
+
+  /*
+   * Move to the nearest visual row first, then choose the control in that
+   * row whose horizontal position most closely matches the current control.
+   * This prevents D-pad Down from skipping an entire row just because a
+   * diagonally placed control happened to have a slightly better raw distance.
+   */
+  const nearestRowDistance = vertical[0].primary;
+  const rowTolerance = Math.max(26, currentRect.height * 0.8);
+  const nearestRow = vertical.filter(
+    (entry) => entry.primary <= nearestRowDistance + rowTolerance
+  );
+
+  nearestRow.sort((a, b) => a.x - b.x || a.primary - b.primary);
+
+  return nearestRow[0]?.candidate || vertical[0]?.candidate || null;
+};
+
 const tvShowsRemoteTarget = (current, direction) => {
   const view = document.querySelector(
     '[data-mg-tv-shows-view="true"]'
