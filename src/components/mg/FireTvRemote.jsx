@@ -831,10 +831,24 @@ export default function FireTvRemote() {
         return;
       }
 
+      const currentType = String(current?.type || "").toLowerCase();
+      const textEditable =
+        (currentTag === "input" &&
+          !["range", "button", "submit", "reset", "checkbox", "radio"].includes(
+            currentType
+          )) ||
+        currentTag === "textarea" ||
+        Boolean(current?.isContentEditable);
+
+      /* Text entry must keep Left/Right for moving the caret on every page. */
       if (
-        currentTag === "input" &&
-        String(current?.type || "").toLowerCase() === "range"
+        textEditable &&
+        (direction === "left" || direction === "right")
       ) {
+        return;
+      }
+
+      if (currentTag === "input" && currentType === "range") {
         if (selectKey || direction === "left" || direction === "right") {
           return;
         }
@@ -890,10 +904,65 @@ export default function FireTvRemote() {
           }
         }
 
-        const mediaControls =
-          player instanceof HTMLElement
-            ? player.querySelector('[data-mg-player-controls="true"]')
-            : null;
+        if (!(player instanceof HTMLElement)) {
+          const structuredScope =
+            overlay instanceof HTMLElement && visible(overlay)
+              ? overlay
+              : appMain instanceof HTMLElement &&
+                  current instanceof HTMLElement &&
+                  appMain.contains(current)
+                ? appMain
+                : scope;
+          const structuredCandidates = focusables(structuredScope);
+          const structuredTarget = rowAwareTarget(
+            current,
+            structuredCandidates,
+            direction
+          );
+
+          if (structuredTarget && focusElement(structuredTarget)) {
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+            return;
+          }
+
+          /*
+           * At the left edge of a normal page, always return to the currently
+           * selected sidebar item instead of allowing browser/WebView focus to
+           * jump to an arbitrary off-row element. Dialogs stay self-contained.
+           */
+          if (
+            direction === "left" &&
+            !(overlay instanceof HTMLElement) &&
+            appMain instanceof HTMLElement &&
+            current instanceof HTMLElement &&
+            appMain.contains(current)
+          ) {
+            const sidebar = activeSidebarTarget();
+
+            if (sidebar && focusElement(sidebar)) {
+              event.preventDefault();
+              event.stopPropagation();
+              event.stopImmediatePropagation();
+              return;
+            }
+          }
+
+          /* Stay on the current edge control instead of letting Fire OS scroll
+           * the whole page or pick an unpredictable native focus target. */
+          if (current instanceof HTMLElement) {
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+          }
+
+          return;
+        }
+
+        const mediaControls = player.querySelector(
+          '[data-mg-player-controls="true"]'
+        );
         const mediaCandidates =
           mediaControls instanceof HTMLElement
             ? focusables(mediaControls)
