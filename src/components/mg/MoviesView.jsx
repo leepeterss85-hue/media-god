@@ -226,6 +226,7 @@ export default function MoviesView() {
 
                 <button
                   type="button"
+                  data-mg-focus-key={`movie:${movie.id || movie.tmdb_id || movie.title}`}
                   onClick={() => setSelected(movie)}
                   className="mg-hover-action absolute inset-0 flex items-center justify-center bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity"
                   title="Details"
