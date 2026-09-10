@@ -610,6 +610,7 @@ const lookupAddon = async ({
   streamId,
   alternateStreamIds = [],
   mediaType,
+  skipManifest = false,
   manifestTimeoutMs = 3000,
   streamTimeoutMs = 5000,
 }) => {
@@ -676,88 +677,93 @@ const lookupAddon = async ({
   let manifestStatus =
     "unknown";
 
-  const manifestResult =
-    await fetchAddonJson(
-      manifestUrl,
-      manifestTimeoutMs
-    );
-
-  if (
-    manifestResult.ok
-  ) {
-    manifest =
-      manifestResult.data;
-
-    manifestStatus =
-      "ok";
-
-    const supportsStreams =
-      addonSupportsStreams(
-        manifest
+  if (!skipManifest) {
+    const manifestResult =
+      await fetchAddonJson(
+        manifestUrl,
+        manifestTimeoutMs
       );
 
     if (
-      supportsStreams === false
+      manifestResult.ok
     ) {
-      return {
-        streams:
-          [],
+      manifest =
+        manifestResult.data;
 
-        diagnostic: {
-          name:
-            addonName,
+      manifestStatus =
+        "ok";
 
-          status:
-            "no_stream_resource",
+      const supportsStreams =
+        addonSupportsStreams(
+          manifest
+        );
 
-          stream_count:
-            0,
+      if (
+        supportsStreams === false
+      ) {
+        return {
+          streams:
+            [],
 
-          playable_count:
-            0,
+          diagnostic: {
+            name:
+              addonName,
 
-          message:
-            "Manifest does not advertise stream support.",
-        },
-      };
-    }
+            status:
+              "no_stream_resource",
 
-    const supportsType =
-      addonSupportsType(
-        manifest,
-        mediaType
-      );
+            stream_count:
+              0,
 
-    if (
-      supportsType === false
-    ) {
-      return {
-        streams:
-          [],
+            playable_count:
+              0,
 
-        diagnostic: {
-          name:
-            addonName,
+            message:
+              "Manifest does not advertise stream support.",
+          },
+        };
+      }
 
-          status:
-            "wrong_media_type",
+      const supportsType =
+        addonSupportsType(
+          manifest,
+          mediaType
+        );
 
-          stream_count:
-            0,
+      if (
+        supportsType === false
+      ) {
+        return {
+          streams:
+            [],
 
-          playable_count:
-            0,
+          diagnostic: {
+            name:
+              addonName,
 
-          message:
-            "Addon does not advertise this media type.",
-        },
-      };
+            status:
+              "wrong_media_type",
+
+            stream_count:
+              0,
+
+            playable_count:
+              0,
+
+            message:
+              "Addon does not advertise this media type.",
+          },
+        };
+      }
+    } else {
+      manifestStatus =
+        manifestResult.status === 0
+          ? "unreachable"
+          : `http_${manifestResult.status}`;
     }
   } else {
     manifestStatus =
-      manifestResult.status === 0
-        ? "unreachable"
-        : `http_${manifestResult.status}`;
+      "skipped_fast";
   }
 
   const result =
