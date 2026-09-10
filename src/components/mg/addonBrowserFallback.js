@@ -387,12 +387,25 @@ const dedupe = (items) => {
 
   return (items || []).filter(
     (item) => {
-      const key = clean(
-        item?.url ||
-          item?.src ||
-          item?.magnet ||
-          item?.infoHash
+      const raw = clean(
+        item?.magnet ||
+          item?.url ||
+          item?.src
       );
+
+      const hash = clean(
+        item?.infoHash ||
+          infoHashFromValue(raw)
+      ).toLowerCase();
+
+      const key =
+        hash
+          ? `hash:${hash}`
+          : clean(
+              item?.url ||
+                item?.src ||
+                item?.magnet
+            );
 
       if (
         !key ||
