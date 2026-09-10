@@ -256,11 +256,23 @@ const fetchAddonJson = async (
     timeoutMs
   );
 
-  if (
-    result?.status === 403 &&
-    isTorrentioRequest(url)
-  ) {
-    await wait(300);
+  const retryableStatus =
+    result?.status === 429 ||
+    result?.status === 500 ||
+    result?.status === 502 ||
+    result?.status === 503 ||
+    result?.status === 504 ||
+    (
+      result?.status === 403 &&
+      isTorrentioRequest(url)
+    );
+
+  if (retryableStatus) {
+    await wait(
+      result?.status === 429
+        ? 650
+        : 300
+    );
 
     result = await fetchJsonWithTimeout(
       url,
