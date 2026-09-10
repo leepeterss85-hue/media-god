@@ -242,15 +242,15 @@ const epgKeyForChannel = (channel, index = 0) =>
       `${channel?.name || "channel"}-${index}`
   );
 
-const isUkGuideChannel = (channel) => {
-  const country = String(channel?.country || "").trim().toUpperCase();
-  const tvgId = String(channel?.tvgId || "").trim();
+const epgCountryForChannel = (channel) => {
+  const explicit = String(channel?.country || "").trim().toUpperCase();
+  if (explicit === "UK") return "GB";
+  if (/^[A-Z]{2}$/.test(explicit)) return explicit;
 
-  return (
-    country === "GB" ||
-    country === "UK" ||
-    /\.uk(?:@|$)/i.test(tvgId)
-  );
+  const tvgId = String(channel?.tvgId || "").trim();
+  const suffix = tvgId.match(/\.([a-z]{2})(?:@.*)?$/i)?.[1]?.toUpperCase() || "";
+  if (suffix === "UK") return "GB";
+  return /^[A-Z]{2}$/.test(suffix) ? suffix : "";
 };
 
 const formatProgrammeTime = (value) => {
@@ -489,18 +489,24 @@ export default function LiveTVView() {
     let timer = null;
 
     const loadGuide = async () => {
+      const selectedCountry =
+        countryFilter !== DEFAULT_FILTER
+          ? String(countryFilter || "").trim().toUpperCase()
+          : "";
+
       const targets = channels
         .map((channel, index) => ({ channel, index }))
-        .filter(
-          ({ channel }) =>
-            !isRadioChannel(channel) && isUkGuideChannel(channel)
-        )
-        .slice(0, 350)
+        .filter(({ channel }) => {
+          if (isRadioChannel(channel)) return false;
+          if (!selectedCountry) return true;
+          return epgCountryForChannel(channel) === selectedCountry;
+        })
+        .slice(0, 400)
         .map(({ channel }) => ({
           key: epgKeyForChannel(channel),
           tvgId: channel?.tvgId || "",
           name: channel?.name || "",
-          country: channel?.country || "",
+          country: epgCountryForChannel(channel),
         }));
 
       if (targets.length === 0) return;
@@ -519,11 +525,21 @@ export default function LiveTVView() {
           if (item?.key) next[item.key] = item;
         });
 
-        setEpgByKey(next);
+        setEpgByKey((current) => {
+          const merged = { ...current };
+
+          targets.forEach((target) => {
+            delete merged[target.key];
+          });
+
+          return {
+            ...merged,
+            ...next,
+          };
+        });
         setEpgMatched(Number(data?.matched || 0));
       } catch {
         if (!cancelled) {
-          setEpgByKey({});
           setEpgMatched(0);
         }
       }
@@ -536,7 +552,7 @@ export default function LiveTVView() {
       cancelled = true;
       if (timer) window.clearInterval(timer);
     };
-  }, [channels]);
+  }, [channels, countryFilter]);
 
   const activeRadioUrls = useMemo(
     () => {
