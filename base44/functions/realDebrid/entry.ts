@@ -770,7 +770,7 @@ export default async function (req) {
     if (action === "torrents_list") {
       const res =
         await fetch(
-          `${RD_BASE}/torrents`,
+          `${RD_BASE}/torrents?limit=1000`,
           {
             headers:
               authHeaders,
@@ -931,7 +931,7 @@ export default async function (req) {
 
       const res =
         await fetch(
-          `${RD_BASE}/torrents`,
+          `${RD_BASE}/torrents?limit=1000`,
           {
             headers:
               authHeaders,
