@@ -332,6 +332,7 @@ export default function TvShowsView() {
 
                 <button
                   type="button"
+                  data-mg-focus-key={`tv:${show.id || show.tmdb_id || show.title}`}
                   onClick={() => setSelected(show)}
                   className="mg-hover-action absolute inset-0 flex items-center justify-center bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity"
                   title="Details"
