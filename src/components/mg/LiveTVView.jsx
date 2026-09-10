@@ -61,6 +61,8 @@ const countryDisplayName = (code) => {
 const GUIDE_VISIBLE = 120;
 const LIVE_TV_FAVOURITES_KEY = "mg_live_tv_favourites_v1";
 const LIVE_TV_RECENT_KEY = "mg_live_tv_recent_v1";
+const LIVE_TV_VIEW_STATE_KEY = "mg_live_tv_view_state_v1";
+const GUIDE_COUNTRY_PRIORITY = ["GB", "US", "IE", "CA", "AU", "NZ", "FR", "DE"];
 
 const readStoredList = (key) => {
   if (typeof window === "undefined") return [];
@@ -82,6 +84,42 @@ const writeStoredList = (key, values) => {
     // Favourites and recent channels are a convenience only.
   }
 };
+
+const readStoredLiveTvState = () => {
+  if (typeof window === "undefined") return {};
+
+  try {
+    const parsed = JSON.parse(
+      window.localStorage.getItem(LIVE_TV_VIEW_STATE_KEY) || "{}"
+    );
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+const writeStoredLiveTvState = (patch) => {
+  if (typeof window === "undefined") return;
+
+  try {
+    const current = readStoredLiveTvState();
+    window.localStorage.setItem(
+      LIVE_TV_VIEW_STATE_KEY,
+      JSON.stringify({
+        ...current,
+        ...(patch || {}),
+        updatedAt: Date.now(),
+      })
+    );
+  } catch {
+    // Live TV position memory is a convenience only.
+  }
+};
+
+const safeStoredViewMode = (value) =>
+  ["channels", "guide", "sources"].includes(String(value || ""))
+    ? String(value)
+    : "channels";
 
 const BBC_RADIO_STREAMS = {
   "bbc radio 1":
