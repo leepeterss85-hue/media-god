@@ -1374,7 +1374,7 @@ export default async function (req) {
           return {
             name:
               clean(
-                activeAddons[index]?.name
+                selectedAddons[index]?.name
               ) ||
               `Addon ${index + 1}`,
 
