@@ -2723,14 +2723,33 @@ export default function VideoPlayer({
     const armStallRecovery = () => {
       if (switched) return;
       clearStall();
-      stallTimer = window.setTimeout(
-        () =>
-          switchLiveSource(
-            "Live TV stopped responding.",
-            { stalled: true }
-          ),
-        8500
-      );
+
+      const startedAt = Number(video?.currentTime || 0);
+
+      stallTimer = window.setTimeout(() => {
+        stallTimer = null;
+
+        const currentTime = Number(video?.currentTime || 0);
+        const recovered =
+          video instanceof HTMLVideoElement &&
+          !video.paused &&
+          !video.ended &&
+          !video.error &&
+          video.networkState !== HTMLMediaElement.NETWORK_NO_SOURCE &&
+          (
+            currentTime > startedAt + 0.25 ||
+            video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA
+          );
+
+        if (recovered) {
+          return;
+        }
+
+        switchLiveSource(
+          "Live TV stopped responding.",
+          { stalled: true }
+        );
+      }, 10000);
     };
 
     const onPlaying = () => {
@@ -2766,13 +2785,26 @@ export default function VideoPlayer({
 
     attach();
 
-    startupTimer = window.setTimeout(
-      () =>
-        switchLiveSource(
-          "Live TV took too long to start."
-        ),
-      12000
-    );
+    startupTimer = window.setTimeout(() => {
+      startupTimer = null;
+
+      const alreadyPlaying =
+        video instanceof HTMLVideoElement &&
+        !video.paused &&
+        !video.ended &&
+        !video.error &&
+        video.networkState !== HTMLMediaElement.NETWORK_NO_SOURCE &&
+        video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
+        Number(video.currentTime || 0) > 0.1;
+
+      if (alreadyPlaying) {
+        return;
+      }
+
+      switchLiveSource(
+        "Live TV took too long to start."
+      );
+    }, 15000);
 
     return () => {
       clearStartup();
