@@ -1125,16 +1125,19 @@ export function shouldUseBrowserAddonFallback(
   }
 
   return diagnostics.some(
-    (item) =>
-      [
-        "http_403",
-        "unreachable",
-        "no_playable_streams",
-        "error",
-      ].includes(
-        clean(
-          item?.status
-        ).toLowerCase()
-      )
+    (item) => {
+      const status = clean(
+        item?.status
+      ).toLowerCase();
+
+      return (
+        [
+          "unreachable",
+          "no_playable_streams",
+          "error",
+        ].includes(status) ||
+        /^http_(?:403|408|429|5\d\d)$/.test(status)
+      );
+    }
   );
 }
