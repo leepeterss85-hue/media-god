@@ -589,31 +589,99 @@ export default function LiveTVView() {
     let timer = null;
 
     const loadGuide = async () => {
-      const selectedCountry =
-        countryFilter !== DEFAULT_FILTER
-          ? String(countryFilter || "").trim().toUpperCase()
-          : "GB";
-
-      const targets = channels
-        .map((channel, index) => ({ channel, index }))
-        .filter(({ channel }) => {
-          if (isRadioChannel(channel)) return false;
-          return epgCountryForChannel(channel) === selectedCountry;
-        })
-        .slice(0, 400)
-        .map(({ channel }) => ({
-          key: epgKeyForChannel(channel),
-          tvgId: channel?.tvgId || "",
-          name: channel?.name || "",
+      const guideCandidates = channels
+        .filter((channel) => !isRadioChannel(channel))
+        .map((channel) => ({
+          channel,
           country: epgCountryForChannel(channel),
-        }));
+        }))
+        .filter((item) => Boolean(item.country));
+
+      let selectedCountries = [];
+
+      if (countryFilter !== DEFAULT_FILTER) {
+        selectedCountries = [String(countryFilter || "").trim().toUpperCase()];
+      } else {
+        const availableCountries = new Set(
+          guideCandidates.map((item) => item.country)
+        );
+
+        selectedCountries = [
+          ...GUIDE_COUNTRY_PRIORITY.filter((country) => availableCountries.has(country)),
+          ...Array.from(availableCountries)
+            .filter((country) => !GUIDE_COUNTRY_PRIORITY.includes(country))
+            .sort(),
+        ].slice(0, 8);
+      }
+
+      const buckets = new Map(
+        selectedCountries.map((country) => [country, []])
+      );
+
+      guideCandidates.forEach((item) => {
+        if (buckets.has(item.country)) {
+          buckets.get(item.country).push(item.channel);
+        }
+      });
+
+      const targets = [];
+
+      if (selectedCountries.length === 1) {
+        for (const channel of buckets.get(selectedCountries[0]) || []) {
+          if (targets.length >= 400) break;
+          targets.push(channel);
+        }
+      } else {
+        const weights = Object.fromEntries(
+          selectedCountries.map((country) => [
+            country,
+            country === "GB" ? 5 : country === "US" ? 2 : 1,
+          ])
+        );
+        const totalWeight = selectedCountries.reduce(
+          (sum, country) => sum + Number(weights[country] || 1),
+          0
+        );
+
+        selectedCountries.forEach((country) => {
+          const quota = Math.max(
+            1,
+            Math.floor((400 * Number(weights[country] || 1)) / totalWeight)
+          );
+          const list = buckets.get(country) || [];
+          targets.push(...list.slice(0, quota));
+          buckets.set(country, list.slice(quota));
+        });
+
+        let madeProgress = true;
+        while (targets.length < 400 && madeProgress) {
+          madeProgress = false;
+          for (const country of selectedCountries) {
+            const list = buckets.get(country) || [];
+            const nextChannel = list.shift();
+            if (!nextChannel) continue;
+            targets.push(nextChannel);
+            madeProgress = true;
+            if (targets.length >= 400) break;
+          }
+        }
+      }
+
+      const requestTargets = targets.map((channel) => ({
+        key: epgKeyForChannel(channel),
+        tvgId: channel?.tvgId || "",
+        name: channel?.name || "",
+        country: epgCountryForChannel(channel),
+      }));
+
+      if (requestTargets.length === 0) return;
 
       if (targets.length === 0) return;
 
       try {
         const response = await base44.functions.invoke(
           "getLiveEpg",
-          { channels: targets }
+          { channels: requestTargets }
         );
         const data = response?.data ?? response ?? {};
 
@@ -627,7 +695,7 @@ export default function LiveTVView() {
         setEpgByKey((current) => {
           const merged = { ...current };
 
-          targets.forEach((target) => {
+          requestTargets.forEach((target) => {
             delete merged[target.key];
           });
 
