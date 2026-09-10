@@ -610,6 +610,11 @@ export default function StreamSourcesBox({
 
                   tmdbId,
 
+                  title,
+
+                  year:
+                    rdYear,
+
                   mediaType,
 
                   season,
