@@ -863,6 +863,9 @@ const fetchAddonSources = async (
       imdbId:
         args.imdbId,
 
+      tmdbId:
+        args.tmdbId,
+
       mediaType:
         args.mediaType,
 
