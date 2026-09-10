@@ -672,7 +672,7 @@ const fetchServerAddonSources = async ({
   episode,
   fastMode = false,
 }) => {
-  if (!imdbId) {
+  if (!imdbId && !tmdbId && !title) {
     return {
       streams:
         [],
@@ -684,13 +684,13 @@ const fetchServerAddonSources = async ({
         0,
 
       reason:
-        "IMDb id could not be resolved for this title.",
+        "No usable media identifier or title is available for source lookup.",
 
       status:
         "BLOCKED",
 
       error:
-        "IMDb missing",
+        "Media identity missing",
     };
   }
 
