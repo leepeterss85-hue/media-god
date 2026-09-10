@@ -82,6 +82,7 @@ class TvDetailErrorBoundary extends React.Component {
           </p>
           <button
             type="button"
+            data-mg-overlay-back="true"
             onClick={this.props.onClose}
             className="mt-4 min-h-11 rounded-lg bg-mg-green px-4 text-sm font-bold text-black focus:outline-none focus:ring-2 focus:ring-white/70"
           >
