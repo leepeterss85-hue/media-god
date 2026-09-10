@@ -66,6 +66,7 @@ export const recordLiveTvPlaybackResult = (
     avgStartupMs,
     lastGood: success ? Date.now() : Number(current.lastGood || 0),
     lastFailure: failed ? Date.now() : Number(current.lastFailure || 0),
+    lastStall: stalled ? Date.now() : Number(current.lastStall || 0),
     updatedAt: Date.now(),
   };
 
@@ -106,7 +107,31 @@ export const liveTvUrlScore = (url) => {
     score -= 5500;
   }
 
+  if (Number(record.lastStall || 0) > now - 6 * 60 * 60 * 1000) {
+    score -= 2600;
+  }
+
   return score;
+};
+
+export const liveTvUrlQuarantined = (url) => {
+  const key = keyFor(url);
+  if (!key) return false;
+
+  const record = readStore()?.[key];
+  if (!record || typeof record !== "object") return false;
+
+  const lastGood = Number(record.lastGood || 0);
+  const lastBad = Math.max(
+    Number(record.lastFailure || 0),
+    Number(record.lastStall || 0)
+  );
+  const recentBad = lastBad > Date.now() - 30 * 60 * 1000;
+  const badCount = Number(record.failures || 0) + Number(record.stalls || 0);
+
+  // Two or more recent bad outcomes put the URL at the back of the queue for
+  // a short period. A later successful play immediately clears the quarantine.
+  return recentBad && badCount >= 2 && lastBad > lastGood;
 };
 
 const ensurePreconnect = (url) => {
