@@ -492,13 +492,12 @@ export default function LiveTVView() {
       const selectedCountry =
         countryFilter !== DEFAULT_FILTER
           ? String(countryFilter || "").trim().toUpperCase()
-          : "";
+          : "GB";
 
       const targets = channels
         .map((channel, index) => ({ channel, index }))
         .filter(({ channel }) => {
           if (isRadioChannel(channel)) return false;
-          if (!selectedCountry) return true;
           return epgCountryForChannel(channel) === selectedCountry;
         })
         .slice(0, 400)
