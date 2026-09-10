@@ -6,10 +6,7 @@ import {
   createPortal,
 } from "react-dom";
 import {
-  ChevronLeft,
-  ChevronRight,
   ListVideo,
-  Loader2,
 } from "lucide-react";
 
 import { base44 } from "@/api/base44Client";
