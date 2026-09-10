@@ -217,6 +217,42 @@ const fetchJsonWithTimeout = async (
   }
 };
 
+const isTorrentioRequest = (value) => {
+  try {
+    const parsed = new URL(clean(value));
+    return /(^|\.)torrentio\.strem\.fun$/i.test(parsed.hostname);
+  } catch {
+    return false;
+  }
+};
+
+const wait = (ms) =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
+const fetchAddonJson = async (
+  url,
+  timeoutMs = 4500
+) => {
+  let result = await fetchJsonWithTimeout(
+    url,
+    timeoutMs
+  );
+
+  if (
+    result?.status === 403 &&
+    isTorrentioRequest(url)
+  ) {
+    await wait(300);
+
+    result = await fetchJsonWithTimeout(
+      url,
+      timeoutMs
+    );
+  }
+
+  return result;
+};
+
 const getRequestHeaders = (stream) =>
   stream?.behaviorHints?.proxyHeaders?.request ||
   stream?.behavior_hints?.proxyHeaders?.request ||
@@ -451,7 +487,7 @@ const healthCheckAddon = async (addon) => {
   }
 
   const result =
-    await fetchJsonWithTimeout(
+    await fetchAddonJson(
       manifestUrl,
       8000
     );
@@ -603,7 +639,7 @@ const lookupAddon = async ({
     "unknown";
 
   const manifestResult =
-    await fetchJsonWithTimeout(
+    await fetchAddonJson(
       manifestUrl,
       manifestTimeoutMs
     );
@@ -687,7 +723,7 @@ const lookupAddon = async ({
   }
 
   const result =
-    await fetchJsonWithTimeout(
+    await fetchAddonJson(
       targetUrl,
       streamTimeoutMs
     );
@@ -750,7 +786,7 @@ const lookupAddon = async ({
         continue;
       }
 
-      const alternateResult = await fetchJsonWithTimeout(
+      const alternateResult = await fetchAddonJson(
         alternateUrl,
         streamTimeoutMs
       );
