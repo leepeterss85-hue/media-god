@@ -1182,6 +1182,7 @@ export function shouldUseBrowserAddonFallback(
         [
           "unreachable",
           "no_playable_streams",
+          "browser_required",
           "error",
         ].includes(status) ||
         /^http_(?:403|408|429|5\d\d)$/.test(status)
