@@ -111,6 +111,24 @@ const streamTitle = (stream) =>
     .split("\n")[0]
     .trim();
 
+const isAddonControlStream = (stream, addonName = "") => {
+  const text = [
+    addonName,
+    stream?.name,
+    stream?.title,
+    stream?.description,
+    stream?.url,
+    stream?.externalUrl,
+  ]
+    .map(clean)
+    .filter(Boolean)
+    .join(" ");
+
+  return /\bcomet\s+sync\b|debrid_sync_triggered|account\s+sync\s+started|refreshing\s+your\s+debrid\s+library/i.test(
+    text
+  );
+};
+
 const addonSupportsStreams = (manifest) => {
   const resources = Array.isArray(manifest?.resources)
     ? manifest.resources
@@ -281,6 +299,14 @@ const normaliseStream = (
 
   const label =
     `${addonName}: ${streamTitle(stream)}`;
+
+  if (isAddonControlStream(stream, addonName)) {
+    return {
+      unsupported: true,
+      reason: "addon_control_stream",
+      label,
+    };
+  }
 
   const externalUrl = clean(
     stream?.externalUrl ||
@@ -808,6 +834,9 @@ const lookupAddon = async ({
   let unsupportedHeaders =
     0;
 
+  let unsupportedControlStreams =
+    0;
+
   const normalised =
     rawStreams
       .map(
@@ -831,6 +860,14 @@ const lookupAddon = async ({
               "requires_request_headers"
             ) {
               unsupportedHeaders +=
+                1;
+            }
+
+            if (
+              item.reason ===
+              "addon_control_stream"
+            ) {
+              unsupportedControlStreams +=
                 1;
             }
 
@@ -867,7 +904,11 @@ const lookupAddon = async ({
                 ? ""
                 : "s"
             } found${alternateIdUsed ? ` using alternate id ${alternateIdUsed}` : ""}.`
-          : unsupportedHeaders > 0
+          : unsupportedControlStreams > 0
+            ? `${unsupportedControlStreams} addon sync/control item${
+                unsupportedControlStreams === 1 ? " was" : "s were"
+              } returned and ignored because it is not playable media.`
+            : unsupportedHeaders > 0
             ? `${rawStreams.length} stream${
                 rawStreams.length === 1
                   ? " was"
