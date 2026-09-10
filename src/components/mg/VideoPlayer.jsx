@@ -94,6 +94,49 @@ const sourceDisplayLabel = (item, index) =>
     .replace(/\s+/g, " ")
     .trim();
 
+const formatCacheBytes = (value) => {
+  const bytes = Math.max(0, Number(value || 0));
+
+  if (!bytes) return "";
+
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let amount = bytes;
+  let unit = 0;
+
+  while (amount >= 1024 && unit < units.length - 1) {
+    amount /= 1024;
+    unit += 1;
+  }
+
+  const decimals = amount >= 100 || unit === 0 ? 0 : amount >= 10 ? 1 : 2;
+  return `${amount.toFixed(decimals)} ${units[unit]}`;
+};
+
+const formatCacheSpeed = (value) => {
+  const speed = formatCacheBytes(value);
+  return speed ? `${speed}/s` : "";
+};
+
+const friendlyRdStatus = (value) => {
+  const status = String(value || "").trim().toLowerCase();
+  const labels = {
+    magnet_conversion: "Reading magnet",
+    waiting_files_selection: "Selecting files",
+    waiting_selection: "Queued",
+    queued: "Queued",
+    downloading: "Downloading",
+    downloaded: "Cached",
+    compressing: "Finishing",
+    uploading: "Finishing",
+    dead: "No live seeders",
+    error: "Real-Debrid error",
+    magnet_error: "Magnet failed",
+    virus: "Blocked by Real-Debrid",
+  };
+
+  return labels[status] || (status ? status.replace(/_/g, " ") : "Preparing");
+};
+
 const friendlyPlaybackError = (value) => {
   const message = String(value || "").replace(/\s+/g, " ").trim();
 
@@ -273,6 +316,9 @@ export default function VideoPlayer({
 
   const [rdError, setRdError] =
     useState("");
+
+  const [rdPreparation, setRdPreparation] =
+    useState(null);
 
   const [rdOverride, setRdOverride] =
     useState(null);
@@ -624,6 +670,7 @@ export default function VideoPlayer({
 
     clearSourceFailed(nextIndex);
     setRdTorrentId(null);
+    setRdPreparation(null);
     setRdError("");
     setRdResolving(false);
     setRdPolling(false);
@@ -1454,12 +1501,25 @@ export default function VideoPlayer({
                 false
               );
 
+              setRdPreparation(null);
+
               return;
             }
 
             if (
               data.torrent_id
             ) {
+              setRdPreparation({
+                ...(data.torrent_progress || {}),
+                status:
+                  data.torrent_progress?.status ||
+                  data.rd_status ||
+                  "preparing",
+                startedAt: Date.now(),
+                updatedAt: Date.now(),
+                attempts: 0,
+              });
+
               setRdTorrentId(
                 String(
                   data.torrent_id
@@ -2991,6 +3051,8 @@ export default function VideoPlayer({
       setRdTorrentId(
         null
       );
+
+      setRdPreparation(null);
 
       setRdError(
         ""
