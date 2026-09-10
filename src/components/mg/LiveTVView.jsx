@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Hls from "hls.js";
 import {
+  Activity,
   AlertTriangle,
   CheckCircle2,
   ExternalLink,
@@ -281,6 +282,44 @@ const qualityLabel = (channel) => {
   if (quality > 0) return "SD";
 
   return "";
+};
+
+const repositoryHealth = (source) => {
+  if (source?.error) {
+    return {
+      label: "Down",
+      className: "border-red-400/30 bg-red-400/10 text-red-200",
+    };
+  }
+
+  const count = Number(source?.count || 0);
+  const latencyMs = Number(source?.latencyMs || 0);
+
+  if (count <= 0) {
+    return {
+      label: "Empty",
+      className: "border-amber-400/30 bg-amber-400/10 text-amber-200",
+    };
+  }
+
+  if (latencyMs >= 10000) {
+    return {
+      label: "Slow",
+      className: "border-amber-400/30 bg-amber-400/10 text-amber-200",
+    };
+  }
+
+  if (latencyMs >= 5000) {
+    return {
+      label: "Fair",
+      className: "border-white/15 bg-white/5 text-white/65",
+    };
+  }
+
+  return {
+    label: "Healthy",
+    className: "border-mg-green/30 bg-mg-green/10 text-mg-green",
+  };
 };
 
 const playableChannelCandidates = (channel) => {
