@@ -957,6 +957,23 @@ export default async function (req) {
       const wantYear =
         normalise(year);
 
+      const titleStopWords =
+        new Set([
+          "a",
+          "an",
+          "and",
+          "at",
+          "by",
+          "for",
+          "from",
+          "in",
+          "of",
+          "on",
+          "the",
+          "to",
+          "with",
+        ]);
+
       const titleWords =
         title
           .toLowerCase()
@@ -965,7 +982,10 @@ export default async function (req) {
           )
           .filter(
             (word) =>
-              word.length >= 3
+              word.length >= 2 &&
+              !titleStopWords.has(
+                word
+              )
           );
 
       let epRegex =
@@ -1041,9 +1061,40 @@ export default async function (req) {
                 )
             );
 
+          const matchedWords =
+            titleWords.filter(
+              (word) =>
+                words.has(
+                  word
+                )
+            ).length;
+
+          const yearMatches =
+            Boolean(
+              wantYear &&
+              fn.includes(
+                wantYear
+              )
+            );
+
+          /*
+           * Releases sometimes translate only the subtitle while keeping the
+           * identifying title prefix. Allow that only when the release year
+           * also matches, so loose word overlap cannot select an unrelated
+           * title from the Real-Debrid library.
+           */
+          const fuzzyYearMatch =
+            yearMatches &&
+            titleWords.length >= 2 &&
+            matchedWords >= 2 &&
+            matchedWords /
+              titleWords.length >=
+              0.45;
+
           if (
             !contiguous &&
-            !allWords
+            !allWords &&
+            !fuzzyYearMatch
           ) {
             return -1;
           }
@@ -1058,12 +1109,13 @@ export default async function (req) {
             score += 50;
           }
 
-          if (
-            wantYear &&
-            fn.includes(
-              wantYear
-            )
-          ) {
+          if (fuzzyYearMatch) {
+            score +=
+              30 +
+              matchedWords * 8;
+          }
+
+          if (yearMatches) {
             score += 15;
           }
 
