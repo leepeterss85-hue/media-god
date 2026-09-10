@@ -2037,7 +2037,116 @@ export default function LiveTVView() {
         )}
       </div>
 
-      {shown.length === 0 ? (
+      {viewMode === "sources" ? (
+        <div className="space-y-4" data-mg-live-tv-source-diagnostics="true">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div className="rounded-xl border border-mg-green/25 bg-mg-green/5 p-4">
+              <div className="text-2xl font-black text-mg-green">
+                {healthyRepositoryCount}
+              </div>
+              <div className="mt-1 text-xs font-semibold text-white/55">
+                Healthy repositories
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-amber-400/20 bg-amber-400/5 p-4">
+              <div className="text-2xl font-black text-amber-200">
+                {slowRepositoryCount}
+              </div>
+              <div className="mt-1 text-xs font-semibold text-white/55">
+                Fair / slow
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-red-400/20 bg-red-400/5 p-4">
+              <div className="text-2xl font-black text-red-200">
+                {failedSources.length}
+              </div>
+              <div className="mt-1 text-xs font-semibold text-white/55">
+                Down right now
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-white/10 bg-mg-card p-4">
+              <div className="text-2xl font-black text-white">
+                {mergedBackupCount.toLocaleString()}
+              </div>
+              <div className="mt-1 text-xs font-semibold text-white/55">
+                Hidden backup feeds
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-white/10 bg-mg-card p-4">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2 font-bold text-white">
+                  <Activity className="h-4 w-4 text-mg-green" />
+                  Repository health
+                </div>
+                <p className="mt-1 text-xs text-white/40">
+                  Failed and slow repositories are shown first. Refresh channels to retest them.
+                </p>
+              </div>
+
+              <div className="text-xs text-white/40">
+                {sourceStatus.length} repositories checked
+              </div>
+            </div>
+
+            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+              {diagnosticSources.map((source) => {
+                const health = repositoryHealth(source);
+                const latencyMs = Number(source?.latencyMs || 0);
+
+                return (
+                  <div
+                    key={source.id || source.name}
+                    className="rounded-lg border border-white/8 bg-black/20 p-3"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-white">
+                          {source.name || source.id || "Live TV repository"}
+                        </div>
+                        <div className="mt-1 truncate text-[10px] text-white/35">
+                          {source.category || "Other"}
+                        </div>
+                      </div>
+
+                      <span
+                        className={cn(
+                          "shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-wide",
+                          health.className
+                        )}
+                      >
+                        {health.label}
+                      </span>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-white/50">
+                      <span>{Number(source?.count || 0).toLocaleString()} channels</span>
+                      <span>
+                        {source?.direct
+                          ? "Native backup"
+                          : latencyMs > 0
+                            ? `${(latencyMs / 1000).toFixed(latencyMs >= 10000 ? 0 : 1)}s load`
+                            : "Instant"}
+                      </span>
+                    </div>
+
+                    {source.error && (
+                      <div className="mt-2 line-clamp-2 rounded-md border border-red-400/15 bg-red-400/5 px-2 py-1.5 text-[10px] leading-4 text-red-200/80">
+                        {source.error}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      ) : shown.length === 0 ? (
         <div className="rounded-xl border border-white/10 bg-mg-card p-8 text-center">
           <Tv className="mx-auto mb-3 h-8 w-8 text-white/25" />
 
