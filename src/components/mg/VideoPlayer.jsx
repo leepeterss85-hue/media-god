@@ -353,18 +353,6 @@ export default function VideoPlayer({
   const activeUrl =
     getSourceUrl(active);
 
-  /*
-   * Recreate the media surface whenever the user changes source/file or an
-   * audio/video recovery action changes the stream generation. Android and
-   * Fire TV WebViews can otherwise keep the previous hardware video layer
-   * alive, which is what causes the doubled / picture-in-picture style view.
-   */
-  const playbackSurfaceKey = [
-    source?.playRequestId || source?.id || source?.title || "player",
-    activeIdx,
-    streamActionGenerationRef.current,
-  ].join(":");
-
   const trackPreferences = readTrackPreferences();
 
   useEffect(() => {
@@ -561,27 +549,6 @@ export default function VideoPlayer({
 
     if (resumeAt > 5) {
       recoveryResumeRef.current = resumeAt;
-    }
-
-    /*
-     * Release Chromium's existing media/compositor surface before React swaps
-     * the source. This prevents an old Android hardware-video layer remaining
-     * visible underneath or beside the replacement stream.
-     */
-    if (currentVideo instanceof HTMLVideoElement) {
-      try {
-        currentVideo.pause();
-        currentVideo.removeAttribute("src");
-        currentVideo.removeAttribute("poster");
-        try {
-          currentVideo.srcObject = null;
-        } catch {
-          // Some WebViews expose srcObject as read-only for this media type.
-        }
-        currentVideo.load();
-      } catch {
-        // The source may already have torn itself down after an error.
-      }
     }
 
     clearSourceFailed(nextIndex);
@@ -4058,7 +4025,9 @@ export default function VideoPlayer({
           ) : rdOverride ? (
             <>
               <LiveVideo
-                key={`${playbackSurfaceKey}:rd:${rdOverride.src}`}
+                key={
+                  rdOverride.src
+                }
                 ref={
                   videoRef
                 }
@@ -4103,7 +4072,9 @@ export default function VideoPlayer({
               />
 
               <PlayerControls
-                key={`${playbackSurfaceKey}:rd-controls:${rdOverride.src}`}
+                key={
+                  rdOverride.src
+                }
                 videoRef={
                   videoRef
                 }
@@ -4177,9 +4148,11 @@ export default function VideoPlayer({
                 ref={
                   liveVideoRef
                 }
-                key={`${playbackSurfaceKey}:direct:${activeUrl}`}
+                key={
+                  active.src
+                }
                 src={
-                  activeUrl
+                  active.src
                 }
                 sourceLabel={
                   active?.format ||
@@ -4220,7 +4193,9 @@ export default function VideoPlayer({
               />
 
               <PlayerControls
-                key={`${playbackSurfaceKey}:direct-controls:${activeUrl}`}
+                key={
+                  active.src
+                }
                 videoRef={
                   liveVideoRef
                 }
