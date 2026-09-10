@@ -1507,6 +1507,9 @@ export default function LiveTVView() {
         !source.error
     );
 
+  const repositorySources = sourceStatus.filter((source) => !source?.direct);
+  const failedRepositoryCount = repositorySources.filter((source) => source?.error).length;
+
   const diagnosticSources = [...sourceStatus].sort((a, b) => {
     const rank = {
       Down: 4,
@@ -1525,10 +1528,10 @@ export default function LiveTVView() {
     );
   });
 
-  const healthyRepositoryCount = sourceStatus.filter(
+  const healthyRepositoryCount = repositorySources.filter(
     (source) => repositoryHealth(source).label === "Healthy"
   ).length;
-  const slowRepositoryCount = sourceStatus.filter((source) =>
+  const slowRepositoryCount = repositorySources.filter((source) =>
     ["Slow", "Fair"].includes(repositoryHealth(source).label)
   ).length;
   const mergedBackupCount = channels.reduce(
@@ -2020,7 +2023,7 @@ export default function LiveTVView() {
 
         <span data-mg-live-tv-technical="true">
           {workingSources.length}/
-          {sourceStatus.length} playlist sources loaded
+          {sourceStatus.length} source endpoints loaded
         </span>
 
         {epgMatched > 0 && (
@@ -2067,7 +2070,7 @@ export default function LiveTVView() {
 
             <div className="rounded-xl border border-red-400/20 bg-red-400/5 p-4">
               <div className="text-2xl font-black text-red-200">
-                {failedSources.length}
+                {failedRepositoryCount}
               </div>
               <div className="mt-1 text-xs font-semibold text-white/55">
                 Down right now
@@ -2097,7 +2100,7 @@ export default function LiveTVView() {
               </div>
 
               <div className="text-xs text-white/40">
-                {sourceStatus.length} repositories checked
+                {repositorySources.length} repositories checked
               </div>
             </div>
 
