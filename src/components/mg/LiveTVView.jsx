@@ -1681,6 +1681,7 @@ export default function LiveTVView() {
       <button
         key={memoryKey}
         type="button"
+        data-mg-live-tv-key={encodeURIComponent(memoryKey)}
         onClick={() => playChannel(channel)}
         onFocus={(event) => {
           setFocusedChannelKey(memoryKey);
@@ -2424,6 +2425,7 @@ export default function LiveTVView() {
               >
                 <button
                   type="button"
+                  data-mg-live-tv-key={encodeURIComponent(memoryKey)}
                   onClick={() => playChannel(channel)}
                   onFocus={(event) => {
                     setFocusedChannelKey(memoryKey);
@@ -2580,6 +2582,7 @@ export default function LiveTVView() {
                 >
                   <button
                     type="button"
+                    data-mg-live-tv-key={encodeURIComponent(memoryKey)}
                     onClick={() =>
                       playChannel(
                         channel
