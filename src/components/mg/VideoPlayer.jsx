@@ -312,6 +312,7 @@ export default function VideoPlayer({
     url: "",
   });
   const nativeLaunchTimerRef = useRef(null);
+  const streamActionGenerationRef = useRef(0);
 
   useEffect(() => {
     return () => {
@@ -515,6 +516,18 @@ export default function VideoPlayer({
       statusMessage = "",
     } = {}
   ) => {
+    streamActionGenerationRef.current += 1;
+
+    if (nativeLaunchTimerRef.current) {
+      window.clearTimeout(nativeLaunchTimerRef.current);
+      nativeLaunchTimerRef.current = null;
+    }
+
+    nativePlaybackRef.current = {
+      requestId: "",
+      url: "",
+    };
+
     if (torrentFailoverTimerRef.current) {
       window.clearTimeout(torrentFailoverTimerRef.current);
       torrentFailoverTimerRef.current = null;
@@ -3268,6 +3281,9 @@ export default function VideoPlayer({
   const handleNoSound =
     async (options = {}) => {
       const automatic = options?.automatic === true;
+      const actionGeneration = ++streamActionGenerationRef.current;
+      const actionStillCurrent = () =>
+        streamActionGenerationRef.current === actionGeneration;
 
       if (!automatic && typeof window !== "undefined") {
         window.dispatchEvent(
@@ -3386,10 +3402,18 @@ export default function VideoPlayer({
           timer = window.setTimeout(() => finish(false), 350);
         });
 
+        if (!actionStillCurrent()) {
+          return;
+        }
+
         if (hlsHandled) {
           setRdError("");
           return;
         }
+      }
+
+      if (!actionStillCurrent()) {
+        return;
       }
 
       if (
@@ -3452,6 +3476,10 @@ export default function VideoPlayer({
 
             const data = response?.data || {};
 
+            if (!actionStillCurrent()) {
+              return;
+            }
+
             if (
               data?.status === "ready" &&
               data?.stream_url &&
@@ -3495,9 +3523,15 @@ export default function VideoPlayer({
           } catch {
             // Fall through to the next ranked source.
           } finally {
-            setRdResolving(false);
+            if (actionStillCurrent()) {
+              setRdResolving(false);
+            }
           }
         }
+      }
+
+      if (!actionStillCurrent()) {
+        return;
       }
 
       if (
@@ -3523,6 +3557,10 @@ export default function VideoPlayer({
 
       if (resumeAt > 5) {
         recoveryResumeRef.current = resumeAt;
+      }
+
+      if (!actionStillCurrent()) {
+        return;
       }
 
       markSourceFailed(activeIdx);
