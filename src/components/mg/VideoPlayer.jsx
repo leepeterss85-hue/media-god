@@ -2563,7 +2563,7 @@ export default function VideoPlayer({
         .join(" ");
 
       const cometNamedError =
-        /\b(?:public\s+)?rate[-\s]?limit(?:ed)?\s+exceeded\b|couldn['’]?t\s+start\s+this\s+stream|could\s+not\s+start\s+this\s+stream|not\s+cached[^\n]{0,80}(?:debrid|server|yet|wait)/i.test(
+        /\b(?:public\s+)?rate[-\s]?limit(?:ed)?\s+exceeded\b|couldn['’]?t\s+start\s+this\s+stream|could\s+not\s+start\s+this\s+stream|not\s+cached[^\n]{0,80}(?:debrid|server|yet|wait)|\bwrong\s+ip\b|infringing[_\s-]?file|\bcopyright\b/i.test(
           activeSourceText
         );
 
@@ -2571,8 +2571,8 @@ export default function VideoPlayer({
         /\bcomet\b/i.test(activeSourceText) &&
         (
           cometNamedError ||
+          loadedDuration <= 15 ||
           (
-            sources.length > 1 &&
             loadedDuration >= 115 &&
             loadedDuration <= 125
           )
@@ -4052,6 +4052,9 @@ export default function VideoPlayer({
     rdPolling ||
     !!rdTorrentId;
 
+  const activeSourceFailed =
+    failedSources.has(activeIdx);
+
   const displayedError =
     rdError ||
     "";
@@ -4374,6 +4377,20 @@ export default function VideoPlayer({
                   </div>
                 )}
               </div>
+            </div>
+          ) : activeSourceFailed && displayedError ? (
+            <div className="flex max-w-lg flex-col items-center gap-3 p-6 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full border border-amber-400/20 bg-amber-400/10 text-amber-200">
+                <VolumeX className="h-6 w-6" />
+              </div>
+
+              <p className="text-sm font-semibold text-white/85 sm:text-base">
+                This source is unavailable
+              </p>
+
+              <p className="max-w-md text-xs leading-relaxed text-white/50 sm:text-sm">
+                {friendlyError || "Media God rejected an error/status stream instead of playing it as video."}
+              </p>
             </div>
           ) : fireTvNativeSelectorMode ? (
             <div
