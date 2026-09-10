@@ -842,6 +842,7 @@ export async function fetchBrowserAddonStreams({
   tmdbId = "",
   title = "",
   year = "",
+  excludeAddonNames = [],
   mediaType = "movie",
   season = null,
   episode = null,
@@ -956,12 +957,31 @@ export async function fetchBrowserAddonStreams({
     };
   }
 
+  const excludedAddonNames =
+    new Set(
+      (
+        Array.isArray(
+          excludeAddonNames
+        )
+          ? excludeAddonNames
+          : []
+      )
+        .map(
+          (value) =>
+            clean(value).toLowerCase()
+        )
+        .filter(Boolean)
+    );
+
   const activeAddons =
     (addons || []).filter(
       (addon) =>
         addon?.installed !== false &&
         addon?.active !== false &&
-        addon?.url
+        addon?.url &&
+        !excludedAddonNames.has(
+          clean(addon?.name).toLowerCase()
+        )
     );
 
   if (
