@@ -441,6 +441,7 @@ const radioUrlsFor = (channel) => {
 };
 
 export default function LiveTVView() {
+  const [initialViewState] = useState(() => readStoredLiveTvState());
   const [channels, setChannels] = useState([]);
   const [sourceStatus, setSourceStatus] = useState([]);
   const [rawCount, setRawCount] = useState(0);
@@ -450,11 +451,15 @@ export default function LiveTVView() {
   const [error, setError] = useState("");
   const [channelNotice, setChannelNotice] = useState("");
   const [channelNoticeAction, setChannelNoticeAction] = useState(null);
-  const [query, setQuery] = useState("");
-  const [group, setGroup] = useState(DEFAULT_FILTER);
-  const [countryFilter, setCountryFilter] = useState(DEFAULT_FILTER);
-  const [quickFilter, setQuickFilter] = useState(DEFAULT_FILTER);
-  const [directOnly, setDirectOnly] = useState(false);
+  const [query, setQuery] = useState(String(initialViewState?.query || ""));
+  const [group, setGroup] = useState(String(initialViewState?.group || DEFAULT_FILTER));
+  const [countryFilter, setCountryFilter] = useState(
+    String(initialViewState?.countryFilter || DEFAULT_FILTER)
+  );
+  const [quickFilter, setQuickFilter] = useState(
+    String(initialViewState?.quickFilter || DEFAULT_FILTER)
+  );
+  const [directOnly, setDirectOnly] = useState(Boolean(initialViewState?.directOnly));
   const [radioStation, setRadioStation] = useState(null);
   const [radioSourceIndex, setRadioSourceIndex] = useState(0);
   const [radioPlaying, setRadioPlaying] = useState(false);
@@ -462,17 +467,28 @@ export default function LiveTVView() {
   const [epgByKey, setEpgByKey] = useState({});
   const [epgMatched, setEpgMatched] = useState(0);
   const [clockTick, setClockTick] = useState(() => Date.now());
-  const [viewMode, setViewMode] = useState("channels");
-  const [channelVisibleLimit, setChannelVisibleLimit] = useState(MAX_VISIBLE);
+  const [viewMode, setViewMode] = useState(() =>
+    safeStoredViewMode(initialViewState?.viewMode)
+  );
+  const [channelVisibleLimit, setChannelVisibleLimit] = useState(() =>
+    Math.max(
+      MAX_VISIBLE,
+      Number(initialViewState?.channelVisibleLimit || MAX_VISIBLE)
+    )
+  );
   const [favouriteKeys, setFavouriteKeys] = useState(
     () => new Set(readStoredList(LIVE_TV_FAVOURITES_KEY))
   );
   const [recentKeys, setRecentKeys] = useState(
     () => readStoredList(LIVE_TV_RECENT_KEY)
   );
-  const [focusedChannelKey, setFocusedChannelKey] = useState("");
+  const [focusedChannelKey, setFocusedChannelKey] = useState(
+    String(initialViewState?.focusedChannelKey || "")
+  );
 
   const audioRef = useRef(null);
+  const restoredLiveTvPositionRef = useRef(false);
+  const scrollSaveTimerRef = useRef(null);
   const player = usePlayer();
 
   const load = async (force = false) => {
