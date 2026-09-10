@@ -33,6 +33,24 @@ const streamLabel = (stream, addonName) => {
   return `${addonName}: ${detail || "Stream"}`;
 };
 
+const isAddonControlStream = (stream, addonName = "") => {
+  const text = [
+    addonName,
+    stream?.name,
+    stream?.title,
+    stream?.description,
+    stream?.url,
+    stream?.externalUrl,
+  ]
+    .map(clean)
+    .filter(Boolean)
+    .join(" ");
+
+  return /\bcomet\s+sync\b|debrid_sync_triggered|account\s+sync\s+started|refreshing\s+your\s+debrid\s+library/i.test(
+    text
+  );
+};
+
 const magnetFromHash = (
   hash,
   title = "",
@@ -170,6 +188,14 @@ const normaliseStream = (
 
   const label =
     streamLabel(stream, addonName);
+
+  if (isAddonControlStream(stream, addonName)) {
+    return {
+      unsupported: true,
+      reason: "addon_control_stream",
+      label,
+    };
+  }
 
   const externalUrl = clean(
     stream?.externalUrl ||
@@ -649,6 +675,9 @@ const fetchOneAddon = async ({
   let unsupportedHeaders =
     0;
 
+  let unsupportedControlStreams =
+    0;
+
   const streams =
     rawStreams
       .map(
@@ -672,6 +701,14 @@ const fetchOneAddon = async ({
               "requires_request_headers"
             ) {
               unsupportedHeaders +=
+                1;
+            }
+
+            if (
+              item.reason ===
+              "addon_control_stream"
+            ) {
+              unsupportedControlStreams +=
                 1;
             }
 
@@ -707,7 +744,11 @@ const fetchOneAddon = async ({
                 ? ""
                 : "s"
             }${alternateIdUsed ? ` using alternate id ${alternateIdUsed}` : ""}.`
-          : unsupportedHeaders > 0
+          : unsupportedControlStreams > 0
+            ? `${unsupportedControlStreams} addon sync/control item${
+                unsupportedControlStreams === 1 ? " was" : "s were"
+              } returned and ignored because it is not playable media.`
+            : unsupportedHeaders > 0
             ? `${rawStreams.length} stream${
                 rawStreams.length === 1
                   ? " was"
