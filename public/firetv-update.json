@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 8,
-  "versionName": "1.4.3",
+  "versionCode": 10,
+  "versionName": "1.4.5",
   "title": "Media God Fire TV",
-  "message": "Fire TV 1.4.3 adds native startup and stall watchdogs, cleaner Back navigation, duplicate-playback protection, and a hardened updater that verifies the official signed Media God APK before installation.",
+  "message": "Fire TV 1.4.5 broadens compatibility to older Fire OS devices (Android API 21+), keeps the native Media3 player and remote controls, and includes the latest playback/source reliability fixes.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4372217",
   "downloaderAddress": "tinyurl.com/2aofccoa",
