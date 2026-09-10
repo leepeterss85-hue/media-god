@@ -1919,13 +1919,22 @@ export function PlayerProvider({
           }
         });
 
+        /*
+         * Do not fire the full addon pass at the same instant as the fast
+         * pass. With only a handful of active addons that used to hit the
+         * same public providers twice in parallel, which could trigger
+         * transient 403/429 rate limits. Let the fast pass finish, publish
+         * anything it found, then do the complete/fallback pass.
+         */
         const addonPromise =
           !isLive &&
           !request?.skipAddonLookup
-            ? fetchAddonSources({
-                ...addonArgs,
-                fastMode: false,
-              })
+            ? fastAddonPromise.then(() =>
+                fetchAddonSources({
+                  ...addonArgs,
+                  fastMode: false,
+                })
+              )
             : Promise.resolve(skippedAddonLookup);
 
         addonPromise.then((addonLookup) => {
