@@ -62,6 +62,19 @@ const parseAddonUrl = (value) => {
   }
 };
 
+const isBareElfHostedComet = (value) => {
+  const parsed = parseAddonUrl(value);
+
+  if (!parsed) {
+    return false;
+  }
+
+  return (
+    parsed.origin === "https://comet.elfhosted.com" &&
+    (!parsed.basePath || parsed.basePath === "/")
+  );
+};
+
 const buildAddonUrl = (addonUrl, resourcePath) => {
   const parsed = parseAddonUrl(addonUrl);
 
@@ -402,6 +415,17 @@ const healthCheckAddon = async (addon) => {
     clean(addon?.name) ||
     "Addon";
 
+  if (isBareElfHostedComet(addon?.url)) {
+    return {
+      name: addonName,
+      status: "configuration_required",
+      stream_count: 0,
+      playable_count: 0,
+      message:
+        "Comet needs a configured manifest URL for Media God. Open Comet Configure, add your debrid service, then paste its generated manifest URL.",
+    };
+  }
+
   const manifestUrl =
     getManifestUrl(
       addon?.url
@@ -510,6 +534,7 @@ const lookupAddon = async ({
   addon,
   type,
   streamId,
+  alternateStreamIds = [],
   mediaType,
   manifestTimeoutMs = 3000,
   streamTimeoutMs = 5000,
@@ -517,6 +542,20 @@ const lookupAddon = async ({
   const addonName =
     clean(addon?.name) ||
     "Addon";
+
+  if (isBareElfHostedComet(addon?.url)) {
+    return {
+      streams: [],
+      diagnostic: {
+        name: addonName,
+        status: "configuration_required",
+        stream_count: 0,
+        playable_count: 0,
+        message:
+          "Comet is using its bare public manifest. Add a configured Comet manifest to enable stream lookup.",
+      },
+    };
+  }
 
   const manifestUrl =
     getManifestUrl(
@@ -682,12 +721,53 @@ const lookupAddon = async ({
     };
   }
 
-  const rawStreams =
+  let rawStreams =
     Array.isArray(
       result.data?.streams
     )
       ? result.data.streams
       : [];
+
+  let alternateIdUsed = "";
+
+  if (
+    rawStreams.length === 0 &&
+    Array.isArray(alternateStreamIds) &&
+    alternateStreamIds.length > 0
+  ) {
+    for (const alternateStreamId of alternateStreamIds) {
+      if (!alternateStreamId || alternateStreamId === streamId) {
+        continue;
+      }
+
+      const alternateUrl = getStreamUrl(
+        addon?.url,
+        type,
+        alternateStreamId
+      );
+
+      if (!alternateUrl) {
+        continue;
+      }
+
+      const alternateResult = await fetchJsonWithTimeout(
+        alternateUrl,
+        streamTimeoutMs
+      );
+
+      const alternateStreams =
+        alternateResult.ok &&
+        Array.isArray(alternateResult.data?.streams)
+          ? alternateResult.data.streams
+          : [];
+
+      if (alternateStreams.length > 0) {
+        rawStreams = alternateStreams;
+        alternateIdUsed = alternateStreamId;
+        break;
+      }
+    }
+  }
 
   let unsupportedHeaders =
     0;
@@ -750,7 +830,7 @@ const lookupAddon = async ({
               normalised.length === 1
                 ? ""
                 : "s"
-            } found.`
+            } found${alternateIdUsed ? ` using alternate id ${alternateIdUsed}` : ""}.`
           : unsupportedHeaders > 0
             ? `${rawStreams.length} stream${
                 rawStreams.length === 1
@@ -924,6 +1004,12 @@ export default async function (req) {
         body.title
       );
 
+    const tmdbId =
+      clean(
+        body.tmdb_id ||
+          body.tmdbId
+      );
+
     const mediaType =
       body.media_type === "tv" ||
       body.mediaType === "tv"
@@ -1011,6 +1097,15 @@ export default async function (req) {
           : imdbId
         : `search:${title}`;
 
+    const alternateStreamIds =
+      tmdbId
+        ? [
+            mediaType === "tv"
+              ? `tmdb:${tmdbId}:${season}:${episode}`
+              : `tmdb:${tmdbId}`,
+          ]
+        : [];
+
     const fastMode =
       body?.fast_mode === true ||
       body?.fastMode === true;
@@ -1028,6 +1123,7 @@ export default async function (req) {
               addon,
               type,
               streamId,
+              alternateStreamIds,
               mediaType,
               manifestTimeoutMs:
                 fastMode ? 900 : 3000,
