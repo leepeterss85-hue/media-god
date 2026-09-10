@@ -1484,8 +1484,22 @@ export default function LiveTVView() {
       return;
     }
 
+    const memoryKey = channelMemoryKey(channel);
+
+    writeStoredLiveTvState({
+      query,
+      group,
+      countryFilter,
+      quickFilter,
+      directOnly,
+      viewMode,
+      channelVisibleLimit,
+      focusedChannelKey: memoryKey,
+      scrollY: Math.max(0, Number(window.scrollY || 0)),
+    });
+
     rememberRecentChannel(channel);
-    setFocusedChannelKey(channelMemoryKey(channel));
+    setFocusedChannelKey(memoryKey);
 
     if (
       isRadioChannel(channel)
