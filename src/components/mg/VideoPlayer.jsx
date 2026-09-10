@@ -2563,7 +2563,7 @@ export default function VideoPlayer({
         .join(" ");
 
       const cometNamedError =
-        /\b(?:public\s+)?rate[-\s]?limit(?:ed)?\s+exceeded\b|couldn['’]?t\s+start\s+this\s+stream|could\s+not\s+start\s+this\s+stream/i.test(
+        /\b(?:public\s+)?rate[-\s]?limit(?:ed)?\s+exceeded\b|couldn['’]?t\s+start\s+this\s+stream|could\s+not\s+start\s+this\s+stream|not\s+cached[^\n]{0,80}(?:debrid|server|yet|wait)/i.test(
           activeSourceText
         );
 
