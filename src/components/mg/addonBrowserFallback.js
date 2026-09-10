@@ -541,6 +541,54 @@ const fetchJson = async (
   }
 };
 
+const isTorrentioRequest = (value) => {
+  try {
+    const parsed = new URL(clean(value));
+    return /(^|\.)torrentio\.strem\.fun$/i.test(parsed.hostname);
+  } catch {
+    return false;
+  }
+};
+
+const wait = (ms) =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
+const fetchBrowserJson = async (
+  url,
+  timeoutMs = 10000
+) => {
+  let result = await fetchJson(
+    url,
+    timeoutMs
+  );
+
+  const retryableStatus =
+    result?.status === 429 ||
+    result?.status === 500 ||
+    result?.status === 502 ||
+    result?.status === 503 ||
+    result?.status === 504 ||
+    (
+      result?.status === 403 &&
+      isTorrentioRequest(url)
+    );
+
+  if (retryableStatus) {
+    await wait(
+      result?.status === 429
+        ? 650
+        : 300
+    );
+
+    result = await fetchJson(
+      url,
+      timeoutMs
+    );
+  }
+
+  return result;
+};
+
 const fetchOneAddon = async ({
   addon,
   type,
@@ -601,7 +649,7 @@ const fetchOneAddon = async ({
   }
 
   const result =
-    await fetchJson(
+    await fetchBrowserJson(
       url,
       10000
     );
@@ -666,7 +714,7 @@ const fetchOneAddon = async ({
         continue;
       }
 
-      const alternateResult = await fetchJson(
+      const alternateResult = await fetchBrowserJson(
         alternateUrl,
         10000
       );
