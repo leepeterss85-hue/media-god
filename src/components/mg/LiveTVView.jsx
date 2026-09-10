@@ -575,6 +575,26 @@ export default function LiveTVView() {
   }, []);
 
   useEffect(() => {
+    if (channels.length === 0) return;
+
+    if (
+      group !== DEFAULT_FILTER &&
+      !channels.some((channel) => channel?.group === group)
+    ) {
+      setGroup(DEFAULT_FILTER);
+    }
+
+    if (
+      countryFilter !== DEFAULT_FILTER &&
+      !channels.some(
+        (channel) => epgCountryForChannel(channel) === countryFilter
+      )
+    ) {
+      setCountryFilter(DEFAULT_FILTER);
+    }
+  }, [channels, group, countryFilter]);
+
+  useEffect(() => {
     const timer = window.setInterval(
       () => setClockTick(Date.now()),
       60 * 1000
@@ -764,8 +784,6 @@ export default function LiveTVView() {
       }));
 
       if (requestTargets.length === 0) return;
-
-      if (targets.length === 0) return;
 
       try {
         const response = await base44.functions.invoke(
