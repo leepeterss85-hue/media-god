@@ -887,6 +887,9 @@ const fetchAddonSources = async (
       year:
         args.year,
 
+      excludeAddonNames:
+        args.excludeAddonNames,
+
       mediaType:
         args.mediaType,
 
