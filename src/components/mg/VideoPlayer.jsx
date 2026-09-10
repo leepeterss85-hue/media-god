@@ -345,6 +345,77 @@ export default function VideoPlayer({
     sourceSortMode
   );
 
+  /*
+   * Android/Fire TV native <select> popups close if React changes their
+   * option list while they are open. Source discovery can legitimately add
+   * results a few seconds after the player appears, so freeze the visible
+   * choices for the duration of the user's selection gesture. The live list
+   * resumes as soon as the select closes or a choice is made.
+   */
+  const [sourceSelectorPinned, setSourceSelectorPinned] =
+    useState(false);
+  const sourceSelectorEntriesRef = useRef([]);
+  const sourceSelectorValueRef = useRef(0);
+
+  const [rdFileSelectorPinned, setRdFileSelectorPinned] =
+    useState(false);
+  const rdFileSelectorFilesRef = useRef([]);
+  const rdFileSelectorValueRef = useRef("");
+
+  const pinSourceSelector = () => {
+    sourceSelectorEntriesRef.current = sortedSourceEntries;
+    sourceSelectorValueRef.current = activeIdx;
+    setSourceSelectorPinned(true);
+  };
+
+  const releaseSourceSelector = () => {
+    setSourceSelectorPinned(false);
+    sourceSelectorEntriesRef.current = [];
+  };
+
+  const visibleSourceSelectorEntries =
+    sourceSelectorPinned && sourceSelectorEntriesRef.current.length > 0
+      ? sourceSelectorEntriesRef.current
+      : sortedSourceEntries;
+
+  const visibleSourceSelectorValue =
+    sourceSelectorPinned
+      ? sourceSelectorValueRef.current
+      : activeIdx;
+
+  const pinRdFileSelector = () => {
+    rdFileSelectorFilesRef.current = rdFiles;
+    rdFileSelectorValueRef.current = String(
+      rdFiles.find(
+        (file) =>
+          file.path === rdOverride?.file ||
+          file.name === rdOverride?.file
+      )?.id ?? ""
+    );
+    setRdFileSelectorPinned(true);
+  };
+
+  const releaseRdFileSelector = () => {
+    setRdFileSelectorPinned(false);
+    rdFileSelectorFilesRef.current = [];
+  };
+
+  const visibleRdFileSelectorFiles =
+    rdFileSelectorPinned && rdFileSelectorFilesRef.current.length > 0
+      ? rdFileSelectorFilesRef.current
+      : rdFiles;
+
+  const visibleRdFileSelectorValue =
+    rdFileSelectorPinned
+      ? rdFileSelectorValueRef.current
+      : String(
+          rdFiles.find(
+            (file) =>
+              file.path === rdOverride?.file ||
+              file.name === rdOverride?.file
+          )?.id ?? ""
+        );
+
   const active =
     sources[activeIdx] ||
     sources[0] ||
@@ -4320,20 +4391,22 @@ export default function VideoPlayer({
                   <div className="relative min-w-[9rem] max-w-[46vw] sm:min-w-[14rem] sm:max-w-sm">
                     <select
                       value={
-                        activeIdx
+                        visibleSourceSelectorValue
                       }
+                      onPointerDown={pinSourceSelector}
+                      onFocus={pinSourceSelector}
+                      onBlur={releaseSourceSelector}
                       onChange={(
                         event
-                      ) =>
-                        selectSource(
-                          event.target
-                            .value
-                        )
-                      }
+                      ) => {
+                        const value = event.target.value;
+                        releaseSourceSelector();
+                        selectSource(value);
+                      }}
                       className="min-h-11 w-full appearance-none rounded-lg border border-white/15 bg-black/60 py-2.5 pl-3 pr-9 text-xs font-medium text-white outline-none backdrop-blur transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/30 sm:min-h-10 sm:text-sm"
                       aria-label="Choose source or quality while loading"
                     >
-                      {sortedSourceEntries.map(
+                      {visibleSourceSelectorEntries.map(
                         ({
                           item,
                           index,
@@ -4449,16 +4522,19 @@ export default function VideoPlayer({
 
               <div className="relative">
                 <select
-                  value={activeIdx}
-                  onChange={(event) =>
-                    selectSource(
-                      event.target.value
-                    )
-                  }
+                  value={visibleSourceSelectorValue}
+                  onPointerDown={pinSourceSelector}
+                  onFocus={pinSourceSelector}
+                  onBlur={releaseSourceSelector}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    releaseSourceSelector();
+                    selectSource(value);
+                  }}
                   className="min-h-11 w-full appearance-none rounded-lg border border-white/10 bg-mg-card py-2.5 pl-3 pr-9 text-xs font-medium text-white outline-none transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/30 sm:min-h-10 sm:text-sm"
                   aria-label="Choose playback source"
                 >
-                  {sortedSourceEntries.map(
+                  {visibleSourceSelectorEntries.map(
                     ({ item, index }) => {
                       const failed =
                         failedSources.has(
@@ -4503,16 +4579,13 @@ export default function VideoPlayer({
                 </span>
 
                 <select
-                  value={
-                    rdFiles.find(
-                      (file) =>
-                        file.path === rdOverride.file ||
-                        file.name === rdOverride.file
-                    )?.id ?? ""
-                  }
+                  value={visibleRdFileSelectorValue}
+                  onPointerDown={pinRdFileSelector}
+                  onFocus={pinRdFileSelector}
+                  onBlur={releaseRdFileSelector}
                   onChange={(event) => {
                     const file =
-                      rdFiles.find(
+                      visibleRdFileSelectorFiles.find(
                         (item) =>
                           String(item.id) ===
                           String(
@@ -4520,15 +4593,17 @@ export default function VideoPlayer({
                           )
                       );
 
+                    releaseRdFileSelector();
+
                     if (file) {
                       pickFile(file);
                     }
                   }}
                   disabled={fileSwitching}
                   className="min-h-11 w-full rounded-lg border border-white/10 bg-mg-card px-3 py-2.5 text-xs font-medium text-white outline-none transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/30 disabled:opacity-60 sm:min-h-10 sm:text-sm"
-                  aria-label="Choose file"
+                  aria-label="Choose torrent file"
                 >
-                  {rdFiles.map(
+                  {visibleRdFileSelectorFiles.map(
                     (file, index) => (
                       <option
                         key={file.id}
