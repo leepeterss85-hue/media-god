@@ -866,6 +866,12 @@ const fetchAddonSources = async (
       tmdbId:
         args.tmdbId,
 
+      title:
+        args.title,
+
+      year:
+        args.year,
+
       mediaType:
         args.mediaType,
 
