@@ -72,6 +72,8 @@ class PlayerRenderBoundary extends React.Component {
           </p>
           <button
             type="button"
+            data-mg-player-exit="true"
+            aria-label="Back to main menu"
             onClick={this.props.onClose}
             className="mt-4 min-h-10 rounded-lg bg-mg-green px-4 text-sm font-bold text-black"
           >
