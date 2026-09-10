@@ -1156,6 +1156,9 @@ export default async function (req) {
 
         addons_checked:
           activeAddons.length,
+
+        addons_available:
+          allActiveAddons.length,
       });
     }
 
@@ -1226,6 +1229,9 @@ export default async function (req) {
         addons_checked:
           activeAddons.length,
 
+        addons_available:
+          allActiveAddons.length,
+
         reason:
           "Select a valid season and episode first.",
       });
@@ -1249,6 +1255,9 @@ export default async function (req) {
 
           addons_checked:
             activeAddons.length,
+
+          addons_available:
+            allActiveAddons.length,
         },
         {
           status:
@@ -1392,6 +1401,9 @@ export default async function (req) {
 
       addons_checked:
         selectedAddons.length,
+
+      addons_available:
+        allActiveAddons.length,
 
       fast_mode:
         fastMode,
