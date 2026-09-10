@@ -1,11 +1,93 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.44";
 
-const EPG_URL =
-  "https://epgshare01.online/epgshare01/epg_ripper_UK1.xml.gz";
+const EPG_BASE_URL = "https://epgshare01.online/epgshare01";
 const CACHE_MS = 8 * 60 * 1000;
+const MAX_TARGETS = 400;
+const MAX_COUNTRIES_PER_REQUEST = 8;
 
-let cachedXml = "";
-let cachedAt = 0;
+/*
+ * EPGshare01 publishes separate XMLTV files per country. Keep country feeds
+ * isolated so similarly named channels in different countries can never share
+ * programme data. A few countries have multiple current files; those are
+ * searched together, with exact tvg-id matches preferred over name matches.
+ *
+ * This list was verified against the provider's live index rather than using
+ * the enormous ALL_SOURCES feed, which keeps memory/network usage predictable.
+ */
+const COUNTRY_EPG_TAGS = {
+  AE: ["AE1"],
+  AL: ["AL1"],
+  AR: ["AR1"],
+  AT: ["AT1"],
+  AU: ["AU1"],
+  BA: ["BA1"],
+  BB: ["BB1"],
+  BE: ["BE2"],
+  BG: ["BG1"],
+  BR: ["BR1", "BR2"],
+  CA: ["CA2"],
+  CH: ["CH1"],
+  CL: ["CL1"],
+  CO: ["CO1"],
+  CR: ["CR1"],
+  CY: ["CY1"],
+  CZ: ["CZ1"],
+  DE: ["DE1"],
+  DK: ["DK1"],
+  DO: ["DO1"],
+  EC: ["EC1"],
+  EG: ["EG1"],
+  ES: ["ES1"],
+  FI: ["FI1"],
+  FR: ["FR1"],
+  GB: ["UK1"],
+  GR: ["GR1"],
+  HK: ["HK1"],
+  HR: ["HR1"],
+  HU: ["HU1"],
+  ID: ["ID1"],
+  IE: ["IE1"],
+  IL: ["IL1"],
+  IN: ["IN1", "IN2", "IN4"],
+  IT: ["IT1"],
+  JM: ["JM1"],
+  JP: ["JP1", "JP2"],
+  KE: ["KE1"],
+  KR: ["KR1"],
+  KZ: ["KZ1"],
+  LT: ["LT1"],
+  LU: ["LU1"],
+  LV: ["LV1"],
+  MN: ["MN1"],
+  MT: ["MT1"],
+  MX: ["MX1"],
+  MY: ["MY1"],
+  NG: ["NG1"],
+  NL: ["NL1"],
+  NO: ["NO1"],
+  NZ: ["NZ1"],
+  PA: ["PA1"],
+  PE: ["PE1"],
+  PH: ["PH1", "PH2"],
+  PK: ["PK1"],
+  PL: ["PL1"],
+  PT: ["PT1"],
+  RO: ["RO1", "RO2"],
+  RS: ["RS1"],
+  SA: ["SA1", "SA2"],
+  SE: ["SE1"],
+  SG: ["SG1"],
+  SK: ["SK1"],
+  SV: ["SV1"],
+  TH: ["TH1"],
+  TR: ["TR1", "TR3"],
+  US: ["US2", "US_LOCALS1", "US_SPORTS1"],
+  UY: ["UY1"],
+  VN: ["VN1"],
+  ZA: ["ZA1"],
+};
+
+const cachedXmlByTag = new Map();
 
 const clean = (value) => String(value || "").trim();
 
@@ -45,18 +127,31 @@ const parseXmlTvDate = (value) => {
     Number(mi),
     Number(s)
   );
-  const offsetMinutes = (Number(oh) * 60 + Number(om)) *
-    (sign === "+" ? 1 : -1);
+  const offsetMinutes =
+    (Number(oh) * 60 + Number(om)) * (sign === "+" ? 1 : -1);
 
   return localAsUtc - offsetMinutes * 60 * 1000;
 };
 
-const fetchXml = async () => {
-  if (cachedXml && Date.now() - cachedAt < CACHE_MS) {
-    return cachedXml;
+const countryCodeForTarget = (target) => {
+  const explicit = clean(target?.country).toUpperCase();
+  if (explicit === "UK") return "GB";
+  if (/^[A-Z]{2}$/.test(explicit)) return explicit;
+
+  const tvgId = clean(target?.tvgId);
+  const suffix = tvgId.match(/\.([a-z]{2})(?:@.*)?$/i)?.[1]?.toUpperCase() || "";
+  if (suffix === "UK") return "GB";
+  return /^[A-Z]{2}$/.test(suffix) ? suffix : "";
+};
+
+const fetchXml = async (tag) => {
+  const cached = cachedXmlByTag.get(tag);
+  if (cached?.xml && Date.now() - Number(cached.at || 0) < CACHE_MS) {
+    return cached.xml;
   }
 
-  const response = await fetch(EPG_URL, {
+  const url = `${EPG_BASE_URL}/epg_ripper_${tag}.xml.gz`;
+  const response = await fetch(url, {
     headers: {
       "User-Agent": "MediaGod/1.0 EPG",
       Accept: "application/gzip, application/xml, text/xml, */*",
@@ -64,7 +159,7 @@ const fetchXml = async () => {
   });
 
   if (!response.ok) {
-    throw new Error(`EPG source returned ${response.status}.`);
+    throw new Error(`${tag} returned ${response.status}`);
   }
 
   const bytes = new Uint8Array(await response.arrayBuffer());
@@ -80,17 +175,16 @@ const fetchXml = async () => {
   }
 
   if (!xml.includes("<tv") || !xml.includes("<programme")) {
-    throw new Error("EPG source did not return XMLTV data.");
+    throw new Error(`${tag} did not return XMLTV data`);
   }
 
-  cachedXml = xml;
-  cachedAt = Date.now();
+  cachedXmlByTag.set(tag, { xml, at: Date.now() });
   return xml;
 };
 
 const channelNames = (xml) => {
   const byId = new Map();
-  const byName = new Map();
+  const idsByName = new Map();
   const regex = /<channel\s+[^>]*id="([^"]+)"[^>]*>([\s\S]*?)<\/channel>/gi;
   let match;
 
@@ -105,50 +199,93 @@ const channelNames = (xml) => {
 
     [id, ...displayNames].forEach((name) => {
       const normalised = normaliseName(name);
-      if (normalised && !byName.has(normalised)) {
-        byName.set(normalised, id);
-      }
+      if (!normalised) return;
+      const ids = idsByName.get(normalised) || new Set();
+      ids.add(id);
+      idsByName.set(normalised, ids);
     });
   }
+
+  /*
+   * A normalised display name is safe only when it identifies exactly one
+   * XMLTV channel in this country feed. Ambiguous names are deliberately left
+   * unmatched instead of showing plausible-looking but incorrect programme
+   * information.
+   */
+  const byName = new Map();
+  idsByName.forEach((ids, name) => {
+    if (ids.size === 1) {
+      byName.set(name, Array.from(ids)[0]);
+    }
+  });
 
   return { byId, byName };
 };
 
-const findGuideId = (target, lookup) => {
-  const country = clean(target?.country).toUpperCase();
+const findGuideMatch = (target, lookup) => {
   const tvgId = clean(target?.tvgId);
 
-  /*
-   * This function uses a UK-only XMLTV feed. Never attach that guide to a
-   * channel explicitly identified as another country; global Live TV sources
-   * often reuse similar channel names and would otherwise receive unrelated UK
-   * programmes.
-   */
-  if (country && country !== "GB" && country !== "UK") {
-    return "";
-  }
-
   if (tvgId && lookup.byId.has(tvgId)) {
-    return tvgId;
+    return { guideId: tvgId, strength: 300 };
   }
 
   const normalisedId = normaliseName(tvgId);
   if (normalisedId && lookup.byName.has(normalisedId)) {
-    return lookup.byName.get(normalisedId);
+    return { guideId: lookup.byName.get(normalisedId), strength: 200 };
   }
 
   const name = normaliseName(target?.name);
   if (name && lookup.byName.has(name)) {
-    return lookup.byName.get(name);
+    return { guideId: lookup.byName.get(name), strength: 100 };
   }
 
-  /*
-   * Do not use prefix/substring matching here. A loose match such as one guide
-   * name starting with another can assign the same programme schedule to an
-   * unrelated channel. Exact normalised IDs/names are intentionally preferred
-   * over showing confident-looking but incorrect Now/Next information.
-   */
-  return "";
+  return null;
+};
+
+const programmesForWanted = (xml, wantedGuideIds, nowMs, windowEnd) => {
+  const programmesByGuide = new Map();
+  const programmeRegex = /<programme\s+([^>]+)>([\s\S]*?)<\/programme>/gi;
+  let match;
+
+  while ((match = programmeRegex.exec(xml))) {
+    const attributes = match[1] || "";
+    const block = match[2] || "";
+    const startText = attributes.match(/\bstart="([^"]+)"/i)?.[1] || "";
+    const stopText = attributes.match(/\bstop="([^"]+)"/i)?.[1] || "";
+    const channelText = attributes.match(/\bchannel="([^"]+)"/i)?.[1] || "";
+    const start = parseXmlTvDate(startText);
+    const stop = parseXmlTvDate(stopText);
+    const guideId = decodeXml(channelText);
+
+    if (!wantedGuideIds.has(guideId) || !start || !stop) {
+      continue;
+    }
+
+    if (stop < nowMs - 5 * 60 * 1000 || start > windowEnd) {
+      continue;
+    }
+
+    const titleMatch = block.match(
+      /<title(?:\s[^>]*)?>([\s\S]*?)<\/title>/i
+    );
+    const descMatch = block.match(
+      /<desc(?:\s[^>]*)?>([\s\S]*?)<\/desc>/i
+    );
+    const entry = {
+      title: decodeXml(titleMatch?.[1] || "Programme"),
+      description: decodeXml(descMatch?.[1] || "").slice(0, 500),
+      start: new Date(start).toISOString(),
+      stop: new Date(stop).toISOString(),
+      startMs: start,
+      stopMs: stop,
+    };
+
+    const list = programmesByGuide.get(guideId) || [];
+    list.push(entry);
+    programmesByGuide.set(guideId, list);
+  }
+
+  return programmesByGuide;
 };
 
 export default async function (req) {
@@ -168,96 +305,126 @@ export default async function (req) {
     }
 
     const targets = Array.isArray(body?.channels)
-      ? body.channels.slice(0, 350)
+      ? body.channels.slice(0, MAX_TARGETS)
       : [];
 
     if (targets.length === 0) {
-      return Response.json({ items: [], matched: 0 });
+      return Response.json({ items: [], matched: 0, countries: [] });
     }
 
-    const xml = await fetchXml();
-    const lookup = channelNames(xml);
-    const guideIdByClientKey = new Map();
-    const wantedGuideIds = new Set();
-    const usedGuideIds = new Set();
-
+    const targetsByCountry = new Map();
     targets.forEach((target, index) => {
+      const country = countryCodeForTarget(target);
       const clientKey = clean(target?.key) || String(index);
-      const guideId = findGuideId(target, lookup);
-
-      /*
-       * One XMLTV channel may describe only one visible Live TV row in this
-       * request. This prevents a guide-key collision from painting the same
-       * programme title across multiple unrelated channel cards.
-       */
-      if (guideId && !usedGuideIds.has(guideId)) {
-        usedGuideIds.add(guideId);
-        guideIdByClientKey.set(clientKey, guideId);
-        wantedGuideIds.add(guideId);
-      }
+      const entry = { ...target, clientKey, country };
+      const list = targetsByCountry.get(country) || [];
+      list.push(entry);
+      targetsByCountry.set(country, list);
     });
+
+    const supportedCountryEntries = Array.from(targetsByCountry.entries())
+      .filter(([country]) => Array.isArray(COUNTRY_EPG_TAGS[country]))
+      .slice(0, MAX_COUNTRIES_PER_REQUEST);
+
+    const guideRefByClientKey = new Map();
+    const wantedGuideIdsByTag = new Map();
+    const xmlByTag = new Map();
+    const usedGuideRefs = new Set();
+    const sourceErrors = [];
+    const loadedCountries = [];
+
+    for (const [country, countryTargets] of supportedCountryEntries) {
+      const tags = COUNTRY_EPG_TAGS[country] || [];
+      const feeds = [];
+
+      const results = await Promise.allSettled(
+        tags.map(async (tag) => {
+          const xml = await fetchXml(tag);
+          return { tag, xml, lookup: channelNames(xml) };
+        })
+      );
+
+      results.forEach((result, index) => {
+        const tag = tags[index];
+        if (result.status === "fulfilled") {
+          feeds.push(result.value);
+          xmlByTag.set(tag, result.value.xml);
+        } else {
+          sourceErrors.push(`${tag}: ${clean(result.reason?.message || result.reason)}`);
+        }
+      });
+
+      if (feeds.length === 0) continue;
+      loadedCountries.push(country);
+
+      countryTargets.forEach((target) => {
+        const matches = feeds
+          .map((feed, feedIndex) => {
+            const match = findGuideMatch(target, feed.lookup);
+            return match
+              ? { ...match, tag: feed.tag, feedIndex }
+              : null;
+          })
+          .filter(Boolean)
+          .sort(
+            (a, b) =>
+              b.strength - a.strength || a.feedIndex - b.feedIndex
+          );
+
+        const best = matches[0];
+        if (!best) return;
+
+        const refKey = `${best.tag}\u0000${best.guideId}`;
+
+        /*
+         * One XMLTV channel may describe only one visible Live TV row in this
+         * request. This is the final guard against a guide-key collision
+         * painting one programme across unrelated channel cards.
+         */
+        if (usedGuideRefs.has(refKey)) return;
+
+        usedGuideRefs.add(refKey);
+        guideRefByClientKey.set(target.clientKey, {
+          tag: best.tag,
+          guideId: best.guideId,
+        });
+
+        const wanted = wantedGuideIdsByTag.get(best.tag) || new Set();
+        wanted.add(best.guideId);
+        wantedGuideIdsByTag.set(best.tag, wanted);
+      });
+    }
 
     const nowMs = Date.now();
     const windowEnd = nowMs + 12 * 60 * 60 * 1000;
-    const programmesByGuide = new Map();
-    const programmeRegex =
-      /<programme\s+([^>]+)>([\s\S]*?)<\/programme>/gi;
-    let match;
+    const programmesByTag = new Map();
 
-    while ((match = programmeRegex.exec(xml))) {
-      const attributes = match[1] || "";
-      const block = match[2] || "";
-      const startText =
-        attributes.match(/\bstart="([^"]+)"/i)?.[1] || "";
-      const stopText =
-        attributes.match(/\bstop="([^"]+)"/i)?.[1] || "";
-      const channelText =
-        attributes.match(/\bchannel="([^"]+)"/i)?.[1] || "";
-      const start = parseXmlTvDate(startText);
-      const stop = parseXmlTvDate(stopText);
-      const guideId = decodeXml(channelText);
-
-      if (!wantedGuideIds.has(guideId) || !start || !stop) {
-        continue;
-      }
-
-      if (stop < nowMs - 5 * 60 * 1000 || start > windowEnd) {
-        continue;
-      }
-
-      const titleMatch = block.match(
-        /<title(?:\s[^>]*)?>([\s\S]*?)<\/title>/i
+    wantedGuideIdsByTag.forEach((wantedGuideIds, tag) => {
+      const xml = xmlByTag.get(tag);
+      if (!xml) return;
+      programmesByTag.set(
+        tag,
+        programmesForWanted(xml, wantedGuideIds, nowMs, windowEnd)
       );
-      const descMatch = block.match(
-        /<desc(?:\s[^>]*)?>([\s\S]*?)<\/desc>/i
-      );
-      const entry = {
-        title: decodeXml(titleMatch?.[1] || "Programme"),
-        description: decodeXml(descMatch?.[1] || "").slice(0, 500),
-        start: new Date(start).toISOString(),
-        stop: new Date(stop).toISOString(),
-        startMs: start,
-        stopMs: stop,
-      };
-
-      const list = programmesByGuide.get(guideId) || [];
-      list.push(entry);
-      programmesByGuide.set(guideId, list);
-    }
+    });
 
     const items = targets.map((target, index) => {
       const key = clean(target?.key) || String(index);
-      const guideId = guideIdByClientKey.get(key) || "";
-      const list = (programmesByGuide.get(guideId) || []).sort(
-        (a, b) => a.startMs - b.startMs
-      );
+      const ref = guideRefByClientKey.get(key) || null;
+      const list = ref
+        ? (programmesByTag.get(ref.tag)?.get(ref.guideId) || []).sort(
+            (a, b) => a.startMs - b.startMs
+          )
+        : [];
       const currentIndex = list.findIndex(
         (item) => item.startMs <= nowMs && item.stopMs > nowMs
       );
       const current = currentIndex >= 0 ? list[currentIndex] : null;
       const next =
         currentIndex >= 0
-          ? list.slice(currentIndex + 1).find((item) => item.startMs >= current.stopMs - 60000) || null
+          ? list
+              .slice(currentIndex + 1)
+              .find((item) => item.startMs >= current.stopMs - 60000) || null
           : list.find((item) => item.startMs > nowMs) || null;
 
       const upcoming = list
@@ -276,7 +443,8 @@ export default async function (req) {
 
       return {
         key,
-        guide_id: guideId,
+        guide_id: ref?.guideId || "",
+        guide_source: ref?.tag || "",
         now: stripInternal(current),
         next: stripInternal(next),
         upcoming: upcoming.map(stripInternal),
@@ -286,7 +454,10 @@ export default async function (req) {
     return Response.json({
       items,
       matched: items.filter((item) => item.guide_id).length,
-      source: "UK XMLTV",
+      source: "Worldwide country XMLTV",
+      countries: loadedCountries,
+      supported_countries: Object.keys(COUNTRY_EPG_TAGS),
+      source_errors: sourceErrors.slice(0, 12),
       updated_at: new Date().toISOString(),
     });
   } catch (error) {
