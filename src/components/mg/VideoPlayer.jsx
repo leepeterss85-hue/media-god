@@ -2407,11 +2407,21 @@ export default function VideoPlayer({
         .filter(Boolean)
         .join(" ");
 
+      const cometNamedError =
+        /\b(?:public\s+)?rate[-\s]?limit(?:ed)?\s+exceeded\b|couldn['’]?t\s+start\s+this\s+stream|could\s+not\s+start\s+this\s+stream/i.test(
+          activeSourceText
+        );
+
       const cometErrorVideo =
-        sources.length > 1 &&
         /\bcomet\b/i.test(activeSourceText) &&
-        loadedDuration >= 115 &&
-        loadedDuration <= 125;
+        (
+          cometNamedError ||
+          (
+            sources.length > 1 &&
+            loadedDuration >= 115 &&
+            loadedDuration <= 125
+          )
+        );
 
       if (cometErrorVideo) {
         recordPlaybackReliability(
