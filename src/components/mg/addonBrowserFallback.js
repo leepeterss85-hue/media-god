@@ -34,9 +34,19 @@ const streamLabel = (stream, addonName) => {
 };
 
 const isAddonControlStream = (stream, addonName = "") => {
+  const name = clean(
+    stream?.name
+  );
+
+  if (
+    /^\s*\[(?:❌|⚠️|ℹ️|🔄|RD🔄)/i.test(name)
+  ) {
+    return true;
+  }
+
   const text = [
     addonName,
-    stream?.name,
+    name,
     stream?.title,
     stream?.description,
     stream?.url,
