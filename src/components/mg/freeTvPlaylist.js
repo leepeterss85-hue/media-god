@@ -1050,10 +1050,14 @@ export async function getFreeTvChannels(options = {}) {
 
     const sortedSources = [...LIVE_TV_SOURCES].sort((a, b) => b.priority - a.priority);
 
-    for (const source of sortedSources) {
+    const fetchPlaylistSource = async (source) => {
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 15000);
+
       try {
         const response = await fetch(source.url, {
           headers: { Accept: "text/plain, */*" },
+          signal: controller.signal,
         });
 
         if (!response.ok) {
@@ -1065,7 +1069,40 @@ export async function getFreeTvChannels(options = {}) {
           throw new Error("Source did not return an M3U playlist");
         }
 
-        const parsed = parseFreeTvPlaylist(text, source);
+        return {
+          source,
+          parsed: parseFreeTvPlaylist(text, source),
+          error: null,
+        };
+      } catch (error) {
+        return {
+          source,
+          parsed: [],
+          error:
+            error?.name === "AbortError"
+              ? "Timed out after 15 seconds"
+              : error?.message || "Failed to fetch",
+        };
+      } finally {
+        window.clearTimeout(timeout);
+      }
+    };
+
+    // Fetch a handful of repositories at a time. This keeps Live TV startup
+    // fast as the source list grows without hammering GitHub/IPTV hosts with
+    // dozens of simultaneous requests.
+    const SOURCE_BATCH_SIZE = 5;
+
+    for (let index = 0; index < sortedSources.length; index += SOURCE_BATCH_SIZE) {
+      const batch = sortedSources.slice(index, index + SOURCE_BATCH_SIZE);
+      const results = await Promise.all(batch.map(fetchPlaylistSource));
+
+      for (const { source, parsed, error } of results) {
+        if (error) {
+          sourceStatus.push({ id: source.id, name: source.name, count: 0, error });
+          continue;
+        }
+
         rawCount += parsed.length;
 
         for (const channel of parsed) {
@@ -1073,9 +1110,12 @@ export async function getFreeTvChannels(options = {}) {
           rawChannels.push(channel);
         }
 
-        sourceStatus.push({ id: source.id, name: source.name, count: parsed.length, error: null });
-      } catch (error) {
-        sourceStatus.push({ id: source.id, name: source.name, count: 0, error: error?.message || "Failed to fetch" });
+        sourceStatus.push({
+          id: source.id,
+          name: source.name,
+          count: parsed.length,
+          error: null,
+        });
       }
     }
 
