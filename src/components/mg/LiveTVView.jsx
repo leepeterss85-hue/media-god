@@ -489,6 +489,7 @@ export default function LiveTVView() {
   const audioRef = useRef(null);
   const restoredLiveTvPositionRef = useRef(false);
   const scrollSaveTimerRef = useRef(null);
+  const filterResetReadyRef = useRef(false);
   const player = usePlayer();
 
   const load = async (force = false) => {
@@ -1403,6 +1404,11 @@ export default function LiveTVView() {
   );
 
   useEffect(() => {
+    if (!filterResetReadyRef.current) {
+      filterResetReadyRef.current = true;
+      return;
+    }
+
     setFocusedChannelKey("");
     setChannelVisibleLimit(MAX_VISIBLE);
   }, [quickFilter, group, countryFilter, query, directOnly, viewMode]);
