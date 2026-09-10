@@ -29,6 +29,7 @@ import { usePlayer } from "@/components/mg/PlayerProvider";
 import { base44 } from "@/api/base44Client";
 import { cn } from "@/lib/utils";
 import {
+  liveTvUrlQuarantined,
   liveTvUrlScore,
   prewarmLiveTvUrl,
   recordLiveTvPlaybackResult,
@@ -349,13 +350,19 @@ const playableChannelCandidates = (channel) => {
     .map((candidate, index) => ({
       candidate,
       index,
+      quarantined: liveTvUrlQuarantined(candidate.url),
       score:
         liveTvUrlScore(candidate.url) +
         Number(candidate?.sourcePriority || 0) * 30 +
         Number(candidate?.quality || 0) * 2 +
         (index === 0 ? 900 : 0),
     }))
-    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .sort(
+      (a, b) =>
+        Number(a.quarantined) - Number(b.quarantined) ||
+        b.score - a.score ||
+        a.index - b.index
+    )
     .map(({ candidate }) => candidate);
 };
 
