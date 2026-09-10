@@ -1805,6 +1805,8 @@ export default function VideoPlayer({
                 null
               );
 
+              setRdPreparation(null);
+
               return;
             }
 
@@ -1850,7 +1852,7 @@ export default function VideoPlayer({
 
           if (
             attempts <
-            36
+            120
           ) {
             pollRef.current =
               setTimeout(
@@ -1866,8 +1868,15 @@ export default function VideoPlayer({
               null
             );
 
+            const stalledHint =
+              latestSeeders <= 0 && latestSpeed <= 0
+                ? " No active seeders or download speed were reported."
+                : "";
+
             setRdError(
-              "Real-Debrid is still preparing this file. Please try Check Again shortly."
+              latestProgress > 0
+                ? `Real-Debrid reached ${Math.round(latestProgress)}% but is still not ready after about 10 minutes.${stalledHint} Try another source or retry this one later.`
+                : `Real-Debrid has made no usable progress after about 10 minutes.${stalledHint} Try another source.`
             );
           }
         };
