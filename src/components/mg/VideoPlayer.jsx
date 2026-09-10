@@ -1140,80 +1140,13 @@ export default function VideoPlayer({
     isLive,
   ]);
 
-  const restoreInAppFullscreen = (stage) => {
+  const applyStageFullscreen = (stage) => {
     if (!stage) return;
 
-    const previousStyle = stage.dataset.mgPreviousStyle || "";
-
-    if (previousStyle) {
-      stage.setAttribute("style", previousStyle);
-    } else {
-      stage.removeAttribute("style");
+    if (stage.dataset.mgFullscreen !== "true") {
+      stage.dataset.mgPreviousStyle = stage.getAttribute("style") || "";
     }
 
-    delete stage.dataset.mgFullscreen;
-    delete stage.dataset.mgPreviousStyle;
-    setIsAppFullscreen(false);
-  };
-
-  const goFullscreen = async () => {
-    const stage = stageRef.current;
-
-    if (!stage) {
-      return;
-    }
-
-    /*
-     * Desktop browsers should use the real Fullscreen API so Windows/macOS
-     * chrome, the taskbar and dock are hidden. Fire TV, Android and mobile
-     * wrappers deliberately stay on Media God's safe CSS fullscreen because
-     * native WebView fullscreen can restart the host activity or interfere
-     * with playback.
-     */
-    if (isDesktopFullscreenBrowser()) {
-      const nativeFullscreenElement =
-        document.fullscreenElement || document.webkitFullscreenElement || null;
-
-      if (nativeFullscreenElement) {
-        try {
-          if (document.exitFullscreen) {
-            await document.exitFullscreen();
-          } else if (document.webkitExitFullscreen) {
-            document.webkitExitFullscreen();
-          }
-        } catch {
-          // The fullscreenchange handler will keep state correct if the
-          // browser has already started exiting fullscreen itself.
-        }
-
-        return;
-      }
-
-      try {
-        if (stage.requestFullscreen) {
-          await stage.requestFullscreen({ navigationUI: "hide" });
-        } else if (stage.webkitRequestFullscreen) {
-          stage.webkitRequestFullscreen();
-        } else {
-          throw new Error("Browser fullscreen is unavailable.");
-        }
-
-        setIsAppFullscreen(true);
-        return;
-      } catch {
-        // If a desktop browser blocks the Fullscreen API, fall back to the
-        // existing in-app fullscreen instead of breaking the fullscreen button.
-      }
-    }
-
-    const currentlyFullscreen = stage.dataset.mgFullscreen === "true";
-
-    if (currentlyFullscreen) {
-      restoreInAppFullscreen(stage);
-      return;
-    }
-
-    stage.dataset.mgPreviousStyle = stage.getAttribute("style") || "";
     stage.dataset.mgFullscreen = "true";
     setIsAppFullscreen(true);
 
@@ -1238,23 +1171,130 @@ export default function VideoPlayer({
     });
   };
 
+  const restoreInAppFullscreen = (stage) => {
+    if (!stage) return;
+
+    const previousStyle = stage.dataset.mgPreviousStyle || "";
+
+    if (previousStyle) {
+      stage.setAttribute("style", previousStyle);
+    } else {
+      stage.removeAttribute("style");
+    }
+
+    delete stage.dataset.mgFullscreen;
+    delete stage.dataset.mgPreviousStyle;
+    setIsAppFullscreen(false);
+  };
+
+  const goFullscreen = async () => {
+    const stage = stageRef.current;
+
+    if (!stage) {
+      return;
+    }
+
+    /*
+     * Desktop browsers/PWAs use the real Fullscreen API so the Windows taskbar,
+     * browser frame and macOS dock disappear. The document element is the most
+     * reliable fullscreen target across normal tabs and installed Chromium web
+     * apps; the video stage is then pinned over that fullscreen viewport.
+     * Fire TV/Android wrappers deliberately keep the safe CSS-only path.
+     */
+    if (isDesktopFullscreenBrowser()) {
+      const nativeFullscreenElement = browserFullscreenElement();
+
+      if (nativeFullscreenElement) {
+        try {
+          await exitBrowserFullscreen();
+        } catch {
+          // Keep the player usable even if the browser has already started
+          // leaving fullscreen through Escape/F11 or its own window controls.
+        }
+
+        if (stage.dataset.mgFullscreen === "true") {
+          restoreInAppFullscreen(stage);
+        }
+
+        return;
+      }
+
+      try {
+        await requestBrowserFullscreen(document.documentElement);
+        applyStageFullscreen(stage);
+        return;
+      } catch {
+        /*
+         * Some older embedded Chromium shells allow an element fullscreen even
+         * when the document element request is rejected. Try the actual player
+         * stage before falling back to CSS-only fullscreen.
+         */
+        try {
+          await requestBrowserFullscreen(stage);
+          applyStageFullscreen(stage);
+          return;
+        } catch {
+          // The CSS fallback below still gives a usable in-window fullscreen.
+        }
+      }
+    }
+
+    const currentlyFullscreen = stage.dataset.mgFullscreen === "true";
+
+    if (currentlyFullscreen) {
+      restoreInAppFullscreen(stage);
+      return;
+    }
+
+    applyStageFullscreen(stage);
+  };
+
   useEffect(() => {
     const syncFullscreenState = () => {
       if (!isDesktopFullscreenBrowser()) return;
 
       const stage = stageRef.current;
-      const fullscreenElement =
-        document.fullscreenElement || document.webkitFullscreenElement || null;
+      const fullscreenElement = browserFullscreenElement();
+      const playerOwnsFullscreen = Boolean(
+        stage &&
+          fullscreenElement &&
+          (
+            fullscreenElement === stage ||
+            fullscreenElement === document.documentElement ||
+            fullscreenElement.contains?.(stage) ||
+            stage.contains?.(fullscreenElement)
+          )
+      );
 
-      setIsAppFullscreen(Boolean(stage && fullscreenElement === stage));
+      if (playerOwnsFullscreen) {
+        if (stage.dataset.mgFullscreen !== "true") {
+          applyStageFullscreen(stage);
+        } else {
+          setIsAppFullscreen(true);
+        }
+        return;
+      }
+
+      if (!fullscreenElement && stage?.dataset.mgFullscreen === "true") {
+        restoreInAppFullscreen(stage);
+        return;
+      }
+
+      if (!fullscreenElement) {
+        setIsAppFullscreen(false);
+      }
     };
 
     document.addEventListener("fullscreenchange", syncFullscreenState);
     document.addEventListener("webkitfullscreenchange", syncFullscreenState);
+    document.addEventListener("mozfullscreenchange", syncFullscreenState);
+    document.addEventListener("MSFullscreenChange", syncFullscreenState);
 
     return () => {
       document.removeEventListener("fullscreenchange", syncFullscreenState);
       document.removeEventListener("webkitfullscreenchange", syncFullscreenState);
+      document.removeEventListener("mozfullscreenchange", syncFullscreenState);
+      document.removeEventListener("MSFullscreenChange", syncFullscreenState);
     };
   }, []);
 
