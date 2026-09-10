@@ -1028,16 +1028,42 @@ export default async function (req) {
           .filter(Boolean)
       );
 
-    const activeAddons =
+    const allActiveAddons =
       (addons || []).filter(
         (addon) =>
           addon?.installed !== false &&
           addon?.active !== false &&
-          addon?.url &&
+          addon?.url
+      );
+
+    const activeAddons =
+      allActiveAddons.filter(
+        (addon) =>
           !excludedAddonNames.has(
             clean(addon?.name).toLowerCase()
           )
       );
+
+    if (
+      allActiveAddons.length === 0
+    ) {
+      return Response.json({
+        streams:
+          [],
+
+        diagnostics:
+          [],
+
+        addons_checked:
+          0,
+
+        addons_available:
+          0,
+
+        reason:
+          "No server-side playback addons are configured. Only Addon records saved in Base44 are searched.",
+      });
+    }
 
     if (
       activeAddons.length === 0
@@ -1052,8 +1078,11 @@ export default async function (req) {
         addons_checked:
           0,
 
+        addons_available:
+          allActiveAddons.length,
+
         reason:
-          "No server-side playback addons are configured. Only Addon records saved in Base44 are searched.",
+          "All active addons were already satisfied by the fast source pass.",
       });
     }
 
