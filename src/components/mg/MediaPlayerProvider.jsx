@@ -1953,11 +1953,109 @@ export function PlayerProvider({
         const addonPromise =
           !isLive &&
           !request?.skipAddonLookup
-            ? fastAddonPromise.then(() =>
-                fetchAddonSources({
-                  ...addonArgs,
-                  fastMode: false,
-                })
+            ? fastAddonPromise.then(
+                async (fastLookup) => {
+                  const fastSuccessDiagnostics =
+                    (
+                      fastLookup?.diagnostics ||
+                      []
+                    ).filter(
+                      (item) =>
+                        String(
+                          item?.status ||
+                          ""
+                        ).toLowerCase() ===
+                          "ok" &&
+                        Number(
+                          item?.playable_count ||
+                          0
+                        ) > 0
+                    );
+
+                  const successfulAddonNames =
+                    fastSuccessDiagnostics
+                      .map(
+                        (item) =>
+                          String(
+                            item?.name ||
+                            ""
+                          ).trim()
+                      )
+                      .filter(Boolean)
+                      .filter(
+                        (name, index, list) =>
+                          list.indexOf(name) === index
+                      );
+
+                  const addonsAvailable =
+                    Number(
+                      fastLookup?.addonsAvailable ||
+                      0
+                    );
+
+                  if (
+                    addonsAvailable > 0 &&
+                    successfulAddonNames.length >=
+                      addonsAvailable
+                  ) {
+                    return fastLookup;
+                  }
+
+                  const fullLookup =
+                    await fetchAddonSources({
+                      ...addonArgs,
+                      fastMode: false,
+                      excludeAddonNames:
+                        successfulAddonNames,
+                    });
+
+                  const streams =
+                    mergeAddonStreams(
+                      fastLookup?.streams,
+                      fullLookup?.streams
+                    );
+
+                  return {
+                    ...fullLookup,
+                    streams,
+                    diagnostics: [
+                      ...fastSuccessDiagnostics,
+                      ...(
+                        fullLookup?.diagnostics ||
+                        []
+                      ),
+                    ],
+                    addonsChecked:
+                      addonsAvailable > 0
+                        ? addonsAvailable
+                        : Math.max(
+                            Number(
+                              fastLookup?.addonsChecked ||
+                              0
+                            ),
+                            Number(
+                              fullLookup?.addonsChecked ||
+                              0
+                            )
+                          ),
+                    addonsAvailable:
+                      addonsAvailable ||
+                      Number(
+                        fullLookup?.addonsAvailable ||
+                        0
+                      ),
+                    status:
+                      streams.length > 0
+                        ? "OK"
+                        : fullLookup?.status ||
+                          fastLookup?.status ||
+                          "FAILED",
+                    reason:
+                      fullLookup?.reason ||
+                      fastLookup?.reason ||
+                      "",
+                  };
+                }
               )
             : Promise.resolve(skippedAddonLookup);
 
