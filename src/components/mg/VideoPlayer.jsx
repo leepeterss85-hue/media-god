@@ -2327,6 +2327,7 @@ export default function VideoPlayer({
               break;
 
             case "f":
+            case "F":
               event.preventDefault();
 
               goFullscreen();
@@ -4548,6 +4549,12 @@ export default function VideoPlayer({
           ref={
             stageRef
           }
+          onDoubleClick={(event) => {
+            if (!isDesktopFullscreenBrowser()) return;
+            event.preventDefault();
+            event.stopPropagation();
+            goFullscreen();
+          }}
           className="relative flex min-h-[34vh] w-full items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-black shadow-2xl sm:min-h-0 sm:aspect-video"
         >
           {busy ? (
