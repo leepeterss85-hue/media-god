@@ -205,11 +205,11 @@ const findBackTarget = (scope) => {
   }
 
   const selectors = [
-    'button[data-mg-player-exit="true"]',
-    'button[aria-label="Exit player"]',
     'button[aria-label="Exit fullscreen"]',
     'button[aria-label="Close season and episode picker"]',
     'button[data-mg-overlay-back="true"]',
+    'button[data-mg-player-exit="true"]',
+    'button[aria-label="Exit player"]',
     'button[aria-label="Back to main menu"]',
     'button[aria-label="Back"]',
     'button[aria-label="Close details"]',
