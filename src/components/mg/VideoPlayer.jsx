@@ -1621,6 +1621,15 @@ export default function VideoPlayer({
       let attempts =
         0;
 
+      let latestProgress =
+        0;
+
+      let latestSeeders =
+        0;
+
+      let latestSpeed =
+        0;
+
       setRdPolling(
         true
       );
