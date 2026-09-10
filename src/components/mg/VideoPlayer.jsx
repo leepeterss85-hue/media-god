@@ -560,6 +560,7 @@ export default function VideoPlayer({
     setRdError("");
     setRdResolving(false);
     setRdPolling(false);
+    setFileSwitching(false);
 
     setRdOverride(null);
     setRdFiles([]);
@@ -2683,6 +2684,10 @@ export default function VideoPlayer({
         return;
       }
 
+      const actionGeneration = ++streamActionGenerationRef.current;
+      const actionStillCurrent = () =>
+        streamActionGenerationRef.current === actionGeneration;
+
       if (provider !== "realdebrid") {
         const sourceUrl = String(
           rdOverride?.sourceUrl || getSourceUrl(active) || ""
@@ -2715,6 +2720,10 @@ export default function VideoPlayer({
             }
           );
 
+          if (!actionStillCurrent()) {
+            return;
+          }
+
           const data = response?.data || {};
           if (!data?.url) {
             throw new Error(
@@ -2741,11 +2750,15 @@ export default function VideoPlayer({
             Array.isArray(data.files) ? data.files : rdFiles
           );
         } catch (error) {
-          setRdError(
-            error?.message || "Debrid file selection failed."
-          );
+          if (actionStillCurrent()) {
+            setRdError(
+              error?.message || "Debrid file selection failed."
+            );
+          }
         } finally {
-          setFileSwitching(false);
+          if (actionStillCurrent()) {
+            setFileSwitching(false);
+          }
         }
 
         return;
@@ -2781,6 +2794,10 @@ export default function VideoPlayer({
                 file.link,
             }
           );
+
+        if (!actionStillCurrent()) {
+          return;
+        }
 
         const data =
           res?.data ||
@@ -2827,19 +2844,26 @@ export default function VideoPlayer({
       } catch (
         error
       ) {
-        setRdError(
-          error?.message ||
-            "Real-Debrid request failed."
-        );
+        if (actionStillCurrent()) {
+          setRdError(
+            error?.message ||
+              "Real-Debrid request failed."
+          );
+        }
       } finally {
-        setFileSwitching(
-          false
-        );
+        if (actionStillCurrent()) {
+          setFileSwitching(
+            false
+          );
+        }
       }
     };
 
   const retryResolution =
     () => {
+      streamActionGenerationRef.current += 1;
+      setFileSwitching(false);
+
       setRdOverride(
         null
       );
