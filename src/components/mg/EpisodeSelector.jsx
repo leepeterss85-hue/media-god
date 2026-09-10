@@ -1042,6 +1042,7 @@ export default function EpisodeSelector({
         </button>
 
         <select
+          data-mg-focus-key={`episode-season:${tmdbId || showTitle}`}
           value={
             season
           }
@@ -1184,6 +1185,7 @@ export default function EpisodeSelector({
                 >
                   <button
                     type="button"
+                    data-mg-focus-key={`episode:${tmdbId || showTitle}:${seasonNumber}:${episodeNumber}:art`}
                     onClick={() =>
                       playEpisode(
                         episodeData
@@ -1296,6 +1298,7 @@ export default function EpisodeSelector({
 
                       <button
                         type="button"
+                        data-mg-focus-key={`episode:${tmdbId || showTitle}:${seasonNumber}:${episodeNumber}:action`}
                         onClick={() =>
                           playEpisode(
                             episodeData
