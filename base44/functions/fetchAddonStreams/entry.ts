@@ -124,7 +124,7 @@ const isAddonControlStream = (stream, addonName = "") => {
     .filter(Boolean)
     .join(" ");
 
-  return /\bcomet\s+sync\b|debrid_sync_triggered|account\s+sync\s+started|refreshing\s+your\s+debrid\s+library/i.test(
+  return /\bcomet\s+sync\b|debrid_sync_triggered|account\s+sync\s+started|refreshing\s+your\s+debrid\s+library|obsolete\s+configuration|\[❌\]\s*comet/i.test(
     text
   );
 };
