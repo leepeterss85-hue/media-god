@@ -216,6 +216,20 @@ export default function MediaPlayerControls({
     sourceSortMode
   );
 
+  const [sourceChoicePinned, setSourceChoicePinned] = useState(false);
+  const sourceChoiceEntriesRef = useRef([]);
+  const sourceChoiceValueRef = useRef(0);
+
+  const visibleSourceChoices =
+    sourceChoicePinned && sourceChoiceEntriesRef.current.length > 0
+      ? sourceChoiceEntriesRef.current
+      : sortedSourceEntries;
+
+  const visibleSourceChoiceValue =
+    sourceChoicePinned
+      ? sourceChoiceValueRef.current
+      : activeIdx;
+
   const hideTimerRef = useRef(null);
   const trackPreferencesRef = useRef(trackPreferences);
   trackPreferencesRef.current = trackPreferences;
@@ -1638,26 +1652,36 @@ export default function MediaPlayerControls({
             {sources.length > 1 ? (
               <div className="relative min-w-[7.5rem] max-w-[42vw] sm:min-w-[13rem] sm:max-w-sm">
                 <select
-                  value={
-                    activeIdx
-                  }
-                  onChange={(event) => {
-                    onSelectSource?.(
-                      event.target
-                        .value
-                    );
+                  value={visibleSourceChoiceValue}
+                  onPointerDown={() => {
+                    sourceChoiceEntriesRef.current = sortedSourceEntries;
+                    sourceChoiceValueRef.current = activeIdx;
+                    setSourceChoicePinned(true);
                   }}
-                  onFocus={
-                    focusSelectControl
-                  }
-                  onBlur={
-                    blurSelectControl
-                  }
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setSourceChoicePinned(false);
+                    sourceChoiceEntriesRef.current = [];
+                    onSelectSource?.(value);
+                  }}
+                  onFocus={() => {
+                    if (!sourceChoicePinned) {
+                      sourceChoiceEntriesRef.current = sortedSourceEntries;
+                      sourceChoiceValueRef.current = activeIdx;
+                      setSourceChoicePinned(true);
+                    }
+                    focusSelectControl();
+                  }}
+                  onBlur={() => {
+                    setSourceChoicePinned(false);
+                    sourceChoiceEntriesRef.current = [];
+                    blurSelectControl();
+                  }}
                   className="min-h-10 w-full appearance-none rounded-lg border border-white/15 bg-black/60 py-2.5 pl-3 pr-8 text-xs font-medium text-white outline-none backdrop-blur transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/30 sm:text-sm"
                   aria-label="Choose source or quality"
                   title="Choose source or quality"
                 >
-                  {sortedSourceEntries.map(
+                  {visibleSourceChoices.map(
                     ({
                       item,
                       index,
