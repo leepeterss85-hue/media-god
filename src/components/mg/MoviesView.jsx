@@ -7,9 +7,7 @@ import {
   GENRES_MOVIE,
   LANGUAGES,
   YEARS,
-  GENRE_LABELS_MOVIE,
 } from "@/components/mg/filterOptions";
-import GenreTags from "@/components/mg/GenreTags";
 import DetailModal from "@/components/mg/DetailModal";
 import useDebouncedValue from "@/components/mg/useDebouncedValue";
 
@@ -260,11 +258,6 @@ export default function MoviesView() {
                 {movie.year}
               </p>
 
-              <GenreTags
-                genreIds={movie.genre_ids}
-                labelMap={GENRE_LABELS_MOVIE}
-                onSelect={setGenre}
-              />
             </article>
           ))}
         </div>
