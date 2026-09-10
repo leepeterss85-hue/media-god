@@ -464,12 +464,25 @@ const dedupe = (items) => {
   const seen = new Set();
 
   return items.filter((item) => {
-    const key = clean(
-      item?.url ||
-        item?.magnet ||
-        item?.infoHash ||
+    const raw = clean(
+      item?.magnet ||
+        item?.url ||
         item?.src
     );
+
+    const hash = clean(
+      item?.infoHash ||
+        infoHashFromValue(raw)
+    ).toLowerCase();
+
+    const key =
+      hash
+        ? `hash:${hash}`
+        : clean(
+            item?.url ||
+              item?.magnet ||
+              item?.src
+          );
 
     if (
       !key ||
