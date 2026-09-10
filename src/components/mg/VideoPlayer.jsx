@@ -2398,11 +2398,18 @@ export default function VideoPlayer({
        * normal failover used to treat it as successful playback. Reject that
        * very specific Comet signature and move to the next real source.
        */
+      const activeSourceText = [
+        active?.addon,
+        active?.label,
+        active?.name,
+        active?.title,
+      ]
+        .filter(Boolean)
+        .join(" ");
+
       const cometErrorVideo =
         sources.length > 1 &&
-        String(active?.addon || "")
-          .trim()
-          .toLowerCase() === "comet" &&
+        /\bcomet\b/i.test(activeSourceText) &&
         loadedDuration >= 115 &&
         loadedDuration <= 125;
 
@@ -4572,7 +4579,7 @@ export default function VideoPlayer({
           )}
 
           {rdOverride &&
-            rdFiles.length > 1 && (
+            visibleRdFileSelectorFiles.length > 1 && (
               <label className="min-w-[12rem] flex-1 basis-[18rem]">
                 <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.12em] text-white/40">
                   Torrent file
