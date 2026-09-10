@@ -542,14 +542,22 @@ export default function StreamSourcesBox({
           );
 
           if (
-            !imdbResult.imdbId
+            !imdbResult.imdbId &&
+            !tmdbId &&
+            !title
           ) {
             setAddonReason(
               imdbResult.error ||
-              "IMDb id could not be resolved for this title."
+              "No usable media identifier or title is available for source lookup."
             );
 
             return;
+          }
+
+          if (!imdbResult.imdbId) {
+            setAddonReason(
+              "IMDb id was not resolved; trying TMDb/title source fallbacks."
+            );
           }
 
           const server =
