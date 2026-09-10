@@ -4185,7 +4185,9 @@ export default function VideoPlayer({
       : rdResolving
         ? "Resolving"
         : rdPolling || rdTorrentId
-          ? "Preparing"
+          ? rdPreparation
+            ? `Caching ${cacheProgress}%`
+            : "Preparing"
           : fireTvNativeSelectorMode
             ? "Choose source"
             : useNativePlayback
@@ -4327,19 +4329,50 @@ export default function VideoPlayer({
           className="relative flex min-h-[34vh] w-full items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-black shadow-2xl sm:min-h-0 sm:aspect-video"
         >
           {busy ? (
-            <div className="flex max-w-md flex-col items-center gap-3 p-6 text-center">
+            <div className="flex w-full max-w-lg flex-col items-center gap-3 p-5 text-center sm:p-6">
               <div className="flex h-14 w-14 items-center justify-center rounded-full border border-mg-green/20 bg-mg-green/5">
                 <Loader2 className="h-7 w-7 animate-spin text-mg-green" />
               </div>
 
-              <div>
+              <div className="w-full">
                 <p className="text-sm font-semibold text-white/85 sm:text-base">
-                  {playerUiStatus}
+                  {rdPreparation ? "Caching to Real-Debrid" : playerUiStatus}
                 </p>
 
                 <p className="mt-1 line-clamp-2 text-xs text-white/45">
                   {activeSourceLabel || "Finding the best available source…"}
                 </p>
+
+                {rdPreparation && (
+                  <div className="mt-4 w-full rounded-xl border border-white/10 bg-white/[0.03] p-3 text-left">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs font-semibold text-white/75">
+                        {cacheStatusLabel}
+                      </span>
+
+                      <span className="text-sm font-bold tabular-nums text-mg-green">
+                        {cacheProgress}%
+                      </span>
+                    </div>
+
+                    <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/10">
+                      <div
+                        className="h-full rounded-full bg-mg-green transition-[width] duration-500"
+                        style={{ width: `${cacheProgress}%` }}
+                      />
+                    </div>
+
+                    <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-white/50 sm:text-xs">
+                      {cacheStats.map((item) => (
+                        <span key={item}>{item}</span>
+                      ))}
+                    </div>
+
+                    <p className="mt-2 text-[10px] leading-relaxed text-white/40 sm:text-xs">
+                      {cacheHint}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           ) : fireTvNativeSelectorMode ? (
