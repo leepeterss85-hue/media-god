@@ -357,6 +357,18 @@ export default function VideoPlayer({
   const activeUrl =
     getSourceUrl(active);
 
+  /*
+   * Do not let React/Chromium reuse a media surface across source actions just
+   * because two selections happen to resolve to the same temporary URL. The
+   * action generation changes for manual source/file changes and audio rescue,
+   * so both LiveVideo and its controls are recreated as one clean pair.
+   */
+  const playbackSurfaceKey = [
+    source?.playRequestId || source?.id || source?.title || "player",
+    activeIdx,
+    streamActionGenerationRef.current,
+  ].join(":");
+
   const trackPreferences = readTrackPreferences();
 
   useEffect(() => {
@@ -553,6 +565,28 @@ export default function VideoPlayer({
 
     if (resumeAt > 5) {
       recoveryResumeRef.current = resumeAt;
+    }
+
+    /*
+     * Release Chromium's current media/compositor surface synchronously before
+     * changing source. LiveVideo also performs teardown on unmount, but doing
+     * this before the React state transition prevents an old hardware video
+     * layer from remaining visible beside the replacement stream on Android.
+     */
+    if (currentVideo instanceof HTMLVideoElement) {
+      try {
+        currentVideo.pause();
+        currentVideo.removeAttribute("src");
+        currentVideo.removeAttribute("poster");
+        try {
+          currentVideo.srcObject = null;
+        } catch {
+          // Some browsers expose srcObject as read-only for this media type.
+        }
+        currentVideo.load();
+      } catch {
+        // The source may already have torn itself down after an error.
+      }
     }
 
     clearSourceFailed(nextIndex);
@@ -4161,9 +4195,7 @@ export default function VideoPlayer({
           ) : rdOverride ? (
             <>
               <LiveVideo
-                key={
-                  rdOverride.src
-                }
+                key={`${playbackSurfaceKey}:rd:${rdOverride.src}`}
                 ref={
                   videoRef
                 }
@@ -4208,9 +4240,7 @@ export default function VideoPlayer({
               />
 
               <PlayerControls
-                key={
-                  rdOverride.src
-                }
+                key={`${playbackSurfaceKey}:rd-controls:${rdOverride.src}`}
                 videoRef={
                   videoRef
                 }
@@ -4284,11 +4314,9 @@ export default function VideoPlayer({
                 ref={
                   liveVideoRef
                 }
-                key={
-                  active.src
-                }
+                key={`${playbackSurfaceKey}:direct:${activeUrl}`}
                 src={
-                  active.src
+                  activeUrl
                 }
                 sourceLabel={
                   active?.format ||
@@ -4329,9 +4357,7 @@ export default function VideoPlayer({
               />
 
               <PlayerControls
-                key={
-                  active.src
-                }
+                key={`${playbackSurfaceKey}:direct-controls:${activeUrl}`}
                 videoRef={
                   liveVideoRef
                 }
