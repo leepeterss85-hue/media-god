@@ -111,6 +111,77 @@ const normaliseName = (value) =>
     .replace(/\s+/g, " ")
     .trim();
 
+const nameAliases = (value) => {
+  const base = normaliseName(value);
+  const aliases = new Set();
+  const add = (candidate) => {
+    const cleanCandidate = String(candidate || "").replace(/\s+/g, " ").trim();
+    if (cleanCandidate) aliases.add(cleanCandidate);
+  };
+
+  add(base);
+  add(base.replace(/\bitv\s+([1-4])\b/g, "itv$1"));
+  add(base.replace(/\bitv([1-4])\b/g, "itv $1"));
+  add(base.replace(/\b5\s+(usa|star|action|select)\b/g, "5$1"));
+  add(base.replace(/\b5(usa|star|action|select)\b/g, "5 $1"));
+  add(base.replace(/^u\s+and\s+/, ""));
+  add(base.replace(/^bbc\s+1\b/, "bbc one"));
+  add(base.replace(/^bbc\s+one\b/, "bbc 1"));
+  add(base.replace(/^bbc\s+2\b/, "bbc two"));
+  add(base.replace(/^bbc\s+two\b/, "bbc 2"));
+  add(base.replace(/^c4\b/, "channel 4"));
+  add(base.replace(/^channel\s+4\b/, "c4"));
+  add(base.replace(/^five\b/, "channel 5"));
+  add(base.replace(/^channel\s+5\b/, "five"));
+  add(base.replace(/^bbc\s+news\s+channel\b/, "bbc news"));
+
+  return Array.from(aliases);
+};
+
+const PREFERRED_GUIDE_IDS = {
+  GB: new Map([
+    ["bbc one", "BBC.One.Lon.HD.uk"],
+    ["bbc 1", "BBC.One.Lon.HD.uk"],
+    ["bbc two", "BBC.Two.HD.uk"],
+    ["bbc 2", "BBC.Two.HD.uk"],
+    ["bbc three", "BBC.Three.HD.uk"],
+    ["bbc four", "BBC.Four.HD.uk"],
+    ["bbc news", "BBC.NEWS.HD.uk"],
+    ["bbc parliament", "BBC.Parliament.HD.uk"],
+    ["cbbc", "CBBC.HD.uk"],
+    ["cbeebies", "CBeebies.HD.uk"],
+    ["itv1", "ITV1.HD.uk"],
+    ["itv 1", "ITV1.HD.uk"],
+    ["itv2", "ITV2.HD.uk"],
+    ["itv 2", "ITV2.HD.uk"],
+    ["itv3", "ITV3.HD.uk"],
+    ["itv 3", "ITV3.HD.uk"],
+    ["itv4", "ITV4.HD.uk"],
+    ["itv 4", "ITV4.HD.uk"],
+    ["channel 4", "Channel.4.HD.uk"],
+    ["c4", "Channel.4.HD.uk"],
+    ["channel 5", "Channel.5.HD.uk"],
+    ["five", "Channel.5.HD.uk"],
+    ["e4", "E4.HD.uk"],
+    ["more4", "More4.HD.uk"],
+    ["film4", "Film4.HD.uk"],
+    ["sky mix", "Sky.Mix.HD.uk"],
+    ["sky news", "Sky.News.HD.uk"],
+    ["5 usa", "5.USA.uk"],
+    ["5usa", "5.USA.uk"],
+    ["5star", "5STAR.uk"],
+    ["5 star", "5STAR.uk"],
+    ["5action", "5ACTION.uk"],
+    ["5 action", "5ACTION.uk"],
+    ["5select", "5SELECT.uk"],
+    ["5 select", "5SELECT.uk"],
+    ["s4c", "S4C.HD.uk"],
+    ["dave", "U.and.Dave.HD.uk"],
+    ["yesterday", "U.and.YESTERDAY.uk"],
+    ["drama", "U.and.Drama.uk"],
+  ]),
+};
+
 const parseXmlTvDate = (value) => {
   const match = clean(value).match(
     /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\s*([+-])(\d{2})(\d{2})/
@@ -184,6 +255,7 @@ const fetchXml = async (tag) => {
 
 const channelNames = (xml) => {
   const byId = new Map();
+  const byIdLower = new Map();
   const idsByName = new Map();
   const regex = /<channel\s+[^>]*id="([^"]+)"[^>]*>([\s\S]*?)<\/channel>/gi;
   let match;
@@ -196,13 +268,15 @@ const channelNames = (xml) => {
     ).map((entry) => decodeXml(entry[1]));
 
     byId.set(id, displayNames);
+    byIdLower.set(id.toLowerCase(), id);
 
     [id, ...displayNames].forEach((name) => {
-      const normalised = normaliseName(name);
-      if (!normalised) return;
-      const ids = idsByName.get(normalised) || new Set();
-      ids.add(id);
-      idsByName.set(normalised, ids);
+      nameAliases(name).forEach((normalised) => {
+        if (!normalised) return;
+        const ids = idsByName.get(normalised) || new Set();
+        ids.add(id);
+        idsByName.set(normalised, ids);
+      });
     });
   }
 
@@ -219,7 +293,7 @@ const channelNames = (xml) => {
     }
   });
 
-  return { byId, byName };
+  return { byId, byIdLower, byName };
 };
 
 const findGuideMatch = (target, lookup) => {
@@ -229,14 +303,31 @@ const findGuideMatch = (target, lookup) => {
     return { guideId: tvgId, strength: 300 };
   }
 
-  const normalisedId = normaliseName(tvgId);
-  if (normalisedId && lookup.byName.has(normalisedId)) {
-    return { guideId: lookup.byName.get(normalisedId), strength: 200 };
+  const caseInsensitiveId = tvgId
+    ? lookup.byIdLower.get(tvgId.toLowerCase())
+    : "";
+  if (caseInsensitiveId) {
+    return { guideId: caseInsensitiveId, strength: 290 };
   }
 
-  const name = normaliseName(target?.name);
-  if (name && lookup.byName.has(name)) {
-    return { guideId: lookup.byName.get(name), strength: 100 };
+  for (const normalisedId of nameAliases(tvgId)) {
+    if (lookup.byName.has(normalisedId)) {
+      return { guideId: lookup.byName.get(normalisedId), strength: 220 };
+    }
+  }
+
+  for (const name of nameAliases(target?.name)) {
+    if (lookup.byName.has(name)) {
+      return { guideId: lookup.byName.get(name), strength: 180 };
+    }
+  }
+
+  const country = countryCodeForTarget(target);
+  const preferredGuideId = (PREFERRED_GUIDE_IDS[country] || new Map())
+    .get(normaliseName(target?.name));
+
+  if (preferredGuideId && lookup.byId.has(preferredGuideId)) {
+    return { guideId: preferredGuideId, strength: 160 };
   }
 
   return null;
