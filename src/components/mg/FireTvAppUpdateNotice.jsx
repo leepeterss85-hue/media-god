@@ -223,6 +223,7 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
 
           <button
             type="button"
+            data-mg-overlay-back="true"
             onClick={dismiss}
             disabled={updateBusy}
             className="rounded-lg p-2 text-white/60 outline-none hover:bg-white/10 hover:text-white focus:ring-2 focus:ring-mg-green disabled:opacity-30"
@@ -327,6 +328,7 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
         <div className="mt-5 flex justify-end">
           <button
             type="button"
+            data-mg-overlay-back="true"
             onClick={dismiss}
             disabled={updateBusy}
             className="min-h-12 rounded-xl border border-white/15 bg-black/25 px-5 py-3 font-semibold text-white outline-none hover:bg-white/5 focus:ring-4 focus:ring-mg-green/40 disabled:opacity-30"
