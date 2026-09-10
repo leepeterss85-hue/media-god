@@ -554,6 +554,10 @@ export default async function (req) {
         media_info:
           stream.media_info ||
           null,
+
+        torrent_progress:
+          stream.torrent_progress ||
+          null,
       });
     }
 
@@ -1628,6 +1632,10 @@ async function addMagnet({
     media_info:
       stream.media_info ||
       null,
+
+    torrent_progress:
+      stream.torrent_progress ||
+      null,
   });
 }
 
@@ -1813,6 +1821,31 @@ function chooseVideoFile(
     .sort((a, b) => scoreFile(b) - scoreFile(a))[0];
 }
 
+const buildTorrentProgress = (info = {}) => {
+  const progress = Math.max(
+    0,
+    Math.min(100, Number(info?.progress || 0))
+  );
+  const sizeBytes = Math.max(
+    0,
+    Number(info?.bytes || info?.original_bytes || 0)
+  );
+
+  return {
+    status: String(info?.status || ""),
+    progress,
+    speed_bps: Math.max(0, Number(info?.speed || 0)),
+    seeders: Math.max(0, Number(info?.seeders || 0)),
+    size_bytes: sizeBytes,
+    downloaded_bytes:
+      sizeBytes > 0
+        ? Math.round(sizeBytes * (progress / 100))
+        : 0,
+    added: String(info?.added || ""),
+    ended: String(info?.ended || ""),
+  };
+};
+
 /*
  * ============================================================
  * RESOLVE A REAL-DEBRID TORRENT
@@ -1935,6 +1968,9 @@ async function resolveStreamable(
         "",
 
       files: [],
+
+      torrent_progress:
+        buildTorrentProgress(info),
     };
   }
 
@@ -2053,6 +2089,9 @@ async function resolveStreamable(
 
       files:
         fileEntries,
+
+      torrent_progress:
+        buildTorrentProgress(info),
     };
   }
 
@@ -2162,6 +2201,9 @@ async function resolveStreamable(
     media_info:
       playable.media_info ||
       null,
+
+    torrent_progress:
+      buildTorrentProgress(info),
   };
 }
 
