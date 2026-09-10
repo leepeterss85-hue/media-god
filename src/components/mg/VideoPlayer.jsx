@@ -1697,6 +1697,66 @@ export default function VideoPlayer({
               res?.data ||
               {};
 
+            const progressData =
+              data.torrent_progress ||
+              {};
+
+            latestProgress = Math.max(
+              0,
+              Math.min(
+                100,
+                Number(progressData.progress || 0)
+              )
+            );
+
+            latestSeeders = Math.max(
+              0,
+              Number(progressData.seeders || 0)
+            );
+
+            latestSpeed = Math.max(
+              0,
+              Number(progressData.speed_bps || 0)
+            );
+
+            setRdPreparation(
+              (current) => ({
+                ...progressData,
+                status:
+                  progressData.status ||
+                  data.rd_status ||
+                  current?.status ||
+                  "preparing",
+                startedAt:
+                  current?.startedAt ||
+                  Date.now(),
+                updatedAt:
+                  Date.now(),
+                attempts,
+              })
+            );
+
+            const currentRdStatus = String(
+              progressData.status ||
+              data.rd_status ||
+              ""
+            ).toLowerCase();
+
+            if (
+              /^(?:dead|error|magnet_error|virus)$/.test(
+                currentRdStatus
+              )
+            ) {
+              setRdPolling(false);
+              setRdTorrentId(null);
+              setRdError(
+                `Real-Debrid stopped preparing this torrent: ${friendlyRdStatus(
+                  currentRdStatus
+                )}. Choose another source.`
+              );
+              return;
+            }
+
             if (
               data.status ===
                 "ready" &&
