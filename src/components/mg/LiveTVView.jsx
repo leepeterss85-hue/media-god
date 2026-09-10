@@ -361,6 +361,13 @@ const repositoryHealth = (source) => {
   };
 };
 
+const channelReliabilityScore = (channel) =>
+  [channel, ...(channel?.alternatives || [])].reduce(
+    (best, candidate) =>
+      Math.max(best, liveTvUrlScore(candidate?.url)),
+    -Infinity
+  );
+
 const playableChannelCandidates = (channel) => {
   const nativeFireTv = isNativeFireTvPlayerAvailable();
 
@@ -1262,6 +1269,7 @@ export default function LiveTVView() {
       Movies: 0,
       Favourites: 0,
       Recent: 0,
+      "Most Reliable": 0,
     };
 
     for (const channel of channels) {
@@ -1276,6 +1284,10 @@ export default function LiveTVView() {
 
       if (recentKeys.includes(key)) {
         counts.Recent += 1;
+      }
+
+      if (channelReliabilityScore(channel) > 0) {
+        counts["Most Reliable"] += 1;
       }
 
       if (
@@ -1331,7 +1343,14 @@ export default function LiveTVView() {
         }
 
         if (
-          !["All", "Favourites", "Recent"].includes(quickFilter) &&
+          quickFilter === "Most Reliable" &&
+          channelReliabilityScore(channel) <= 0
+        ) {
+          return false;
+        }
+
+        if (
+          !["All", "Favourites", "Recent", "Most Reliable"].includes(quickFilter) &&
           !tags.has(quickFilter)
         ) {
           return false;
@@ -1396,6 +1415,14 @@ export default function LiveTVView() {
         (a, b) =>
           (order.get(channelMemoryKey(a)) ?? 9999) -
           (order.get(channelMemoryKey(b)) ?? 9999)
+      );
+    }
+
+    if (quickFilter === "Most Reliable") {
+      return [...result].sort(
+        (a, b) =>
+          channelReliabilityScore(b) - channelReliabilityScore(a) ||
+          String(a?.name || "").localeCompare(String(b?.name || ""))
       );
     }
 
@@ -2044,7 +2071,7 @@ export default function LiveTVView() {
           </section>
         )}
 
-      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-7">
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-8">
         {[
           {
             id: "All",
@@ -2080,6 +2107,11 @@ export default function LiveTVView() {
             id: "Recent",
             label: "Recent",
             icon: Clock3,
+          },
+          {
+            id: "Most Reliable",
+            label: "Reliable",
+            icon: CheckCircle2,
           },
         ].map((item) => {
           const Icon =
