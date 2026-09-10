@@ -951,14 +951,11 @@ export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
 }
 
 const dedupeKey = (channel) => {
-  // Ensure unique stream paths from custom repository lists don't overwrite each other
-  if (channel?.sourceId === "nimeyer-uk-list" || channel?.sourceId?.startsWith("gigoplast")) {
-    return `repo:${channel.sourceId}:${channel.url}`;
-  }
-
   const name = normaliseChannelNameForKey(channel?.name);
   const fastAliasName = normaliseFastAliasName(channel?.name);
   const tvgId = String(channel?.tvgId || "").trim().toLowerCase();
+  const country = String(channel?.country || "").trim().toLowerCase();
+  const group = normaliseFastAliasName(channel?.group);
 
   const fastCanonicalId = FAST_CHANNEL_CANONICAL_IDS.get(fastAliasName);
   if (fastCanonicalId) {
@@ -976,9 +973,21 @@ const dedupeKey = (channel) => {
     return "id:skymix.uk";
   }
 
+  /*
+   * Different public repositories often assign different opaque TVG IDs to
+   * the same channel. Prefer an exact cleaned station-name + country key so
+   * those copies become hidden backup feeds behind one visible channel tile.
+   * If a playlist has no country metadata, include its group to avoid merging
+   * unrelated same-name local stations across broad worldwide lists.
+   */
+  if (fastAliasName) {
+    return country
+      ? `name:${fastAliasName}|country:${country}`
+      : `name:${fastAliasName}|group:${group || "unknown"}`;
+  }
+
   if (tvgId && !tvgId.includes("01tv.fr")) return `id:${tvgId}`;
-  const country = String(channel?.country || "").trim().toLowerCase();
-  return `name:${name}|country:${country}`;
+  return `url:${String(channel?.url || "").trim()}`;
 };
 
 const dedupeMergedChannels = (channels) => {
@@ -1053,6 +1062,7 @@ export async function getFreeTvChannels(options = {}) {
     const fetchPlaylistSource = async (source) => {
       const controller = new AbortController();
       const timeout = window.setTimeout(() => controller.abort(), 15000);
+      const startedAt = Date.now();
 
       try {
         const response = await fetch(source.url, {
@@ -1073,6 +1083,8 @@ export async function getFreeTvChannels(options = {}) {
           source,
           parsed: parseFreeTvPlaylist(text, source),
           error: null,
+          latencyMs: Math.max(0, Date.now() - startedAt),
+          bytes: text.length,
         };
       } catch (error) {
         return {
@@ -1082,6 +1094,8 @@ export async function getFreeTvChannels(options = {}) {
             error?.name === "AbortError"
               ? "Timed out after 15 seconds"
               : error?.message || "Failed to fetch",
+          latencyMs: Math.max(0, Date.now() - startedAt),
+          bytes: 0,
         };
       } finally {
         window.clearTimeout(timeout);
@@ -1097,9 +1111,18 @@ export async function getFreeTvChannels(options = {}) {
       const batch = sortedSources.slice(index, index + SOURCE_BATCH_SIZE);
       const results = await Promise.all(batch.map(fetchPlaylistSource));
 
-      for (const { source, parsed, error } of results) {
+      for (const { source, parsed, error, latencyMs, bytes } of results) {
         if (error) {
-          sourceStatus.push({ id: source.id, name: source.name, count: 0, error });
+          sourceStatus.push({
+            id: source.id,
+            name: source.name,
+            category: source.category || "Other",
+            priority: Number(source.priority || 0),
+            count: 0,
+            latencyMs,
+            bytes,
+            error,
+          });
           continue;
         }
 
@@ -1113,7 +1136,11 @@ export async function getFreeTvChannels(options = {}) {
         sourceStatus.push({
           id: source.id,
           name: source.name,
+          category: source.category || "Other",
+          priority: Number(source.priority || 0),
           count: parsed.length,
+          latencyMs,
+          bytes,
           error: null,
         });
       }
@@ -1143,7 +1170,12 @@ export async function getFreeTvChannels(options = {}) {
       sourceStatus.push({
         id: source.id,
         name: source.name,
+        category: source.category || "United Kingdom",
+        priority: Number(source.priority || 0),
         count: parsed.length,
+        latencyMs: 0,
+        bytes: 0,
+        direct: true,
         error: null,
       });
     }
