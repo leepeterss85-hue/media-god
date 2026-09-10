@@ -2316,6 +2316,38 @@ export default function VideoPlayer({
       const video =
         event.target;
 
+      const loadedDuration = Number(
+        video?.duration || 0
+      );
+
+      /*
+       * The public Comet service can return a valid ~2 minute MP4 that is
+       * actually its own "Couldn't start this stream" error card. Because
+       * that file is valid video, the browser never raises a media error and
+       * normal failover used to treat it as successful playback. Reject that
+       * very specific Comet signature and move to the next real source.
+       */
+      const cometErrorVideo =
+        sources.length > 1 &&
+        String(active?.addon || "")
+          .trim()
+          .toLowerCase() === "comet" &&
+        loadedDuration >= 115 &&
+        loadedDuration <= 125;
+
+      if (cometErrorVideo) {
+        recordPlaybackReliability(
+          sourceDisplayLabel(active, activeIdx),
+          "failure"
+        );
+
+        tryNextSource(
+          "Comet returned its error video instead of the requested stream."
+        );
+
+        return;
+      }
+
       const recoveryTime = Number(
         recoveryResumeRef.current || 0
       );
