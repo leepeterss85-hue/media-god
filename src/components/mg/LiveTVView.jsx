@@ -583,6 +583,94 @@ export default function LiveTVView() {
   }, []);
 
   useEffect(() => {
+    writeStoredLiveTvState({
+      query,
+      group,
+      countryFilter,
+      quickFilter,
+      directOnly,
+      viewMode,
+      channelVisibleLimit,
+      focusedChannelKey,
+    });
+  }, [
+    query,
+    group,
+    countryFilter,
+    quickFilter,
+    directOnly,
+    viewMode,
+    channelVisibleLimit,
+    focusedChannelKey,
+  ]);
+
+  useEffect(() => {
+    const saveScrollPosition = () => {
+      if (scrollSaveTimerRef.current) {
+        window.clearTimeout(scrollSaveTimerRef.current);
+      }
+
+      scrollSaveTimerRef.current = window.setTimeout(() => {
+        scrollSaveTimerRef.current = null;
+        writeStoredLiveTvState({
+          scrollY: Math.max(0, Number(window.scrollY || 0)),
+        });
+      }, 180);
+    };
+
+    window.addEventListener("scroll", saveScrollPosition, { passive: true });
+
+    return () => {
+      window.removeEventListener("scroll", saveScrollPosition);
+      if (scrollSaveTimerRef.current) {
+        window.clearTimeout(scrollSaveTimerRef.current);
+        scrollSaveTimerRef.current = null;
+      }
+      writeStoredLiveTvState({
+        scrollY: Math.max(0, Number(window.scrollY || 0)),
+      });
+    };
+  }, []);
+
+  useEffect(() => {
+    if (
+      loading ||
+      channels.length === 0 ||
+      restoredLiveTvPositionRef.current
+    ) {
+      return;
+    }
+
+    restoredLiveTvPositionRef.current = true;
+    const saved = readStoredLiveTvState();
+    const savedScrollY = Math.max(0, Number(saved?.scrollY || 0));
+    const savedFocusKey = String(saved?.focusedChannelKey || "");
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        if (savedScrollY > 0) {
+          window.scrollTo({ top: savedScrollY, behavior: "auto" });
+        }
+
+        if (isNativeFireTvPlayerAvailable() && savedFocusKey) {
+          const encodedKey = encodeURIComponent(savedFocusKey);
+          const target = document.querySelector(
+            `[data-mg-live-tv-key="${encodedKey}"]`
+          );
+
+          if (target instanceof HTMLElement) {
+            try {
+              target.focus({ preventScroll: true });
+            } catch {
+              target.focus();
+            }
+          }
+        }
+      });
+    });
+  }, [loading, channels.length]);
+
+  useEffect(() => {
     if (channels.length === 0) return undefined;
 
     let cancelled = false;
