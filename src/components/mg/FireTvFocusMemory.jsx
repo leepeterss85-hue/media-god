@@ -471,6 +471,16 @@ const snapshotFocus =
     return {
       element,
 
+      focusKey:
+        normaliseText(
+          element.getAttribute(
+            "data-mg-focus-key"
+          ) ||
+            element.getAttribute(
+              "data-mg-live-tv-key"
+            )
+        ),
+
       ariaLabel:
         normaliseText(
           element.getAttribute(
@@ -542,6 +552,21 @@ const resolveSnapshot =
       focusables(
         scope
       );
+
+    if (snapshot.focusKey) {
+      const byFocusKey =
+        items.find(
+          (item) =>
+            normaliseText(
+              item.getAttribute("data-mg-focus-key") ||
+                item.getAttribute("data-mg-live-tv-key")
+            ) === snapshot.focusKey
+        );
+
+      if (byFocusKey) {
+        return byFocusKey;
+      }
+    }
 
     if (
       snapshot.ariaLabel
