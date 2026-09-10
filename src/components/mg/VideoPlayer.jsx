@@ -717,6 +717,33 @@ export default function VideoPlayer({
     message =
       "This source could not be played."
   ) => {
+    const hardFailureMessage =
+      /(?:\b451\b|infringing[_ -]?file|copyright|wrong\s+ip|rate[-\s]?limit|not\s+cached|couldn['’]?t\s+start|could\s+not\s+start|comet\s+returned\s+its\s+error)/i.test(
+        String(message || "")
+      );
+
+    /*
+     * A late error from the previous URL can arrive after React/Chromium has
+     * already started the replacement stream. Never let that stale event kick
+     * a healthy, buffered video onto yet another source. Hard provider/RD
+     * failures are still allowed through because those are explicit upstream
+     * rejections rather than a speculative playback watchdog decision.
+     */
+    const currentVideo = stageRef.current?.querySelector("video");
+    const currentVideoHealthy =
+      currentVideo instanceof HTMLVideoElement &&
+      !currentVideo.paused &&
+      !currentVideo.ended &&
+      !currentVideo.error &&
+      currentVideo.networkState !== HTMLMediaElement.NETWORK_NO_SOURCE &&
+      currentVideo.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA;
+
+    if (currentVideoHealthy && !hardFailureMessage) {
+      autoRecoveryRef.current.lastTime = Number(currentVideo.currentTime || 0);
+      autoRecoveryRef.current.lastProgressAt = Date.now();
+      return false;
+    }
+
     markSourceFailed(
       activeIdx
     );
