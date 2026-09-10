@@ -2960,6 +2960,37 @@ export default function VideoPlayer({
         return;
       }
 
+      /*
+       * Do not abandon a source merely because currentTime did not move on a
+       * particular polling sample. If Chromium still reports buffered future
+       * media and no actual media error, the source is healthy enough to keep.
+       * Genuine network stalls naturally drain that buffer/readyState and can
+       * then fall through to recovery below.
+       */
+      let bufferedAhead = 0;
+      try {
+        for (let index = 0; index < video.buffered.length; index += 1) {
+          const start = Number(video.buffered.start(index) || 0);
+          const end = Number(video.buffered.end(index) || 0);
+          if (currentTime >= start - 0.25 && currentTime <= end + 0.25) {
+            bufferedAhead = Math.max(bufferedAhead, end - currentTime);
+          }
+        }
+      } catch {
+        bufferedAhead = 0;
+      }
+
+      const hasHealthyBuffer =
+        !video.error &&
+        video.networkState !== HTMLMediaElement.NETWORK_NO_SOURCE &&
+        video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA &&
+        bufferedAhead > 1;
+
+      if (hasHealthyBuffer) {
+        state.lastProgressAt = now;
+        return;
+      }
+
       const activeTorrentLike =
         active?.type === "rd" ||
         active?.type === "rd_torrent" ||
@@ -2968,8 +2999,8 @@ export default function VideoPlayer({
         isMagnet(activeUrl) ||
         Boolean(magnetHash(activeUrl));
       const stallThresholdMs = activeTorrentLike
-        ? 28000
-        : 16000;
+        ? 40000
+        : 28000;
 
       if (now - Number(state.lastProgressAt || now) >= stallThresholdMs) {
         recover(video);
