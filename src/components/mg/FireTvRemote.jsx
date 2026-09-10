@@ -741,6 +741,39 @@ export default function FireTvRemote() {
       }, 30);
     };
 
+    const keepFocusedControlVisible = (event) => {
+      if (!isFireTv()) {
+        return;
+      }
+
+      const target = event?.target;
+      if (!(target instanceof HTMLElement) || !visible(target)) {
+        return;
+      }
+
+      const rect = target.getBoundingClientRect();
+      const margin = 18;
+      const offscreen =
+        rect.top < margin ||
+        rect.left < margin ||
+        rect.bottom > window.innerHeight - margin ||
+        rect.right > window.innerWidth - margin;
+
+      if (!offscreen) {
+        return;
+      }
+
+      try {
+        target.scrollIntoView({
+          block: "nearest",
+          inline: "nearest",
+          behavior: "auto",
+        });
+      } catch {
+        // Fire TV WebView will still keep the focused element selected.
+      }
+    };
+
     const onKeyDown = (event) => {
       if (!isFireTv()) {
         return;
@@ -1034,6 +1067,7 @@ export default function FireTvRemote() {
     };
 
     window.addEventListener("keydown", onKeyDown, true);
+    document.addEventListener("focusin", keepFocusedControlVisible, true);
     window.addEventListener("mg:tv-remote-detected", activateTvMode);
 
     const observer = new MutationObserver(focusOverlay);
@@ -1047,6 +1081,7 @@ export default function FireTvRemote() {
 
     return () => {
       window.removeEventListener("keydown", onKeyDown, true);
+      document.removeEventListener("focusin", keepFocusedControlVisible, true);
       window.removeEventListener("mg:tv-remote-detected", activateTvMode);
       observer.disconnect();
       document.documentElement.classList.remove("mg-fire-tv-mode");
