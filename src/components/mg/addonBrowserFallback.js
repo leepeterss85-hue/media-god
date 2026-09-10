@@ -846,10 +846,24 @@ export async function fetchBrowserAddonStreams({
   season = null,
   episode = null,
 }) {
+  const suppliedImdb =
+    clean(imdbId);
+
+  const suppliedTmdb =
+    clean(tmdbId);
+
+  const suppliedTitle =
+    clean(title);
+
+  const hasValidImdb =
+    /^tt\d+$/i.test(
+      suppliedImdb
+    );
+
   if (
-    !/^tt\d+$/i.test(
-      clean(imdbId)
-    )
+    !hasValidImdb &&
+    !suppliedTmdb &&
+    !suppliedTitle
   ) {
     return {
       streams:
@@ -865,7 +879,7 @@ export async function fetchBrowserAddonStreams({
         false,
 
       error:
-        "IMDb id is required for browser fallback.",
+        "A usable IMDb id, TMDb id, or title is required for browser fallback.",
     };
   }
 
@@ -978,13 +992,17 @@ export async function fetchBrowserAddonStreams({
       : "movie";
 
   const streamId =
-    mediaType === "tv"
-      ? `${clean(imdbId)}:${Number(
-          season
-        )}:${Number(
-          episode
-        )}`
-      : clean(imdbId);
+    hasValidImdb
+      ? mediaType === "tv"
+        ? `${suppliedImdb}:${Number(season)}:${Number(episode)}`
+        : suppliedImdb
+      : suppliedTmdb
+        ? mediaType === "tv"
+          ? `tmdb:${suppliedTmdb}:${Number(season)}:${Number(episode)}`
+          : `tmdb:${suppliedTmdb}`
+        : mediaType === "tv"
+          ? `search:${suppliedTitle}:${Number(season)}:${Number(episode)}`
+          : `search:${suppliedTitle}`;
 
   const episodeSuffix =
     mediaType === "tv"
@@ -992,20 +1010,20 @@ export async function fetchBrowserAddonStreams({
       : "";
 
   const alternateStreamIds = [
-    clean(tmdbId)
-      ? `tmdb:${clean(tmdbId)}${episodeSuffix}`
+    suppliedTmdb
+      ? `tmdb:${suppliedTmdb}${episodeSuffix}`
       : "",
-    clean(imdbId)
-      ? `imdb:${clean(imdbId)}${episodeSuffix}`
+    hasValidImdb
+      ? `imdb:${suppliedImdb}${episodeSuffix}`
       : "",
-    clean(tmdbId)
-      ? `${clean(tmdbId)}${episodeSuffix}`
+    suppliedTmdb
+      ? `${suppliedTmdb}${episodeSuffix}`
       : "",
-    clean(title)
-      ? `search:${clean(title)}${clean(year) ? `:${clean(year)}` : ""}${episodeSuffix}`
+    suppliedTitle
+      ? `search:${suppliedTitle}${clean(year) ? `:${clean(year)}` : ""}${episodeSuffix}`
       : "",
-    clean(title)
-      ? `search:${clean(title)}${episodeSuffix}`
+    suppliedTitle
+      ? `search:${suppliedTitle}${episodeSuffix}`
       : "",
   ]
     .filter(Boolean)
