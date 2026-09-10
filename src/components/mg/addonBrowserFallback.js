@@ -769,6 +769,8 @@ const fetchOneAddon = async ({
 export async function fetchBrowserAddonStreams({
   imdbId,
   tmdbId = "",
+  title = "",
+  year = "",
   mediaType = "movie",
   season = null,
   episode = null,
@@ -913,14 +915,35 @@ export async function fetchBrowserAddonStreams({
         )}`
       : clean(imdbId);
 
-  const alternateStreamIds =
+  const episodeSuffix =
+    mediaType === "tv"
+      ? `:${Number(season)}:${Number(episode)}`
+      : "";
+
+  const alternateStreamIds = [
     clean(tmdbId)
-      ? [
-          mediaType === "tv"
-            ? `tmdb:${clean(tmdbId)}:${Number(season)}:${Number(episode)}`
-            : `tmdb:${clean(tmdbId)}`,
-        ]
-      : [];
+      ? `tmdb:${clean(tmdbId)}${episodeSuffix}`
+      : "",
+    clean(imdbId)
+      ? `imdb:${clean(imdbId)}${episodeSuffix}`
+      : "",
+    clean(tmdbId)
+      ? `${clean(tmdbId)}${episodeSuffix}`
+      : "",
+    clean(title)
+      ? `search:${clean(title)}${clean(year) ? `:${clean(year)}` : ""}${episodeSuffix}`
+      : "",
+    clean(title)
+      ? `search:${clean(title)}${episodeSuffix}`
+      : "",
+  ]
+    .filter(Boolean)
+    .filter(
+      (value, index, list) =>
+        value !== streamId &&
+        list.indexOf(value) === index
+    )
+    .slice(0, 5);
 
   const settled =
     await Promise.allSettled(
