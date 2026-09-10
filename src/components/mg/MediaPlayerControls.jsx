@@ -223,6 +223,7 @@ export default function MediaPlayerControls({
   const playingRef = useRef(false);
   const seekingRef = useRef(false);
   const menuOpenRef = useRef(false);
+  const selectFocusedRef = useRef(false);
   const mountedRef = useRef(true);
 
   const getVideo = () => {
@@ -245,7 +246,8 @@ export default function MediaPlayerControls({
     if (
       !playingRef.current ||
       seekingRef.current ||
-      menuOpenRef.current
+      menuOpenRef.current ||
+      selectFocusedRef.current
     ) {
       return;
     }
@@ -256,7 +258,8 @@ export default function MediaPlayerControls({
           mountedRef.current &&
           playingRef.current &&
           !seekingRef.current &&
-          !menuOpenRef.current
+          !menuOpenRef.current &&
+          !selectFocusedRef.current
         ) {
           setShowControls(false);
         }
@@ -1424,6 +1427,20 @@ export default function MediaPlayerControls({
     }
   };
 
+  const focusSelectControl = () => {
+    selectFocusedRef.current = true;
+    clearHideTimer();
+    setShowControls(true);
+  };
+
+  const blurSelectControl = () => {
+    selectFocusedRef.current = false;
+
+    if (!menuOpenRef.current) {
+      scheduleHide();
+    }
+  };
+
   const sourceFailed = (index) => {
     if (!failedSources) {
       return false;
@@ -1604,8 +1621,8 @@ export default function MediaPlayerControls({
                   const next = writeSourceSortMode(event.target.value);
                   setSourceSortMode(next);
                 }}
-                onFocus={focusControl}
-                onBlur={blurControl}
+                onFocus={focusSelectControl}
+                onBlur={blurSelectControl}
                 className="hidden min-h-10 w-[7.5rem] shrink-0 rounded-lg border border-white/15 bg-black/60 px-2 text-xs font-medium text-white outline-none backdrop-blur transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/30 md:block"
                 aria-label="Sort playback sources"
                 title="Sort playback sources"
@@ -1631,10 +1648,10 @@ export default function MediaPlayerControls({
                     );
                   }}
                   onFocus={
-                    focusControl
+                    focusSelectControl
                   }
                   onBlur={
-                    blurControl
+                    blurSelectControl
                   }
                   className="min-h-10 w-full appearance-none rounded-lg border border-white/15 bg-black/60 py-2.5 pl-3 pr-8 text-xs font-medium text-white outline-none backdrop-blur transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/30 sm:text-sm"
                   aria-label="Choose source or quality"
@@ -1915,10 +1932,10 @@ export default function MediaPlayerControls({
                   changeRate
                 }
                 onFocus={
-                  focusControl
+                  focusSelectControl
                 }
                 onBlur={
-                  blurControl
+                  blurSelectControl
                 }
                 className="h-10 rounded-lg border border-white/15 bg-black/45 px-2 text-xs font-semibold text-white outline-none transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/40 sm:h-10"
                 aria-label="Playback speed"
