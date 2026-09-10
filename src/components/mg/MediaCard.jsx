@@ -114,6 +114,7 @@ export default function MediaCard({
 
         <button
           type="button"
+          data-mg-focus-key={`media:${getMediaType(item)}:${item?.id || item?.tmdb_id || item?.title || "item"}`}
           onClick={handlePlay}
           className="mg-hover-action absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity"
           aria-label={`Play ${item.title}`}
