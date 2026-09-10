@@ -529,6 +529,7 @@ export default function PlayerEpisodeQuickNav() {
     >
       <button
         type="button"
+        data-mg-overlay-back="true"
         onClick={
           chooseEpisodes
         }
