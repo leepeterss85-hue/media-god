@@ -1105,6 +1105,11 @@ export default async function (req) {
           body.tmdbId
       );
 
+    const year =
+      clean(
+        body.year
+      );
+
     const mediaType =
       body.media_type === "tv" ||
       body.mediaType === "tv"
@@ -1192,18 +1197,43 @@ export default async function (req) {
           : imdbId
         : `search:${title}`;
 
-    const alternateStreamIds =
-      tmdbId
-        ? [
-            mediaType === "tv"
-              ? `tmdb:${tmdbId}:${season}:${episode}`
-              : `tmdb:${tmdbId}`,
-          ]
-        : [];
-
     const fastMode =
       body?.fast_mode === true ||
       body?.fastMode === true;
+
+    const episodeSuffix =
+      mediaType === "tv"
+        ? `:${season}:${episode}`
+        : "";
+
+    const broadAlternateStreamIds = [
+      tmdbId
+        ? `tmdb:${tmdbId}${episodeSuffix}`
+        : "",
+      imdbId
+        ? `imdb:${imdbId}${episodeSuffix}`
+        : "",
+      tmdbId
+        ? `${tmdbId}${episodeSuffix}`
+        : "",
+      title
+        ? `search:${title}${year ? `:${year}` : ""}${episodeSuffix}`
+        : "",
+      title
+        ? `search:${title}${episodeSuffix}`
+        : "",
+    ]
+      .filter(Boolean)
+      .filter(
+        (value, index, list) =>
+          value !== streamId &&
+          list.indexOf(value) === index
+      );
+
+    const alternateStreamIds =
+      fastMode
+        ? broadAlternateStreamIds.slice(0, 1)
+        : broadAlternateStreamIds.slice(0, 5);
 
     const selectedAddons =
       fastMode
@@ -1220,6 +1250,8 @@ export default async function (req) {
               streamId,
               alternateStreamIds,
               mediaType,
+              skipManifest:
+                fastMode,
               manifestTimeoutMs:
                 fastMode ? 900 : 3000,
               streamTimeoutMs:
