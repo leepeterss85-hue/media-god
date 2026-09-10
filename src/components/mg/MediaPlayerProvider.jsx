@@ -671,6 +671,7 @@ const fetchServerAddonSources = async ({
   season,
   episode,
   fastMode = false,
+  excludeAddonNames = [],
 }) => {
   if (!imdbId && !tmdbId && !title) {
     return {
@@ -751,6 +752,13 @@ const fetchServerAddonSources = async ({
           fast_mode:
             Boolean(fastMode),
 
+          exclude_addons:
+            Array.isArray(
+              excludeAddonNames
+            )
+              ? excludeAddonNames
+              : [],
+
           ...(season != null
             ? {
                 season,
@@ -788,6 +796,13 @@ const fetchServerAddonSources = async ({
       addonsChecked:
         Number(
           data?.addons_checked ||
+          0
+        ),
+
+      addonsAvailable:
+        Number(
+          data?.addons_available ??
+          data?.addons_checked ??
           0
         ),
 
