@@ -878,6 +878,16 @@ const lookupAddon = async ({
   let unsupportedControlStreams =
     0;
 
+  let ipBoundCometDirectStreams =
+    0;
+
+  const addonUrlParts =
+    parseAddonUrl(addon?.url);
+
+  const deferCometDirectToBrowser =
+    addonUrlParts?.origin === "https://comet.elfhosted.com" &&
+    Boolean(addonUrlParts?.basePath && addonUrlParts.basePath !== "/");
+
   const normalised =
     rawStreams
       .map(
@@ -915,6 +925,23 @@ const lookupAddon = async ({
             return false;
           }
 
+          /*
+           * ElfHosted Comet binds generated direct debrid URLs to the IP
+           * address that requested the stream resource. A URL generated here
+           * on the Base44 server will therefore fail with "Wrong IP" when the
+           * user's phone/TV later tries to play it. Keep torrent/info-hash
+           * results server-side, but deliberately defer Comet's direct HTTP
+           * links so Media God's browser fallback requests them from the
+           * actual playback device instead.
+           */
+          if (
+            deferCometDirectToBrowser &&
+            item?.type === "url"
+          ) {
+            ipBoundCometDirectStreams += 1;
+            return false;
+          }
+
           return Boolean(item);
         }
       );
@@ -928,9 +955,11 @@ const lookupAddon = async ({
         addonName,
 
       status:
-        normalised.length > 0
-          ? "ok"
-          : "no_playable_streams",
+        ipBoundCometDirectStreams > 0
+          ? "browser_required"
+          : normalised.length > 0
+            ? "ok"
+            : "no_playable_streams",
 
       stream_count:
         rawStreams.length,
@@ -939,12 +968,20 @@ const lookupAddon = async ({
         normalised.length,
 
       message:
-        normalised.length > 0
-          ? `${normalised.length} playable source${
-              normalised.length === 1
-                ? ""
-                : "s"
-            } found${alternateIdUsed ? ` using alternate id ${alternateIdUsed}` : ""}.`
+        ipBoundCometDirectStreams > 0
+          ? `${ipBoundCometDirectStreams} Comet direct source${
+              ipBoundCometDirectStreams === 1 ? " was" : "s were"
+            } deferred to the playback device because Comet binds these links to the requesting IP.${
+              normalised.length > 0
+                ? ` ${normalised.length} non-IP-bound source${normalised.length === 1 ? " remains" : "s remain"} usable from the server.`
+                : ""
+            }`
+          : normalised.length > 0
+            ? `${normalised.length} playable source${
+                normalised.length === 1
+                  ? ""
+                  : "s"
+              } found${alternateIdUsed ? ` using alternate id ${alternateIdUsed}` : ""}.`
           : unsupportedControlStreams > 0
             ? `${unsupportedControlStreams} addon sync/control item${
                 unsupportedControlStreams === 1 ? " was" : "s were"
