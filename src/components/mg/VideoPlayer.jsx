@@ -117,6 +117,23 @@ const formatCacheSpeed = (value) => {
   return speed ? `${speed}/s` : "";
 };
 
+const formatCacheDuration = (value) => {
+  const seconds = Math.max(0, Math.round(Number(value || 0)));
+
+  if (seconds < 60) return `${seconds}s`;
+
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+
+  if (minutes < 60) {
+    return remainder > 0 ? `${minutes}m ${remainder}s` : `${minutes}m`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+};
+
 const friendlyRdStatus = (value) => {
   const status = String(value || "").trim().toLowerCase();
   const labels = {
@@ -4077,6 +4094,90 @@ export default function VideoPlayer({
         activeIdx
       )
     );
+
+  const cacheProgress = Math.max(
+    0,
+    Math.min(
+      100,
+      Math.round(
+        Number(rdPreparation?.progress || 0)
+      )
+    )
+  );
+
+  const cacheStatusLabel =
+    friendlyRdStatus(
+      rdPreparation?.status
+    );
+
+  const cacheSeeders = Math.max(
+    0,
+    Number(rdPreparation?.seeders || 0)
+  );
+
+  const cacheSpeedBps = Math.max(
+    0,
+    Number(rdPreparation?.speed_bps || 0)
+  );
+
+  const cacheSizeBytes = Math.max(
+    0,
+    Number(rdPreparation?.size_bytes || 0)
+  );
+
+  const cacheDownloadedBytes = Math.max(
+    0,
+    Number(
+      rdPreparation?.downloaded_bytes ||
+      (cacheSizeBytes * cacheProgress) / 100 ||
+      0
+    )
+  );
+
+  const cacheElapsedSeconds =
+    rdPreparation?.startedAt
+      ? Math.max(
+          0,
+          (Date.now() - Number(rdPreparation.startedAt)) / 1000
+        )
+      : 0;
+
+  const cacheEtaSeconds =
+    cacheSpeedBps > 0 &&
+    cacheSizeBytes > cacheDownloadedBytes
+      ? (cacheSizeBytes - cacheDownloadedBytes) / cacheSpeedBps
+      : 0;
+
+  const cacheStats = [
+    cacheSeeders > 0
+      ? `${cacheSeeders} ${cacheSeeders === 1 ? "seeder" : "seeders"}`
+      : "0 seeders",
+    cacheSpeedBps > 0
+      ? formatCacheSpeed(cacheSpeedBps)
+      : "0 B/s",
+    cacheSizeBytes > 0
+      ? `${formatCacheBytes(cacheDownloadedBytes)} of ${formatCacheBytes(cacheSizeBytes)}`
+      : "",
+    cacheElapsedSeconds > 0
+      ? `${formatCacheDuration(cacheElapsedSeconds)} elapsed`
+      : "",
+    cacheEtaSeconds > 0 && cacheEtaSeconds < 86400
+      ? `~${formatCacheDuration(cacheEtaSeconds)} left`
+      : "",
+  ].filter(Boolean);
+
+  const cacheHint =
+    cacheProgress >= 100
+      ? "Download is complete. Real-Debrid is preparing the playable link."
+      : cacheSeeders <= 0 &&
+          cacheSpeedBps <= 0 &&
+          cacheElapsedSeconds >= 30
+        ? "No active seeders are being reported. This torrent may be stuck — you can choose another source below."
+        : cacheSpeedBps <= 0 &&
+            cacheProgress > 0 &&
+            cacheElapsedSeconds >= 30
+          ? "Download is paused right now. Media God will keep checking automatically."
+          : "Playback will start automatically as soon as Real-Debrid reports the file ready.";
 
   const playerUiStatus =
     displayedError && !busy
