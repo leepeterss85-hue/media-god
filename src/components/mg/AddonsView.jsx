@@ -31,6 +31,9 @@ const clean = (value) =>
 const AIOSTREAMS_CONFIGURE_URL =
   "https://aiostreams.elfhosted.com/stremio/configure";
 
+const COMET_CONFIGURE_URL =
+  "https://comet.elfhosted.com/configure";
+
 const normaliseManifestUrl = (
   value
 ) => {
@@ -105,10 +108,46 @@ const isBareAioStreamsManifest = (value) => {
   }
 };
 
+const isElfHostedComet = (value) => {
+  try {
+    const parsed = new URL(normaliseManifestUrl(value));
+    return /(^|\.)comet\.elfhosted\.com$/i.test(parsed.hostname);
+  } catch {
+    return false;
+  }
+};
+
+const isBareCometManifest = (value) => {
+  try {
+    const parsed = new URL(normaliseManifestUrl(value));
+
+    if (!/(^|\.)comet\.elfhosted\.com$/i.test(parsed.hostname)) {
+      return false;
+    }
+
+    return /^\/manifest\.json\/?$/i.test(parsed.pathname);
+  } catch {
+    return false;
+  }
+};
+
 const displayManifestUrl = (value) => {
   const raw = clean(value);
 
-  if (!raw || !isElfHostedAioStreams(raw)) {
+  if (!raw) {
+    return raw;
+  }
+
+  if (isElfHostedComet(raw) && !isBareCometManifest(raw)) {
+    try {
+      const parsed = new URL(normaliseManifestUrl(raw));
+      return `${parsed.origin}/[configured]/manifest.json`;
+    } catch {
+      return "Configured Comet manifest";
+    }
+  }
+
+  if (!isElfHostedAioStreams(raw)) {
     return raw;
   }
 
@@ -351,6 +390,18 @@ export default function AddonsManager() {
       ) {
         setError(
           "AIOStreams needs your generated configured manifest. Open Configure AIOStreams, save the profile, then paste the generated install/manifest URL here — not the bare configure URL."
+        );
+
+        return;
+      }
+
+      if (
+        isElfHostedComet(rawUrl) &&
+        (/\/configure(?:[/?#]|$)/i.test(rawUrl) ||
+          isBareCometManifest(url))
+      ) {
+        setError(
+          "Comet needs its generated configured manifest. Open Configure Comet, add your debrid service, use Copy Link, then paste that generated manifest URL here — not the bare public manifest."
         );
 
         return;
@@ -631,6 +682,20 @@ export default function AddonsManager() {
         );
       }
 
+      if (
+        item?.status === "configuration_required"
+      ) {
+        return (
+          <span
+            className="flex items-center gap-1 text-xs text-amber-300 bg-amber-950/30 px-2 py-0.5 rounded-full border border-amber-900/50"
+            title={item?.message || "Configuration required"}
+          >
+            <CircleHelp className="w-3 h-3" />
+            Needs config
+          </span>
+        );
+      }
+
       return (
         <span
           className="flex items-center gap-1 text-xs text-amber-300 bg-amber-950/30 px-2 py-0.5 rounded-full border border-amber-900/50"
@@ -770,6 +835,48 @@ export default function AddonsManager() {
 
         <p className="text-[11px] text-gray-500">
           Configured AIOStreams URLs can contain private profile information, so Media God hides those path values when displaying the saved addon.
+        </p>
+      </div>
+
+      <div className="rounded-xl border border-violet-900/60 bg-violet-950/20 p-4 space-y-3">
+        <div>
+          <h2 className="text-md font-semibold text-white">
+            Comet (optional)
+          </h2>
+
+          <p className="text-xs text-gray-400 mt-1">
+            The bare public Comet manifest can identify the addon but its stream lookup is rejected from Media God. Configure Comet with your debrid service first, then paste the generated manifest URL here.
+          </p>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-2">
+          <a
+            href={COMET_CONFIGURE_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="flex min-h-11 items-center justify-center gap-2 rounded-lg bg-violet-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-violet-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+          >
+            <ExternalLink className="w-4 h-4" />
+            Configure Comet
+          </a>
+
+          <button
+            type="button"
+            onClick={() => {
+              setNewName("Comet");
+              setError("");
+              setMessage(
+                "Paste the configured Comet manifest/install URL into the manifest field below."
+              );
+            }}
+            className="min-h-11 rounded-lg border border-violet-800 bg-zinc-900 px-3 py-2 text-sm font-medium text-violet-200 transition hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+          >
+            Add configured manifest
+          </button>
+        </div>
+
+        <p className="text-[11px] text-gray-500">
+          Media God hides configured Comet path values on this screen because they can include private service configuration.
         </p>
       </div>
 
