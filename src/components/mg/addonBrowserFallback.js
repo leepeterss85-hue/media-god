@@ -111,6 +111,19 @@ const parseManifestUrl = (value) => {
   }
 };
 
+const isBareElfHostedComet = (value) => {
+  const parsed = parseManifestUrl(value);
+
+  if (!parsed) {
+    return false;
+  }
+
+  return (
+    parsed.origin === "https://comet.elfhosted.com" &&
+    (!parsed.basePath || parsed.basePath === "/")
+  );
+};
+
 const buildStreamUrl = (
   manifestUrl,
   type,
@@ -493,10 +506,26 @@ const fetchOneAddon = async ({
   addon,
   type,
   streamId,
+  alternateStreamIds = [],
 }) => {
   const addonName =
     clean(addon?.name) ||
     "Addon";
+
+  if (isBareElfHostedComet(addon?.url)) {
+    return {
+      streams: [],
+      diagnostic: {
+        name: addonName,
+        status: "browser_configuration_required",
+        playable_count: 0,
+        stream_count: 0,
+        message:
+          "Comet needs a configured manifest URL before browser fallback can use it.",
+        browser: true,
+      },
+    };
+  }
 
   const url =
     buildStreamUrl(
@@ -569,12 +598,53 @@ const fetchOneAddon = async ({
     };
   }
 
-  const rawStreams =
+  let rawStreams =
     Array.isArray(
       result.data?.streams
     )
       ? result.data.streams
       : [];
+
+  let alternateIdUsed = "";
+
+  if (
+    rawStreams.length === 0 &&
+    Array.isArray(alternateStreamIds) &&
+    alternateStreamIds.length > 0
+  ) {
+    for (const alternateStreamId of alternateStreamIds) {
+      if (!alternateStreamId || alternateStreamId === streamId) {
+        continue;
+      }
+
+      const alternateUrl = buildStreamUrl(
+        addon?.url,
+        type,
+        alternateStreamId
+      );
+
+      if (!alternateUrl) {
+        continue;
+      }
+
+      const alternateResult = await fetchJson(
+        alternateUrl,
+        10000
+      );
+
+      const alternateStreams =
+        alternateResult.ok &&
+        Array.isArray(alternateResult.data?.streams)
+          ? alternateResult.data.streams
+          : [];
+
+      if (alternateStreams.length > 0) {
+        rawStreams = alternateStreams;
+        alternateIdUsed = alternateStreamId;
+        break;
+      }
+    }
+  }
 
   let unsupportedHeaders =
     0;
@@ -636,7 +706,7 @@ const fetchOneAddon = async ({
               streams.length === 1
                 ? ""
                 : "s"
-            }.`
+            }${alternateIdUsed ? ` using alternate id ${alternateIdUsed}` : ""}.`
           : unsupportedHeaders > 0
             ? `${rawStreams.length} stream${
                 rawStreams.length === 1
@@ -657,6 +727,7 @@ const fetchOneAddon = async ({
 
 export async function fetchBrowserAddonStreams({
   imdbId,
+  tmdbId = "",
   mediaType = "movie",
   season = null,
   episode = null,
@@ -801,6 +872,15 @@ export async function fetchBrowserAddonStreams({
         )}`
       : clean(imdbId);
 
+  const alternateStreamIds =
+    clean(tmdbId)
+      ? [
+          mediaType === "tv"
+            ? `tmdb:${clean(tmdbId)}:${Number(season)}:${Number(episode)}`
+            : `tmdb:${clean(tmdbId)}`,
+        ]
+      : [];
+
   const settled =
     await Promise.allSettled(
       activeAddons.map(
@@ -809,6 +889,7 @@ export async function fetchBrowserAddonStreams({
             addon,
             type,
             streamId,
+            alternateStreamIds,
           })
       )
     );
