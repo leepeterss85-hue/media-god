@@ -1500,6 +1500,35 @@ export default function LiveTVView() {
         !source.error
     );
 
+  const diagnosticSources = [...sourceStatus].sort((a, b) => {
+    const rank = {
+      Down: 4,
+      Slow: 3,
+      Empty: 2,
+      Fair: 1,
+      Healthy: 0,
+    };
+    const aHealth = repositoryHealth(a);
+    const bHealth = repositoryHealth(b);
+
+    return (
+      (rank[bHealth.label] ?? 0) - (rank[aHealth.label] ?? 0) ||
+      Number(b?.latencyMs || 0) - Number(a?.latencyMs || 0) ||
+      String(a?.name || "").localeCompare(String(b?.name || ""))
+    );
+  });
+
+  const healthyRepositoryCount = sourceStatus.filter(
+    (source) => repositoryHealth(source).label === "Healthy"
+  ).length;
+  const slowRepositoryCount = sourceStatus.filter((source) =>
+    ["Slow", "Fair"].includes(repositoryHealth(source).label)
+  ).length;
+  const mergedBackupCount = channels.reduce(
+    (total, channel) => total + (Array.isArray(channel?.alternatives) ? channel.alternatives.length : 0),
+    0
+  );
+
   if (loading) {
     return (
       <div className="flex min-h-[55vh] flex-col items-center justify-center gap-3 p-6">
@@ -1919,7 +1948,7 @@ export default function LiveTVView() {
           Direct streams only
         </button>
 
-        <div className="grid h-11 grid-cols-2 overflow-hidden rounded-lg border border-white/10 bg-mg-card">
+        <div className="grid h-11 grid-cols-3 overflow-hidden rounded-lg border border-white/10 bg-mg-card">
           <button
             type="button"
             onClick={() => setViewMode("channels")}
@@ -1950,6 +1979,22 @@ export default function LiveTVView() {
           >
             <ListVideo className="h-4 w-4" />
             <span className="hidden xl:inline">Guide</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setViewMode("sources")}
+            aria-label="Live TV source diagnostics"
+            aria-pressed={viewMode === "sources"}
+            className={cn(
+              "flex min-w-11 items-center justify-center gap-1.5 px-2 text-xs font-semibold outline-none transition-colors focus:ring-2 focus:ring-inset focus:ring-mg-green",
+              viewMode === "sources"
+                ? "bg-mg-green text-black"
+                : "text-white/60 hover:text-white"
+            )}
+          >
+            <Activity className="h-4 w-4" />
+            <span className="hidden xl:inline">Sources</span>
           </button>
         </div>
       </div>
