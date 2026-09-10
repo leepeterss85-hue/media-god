@@ -7,6 +7,7 @@ import React, {
 import {
   CheckCircle2,
   CircleHelp,
+  ExternalLink,
   Loader2,
   Plus,
   RefreshCw,
@@ -27,30 +28,115 @@ const clean = (value) =>
     ""
   ).trim();
 
+const AIOSTREAMS_CONFIGURE_URL =
+  "https://aiostreams.elfhosted.com/stremio/configure";
+
 const normaliseManifestUrl = (
   value
 ) => {
-  const url =
-    clean(
-      value
-    ).replace(
-      /\/+$/,
-      ""
-    );
+  let raw = clean(value);
 
-  if (!url) {
+  if (!raw) {
     return "";
   }
 
-  if (
-    /\/manifest\.json(?:\?.*)?$/i.test(
-      url
-    )
-  ) {
-    return url;
+  if (/^stremio:\/\//i.test(raw)) {
+    raw = raw.replace(/^stremio:\/\//i, "https://");
+  } else if (!/^https?:\/\//i.test(raw)) {
+    raw = `https://${raw}`;
   }
 
-  return `${url}/manifest.json`;
+  try {
+    const parsed = new URL(raw);
+    parsed.hash = "";
+
+    let path = parsed.pathname.replace(/\/+$/, "");
+
+    if (/\/configure$/i.test(path)) {
+      path = path.replace(/\/configure$/i, "");
+    }
+
+    if (!/\/manifest\.json$/i.test(path)) {
+      path = `${path}/manifest.json`;
+    }
+
+    parsed.pathname = path.replace(/\/{2,}/g, "/");
+
+    return parsed.toString();
+  } catch {
+    return raw;
+  }
+};
+
+const isElfHostedAioStreams = (value) => {
+  try {
+    const parsed = new URL(normaliseManifestUrl(value));
+    return /(^|\.)aiostreams\.elfhosted\.com$/i.test(parsed.hostname);
+  } catch {
+    return false;
+  }
+};
+
+const isBareAioStreamsManifest = (value) => {
+  try {
+    const parsed = new URL(normaliseManifestUrl(value));
+
+    if (!/(^|\.)aiostreams\.elfhosted\.com$/i.test(parsed.hostname)) {
+      return false;
+    }
+
+    const parts = parsed.pathname
+      .split("/")
+      .filter(Boolean);
+    const stremioIndex = parts.findIndex(
+      (part) => part.toLowerCase() === "stremio"
+    );
+    const afterStremio =
+      stremioIndex >= 0
+        ? parts.slice(stremioIndex + 1)
+        : parts;
+    const configParts = afterStremio.filter(
+      (part) => part.toLowerCase() !== "manifest.json"
+    );
+
+    return configParts.length === 0;
+  } catch {
+    return false;
+  }
+};
+
+const displayManifestUrl = (value) => {
+  const raw = clean(value);
+
+  if (!raw || !isElfHostedAioStreams(raw)) {
+    return raw;
+  }
+
+  try {
+    const parsed = new URL(raw);
+    const parts = parsed.pathname.split("/").filter(Boolean);
+    const stremioIndex = parts.findIndex(
+      (part) => part.toLowerCase() === "stremio"
+    );
+
+    if (stremioIndex >= 0) {
+      for (let index = stremioIndex + 1; index < parts.length; index += 1) {
+        if (parts[index].toLowerCase() !== "manifest.json") {
+          parts[index] = "••••";
+        }
+      }
+
+      parsed.pathname = `/${parts.join("/")}`;
+    }
+
+    if (parsed.search) {
+      parsed.search = "?configured=hidden";
+    }
+
+    return parsed.toString();
+  } catch {
+    return "Configured AIOStreams manifest";
+  }
 };
 
 export default function AddonsManager() {
@@ -217,9 +303,14 @@ export default function AddonsManager() {
           newName
         );
 
+      const rawUrl =
+        clean(
+          newUrl
+        );
+
       const url =
         normaliseManifestUrl(
-          newUrl
+          rawUrl
         );
 
       setError(
@@ -247,7 +338,19 @@ export default function AddonsManager() {
         )
       ) {
         setError(
-          "Use an HTTPS manifest URL."
+          "Use an HTTPS manifest URL or a Stremio install URL."
+        );
+
+        return;
+      }
+
+      if (
+        isElfHostedAioStreams(rawUrl) &&
+        (/\/configure(?:[/?#]|$)/i.test(rawUrl) ||
+          isBareAioStreamsManifest(url))
+      ) {
+        setError(
+          "AIOStreams needs your generated configured manifest. Open Configure AIOStreams, save the profile, then paste the generated install/manifest URL here — not the bare configure URL."
         );
 
         return;
@@ -628,6 +731,48 @@ export default function AddonsManager() {
         </div>
       )}
 
+      <div className="rounded-xl border border-sky-900/60 bg-sky-950/20 p-4 space-y-3">
+        <div>
+          <h2 className="text-md font-semibold text-white">
+            AIOStreams (optional)
+          </h2>
+
+          <p className="text-xs text-gray-400 mt-1">
+            AIOStreams can combine additional Stremio-compatible sources into one configured manifest. Configure it first, then add the generated manifest below. Media God will not save the bare public manifest as a source.
+          </p>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-2">
+          <a
+            href={AIOSTREAMS_CONFIGURE_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="flex min-h-11 items-center justify-center gap-2 rounded-lg bg-sky-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-sky-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+          >
+            <ExternalLink className="w-4 h-4" />
+            Configure AIOStreams
+          </a>
+
+          <button
+            type="button"
+            onClick={() => {
+              setNewName("AIOStreams");
+              setError("");
+              setMessage(
+                "Paste the configured AIOStreams manifest/install URL into the manifest field below."
+              );
+            }}
+            className="min-h-11 rounded-lg border border-sky-800 bg-zinc-900 px-3 py-2 text-sm font-medium text-sky-200 transition hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+          >
+            Add configured manifest
+          </button>
+        </div>
+
+        <p className="text-[11px] text-gray-500">
+          Configured AIOStreams URLs can contain private profile information, so Media God hides those path values when displaying the saved addon.
+        </p>
+      </div>
+
       <form
         onSubmit={
           handleAdd
@@ -665,7 +810,7 @@ export default function AddonsManager() {
 
           <input
             type="text"
-            placeholder="https://example.com/manifest.json"
+            placeholder="https://…/manifest.json or stremio://…"
             value={
               newUrl
             }
@@ -767,9 +912,15 @@ export default function AddonsManager() {
                       }
                     </div>
 
-                    <p className="text-xs text-gray-400 break-all">
+                    {addon?.description && (
+                      <p className="text-xs text-gray-400">
+                        {addon.description}
+                      </p>
+                    )}
+
+                    <p className="text-xs text-gray-500 break-all">
                       {
-                        addon?.url
+                        displayManifestUrl(addon?.url)
                       }
                     </p>
 
