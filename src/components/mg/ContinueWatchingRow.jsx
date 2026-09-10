@@ -295,17 +295,13 @@ export default function ContinueWatchingRow() {
           ).padStart(2, "0")}`
         : meta.title;
 
-    const sources = item?.video_url
-      ? [
-          {
-            label: "Previous resume source",
-            type: "file",
-            src: item.video_url,
-            url: item.video_url,
-          },
-        ]
-      : [];
-
+    /*
+     * Continue Watching URLs are often temporary Real-Debrid/provider links.
+     * Reusing one later can pin playback to an expired "Previous resume source"
+     * even though fresh sources are available. Resume the media identity and
+     * position instead, then let the normal source discovery resolve a current
+     * playable URL.
+     */
     player.play({
       id: tmdbId || undefined,
       tmdbId: tmdbId || undefined,
@@ -323,7 +319,7 @@ export default function ContinueWatchingRow() {
       episodeName: meta.episodeName || "",
       startTime: Number(item.progress || 0),
       preferRd: true,
-      sources,
+      sources: [],
     });
   };
 
