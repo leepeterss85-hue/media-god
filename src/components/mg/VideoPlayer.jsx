@@ -224,26 +224,115 @@ const isFireTvRemoteRuntime = () => {
   );
 };
 
-const isDesktopFullscreenBrowser = () => {
-  if (typeof window === "undefined" || typeof navigator === "undefined") {
-    return false;
+const browserFullscreenElement = () => {
+  if (typeof document === "undefined") {
+    return null;
   }
 
-  const ua = `${navigator.userAgent || ""} ${navigator.platform || ""}`;
+  return (
+    document.fullscreenElement ||
+    document.webkitFullscreenElement ||
+    document.mozFullScreenElement ||
+    document.msFullscreenElement ||
+    null
+  );
+};
 
-  // Fire TV / Android WebViews must keep using Media God's safe in-app
-  // fullscreen. Native fullscreen there can hand playback to the host
-  // activity, restart the wrapper, or create picture-in-picture issues.
+const requestBrowserFullscreen = async (element) => {
+  if (!(element instanceof HTMLElement)) {
+    throw new Error("Fullscreen target is unavailable.");
+  }
+
+  if (typeof element.requestFullscreen === "function") {
+    try {
+      await element.requestFullscreen({ navigationUI: "hide" });
+    } catch (firstError) {
+      try {
+        await element.requestFullscreen();
+      } catch {
+        throw firstError;
+      }
+    }
+    return;
+  }
+
+  if (typeof element.webkitRequestFullscreen === "function") {
+    await Promise.resolve(element.webkitRequestFullscreen());
+    return;
+  }
+
+  if (typeof element.mozRequestFullScreen === "function") {
+    await Promise.resolve(element.mozRequestFullScreen());
+    return;
+  }
+
+  if (typeof element.msRequestFullscreen === "function") {
+    await Promise.resolve(element.msRequestFullscreen());
+    return;
+  }
+
+  throw new Error("Browser fullscreen is unavailable.");
+};
+
+const exitBrowserFullscreen = async () => {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  if (typeof document.exitFullscreen === "function") {
+    await document.exitFullscreen();
+    return;
+  }
+
+  if (typeof document.webkitExitFullscreen === "function") {
+    await Promise.resolve(document.webkitExitFullscreen());
+    return;
+  }
+
+  if (typeof document.mozCancelFullScreen === "function") {
+    await Promise.resolve(document.mozCancelFullScreen());
+    return;
+  }
+
+  if (typeof document.msExitFullscreen === "function") {
+    await Promise.resolve(document.msExitFullscreen());
+  }
+};
+
+const isDesktopFullscreenBrowser = () => {
   if (
-    /(?:\bAFT[A-Z0-9]*\b|Fire\s*TV|AmazonWebAppPlatform|Silk|MediaGodFireTV|Android|iPhone|iPad|iPod|Mobile)/i.test(
-      ua
-    )
+    typeof window === "undefined" ||
+    typeof navigator === "undefined" ||
+    typeof document === "undefined"
   ) {
     return false;
   }
 
-  // Only opt desktop-class browsers into the browser Fullscreen API.
-  return /(?:Windows NT|Macintosh|Mac OS X|CrOS|X11|Linux x86_64)/i.test(ua);
+  const ua = `${navigator.userAgent || ""} ${navigator.platform || ""}`;
+  const root = document.documentElement;
+  const body = document.body;
+
+  // Dedicated TV/Android wrappers deliberately keep Media God's safe in-app
+  // fullscreen. Their host activity owns the physical display and using the
+  // browser Fullscreen API can restart playback or create a second surface.
+  if (
+    isFireTvRemoteRuntime() ||
+    root.classList.contains("mg-android-mobile") ||
+    body?.classList.contains("mg-android-mobile") ||
+    /(?:Android|iPhone|iPad|iPod)/i.test(ua)
+  ) {
+    return false;
+  }
+
+  // Desktop/PWA/Electron-style windows are detected by capability rather than
+  // a fragile OS user-agent allow-list. This lets installed desktop web apps
+  // hide the Windows taskbar/browser frame just like a normal browser tab.
+  return Boolean(
+    root.requestFullscreen ||
+      root.webkitRequestFullscreen ||
+      root.mozRequestFullScreen ||
+      root.msRequestFullscreen
+  );
 };
 
 const audioTrackScore = (track, preferredLanguage = "en") => {
