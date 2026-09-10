@@ -1185,6 +1185,7 @@ export default async function (req) {
 
     if (
       !imdbId &&
+      !tmdbId &&
       !title
     ) {
       return Response.json(
@@ -1218,7 +1219,13 @@ export default async function (req) {
         ? mediaType === "tv"
           ? `${imdbId}:${season}:${episode}`
           : imdbId
-        : `search:${title}`;
+        : tmdbId
+          ? mediaType === "tv"
+            ? `tmdb:${tmdbId}:${season}:${episode}`
+            : `tmdb:${tmdbId}`
+          : mediaType === "tv"
+            ? `search:${title}:${season}:${episode}`
+            : `search:${title}`;
 
     const fastMode =
       body?.fast_mode === true ||
