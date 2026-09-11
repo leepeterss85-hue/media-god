@@ -115,6 +115,19 @@ const isAddonControlStream = (stream, addonName = "") => {
   );
 };
 
+const PUBLIC_FALLBACK_TRACKERS = [
+  "udp://zer0day.ch:1337/announce",
+  "udp://tracker.therarbg.to:6969/announce",
+  "udp://tracker.publictracker.xyz:6969/announce",
+  "udp://tracker.opentrackr.org:1337/announce",
+  "udp://open.demonii.com:1337/announce",
+  "udp://open.stealth.si:80/announce",
+  "udp://tracker2.dler.org:80/announce",
+  "udp://tracker.torrent.eu.org:451/announce",
+  "udp://tracker.qu.ax:6969/announce",
+  "udp://tracker.filemail.com:6969/announce",
+];
+
 const magnetFromHash = (
   hash,
   title = "",
@@ -358,7 +371,11 @@ const normaliseStream = (
     const cacheMagnet = magnetFromHash(
       infoHash,
       clean(stream?.title || stream?.name || ""),
-      stream?.announce || stream?.trackers || []
+      [
+        ...(Array.isArray(stream?.announce) ? stream.announce : []),
+        ...(Array.isArray(stream?.trackers) ? stream.trackers : []),
+        ...PUBLIC_FALLBACK_TRACKERS,
+      ]
     );
 
     return {
