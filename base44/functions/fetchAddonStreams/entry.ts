@@ -148,6 +148,23 @@ const streamTitle = (stream) =>
     .split("\n")[0]
     .trim();
 
+const streamReportedSeeders = (stream) => {
+  const text = [
+    stream?.description,
+    stream?.title,
+    stream?.name,
+  ]
+    .map(clean)
+    .filter(Boolean)
+    .join(" ");
+
+  const match = text.match(
+    /(?:👤\s*|seeders?\s*:\s*)(\d+)/i
+  );
+
+  return match ? Math.max(0, Number(match[1] || 0)) : 0;
+};
+
 const isAddonControlStream = (stream, addonName = "") => {
   const name = clean(
     stream?.name
@@ -458,6 +475,8 @@ const normaliseStream = (
         stream?.behaviorHints ||
         stream?.behavior_hints ||
         undefined,
+      description: clean(stream?.description),
+      reportedSeeders: streamReportedSeeders(stream),
       debridProvider: "realdebrid",
       viaRealDebrid: true,
       cacheRequired: true,
