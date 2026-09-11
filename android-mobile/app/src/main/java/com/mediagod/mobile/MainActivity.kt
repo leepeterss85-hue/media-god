@@ -246,15 +246,22 @@ class MainActivity : Activity() {
                     if(!root){return;}
                     var blocked=isBlockedCometText(root.innerText||root.textContent||'');
                     var videos=Array.prototype.slice.call(root.querySelectorAll('video'));
-                    if(!blocked){
+                    var rdCacheSource=root.getAttribute('data-mg-rd-cache-source')==='true';
+                    var restoreVideos=function(){
                       videos.forEach(function(video){
                         if(video.dataset&&video.dataset.mgCometUncachedBlocked==='true'){
                           video.style.removeProperty('opacity');
                           delete video.dataset.mgCometUncachedBlocked;
                         }
                       });
-                      return;
-                    }
+                    };
+                    /* Newer web builds deliberately turn RD⬇ into a Media God
+                       Real-Debrid cache job. Do not fight that flow, including
+                       after the cached file becomes a real playable video. */
+                    if(rdCacheSource){restoreVideos();return;}
+                    /* Older hosted builds only need intervention if they have
+                       actually put Comet's placeholder onto a video element. */
+                    if(!blocked||videos.length===0){restoreVideos();return;}
                     videos.forEach(function(video){
                       try{video.pause();}catch(e){}
                       if(video.dataset){video.dataset.mgCometUncachedBlocked='true';}
