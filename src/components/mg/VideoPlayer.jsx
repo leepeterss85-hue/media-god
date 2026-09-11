@@ -2600,6 +2600,49 @@ export default function VideoPlayer({
   );
 
   /*
+   * If a torrent hash failed recently, skip it immediately when a retry or
+   * reopen makes the same row active again. This prevents repeatedly waiting
+   * on the same dead partial Real-Debrid job across player sessions.
+   */
+  useEffect(
+    () => {
+      const activeHash = sourceTorrentHash(active);
+
+      if (
+        !activeHash ||
+        !failedTorrentHashesRef.current.has(activeHash)
+      ) {
+        return;
+      }
+
+      const nextIndex = findNextPlayableSource(activeIdx);
++
+      if (nextIndex === -1) {
+        return;
+      }
+
+      const timer = window.setTimeout(() => {
+        switchToSource(nextIndex, {
+          preservePosition: true,
+          statusMessage:
+            "Skipping a recently failed torrent — trying a different source…",
+        });
+      }, 0);
+
+      return () => window.clearTimeout(timer);
+    },
+    [
+      activeIdx,
+      active,
+      sources,
+      source?.title,
+      source?.id,
+      source?.rdSeason,
+      source?.rdEpisode,
+    ]
+  );
+
+  /*
    * Keyboard / TV remote controls.
    */
   useEffect(
