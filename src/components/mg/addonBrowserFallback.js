@@ -368,15 +368,28 @@ const normaliseStream = (
       };
     }
 
+    const providedTrackers = [
+      ...(Array.isArray(stream?.announce) ? stream.announce : []),
+      ...(Array.isArray(stream?.trackers) ? stream.trackers : []),
+    ];
+
     const cacheMagnet = magnetFromHash(
       infoHash,
       clean(stream?.title || stream?.name || ""),
       [
-        ...(Array.isArray(stream?.announce) ? stream.announce : []),
-        ...(Array.isArray(stream?.trackers) ? stream.trackers : []),
+        ...providedTrackers,
         ...PUBLIC_FALLBACK_TRACKERS,
       ]
     );
+
+    const originalTrackerMagnet =
+      providedTrackers.length > 0
+        ? magnetFromHash(
+            infoHash,
+            clean(stream?.title || stream?.name || ""),
+            providedTrackers
+          )
+        : "";
 
     return {
       id: `browser-${addonName}-${index}-${infoHash}-cache`,
@@ -386,6 +399,9 @@ const normaliseStream = (
       src: cacheMagnet,
       url: cacheMagnet,
       magnet: cacheMagnet,
+      ...(originalTrackerMagnet
+        ? { richMagnet: originalTrackerMagnet }
+        : {}),
       infoHash,
       fileIdx:
         stream?.fileIdx ??
@@ -534,13 +550,7 @@ const richestMagnet = (...values) =>
 const mergeSameHashSource = (current, incoming, hash) => {
   const richerMagnet = richestMagnet(
     current?.richMagnet,
-    current?.magnet,
-    current?.url,
-    current?.src,
-    incoming?.richMagnet,
-    incoming?.magnet,
-    incoming?.url,
-    incoming?.src
+    incoming?.richMagnet
   );
 
   const addons = Array.from(
@@ -609,7 +619,7 @@ const dedupe = (items) => {
       indexByKey.set(key, output.length);
       output.push({
         ...item,
-        ...(hash && /^magnet:\?/i.test(raw)
+        ...(hash && /^magnet:\?/i.test(raw) && item?.cometUncached !== true
           ? { richMagnet: raw }
           : {}),
       });
