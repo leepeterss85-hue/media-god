@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 3,
-  "versionName": "1.0.2",
+  "versionCode": 4,
+  "versionName": "1.0.3",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.2 fixes the split/double-screen player layout by preventing Android phones and tablets from ever inheriting Fire TV viewport, focus or player CSS, while keeping the native Android decoder available.",
+  "message": "Media God Mobile 1.0.3 stops Comet RD download-status placeholders from being shown as playable video, automatically skips RD-downloading sources, and keeps the Android mobile viewport protections from 1.0.2.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
