@@ -1446,95 +1446,6 @@ export default function VideoPlayer({
 
             const hash = magnetHash(magnet);
 
-            /*
-             * Comet RD⬇ sources are special: the original Comet playback URL
-             * knows the torrent's full tracker/source context, while the
-             * reconstructed magnet only contains the info hash. Prime Comet
-             * first (without rendering its placeholder video), then attach to
-             * the exact Real-Debrid torrent it creates. This preserves peer
-             * discovery and prevents every uncached source looking like
-             * 0 seeders / 0 B/s simply because Media God submitted a bare hash.
-             */
-            if (
-              active?.cacheRequired &&
-              active?.cometUncached &&
-              active?.cometPlaybackUrl &&
-              hash
-            ) {
-              try {
-                fetch(active.cometPlaybackUrl, {
-                  method: "GET",
-                  mode: "no-cors",
-                  credentials: "omit",
-                  cache: "no-store",
-                  redirect: "follow",
-                }).catch(() => {});
-
-                for (let adoptAttempt = 0; adoptAttempt < 5; adoptAttempt += 1) {
-                  if (cancelled) return;
-
-                  if (adoptAttempt > 0) {
-                    await new Promise((resolve) =>
-                      window.setTimeout(resolve, adoptAttempt === 1 ? 900 : 1400)
-                    );
-                  }
-
-                  const adoptResponse = await base44.functions.invoke(
-                    "realDebrid",
-                    {
-                      action: "adopt_hash",
-                      info_hash: hash,
-                      title: source?.rdTitle || source?.title || "",
-                      ...(source?.rdYear != null ? { year: source.rdYear } : {}),
-                      ...(source?.rdSeason != null ? { season: source.rdSeason } : {}),
-                      ...(source?.rdEpisode != null ? { episode: source.rdEpisode } : {}),
-                    }
-                  );
-
-                  if (cancelled) return;
-
-                  const adoptData = adoptResponse?.data || {};
-
-                  if (adoptData.status === "ready" && adoptData.stream_url) {
-                    setRdOverride({
-                      src: adoptData.stream_url,
-                      label:
-                        adoptData.filename ||
-                        active?.label ||
-                        "Real-Debrid Stream",
-                      file: currentFilePath(adoptData.files),
-                      audioRescue: adoptData.audio_rescue || null,
-                      fallbackSrc: adoptData.fallback_stream_url || "",
-                      videoRescue: adoptData.video_rescue || null,
-                      mediaInfo: adoptData.media_info || null,
-                    });
-                    setRdFiles(adoptData.files || []);
-                    setRdResolving(false);
-                    setRdPreparation(null);
-                    return;
-                  }
-
-                  if (adoptData.torrent_id) {
-                    setRdPreparation({
-                      ...(adoptData.torrent_progress || {}),
-                      status:
-                        adoptData.torrent_progress?.status ||
-                        adoptData.rd_status ||
-                        "preparing",
-                      startedAt: Date.now(),
-                      updatedAt: Date.now(),
-                      attempts: 0,
-                    });
-                    setRdTorrentId(String(adoptData.torrent_id));
-                    setRdResolving(false);
-                    return;
-                  }
-                }
-              } catch {
-                /* Fall through to Media God's own magnet submission. */
-              }
-            }
-
             const explicitProvider = String(active?.debridProvider || "")
               .toLowerCase()
               .replace(/[^a-z]/g, "");
@@ -2050,6 +1961,12 @@ export default function VideoPlayer({
       let latestSpeed =
         0;
 
+      let lastProgressValue =
+        -1;
+
+      let lastProgressAdvanceAt =
+        Date.now();
+
       setRdPolling(
         true
       );
@@ -2138,6 +2055,14 @@ export default function VideoPlayer({
               0,
               Number(progressData.speed_bps || 0)
             );
+
+            if (
+              lastProgressValue < 0 ||
+              latestProgress > lastProgressValue + 0.001
+            ) {
+              lastProgressValue = latestProgress;
+              lastProgressAdvanceAt = Date.now();
+            }
 
             setRdPreparation(
               (current) => ({
@@ -2270,9 +2195,12 @@ export default function VideoPlayer({
             return;
           }
 
+          const noProgressForMs =
+            Date.now() - lastProgressAdvanceAt;
+
           const looksCompletelyStalled =
             attempts >= 9 &&
-            latestProgress <= 0 &&
+            noProgressForMs >= 45000 &&
             latestSeeders <= 0 &&
             latestSpeed <= 0;
 
@@ -2283,7 +2211,7 @@ export default function VideoPlayer({
               setRdPolling(false);
               setRdTorrentId(null);
               tryNextSource(
-                "Real-Debrid found no peers or download speed for this torrent after about 45 seconds. Trying another source."
+                "Real-Debrid made no further progress and reported no active peers or download speed for about 45 seconds. Trying another source."
               );
               return;
             }
