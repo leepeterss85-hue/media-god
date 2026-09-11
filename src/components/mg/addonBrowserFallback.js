@@ -18,6 +18,29 @@ const infoHashFromValue = (value) => {
   return match?.[1]?.toUpperCase() || "";
 };
 
+const cometPlaybackHashFromValue = (value) => {
+  const text = clean(value);
+  const match = text.match(/\/playback\/([a-f0-9]{40})(?:\/|$|\?)/i);
+  return match?.[1]?.toUpperCase() || "";
+};
+
+const isCometUncachedDownloadStream = (stream, addonName = "") => {
+  const text = [
+    addonName,
+    stream?.name,
+    stream?.title,
+    stream?.description,
+  ]
+    .map(clean)
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    /\bcomet\b/i.test(text) &&
+    /\[\s*RD\s*⬇(?:\uFE0F)?\s*\]/i.test(text)
+  );
+};
+
 const streamLabel = (stream, addonName) => {
   const detail = clean(
     stream?.title ||
@@ -56,15 +79,8 @@ const isAddonControlStream = (stream, addonName = "") => {
     .filter(Boolean)
     .join(" ");
 
-  const cometUncachedDownload =
-    /\bcomet\b/i.test(clean(addonName)) &&
-    /\[\s*RD\s*⬇(?:\uFE0F)?\s*\]/i.test(text);
-
-  return (
-    cometUncachedDownload ||
-    /\bcomet\s+sync\b|debrid_sync_triggered|account\s+sync\s+started|refreshing\s+your\s+debrid\s+library|obsolete\s+configuration|\[❌\]\s*comet|\b(?:public\s+)?rate[-\s]?limit(?:ed)?\s+exceeded\b|couldn['’]?t\s+start\s+this\s+stream|could\s+not\s+start\s+this\s+stream|not\s+cached[^\n]{0,80}(?:debrid|server|yet|wait)|\bwrong\s+ip\b|infringing[_\s-]?file|\bcopyright\b/i.test(
-      text
-    )
+  return /\bcomet\s+sync\b|debrid_sync_triggered|account\s+sync\s+started|refreshing\s+your\s+debrid\s+library|obsolete\s+configuration|\[❌\]\s*comet|\b(?:public\s+)?rate[-\s]?limit(?:ed)?\s+exceeded\b|couldn['’]?t\s+start\s+this\s+stream|could\s+not\s+start\s+this\s+stream|not\s+cached[^\n]{0,80}(?:debrid|server|yet|wait)|\bwrong\s+ip\b|infringing[_\s-]?file|\bcopyright\b/i.test(
+    text
   );
 };
 
@@ -205,8 +221,10 @@ const normaliseStream = (
 
   const label =
     streamLabel(stream, addonName);
+  const cometUncachedDownload =
+    isCometUncachedDownloadStream(stream, addonName);
 
-  if (isAddonControlStream(stream, addonName)) {
+  if (!cometUncachedDownload && isAddonControlStream(stream, addonName)) {
     return {
       unsupported: true,
       reason: "addon_control_stream",
@@ -291,7 +309,50 @@ const normaliseStream = (
     infoHashFromValue(
       explicitHash ||
       rawUrl
+    ) ||
+    (cometUncachedDownload
+      ? cometPlaybackHashFromValue(rawUrl)
+      : "");
+
+  if (cometUncachedDownload) {
+    if (!infoHash) {
+      return {
+        unsupported: true,
+        reason: "comet_uncached_missing_hash",
+        label,
+      };
+    }
+
+    const cacheMagnet = magnetFromHash(
+      infoHash,
+      clean(stream?.title || stream?.name || ""),
+      stream?.announce || stream?.trackers || []
     );
+
+    return {
+      id: `browser-${addonName}-${index}-${infoHash}-cache`,
+      label,
+      addon: addonName,
+      type: "rd",
+      src: cacheMagnet,
+      url: cacheMagnet,
+      magnet: cacheMagnet,
+      infoHash,
+      fileIdx:
+        stream?.fileIdx ??
+        stream?.file_idx ??
+        undefined,
+      behaviorHints:
+        stream?.behaviorHints ||
+        stream?.behavior_hints ||
+        undefined,
+      browserFallback: true,
+      debridProvider: "realdebrid",
+      viaRealDebrid: true,
+      cacheRequired: true,
+      cometUncached: true,
+    };
+  }
 
   const magnet =
     isMagnet(rawUrl)
