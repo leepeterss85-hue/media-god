@@ -1526,6 +1526,8 @@ export default function VideoPlayer({
               hash &&
               /^https?:\/\//i.test(cometPlaybackUrl)
             ) {
+              let preflight = {};
+
               try {
                 const preflightResponse = await base44.functions.invoke(
                   "realDebrid",
@@ -1535,39 +1537,40 @@ export default function VideoPlayer({
                   }
                 );
 
-                const preflight = preflightResponse?.data || {};
-                if (preflight.saturated === true) {
-                  const activeCount = Math.max(
-                    0,
-                    Number(preflight.active_count || 0)
-                  );
-                  const activeLimit = Math.max(
-                    0,
-                    Number(preflight.active_limit || 0)
-                  );
-
-                  const moved = tryNextSource(
-                    activeLimit > 0
-                      ? `Real-Debrid already has ${activeCount}/${activeLimit} active torrents. Trying another source.`
-                      : "Real-Debrid has no free active torrent slot. Trying another source.",
-                    {
-                      blacklistTorrentHash: true,
-                      immediate: true,
-                    }
-                  );
-
-                  if (!moved) {
-                    throw new Error(
-                      activeLimit > 0
-                        ? `Real-Debrid already has ${activeCount}/${activeLimit} active torrents. Stop or finish one before starting another uncached source.`
-                        : "Real-Debrid has no free active torrent slot."
-                    );
-                  }
-
-                  return;
-                }
+                preflight = preflightResponse?.data || {};
               } catch {
-                // Slot cleanup/diagnostics are best-effort unless saturated.
+                // Slot cleanup/diagnostics are best-effort.
+              }
+
+              if (preflight.saturated === true) {
+                const activeCount = Math.max(
+                  0,
+                  Number(preflight.active_count || 0)
+                );
+                const activeLimit = Math.max(
+                  0,
+                  Number(preflight.active_limit || 0)
+                );
+
+                const moved = tryNextSource(
+                  activeLimit > 0
+                    ? `Real-Debrid already has ${activeCount}/${activeLimit} active torrents. Trying another source.`
+                    : "Real-Debrid has no free active torrent slot. Trying another source.",
+                  {
+                    blacklistTorrentHash: true,
+                    immediate: true,
+                  }
+                );
+
+                if (!moved) {
+                  throw new Error(
+                    activeLimit > 0
+                      ? `Real-Debrid already has ${activeCount}/${activeLimit} active torrents. Stop or finish one before starting another uncached source.`
+                      : "Real-Debrid has no free active torrent slot."
+                  );
+                }
+
+                return;
               }
 
               try {
