@@ -4533,6 +4533,11 @@ export default function VideoPlayer({
     Number(rdPreparation?.seeders || 0)
   );
 
+  const sourceReportedSeeders = Math.max(
+    0,
+    Number(active?.reportedSeeders || 0)
+  );
+
   const cacheSpeedBps = Math.max(
     0,
     Number(rdPreparation?.speed_bps || 0)
@@ -4568,8 +4573,10 @@ export default function VideoPlayer({
 
   const cacheStats = [
     cacheSeeders > 0
-      ? `${cacheSeeders} ${cacheSeeders === 1 ? "seeder" : "seeders"}`
-      : "0 seeders",
+      ? `${cacheSeeders} active ${cacheSeeders === 1 ? "seeder" : "seeders"}`
+      : sourceReportedSeeders > 0
+        ? `RD 0 active · Comet found ${sourceReportedSeeders}`
+        : "RD 0 active seeders",
     cacheSpeedBps > 0
       ? formatCacheSpeed(cacheSpeedBps)
       : "0 B/s",
@@ -4590,7 +4597,9 @@ export default function VideoPlayer({
       : cacheSeeders <= 0 &&
           cacheSpeedBps <= 0 &&
           cacheElapsedSeconds >= 30
-        ? "No active seeders are being reported. This torrent may be stuck — you can choose another source below."
+        ? sourceReportedSeeders > 0
+          ? `Comet found ${sourceReportedSeeders} seeder${sourceReportedSeeders === 1 ? "" : "s"}, but Real-Debrid currently reports no active peers. Media God will move on if progress stays flat.`
+          : "Real-Debrid reports no active seeders. Media God will move on if progress stays flat."
         : cacheSpeedBps <= 0 &&
             cacheProgress > 0 &&
             cacheElapsedSeconds >= 30
