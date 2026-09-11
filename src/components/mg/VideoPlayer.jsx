@@ -103,6 +103,79 @@ const sourceTorrentHash = (item) =>
       getSourceUrl(item)
   );
 
+const FAILED_TORRENT_HASHES_KEY =
+  "mg:failed-uncached-torrent-hashes:v1";
+const FAILED_TORRENT_HASH_TTL_MS =
+  2 * 60 * 60 * 1000;
+const FAILED_TORRENT_HASH_LIMIT = 80;
+
+const readPersistentFailedTorrentHashes = () => {
+  if (typeof window === "undefined") {
+    return new Set();
+  }
+
+  try {
+    const raw = JSON.parse(
+      window.localStorage.getItem(FAILED_TORRENT_HASHES_KEY) || "{}"
+    );
+    const now = Date.now();
+    const fresh = Object.entries(
+      raw && typeof raw === "object" ? raw : {}
+    )
+      .map(([hash, failedAt]) => [
+        String(hash || "").toLowerCase(),
+        Number(failedAt || 0),
+      ])
+      .filter(
+        ([hash, failedAt]) =>
+          /^[a-f0-9]{40,64}$/i.test(hash) &&
+          failedAt > 0 &&
+          now - failedAt < FAILED_TORRENT_HASH_TTL_MS
+      )
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, FAILED_TORRENT_HASH_LIMIT);
+
+    const cleaned = Object.fromEntries(fresh);
+    window.localStorage.setItem(
+      FAILED_TORRENT_HASHES_KEY,
+      JSON.stringify(cleaned)
+    );
+
+    return new Set(fresh.map(([hash]) => hash));
+  } catch {
+    return new Set();
+  }
+};
+
+const rememberPersistentFailedTorrentHash = (hash) => {
+  const normalized = String(hash || "").trim().toLowerCase();
+
+  if (
+    typeof window === "undefined" ||
+    !/^[a-f0-9]{40,64}$/i.test(normalized)
+  ) {
+    return;
+  }
+
+  try {
+    const current = {};
+    const now = Date.now();
+
+    for (const remembered of readPersistentFailedTorrentHashes()) {
+      current[remembered] = now;
+    }
+
+    current[normalized] = now;
+
+    window.localStorage.setItem(
+      FAILED_TORRENT_HASHES_KEY,
+      JSON.stringify(current)
+    );
+  } catch {
+    // Persistence is an optimisation; in-memory recovery still works.
+  }
+};
+
 const formatCacheBytes = (value) => {
   const bytes = Math.max(0, Number(value || 0));
 
