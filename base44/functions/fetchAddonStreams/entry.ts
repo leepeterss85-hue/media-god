@@ -157,15 +157,8 @@ const isAddonControlStream = (stream, addonName = "") => {
     .filter(Boolean)
     .join(" ");
 
-  const cometUncachedDownload =
-    /\bcomet\b/i.test(clean(addonName)) &&
-    /\[\s*RD\s*⬇(?:\uFE0F)?\s*\]/i.test(text);
-
-  return (
-    cometUncachedDownload ||
-    /\bcomet\s+sync\b|debrid_sync_triggered|account\s+sync\s+started|refreshing\s+your\s+debrid\s+library|obsolete\s+configuration|\[❌\]\s*comet|\b(?:public\s+)?rate[-\s]?limit(?:ed)?\s+exceeded\b|couldn['’]?t\s+start\s+this\s+stream|could\s+not\s+start\s+this\s+stream|not\s+cached[^\n]{0,80}(?:debrid|server|yet|wait)|\bwrong\s+ip\b|infringing[_\s-]?file|\bcopyright\b/i.test(
-      text
-    )
+  return /\bcomet\s+sync\b|debrid_sync_triggered|account\s+sync\s+started|refreshing\s+your\s+debrid\s+library|obsolete\s+configuration|\[❌\]\s*comet|\b(?:public\s+)?rate[-\s]?limit(?:ed)?\s+exceeded\b|couldn['’]?t\s+start\s+this\s+stream|could\s+not\s+start\s+this\s+stream|not\s+cached[^\n]{0,80}(?:debrid|server|yet|wait)|\bwrong\s+ip\b|infringing[_\s-]?file|\bcopyright\b/i.test(
+    text
   );
 };
 
