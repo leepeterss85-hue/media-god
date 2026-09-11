@@ -24,6 +24,20 @@ const cometPlaybackHashFromValue = (value) => {
   return match?.[1]?.toUpperCase() || "";
 };
 
+const infoHashFromBehaviorHints = (stream) => {
+  const bingeGroup = clean(
+    stream?.behaviorHints?.bingeGroup ||
+      stream?.behavior_hints?.bingeGroup ||
+      stream?.behavior_hints?.binge_group
+  );
+
+  const match = bingeGroup.match(
+    /(?:^|\|)([a-f0-9]{40})(?:\||$)/i
+  );
+
+  return match?.[1]?.toUpperCase() || "";
+};
+
 const isCometUncachedDownloadStream = (stream, addonName = "") => {
   const text = [
     addonName,
@@ -310,6 +324,7 @@ const normaliseStream = (
       explicitHash ||
       rawUrl
     ) ||
+    infoHashFromBehaviorHints(stream) ||
     (cometUncachedDownload
       ? cometPlaybackHashFromValue(rawUrl)
       : "");
