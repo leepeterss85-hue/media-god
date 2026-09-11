@@ -737,6 +737,19 @@ export default function VideoPlayer({
         : item?.cacheRequired === true
           ? -1000
           : 0;
+    const trackerRichBonus = [
+      item?.richMagnet,
+      item?.magnet,
+      item?.magnetLink,
+      item?.src,
+      item?.url,
+    ].some((value) => {
+      const raw = String(value || "").trim();
+      return /^magnet:/i.test(raw) && /(?:[?&])tr=/i.test(raw);
+    })
+      ? 3500
+      : 0;
+
     const swarmBonus = Math.min(
       4000,
       Math.max(0, Number(item?.reportedSeeders || 0)) * 20
@@ -746,7 +759,15 @@ export default function VideoPlayer({
         ? liveTvUrlScore(getSourceUrl(item))
         : 0;
 
-    return compatibility + learned + directBonus + rdBonus + swarmBonus + liveBonus;
+    return (
+      compatibility +
+      learned +
+      directBonus +
+      rdBonus +
+      trackerRichBonus +
+      swarmBonus +
+      liveBonus
+    );
   };
 
   const markSourceFailed = (index) => {
