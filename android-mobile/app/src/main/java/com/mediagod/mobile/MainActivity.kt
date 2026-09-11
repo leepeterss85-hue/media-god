@@ -55,6 +55,11 @@ class MainActivity : Activity() {
 
             webChromeClient = WebChromeClient()
             webViewClient = object : WebViewClient() {
+                override fun onPageCommitVisible(view: WebView?, url: String?) {
+                    super.onPageCommitVisible(view, url)
+                    injectMobileBootstrap()
+                }
+
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
                     injectMobileBootstrap()
@@ -213,9 +218,15 @@ class MainActivity : Activity() {
                 window.__MG_FIRE_TV_STABLE_MODE__=false;
                 html.classList.add('mg-android-mobile','mg-native-android-mobile','mg-touch-device');
                 if(body){body.classList.add('mg-android-mobile','mg-native-android-mobile','mg-touch-device');}
-                var meta=document.querySelector('meta[name="viewport"]');
-                if(!meta){meta=document.createElement('meta');meta.name='viewport';document.head.appendChild(meta);}
-                meta.setAttribute('content','width=device-width, initial-scale=1.0, viewport-fit=cover');
+                /* Replace, rather than mutate, any viewport node. Older Media God
+                   builds could leave a Fire TV MutationObserver attached to the
+                   old node and force 960x540 back after mobile bootstrap ran. */
+                var metas=Array.prototype.slice.call(document.querySelectorAll('meta[name="viewport"]'));
+                metas.forEach(function(meta){if(meta&&meta.parentNode){meta.parentNode.removeChild(meta);}});
+                var mobileMeta=document.createElement('meta');
+                mobileMeta.name='viewport';
+                mobileMeta.setAttribute('content','width=device-width, initial-scale=1.0, viewport-fit=cover');
+                (document.head||document.documentElement).appendChild(mobileMeta);
                 window.dispatchEvent(new CustomEvent('mg:android-mobile-detected'));
               } catch(e) {}
             })();
