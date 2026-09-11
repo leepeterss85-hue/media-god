@@ -2390,10 +2390,25 @@ async function resolveStreamable(
     videoFiles.length ===
     0
   ) {
+    if (info.status === "downloaded") {
+      return {
+        error:
+          "Real-Debrid finished this torrent, but no playable video file was found.",
+        error_code:
+          "RD_NO_VIDEO_FILE",
+        rd_status:
+          info.status,
+        filename:
+          info.filename ||
+          "",
+        files: [],
+        torrent_progress:
+          buildTorrentProgress(info),
+      };
+    }
+
     return {
-      ready:
-        info.status ===
-        "downloaded",
+      ready: false,
 
       rd_status:
         info.status,
