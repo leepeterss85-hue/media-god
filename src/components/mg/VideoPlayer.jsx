@@ -94,24 +94,6 @@ const sourceDisplayLabel = (item, index) =>
     .replace(/\s+/g, " ")
     .trim();
 
-const isCometUncachedDownloadSource = (item, index = 0) => {
-  const text = [
-    item?.addon,
-    item?.sourceName,
-    item?.label,
-    item?.name,
-    item?.title,
-    sourceDisplayLabel(item, index),
-  ]
-    .filter(Boolean)
-    .join(" ");
-
-  return (
-    /\bcomet\b/i.test(text) &&
-    /\[\s*RD\s*⬇(?:\uFE0F)?\s*\]/i.test(text)
-  );
-};
-
 const formatCacheBytes = (value) => {
   const bytes = Math.max(0, Number(value || 0));
 
@@ -716,7 +698,6 @@ export default function VideoPlayer({
         if (
           index === fromIndex ||
           failedSourcesRef.current.has(index) ||
-          isCometUncachedDownloadSource(candidate, index) ||
           candidate?.diagnostic ||
           candidate?.type === "status" ||
           candidate?.type === "provider" ||
@@ -1049,20 +1030,6 @@ export default function VideoPlayer({
         activeUrl
       )
     );
-
-  useEffect(() => {
-    if (!isCometUncachedDownloadSource(active, activeIdx)) {
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      tryNextSource(
-        "Comet marked this Real-Debrid source as not cached yet."
-      );
-    }, 0);
-
-    return () => window.clearTimeout(timer);
-  }, [activeIdx]);
 
   useEffect(() => {
     recoveryResumeRef.current = 0;
@@ -2753,7 +2720,6 @@ export default function VideoPlayer({
         .join(" ");
 
       const cometNamedError =
-        isCometUncachedDownloadSource(active, activeIdx) ||
         /\b(?:public\s+)?rate[-\s]?limit(?:ed)?\s+exceeded\b|couldn['’]?t\s+start\s+this\s+stream|could\s+not\s+start\s+this\s+stream|not\s+cached[^\n]{0,80}(?:debrid|server|yet|wait)|\bwrong\s+ip\b|infringing[_\s-]?file|\bcopyright\b/i.test(
           activeSourceText
         );
