@@ -227,6 +227,69 @@ class MainActivity : Activity() {
                 mobileMeta.name='viewport';
                 mobileMeta.setAttribute('content','width=device-width, initial-scale=1.0, viewport-fit=cover');
                 (document.head||document.documentElement).appendChild(mobileMeta);
+
+                /* The public Comet addon can expose RD⬇ entries as playable URLs.
+                   They are not films: they are "not cached yet / being prepared"
+                   status media. Older hosted Media God bundles can therefore put
+                   that status card on the video surface. Keep an APK-side guard
+                   until every hosted client is on the newer source filter. */
+                if(!window.__MG_ANDROID_COMET_UNCACHED_GUARD__){
+                  window.__MG_ANDROID_COMET_UNCACHED_GUARD__=true;
+                  var guardQueued=false;
+                  var isBlockedCometText=function(value){
+                    value=String(value||'');
+                    return /\bComet\b/i.test(value)&&/\[\s*RD\s*⬇(?:️)?\s*\]/i.test(value);
+                  };
+                  var guardCometUncached=function(){
+                    guardQueued=false;
+                    var root=document.querySelector('[data-mg-player-root="true"]');
+                    if(!root){return;}
+                    var blocked=isBlockedCometText(root.innerText||root.textContent||'');
+                    var videos=Array.prototype.slice.call(root.querySelectorAll('video'));
+                    if(!blocked){
+                      videos.forEach(function(video){
+                        if(video.dataset&&video.dataset.mgCometUncachedBlocked==='true'){
+                          video.style.removeProperty('opacity');
+                          delete video.dataset.mgCometUncachedBlocked;
+                        }
+                      });
+                      return;
+                    }
+                    videos.forEach(function(video){
+                      try{video.pause();}catch(e){}
+                      if(video.dataset){video.dataset.mgCometUncachedBlocked='true';}
+                      video.style.setProperty('opacity','0','important');
+                    });
+                    var selects=Array.prototype.slice.call(root.querySelectorAll('select'));
+                    var sourceSelect=selects.find(function(select){
+                      return /source|quality/i.test(String(select.getAttribute('aria-label')||''));
+                    })||selects.find(function(select){return select.options&&select.options.length>1;});
+                    if(!sourceSelect||!sourceSelect.options||sourceSelect.options.length<2){return;}
+                    var current=sourceSelect.selectedIndex;
+                    for(var offset=1;offset<sourceSelect.options.length;offset+=1){
+                      var next=(current+offset)%sourceSelect.options.length;
+                      var option=sourceSelect.options[next];
+                      if(!option||option.disabled||isBlockedCometText(option.textContent||option.label||'')){continue;}
+                      sourceSelect.selectedIndex=next;
+                      try{sourceSelect.value=option.value;}catch(e){}
+                      sourceSelect.dispatchEvent(new Event('input',{bubbles:true}));
+                      sourceSelect.dispatchEvent(new Event('change',{bubbles:true}));
+                      break;
+                    }
+                  };
+                  var queueCometGuard=function(){
+                    if(guardQueued){return;}
+                    guardQueued=true;
+                    window.requestAnimationFrame(guardCometUncached);
+                  };
+                  if(document.body){
+                    new MutationObserver(queueCometGuard).observe(document.body,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['class','src','value']});
+                  }
+                  document.addEventListener('play',queueCometGuard,true);
+                  window.addEventListener('mg:player-status',queueCometGuard);
+                  queueCometGuard();
+                }
+
                 window.dispatchEvent(new CustomEvent('mg:android-mobile-detected'));
               } catch(e) {}
             })();
