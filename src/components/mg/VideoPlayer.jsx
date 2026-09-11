@@ -1658,6 +1658,36 @@ export default function VideoPlayer({
 
                   const adoptData = adoptResponse?.data || {};
 
+                  if (adoptData.status === "stale") {
+                    const staleProgress = Math.max(
+                      0,
+                      Math.min(100, Number(adoptData.progress || 0))
+                    );
+
+                    setRdResolving(false);
+                    setRdPreparation(null);
+
+                    const moved = tryNextSource(
+                      staleProgress > 0
+                        ? `Real-Debrid already has this torrent stuck at ${Math.round(staleProgress)}% with no active peers. Trying a different torrent.`
+                        : "Real-Debrid reports this torrent as stale. Trying a different torrent.",
+                      {
+                        blacklistTorrentHash: true,
+                        immediate: true,
+                      }
+                    );
+
+                    if (!moved) {
+                      setRdError(
+                        staleProgress > 0
+                          ? `This torrent is stuck at ${Math.round(staleProgress)}% in Real-Debrid and no different source is available.`
+                          : "This Real-Debrid torrent is stale and no different source is available."
+                      );
+                    }
+
+                    return;
+                  }
+
                   if (
                     adoptData.status === "ready" &&
                     adoptData.stream_url
