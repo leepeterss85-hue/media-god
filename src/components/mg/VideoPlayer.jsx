@@ -1535,8 +1535,17 @@ export default function VideoPlayer({
           let rdResolveStartedAt = 0;
 
           try {
-            const magnet =
+            const richMagnet = String(
               active?.richMagnet ||
+              ""
+            ).trim();
+
+            const hasTrackerRichMagnet =
+              /^magnet:/i.test(richMagnet) &&
+              /(?:[?&])tr=/i.test(richMagnet);
+
+            const magnet =
+              richMagnet ||
               active?.magnet ||
               active?.magnetLink ||
               active?.src ||
@@ -1616,6 +1625,7 @@ export default function VideoPlayer({
               active?.cacheRequired === true &&
               active?.cometUncached === true &&
               hash &&
+              !hasTrackerRichMagnet &&
               /^https?:\/\//i.test(cometPlaybackUrl)
             ) {
               let preflight = {};
