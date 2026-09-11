@@ -83,7 +83,9 @@ export const concisePlaybackSourceLabel = (item, index = 0) => {
 
   if (/\b(?:eng|english)\b/i.test(text)) pushUnique(parts, "English");
 
-  if (
+  if (item?.cacheRequired === true || item?.cometUncached === true) {
+    pushUnique(parts, "Uncached");
+  } else if (
     item?.debridCached === true ||
     item?.viaRealDebrid ||
     /\b(?:cached|instant|ready)\b/i.test(raw)
