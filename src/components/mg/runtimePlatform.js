@@ -69,11 +69,16 @@ export const clearFireTvStateFromAndroidMobile = () => {
     "mg-fire-tv-stable",
     "mg-fire-tv-player-open",
     "mg-tv-remote",
+    "mg-native-fire-tv",
   ];
 
   for (const className of tvClasses) {
     document.documentElement?.classList?.remove(className);
     document.body?.classList?.remove(className);
+  }
+
+  if (typeof window !== "undefined") {
+    window.__MG_FIRE_TV_STABLE_MODE__ = false;
   }
 
   document.documentElement?.classList?.add(
