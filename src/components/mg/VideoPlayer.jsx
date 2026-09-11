@@ -1051,6 +1051,20 @@ export default function VideoPlayer({
     );
 
   useEffect(() => {
+    if (!isCometUncachedDownloadSource(active, activeIdx)) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      tryNextSource(
+        "Comet marked this Real-Debrid source as not cached yet."
+      );
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [activeIdx]);
+
+  useEffect(() => {
     recoveryResumeRef.current = 0;
     autoRecoveryRef.current.lastTime = 0;
     autoRecoveryRef.current.lastProgressAt = Date.now();
