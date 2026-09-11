@@ -623,13 +623,22 @@ export default function VideoPlayer({
       ? 2500
       : 0;
 
-    const rdBonus = item?.viaRealDebrid ? 5000 : 0;
+    const rdBonus =
+      item?.viaRealDebrid && item?.cacheRequired !== true
+        ? 5000
+        : item?.cacheRequired === true
+          ? -1000
+          : 0;
+    const swarmBonus = Math.min(
+      4000,
+      Math.max(0, Number(item?.reportedSeeders || 0)) * 20
+    );
     const liveBonus =
       item?.live || item?.type === "live"
         ? liveTvUrlScore(getSourceUrl(item))
         : 0;
 
-    return compatibility + learned + directBonus + rdBonus + liveBonus;
+    return compatibility + learned + directBonus + rdBonus + swarmBonus + liveBonus;
   };
 
   const markSourceFailed = (index) => {
