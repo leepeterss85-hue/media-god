@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 2,
-  "versionName": "1.0.1",
+  "versionCode": 3,
+  "versionName": "1.0.2",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.1 adds automatic native Android playback, startup and stall watchdogs, cleaner Back navigation, duplicate-playback protection, and hardened signed-update verification.",
+  "message": "Media God Mobile 1.0.2 fixes the split/double-screen player layout by preventing Android phones and tablets from ever inheriting Fire TV viewport, focus or player CSS, while keeping the native Android decoder available.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
