@@ -574,7 +574,9 @@ export default async function (req) {
         ownedByMediaGod = false;
       }
 
-      if (!ownedByMediaGod) {
+      const explicitPlaybackReset = body.claim_for_playback === true;
+
+      if (!ownedByMediaGod && !explicitPlaybackReset) {
         return Response.json({
           status: "kept",
           cleared: false,
@@ -678,6 +680,45 @@ export default async function (req) {
           status: "not_found",
           info_hash: hash,
         });
+      }
+
+      /*
+       * Once Media God adopts a torrent that Comet created, remember the
+       * association. This lets later playback attempts safely identify and
+       * clean up the same stalled cache job instead of repeatedly adopting it.
+       */
+      if (body.title) {
+        try {
+          const title = String(body.title).trim();
+          const year = body.year != null ? String(body.year) : "";
+          const season = body.season != null ? String(body.season) : "";
+          const episode = body.episode != null ? String(body.episode) : "";
+          const magnet = `magnet:?xt=urn:btih:${hash}`;
+          const existing = await base44.entities.RdLink.filter({
+            title,
+            year,
+            season,
+            episode,
+          });
+
+          if (Array.isArray(existing) && existing.length > 0) {
+            await base44.entities.RdLink.update(existing[0].id, {
+              magnet,
+              torrent_id: String(match.id),
+            });
+          } else {
+            await base44.entities.RdLink.create({
+              title,
+              year,
+              season,
+              episode,
+              magnet,
+              torrent_id: String(match.id),
+            });
+          }
+        } catch {
+          // Ownership bookkeeping must never block playback.
+        }
       }
 
       const stream = await resolveStreamable(
