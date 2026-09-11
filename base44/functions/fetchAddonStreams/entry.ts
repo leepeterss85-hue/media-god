@@ -462,6 +462,7 @@ const normaliseStream = (
       viaRealDebrid: true,
       cacheRequired: true,
       cometUncached: true,
+      cometPlaybackUrl: isHttp(rawUrl) ? rawUrl : "",
     };
   }
 
@@ -1017,7 +1018,10 @@ const lookupAddon = async ({
            */
           if (
             deferCometDirectToBrowser &&
-            item?.type === "url"
+            (
+              item?.type === "url" ||
+              item?.cometUncached === true
+            )
           ) {
             ipBoundCometDirectStreams += 1;
             return false;
