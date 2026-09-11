@@ -2314,9 +2314,9 @@ export default function VideoPlayer({
             if (
               data.error
             ) {
-              setRdError(
-                data.error
-              );
+              const rdErrorCode = String(
+                data.error_code || ""
+              ).trim();
 
               setRdPolling(
                 false
@@ -2324,6 +2324,33 @@ export default function VideoPlayer({
 
               setRdTorrentId(
                 null
+              );
+
+              if (
+                rdErrorCode ===
+                "RD_NO_VIDEO_FILE"
+              ) {
+                setRdPreparation(null);
+
+                const moved = tryNextSource(
+                  "Real-Debrid finished this torrent, but it contains no playable video file. Trying a different torrent.",
+                  {
+                    blacklistTorrentHash: true,
+                    immediate: true,
+                  }
+                );
+
+                if (!moved) {
+                  setRdError(
+                    "Real-Debrid finished this torrent, but it contains no playable video file and no different playable source is available."
+                  );
+                }
+
+                return;
+              }
+
+              setRdError(
+                data.error
               );
 
               return;
