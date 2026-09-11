@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 5,
-  "versionName": "1.0.4",
+  "versionCode": 6,
+  "versionName": "1.0.5",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.4 turns Comet RD-downloading results into Real-Debrid cache jobs with live progress, speed, seeders, downloaded size and ETA, then starts playback automatically when ready. It still blocks the old Comet placeholder video when an older hosted bundle is loaded.",
+  "message": "Media God Mobile 1.0.5 forces WebView to fetch the latest published Media God web bundle instead of reusing stale player JavaScript, while keeping login/cookies intact. This ensures the new Comet RD-download-to-Real-Debrid progress flow actually appears on phones and tablets.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
