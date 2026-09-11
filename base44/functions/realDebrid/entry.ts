@@ -827,6 +827,36 @@ export default async function (req) {
       const matchInactive =
         Number(match?.speed || 0) <= 0 &&
         Number(match?.seeders || 0) <= 0;
+
+      let repeatedPartialHash = false;
+
+      if (body.title) {
+        try {
+          const priorLinks = await base44.entities.RdLink.filter({
+            title: String(body.title).trim(),
+            year: body.year != null ? String(body.year) : "",
+            season: body.season != null ? String(body.season) : "",
+            episode: body.episode != null ? String(body.episode) : "",
+          });
+
+          repeatedPartialHash = (Array.isArray(priorLinks) ? priorLinks : [])
+            .some((link) => {
+              const linkedHash = String(link?.magnet || "")
+                .match(/btih:([a-f0-9]{40})/i)?.[1]
+                ?.toLowerCase();
+              const priorTorrentId = String(link?.torrent_id || "").trim();
+
+              return (
+                linkedHash === hash &&
+                priorTorrentId &&
+                priorTorrentId !== String(match.id)
+              );
+            });
+        } catch {
+          repeatedPartialHash = false;
+        }
+      }
+
       const stalePartial =
         /^(?:magnet_conversion|queued|downloading)$/i.test(
           String(match?.status || "")
@@ -834,7 +864,10 @@ export default async function (req) {
         matchProgress > 0 &&
         matchProgress < 100 &&
         matchInactive &&
-        matchAgeMs >= 60_000;
+        (
+          matchAgeMs >= 60_000 ||
+          repeatedPartialHash
+        );
 
       if (stalePartial) {
         return Response.json({
