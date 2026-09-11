@@ -2753,6 +2753,7 @@ export default function VideoPlayer({
         .join(" ");
 
       const cometNamedError =
+        isCometUncachedDownloadSource(active, activeIdx) ||
         /\b(?:public\s+)?rate[-\s]?limit(?:ed)?\s+exceeded\b|couldn['’]?t\s+start\s+this\s+stream|could\s+not\s+start\s+this\s+stream|not\s+cached[^\n]{0,80}(?:debrid|server|yet|wait)|\bwrong\s+ip\b|infringing[_\s-]?file|\bcopyright\b/i.test(
           activeSourceText
         );
@@ -2761,6 +2762,7 @@ export default function VideoPlayer({
         /\bcomet\b/i.test(activeSourceText) &&
         (
           cometNamedError ||
+          (!isLive && !Number.isFinite(loadedDuration)) ||
           loadedDuration <= 15 ||
           (
             loadedDuration >= 115 &&
