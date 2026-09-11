@@ -470,6 +470,144 @@ export default async function (req) {
 
     /*
      * ---------------------------------------------------------
+     * RESET A STALE MEDIA-GOD-CREATED COMET CACHE JOB
+     *
+     * Earlier Media God builds could submit an uncached Comet
+     * result as a bare info-hash magnet. RD accepted those jobs,
+     * but without Comet's stored tracker/source metadata some sat
+     * indefinitely at 0% / 0 B/s / 0 seeders. Only remove a job
+     * when it is demonstrably stalled AND its torrent id is owned
+     * by this user's RdLink record for the same info hash.
+     * ---------------------------------------------------------
+     */
+    if (action === "reset_stale_hash") {
+      const hash = String(
+        body.info_hash ||
+        body.hash ||
+        ""
+      )
+        .trim()
+        .toLowerCase();
+
+      if (!/^[a-f0-9]{40}$/.test(hash)) {
+        return Response.json(
+          { error: "A valid 40-character info hash is required." },
+          { status: 400 }
+        );
+      }
+
+      const listRes = await rdFetch(
+        `${RD_BASE}/torrents?limit=5000`,
+        { headers: authHeaders },
+        { attempts: 3 }
+      );
+
+      if (!listRes.ok) {
+        return Response.json({
+          status: "failed",
+          error: await rdFailureMessage(
+            listRes,
+            "Real-Debrid could not list torrents"
+          ),
+        });
+      }
+
+      const torrents = await listRes.json();
+      const match = Array.isArray(torrents)
+        ? torrents.find(
+            (torrent) =>
+              String(torrent?.hash || "")
+                .trim()
+                .toLowerCase() === hash
+          )
+        : null;
+
+      if (!match?.id) {
+        return Response.json({ status: "not_found", cleared: false });
+      }
+
+      const stalled =
+        /^(?:magnet_conversion|queued|downloading)$/i.test(
+          String(match?.status || "")
+        ) &&
+        Number(match?.progress || 0) <= 0 &&
+        Number(match?.speed || 0) <= 0 &&
+        Number(match?.seeders || 0) <= 0;
+
+      if (!stalled) {
+        return Response.json({
+          status: "kept",
+          cleared: false,
+          torrent_id: String(match.id),
+        });
+      }
+
+      let ownedByMediaGod = false;
+      let ownedLink = null;
+
+      try {
+        const links = await base44.entities.RdLink.filter({
+          torrent_id: String(match.id),
+        });
+
+        ownedLink = Array.isArray(links) ? links[0] : null;
+        const linkedHash = String(ownedLink?.magnet || "")
+          .match(/btih:([a-f0-9]{40})/i)?.[1]
+          ?.toLowerCase();
+
+        ownedByMediaGod = linkedHash === hash;
+      } catch {
+        ownedByMediaGod = false;
+      }
+
+      if (!ownedByMediaGod) {
+        return Response.json({
+          status: "kept",
+          cleared: false,
+          torrent_id: String(match.id),
+        });
+      }
+
+      const deleteRes = await rdFetch(
+        `${RD_BASE}/torrents/delete/${encodeURIComponent(String(match.id))}`,
+        {
+          method: "DELETE",
+          headers: authHeaders,
+        },
+        { attempts: 2 }
+      );
+
+      if (!deleteRes.ok && deleteRes.status !== 404) {
+        return Response.json({
+          status: "failed",
+          cleared: false,
+          error: await rdFailureMessage(
+            deleteRes,
+            "Real-Debrid could not reset the stalled torrent"
+          ),
+        });
+      }
+
+      if (ownedLink?.id) {
+        try {
+          await base44.entities.RdLink.update(
+            ownedLink.id,
+            { torrent_id: "" }
+          );
+        } catch {
+          // The RD reset succeeded; link cleanup is only housekeeping.
+        }
+      }
+
+      return Response.json({
+        status: "cleared",
+        cleared: true,
+        torrent_id: String(match.id),
+      });
+    }
+
+    /*
+     * ---------------------------------------------------------
      * ADOPT EXISTING TORRENT BY INFO HASH
      *
      * Used by Comet uncached playback. Comet starts the torrent
