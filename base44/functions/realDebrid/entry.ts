@@ -2382,6 +2382,53 @@ function chooseVideoFile(
     .sort((a, b) => scoreFile(b) - scoreFile(a))[0];
 }
 
+function chooseRequestedTorrentFile(
+  allFiles,
+  ep
+) {
+  const files =
+    Array.isArray(allFiles)
+      ? allFiles
+      : [];
+
+  const requestedIndex =
+    Number(ep?.file_idx);
+
+  if (
+    Number.isInteger(requestedIndex) &&
+    requestedIndex >= 0
+  ) {
+    const candidates = [
+      files[requestedIndex],
+      files.find(
+        (file) =>
+          Number(file?.id) ===
+          requestedIndex
+      ),
+      files.find(
+        (file) =>
+          Number(file?.id) ===
+          requestedIndex + 1
+      ),
+    ].filter(Boolean);
+
+    const indexedVideo =
+      candidates.find(
+        (file) =>
+          isVideoFile(file)
+      );
+
+    if (indexedVideo) {
+      return indexedVideo;
+    }
+  }
+
+  return chooseVideoFile(
+    files.filter(isVideoFile),
+    ep
+  );
+}
+
 const buildTorrentProgress = (info = {}) => {
   const progress = Math.max(
     0,
