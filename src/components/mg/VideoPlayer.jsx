@@ -94,6 +94,15 @@ const sourceDisplayLabel = (item, index) =>
     .replace(/\s+/g, " ")
     .trim();
 
+const sourceTorrentHash = (item) =>
+  magnetHash(
+    item?.infoHash ||
+      item?.info_hash ||
+      item?.magnet ||
+      item?.magnetLink ||
+      getSourceUrl(item)
+  );
+
 const formatCacheBytes = (value) => {
   const bytes = Math.max(0, Number(value || 0));
 
@@ -452,6 +461,15 @@ export default function VideoPlayer({
   const failedSourcesRef =
     useRef(new Set());
 
+  /*
+   * A title can expose the same torrent through several addons/rows. Source-
+   * index failure alone is not enough: automatic recovery could otherwise
+   * select a duplicate row and reconnect to the exact same stalled RD job.
+   * Keep a per-playback hash blacklist for hard torrent/cache failures.
+   */
+  const failedTorrentHashesRef =
+    useRef(new Set());
+
   const videoRef = useRef(null);
   const liveVideoRef = useRef(null);
   const stageRef = useRef(null);
@@ -651,6 +669,16 @@ export default function VideoPlayer({
     );
   };
 
+  const markTorrentHashFailed = (item = active) => {
+    const hash = sourceTorrentHash(item);
+
+    if (hash) {
+      failedTorrentHashesRef.current.add(hash);
+    }
+
+    return hash;
+  };
+
   const clearSourceFailed = (index) => {
     if (
       !failedSourcesRef.current.has(
@@ -704,9 +732,12 @@ export default function VideoPlayer({
           candidate?.type === "magnet" ||
           isMagnet(url);
 
+        const candidateHash = sourceTorrentHash(candidate);
+
         if (
           index === fromIndex ||
           failedSourcesRef.current.has(index) ||
+          (candidateHash && failedTorrentHashesRef.current.has(candidateHash)) ||
           candidate?.diagnostic ||
           candidate?.type === "status" ||
           candidate?.type === "provider" ||
@@ -813,7 +844,11 @@ export default function VideoPlayer({
 
   const tryNextSource = (
     message =
-      "This source could not be played."
+      "This source could not be played.",
+    {
+      blacklistTorrentHash = false,
+      immediate = false,
+    } = {}
   ) => {
     const hardFailureMessage =
       /(?:\b451\b|infringing[_ -]?file|copyright|wrong\s+ip|rate[-\s]?limit|not\s+cached|couldn['’]?t\s+start|could\s+not\s+start|comet\s+returned\s+its\s+error)/i.test(
@@ -845,6 +880,10 @@ export default function VideoPlayer({
     markSourceFailed(
       activeIdx
     );
+
+    if (blacklistTorrentHash) {
+      markTorrentHashFailed(active);
+    }
 
     const nextIndex =
       findNextPlayableSource(
@@ -886,7 +925,11 @@ export default function VideoPlayer({
        * With 4K selected this exhausts all remaining 4K, then 1080p, before
        * considering 720p.
        */
-      if (rdRejectedTorrent) {
+      if (rdRejectedTorrent || immediate) {
+        if (rdRejectedTorrent) {
+          markTorrentHashFailed(active);
+        }
+
         setRdResolving(false);
         setRdPolling(false);
         setRdTorrentId(null);
@@ -895,11 +938,13 @@ export default function VideoPlayer({
         switchToSource(nextIndex, {
           preservePosition: true,
           statusMessage:
-            sourceSortMode === "4k"
-              ? "Real-Debrid rejected that torrent — trying the next 4K/1080p source…"
-              : sourceSortMode === "1080p"
-                ? "Real-Debrid rejected that torrent — trying the next 1080p source…"
-                : "Real-Debrid rejected that torrent — trying the next source…",
+            immediate && !rdRejectedTorrent
+              ? "Torrent stalled — trying a different torrent…"
+              : sourceSortMode === "4k"
+                ? "Real-Debrid rejected that torrent — trying the next 4K/1080p source…"
+                : sourceSortMode === "1080p"
+                  ? "Real-Debrid rejected that torrent — trying the next 1080p source…"
+                  : "Real-Debrid rejected that torrent — trying the next source…",
         });
 
         return true;
@@ -2289,6 +2334,8 @@ export default function VideoPlayer({
   useEffect(
     () => {
       failedSourcesRef.current =
+        new Set();
+      failedTorrentHashesRef.current =
         new Set();
 
       setFailedSources(
