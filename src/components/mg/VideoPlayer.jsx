@@ -747,6 +747,7 @@ export default function VideoPlayer({
 
     if (hash) {
       failedTorrentHashesRef.current.add(hash);
+      rememberPersistentFailedTorrentHash(hash);
     }
 
     return hash;
