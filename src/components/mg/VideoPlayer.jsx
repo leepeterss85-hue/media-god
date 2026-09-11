@@ -94,6 +94,24 @@ const sourceDisplayLabel = (item, index) =>
     .replace(/\s+/g, " ")
     .trim();
 
+const isCometUncachedDownloadSource = (item, index = 0) => {
+  const text = [
+    item?.addon,
+    item?.sourceName,
+    item?.label,
+    item?.name,
+    item?.title,
+    sourceDisplayLabel(item, index),
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    /\bcomet\b/i.test(text) &&
+    /\[\s*RD\s*⬇(?:\uFE0F)?\s*\]/i.test(text)
+  );
+};
+
 const formatCacheBytes = (value) => {
   const bytes = Math.max(0, Number(value || 0));
 
