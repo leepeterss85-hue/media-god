@@ -436,6 +436,136 @@ export default async function (req) {
 
     /*
      * ---------------------------------------------------------
+     * UNCACHED TORRENT PREFLIGHT
+     *
+     * Real-Debrid limits how many torrents can be actively
+     * downloading at once. Repeated failed cache attempts can fill those
+     * slots with dead Media God jobs and make every later uncached source
+     * appear broken. Clean only stalled torrents that belong to this user's
+     * Media God RdLink records, then report the live active-count limit.
+     * ---------------------------------------------------------
+     */
+    if (action === "uncached_preflight") {
+      const keepHash = String(body.keep_hash || "")
+        .trim()
+        .toLowerCase();
+
+      const readActiveCount = async () => {
+        const activeRes = await rdFetch(
+          `${RD_BASE}/torrents/activeCount`,
+          { headers: authHeaders },
+          { attempts: 3 }
+        );
+
+        if (!activeRes.ok) {
+          return null;
+        }
+
+        const active = await activeRes.json();
+        return {
+          nb: Math.max(0, Number(active?.nb || 0)),
+          limit: Math.max(0, Number(active?.limit || 0)),
+        };
+      };
+
+      const before = await readActiveCount();
+      let cleared = 0;
+
+      try {
+        const links = await base44.entities.RdLink.filter({});
+        const ownedById = new Map(
+          (Array.isArray(links) ? links : [])
+            .filter((link) => link?.torrent_id)
+            .map((link) => [String(link.torrent_id), link])
+        );
+
+        if (ownedById.size > 0) {
+          const activeListRes = await rdFetch(
+            `${RD_BASE}/torrents?filter=active&limit=5000`,
+            { headers: authHeaders },
+            { attempts: 3 }
+          );
+
+          if (activeListRes.ok) {
+            const activeTorrents = await activeListRes.json();
+
+            for (const torrent of Array.isArray(activeTorrents)
+              ? activeTorrents
+              : []) {
+              const torrentId = String(torrent?.id || "");
+              const link = ownedById.get(torrentId);
+              if (!link) continue;
+
+              const linkedHash = String(link?.magnet || "")
+                .match(/btih:([a-f0-9]{40})/i)?.[1]
+                ?.toLowerCase();
+
+              if (keepHash && linkedHash === keepHash) {
+                continue;
+              }
+
+              const progress = Math.max(
+                0,
+                Math.min(100, Number(torrent?.progress || 0))
+              );
+              const ageMs = Math.max(
+                0,
+                Date.now() - Date.parse(String(torrent?.added || "")) || 0
+              );
+              const stalled =
+                /^(?:magnet_conversion|queued|downloading)$/i.test(
+                  String(torrent?.status || "")
+                ) &&
+                progress < 100 &&
+                Number(torrent?.speed || 0) <= 0 &&
+                Number(torrent?.seeders || 0) <= 0 &&
+                ageMs >= 60_000;
+
+              if (!stalled) continue;
+
+              const deleteRes = await rdFetch(
+                `${RD_BASE}/torrents/delete/${encodeURIComponent(torrentId)}`,
+                {
+                  method: "DELETE",
+                  headers: authHeaders,
+                },
+                { attempts: 2 }
+              );
+
+              if (deleteRes.ok || deleteRes.status === 404) {
+                cleared += 1;
+                try {
+                  await base44.entities.RdLink.update(link.id, {
+                    torrent_id: "",
+                  });
+                } catch {
+                  // Cleanup succeeded; database housekeeping is best-effort.
+                }
+              }
+            }
+          }
+        }
+      } catch {
+        // Preflight cleanup is best-effort; never break cached playback.
+      }
+
+      const after = (cleared > 0 ? await readActiveCount() : before) || {
+        nb: 0,
+        limit: 0,
+      };
+
+      return Response.json({
+        active_count: after.nb,
+        active_limit: after.limit,
+        cleared_stalled: cleared,
+        saturated:
+          after.limit > 0 &&
+          after.nb >= after.limit,
+      });
+    }
+
+    /*
+     * ---------------------------------------------------------
      * ADD MAGNET
      * ---------------------------------------------------------
      */
