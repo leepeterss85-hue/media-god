@@ -1,7 +1,8 @@
 import { useEffect, useRef } from "react";
-
-const FIRE_TV_RE =
-  /(?:AFT[A-Z0-9]*|Fire TV|AmazonWebAppPlatform|Silk)/i;
+import {
+  isAndroidMobileRuntime,
+  isFireTvRuntime,
+} from "@/components/mg/runtimePlatform";
 
 const FOCUSABLE = [
   'button:not([disabled])',
@@ -16,28 +17,8 @@ const FOCUSABLE = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(",");
 
-const isFireTv = () => {
-  if (typeof navigator === "undefined") {
-    return false;
-  }
-
-  const userAgent = String(navigator.userAgent || "");
-  const classDetected =
-    typeof document !== "undefined" &&
-    (
-      document.documentElement.classList.contains("mg-fire-tv") ||
-      document.body?.classList.contains("mg-fire-tv")
-    );
-  const androidNoTouch =
-    /Android/i.test(userAgent) &&
-    Number(navigator.maxTouchPoints || 0) === 0;
-
-  return (
-    FIRE_TV_RE.test(userAgent) ||
-    classDetected ||
-    androidNoTouch
-  );
-};
+const isFireTv = () =>
+  !isAndroidMobileRuntime() && isFireTvRuntime();
 
 const keyCode = (event) =>
   Number(event?.keyCode || event?.which || 0);
