@@ -2025,7 +2025,7 @@ export default function VideoPlayer({
 
           if (
             attempts <
-            120
+            360
           ) {
             pollRef.current =
               setTimeout(
@@ -2048,8 +2048,8 @@ export default function VideoPlayer({
 
             setRdError(
               latestProgress > 0
-                ? `Real-Debrid reached ${Math.round(latestProgress)}% but is still not ready after about 10 minutes.${stalledHint} Try another source or retry this one later.`
-                : `Real-Debrid has made no usable progress after about 10 minutes.${stalledHint} Try another source.`
+                ? `Real-Debrid reached ${Math.round(latestProgress)}% but is still not ready after about 30 minutes.${stalledHint} Try another source or retry this one later.`
+                : `Real-Debrid has made no usable progress after about 30 minutes.${stalledHint} Try another source.`
             );
           }
         };
