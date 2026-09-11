@@ -2616,7 +2616,7 @@ export default function VideoPlayer({
       }
 
       const nextIndex = findNextPlayableSource(activeIdx);
-+
+
       if (nextIndex === -1) {
         return;
       }
