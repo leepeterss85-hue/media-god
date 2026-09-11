@@ -42,7 +42,11 @@ class MainActivity : Activity() {
                 domStorageEnabled = true
                 databaseEnabled = true
                 mediaPlaybackRequiresUserGesture = false
-                cacheMode = WebSettings.LOAD_DEFAULT
+                /* Always ask the network for the current Base44 HTML/JS bundle.
+                 * The app intentionally keeps cookies and DOM storage, so login
+                 * survives, but stale player JavaScript cannot remain pinned in
+                 * WebView after a Base44 publish. */
+                cacheMode = WebSettings.LOAD_NO_CACHE
                 useWideViewPort = true
                 loadWithOverviewMode = false
                 builtInZoomControls = false
@@ -83,8 +87,33 @@ class MainActivity : Activity() {
             )
         }
 
-        if (savedInstanceState == null) {
-            webView.loadUrl(BuildConfig.MEDIA_GOD_URL)
+        val webPrefs = getSharedPreferences("media_god_mobile_web", MODE_PRIVATE)
+        val lastCacheVersion = webPrefs.getInt("cache_version", -1)
+        val forceFreshHostedApp = lastCacheVersion != BuildConfig.VERSION_CODE
+
+        if (forceFreshHostedApp) {
+            /* Package upgrades must never reopen a cached copy of the hosted
+             * app. clearCache() does not clear cookies/localStorage, so account
+             * state remains intact while old HTML/JS/assets are discarded. */
+            webView.clearCache(true)
+            webView.clearHistory()
+            webPrefs.edit()
+                .putInt("cache_version", BuildConfig.VERSION_CODE)
+                .apply()
+        }
+
+        if (savedInstanceState == null || forceFreshHostedApp) {
+            val separator = if (BuildConfig.MEDIA_GOD_URL.contains("?")) "&" else "?"
+            val freshUrl =
+                "${BuildConfig.MEDIA_GOD_URL}${separator}mg_mobile_v=${BuildConfig.VERSION_CODE}"
+
+            webView.loadUrl(
+                freshUrl,
+                mapOf(
+                    "Cache-Control" to "no-cache, no-store, max-age=0",
+                    "Pragma" to "no-cache"
+                )
+            )
         } else {
             webView.restoreState(savedInstanceState)
         }
