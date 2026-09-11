@@ -568,8 +568,24 @@ const installViewportGuard = () => {
    */
   const desired =
     "width=960, height=540, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover";
+  const mobileDesired =
+    "width=device-width, initial-scale=1.0, viewport-fit=cover";
+  let observer = null;
 
   const restore = () => {
+    /*
+     * Belt-and-braces escape hatch: if a phone wrapper identifies itself after
+     * this guard was installed, immediately stop enforcing TV coordinates.
+     */
+    if (isAndroidMobileRuntime()) {
+      if (meta.getAttribute("content") !== mobileDesired) {
+        meta.setAttribute("content", mobileDesired);
+      }
+      observer?.disconnect();
+      window.__MG_FIRE_TV_STABLE_MODE__ = false;
+      return;
+    }
+
     if (meta.getAttribute("content") !== desired) {
       meta.setAttribute("content", desired);
     }
@@ -580,7 +596,7 @@ const installViewportGuard = () => {
 
   restore();
 
-  const observer = new MutationObserver(restore);
+  observer = new MutationObserver(restore);
   observer.observe(meta, {
     attributes: true,
     attributeFilter: ["content"],
