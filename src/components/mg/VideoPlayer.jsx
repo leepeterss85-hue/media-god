@@ -1561,6 +1561,24 @@ export default function VideoPlayer({
               hash &&
               /^https?:\/\//i.test(cometPlaybackUrl)
             ) {
+              try {
+                await base44.functions.invoke(
+                  "realDebrid",
+                  {
+                    action: "reset_stale_hash",
+                    info_hash: hash,
+                    title:
+                      source?.rdTitle ||
+                      source?.title ||
+                      "",
+                  }
+                );
+              } catch {
+                // Reset is best-effort; never block a fresh Comet start.
+              }
+
+              if (cancelled) return;
+
               const triggerController = new AbortController();
               const triggerTimer = window.setTimeout(
                 () => triggerController.abort(),
@@ -1666,9 +1684,13 @@ export default function VideoPlayer({
                     return;
                   }
                 } catch {
-                  // Give Comet/RD another moment before the normal fallback.
+                  // Give Comet/RD another moment to expose the new torrent.
                 }
               }
+
+              throw new Error(
+                "Comet could not start this uncached torrent with tracker metadata."
+              );
             }
 
             if (hash && source?.hasDebrid) {
