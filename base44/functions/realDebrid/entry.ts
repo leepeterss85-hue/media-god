@@ -673,10 +673,7 @@ export default async function (req) {
         ) &&
         progress < 100 &&
         hasNoActivity &&
-        (
-          progress <= 0 ||
-          ageMs >= 60_000
-        );
+        ageMs >= 90_000;
 
       if (!stalled) {
         return Response.json({
