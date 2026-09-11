@@ -832,11 +832,13 @@ export default async function (req) {
 
       if (body.title) {
         try {
+          /*
+           * Comet/browser fallback metadata is not always consistent about
+           * year/season/episode, so do not require those fields to find prior
+           * attempts. The torrent hash is the authoritative identity here.
+           */
           const priorLinks = await base44.entities.RdLink.filter({
             title: String(body.title).trim(),
-            year: body.year != null ? String(body.year) : "",
-            season: body.season != null ? String(body.season) : "",
-            episode: body.episode != null ? String(body.episode) : "",
           });
 
           repeatedPartialHash = (Array.isArray(priorLinks) ? priorLinks : [])
@@ -858,15 +860,17 @@ export default async function (req) {
       }
 
       const stalePartial =
-        /^(?:magnet_conversion|queued|downloading)$/i.test(
-          String(match?.status || "")
-        ) &&
         matchProgress > 0 &&
         matchProgress < 100 &&
         matchInactive &&
         (
-          matchAgeMs >= 60_000 ||
-          repeatedPartialHash
+          repeatedPartialHash ||
+          (
+            /^(?:magnet_conversion|waiting_files_selection|waiting_selection|queued|downloading)$/i.test(
+              String(match?.status || "")
+            ) &&
+            matchAgeMs >= 60_000
+          )
         );
 
       if (stalePartial) {
