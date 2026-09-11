@@ -2148,11 +2148,25 @@ export default function VideoPlayer({
             ) {
               setRdPolling(false);
               setRdTorrentId(null);
-              setRdError(
+
+              const moved = tryNextSource(
                 `Real-Debrid stopped preparing this torrent: ${friendlyRdStatus(
                   currentRdStatus
-                )}. Choose another source.`
+                )}. Trying another source.`,
+                {
+                  blacklistTorrentHash: true,
+                  immediate: true,
+                }
               );
+
+              if (!moved) {
+                setRdError(
+                  `Real-Debrid stopped preparing this torrent: ${friendlyRdStatus(
+                    currentRdStatus
+                  )}. No other playable source is available.`
+                );
+              }
+
               return;
             }
 
@@ -2261,11 +2275,15 @@ export default function VideoPlayer({
           if (looksCompletelyStalled) {
             const nextSource = findNextPlayableSource(activeIdx);
 
-            if (nextSource) {
+            if (nextSource !== -1) {
               setRdPolling(false);
               setRdTorrentId(null);
               tryNextSource(
-                "Real-Debrid made no further progress and reported no active peers or download speed for about 45 seconds. Trying another source."
+                "Real-Debrid made no further progress and reported no active peers or download speed for about 45 seconds. Trying another source.",
+                {
+                  blacklistTorrentHash: true,
+                  immediate: true,
+                }
               );
               return;
             }
