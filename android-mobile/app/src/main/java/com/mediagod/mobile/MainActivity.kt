@@ -208,8 +208,9 @@ class MainActivity : Activity() {
               try {
                 var html=document.documentElement;
                 var body=document.body;
-                var remove=['mg-fire-tv','mg-fire-tv-stable','mg-tv-remote','mg-native-fire-tv'];
+                var remove=['mg-fire-tv','mg-fire-tv-mode','mg-fire-tv-stable','mg-fire-tv-player-open','mg-tv-remote','mg-native-fire-tv'];
                 remove.forEach(function(name){html.classList.remove(name);if(body){body.classList.remove(name);}});
+                window.__MG_FIRE_TV_STABLE_MODE__=false;
                 html.classList.add('mg-android-mobile','mg-native-android-mobile','mg-touch-device');
                 if(body){body.classList.add('mg-android-mobile','mg-native-android-mobile','mg-touch-device');}
                 var meta=document.querySelector('meta[name="viewport"]');
