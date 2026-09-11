@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 4,
-  "versionName": "1.0.3",
+  "versionCode": 5,
+  "versionName": "1.0.4",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.3 stops Comet RD download-status placeholders from being shown as playable video, automatically skips RD-downloading sources, and keeps the Android mobile viewport protections from 1.0.2.",
+  "message": "Media God Mobile 1.0.4 turns Comet RD-downloading results into Real-Debrid cache jobs with live progress, speed, seeders, downloaded size and ETA, then starts playback automatically when ready. It still blocks the old Comet placeholder video when an older hosted bundle is loaded.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
