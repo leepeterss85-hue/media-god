@@ -2248,6 +2248,25 @@ export default function VideoPlayer({
             return;
           }
 
+          const looksCompletelyStalled =
+            attempts >= 9 &&
+            latestProgress <= 0 &&
+            latestSeeders <= 0 &&
+            latestSpeed <= 0;
+
+          if (looksCompletelyStalled) {
+            const nextSource = findNextPlayableSource(activeIdx);
+
+            if (nextSource) {
+              setRdPolling(false);
+              setRdTorrentId(null);
+              tryNextSource(
+                "Real-Debrid found no peers or download speed for this torrent after about 45 seconds. Trying another source."
+              );
+              return;
+            }
+          }
+
           if (
             attempts <
             360
