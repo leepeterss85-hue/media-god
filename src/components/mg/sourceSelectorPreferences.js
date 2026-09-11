@@ -124,18 +124,8 @@ const sourceReportedSeeders = (item) => {
 };
 
 const sourceHasTrackerRichMagnet = (item) => {
-  const candidates = [
-    item?.richMagnet,
-    item?.magnet,
-    item?.magnetLink,
-    item?.src,
-    item?.url,
-  ];
-
-  return candidates.some((value) => {
-    const raw = String(value || "").trim();
-    return /^magnet:/i.test(raw) && /(?:[?&])tr=/i.test(raw);
-  });
+  const raw = String(item?.richMagnet || "").trim();
+  return /^magnet:/i.test(raw) && /(?:[?&])tr=/i.test(raw);
 };
 
 const compatibilityScore = (item) =>
