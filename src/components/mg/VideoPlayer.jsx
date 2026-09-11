@@ -1536,6 +1536,7 @@ export default function VideoPlayer({
 
           try {
             const magnet =
+              active?.richMagnet ||
               active?.magnet ||
               active?.magnetLink ||
               active?.src ||
