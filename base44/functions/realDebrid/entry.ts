@@ -1007,6 +1007,11 @@ export default async function (req) {
               body.season,
             episode:
               body.episode,
+            file_idx:
+              Number.isInteger(Number(body.file_idx)) &&
+              Number(body.file_idx) >= 0
+                ? Number(body.file_idx)
+                : null,
             forceAudioRescue:
               body.force_audio_rescue === true,
           }
@@ -2491,12 +2496,36 @@ async function resolveStreamable(
     await infoRes.json();
 
   /*
-   * Some RD torrents need file selection first.
+   * Some RD torrents need file selection first. Select only the
+   * requested/main video file instead of every file in the torrent.
    */
   if (
     info.status ===
     "waiting_files_selection"
   ) {
+    const selectionTarget =
+      chooseRequestedTorrentFile(
+        info?.files,
+        ep
+      );
+
+    if (!selectionTarget?.id) {
+      return {
+        error:
+          "Real-Debrid exposed the torrent files, but Media God could not identify a playable video file to select.",
+        error_code:
+          "RD_NO_VIDEO_FILE",
+        rd_status:
+          info.status,
+        filename:
+          info.filename ||
+          "",
+        files: [],
+        torrent_progress:
+          buildTorrentProgress(info),
+      };
+    }
+
     const selectRes =
       await rdFetch(
         `${RD_BASE}/torrents/selectFiles/${torrentId}`,
@@ -2508,7 +2537,7 @@ async function resolveStreamable(
             formHeaders,
 
           body:
-            "files=all",
+            `files=${encodeURIComponent(String(selectionTarget.id))}`,
         },
         {
           attempts: 3,
@@ -2516,7 +2545,8 @@ async function resolveStreamable(
       );
 
     if (
-      !selectRes.ok
+      !selectRes.ok &&
+      selectRes.status !== 202
     ) {
       return {
         error:
@@ -2598,6 +2628,10 @@ async function resolveStreamable(
   }
 
   const target =
+    chooseRequestedTorrentFile(
+      allFiles,
+      ep
+    ) ||
     chooseVideoFile(
       videoFiles,
       ep
