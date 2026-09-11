@@ -100,10 +100,28 @@ const sourceSize = (item) => {
   return amount * 1024 ** 2;
 };
 
-const sourceIsCached = (item) =>
-  item?.debridCached === true ||
-  item?.viaRealDebrid === true ||
-  /\b(?:cached|instant|ready)\b/i.test(sourceText(item));
+const sourceIsCached = (item) => {
+  if (item?.cacheRequired === true || item?.cometUncached === true) {
+    return false;
+  }
+
+  return (
+    item?.debridCached === true ||
+    item?.viaRealDebrid === true ||
+    /\b(?:cached|instant|ready)\b/i.test(sourceText(item))
+  );
+};
+
+const sourceReportedSeeders = (item) => {
+  const explicit = Number(item?.reportedSeeders || 0);
+  if (Number.isFinite(explicit) && explicit > 0) return explicit;
+
+  const match = sourceText(item).match(
+    /(?:👤\s*|seeders?\s*:\s*)(\d+)/i
+  );
+
+  return match ? Math.max(0, Number(match[1] || 0)) : 0;
+};
 
 const compatibilityScore = (item) =>
   scoreSourceCompatibility(item, sourceText(item), {
@@ -128,6 +146,7 @@ export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
     resolution: sourceResolution(item),
     size: sourceSize(item),
     compatibility: compatibilityScore(item),
+    reportedSeeders: sourceReportedSeeders(item),
   }));
 
   if (mode === "best") return list;
@@ -136,6 +155,7 @@ export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
     if (mode === "cached") {
       return (
         Number(b.cached) - Number(a.cached) ||
+        b.reportedSeeders - a.reportedSeeders ||
         b.compatibility - a.compatibility ||
         a.index - b.index
       );
@@ -147,6 +167,7 @@ export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
         targetResolutionScore(b.resolution, target) -
           targetResolutionScore(a.resolution, target) ||
         Number(b.cached) - Number(a.cached) ||
+        b.reportedSeeders - a.reportedSeeders ||
         b.compatibility - a.compatibility ||
         a.index - b.index
       );
@@ -167,6 +188,7 @@ export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
       return (
         (aKnown && bKnown ? a.size - b.size : 0) ||
         Number(b.cached) - Number(a.cached) ||
+        b.reportedSeeders - a.reportedSeeders ||
         b.compatibility - a.compatibility ||
         a.index - b.index
       );
