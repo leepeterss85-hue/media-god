@@ -8,31 +8,32 @@ import PlaybackReliabilityAssist from '@/components/mg/PlaybackReliabilityAssist
 import PlayerEpisodeQuickNav from '@/components/mg/PlayerEpisodeQuickNav.jsx'
 import ContinueWatchingAssist from '@/components/mg/ContinueWatchingAssist.jsx'
 import { installFireTvStableMode } from '@/components/mg/fireTvStableMode.js'
+import {
+  clearFireTvStateFromAndroidMobile,
+  isAndroidMobileRuntime,
+  isFireTvRuntime,
+} from '@/components/mg/runtimePlatform.js'
 import '@/index.css'
 import '@/fire-tv-stable.css'
 import '@/fire-tv-player-failsafe.css'
 
-const userAgent =
-  typeof navigator !== 'undefined'
-    ? navigator.userAgent || ''
-    : ''
+/*
+ * The native Android phone/tablet app shares the MediaGodNative bridge with
+ * Fire TV, and some Android WebViews report maxTouchPoints=0. Never infer TV
+ * mode from that signal when the explicit Media God Mobile runtime marker is
+ * present, otherwise the Fire TV 960×540 viewport contaminates phone layout.
+ */
+clearFireTvStateFromAndroidMobile()
 
-const knownFireTv =
-  /\bAFT[A-Z0-9]*\b/i.test(userAgent) ||
-  /Fire\s*TV/i.test(userAgent) ||
-  /AmazonWebAppPlatform/i.test(userAgent) ||
-  /Silk/i.test(userAgent)
-
-const androidNoTouch =
-  /Android/i.test(userAgent) &&
-  typeof navigator !== 'undefined' &&
-  Number(navigator.maxTouchPoints || 0) === 0
-
-let tvRemoteDetected =
-  knownFireTv ||
-  androidNoTouch
+let tvRemoteDetected = isFireTvRuntime()
 
 const markTvRemoteDetected = () => {
+  if (isAndroidMobileRuntime()) {
+    clearFireTvStateFromAndroidMobile()
+    tvRemoteDetected = false
+    return false
+  }
+
   const firstDetection = !tvRemoteDetected
   tvRemoteDetected = true
 
@@ -53,6 +54,8 @@ const markTvRemoteDetected = () => {
       new CustomEvent('mg:tv-remote-detected')
     )
   }
+
+  return true
 }
 
 const keyCode = (event) =>
