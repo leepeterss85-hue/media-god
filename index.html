@@ -10,6 +10,153 @@
   </head>
   <body>
     <div id="root"></div>
+
+    <script>
+      (() => {
+        const isDesktopMediaGod = () => {
+          const ua = `${navigator.userAgent || ""} ${navigator.platform || ""}`;
+
+          if (/(?:Android|iPhone|iPad|iPod|Fire\s*TV|AmazonWebAppPlatform|Silk|MediaGodFireTV|\bAFT[A-Z0-9]*\b)/i.test(ua)) {
+            return false;
+          }
+
+          return Boolean(
+            document.documentElement.requestFullscreen ||
+              document.documentElement.webkitRequestFullscreen ||
+              document.documentElement.mozRequestFullScreen ||
+              document.documentElement.msRequestFullscreen
+          );
+        };
+
+        const fullscreenElement = () =>
+          document.fullscreenElement ||
+          document.webkitFullscreenElement ||
+          document.mozFullScreenElement ||
+          document.msFullscreenElement ||
+          null;
+
+        const requestTrueFullscreen = async () => {
+          if (!isDesktopMediaGod() || fullscreenElement()) {
+            return;
+          }
+
+          const root = document.documentElement;
+
+          try {
+            if (typeof root.requestFullscreen === "function") {
+              try {
+                await root.requestFullscreen({ navigationUI: "hide" });
+              } catch {
+                await root.requestFullscreen();
+              }
+              return;
+            }
+
+            if (typeof root.webkitRequestFullscreen === "function") {
+              await Promise.resolve(root.webkitRequestFullscreen());
+              return;
+            }
+
+            if (typeof root.mozRequestFullScreen === "function") {
+              await Promise.resolve(root.mozRequestFullScreen());
+              return;
+            }
+
+            if (typeof root.msRequestFullscreen === "function") {
+              await Promise.resolve(root.msRequestFullscreen());
+            }
+          } catch {
+            // VideoPlayer keeps its CSS fullscreen fallback if the host blocks
+            // the browser Fullscreen API. A later trusted gesture will retry.
+          }
+        };
+
+        const wantsFullscreenFromTarget = (target) => {
+          if (!(target instanceof Element)) {
+            return false;
+          }
+
+          const button = target.closest(
+            'button[aria-label*="fullscreen" i], button[title*="fullscreen" i]'
+          );
+
+          if (button) {
+            const label = `${button.getAttribute("aria-label") || ""} ${button.getAttribute("title") || ""}`;
+            return !/exit|leave/i.test(label);
+          }
+
+          return false;
+        };
+
+        const cssFullscreenIsActive = () =>
+          Boolean(document.querySelector('[data-mg-fullscreen="true"]'));
+
+        document.addEventListener(
+          "pointerdown",
+          (event) => {
+            if (!isDesktopMediaGod() || fullscreenElement()) {
+              return;
+            }
+
+            if (
+              wantsFullscreenFromTarget(event.target) ||
+              cssFullscreenIsActive()
+            ) {
+              requestTrueFullscreen();
+            }
+          },
+          true
+        );
+
+        document.addEventListener(
+          "keydown",
+          (event) => {
+            if (!isDesktopMediaGod() || fullscreenElement()) {
+              return;
+            }
+
+            const target = event.target;
+            const typing =
+              target instanceof HTMLInputElement ||
+              target instanceof HTMLTextAreaElement ||
+              target?.isContentEditable;
+
+            if (typing) {
+              return;
+            }
+
+            if (
+              event.key === "f" ||
+              event.key === "F" ||
+              cssFullscreenIsActive()
+            ) {
+              requestTrueFullscreen();
+            }
+          },
+          true
+        );
+
+        document.addEventListener(
+          "dblclick",
+          (event) => {
+            if (!isDesktopMediaGod() || fullscreenElement()) {
+              return;
+            }
+
+            const target = event.target;
+            if (
+              target instanceof Element &&
+              (target.closest('[data-mg-player-root="true"]') ||
+                target.closest('[data-mg-fullscreen="true"]'))
+            ) {
+              requestTrueFullscreen();
+            }
+          },
+          true
+        );
+      })();
+    </script>
+
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
