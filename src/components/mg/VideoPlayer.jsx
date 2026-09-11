@@ -1450,6 +1450,137 @@ export default function VideoPlayer({
               .replace(/[^a-z]/g, "");
             let debridProviders = explicitProvider ? [explicitProvider] : [];
 
+            /*
+             * Comet RD⬇ sources need Comet to start the torrent first.
+             * Comet keeps the tracker/source list in its own database and
+             * includes that metadata when it submits the torrent to the
+             * user's debrid account. A bare info-hash magnet can be accepted
+             * by RD yet sit forever at 0 seeders / 0 B/s.
+             *
+             * Trigger Comet from the actual playback device (same-IP safe),
+             * then adopt the resulting RD torrent by hash and use Media God's
+             * normal progress polling from that point onward.
+             */
+            const cometPlaybackUrl = String(
+              active?.cometPlaybackUrl || ""
+            ).trim();
+
+            if (
+              active?.cacheRequired === true &&
+              active?.cometUncached === true &&
+              hash &&
+              /^https?:\/\//i.test(cometPlaybackUrl)
+            ) {
+              const triggerController = new AbortController();
+              const triggerTimer = window.setTimeout(
+                () => triggerController.abort(),
+                8000
+              );
+
+              try {
+                const triggerResponse = await fetch(
+                  cometPlaybackUrl,
+                  {
+                    method: "GET",
+                    cache: "no-store",
+                    redirect: "manual",
+                    signal: triggerController.signal,
+                  }
+                );
+
+                try {
+                  await triggerResponse.body?.cancel?.();
+                } catch {
+                  // Response body is irrelevant; the request itself starts RD.
+                }
+              } catch {
+                /*
+                 * A CORS/opaque-response error can happen after the request
+                 * has already reached Comet. Continue with adoption polling.
+                 */
+              } finally {
+                window.clearTimeout(triggerTimer);
+              }
+
+              for (let adoptAttempt = 0; adoptAttempt < 6; adoptAttempt += 1) {
+                if (cancelled) return;
+
+                if (adoptAttempt > 0) {
+                  await new Promise((resolve) =>
+                    window.setTimeout(resolve, 1000)
+                  );
+                }
+
+                try {
+                  const adoptResponse = await base44.functions.invoke(
+                    "realDebrid",
+                    {
+                      action: "adopt_hash",
+                      info_hash: hash,
+                      title:
+                        source?.rdTitle ||
+                        source?.title ||
+                        "",
+                      ...(source?.rdYear != null
+                        ? { year: source.rdYear }
+                        : {}),
+                      ...(source?.rdSeason != null
+                        ? { season: source.rdSeason }
+                        : {}),
+                      ...(source?.rdEpisode != null
+                        ? { episode: source.rdEpisode }
+                        : {}),
+                    }
+                  );
+
+                  if (cancelled) return;
+
+                  const adoptData = adoptResponse?.data || {};
+
+                  if (
+                    adoptData.status === "ready" &&
+                    adoptData.stream_url
+                  ) {
+                    setRdOverride({
+                      src: adoptData.stream_url,
+                      label:
+                        adoptData.filename ||
+                        active?.label ||
+                        "Real-Debrid Stream",
+                      file: currentFilePath(adoptData.files),
+                      audioRescue: adoptData.audio_rescue || null,
+                      fallbackSrc:
+                        adoptData.fallback_stream_url || "",
+                      videoRescue: adoptData.video_rescue || null,
+                      mediaInfo: adoptData.media_info || null,
+                    });
+                    setRdFiles(adoptData.files || []);
+                    setRdResolving(false);
+                    setRdPreparation(null);
+                    return;
+                  }
+
+                  if (adoptData.torrent_id) {
+                    setRdPreparation({
+                      ...(adoptData.torrent_progress || {}),
+                      status:
+                        adoptData.torrent_progress?.status ||
+                        adoptData.rd_status ||
+                        "preparing",
+                      startedAt: Date.now(),
+                      updatedAt: Date.now(),
+                      attempts: 0,
+                    });
+                    setRdTorrentId(String(adoptData.torrent_id));
+                    setRdResolving(false);
+                    return;
+                  }
+                } catch {
+                  // Give Comet/RD another moment before the normal fallback.
+                }
+              }
+            }
+
             if (hash && source?.hasDebrid) {
               try {
                 const cacheResponse = await base44.functions.invoke(
