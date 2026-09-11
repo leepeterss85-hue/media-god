@@ -1,0 +1,38 @@
+{
+  "name": "media-god-windows",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Native Windows shell for Media God with true OS fullscreen playback.",
+  "main": "main.cjs",
+  "scripts": {
+    "dist": "electron-builder --win portable --x64"
+  },
+  "devDependencies": {
+    "electron": "35.1.5",
+    "electron-builder": "26.0.12"
+  },
+  "build": {
+    "appId": "com.mediagod.windows",
+    "productName": "Media God",
+    "asar": true,
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "Media-God-Windows.exe"
+    }
+  }
+}
