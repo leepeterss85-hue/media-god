@@ -55,16 +55,40 @@ const isCometUncachedDownloadStream = (stream, addonName = "") => {
   );
 };
 
-const magnetFromHash = (hash, title = "") => {
+const PUBLIC_FALLBACK_TRACKERS = [
+  "udp://zer0day.ch:1337/announce",
+  "udp://tracker.therarbg.to:6969/announce",
+  "udp://tracker.publictracker.xyz:6969/announce",
+  "udp://tracker.opentrackr.org:1337/announce",
+  "udp://open.demonii.com:1337/announce",
+  "udp://open.stealth.si:80/announce",
+  "udp://tracker2.dler.org:80/announce",
+  "udp://tracker.torrent.eu.org:451/announce",
+  "udp://tracker.qu.ax:6969/announce",
+  "udp://tracker.filemail.com:6969/announce",
+];
+
+const magnetFromHash = (hash, title = "", trackers = []) => {
   const value = clean(hash);
 
   if (!value) {
     return "";
   }
 
-  return `magnet:?xt=urn:btih:${value}${
-    title ? `&dn=${encodeURIComponent(title)}` : ""
-  }`;
+  const params = [`xt=urn:btih:${value}`];
+
+  if (title) {
+    params.push(`dn=${encodeURIComponent(title)}`);
+  }
+
+  (Array.isArray(trackers) ? trackers : [])
+    .filter(Boolean)
+    .slice(0, 20)
+    .forEach((tracker) => {
+      params.push(`tr=${encodeURIComponent(String(tracker))}`);
+    });
+
+  return `magnet:?${params.join("&")}`;
 };
 
 const parseAddonUrl = (value) => {
@@ -455,7 +479,12 @@ const normaliseStream = (
 
     const cacheMagnet = magnetFromHash(
       infoHash,
-      streamTitle(stream)
+      streamTitle(stream),
+      [
+        ...(Array.isArray(stream?.announce) ? stream.announce : []),
+        ...(Array.isArray(stream?.trackers) ? stream.trackers : []),
+        ...PUBLIC_FALLBACK_TRACKERS,
+      ]
     );
 
     return {
