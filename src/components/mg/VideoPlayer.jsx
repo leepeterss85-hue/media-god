@@ -737,18 +737,11 @@ export default function VideoPlayer({
         : item?.cacheRequired === true
           ? -1000
           : 0;
-    const trackerRichBonus = [
-      item?.richMagnet,
-      item?.magnet,
-      item?.magnetLink,
-      item?.src,
-      item?.url,
-    ].some((value) => {
-      const raw = String(value || "").trim();
-      return /^magnet:/i.test(raw) && /(?:[?&])tr=/i.test(raw);
-    })
-      ? 3500
-      : 0;
+    const trackerRichValue = String(item?.richMagnet || "").trim();
+    const trackerRichBonus =
+      /^magnet:/i.test(trackerRichValue) && /(?:[?&])tr=/i.test(trackerRichValue)
+        ? 3500
+        : 0;
 
     const swarmBonus = Math.min(
       4000,
@@ -1646,16 +1639,8 @@ export default function VideoPlayer({
                   return false;
                 }
 
-                return [
-                  candidate?.richMagnet,
-                  candidate?.magnet,
-                  candidate?.magnetLink,
-                  candidate?.src,
-                  candidate?.url,
-                ].some((value) => {
-                  const raw = String(value || "").trim();
-                  return /^magnet:/i.test(raw) && /(?:[?&])tr=/i.test(raw);
-                });
+                const raw = String(candidate?.richMagnet || "").trim();
+                return /^magnet:/i.test(raw) && /(?:[?&])tr=/i.test(raw);
               });
 
               if (richerEntry?.index != null) {
