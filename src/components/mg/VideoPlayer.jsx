@@ -2381,10 +2381,30 @@ export default function VideoPlayer({
           const noProgressForMs =
             Date.now() - lastProgressAdvanceAt;
 
+          const sourceReportedSeeders = Math.max(
+            0,
+            Number(active?.reportedSeeders || 0)
+          );
+
+          /*
+           * Fresh uncached torrents need time for Real-Debrid to announce to
+           * trackers and connect to peers. Do not treat an initial 0% as a
+           * dead torrent after only 45 seconds, especially when Comet has
+           * already reported an active swarm for the same hash.
+           *
+           * Once a torrent has actually made progress and then stops, the
+           * shorter 45-second failover remains appropriate.
+           */
+          const stallAfterMs =
+            latestProgress <= 0.001
+              ? sourceReportedSeeders > 0
+                ? 120000
+                : 90000
+              : 45000;
+
           const looksCompletelyStalled =
             latestProgress < 100 &&
-            attempts >= 9 &&
-            noProgressForMs >= 45000 &&
+            noProgressForMs >= stallAfterMs &&
             latestSeeders <= 0 &&
             latestSpeed <= 0;
 
@@ -2395,7 +2415,11 @@ export default function VideoPlayer({
               setRdPolling(false);
               setRdTorrentId(null);
               tryNextSource(
-                "Real-Debrid made no further progress and reported no active peers or download speed for about 45 seconds. Trying another source.",
+                latestProgress <= 0.001
+                  ? sourceReportedSeeders > 0
+                    ? "Real-Debrid could not connect to the swarm after about 2 minutes even though Comet reported seeders. Trying another torrent."
+                    : "Real-Debrid could not start this torrent after about 90 seconds and reported no active peers or download speed. Trying another torrent."
+                  : "Real-Debrid made no further progress and reported no active peers or download speed for about 45 seconds. Trying another source.",
                 {
                   blacklistTorrentHash: true,
                   immediate: true,
