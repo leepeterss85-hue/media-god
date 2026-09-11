@@ -1,0 +1,8 @@
+{
+  "channel": "windows-desktop",
+  "versionName": "1.0.0",
+  "title": "Media God Windows",
+  "message": "Native Windows build with true operating-system fullscreen. The player fullscreen button, F/F11 and double-click can now switch the actual Windows window into fullscreen so the taskbar is covered instead of leaving a CSS-only player above it.",
+  "downloadUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/windows-desktop-latest/Media-God-Windows.exe",
+  "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/windows-desktop-latest"
+}
