@@ -813,6 +813,43 @@ export default async function (req) {
       }
 
       /*
+       * Never immediately adopt an old partial RD job that is clearly dead.
+       * Real-Debrid can preserve partial progress for a torrent hash, so a
+       * freshly opened Media God session may otherwise reattach to the same
+       * 24%/0 B/s job forever. Treat old partial + no peers + no speed as a
+       * stale hash and let the player move to a genuinely different torrent.
+       */
+      const matchProgress = Math.max(
+        0,
+        Math.min(100, Number(match?.progress || 0))
+      );
+      const matchAddedAt = Date.parse(String(match?.added || ""));
+      const matchAgeMs = Number.isFinite(matchAddedAt)
+        ? Math.max(0, Date.now() - matchAddedAt)
+        : 0;
+      const matchInactive =
+        Number(match?.speed || 0) <= 0 &&
+        Number(match?.seeders || 0) <= 0;
+      const stalePartial =
+        /^(?:magnet_conversion|queued|downloading)$/i.test(
+          String(match?.status || "")
+        ) &&
+        matchProgress > 0 &&
+        matchProgress < 100 &&
+        matchInactive &&
+        matchAgeMs >= 60_000;
+
+      if (stalePartial) {
+        return Response.json({
+          status: "stale",
+          info_hash: hash,
+          progress: matchProgress,
+          rd_status: String(match?.status || ""),
+          stale_for_ms: matchAgeMs,
+        });
+      }
+
+      /*
        * Once Media God adopts a torrent that Comet created, remember the
        * association. This lets later playback attempts safely identify and
        * clean up the same stalled cache job instead of repeatedly adopting it.
