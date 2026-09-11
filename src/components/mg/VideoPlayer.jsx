@@ -158,18 +158,35 @@ const rememberPersistentFailedTorrentHash = (hash) => {
   }
 
   try {
-    const current = {};
     const now = Date.now();
+    const raw = JSON.parse(
+      window.localStorage.getItem(FAILED_TORRENT_HASHES_KEY) || "{}"
+    );
+    const fresh = Object.entries(
+      raw && typeof raw === "object" ? raw : {}
+    )
+      .map(([storedHash, failedAt]) => [
+        String(storedHash || "").toLowerCase(),
+        Number(failedAt || 0),
+      ])
+      .filter(
+        ([storedHash, failedAt]) =>
+          /^[a-f0-9]{40,64}$/i.test(storedHash) &&
+          failedAt > 0 &&
+          now - failedAt < FAILED_TORRENT_HASH_TTL_MS
+      );
 
-    for (const remembered of readPersistentFailedTorrentHashes()) {
-      current[remembered] = now;
-    }
+    fresh.push([normalized, now]);
 
-    current[normalized] = now;
+    const trimmed = Object.fromEntries(
+      fresh
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, FAILED_TORRENT_HASH_LIMIT)
+    );
 
     window.localStorage.setItem(
       FAILED_TORRENT_HASHES_KEY,
-      JSON.stringify(current)
+      JSON.stringify(trimmed)
     );
   } catch {
     // Persistence is an optimisation; in-memory recovery still works.
