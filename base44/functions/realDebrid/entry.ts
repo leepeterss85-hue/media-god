@@ -1941,44 +1941,6 @@ async function addMagnet({
     });
   }
 
-  /*
-   * Select all files first.
-   */
-  const selectAllRes =
-    await rdFetch(
-      `${RD_BASE}/torrents/selectFiles/${torrentId}`,
-      {
-        method: "POST",
-        headers:
-          formHeaders,
-        body:
-          "files=all",
-      },
-      {
-        attempts: 3,
-      }
-    );
-
-  if (
-    !selectAllRes.ok &&
-    selectAllRes.status !== 202
-  ) {
-    return Response.json({
-      status: "failed",
-      error:
-        await rdFailureMessage(
-          selectAllRes,
-          "Real-Debrid could not select the torrent files"
-        ),
-      upstream_status:
-        selectAllRes.status,
-      retryable:
-        isRetryableRdStatus(
-          selectAllRes.status
-        ),
-    });
-  }
-
   const metadata = {
     title:
       body.title,
@@ -2004,9 +1966,102 @@ async function addMagnet({
           )
         : "",
 
+    file_idx:
+      Number.isInteger(Number(body.file_idx)) &&
+      Number(body.file_idx) >= 0
+        ? Number(body.file_idx)
+        : null,
+
     forceAudioRescue:
       body.force_audio_rescue === true,
   };
+
+  /*
+   * Select only the intended video file whenever RD has already
+   * resolved the torrent metadata. Selecting every file can turn
+   * a single movie into a huge multi-file download and can leave
+   * the final link pointing at the wrong payload.
+   *
+   * If RD is still converting the magnet and has not exposed its
+   * file list yet, defer selection; resolveStreamable() will make
+   * the same targeted selection as soon as the files appear.
+   */
+  const initialInfoRes =
+    await rdFetch(
+      `${RD_BASE}/torrents/info/${torrentId}`,
+      {
+        headers:
+          authHeaders,
+      },
+      {
+        attempts: 3,
+      }
+    );
+
+  if (initialInfoRes.ok) {
+    const initialInfo =
+      await initialInfoRes.json();
+
+    const initialFiles =
+      Array.isArray(initialInfo?.files)
+        ? initialInfo.files
+        : [];
+
+    const targetFile =
+      chooseRequestedTorrentFile(
+        initialFiles,
+        metadata
+      );
+
+    if (targetFile?.id != null) {
+      const selectTargetRes =
+        await rdFetch(
+          `${RD_BASE}/torrents/selectFiles/${torrentId}`,
+          {
+            method: "POST",
+            headers:
+              formHeaders,
+            body:
+              `files=${encodeURIComponent(String(targetFile.id))}`,
+          },
+          {
+            attempts: 3,
+          }
+        );
+
+      if (
+        !selectTargetRes.ok &&
+        selectTargetRes.status !== 202
+      ) {
+        return Response.json({
+          status: "failed",
+          error:
+            await rdFailureMessage(
+              selectTargetRes,
+              "Real-Debrid could not select the target video file"
+            ),
+          upstream_status:
+            selectTargetRes.status,
+          retryable:
+            isRetryableRdStatus(
+              selectTargetRes.status
+            ),
+        });
+      }
+    } else if (
+      String(initialInfo?.status || "") ===
+        "waiting_files_selection" &&
+      initialFiles.length > 0
+    ) {
+      return Response.json({
+        status: "failed",
+        error:
+          "Real-Debrid resolved this torrent, but Media God could not identify a playable video file to select.",
+        error_code:
+          "RD_NO_VIDEO_FILE",
+      });
+    }
+  }
 
   /*
    * Save the association so future plays can potentially
