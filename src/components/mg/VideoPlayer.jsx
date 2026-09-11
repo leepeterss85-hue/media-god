@@ -1622,6 +1622,53 @@ export default function VideoPlayer({
 
             const hash = magnetHash(magnet);
 
+            /*
+             * Prefer a tracker-bearing uncached torrent before attempting a
+             * bare Comet hash. The selector ordering already reflects the
+             * user's quality choice, so take the first richer uncached entry
+             * from that same order. This avoids spending a long startup grace
+             * period on a weak hash when a better magnet is already present.
+             */
+            if (
+              active?.cacheRequired === true &&
+              !hasTrackerRichMagnet
+            ) {
+              const richerEntry = sortedSourceEntries.find((entry) => {
+                const candidate = entry?.item || {};
+                const candidateIndex = Number(entry?.index ?? -1);
+
+                if (
+                  candidateIndex < 0 ||
+                  candidateIndex === activeIdx ||
+                  failedSourcesRef.current.has(candidateIndex) ||
+                  candidate?.cacheRequired !== true
+                ) {
+                  return false;
+                }
+
+                return [
+                  candidate?.richMagnet,
+                  candidate?.magnet,
+                  candidate?.magnetLink,
+                  candidate?.src,
+                  candidate?.url,
+                ].some((value) => {
+                  const raw = String(value || "").trim();
+                  return /^magnet:/i.test(raw) && /(?:[?&])tr=/i.test(raw);
+                });
+              });
+
+              if (richerEntry?.index != null) {
+                markSourceFailed(activeIdx);
+                switchToSource(Number(richerEntry.index), {
+                  preservePosition: true,
+                  statusMessage:
+                    "Using a tracker-rich uncached torrent for better Real-Debrid peer discovery…",
+                });
+                return;
+              }
+            }
+
             const explicitProvider = String(active?.debridProvider || "")
               .toLowerCase()
               .replace(/[^a-z]/g, "");
