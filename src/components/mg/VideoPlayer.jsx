@@ -1565,7 +1565,11 @@ export default function VideoPlayer({
               }
             }
 
-            if (!source?.hasRd && source?.hasDebrid) {
+            if (
+              !source?.hasRd &&
+              source?.hasDebrid &&
+              explicitProvider !== "realdebrid"
+            ) {
               throw lastMultiError || new Error(
                 "No connected debrid provider could resolve this cached source."
               );
