@@ -2325,6 +2325,7 @@ export default function VideoPlayer({
             Date.now() - lastProgressAdvanceAt;
 
           const looksCompletelyStalled =
+            latestProgress < 100 &&
             attempts >= 9 &&
             noProgressForMs >= 45000 &&
             latestSeeders <= 0 &&
@@ -2354,7 +2355,7 @@ export default function VideoPlayer({
             pollRef.current =
               setTimeout(
                 tick,
-                5000
+                latestProgress >= 100 ? 2000 : 5000
               );
           } else {
             setRdPolling(
