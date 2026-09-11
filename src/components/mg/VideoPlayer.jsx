@@ -2064,6 +2064,14 @@ export default function VideoPlayer({
                           source.rdEpisode,
                       }
                     : {}),
+
+                  ...(active?.fileIdx != null &&
+                  Number.isFinite(Number(active.fileIdx))
+                    ? {
+                        file_idx:
+                          Number(active.fileIdx),
+                      }
+                    : {}),
                 }
               );
 
