@@ -4427,6 +4427,7 @@ export default function VideoPlayer({
       data-mg-player-root="true"
       data-mg-player-fullscreen={isAppFullscreen ? "true" : "false"}
       data-mg-native-selector-mode={fireTvNativeSelectorMode ? "true" : "false"}
+      data-mg-rd-cache-source={active?.cacheRequired ? "true" : "false"}
       className="fixed inset-0 z-[2147483646] bg-black/95 flex items-center justify-center p-2 sm:p-3 md:p-4"
       onClick={
         onClose
