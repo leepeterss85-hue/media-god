@@ -1701,9 +1701,19 @@ export default function VideoPlayer({
                 }
               }
 
-              throw new Error(
-                "Comet could not start this uncached torrent with tracker metadata."
+              window.dispatchEvent(
+                new CustomEvent("mg:player-status", {
+                  detail: {
+                    message:
+                      "Comet could not start this uncached torrent directly — trying Real-Debrid with fallback trackers…",
+                  },
+                })
               );
+              /*
+               * Fall through to Media God's normal Real-Debrid resolver.
+               * Uncached Comet magnets now carry a public fallback tracker
+               * set, so RD still has a second route to discover peers.
+               */
             }
 
             if (hash && source?.hasDebrid) {
