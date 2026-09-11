@@ -1,7 +1,9 @@
 import { useEffect } from "react";
-
-const FIRE_TV_RE =
-  /(?:AFT[A-Z0-9]*|Fire TV|AmazonWebAppPlatform|Silk)/i;
+import {
+  clearFireTvStateFromAndroidMobile,
+  isAndroidMobileRuntime,
+  isFireTvRuntime,
+} from "@/components/mg/runtimePlatform";
 
 const isElement = (value) =>
   typeof HTMLElement !== "undefined" &&
@@ -79,24 +81,8 @@ const isStrongTvRemoteEvidence = (event) => {
   );
 };
 
-const initialTvEnvironment = () => {
-  if (
-    typeof navigator === "undefined" ||
-    typeof document === "undefined"
-  ) {
-    return false;
-  }
-
-  const ua = String(navigator.userAgent || "");
-  const noTouch = Number(navigator.maxTouchPoints || 0) === 0;
-
-  return (
-    FIRE_TV_RE.test(ua) ||
-    (/Android/i.test(ua) && noTouch) ||
-    document.documentElement.classList.contains("mg-fire-tv") ||
-    document.body?.classList.contains("mg-fire-tv")
-  );
-};
+const initialTvEnvironment = () =>
+  !isAndroidMobileRuntime() && isFireTvRuntime();
 
 /*
  * Fire TV player lifecycle helper.
@@ -137,6 +123,12 @@ export default function FireTvPlayerTakeover() {
     };
 
     const markTvEnvironment = () => {
+      if (isAndroidMobileRuntime()) {
+        tvEnvironment = false;
+        clearFireTvStateFromAndroidMobile();
+        return;
+      }
+
       if (tvEnvironment) {
         return;
       }
@@ -198,6 +190,11 @@ export default function FireTvPlayerTakeover() {
     };
 
     const onKeyDown = (event) => {
+      if (isAndroidMobileRuntime()) {
+        clearFireTvStateFromAndroidMobile();
+        return;
+      }
+
       if (isStrongTvRemoteEvidence(event)) {
         markTvEnvironment();
         schedule();
