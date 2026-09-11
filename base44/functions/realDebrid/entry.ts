@@ -526,13 +526,27 @@ export default async function (req) {
         return Response.json({ status: "not_found", cleared: false });
       }
 
+      const progress = Math.max(
+        0,
+        Math.min(100, Number(match?.progress || 0))
+      );
+      const addedAt = Date.parse(String(match?.added || ""));
+      const ageMs = Number.isFinite(addedAt)
+        ? Math.max(0, Date.now() - addedAt)
+        : 0;
+      const hasNoActivity =
+        Number(match?.speed || 0) <= 0 &&
+        Number(match?.seeders || 0) <= 0;
       const stalled =
         /^(?:magnet_conversion|queued|downloading)$/i.test(
           String(match?.status || "")
         ) &&
-        Number(match?.progress || 0) <= 0 &&
-        Number(match?.speed || 0) <= 0 &&
-        Number(match?.seeders || 0) <= 0;
+        progress < 100 &&
+        hasNoActivity &&
+        (
+          progress <= 0 ||
+          ageMs >= 60_000
+        );
 
       if (!stalled) {
         return Response.json({
