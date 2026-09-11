@@ -470,6 +470,118 @@ export default async function (req) {
 
     /*
      * ---------------------------------------------------------
+     * ADOPT EXISTING TORRENT BY INFO HASH
+     *
+     * Used by Comet uncached playback. Comet starts the torrent
+     * with its own stored tracker/source metadata on the user's
+     * device; Media God then finds that exact hash in Real-Debrid
+     * and takes over progress polling/playback.
+     * ---------------------------------------------------------
+     */
+    if (action === "adopt_hash") {
+      const hash = String(
+        body.info_hash ||
+        body.hash ||
+        ""
+      )
+        .trim()
+        .toLowerCase();
+
+      if (!/^[a-f0-9]{40}$/.test(hash)) {
+        return Response.json(
+          { error: "A valid 40-character info hash is required." },
+          { status: 400 }
+        );
+      }
+
+      const listRes = await rdFetch(
+        `${RD_BASE}/torrents?limit=5000`,
+        { headers: authHeaders },
+        { attempts: 3 }
+      );
+
+      if (!listRes.ok) {
+        return Response.json({
+          status: "failed",
+          error: await rdFailureMessage(
+            listRes,
+            "Real-Debrid could not list torrents"
+          ),
+          upstream_status: listRes.status,
+        });
+      }
+
+      const torrents = await listRes.json();
+      const match = Array.isArray(torrents)
+        ? torrents.find(
+            (torrent) =>
+              String(torrent?.hash || "")
+                .trim()
+                .toLowerCase() === hash
+          )
+        : null;
+
+      if (!match?.id) {
+        return Response.json({
+          status: "not_found",
+          info_hash: hash,
+        });
+      }
+
+      const stream = await resolveStreamable(
+        String(match.id),
+        authHeaders,
+        formHeaders,
+        {
+          title: body.title,
+          year: body.year,
+          season: body.season,
+          episode: body.episode,
+          forceAudioRescue:
+            body.force_audio_rescue === true,
+        }
+      );
+
+      if (stream.error) {
+        return Response.json({
+          status: "failed",
+          torrent_id: String(match.id),
+          error: stream.error,
+          error_code:
+            stream.error_code ||
+            "RD_ADOPT_FAILED",
+        });
+      }
+
+      return Response.json({
+        status: stream.ready
+          ? "ready"
+          : "preparing",
+        torrent_id: String(match.id),
+        info_hash: hash,
+        stream_url:
+          stream.stream_url || "",
+        fallback_stream_url:
+          stream.fallback_stream_url || "",
+        filename:
+          stream.filename || "",
+        rd_status:
+          stream.rd_status,
+        files:
+          stream.files || [],
+        audio_rescue:
+          stream.audio_rescue || null,
+        video_rescue:
+          stream.video_rescue || null,
+        media_info:
+          stream.media_info || null,
+        torrent_progress:
+          stream.torrent_progress || null,
+      });
+    }
+
+    /*
+     * ---------------------------------------------------------
      * TORRENT INFO
      * ---------------------------------------------------------
      */
