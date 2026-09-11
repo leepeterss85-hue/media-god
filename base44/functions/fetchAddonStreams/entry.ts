@@ -344,8 +344,10 @@ const normaliseStream = (
 
   const label =
     `${addonName}: ${streamTitle(stream)}`;
+  const cometUncachedDownload =
+    isCometUncachedDownloadStream(stream, addonName);
 
-  if (isAddonControlStream(stream, addonName)) {
+  if (!cometUncachedDownload && isAddonControlStream(stream, addonName)) {
     return {
       unsupported: true,
       reason: "addon_control_stream",
@@ -405,7 +407,48 @@ const normaliseStream = (
       stream?.infoHash ||
         stream?.info_hash
     ) ||
-    infoHashFromValue(rawUrl);
+    infoHashFromValue(rawUrl) ||
+    (cometUncachedDownload
+      ? cometPlaybackHashFromValue(rawUrl)
+      : "");
+
+  if (cometUncachedDownload) {
+    if (!infoHash) {
+      return {
+        unsupported: true,
+        reason: "comet_uncached_missing_hash",
+        label,
+      };
+    }
+
+    const cacheMagnet = magnetFromHash(
+      infoHash,
+      streamTitle(stream)
+    );
+
+    return {
+      id: `${addonName}-${index}-${infoHash}-cache`,
+      label,
+      addon: addonName,
+      type: "rd",
+      src: cacheMagnet,
+      url: cacheMagnet,
+      magnet: cacheMagnet,
+      infoHash,
+      fileIdx:
+        stream?.fileIdx ??
+        stream?.file_idx ??
+        undefined,
+      behaviorHints:
+        stream?.behaviorHints ||
+        stream?.behavior_hints ||
+        undefined,
+      debridProvider: "realdebrid",
+      viaRealDebrid: true,
+      cacheRequired: true,
+      cometUncached: true,
+    };
+  }
 
   const magnet =
     isMagnet(rawUrl)
