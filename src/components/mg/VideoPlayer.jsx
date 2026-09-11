@@ -716,6 +716,7 @@ export default function VideoPlayer({
         if (
           index === fromIndex ||
           failedSourcesRef.current.has(index) ||
+          isCometUncachedDownloadSource(candidate, index) ||
           candidate?.diagnostic ||
           candidate?.type === "status" ||
           candidate?.type === "provider" ||
