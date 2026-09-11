@@ -1,4 +1,11 @@
-import { nativeFireTvCodecInfo } from "@/components/mg/nativeFireTvBridge";
+import {
+  nativeFireTvAppInfo,
+  nativeFireTvCodecInfo,
+} from "@/components/mg/nativeFireTvBridge";
+import {
+  isAndroidMobileRuntime,
+  isFireTvRuntime,
+} from "@/components/mg/runtimePlatform";
 
 const VIDEO_PROBE =
   typeof document !== "undefined"
@@ -164,9 +171,6 @@ export const browserCodecSupport = {
     ),
 };
 
-const FIRE_TV_RE =
-  /(?:AFT[A-Z0-9]*|Fire TV|AmazonWebAppPlatform|Silk)/i;
-
 const NATIVE_VIDEO_MIME = {
   h264: ["video/avc"],
   hevc: ["video/hevc"],
@@ -220,40 +224,40 @@ export const getPlaybackDeviceProfile = () => {
       ? String(navigator.userAgent || "")
       : "";
 
-  const tvClassDetected =
-    typeof document !== "undefined" &&
-    Boolean(
-      document.documentElement?.classList?.contains("mg-fire-tv") ||
-      document.body?.classList?.contains("mg-fire-tv") ||
-      document.body?.classList?.contains("mg-fire-tv-mode") ||
-      document.body?.classList?.contains("mg-fire-tv-stable")
-    );
+  const androidMobile = isAndroidMobileRuntime();
+  const nativeAppInfo = nativeFireTvAppInfo();
+  const nativePlatform = String(nativeAppInfo?.platform || "")
+    .trim()
+    .toLowerCase();
 
-  const androidNoTouch =
-    /Android/i.test(userAgent) &&
-    typeof navigator !== "undefined" &&
-    Number(navigator.maxTouchPoints || 0) === 0;
-
-  let nativeFireTv = false;
+  let nativePlayerAvailable = false;
 
   if (typeof window !== "undefined") {
     try {
       const nativeBridge = window.MediaGodNative;
-      nativeFireTv = Boolean(
+      nativePlayerAvailable = Boolean(
         nativeBridge &&
           typeof nativeBridge.play === "function" &&
           (typeof nativeBridge.isAvailable !== "function" || nativeBridge.isAvailable() !== false)
       );
     } catch {
-      nativeFireTv = false;
+      nativePlayerAvailable = false;
     }
   }
 
+  const nativeAndroidMobile =
+    nativePlayerAvailable &&
+    (androidMobile || nativePlatform === "android-mobile");
+
+  const nativeFireTv =
+    nativePlayerAvailable &&
+    !nativeAndroidMobile &&
+    (nativePlatform === "fire-tv" || isFireTvRuntime());
+
   const fireTv =
-    nativeFireTv ||
-    FIRE_TV_RE.test(userAgent) ||
-    tvClassDetected ||
-    androidNoTouch;
+    !androidMobile &&
+    !nativeAndroidMobile &&
+    (nativeFireTv || isFireTvRuntime());
 
   const nativeCodecSupport =
     nativeFireTv
@@ -301,11 +305,17 @@ export const getPlaybackDeviceProfile = () => {
     name:
       fireTv
         ? "Fire TV"
-        : "Browser",
+        : nativeAndroidMobile || androidMobile
+          ? "Android Mobile"
+          : "Browser",
 
     fireTv,
     isFireTv: fireTv,
     nativeFireTv,
+    nativeAndroidMobile,
+    nativePlayerAvailable,
+    mobileApp: androidMobile || nativeAndroidMobile,
+    nativePlatform,
     nativeCodecSupport,
     fourKAllowed,
 
