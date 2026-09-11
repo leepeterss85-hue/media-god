@@ -18,6 +18,29 @@ const infoHashFromValue = (value) => {
   return match?.[1] || "";
 };
 
+const cometPlaybackHashFromValue = (value) => {
+  const text = clean(value);
+  const match = text.match(/\/playback\/([a-f0-9]{40})(?:\/|$|\?)/i);
+  return match?.[1] || "";
+};
+
+const isCometUncachedDownloadStream = (stream, addonName = "") => {
+  const text = [
+    addonName,
+    stream?.name,
+    stream?.title,
+    stream?.description,
+  ]
+    .map(clean)
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    /\bcomet\b/i.test(text) &&
+    /\[\s*RD\s*⬇(?:\uFE0F)?\s*\]/i.test(text)
+  );
+};
+
 const magnetFromHash = (hash, title = "") => {
   const value = clean(hash);
 
