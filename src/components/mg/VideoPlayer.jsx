@@ -2541,20 +2541,26 @@ export default function VideoPlayer({
             Number(active?.reportedSeeders || 0)
           );
 
+          const activeOriginalTrackerMagnet = String(
+            active?.richMagnet || ""
+          ).trim();
+          const hasOriginalTrackerMagnet =
+            /^magnet:/i.test(activeOriginalTrackerMagnet) &&
+            /(?:[?&])tr=/i.test(activeOriginalTrackerMagnet);
+
           /*
-           * Fresh uncached torrents need time for Real-Debrid to announce to
-           * trackers and connect to peers. Do not treat an initial 0% as a
-           * dead torrent after only 45 seconds, especially when Comet has
-           * already reported an active swarm for the same hash.
-           *
-           * Once a torrent has actually made progress and then stops, the
-           * shorter 45-second failover remains appropriate.
+           * Probe uncached torrents quickly. Comet's reported seeder count is
+           * useful for ordering, but it is not proof that Real-Debrid can see
+           * those peers. A genuine addon-supplied tracker magnet gets a little
+           * longer to establish; a fallback-only hash is abandoned quickly.
+           * Once a torrent has made progress, retain the 45-second flatline
+           * window so brief pauses do not throw away a healthy download.
            */
           const stallAfterMs =
             latestProgress <= 0.001
-              ? sourceReportedSeeders > 0
-                ? 120000
-                : 90000
+              ? hasOriginalTrackerMagnet
+                ? 60000
+                : 30000
               : 45000;
 
           const looksCompletelyStalled =
@@ -2567,13 +2573,31 @@ export default function VideoPlayer({
             const nextSource = findNextPlayableSource(activeIdx);
 
             if (nextSource !== -1) {
+              const stalledTorrentId = String(rdTorrentId || "").trim();
+
+              if (stalledTorrentId) {
+                try {
+                  await base44.functions.invoke(
+                    "realDebrid",
+                    {
+                      action: "torrent_delete",
+                      torrent_id: stalledTorrentId,
+                    }
+                  );
+                } catch {
+                  // Cleanup is best-effort; source failover must still happen.
+                }
+              }
+
               setRdPolling(false);
               setRdTorrentId(null);
               tryNextSource(
                 latestProgress <= 0.001
-                  ? sourceReportedSeeders > 0
-                    ? "Real-Debrid could not connect to the swarm after about 2 minutes even though Comet reported seeders. Trying another torrent."
-                    : "Real-Debrid could not start this torrent after about 90 seconds and reported no active peers or download speed. Trying another torrent."
+                  ? hasOriginalTrackerMagnet
+                    ? "Real-Debrid could not establish peer activity for this original tracker magnet after about a minute. Trying another torrent."
+                    : sourceReportedSeeders > 0
+                      ? "Comet reported seeders, but Real-Debrid still had no peer activity after about 30 seconds. Trying another torrent."
+                      : "Real-Debrid showed no peer activity after about 30 seconds. Trying another torrent."
                   : "Real-Debrid made no further progress and reported no active peers or download speed for about 45 seconds. Trying another source.",
                 {
                   blacklistTorrentHash: true,
