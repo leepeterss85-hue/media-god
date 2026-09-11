@@ -123,6 +123,21 @@ const sourceReportedSeeders = (item) => {
   return match ? Math.max(0, Number(match[1] || 0)) : 0;
 };
 
+const sourceHasTrackerRichMagnet = (item) => {
+  const candidates = [
+    item?.richMagnet,
+    item?.magnet,
+    item?.magnetLink,
+    item?.src,
+    item?.url,
+  ];
+
+  return candidates.some((value) => {
+    const raw = String(value || "").trim();
+    return /^magnet:/i.test(raw) && /(?:[?&])tr=/i.test(raw);
+  });
+};
+
 const compatibilityScore = (item) =>
   scoreSourceCompatibility(item, sourceText(item), {
     deviceProfile: getPlaybackDeviceProfile(),
@@ -147,6 +162,7 @@ export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
     size: sourceSize(item),
     compatibility: compatibilityScore(item),
     reportedSeeders: sourceReportedSeeders(item),
+    trackerRich: sourceHasTrackerRichMagnet(item),
   }));
 
   if (mode === "best") return list;
@@ -155,6 +171,7 @@ export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
     if (mode === "cached") {
       return (
         Number(b.cached) - Number(a.cached) ||
+        Number(b.trackerRich) - Number(a.trackerRich) ||
         b.reportedSeeders - a.reportedSeeders ||
         b.compatibility - a.compatibility ||
         a.index - b.index
@@ -167,6 +184,7 @@ export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
         targetResolutionScore(b.resolution, target) -
           targetResolutionScore(a.resolution, target) ||
         Number(b.cached) - Number(a.cached) ||
+        Number(b.trackerRich) - Number(a.trackerRich) ||
         b.reportedSeeders - a.reportedSeeders ||
         b.compatibility - a.compatibility ||
         a.index - b.index
@@ -188,6 +206,7 @@ export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
       return (
         (aKnown && bKnown ? a.size - b.size : 0) ||
         Number(b.cached) - Number(a.cached) ||
+        Number(b.trackerRich) - Number(a.trackerRich) ||
         b.reportedSeeders - a.reportedSeeders ||
         b.compatibility - a.compatibility ||
         a.index - b.index
