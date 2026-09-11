@@ -1527,20 +1527,65 @@ export default function VideoPlayer({
               /^https?:\/\//i.test(cometPlaybackUrl)
             ) {
               try {
-                await base44.functions.invoke(
+                const preflightResponse = await base44.functions.invoke(
                   "realDebrid",
                   {
-                    action: "reset_stale_hash",
-                    info_hash: hash,
-                    title:
-                      source?.rdTitle ||
-                      source?.title ||
-                      "",
+                    action: "uncached_preflight",
+                    keep_hash: hash,
                   }
                 );
-              } catch {
-                // Reset is best-effort; never block a fresh Comet start.
-              }
+
+                const preflight = preflightResponse?.data || {};
++                if (preflight.saturated === true) {
++                  const activeCount = Math.max(
++                    0,
++                    Number(preflight.active_count || 0)
++                  );
++                  const activeLimit = Math.max(
++                    0,
++                    Number(preflight.active_limit || 0)
++                  );
++
++                  const moved = tryNextSource(
++                    activeLimit > 0
++                      ? `Real-Debrid already has ${activeCount}/${activeLimit} active torrents. Trying another source.`
++                      : "Real-Debrid has no free active torrent slot. Trying another source.",
++                    {
++                      blacklistTorrentHash: true,
++                      immediate: true,
++                    }
++                  );
++
++                  if (!moved) {
++                    throw new Error(
++                      activeLimit > 0
++                        ? `Real-Debrid already has ${activeCount}/${activeLimit} active torrents. Stop or finish one before starting another uncached source.`
++                        : "Real-Debrid has no free active torrent slot."
++                    );
++                  }
++
++                  return;
++                }
++              } catch {
++                // Slot cleanup/diagnostics are best-effort unless saturated.
++              }
++
++              try {
++                await base44.functions.invoke(
++                  "realDebrid",
++                  {
++                    action: "reset_stale_hash",
++                    info_hash: hash,
++                    claim_for_playback: true,
++                    title:
++                      source?.rdTitle ||
++                      source?.title ||
++                      "",
++                  }
++                );
++              } catch {
++                // Reset is best-effort; never block a fresh Comet start.
++              }
 
               if (cancelled) return;
 
