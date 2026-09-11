@@ -600,10 +600,75 @@ const normaliseStream = (
   return null;
 };
 
-const dedupe = (items) => {
-  const seen = new Set();
+const magnetRichness = (value) => {
+  const magnet = clean(value);
 
-  return items.filter((item) => {
+  if (!/^magnet:\?/i.test(magnet)) {
+    return -1;
+  }
+
+  const trackerCount = (magnet.match(/(?:[?&])tr=/gi) || []).length;
+  const hasName = /(?:[?&])dn=/i.test(magnet) ? 1 : 0;
+
+  return trackerCount * 10000 + hasName * 1000 + Math.min(magnet.length, 999);
+};
+
+const richestMagnet = (...values) =>
+  values
+    .map((value) => clean(value))
+    .filter((value) => /^magnet:\?/i.test(value))
+    .sort((a, b) => magnetRichness(b) - magnetRichness(a))[0] || "";
+
+const mergeSameHashSource = (current, incoming, hash) => {
+  const richerMagnet = richestMagnet(
+    current?.richMagnet,
+    current?.magnet,
+    current?.url,
+    current?.src,
+    incoming?.richMagnet,
+    incoming?.magnet,
+    incoming?.url,
+    incoming?.src
+  );
+
+  const addons = Array.from(
+    new Set(
+      [
+        ...(Array.isArray(current?.sourceAddons) ? current.sourceAddons : []),
+        current?.addon,
+        ...(Array.isArray(incoming?.sourceAddons) ? incoming.sourceAddons : []),
+        incoming?.addon,
+      ]
+        .map((value) => clean(value))
+        .filter(Boolean)
+    )
+  );
+
+  return {
+    ...incoming,
+    ...current,
+    infoHash: current?.infoHash || incoming?.infoHash || hash || undefined,
+    richMagnet: richerMagnet || current?.richMagnet || incoming?.richMagnet || undefined,
+    reportedSeeders: Math.max(
+      0,
+      Number(current?.reportedSeeders || 0),
+      Number(incoming?.reportedSeeders || 0)
+    ),
+    cometPlaybackUrl:
+      current?.cometPlaybackUrl || incoming?.cometPlaybackUrl || "",
+    behaviorHints:
+      current?.behaviorHints || incoming?.behaviorHints || undefined,
+    description:
+      current?.description || incoming?.description || undefined,
+    sourceAddons: addons,
+  };
+};
+
+const dedupe = (items) => {
+  const output = [];
+  const indexByKey = new Map();
+
+  for (const item of items || []) {
     const raw = clean(
       item?.magnet ||
         item?.url ||
@@ -624,17 +689,33 @@ const dedupe = (items) => {
               item?.src
           );
 
-    if (
-      !key ||
-      seen.has(key)
-    ) {
-      return false;
+    if (!key) {
+      continue;
     }
 
-    seen.add(key);
+    if (!indexByKey.has(key)) {
+      indexByKey.set(key, output.length);
+      output.push({
+        ...item,
+        ...(hash && /^magnet:\?/i.test(raw)
+          ? { richMagnet: raw }
+          : {}),
+      });
+      continue;
+    }
 
-    return true;
-  });
+    const existingIndex = indexByKey.get(key);
+
+    if (hash && Number.isInteger(existingIndex)) {
+      output[existingIndex] = mergeSameHashSource(
+        output[existingIndex],
+        item,
+        hash
+      );
+    }
+  }
+
+  return output;
 };
 
 const healthCheckAddon = async (addon) => {
