@@ -366,6 +366,7 @@ const normaliseStream = (
       viaRealDebrid: true,
       cacheRequired: true,
       cometUncached: true,
+      cometPlaybackUrl: isHttp(rawUrl) ? rawUrl : "",
     };
   }
 
