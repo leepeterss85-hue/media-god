@@ -1000,8 +1000,7 @@ const looksLikeUkFeed = (channel) => {
     /(?:^|\.)uk(?:@|$)/i.test(id) ||
     group === "uk" ||
     group.includes("united kingdom") ||
-    group.includes("great britain") ||
-    group.includes("sport")
+    group.includes("great britain")
   );
 };
 
@@ -1236,9 +1235,7 @@ const dedupeKey = (channel) => {
     FAST_CHANNEL_CANONICAL_IDS.get(fastAliasName) ||
     FAST_CHANNEL_CANONICAL_IDS.get(decorationFreeName);
   if (fastCanonicalId) {
-    return country
-      ? `fast:${fastCanonicalId}|country:${country}`
-      : `fast:${fastCanonicalId}`;
+    return `fast:${fastCanonicalId}`;
   }
 
   // Samsung TV Plus uses its own opaque channel id for Sky Mix. Canonicalise
