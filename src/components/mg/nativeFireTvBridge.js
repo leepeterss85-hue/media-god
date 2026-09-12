@@ -81,6 +81,26 @@ export const nativeFireTvSelfUpdateAvailable = () => {
   return Boolean(native && typeof native.startUpdate === "function");
 };
 
+export const nativeFireTvExitAvailable = () => {
+  const native = bridge();
+  return Boolean(native && typeof native.exitApp === "function");
+};
+
+export const exitNativeFireTvApp = () => {
+  const native = bridge();
+
+  if (!native || typeof native.exitApp !== "function") {
+    return false;
+  }
+
+  try {
+    const result = native.exitApp();
+    return result !== false && result !== "false" && result !== "error";
+  } catch {
+    return false;
+  }
+};
+
 export const startNativeFireTvUpdate = ({ url, versionName = "" }) => {
   const native = bridge();
   const target = String(url || "").trim();
