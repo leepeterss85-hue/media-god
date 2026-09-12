@@ -57,6 +57,20 @@ const isFireTvControlsRuntime = () => {
   );
 };
 
+const isTouchFirstControlsRuntime = () => {
+  if (typeof navigator === "undefined" || isFireTvControlsRuntime()) {
+    return false;
+  }
+
+  const hasTouch = Number(navigator.maxTouchPoints || 0) > 0;
+  const coarsePointer =
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(pointer: coarse)").matches;
+
+  return hasTouch || coarsePointer;
+};
+
 const formatTime = (seconds) => {
   if (!seconds || !Number.isFinite(Number(seconds))) {
     return "0:00";
@@ -257,23 +271,35 @@ export default function MediaPlayerControls({
   const scheduleHide = (delay = 3000) => {
     clearHideTimer();
 
+    /*
+     * A native <select> commonly keeps DOM focus after its chooser closes on
+     * Android/iOS. Treating that persistent mobile focus like an open menu
+     * pinned the whole player chrome on screen forever. Keyboard/TV runtimes
+     * still keep select focus protective; touch-first runtimes auto-hide.
+     */
+    const selectPinsControls =
+      selectFocusedRef.current && !isTouchFirstControlsRuntime();
+
     if (
       !playingRef.current ||
       seekingRef.current ||
       menuOpenRef.current ||
-      selectFocusedRef.current
+      selectPinsControls
     ) {
       return;
     }
 
     hideTimerRef.current =
       window.setTimeout(() => {
+        const selectStillPinsControls =
+          selectFocusedRef.current && !isTouchFirstControlsRuntime();
+
         if (
           mountedRef.current &&
           playingRef.current &&
           !seekingRef.current &&
           !menuOpenRef.current &&
-          !selectFocusedRef.current
+          !selectStillPinsControls
         ) {
           setShowControls(false);
         }
