@@ -47,9 +47,26 @@ export const recordLiveTvPlaybackResult = (
   const store = readStore();
   const current = store[key] && typeof store[key] === "object" ? store[key] : {};
   const failed = !success && !stalled;
-  const successes = Number(current.successes || 0) + (success ? 1 : 0);
-  const failures = Number(current.failures || 0) + (failed ? 1 : 0);
-  const stalls = Number(current.stalls || 0) + (stalled ? 1 : 0);
+
+  /*
+   * Keep the learning responsive instead of letting months-old failures poison
+   * a URL forever. A successful play actively rehabilitates a source by
+   * reducing its old failure/stall weight and resetting the consecutive-bad
+   * streak. Repeated current failures still push it out of the way quickly.
+   */
+  const successes = Math.min(
+    12,
+    Number(current.successes || 0) + (success ? 1 : 0)
+  );
+  const failures = success
+    ? Math.max(0, Number(current.failures || 0) - 1)
+    : Math.min(12, Number(current.failures || 0) + (failed ? 1 : 0));
+  const stalls = success
+    ? Math.max(0, Number(current.stalls || 0) - 1)
+    : Math.min(12, Number(current.stalls || 0) + (stalled ? 1 : 0));
+  const consecutiveBad = success
+    ? 0
+    : Math.min(12, Number(current.consecutiveBad || 0) + 1);
   const previousAverage = Number(current.avgStartupMs || 0);
   const measuredStartup = Math.max(0, Math.min(60000, Number(startupMs || 0)));
   const avgStartupMs =
@@ -58,16 +75,19 @@ export const recordLiveTvPlaybackResult = (
         ? Math.round(previousAverage * 0.72 + measuredStartup * 0.28)
         : Math.round(measuredStartup)
       : previousAverage;
+  const now = Date.now();
 
   store[key] = {
     successes,
     failures,
     stalls,
+    consecutiveBad,
     avgStartupMs,
-    lastGood: success ? Date.now() : Number(current.lastGood || 0),
-    lastFailure: failed ? Date.now() : Number(current.lastFailure || 0),
-    lastStall: stalled ? Date.now() : Number(current.lastStall || 0),
-    updatedAt: Date.now(),
+    lastGood: success ? now : Number(current.lastGood || 0),
+    lastFailure: failed ? now : Number(current.lastFailure || 0),
+    lastStall: stalled ? now : Number(current.lastStall || 0),
+    lastOutcome: success ? "success" : stalled ? "stall" : "failure",
+    updatedAt: now,
   };
 
   writeStore(store);
@@ -87,9 +107,12 @@ export const liveTvUrlScore = (url) => {
   const stalls = Number(record.stalls || 0);
   const avgStartupMs = Number(record.avgStartupMs || 0);
 
-  score += Math.min(9000, successes * 1300);
-  score -= Math.min(14000, failures * 2600);
-  score -= Math.min(7000, stalls * 1600);
+  const consecutiveBad = Number(record.consecutiveBad || 0);
+
+  score += Math.min(9000, successes * 1100);
+  score -= Math.min(14000, failures * 2400);
+  score -= Math.min(7500, stalls * 1300);
+  score -= Math.min(14000, consecutiveBad * 3500);
 
   if (avgStartupMs > 0) {
     if (avgStartupMs <= 1800) score += 7000;
@@ -100,15 +123,21 @@ export const liveTvUrlScore = (url) => {
   }
 
   if (Number(record.lastGood || 0) > now - 7 * 24 * 60 * 60 * 1000) {
-    score += 2200;
+    score += 3000;
   }
 
-  if (Number(record.lastFailure || 0) > now - 12 * 60 * 60 * 1000) {
-    score -= 5500;
+  const lastFailure = Number(record.lastFailure || 0);
+  if (lastFailure > now - 60 * 60 * 1000) {
+    score -= 7000;
+  } else if (lastFailure > now - 12 * 60 * 60 * 1000) {
+    score -= 2800;
   }
 
-  if (Number(record.lastStall || 0) > now - 6 * 60 * 60 * 1000) {
-    score -= 2600;
+  const lastStall = Number(record.lastStall || 0);
+  if (lastStall > now - 60 * 60 * 1000) {
+    score -= 4200;
+  } else if (lastStall > now - 6 * 60 * 60 * 1000) {
+    score -= 1800;
   }
 
   return score;
@@ -126,12 +155,18 @@ export const liveTvUrlQuarantined = (url) => {
     Number(record.lastFailure || 0),
     Number(record.lastStall || 0)
   );
-  const recentBad = lastBad > Date.now() - 30 * 60 * 1000;
-  const badCount = Number(record.failures || 0) + Number(record.stalls || 0);
+  const consecutiveBad = Number(record.consecutiveBad || 0);
+  const quarantineMs = consecutiveBad >= 4
+    ? 45 * 60 * 1000
+    : consecutiveBad >= 3
+      ? 25 * 60 * 1000
+      : 10 * 60 * 1000;
+  const recentBad = lastBad > Date.now() - quarantineMs;
 
-  // Two or more recent bad outcomes put the URL at the back of the queue for
-  // a short period. A later successful play immediately clears the quarantine.
-  return recentBad && badCount >= 2 && lastBad > lastGood;
+  // Two consecutive current failures are enough to move a URL to the back.
+  // A successful play resets consecutiveBad immediately, so recovered feeds
+  // can promote themselves again without waiting for old history to expire.
+  return recentBad && consecutiveBad >= 2 && lastBad > lastGood;
 };
 
 const ensurePreconnect = (url) => {
