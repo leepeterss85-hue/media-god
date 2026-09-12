@@ -486,9 +486,22 @@ const normaliseStream = (
     };
   }
 
+  const suppliedTrackers = normaliseTrackerList(
+    stream?.announce,
+    stream?.trackers
+  );
+
+  /*
+   * Cached torrents only need their info hash because Real-Debrid already
+   * owns the payload. Uncached torrents are different: addon stream objects
+   * (especially Torrentio/AIO-style results) often provide only infoHash and
+   * fileIdx with no announce list. A bare magnet can therefore be accepted by
+   * RD but sit forever at 0 peers. Enrich every torrent magnet with a current
+   * public tracker set while preserving any trackers the addon supplied.
+   */
   const magnet =
     isMagnet(rawUrl)
-      ? rawUrl
+      ? enrichMagnetWithTrackers(rawUrl, suppliedTrackers)
       : infoHash
         ? magnetFromHash(
             infoHash,
@@ -497,9 +510,10 @@ const normaliseStream = (
               stream?.name ||
               ""
             ),
-            stream?.announce ||
-            stream?.trackers ||
-            []
+            normaliseTrackerList(
+              suppliedTrackers,
+              PUBLIC_FALLBACK_TRACKERS
+            )
           )
         : "";
 
