@@ -838,6 +838,15 @@ export default function VideoPlayer({
       item?.live || item?.type === "live"
         ? liveTvUrlScore(getSourceUrl(item))
         : 0;
+    const liveGeoPenalty =
+      (item?.live || item?.type === "live") && item?.geoRestricted === true
+        ? -120000
+        : 0;
+    const liveRepositoryBonus =
+      item?.live || item?.type === "live"
+        ? Number(item?.sourcePriority || 0) * 30 +
+          Number(item?.quality || 0) * 2
+        : 0;
 
     return (
       compatibility +
@@ -847,7 +856,9 @@ export default function VideoPlayer({
       rdBonus +
       trackerRichBonus +
       swarmBonus +
-      liveBonus
+      liveBonus +
+      liveGeoPenalty +
+      liveRepositoryBonus
     );
   };
 
@@ -914,6 +925,8 @@ export default function VideoPlayer({
 
     const obeySelectorOrder =
       sourceSortMode !== "best";
+    const liveFailover =
+      isLive || sources.some((item) => item?.live || item?.type === "live");
 
     const candidates = sources
       .map((candidate, index) => {
@@ -949,14 +962,23 @@ export default function VideoPlayer({
         };
       })
       .filter(Boolean)
-      .sort((a, b) =>
-        obeySelectorOrder
+      .sort((a, b) => {
+        if (liveFailover) {
+          const aRestricted = sources[a.index]?.geoRestricted === true;
+          const bRestricted = sources[b.index]?.geoRestricted === true;
+
+          if (aRestricted !== bRestricted) {
+            return Number(aRestricted) - Number(bRestricted);
+          }
+        }
+
+        return obeySelectorOrder
           ? a.selectorRank - b.selectorRank ||
             b.score - a.score ||
             a.index - b.index
           : b.score - a.score ||
-            a.index - b.index
-      );
+            a.index - b.index;
+      });
 
     return candidates[0]?.index ?? -1;
   };
