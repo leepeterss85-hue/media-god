@@ -108,14 +108,13 @@ const sourceTorrentHash = (item) =>
  * Torrent resolution has three deliberately separate ownership paths:
  *
  * 1. cached_debrid  - the payload already exists in debrid; resolve/play it.
- * 2. comet_uncached - Comet owns the torrent source/tracker metadata and must
- *                     be the component that asks Real-Debrid to start it.
+ * 2. comet_uncached - Comet discovered the torrent. When Comet's Torrent Mode
+ *                     companion row supplies its Stremio `sources`, Media God
+ *                     submits that exact tracker-rich magnet to Real-Debrid.
+ *                     The Comet playback URL is only a legacy fallback when no
+ *                     torrent-source metadata was returned.
  * 3. rd_magnet      - a normal magnet/info-hash source that Media God may add
  *                     to Real-Debrid itself.
- *
- * Keeping these strategies explicit prevents an uncached Comet row from first
- * being started by Comet and then immediately being re-added by Media God as a
- * second, poorer bare/fallback magnet.
  */
 const sourceResolutionStrategy = (item) => {
   if (!item) return "";
@@ -1852,18 +1851,23 @@ export default function VideoPlayer({
 
             const resolutionStrategy = sourceResolutionStrategy(active);
             const knownUncached = sourceNeedsCaching(active);
+            const torrentTrackers = Array.isArray(active?.torrentTrackers)
+              ? active.torrentTrackers.filter(Boolean)
+              : [];
+            const hasTorrentTrackers = torrentTrackers.length > 0;
 
             /*
-             * Generic magnets are owned by Media God/Real-Debrid, so they may
-             * reuse an existing exact-hash RD job and run slot preflight here.
-             * Comet uncached sources intentionally skip this block: Comet owns
-             * their source/tracker metadata and gets the first and only start
-             * request for that attempt.
+             * Any uncached torrent with usable tracker metadata can be owned by
+             * Media God/Real-Debrid directly. For Comet this is the important
+             * distinction: Torrent Mode exposes the torrent's real Stremio
+             * `sources`, so we can safely submit the exact magnet ourselves
+             * instead of depending on Comet's partially-supported uncached RD
+             * playback path.
              */
             if (
               hash &&
               knownUncached &&
-              resolutionStrategy !== "comet_uncached" &&
+              (resolutionStrategy !== "comet_uncached" || hasTorrentTrackers) &&
               source?.hasRd !== false
             ) {
               /*
@@ -2027,22 +2031,22 @@ export default function VideoPlayer({
             }
 
             /*
-             * COMET UN-CACHED OWNERSHIP
+             * COMET LEGACY FALLBACK
              *
-             * Comet stores the real torrent source list (including trackers
-             * that are not present in the Stremio stream object). Its playback
-             * endpoint is therefore the ONLY component that should start an
-             * uncached Comet result. Media God merely watches the user's RD
-             * account for that exact hash and adopts the torrent once Comet has
-             * created it. We deliberately do not fall through to resolve_best;
-             * doing so creates a second, weaker magnet job and was the source
-             * of the repeated `magnet_error` / three-second source hopping.
+             * Current Comet can expose a direct torrent companion row containing
+             * Stremio `sources`. When those trackers were merged above, skip
+             * this entire block and continue to Media God's own Real-Debrid
+             * resolve_best path below. Only installations that did not return
+             * torrent metadata still need the Comet playback endpoint fallback.
              */
             const cometPlaybackUrl = String(
               active?.cometPlaybackUrl || ""
             ).trim();
 
-            if (resolutionStrategy === "comet_uncached") {
+            if (
+              resolutionStrategy === "comet_uncached" &&
+              !hasTorrentTrackers
+            ) {
               if (
                 !hash ||
                 !/^https?:\/\//i.test(cometPlaybackUrl)
