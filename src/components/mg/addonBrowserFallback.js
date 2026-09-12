@@ -681,6 +681,10 @@ const mergeSameHashSource = (current, incoming, hash) => {
     ...incoming,
     ...current,
     infoHash: current?.infoHash || incoming?.infoHash || hash || undefined,
+    fileIdx:
+      current?.fileIdx ??
+      incoming?.fileIdx ??
+      undefined,
     ...(playbackMagnet
       ? {
           src: playbackMagnet,
