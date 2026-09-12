@@ -2521,21 +2521,51 @@ export default function VideoPlayer({
             if (
               !cancelled
             ) {
-              if (error?.code === "RD_ACTIVE_SLOTS_FULL") {
+              const uncachedActive = Boolean(
+                active?.cacheRequired === true ||
+                  (
+                    active?.debridCacheChecked === true &&
+                    active?.debridCached !== true
+                  )
+              );
+              const terminalRdResolveFailure =
+                uncachedActive &&
+                (
+                  /^RD_TORRENT_(?:MAGNET_ERROR|ERROR|DEAD|VIRUS)$/i.test(
+                    String(error?.code || "")
+                  ) ||
+                  /could not resolve this magnet into an active torrent/i.test(
+                    String(error?.message || "")
+                  )
+                );
+
+              if (
+                error?.code === "RD_ACTIVE_SLOTS_FULL" ||
+                terminalRdResolveFailure
+              ) {
                 /*
-                 * Every uncached torrent shares the same Real-Debrid active
-                 * slot pool. Moving to another torrent cannot solve a full
-                 * pool, so keep the current source selected and show the real
-                 * reason instead of making the cache screen vanish after a few
-                 * seconds and hopping through the list.
+                 * Do not make an uncached cache attempt disappear by hopping
+                 * to another torrent. Slot exhaustion affects every candidate,
+                 * while a terminal magnet error needs the current source's
+                 * Comet/source metadata to be retried or inspected.
                  */
                 setRdResolving(false);
                 setRdPolling(false);
                 setRdTorrentId(null);
-                setRdPreparation(null);
+                setRdPreparation((current) =>
+                  terminalRdResolveFailure
+                    ? {
+                        ...(current || {}),
+                        status: error?.rdStatus || "magnet_error",
+                        updatedAt: Date.now(),
+                      }
+                    : null
+                );
                 setRdError(
                   error?.message ||
-                    "Real-Debrid has no free active torrent slot."
+                    (error?.code === "RD_ACTIVE_SLOTS_FULL"
+                      ? "Real-Debrid has no free active torrent slot."
+                      : "Real-Debrid could not start this uncached torrent.")
                 );
                 return;
               }
