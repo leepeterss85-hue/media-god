@@ -590,6 +590,7 @@ const normaliseStream = (
       viaRealDebrid: true,
       cacheRequired: true,
       cometUncached: true,
+      resolutionStrategy: "comet_uncached",
       cometPlaybackUrl: isHttp(rawUrl) ? rawUrl : "",
     };
   }
@@ -652,6 +653,9 @@ const normaliseStream = (
         stream?.behaviorHints ||
         stream?.behavior_hints ||
         undefined,
+
+      resolutionStrategy:
+        "rd_magnet",
     };
   }
 
@@ -746,6 +750,12 @@ const mergeSameHashSource = (current, incoming, hash) => {
     ),
     cometPlaybackUrl:
       current?.cometPlaybackUrl || incoming?.cometPlaybackUrl || "",
+    cometUncached:
+      current?.cometUncached === true || incoming?.cometUncached === true,
+    resolutionStrategy:
+      current?.cometUncached === true || incoming?.cometUncached === true
+        ? "comet_uncached"
+        : current?.resolutionStrategy || incoming?.resolutionStrategy || undefined,
     behaviorHints:
       current?.behaviorHints || incoming?.behaviorHints || undefined,
     description:
