@@ -2614,6 +2614,28 @@ async function resolveStreamable(
     }
   }
 
+  const terminalTorrentStatus = String(info?.status || "").toLowerCase();
+
+  if (/^(?:magnet_error|error|dead|virus)$/.test(terminalTorrentStatus)) {
+    const statusLabel = terminalTorrentStatus.replace(/_/g, " ");
+
+    return {
+      error:
+        terminalTorrentStatus === "magnet_error"
+          ? "Real-Debrid could not resolve this magnet into an active torrent."
+          : `Real-Debrid stopped this torrent with status: ${statusLabel}.`,
+      error_code:
+        `RD_TORRENT_${terminalTorrentStatus.toUpperCase()}`,
+      rd_status:
+        terminalTorrentStatus,
+      filename:
+        info?.filename || "",
+      files: [],
+      torrent_progress:
+        buildTorrentProgress(info),
+    };
+  }
+
   const allFiles =
     Array.isArray(
       info.files
