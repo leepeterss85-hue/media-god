@@ -2266,9 +2266,17 @@ export function PlayerProvider({
           const cachedAlternativeExists = orderedSources.some(
             (item, index) => index !== lockedIndex && item?.debridCached === true
           );
+          const bestLanguageRank = orderedSources[0]
+            ? sourceLanguageRank(orderedSources[0])
+            : 99;
+          const lockedLanguageRank = lockedItem
+            ? sourceLanguageRank(lockedItem)
+            : 99;
+          const languageWouldRegress = lockedLanguageRank > bestLanguageRank;
 
           if (
             lockedIndex > 0 &&
+            !languageWouldRegress &&
             !(lockedIsKnownUncachedMagnet && cachedAlternativeExists)
           ) {
             const [locked] = orderedSources.splice(lockedIndex, 1);
