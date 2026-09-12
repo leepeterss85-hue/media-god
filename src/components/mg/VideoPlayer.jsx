@@ -105,7 +105,7 @@ const sourceTorrentHash = (item) =>
   );
 
 const FAILED_TORRENT_HASHES_KEY =
-  "mg:failed-uncached-torrent-hashes:v3";
+  "mg:failed-uncached-torrent-hashes:v4";
 const FAILED_TORRENT_HASH_TTL_MS =
   2 * 60 * 60 * 1000;
 const FAILED_TORRENT_HASH_LIMIT = 80;
@@ -1817,8 +1817,7 @@ export default function VideoPlayer({
             if (
               hash &&
               knownUncached &&
-              source?.hasRd !== false &&
-              active?.cometUncached !== true
+              source?.hasRd !== false
             ) {
               /*
                * Before checking whether RD has a free download slot, look for
@@ -1996,6 +1995,7 @@ export default function VideoPlayer({
             ).trim();
 
             if (
+              false &&
               active?.cacheRequired === true &&
               active?.cometUncached === true &&
               hash &&
@@ -3011,6 +3011,10 @@ export default function VideoPlayer({
       const activeHash = sourceTorrentHash(active);
 
       if (
+        rdResolving ||
+        rdPolling ||
+        rdTorrentId ||
+        rdPreparation ||
         !activeHash ||
         !failedTorrentHashesRef.current.has(activeHash)
       ) {
@@ -4000,7 +4004,8 @@ export default function VideoPlayer({
         document.visibilityState === "hidden" ||
         rdResolving ||
         rdPolling ||
-        rdTorrentId
+        rdTorrentId ||
+        rdPreparation
       ) {
         state.lastProgressAt = Date.now();
         return;
@@ -5093,6 +5098,7 @@ export default function VideoPlayer({
       rdResolving ||
       rdPolling ||
       rdTorrentId ||
+      rdPreparation ||
       sources.length <= 1 ||
       readPlaybackPreferences().autoRecovery === false
     ) {
