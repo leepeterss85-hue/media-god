@@ -307,6 +307,9 @@ const friendlyRdStatus = (value) => {
   const status = String(value || "").trim().toLowerCase();
   const labels = {
     magnet_conversion: "Reading magnet",
+    comet_starting: "Starting in Comet",
+    comet_start_failed: "Comet could not start torrent",
+    stalled: "Waiting for peers",
     waiting_files_selection: "Selecting files",
     waiting_selection: "Queued",
     queued: "Queued",
