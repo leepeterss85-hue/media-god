@@ -571,6 +571,111 @@ export const PUBLIC_DIRECT_CHANNELS = [
     officialUrl: "https://www.itv.com/watch?channel=itvbe",
     kind: "external",
   },
+  {
+    id: "PlutoTVBiography.uk@Verified",
+    tvgId: "PlutoTVBiography.uk",
+    name: "Pluto TV Biography",
+    logo: "https://i.imgur.com/MwuIHbX.png",
+    url: "https://service-stitcher.clusters.pluto.tv/v1/stitch/embed/hls/channel/5d4af2a24f1c5ab2d298776b/master.m3u8?advertisingId=channel&appName=rokuchannel&appVersion=1.0&bmodel=bm1&channel_id=channel&content=channel&content_rating=ROKU_ADS_CONTENT_RATING&content_type=livefeed&coppa=false&deviceDNT=1&deviceId=channel&deviceMake=rokuChannel&deviceModel=web&deviceType=rokuChannel&deviceVersion=1.0&embedPartner=rokuChannel&genre=ROKU_CONTENT_TAGS&is_lat=1&platform=web&rdid=channel&studio_id=viacom&tags=ROKU_CONTENT_TAGS",
+    category: "Documentary",
+    country: "GB",
+    priority: 108,
+    sourceName: "Pluto TV UK",
+    kind: "direct",
+  },
+  {
+    id: "V2BEATTV.uk@Verified",
+    tvgId: "V2BEATTV.uk",
+    name: "V2BEAT TV",
+    logo: "https://i.imgur.com/PXGqyLn.png",
+    url: "https://abr.de1se01.v2beat.live/playlist.m3u8",
+    category: "Music",
+    country: "GB",
+    priority: 108,
+    sourceName: "V2BEAT Public",
+    kind: "direct",
+  },
+  {
+    id: "AfrobeatTVEntertainment.uk@Verified",
+    tvgId: "AfrobeatTVEntertainment.uk",
+    name: "Afrobeat TV Entertainment",
+    logo: "https://i.imgur.com/232ndRK.png",
+    url: "https://stream.ecable.tv/afrobeats/index.m3u8",
+    category: "Music",
+    country: "GB",
+    priority: 108,
+    sourceName: "Afrobeat TV Public",
+    kind: "direct",
+  },
+  {
+    id: "DunyaNewsUK.uk@Verified",
+    tvgId: "DunyaNewsUK.uk",
+    name: "Dunya News UK",
+    logo: "https://i.imgur.com/dtrTfZC.png",
+    url: "https://ukintl.dunyanews.tv/liveuk/ngrp:dunyalive_all/playlist.m3u8",
+    category: "News",
+    country: "GB",
+    priority: 108,
+    sourceName: "Dunya News Public",
+    kind: "direct",
+  },
+  {
+    id: "PlutoTVRetroDrama.uk@Verified",
+    tvgId: "PlutoTVRetroDrama.uk",
+    name: "Pluto TV Retro Drama",
+    logo: "https://i.imgur.com/a2xIDMJ.png",
+    url: "https://service-stitcher.clusters.pluto.tv/stitch/hls/channel/5dde47b63585b500099f74ec/master.m3u8?advertisingId=&appName=web&appStoreUrl=&appVersion=DNT&app_name=&architecture=&buildVersion=&deviceDNT=1&deviceId=5dde47b63585b500099f74ec&deviceLat=&deviceLon=&deviceMake=web&deviceModel=web&deviceType=web&deviceVersion=DNT&includeExtendedEvents=false&marketingRegion=DE&serverSideAds=false&sid=5204e9ec-0585-11eb-a18c-0242ac110002&terminate=false&userId=",
+    category: "Entertainment",
+    country: "GB",
+    priority: 108,
+    sourceName: "Pluto TV UK",
+    kind: "direct",
+  },
+  {
+    id: "PlutoTVSports.uk@Verified",
+    tvgId: "PlutoTVSports.uk",
+    name: "Pluto TV Sports",
+    logo: "https://i.imgur.com/LW77x7g.png",
+    url: "https://service-stitcher.clusters.pluto.tv/stitch/hls/channel/56340779a738201b4ccfeac9/master.m3u8?advertisingId=&appName=web&appStoreUrl=&appVersion=DNT&app_name=&architecture=&buildVersion=&deviceDNT=0&deviceId=56340779a738201b4ccfeac9&deviceLat=&deviceLon=&deviceMake=web&deviceModel=web&deviceType=web&deviceVersion=DNT&includeExtendedEvents=false&marketingRegion=US&serverSideAds=false&sid=725&terminate=false&userId=",
+    category: "Sports",
+    country: "GB",
+    priority: 108,
+    sourceName: "Pluto TV UK",
+    kind: "direct",
+  },
+  {
+    id: "MyZenFit.uk@Verified",
+    tvgId: "MyZenFit.uk",
+    name: "MyZen Fit",
+    url: "https://amg01255-secomcofites-my-myzen-en-rakuten-cyxqh.amagi.tv/hls/amagi_hls_data_rakutenAA-myzen-en-rakuten/CDN/master.m3u8",
+    category: "Lifestyle",
+    country: "GB",
+    priority: 107,
+    sourceName: "Rakuten TV UK",
+    kind: "direct",
+  },
+  {
+    id: "Timeline.uk@Verified",
+    tvgId: "Timeline.uk",
+    name: "Timeline",
+    url: "https://lds-timeline-rakuten.amagi.tv/hls/amagi_hls_data_rakutenAA-lds-timeline-rakuten/CDN/master.m3u8",
+    category: "Documentary",
+    country: "GB",
+    priority: 107,
+    sourceName: "Rakuten TV UK",
+    kind: "direct",
+  },
+  {
+    id: "AbsintheTV.uk@Verified",
+    tvgId: "AbsintheTV.uk",
+    name: "AbsintheTV",
+    url: "https://d46c0ebf9ef94053848fdd7b1f2f6b90.mediatailor.eu-central-1.amazonaws.com/v1/master/81bfcafb76f9c947b24574657a9ce7fe14ad75c0/live-prod/edcf9a03-80c0-11eb-908d-533d39655269/0/master.m3u8?uid=%7BPSID%7D&optout=%7BTARGETOPT%7D&country=GB&vendor=samsung&ads%3Aapp_domain=%7BAPP_DOMAIN%7D&ads%3Aapp_name=%7BAPP_NAME%7D&coppa=1&ads%3Atcf=%7BTC_STRING%7D",
+    category: "Sports",
+    country: "GB",
+    priority: 107,
+    sourceName: "Samsung TV Plus UK",
+    kind: "direct",
+  },
 ];
 
 export function clearFreeTvCache() {
@@ -931,6 +1036,27 @@ const parseExtHttp = (line) => {
   }
 };
 
+const extInfNameSeparator = (line) => {
+  const value = String(line || "");
+  let quoted = false;
+  let separator = -1;
+
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index];
+
+    if (character === '"') {
+      quoted = !quoted;
+      continue;
+    }
+
+    if (character === "," && !quoted) {
+      separator = index;
+    }
+  }
+
+  return separator;
+};
+
 export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
   const lines = String(text || "").split(/\r?\n/);
   const channels = [];
@@ -941,7 +1067,7 @@ export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
     if (!line) continue;
 
     if (line.startsWith("#EXTINF")) {
-      const comma = line.indexOf(",");
+      const comma = extInfNameSeparator(line);
       const rawName = comma >= 0 ? line.slice(comma + 1).trim() : attr(line, "tvg-name") || "Unknown";
       const name = cleanChannelName(rawName) || "Unknown";
       const logo = attr(line, "tvg-logo");
@@ -1250,6 +1376,49 @@ export async function getFreeTvChannels(options = {}) {
           error: null,
         });
       }
+    }
+
+    /*
+     * Keep a small curated set of direct public streams alongside the remote
+     * repositories. External broadcaster web pages remain available in the
+     * Sources screen, but are not inserted as fake video streams here. Each
+     * direct entry is passed through the same parser/scoring/deduplication path
+     * as an ordinary M3U channel so it can merge cleanly with future mirrors.
+     */
+    for (const directChannel of PUBLIC_DIRECT_CHANNELS.filter(
+      (channel) => channel?.kind !== "external" && /^https?:\/\//i.test(String(channel?.url || ""))
+    )) {
+      const directSource = {
+        id: `direct-${directChannel.id}`,
+        name: directChannel.sourceName || "Verified public stream",
+        priority: Number(directChannel.priority || 100),
+        category: directChannel.category || "United Kingdom",
+        country: directChannel.country || "GB",
+      };
+      const playlist = [
+        "#EXTM3U",
+        `#EXTINF:-1 tvg-id="${directChannel.tvgId || directChannel.id || ""}" tvg-logo="${directChannel.logo || ""}" tvg-country="${directChannel.country || "GB"}" group-title="${directChannel.category || "United Kingdom"}",${directChannel.name || "Live TV"}`,
+        directChannel.url,
+      ].join("\n");
+      const parsed = parseFreeTvPlaylist(playlist, directSource);
+
+      rawCount += parsed.length;
+      for (const channel of parsed) {
+        if (channel?.browserPlayable === false) browserRejectedCount += 1;
+        rawChannels.push(channel);
+      }
+
+      sourceStatus.push({
+        id: directSource.id,
+        name: directSource.name,
+        category: directSource.category,
+        priority: directSource.priority,
+        count: parsed.length,
+        latencyMs: 0,
+        bytes: 0,
+        direct: true,
+        error: null,
+      });
     }
 
     /*
