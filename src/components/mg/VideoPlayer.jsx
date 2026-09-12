@@ -2565,25 +2565,27 @@ export default function VideoPlayer({
             /(?:[?&])tr=/i.test(activeOriginalTrackerMagnet);
 
           /*
-           * Probe uncached torrents quickly. Comet's reported seeder count is
-           * useful for ordering, but it is not proof that Real-Debrid can see
-           * those peers. A genuine addon-supplied tracker magnet gets a little
-           * longer to establish; a fallback-only hash is abandoned quickly.
-           * Once a torrent has made progress, retain the 45-second flatline
-           * window so brief pauses do not throw away a healthy download.
+           * Real-Debrid can keep reporting a non-zero seeder count/speed even
+           * when the torrent percentage has stopped moving. The RD website can
+           * therefore show (for example) 13 seeders and ~200 KB/s while the
+           * exact same percentage sits there for minutes. Seeder/speed numbers
+           * are useful diagnostics, but actual progress is the authority.
+           *
+           * Give a fresh torrent time to establish, then fail it if the RD
+           * percentage does not advance. A partial torrent gets a longer
+           * flatline window so short swarm pauses do not throw away a healthy
+           * download.
            */
           const stallAfterMs =
             latestProgress <= 0.001
               ? hasOriginalTrackerMagnet
-                ? 60000
-                : 30000
-              : 45000;
+                ? 75000
+                : 45000
+              : 90000;
 
           const looksCompletelyStalled =
             latestProgress < 100 &&
-            noProgressForMs >= stallAfterMs &&
-            latestSeeders <= 0 &&
-            latestSpeed <= 0;
+            noProgressForMs >= stallAfterMs;
 
           if (looksCompletelyStalled) {
             const nextSource = findNextPlayableSource(activeIdx);
@@ -2614,7 +2616,7 @@ export default function VideoPlayer({
                     : sourceReportedSeeders > 0
                       ? "Comet reported seeders, but Real-Debrid still had no peer activity after about 30 seconds. Trying another torrent."
                       : "Real-Debrid showed no peer activity after about 30 seconds. Trying another torrent."
-                  : "Real-Debrid made no further progress and reported no active peers or download speed for about 45 seconds. Trying another source.",
+                  : `Real-Debrid stayed at ${latestProgress.toFixed(2)}% without any real progress for about 90 seconds${latestSeeders > 0 || latestSpeed > 0 ? ", despite still reporting peer/speed activity" : ""}. Trying another source.`,
                 {
                   blacklistTorrentHash: true,
                   immediate: true,
