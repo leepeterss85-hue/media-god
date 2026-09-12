@@ -532,6 +532,196 @@ body.mg-fire-tv-stable [data-mg-tv-show-card="true"] {
   scroll-margin: 76px 12px 24px !important;
 }
 
+/* Live TV on Fire Stick. Keep the new category row compact, keep Search
+ * permanently visible near the top of the page, and fit enough channels on a
+ * 960x540 Fire TV viewport that D-pad navigation does not feel like a mobile
+ * layout stretched onto a television. */
+body.mg-fire-tv [data-mg-live-tv-view="true"],
+body.mg-fire-tv-mode [data-mg-live-tv-view="true"],
+body.mg-fire-tv-stable [data-mg-live-tv-view="true"] {
+  padding: 12px 14px 18px !important;
+}
+
+body.mg-fire-tv [data-mg-live-tv-header="true"],
+body.mg-fire-tv-mode [data-mg-live-tv-header="true"],
+body.mg-fire-tv-stable [data-mg-live-tv-header="true"] {
+  margin-bottom: 9px !important;
+  gap: 8px !important;
+  align-items: center !important;
+  flex-direction: row !important;
+  justify-content: space-between !important;
+}
+
+body.mg-fire-tv [data-mg-live-tv-header="true"] h1,
+body.mg-fire-tv-mode [data-mg-live-tv-header="true"] h1,
+body.mg-fire-tv-stable [data-mg-live-tv-header="true"] h1 {
+  font-size: 19px !important;
+  line-height: 1.1 !important;
+}
+
+body.mg-fire-tv [data-mg-live-tv-header="true"] p,
+body.mg-fire-tv-mode [data-mg-live-tv-header="true"] p,
+body.mg-fire-tv-stable [data-mg-live-tv-header="true"] p,
+body.mg-fire-tv [data-mg-live-tv-regional-note="true"],
+body.mg-fire-tv-mode [data-mg-live-tv-regional-note="true"],
+body.mg-fire-tv-stable [data-mg-live-tv-regional-note="true"],
+body.mg-fire-tv [data-mg-live-tv-quick-section="true"],
+body.mg-fire-tv-mode [data-mg-live-tv-quick-section="true"],
+body.mg-fire-tv-stable [data-mg-live-tv-quick-section="true"] {
+  display: none !important;
+}
+
+body.mg-fire-tv [data-mg-live-tv-header="true"] button,
+body.mg-fire-tv-mode [data-mg-live-tv-header="true"] button,
+body.mg-fire-tv-stable [data-mg-live-tv-header="true"] button {
+  min-height: 34px !important;
+  height: 34px !important;
+  padding: 4px 10px !important;
+  font-size: 10.5px !important;
+}
+
+body.mg-fire-tv [data-mg-live-tv-category-row="true"],
+body.mg-fire-tv-mode [data-mg-live-tv-category-row="true"],
+body.mg-fire-tv-stable [data-mg-live-tv-category-row="true"] {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 6px !important;
+  margin-bottom: 7px !important;
+}
+
+body.mg-fire-tv [data-mg-live-tv-category-row="true"] button,
+body.mg-fire-tv-mode [data-mg-live-tv-category-row="true"] button,
+body.mg-fire-tv-stable [data-mg-live-tv-category-row="true"] button {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 34px !important;
+  height: 34px !important;
+  padding: 3px 7px !important;
+  font-size: 10px !important;
+  justify-content: center !important;
+}
+
+body.mg-fire-tv [data-mg-live-tv-category-row="true"] button > span:last-child,
+body.mg-fire-tv-mode [data-mg-live-tv-category-row="true"] button > span:last-child,
+body.mg-fire-tv-stable [data-mg-live-tv-category-row="true"] button > span:last-child {
+  display: none !important;
+}
+
+body.mg-fire-tv [data-mg-live-tv-category-row="true"] svg,
+body.mg-fire-tv-mode [data-mg-live-tv-category-row="true"] svg,
+body.mg-fire-tv-stable [data-mg-live-tv-category-row="true"] svg {
+  width: 13px !important;
+  height: 13px !important;
+}
+
+body.mg-fire-tv [data-mg-live-tv-controls="true"],
+body.mg-fire-tv-mode [data-mg-live-tv-controls="true"],
+body.mg-fire-tv-stable [data-mg-live-tv-controls="true"] {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 6px !important;
+  align-items: center !important;
+  margin-bottom: 8px !important;
+}
+
+body.mg-fire-tv [data-mg-live-tv-search="true"],
+body.mg-fire-tv-mode [data-mg-live-tv-search="true"],
+body.mg-fire-tv-stable [data-mg-live-tv-search="true"] {
+  grid-column: 1 / -1 !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+body.mg-fire-tv [data-mg-live-tv-controls="true"] > *,
+body.mg-fire-tv-mode [data-mg-live-tv-controls="true"] > *,
+body.mg-fire-tv-stable [data-mg-live-tv-controls="true"] > * {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+}
+
+body.mg-fire-tv [data-mg-live-tv-controls="true"] input,
+body.mg-fire-tv [data-mg-live-tv-controls="true"] select,
+body.mg-fire-tv [data-mg-live-tv-controls="true"] > button,
+body.mg-fire-tv [data-mg-live-tv-controls="true"] > div,
+body.mg-fire-tv-mode [data-mg-live-tv-controls="true"] input,
+body.mg-fire-tv-mode [data-mg-live-tv-controls="true"] select,
+body.mg-fire-tv-mode [data-mg-live-tv-controls="true"] > button,
+body.mg-fire-tv-mode [data-mg-live-tv-controls="true"] > div,
+body.mg-fire-tv-stable [data-mg-live-tv-controls="true"] input,
+body.mg-fire-tv-stable [data-mg-live-tv-controls="true"] select,
+body.mg-fire-tv-stable [data-mg-live-tv-controls="true"] > button,
+body.mg-fire-tv-stable [data-mg-live-tv-controls="true"] > div {
+  min-height: 36px !important;
+  height: 36px !important;
+  font-size: 10.5px !important;
+}
+
+body.mg-fire-tv [data-mg-live-tv-controls="true"] select,
+body.mg-fire-tv-mode [data-mg-live-tv-controls="true"] select,
+body.mg-fire-tv-stable [data-mg-live-tv-controls="true"] select {
+  padding-left: 8px !important;
+  padding-right: 20px !important;
+  text-overflow: ellipsis !important;
+}
+
+body.mg-fire-tv [data-mg-live-tv-controls="true"] input:focus-visible,
+body.mg-fire-tv [data-mg-live-tv-controls="true"] select:focus-visible,
+body.mg-fire-tv [data-mg-live-tv-controls="true"] button:focus-visible,
+body.mg-fire-tv [data-mg-live-tv-category-row="true"] button:focus-visible,
+body.mg-fire-tv-mode [data-mg-live-tv-controls="true"] input:focus-visible,
+body.mg-fire-tv-mode [data-mg-live-tv-controls="true"] select:focus-visible,
+body.mg-fire-tv-mode [data-mg-live-tv-controls="true"] button:focus-visible,
+body.mg-fire-tv-mode [data-mg-live-tv-category-row="true"] button:focus-visible,
+body.mg-fire-tv-stable [data-mg-live-tv-controls="true"] input:focus-visible,
+body.mg-fire-tv-stable [data-mg-live-tv-controls="true"] select:focus-visible,
+body.mg-fire-tv-stable [data-mg-live-tv-controls="true"] button:focus-visible,
+body.mg-fire-tv-stable [data-mg-live-tv-category-row="true"] button:focus-visible {
+  outline: 3px solid hsl(var(--mg-green)) !important;
+  outline-offset: 2px !important;
+  border-color: hsl(var(--mg-green)) !important;
+}
+
+body.mg-fire-tv [data-mg-live-tv-grid="true"],
+body.mg-fire-tv-mode [data-mg-live-tv-grid="true"],
+body.mg-fire-tv-stable [data-mg-live-tv-grid="true"] {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+}
+
+body.mg-fire-tv [data-mg-live-tv-card="true"],
+body.mg-fire-tv-mode [data-mg-live-tv-card="true"],
+body.mg-fire-tv-stable [data-mg-live-tv-card="true"] {
+  min-height: 98px !important;
+  scroll-margin: 70px 12px 18px !important;
+}
+
+body.mg-fire-tv .mg-live-tv-channel-button,
+body.mg-fire-tv-mode .mg-live-tv-channel-button,
+body.mg-fire-tv-stable .mg-live-tv-channel-button {
+  min-height: 98px !important;
+  padding: 9px 36px 9px 9px !important;
+  gap: 8px !important;
+  border-radius: 9px !important;
+}
+
+body.mg-fire-tv .mg-live-tv-channel-button > div:first-child,
+body.mg-fire-tv-mode .mg-live-tv-channel-button > div:first-child,
+body.mg-fire-tv-stable .mg-live-tv-channel-button > div:first-child {
+  width: 44px !important;
+  height: 44px !important;
+}
+
+body.mg-fire-tv [data-mg-live-tv-card="true"] > button:last-child,
+body.mg-fire-tv-mode [data-mg-live-tv-card="true"] > button:last-child,
+body.mg-fire-tv-stable [data-mg-live-tv-card="true"] > button:last-child {
+  width: 27px !important;
+  height: 27px !important;
+  right: 6px !important;
+  top: 6px !important;
+}
+
 body.mg-fire-tv [data-mg-tv-row="true"],
 body.mg-fire-tv-mode [data-mg-tv-row="true"],
 body.mg-fire-tv-stable [data-mg-tv-row="true"] {
