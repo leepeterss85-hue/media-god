@@ -2012,7 +2012,11 @@ export default function VideoPlayer({
                 ...(current || {}),
                 status: current?.status || "magnet_conversion",
                 progress: Number(current?.progress || 0),
-                seeders: Number(current?.seeders || 0),
+                seeders: Number(
+                  current?.seeders ||
+                    active?.reportedSeeders ||
+                    0
+                ),
                 speed_bps: Number(current?.speed_bps || 0),
                 startedAt: current?.startedAt || Date.now(),
                 updatedAt: Date.now(),
