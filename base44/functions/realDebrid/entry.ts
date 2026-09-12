@@ -513,7 +513,7 @@ export default async function (req) {
                 Date.now() - Date.parse(String(torrent?.added || "")) || 0
               );
               const stalled =
-                /^(?:magnet_conversion|queued|downloading)$/i.test(
+                /^(?:magnet_conversion|waiting_files_selection|waiting_selection|queued|downloading)$/i.test(
                   String(torrent?.status || "")
                 ) &&
                 progress < 100 &&
@@ -668,7 +668,7 @@ export default async function (req) {
         Number(match?.speed || 0) <= 0 &&
         Number(match?.seeders || 0) <= 0;
       const stalled =
-        /^(?:magnet_conversion|queued|downloading)$/i.test(
+        /^(?:magnet_conversion|waiting_files_selection|waiting_selection|queued|downloading)$/i.test(
           String(match?.status || "")
         ) &&
         progress < 100 &&
@@ -2500,8 +2500,9 @@ async function resolveStreamable(
    * requested/main video file instead of every file in the torrent.
    */
   if (
-    info.status ===
-    "waiting_files_selection"
+    /^(?:waiting_files_selection|waiting_selection)$/i.test(
+      String(info.status || "")
+    )
   ) {
     const selectionTarget =
       chooseRequestedTorrentFile(
@@ -2509,7 +2510,7 @@ async function resolveStreamable(
         ep
       );
 
-    if (!selectionTarget?.id) {
+    if (selectionTarget?.id == null) {
       return {
         error:
           "Real-Debrid exposed the torrent files, but Media God could not identify a playable video file to select.",
@@ -2574,6 +2575,37 @@ async function resolveStreamable(
     ) {
       info =
         await retryRes.json();
+
+      /*
+       * RD can acknowledge selectFiles before the torrent row leaves its
+       * waiting-selection state. Give it a brief moment and verify once more
+       * so Media God does not hand the frontend a torrent that still needs the
+       * user to press "choose files" on the Real-Debrid website.
+       */
+      if (
+        /^(?:waiting_files_selection|waiting_selection)$/i.test(
+          String(info?.status || "")
+        )
+      ) {
+        await sleep(350);
+
+        const verifyRes =
+          await rdFetch(
+            infoUrl,
+            {
+              headers:
+                authHeaders,
+            },
+            {
+              attempts: 2,
+            }
+          );
+
+        if (verifyRes.ok) {
+          info =
+            await verifyRes.json();
+        }
+      }
     }
   }
 
