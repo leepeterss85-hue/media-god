@@ -667,15 +667,22 @@ export default async function (req) {
       const hasNoActivity =
         Number(match?.speed || 0) <= 0 &&
         Number(match?.seeders || 0) <= 0;
+      const currentStatus = String(match?.status || "").toLowerCase();
+      const terminalFailure =
+        /^(?:magnet_error|error|dead|virus)$/.test(currentStatus);
       const stalled =
         /^(?:magnet_conversion|waiting_files_selection|waiting_selection|queued|downloading)$/i.test(
-          String(match?.status || "")
+          currentStatus
         ) &&
         progress < 100 &&
         hasNoActivity &&
         ageMs >= 10 * 60_000;
+      const explicitPlaybackReset = body.claim_for_playback === true;
+      const resettable =
+        stalled ||
+        (explicitPlaybackReset && terminalFailure);
 
-      if (!stalled) {
+      if (!resettable) {
         return Response.json({
           status: "kept",
           cleared: false,
@@ -700,8 +707,6 @@ export default async function (req) {
       } catch {
         ownedByMediaGod = false;
       }
-
-      const explicitPlaybackReset = body.claim_for_playback === true;
 
       if (!ownedByMediaGod && !explicitPlaybackReset) {
         return Response.json({
