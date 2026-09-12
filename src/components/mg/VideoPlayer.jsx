@@ -3117,6 +3117,39 @@ export default function VideoPlayer({
             noProgressForMs >= stallAfterMs;
 
           if (looksCompletelyStalled) {
+            if (sourceNeedsCaching(active)) {
+              /*
+               * Do not delete or auto-switch an uncached torrent just because
+               * its swarm has been quiet. The RD job may still recover and the
+               * user explicitly chose this source. Stop active polling, keep
+               * the last progress/seeder diagnostics visible, and let Retry or
+               * manual source selection decide the next action.
+               */
+              setRdPolling(false);
+              setRdTorrentId(null);
+              setRdPreparation((current) => ({
+                ...(current || {}),
+                status: "stalled",
+                progress: latestProgress,
+                seeders: latestSeeders,
+                speed_bps: latestSpeed,
+                updatedAt: Date.now(),
+                attempts,
+              }));
+              setRdError(
+                latestProgress <= 0.001
+                  ? hasReportedPeerActivity
+                    ? "Real-Debrid has reported peer activity but the download percentage has not moved for about 10 minutes. The torrent has been left in Real-Debrid; Retry to reconnect or choose another source manually."
+                    : sourceReportedSeeders > 0
+                      ? "The addon reported seeders, but Real-Debrid has found no live peer activity for several minutes. The torrent has been left in Real-Debrid; Retry or choose another source manually."
+                      : "Real-Debrid has found no live peer activity for this torrent for several minutes. The torrent has been left in Real-Debrid; Retry or choose another source manually."
+                  : hasReportedPeerActivity
+                    ? `Real-Debrid has remained at ${latestProgress.toFixed(2)}% for about 10 minutes despite peer activity. The torrent has been left in Real-Debrid; Retry to reconnect or choose another source manually.`
+                    : `Real-Debrid has remained at ${latestProgress.toFixed(2)}% with no peer activity for several minutes. The torrent has been left in Real-Debrid; Retry or choose another source manually.`
+              );
+              return;
+            }
+
             const nextSource = findNextPlayableSource(activeIdx);
 
             if (nextSource !== -1) {
@@ -3149,7 +3182,7 @@ export default function VideoPlayer({
                         : "Real-Debrid found no peer activity after about 2 minutes. Trying another torrent."
                   : hasReportedPeerActivity
                     ? `Real-Debrid stayed at ${latestProgress.toFixed(2)}% for about 10 minutes despite continuing to report peer/speed activity. Trying another source.`
-                    : `Real-Debrid stayed at ${latestProgress.toFixed(2)}% with no peer activity for about 3 minutes. Trying another source.`, 
+                    : `Real-Debrid stayed at ${latestProgress.toFixed(2)}% with no peer activity for about 3 minutes. Trying another source.`,
                 {
                   blacklistTorrentHash: true,
                   immediate: true,
