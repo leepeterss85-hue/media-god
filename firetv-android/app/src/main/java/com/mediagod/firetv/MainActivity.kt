@@ -357,6 +357,19 @@ class MainActivity : Activity() {
             }
 
         @JavascriptInterface
+        fun exitApp(): Boolean {
+            runOnUiThread {
+                try {
+                    finishAndRemoveTask()
+                } catch (_: Throwable) {
+                    finishAffinity()
+                }
+            }
+
+            return true
+        }
+
+        @JavascriptInterface
         fun play(payloadJson: String): String {
             val payload = try {
                 JSONObject(payloadJson)
