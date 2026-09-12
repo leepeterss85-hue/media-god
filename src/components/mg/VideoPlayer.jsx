@@ -1834,69 +1834,32 @@ export default function VideoPlayer({
             }
 
             /*
-             * Prefer a tracker-bearing uncached torrent before attempting a
-             * bare Comet hash. The selector ordering already reflects the
-             * user's quality choice, so take the first richer uncached entry
-             * from that same order. This avoids spending a long startup grace
-             * period on a weak hash when a better magnet is already present.
+             * Do not silently replace one uncached torrent with another before
+             * trying it. The active source has already been enriched with every
+             * tracker Media God knows about. If it cannot start, keep it selected
+             * and show the real error so the user can Retry or manually choose a
+             * different torrent.
              */
-            if (
-              active?.cacheRequired === true &&
-              active?.cometUncached !== true &&
-              !effectiveMagnetHasTrackers
-            ) {
-              const richerEntry = sortedSourceEntries.find((entry) => {
-                const candidate = entry?.item || {};
-                const candidateIndex = Number(entry?.index ?? -1);
-
-                if (
-                  candidateIndex < 0 ||
-                  candidateIndex === activeIdx ||
-                  failedSourcesRef.current.has(candidateIndex) ||
-                  candidate?.cacheRequired !== true
-                ) {
-                  return false;
-                }
-
-                const raw = String(candidate?.richMagnet || "").trim();
-                return /^magnet:/i.test(raw) && /(?:[?&])tr=/i.test(raw);
-              });
-
-              if (richerEntry?.index != null) {
-                markSourceFailed(activeIdx);
-                switchToSource(Number(richerEntry.index), {
-                  preservePosition: true,
-                  statusMessage:
-                    "Using a tracker-rich uncached torrent for better Real-Debrid peer discovery…",
-                });
-                return;
-              }
-            }
 
             const explicitProvider = String(active?.debridProvider || "")
               .toLowerCase()
               .replace(/[^a-z]/g, "");
             let debridProviders = explicitProvider ? [explicitProvider] : [];
 
-            /*
-             * Do the active-download preflight for EVERY source we know is
-             * uncached, not only Comet RD⬇ rows. Torrentio/AIO and other
-             * Stremio-compatible addons can return ordinary info-hash magnets
-             * that are uncached too. If old Media God jobs have filled RD's
-             * active torrent slots, cached playback still works while every
-             * new torrent appears mysteriously stuck/queued.
-             */
-            const knownUncached = Boolean(
-              active?.cacheRequired === true ||
-                (
-                  active?.debridCacheChecked === true &&
-                  active?.debridCached !== true
-                )
-            );
+            const resolutionStrategy = sourceResolutionStrategy(active);
+            const knownUncached = sourceNeedsCaching(active);
 
+            /*
+             * Generic magnets are owned by Media God/Real-Debrid, so they may
+             * reuse an existing exact-hash RD job and run slot preflight here.
+             * Comet uncached sources intentionally skip this block: Comet owns
+             * their source/tracker metadata and gets the first and only start
+             * request for that attempt.
+             */
             if (
               hash &&
               knownUncached &&
+              resolutionStrategy !== "comet_uncached" &&
               source?.hasRd !== false
             ) {
               /*
