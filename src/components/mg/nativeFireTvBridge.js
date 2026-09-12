@@ -7,14 +7,17 @@ const bridge = () => {
 
   const candidate = window.MediaGodNative;
 
-  if (!candidate || typeof candidate.play !== "function") {
+  if (!candidate || (typeof candidate !== "object" && typeof candidate !== "function")) {
     return null;
   }
 
   return candidate;
 };
 
-export const isNativeFireTvPlayerAvailable = () => Boolean(bridge());
+export const isNativeFireTvPlayerAvailable = () => {
+  const native = bridge();
+  return Boolean(native && typeof native.play === "function");
+};
 
 export const nativeFireTvDisplayInfo = () => {
   const native = bridge();
