@@ -87,6 +87,14 @@ export const LIVE_TV_SOURCES = [
     category: "United Kingdom",
   },
   {
+    id: "dearbulut-uk-healthchecked",
+    name: "Dearbulut UK Health-Checked",
+    url: "https://dearbulut.github.io/iptv/playlists/country/uk.m3u",
+    priority: 104,
+    category: "United Kingdom",
+    country: "GB",
+  },
+  {
     id: "radio-browser-uk",
     name: "UK Radio Browser",
     url: "https://all.api.radio-browser.info/m3u/stations/bycountrycodeexact/GB?hidebroken=true&order=votes&reverse=true&limit=1000",
