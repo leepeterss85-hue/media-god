@@ -1995,7 +1995,6 @@ export default function VideoPlayer({
             ).trim();
 
             if (
-              false &&
               active?.cacheRequired === true &&
               active?.cometUncached === true &&
               hash &&
