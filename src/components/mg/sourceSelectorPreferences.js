@@ -161,9 +161,9 @@ export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
     if (mode === "cached") {
       return (
         Number(b.cached) - Number(a.cached) ||
+        b.compatibility - a.compatibility ||
         Number(b.trackerRich) - Number(a.trackerRich) ||
         b.reportedSeeders - a.reportedSeeders ||
-        b.compatibility - a.compatibility ||
         a.index - b.index
       );
     }
@@ -173,10 +173,10 @@ export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
       return (
         targetResolutionScore(b.resolution, target) -
           targetResolutionScore(a.resolution, target) ||
+        b.compatibility - a.compatibility ||
         Number(b.cached) - Number(a.cached) ||
         Number(b.trackerRich) - Number(a.trackerRich) ||
         b.reportedSeeders - a.reportedSeeders ||
-        b.compatibility - a.compatibility ||
         a.index - b.index
       );
     }
