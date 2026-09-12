@@ -87,6 +87,14 @@ export const LIVE_TV_SOURCES = [
     category: "United Kingdom",
   },
   {
+    id: "radio-browser-uk",
+    name: "UK Radio Browser",
+    url: "https://all.api.radio-browser.info/m3u/stations/bycountrycodeexact/GB?hidebroken=true&order=votes&reverse=true&limit=1000",
+    priority: 130,
+    category: "Radio",
+    country: "GB",
+  },
+  {
     id: "iptv-org-worldwide",
     name: "IPTV-org Worldwide",
     url: "https://iptv-org.github.io/iptv/index.m3u",
