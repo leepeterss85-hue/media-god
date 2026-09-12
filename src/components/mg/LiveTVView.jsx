@@ -38,6 +38,7 @@ import {
   isNativeFireTvPlayerAvailable,
   openNativeFireTvExternalUrl,
 } from "@/components/mg/nativeFireTvBridge";
+import { isAndroidMobileRuntime } from "@/components/mg/runtimePlatform";
 
 const DEFAULT_FILTER = "All";
 const MAX_VISIBLE = 400;
@@ -370,6 +371,7 @@ const channelReliabilityScore = (channel) =>
 
 const playableChannelCandidates = (channel) => {
   const nativeFireTv = isNativeFireTvPlayerAvailable();
+  const androidMobileApp = isAndroidMobileRuntime();
 
   return [channel, ...(channel?.alternatives || [])]
     .filter((candidate) => {
@@ -387,9 +389,25 @@ const playableChannelCandidates = (channel) => {
        * a browser correctly rejected. Media3 gets the final decoder/network
        * decision and normal web/mobile users never see these extra candidates.
        */
-      return (
+      if (
         nativeFireTv &&
         /^https?:\/\//i.test(String(candidate.url || ""))
+      ) {
+        return true;
+      }
+
+      /*
+       * The dedicated Android phone app explicitly allows clear-text media in
+       * its WebView/network security config. Keep plain-HTTP public streams
+       * available there as fallbacks instead of unnecessarily falling through
+       * to a geo-restricted HTTPS mirror. Do not do this in an ordinary mobile
+       * browser, and do not bypass candidates that require custom headers.
+       */
+      return (
+        androidMobileApp &&
+        candidate?.mixedContent === true &&
+        candidate?.requiresHeaders !== true &&
+        /^http:\/\//i.test(String(candidate.url || ""))
       );
     })
     .map((candidate, index) => ({
