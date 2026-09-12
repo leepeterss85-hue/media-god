@@ -516,6 +516,132 @@ const tvShowsRemoteTarget = (current, direction) => {
   return null;
 };
 
+const liveTvRemoteTarget = (current, direction) => {
+  const view = document.querySelector(
+    '[data-mg-live-tv-view="true"]'
+  );
+
+  if (
+    !(view instanceof HTMLElement) ||
+    !visible(view) ||
+    !(current instanceof HTMLElement) ||
+    !view.contains(current)
+  ) {
+    return null;
+  }
+
+  const categoryRow = view.querySelector(
+    '[data-mg-live-tv-category-row="true"]'
+  );
+  const categories = categoryRow instanceof HTMLElement
+    ? focusables(categoryRow).filter(
+        (item) => String(item.tagName || "").toLowerCase() === "button"
+      )
+    : [];
+  const search = view.querySelector(
+    '[data-mg-live-tv-search="true"] input'
+  );
+  const controlsRoot = view.querySelector(
+    '[data-mg-live-tv-controls="true"]'
+  );
+  const controls = controlsRoot instanceof HTMLElement
+    ? focusables(controlsRoot).filter((item) => item !== search)
+    : [];
+  const cards = Array.from(
+    view.querySelectorAll(
+      '[data-mg-live-tv-card="true"] > button[data-mg-live-tv-key], [data-mg-live-tv-guide="true"] button[data-mg-live-tv-key]'
+    )
+  ).filter(visible);
+
+  const categoryIndex = categories.indexOf(current);
+
+  if (categoryIndex >= 0) {
+    const columns = 4;
+    const rowStart = Math.floor(categoryIndex / columns) * columns;
+    const rowEnd = Math.min(categories.length - 1, rowStart + columns - 1);
+
+    if (direction === "left") {
+      return categoryIndex > rowStart ? categories[categoryIndex - 1] : null;
+    }
+
+    if (direction === "right") {
+      return categoryIndex < rowEnd ? categories[categoryIndex + 1] : current;
+    }
+
+    if (direction === "up") {
+      return categories[categoryIndex - columns] || current;
+    }
+
+    if (direction === "down") {
+      return (
+        categories[categoryIndex + columns] ||
+        (search instanceof HTMLElement && visible(search) ? search : null) ||
+        controls[0] ||
+        cards[0] ||
+        current
+      );
+    }
+  }
+
+  if (search instanceof HTMLElement && current === search) {
+    if (direction === "up") {
+      const activeCategory = categories.find(
+        (item) => item.getAttribute("aria-pressed") === "true"
+      );
+      return activeCategory || categories[0] || current;
+    }
+
+    if (direction === "down") {
+      return nearestByX(search, controls) || controls[0] || cards[0] || current;
+    }
+
+    return null;
+  }
+
+  const controlIndex = controls.indexOf(current);
+
+  if (controlIndex >= 0) {
+    if (direction === "left") {
+      return controls[controlIndex - 1] || null;
+    }
+
+    if (direction === "right") {
+      return controls[controlIndex + 1] || current;
+    }
+
+    if (direction === "up") {
+      return search instanceof HTMLElement && visible(search)
+        ? search
+        : categories[0] || current;
+    }
+
+    if (direction === "down") {
+      return nearestByX(current, cards) || cards[0] || current;
+    }
+  }
+
+  if (cards.includes(current)) {
+    const cardTarget = directionalTarget(current, cards, direction);
+
+    if (cardTarget) {
+      return cardTarget;
+    }
+
+    if (direction === "up") {
+      return nearestByX(current, controls) ||
+        (search instanceof HTMLElement && visible(search) ? search : current);
+    }
+
+    if (direction === "left") {
+      return null;
+    }
+
+    return current;
+  }
+
+  return null;
+};
+
 const playerOpen = () => {
   if (typeof document === "undefined") {
     return false;
@@ -899,6 +1025,25 @@ export default function FireTvRemote() {
           const tvTarget = tvShowsRemoteTarget(current, direction);
 
           if (tvTarget && focusElement(tvTarget)) {
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+            return;
+          }
+        }
+
+        const liveTvView = document.querySelector(
+          '[data-mg-live-tv-view="true"]'
+        );
+        const currentInsideLiveTv =
+          liveTvView instanceof HTMLElement &&
+          current instanceof HTMLElement &&
+          liveTvView.contains(current);
+
+        if (currentInsideLiveTv) {
+          const liveTvTarget = liveTvRemoteTarget(current, direction);
+
+          if (liveTvTarget && focusElement(liveTvTarget)) {
             event.preventDefault();
             event.stopPropagation();
             event.stopImmediatePropagation();
