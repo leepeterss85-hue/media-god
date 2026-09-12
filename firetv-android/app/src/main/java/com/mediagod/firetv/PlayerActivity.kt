@@ -39,13 +39,15 @@ class PlayerActivity : Activity() {
         const val EXTRA_POSITION_MS = "mg_position_ms"
         const val EXTRA_DURATION_MS = "mg_duration_ms"
         const val EXTRA_MESSAGE = "mg_message"
+        const val EXTRA_SELECTED_SOURCE_INDEX = "mg_selected_source_index"
     }
 
     private data class NativeSource(
         val label: String,
         val url: String,
         val headers: Map<String, String>,
-        val mimeType: String
+        val mimeType: String,
+        val webIndex: Int
     )
 
     private lateinit var playerView: PlayerView
@@ -85,11 +87,22 @@ class PlayerActivity : Activity() {
 
         nativeSources = readNativeSources()
         if (nativeSources.isNotEmpty()) {
-            val requestedIndex = payload.optInt("activeSourceIndex", 0)
-                .coerceIn(0, nativeSources.lastIndex)
+            val requestedWebIndex = payload.optInt("activeSourceIndex", 0)
             val urlIndex = nativeSources.indexOfFirst { it.url == streamUrl }
-            activeSourceIndex = if (urlIndex >= 0) urlIndex else requestedIndex
-            streamUrl = nativeSources[activeSourceIndex].url
+            val webIndexMatch = nativeSources.indexOfFirst {
+                it.webIndex == requestedWebIndex
+            }
+
+            activeSourceIndex = when {
+                urlIndex >= 0 -> urlIndex
+                webIndexMatch >= 0 -> webIndexMatch
+                else -> 0
+            }
+
+            val selectedUrl = nativeSources[activeSourceIndex].url
+            if (selectedUrl.startsWith("https://") || selectedUrl.startsWith("http://")) {
+                streamUrl = selectedUrl
+            }
         }
 
         if (!(streamUrl.startsWith("https://") || streamUrl.startsWith("http://"))) {
@@ -131,10 +144,10 @@ class PlayerActivity : Activity() {
             )
             addView(
                 sourceSpinner,
-                FrameLayout.LayoutParams(dp(360), dp(48)).apply {
+                FrameLayout.LayoutParams(dp(440), dp(52)).apply {
                     gravity = Gravity.TOP or Gravity.END
-                    topMargin = dp(18)
-                    marginEnd = dp(22)
+                    topMargin = dp(20)
+                    marginEnd = dp(24)
                 }
             )
         }
@@ -191,7 +204,7 @@ class PlayerActivity : Activity() {
                 }
 
                 KeyEvent.KEYCODE_MENU -> {
-                    if (live && sourceSpinner.visibility == View.VISIBLE) {
+                    if (sourceSpinner.visibility == View.VISIBLE) {
                         sourceSpinner.requestFocus()
                         sourceSpinner.performClick()
                         return true
@@ -200,7 +213,6 @@ class PlayerActivity : Activity() {
 
                 KeyEvent.KEYCODE_DPAD_UP -> {
                     if (
-                        live &&
                         sourceSpinner.visibility == View.VISIBLE &&
                         !sourceSpinner.hasFocus()
                     ) {
@@ -269,17 +281,15 @@ class PlayerActivity : Activity() {
 
     private fun readNativeSources(): List<NativeSource> {
         val result = mutableListOf<NativeSource>()
-        val seenUrls = linkedSetOf<String>()
+        val seenKeys = linkedSetOf<String>()
         val sourceArray = payload.optJSONArray("sources") ?: JSONArray()
 
         for (index in 0 until sourceArray.length()) {
             val item = sourceArray.optJSONObject(index) ?: continue
             val url = item.optString("url").trim()
+            val webIndex = item.optInt("webIndex", index)
 
-            if (
-                !(url.startsWith("https://") || url.startsWith("http://")) ||
-                !seenUrls.add(url)
-            ) {
+            if (url.isBlank() || !seenKeys.add("$webIndex|$url")) {
                 continue
             }
 
@@ -294,14 +304,15 @@ class PlayerActivity : Activity() {
                     label = label,
                     url = url,
                     headers = readHeaders(item.optJSONObject("headers")),
-                    mimeType = item.optString("mimeType").trim()
+                    mimeType = item.optString("mimeType").trim(),
+                    webIndex = webIndex
                 )
             )
         }
 
         if (
             (streamUrl.startsWith("https://") || streamUrl.startsWith("http://")) &&
-            seenUrls.add(streamUrl)
+            result.none { it.url == streamUrl }
         ) {
             result.add(
                 0,
@@ -309,7 +320,8 @@ class PlayerActivity : Activity() {
                     label = "Current source",
                     url = streamUrl,
                     headers = readHeaders(payload.optJSONObject("headers")),
-                    mimeType = payload.optString("mimeType").trim()
+                    mimeType = payload.optString("mimeType").trim(),
+                    webIndex = payload.optInt("activeSourceIndex", 0)
                 )
             )
         }
@@ -334,9 +346,9 @@ class PlayerActivity : Activity() {
                     if (dropdown) Color.rgb(24, 24, 24)
                     else Color.argb(220, 12, 12, 12)
                 )
-                text.textSize = 14f
+                text.textSize = 15f
                 text.gravity = Gravity.CENTER_VERTICAL
-                text.minHeight = dp(48)
+                text.minHeight = dp(52)
                 text.setPadding(dp(14), 0, dp(14), 0)
                 return text
             }
@@ -356,10 +368,10 @@ class PlayerActivity : Activity() {
         return Spinner(this, Spinner.MODE_DROPDOWN).apply {
             id = View.generateViewId()
             adapter = sourceAdapter
-            visibility = if (live && nativeSources.size > 1) View.VISIBLE else View.GONE
+            visibility = if (nativeSources.size > 1) View.VISIBLE else View.GONE
             isFocusable = true
             isFocusableInTouchMode = false
-            contentDescription = "Choose Live TV source"
+            contentDescription = if (live) "Choose Live TV source" else "Choose playback source"
             setSelection(activeSourceIndex.coerceIn(0, maxOf(0, nativeSources.lastIndex)), false)
 
             onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
@@ -372,6 +384,14 @@ class PlayerActivity : Activity() {
                     id: Long
                 ) {
                     if (!sourceSelectorReady || position == activeSourceIndex) {
+                        return
+                    }
+
+                    if (!live) {
+                        finishWithResult(
+                            reason = "source",
+                            selectedSourceIndex = nativeSources[position].webIndex
+                        )
                         return
                     }
 
@@ -675,7 +695,11 @@ class PlayerActivity : Activity() {
         player = null
     }
 
-    private fun finishWithResult(reason: String, message: String = "") {
+    private fun finishWithResult(
+        reason: String,
+        message: String = "",
+        selectedSourceIndex: Int = -1
+    ) {
         if (resultSent) {
             return
         }
@@ -698,6 +722,7 @@ class PlayerActivity : Activity() {
             putExtra(EXTRA_POSITION_MS, positionMs)
             putExtra(EXTRA_DURATION_MS, durationMs)
             putExtra(EXTRA_MESSAGE, message)
+            putExtra(EXTRA_SELECTED_SOURCE_INDEX, selectedSourceIndex)
         }
 
         setResult(RESULT_OK, result)
