@@ -104,8 +104,66 @@ const sourceTorrentHash = (item) =>
       getSourceUrl(item)
   );
 
+/*
+ * Torrent resolution has three deliberately separate ownership paths:
+ *
+ * 1. cached_debrid  - the payload already exists in debrid; resolve/play it.
+ * 2. comet_uncached - Comet owns the torrent source/tracker metadata and must
+ *                     be the component that asks Real-Debrid to start it.
+ * 3. rd_magnet      - a normal magnet/info-hash source that Media God may add
+ *                     to Real-Debrid itself.
+ *
+ * Keeping these strategies explicit prevents an uncached Comet row from first
+ * being started by Comet and then immediately being re-added by Media God as a
+ * second, poorer bare/fallback magnet.
+ */
+const sourceResolutionStrategy = (item) => {
+  if (!item) return "";
+
+  if (item?.debridCached === true) {
+    return "cached_debrid";
+  }
+
+  const explicit = String(item?.resolutionStrategy || "").trim();
+
+  if (explicit) {
+    return explicit;
+  }
+
+  if (item?.cometUncached === true) {
+    return "comet_uncached";
+  }
+
+  const value = String(getSourceUrl(item) || "").trim();
+  const torrentLike =
+    item?.type === "rd" ||
+    item?.type === "rd_torrent" ||
+    item?.type === "torrent" ||
+    item?.type === "magnet" ||
+    isMagnet(value) ||
+    Boolean(sourceTorrentHash(item));
+
+  return torrentLike ? "rd_magnet" : "";
+};
+
+const sourceNeedsCaching = (item) => {
+  if (!item || item?.debridCached === true) return false;
+
+  const strategy = sourceResolutionStrategy(item);
+
+  return (
+    strategy === "comet_uncached" ||
+    item?.cacheRequired === true ||
+    (
+      item?.debridCacheChecked === true &&
+      item?.debridCached !== true &&
+      (strategy === "rd_magnet" || Boolean(sourceTorrentHash(item)))
+    )
+  );
+};
+
 const FAILED_TORRENT_HASHES_KEY =
-  "mg:failed-uncached-torrent-hashes:v5";
+  "mg:failed-uncached-torrent-hashes:v6";
 const FAILED_TORRENT_HASH_TTL_MS =
   2 * 60 * 60 * 1000;
 const FAILED_TORRENT_HASH_LIMIT = 80;
