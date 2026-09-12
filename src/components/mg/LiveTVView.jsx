@@ -396,6 +396,7 @@ const playableChannelCandidates = (channel) => {
       candidate,
       index,
       quarantined: liveTvUrlQuarantined(candidate.url),
+      geoRestricted: candidate?.geoRestricted === true,
       score:
         liveTvUrlScore(candidate.url) +
         Number(candidate?.sourcePriority || 0) * 30 +
@@ -405,6 +406,7 @@ const playableChannelCandidates = (channel) => {
     .sort(
       (a, b) =>
         Number(a.quarantined) - Number(b.quarantined) ||
+        Number(a.geoRestricted) - Number(b.geoRestricted) ||
         b.score - a.score ||
         a.index - b.index
     )
