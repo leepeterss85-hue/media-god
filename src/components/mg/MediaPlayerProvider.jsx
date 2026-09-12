@@ -1140,6 +1140,34 @@ const findRdLibrarySource = async ({
   }
 };
 
+const sourceLanguageRank = (item) => {
+  const preferredAudioLanguage = String(
+    readTrackPreferences()?.audioLanguage || "en"
+  ).toLowerCase();
+
+  if (preferredAudioLanguage !== "en") {
+    return 0;
+  }
+
+  const language = detectLanguagePreference(item);
+
+  if (language === "english") return 0;
+  if (language === "multi") return 1;
+  if (language === "unknown") return 2;
+  if (language === "foreign") return 3;
+  return 2;
+};
+
+const prioritisePreferredAudioSources = (items) =>
+  (Array.isArray(items) ? items : [])
+    .map((item, index) => ({ item, index, languageRank: sourceLanguageRank(item) }))
+    .sort(
+      (a, b) =>
+        a.languageRank - b.languageRank ||
+        a.index - b.index
+    )
+    .map(({ item }) => item);
+
 const orderSources = ({
   sources,
   hasDebrid,
@@ -1225,47 +1253,33 @@ const orderSources = ({
         )
     );
 
-  if (preferRd) {
-    return [
-      ...rdLibrary,
+  const ordered = preferRd
+    ? [
+        ...sortSources(rdLibrary),
+        ...sortSources(rdMagnets),
+        ...sortSources(direct),
+        ...live,
+        ...other,
+        ...youtube,
+        ...providers,
+      ]
+    : [
+        ...sortSources(rdLibrary),
+        ...sortSources(direct),
+        ...sortSources(rdMagnets),
+        ...live,
+        ...other,
+        ...youtube,
+        ...providers,
+      ];
 
-      ...sortSources(
-        rdMagnets
-      ),
-
-      ...sortSources(
-        direct
-      ),
-
-      ...live,
-
-      ...other,
-
-      ...youtube,
-
-      ...providers,
-    ];
-  }
-
-  return [
-    ...rdLibrary,
-
-    ...sortSources(
-      direct
-    ),
-
-    ...sortSources(
-      rdMagnets
-    ),
-
-    ...live,
-
-    ...other,
-
-    ...youtube,
-
-    ...providers,
-  ];
+  /*
+   * Language is a playback requirement, not a cosmetic tie-breaker. Keep the
+   * existing RD/direct/cached ordering within each language bucket, but when
+   * English is preferred never let a foreign or unknown source sit ahead of a
+   * confirmed English source merely because it was discovered first.
+   */
+  return prioritisePreferredAudioSources(ordered);
 };
 
 const compactAddonDiagnostics = (
