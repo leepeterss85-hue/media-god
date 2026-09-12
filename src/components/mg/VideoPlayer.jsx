@@ -1571,6 +1571,15 @@ export default function VideoPlayer({
               ""
             ).trim();
 
+            /*
+             * richMagnet means the addon supplied its own tracker-bearing
+             * magnet. The actual source magnet may also have been enriched by
+             * Media God with fallback trackers, especially for Comet RD⬇ rows.
+             * Keep those two facts separate: Comet still gets its same-IP
+             * startup route when it has no original tracker metadata, but we
+             * must not throw away an already tracker-enriched active source
+             * just to jump to another source.
+             */
             const hasTrackerRichMagnet =
               /^magnet:/i.test(richMagnet) &&
               /(?:[?&])tr=/i.test(richMagnet);
@@ -1582,6 +1591,10 @@ export default function VideoPlayer({
               active?.src ||
               active?.url ||
               "";
+
+            const effectiveMagnetHasTrackers =
+              /^magnet:/i.test(String(magnet || "")) &&
+              /(?:[?&])tr=/i.test(String(magnet || ""));
 
             if (
               !magnet
@@ -1729,7 +1742,7 @@ export default function VideoPlayer({
              */
             if (
               active?.cacheRequired === true &&
-              !hasTrackerRichMagnet
+              !effectiveMagnetHasTrackers
             ) {
               const richerEntry = sortedSourceEntries.find((entry) => {
                 const candidate = entry?.item || {};
