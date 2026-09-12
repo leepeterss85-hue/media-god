@@ -321,7 +321,7 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
                   <span className="font-bold text-white">1.</span> On Fire TV, open Settings → Applications → Manage Installed Applications → Media God Fire TV and choose Uninstall.
                 </li>
                 <li>
-                  <span className="font-bold text-white">2.</span> Open Downloader and enter the address below. Do not use the old 4372217 code for this reinstall.
+                  <span className="font-bold text-white">2.</span> Open Downloader and enter the new code below. Do not use the old 4372217 code for this reinstall.
                 </li>
                 <li>
                   <span className="font-bold text-white">3.</span> Install Media God Fire TV {release.versionName || "the latest version"} and sign in again if Fire TV asks you to.
@@ -355,7 +355,7 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
 
             <p className="text-xs leading-5 text-white/50">
               {signatureMigration
-                ? "The old Downloader code has been retired because it could serve the legacy-signed APK. The address above always redirects to the current permanently signed Fire TV release. Uninstalling clears local Fire TV app data, so you may need to sign in again. After this clean install, future updates can use Update now normally."
+                ? "The old 4372217 Downloader code has been retired. Use the new code above for the current Fire TV release. Uninstalling clears local Fire TV app data, so you may need to sign in again. After this clean install, future updates can use Update now normally."
                 : "Install this signed version once. Future Media God Fire TV updates can then use the in-app Update now button."}
             </p>
           </div>
