@@ -4303,7 +4303,7 @@ export default function VideoPlayer({
           new CustomEvent("mg:player-status", {
             detail: {
               message:
-                "Playback paused — choose another source/torrent file, use Fix audio, or resume in the Fire TV player.",
+                "Playback paused — resume the Fire TV player or return to the episode list.",
             },
           })
         );
@@ -5319,7 +5319,7 @@ export default function VideoPlayer({
               </p>
 
               <p className="max-w-md text-white/50 text-xs">
-                Choose another source or torrent file below, use Fix audio if needed, or resume this source in the native player.
+                Resume to return to the Fire TV player. Source selection is now available inside the native player.
               </p>
 
               <button
