@@ -7,7 +7,6 @@ import {
 } from "@/components/mg/nativeFireTvBridge";
 
 const SESSION_DISMISS_PREFIX = "mg:fire-tv-app-update-dismissed:";
-const DEFAULT_DOWNLOADER_CODE = "4372217";
 
 const looksLikeFireTv = () => {
   if (typeof window === "undefined" || typeof navigator === "undefined") {
@@ -116,9 +115,12 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
 
   const latestCode = Number(release?.versionCode || 0);
   const migration = !nativeInfo;
-  const downloaderCode = String(
-    release?.downloaderCode || DEFAULT_DOWNLOADER_CODE
-  ).trim();
+  const downloaderCode = String(release?.downloaderCode || "").trim();
+  const downloaderAddress = String(
+    release?.downloaderAddress || release?.apkUrl || ""
+  )
+    .replace(/^https?:\/\//i, "")
+    .trim();
 
   const canSelfUpdate = useMemo(
     () =>
@@ -319,7 +321,7 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
                   <span className="font-bold text-white">1.</span> On Fire TV, open Settings → Applications → Manage Installed Applications → Media God Fire TV and choose Uninstall.
                 </li>
                 <li>
-                  <span className="font-bold text-white">2.</span> Open Downloader and enter the code below.
+                  <span className="font-bold text-white">2.</span> Open Downloader and enter the address below. Do not use the old 4372217 code for this reinstall.
                 </li>
                 <li>
                   <span className="font-bold text-white">3.</span> Install Media God Fire TV {release.versionName || "the latest version"} and sign in again if Fire TV asks you to.
@@ -331,21 +333,29 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
                   <span className="font-bold text-white">1.</span> Open the Downloader app on Fire TV.
                 </li>
                 <li>
-                  <span className="font-bold text-white">2.</span> Enter this code:
+                  <span className="font-bold text-white">2.</span> Enter {downloaderCode ? "this code:" : "this address:"}
                 </li>
               </ol>
             )}
 
             <div
-              className="my-3 rounded-xl border-2 border-mg-green bg-black px-4 py-4 text-center font-mono text-3xl sm:text-4xl font-black tracking-[0.18em] text-mg-green"
-              aria-label={`Downloader code ${downloaderCode}`}
+              className={`my-3 rounded-xl border-2 border-mg-green bg-black px-4 py-4 text-center font-mono font-black text-mg-green ${
+                downloaderCode
+                  ? "text-3xl sm:text-4xl tracking-[0.18em]"
+                  : "break-all text-base sm:text-lg tracking-normal"
+              }`}
+              aria-label={
+                downloaderCode
+                  ? `Downloader code ${downloaderCode}`
+                  : `Downloader address ${downloaderAddress}`
+              }
             >
-              {downloaderCode}
+              {downloaderCode || downloaderAddress}
             </div>
 
             <p className="text-xs leading-5 text-white/50">
               {signatureMigration
-                ? "This is required only once because Android/Fire OS will not install an APK over an existing app when the signing keys differ. Uninstalling clears local Fire TV app data, so you may need to sign in again. After this clean install, future Media God Fire TV updates can use Update now normally."
+                ? "The old Downloader code has been retired because it could serve the legacy-signed APK. The address above always redirects to the current permanently signed Fire TV release. Uninstalling clears local Fire TV app data, so you may need to sign in again. After this clean install, future updates can use Update now normally."
                 : "Install this signed version once. Future Media God Fire TV updates can then use the in-app Update now button."}
             </p>
           </div>
