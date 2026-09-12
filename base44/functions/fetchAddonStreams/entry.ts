@@ -89,6 +89,16 @@ const normaliseTrackerList = (...values) =>
               : []
         )
         .map((value) => clean(value))
+        /*
+         * Stremio torrent streams use `sources`, where tracker entries are
+         * encoded as `tracker:udp://...` / `tracker:https://...`. Media God
+         * previously ignored that property completely, which discarded the
+         * torrent-specific peer-discovery metadata Comet supplies in Torrent
+         * Mode. Strip the Stremio prefix and feed the real tracker URL into the
+         * magnet we submit to Real-Debrid. DHT node entries are intentionally
+         * not converted to `tr=` parameters.
+         */
+        .map((value) => value.replace(/^tracker:/i, ""))
         .filter((value) => /^https?:\/\/|^udp:\/\//i.test(value))
     )
   );
@@ -542,6 +552,7 @@ const normaliseStream = (
     }
 
     const providedTrackers = normaliseTrackerList(
+      stream?.sources,
       stream?.announce,
       stream?.trackers
     );
@@ -591,11 +602,13 @@ const normaliseStream = (
       cacheRequired: true,
       cometUncached: true,
       resolutionStrategy: "comet_uncached",
+      torrentTrackers: providedTrackers,
       cometPlaybackUrl: isHttp(rawUrl) ? rawUrl : "",
     };
   }
 
   const suppliedTrackers = normaliseTrackerList(
+    stream?.sources,
     stream?.announce,
     stream?.trackers
   );
@@ -656,6 +669,9 @@ const normaliseStream = (
 
       resolutionStrategy:
         "rd_magnet",
+
+      torrentTrackers:
+        suppliedTrackers,
     };
   }
 
