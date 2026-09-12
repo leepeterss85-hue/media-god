@@ -1036,6 +1036,28 @@ export default function VideoPlayer({
       );
 
     /*
+     * Uncached torrent caching is an explicit operation, not ordinary playback
+     * failover. Never silently abandon the torrent the user chose just because
+     * its first RD/Comet request failed. Keep the same source on screen, show
+     * the actual reason and let Retry/manual source selection decide what to do
+     * next. Cached/direct playback can continue to use automatic failover.
+     */
+    if (sourceNeedsCaching(active)) {
+      if (torrentFailoverTimerRef.current) {
+        window.clearTimeout(torrentFailoverTimerRef.current);
+        torrentFailoverTimerRef.current = null;
+      }
+
+      setRdResolving(false);
+      setRdPolling(false);
+      setRdError(
+        `${String(message || "This uncached torrent could not be started.").trim()} Retry this source or choose another source manually.`
+      );
+
+      return false;
+    }
+
+    /*
      * A late error from the previous URL can arrive after React/Chromium has
      * already started the replacement stream. Never let that stale event kick
      * a healthy, buffered video onto yet another source. Hard provider/RD
