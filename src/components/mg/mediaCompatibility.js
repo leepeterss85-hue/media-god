@@ -398,6 +398,9 @@ export const detectLanguagePreference = (
   const english =
     ENGLISH_LANGUAGE_RE.test(
       text
+    ) ||
+    DECORATIVE_ENGLISH_LANGUAGE_RE.test(
+      text
     );
 
   const multi =
