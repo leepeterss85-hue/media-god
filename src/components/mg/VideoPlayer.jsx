@@ -2000,43 +2000,70 @@ export default function VideoPlayer({
               hash &&
               /^https?:\/\//i.test(cometPlaybackUrl)
             ) {
+              /*
+               * Comet's playback endpoint is the authoritative way to start
+               * an uncached Comet result because it can reuse Comet's stored
+               * torrent sources/private trackers. Do not wait for the HTTP
+               * response before polling RD: the endpoint can remain busy while
+               * it is creating/selecting the torrent, and the previous code
+               * aborted that request before adoption had a fair chance.
+               */
+              setRdPreparation((current) => ({
+                ...(current || {}),
+                status: current?.status || "magnet_conversion",
+                progress: Number(current?.progress || 0),
+                seeders: Number(current?.seeders || 0),
+                speed_bps: Number(current?.speed_bps || 0),
+                startedAt: current?.startedAt || Date.now(),
+                updatedAt: Date.now(),
+                attempts: 0,
+              }));
+              setRdResolving(false);
+
               const triggerController = new AbortController();
               const triggerTimer = window.setTimeout(
                 () => triggerController.abort(),
-                8000
+                30000
               );
 
-              try {
-                const triggerResponse = await fetch(
-                  cometPlaybackUrl,
-                  {
-                    method: "GET",
-                    cache: "no-store",
-                    redirect: "manual",
-                    signal: triggerController.signal,
-                  }
-                );
-
-                try {
-                  await triggerResponse.body?.cancel?.();
-                } catch {
-                  // Response body is irrelevant; the request itself starts RD.
+              void fetch(
+                cometPlaybackUrl,
+                {
+                  method: "GET",
+                  cache: "no-store",
+                  redirect: "manual",
+                  signal: triggerController.signal,
                 }
-              } catch {
-                /*
-                 * A CORS/opaque-response error can happen after the request
-                 * has already reached Comet. Continue with adoption polling.
-                 */
-              } finally {
-                window.clearTimeout(triggerTimer);
-              }
+              )
+                .then(async (triggerResponse) => {
+                  try {
+                    await triggerResponse.body?.cancel?.();
+                  } catch {
+                    // The request itself is what starts the Comet/RD job.
+                  }
+                })
+                .catch(() => {
+                  /*
+                   * CORS/opaque redirect errors can occur after Comet has
+                   * already received the request. Adoption below is the source
+                   * of truth for whether RD actually started the torrent.
+                   */
+                })
+                .finally(() => {
+                  window.clearTimeout(triggerTimer);
+                });
 
-              for (let adoptAttempt = 0; adoptAttempt < 6; adoptAttempt += 1) {
-                if (cancelled) return;
+              let cometResetAttempted = false;
+
+              for (let adoptAttempt = 0; adoptAttempt < 24; adoptAttempt += 1) {
+                if (cancelled) {
+                  triggerController.abort();
+                  return;
+                }
 
                 if (adoptAttempt > 0) {
                   await new Promise((resolve) =>
-                    window.setTimeout(resolve, 1000)
+                    window.setTimeout(resolve, 1250)
                   );
                 }
 
