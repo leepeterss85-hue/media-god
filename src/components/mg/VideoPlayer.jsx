@@ -3045,6 +3045,10 @@ export default function VideoPlayer({
       source?.id,
       source?.rdSeason,
       source?.rdEpisode,
+      rdResolving,
+      rdPolling,
+      rdTorrentId,
+      rdPreparation,
     ]
   );
 
