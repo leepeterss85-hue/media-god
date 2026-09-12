@@ -1765,27 +1765,22 @@ export default function VideoPlayer({
             let debridProviders = explicitProvider ? [explicitProvider] : [];
 
             /*
-             * Comet RD⬇ sources need Comet to start the torrent first.
-             * Comet keeps the tracker/source list in its own database and
-             * includes that metadata when it submits the torrent to the
-             * user's debrid account. A bare info-hash magnet can be accepted
-             * by RD yet sit forever at 0 seeders / 0 B/s.
-             *
-             * Trigger Comet from the actual playback device (same-IP safe),
-             * then adopt the resulting RD torrent by hash and use Media God's
-             * normal progress polling from that point onward.
+             * Do the active-download preflight for EVERY source we know is
+             * uncached, not only Comet RD⬇ rows. Torrentio/AIO and other
+             * Stremio-compatible addons can return ordinary info-hash magnets
+             * that are uncached too. If old Media God jobs have filled RD's
+             * active torrent slots, cached playback still works while every
+             * new torrent appears mysteriously stuck/queued.
              */
-            const cometPlaybackUrl = String(
-              active?.cometPlaybackUrl || ""
-            ).trim();
+            const knownUncached = Boolean(
+              active?.cacheRequired === true ||
+                (
+                  active?.debridCacheChecked === true &&
+                  active?.debridCached !== true
+                )
+            );
 
-            if (
-              active?.cacheRequired === true &&
-              active?.cometUncached === true &&
-              hash &&
-              !hasTrackerRichMagnet &&
-              /^https?:\/\//i.test(cometPlaybackUrl)
-            ) {
+            if (hash && knownUncached && source?.hasRd !== false) {
               let preflight = {};
 
               try {
@@ -1814,10 +1809,9 @@ export default function VideoPlayer({
 
                 const moved = tryNextSource(
                   activeLimit > 0
-                    ? `Real-Debrid already has ${activeCount}/${activeLimit} active torrents. Trying another source.`
+                    ? `Real-Debrid already has ${activeCount}/${activeLimit} active torrents. Trying a cached or different source.`
                     : "Real-Debrid has no free active torrent slot. Trying another source.",
                   {
-                    blacklistTorrentHash: true,
                     immediate: true,
                   }
                 );
@@ -1847,11 +1841,34 @@ export default function VideoPlayer({
                   }
                 );
               } catch {
-                // Reset is best-effort; never block a fresh Comet start.
+                // Same-hash cleanup is best-effort; the fresh RD add still runs.
               }
 
               if (cancelled) return;
+            }
 
+            /*
+             * Comet RD⬇ sources need Comet to start the torrent first.
+             * Comet keeps the tracker/source list in its own database and
+             * includes that metadata when it submits the torrent to the
+             * user's debrid account. A bare info-hash magnet can be accepted
+             * by RD yet sit forever at 0 seeders / 0 B/s.
+             *
+             * Trigger Comet from the actual playback device (same-IP safe),
+             * then adopt the resulting RD torrent by hash and use Media God's
+             * normal progress polling from that point onward.
+             */
+            const cometPlaybackUrl = String(
+              active?.cometPlaybackUrl || ""
+            ).trim();
+
+            if (
+              active?.cacheRequired === true &&
+              active?.cometUncached === true &&
+              hash &&
+              !hasTrackerRichMagnet &&
+              /^https?:\/\//i.test(cometPlaybackUrl)
+            ) {
               const triggerController = new AbortController();
               const triggerTimer = window.setTimeout(
                 () => triggerController.abort(),
