@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 11,
-  "versionName": "1.4.6",
+  "versionCode": 12,
+  "versionName": "1.4.7",
   "title": "Media God Fire TV",
-  "message": "Fire TV 1.4.6 adds stronger Back-button stacking, exact D-pad focus restoration, on-screen focus recovery, the Most Reliable Live TV filter, improved EPG matching, and Live TV position memory while keeping Android API 21+ compatibility.",
+  "message": "Fire TV 1.4.7 adds the source selector to the native player, tidies the paused-player screen, and makes the Fire TV sidebar more compact so all menu items stay accessible.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4372217",
   "downloaderAddress": "tinyurl.com/2aofccoa",
