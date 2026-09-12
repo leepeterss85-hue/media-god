@@ -519,7 +519,7 @@ export default async function (req) {
                 progress < 100 &&
                 Number(torrent?.speed || 0) <= 0 &&
                 Number(torrent?.seeders || 0) <= 0 &&
-                ageMs >= 60_000;
+                ageMs >= 10 * 60_000;
 
               if (!stalled) continue;
 
@@ -673,7 +673,7 @@ export default async function (req) {
         ) &&
         progress < 100 &&
         hasNoActivity &&
-        ageMs >= 90_000;
+        ageMs >= 10 * 60_000;
 
       if (!stalled) {
         return Response.json({
@@ -869,7 +869,7 @@ export default async function (req) {
             /^(?:magnet_conversion|waiting_files_selection|waiting_selection|queued|downloading)$/i.test(
               String(match?.status || "")
             ) &&
-            matchAgeMs >= 60_000
+            matchAgeMs >= 10 * 60_000
           )
         );
 
