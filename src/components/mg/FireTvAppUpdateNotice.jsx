@@ -3,7 +3,6 @@ import { Download, Loader2, Tv, X } from "lucide-react";
 
 import {
   nativeFireTvAppInfo,
-  nativeFireTvSelfUpdateAvailable,
   startNativeFireTvUpdate,
 } from "@/components/mg/nativeFireTvBridge";
 
@@ -125,7 +124,6 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
     () =>
       Boolean(
         nativeInfo?.selfUpdateSupported &&
-          nativeFireTvSelfUpdateAvailable() &&
           release?.apkUrl
       ),
     [nativeInfo, release]
