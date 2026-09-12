@@ -541,10 +541,10 @@ const normaliseStream = (
       };
     }
 
-    const providedTrackers = [
-      ...(Array.isArray(stream?.announce) ? stream.announce : []),
-      ...(Array.isArray(stream?.trackers) ? stream.trackers : []),
-    ];
+    const providedTrackers = normaliseTrackerList(
+      stream?.announce,
+      stream?.trackers
+    );
 
     const cacheMagnet = magnetFromHash(
       infoHash,
@@ -594,13 +594,29 @@ const normaliseStream = (
     };
   }
 
+  const suppliedTrackers = normaliseTrackerList(
+    stream?.announce,
+    stream?.trackers
+  );
+
+  /*
+   * Server-side addon lookup is Media God's normal source path, so enrich
+   * generic info-hash magnets here as well as in the browser fallback. Many
+   * addons omit announce URLs because a cached debrid hit does not need them;
+   * the same bare hash is insufficiently discoverable when RD must perform a
+   * fresh uncached BitTorrent download.
+   */
   const magnet =
     isMagnet(rawUrl)
-      ? rawUrl
+      ? enrichMagnetWithTrackers(rawUrl, suppliedTrackers)
       : infoHash
         ? magnetFromHash(
             infoHash,
-            streamTitle(stream)
+            streamTitle(stream),
+            normaliseTrackerList(
+              suppliedTrackers,
+              PUBLIC_FALLBACK_TRACKERS
+            )
           )
         : "";
 
