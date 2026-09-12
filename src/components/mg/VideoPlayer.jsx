@@ -5527,11 +5527,19 @@ export default function VideoPlayer({
     sources,
   ]);
 
+  const rdPreparationStatus = String(
+    rdPreparation?.status || ""
+  ).toLowerCase();
+  const rdPreparationTerminal =
+    /^(?:comet_start_failed|stalled|dead|error|magnet_error|virus)$/.test(
+      rdPreparationStatus
+    );
+
   const busy =
     rdResolving ||
     rdPolling ||
     !!rdTorrentId ||
-    !!rdPreparation;
+    (!!rdPreparation && !rdPreparationTerminal);
 
   const activeSourceFailed =
     failedSources.has(activeIdx);
@@ -5664,8 +5672,8 @@ export default function VideoPlayer({
           cacheSpeedBps <= 0 &&
           cacheElapsedSeconds >= 30
         ? sourceReportedSeeders > 0
-          ? `Comet found ${sourceReportedSeeders} seeder${sourceReportedSeeders === 1 ? "" : "s"}, but Real-Debrid currently reports no active peers. Media God will move on if progress stays flat.`
-          : "Real-Debrid reports no active seeders. Media God will move on if progress stays flat."
+          ? `Comet found ${sourceReportedSeeders} seeder${sourceReportedSeeders === 1 ? "" : "s"}, but Real-Debrid currently reports no active peers. Media God will keep this source selected while it checks.`
+          : "Real-Debrid reports no active seeders. Media God will keep this source selected rather than silently switching torrents."
         : cacheSpeedBps <= 0 &&
             cacheProgress > 0 &&
             cacheElapsedSeconds >= 30
@@ -5875,19 +5883,32 @@ export default function VideoPlayer({
                 )}
               </div>
             </div>
-          ) : activeSourceFailed && displayedError ? (
+          ) : displayedError ? (
             <div className="flex max-w-lg flex-col items-center gap-3 p-6 text-center">
               <div className="flex h-12 w-12 items-center justify-center rounded-full border border-amber-400/20 bg-amber-400/10 text-amber-200">
                 <VolumeX className="h-6 w-6" />
               </div>
 
               <p className="text-sm font-semibold text-white/85 sm:text-base">
-                This source is unavailable
+                {sourceNeedsCaching(active)
+                  ? "This torrent needs attention"
+                  : "This source is unavailable"}
               </p>
 
               <p className="max-w-md text-xs leading-relaxed text-white/50 sm:text-sm">
                 {friendlyError || "Media God rejected an error/status stream instead of playing it as video."}
               </p>
+
+              {isRdSource && (
+                <button
+                  type="button"
+                  onClick={retryResolution}
+                  className="mt-1 flex min-h-10 items-center gap-2 rounded-lg bg-mg-green px-4 text-xs font-bold text-black hover:bg-mg-green-dim focus:outline-none focus:ring-2 focus:ring-white/70"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  Retry this source
+                </button>
+              )}
             </div>
           ) : fireTvNativeSelectorMode ? (
             <div
