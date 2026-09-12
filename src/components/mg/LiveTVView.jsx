@@ -423,10 +423,14 @@ const radioUrlsFor = (channel) => {
   const seen = new Set();
   const urls = [];
 
-  const add = (value) => {
+  const add = (value, trustedRadioSource = false) => {
     const url = String(value || "").trim();
 
-    if (!url || seen.has(url) || !isRadioStreamUrl(url)) {
+    if (
+      !url ||
+      seen.has(url) ||
+      (!trustedRadioSource && !isRadioStreamUrl(url))
+    ) {
       return;
     }
 
@@ -436,12 +440,12 @@ const radioUrlsFor = (channel) => {
 
   const normalised = normaliseStationName(channel?.name);
 
-  add(RADIO_STREAM_OVERRIDES[normalised]);
+  add(RADIO_STREAM_OVERRIDES[normalised], true);
 
-  add(channel?.url);
+  add(channel?.url, channel?.sourceCategory === "Radio");
 
   (channel?.alternatives || []).forEach((candidate) => {
-    add(candidate?.url);
+    add(candidate?.url, candidate?.sourceCategory === "Radio");
   });
 
   return urls;
