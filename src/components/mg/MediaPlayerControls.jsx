@@ -762,7 +762,17 @@ export default function MediaPlayerControls({
     };
 
     const onWaiting = () => {
+      /*
+       * Live HLS/DASH streams can emit short `waiting` events repeatedly while
+       * staying healthy. The old handler forced the controls visible every
+       * time but did not start a new hide timer, so mobile Live TV chrome could
+       * remain permanently over the picture after a tiny buffer event.
+       */
       setShowControls(true);
+
+      if (playingRef.current) {
+        scheduleHide(isLive ? 1800 : 2800);
+      }
     };
 
     const onTime = () => {
@@ -1468,6 +1478,18 @@ export default function MediaPlayerControls({
   };
 
   const focusSelectControl = () => {
+    if (isTouchFirstControlsRuntime()) {
+      /*
+       * Mobile native pickers often leave the <select> focused after selection.
+       * Show the chrome while the picker is being used, but do not let that
+       * stale focus disable auto-hide indefinitely.
+       */
+      selectFocusedRef.current = false;
+      setShowControls(true);
+      scheduleHide(3600);
+      return;
+    }
+
     selectFocusedRef.current = true;
     clearHideTimer();
     setShowControls(true);
