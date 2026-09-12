@@ -4233,6 +4233,32 @@ export default function VideoPlayer({
       };
 
       const reason = String(detail.reason || "back").toLowerCase();
+      const selectedSourceIndex = Number(detail.selectedSourceIndex);
+
+      if (
+        reason === "source" &&
+        Number.isInteger(selectedSourceIndex) &&
+        selectedSourceIndex >= 0 &&
+        selectedSourceIndex < sources.length
+      ) {
+        if (positionSeconds > 5) {
+          recoveryResumeRef.current = positionSeconds;
+        }
+
+        setForceNativePlayback(false);
+        setNativeFallbackUrl("");
+
+        if (selectedSourceIndex !== activeIdx) {
+          switchToSource(selectedSourceIndex, {
+            preservePosition: true,
+            statusMessage: "Switching source from the Fire TV player…",
+          });
+        } else {
+          setForceNativePlayback(true);
+        }
+
+        return;
+      }
 
       if (reason === "error") {
         if (positionSeconds > 5) {
@@ -4304,6 +4330,8 @@ export default function VideoPlayer({
     rdOverride,
     forceNativePlayback,
     onClose,
+    activeIdx,
+    sources,
   ]);
 
   useEffect(() => {
@@ -4363,21 +4391,23 @@ export default function VideoPlayer({
       subtitles: Array.isArray(active?.subtitles)
         ? active.subtitles
         : [],
-      sources: isLive
-        ? sources.map((candidate, index) => {
-            const baseLabel = sourceDisplayLabel(candidate, index);
-            const provider = String(candidate?.sourceName || "").trim();
+      sources: sources.map((candidate, index) => {
+        const baseLabel = sourceDisplayLabel(candidate, index);
+        const provider = String(candidate?.sourceName || "").trim();
 
-            return {
-              ...candidate,
-              label:
-                provider && !baseLabel.toLowerCase().includes(provider.toLowerCase())
-                  ? `${baseLabel} • ${provider}`
-                  : baseLabel,
-              url: getSourceUrl(candidate),
-            };
-          })
-        : [],
+        return {
+          ...candidate,
+          label:
+            provider && !baseLabel.toLowerCase().includes(provider.toLowerCase())
+              ? `${baseLabel} • ${provider}`
+              : baseLabel,
+          url:
+            index === activeIdx && /^https?:\/\//i.test(nativePlaybackUrl)
+              ? nativePlaybackUrl
+              : getSourceUrl(candidate),
+          webIndex: index,
+        };
+      }),
       activeSourceIndex: activeIdx,
     });
 
