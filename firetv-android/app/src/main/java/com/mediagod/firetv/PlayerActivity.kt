@@ -199,25 +199,36 @@ class PlayerActivity : Activity() {
 
             when (event.keyCode) {
                 KeyEvent.KEYCODE_BACK -> {
+                    if (hideSourceSelector()) {
+                        return true
+                    }
+
                     finishWithResult("back")
                     return true
                 }
 
                 KeyEvent.KEYCODE_MENU -> {
-                    if (sourceSpinner.visibility == View.VISIBLE) {
-                        sourceSpinner.requestFocus()
-                        sourceSpinner.performClick()
+                    if (nativeSources.size > 1) {
+                        if (sourceSpinner.visibility == View.VISIBLE) {
+                            sourceSpinner.requestFocus()
+                            sourceSpinner.performClick()
+                        } else {
+                            showSourceSelector()
+                        }
                         return true
                     }
                 }
 
                 KeyEvent.KEYCODE_DPAD_UP -> {
-                    if (
-                        sourceSpinner.visibility == View.VISIBLE &&
-                        !sourceSpinner.hasFocus()
-                    ) {
-                        sourceSpinner.requestFocus()
-                        playerView.showController()
+                    if (nativeSources.size > 1 && !sourceSpinner.hasFocus()) {
+                        showSourceSelector()
+                        return true
+                    }
+                }
+
+                KeyEvent.KEYCODE_DPAD_DOWN -> {
+                    if (sourceSpinner.visibility == View.VISIBLE && sourceSpinner.hasFocus()) {
+                        hideSourceSelector()
                         return true
                     }
                 }
@@ -261,6 +272,30 @@ class PlayerActivity : Activity() {
 
     private fun dp(value: Int): Int =
         (value * resources.displayMetrics.density).toInt()
+
+    private fun showSourceSelector() {
+        if (nativeSources.size <= 1 || resultSent) return
+
+        sourceSpinner.visibility = View.VISIBLE
+        sourceSpinner.requestFocus()
+        playerView.showController()
+        sourceSpinner.post {
+            if (!resultSent && sourceSpinner.visibility == View.VISIBLE) {
+                sourceSpinner.performClick()
+            }
+        }
+    }
+
+    private fun hideSourceSelector(): Boolean {
+        if (!::sourceSpinner.isInitialized || sourceSpinner.visibility != View.VISIBLE) {
+            return false
+        }
+
+        sourceSpinner.visibility = View.GONE
+        playerView.requestFocus()
+        playerView.showController()
+        return true
+    }
 
     private fun readHeaders(json: JSONObject?): Map<String, String> {
         if (json == null) return emptyMap()
@@ -368,7 +403,9 @@ class PlayerActivity : Activity() {
         return Spinner(this, Spinner.MODE_DROPDOWN).apply {
             id = View.generateViewId()
             adapter = sourceAdapter
-            visibility = if (nativeSources.size > 1) View.VISIBLE else View.GONE
+            // Keep the selector off the picture during normal playback. The
+            // Fire TV Menu button or D-pad Up opens it only when needed.
+            visibility = View.GONE
             isFocusable = true
             isFocusableInTouchMode = false
             contentDescription = if (live) "Choose Live TV source" else "Choose playback source"
@@ -396,6 +433,7 @@ class PlayerActivity : Activity() {
                     }
 
                     switchNativeSource(position)
+                    hideSourceSelector()
                 }
             }
 
