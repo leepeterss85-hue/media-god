@@ -165,6 +165,68 @@ const magnetFromHash = (hash, title = "", trackers = []) => {
   return `magnet:?${params.join("&")}`;
 };
 
+const cometTorrentModeManifestUrl = (value, addonName = "") => {
+  if (!/\bcomet\b/i.test(String(addonName || ""))) {
+    return "";
+  }
+
+  try {
+    const url = new URL(clean(value));
+    const segments = url.pathname.split("/").filter(Boolean);
+    const manifestIndex = segments.lastIndexOf("manifest.json");
+
+    if (manifestIndex <= 0) {
+      return "";
+    }
+
+    /*
+     * Comet's current configure page serialises custom settings with
+     * btoa(JSON.stringify(settings)) directly into the manifest path. It also
+     * auto-disables Torrent Mode when the first debrid service is added. Media
+     * God needs the Torrent Mode companion row only as metadata: that row is
+     * where Comet exposes the torrent's `sources` tracker list. Clone the
+     * existing private config in-memory, flip only enableTorrent, and query the
+     * resulting stream endpoint without ever exposing or storing a second URL.
+     */
+    for (let index = manifestIndex - 1; index >= 0; index -= 1) {
+      const encoded = decodeURIComponent(segments[index] || "");
+      if (!encoded) continue;
+
+      try {
+        const settings = JSON.parse(atob(encoded));
+        if (!settings || typeof settings !== "object" || Array.isArray(settings)) {
+          continue;
+        }
+
+        const looksLikeCometConfig =
+          Object.prototype.hasOwnProperty.call(settings, "enableTorrent") ||
+          Array.isArray(settings.debridServices) ||
+          Object.prototype.hasOwnProperty.call(settings, "debridService");
+
+        if (!looksLikeCometConfig || settings.enableTorrent === true) {
+          return "";
+        }
+
+        const torrentSettings = {
+          ...settings,
+          enableTorrent: true,
+        };
+        const torrentConfig = btoa(JSON.stringify(torrentSettings));
+        const nextSegments = [...segments];
+        nextSegments[index] = torrentConfig;
+        url.pathname = `/${nextSegments.join("/")}`;
+        return url.toString();
+      } catch {
+        // Protected-prefix/path segments are not Comet config; keep scanning.
+      }
+    }
+  } catch {
+    return "";
+  }
+
+  return "";
+};
+
 const parseAddonUrl = (value) => {
   const input = clean(value);
 
