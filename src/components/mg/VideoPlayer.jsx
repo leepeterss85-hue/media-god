@@ -3263,55 +3263,12 @@ export default function VideoPlayer({
   );
 
   /*
-   * If a torrent hash failed recently, skip it immediately when a retry or
-   * reopen makes the same row active again. This prevents repeatedly waiting
-   * on the same dead partial Real-Debrid job across player sessions.
+   * Failed-hash history is still useful when choosing an automatic backup for
+   * ordinary playback, but it must never auto-skip a source the user has just
+   * selected or retried. Uncached caching attempts now remain visible until
+   * they succeed, the user retries them, or the user manually chooses another
+   * source.
    */
-  useEffect(
-    () => {
-      const activeHash = sourceTorrentHash(active);
-
-      if (
-        rdResolving ||
-        rdPolling ||
-        rdTorrentId ||
-        rdPreparation ||
-        !activeHash ||
-        !failedTorrentHashesRef.current.has(activeHash)
-      ) {
-        return;
-      }
-
-      const nextIndex = findNextPlayableSource(activeIdx);
-
-      if (nextIndex === -1) {
-        return;
-      }
-
-      const timer = window.setTimeout(() => {
-        switchToSource(nextIndex, {
-          preservePosition: true,
-          statusMessage:
-            "Skipping a recently failed torrent — trying a different source…",
-        });
-      }, 0);
-
-      return () => window.clearTimeout(timer);
-    },
-    [
-      activeIdx,
-      active,
-      sources,
-      source?.title,
-      source?.id,
-      source?.rdSeason,
-      source?.rdEpisode,
-      rdResolving,
-      rdPolling,
-      rdTorrentId,
-      rdPreparation,
-    ]
-  );
 
   /*
    * Keyboard / TV remote controls.
