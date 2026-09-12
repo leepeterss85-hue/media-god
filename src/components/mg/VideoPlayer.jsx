@@ -1742,6 +1742,7 @@ export default function VideoPlayer({
              */
             if (
               active?.cacheRequired === true &&
+              active?.cometUncached !== true &&
               !effectiveMagnetHasTrackers
             ) {
               const richerEntry = sortedSourceEntries.find((entry) => {
@@ -1879,7 +1880,6 @@ export default function VideoPlayer({
               active?.cacheRequired === true &&
               active?.cometUncached === true &&
               hash &&
-              !hasTrackerRichMagnet &&
               /^https?:\/\//i.test(cometPlaybackUrl)
             ) {
               const triggerController = new AbortController();
