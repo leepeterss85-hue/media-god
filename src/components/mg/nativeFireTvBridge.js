@@ -167,28 +167,29 @@ export const playNativeFireTv = ({
           .slice(0, 20)
       : [],
     sources: Array.isArray(sources)
-      ? sources
-          .map((item, index) => ({
-            label: String(
-              item?.label || item?.name || item?.sourceName || `Source ${index + 1}`
-            )
-              .replace(/\s+/g, " ")
-              .trim(),
-            sourceName: String(item?.sourceName || "").replace(/\s+/g, " ").trim(),
-            url: String(item?.url || item?.src || "").trim(),
-            mimeType: String(item?.mimeType || item?.mime_type || "").trim(),
-            headers:
-              item?.headers &&
-              typeof item.headers === "object" &&
-              !Array.isArray(item.headers)
-                ? item.headers
-                : item?.requestHeaders &&
-                    typeof item.requestHeaders === "object" &&
-                    !Array.isArray(item.requestHeaders)
-                  ? item.requestHeaders
-                  : {},
-          }))
-          .filter((item) => /^https?:\/\//i.test(item.url))
+      ? sources.map((item, index) => ({
+          label: String(
+            item?.label || item?.name || item?.sourceName || `Source ${index + 1}`
+          )
+            .replace(/\s+/g, " ")
+            .trim(),
+          sourceName: String(item?.sourceName || "").replace(/\s+/g, " ").trim(),
+          url: String(item?.url || item?.src || item?.magnet || item?.magnetLink || "").trim(),
+          mimeType: String(item?.mimeType || item?.mime_type || "").trim(),
+          webIndex: Number.isFinite(Number(item?.webIndex))
+            ? Number(item.webIndex)
+            : index,
+          headers:
+            item?.headers &&
+            typeof item.headers === "object" &&
+            !Array.isArray(item.headers)
+              ? item.headers
+              : item?.requestHeaders &&
+                  typeof item.requestHeaders === "object" &&
+                  !Array.isArray(item.requestHeaders)
+                ? item.requestHeaders
+                : {},
+        }))
       : [],
     activeSourceIndex: Math.max(0, Number(activeSourceIndex || 0)),
   };
