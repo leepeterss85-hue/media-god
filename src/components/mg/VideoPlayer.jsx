@@ -2013,42 +2013,56 @@ export default function VideoPlayer({
             }
 
             /*
-             * Comet RD⬇ sources need Comet to start the torrent first.
-             * Comet keeps the tracker/source list in its own database and
-             * includes that metadata when it submits the torrent to the
-             * user's debrid account. A bare info-hash magnet can be accepted
-             * by RD yet sit forever at 0 seeders / 0 B/s.
+             * COMET UN-CACHED OWNERSHIP
              *
-             * Trigger Comet from the actual playback device (same-IP safe),
-             * then adopt the resulting RD torrent by hash and use Media God's
-             * normal progress polling from that point onward.
+             * Comet stores the real torrent source list (including trackers
+             * that are not present in the Stremio stream object). Its playback
+             * endpoint is therefore the ONLY component that should start an
+             * uncached Comet result. Media God merely watches the user's RD
+             * account for that exact hash and adopts the torrent once Comet has
+             * created it. We deliberately do not fall through to resolve_best;
+             * doing so creates a second, weaker magnet job and was the source
+             * of the repeated `magnet_error` / three-second source hopping.
              */
             const cometPlaybackUrl = String(
               active?.cometPlaybackUrl || ""
             ).trim();
 
-            if (
-              active?.cacheRequired === true &&
-              active?.cometUncached === true &&
-              hash &&
-              /^https?:\/\//i.test(cometPlaybackUrl)
-            ) {
-              /*
-               * Comet's playback endpoint is the authoritative way to start
-               * an uncached Comet result because it can reuse Comet's stored
-               * torrent sources/private trackers. Do not wait for the HTTP
-               * response before polling RD: the endpoint can remain busy while
-               * it is creating/selecting the torrent, and the previous code
-               * aborted that request before adoption had a fair chance.
-               */
+            if (resolutionStrategy === "comet_uncached") {
+              if (
+                !hash ||
+                !/^https?:\/\//i.test(cometPlaybackUrl)
+              ) {
+                setRdResolving(false);
+                setRdPolling(false);
+                setRdTorrentId(null);
+                setRdPreparation({
+                  status: "comet_start_failed",
+                  progress: 0,
+                  seeders: Math.max(0, Number(active?.reportedSeeders || 0)),
+                  speed_bps: 0,
+                  startedAt: Date.now(),
+                  updatedAt: Date.now(),
+                  attempts: 0,
+                });
+                setRdError(
+                  "Comet did not provide the playback metadata needed to start this uncached torrent. Retry the source or choose another source manually."
+                );
+                return;
+              }
+
+              setRdError("");
               setRdPreparation((current) => ({
                 ...(current || {}),
-                status: current?.status || "magnet_conversion",
+                status: "comet_starting",
                 progress: Number(current?.progress || 0),
-                seeders: Number(
-                  current?.seeders ||
-                    active?.reportedSeeders ||
-                    0
+                seeders: Math.max(
+                  0,
+                  Number(
+                    current?.seeders ||
+                      active?.reportedSeeders ||
+                      0
+                  )
                 ),
                 speed_bps: Number(current?.speed_bps || 0),
                 startedAt: current?.startedAt || Date.now(),
@@ -2057,44 +2071,72 @@ export default function VideoPlayer({
               }));
               setRdResolving(false);
 
+              /*
+               * Clean only an old terminal/long-stale copy of this exact hash
+               * before Comet starts. reset_stale_hash intentionally leaves a
+               * fresh active torrent alone, so Retry can safely reconnect to a
+               * healthy in-progress download instead of deleting it.
+               */
+              try {
+                await base44.functions.invoke(
+                  "realDebrid",
+                  {
+                    action: "reset_stale_hash",
+                    info_hash: hash,
+                    claim_for_playback: true,
+                    title:
+                      source?.rdTitle ||
+                      source?.title ||
+                      "",
+                  }
+                );
+              } catch {
+                // Cleanup is best-effort; Comet still gets the start request.
+              }
+
+              if (cancelled) return;
+
               const triggerController = new AbortController();
               const triggerTimer = window.setTimeout(
                 () => triggerController.abort(),
-                30000
+                65000
               );
 
-              void fetch(
-                cometPlaybackUrl,
-                {
-                  method: "GET",
-                  cache: "no-store",
-                  redirect: "manual",
-                  signal: triggerController.signal,
-                }
-              )
-                .then(async (triggerResponse) => {
-                  try {
-                    await triggerResponse.body?.cancel?.();
-                  } catch {
-                    // The request itself is what starts the Comet/RD job.
+              const triggerComet = () => {
+                void fetch(
+                  cometPlaybackUrl,
+                  {
+                    method: "GET",
+                    mode: "no-cors",
+                    cache: "no-store",
+                    redirect: "manual",
+                    signal: triggerController.signal,
                   }
-                })
-                .catch(() => {
-                  /*
-                   * CORS/opaque redirect errors can occur after Comet has
-                   * already received the request. Adoption below is the source
-                   * of truth for whether RD actually started the torrent.
-                   */
-                })
-                .finally(() => {
-                  window.clearTimeout(triggerTimer);
-                });
+                )
+                  .then(async (triggerResponse) => {
+                    try {
+                      await triggerResponse.body?.cancel?.();
+                    } catch {
+                      // The request itself is what starts the Comet/RD job.
+                    }
+                  })
+                  .catch(() => {
+                    /*
+                     * With no-cors/manual redirects the response is often
+                     * opaque. That is expected: RD adoption below, not the HTTP
+                     * response body, tells us whether Comet started the torrent.
+                     */
+                  });
+              };
 
-              let cometResetAttempted = false;
+              triggerComet();
 
-              for (let adoptAttempt = 0; adoptAttempt < 24; adoptAttempt += 1) {
+              let lastAdoptError = "";
+
+              for (let adoptAttempt = 0; adoptAttempt < 48; adoptAttempt += 1) {
                 if (cancelled) {
                   triggerController.abort();
+                  window.clearTimeout(triggerTimer);
                   return;
                 }
 
@@ -2126,93 +2168,51 @@ export default function VideoPlayer({
                     }
                   );
 
-                  if (cancelled) return;
+                  if (cancelled) {
+                    triggerController.abort();
+                    window.clearTimeout(triggerTimer);
+                    return;
+                  }
 
                   const adoptData = adoptResponse?.data || {};
 
-                  if (adoptData.status === "stale") {
-                    const staleProgress = Math.max(
+                  setRdPreparation((current) => ({
+                    ...(current || {}),
+                    ...(adoptData.torrent_progress || {}),
+                    status:
+                      adoptData.torrent_progress?.status ||
+                      adoptData.rd_status ||
+                      (adoptData.status === "not_found"
+                        ? "comet_starting"
+                        : current?.status || "comet_starting"),
+                    seeders: Math.max(
                       0,
-                      Math.min(100, Number(adoptData.progress || 0))
-                    );
-
-                    setRdPreparation((current) => ({
-                      ...(current || {}),
-                      status: "magnet_conversion",
-                      progress: staleProgress,
-                      updatedAt: Date.now(),
-                      attempts: adoptAttempt + 1,
-                    }));
-
-                    /*
-                     * A stale row for the same hash must not kick the user to
-                     * another torrent. Clear it once, keep Comet's trigger
-                     * alive, and give the same source time to create a fresh RD
-                     * job with Comet's stored tracker/source metadata.
-                     */
-                    if (!cometResetAttempted) {
-                      cometResetAttempted = true;
-
-                      try {
-                        await base44.functions.invoke(
-                          "realDebrid",
-                          {
-                            action: "reset_stale_hash",
-                            info_hash: hash,
-                            claim_for_playback: true,
-                            title:
-                              source?.rdTitle ||
-                              source?.title ||
-                              "",
-                          }
-                        );
-                      } catch {
-                        // Continue polling; the existing row may recover itself.
-                      }
-                    }
-
-                    continue;
-                  }
-
-                  if (adoptData.status === "failed") {
-                    setRdPreparation((current) => ({
-                      ...(current || {}),
-                      status:
-                        adoptData.rd_status ||
-                        current?.status ||
-                        "magnet_conversion",
-                      updatedAt: Date.now(),
-                      attempts: adoptAttempt + 1,
-                    }));
-
-                    if (!cometResetAttempted) {
-                      cometResetAttempted = true;
-
-                      try {
-                        await base44.functions.invoke(
-                          "realDebrid",
-                          {
-                            action: "reset_stale_hash",
-                            info_hash: hash,
-                            claim_for_playback: true,
-                            title:
-                              source?.rdTitle ||
-                              source?.title ||
-                              "",
-                          }
-                        );
-                      } catch {
-                        // Keep waiting for Comet to replace the failed RD row.
-                      }
-                    }
-
-                    continue;
-                  }
+                      Number(
+                        adoptData.torrent_progress?.seeders ??
+                          current?.seeders ??
+                          active?.reportedSeeders ??
+                          0
+                      )
+                    ),
+                    speed_bps: Math.max(
+                      0,
+                      Number(
+                        adoptData.torrent_progress?.speed_bps ??
+                          current?.speed_bps ??
+                          0
+                      )
+                    ),
+                    startedAt: current?.startedAt || Date.now(),
+                    updatedAt: Date.now(),
+                    attempts: adoptAttempt + 1,
+                  }));
 
                   if (
                     adoptData.status === "ready" &&
                     adoptData.stream_url
                   ) {
+                    triggerController.abort();
+                    window.clearTimeout(triggerTimer);
                     setRdOverride({
                       src: adoptData.stream_url,
                       label:
@@ -2232,13 +2232,26 @@ export default function VideoPlayer({
                     return;
                   }
 
-                  if (adoptData.torrent_id) {
+                  if (
+                    adoptData.status === "preparing" &&
+                    adoptData.torrent_id
+                  ) {
+                    triggerController.abort();
+                    window.clearTimeout(triggerTimer);
                     setRdPreparation({
                       ...(adoptData.torrent_progress || {}),
                       status:
                         adoptData.torrent_progress?.status ||
                         adoptData.rd_status ||
                         "preparing",
+                      seeders: Math.max(
+                        0,
+                        Number(
+                          adoptData.torrent_progress?.seeders ??
+                            active?.reportedSeeders ??
+                            0
+                        )
+                      ),
                       startedAt: Date.now(),
                       updatedAt: Date.now(),
                       attempts: 0,
@@ -2247,24 +2260,63 @@ export default function VideoPlayer({
                     setRdResolving(false);
                     return;
                   }
-                } catch {
-                  // Give Comet/RD another moment to expose the new torrent.
+
+                  if (adoptData.status === "stale") {
+                    lastAdoptError =
+                      "Real-Debrid still has an old stalled copy of this torrent.";
+                  } else if (adoptData.status === "failed") {
+                    lastAdoptError = String(
+                      adoptData.error ||
+                        "Real-Debrid rejected the torrent Comet tried to start."
+                    ).trim();
+
+                    /*
+                     * This is now a genuine Comet-created RD failure, not a
+                     * reason to submit a second magnet ourselves. Stop here and
+                     * leave the selected source visible for Retry/manual choice.
+                     */
+                    triggerController.abort();
+                    window.clearTimeout(triggerTimer);
+                    setRdPolling(false);
+                    setRdTorrentId(null);
+                    setRdPreparation((current) => ({
+                      ...(current || {}),
+                      status:
+                        adoptData.rd_status ||
+                        "comet_start_failed",
+                      updatedAt: Date.now(),
+                      attempts: adoptAttempt + 1,
+                    }));
+                    setRdError(
+                      `${lastAdoptError} Retry this Comet source or choose another source manually.`
+                    );
+                    return;
+                  }
+                } catch (adoptError) {
+                  lastAdoptError = String(
+                    adoptError?.message ||
+                      "Could not check Real-Debrid for the Comet torrent."
+                  ).trim();
                 }
               }
 
-              window.dispatchEvent(
-                new CustomEvent("mg:player-status", {
-                  detail: {
-                    message:
-                      "Comet could not start this uncached torrent directly — trying Real-Debrid with fallback trackers…",
-                  },
-                })
+              triggerController.abort();
+              window.clearTimeout(triggerTimer);
+              setRdResolving(false);
+              setRdPolling(false);
+              setRdTorrentId(null);
+              setRdPreparation((current) => ({
+                ...(current || {}),
+                status: "comet_start_failed",
+                updatedAt: Date.now(),
+                attempts: 48,
+              }));
+              setRdError(
+                lastAdoptError
+                  ? `Comet did not create an active Real-Debrid torrent within about a minute. ${lastAdoptError} Retry this source or choose another source manually.`
+                  : "Comet did not create an active Real-Debrid torrent within about a minute. Retry this source or choose another source manually."
               );
-              /*
-               * Fall through to Media God's normal Real-Debrid resolver.
-               * Uncached Comet magnets now carry a public fallback tracker
-               * set, so RD still has a second route to discover peers.
-               */
+              return;
             }
 
             if (hash && source?.hasDebrid) {
