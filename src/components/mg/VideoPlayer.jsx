@@ -1795,6 +1795,103 @@ export default function VideoPlayer({
             );
 
             if (hash && knownUncached && source?.hasRd !== false) {
+              /*
+               * Before checking whether RD has a free download slot, look for
+               * this exact hash in the user's RD account. A previous Media God
+               * attempt may already be downloading it. The old preflight ran
+               * first and, when RD reported all slots occupied, immediately
+               * jumped to another source. That meant Media God never adopted
+               * the already-active torrent and never reached the seeder/speed
+               * polling UI.
+               */
+              let adopted = {};
+
+              try {
+                const adoptResponse = await base44.functions.invoke(
+                  "realDebrid",
+                  {
+                    action: "adopt_hash",
+                    info_hash: hash,
+                    title:
+                      source?.rdTitle ||
+                      source?.title ||
+                      "",
+                    ...(source?.rdYear != null
+                      ? { year: source.rdYear }
+                      : {}),
+                    ...(source?.rdSeason != null
+                      ? { season: source.rdSeason }
+                      : {}),
+                    ...(source?.rdEpisode != null
+                      ? { episode: source.rdEpisode }
+                      : {}),
+                  }
+                );
+
+                adopted = adoptResponse?.data || {};
+              } catch {
+                adopted = {};
+              }
+
+              if (cancelled) return;
+
+              if (adopted.status === "ready" && adopted.stream_url) {
+                setRdOverride({
+                  src: adopted.stream_url,
+                  label:
+                    adopted.filename ||
+                    active?.label ||
+                    "Real-Debrid Stream",
+                  file: currentFilePath(adopted.files),
+                  audioRescue: adopted.audio_rescue || null,
+                  fallbackSrc: adopted.fallback_stream_url || "",
+                  videoRescue: adopted.video_rescue || null,
+                  mediaInfo: adopted.media_info || null,
+                });
+                setRdFiles(adopted.files || []);
+                setRdResolving(false);
+                setRdPreparation(null);
+                return;
+              }
+
+              if (
+                adopted.status === "preparing" &&
+                adopted.torrent_id
+              ) {
+                setRdPreparation({
+                  ...(adopted.torrent_progress || {}),
+                  status:
+                    adopted.torrent_progress?.status ||
+                    adopted.rd_status ||
+                    "preparing",
+                  startedAt: Date.now(),
+                  updatedAt: Date.now(),
+                  attempts: 0,
+                });
+                setRdTorrentId(String(adopted.torrent_id));
+                setRdResolving(false);
+                return;
+              }
+
+              if (adopted.status === "stale") {
+                try {
+                  await base44.functions.invoke(
+                    "realDebrid",
+                    {
+                      action: "reset_stale_hash",
+                      info_hash: hash,
+                      claim_for_playback: true,
+                      title:
+                        source?.rdTitle ||
+                        source?.title ||
+                        "",
+                    }
+                  );
+                } catch {
+                  // A stale-hash reset is best-effort; preflight will diagnose slots.
+                }
+              }
+
               let preflight = {};
 
               try {
@@ -1821,41 +1918,36 @@ export default function VideoPlayer({
                   Number(preflight.active_limit || 0)
                 );
 
-                const moved = tryNextSource(
+                /*
+                 * Do NOT hop through every uncached source here. All of them
+                 * share the same RD active-download limit, so switching hashes
+                 * cannot create a free slot and only makes the UI look as if
+                 * Media God is refusing to search for seeders.
+                 */
+                throw new Error(
                   activeLimit > 0
-                    ? `Real-Debrid already has ${activeCount}/${activeLimit} active torrents. Trying a cached or different source.`
-                    : "Real-Debrid has no free active torrent slot. Trying another source.",
-                  {
-                    immediate: true,
-                  }
+                    ? `Real-Debrid has ${activeCount}/${activeLimit} active torrent slots in use. Finish or remove one active torrent, then retry this uncached source.`
+                    : "Real-Debrid has no free active torrent slot for an uncached download."
                 );
-
-                if (!moved) {
-                  throw new Error(
-                    activeLimit > 0
-                      ? `Real-Debrid already has ${activeCount}/${activeLimit} active torrents. Stop or finish one before starting another uncached source.`
-                      : "Real-Debrid has no free active torrent slot."
-                  );
-                }
-
-                return;
               }
 
-              try {
-                await base44.functions.invoke(
-                  "realDebrid",
-                  {
-                    action: "reset_stale_hash",
-                    info_hash: hash,
-                    claim_for_playback: true,
-                    title:
-                      source?.rdTitle ||
-                      source?.title ||
-                      "",
-                  }
-                );
-              } catch {
-                // Same-hash cleanup is best-effort; the fresh RD add still runs.
+              if (adopted.status !== "stale") {
+                try {
+                  await base44.functions.invoke(
+                    "realDebrid",
+                    {
+                      action: "reset_stale_hash",
+                      info_hash: hash,
+                      claim_for_playback: true,
+                      title:
+                        source?.rdTitle ||
+                        source?.title ||
+                        "",
+                    }
+                  );
+                } catch {
+                  // Same-hash cleanup is best-effort; the fresh RD add still runs.
+                }
               }
 
               if (cancelled) return;
