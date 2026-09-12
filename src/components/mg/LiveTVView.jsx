@@ -405,8 +405,8 @@ const playableChannelCandidates = (channel) => {
     }))
     .sort(
       (a, b) =>
-        Number(a.quarantined) - Number(b.quarantined) ||
         Number(a.geoRestricted) - Number(b.geoRestricted) ||
+        Number(a.quarantined) - Number(b.quarantined) ||
         b.score - a.score ||
         a.index - b.index
     )
