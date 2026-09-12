@@ -2121,7 +2121,6 @@ export default function VideoPlayer({
                   cometPlaybackUrl,
                   {
                     method: "GET",
-                    mode: "no-cors",
                     cache: "no-store",
                     redirect: "manual",
                     signal: triggerController.signal,
@@ -2136,9 +2135,10 @@ export default function VideoPlayer({
                   })
                   .catch(() => {
                     /*
-                     * With no-cors/manual redirects the response is often
-                     * opaque. That is expected: RD adoption below, not the HTTP
-                     * response body, tells us whether Comet started the torrent.
+                     * Browsers can reject reading a cross-origin/manual-redirect
+                     * response even after Comet received the request. That is
+                     * expected: RD adoption below, not the HTTP response body,
+                     * tells us whether Comet started the torrent.
                      */
                   });
               };
