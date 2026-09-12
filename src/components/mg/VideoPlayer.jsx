@@ -1633,6 +1633,94 @@ export default function VideoPlayer({
             const hash = magnetHash(magnet);
 
             /*
+             * RD Library rows carry Real-Debrid's torrent ID, not a magnet or
+             * info hash. Passing that ID to resolve_best makes the library's
+             * Play button fail because resolve_best treats its input as a new
+             * torrent source. Resolve existing RD torrents directly instead.
+             */
+            const existingRdTorrentId = String(
+              active?.rdTorrentId ||
+                (active?.type === "rd_torrent" && !hash && !isMagnet(magnet)
+                  ? magnet
+                  : "")
+            ).trim();
+
+            if (existingRdTorrentId) {
+              rdResolveStartedAt = Date.now();
+
+              const existingResponse = await base44.functions.invoke(
+                "realDebrid",
+                {
+                  action: "torrent_info",
+                  torrent_id: existingRdTorrentId,
+                  title:
+                    source?.rdTitle ||
+                    source?.title ||
+                    "",
+                  ...(source?.rdYear != null ? { year: source.rdYear } : {}),
+                  ...(source?.rdSeason != null ? { season: source.rdSeason } : {}),
+                  ...(source?.rdEpisode != null ? { episode: source.rdEpisode } : {}),
+                  ...(active?.fileIdx != null && Number.isFinite(Number(active.fileIdx))
+                    ? { file_idx: Number(active.fileIdx) }
+                    : {}),
+                }
+              );
+
+              if (cancelled) return;
+
+              const existingData = existingResponse?.data || {};
+
+              if (existingData.status === "ready" && existingData.stream_url) {
+                recordDebridProviderResult("realdebrid", {
+                  success: true,
+                  latencyMs: Date.now() - rdResolveStartedAt,
+                });
+
+                setRdOverride({
+                  src: existingData.stream_url,
+                  label:
+                    existingData.filename ||
+                    active?.label ||
+                    "Real-Debrid Library",
+                  file: currentFilePath(existingData.files),
+                  audioRescue: existingData.audio_rescue || null,
+                  fallbackSrc: existingData.fallback_stream_url || "",
+                  videoRescue: existingData.video_rescue || null,
+                  mediaInfo: existingData.media_info || null,
+                });
+                setRdFiles(existingData.files || []);
+                setRdTorrentId(existingRdTorrentId);
+                setRdResolving(false);
+                setRdPreparation(null);
+                return;
+              }
+
+              if (
+                existingData.status === "preparing" ||
+                existingData.torrent_id
+              ) {
+                setRdPreparation({
+                  ...(existingData.torrent_progress || {}),
+                  status:
+                    existingData.torrent_progress?.status ||
+                    existingData.rd_status ||
+                    "preparing",
+                  startedAt: Date.now(),
+                  updatedAt: Date.now(),
+                  attempts: 0,
+                });
+                setRdTorrentId(existingRdTorrentId);
+                setRdResolving(false);
+                return;
+              }
+
+              throw new Error(
+                existingData.error ||
+                  "Real-Debrid could not open this library torrent."
+              );
+            }
+
+            /*
              * Prefer a tracker-bearing uncached torrent before attempting a
              * bare Comet hash. The selector ordering already reflects the
              * user's quality choice, so take the first richer uncached entry
