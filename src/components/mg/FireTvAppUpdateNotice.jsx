@@ -131,6 +131,12 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
     [nativeInfo, release]
   );
 
+  const signatureMigration =
+    updateState.status === "signature_migration" ||
+    /signing identity does not match/i.test(updateState.message);
+
+  const showDownloaderMigration = !canSelfUpdate || signatureMigration;
+
   const updateBusy = [
     "downloading",
     "downloaded",
@@ -208,16 +214,20 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
               Fire TV update
             </p>
             <h2 className="mt-1 text-xl font-bold text-white">
-              {migration
-                ? "Install the dedicated Media God Fire TV app"
-                : `Media God Fire TV ${release.versionName || "update"} available`}
+              {signatureMigration
+                ? "One-time Fire TV signing migration required"
+                : migration
+                  ? "Install the dedicated Media God Fire TV app"
+                  : `Media God Fire TV ${release.versionName || "update"} available`}
             </h2>
             <p className="mt-2 text-sm leading-6 text-white/70">
-              {migration
-                ? "This is the one-time move into the dedicated Media God Fire TV app."
-                : canSelfUpdate
-                  ? "Media God can download this update itself. Fire OS will ask you to approve installation before anything is replaced."
-                  : "This installed build does not yet contain the self-updater. Use Downloader once; Media God 1.4.2 and later can update from inside the app."}
+              {signatureMigration
+                ? "This Fire TV has an older Media God APK signed with the previous development key. Fire OS cannot replace it with the permanent signed release, so this device needs one clean reinstall."
+                : migration
+                  ? "This is the one-time move into the dedicated Media God Fire TV app."
+                  : canSelfUpdate
+                    ? "Media God can download this update itself. Fire OS will ask you to approve installation before anything is replaced."
+                    : "This installed build does not yet contain the self-updater. Use Downloader once; later signed releases can update from inside the app."}
             </p>
           </div>
 
@@ -234,7 +244,7 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
           </button>
         </div>
 
-        {canSelfUpdate && (
+        {canSelfUpdate && !signatureMigration && (
           <div className="mt-5 rounded-xl border border-mg-green/35 bg-black/25 p-4">
             <div className="flex items-center gap-2 text-sm font-bold text-white">
               {updateBusy || updateState.status === "starting" ? (
@@ -296,21 +306,37 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
           </div>
         )}
 
-        {!canSelfUpdate && (
+        {showDownloaderMigration && (
           <div className="mt-5 rounded-xl border border-mg-green/30 bg-black/25 p-4">
             <div className="flex items-center gap-2 text-sm font-bold text-white">
               <Download className="h-5 w-5 text-mg-green" />
-              One-time Downloader install
+              {signatureMigration
+                ? "One-time clean reinstall"
+                : "One-time Downloader install"}
             </div>
 
-            <ol className="mt-3 space-y-2 text-sm leading-5 text-white/75">
-              <li>
-                <span className="font-bold text-white">1.</span> Open the Downloader app on Fire TV.
-              </li>
-              <li>
-                <span className="font-bold text-white">2.</span> Enter this code:
-              </li>
-            </ol>
+            {signatureMigration ? (
+              <ol className="mt-3 space-y-2 text-sm leading-5 text-white/75">
+                <li>
+                  <span className="font-bold text-white">1.</span> On Fire TV, open Settings → Applications → Manage Installed Applications → Media God Fire TV and choose Uninstall.
+                </li>
+                <li>
+                  <span className="font-bold text-white">2.</span> Open Downloader and enter the code below.
+                </li>
+                <li>
+                  <span className="font-bold text-white">3.</span> Install Media God Fire TV {release.versionName || "the latest version"} and sign in again if Fire TV asks you to.
+                </li>
+              </ol>
+            ) : (
+              <ol className="mt-3 space-y-2 text-sm leading-5 text-white/75">
+                <li>
+                  <span className="font-bold text-white">1.</span> Open the Downloader app on Fire TV.
+                </li>
+                <li>
+                  <span className="font-bold text-white">2.</span> Enter this code:
+                </li>
+              </ol>
+            )}
 
             <div
               className="my-3 rounded-xl border-2 border-mg-green bg-black px-4 py-4 text-center font-mono text-3xl sm:text-4xl font-black tracking-[0.18em] text-mg-green"
@@ -320,7 +346,9 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
             </div>
 
             <p className="text-xs leading-5 text-white/50">
-              Install this version once. From Media God 1.4.2 onward, future Fire TV updates can use the in-app Update now button.
+              {signatureMigration
+                ? "This is required only once because Android/Fire OS will not install an APK over an existing app when the signing keys differ. Uninstalling clears local Fire TV app data, so you may need to sign in again. After this clean install, future Media God Fire TV updates can use Update now normally."
+                : "Install this signed version once. Future Media God Fire TV updates can then use the in-app Update now button."}
             </p>
           </div>
         )}
