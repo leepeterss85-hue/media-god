@@ -1664,6 +1664,10 @@ export default function LiveTVView() {
             live: true,
             sourceName:
               candidate.sourceName,
+            sourcePriority: Number(candidate?.sourcePriority || 0),
+            quality: Number(candidate?.quality || 0),
+            geoRestricted: candidate?.geoRestricted === true,
+            browserPlayable: candidate?.browserPlayable !== false,
             format: candidate.format || "",
             mimeType,
             headers,
