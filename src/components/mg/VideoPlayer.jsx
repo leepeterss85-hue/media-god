@@ -1652,16 +1652,10 @@ export default function VideoPlayer({
             ).trim();
 
             /*
-             * The same torrent can arrive with several magnet variants. In
-             * particular, Comet may expose its original magnet in richMagnet
-             * while Media God has already enriched src/magnet with a much
-             * larger fallback tracker set. The old `richMagnet || src` choice
-             * could therefore throw away most of the trackers immediately
-             * before asking Real-Debrid to cache an uncached torrent.
-             *
-             * Prefer the magnet variant with the MOST tracker announce URLs.
-             * Cached torrents are unaffected, but uncached torrents get the
-             * best chance of peer discovery if Comet's direct start fails.
+             * Generic magnet sources can arrive in several variants. Preserve
+             * the richest tracker-bearing form for Media God's direct RD path.
+             * Comet-uncached sources do not use this magnet to start caching;
+             * their dedicated Comet playback URL owns that operation.
              */
             const magnetCandidates = [
               richMagnet,
@@ -1691,10 +1685,6 @@ export default function VideoPlayer({
               active?.magnetLink ||
               richMagnet ||
               "";
-
-            const effectiveMagnetHasTrackers =
-              /^magnet:/i.test(String(magnet || "")) &&
-              /(?:[?&])tr=/i.test(String(magnet || ""));
 
             if (
               !magnet
