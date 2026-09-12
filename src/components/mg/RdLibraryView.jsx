@@ -40,9 +40,30 @@ export default function RdLibraryView() {
   }, []);
 
   const play = (t) => {
+    const torrentId = String(t?.id || "").trim();
+
+    if (!torrentId) {
+      setError("This Real-Debrid item is missing its torrent ID.");
+      return;
+    }
+
     player.play({
       title: t.filename || "Real-Debrid stream",
-      sources: [{ label: "Real-Debrid", type: "rd_torrent", src: t.id }],
+      hasRd: true,
+      hasDebrid: true,
+      skipAddonLookup: true,
+      skipRdLookup: true,
+      sources: [
+        {
+          label: t.filename || "Real-Debrid Library",
+          type: "rd_torrent",
+          src: torrentId,
+          rdTorrentId: torrentId,
+          viaRealDebrid: true,
+          debridProvider: "realdebrid",
+          debridCached: t.ready === true,
+        },
+      ],
     });
   };
 
