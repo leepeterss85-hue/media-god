@@ -24,9 +24,9 @@ html.mg-fire-tv-stable {
 body.mg-fire-tv,
 body.mg-fire-tv-mode,
 body.mg-fire-tv-stable {
-  --mg-tv-sidebar-width: 176px;
-  --mg-tv-safe-x: 5vw;
-  --mg-tv-safe-y: 5vh;
+  --mg-tv-sidebar-width: 160px;
+  --mg-tv-safe-x: 3vw;
+  --mg-tv-safe-y: 2vh;
   min-width: 0 !important;
   overflow-x: hidden !important;
 }
@@ -68,10 +68,10 @@ body.mg-fire-tv-stable #root .mg-fire-tv-nav + main {
 body.mg-fire-tv #root .mg-fire-tv-nav > div:first-child,
 body.mg-fire-tv-mode #root .mg-fire-tv-nav > div:first-child,
 body.mg-fire-tv-stable #root .mg-fire-tv-nav > div:first-child {
-  height: 46px !important;
-  min-height: 46px !important;
+  height: 40px !important;
+  min-height: 40px !important;
   justify-content: flex-start !important;
-  padding: 5px 9px !important;
+  padding: 4px 7px !important;
 }
 
 body.mg-fire-tv #root .mg-fire-tv-nav > div:first-child > span,
@@ -96,8 +96,8 @@ body.mg-fire-tv-mode #root .mg-fire-tv-nav nav,
 body.mg-fire-tv-mode #root .mg-fire-tv-nav > div:last-child,
 body.mg-fire-tv-stable #root .mg-fire-tv-nav nav,
 body.mg-fire-tv-stable #root .mg-fire-tv-nav > div:last-child {
-  padding: 3px !important;
-  gap: 1px !important;
+  padding: 2px !important;
+  gap: 0 !important;
 }
 
 body.mg-fire-tv #root .mg-fire-tv-nav nav button,
@@ -109,19 +109,20 @@ body.mg-fire-tv-stable #root .mg-fire-tv-nav > div:last-child button {
   width: 100% !important;
   min-width: 0 !important;
   max-width: none !important;
-  height: 36px !important;
-  min-height: 36px !important;
+  height: 27px !important;
+  min-height: 27px !important;
   justify-content: flex-start !important;
-  padding: 4px 8px !important;
-  gap: 8px !important;
-  font-size: 12px !important;
+  padding: 2px 6px !important;
+  gap: 6px !important;
+  font-size: 10.5px !important;
+  line-height: 1 !important;
 }
 
 body.mg-fire-tv #root .mg-fire-tv-nav svg,
 body.mg-fire-tv-mode #root .mg-fire-tv-nav svg,
 body.mg-fire-tv-stable #root .mg-fire-tv-nav svg {
-  width: 18px !important;
-  height: 18px !important;
+  width: 15px !important;
+  height: 15px !important;
 }
 
 /* Main catalogue content. */
