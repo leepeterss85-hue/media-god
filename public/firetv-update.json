@@ -5,7 +5,7 @@
   "title": "Media God Fire TV",
   "message": "Fire TV 1.4.9 fixes playback from the Real-Debrid Library and hides the native source selector during normal playback. Press Menu or D-pad Up when you want to choose another source.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
-  "downloaderCode": "",
+  "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/firetv-latest"
 }
