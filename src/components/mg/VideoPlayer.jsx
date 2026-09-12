@@ -1572,24 +1572,44 @@ export default function VideoPlayer({
             ).trim();
 
             /*
-             * richMagnet means the addon supplied its own tracker-bearing
-             * magnet. The actual source magnet may also have been enriched by
-             * Media God with fallback trackers, especially for Comet RD⬇ rows.
-             * Keep those two facts separate: Comet still gets its same-IP
-             * startup route when it has no original tracker metadata, but we
-             * must not throw away an already tracker-enriched active source
-             * just to jump to another source.
+             * The same torrent can arrive with several magnet variants. In
+             * particular, Comet may expose its original magnet in richMagnet
+             * while Media God has already enriched src/magnet with a much
+             * larger fallback tracker set. The old `richMagnet || src` choice
+             * could therefore throw away most of the trackers immediately
+             * before asking Real-Debrid to cache an uncached torrent.
+             *
+             * Prefer the magnet variant with the MOST tracker announce URLs.
+             * Cached torrents are unaffected, but uncached torrents get the
+             * best chance of peer discovery if Comet's direct start fails.
              */
-            const hasTrackerRichMagnet =
-              /^magnet:/i.test(richMagnet) &&
-              /(?:[?&])tr=/i.test(richMagnet);
+            const magnetCandidates = [
+              richMagnet,
+              active?.magnet,
+              active?.magnetLink,
+              active?.src,
+              active?.url,
+            ]
+              .map((value) => String(value || "").trim())
+              .filter((value) => /^magnet:/i.test(value));
 
             const magnet =
-              richMagnet ||
-              active?.magnet ||
-              active?.magnetLink ||
+              magnetCandidates
+                .slice()
+                .sort((left, right) => {
+                  const leftTrackers = (left.match(/(?:[?&])tr=/gi) || []).length;
+                  const rightTrackers = (right.match(/(?:[?&])tr=/gi) || []).length;
+
+                  return (
+                    rightTrackers - leftTrackers ||
+                    right.length - left.length
+                  );
+                })[0] ||
               active?.src ||
               active?.url ||
+              active?.magnet ||
+              active?.magnetLink ||
+              richMagnet ||
               "";
 
             const effectiveMagnetHasTrackers =
@@ -1924,11 +1944,13 @@ export default function VideoPlayer({
                  * cannot create a free slot and only makes the UI look as if
                  * Media God is refusing to search for seeders.
                  */
-                throw new Error(
+                const slotError = new Error(
                   activeLimit > 0
                     ? `Real-Debrid has ${activeCount}/${activeLimit} active torrent slots in use. Finish or remove one active torrent, then retry this uncached source.`
                     : "Real-Debrid has no free active torrent slot for an uncached download."
                 );
+                slotError.code = "RD_ACTIVE_SLOTS_FULL";
+                throw slotError;
               }
 
               if (adopted.status !== "stale") {
@@ -2416,6 +2438,25 @@ export default function VideoPlayer({
             if (
               !cancelled
             ) {
+              if (error?.code === "RD_ACTIVE_SLOTS_FULL") {
+                /*
+                 * Every uncached torrent shares the same Real-Debrid active
+                 * slot pool. Moving to another torrent cannot solve a full
+                 * pool, so keep the current source selected and show the real
+                 * reason instead of making the cache screen vanish after a few
+                 * seconds and hopping through the list.
+                 */
+                setRdResolving(false);
+                setRdPolling(false);
+                setRdTorrentId(null);
+                setRdPreparation(null);
+                setRdError(
+                  error?.message ||
+                    "Real-Debrid has no free active torrent slot."
+                );
+                return;
+              }
+
               tryNextSource(
                 error?.message ||
                   "Unable to resolve this stream."
