@@ -1296,6 +1296,55 @@ const lookupAddon = async ({
     }
   }
 
+  let torrentMetadataRecovered = 0;
+
+  /*
+   * Comet currently auto-disables Torrent Mode when a debrid service is first
+   * configured. That is sensible for Stremio's UI, but it hides the companion
+   * torrent row containing the exact tracker `sources` Media God needs to hand
+   * an uncached torrent to Real-Debrid itself. Query an in-memory clone of the
+   * same Comet config with only enableTorrent=true and merge those metadata
+   * rows into the original response. No user setting or stored addon URL is
+   * changed.
+   */
+  const alreadyHasTorrentSources = rawStreams.some(
+    (stream) => Array.isArray(stream?.sources) && stream.sources.length > 0
+  );
+  const torrentModeManifest = !alreadyHasTorrentSources
+    ? cometTorrentModeManifestUrl(addon?.url, addonName)
+    : "";
+
+  if (torrentModeManifest) {
+    const metadataStreamId = alternateIdUsed || streamId;
+    const torrentModeTarget = getStreamUrl(
+      torrentModeManifest,
+      type,
+      metadataStreamId
+    );
+
+    if (torrentModeTarget) {
+      const torrentModeResult = await fetchAddonJson(
+        torrentModeTarget,
+        streamTimeoutMs
+      );
+      const torrentModeStreams =
+        torrentModeResult.ok && Array.isArray(torrentModeResult.data?.streams)
+          ? torrentModeResult.data.streams
+          : [];
+      const metadataRows = torrentModeStreams.filter(
+        (stream) =>
+          clean(stream?.infoHash || stream?.info_hash) &&
+          Array.isArray(stream?.sources) &&
+          stream.sources.length > 0
+      );
+
+      if (metadataRows.length > 0) {
+        rawStreams = [...rawStreams, ...metadataRows];
+        torrentMetadataRecovered = metadataRows.length;
+      }
+    }
+  }
+
   let unsupportedHeaders =
     0;
 
