@@ -439,23 +439,34 @@ const normaliseStream = (
       stream?.trackers
     );
 
+    /*
+     * A Comet debrid-download playback URL is not a dependable torrent-start
+     * API. Only surface the row when Comet also exposes the actual Stremio
+     * torrent sources; otherwise other addons with a real infoHash/magnet are
+     * the cache-capable discovery path.
+     */
+    if (providedTrackers.length === 0) {
+      return {
+        unsupported: true,
+        reason: "comet_uncached_missing_torrent_metadata",
+        label,
+      };
+    }
+
     const cacheMagnet = magnetFromHash(
       infoHash,
       clean(stream?.title || stream?.name || ""),
-      [
-        ...providedTrackers,
-        ...PUBLIC_FALLBACK_TRACKERS,
-      ]
+      normaliseTrackerList(
+        providedTrackers,
+        PUBLIC_FALLBACK_TRACKERS
+      )
     );
 
-    const originalTrackerMagnet =
-      providedTrackers.length > 0
-        ? magnetFromHash(
-            infoHash,
-            clean(stream?.title || stream?.name || ""),
-            providedTrackers
-          )
-        : "";
+    const originalTrackerMagnet = magnetFromHash(
+      infoHash,
+      clean(stream?.title || stream?.name || ""),
+      providedTrackers
+    );
 
     return {
       id: `browser-${addonName}-${index}-${infoHash}-cache`,
@@ -465,9 +476,7 @@ const normaliseStream = (
       src: cacheMagnet,
       url: cacheMagnet,
       magnet: cacheMagnet,
-      ...(originalTrackerMagnet
-        ? { richMagnet: originalTrackerMagnet }
-        : {}),
+      richMagnet: originalTrackerMagnet,
       infoHash,
       fileIdx:
         stream?.fileIdx ??
@@ -484,9 +493,8 @@ const normaliseStream = (
       viaRealDebrid: true,
       cacheRequired: true,
       cometUncached: true,
-      resolutionStrategy: "comet_uncached",
+      resolutionStrategy: "rd_magnet",
       torrentTrackers: providedTrackers,
-      cometPlaybackUrl: isHttp(rawUrl) ? rawUrl : "",
     };
   }
 
@@ -709,8 +717,8 @@ const mergeSameHashSource = (current, incoming, hash) => {
     cometUncached:
       current?.cometUncached === true || incoming?.cometUncached === true,
     resolutionStrategy:
-      current?.cometUncached === true || incoming?.cometUncached === true
-        ? "comet_uncached"
+      mergedTorrentTrackers.length > 0
+        ? "rd_magnet"
         : current?.resolutionStrategy || incoming?.resolutionStrategy || undefined,
     behaviorHints:
       current?.behaviorHints || incoming?.behaviorHints || undefined,
