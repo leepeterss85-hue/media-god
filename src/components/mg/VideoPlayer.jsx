@@ -124,6 +124,16 @@ const sourceResolutionStrategy = (item) => {
     return "cached_debrid";
   }
 
+  if (
+    item?.rdTorrentId ||
+    (
+      item?.type === "rd_torrent" &&
+      !sourceTorrentHash(item)
+    )
+  ) {
+    return "existing_rd";
+  }
+
   const explicit = String(item?.resolutionStrategy || "").trim();
 
   if (explicit) {
@@ -153,11 +163,12 @@ const sourceNeedsCaching = (item) => {
 
   return (
     strategy === "comet_uncached" ||
+    strategy === "rd_magnet" ||
     item?.cacheRequired === true ||
     (
       item?.debridCacheChecked === true &&
       item?.debridCached !== true &&
-      (strategy === "rd_magnet" || Boolean(sourceTorrentHash(item)))
+      Boolean(sourceTorrentHash(item))
     )
   );
 };
