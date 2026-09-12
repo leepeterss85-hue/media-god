@@ -81,7 +81,11 @@ export const concisePlaybackSourceLabel = (item, index = 0) => {
   const channelMatch = text.match(/(?:^|[^0-9])(7\.1|5\.1|2\.1|2\.0)(?:[^0-9]|$)/i);
   if (channelMatch) pushUnique(parts, channelMatch[1]);
 
-  if (/\b(?:eng|english)\b/i.test(text)) pushUnique(parts, "English");
+  if (/\b(?:eng|english)\b/i.test(text) || /(?:⛿\s*)?(?:ᴇɴ|ᴇɴɢ|ᴇɴɢʟɪꜱʜ)/i.test(text)) {
+    pushUnique(parts, "English");
+  } else if (/\b(?:multi(?:[ ._-]?audio)?|dual[ ._-]?audio)\b/i.test(text) || /(?:⛿\s*)?ᴍᴜʟᴛɪ/i.test(text)) {
+    pushUnique(parts, "Multi audio");
+  }
 
   if (item?.cacheRequired === true || item?.cometUncached === true) {
     pushUnique(parts, "Uncached");
