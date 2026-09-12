@@ -4352,7 +4352,19 @@ export default function VideoPlayer({
   ]);
 
   useEffect(() => {
-    if (!useNativePlayback || !nativePlaybackUrl) {
+    const sourceDiscoveryPending =
+      !isLive &&
+      ["searching", "fast-start"].includes(
+        String(source?.sourceDiagnostics?.phase || "")
+      );
+
+    /*
+     * On Fire TV, launching Media3 pauses the WebView. If we launch as soon as
+     * the first RD/library hit arrives, the later addon results cannot update
+     * the native source selector until the user backs out. Wait for the normal
+     * source pass to finish so the native player receives the full list.
+     */
+    if (!useNativePlayback || !nativePlaybackUrl || sourceDiscoveryPending) {
       return;
     }
 
