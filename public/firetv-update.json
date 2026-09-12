@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 12,
-  "versionName": "1.4.7",
+  "versionCode": 13,
+  "versionName": "1.4.8",
   "title": "Media God Fire TV",
-  "message": "Fire TV 1.4.7 adds the source selector to the native player, tidies the paused-player screen, and makes the Fire TV sidebar more compact so all menu items stay accessible.",
+  "message": "Fire TV 1.4.8 adds a proper Exit app button that closes Media God without signing the user out, while keeping Sign out as a separate account action.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4372217",
   "downloaderAddress": "tinyurl.com/2aofccoa",
