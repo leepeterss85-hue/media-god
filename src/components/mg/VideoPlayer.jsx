@@ -5541,9 +5541,6 @@ export default function VideoPlayer({
     !!rdTorrentId ||
     (!!rdPreparation && !rdPreparationTerminal);
 
-  const activeSourceFailed =
-    failedSources.has(activeIdx);
-
   const displayedError =
     rdError ||
     "";
