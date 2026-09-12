@@ -31,6 +31,7 @@ import {
   recordPlaybackReliability,
 } from "@/components/mg/playbackReliability";
 import {
+  detectLanguagePreference,
   getPlaybackDeviceProfile,
   hasSevereVideoRisk,
   scoreSourceCompatibility,
@@ -725,6 +726,21 @@ export default function VideoPlayer({
       deviceProfile
     );
 
+    const languagePreference = detectLanguagePreference(item, label);
+    const preferredAudioLanguage = String(
+      trackPreferences?.audioLanguage || "en"
+    ).toLowerCase();
+    const languagePriority =
+      preferredAudioLanguage === "en"
+        ? languagePreference === "english"
+          ? 50000
+          : languagePreference === "multi"
+            ? 24000
+            : languagePreference === "foreign"
+              ? -50000
+              : 0
+        : 0;
+
     const directBonus = /^https?:\/\//i.test(
       String(getSourceUrl(item) || "")
     )
@@ -754,6 +770,7 @@ export default function VideoPlayer({
 
     return (
       compatibility +
+      languagePriority +
       learned +
       directBonus +
       rdBonus +
