@@ -749,6 +749,25 @@ const normaliseFastAliasName = (value) =>
     .replace(/\s+/g, " ")
     .trim();
 
+const normaliseCountryCode = (value) => {
+  const raw = String(value || "").trim().toUpperCase();
+  if (!raw) return "";
+
+  const first = raw.split(/[;,/|\s]+/).find(Boolean) || "";
+  if (first === "UK" || first === "GBR") return "GB";
+  if (first === "USA") return "US";
+  return first;
+};
+
+const providerDecorationFreeName = (value) =>
+  normaliseFastAliasName(value)
+    .replace(/\bpowered by banijay\b/g, " ")
+    .replace(/\bby lionsgate\b/g, " ")
+    .replace(/\brakuten tv\b$/g, " ")
+    .replace(/\bfast plus\b$/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
 const FAST_CHANNEL_CANONICAL_IDS = new Map([
   ["acc digital network", "acc-digital-network"],
   ["accdn", "acc-digital-network"],
@@ -787,6 +806,21 @@ const FAST_CHANNEL_CANONICAL_IDS = new Map([
   ["weatherspy", "weatherspy"],
   ["weather spy", "weatherspy"],
   ["world poker tour", "world-poker-tour"],
+  ["the world poker tour", "world-poker-tour"],
+  ["rugby pass tv", "rugbypass-tv"],
+  ["rugbypass tv", "rugbypass-tv"],
+  ["moviesphere", "moviesphere"],
+  ["moviesphere by lionsgate", "moviesphere"],
+  ["masterchef uk", "masterchef-uk"],
+  ["masterchef uk powered by banijay", "masterchef-uk"],
+  ["pointless", "pointless"],
+  ["pointless uk powered by banijay", "pointless"],
+  ["wipeoutxtra", "wipeout-xtra"],
+  ["wipeout xtra powered by banijay", "wipeout-xtra"],
+  ["deadly women", "deadly-women"],
+  ["deadly women powered by banijay", "deadly-women"],
+  ["highway thru hell", "highway-thru-hell"],
+  ["highway thru hell powered by banijay", "highway-thru-hell"],
 ]);
 
 const STALE_SOURCE_CHANNEL_NAMES = {
@@ -1080,10 +1114,12 @@ export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
       const name = cleanChannelName(rawName) || "Unknown";
       const logo = attr(line, "tvg-logo");
       const tvgId = attr(line, "tvg-id");
-      const country =
+      const country = normaliseCountryCode(
         attr(line, "tvg-country") ||
-        countryFromTvgId(tvgId) ||
-        String(source?.country || "").trim().toUpperCase();
+          countryFromTvgId(tvgId) ||
+          source?.country ||
+          ""
+      );
       const group = attr(line, "group-title") || source.category || country || "Other";
       const channelNumber = attr(line, "tvg-chno");
       const quality = qualityFromText(`${rawName} ${line}`);
@@ -1189,13 +1225,20 @@ export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
 const dedupeKey = (channel) => {
   const name = normaliseChannelNameForKey(channel?.name);
   const fastAliasName = normaliseFastAliasName(channel?.name);
+  const decorationFreeName = providerDecorationFreeName(channel?.name);
   const tvgId = String(channel?.tvgId || "").trim().toLowerCase();
-  const country = String(channel?.country || "").trim().toLowerCase();
+  const explicitCountry = normaliseCountryCode(channel?.country).toLowerCase();
+  const country =
+    explicitCountry || (looksLikeUkFeed(channel) ? "gb" : "");
   const group = normaliseFastAliasName(channel?.group);
 
-  const fastCanonicalId = FAST_CHANNEL_CANONICAL_IDS.get(fastAliasName);
+  const fastCanonicalId =
+    FAST_CHANNEL_CANONICAL_IDS.get(fastAliasName) ||
+    FAST_CHANNEL_CANONICAL_IDS.get(decorationFreeName);
   if (fastCanonicalId) {
-    return `fast:${fastCanonicalId}`;
+    return country
+      ? `fast:${fastCanonicalId}|country:${country}`
+      : `fast:${fastCanonicalId}`;
   }
 
   // Samsung TV Plus uses its own opaque channel id for Sky Mix. Canonicalise
@@ -1272,9 +1315,35 @@ const dedupeMergedChannels = (channels) => {
       for (const tag of candidate.tags || []) tags.add(tag);
     }
 
+    const metadataCandidate = [...usableCandidates].sort((a, b) => {
+      const metadataScore = (candidate) => {
+        const candidateName = String(candidate?.name || "").trim();
+        const candidateId = String(candidate?.tvgId || "").trim();
+        let score = 0;
+
+        if (candidateId && /\.[a-z]{2}(?:@|$)/i.test(candidateId)) score += 80;
+        if (candidate?.logo) score += 25;
+        if (!/powered by|by lionsgate|\bfast\+?\b/i.test(candidateName)) score += 35;
+        if (!/\b(?:hd|fhd|uhd|4k|1080p?|720p?|576p?|480p?|sd)\b/i.test(candidateName)) score += 15;
+        score -= Math.max(0, candidateName.length - 42);
+
+        return score;
+      };
+
+      return metadataScore(b) - metadataScore(a);
+    })[0] || best;
+
     const alternatives = usableCandidates.slice(1);
     merged.push({
       ...best,
+      name: metadataCandidate?.name || best.name,
+      logo: best.logo || metadataCandidate?.logo || "",
+      tvgId: metadataCandidate?.tvgId || best.tvgId,
+      id: metadataCandidate?.tvgId || best.id,
+      country:
+        normaliseCountryCode(best.country) ||
+        normaliseCountryCode(metadataCandidate?.country) ||
+        (usableCandidates.some(looksLikeUkFeed) ? "GB" : ""),
       tags: [...tags],
       sourceNames: [...sources],
       alternatives,
