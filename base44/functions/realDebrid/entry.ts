@@ -833,50 +833,21 @@ export default async function (req) {
         Number(match?.speed || 0) <= 0 &&
         Number(match?.seeders || 0) <= 0;
 
-      let repeatedPartialHash = false;
-
-      if (body.title) {
-        try {
-          /*
-           * Comet/browser fallback metadata is not always consistent about
-           * year/season/episode, so do not require those fields to find prior
-           * attempts. The torrent hash is the authoritative identity here.
-           */
-          const priorLinks = await base44.entities.RdLink.filter({
-            title: String(body.title).trim(),
-          });
-
-          repeatedPartialHash = (Array.isArray(priorLinks) ? priorLinks : [])
-            .some((link) => {
-              const linkedHash = String(link?.magnet || "")
-                .match(/btih:([a-f0-9]{40})/i)?.[1]
-                ?.toLowerCase();
-              const priorTorrentId = String(link?.torrent_id || "").trim();
-
-              return (
-                linkedHash === hash &&
-                priorTorrentId &&
-                priorTorrentId !== String(match.id)
-              );
-            });
-        } catch {
-          repeatedPartialHash = false;
-        }
-      }
-
+      /*
+       * Staleness is based only on the current RD job, never on hidden history
+       * from an older Media God attempt. A freshly created Comet torrent can
+       * legitimately sit at the same whole-number percentage with 0 B/s for a
+       * short period while RD discovers peers. Treat it as stale only after a
+       * full ten minutes with no seeders/speed.
+       */
       const stalePartial =
         matchProgress > 0 &&
         matchProgress < 100 &&
         matchInactive &&
-        (
-          repeatedPartialHash ||
-          (
-            /^(?:magnet_conversion|waiting_files_selection|waiting_selection|queued|downloading)$/i.test(
-              String(match?.status || "")
-            ) &&
-            matchAgeMs >= 10 * 60_000
-          )
-        );
+        /^(?:magnet_conversion|waiting_files_selection|waiting_selection|queued|downloading)$/i.test(
+          String(match?.status || "")
+        ) &&
+        matchAgeMs >= 10 * 60_000;
 
       if (stalePartial) {
         return Response.json({
