@@ -105,7 +105,7 @@ const sourceTorrentHash = (item) =>
   );
 
 const FAILED_TORRENT_HASHES_KEY =
-  "mg:failed-uncached-torrent-hashes:v1";
+  "mg:failed-uncached-torrent-hashes:v2";
 const FAILED_TORRENT_HASH_TTL_MS =
   2 * 60 * 60 * 1000;
 const FAILED_TORRENT_HASH_LIMIT = 80;
@@ -2681,12 +2681,31 @@ export default function VideoPlayer({
            * flatline window so short swarm pauses do not throw away a healthy
            * download.
            */
+          /*
+           * Real-Debrid reports torrent progress as a WHOLE percentage. On a
+           * large uncached movie, RD can genuinely download hundreds of MB at
+           * a healthy speed while progress still reads 0%. The old watchdog
+           * treated that as a dead torrent after 45-75 seconds and then
+           * deleted it during failover, which made healthy uncached downloads
+           * look as though they never started.
+           *
+           * Seeder/speed activity is therefore meaningful here. Give an
+           * actively moving swarm a long runway, and only use the short dead
+           * windows when RD is reporting no peer activity at all.
+           */
+          const hasReportedPeerActivity =
+            latestSeeders > 0 || latestSpeed > 0;
+
           const stallAfterMs =
             latestProgress <= 0.001
-              ? hasOriginalTrackerMagnet
-                ? 75000
-                : 45000
-              : 90000;
+              ? hasReportedPeerActivity
+                ? 10 * 60 * 1000
+                : hasOriginalTrackerMagnet
+                  ? 3 * 60 * 1000
+                  : 2 * 60 * 1000
+              : hasReportedPeerActivity
+                ? 10 * 60 * 1000
+                : 3 * 60 * 1000;
 
           const looksCompletelyStalled =
             latestProgress < 100 &&
@@ -2716,12 +2735,16 @@ export default function VideoPlayer({
               setRdTorrentId(null);
               tryNextSource(
                 latestProgress <= 0.001
-                  ? hasOriginalTrackerMagnet
-                    ? "Real-Debrid could not establish peer activity for this original tracker magnet after about a minute. Trying another torrent."
-                    : sourceReportedSeeders > 0
-                      ? "Comet reported seeders, but Real-Debrid still had no peer activity after about 30 seconds. Trying another torrent."
-                      : "Real-Debrid showed no peer activity after about 30 seconds. Trying another torrent."
-                  : `Real-Debrid stayed at ${latestProgress.toFixed(2)}% without any real progress for about 90 seconds${latestSeeders > 0 || latestSpeed > 0 ? ", despite still reporting peer/speed activity" : ""}. Trying another source.`,
+                  ? hasReportedPeerActivity
+                    ? "Real-Debrid kept reporting peer activity but the whole-percent progress value did not advance for about 10 minutes. Trying another torrent."
+                    : hasOriginalTrackerMagnet
+                      ? "Real-Debrid could not establish peer activity for this original tracker magnet after about 3 minutes. Trying another torrent."
+                      : sourceReportedSeeders > 0
+                        ? "The source reported seeders, but Real-Debrid still found no live peer activity after about 2 minutes. Trying another torrent."
+                        : "Real-Debrid found no peer activity after about 2 minutes. Trying another torrent."
+                  : hasReportedPeerActivity
+                    ? `Real-Debrid stayed at ${latestProgress.toFixed(2)}% for about 10 minutes despite continuing to report peer/speed activity. Trying another source.`
+                    : `Real-Debrid stayed at ${latestProgress.toFixed(2)}% with no peer activity for about 3 minutes. Trying another source.`, 
                 {
                   blacklistTorrentHash: true,
                   immediate: true,
