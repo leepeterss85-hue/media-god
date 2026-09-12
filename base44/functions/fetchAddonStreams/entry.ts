@@ -1451,13 +1451,21 @@ const lookupAddon = async ({
               normalised.length > 0
                 ? ` ${normalised.length} non-IP-bound source${normalised.length === 1 ? " remains" : "s remain"} usable from the server.`
                 : ""
+            }${
+              torrentMetadataRecovered > 0
+                ? ` Recovered torrent-source metadata for ${torrentMetadataRecovered} Comet result${torrentMetadataRecovered === 1 ? "" : "s"}.`
+                : ""
             }`
           : normalised.length > 0
             ? `${normalised.length} playable source${
                 normalised.length === 1
                   ? ""
                   : "s"
-              } found${alternateIdUsed ? ` using alternate id ${alternateIdUsed}` : ""}.`
+              } found${alternateIdUsed ? ` using alternate id ${alternateIdUsed}` : ""}.${
+                torrentMetadataRecovered > 0
+                  ? ` Recovered torrent-source metadata for ${torrentMetadataRecovered} Comet result${torrentMetadataRecovered === 1 ? "" : "s"}.`
+                  : ""
+              }`
           : unsupportedControlStreams > 0
             ? `${unsupportedControlStreams} addon sync/control item${
                 unsupportedControlStreams === 1 ? " was" : "s were"
