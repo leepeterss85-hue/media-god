@@ -2789,6 +2789,35 @@ export default function VideoPlayer({
               setRdPolling(false);
               setRdTorrentId(null);
 
+              const uncachedActive = Boolean(
+                active?.cacheRequired === true ||
+                  (
+                    active?.debridCacheChecked === true &&
+                    active?.debridCached !== true
+                  )
+              );
+
+              if (uncachedActive) {
+                /*
+                 * Keep the failed uncached torrent selected. Automatically
+                 * hopping here made the cache screen disappear on the very
+                 * first RD poll (normally about 2.5 seconds after creation),
+                 * which is exactly the behaviour seen on the phone screenshot.
+                 */
+                setRdPreparation((current) => ({
+                  ...(current || {}),
+                  status: currentRdStatus,
+                  updatedAt: Date.now(),
+                  attempts,
+                }));
+                setRdError(
+                  `Real-Debrid stopped this uncached torrent: ${friendlyRdStatus(
+                    currentRdStatus
+                  )}. Retry this source to start it again.`
+                );
+                return;
+              }
+
               const moved = tryNextSource(
                 `Real-Debrid stopped preparing this torrent: ${friendlyRdStatus(
                   currentRdStatus
