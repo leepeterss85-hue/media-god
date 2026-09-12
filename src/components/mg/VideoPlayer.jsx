@@ -2099,28 +2099,77 @@ export default function VideoPlayer({
                       Math.min(100, Number(adoptData.progress || 0))
                     );
 
-                    setRdResolving(false);
-                    setRdPreparation(null);
+                    setRdPreparation((current) => ({
+                      ...(current || {}),
+                      status: "magnet_conversion",
+                      progress: staleProgress,
+                      updatedAt: Date.now(),
+                      attempts: adoptAttempt + 1,
+                    }));
 
-                    const moved = tryNextSource(
-                      staleProgress > 0
-                        ? `Real-Debrid already has this torrent stuck at ${Math.round(staleProgress)}% with no active peers. Trying a different torrent.`
-                        : "Real-Debrid reports this torrent as stale. Trying a different torrent.",
-                      {
-                        blacklistTorrentHash: true,
-                        immediate: true,
+                    /*
+                     * A stale row for the same hash must not kick the user to
+                     * another torrent. Clear it once, keep Comet's trigger
+                     * alive, and give the same source time to create a fresh RD
+                     * job with Comet's stored tracker/source metadata.
+                     */
+                    if (!cometResetAttempted) {
+                      cometResetAttempted = true;
+
+                      try {
+                        await base44.functions.invoke(
+                          "realDebrid",
+                          {
+                            action: "reset_stale_hash",
+                            info_hash: hash,
+                            claim_for_playback: true,
+                            title:
+                              source?.rdTitle ||
+                              source?.title ||
+                              "",
+                          }
+                        );
+                      } catch {
+                        // Continue polling; the existing row may recover itself.
                       }
-                    );
-
-                    if (!moved) {
-                      setRdError(
-                        staleProgress > 0
-                          ? `This torrent is stuck at ${Math.round(staleProgress)}% in Real-Debrid and no different source is available.`
-                          : "This Real-Debrid torrent is stale and no different source is available."
-                      );
                     }
 
-                    return;
+                    continue;
+                  }
+
+                  if (adoptData.status === "failed") {
+                    setRdPreparation((current) => ({
+                      ...(current || {}),
+                      status:
+                        adoptData.rd_status ||
+                        current?.status ||
+                        "magnet_conversion",
+                      updatedAt: Date.now(),
+                      attempts: adoptAttempt + 1,
+                    }));
+
+                    if (!cometResetAttempted) {
+                      cometResetAttempted = true;
+
+                      try {
+                        await base44.functions.invoke(
+                          "realDebrid",
+                          {
+                            action: "reset_stale_hash",
+                            info_hash: hash,
+                            claim_for_playback: true,
+                            title:
+                              source?.rdTitle ||
+                              source?.title ||
+                              "",
+                          }
+                        );
+                      } catch {
+                        // Keep waiting for Comet to replace the failed RD row.
+                      }
+                    }
+
+                    continue;
                   }
 
                   if (
