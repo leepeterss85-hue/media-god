@@ -105,7 +105,7 @@ const sourceTorrentHash = (item) =>
   );
 
 const FAILED_TORRENT_HASHES_KEY =
-  "mg:failed-uncached-torrent-hashes:v4";
+  "mg:failed-uncached-torrent-hashes:v5";
 const FAILED_TORRENT_HASH_TTL_MS =
   2 * 60 * 60 * 1000;
 const FAILED_TORRENT_HASH_LIMIT = 80;
