@@ -122,19 +122,37 @@ body.mg-fire-tv-mode [data-mg-player-root="true"][data-mg-controls-visible="fals
   pointer-events: none !important;
 }
 
-/* Native playback Back returns to an explicit source/torrent selector state.
- * Keep that selector visible even if the normal Fire TV playback chrome had
- * auto-hidden before native Media3 was opened. */
+/* Native Media3 now owns source selection on Fire TV. When Back pauses native
+ * playback, keep only the compact Exit/title row on the WebView fallback.
+ * Hiding the duplicate Sort/Source/Fix-audio panel removes the crowded double
+ * selector shown on television and leaves a clean Resume screen. */
 body.mg-fire-tv [data-mg-player-root="true"][data-mg-native-selector-mode="true"] [data-mg-player-topbar="true"],
 body.mg-fire-tv-stable [data-mg-player-root="true"][data-mg-native-selector-mode="true"] [data-mg-player-topbar="true"],
-body.mg-fire-tv-mode [data-mg-player-root="true"][data-mg-native-selector-mode="true"] [data-mg-player-topbar="true"],
-body.mg-fire-tv [data-mg-player-root="true"][data-mg-native-selector-mode="true"] [data-mg-player-options-panel="true"],
-body.mg-fire-tv-stable [data-mg-player-root="true"][data-mg-native-selector-mode="true"] [data-mg-player-options-panel="true"],
-body.mg-fire-tv-mode [data-mg-player-root="true"][data-mg-native-selector-mode="true"] [data-mg-player-options-panel="true"] {
+body.mg-fire-tv-mode [data-mg-player-root="true"][data-mg-native-selector-mode="true"] [data-mg-player-topbar="true"] {
   display: flex !important;
   opacity: 1 !important;
   visibility: visible !important;
   pointer-events: auto !important;
+}
+
+body.mg-fire-tv [data-mg-player-root="true"][data-mg-native-selector-mode="true"] [data-mg-player-options-panel="true"],
+body.mg-fire-tv-stable [data-mg-player-root="true"][data-mg-native-selector-mode="true"] [data-mg-player-options-panel="true"],
+body.mg-fire-tv-mode [data-mg-player-root="true"][data-mg-native-selector-mode="true"] [data-mg-player-options-panel="true"] {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+body.mg-fire-tv [data-mg-player-root="true"][data-mg-native-selector-mode="true"] [data-mg-episode-quick-nav="true"],
+body.mg-fire-tv-stable [data-mg-player-root="true"][data-mg-native-selector-mode="true"] [data-mg-episode-quick-nav="true"],
+body.mg-fire-tv-mode [data-mg-player-root="true"][data-mg-native-selector-mode="true"] [data-mg-episode-quick-nav="true"] {
+  position: fixed !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: 5vh !important;
+  left: 5vw !important;
+  z-index: 2147483647 !important;
 }
 
 body.mg-fire-tv [data-mg-player-topbar="true"],
