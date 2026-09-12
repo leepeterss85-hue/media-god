@@ -20,11 +20,13 @@ import {
 
 import VideoPlayer from "@/components/mg/VideoPlayer";
 import {
+  detectLanguagePreference,
   getPlaybackDeviceProfile,
   scoreSourceCompatibility,
 } from "@/components/mg/mediaCompatibility";
 import { devicePlaybackReliabilityAdjustment } from "@/components/mg/playbackReliability";
 import { readPlaybackPreferences } from "@/components/mg/playbackPreferences";
+import { readTrackPreferences } from "@/components/mg/mediaTrackPreferences";
 import { debridProviderScoreHints } from "@/components/mg/debridProviderReliability";
 
 const PlayerContext = createContext(null);
@@ -86,7 +88,7 @@ class PlayerRenderBoundary extends React.Component {
 }
 
 const FOREIGN_RE =
-  /(truefrench|vostfr|vost|subfrench|\bvf\b|\bvff\b|\bvfi\b|french|spanish|german|italian|\bdubbed\b|multi-audio|multiaudio|dual[ ._-]?audio)/i;
+  /(truefrench|vostfr|vost|subfrench|\bvf\b|\bvff\b|\bvfi\b|french|spanish|german|italian|russian|\brus\b|hindi|\bhin\b|polish|turkish|arabic|japanese|korean|chinese|portuguese|\bdubbed\b)/i;
 
 const RES_RE =
   /(2160|1080|720|480)p/i;
