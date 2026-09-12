@@ -435,6 +435,21 @@ const scoreSource = (item) => {
           ? -4200
           : 0;
 
+  const languagePreference = detectLanguagePreference(item, audioText);
+  const preferredAudioLanguage = String(
+    readTrackPreferences()?.audioLanguage || "en"
+  ).toLowerCase();
+  const languagePriority =
+    preferredAudioLanguage === "en"
+      ? languagePreference === "english"
+        ? 220000
+        : languagePreference === "multi"
+          ? 110000
+          : languagePreference === "foreign"
+            ? -220000
+            : 0
+      : 0;
+
   const deviceProfile = getPlaybackDeviceProfile();
   const playbackPreferences = readPlaybackPreferences();
 
@@ -497,6 +512,7 @@ const scoreSource = (item) => {
     debridCacheScore +
     rdLibraryBonus +
     directBonus +
+    languagePriority +
     audioCompatibility +
     compatibilityScore +
     reliabilityAdjustment(item) +
