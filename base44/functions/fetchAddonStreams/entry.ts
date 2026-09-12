@@ -56,17 +56,81 @@ const isCometUncachedDownloadStream = (stream, addonName = "") => {
 };
 
 const PUBLIC_FALLBACK_TRACKERS = [
-  "udp://zer0day.ch:1337/announce",
-  "udp://tracker.therarbg.to:6969/announce",
   "udp://tracker.publictracker.xyz:6969/announce",
-  "udp://tracker.opentrackr.org:1337/announce",
   "udp://open.demonii.com:1337/announce",
+  "udp://tracker.opentrackr.org:1337/announce",
+  "udp://open.tracker.cl:1337/announce",
   "udp://open.stealth.si:80/announce",
   "udp://tracker2.dler.org:80/announce",
+  "udp://tracker.wildkat.net:6969/announce",
   "udp://tracker.torrent.eu.org:451/announce",
   "udp://tracker.qu.ax:6969/announce",
-  "udp://tracker.filemail.com:6969/announce",
+  "udp://tracker.peerfect.org:6969/announce",
+  "udp://tracker.opentrackr.com:6969/announce",
+  "udp://tracker.ilibr.org:6969/announce",
+  "udp://tracker.gmi.gd:6969/announce",
+  "udp://tracker.ducks.party:1984/announce",
+  "udp://tracker.dler.org:6969/announce",
+  "udp://tracker.corpscorp.online:80/announce",
+  "udp://tracker.bittor.pw:1337/announce",
+  "udp://tracker.auctor.tv:6969/announce",
+  "udp://tracker.0x7c0.com:6969/announce",
 ];
+
+const normaliseTrackerList = (...values) =>
+  Array.from(
+    new Set(
+      values
+        .flatMap((value) =>
+          Array.isArray(value)
+            ? value
+            : typeof value === "string"
+              ? value.split(/[\r\n,]+/)
+              : []
+        )
+        .map((value) => clean(value))
+        .filter((value) => /^https?:\/\/|^udp:\/\//i.test(value))
+    )
+  );
+
+const enrichMagnetWithTrackers = (value, extraTrackers = []) => {
+  const magnet = clean(value);
+
+  if (!isMagnet(magnet)) {
+    return magnet;
+  }
+
+  const existingTrackers = [];
+  const trackerRe = /(?:[?&])tr=([^&]+)/gi;
+  let match = null;
+
+  while ((match = trackerRe.exec(magnet))) {
+    try {
+      existingTrackers.push(decodeURIComponent(match[1]));
+    } catch {
+      existingTrackers.push(match[1]);
+    }
+  }
+
+  const additions = normaliseTrackerList(
+    extraTrackers,
+    PUBLIC_FALLBACK_TRACKERS
+  ).filter(
+    (tracker) =>
+      !existingTrackers.some(
+        (existing) => existing.toLowerCase() === tracker.toLowerCase()
+      )
+  );
+
+  if (additions.length === 0) {
+    return magnet;
+  }
+
+  return `${magnet}${additions
+    .slice(0, Math.max(0, 20 - existingTrackers.length))
+    .map((tracker) => `&tr=${encodeURIComponent(tracker)}`)
+    .join("")}`;
+};
 
 const magnetFromHash = (hash, title = "", trackers = []) => {
   const value = clean(hash);
