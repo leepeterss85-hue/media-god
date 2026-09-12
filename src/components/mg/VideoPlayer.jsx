@@ -45,6 +45,7 @@ import {
   torrentFileLabel,
 } from "@/components/mg/playbackSourceLabels";
 import {
+  liveTvUrlQuarantined,
   liveTvUrlScore,
   recordLiveTvPlaybackResult,
 } from "@/components/mg/liveTvPlaybackLearning";
@@ -834,12 +835,17 @@ export default function VideoPlayer({
       4000,
       Math.max(0, Number(item?.reportedSeeders || 0)) * 20
     );
+    const liveItem = item?.live || item?.type === "live";
     const liveBonus =
-      item?.live || item?.type === "live"
+      liveItem
         ? liveTvUrlScore(getSourceUrl(item))
         : 0;
+    const liveQuarantinePenalty =
+      liveItem && liveTvUrlQuarantined(getSourceUrl(item))
+        ? -180000
+        : 0;
     const liveGeoPenalty =
-      (item?.live || item?.type === "live") && item?.geoRestricted === true
+      liveItem && item?.geoRestricted === true
         ? -120000
         : 0;
     const liveRepositoryBonus =
@@ -857,6 +863,7 @@ export default function VideoPlayer({
       trackerRichBonus +
       swarmBonus +
       liveBonus +
+      liveQuarantinePenalty +
       liveGeoPenalty +
       liveRepositoryBonus
     );
@@ -923,10 +930,10 @@ export default function VideoPlayer({
         )
       );
 
-    const obeySelectorOrder =
-      sourceSortMode !== "best";
     const liveFailover =
       isLive || sources.some((item) => item?.live || item?.type === "live");
+    const obeySelectorOrder =
+      sourceSortMode !== "best" && !liveFailover;
 
     const candidates = sources
       .map((candidate, index) => {
@@ -958,6 +965,8 @@ export default function VideoPlayer({
           selectorRank:
             selectorRankByIndex.get(index) ??
             Number.MAX_SAFE_INTEGER,
+          quarantined:
+            liveFailover && liveTvUrlQuarantined(url),
           score: recoverySourceScore(candidate, index),
         };
       })
@@ -970,6 +979,15 @@ export default function VideoPlayer({
           if (aRestricted !== bRestricted) {
             return Number(aRestricted) - Number(bRestricted);
           }
+
+          if (a.quarantined !== b.quarantined) {
+            return Number(a.quarantined) - Number(b.quarantined);
+          }
+
+          // Live TV recovery is always health-first. User selector sorting still
+          // controls the visible list, but automatic failover should never jump
+          // to a known-bad mirror merely because it appears earlier in that list.
+          return b.score - a.score || a.index - b.index;
         }
 
         return obeySelectorOrder
@@ -1359,7 +1377,6 @@ export default function VideoPlayer({
         : Date.now();
     let successRecorded = false;
     let failureRecorded = false;
-    let stallRecorded = false;
     let attachTimer = null;
     let video = null;
 
@@ -1387,15 +1404,6 @@ export default function VideoPlayer({
       });
     };
 
-    const onStalled = () => {
-      if (stallRecorded) return;
-      stallRecorded = true;
-      recordLiveTvPlaybackResult(url, {
-        success: false,
-        stalled: true,
-      });
-    };
-
     const attach = () => {
       video = stageRef.current?.querySelector("video") || null;
       if (!(video instanceof HTMLVideoElement)) {
@@ -1405,7 +1413,6 @@ export default function VideoPlayer({
 
       video.addEventListener("playing", onPlaying);
       video.addEventListener("error", onError);
-      video.addEventListener("stalled", onStalled);
 
       if (!video.paused && video.readyState >= 2) {
         onPlaying();
@@ -1422,7 +1429,6 @@ export default function VideoPlayer({
       if (video instanceof HTMLVideoElement) {
         video.removeEventListener("playing", onPlaying);
         video.removeEventListener("error", onError);
-        video.removeEventListener("stalled", onStalled);
       }
     };
   }, [
@@ -4012,6 +4018,9 @@ export default function VideoPlayer({
     let startupTimer = null;
     let stallTimer = null;
     let switched = false;
+    const nativeLivePlayback = isNativeFireTvPlayerAvailable();
+    const startupGraceMs = nativeLivePlayback ? 16000 : 12000;
+    const stallGraceMs = nativeLivePlayback ? 10000 : 8000;
 
     const clearStartup = () => {
       if (startupTimer) {
@@ -4076,7 +4085,7 @@ export default function VideoPlayer({
           "Live TV stopped responding.",
           { stalled: true }
         );
-      }, 10000);
+      }, stallGraceMs);
     };
 
     const onPlaying = () => {
@@ -4131,7 +4140,7 @@ export default function VideoPlayer({
       switchLiveSource(
         "Live TV took too long to start."
       );
-    }, 15000);
+    }, startupGraceMs);
 
     return () => {
       clearStartup();
