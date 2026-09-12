@@ -432,10 +432,12 @@ const playableChannelCandidates = (channel) => {
 };
 
 const prewarmChannel = (channel) => {
-  const candidate = playableChannelCandidates(channel)[0];
+  const candidates = playableChannelCandidates(channel).slice(0, 2);
 
-  if (candidate?.url) {
-    prewarmLiveTvUrl(candidate.url);
+  for (const candidate of candidates) {
+    if (candidate?.url) {
+      prewarmLiveTvUrl(candidate.url);
+    }
   }
 };
 
