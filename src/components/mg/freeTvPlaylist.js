@@ -802,7 +802,13 @@ const sourceScore = (channel) => {
   else if (quality >= 720) score += 500;
   else if (quality > 0) score += 80;
 
-  // Country is metadata only. Do not prefer or penalise a source by region.
+  // Country is metadata only. Do not hide or reject a source by region.
+  // However, when the upstream playlist explicitly marks one copy as
+  // geo-restricted, keep it as a LAST-RESORT backup behind an otherwise
+  // equivalent open copy. This prevents a high-priority repository from
+  // making a channel appear "geo-locked" again even though another public
+  // source for the same channel is available.
+  if (channel?.geoRestricted === true) score -= 50000;
   if (channel?.browserPlayable === false) score -= 100000;
 
   return score;
@@ -1029,7 +1035,11 @@ const dedupeMergedChannels = (channels) => {
     );
     if (usableCandidates.length === 0) continue;
 
-    usableCandidates.sort((a, b) => Number(b?.score || 0) - Number(a?.score || 0));
+    usableCandidates.sort(
+      (a, b) =>
+        Number(a?.geoRestricted === true) - Number(b?.geoRestricted === true) ||
+        Number(b?.score || 0) - Number(a?.score || 0)
+    );
     const best = usableCandidates[0];
     if (!best) continue;
 
