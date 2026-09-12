@@ -12,6 +12,7 @@ import {
   HardDrive,
   Heart,
   Home as HomeIcon,
+  LogOut,
   MonitorPlay,
   Megaphone,
   Power,
@@ -25,6 +26,10 @@ import {
 } from "lucide-react";
 
 import { base44 } from "@/api/base44Client";
+import {
+  exitNativeFireTvApp,
+  nativeFireTvExitAvailable,
+} from "@/components/mg/nativeFireTvBridge";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -167,6 +172,7 @@ export default function Navbar({
 }) {
   const [playerOpen, setPlayerOpen] =
     useState(playerAlreadyOpen);
+  const canExitApp = nativeFireTvExitAvailable();
 
   useEffect(() => {
     const syncFromEverything = () => {
@@ -364,6 +370,22 @@ export default function Navbar({
           </span>
         </button>
 
+        {canExitApp && (
+          <button
+            type="button"
+            onClick={exitNativeFireTvApp}
+            title="Exit app"
+            aria-label="Exit app"
+            className="flex min-h-11 items-center justify-center gap-3 rounded-md px-2 py-2 text-sm font-medium text-white/70 hover:bg-white/5 hover:text-white focus:bg-white/5 focus:text-white md:justify-start md:px-3"
+          >
+            <Power className="h-5 w-5 shrink-0" />
+
+            <span className="hidden md:block">
+              Exit app
+            </span>
+          </button>
+        )}
+
         <button
           type="button"
           onClick={() =>
@@ -372,7 +394,7 @@ export default function Navbar({
           title="Sign out"
           className="flex min-h-11 items-center justify-center gap-3 rounded-md px-2 py-2 text-sm font-medium text-white/70 hover:bg-white/5 hover:text-white focus:bg-white/5 focus:text-white md:justify-start md:px-3"
         >
-          <Power className="h-5 w-5 shrink-0" />
+          <LogOut className="h-5 w-5 shrink-0" />
 
           <span className="hidden md:block">
             Sign out
