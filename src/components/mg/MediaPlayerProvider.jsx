@@ -365,13 +365,22 @@ const annotateDebridCache = async (items, hasDebrid) => {
         (key) => cached?.[key]?.[hash] === true
       );
 
+      const debridCached = cachedProviders.length > 0;
+      const existingStrategy = String(item?.resolutionStrategy || "").trim();
+      const resolutionStrategy = debridCached
+        ? "cached_debrid"
+        : item?.cometUncached === true
+          ? "comet_uncached"
+          : existingStrategy || "rd_magnet";
+
       return {
         ...item,
         debridCacheChecked: true,
-        debridCached: cachedProviders.length > 0,
+        debridCached,
         cachedProviders,
         debridProvider: best?.[hash] || item?.debridProvider || "",
         debridProviderStats: providerStats,
+        resolutionStrategy,
       };
     });
   } catch {
