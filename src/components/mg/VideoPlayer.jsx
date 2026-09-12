@@ -2498,10 +2498,13 @@ export default function VideoPlayer({
               return;
             }
 
-            throw new Error(
+            const resolveError = new Error(
               data.error ||
                 "Real-Debrid could not resolve this source."
             );
+            resolveError.code = String(data.error_code || "").trim();
+            resolveError.rdStatus = String(data.rd_status || "").trim();
+            throw resolveError;
           } catch (
             error
           ) {
