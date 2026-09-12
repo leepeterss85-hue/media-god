@@ -2621,13 +2621,7 @@ export default function VideoPlayer({
             if (
               !cancelled
             ) {
-              const uncachedActive = Boolean(
-                active?.cacheRequired === true ||
-                  (
-                    active?.debridCacheChecked === true &&
-                    active?.debridCached !== true
-                  )
-              );
+              const uncachedActive = sourceNeedsCaching(active);
               const terminalRdResolveFailure =
                 uncachedActive &&
                 (
@@ -2889,13 +2883,7 @@ export default function VideoPlayer({
               setRdPolling(false);
               setRdTorrentId(null);
 
-              const uncachedActive = Boolean(
-                active?.cacheRequired === true ||
-                  (
-                    active?.debridCacheChecked === true &&
-                    active?.debridCached !== true
-                  )
-              );
+              const uncachedActive = sourceNeedsCaching(active);
 
               if (uncachedActive) {
                 /*
