@@ -4101,6 +4101,7 @@ export default function VideoPlayer({
     rdPolling,
     rdResolving,
     rdTorrentId,
+    rdPreparation,
     sources,
   ]);
 
@@ -5260,6 +5261,7 @@ export default function VideoPlayer({
     rdPolling,
     rdResolving,
     rdTorrentId,
+    rdPreparation,
     source,
     sources,
   ]);
@@ -5267,7 +5269,8 @@ export default function VideoPlayer({
   const busy =
     rdResolving ||
     rdPolling ||
-    !!rdTorrentId;
+    !!rdTorrentId ||
+    !!rdPreparation;
 
   const activeSourceFailed =
     failedSources.has(activeIdx);
