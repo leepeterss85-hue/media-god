@@ -1832,14 +1832,20 @@ export default function LiveTVView() {
   }
 
   return (
-    <div className="w-full p-3 min-[420px]:p-4 sm:p-6 md:p-8 3xl:p-10 4xl:p-14">
+    <div
+      data-mg-live-tv-view="true"
+      className="w-full p-3 min-[420px]:p-4 sm:p-6 md:p-8 3xl:p-10 4xl:p-14"
+    >
       <audio
         ref={audioRef}
         preload="none"
         className="hidden"
       />
 
-      <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div
+        data-mg-live-tv-header="true"
+        className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"
+      >
         <div>
           <div className="mb-1 flex items-center gap-2">
             <Radio className="h-5 w-5 text-mg-green" />
@@ -1874,7 +1880,10 @@ export default function LiveTVView() {
         </button>
       </div>
 
-      <div className="mb-4 flex items-center gap-2 rounded-lg border border-mg-green/20 bg-mg-green/5 px-3 py-2 text-xs text-mg-green">
+      <div
+        data-mg-live-tv-regional-note="true"
+        className="mb-4 flex items-center gap-2 rounded-lg border border-mg-green/20 bg-mg-green/5 px-3 py-2 text-xs text-mg-green"
+      >
         <CheckCircle2 className="h-4 w-4 shrink-0" />
 
         Regional filtering disabled — Media God keeps geo-marked Live TV channels and backups eligible for playback.
@@ -2041,7 +2050,7 @@ export default function LiveTVView() {
         quickFilter === "All" &&
         !query.trim() &&
         favouriteChannels.length > 0 && (
-          <section className="mb-5">
+          <section data-mg-live-tv-quick-section="true" className="mb-5">
             <div className="mb-2 flex items-center gap-2">
               <Star className="h-4 w-4 fill-current text-mg-green" />
               <h2 className="text-sm font-bold text-white">Favourite channels</h2>
@@ -2061,7 +2070,7 @@ export default function LiveTVView() {
         quickFilter === "All" &&
         !query.trim() &&
         recentChannels.length > 0 && (
-          <section className="mb-5">
+          <section data-mg-live-tv-quick-section="true" className="mb-5">
             <div className="mb-2 flex items-center gap-2">
               <Clock3 className="h-4 w-4 text-mg-green" />
               <h2 className="text-sm font-bold text-white">Recent channels</h2>
@@ -2075,7 +2084,10 @@ export default function LiveTVView() {
           </section>
         )}
 
-      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-8">
+      <div
+        data-mg-live-tv-category-row="true"
+        className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-8"
+      >
         {[
           {
             id: "All",
@@ -2171,8 +2183,11 @@ export default function LiveTVView() {
         })}
       </div>
 
-      <div className="mb-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_200px_220px_auto_auto]">
-        <label className="relative block">
+      <div
+        data-mg-live-tv-controls="true"
+        className="mb-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_200px_220px_auto_auto]"
+      >
+        <label data-mg-live-tv-search="true" className="relative block">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
 
           <input
@@ -2580,7 +2595,10 @@ export default function LiveTVView() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 3xl:grid-cols-4 4xl:grid-cols-5">
+          <div
+            data-mg-live-tv-grid="true"
+            className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 3xl:grid-cols-4 4xl:grid-cols-5"
+          >
             {shown.map(
             (
               channel,
@@ -2633,6 +2651,7 @@ export default function LiveTVView() {
                   key={`${channel.id}-${index}`}
                   className="group relative min-h-[118px]"
                   data-mg-live-tv-channel="true"
+                  data-mg-live-tv-card="true"
                 >
                   <button
                     type="button"
@@ -2649,7 +2668,7 @@ export default function LiveTVView() {
                         inline: "nearest",
                       });
                     }}
-                    className="flex h-full min-h-[118px] w-full items-start gap-3 rounded-xl border border-white/10 bg-mg-card p-3 pr-11 text-left transition-colors hover:border-mg-green/60 hover:bg-mg-surface focus:border-mg-green focus:bg-mg-surface focus:outline-none focus:ring-2 focus:ring-mg-green/40"
+                    className="mg-live-tv-channel-button flex h-full min-h-[118px] w-full items-start gap-3 rounded-xl border border-white/10 bg-mg-card p-3 pr-11 text-left transition-colors hover:border-mg-green/60 hover:bg-mg-surface focus:border-mg-green focus:bg-mg-surface focus:outline-none focus:ring-2 focus:ring-mg-green/40"
                   >
                   <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-black/30">
                     {radio ? (
