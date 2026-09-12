@@ -149,6 +149,7 @@ const normaliseTrackerList = (...values) =>
               : []
         )
         .map((value) => clean(value))
+        .map((value) => value.replace(/^tracker:/i, ""))
         .filter((value) => /^https?:\/\/|^udp:\/\//i.test(value))
     )
   );
@@ -432,10 +433,11 @@ const normaliseStream = (
       };
     }
 
-    const providedTrackers = [
-      ...(Array.isArray(stream?.announce) ? stream.announce : []),
-      ...(Array.isArray(stream?.trackers) ? stream.trackers : []),
-    ];
+    const providedTrackers = normaliseTrackerList(
+      stream?.sources,
+      stream?.announce,
+      stream?.trackers
+    );
 
     const cacheMagnet = magnetFromHash(
       infoHash,
@@ -483,11 +485,13 @@ const normaliseStream = (
       cacheRequired: true,
       cometUncached: true,
       resolutionStrategy: "comet_uncached",
+      torrentTrackers: providedTrackers,
       cometPlaybackUrl: isHttp(rawUrl) ? rawUrl : "",
     };
   }
 
   const suppliedTrackers = normaliseTrackerList(
+    stream?.sources,
     stream?.announce,
     stream?.trackers
   );
@@ -558,6 +562,9 @@ const normaliseStream = (
 
       resolutionStrategy:
         "rd_magnet",
+
+      torrentTrackers:
+        suppliedTrackers,
     };
   }
 
@@ -630,10 +637,32 @@ const richestMagnet = (...values) =>
     .sort((a, b) => magnetRichness(b) - magnetRichness(a))[0] || "";
 
 const mergeSameHashSource = (current, incoming, hash) => {
-  const richerMagnet = richestMagnet(
-    current?.richMagnet,
-    incoming?.richMagnet
+  const mergedTorrentTrackers = normaliseTrackerList(
+    current?.torrentTrackers,
+    incoming?.torrentTrackers
   );
+  const fallbackMagnet = richestMagnet(
+    current?.richMagnet,
+    incoming?.richMagnet,
+    current?.magnet,
+    incoming?.magnet,
+    current?.src,
+    incoming?.src
+  );
+  const mergedTitle = clean(
+    current?.label ||
+      incoming?.label ||
+      current?.name ||
+      incoming?.name ||
+      ""
+  );
+  const directTrackerMagnet =
+    hash && mergedTorrentTrackers.length > 0
+      ? magnetFromHash(hash, mergedTitle, mergedTorrentTrackers)
+      : "";
+  const playbackMagnet = directTrackerMagnet
+    ? enrichMagnetWithTrackers(directTrackerMagnet, mergedTorrentTrackers)
+    : fallbackMagnet;
 
   const addons = Array.from(
     new Set(
@@ -652,7 +681,20 @@ const mergeSameHashSource = (current, incoming, hash) => {
     ...incoming,
     ...current,
     infoHash: current?.infoHash || incoming?.infoHash || hash || undefined,
-    richMagnet: richerMagnet || current?.richMagnet || incoming?.richMagnet || undefined,
+    ...(playbackMagnet
+      ? {
+          src: playbackMagnet,
+          url: playbackMagnet,
+          magnet: playbackMagnet,
+        }
+      : {}),
+    richMagnet:
+      directTrackerMagnet ||
+      fallbackMagnet ||
+      current?.richMagnet ||
+      incoming?.richMagnet ||
+      undefined,
+    torrentTrackers: mergedTorrentTrackers,
     reportedSeeders: Math.max(
       0,
       Number(current?.reportedSeeders || 0),
