@@ -1017,6 +1017,7 @@ const fetchAddonSources = async (
 const findRdLibrarySource = async ({
   title,
   year,
+  alternateYears = [],
   season,
   episode,
 }) => {
@@ -1048,6 +1049,11 @@ const findRdLibrarySource = async ({
                 year,
               }
             : {}),
+
+          alternate_years:
+            Array.isArray(alternateYears)
+              ? alternateYears
+              : [],
 
           ...(season != null
             ? {
