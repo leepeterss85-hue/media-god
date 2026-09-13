@@ -981,6 +981,11 @@ export default function StreamSourcesBox({
 
         rdYear,
 
+        alternateYears,
+
+        rdAlternateYears:
+          alternateYears,
+
         rdSeason:
           season,
 
