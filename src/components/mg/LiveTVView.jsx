@@ -294,6 +294,29 @@ const epgCountryForChannel = (channel) => {
   return /^[A-Z]{2}$/.test(suffix) ? suffix : "";
 };
 
+const epgUniqueValues = (values, limit = 16) => {
+  const seen = new Set();
+  const result = [];
+
+  const add = (value) => {
+    if (Array.isArray(value)) {
+      value.forEach(add);
+      return;
+    }
+
+    const clean = String(value || "").trim();
+    const key = clean.toLowerCase();
+
+    if (!clean || seen.has(key) || result.length >= limit) return;
+
+    seen.add(key);
+    result.push(clean);
+  };
+
+  add(values);
+  return result;
+};
+
 const formatProgrammeTime = (value) => {
   const date = new Date(value || 0);
   if (!Number.isFinite(date.getTime())) return "";
@@ -814,6 +837,22 @@ export default function LiveTVView() {
         tvgId: channel?.tvgId || "",
         name: channel?.name || "",
         country: epgCountryForChannel(channel),
+        aliases: epgUniqueValues([
+          channel?.name,
+          channel?.rawName,
+          ...(channel?.alternatives || []).flatMap((candidate) => [
+            candidate?.name,
+            candidate?.rawName,
+          ]),
+        ]),
+        idAliases: epgUniqueValues([
+          channel?.tvgId,
+          channel?.id,
+          ...(channel?.alternatives || []).flatMap((candidate) => [
+            candidate?.tvgId,
+            candidate?.id,
+          ]),
+        ]),
       }));
 
       if (requestTargets.length === 0) return;
