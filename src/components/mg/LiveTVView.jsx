@@ -1950,6 +1950,7 @@ export default function LiveTVView() {
     const guide = epgByKey[epgKeyForChannel(channel)] || {};
     const nowProgramme = guide?.now || null;
     const favourite = favouriteKeys.has(memoryKey);
+    const playbackHealth = channelPlaybackHealth(channel);
 
     return (
       <button
@@ -1994,6 +1995,17 @@ export default function LiveTVView() {
             <div className="mt-1 truncate text-[10px] text-white/40">
               {nowProgramme?.title || channel.group || "Live TV"}
             </div>
+            {playbackHealth && (
+              <span
+                className={cn(
+                  "mt-1 inline-flex rounded border px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide",
+                  playbackHealth.className
+                )}
+                title={playbackHealth.title}
+              >
+                {playbackHealth.label}
+              </span>
+            )}
           </div>
         </div>
       </button>
@@ -2870,6 +2882,7 @@ export default function LiveTVView() {
 
               const memoryKey = channelMemoryKey(channel);
               const favourite = favouriteKeys.has(memoryKey);
+              const playbackHealth = channelPlaybackHealth(channel);
 
               return (
                 <div
@@ -2987,6 +3000,25 @@ export default function LiveTVView() {
                           <Wifi className="h-2.5 w-2.5" />
 
                           Live
+                        </span>
+                      )}
+
+                      {!radio && !external && playbackHealth && (
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase",
+                            playbackHealth.className
+                          )}
+                          title={playbackHealth.title}
+                        >
+                          {playbackHealth.label === "Healthy" ? (
+                            <CheckCircle2 className="h-2.5 w-2.5" />
+                          ) : playbackHealth.label === "Backup" ? (
+                            <RefreshCw className="h-2.5 w-2.5" />
+                          ) : (
+                            <AlertTriangle className="h-2.5 w-2.5" />
+                          )}
+                          {playbackHealth.label}
                         </span>
                       )}
 
