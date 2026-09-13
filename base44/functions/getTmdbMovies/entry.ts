@@ -49,6 +49,86 @@ const todayUtcYmd = () => {
   return `${yyyy}-${mm}-${dd}`;
 };
 
+const normaliseSearchTitle = (value) =>
+  String(value || '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const parseSearchQuery = (value) => {
+  const raw = String(value || '').trim();
+  const yearMatch = raw.match(/(?:^|[\s(])((?:19|20)\d{2})\)?\s*$/);
+
+  if (!yearMatch) {
+    return {
+      raw,
+      title: raw,
+      year: '',
+    };
+  }
+
+  const title = raw
+    .slice(0, yearMatch.index)
+    .replace(/[\s(,\-]+$/g, '')
+    .trim();
+
+  return {
+    raw,
+    title: title || raw,
+    year: yearMatch[1],
+  };
+};
+
+const searchResultScore = (item, titleQuery, requestedYear, originalIndex) => {
+  const wantedTitle = normaliseSearchTitle(titleQuery);
+  const titles = [
+    item?.title,
+    item?.name,
+    item?.original_title,
+    item?.original_name,
+  ]
+    .map(normaliseSearchTitle)
+    .filter(Boolean);
+
+  let score = Math.max(0, 500 - originalIndex);
+
+  if (wantedTitle) {
+    if (titles.some((title) => title === wantedTitle)) {
+      score += 10000;
+    } else if (titles.some((title) => title.startsWith(wantedTitle))) {
+      score += 5000;
+    } else if (titles.some((title) => title.includes(wantedTitle))) {
+      score += 2500;
+    }
+  }
+
+  if (requestedYear) {
+    const date = String(
+      item?.release_date ||
+      item?.first_air_date ||
+      ''
+    );
+    const resultYear = /^\d{4}/.test(date)
+      ? Number(date.slice(0, 4))
+      : 0;
+    const wantedYear = Number(requestedYear);
+
+    if (resultYear && wantedYear) {
+      const distance = Math.abs(resultYear - wantedYear);
+      if (distance === 0) score += 3000;
+      else if (distance === 1) score += 2200;
+      else if (distance === 2) score += 900;
+      else score -= Math.min(distance * 100, 1000);
+    }
+  }
+
+  score += Math.min(Number(item?.popularity || 0), 500);
+  return score;
+};
+
 const mapItem = (
   m,
   forcedType = ''
@@ -247,10 +327,13 @@ export default async function(req) {
     if (
       body.multi_search
     ) {
-      const q =
-        String(
+      const parsedSearch =
+        parseSearchQuery(
           body.multi_search
-        ).trim();
+        );
+
+      const q =
+        parsedSearch.title;
 
       if (!q) {
         return Response.json({
@@ -311,19 +394,34 @@ export default async function(req) {
           sData.results ||
           []
         )
+          .map((item, index) => ({
+            item,
+            index,
+            score: searchResultScore(
+              item,
+              q,
+              parsedSearch.year,
+              index
+            ),
+          }))
           .filter(
-            (m) =>
+            ({ item: m }) =>
               m.media_type ===
                 'movie' ||
               m.media_type ===
                 'tv'
+          )
+          .sort(
+            (a, b) =>
+              b.score - a.score ||
+              a.index - b.index
           )
           .slice(
             0,
             16
           )
           .map(
-            (m) =>
+            ({ item: m }) =>
               mapItem(
                 m
               )
