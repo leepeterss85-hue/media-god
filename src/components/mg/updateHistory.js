@@ -1,5 +1,21 @@
 export const UPDATE_HISTORY = [
   {
+    id: "media-god-polish-pass-2026-09-13-v1",
+    date: "13 September 2026",
+    title: "Downloads, Watch Party, Phone Remote and Roadmap upgraded",
+    summary:
+      "A broad Media God polish pass improved everyday management and navigation without changing the locked BBC/ITV/EV SPORTS priority rules.",
+    changes: [
+      "Downloads is now a full Real-Debrid transfer dashboard with Active, Ready, Errors and All filters, search, progress, completed playback and per-item removal.",
+      "Watch Party now validates shared stream URLs, supports cleaner room sharing, manual resync, host-controlled room ending, stronger chat handling and clearer room state.",
+      "Phone Remote now uses a phone heartbeat so the TV can distinguish Pairing ready from Phone connected while keeping the pairing alive in the background.",
+      "Roadmap now has a working Back button, refresh control, loading/error/empty states and clearer per-title Stream and Trailer activity.",
+      "Streaming Addons now perform one automatic health check after saved addons load, while retaining the manual Test active control.",
+      "A new UI structural regression gate now protects navigation, Downloads, Watch Party, Phone Remote, the BBC/ITV locks and EV SPORTS-over-ANT priority.",
+      "Full regression, build, backend, Fire TV/Android structural and Live TV network smoke checks passed after the changes.",
+    ],
+  },
+  {
     id: "fire-tv-white-screen-native-vod-v1",
     date: "9 September 2026",
     title: "Fire TV white-screen playback repaired",
