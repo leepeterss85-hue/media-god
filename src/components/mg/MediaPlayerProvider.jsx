@@ -700,6 +700,7 @@ const fetchServerAddonSources = async ({
   tmdbId,
   title,
   year,
+  alternateYears = [],
   mediaType,
   season,
   episode,
