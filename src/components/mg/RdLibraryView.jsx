@@ -14,67 +14,19 @@ import {
 
 import { base44 } from "@/api/base44Client";
 import { usePlayer } from "@/components/mg/PlayerProvider";
+import {
+  DEBRID_STATUS_LABEL as STATUS_LABEL,
+  debridAddedTime as addedTime,
+  debridBucket as bucketFor,
+  debridProgress,
+  formatDebridBytes as formatBytes,
+  formatDebridDate as formatDate,
+  isDebridActive as isActive,
+  isDebridError as isError,
+  isDebridReady as isReady,
+  normaliseDebridStatus as normaliseStatus,
+} from "@/components/mg/debridLibraryUtils";
 import { cn } from "@/lib/utils";
-
-const STATUS_LABEL = {
-  downloaded: "Ready",
-  downloading: "Downloading",
-  magnet_conversion: "Converting",
-  waiting_files_selection: "Selecting files",
-  waiting_selection: "Queued",
-  queued: "Queued",
-  magnet_error: "Magnet error",
-  files_error: "Files error",
-  virus: "Blocked",
-  dead: "Unavailable",
-};
-
-const normaliseStatus = (torrent) =>
-  String(torrent?.status || "").trim().toLowerCase();
-
-const isReady = (torrent) =>
-  torrent?.ready === true || normaliseStatus(torrent) === "downloaded";
-
-const isError = (torrent) =>
-  /error|dead|virus|invalid/i.test(normaliseStatus(torrent));
-
-const isActive = (torrent) => !isReady(torrent) && !isError(torrent);
-
-const bucketFor = (torrent) => {
-  if (isReady(torrent)) return "ready";
-  if (isError(torrent)) return "errors";
-  return "active";
-};
-
-const formatBytes = (value) => {
-  const bytes = Number(value || 0);
-  if (!Number.isFinite(bytes) || bytes <= 0) return "";
-  if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} GB`;
-  if (bytes >= 1e6) return `${(bytes / 1e6).toFixed(0)} MB`;
-  if (bytes >= 1e3) return `${(bytes / 1e3).toFixed(0)} KB`;
-  return `${bytes} B`;
-};
-
-const formatDate = (value) => {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-
-  try {
-    return new Intl.DateTimeFormat(undefined, {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    }).format(date);
-  } catch {
-    return "";
-  }
-};
-
-const addedTime = (torrent) => {
-  const value = new Date(torrent?.added || 0).getTime();
-  return Number.isFinite(value) ? value : 0;
-};
 
 export default function RdLibraryView() {
   const [torrents, setTorrents] = useState([]);
@@ -324,7 +276,7 @@ export default function RdLibraryView() {
           {visible.map((torrent) => {
             const readyNow = isReady(torrent);
             const errorNow = isError(torrent);
-            const progress = Math.min(100, Math.max(0, Number(torrent?.progress || 0)));
+            const progress = debridProgress(torrent);
             const status = STATUS_LABEL[normaliseStatus(torrent)] || torrent?.status || "Pending";
             const size = formatBytes(torrent?.bytes);
             const added = formatDate(torrent?.added);
