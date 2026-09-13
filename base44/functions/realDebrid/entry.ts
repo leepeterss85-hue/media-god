@@ -1273,6 +1273,154 @@ export default async function (req) {
 
     /*
      * ---------------------------------------------------------
+     * RETRY A FAILED TORRENT
+     *
+     * This is intentionally separate from the playback resolver.
+     * It recreates only a demonstrably failed Real-Debrid library
+     * item and restores the previous file selection when possible.
+     * ---------------------------------------------------------
+     */
+    if (action === "retry_torrent") {
+      const torrentId = String(body.torrent_id || "").trim();
+
+      if (!torrentId) {
+        return Response.json({ error: "torrent_id required" }, { status: 400 });
+      }
+
+      const infoRes = await rdFetch(
+        `${RD_BASE}/torrents/info/${torrentId}`,
+        { headers: authHeaders },
+        { attempts: 3 }
+      );
+
+      if (!infoRes.ok) {
+        return Response.json(
+          { error: `Could not inspect failed torrent: ${infoRes.status}` },
+          { status: 502 }
+        );
+      }
+
+      const info = await infoRes.json();
+      const status = String(info?.status || "").toLowerCase();
+      const hash = String(info?.hash || "").trim().toLowerCase();
+
+      if (!/error|dead|virus|invalid/i.test(status)) {
+        return Response.json(
+          { error: "Only failed Real-Debrid torrents can be retried from Downloads." },
+          { status: 409 }
+        );
+      }
+
+      if (!/^[a-f0-9]{40}$/.test(hash)) {
+        return Response.json(
+          { error: "The failed torrent does not expose a valid info hash." },
+          { status: 409 }
+        );
+      }
+
+      const selectedFiles = (Array.isArray(info?.files) ? info.files : [])
+        .filter((file) => file?.selected === 1 || file?.selected === true)
+        .map((file) => String(file?.id || "").trim())
+        .filter(Boolean);
+
+      const deleteRes = await rdFetch(
+        `${RD_BASE}/torrents/delete/${torrentId}`,
+        {
+          method: "DELETE",
+          headers: authHeaders,
+        },
+        { attempts: 3 }
+      );
+
+      if (!deleteRes.ok) {
+        return Response.json(
+          { error: `Could not remove failed torrent: ${deleteRes.status}` },
+          { status: 502 }
+        );
+      }
+
+      const magnet = `magnet:?xt=urn:btih:${hash}`;
+      const addRes = await rdFetch(
+        `${RD_BASE}/torrents/addMagnet`,
+        {
+          method: "POST",
+          headers: formHeaders,
+          body: `magnet=${encodeURIComponent(magnet)}`,
+        },
+        { attempts: 3 }
+      );
+
+      if (!addRes.ok) {
+        return Response.json(
+          {
+            error: await rdFailureMessage(
+              addRes,
+              "Real-Debrid could not restart this failed torrent"
+            ),
+          },
+          { status: 502 }
+        );
+      }
+
+      const addData = await addRes.json();
+      const restartedId = String(addData?.id || "").trim();
+
+      if (!restartedId) {
+        return Response.json(
+          { error: "Real-Debrid did not return a restarted torrent id." },
+          { status: 502 }
+        );
+      }
+
+      const preferredSelection = selectedFiles.length
+        ? selectedFiles.join(",")
+        : "all";
+
+      let selectRes = await rdFetch(
+        `${RD_BASE}/torrents/selectFiles/${restartedId}`,
+        {
+          method: "POST",
+          headers: formHeaders,
+          body: `files=${encodeURIComponent(preferredSelection)}`,
+        },
+        { attempts: 3 }
+      );
+
+      if (!selectRes.ok && preferredSelection !== "all") {
+        selectRes = await rdFetch(
+          `${RD_BASE}/torrents/selectFiles/${restartedId}`,
+          {
+            method: "POST",
+            headers: formHeaders,
+            body: "files=all",
+          },
+          { attempts: 2 }
+        );
+      }
+
+      if (!selectRes.ok && selectRes.status !== 202) {
+        return Response.json(
+          {
+            error: await rdFailureMessage(
+              selectRes,
+              "Real-Debrid restarted the torrent but could not select its files"
+            ),
+            torrent_id: restartedId,
+          },
+          { status: 502 }
+        );
+      }
+
+      return Response.json({
+        restarted: true,
+        torrent_id: restartedId,
+        info_hash: hash,
+        restored_file_selection: selectedFiles.length > 0,
+      });
+    }
+
+    /*
+     * ---------------------------------------------------------
      * TORRENTS LIST
      * ---------------------------------------------------------
      */
