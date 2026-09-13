@@ -1557,6 +1557,11 @@ export default function VideoPlayer({
     autoRecoveryRef.current.lastProgressAt = Date.now();
     autoRecoveryRef.current.lastSwitchAt = 0;
     autoRecoveryRef.current.abandoned = new Set();
+    setLiveRecoveryNotice(null);
+    if (liveRecoveryNoticeTimerRef.current) {
+      window.clearTimeout(liveRecoveryNoticeTimerRef.current);
+      liveRecoveryNoticeTimerRef.current = null;
+    }
     if (torrentFailoverTimerRef.current) {
       window.clearTimeout(torrentFailoverTimerRef.current);
       torrentFailoverTimerRef.current = null;
@@ -5794,6 +5799,10 @@ export default function VideoPlayer({
       active,
       activeIdx
     );
+
+  const activeLiveSourcePosition = isLive
+    ? liveSourcePosition(activeIdx)
+    : { current: 0, total: 0 };
 
   const selectableSourceCount =
     sources.filter(
