@@ -787,6 +787,9 @@ export default function SearchDialog({
                                   )}
                                 </span>
                               ))}
+                              <span className="ml-1 text-[9px] 3xl:text-xs text-white/25">
+                                via JustWatch
+                              </span>
                             </div>
                           )}
                       </div>
