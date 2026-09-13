@@ -81,6 +81,7 @@ export default function DebridDashboard() {
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState("");
   const [clearingErrors, setClearingErrors] = useState(false);
+  const [clearingReady, setClearingReady] = useState(false);
   const [tab, setTab] = useState("active");
   const [query, setQuery] = useState("");
   const timerRef = useRef(null);
@@ -207,6 +208,38 @@ export default function DebridDashboard() {
     }
   };
 
+  const clearReady = async () => {
+    if (clearingReady || ready.length === 0) return;
+
+    const confirmed =
+      typeof window === "undefined" ||
+      window.confirm(
+        `Remove ${ready.length} completed Real-Debrid item${ready.length === 1 ? "" : "s"} from your account?`
+      );
+
+    if (!confirmed) return;
+
+    setClearingReady(true);
+    setError("");
+
+    for (const torrent of ready) {
+      const torrentId = String(torrent?.id || "").trim();
+      if (!torrentId) continue;
+
+      try {
+        await base44.functions.invoke("realDebrid", {
+          action: "torrent_delete",
+          torrent_id: torrentId,
+        });
+      } catch {
+        // Continue clearing the remaining completed items.
+      }
+    }
+
+    await load({ silent: true });
+    setClearingReady(false);
+  };
+
   const clearErrors = async () => {
     if (clearingErrors || errored.length === 0) return;
     setClearingErrors(true);
@@ -283,11 +316,27 @@ export default function DebridDashboard() {
         </div>
 
         <div className="flex flex-wrap gap-2">
+          {ready.length > 0 && (
+            <button
+              type="button"
+              onClick={clearReady}
+              disabled={clearingReady || clearingErrors || Boolean(busyId)}
+              className="min-h-11 inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/60 hover:bg-white/10 hover:text-white disabled:opacity-50"
+            >
+              {clearingReady ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Trash2 className="w-4 h-4" />
+              )}
+              Clear completed ({ready.length})
+            </button>
+          )}
+
           {errored.length > 0 && (
             <button
               type="button"
               onClick={clearErrors}
-              disabled={clearingErrors || Boolean(busyId)}
+              disabled={clearingErrors || clearingReady || Boolean(busyId)}
               className="min-h-11 inline-flex items-center gap-2 rounded-lg border border-red-400/20 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-300 hover:bg-red-500/15 disabled:opacity-50"
             >
               {clearingErrors ? (
@@ -498,7 +547,7 @@ export default function DebridDashboard() {
                       <button
                         type="button"
                         onClick={() => retryFailed(torrent)}
-                        disabled={Boolean(busyId) || clearingErrors || !canRetry}
+                        disabled={Boolean(busyId) || clearingErrors || clearingReady || !canRetry}
                         title={
                           canRetry
                             ? "Retry this failed download"
@@ -518,7 +567,7 @@ export default function DebridDashboard() {
                     <button
                       type="button"
                       onClick={() => remove(torrent)}
-                      disabled={Boolean(busyId) || clearingErrors}
+                      disabled={Boolean(busyId) || clearingErrors || clearingReady}
                       title={readyNow ? "Remove from Real-Debrid" : "Cancel and remove"}
                       aria-label={readyNow ? "Remove completed download" : "Cancel and remove download"}
                       className="flex h-10 w-10 items-center justify-center rounded-lg text-white/40 hover:bg-red-500/10 hover:text-red-300 disabled:opacity-40"
