@@ -4884,10 +4884,17 @@ export default function VideoPlayer({
   };
 
   const handleDirectPlaybackError = (eventOrOptions = null) => {
+    const reportedLiveErrorMessage =
+      eventOrOptions instanceof Error
+        ? String(eventOrOptions.message || "")
+        : "";
     const explicitLiveFailureClass =
       typeof eventOrOptions === "string"
         ? eventOrOptions
-        : String(eventOrOptions?.liveFailureClass || "");
+        : String(eventOrOptions?.liveFailureClass || "") ||
+          (reportedLiveErrorMessage
+            ? classifyLiveFailure(reportedLiveErrorMessage)
+            : "");
 
     const fallback = String(
       active?.fallbackSrc || active?.fallback_stream_url || ""
