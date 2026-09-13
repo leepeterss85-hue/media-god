@@ -3519,14 +3519,18 @@ export default function VideoPlayer({
               }));
               setRdError(
                 latestProgress <= 0.001
-                  ? hasReportedPeerActivity
+                  ? activelyDownloading
                     ? "Real-Debrid is still reporting download speed, but the rounded percentage has not moved for about 30 minutes. The torrent has been left in Real-Debrid; Retry to reconnect or choose another source manually."
-                    : sourceReportedSeeders > 0
-                      ? "The addon reported seeders, but Real-Debrid has found no live peer activity for several minutes. The torrent has been left in Real-Debrid; Retry or choose another source manually."
-                      : "Real-Debrid has found no live peer activity for this torrent for several minutes. The torrent has been left in Real-Debrid; Retry or choose another source manually."
-                  : hasReportedPeerActivity
+                    : latestSeeders > 0
+                      ? "Real-Debrid still sees seeders but has reported no download speed for about 15 minutes. The torrent has been left in Real-Debrid; Retry to reconnect or choose another source manually."
+                      : sourceReportedSeeders > 0
+                        ? "The addon reported seeders, but Real-Debrid has found no live peer activity for several minutes. The torrent has been left in Real-Debrid; Retry or choose another source manually."
+                        : "Real-Debrid has found no live peer activity for this torrent for several minutes. The torrent has been left in Real-Debrid; Retry or choose another source manually."
+                  : activelyDownloading
                     ? `Real-Debrid has remained at ${latestProgress.toFixed(2)}% for about 30 minutes while still reporting download speed. The torrent has been left in Real-Debrid; Retry to reconnect or choose another source manually.`
-                    : `Real-Debrid has remained at ${latestProgress.toFixed(2)}% with no peer activity for several minutes. The torrent has been left in Real-Debrid; Retry or choose another source manually.`
+                    : latestSeeders > 0
+                      ? `Real-Debrid has remained at ${latestProgress.toFixed(2)}% with seeders but no download speed for about 15 minutes. The torrent has been left in Real-Debrid; Retry or choose another source manually.`
+                      : `Real-Debrid has remained at ${latestProgress.toFixed(2)}% with no peer activity for several minutes. The torrent has been left in Real-Debrid; Retry or choose another source manually.`
               );
               return;
             }
@@ -3554,16 +3558,20 @@ export default function VideoPlayer({
               setRdTorrentId(null);
               tryNextSource(
                 latestProgress <= 0.001
-                  ? hasReportedPeerActivity
+                  ? activelyDownloading
                     ? "Real-Debrid kept reporting download speed but the whole-percent progress value did not advance for about 30 minutes. Trying another torrent."
-                    : hasOriginalTrackerMagnet
-                      ? "Real-Debrid could not establish peer activity for this original tracker magnet after about 3 minutes. Trying another torrent."
-                      : sourceReportedSeeders > 0
-                        ? "The source reported seeders, but Real-Debrid still found no live peer activity after about 2 minutes. Trying another torrent."
-                        : "Real-Debrid found no peer activity after about 2 minutes. Trying another torrent."
-                  : hasReportedPeerActivity
+                    : latestSeeders > 0
+                      ? "Real-Debrid still saw seeders but reported no download speed for about 15 minutes. Trying another torrent."
+                      : hasOriginalTrackerMagnet
+                        ? "Real-Debrid could not establish peer activity for this original tracker magnet after about 3 minutes. Trying another torrent."
+                        : sourceReportedSeeders > 0
+                          ? "The source reported seeders, but Real-Debrid still found no live peer activity after about 2 minutes. Trying another torrent."
+                          : "Real-Debrid found no peer activity after about 2 minutes. Trying another torrent."
+                  : activelyDownloading
                     ? `Real-Debrid stayed at ${latestProgress.toFixed(2)}% for about 30 minutes despite continuing to report download speed. Trying another source.`
-                    : `Real-Debrid stayed at ${latestProgress.toFixed(2)}% with no peer activity for about 3 minutes. Trying another source.`,
+                    : latestSeeders > 0
+                      ? `Real-Debrid stayed at ${latestProgress.toFixed(2)}% with seeders but no download speed for about 15 minutes. Trying another source.`
+                      : `Real-Debrid stayed at ${latestProgress.toFixed(2)}% with no peer activity for about 3 minutes. Trying another source.`, 
                 {
                   blacklistTorrentHash: true,
                   immediate: true,
