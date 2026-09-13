@@ -91,6 +91,28 @@ const cachedXmlByTag = new Map();
 
 const clean = (value) => String(value || "").trim();
 
+const uniqueTextValues = (values, limit = 20) => {
+  const seen = new Set();
+  const result = [];
+
+  const add = (value) => {
+    if (Array.isArray(value)) {
+      value.forEach(add);
+      return;
+    }
+
+    const text = clean(value);
+    const key = text.toLowerCase();
+    if (!text || seen.has(key) || result.length >= limit) return;
+
+    seen.add(key);
+    result.push(text);
+  };
+
+  add(values);
+  return result;
+};
+
 const decodeXml = (value) =>
   clean(value)
     .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
@@ -100,40 +122,66 @@ const decodeXml = (value) =>
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">");
 
-const normaliseName = (value) =>
-  decodeXml(value)
+const normaliseNameText = (value, { stripProviderDecorations = false } = {}) => {
+  let text = decodeXml(value)
     .toLowerCase()
+    // Keep +1 semantically distinct from the main channel before punctuation
+    // cleanup, and make U& / A&E style names comparable with "and" variants.
+    .replace(/\+\s*1\b/g, " plus one ")
+    .replace(/&/g, " and ")
     .replace(/\([^)]*\)/g, " ")
-    .replace(/\[[^\]]*\]/g, " ")
-    .replace(/\b(?:uk|hd|fhd|uhd|4k|1080p?|720p?|sd)\b/g, " ")
-    .replace(/\+1\b/g, " plus one ")
+    .replace(/\[[^\]]*\]/g, " ");
+
+  if (stripProviderDecorations) {
+    text = text
+      .replace(/\bpowered\s+by\s+banijay\b.*$/g, " ")
+      .replace(/\bby\s+lionsgate\b.*$/g, " ")
+      .replace(/\brakuten\s+tv\s*$/g, " ")
+      .replace(/\bfast\s*\+?\s*$/g, " ");
+  }
+
+  return text
+    .replace(/\b(?:uk|hd|fhd|uhd|4k|2160p?|1080p?|720p?|576p?|480p?|sd)\b/g, " ")
     .replace(/[^a-z0-9]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+};
+
+const normaliseName = (value) => normaliseNameText(value);
+
+const providerDecorationFreeName = (value) =>
+  normaliseNameText(value, { stripProviderDecorations: true });
 
 const nameAliases = (value) => {
-  const base = normaliseName(value);
   const aliases = new Set();
   const add = (candidate) => {
     const cleanCandidate = String(candidate || "").replace(/\s+/g, " ").trim();
     if (cleanCandidate) aliases.add(cleanCandidate);
   };
 
-  add(base);
-  add(base.replace(/\bitv\s+([1-4])\b/g, "itv$1"));
-  add(base.replace(/\bitv([1-4])\b/g, "itv $1"));
-  add(base.replace(/\b5\s+(usa|star|action|select)\b/g, "5$1"));
-  add(base.replace(/\b5(usa|star|action|select)\b/g, "5 $1"));
-  add(base.replace(/^u\s+and\s+/, ""));
-  add(base.replace(/^bbc\s+1\b/, "bbc one"));
-  add(base.replace(/^bbc\s+one\b/, "bbc 1"));
-  add(base.replace(/^bbc\s+2\b/, "bbc two"));
-  add(base.replace(/^bbc\s+two\b/, "bbc 2"));
-  add(base.replace(/^c4\b/, "channel 4"));
-  add(base.replace(/^channel\s+4\b/, "c4"));
-  add(base.replace(/^five\b/, "channel 5"));
-  add(base.replace(/^channel\s+5\b/, "five"));
-  add(base.replace(/^bbc\s+news\s+channel\b/, "bbc news"));
+  const addFamily = (candidate) => {
+    const base = String(candidate || "").replace(/\s+/g, " ").trim();
+    if (!base) return;
+
+    add(base);
+    add(base.replace(/\bitv\s+([1-4])\b/g, "itv$1"));
+    add(base.replace(/\bitv([1-4])\b/g, "itv $1"));
+    add(base.replace(/\b5\s+(usa|star|action|select)\b/g, "5$1"));
+    add(base.replace(/\b5(usa|star|action|select)\b/g, "5 $1"));
+    add(base.replace(/^u\s+and\s+/, ""));
+    add(base.replace(/^bbc\s+1\b/, "bbc one"));
+    add(base.replace(/^bbc\s+one\b/, "bbc 1"));
+    add(base.replace(/^bbc\s+2\b/, "bbc two"));
+    add(base.replace(/^bbc\s+two\b/, "bbc 2"));
+    add(base.replace(/^c4\b/, "channel 4"));
+    add(base.replace(/^channel\s+4\b/, "c4"));
+    add(base.replace(/^five\b/, "channel 5"));
+    add(base.replace(/^channel\s+5\b/, "five"));
+    add(base.replace(/^bbc\s+news\s+channel\b/, "bbc news"));
+  };
+
+  addFamily(normaliseName(value));
+  addFamily(providerDecorationFreeName(value));
 
   return Array.from(aliases);
 };
@@ -297,37 +345,61 @@ const channelNames = (xml) => {
 };
 
 const findGuideMatch = (target, lookup) => {
-  const tvgId = clean(target?.tvgId);
+  const idCandidates = uniqueTextValues(
+    [target?.tvgId, target?.idAliases],
+    24
+  );
 
-  if (tvgId && lookup.byId.has(tvgId)) {
-    return { guideId: tvgId, strength: 300 };
-  }
+  // Merged Live TV rows can contain several TVG IDs from different public
+  // repositories. Exact IDs are the safest signal, so try every preserved ID
+  // before falling back to names.
+  for (const candidateId of idCandidates) {
+    if (lookup.byId.has(candidateId)) {
+      return { guideId: candidateId, strength: 320 };
+    }
 
-  const caseInsensitiveId = tvgId
-    ? lookup.byIdLower.get(tvgId.toLowerCase())
-    : "";
-  if (caseInsensitiveId) {
-    return { guideId: caseInsensitiveId, strength: 290 };
-  }
-
-  for (const normalisedId of nameAliases(tvgId)) {
-    if (lookup.byName.has(normalisedId)) {
-      return { guideId: lookup.byName.get(normalisedId), strength: 220 };
+    const caseInsensitiveId = lookup.byIdLower.get(candidateId.toLowerCase());
+    if (caseInsensitiveId) {
+      return { guideId: caseInsensitiveId, strength: 310 };
     }
   }
 
-  for (const name of nameAliases(target?.name)) {
-    if (lookup.byName.has(name)) {
-      return { guideId: lookup.byName.get(name), strength: 180 };
+  // Some playlist IDs are human-readable but use punctuation differently from
+  // the XMLTV feed. Keep this conservative by requiring an unambiguous guide
+  // name after normalisation.
+  for (const candidateId of idCandidates) {
+    if (candidateId.length > 120 || /:\/\//.test(candidateId)) continue;
+
+    for (const normalisedId of nameAliases(candidateId)) {
+      if (lookup.byName.has(normalisedId)) {
+        return { guideId: lookup.byName.get(normalisedId), strength: 240 };
+      }
+    }
+  }
+
+  const nameCandidates = uniqueTextValues(
+    [target?.name, target?.aliases],
+    24
+  );
+
+  for (const candidateName of nameCandidates) {
+    for (const name of nameAliases(candidateName)) {
+      if (lookup.byName.has(name)) {
+        return { guideId: lookup.byName.get(name), strength: 200 };
+      }
     }
   }
 
   const country = countryCodeForTarget(target);
-  const preferredGuideId = (PREFERRED_GUIDE_IDS[country] || new Map())
-    .get(normaliseName(target?.name));
+  const preferred = PREFERRED_GUIDE_IDS[country] || new Map();
 
-  if (preferredGuideId && lookup.byId.has(preferredGuideId)) {
-    return { guideId: preferredGuideId, strength: 160 };
+  for (const candidateName of nameCandidates) {
+    for (const alias of nameAliases(candidateName)) {
+      const preferredGuideId = preferred.get(alias);
+      if (preferredGuideId && lookup.byId.has(preferredGuideId)) {
+        return { guideId: preferredGuideId, strength: 180 };
+      }
+    }
   }
 
   return null;
