@@ -5,6 +5,7 @@ import {
   dedupeMergedChannels,
   normaliseCountryCode,
   parseFreeTvPlaylist,
+  PUBLIC_DIRECT_CHANNELS,
 } from "../src/components/mg/freeTvPlaylist.js";
 import {
   liveTvUrlQuarantined,
@@ -85,6 +86,83 @@ test("M3U parser rejects placeholder and dummy stream URLs", () => {
   assert.equal(channels.length, 1);
   assert.equal(channels[0].name, "Valid channel");
   assert.equal(channels[0].url, "https://example.test/live.m3u8");
+});
+
+test("BBC core channels keep curated direct video and official iPlayer fallbacks", () => {
+  const wanted = [
+    "BBC One",
+    "BBC Two",
+    "BBC Three",
+    "BBC Four",
+    "BBC News",
+    "CBBC",
+    "CBeebies",
+  ];
+
+  for (const name of wanted) {
+    const direct = PUBLIC_DIRECT_CHANNELS.find(
+      (channel) => channel?.name === name && channel?.kind === "direct"
+    );
+
+    assert.ok(direct, `${name} direct stream should exist`);
+    assert.match(String(direct.url || ""), /^https:\/\//i);
+  }
+
+  for (const name of ["BBC One", "BBC Two", "BBC Three", "BBC Four"]) {
+    const official = PUBLIC_DIRECT_CHANNELS.find(
+      (channel) => channel?.name === name && channel?.kind === "external"
+    );
+
+    assert.ok(official, `${name} iPlayer fallback should exist`);
+    assert.match(String(official.officialUrl || official.url || ""), /bbc\.co\.uk\/iplayer\/live\//i);
+  }
+});
+
+test("dead ITV relays are removed and spaced ITV names merge with ITVX cards", () => {
+  const stalePlaylist = `#EXTM3U\n#EXTINF:-1 tvg-id="ITV1.uk" tvg-country="GB" group-title="UK",ITV 1\nhttp://45.14.84.37/itv1/index.m3u8\n#EXTINF:-1 tvg-id="ITV2.uk" tvg-country="GB" group-title="UK",ITV2\nhttps://xemzi.short.gy/1000012\n`;
+  const stale = parseFreeTvPlaylist(stalePlaylist, {
+    id: "free-tv",
+    name: "Free-TV",
+    priority: 100,
+    category: "United Kingdom",
+  });
+
+  assert.equal(stale.length, 0);
+
+  const merged = dedupeMergedChannels([
+    {
+      id: "itv-direct",
+      name: "ITV 1",
+      country: "GB",
+      group: "United Kingdom",
+      url: "http://example.test/itv1.m3u8",
+      kind: "direct",
+      browserPlayable: false,
+      geoRestricted: false,
+      score: -1000,
+      sourceName: "Old direct mirror",
+      sourcePriority: 10,
+      tags: ["United Kingdom"],
+    },
+    {
+      id: "itv-official",
+      name: "ITV1",
+      country: "GB",
+      group: "United Kingdom",
+      url: "https://www.itv.com/watch?channel=itv",
+      kind: "external",
+      browserPlayable: true,
+      geoRestricted: false,
+      score: 1000,
+      sourceName: "ITVX Official",
+      sourcePriority: 100,
+      tags: ["United Kingdom", "Official"],
+    },
+  ]);
+
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].url, "https://www.itv.com/watch?channel=itv");
+  assert.equal(merged[0].alternatives.length, 1);
 });
 
 test("UK playlist category supplies GB when rows omit country metadata", () => {
