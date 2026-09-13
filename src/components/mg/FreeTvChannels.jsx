@@ -1090,16 +1090,16 @@ export async function getFreeTvChannels(options = {}) {
       }
     }
 
-    // Pull live event matches from AntSports scraper
+    // Pull the current public ANT SPORTS live-event directory through the backend helper.
     try {
       const scrapedEvents = await fetchAntSportsEvents();
       rawCount += scrapedEvents.length;
       for (const event of scrapedEvents) {
         rawChannels.push(event);
       }
-      sourceStatus.push({ id: "antsports-scraper", name: "AntSports Live", count: scrapedEvents.length, error: null });
+      sourceStatus.push({ id: "antsports-live", name: "AntSports Live", count: scrapedEvents.length, error: null });
     } catch (error) {
-      sourceStatus.push({ id: "antsports-scraper", name: "AntSports Live", count: 0, error: error?.message || "Failed to fetch" });
+      sourceStatus.push({ id: "antsports-live", name: "AntSports Live", count: 0, error: error?.message || "Failed to fetch" });
     }
 
     const channels = dedupeMergedChannels(rawChannels);
