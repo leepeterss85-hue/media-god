@@ -2266,47 +2266,7 @@ function chooseRequestedTorrentFile(
   allFiles,
   ep
 ) {
-  const files =
-    Array.isArray(allFiles)
-      ? allFiles
-      : [];
-
-  const requestedIndex =
-    normaliseRequestedFileIndex(ep?.file_idx);
-
-  if (
-    Number.isInteger(requestedIndex) &&
-    requestedIndex >= 0
-  ) {
-    const candidates = [
-      files[requestedIndex],
-      files.find(
-        (file) =>
-          Number(file?.id) ===
-          requestedIndex
-      ),
-      files.find(
-        (file) =>
-          Number(file?.id) ===
-          requestedIndex + 1
-      ),
-    ].filter(Boolean);
-
-    const indexedVideo =
-      candidates.find(
-        (file) =>
-          isVideoFile(file)
-      );
-
-    if (indexedVideo) {
-      return indexedVideo;
-    }
-  }
-
-  return chooseVideoFile(
-    files.filter(isVideoFile),
-    ep
-  );
+  return chooseRequestedTorrentFileForPlayback(allFiles, ep);
 }
 
 const buildTorrentProgress = (info = {}) => {
