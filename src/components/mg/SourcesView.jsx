@@ -347,6 +347,9 @@ export default function SourcesView() {
   const [testingId, setTestingId] = useState("");
   const [serverTestingId, setServerTestingId] = useState("");
   const [refreshingLive, setRefreshingLive] = useState(false);
+  const [skyStatus, setSkyStatus] = useState({ loading: true, connected: false });
+  const [skyDevice, setSkyDevice] = useState(null);
+  const [skyBusy, setSkyBusy] = useState(false);
 
   const [sourceForm, setSourceForm] = useState({
     kind: "playlist",
@@ -378,6 +381,133 @@ export default function SourcesView() {
     window.addEventListener(sourceRegistryEvent, syncRegistry);
     return () => window.removeEventListener(sourceRegistryEvent, syncRegistry);
   }, []);
+
+  const loadSkyStatus = async () => {
+    try {
+      const response = await base44.functions.invoke("skySportNow", {
+        action: "status",
+      });
+      const data = response?.data ?? response ?? {};
+      setSkyStatus({
+        loading: false,
+        connected: data?.connected === true,
+        verificationUrl:
+          clean(data?.verification_url) || "https://www.skysportnow.co.nz/tv-login",
+      });
+    } catch {
+      setSkyStatus({
+        loading: false,
+        connected: false,
+        verificationUrl: "https://www.skysportnow.co.nz/tv-login",
+      });
+    }
+  };
+
+  useEffect(() => {
+    loadSkyStatus();
+  }, []);
+
+  useEffect(() => {
+    if (!skyDevice?.pin || !skyDevice?.anchor || skyStatus.connected) {
+      return undefined;
+    }
+
+    let cancelled = false;
+    const startedAt = Date.now();
+    const expiresMs = Math.max(60, Number(skyDevice?.expiresIn || 300)) * 1000;
+
+    const poll = async () => {
+      if (cancelled) return;
+
+      if (Date.now() - startedAt >= expiresMs) {
+        setSkyDevice(null);
+        setError("Sky Sport Now login code expired. Start the connection again.");
+        return;
+      }
+
+      try {
+        const response = await base44.functions.invoke("skySportNow", {
+          action: "poll_device",
+          pin: skyDevice.pin,
+          anchor: skyDevice.anchor,
+        });
+        const data = response?.data ?? response ?? {};
+
+        if (cancelled || data?.connected !== true) return;
+
+        setSkyStatus({
+          loading: false,
+          connected: true,
+          verificationUrl:
+            clean(data?.verification_url) || "https://www.skysportnow.co.nz/tv-login",
+        });
+        setSkyDevice(null);
+        setMessage("Sky Sport Now connected. Its live channels are now available in Live TV.");
+        setError("");
+      } catch {
+        // Pending device authorization is expected while the user enters the code.
+      }
+    };
+
+    poll();
+    const timer = window.setInterval(
+      poll,
+      Math.max(5, Number(skyDevice?.interval || 5)) * 1000
+    );
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [skyDevice?.pin, skyDevice?.anchor, skyDevice?.expiresIn, skyDevice?.interval, skyStatus.connected]);
+
+  const startSkyConnect = async () => {
+    setSkyBusy(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const response = await base44.functions.invoke("skySportNow", {
+        action: "start_device",
+      });
+      const data = response?.data ?? response ?? {};
+
+      if (!data?.pin || !data?.anchor) {
+        throw new Error(data?.error || "Sky Sport Now did not return a login code.");
+      }
+
+      setSkyDevice({
+        pin: clean(data.pin),
+        anchor: clean(data.anchor),
+        interval: Number(data?.interval || 5),
+        expiresIn: Number(data?.expires_in || 300),
+        verificationUrl:
+          clean(data?.verification_url) || "https://www.skysportnow.co.nz/tv-login",
+      });
+      setMessage("Enter the Sky Sport Now code below. Media God will connect automatically after approval.");
+    } catch (connectError) {
+      setError(connectError?.message || "Could not start Sky Sport Now login.");
+    } finally {
+      setSkyBusy(false);
+    }
+  };
+
+  const disconnectSky = async () => {
+    setSkyBusy(true);
+    setError("");
+    setMessage("");
+
+    try {
+      await base44.functions.invoke("skySportNow", { action: "disconnect" });
+      setSkyStatus((current) => ({ ...current, connected: false, loading: false }));
+      setSkyDevice(null);
+      setMessage("Sky Sport Now disconnected.");
+    } catch (disconnectError) {
+      setError(disconnectError?.message || "Could not disconnect Sky Sport Now.");
+    } finally {
+      setSkyBusy(false);
+    }
+  };
 
   const builtInCount = LIVE_TV_SOURCES.length + PUBLIC_DIRECT_CHANNELS.length;
   const activeCustomCount = liveSources.filter(
