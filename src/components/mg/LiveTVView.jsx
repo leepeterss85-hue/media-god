@@ -66,6 +66,35 @@ const LIVE_TV_RECENT_KEY = "mg_live_tv_recent_v1";
 const LIVE_TV_VIEW_STATE_KEY = "mg_live_tv_view_state_v1";
 const GUIDE_COUNTRY_PRIORITY = ["GB", "US", "IE", "CA", "AU", "NZ", "FR", "DE"];
 
+const normaliseSkySportNowChannel = (item) => ({
+  id: `sky-sport-now:${String(item?.eventId || item?.id || "")}`,
+  tvgId: `SkySportNow.${String(item?.channelId || item?.id || "NZ")}`,
+  name: String(item?.name || "Sky Sport Now").trim(),
+  rawName: String(item?.name || "Sky Sport Now").trim(),
+  logo: String(item?.logo || "").trim(),
+  country: "NZ",
+  group: "Sports",
+  sourceCategory: "Sports",
+  sourceName: "Sky Sport Now",
+  sourceNames: ["Sky Sport Now"],
+  sourcePriority: 150,
+  quality: 1080,
+  kind: "provider",
+  format: "dash",
+  browserPlayable: true,
+  geoBlocked: false,
+  geoRestricted: false,
+  tags: ["Sports", "New Zealand", "Sky Sport Now"],
+  alternatives: [],
+  provider: "sky-sport-now",
+  skySportNowEventId: String(item?.eventId || "").trim(),
+  skySportNowChannelId: String(item?.channelId || item?.id || "").trim(),
+  providerNow: item?.now || null,
+  providerNext: item?.next || null,
+  officialUrl: "https://www.skysportnow.co.nz/",
+  officialLabel: "Open Sky Sport Now",
+});
+
 const readStoredList = (key) => {
   if (typeof window === "undefined") return [];
 
