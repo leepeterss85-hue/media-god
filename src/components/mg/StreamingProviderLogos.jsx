@@ -71,7 +71,7 @@ export default function StreamingProviderLogos({
   limit = 3,
   className = "",
   compact = true,
-  initialProviders = [],
+  initialProviders = null,
 }) {
   const rootRef = useRef(null);
   const [visible, setVisible] = useState(false);
