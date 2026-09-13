@@ -3059,6 +3059,10 @@ export default function LiveTVView() {
                 channel.kind ===
                 "external";
 
+              const antSports = channel?.sourceId === "antsports-live";
+              const antSportsLive = antSports && channel?.antsports?.status === "live";
+              const antSportsKickoff = antSportsKickoffLabel(channel);
+
               const radio =
                 isRadioChannel(
                   channel
