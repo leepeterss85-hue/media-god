@@ -199,6 +199,8 @@ export const LIVE_TV_SOURCES = [
     url: "https://raw.githubusercontent.com/gigoplast/iptv-1/master/tv.m3u",
     priority: 85,
     category: "Gigoplast",
+    disabled: true,
+    disabledReason: "Health audit: 20/20 sampled channel URLs returned HTTP 404.",
   },
   {
     id: "gigoplast-premium",
@@ -206,6 +208,8 @@ export const LIVE_TV_SOURCES = [
     url: "https://raw.githubusercontent.com/gigoplast/iptv-1/master/OSN%20%2C%20BEIN%20%2CART%20%2CFOX%20%2C%20SKY.m3u8",
     priority: 84,
     category: "Gigoplast",
+    disabled: true,
+    disabledReason: "Health audit: 20/20 sampled channel URLs failed, mostly HTTP 404.",
   },
   {
     id: "nimeyer-uk-list",
@@ -213,6 +217,8 @@ export const LIVE_TV_SOURCES = [
     url: "https://gist.githubusercontent.com/nimeyer22/4dc9fe46ca393956801bf65625168477/raw/UKList.m3u",
     priority: 99,
     category: "United Kingdom",
+    disabled: true,
+    disabledReason: "Health audit: 20/20 sampled channel URLs were unreachable.",
   },
   {
     id: "pluto-tv-gb-buddy",
@@ -1524,7 +1530,9 @@ export async function getFreeTvChannels(options = {}) {
     let rawCount = 0;
     let browserRejectedCount = 0;
 
-    const sortedSources = [...LIVE_TV_SOURCES].sort((a, b) => b.priority - a.priority);
+    const sortedSources = LIVE_TV_SOURCES.filter(
+      (source) => source?.disabled !== true
+    ).sort((a, b) => b.priority - a.priority);
 
     const fetchPlaylistSource = async (source) => {
       const controller = new AbortController();
