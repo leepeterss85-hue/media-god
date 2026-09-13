@@ -1417,10 +1417,12 @@ export default function LiveTVView() {
 
   const favouriteChannels = useMemo(
     () =>
-      channels.filter((channel) =>
-        favouriteKeys.has(channelMemoryKey(channel))
-      ),
-    [channels, favouriteKeys]
+      channels
+        .filter((channel) =>
+          favouriteKeys.has(channelMemoryKey(channel))
+        )
+        .sort((a, b) => smartChannelCompare(a, b, channelRankByKey)),
+    [channels, favouriteKeys, channelRankByKey]
   );
 
   const recentChannels = useMemo(() => {
@@ -1461,6 +1463,7 @@ export default function LiveTVView() {
           .filter(Boolean)
       )
     ).sort((a, b) =>
+      Number(b === "GB") - Number(a === "GB") ||
       countryDisplayName(a).localeCompare(countryDisplayName(b))
     );
 
@@ -1497,11 +1500,7 @@ export default function LiveTVView() {
         counts["Most Reliable"] += 1;
       }
 
-      if (
-        tags.has(
-          "United Kingdom"
-        )
-      ) {
+      if (isUkChannel(channel)) {
         counts["United Kingdom"] += 1;
       }
 
@@ -1572,7 +1571,7 @@ export default function LiveTVView() {
 
         if (
           countryFilter !== "All" &&
-          String(channel?.country || "").trim().toUpperCase() !== countryFilter
+          epgCountryForChannel(channel) !== countryFilter
         ) {
           return false;
         }
@@ -1626,14 +1625,29 @@ export default function LiveTVView() {
     }
 
     if (quickFilter === "Most Reliable") {
-      return [...result].sort(
-        (a, b) =>
-          channelReliabilityScore(b) - channelReliabilityScore(a) ||
+      return [...result].sort((a, b) => {
+        const aRank = channelRankByKey.get(channelMemoryKey(a)) || {};
+        const bRank = channelRankByKey.get(channelMemoryKey(b)) || {};
+
+        return (
+          Number(bRank.reliability || 0) - Number(aRank.reliability || 0) ||
+          Number(bRank.uk === true) - Number(aRank.uk === true) ||
+          Number(bRank.favourite === true) - Number(aRank.favourite === true) ||
+          Number(bRank.sourcePriority || 0) - Number(aRank.sourcePriority || 0) ||
           String(a?.name || "").localeCompare(String(b?.name || ""))
-      );
+        );
+      });
     }
 
-    return result;
+    /*
+     * Default browsing is UK-first without hiding anything. Favourites stay at
+     * the very top, then British channels, then recent usage, learned playback
+     * health, repository trust and quality. International channels remain in
+     * the same result set immediately underneath the UK block.
+     */
+    return [...result].sort((a, b) =>
+      smartChannelCompare(a, b, channelRankByKey)
+    );
   }, [
     channels,
     group,
@@ -1643,6 +1657,7 @@ export default function LiveTVView() {
     quickFilter,
     favouriteKeys,
     recentKeys,
+    channelRankByKey,
   ]);
 
   const visibleLimit =
