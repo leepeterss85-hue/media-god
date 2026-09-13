@@ -25,7 +25,7 @@ const normaliseChannel = (channel, index) => {
     sourceId: "evsports-live",
     sourceName: "EV SPORTS · Saptarshi",
     sourceNames: ["EV SPORTS · Saptarshi"],
-    sourcePriority: 132,
+    sourcePriority: 220,
     sourceCategory: "Sports",
     browserPlayable: true,
     browserReason: "",
@@ -42,7 +42,7 @@ const normaliseChannel = (channel, index) => {
       panelTitle,
       country,
     ].filter(Boolean),
-    score: 7600 + quality,
+    score: 12500 + quality,
     alternatives: [],
     evSports: {
       sourceSheet,
