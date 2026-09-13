@@ -1,4 +1,5 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.44";
+import { normaliseRequestedFileIndex } from "./regressionHelpers.js";
 
 const RD_BASE =
   "https://api.real-debrid.com/rest/1.0";
@@ -1000,12 +1001,7 @@ export default async function (req) {
             episode:
               body.episode,
             file_idx:
-              body.file_idx != null &&
-              String(body.file_idx).trim() !== "" &&
-              Number.isInteger(Number(body.file_idx)) &&
-              Number(body.file_idx) >= 0
-                ? Number(body.file_idx)
-                : null,
+              normaliseRequestedFileIndex(body.file_idx),
             forceAudioRescue:
               body.force_audio_rescue === true,
           }
@@ -1966,12 +1962,7 @@ async function addMagnet({
         : "",
 
     file_idx:
-      body.file_idx != null &&
-      String(body.file_idx).trim() !== "" &&
-      Number.isInteger(Number(body.file_idx)) &&
-      Number(body.file_idx) >= 0
-        ? Number(body.file_idx)
-        : null,
+      normaliseRequestedFileIndex(body.file_idx),
 
     forceAudioRescue:
       body.force_audio_rescue === true,
@@ -2392,13 +2383,8 @@ function chooseRequestedTorrentFile(
       ? allFiles
       : [];
 
-  const requestedIndexValue = ep?.file_idx;
-  const hasRequestedIndex =
-    requestedIndexValue != null &&
-    String(requestedIndexValue).trim() !== "";
-  const requestedIndex = hasRequestedIndex
-    ? Number(requestedIndexValue)
-    : Number.NaN;
+  const requestedIndex =
+    normaliseRequestedFileIndex(ep?.file_idx);
 
   if (
     Number.isInteger(requestedIndex) &&
