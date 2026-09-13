@@ -3464,8 +3464,6 @@ export default function VideoPlayer({
            * actively moving swarm a long runway, and only use the short dead
            * windows when RD is reporting no peer activity at all.
            */
-          const hasReportedPeerActivity =
-            latestSeeders > 0 || latestSpeed > 0;
           const activelyDownloading =
             latestSpeed > 0;
 
@@ -3571,7 +3569,7 @@ export default function VideoPlayer({
                     ? `Real-Debrid stayed at ${latestProgress.toFixed(2)}% for about 30 minutes despite continuing to report download speed. Trying another source.`
                     : latestSeeders > 0
                       ? `Real-Debrid stayed at ${latestProgress.toFixed(2)}% with seeders but no download speed for about 15 minutes. Trying another source.`
-                      : `Real-Debrid stayed at ${latestProgress.toFixed(2)}% with no peer activity for about 3 minutes. Trying another source.`, 
+                      : `Real-Debrid stayed at ${latestProgress.toFixed(2)}% with no peer activity for about 3 minutes. Trying another source.`,
                 {
                   blacklistTorrentHash: true,
                   immediate: true,
@@ -6089,8 +6087,14 @@ export default function VideoPlayer({
       : "",
   ].filter(Boolean);
 
+  const cachePollWarning = String(
+    rdPreparation?.lastPollError || ""
+  ).trim();
+
   const cacheHint =
-    cacheProgress >= 100
+    cachePollWarning && rdPolling
+      ? "Real-Debrid's status check was interrupted. Media God is retrying the check without cancelling the torrent download."
+      : cacheProgress >= 100
       ? "Download is complete. Real-Debrid is preparing the playable link."
       : cacheSeeders <= 0 &&
           cacheSpeedBps <= 0 &&
