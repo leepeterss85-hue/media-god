@@ -1438,6 +1438,31 @@ export default async function (req) {
             ).trim()
           : "";
 
+      const alternateYears =
+        (
+          Array.isArray(
+            body.alternate_years ||
+            body.alternateYears
+          )
+            ? (
+                body.alternate_years ||
+                body.alternateYears
+              )
+            : []
+        )
+          .map((value) =>
+            String(value || "").trim()
+          )
+          .filter(
+            (value) =>
+              /^\d{4}$/.test(value) &&
+              value !== year
+          )
+          .filter(
+            (value, index, list) =>
+              list.indexOf(value) === index
+          );
+
       const res =
         await fetch(
           `${RD_BASE}/torrents?limit=1000`,
@@ -1463,8 +1488,17 @@ export default async function (req) {
       const want =
         normalise(title);
 
+      const acceptableYears =
+        [
+          year,
+          ...alternateYears,
+        ]
+          .map(normalise)
+          .filter(Boolean);
+
       const wantYear =
-        normalise(year);
+        acceptableYears[0] ||
+        "";
 
       const titleStopWords =
         new Set([
@@ -1496,6 +1530,10 @@ export default async function (req) {
                 word
               )
           );
+
+      const ambiguousShortTitle =
+        titleWords.length === 1 &&
+        normalise(title).length <= 6;
 
       let epRegex =
         null;
@@ -1579,12 +1617,21 @@ export default async function (req) {
             ).length;
 
           const yearMatches =
-            Boolean(
-              wantYear &&
-              fn.includes(
-                wantYear
-              )
+            acceptableYears.length > 0 &&
+            acceptableYears.some(
+              (candidateYear) =>
+                fn.includes(
+                  candidateYear
+                )
             );
+
+          if (
+            ambiguousShortTitle &&
+            acceptableYears.length > 0 &&
+            !yearMatches
+          ) {
+            return -1;
+          }
 
           /*
            * Releases sometimes translate only the subtitle while keeping the
