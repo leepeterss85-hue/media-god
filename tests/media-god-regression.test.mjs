@@ -417,4 +417,24 @@ test("Live TV ranking keeps favourites first, then UK, then recent/reliability",
   const recent = { favourite: false, uk: false, recentIndex: 1, reliability: 0 };
   const reliable = { favourite: false, uk: false, recentIndex: 99, reliability: 9000 };
   assert.ok(compareLiveTvRankRecords(recent, reliable, "Recent", "Reliable") < 0);
+
+  const evSports = {
+    favourite: false,
+    uk: false,
+    recentIndex: 99,
+    reliability: 0,
+    sourcePriority: 220,
+    quality: 0,
+  };
+  const antSports = {
+    favourite: false,
+    uk: false,
+    recentIndex: 99,
+    reliability: 0,
+    sourcePriority: 110,
+    quality: 0,
+  };
+  assert.ok(
+    compareLiveTvRankRecords(evSports, antSports, "EV SPORTS", "ANT SPORTS") < 0
+  );
 });
