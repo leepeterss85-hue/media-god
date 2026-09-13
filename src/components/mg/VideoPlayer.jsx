@@ -3328,6 +3328,13 @@ export default function VideoPlayer({
                 data.error_code || ""
               ).trim();
 
+              if (
+                rdErrorCode === "RD_TORRENT_INFO_FAILED" &&
+                scheduleTransientPollRetry(data.error)
+              ) {
+                return;
+              }
+
               setRdPolling(
                 false
               );
@@ -3359,15 +3366,21 @@ export default function VideoPlayer({
                 return;
               }
 
-              if (
-                rdErrorCode === "RD_TORRENT_INFO_FAILED" &&
-                scheduleTransientPollRetry(data.error)
-              ) {
-                return;
+              if (rdErrorCode === "RD_TORRENT_INFO_FAILED") {
+                setRdPreparation((current) => ({
+                  ...(current || {}),
+                  status: sourceNeedsCaching(active)
+                    ? "stalled"
+                    : current?.status || "stalled",
+                  updatedAt: Date.now(),
+                  attempts,
+                }));
               }
 
               setRdError(
-                data.error
+                rdErrorCode === "RD_TORRENT_INFO_FAILED"
+                  ? `${data.error} Media God retried the status check several times. The Real-Debrid torrent was left untouched; Retry to reconnect.`
+                  : data.error
               );
 
               return;
@@ -3387,9 +3400,17 @@ export default function VideoPlayer({
             if (
               !cancelled
             ) {
+              setRdPreparation((current) => ({
+                ...(current || {}),
+                status: sourceNeedsCaching(active)
+                  ? "stalled"
+                  : current?.status || "stalled",
+                updatedAt: Date.now(),
+                attempts,
+              }));
+
               setRdError(
-                error?.message ||
-                  "Real-Debrid polling failed after several retries."
+                `${error?.message || "Real-Debrid polling failed."} Media God retried the status check several times. The torrent was left untouched; Retry to reconnect.`
               );
 
               setRdPolling(
@@ -3499,12 +3520,12 @@ export default function VideoPlayer({
               setRdError(
                 latestProgress <= 0.001
                   ? hasReportedPeerActivity
-                    ? "Real-Debrid has reported peer activity but the download percentage has not moved for about 10 minutes. The torrent has been left in Real-Debrid; Retry to reconnect or choose another source manually."
+                    ? "Real-Debrid is still reporting download speed, but the rounded percentage has not moved for about 30 minutes. The torrent has been left in Real-Debrid; Retry to reconnect or choose another source manually."
                     : sourceReportedSeeders > 0
                       ? "The addon reported seeders, but Real-Debrid has found no live peer activity for several minutes. The torrent has been left in Real-Debrid; Retry or choose another source manually."
                       : "Real-Debrid has found no live peer activity for this torrent for several minutes. The torrent has been left in Real-Debrid; Retry or choose another source manually."
                   : hasReportedPeerActivity
-                    ? `Real-Debrid has remained at ${latestProgress.toFixed(2)}% for about 10 minutes despite peer activity. The torrent has been left in Real-Debrid; Retry to reconnect or choose another source manually.`
+                    ? `Real-Debrid has remained at ${latestProgress.toFixed(2)}% for about 30 minutes while still reporting download speed. The torrent has been left in Real-Debrid; Retry to reconnect or choose another source manually.`
                     : `Real-Debrid has remained at ${latestProgress.toFixed(2)}% with no peer activity for several minutes. The torrent has been left in Real-Debrid; Retry or choose another source manually.`
               );
               return;
@@ -3534,14 +3555,14 @@ export default function VideoPlayer({
               tryNextSource(
                 latestProgress <= 0.001
                   ? hasReportedPeerActivity
-                    ? "Real-Debrid kept reporting peer activity but the whole-percent progress value did not advance for about 10 minutes. Trying another torrent."
+                    ? "Real-Debrid kept reporting download speed but the whole-percent progress value did not advance for about 30 minutes. Trying another torrent."
                     : hasOriginalTrackerMagnet
                       ? "Real-Debrid could not establish peer activity for this original tracker magnet after about 3 minutes. Trying another torrent."
                       : sourceReportedSeeders > 0
                         ? "The source reported seeders, but Real-Debrid still found no live peer activity after about 2 minutes. Trying another torrent."
                         : "Real-Debrid found no peer activity after about 2 minutes. Trying another torrent."
                   : hasReportedPeerActivity
-                    ? `Real-Debrid stayed at ${latestProgress.toFixed(2)}% for about 10 minutes despite continuing to report peer/speed activity. Trying another source.`
+                    ? `Real-Debrid stayed at ${latestProgress.toFixed(2)}% for about 30 minutes despite continuing to report download speed. Trying another source.`
                     : `Real-Debrid stayed at ${latestProgress.toFixed(2)}% with no peer activity for about 3 minutes. Trying another source.`,
                 {
                   blacklistTorrentHash: true,
