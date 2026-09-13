@@ -2062,26 +2062,16 @@ export default function LiveTVView() {
     }
 
     if (channel?.sourceId === "antsports-live") {
-      const relatedChannels = linkedAntSportsChannels(channel, channels, epgByKey);
+      stopRadio();
+      setChannelNotice("");
+      setChannelNoticeAction(null);
 
-      if (relatedChannels.length > 0) {
-        stopRadio();
-        setChannelNotice(
-          `${channel.name || "This ANT SPORTS event"} has other current TV links in Media God. Choose ANT SPORTS or one of the linked channels below. Channel availability can vary by event and region.`
-        );
-        setChannelNoticeAction(null);
-        setChannelNoticeActions([
-          {
-            label: channel?.live === true ? "Open ANT SPORTS live event" : "Open ANT SPORTS event",
-            url: channel.officialUrl || channel.url,
-          },
-          ...relatedChannels.map((relatedChannel) => ({
-            label: relatedChannel.name,
-            channel: relatedChannel,
-          })),
-        ]);
-        return;
-      }
+      openOfficialLiveUrl(
+        channel.officialUrl ||
+          channel.url ||
+          ANT_SPORTS_DIRECTORY_URL
+      );
+      return;
     }
 
     if (channel.provider === "sky-sport-now") {
@@ -2158,6 +2148,11 @@ export default function LiveTVView() {
       return;
     }
 
+    const antSportsFallback =
+      channelUsesAntSportsFallback(channel)
+        ? antSportsDestinationForChannel(channel, channels, epgByKey)
+        : null;
+
     const candidates = playableChannelCandidates(channel);
 
     if (
@@ -2165,19 +2160,33 @@ export default function LiveTVView() {
         "external" &&
       candidates.length === 0
     ) {
-      if (channel.officialUrl || channel.url) {
-        openOfficialLiveUrl(channel.officialUrl || channel.url);
+      const target =
+        antSportsFallback ||
+        officialLiveFallback(channel) ||
+        (channel.officialUrl || channel.url
+          ? {
+              url: channel.officialUrl || channel.url,
+              label: channel.officialLabel || "Open live service",
+            }
+          : null);
+
+      if (target?.url) {
+        openOfficialLiveUrl(target.url);
       }
 
       return;
     }
 
     if (candidates.length === 0) {
-      const fallback = officialLiveFallback(channel);
+      const fallback =
+        antSportsFallback ||
+        officialLiveFallback(channel);
 
       setChannelNotice(
         fallback
-          ? `${channel.name || "This channel"} does not have a direct stream this device can play. Use the broadcaster’s official live service instead.`
+          ? antSportsFallback
+            ? `${channel.name || "This sports channel"} does not have a direct stream this device can play. Open the matching ANT SPORTS event, or the ANT SPORTS directory if no exact event match is available.`
+            : `${channel.name || "This channel"} does not have a direct stream this device can play. Use the broadcaster’s official live service instead.`
           : `${channel.name || "This channel"} does not currently have a browser-playable stream.`
       );
       setChannelNoticeAction(
@@ -2277,10 +2286,16 @@ export default function LiveTVView() {
       noRd: true,
 
       officialUrl:
-        channel.officialUrl || officialLiveFallback(channel)?.url || "",
+        antSportsFallback?.url ||
+        channel.officialUrl ||
+        officialLiveFallback(channel)?.url ||
+        "",
 
       officialLabel:
-        channel.officialLabel || officialLiveFallback(channel)?.label || "",
+        antSportsFallback?.label ||
+        channel.officialLabel ||
+        officialLiveFallback(channel)?.label ||
+        "",
 
       sources: directSources,
     };
