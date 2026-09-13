@@ -1453,6 +1453,12 @@ export default function DetailModal({
               rdYear={
                 safeItem.year
               }
+              alternateYears={
+                asArray(
+                  safeItem.alternate_years ??
+                  safeItem.alternateYears
+                )
+              }
               tmdbId={
                 itemId
               }
