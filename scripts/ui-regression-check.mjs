@@ -147,12 +147,21 @@ expect(
   "Watch Party presence schema is incomplete"
 );
 
-for (const marker of ["remote_last_seen_at", "Phone connected", "Waiting for phone"]) {
+for (const marker of [
+  "remote_last_seen_at",
+  "Phone connected",
+  "Waiting for phone",
+  "Copy remote link",
+  "shouldRenewExpiry",
+]) {
   expect(remoteTv.includes(marker), `TV remote status regression marker missing: ${marker}`);
 }
 expect(
-  remotePhone.includes("heartbeatTimer") && remotePhone.includes("remote_last_seen_at"),
-  "Phone remote heartbeat is missing"
+  remotePhone.includes("heartbeatTimer") &&
+    remotePhone.includes("refreshTimer") &&
+    remotePhone.includes("remote_last_seen_at") &&
+    remotePhone.includes("Reconnecting…"),
+  "Phone remote heartbeat/reconnect fallback is missing"
 );
 expect(
   remoteSchema.includes('"remote_last_seen_at"'),
