@@ -5076,10 +5076,17 @@ export default function VideoPlayer({
           })
         );
 
+        if (isLive && /^https?:\/\//i.test(String(activeUrl || ""))) {
+          recordLiveTvPlaybackResult(String(activeUrl), {
+            success: false,
+            stalled: false,
+          });
+        }
+
         if (rdOverride) {
           handleRdPlaybackError();
         } else {
-          handleDirectPlaybackError();
+          handleDirectPlaybackError({ liveFailureClass: "native" });
         }
 
         return;
