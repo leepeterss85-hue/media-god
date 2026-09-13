@@ -595,6 +595,9 @@ export default function VideoPlayer({
   const [rdError, setRdError] =
     useState("");
 
+  const [liveRecoveryNotice, setLiveRecoveryNotice] =
+    useState(null);
+
   const [rdPreparation, setRdPreparation] =
     useState(null);
 
@@ -645,6 +648,7 @@ export default function VideoPlayer({
     url: "",
   });
   const nativeLaunchTimerRef = useRef(null);
+  const liveRecoveryNoticeTimerRef = useRef(null);
   const streamActionGenerationRef = useRef(0);
 
   useEffect(() => {
@@ -657,6 +661,11 @@ export default function VideoPlayer({
       if (nativeLaunchTimerRef.current) {
         window.clearTimeout(nativeLaunchTimerRef.current);
         nativeLaunchTimerRef.current = null;
+      }
+
+      if (liveRecoveryNoticeTimerRef.current) {
+        window.clearTimeout(liveRecoveryNoticeTimerRef.current);
+        liveRecoveryNoticeTimerRef.current = null;
       }
     };
   }, []);
@@ -756,6 +765,162 @@ export default function VideoPlayer({
 
   const activeUrl =
     getSourceUrl(active);
+
+  const liveSelectableIndices = () =>
+    sources
+      .map((item, index) => ({ item, index }))
+      .filter(
+        ({ item }) =>
+          item &&
+          (item?.live || item?.type === "live") &&
+          !item?.diagnostic &&
+          item?.type !== "status" &&
+          item?.type !== "provider" &&
+          item?.type !== "youtube" &&
+          Boolean(getSourceUrl(item))
+      )
+      .map(({ index }) => index);
+
+  const liveSourcePosition = (index = activeIdx) => {
+    const indices = liveSelectableIndices();
+    const ordinal = indices.indexOf(Number(index));
+
+    return {
+      current: ordinal >= 0 ? ordinal + 1 : 0,
+      total: indices.length,
+    };
+  };
+
+  const classifyLiveFailure = (message, explicitClass = "") => {
+    const explicit = String(explicitClass || "").trim().toLowerCase();
+    if (explicit) return explicit;
+
+    const text = String(message || "").toLowerCase();
+    if (/too long|start(?:up)?|did not open|didn['’]?t open/.test(text)) return "startup";
+    if (/stall|stopped responding|buffer/.test(text)) return "stall";
+    if (/fire tv|native|media3/.test(text)) return "native";
+    if (/decode|decoder|codec|format|not supported/.test(text)) return "decoder";
+    if (/network|http|connection|fetch|load/.test(text)) return "network";
+    return "media";
+  };
+
+  const liveFailureLabel = (failureClass) => {
+    switch (String(failureClass || "").toLowerCase()) {
+      case "startup":
+        return "startup timeout";
+      case "stall":
+        return "stream stalled";
+      case "network":
+        return "network failure";
+      case "decoder":
+        return "decoder failure";
+      case "native":
+        return "native player failure";
+      default:
+        return "playback failure";
+    }
+  };
+
+  const safeLiveHost = (item) => {
+    try {
+      const url = new URL(String(getSourceUrl(item) || ""));
+      return url.hostname || "";
+    } catch {
+      return "";
+    }
+  };
+
+  const emitLiveDiagnostic = ({
+    event = "status",
+    failureClass = "",
+    index = activeIdx,
+    message = "",
+  } = {}) => {
+    const candidate = sources[index] || {};
+    const liveItem =
+      source?.type === "live" || candidate?.live || candidate?.type === "live";
+
+    if (!liveItem || typeof window === "undefined") return;
+
+    const position = liveSourcePosition(index);
+    const detail = {
+      at: new Date().toISOString(),
+      event: String(event || "status"),
+      failureClass: String(failureClass || ""),
+      channel: String(source?.title || "Live TV"),
+      sourceNumber: position.current,
+      sourceTotal: position.total,
+      sourceName: String(candidate?.sourceName || ""),
+      sourceCategory: String(candidate?.sourceCategory || ""),
+      host: safeLiveHost(candidate),
+      format: String(candidate?.format || candidate?.mimeType || ""),
+      geoRestricted: candidate?.geoRestricted === true,
+      browserPlayable: candidate?.browserPlayable !== false,
+      mixedContent: candidate?.mixedContent === true,
+      requiresHeaders: candidate?.requiresHeaders === true,
+      message: String(message || "").slice(0, 180),
+    };
+
+    try {
+      const history = Array.isArray(window.__MG_LIVE_TV_DIAGNOSTICS__)
+        ? window.__MG_LIVE_TV_DIAGNOSTICS__
+        : [];
+      window.__MG_LIVE_TV_DIAGNOSTICS__ = [...history.slice(-39), detail];
+      window.dispatchEvent(
+        new CustomEvent("mg:live-tv-diagnostic", { detail })
+      );
+      console.info("[Media God Live TV]", detail);
+    } catch {
+      // Diagnostics must never interrupt playback.
+    }
+  };
+
+  const showLiveRecoveryNotice = (
+    message,
+    {
+      index = activeIdx,
+      failureClass = "",
+      kind = "info",
+      clearAfterMs = 0,
+    } = {}
+  ) => {
+    const liveItem =
+      source?.type === "live" ||
+      sources[index]?.live ||
+      sources[index]?.type === "live";
+
+    if (!liveItem) return;
+
+    if (liveRecoveryNoticeTimerRef.current) {
+      window.clearTimeout(liveRecoveryNoticeTimerRef.current);
+      liveRecoveryNoticeTimerRef.current = null;
+    }
+
+    const position = liveSourcePosition(index);
+    setLiveRecoveryNotice({
+      message: String(message || ""),
+      sourceNumber: position.current,
+      sourceTotal: position.total,
+      failureClass: String(failureClass || ""),
+      kind: String(kind || "info"),
+    });
+
+    if (clearAfterMs > 0) {
+      liveRecoveryNoticeTimerRef.current = window.setTimeout(() => {
+        liveRecoveryNoticeTimerRef.current = null;
+        setLiveRecoveryNotice(null);
+      }, clearAfterMs);
+    }
+  };
+
+  const mediaElementFailureClass = () => {
+    const video = stageRef.current?.querySelector("video");
+    const code = Number(video?.error?.code || 0);
+
+    if (code === 2) return "network";
+    if (code === 3 || code === 4) return "decoder";
+    return "media";
+  };
 
   const trackPreferences = readTrackPreferences();
 
