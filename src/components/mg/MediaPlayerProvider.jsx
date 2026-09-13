@@ -1620,6 +1620,16 @@ export function PlayerProvider({
                 tmdbId,
                 title: request?.rdTitle || request?.title || "",
                 year: request?.rdYear ?? request?.year ?? "",
+                alternateYears:
+                  Array.isArray(
+                    request?.rdAlternateYears ||
+                    request?.alternateYears
+                  )
+                    ? (
+                        request?.rdAlternateYears ||
+                        request?.alternateYears
+                      )
+                    : [],
                 mediaType,
                 season,
                 episode,
@@ -1631,6 +1641,16 @@ export function PlayerProvider({
             ? findRdLibrarySource({
                 title: request?.rdTitle || request?.title || "",
                 year: request?.rdYear ?? request?.year ?? null,
+                alternateYears:
+                  Array.isArray(
+                    request?.rdAlternateYears ||
+                    request?.alternateYears
+                  )
+                    ? (
+                        request?.rdAlternateYears ||
+                        request?.alternateYears
+                      )
+                    : [],
                 season,
                 episode,
               })
@@ -1905,6 +1925,16 @@ export function PlayerProvider({
             ? findRdLibrarySource({
                 title: request?.rdTitle || request?.title || "",
                 year: request?.rdYear ?? request?.year ?? null,
+                alternateYears:
+                  Array.isArray(
+                    request?.rdAlternateYears ||
+                    request?.alternateYears
+                  )
+                    ? (
+                        request?.rdAlternateYears ||
+                        request?.alternateYears
+                      )
+                    : [],
                 season,
                 episode,
               })
