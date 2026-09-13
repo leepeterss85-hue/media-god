@@ -691,9 +691,36 @@ export default async function(req) {
           )
         );
 
+      const overrides =
+        externalSearchOverrides(
+          body.multi_search
+        );
+
+      const combined = [];
+      const combinedSeen = new Set();
+
+      for (const item of [
+        ...overrides,
+        ...items,
+      ]) {
+        const key =
+          `${item?.media_type || 'movie'}:${item?.tmdb_id || item?.id || item?.imdb_id || item?.title || ''}`;
+
+        if (!key || combinedSeen.has(key)) {
+          continue;
+        }
+
+        combinedSeen.add(key);
+        combined.push(item);
+
+        if (combined.length >= 16) {
+          break;
+        }
+      }
+
       return Response.json({
         movies:
-          items,
+          combined,
       });
     }
 
@@ -1578,7 +1605,7 @@ export default async function(req) {
       );
     }
 
-    const items =
+    const mappedItems =
       merged.map(
         (m) =>
           mapItem(
@@ -1586,6 +1613,32 @@ export default async function(req) {
             mediaType
           )
       );
+
+    const overrides =
+      query
+        ? externalSearchOverrides(
+            query,
+            mediaType
+          )
+        : [];
+
+    const items = [];
+    const itemSeen = new Set();
+
+    for (const item of [
+      ...overrides,
+      ...mappedItems,
+    ]) {
+      const key =
+        `${item?.media_type || mediaType}:${item?.tmdb_id || item?.id || item?.imdb_id || item?.title || ''}`;
+
+      if (!key || itemSeen.has(key)) {
+        continue;
+      }
+
+      itemSeen.add(key);
+      items.push(item);
+    }
 
     return Response.json({
       movies:
