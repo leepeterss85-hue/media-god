@@ -749,7 +749,7 @@ const normaliseFastAliasName = (value) =>
     .replace(/\s+/g, " ")
     .trim();
 
-const normaliseCountryCode = (value) => {
+export const normaliseCountryCode = (value) => {
   const raw = String(value || "").trim().toUpperCase();
   if (!raw) return "";
 
@@ -1266,7 +1266,7 @@ const dedupeKey = (channel) => {
   return `url:${String(channel?.url || "").trim()}`;
 };
 
-const dedupeMergedChannels = (channels) => {
+export const dedupeMergedChannels = (channels) => {
   const groups = new Map();
   for (const channel of channels || []) {
     if (!channel?.url || !channel?.name) continue;
