@@ -13,6 +13,8 @@ const expect = (condition, message) => {
 const home = await read("src/pages/Home.jsx");
 const navbar = await read("src/components/mg/Navbar.jsx");
 const roadmap = await read("src/components/mg/RoadmapView.jsx");
+const watchlist = await read("src/components/mg/WatchlistView.jsx");
+const favorites = await read("src/components/mg/FavoritesView.jsx");
 const downloads = await read("src/components/mg/DebridDashboard.jsx");
 const rdLibrary = await read("src/components/mg/RdLibraryView.jsx");
 const realDebridBackend = await read("base44/functions/realDebrid/entry.ts");
@@ -62,6 +64,16 @@ expect(
   home.includes("<RoadmapView onBack={goBack} />"),
   "Roadmap is not wired into the global back routine"
 );
+
+for (const [source, name] of [
+  [watchlist, "Watchlist"],
+  [favorites, "Favorites"],
+]) {
+  expect(source.includes(`placeholder="Search ${name}…"`), `${name} search is missing`);
+  expect(source.includes(`aria-label="Sort ${name}"`), `${name} sorting is missing`);
+  expect(source.includes('value="title"'), `${name} title sorting is missing`);
+  expect(source.includes('value="year"'), `${name} year sorting is missing`);
+}
 expect(
   roadmap.includes("onClick={() => onBack?.()}"),
   "Roadmap back button is not interactive"
