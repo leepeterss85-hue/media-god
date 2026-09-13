@@ -4279,7 +4279,9 @@ export default function VideoPlayer({
         });
       }
 
-      tryNextSource(message);
+      tryNextSource(message, {
+        liveFailureClass: stalled ? "stall" : "startup",
+      });
     };
 
     const armStallRecovery = () => {
