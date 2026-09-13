@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
-import { Smartphone } from "lucide-react";
+import { Check, Copy, Smartphone } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 import { findChannelsByTitle } from "@/components/mg/freeTvPlaylist";
@@ -149,6 +149,8 @@ export default function PlayerQrRemote({ showIdle = false }) {
   const playerRef = useRef(player);
   const [session, setSession] = useState(null);
   const [qrUrl, setQrUrl] = useState("");
+  const [remoteUrl, setRemoteUrl] = useState("");
+  const [copiedLink, setCopiedLink] = useState(false);
   const [error, setError] = useState("");
   const sessionRef = useRef(null);
   const lastCommandSeqRef = useRef(0);
@@ -249,6 +251,7 @@ export default function PlayerQrRemote({ showIdle = false }) {
         setSession(created);
 
         const remoteUrl = `${window.location.origin}/remote/${created.session_code}`;
+        setRemoteUrl(remoteUrl);
         const image = await QRCode.toDataURL(remoteUrl, {
           width: 240,
           margin: 1,
@@ -620,6 +623,18 @@ export default function PlayerQrRemote({ showIdle = false }) {
     };
   }, []);
 
+  const copyRemoteLink = async () => {
+    if (!remoteUrl) return;
+
+    try {
+      await navigator.clipboard.writeText(remoteUrl);
+      setCopiedLink(true);
+      window.setTimeout(() => setCopiedLink(false), 1500);
+    } catch {
+      setError("The remote link could not be copied on this device.");
+    }
+  };
+
   const playerOpen = Boolean(player?.isOpen);
   const remoteLastSeenMs = session?.remote_last_seen_at
     ? new Date(session.remote_last_seen_at).getTime()
@@ -679,6 +694,16 @@ export default function PlayerQrRemote({ showIdle = false }) {
             className="h-56 w-56 sm:h-64 sm:w-64 3xl:h-72 3xl:w-72"
           />
         </div>
+
+        <button
+          type="button"
+          onClick={copyRemoteLink}
+          disabled={!remoteUrl}
+          className="mx-auto mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/70 hover:bg-white/10 hover:text-white disabled:opacity-40"
+        >
+          {copiedLink ? <Check className="h-4 w-4 text-mg-green" /> : <Copy className="h-4 w-4" />}
+          {copiedLink ? "Remote link copied" : "Copy remote link"}
+        </button>
 
         <div className="mx-auto mt-5 max-w-lg rounded-xl border border-white/10 bg-black/20 p-4 text-left">
           <div className="flex items-center justify-between gap-3">
