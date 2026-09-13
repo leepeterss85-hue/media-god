@@ -162,7 +162,14 @@ const externalSearchOverrides = (
     const termMatch =
       (item.search_terms || []).some((term) => {
         const normalised = normaliseSearchTitle(term);
-        return normalised && wantedRaw.includes(normalised);
+        return (
+          normalised &&
+          normalised !== itemTitle &&
+          (
+            wantedRaw === normalised ||
+            wantedRaw.includes(normalised)
+          )
+        );
       });
     const titleMatch =
       wantedTitle === itemTitle ||
