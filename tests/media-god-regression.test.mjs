@@ -52,6 +52,8 @@ test("country normalisation keeps UK/GB and USA/US consistent", () => {
   assert.equal(normaliseCountryCode("UK"), "GB");
   assert.equal(normaliseCountryCode("GBR"), "GB");
   assert.equal(normaliseCountryCode("USA"), "US");
+  assert.equal(normaliseCountryCode("United States"), "US");
+  assert.equal(normaliseCountryCode("United Kingdom"), "GB");
   assert.equal(normaliseCountryCode("GB;IE"), "GB");
 });
 
@@ -82,6 +84,21 @@ test("UK playlist category supplies GB when rows omit country metadata", () => {
 
   assert.ok(channel);
   assert.equal(channel.country, "GB");
+});
+
+test("FAST country groups and Formula 1 names become correctly tagged motorsport", () => {
+  const playlist = `#EXTM3U\n#EXTINF:-1 tvg-id="US600011Q2" group-title="United States",Formula 1 Channel\nhttps://example.test/formula-one.m3u8\n`;
+  const [channel] = parseFreeTvPlaylist(playlist, {
+    id: "fast-global-test",
+    name: "FAST Global Test",
+    priority: 80,
+    category: "Worldwide",
+  });
+
+  assert.ok(channel);
+  assert.equal(channel.country, "US");
+  assert.ok(channel.tags.includes("Sports"));
+  assert.ok(channel.tags.includes("Motorsport"));
 });
 
 test("duplicate UK feeds merge and prefer an open source over a geo-restricted mirror", () => {
