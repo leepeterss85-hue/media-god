@@ -1479,6 +1479,7 @@ export default function LiveTVView() {
       "United Kingdom": 0,
       Worldwide: 0,
       Sports: 0,
+      Motorsport: 0,
       Movies: 0,
       Favourites: 0,
       Recent: 0,
@@ -1515,6 +1516,10 @@ export default function LiveTVView() {
         tags.has("Sports")
       ) {
         counts.Sports += 1;
+      }
+
+      if (tags.has("Motorsport")) {
+        counts.Motorsport += 1;
       }
 
       if (
@@ -2341,7 +2346,7 @@ export default function LiveTVView() {
 
       <div
         data-mg-live-tv-category-row="true"
-        className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-8"
+        className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-9"
       >
         {[
           {
@@ -2363,6 +2368,11 @@ export default function LiveTVView() {
             id: "Sports",
             label: "Sports",
             icon: Trophy,
+          },
+          {
+            id: "Motorsport",
+            label: "Motorsport",
+            icon: Activity,
           },
           {
             id: "Movies",
