@@ -9,6 +9,7 @@ import {
   YEARS,
 } from "@/components/mg/filterOptions";
 import DetailModal from "@/components/mg/DetailModal";
+import StreamingProviderLogos from "@/components/mg/StreamingProviderLogos";
 import useDebouncedValue from "@/components/mg/useDebouncedValue";
 
 const COUNTRIES = [
@@ -223,6 +224,15 @@ export default function MoviesView() {
                   fittingType="fill"
                   loading="lazy"
                 />
+
+                <div className="pointer-events-none absolute bottom-2 left-2 z-10 rounded-lg bg-black/45 p-1 backdrop-blur-sm">
+                  <StreamingProviderLogos
+                    tmdbId={movie.id || movie.tmdb_id}
+                    mediaType="movie"
+                    region="GB"
+                    limit={3}
+                  />
+                </div>
 
                 <button
                   type="button"
