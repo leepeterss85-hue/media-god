@@ -1312,6 +1312,30 @@ export default async function (req) {
               torrent.original_filename ||
               "",
 
+            original_filename:
+              torrent.original_filename ||
+              torrent.filename ||
+              "",
+
+            hash:
+              String(torrent.hash || "")
+                .trim()
+                .toLowerCase(),
+
+            added:
+              torrent.added ||
+              "",
+
+            ended:
+              torrent.ended ||
+              "",
+
+            speed:
+              Number(torrent.speed || 0),
+
+            seeders:
+              Number(torrent.seeders || 0),
+
             status:
               torrent.status,
 

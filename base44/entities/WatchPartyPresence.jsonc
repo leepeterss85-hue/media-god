@@ -1,0 +1,37 @@
+{
+  "name": "WatchPartyPresence",
+  "type": "object",
+  "properties": {
+    "room_code": {
+      "type": "string"
+    },
+    "user_id": {
+      "type": "string"
+    },
+    "user_name": {
+      "type": "string",
+      "default": ""
+    },
+    "last_seen_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "room_code",
+    "user_id",
+    "last_seen_at"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}
