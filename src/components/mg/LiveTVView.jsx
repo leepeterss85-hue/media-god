@@ -1848,7 +1848,7 @@ export default function LiveTVView() {
     }
   };
 
-  const playChannel = (channel) => {
+  const playChannel = async (channel) => {
     if (!channel) {
       return;
     }
@@ -1895,6 +1895,80 @@ export default function LiveTVView() {
               }
             : null
         );
+      }
+
+      return;
+    }
+
+    if (channel.provider === "sky-sport-now") {
+      stopRadio();
+      setChannelNotice("Requesting a fresh Sky Sport Now stream…");
+      setChannelNoticeAction(null);
+
+      try {
+        const response = await base44.functions.invoke("skySportNow", {
+          action: "play_event",
+          event_id: channel.skySportNowEventId,
+        });
+        const data = response?.data ?? response ?? {};
+        const sourceData = data?.source || {};
+        const streamUrl = String(sourceData?.url || sourceData?.src || "").trim();
+
+        if (!/^https?:\/\//i.test(streamUrl)) {
+          throw new Error(data?.error || "Sky Sport Now did not return a playable stream.");
+        }
+
+        setChannelNotice("");
+        prewarmChannel({ ...channel, url: streamUrl });
+
+        player.play({
+          id: channel.tvgId || channel.id,
+          title: channel.name,
+          poster: channel.logo || "",
+          type: "live",
+          mediaType: "live",
+          noRd: true,
+          officialUrl: channel.officialUrl || "https://www.skysportnow.co.nz/",
+          officialLabel: channel.officialLabel || "Open Sky Sport Now",
+          sources: [
+            {
+              label: "LIVE • Sky Sport Now",
+              type: "live",
+              src: streamUrl,
+              url: streamUrl,
+              live: true,
+              sourceName: "Sky Sport Now",
+              sourceCategory: "Sports",
+              sourcePriority: 150,
+              quality: 1080,
+              browserPlayable: true,
+              format: String(sourceData?.format || "dash"),
+              mimeType: String(sourceData?.mimeType || "application/dash+xml"),
+              headers:
+                sourceData?.headers && typeof sourceData.headers === "object"
+                  ? sourceData.headers
+                  : {},
+              drm:
+                sourceData?.drm && typeof sourceData.drm === "object"
+                  ? sourceData.drm
+                  : null,
+              officialUrl: channel.officialUrl || "https://www.skysportnow.co.nz/",
+              officialLabel: channel.officialLabel || "Open Sky Sport Now",
+            },
+          ],
+        });
+      } catch (skyError) {
+        const message = String(
+          skyError?.response?.data?.error ||
+            skyError?.message ||
+            "Could not start Sky Sport Now playback."
+        ).trim();
+
+        setChannelNotice(message);
+        setChannelNoticeAction({
+          label: "Open Sky Sport Now",
+          url: channel.officialUrl || "https://www.skysportnow.co.nz/",
+        });
       }
 
       return;
