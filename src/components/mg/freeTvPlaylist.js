@@ -1,3 +1,5 @@
+import { fetchAntSportsEvents } from "./antSportsScraper.js";
+
 export const LIVE_TV_SOURCES = [
   {
     id: "free-tv",
@@ -101,6 +103,13 @@ export const LIVE_TV_SOURCES = [
     priority: 104,
     category: "United Kingdom",
     country: "GB",
+  },
+  {
+    id: "antsports-scraper",
+    name: "AntSports Live",
+    url: "https://antsports.tv/us",
+    priority: 97,
+    category: "Sports",
   },
   {
     id: "radio-browser-uk",
@@ -316,11 +325,8 @@ export const LIVE_TV_SOURCES = [
   },
 ];
 
-export const FREE_TV_PLAYLIST_URL =
-  LIVE_TV_SOURCES[0].url;
+export const FREE_TV_PLAYLIST_URL = LIVE_TV_SOURCES[0].url;
 
-// Media God does not apply an app-side geographic region lock.
-// Country metadata is retained for browsing/searching only.
 export const LIVE_TV_REGION = "GLOBAL";
 
 export const EXTERNAL_ADDON_SOURCES = [
@@ -686,55 +692,7 @@ export const PUBLIC_DIRECT_CHANNELS = [
     sourceName: "Pluto TV UK",
     kind: "direct",
   },
-  {
-    id: "MyZenFit.uk@Verified",
-    tvgId: "MyZenFit.uk",
-    name: "MyZen Fit",
-    url: "https://amg01255-secomcofites-my-myzen-en-rakuten-cyxqh.amagi.tv/hls/amagi_hls_data_rakutenAA-myzen-en-rakuten/CDN/master.m3u8",
-    category: "Lifestyle",
-    country: "GB",
-    priority: 107,
-    sourceName: "Rakuten TV UK",
-    kind: "direct",
-  },
-  {
-    id: "Timeline.uk@Verified",
-    tvgId: "Timeline.uk",
-    name: "Timeline",
-    url: "https://lds-timeline-rakuten.amagi.tv/hls/amagi_hls_data_rakutenAA-lds-timeline-rakuten/CDN/master.m3u8",
-    category: "Documentary",
-    country: "GB",
-    priority: 107,
-    sourceName: "Rakuten TV UK",
-    kind: "direct",
-  },
-  {
-    id: "AbsintheTV.uk@Verified",
-    tvgId: "AbsintheTV.uk",
-    name: "AbsintheTV",
-    url: "https://d46c0ebf9ef94053848fdd7b1f2f6b90.mediatailor.eu-central-1.amazonaws.com/v1/master/81bfcafb76f9c947b24574657a9ce7fe14ad75c0/live-prod/edcf9a03-80c0-11eb-908d-533d39655269/0/master.m3u8?uid=%7BPSID%7D&optout=%7BTARGETOPT%7D&country=GB&vendor=samsung&ads%3Aapp_domain=%7BAPP_DOMAIN%7D&ads%3Aapp_name=%7BAPP_NAME%7D&coppa=1&ads%3Atcf=%7BTC_STRING%7D",
-    category: "Sports",
-    country: "GB",
-    priority: 107,
-    sourceName: "Samsung TV Plus UK",
-    kind: "direct",
-  },
 ];
-
-export function clearFreeTvCache() {
-  cache = null;
-  cacheAt = 0;
-  inflight = null;
-}
-
-/*
- * Do not force a channel onto a hard-coded relay URL. The former Worker
- * endpoint now serves the Base44 HTML app rather than media, so overriding a
- * healthy playlist candidate with it breaks playback. Keep this export for
- * compatibility with older imports, but source selection now relies entirely
- * on the live playlist candidates and their backups.
- */
-export const SKY_STREAM_OVERRIDES = {};
 
 const CACHE_MS = 15 * 60 * 1000;
 
@@ -752,10 +710,6 @@ const attr = (line, name) => {
 const cleanChannelName = (value) =>
   String(value || "")
     .replace(/[ⓈⒼⓎⓉ]/g, "")
-    .replace(/\|\.uk\.\|/gi, "")
-    .replace(/\[[^\]]*geo[- ]?(?:blocked|restricted)?[^\]]*\]/gi, " ")
-    .replace(/\([^)]*geo[- ]?(?:blocked|restricted)?[^)]*\)/gi, " ")
-    .replace(/\bgeo[- ]?(?:blocked|restricted)\b/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
 
@@ -776,228 +730,6 @@ const normaliseChannelNameForKey = (value) =>
     )
     .replace(/\s+/g, " ")
     .trim();
-
-const normaliseFastAliasName = (value) =>
-  normaliseChannelNameForKey(value)
-    .replace(/&/g, " and ")
-    .replace(/[^a-z0-9]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
-export const normaliseCountryCode = (value) => {
-  const raw = String(value || "").trim().toUpperCase();
-  if (!raw) return "";
-
-  const exactAliases = {
-    "UNITED KINGDOM": "GB",
-    "GREAT BRITAIN": "GB",
-    "UNITED STATES": "US",
-    "UNITED STATES OF AMERICA": "US",
-    CANADA: "CA",
-    AUSTRALIA: "AU",
-    "NEW ZEALAND": "NZ",
-    IRELAND: "IE",
-    FRANCE: "FR",
-    GERMANY: "DE",
-    SPAIN: "ES",
-    ITALY: "IT",
-    INDIA: "IN",
-  };
-
-  if (exactAliases[raw]) return exactAliases[raw];
-
-  const first = raw.split(/[;,/|\s]+/).find(Boolean) || "";
-  if (first === "UK" || first === "GBR") return "GB";
-  if (first === "USA") return "US";
-  return first;
-};
-
-const countryFromGroupTitle = (value) => {
-  const raw = String(value || "").trim().toUpperCase();
-  if (!raw) return "";
-
-  const exactCountryGroups = new Set([
-    "UNITED KINGDOM",
-    "GREAT BRITAIN",
-    "UNITED STATES",
-    "UNITED STATES OF AMERICA",
-    "CANADA",
-    "AUSTRALIA",
-    "NEW ZEALAND",
-    "IRELAND",
-    "FRANCE",
-    "GERMANY",
-    "SPAIN",
-    "ITALY",
-    "INDIA",
-  ]);
-
-  return exactCountryGroups.has(raw) ? normaliseCountryCode(raw) : "";
-};
-
-const providerDecorationFreeName = (value) =>
-  normaliseFastAliasName(value)
-    .replace(/\bpowered by banijay\b/g, " ")
-    .replace(/\bby lionsgate\b/g, " ")
-    .replace(/\brakuten tv\b$/g, " ")
-    .replace(/\bfast plus\b$/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
-const FAST_CHANNEL_CANONICAL_IDS = new Map([
-  ["acc digital network", "acc-digital-network"],
-  ["accdn", "acc-digital-network"],
-  ["all reality we tv", "all-reality-we-tv"],
-  ["all reality by we tv", "all-reality-we-tv"],
-  ["all weddings we tv", "all-weddings-we-tv"],
-  ["all weddings by we tv", "all-weddings-we-tv"],
-  ["ax men", "ax-men"],
-  ["bounce xl", "bounce-xl"],
-  ["buzzr", "buzzr"],
-  ["crime 360", "crime-360"],
-  ["a and e crime 360", "crime-360"],
-  ["a e crime 360", "crime-360"],
-  ["crime thrillher", "crime-thrillher"],
-  ["degrassi", "degrassi"],
-  ["fubo sports network", "fubo-sports-network"],
-  ["gravitas movies", "gravitas-movies"],
-  ["ion", "ion"],
-  ["ion plus", "ion-plus"],
-  ["inwild", "inwild"],
-  ["inwonder", "inwonder"],
-  ["lifetime movie favorites", "lifetime-movie-favorites"],
-  ["movie favorites by lifetime", "lifetime-movie-favorites"],
-  ["midnight pulp", "midnight-pulp"],
-  ["outdoor america", "outdoor-america"],
-  ["portlandia", "portlandia"],
-  ["powernation", "powernation"],
-  ["pursuit up", "pursuit-up"],
-  ["scripps news", "scripps-news"],
-  ["shout factory", "shout-factory"],
-  ["shout factory tv", "shout-factory"],
-  ["shout tv", "shout-factory"],
-  ["stingray naturescape", "stingray-naturescape"],
-  ["the design network", "the-design-network"],
-  ["the walking dead universe", "walking-dead-universe"],
-  ["weatherspy", "weatherspy"],
-  ["weather spy", "weatherspy"],
-  ["world poker tour", "world-poker-tour"],
-  ["the world poker tour", "world-poker-tour"],
-  ["rugby pass tv", "rugbypass-tv"],
-  ["rugbypass tv", "rugbypass-tv"],
-  ["moviesphere", "moviesphere"],
-  ["moviesphere by lionsgate", "moviesphere"],
-  ["masterchef uk", "masterchef-uk"],
-  ["masterchef uk powered by banijay", "masterchef-uk"],
-  ["pointless", "pointless"],
-  ["pointless uk powered by banijay", "pointless"],
-  ["wipeoutxtra", "wipeout-xtra"],
-  ["wipeout xtra powered by banijay", "wipeout-xtra"],
-  ["deadly women", "deadly-women"],
-  ["deadly women powered by banijay", "deadly-women"],
-  ["highway thru hell", "highway-thru-hell"],
-  ["highway thru hell powered by banijay", "highway-thru-hell"],
-]);
-
-const STALE_SOURCE_CHANNEL_NAMES = {
-  "samsung-tv-plus-community": new Set([
-    "acc digital network",
-    "all reality we tv",
-    "all weddings we tv",
-    "ax men",
-    "bounce xl",
-    "buzzr",
-    "crime 360",
-    "crime thrillher",
-    "degrassi",
-    "ftf",
-    "gravitas movies",
-    "ion",
-    "ion plus",
-    "magellan tv now",
-    "mavtv select",
-    "midnight pulp",
-    "movie favorites by lifetime",
-    "outdoor america",
-    "pocket watch",
-    "portlandia",
-    "powernation",
-    "pursuit up",
-    "scripps news",
-    "shout factory",
-    "sony canal comedias",
-    "stingray naturescape",
-    "the design network",
-    "the preview channel",
-    "the walking dead universe",
-    "weatherspy",
-    "world poker tour",
-    "fubo sports network",
-  ]),
-  "samsung-tv-plus-uk-kilirushi": new Set([
-    "comedy channel",
-    "inwild",
-    "inwonder",
-  ]),
-};
-
-const SKY_MIX_NATIVE_BACKUP_SOURCES = [
-  {
-    id: "sky-mix-uk-tuner-pass",
-    name: "Sky Mix UK Tuner Backup",
-    url: "http://86.180.115.121:1990/stream/channelid/914757818?profile=pass",
-    priority: 120,
-    category: "United Kingdom",
-    country: "GB",
-    tvgId: "SkyMix.uk@TunerPass",
-  },
-  {
-    id: "sky-mix-uk-freeview-pass",
-    name: "Sky Mix UK Freeview Pass-through Backup",
-    url: "http://82.68.56.43:9981/stream/channelid/625070336?profile=pass",
-    priority: 118,
-    category: "United Kingdom",
-    country: "GB",
-    tvgId: "SkyMix.uk@FreeviewPass",
-  },
-  {
-    id: "sky-mix-uk-tuner-webm",
-    name: "Sky Mix UK Freeview WebM Backup",
-    url: "http://82.68.56.43:9981/stream/channelid/625070336?profile=webtv-vp8-vorbis-webm",
-    priority: 110,
-    category: "United Kingdom",
-    country: "GB",
-    tvgId: "SkyMix.uk@FreeviewWebM",
-  },
-];
-
-const isKnownStaleSourceChannel = (channel) => {
-  const name = normaliseFastAliasName(channel?.name);
-  const url = String(channel?.url || "").trim().toLowerCase();
-
-  // Samsung now publishes Sky Mix as a Widevine-licensed service rather than
-  // an ordinary open HLS feed. Media God's generic Live TV player must not
-  // keep selecting the old Samsung relay as if it were a normal direct stream.
-  if (
-    name === "sky mix" &&
-    channel?.sourceId === "samsung-tv-plus-gb-buddy"
-  ) {
-    return true;
-  }
-
-  // The historical IPTV-org Sky Mix URL has repeatedly timed out and should
-  // not outrank the newer UK tuner backups below.
-  if (
-    name === "sky mix" &&
-    url === "http://188.138.29.131/skymix/index.m3u8"
-  ) {
-    return true;
-  }
-
-  const staleNames = STALE_SOURCE_CHANNEL_NAMES[channel?.sourceId];
-  if (!staleNames) return false;
-  return staleNames.has(name);
-};
 
 const classifyUrl = (url) => {
   const value = String(url || "").trim().toLowerCase();
@@ -1042,18 +774,6 @@ const qualityFromText = (value) => {
   return 0;
 };
 
-const countryFromTvgId = (value) => {
-  const id = String(value || "").trim();
-  if (!id) return "";
-
-  const base = id.split("@")[0];
-  const match = base.match(/\.([a-z]{2})$/i);
-  if (!match) return "";
-
-  const code = match[1].toUpperCase();
-  return code === "UK" ? "GB" : code;
-};
-
 const feedSuffix = (tvgId) => {
   const id = String(tvgId || "");
   const at = id.indexOf("@");
@@ -1089,7 +809,7 @@ const browserCompatibility = (channel) => {
   if (kind === "external") return { browserPlayable: true, browserReason: "", format: "external" };
   if (isUnsupportedProtocol(url)) return { browserPlayable: false, browserReason: "Unsupported stream protocol", format };
   if (format === "dash") return { browserPlayable: true, browserReason: "", format };
-  if (isMixedContentUrl(url)) return { browserPlayable: false, browserReason: "HTTP stream requires native playback", format };
+  if (isMixedContentUrl(url)) return { browserPlayable: false, browserReason: "HTTP stream blocked on HTTPS app", format };
   if (channel?.requiresHeaders) return { browserPlayable: false, browserReason: "Stream requires custom request headers", format };
 
   return { browserPlayable: true, browserReason: "", format };
@@ -1103,22 +823,21 @@ const sourceScore = (channel) => {
 
   if (/^https:\/\//i.test(url)) score += 1800;
   if (format === "hls") score += 1600;
-  if (format === "mpegts") score += 1500;
   if (format === "audio") score += 1400;
   if (format === "file") score += 900;
+  if (format === "mpegts") score += 700;
 
   if (quality >= 2160) score += 800;
   else if (quality >= 1080) score += 650;
   else if (quality >= 720) score += 500;
+  else if (quality >= 576) score += 250;
   else if (quality > 0) score += 80;
 
-  // Country is metadata only. Do not hide or reject a source by region.
-  // However, when the upstream playlist explicitly marks one copy as
-  // geo-restricted, keep it as a LAST-RESORT backup behind an otherwise
-  // equivalent open copy. This prevents a high-priority repository from
-  // making a channel appear "geo-locked" again even though another public
-  // source for the same channel is available.
-  if (channel?.geoRestricted === true) score -= 50000;
+  if (channel?.kind === "external") score -= 400;
+  if (channel?.notAlwaysOn) score -= 250;
+  if (channel?.standardDefinition) score -= 80;
+
+  if (looksLikeUkFeed(channel) && LIVE_TV_REGION === "GB") score += 1000;
   if (channel?.browserPlayable === false) score -= 100000;
 
   return score;
@@ -1127,13 +846,16 @@ const sourceScore = (channel) => {
 const inferTags = ({ sourceCategory, group, name, country }) => {
   const tags = new Set();
   const joined = `${sourceCategory || ""} ${group || ""} ${name || ""}`.toLowerCase();
-  const motorsport = /\b(?:formula\s*1|f1|motogp|nascar|nhra|motorsport|motor\s*racing|motorracing|racer|powernation|torque)\b/.test(joined);
 
   if (sourceCategory) tags.add(sourceCategory);
-  if (/sport|football|cricket|golf|f1/.test(joined) || motorsport) tags.add("Sports");
-  if (motorsport) tags.add("Motorsport");
+  if (/sport/.test(joined)) tags.add("Sports");
   if (/movie|cinema|film/.test(joined)) tags.add("Movies");
   if (/news/.test(joined)) tags.add("News");
+  if (/radio|\bfm\b/.test(joined)) tags.add("Radio");
+  if (/music/.test(joined)) tags.add("Music");
+  if (/kids|children|family/.test(joined)) tags.add("Kids");
+  if (/documentary|science/.test(joined)) tags.add("Documentary");
+  if (/series|entertainment/.test(joined)) tags.add("Entertainment");
   if (/united kingdom|\buk\b|great britain/.test(joined) || /^(gb|uk)$/i.test(String(country || ""))) {
     tags.add("United Kingdom");
   }
@@ -1155,27 +877,6 @@ const parseExtHttp = (line) => {
   }
 };
 
-const extInfNameSeparator = (line) => {
-  const value = String(line || "");
-  let quoted = false;
-  let separator = -1;
-
-  for (let index = 0; index < value.length; index += 1) {
-    const character = value[index];
-
-    if (character === '"') {
-      quoted = !quoted;
-      continue;
-    }
-
-    if (character === "," && !quoted) {
-      separator = index;
-    }
-  }
-
-  return separator;
-};
-
 export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
   const lines = String(text || "").split(/\r?\n/);
   const channels = [];
@@ -1186,26 +887,16 @@ export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
     if (!line) continue;
 
     if (line.startsWith("#EXTINF")) {
-      const comma = extInfNameSeparator(line);
+      const comma = line.indexOf(",");
       const rawName = comma >= 0 ? line.slice(comma + 1).trim() : attr(line, "tvg-name") || "Unknown";
       const name = cleanChannelName(rawName) || "Unknown";
       const logo = attr(line, "tvg-logo");
       const tvgId = attr(line, "tvg-id");
-      const playlistGroup = attr(line, "group-title");
-      const country = normaliseCountryCode(
-        attr(line, "tvg-country") ||
-          countryFromTvgId(tvgId) ||
-          source?.country ||
-          countryFromGroupTitle(playlistGroup) ||
-          (String(source?.category || "").trim().toLowerCase() ===
-          "united kingdom"
-            ? "GB"
-            : "")
-      );
-      const group = playlistGroup || source.category || country || "Other";
+      const country = attr(line, "tvg-country");
+      const group = attr(line, "group-title") || source.category || country || "Other";
       const channelNumber = attr(line, "tvg-chno");
       const quality = qualityFromText(`${rawName} ${line}`);
-      const geoRestricted = rawName.includes("Ⓖ") || /\bgeo[- ]?blocked\b/i.test(rawName) || /\bgeo[- ]?restricted\b/i.test(rawName) || source.id === "nimeyer-uk-list";
+      const geoRestricted = rawName.includes("Ⓖ") || /\bgeo[- ]?blocked\b/i.test(rawName) || /\bgeo[- ]?restricted\b/i.test(rawName);
 
       current = {
         id: tvgId || "",
@@ -1219,11 +910,16 @@ export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
         url: "",
         kind: "direct",
         format: "unknown",
-        standardDefinition: quality === 480,
+        standardDefinition: rawName.includes("Ⓢ") || quality === 480,
         geoRestricted,
         geoAvailableHere: false,
         geoBlocked: false,
-        notAlwaysOn: false,
+        notAlwaysOn: /not 24\/7/i.test(rawName),
+        youtube: rawName.includes("Ⓨ"),
+        twitch: rawName.includes("Ⓣ"),
+        insecure: false,
+        mixedContent: false,
+        requiresHeaders: false,
         referrer: "",
         userAgent: "",
         browserPlayable: true,
@@ -1257,23 +953,14 @@ export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
     }
     if (line.startsWith("#")) continue;
 
-    // Preserve the playlist's real stream URL. Media God must not force
-    // country-tagged channels through a relay; doing so can turn a valid
-    // source into a dead HTML response and prevents native Android playback
-    // from trying the broadcaster/CDN endpoint directly.
     const url = line;
-
     current.url = url;
     current.kind = classifyUrl(url);
     current.insecure = /^http:\/\//i.test(url);
     current.mixedContent = isMixedContentUrl(url);
     current.requiresHeaders = Boolean(current.referrer || current.userAgent);
-
-    // Geographic markers from upstream playlists are informational only.
-    // Media God itself never rejects or hides a channel because of them.
-    current.geoAvailableHere = false;
-    current.geoBlocked = false;
-
+    current.geoAvailableHere = current.geoRestricted && LIVE_TV_REGION === "GB" && looksLikeUkFeed(current);
+    current.geoBlocked = current.geoRestricted && !current.geoAvailableHere;
     current.tags = inferTags({
       sourceCategory: current.sourceCategory,
       group: current.group,
@@ -1281,7 +968,7 @@ export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
       country: current.country,
     });
 
-    if (source.id === "nimeyer-uk-list" || source.id.startsWith("gigoplast")) {
+    if (source.id.startsWith("gigoplast") || source.id === "nimeyer-uk-list") {
       current.group = "United Kingdom";
       if (!current.tags.includes("United Kingdom")) {
         current.tags.push("United Kingdom");
@@ -1295,9 +982,7 @@ export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
     current.score = sourceScore(current);
     current.id = current.id || `${source.id}:${current.country || current.group}:${current.name}:${url}`;
 
-    if (url && !isKnownStaleSourceChannel(current)) {
-      channels.push(current);
-    }
+    if (url) channels.push(current);
     current = null;
   }
 
@@ -1305,51 +990,17 @@ export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
 }
 
 const dedupeKey = (channel) => {
-  const name = normaliseChannelNameForKey(channel?.name);
-  const fastAliasName = normaliseFastAliasName(channel?.name);
-  const decorationFreeName = providerDecorationFreeName(channel?.name);
+  if (channel?.sourceId?.startsWith("gigoplast") || channel?.sourceId === "nimeyer-uk-list") {
+    return `custom:${channel.sourceId}:${channel.url}`;
+  }
   const tvgId = String(channel?.tvgId || "").trim().toLowerCase();
-  const explicitCountry = normaliseCountryCode(channel?.country).toLowerCase();
-  const country =
-    explicitCountry || (looksLikeUkFeed(channel) ? "gb" : "");
-  const group = normaliseFastAliasName(channel?.group);
-
-  const fastCanonicalId =
-    FAST_CHANNEL_CANONICAL_IDS.get(fastAliasName) ||
-    FAST_CHANNEL_CANONICAL_IDS.get(decorationFreeName);
-  if (fastCanonicalId) {
-    return `fast:${fastCanonicalId}`;
-  }
-
-  // Samsung TV Plus uses its own opaque channel id for Sky Mix. Canonicalise
-  // that single known id for merging only, so the Samsung feed becomes a real
-  // backup/primary candidate for the existing SkyMix.uk channel instead of a
-  // duplicate card. Preserve the original tvgId on the channel object.
-  if (
-    name === "sky mix" &&
-    (tvgId === "gbbd3100006xm" || /^skymix\.uk(?:@.*)?$/i.test(tvgId))
-  ) {
-    return "id:skymix.uk";
-  }
-
-  /*
-   * Different public repositories often assign different opaque TVG IDs to
-   * the same channel. Prefer an exact cleaned station-name + country key so
-   * those copies become hidden backup feeds behind one visible channel tile.
-   * If a playlist has no country metadata, include its group to avoid merging
-   * unrelated same-name local stations across broad worldwide lists.
-   */
-  if (fastAliasName) {
-    return country
-      ? `name:${fastAliasName}|country:${country}`
-      : `name:${fastAliasName}|group:${group || "unknown"}`;
-  }
-
-  if (tvgId && !tvgId.includes("01tv.fr")) return `id:${tvgId}`;
-  return `url:${String(channel?.url || "").trim()}`;
+  if (tvgId) return `id:${tvgId}`;
+  const name = normaliseChannelNameForKey(channel?.name);
+  const country = String(channel?.country || "").trim().toLowerCase();
+  return `name:${name}|country:${country}`;
 };
 
-export const dedupeMergedChannels = (channels) => {
+const dedupeMergedChannels = (channels) => {
   const groups = new Map();
   for (const channel of channels || []) {
     if (!channel?.url || !channel?.name) continue;
@@ -1369,61 +1020,23 @@ export const dedupeMergedChannels = (channels) => {
       uniqueByUrl.push(candidate);
     }
 
-    // Keep native-capable HTTP(S) candidates even when Chromium cannot play
-    // them (mixed content or custom headers). Fire TV/Android Media3 can still
-    // use these as the primary stream or a backup. Only truly unsupported
-    // protocols are discarded here.
-    const usableCandidates = uniqueByUrl.filter(
-      (candidate) =>
-        candidate?.browserPlayable !== false ||
-        /^https?:\/\//i.test(String(candidate?.url || ""))
-    );
-    if (usableCandidates.length === 0) continue;
+    const browserCandidates = uniqueByUrl.filter((candidate) => candidate?.browserPlayable !== false);
+    if (browserCandidates.length === 0) continue;
 
-    usableCandidates.sort(
-      (a, b) =>
-        Number(a?.geoRestricted === true) - Number(b?.geoRestricted === true) ||
-        Number(b?.score || 0) - Number(a?.score || 0)
-    );
-    const best = usableCandidates[0];
+    browserCandidates.sort((a, b) => Number(b?.score || 0) - Number(a?.score || 0));
+    const best = browserCandidates[0];
     if (!best) continue;
 
     const tags = new Set();
     const sources = new Set();
-    for (const candidate of usableCandidates) {
+    for (const candidate of browserCandidates) {
       sources.add(candidate.sourceName);
       for (const tag of candidate.tags || []) tags.add(tag);
     }
 
-    const metadataCandidate = [...usableCandidates].sort((a, b) => {
-      const metadataScore = (candidate) => {
-        const candidateName = String(candidate?.name || "").trim();
-        const candidateId = String(candidate?.tvgId || "").trim();
-        let score = 0;
-
-        if (candidateId && /\.[a-z]{2}(?:@|$)/i.test(candidateId)) score += 80;
-        if (candidate?.logo) score += 25;
-        if (!/powered by|by lionsgate|\bfast\+?\b/i.test(candidateName)) score += 35;
-        if (!/\b(?:hd|fhd|uhd|4k|1080p?|720p?|576p?|480p?|sd)\b/i.test(candidateName)) score += 15;
-        score -= Math.max(0, candidateName.length - 42);
-
-        return score;
-      };
-
-      return metadataScore(b) - metadataScore(a);
-    })[0] || best;
-
-    const alternatives = usableCandidates.slice(1);
+    const alternatives = browserCandidates.slice(1);
     merged.push({
       ...best,
-      name: metadataCandidate?.name || best.name,
-      logo: best.logo || metadataCandidate?.logo || "",
-      tvgId: metadataCandidate?.tvgId || best.tvgId,
-      id: metadataCandidate?.tvgId || best.id,
-      country:
-        normaliseCountryCode(best.country) ||
-        normaliseCountryCode(metadataCandidate?.country) ||
-        (usableCandidates.some(looksLikeUkFeed) ? "GB" : ""),
       tags: [...tags],
       sourceNames: [...sources],
       alternatives,
@@ -1448,73 +1061,23 @@ export async function getFreeTvChannels(options = {}) {
 
     const sortedSources = [...LIVE_TV_SOURCES].sort((a, b) => b.priority - a.priority);
 
-    const fetchPlaylistSource = async (source) => {
-      const controller = new AbortController();
-      const timeout = window.setTimeout(() => controller.abort(), 15000);
-      const startedAt = Date.now();
-
+    for (const source of sortedSources) {
       try {
-        const response = await fetch(source.url, {
+        let response = await fetch(source.url, {
           headers: { Accept: "text/plain, */*" },
-          signal: controller.signal,
         });
+
+        if (!response.ok) {
+          const proxyUrl = `https://media-god1.leepeterss85.workers.dev/?url=${encodeURIComponent(source.url)}`;
+          response = await fetch(proxyUrl);
+        }
 
         if (!response.ok) {
           throw new Error(`HTTP ${response.status} ${response.statusText}`);
         }
 
         const text = await response.text();
-        if (!/#EXTINF:/i.test(text)) {
-          throw new Error("Source did not return an M3U playlist");
-        }
-
-        return {
-          source,
-          parsed: parseFreeTvPlaylist(text, source),
-          error: null,
-          latencyMs: Math.max(0, Date.now() - startedAt),
-          bytes: text.length,
-        };
-      } catch (error) {
-        return {
-          source,
-          parsed: [],
-          error:
-            error?.name === "AbortError"
-              ? "Timed out after 15 seconds"
-              : error?.message || "Failed to fetch",
-          latencyMs: Math.max(0, Date.now() - startedAt),
-          bytes: 0,
-        };
-      } finally {
-        window.clearTimeout(timeout);
-      }
-    };
-
-    // Fetch a handful of repositories at a time. This keeps Live TV startup
-    // fast as the source list grows without hammering GitHub/IPTV hosts with
-    // dozens of simultaneous requests.
-    const SOURCE_BATCH_SIZE = 5;
-
-    for (let index = 0; index < sortedSources.length; index += SOURCE_BATCH_SIZE) {
-      const batch = sortedSources.slice(index, index + SOURCE_BATCH_SIZE);
-      const results = await Promise.all(batch.map(fetchPlaylistSource));
-
-      for (const { source, parsed, error, latencyMs, bytes } of results) {
-        if (error) {
-          sourceStatus.push({
-            id: source.id,
-            name: source.name,
-            category: source.category || "Other",
-            priority: Number(source.priority || 0),
-            count: 0,
-            latencyMs,
-            bytes,
-            error,
-          });
-          continue;
-        }
-
+        const parsed = parseFreeTvPlaylist(text, source);
         rawCount += parsed.length;
 
         for (const channel of parsed) {
@@ -1522,101 +1085,32 @@ export async function getFreeTvChannels(options = {}) {
           rawChannels.push(channel);
         }
 
-        sourceStatus.push({
-          id: source.id,
-          name: source.name,
-          category: source.category || "Other",
-          priority: Number(source.priority || 0),
-          count: parsed.length,
-          latencyMs,
-          bytes,
-          error: null,
-        });
+        sourceStatus.push({ id: source.id, name: source.name, count: parsed.length, error: null });
+      } catch (error) {
+        sourceStatus.push({ id: source.id, name: source.name, count: 0, error: error?.message || "Failed to fetch" });
       }
     }
 
-    /*
-     * Keep a small curated set of direct public streams alongside the remote
-     * repositories. External broadcaster web pages remain available in the
-     * Sources screen, but are not inserted as fake video streams here. Each
-     * direct entry is passed through the same parser/scoring/deduplication path
-     * as an ordinary M3U channel so it can merge cleanly with future mirrors.
-     */
-    for (const directChannel of PUBLIC_DIRECT_CHANNELS.filter(
-      (channel) => channel?.kind !== "external" && /^https?:\/\//i.test(String(channel?.url || ""))
-    )) {
-      const directSource = {
-        id: `direct-${directChannel.id}`,
-        name: directChannel.sourceName || "Verified public stream",
-        priority: Number(directChannel.priority || 100),
-        category: directChannel.category || "United Kingdom",
-        country: directChannel.country || "GB",
-      };
-      const playlist = [
-        "#EXTM3U",
-        `#EXTINF:-1 tvg-id="${directChannel.tvgId || directChannel.id || ""}" tvg-logo="${directChannel.logo || ""}" tvg-country="${directChannel.country || "GB"}" group-title="${directChannel.category || "United Kingdom"}",${directChannel.name || "Live TV"}`,
-        directChannel.url,
-      ].join("\n");
-      const parsed = parseFreeTvPlaylist(playlist, directSource);
-
-      rawCount += parsed.length;
-      for (const channel of parsed) {
-        if (channel?.browserPlayable === false) browserRejectedCount += 1;
-        rawChannels.push(channel);
+    // Pull live event matches from AntSports scraper
+    try {
+      const scrapedEvents = await fetchAntSportsEvents();
+      rawCount += scrapedEvents.length;
+      for (const event of scrapedEvents) {
+        rawChannels.push(event);
       }
-
-      sourceStatus.push({
-        id: directSource.id,
-        name: directSource.name,
-        category: directSource.category,
-        priority: directSource.priority,
-        count: parsed.length,
-        latencyMs: 0,
-        bytes: 0,
-        direct: true,
-        error: null,
-      });
-    }
-
-    /*
-     * Sky Mix is still free-to-air in the UK, but its Samsung TV Plus copy is
-     * now licence-protected and the old public HLS endpoint is dead. Keep two
-     * independently published UK tuner feeds as native-only fallbacks. They
-     * are HTTP endpoints, so Chromium will correctly reject them as mixed
-     * content while Fire TV/Android Media3 can still try them directly.
-     */
-    for (const source of SKY_MIX_NATIVE_BACKUP_SOURCES) {
-      const playlist = [
-        "#EXTM3U",
-        `#EXTINF:-1 tvg-id="${source.tvgId}" tvg-country="GB" group-title="United Kingdom",Sky Mix`,
-        source.url,
-      ].join("\n");
-      const parsed = parseFreeTvPlaylist(playlist, source);
-
-      rawCount += parsed.length;
-      for (const channel of parsed) {
-        if (channel?.browserPlayable === false) browserRejectedCount += 1;
-        rawChannels.push(channel);
-      }
-
-      sourceStatus.push({
-        id: source.id,
-        name: source.name,
-        category: source.category || "United Kingdom",
-        priority: Number(source.priority || 0),
-        count: parsed.length,
-        latencyMs: 0,
-        bytes: 0,
-        direct: true,
-        error: null,
-      });
+      sourceStatus.push({ id: "antsports-scraper", name: "AntSports Live", count: scrapedEvents.length, error: null });
+    } catch (error) {
+      sourceStatus.push({ id: "antsports-scraper", name: "AntSports Live", count: 0, error: error?.message || "Failed to fetch" });
     }
 
     const channels = dedupeMergedChannels(rawChannels);
 
-    channels.sort((a, b) =>
-      Number(b?.score || 0) - Number(a?.score || 0)
-    );
+    channels.sort((a, b) => {
+      const ukA = (a?.tags || []).includes("United Kingdom") ? 1 : 0;
+      const ukB = (b?.tags || []).includes("United Kingdom") ? 1 : 0;
+      if (ukA !== ukB) return ukB - ukA;
+      return Number(b?.score || 0) - Number(a?.score || 0);
+    });
 
     const payload = { channels, sourceStatus, rawCount, browserRejectedCount, region: LIVE_TV_REGION, fetchedAt: now };
     cache = payload;
