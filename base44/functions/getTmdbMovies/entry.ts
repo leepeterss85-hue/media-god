@@ -6,6 +6,59 @@ const IMG_BASE = 'https://image.tmdb.org/t/p/w500';
 const BACKDROP_BASE = 'https://image.tmdb.org/t/p/w780';
 const PROVIDER_LOGO_BASE = 'https://image.tmdb.org/t/p/w92';
 
+/*
+ * A very small escape hatch for legitimate titles that exist on TMDB but are
+ * not returned by TMDB's own title-search index. Keep these entries factual,
+ * keyed to stable TMDB/IMDb ids, and only surface them when the query matches.
+ *
+ * Cage is a real TMDB title (451911) / IMDb title (tt5001426), but TMDB's
+ * search endpoint currently omits it even for an exact "Cage" search. Prime
+ * Video markets the same film as 2017 while TMDB/IMDb use 2016, so both years
+ * are accepted for matching while 2016 remains the canonical playback year.
+ */
+const EXTERNAL_SEARCH_OVERRIDES = [
+  {
+    id: '451911',
+    tmdb_id: 451911,
+    imdb_id: 'tt5001426',
+    title: 'Cage',
+    name: 'Cage',
+    year: '2016',
+    release_date: '2016-06-01',
+    alternate_years: ['2017'],
+    media_type: 'movie',
+    poster_url:
+      'https://m.media-amazon.com/images/M/MV5BNzdhNTQxZWUtYmYyMC00NGExLWI0NmQtYTFjYjdjMTA0ZmI5XkEyXkFqcGc@._V1_.jpg',
+    description:
+      'Seattle call girl Gracie Blake wakes up in a cage, in a warehouse, somewhere in America.',
+    vote_average: 3.7,
+    popularity: 0,
+    original_language: 'en',
+    official_url:
+      'https://www.amazon.co.uk/Cage-Warren-Dudley/dp/B0H8LJJVPH',
+    watch_link:
+      'https://www.amazon.co.uk/Cage-Warren-Dudley/dp/B0H8LJJVPH',
+    watch_providers: [
+      {
+        provider_id: 119,
+        provider_name: 'Amazon Prime Video',
+        logo_url:
+          'https://image.tmdb.org/t/p/w92/pvske1MyAoymrs5bguRfVqYiM9a.jpg',
+        availability: 'Stream',
+        link:
+          'https://www.amazon.co.uk/Cage-Warren-Dudley/dp/B0H8LJJVPH',
+      },
+    ],
+    search_terms: [
+      'cage',
+      'warren dudley',
+      'patrick bergin',
+      'lucy jane quinlan',
+      'b0h8ljjvph',
+    ],
+  },
+];
+
 const MOVIE_ENDPOINTS = {
   now_playing: 'movie/now_playing',
   popular: 'movie/popular',
@@ -81,6 +134,61 @@ const parseSearchQuery = (value) => {
     title: title || raw,
     year: yearMatch[1],
   };
+};
+
+const externalSearchOverrides = (
+  query,
+  mediaType = ''
+) => {
+  const parsed =
+    parseSearchQuery(query);
+  const wantedTitle =
+    normaliseSearchTitle(parsed.title);
+  const wantedRaw =
+    normaliseSearchTitle(parsed.raw);
+  const wantedYear =
+    String(parsed.year || '');
+
+  return EXTERNAL_SEARCH_OVERRIDES.filter((item) => {
+    if (
+      mediaType &&
+      item.media_type !== mediaType
+    ) {
+      return false;
+    }
+
+    const itemTitle =
+      normaliseSearchTitle(item.title);
+    const termMatch =
+      (item.search_terms || []).some((term) => {
+        const normalised = normaliseSearchTitle(term);
+        return normalised && wantedRaw.includes(normalised);
+      });
+    const titleMatch =
+      wantedTitle === itemTitle ||
+      termMatch;
+
+    if (!titleMatch) {
+      return false;
+    }
+
+    if (!wantedYear) {
+      return true;
+    }
+
+    const acceptedYears = new Set([
+      String(item.year || ''),
+      ...(item.alternate_years || []).map(String),
+    ]);
+
+    return acceptedYears.has(wantedYear);
+  }).map((item) => ({
+    ...item,
+    watch_providers:
+      (item.watch_providers || []).map((provider) => ({
+        ...provider,
+      })),
+  }));
 };
 
 const searchResultScore = (item, titleQuery, requestedYear, originalIndex) => {
