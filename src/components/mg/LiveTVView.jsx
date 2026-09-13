@@ -438,6 +438,8 @@ const ANT_SPORTS_FALLBACK_PATTERNS = [
 const channelUsesAntSportsFallback = (channel) => {
   if (!channel) return false;
   if (channel?.sourceId === "antsports-live") return true;
+  if (channel?.sourceId === "evsports-live") return false;
+  if ((channel?.sourceNames || []).includes("EV SPORTS · Saptarshi")) return false;
   if (channel?.provider === "sky-sport-now") return false;
 
   const name = String(channel?.name || "").trim();
