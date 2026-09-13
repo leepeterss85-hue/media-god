@@ -984,6 +984,8 @@ export default async function (req) {
             episode:
               body.episode,
             file_idx:
+              body.file_idx != null &&
+              String(body.file_idx).trim() !== "" &&
               Number.isInteger(Number(body.file_idx)) &&
               Number(body.file_idx) >= 0
                 ? Number(body.file_idx)
@@ -1948,6 +1950,8 @@ async function addMagnet({
         : "",
 
     file_idx:
+      body.file_idx != null &&
+      String(body.file_idx).trim() !== "" &&
       Number.isInteger(Number(body.file_idx)) &&
       Number(body.file_idx) >= 0
         ? Number(body.file_idx)
@@ -2372,8 +2376,13 @@ function chooseRequestedTorrentFile(
       ? allFiles
       : [];
 
-  const requestedIndex =
-    Number(ep?.file_idx);
+  const requestedIndexValue = ep?.file_idx;
+  const hasRequestedIndex =
+    requestedIndexValue != null &&
+    String(requestedIndexValue).trim() !== "";
+  const requestedIndex = hasRequestedIndex
+    ? Number(requestedIndexValue)
+    : Number.NaN;
 
   if (
     Number.isInteger(requestedIndex) &&
