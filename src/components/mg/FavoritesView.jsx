@@ -13,6 +13,8 @@ import { Image } from "@/components/ui/image";
 import { useToast } from "@/components/ui/use-toast";
 import { buildMediaSources, usePlayer } from "@/components/mg/PlayerProvider";
 
+const PosterImage = /** @type {any} */ (Image);
+
 const sortItems = (items, mode) =>
   items.slice().sort((a, b) => {
     if (mode === "title") {
@@ -100,13 +102,15 @@ export default function FavoritesView() {
       poster: item.poster_url,
       rdTitle: item.title,
       rdYear: item.year,
-      sources: buildMediaSources({
-        title: item.title,
-        id: item.tmdb_id,
-        poster: item.poster_url,
-        trailerUrl,
-        providers,
-      }),
+      sources: buildMediaSources(
+        /** @type {any} */ ({
+          title: item.title,
+          id: item.tmdb_id,
+          poster: item.poster_url,
+          trailerUrl,
+          providers,
+        })
+      ),
     });
   };
 
@@ -202,7 +206,7 @@ export default function FavoritesView() {
             >
               <div className="relative aspect-[2/3] overflow-hidden rounded-md border border-white/10 bg-mg-card">
                 {item.poster_url && (
-                  <Image
+                  <PosterImage
                     src={item.poster_url}
                     alt={item.title}
                     className="h-full w-full object-cover"
