@@ -16,7 +16,11 @@ import {
   debridTorrentHasMetadata,
 } from "../src/components/mg/debridResolutionStrategy.js";
 import { compareLiveTvRankRecords } from "../src/components/mg/liveTvRankingCore.js";
-import { normaliseRequestedFileIndex } from "../base44/functions/realDebrid/regressionHelpers.js";
+import {
+  chooseRequestedTorrentFileForPlayback,
+  chooseVideoFileForPlayback,
+  normaliseRequestedFileIndex,
+} from "../base44/functions/realDebrid/regressionHelpers.js";
 import {
   guideNameAliases,
   normaliseGuideName,
@@ -203,6 +207,50 @@ test("missing Real-Debrid file index never becomes file zero", () => {
   assert.equal(normaliseRequestedFileIndex("abc"), null);
   assert.equal(normaliseRequestedFileIndex(0), 0);
   assert.equal(normaliseRequestedFileIndex("3"), 3);
+});
+
+test("Real-Debrid season packs select the requested episode instead of the largest file", () => {
+  const files = [
+    { id: 1, path: "/Show.S01E01.1080p.mkv", bytes: 3_000_000_000 },
+    { id: 2, path: "/Show.S01E02.1080p.mkv", bytes: 2_900_000_000 },
+    { id: 3, path: "/Show.S01E03.1080p.mkv", bytes: 3_100_000_000 },
+  ];
+
+  const selected = chooseVideoFileForPlayback(files, {
+    season: 1,
+    episode: 2,
+    title: "Show",
+  });
+
+  assert.equal(selected?.id, 2);
+});
+
+test("Real-Debrid explicit file index wins when it points to a playable video", () => {
+  const files = [
+    { id: 1, path: "/Episode.One.mkv", bytes: 2_000_000_000 },
+    { id: 2, path: "/Episode.Two.mkv", bytes: 2_100_000_000 },
+  ];
+
+  const selected = chooseRequestedTorrentFileForPlayback(files, {
+    file_idx: 1,
+  });
+
+  assert.equal(selected?.id, 2);
+});
+
+test("Real-Debrid movie selection penalises samples and prefers the titled main feature", () => {
+  const files = [
+    { id: 1, path: "/Sample.mkv", bytes: 12_000_000_000 },
+    { id: 2, path: "/Coyote.vs.Acme.2026.1080p.mkv", bytes: 4_000_000_000 },
+    { id: 3, path: "/Behind.The.Scenes.mkv", bytes: 5_000_000_000 },
+  ];
+
+  const selected = chooseVideoFileForPlayback(files, {
+    title: "Coyote vs Acme",
+    year: 2026,
+  });
+
+  assert.equal(selected?.id, 2);
 });
 
 test("EPG aliases handle BBC, ITV, U&, provider suffixes and keep +1 distinct", () => {
