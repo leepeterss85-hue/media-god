@@ -716,7 +716,16 @@ export default async function (req) {
         ownedByMediaGod = false;
       }
 
-      if (!ownedByMediaGod && !explicitPlaybackReset) {
+      if (
+        (explicitInactiveReset && !ownedByMediaGod) ||
+        (!ownedByMediaGod && !explicitPlaybackReset)
+      ) {
+        /*
+         * A forced inactive restart is only allowed for a torrent Media God
+         * previously associated with this hash. Never delete an unrelated
+         * user-created RD torrent merely because it happens to be inactive at
+         * the moment the Retry button is pressed.
+         */
         return Response.json({
           status: "kept",
           cleared: false,
