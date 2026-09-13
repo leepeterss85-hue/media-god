@@ -180,6 +180,7 @@ const serverAddonLookup = async ({
   tmdbId,
   title,
   year,
+  alternateYears = [],
   mediaType,
   season,
   episode,
@@ -203,6 +204,11 @@ const serverAddonLookup = async ({
           year:
             year ??
             "",
+
+          alternate_years:
+            Array.isArray(alternateYears)
+              ? alternateYears
+              : [],
 
           media_type:
             mediaType ===
@@ -288,6 +294,7 @@ export default function StreamSourcesBox({
   providers,
   loading,
   rdYear,
+  alternateYears = [],
   tmdbId,
   imdbId,
   mediaType = "movie",
