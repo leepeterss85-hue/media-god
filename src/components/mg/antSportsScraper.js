@@ -1,5 +1,3 @@
-import { base44 } from "../../api/base44Client.js";
-
 export const ANT_SPORTS_BASE_URL = "https://antsports.tv";
 export const ANT_SPORTS_DIRECTORY_URL = `${ANT_SPORTS_BASE_URL}/us`;
 
@@ -59,6 +57,9 @@ const normaliseEvent = (event, index) => {
 };
 
 export async function fetchAntSportsEvents() {
+  // Keep the Base44 client lazy so Node regression tests can import the
+  // playlist/parser module without needing Vite's @ alias resolution.
+  const { base44 } = await import("../../api/base44Client.js");
   const response = await base44.functions.invoke("antSportsLive", {});
   const data = response?.data ?? response ?? {};
 
