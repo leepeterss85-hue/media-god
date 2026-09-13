@@ -4,6 +4,7 @@ import { secrets } from 'base44:runtime';
 const TMDB_BASE = 'https://api.themoviedb.org/3';
 const IMG_BASE = 'https://image.tmdb.org/t/p/w500';
 const BACKDROP_BASE = 'https://image.tmdb.org/t/p/w780';
+const PROVIDER_LOGO_BASE = 'https://image.tmdb.org/t/p/w92';
 
 const MOVIE_ENDPOINTS = {
   now_playing: 'movie/now_playing',
@@ -127,6 +128,126 @@ const searchResultScore = (item, titleQuery, requestedYear, originalIndex) => {
 
   score += Math.min(Number(item?.popularity || 0), 500);
   return score;
+};
+
+const fetchWatchProviders = async (
+  item,
+  apiKey,
+  region
+) => {
+  const mediaType =
+    item?.media_type === 'tv'
+      ? 'tv'
+      : 'movie';
+
+  const id =
+    String(
+      item?.id ||
+      ''
+    ).trim();
+
+  if (!id) {
+    return {
+      watch_providers: [],
+      watch_link: '',
+    };
+  }
+
+  try {
+    const response =
+      await fetch(
+        `${TMDB_BASE}/${mediaType}/${id}/watch/providers?api_key=${apiKey}`,
+        {
+          headers: {
+            Accept:
+              'application/json',
+          },
+        }
+      );
+
+    if (!response.ok) {
+      return {
+        watch_providers: [],
+        watch_link: '',
+      };
+    }
+
+    const data =
+      await response.json();
+
+    const regional =
+      data?.results?.[region] ||
+      data?.results?.GB ||
+      {};
+
+    const groups = [
+      ['flatrate', 'Stream'],
+      ['free', 'Free'],
+      ['ads', 'Free with ads'],
+      ['rent', 'Rent'],
+      ['buy', 'Buy'],
+    ];
+
+    const seen = new Set();
+    const providers = [];
+
+    for (const [key, availability] of groups) {
+      const list = Array.isArray(regional?.[key])
+        ? regional[key]
+        : [];
+
+      for (const provider of list) {
+        const providerId =
+          String(
+            provider?.provider_id ||
+            provider?.provider_name ||
+            ''
+          );
+
+        if (!providerId || seen.has(providerId)) {
+          continue;
+        }
+
+        seen.add(providerId);
+        providers.push({
+          provider_id:
+            provider?.provider_id ||
+            null,
+          provider_name:
+            provider?.provider_name ||
+            'Streaming service',
+          logo_url:
+            provider?.logo_path
+              ? `${PROVIDER_LOGO_BASE}${provider.logo_path}`
+              : '',
+          availability,
+        });
+
+        if (providers.length >= 5) {
+          break;
+        }
+      }
+
+      if (providers.length >= 5) {
+        break;
+      }
+    }
+
+    return {
+      watch_providers:
+        providers,
+      watch_link:
+        String(
+          regional?.link ||
+          ''
+        ),
+    };
+  } catch {
+    return {
+      watch_providers: [],
+      watch_link: '',
+    };
+  }
 };
 
 const mapItem = (
@@ -389,7 +510,7 @@ export default async function(req) {
       const sData =
         await sRes.json();
 
-      const items =
+      const rankedItems =
         (
           sData.results ||
           []
@@ -419,13 +540,31 @@ export default async function(req) {
           .slice(
             0,
             16
-          )
-          .map(
-            ({ item: m }) =>
-              mapItem(
-                m
-              )
           );
+
+      const items =
+        await Promise.all(
+          rankedItems.map(
+            async ({ item: m }) => {
+              const mapped =
+                mapItem(
+                  m
+                );
+
+              const providers =
+                await fetchWatchProviders(
+                  m,
+                  apiKey,
+                  region
+                );
+
+              return {
+                ...mapped,
+                ...providers,
+              };
+            }
+          )
+        );
 
       return Response.json({
         movies:
