@@ -699,6 +699,14 @@ export default function PlayerRemote() {
 
   const closed = session?.status === "closed";
   const idle = session?.status === "idle" || !session?.media_type;
+  const tvLastSeenMs = session?.last_seen_at
+    ? new Date(session.last_seen_at).getTime()
+    : 0;
+  const tvConnected =
+    !closed &&
+    Number.isFinite(tvLastSeenMs) &&
+    tvLastSeenMs > 0 &&
+    Date.now() - tvLastSeenMs < 12000;
   const current = Number(session?.current_time || 0);
   const duration = Number(session?.duration || 0);
   const progress = duration > 0 ? Math.min(100, Math.max(0, (current / duration) * 100)) : 0;
@@ -710,11 +718,27 @@ export default function PlayerRemote() {
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-mg-green/15 text-mg-green">
             <Smartphone className="h-5 w-5" />
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-mg-green">Media God Remote</p>
             <h1 className="truncate text-lg font-bold">{session?.title || "Now playing"}</h1>
           </div>
+          <span
+            className={
+              "shrink-0 rounded-full border px-2 py-1 text-[10px] font-semibold " +
+              (tvConnected
+                ? "border-mg-green/30 bg-mg-green/10 text-mg-green"
+                : "border-amber-300/20 bg-amber-300/10 text-amber-200")
+            }
+          >
+            {tvConnected ? "TV connected" : "Reconnecting…"}
+          </span>
         </div>
+
+        {!closed && !tvConnected && (
+          <div className="mt-4 rounded-xl border border-amber-300/20 bg-amber-300/10 p-3 text-xs leading-relaxed text-amber-100/80">
+            The TV connection is temporarily quiet. This remote will keep retrying automatically; you do not need to scan the QR code again yet.
+          </div>
+        )}
 
         {closed ? (
           <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5 text-center text-sm text-white/60">
