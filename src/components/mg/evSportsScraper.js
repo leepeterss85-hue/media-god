@@ -1,3 +1,6 @@
+export const EV_SPORTS_SOURCE_PRIORITY = 220;
+export const EV_SPORTS_BASE_SCORE = 12500;
+
 const clean = (value) => String(value ?? "").replace(/\s+/g, " ").trim();
 
 const normaliseChannel = (channel, index) => {
@@ -25,7 +28,7 @@ const normaliseChannel = (channel, index) => {
     sourceId: "evsports-live",
     sourceName: "EV SPORTS · Saptarshi",
     sourceNames: ["EV SPORTS · Saptarshi"],
-    sourcePriority: 220,
+    sourcePriority: EV_SPORTS_SOURCE_PRIORITY,
     sourceCategory: "Sports",
     browserPlayable: true,
     browserReason: "",
@@ -42,7 +45,7 @@ const normaliseChannel = (channel, index) => {
       panelTitle,
       country,
     ].filter(Boolean),
-    score: 12500 + quality,
+    score: EV_SPORTS_BASE_SCORE + quality,
     alternatives: [],
     evSports: {
       sourceSheet,
