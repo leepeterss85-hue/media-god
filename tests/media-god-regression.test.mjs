@@ -73,6 +73,20 @@ test("M3U parser handles quoted commas and normalises UK metadata", () => {
   assert.equal(channel.url, "https://example.test/bbc-one.m3u8");
 });
 
+test("M3U parser rejects placeholder and dummy stream URLs", () => {
+  const playlist = `#EXTM3U\n#EXTINF:-1,No public stream\n[NO PUBLIC STREAM]\n#EXTINF:-1,Dummy host\nhttp://x.x\n#EXTINF:-1,Valid channel\nhttps://example.test/live.m3u8\n`;
+  const channels = parseFreeTvPlaylist(playlist, {
+    id: "placeholder-test",
+    name: "Placeholder Test",
+    priority: 100,
+    category: "General",
+  });
+
+  assert.equal(channels.length, 1);
+  assert.equal(channels[0].name, "Valid channel");
+  assert.equal(channels[0].url, "https://example.test/live.m3u8");
+});
+
 test("UK playlist category supplies GB when rows omit country metadata", () => {
   const playlist = `#EXTM3U\n#EXTINF:-1 tvg-id="opaque-id" group-title="Entertainment",UK Test Channel\nhttps://example.test/uk-test.m3u8\n`;
   const [channel] = parseFreeTvPlaylist(playlist, {
