@@ -14,6 +14,7 @@ const home = await read("src/pages/Home.jsx");
 const navbar = await read("src/components/mg/Navbar.jsx");
 const roadmap = await read("src/components/mg/RoadmapView.jsx");
 const downloads = await read("src/components/mg/DebridDashboard.jsx");
+const addons = await read("src/components/mg/AddonsView.jsx");
 const watchParty = await read("src/components/mg/WatchPartyView.jsx");
 const remoteTv = await read("src/components/mg/PlayerQrRemote.jsx");
 const remotePhone = await read("src/pages/PlayerRemote.jsx");
@@ -74,6 +75,11 @@ for (const marker of [
 ]) {
   expect(downloads.includes(marker), `Downloads regression marker missing: ${marker}`);
 }
+
+expect(
+  addons.includes("autoHealthCheckedRef") && addons.includes("testActiveAddons();"),
+  "Addons no longer run their automatic first-load health check"
+);
 
 for (const marker of [
   'data-mg-watch-party-view="true"',
