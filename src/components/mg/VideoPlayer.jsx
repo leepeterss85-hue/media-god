@@ -3406,6 +3406,7 @@ export default function VideoPlayer({
                 status: sourceNeedsCaching(active)
                   ? "stalled"
                   : current?.status || "stalled",
+                stallReason: "poll_failure",
                 updatedAt: Date.now(),
                 attempts,
               }));
