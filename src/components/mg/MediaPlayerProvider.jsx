@@ -777,6 +777,11 @@ const fetchServerAddonSources = async ({
             year ??
             "",
 
+          alternate_years:
+            Array.isArray(alternateYears)
+              ? alternateYears
+              : [],
+
           media_type:
             mediaType ===
             "tv"
