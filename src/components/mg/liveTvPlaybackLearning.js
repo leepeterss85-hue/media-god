@@ -3,6 +3,8 @@ export const LIVE_TV_PLAYBACK_LEARNING_KEY = "mg:live-tv-playback-learning-v1";
 const WARM_TTL = 2 * 60 * 1000;
 const MAX_RECORDS = 500;
 const warmed = new Map();
+let storeCacheRaw = null;
+let storeCacheValue = null;
 
 const cleanUrl = (value) => String(value || "").trim();
 
@@ -10,11 +12,21 @@ const readStore = () => {
   if (typeof window === "undefined") return {};
 
   try {
-    const raw = window.localStorage.getItem(LIVE_TV_PLAYBACK_LEARNING_KEY);
+    const raw = window.localStorage.getItem(LIVE_TV_PLAYBACK_LEARNING_KEY) || "";
+
+    if (raw === storeCacheRaw && storeCacheValue) {
+      return storeCacheValue;
+    }
+
     const parsed = raw ? JSON.parse(raw) : {};
-    return parsed && typeof parsed === "object" ? parsed : {};
+    const safe = parsed && typeof parsed === "object" ? parsed : {};
+    storeCacheRaw = raw;
+    storeCacheValue = safe;
+    return safe;
   } catch {
-    return {};
+    storeCacheRaw = null;
+    storeCacheValue = {};
+    return storeCacheValue;
   }
 };
 
@@ -25,11 +37,15 @@ const writeStore = (store) => {
     const entries = Object.entries(store || {})
       .sort((a, b) => Number(b?.[1]?.updatedAt || 0) - Number(a?.[1]?.updatedAt || 0))
       .slice(0, MAX_RECORDS);
+    const safe = Object.fromEntries(entries);
+    const serialized = JSON.stringify(safe);
 
     window.localStorage.setItem(
       LIVE_TV_PLAYBACK_LEARNING_KEY,
-      JSON.stringify(Object.fromEntries(entries))
+      serialized
     );
+    storeCacheRaw = serialized;
+    storeCacheValue = safe;
   } catch {
     // Runtime learning is optional.
   }
