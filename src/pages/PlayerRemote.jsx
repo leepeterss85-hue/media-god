@@ -408,6 +408,7 @@ export default function PlayerRemote() {
     let cancelled = false;
     let unsubscribe = null;
     let heartbeatTimer = null;
+    let refreshTimer = null;
 
     const load = async () => {
       try {
@@ -440,10 +441,39 @@ export default function PlayerRemote() {
             .update(record.id, {
               remote_last_seen_at: new Date().toISOString(),
             })
+            .then((updated) => {
+              if (!cancelled && updated?.id === record.id) {
+                setSession((current) => ({ ...current, ...updated }));
+                seqRef.current = Math.max(
+                  seqRef.current,
+                  Number(updated?.command_seq || 0)
+                );
+              }
+            })
             .catch(() => {});
+
+        const refreshSession = async () => {
+          try {
+            const rows = await base44.entities.PlayerRemoteSession.filter({
+              session_code: sessionCode,
+            });
+            const latest = Array.isArray(rows) ? rows[0] : null;
+
+            if (!cancelled && latest?.id === record.id) {
+              setSession((current) => ({ ...current, ...latest }));
+              seqRef.current = Math.max(
+                seqRef.current,
+                Number(latest?.command_seq || 0)
+              );
+            }
+          } catch {
+            // Subscription remains the primary path; polling is only recovery.
+          }
+        };
 
         publishHeartbeat();
         heartbeatTimer = window.setInterval(publishHeartbeat, 5000);
+        refreshTimer = window.setInterval(refreshSession, 8000);
 
         unsubscribe = base44.entities.PlayerRemoteSession.subscribe((event) => {
           if (event.data?.id !== record.id) return;
@@ -471,6 +501,7 @@ export default function PlayerRemote() {
       cancelled = true;
       if (unsubscribe) unsubscribe();
       if (heartbeatTimer) window.clearInterval(heartbeatTimer);
+      if (refreshTimer) window.clearInterval(refreshTimer);
     };
   }, [sessionCode]);
 
