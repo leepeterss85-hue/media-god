@@ -6409,6 +6409,14 @@ export default function VideoPlayer({
                   active?.label ||
                   "Real-Debrid Stream"
                 }
+                isLive={isLive}
+                headers={
+                  rdOverride?.headers ||
+                  active?.headers ||
+                  active?.requestHeaders ||
+                  {}
+                }
+                drm={rdOverride?.drm || active?.drm || null}
                 poster={
                   source?.poster
                 }
@@ -6530,6 +6538,9 @@ export default function VideoPlayer({
                   active?.label ||
                   "Direct Stream"
                 }
+                isLive={isLive}
+                headers={active?.headers || active?.requestHeaders || {}}
+                drm={active?.drm || null}
                 poster={
                   source?.poster
                 }
