@@ -77,6 +77,8 @@ for (const marker of [
   'skipRdLookup: true',
   "retryFailed",
   'action: "retry_torrent"',
+  "clearReady",
+  "Clear completed",
 ]) {
   expect(downloads.includes(marker), `Downloads regression marker missing: ${marker}`);
 }
@@ -87,11 +89,19 @@ for (const marker of [
   'placeholder="Search your Real-Debrid library…"',
   'skipAddonLookup: true',
   'skipRdLookup: true',
+  "timerRef",
 ]) {
   expect(rdLibrary.includes(marker), `RD Library regression marker missing: ${marker}`);
 }
 
-for (const marker of ["original_filename:", "hash:", "seeders:", "speed:", "added:"]) {
+for (const marker of [
+  'action === "retry_torrent"',
+  "original_filename:",
+  "hash:",
+  "seeders:",
+  "speed:",
+  "added:",
+]) {
   expect(
     realDebridBackend.includes(marker),
     `Real-Debrid download metadata regression marker missing: ${marker}`
@@ -113,6 +123,8 @@ for (const marker of [
   "WatchPartyPresence",
   "activeParticipants",
   "Live presence",
+  "recoverRoom",
+  "messageEndRef",
 ]) {
   expect(watchParty.includes(marker), `Watch Party regression marker missing: ${marker}`);
 }
