@@ -338,6 +338,7 @@ export default function TvShowsView() {
                     mediaType="tv"
                     region="GB"
                     limit={3}
+                    initialProviders={show.watch_providers}
                   />
                 </div>
 
