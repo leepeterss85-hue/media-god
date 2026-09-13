@@ -1078,6 +1078,25 @@ const streamFormat = (url) => {
 const isUnsupportedProtocol = (url) =>
   /^(?:rtmp|rtsp|udp|rtp|acestream|sop):/i.test(String(url || "").trim());
 
+const isObviouslyInvalidStreamUrl = (url) => {
+  const value = String(url || "").trim();
+  if (!value) return true;
+
+  // Common placeholder rows found in public IPTV lists. These are metadata,
+  // not playable stream URLs, and must never become visible channel cards.
+  if (/^\[(?:no public stream|offline|unavailable|dead|n\/a)\]$/i.test(value)) {
+    return true;
+  }
+
+  if (/^https?:\/\/(?:x\.x|0\.0\.0\.0|localhost)(?::\d+)?(?:[/?#]|$)/i.test(value)) {
+    return true;
+  }
+
+  if (/^(?:javascript|about|data):/i.test(value)) return true;
+
+  return false;
+};
+
 const pageIsHttps = () => {
   if (typeof window === "undefined") return true;
   return String(window.location?.protocol || "https:") === "https:";
@@ -1316,6 +1335,11 @@ export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
     // source into a dead HTML response and prevents native Android playback
     // from trying the broadcaster/CDN endpoint directly.
     const url = line;
+
+    if (isObviouslyInvalidStreamUrl(url)) {
+      current = null;
+      continue;
+    }
 
     current.url = url;
     current.kind = classifyUrl(url);
