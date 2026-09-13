@@ -1,9 +1,48 @@
-import React, { useEffect, useState } from "react";
-import { Users, Copy, Check, LogOut, Send, Plus, ArrowRight, Loader2, Share2 } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  ArrowRight,
+  Check,
+  Copy,
+  Link2,
+  Loader2,
+  LogOut,
+  Plus,
+  RefreshCw,
+  Send,
+  Share2,
+  Trash2,
+  Users,
+} from "lucide-react";
+
 import { base44 } from "@/api/base44Client";
 import PartyPlayer from "@/components/mg/PartyPlayer";
 
 const genCode = () => Math.random().toString(36).slice(2, 8).toUpperCase();
+const clean = (value) => String(value ?? "").trim();
+
+const validWatchUrl = (value) => {
+  const url = clean(value);
+  if (!/^https?:\/\//i.test(url)) return false;
+
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" || parsed.protocol === "http:";
+  } catch {
+    return false;
+  }
+};
+
+const removePartyQuery = () => {
+  if (typeof window === "undefined") return;
+
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("party");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+  } catch {
+    // URL cleanup is convenience only.
+  }
+};
 
 export default function WatchPartyView() {
   const [mode, setMode] = useState("lobby");
@@ -13,6 +52,7 @@ export default function WatchPartyView() {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
@@ -20,175 +60,441 @@ export default function WatchPartyView() {
   const [cUrl, setCUrl] = useState("");
   const [cPoster, setCPoster] = useState("");
 
-  useEffect(() => { base44.auth.me().then(setUser).catch(() => {}); }, []);
-
-  const isHost = !!(party && user && party.created_by_id === user.id);
-
-  // Live-sync the room state.
   useEffect(() => {
-    if (!party) return;
-    const unsub = base44.entities.WatchParty.subscribe((event) => {
-      if (event.type === "delete") { setParty(null); setMode("lobby"); return; }
-      if (event.data?.id === party.id) setParty((p) => ({ ...p, ...event.data }));
-    });
-    return unsub;
-  }, [party?.id]);
+    base44.auth.me().then(setUser).catch(() => {});
+  }, []);
 
-  // Load + live-sync chat.
+  const isHost = Boolean(party && user && party.created_by_id === user.id);
+  const roomCode = clean(party?.room_code).toUpperCase();
+
+  const shareUrl = useMemo(() => {
+    if (!roomCode || typeof window === "undefined") return "";
+    const url = new URL(window.location.origin);
+    url.searchParams.set("party", roomCode);
+    return url.toString();
+  }, [roomCode]);
+
   useEffect(() => {
-    if (!party) return;
-    base44.entities.WatchPartyMessage.filter({ room_code: party.room_code })
-      .then(setMessages).catch(() => {});
-    const unsub = base44.entities.WatchPartyMessage.subscribe((event) => {
-      if (event.type === "create" && event.data?.room_code === party.room_code) {
-        setMessages((m) => [...m, event.data]);
+    if (!party?.id) return undefined;
+
+    const unsubscribe = base44.entities.WatchParty.subscribe((event) => {
+      if (event.type === "delete" && event.data?.id === party.id) {
+        setParty(null);
+        setMessages([]);
+        setMode("lobby");
+        setError("That watch party has ended.");
+        removePartyQuery();
+        return;
+      }
+
+      if (event.data?.id === party.id) {
+        setParty((current) => ({ ...current, ...event.data }));
       }
     });
-    return unsub;
+
+    return unsubscribe;
   }, [party?.id]);
 
+  useEffect(() => {
+    if (!roomCode) return undefined;
+
+    let cancelled = false;
+
+    base44.entities.WatchPartyMessage.filter({ room_code: roomCode })
+      .then((rows) => {
+        if (!cancelled) setMessages(Array.isArray(rows) ? rows : []);
+      })
+      .catch(() => {});
+
+    const unsubscribe = base44.entities.WatchPartyMessage.subscribe((event) => {
+      if (
+        event.type === "create" &&
+        clean(event.data?.room_code).toUpperCase() === roomCode
+      ) {
+        setMessages((current) => {
+          if (current.some((message) => message?.id === event.data?.id)) return current;
+          return [...current, event.data];
+        });
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
+  }, [roomCode]);
+
   const onHostState = async (patch) => {
-    if (!party) return;
+    if (!party || !isHost) return;
+
     try {
-      await base44.entities.WatchParty.update(party.id, { ...patch, last_action_at: new Date().toISOString() });
-    } catch {}
+      await base44.entities.WatchParty.update(party.id, {
+        ...patch,
+        last_action_at: new Date().toISOString(),
+      });
+    } catch {
+      setError("The room could not sync that playback change. Try Refresh room.");
+    }
   };
 
   const createRoom = async () => {
-    if (!cUrl.trim() || !cTitle.trim()) { setError("Title and video URL are required"); return; }
-    setBusy(true); setError("");
+    const title = clean(cTitle);
+    const videoUrl = clean(cUrl);
+    const posterUrl = clean(cPoster);
+
+    if (!title) {
+      setError("Enter a title for the watch party.");
+      return;
+    }
+
+    if (!validWatchUrl(videoUrl)) {
+      setError("Enter a valid http/https video or HLS URL.");
+      return;
+    }
+
+    setBusy(true);
+    setError("");
+
     try {
       const room_code = genCode();
-      const rec = await base44.entities.WatchParty.create({
+      const record = await base44.entities.WatchParty.create({
         room_code,
-        title: cTitle.trim(),
-        video_url: cUrl.trim(),
-        poster_url: cPoster.trim(),
+        title,
+        video_url: videoUrl,
+        poster_url: posterUrl,
         is_playing: false,
         current_time: 0,
-        participants: user ? [user.id] : [],
+        participants: user?.id ? [user.id] : [],
         last_action_at: new Date().toISOString(),
       });
-      setParty(rec);
+
+      setParty(record);
+      setCode(room_code);
+      setMessages([]);
       setMode("room");
-    } catch (e) { setError(e.message || "Could not create room"); }
-    finally { setBusy(false); }
+
+      const url = new URL(window.location.href);
+      url.searchParams.set("party", room_code);
+      window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    } catch (createError) {
+      setError(createError?.message || "Could not create the watch party.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const joinRoom = async (overrideCode) => {
-    const c = (overrideCode || code).trim();
-    if (!c) { setError("Enter a room code"); return; }
-    setBusy(true); setError("");
+    const wanted = clean(overrideCode || code).toUpperCase();
+
+    if (!wanted) {
+      setError("Enter a room code.");
+      return;
+    }
+
+    setBusy(true);
+    setError("");
+
     try {
-      const found = await base44.entities.WatchParty.filter({ room_code: c.toUpperCase() });
-      if (found.length === 0) { setError("No room with that code"); return; }
-      setParty(found[0]);
+      const found = await base44.entities.WatchParty.filter({ room_code: wanted });
+      const record = Array.isArray(found) ? found[0] : null;
+
+      if (!record) {
+        setError("No active room was found with that code.");
+        return;
+      }
+
+      setParty(record);
+      setCode(wanted);
       setMode("room");
-    } catch (e) { setError(e.message || "Could not join room"); }
-    finally { setBusy(false); }
+
+      const url = new URL(window.location.href);
+      url.searchParams.set("party", wanted);
+      window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    } catch (joinError) {
+      setError(joinError?.message || "Could not join the watch party.");
+    } finally {
+      setBusy(false);
+    }
   };
 
-  // Auto-join when opened via a shared link (?party=CODE).
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const p = params.get("party");
-    if (p) { setCode(p.toUpperCase()); joinRoom(p); }
+    const sharedCode = clean(params.get("party")).toUpperCase();
+    if (!sharedCode) return;
+
+    setCode(sharedCode);
+    joinRoom(sharedCode);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const leave = () => { setParty(null); setMessages([]); setMode("lobby"); };
+  const refreshRoom = async () => {
+    if (!roomCode) return;
+    setRefreshing(true);
+    setError("");
+
+    try {
+      const rows = await base44.entities.WatchParty.filter({ room_code: roomCode });
+      const record = Array.isArray(rows) ? rows[0] : null;
+
+      if (!record) {
+        setParty(null);
+        setMessages([]);
+        setMode("lobby");
+        setError("This watch party has ended.");
+        removePartyQuery();
+        return;
+      }
+
+      setParty(record);
+    } catch (refreshError) {
+      setError(refreshError?.message || "Could not refresh the watch party.");
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const leave = () => {
+    setParty(null);
+    setMessages([]);
+    setMode("lobby");
+    setError("");
+    removePartyQuery();
+  };
+
+  const endRoom = async () => {
+    if (!party?.id || !isHost || busy) return;
+    setBusy(true);
+    setError("");
+
+    try {
+      await base44.entities.WatchParty.delete(party.id);
+      setParty(null);
+      setMessages([]);
+      setMode("lobby");
+      removePartyQuery();
+    } catch (endError) {
+      setError(endError?.message || "Could not end the room.");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const send = async () => {
-    if (!text.trim() || !party) return;
-    const t = text.trim();
+    const message = clean(text);
+    if (!message || !party || busy) return;
+
     setText("");
+    setError("");
+
     try {
       await base44.entities.WatchPartyMessage.create({
-        room_code: party.room_code,
+        room_code: roomCode,
         user_name: user?.full_name || user?.email || "Guest",
-        text: t,
+        text: message.slice(0, 500),
       });
-    } catch {}
+    } catch (sendError) {
+      setText(message);
+      setError(sendError?.message || "Your message could not be sent.");
+    }
   };
 
   const copyCode = async () => {
+    if (!roomCode) return;
+
     try {
-      await navigator.clipboard.writeText(party.room_code);
+      await navigator.clipboard.writeText(roomCode);
       setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {}
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setError("The room code could not be copied on this device.");
+    }
   };
 
   const shareLink = async () => {
-    const url = `${window.location.origin}/?party=${party.room_code}`;
+    if (!shareUrl) return;
+
     try {
-      await navigator.clipboard.writeText(url);
+      if (navigator.share) {
+        await navigator.share({
+          title: party?.title || "Media God Watch Party",
+          text: `Join my Media God watch party. Room ${roomCode}`,
+          url: shareUrl,
+        });
+        return;
+      }
+
+      await navigator.clipboard.writeText(shareUrl);
       setLinkCopied(true);
-      setTimeout(() => setLinkCopied(false), 1500);
-    } catch {}
+      window.setTimeout(() => setLinkCopied(false), 1500);
+    } catch (shareError) {
+      if (shareError?.name !== "AbortError") {
+        setError("The watch-party link could not be shared on this device.");
+      }
+    }
   };
 
   if (mode === "lobby") {
     return (
-      <div className="p-4 max-w-3xl mx-auto">
-        <div className="flex items-center gap-2 mb-4">
+      <div data-mg-watch-party-view="true" className="p-4 sm:p-6 max-w-3xl mx-auto w-full">
+        <div className="flex items-center gap-2 mb-2">
           <Users className="w-6 h-6 text-mg-green" />
-          <h2 className="text-xl font-bold text-white">Watch Party</h2>
+          <h1 className="text-xl font-bold text-white">Watch Party</h1>
         </div>
+
         <p className="text-white/50 text-sm mb-6">
-          Watch a stream in sync with friends. Create a room, share the code, and everyone's player stays locked together.
+          Watch the same stream in sync, share a room code and chat while it plays.
         </p>
+
         <div className="grid md:grid-cols-2 gap-4">
           <div className="bg-mg-card border border-white/10 rounded-xl p-4">
             <div className="flex items-center gap-2 mb-3">
               <Plus className="w-4 h-4 text-mg-green" />
-              <h3 className="text-white font-semibold text-sm">Create a room</h3>
+              <h2 className="text-white font-semibold text-sm">Create a room</h2>
             </div>
-            <input value={cTitle} onChange={(e) => setCTitle(e.target.value)} placeholder="Title (e.g. Movie Night)" className="w-full bg-black/40 border border-white/10 rounded-md px-3 py-2 text-sm text-white placeholder:text-white/30 mb-2 outline-none focus:border-mg-green/60" />
-            <input value={cUrl} onChange={(e) => setCUrl(e.target.value)} placeholder="Video URL (mp4 or .m3u8)" className="w-full bg-black/40 border border-white/10 rounded-md px-3 py-2 text-sm text-white placeholder:text-white/30 mb-2 outline-none focus:border-mg-green/60" />
-            <input value={cPoster} onChange={(e) => setCPoster(e.target.value)} placeholder="Poster URL (optional)" className="w-full bg-black/40 border border-white/10 rounded-md px-3 py-2 text-sm text-white placeholder:text-white/30 mb-3 outline-none focus:border-mg-green/60" />
-            <button onClick={createRoom} disabled={busy} className="w-full flex items-center justify-center gap-1.5 bg-mg-green text-black font-semibold text-sm px-3 py-2 rounded-md hover:bg-mg-green-dim disabled:opacity-50">
-              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Create room
+
+            <input
+              value={cTitle}
+              onChange={(event) => setCTitle(event.target.value)}
+              placeholder="Title (e.g. Movie Night)"
+              maxLength={120}
+              className="w-full min-h-11 bg-black/40 border border-white/10 rounded-md px-3 py-2 text-sm text-white placeholder:text-white/30 mb-2 outline-none focus:border-mg-green/60"
+            />
+            <input
+              value={cUrl}
+              onChange={(event) => setCUrl(event.target.value)}
+              placeholder="Video URL (mp4 or .m3u8)"
+              inputMode="url"
+              className="w-full min-h-11 bg-black/40 border border-white/10 rounded-md px-3 py-2 text-sm text-white placeholder:text-white/30 mb-2 outline-none focus:border-mg-green/60"
+            />
+            <input
+              value={cPoster}
+              onChange={(event) => setCPoster(event.target.value)}
+              placeholder="Poster URL (optional)"
+              inputMode="url"
+              className="w-full min-h-11 bg-black/40 border border-white/10 rounded-md px-3 py-2 text-sm text-white placeholder:text-white/30 mb-3 outline-none focus:border-mg-green/60"
+            />
+
+            <p className="mb-3 flex items-start gap-2 text-[11px] leading-relaxed text-white/35">
+              <Link2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              Use a stream URL you are authorised to share. Protected subscription links may only work for the account that created them.
+            </p>
+
+            <button
+              type="button"
+              onClick={createRoom}
+              disabled={busy}
+              className="w-full min-h-11 flex items-center justify-center gap-1.5 bg-mg-green text-black font-semibold text-sm px-3 py-2 rounded-md hover:bg-mg-green-dim disabled:opacity-50"
+            >
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              Create room
             </button>
           </div>
+
           <div className="bg-mg-card border border-white/10 rounded-xl p-4">
             <div className="flex items-center gap-2 mb-3">
               <ArrowRight className="w-4 h-4 text-mg-green" />
-              <h3 className="text-white font-semibold text-sm">Join a room</h3>
+              <h2 className="text-white font-semibold text-sm">Join a room</h2>
             </div>
-            <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Room code" className="w-full bg-black/40 border border-white/10 rounded-md px-3 py-2 text-sm text-white placeholder:text-white/30 mb-3 uppercase outline-none focus:border-mg-green/60" />
-            <button onClick={joinRoom} disabled={busy} className="w-full flex items-center justify-center gap-1.5 bg-white/10 hover:bg-white/20 text-white font-semibold text-sm px-3 py-2 rounded-md disabled:opacity-50">
-              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />} Join
+
+            <input
+              value={code}
+              onChange={(event) => setCode(event.target.value.toUpperCase())}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") joinRoom();
+              }}
+              placeholder="Room code"
+              maxLength={12}
+              autoCapitalize="characters"
+              className="w-full min-h-11 bg-black/40 border border-white/10 rounded-md px-3 py-2 text-sm text-white placeholder:text-white/30 mb-3 uppercase outline-none focus:border-mg-green/60"
+            />
+
+            <button
+              type="button"
+              onClick={() => joinRoom()}
+              disabled={busy}
+              className="w-full min-h-11 flex items-center justify-center gap-1.5 bg-white/10 hover:bg-white/20 text-white font-semibold text-sm px-3 py-2 rounded-md disabled:opacity-50"
+            >
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
+              Join
             </button>
           </div>
         </div>
-        {error && <p className="text-red-400 text-sm mt-4">{error}</p>}
+
+        {error && (
+          <p role="alert" className="text-red-300 text-sm mt-4 rounded-lg border border-red-500/20 bg-red-500/10 p-3">
+            {error}
+          </p>
+        )}
       </div>
     );
   }
 
   return (
-    <div className="p-4 max-w-4xl mx-auto">
+    <div data-mg-watch-party-room="true" className="p-4 sm:p-6 max-w-4xl mx-auto w-full">
       <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
         <div className="min-w-0">
-          <h2 className="text-white font-bold text-base truncate">{party.title}</h2>
-          <div className="flex items-center gap-2 mt-1">
+          <h1 className="text-white font-bold text-base truncate">{party.title}</h1>
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
             <span className="text-xs text-white/40">Room code</span>
-            <button onClick={copyCode} className="flex items-center gap-1 bg-mg-card border border-white/10 rounded px-2 py-0.5 text-mg-green font-mono text-xs font-bold">
-              {party.room_code}
+            <button
+              type="button"
+              onClick={copyCode}
+              className="min-h-9 flex items-center gap-1 bg-mg-card border border-white/10 rounded px-2 py-1 text-mg-green font-mono text-xs font-bold"
+            >
+              {roomCode}
               {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
             </button>
-            <button onClick={shareLink} className="flex items-center gap-1 bg-mg-card border border-white/10 rounded px-2 py-0.5 text-white/80 text-xs font-semibold hover:text-white">
+            <button
+              type="button"
+              onClick={shareLink}
+              className="min-h-9 flex items-center gap-1 bg-mg-card border border-white/10 rounded px-2 py-1 text-white/80 text-xs font-semibold hover:text-white"
+            >
               <Share2 className="w-3 h-3" />
               {linkCopied ? <Check className="w-3 h-3 text-mg-green" /> : "Share"}
             </button>
             <span className="text-[10px] text-white/30">{isHost ? "HOST" : "GUEST"}</span>
           </div>
         </div>
-        <button onClick={leave} className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-3 py-2 rounded-md">
-          <LogOut className="w-4 h-4" /> Leave
-        </button>
+
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={refreshRoom}
+            disabled={refreshing}
+            className="min-h-10 flex items-center gap-1.5 bg-white/5 hover:bg-white/10 text-white/70 text-xs font-semibold px-3 py-2 rounded-md disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+            Sync
+          </button>
+
+          {isHost ? (
+            <button
+              type="button"
+              onClick={endRoom}
+              disabled={busy}
+              className="min-h-10 flex items-center gap-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-300 text-xs font-semibold px-3 py-2 rounded-md disabled:opacity-50"
+            >
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              End room
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={leave}
+              className="min-h-10 flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-3 py-2 rounded-md"
+            >
+              <LogOut className="w-4 h-4" />
+              Leave
+            </button>
+          )}
+        </div>
       </div>
+
+      {error && (
+        <div role="alert" className="mb-3 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">
+          {error}
+        </div>
+      )}
 
       <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden border border-white/10 mb-4">
         <PartyPlayer
@@ -200,7 +506,7 @@ export default function WatchPartyView() {
           onHostState={onHostState}
         />
         {!isHost && (
-          <div className="absolute top-2 left-2 text-[10px] bg-black/60 text-white/70 px-2 py-0.5 rounded">
+          <div className="absolute top-2 left-2 text-[10px] bg-black/70 text-white/75 px-2 py-1 rounded">
             Synced to host
           </div>
         )}
@@ -209,26 +515,41 @@ export default function WatchPartyView() {
       <div className="bg-mg-card border border-white/10 rounded-xl p-3">
         <div className="flex items-center gap-2 mb-2">
           <Send className="w-4 h-4 text-mg-green" />
-          <h3 className="text-white font-semibold text-sm">Chat</h3>
+          <h2 className="text-white font-semibold text-sm">Chat</h2>
         </div>
-        <div className="max-h-48 overflow-y-auto flex flex-col gap-1.5 mb-3">
-          {messages.length === 0 && <p className="text-white/30 text-xs">No messages yet. Say hi!</p>}
-          {messages.map((m) => (
-            <div key={m.id} className="text-sm">
-              <span className="text-mg-green font-semibold text-xs">{m.user_name}: </span>
-              <span className="text-white/80">{m.text}</span>
+
+        <div className="max-h-56 overflow-y-auto flex flex-col gap-1.5 mb-3" aria-live="polite">
+          {messages.length === 0 && (
+            <p className="text-white/30 text-xs">No messages yet. Say hi!</p>
+          )}
+          {messages.map((message) => (
+            <div key={message.id} className="text-sm break-words">
+              <span className="text-mg-green font-semibold text-xs">
+                {message.user_name || "Guest"}:{" "}
+              </span>
+              <span className="text-white/80">{message.text}</span>
             </div>
           ))}
         </div>
+
         <div className="flex gap-2">
           <input
             value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") send(); }}
+            onChange={(event) => setText(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") send();
+            }}
+            maxLength={500}
             placeholder="Type a message…"
-            className="flex-1 bg-black/40 border border-white/10 rounded-md px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none focus:border-mg-green/60"
+            className="min-h-11 flex-1 bg-black/40 border border-white/10 rounded-md px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none focus:border-mg-green/60"
           />
-          <button onClick={send} className="flex items-center gap-1 bg-mg-green text-black font-semibold text-sm px-3 py-2 rounded-md hover:bg-mg-green-dim">
+          <button
+            type="button"
+            onClick={send}
+            disabled={!text.trim()}
+            aria-label="Send watch party message"
+            className="min-h-11 min-w-11 flex items-center justify-center gap-1 bg-mg-green text-black font-semibold text-sm px-3 py-2 rounded-md hover:bg-mg-green-dim disabled:opacity-40"
+          >
             <Send className="w-4 h-4" />
           </button>
         </div>
