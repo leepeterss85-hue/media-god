@@ -8,6 +8,7 @@ import {
   Loader2,
   Play,
   RefreshCw,
+  RotateCcw,
   Search,
   Trash2,
   XCircle,
@@ -59,6 +60,21 @@ const downloadBucket = (torrent) => {
   if (isReady(torrent)) return "ready";
   if (isError(torrent)) return "errors";
   return "active";
+};
+
+const validInfoHash = (value) => /^[a-f0-9]{40}$/i.test(String(value || "").trim());
+
+const formatSpeed = (value) => {
+  const bytesPerSecond = Number(value || 0);
+  if (!Number.isFinite(bytesPerSecond) || bytesPerSecond <= 0) return "";
+  if (bytesPerSecond >= 1e6) return `${(bytesPerSecond / 1e6).toFixed(1)} MB/s`;
+  if (bytesPerSecond >= 1e3) return `${(bytesPerSecond / 1e3).toFixed(0)} KB/s`;
+  return `${Math.round(bytesPerSecond)} B/s`;
+};
+
+const addedTime = (torrent) => {
+  const value = new Date(torrent?.added || 0).getTime();
+  return Number.isFinite(value) ? value : 0;
 };
 
 export default function DebridDashboard() {
@@ -161,6 +177,49 @@ export default function DebridDashboard() {
     }
   };
 
+  const retryFailed = async (torrent) => {
+    const torrentId = String(torrent?.id || "").trim();
+    const hash = String(torrent?.hash || "").trim().toLowerCase();
+
+    if (!torrentId || !validInfoHash(hash) || busyId) {
+      setError(
+        validInfoHash(hash)
+          ? "This failed Real-Debrid item cannot be retried right now."
+          : "Real-Debrid did not provide an info hash for this failed item, so it cannot be safely retried."
+      );
+      return;
+    }
+
+    setBusyId(torrentId);
+    setError("");
+
+    try {
+      await base44.functions.invoke("realDebrid", {
+        action: "torrent_delete",
+        torrent_id: torrentId,
+      });
+
+      const response = await base44.functions.invoke("realDebrid", {
+        action: "add_magnet",
+        magnet: hash,
+        title: torrent?.filename || torrent?.original_filename || "Retry download",
+      });
+      const data = response?.data ?? response ?? {};
+
+      if (data?.status === "failed" || data?.error) {
+        throw new Error(data?.error || "Real-Debrid could not restart this torrent.");
+      }
+
+      setTab("active");
+      await load({ silent: true });
+    } catch (retryError) {
+      setError(retryError?.message || "Could not retry that Real-Debrid download.");
+      await load({ silent: true });
+    } finally {
+      setBusyId("");
+    }
+  };
+
   const clearErrors = async () => {
     if (clearingErrors || errored.length === 0) return;
     setClearingErrors(true);
@@ -186,15 +245,17 @@ export default function DebridDashboard() {
   const visible = useMemo(() => {
     const normalisedQuery = query.trim().toLowerCase();
 
-    return torrents.filter((torrent) => {
-      const bucket = downloadBucket(torrent);
-      if (tab !== "all" && bucket !== tab) return false;
-      if (!normalisedQuery) return true;
+    return torrents
+      .filter((torrent) => {
+        const bucket = downloadBucket(torrent);
+        if (tab !== "all" && bucket !== tab) return false;
+        if (!normalisedQuery) return true;
 
-      return `${torrent?.filename || ""} ${torrent?.status || ""}`
-        .toLowerCase()
-        .includes(normalisedQuery);
-    });
+        return `${torrent?.filename || ""} ${torrent?.status || ""}`
+          .toLowerCase()
+          .includes(normalisedQuery);
+      })
+      .sort((a, b) => addedTime(b) - addedTime(a));
   }, [torrents, query, tab]);
 
   const stats = [
@@ -374,7 +435,10 @@ export default function DebridDashboard() {
             const progress = progressFor(torrent);
             const status = STATUS_LABEL[normaliseStatus(torrent)] || torrent?.status || "Pending";
             const size = formatBytes(torrent?.bytes);
-            const removing = String(torrent?.id || "") === busyId;
+            const speed = formatSpeed(torrent?.speed);
+            const seeders = Number(torrent?.seeders || 0);
+            const itemBusy = String(torrent?.id || "") === busyId;
+            const canRetry = errorNow && validInfoHash(torrent?.hash);
 
             return (
               <div
@@ -422,6 +486,12 @@ export default function DebridDashboard() {
                       {!readyNow && !errorNow && (
                         <span className="text-[10px] text-white/40">{Math.round(progress)}%</span>
                       )}
+                      {!readyNow && !errorNow && speed && (
+                        <span className="text-[10px] text-white/40">{speed}</span>
+                      )}
+                      {!readyNow && !errorNow && seeders > 0 && (
+                        <span className="text-[10px] text-white/40">{seeders} seeders</span>
+                      )}
                     </div>
                   </div>
 
@@ -437,6 +507,27 @@ export default function DebridDashboard() {
                       </button>
                     )}
 
+                    {errorNow && (
+                      <button
+                        type="button"
+                        onClick={() => retryFailed(torrent)}
+                        disabled={Boolean(busyId) || clearingErrors || !canRetry}
+                        title={
+                          canRetry
+                            ? "Retry this failed download"
+                            : "Retry unavailable because the torrent hash is missing"
+                        }
+                        className="min-h-10 inline-flex items-center gap-1.5 rounded-lg border border-mg-green/25 bg-mg-green/10 px-3 py-2 text-xs font-semibold text-mg-green hover:bg-mg-green/15 disabled:opacity-35"
+                      >
+                        {itemBusy ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <RotateCcw className="h-3.5 w-3.5" />
+                        )}
+                        Retry
+                      </button>
+                    )}
+
                     <button
                       type="button"
                       onClick={() => remove(torrent)}
@@ -445,7 +536,7 @@ export default function DebridDashboard() {
                       aria-label={readyNow ? "Remove completed download" : "Cancel and remove download"}
                       className="flex h-10 w-10 items-center justify-center rounded-lg text-white/40 hover:bg-red-500/10 hover:text-red-300 disabled:opacity-40"
                     >
-                      {removing ? (
+                      {itemBusy ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
                         <Trash2 className="h-4 w-4" />
