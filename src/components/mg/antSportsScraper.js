@@ -1,5 +1,7 @@
 export const ANT_SPORTS_BASE_URL = "https://antsports.tv";
 export const ANT_SPORTS_DIRECTORY_URL = `${ANT_SPORTS_BASE_URL}/us`;
+export const ANT_SPORTS_LIVE_PRIORITY = 110;
+export const ANT_SPORTS_UPCOMING_PRIORITY = 96;
 
 const clean = (value) => String(value ?? "").replace(/\s+/g, " ").trim();
 
@@ -31,7 +33,9 @@ const normaliseEvent = (event, index) => {
     format: "external",
     sourceId: "antsports-live",
     sourceName: `ANT SPORTS • ${sport}`,
-    sourcePriority: live ? 110 : 96,
+    sourcePriority: live
+      ? ANT_SPORTS_LIVE_PRIORITY
+      : ANT_SPORTS_UPCOMING_PRIORITY,
     sourceCategory: "Sports",
     browserPlayable: true,
     geoRestricted: false,
