@@ -1193,6 +1193,7 @@ export async function fetchBrowserAddonStreams({
   tmdbId = "",
   title = "",
   year = "",
+  alternateYears = [],
   excludeAddonNames = [],
   mediaType = "movie",
   season = null,
@@ -1380,6 +1381,41 @@ export async function fetchBrowserAddonStreams({
       ? `:${Number(season)}:${Number(episode)}`
       : "";
 
+  const cleanAlternateYears =
+    (Array.isArray(alternateYears) ? alternateYears : [])
+      .map(clean)
+      .filter(
+        (value) =>
+          /^\d{4}$/.test(value) &&
+          value !== clean(year)
+      )
+      .filter(
+        (value, index, list) =>
+          list.indexOf(value) === index
+      );
+
+  const titleWords =
+    suppliedTitle
+      .split(/\s+/)
+      .filter(Boolean);
+
+  const ambiguousShortTitle =
+    titleWords.length === 1 &&
+    suppliedTitle.length <= 6;
+
+  const yearSearchIds =
+    suppliedTitle
+      ? [
+          clean(year),
+          ...cleanAlternateYears,
+        ]
+          .filter(Boolean)
+          .map(
+            (candidateYear) =>
+              `search:${suppliedTitle}:${candidateYear}${episodeSuffix}`
+          )
+      : [];
+
   const alternateStreamIds = [
     suppliedTmdb
       ? `tmdb:${suppliedTmdb}${episodeSuffix}`
@@ -1390,10 +1426,12 @@ export async function fetchBrowserAddonStreams({
     suppliedTmdb
       ? `${suppliedTmdb}${episodeSuffix}`
       : "",
-    suppliedTitle
-      ? `search:${suppliedTitle}${clean(year) ? `:${clean(year)}` : ""}${episodeSuffix}`
-      : "",
-    suppliedTitle
+    ...yearSearchIds,
+    suppliedTitle &&
+    !(
+      ambiguousShortTitle &&
+      (hasValidImdb || suppliedTmdb)
+    )
       ? `search:${suppliedTitle}${episodeSuffix}`
       : "",
   ]
@@ -1403,7 +1441,7 @@ export async function fetchBrowserAddonStreams({
         value !== streamId &&
         list.indexOf(value) === index
     )
-    .slice(0, 5);
+    .slice(0, 6);
 
   const settled =
     await Promise.allSettled(
