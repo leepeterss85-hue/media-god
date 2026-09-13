@@ -47,6 +47,7 @@ class PlayerActivity : Activity() {
         val url: String,
         val headers: Map<String, String>,
         val mimeType: String,
+        val drm: JSONObject?,
         val webIndex: Int
     )
 
@@ -340,6 +341,7 @@ class PlayerActivity : Activity() {
                     url = url,
                     headers = readHeaders(item.optJSONObject("headers")),
                     mimeType = item.optString("mimeType").trim(),
+                    drm = item.optJSONObject("drm"),
                     webIndex = webIndex
                 )
             )
@@ -356,6 +358,7 @@ class PlayerActivity : Activity() {
                     url = streamUrl,
                     headers = readHeaders(payload.optJSONObject("headers")),
                     mimeType = payload.optString("mimeType").trim(),
+                    drm = payload.optJSONObject("drm"),
                     webIndex = payload.optInt("activeSourceIndex", 0)
                 )
             )
@@ -470,6 +473,10 @@ class PlayerActivity : Activity() {
         nativeSources.getOrNull(activeSourceIndex)?.mimeType
             ?.takeIf { it.isNotBlank() }
             ?: payload.optString("mimeType").trim()
+
+    private fun currentSourceDrm(): JSONObject? =
+        nativeSources.getOrNull(activeSourceIndex)?.drm
+            ?: payload.optJSONObject("drm")
 
     private fun initialisePlayer() {
         if (player != null || resultSent) {
@@ -592,6 +599,23 @@ class PlayerActivity : Activity() {
             builder.setMimeType(explicitMimeType)
         } else {
             inferPrimaryMimeType(streamUrl)?.let(builder::setMimeType)
+        }
+
+        currentSourceDrm()?.let { drm ->
+            val scheme = drm.optString("scheme", "widevine").trim().lowercase()
+            val licenseUrl = drm.optString("licenseUrl").trim()
+
+            if (scheme == "widevine" && licenseUrl.startsWith("http")) {
+                val drmBuilder = MediaItem.DrmConfiguration.Builder(C.WIDEVINE_UUID)
+                    .setLicenseUri(licenseUrl)
+
+                val drmHeaders = readHeaders(drm.optJSONObject("headers"))
+                if (drmHeaders.isNotEmpty()) {
+                    drmBuilder.setLicenseRequestHeaders(drmHeaders)
+                }
+
+                builder.setDrmConfiguration(drmBuilder.build())
+            }
         }
 
         val subtitleConfigurations = buildSubtitleConfigurations(
