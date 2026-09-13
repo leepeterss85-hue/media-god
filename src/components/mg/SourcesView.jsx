@@ -1298,7 +1298,7 @@ export default function SourcesView() {
           External add-on repositories
         </h2>
         <p className="mt-1 text-xs text-white/40">
-          Repository-based integrations that are not ordinary M3U playlists. They are listed separately so Media God never tries to parse a Kodi add-on ZIP as Live TV.
+          Sky Sport Now is integrated directly through your own subscription. Media God uses the provider's TV/device login, keeps the account token server-side, and requests a fresh protected stream only when you press Play.
         </p>
 
         <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -1309,37 +1309,73 @@ export default function SourcesView() {
                   <p className="truncate text-xs font-semibold text-white">{source.name}</p>
                   <p className="mt-1 text-[10px] text-white/35">{source.note}</p>
                 </div>
-                <span className="rounded bg-white/5 px-2 py-0.5 text-[10px] uppercase text-white/40">
-                  {source.platform}
+                <span
+                  className={`rounded px-2 py-0.5 text-[10px] uppercase ${
+                    skyStatus.connected
+                      ? "bg-mg-green/15 text-mg-green"
+                      : "bg-white/5 text-white/40"
+                  }`}
+                >
+                  {skyStatus.loading
+                    ? "Checking"
+                    : skyStatus.connected
+                      ? "Connected"
+                      : source.platform}
                 </span>
               </div>
+
+              {skyDevice?.pin && !skyStatus.connected && (
+                <div className="mt-3 rounded-lg border border-mg-green/25 bg-mg-green/10 p-3">
+                  <p className="text-[10px] uppercase tracking-wide text-white/45">
+                    Sky Sport Now TV code
+                  </p>
+                  <p className="mt-1 font-mono text-2xl font-black tracking-[0.18em] text-mg-green">
+                    {skyDevice.pin}
+                  </p>
+                  <p className="mt-1 text-[10px] text-white/45">
+                    Open the TV login page, sign in to your own Sky Sport Now account and enter this code. Media God is checking automatically.
+                  </p>
+                  <a
+                    href={skyDevice.verificationUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-2 inline-flex min-h-9 items-center gap-1 rounded-lg border border-mg-green/30 bg-mg-green/10 px-3 text-xs font-semibold text-mg-green"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" /> Open TV login
+                  </a>
+                </div>
+              )}
+
               <div className="mt-3 flex flex-wrap gap-2">
+                {skyStatus.connected ? (
+                  <button
+                    type="button"
+                    onClick={disconnectSky}
+                    disabled={skyBusy}
+                    className="flex min-h-9 items-center gap-1 rounded-lg border border-red-500/20 bg-red-500/10 px-3 text-xs font-semibold text-red-200 disabled:opacity-50"
+                  >
+                    <Unlink className="h-3.5 w-3.5" />
+                    {skyBusy ? "Disconnecting…" : "Disconnect Sky Sport Now"}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={startSkyConnect}
+                    disabled={skyBusy || skyStatus.loading}
+                    className="flex min-h-9 items-center gap-1 rounded-lg border border-mg-green/30 bg-mg-green/10 px-3 text-xs font-semibold text-mg-green disabled:opacity-50"
+                  >
+                    <Tv className="h-3.5 w-3.5" />
+                    {skyBusy ? "Starting…" : skyDevice?.pin ? "New login code" : "Connect Sky Sport Now"}
+                  </button>
+                )}
                 <a
                   href={source.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex min-h-8 items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2.5 text-[10px] font-semibold text-white"
+                  className="flex min-h-9 items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-3 text-xs font-semibold text-white"
                 >
-                  <ExternalLink className="h-3 w-3" /> Commit
+                  <ExternalLink className="h-3.5 w-3.5" /> SlyGuy source
                 </a>
-                <a
-                  href={source.repositoryUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex min-h-8 items-center gap-1 rounded-lg border border-mg-green/25 bg-mg-green/10 px-2.5 text-[10px] font-semibold text-mg-green"
-                >
-                  <ExternalLink className="h-3 w-3" /> Repository
-                </a>
-                {source.installGuideUrl && (
-                  <a
-                    href={source.installGuideUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex min-h-8 items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2.5 text-[10px] font-semibold text-white"
-                  >
-                    <ExternalLink className="h-3 w-3" /> Guide
-                  </a>
-                )}
               </div>
             </div>
           ))}
