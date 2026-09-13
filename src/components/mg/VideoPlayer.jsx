@@ -5380,6 +5380,10 @@ export default function VideoPlayer({
         active?.mimeType ||
         active?.mime_type ||
         "",
+      drm:
+        rdOverride?.drm ||
+        active?.drm ||
+        null,
       audioLanguage: trackPreferences.audioLanguage,
       subtitleLanguage: trackPreferences.subtitleLanguage,
       subtitlesEnabled: trackPreferences.subtitlesEnabled,
