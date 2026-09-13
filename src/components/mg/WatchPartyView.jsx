@@ -61,6 +61,7 @@ export default function WatchPartyView() {
   const [cPoster, setCPoster] = useState("");
   const [presences, setPresences] = useState([]);
   const presenceIdRef = useRef("");
+  const messageEndRef = useRef(null);
 
   useEffect(() => {
     base44.auth.me().then(setUser).catch(() => {});
@@ -202,7 +203,18 @@ export default function WatchPartyView() {
 
     base44.entities.WatchPartyMessage.filter({ room_code: roomCode })
       .then((rows) => {
-        if (!cancelled) setMessages(Array.isArray(rows) ? rows : []);
+        if (cancelled) return;
+
+        const ordered = (Array.isArray(rows) ? rows : [])
+          .slice()
+          .sort(
+            (a, b) =>
+              new Date(a?.created_date || 0).getTime() -
+              new Date(b?.created_date || 0).getTime()
+          )
+          .slice(-200);
+
+        setMessages(ordered);
       })
       .catch(() => {});
 
@@ -213,7 +225,13 @@ export default function WatchPartyView() {
       ) {
         setMessages((current) => {
           if (current.some((message) => message?.id === event.data?.id)) return current;
-          return [...current, event.data];
+          return [...current, event.data]
+            .sort(
+              (a, b) =>
+                new Date(a?.created_date || 0).getTime() -
+                new Date(b?.created_date || 0).getTime()
+            )
+            .slice(-200);
         });
       }
     });
@@ -223,6 +241,13 @@ export default function WatchPartyView() {
       unsubscribe?.();
     };
   }, [roomCode]);
+
+  useEffect(() => {
+    messageEndRef.current?.scrollIntoView?.({
+      block: "nearest",
+      behavior: "smooth",
+    });
+  }, [messages.length]);
 
   const onHostState = async (patch) => {
     if (!party || !isHost) return;
@@ -676,6 +701,7 @@ export default function WatchPartyView() {
               <span className="text-white/80">{message.text}</span>
             </div>
           ))}
+          <div ref={messageEndRef} aria-hidden="true" />
         </div>
 
         <div className="flex gap-2">
