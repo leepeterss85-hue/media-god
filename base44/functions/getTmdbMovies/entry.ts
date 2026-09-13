@@ -1145,6 +1145,15 @@ export default async function(req) {
       body.query ||
       '';
 
+    const parsedBrowseSearch =
+      query
+        ? parseSearchQuery(query)
+        : {
+            raw: '',
+            title: '',
+            year: '',
+          };
+
     const hasFilters =
       country ||
       genre ||
@@ -1205,7 +1214,8 @@ export default async function(req) {
               language:
                 'en-GB',
 
-              query,
+              query:
+                parsedBrowseSearch.title || query,
 
               page:
                 String(
@@ -1439,6 +1449,25 @@ export default async function(req) {
           m
         );
       }
+    }
+
+    if (query) {
+      merged.sort(
+        (a, b) =>
+          searchResultScore(
+            b,
+            parsedBrowseSearch.title || query,
+            parsedBrowseSearch.year,
+            0
+          ) -
+            searchResultScore(
+              a,
+              parsedBrowseSearch.title || query,
+              parsedBrowseSearch.year,
+              0
+            ) ||
+          Number(b?.popularity || 0) - Number(a?.popularity || 0)
+      );
     }
 
     const items =
