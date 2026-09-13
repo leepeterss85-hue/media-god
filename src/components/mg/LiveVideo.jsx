@@ -1917,10 +1917,19 @@ const LiveVideo = forwardRef(
               // Settings are optional across dash.js versions.
             }
 
-            const requestHeaders =
-              headers && typeof headers === "object" && !Array.isArray(headers)
-                ? headers
-                : {};
+            const requestHeaders = Object.fromEntries(
+              Object.entries(
+                headers && typeof headers === "object" && !Array.isArray(headers)
+                  ? headers
+                  : {}
+              ).filter(
+                ([name, value]) =>
+                  Boolean(name && value != null) &&
+                  !/^(?:user-agent|host|origin|referer|content-length|connection)$/i.test(
+                    String(name)
+                  )
+              )
+            );
 
             if (Object.keys(requestHeaders).length > 0) {
               try {
@@ -1954,10 +1963,19 @@ const LiveVideo = forwardRef(
 
             if (licenseUrl) {
               try {
-                const drmHeaders =
-                  drm?.headers && typeof drm.headers === "object" && !Array.isArray(drm.headers)
-                    ? drm.headers
-                    : requestHeaders;
+                const drmHeaders = Object.fromEntries(
+                  Object.entries(
+                    drm?.headers && typeof drm.headers === "object" && !Array.isArray(drm.headers)
+                      ? drm.headers
+                      : requestHeaders
+                  ).filter(
+                    ([name, value]) =>
+                      Boolean(name && value != null) &&
+                      !/^(?:user-agent|host|origin|referer|content-length|connection)$/i.test(
+                        String(name)
+                      )
+                  )
+                );
 
                 dashPlayer.setProtectionData?.({
                   "com.widevine.alpha": {
