@@ -149,6 +149,7 @@ export const playNativeFireTv = ({
   live = false,
   headers = {},
   mimeType = "",
+  drm = null,
   audioLanguage = "en",
   subtitleLanguage = "en",
   subtitlesEnabled = true,
@@ -175,6 +176,17 @@ export const playNativeFireTv = ({
         ? headers
         : {},
     mimeType: String(mimeType || "").trim(),
+    drm:
+      drm && typeof drm === "object" && !Array.isArray(drm)
+        ? {
+            scheme: String(drm?.scheme || "widevine").trim(),
+            licenseUrl: String(drm?.licenseUrl || drm?.license_url || "").trim(),
+            headers:
+              drm?.headers && typeof drm.headers === "object" && !Array.isArray(drm.headers)
+                ? drm.headers
+                : {},
+          }
+        : null,
     audioLanguage: String(audioLanguage || "en"),
     subtitleLanguage: String(subtitleLanguage || "en"),
     subtitlesEnabled: Boolean(subtitlesEnabled),
@@ -199,6 +211,19 @@ export const playNativeFireTv = ({
           sourceName: String(item?.sourceName || "").replace(/\s+/g, " ").trim(),
           url: String(item?.url || item?.src || item?.magnet || item?.magnetLink || "").trim(),
           mimeType: String(item?.mimeType || item?.mime_type || "").trim(),
+          drm:
+            item?.drm && typeof item.drm === "object" && !Array.isArray(item.drm)
+              ? {
+                  scheme: String(item.drm?.scheme || "widevine").trim(),
+                  licenseUrl: String(item.drm?.licenseUrl || item.drm?.license_url || "").trim(),
+                  headers:
+                    item.drm?.headers &&
+                    typeof item.drm.headers === "object" &&
+                    !Array.isArray(item.drm.headers)
+                      ? item.drm.headers
+                      : {},
+                }
+              : null,
           webIndex: Number.isFinite(Number(item?.webIndex))
             ? Number(item.webIndex)
             : index,
