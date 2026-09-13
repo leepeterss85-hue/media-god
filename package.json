@@ -12,8 +12,9 @@
     "test": "node --test tests/*.test.mjs",
     "test:backend": "node scripts/check-backend-bundles.mjs",
     "test:native": "node scripts/native-structure-check.mjs",
+    "test:ui": "node scripts/ui-regression-check.mjs",
     "test:network": "node scripts/live-tv-network-smoke.mjs && node scripts/live-tv-parser-stress.mjs",
-    "test:regression": "npm run test && npm run lint && npm run build && npm run test:backend && npm run test:native",
+    "test:regression": "npm run test && npm run lint && npm run build && npm run test:backend && npm run test:ui && npm run test:native",
     "test:full": "npm run test:regression && npm run typecheck",
     "preview": "vite preview"
   },
