@@ -84,7 +84,7 @@ for (const marker of [
 
 for (const marker of [
   'data-mg-rd-library-view="true"',
-  'setTab("ready")',
+  'useState("ready")',
   'placeholder="Search your Real-Debrid library…"',
   'skipAddonLookup: true',
   'skipRdLookup: true',
