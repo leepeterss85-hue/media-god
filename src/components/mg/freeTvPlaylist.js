@@ -1328,6 +1328,54 @@ const browserCompatibility = (channel) => {
   return { browserPlayable: true, browserReason: "", format };
 };
 
+/*
+ * Lock the current UK core-channel decisions into source selection. These
+ * stations are intentionally curated because generic public playlists have
+ * repeatedly replaced them with stale/dead mirrors. The locked source still
+ * keeps every other candidate as an alternative, but it cannot be displaced
+ * as the primary simply because a repository reports a larger score.
+ */
+const LOCKED_BBC_PRIMARY_NAMES = new Set([
+  "bbc one",
+  "bbc two",
+  "bbc three",
+  "bbc four",
+  "bbc news",
+  "cbbc",
+  "cbeebies",
+]);
+
+const LOCKED_ITV_PRIMARY_NAMES = new Set([
+  "itv1",
+  "itv2",
+  "itv3",
+  "itv4",
+  "itvbe",
+]);
+
+const lockedPrimaryRank = (channel) => {
+  const name = normaliseChannelNameForKey(channel?.name);
+  const sourceName = String(channel?.sourceName || "").trim();
+
+  if (
+    LOCKED_BBC_PRIMARY_NAMES.has(name) &&
+    sourceName === "BBC CDN Direct" &&
+    channel?.kind === "direct"
+  ) {
+    return 300;
+  }
+
+  if (
+    LOCKED_ITV_PRIMARY_NAMES.has(name) &&
+    sourceName === "ITVX Official" &&
+    channel?.kind === "external"
+  ) {
+    return 300;
+  }
+
+  return 0;
+};
+
 const sourceScore = (channel) => {
   let score = Number(channel?.sourcePriority || 0) * 12;
   const quality = Number(channel?.quality || 0);
@@ -1616,13 +1664,21 @@ export const dedupeMergedChannels = (channels) => {
        * same URL and is intended to be tried directly on a UK device. Prefer
        * the non-geo copy, then the higher-ranked source metadata.
        */
+      const existingLocked = lockedPrimaryRank(existing);
+      const candidateLocked = lockedPrimaryRank(candidate);
       const existingGeo = Number(existing?.geoRestricted === true);
       const candidateGeo = Number(candidate?.geoRestricted === true);
       if (
-        candidateGeo < existingGeo ||
+        candidateLocked > existingLocked ||
         (
-          candidateGeo === existingGeo &&
-          Number(candidate?.score || 0) > Number(existing?.score || 0)
+          candidateLocked === existingLocked &&
+          (
+            candidateGeo < existingGeo ||
+            (
+              candidateGeo === existingGeo &&
+              Number(candidate?.score || 0) > Number(existing?.score || 0)
+            )
+          )
         )
       ) {
         uniqueByUrlMap.set(urlKey, candidate);
@@ -1643,6 +1699,7 @@ export const dedupeMergedChannels = (channels) => {
 
     usableCandidates.sort(
       (a, b) =>
+        lockedPrimaryRank(b) - lockedPrimaryRank(a) ||
         Number(a?.geoRestricted === true) - Number(b?.geoRestricted === true) ||
         Number(b?.score || 0) - Number(a?.score || 0)
     );
