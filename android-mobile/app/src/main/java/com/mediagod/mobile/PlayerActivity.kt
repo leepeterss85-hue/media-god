@@ -310,6 +310,34 @@ class PlayerActivity : Activity() {
             inferPrimaryMimeType(streamUrl)?.let(builder::setMimeType)
         }
 
+        payload.optJSONObject("drm")?.let { drm ->
+            val scheme = drm.optString("scheme", "widevine").trim().lowercase()
+            val licenseUrl = drm.optString("licenseUrl").trim()
+
+            if (scheme == "widevine" && licenseUrl.startsWith("http")) {
+                val drmBuilder = MediaItem.DrmConfiguration.Builder(C.WIDEVINE_UUID)
+                    .setLicenseUri(licenseUrl)
+
+                val drmHeaders = mutableMapOf<String, String>()
+                drm.optJSONObject("headers")?.let { headerJson ->
+                    val keys = headerJson.keys()
+                    while (keys.hasNext()) {
+                        val key = keys.next()
+                        val value = headerJson.optString(key).trim()
+                        if (key.isNotBlank() && value.isNotBlank()) {
+                            drmHeaders[key] = value
+                        }
+                    }
+                }
+
+                if (drmHeaders.isNotEmpty()) {
+                    drmBuilder.setLicenseRequestHeaders(drmHeaders)
+                }
+
+                builder.setDrmConfiguration(drmBuilder.build())
+            }
+        }
+
         val subtitleConfigurations = buildSubtitleConfigurations(
             payload.optJSONArray("subtitles") ?: JSONArray()
         )
