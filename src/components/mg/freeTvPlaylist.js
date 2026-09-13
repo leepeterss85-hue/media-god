@@ -753,10 +753,51 @@ export const normaliseCountryCode = (value) => {
   const raw = String(value || "").trim().toUpperCase();
   if (!raw) return "";
 
+  const exactAliases = {
+    "UNITED KINGDOM": "GB",
+    "GREAT BRITAIN": "GB",
+    "UNITED STATES": "US",
+    "UNITED STATES OF AMERICA": "US",
+    CANADA: "CA",
+    AUSTRALIA: "AU",
+    "NEW ZEALAND": "NZ",
+    IRELAND: "IE",
+    FRANCE: "FR",
+    GERMANY: "DE",
+    SPAIN: "ES",
+    ITALY: "IT",
+    INDIA: "IN",
+  };
+
+  if (exactAliases[raw]) return exactAliases[raw];
+
   const first = raw.split(/[;,/|\s]+/).find(Boolean) || "";
   if (first === "UK" || first === "GBR") return "GB";
   if (first === "USA") return "US";
   return first;
+};
+
+const countryFromGroupTitle = (value) => {
+  const raw = String(value || "").trim().toUpperCase();
+  if (!raw) return "";
+
+  const exactCountryGroups = new Set([
+    "UNITED KINGDOM",
+    "GREAT BRITAIN",
+    "UNITED STATES",
+    "UNITED STATES OF AMERICA",
+    "CANADA",
+    "AUSTRALIA",
+    "NEW ZEALAND",
+    "IRELAND",
+    "FRANCE",
+    "GERMANY",
+    "SPAIN",
+    "ITALY",
+    "INDIA",
+  ]);
+
+  return exactCountryGroups.has(raw) ? normaliseCountryCode(raw) : "";
 };
 
 const providerDecorationFreeName = (value) =>
@@ -1051,9 +1092,11 @@ const sourceScore = (channel) => {
 const inferTags = ({ sourceCategory, group, name, country }) => {
   const tags = new Set();
   const joined = `${sourceCategory || ""} ${group || ""} ${name || ""}`.toLowerCase();
+  const motorsport = /\b(?:formula\s*1|f1|motogp|nascar|nhra|motorsport|motor\s*racing|motorracing|racer|powernation|torque)\b/.test(joined);
 
   if (sourceCategory) tags.add(sourceCategory);
-  if (/sport|football|cricket|golf|f1/.test(joined)) tags.add("Sports");
+  if (/sport|football|cricket|golf|f1/.test(joined) || motorsport) tags.add("Sports");
+  if (motorsport) tags.add("Motorsport");
   if (/movie|cinema|film/.test(joined)) tags.add("Movies");
   if (/news/.test(joined)) tags.add("News");
   if (/united kingdom|\buk\b|great britain/.test(joined) || /^(gb|uk)$/i.test(String(country || ""))) {
@@ -1113,16 +1156,18 @@ export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
       const name = cleanChannelName(rawName) || "Unknown";
       const logo = attr(line, "tvg-logo");
       const tvgId = attr(line, "tvg-id");
+      const playlistGroup = attr(line, "group-title");
       const country = normaliseCountryCode(
         attr(line, "tvg-country") ||
           countryFromTvgId(tvgId) ||
           source?.country ||
+          countryFromGroupTitle(playlistGroup) ||
           (String(source?.category || "").trim().toLowerCase() ===
           "united kingdom"
             ? "GB"
             : "")
       );
-      const group = attr(line, "group-title") || source.category || country || "Other";
+      const group = playlistGroup || source.category || country || "Other";
       const channelNumber = attr(line, "tvg-chno");
       const quality = qualityFromText(`${rawName} ${line}`);
       const geoRestricted = rawName.includes("Ⓖ") || /\bgeo[- ]?blocked\b/i.test(rawName) || /\bgeo[- ]?restricted\b/i.test(rawName) || source.id === "nimeyer-uk-list";
