@@ -24,11 +24,6 @@ const apps = [
 
 let failures = 0;
 
-const videoPlayer = requireFile(
-  "src/components/mg/VideoPlayer.jsx",
-  "web/native player coordination"
-);
-
 const requireFile = (filePath, label) => {
   const absolute = path.join(root, filePath);
   if (!fs.existsSync(absolute)) {
@@ -38,6 +33,11 @@ const requireFile = (filePath, label) => {
   }
   return fs.readFileSync(absolute, "utf8");
 };
+
+const videoPlayer = requireFile(
+  "src/components/mg/VideoPlayer.jsx",
+  "web/native player coordination"
+);
 
 const nativeCoordinationChecks = [
   [
