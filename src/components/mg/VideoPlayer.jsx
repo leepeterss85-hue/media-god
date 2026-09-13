@@ -1604,6 +1604,21 @@ export default function VideoPlayer({
         success: true,
         startupMs: Math.max(0, now - startedAt),
       });
+
+      const position = liveSourcePosition(activeIdx);
+      showLiveRecoveryNotice(
+        `Source ${position.current || 1}/${position.total || 1} connected`,
+        {
+          index: activeIdx,
+          kind: "connected",
+          clearAfterMs: 2800,
+        }
+      );
+      emitLiveDiagnostic({
+        event: "playing",
+        index: activeIdx,
+        message: "Live source started successfully",
+      });
     };
 
     const onError = () => {
