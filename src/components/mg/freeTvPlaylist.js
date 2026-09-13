@@ -1597,14 +1597,37 @@ export const dedupeMergedChannels = (channels) => {
 
   const merged = [];
   for (const candidates of groups.values()) {
-    const uniqueByUrl = [];
-    const seenUrls = new Set();
+    const uniqueByUrlMap = new Map();
     for (const candidate of candidates) {
       const urlKey = String(candidate?.url || "").trim();
-      if (!urlKey || seenUrls.has(urlKey)) continue;
-      seenUrls.add(urlKey);
-      uniqueByUrl.push(candidate);
+      if (!urlKey) continue;
+
+      const existing = uniqueByUrlMap.get(urlKey);
+      if (!existing) {
+        uniqueByUrlMap.set(urlKey, candidate);
+        continue;
+      }
+
+      /*
+       * The same broadcaster CDN URL can arrive from several repositories.
+       * Do not let the first copy win blindly: a repository may decorate the
+       * row as geo-restricted while Media God's curated UK copy is the exact
+       * same URL and is intended to be tried directly on a UK device. Prefer
+       * the non-geo copy, then the higher-ranked source metadata.
+       */
+      const existingGeo = Number(existing?.geoRestricted === true);
+      const candidateGeo = Number(candidate?.geoRestricted === true);
+      if (
+        candidateGeo < existingGeo ||
+        (
+          candidateGeo === existingGeo &&
+          Number(candidate?.score || 0) > Number(existing?.score || 0)
+        )
+      ) {
+        uniqueByUrlMap.set(urlKey, candidate);
+      }
     }
+    const uniqueByUrl = [...uniqueByUrlMap.values()];
 
     // Keep native-capable HTTP(S) candidates even when Chromium cannot play
     // them (mixed content or custom headers). Fire TV/Android Media3 can still
