@@ -1246,6 +1246,7 @@ export default function VideoPlayer({
     {
       blacklistTorrentHash = false,
       immediate = false,
+      liveFailureClass = "",
     } = {}
   ) => {
     const hardFailureMessage =
@@ -1297,6 +1298,21 @@ export default function VideoPlayer({
       return false;
     }
 
+    const activeIsLive =
+      source?.type === "live" || active?.live || active?.type === "live";
+    const classifiedLiveFailure = activeIsLive
+      ? classifyLiveFailure(message, liveFailureClass)
+      : "";
+
+    if (activeIsLive) {
+      emitLiveDiagnostic({
+        event: "failure",
+        failureClass: classifiedLiveFailure,
+        index: activeIdx,
+        message,
+      });
+    }
+
     markSourceFailed(
       activeIdx
     );
@@ -1316,6 +1332,17 @@ export default function VideoPlayer({
       setRdResolving(false);
       setRdPolling(false);
       setRdTorrentId(null);
+
+      if (activeIsLive) {
+        showLiveRecoveryNotice(
+          `Source ${liveSourcePosition(activeIdx).current || 1}/${liveSourcePosition(activeIdx).total || 1} failed • no working backup`,
+          {
+            index: activeIdx,
+            failureClass: classifiedLiveFailure,
+            kind: "error",
+          }
+        );
+      }
 
       setRdError(
         `${message} No other playable source is available.`
@@ -1391,11 +1418,30 @@ export default function VideoPlayer({
       return true;
     }
 
+    if (activeIsLive) {
+      const nextPosition = liveSourcePosition(nextIndex);
+      const reasonLabel = liveFailureLabel(classifiedLiveFailure);
+      showLiveRecoveryNotice(
+        `Trying source ${nextPosition.current || 1}/${nextPosition.total || sources.length} • ${reasonLabel}`,
+        {
+          index: nextIndex,
+          failureClass: classifiedLiveFailure,
+          kind: "trying",
+        }
+      );
+      emitLiveDiagnostic({
+        event: "failover",
+        failureClass: classifiedLiveFailure,
+        index: nextIndex,
+        message: `Trying backup after ${reasonLabel}`,
+      });
+    }
+
     switchToSource(nextIndex, {
       preservePosition: true,
       statusMessage:
-        source?.type === "live" || active?.live || active?.type === "live"
-          ? "Live stream failed — trying the best available backup…"
+        activeIsLive
+          ? `Live stream failed (${liveFailureLabel(classifiedLiveFailure)}) — trying the best available backup…`
           : "Source failed — switching to the best available backup…",
     });
 
