@@ -39,6 +39,7 @@ import {
   openNativeFireTvExternalUrl,
 } from "@/components/mg/nativeFireTvBridge";
 import { isAndroidMobileRuntime } from "@/components/mg/runtimePlatform";
+import { compareLiveTvRankRecords } from "@/components/mg/liveTvRankingCore";
 
 const DEFAULT_FILTER = "All";
 const MAX_VISIBLE = 400;
@@ -533,15 +534,11 @@ const smartChannelCompare = (a, b, rankByKey) => {
   const aRank = rankByKey.get(channelMemoryKey(a)) || {};
   const bRank = rankByKey.get(channelMemoryKey(b)) || {};
 
-  return (
-    Number(bRank.favourite === true) - Number(aRank.favourite === true) ||
-    Number(bRank.uk === true) - Number(aRank.uk === true) ||
-    Number(aRank.recentIndex ?? Number.MAX_SAFE_INTEGER) -
-      Number(bRank.recentIndex ?? Number.MAX_SAFE_INTEGER) ||
-    Number(bRank.reliability || 0) - Number(aRank.reliability || 0) ||
-    Number(bRank.sourcePriority || 0) - Number(aRank.sourcePriority || 0) ||
-    Number(bRank.quality || 0) - Number(aRank.quality || 0) ||
-    String(a?.name || "").localeCompare(String(b?.name || ""))
+  return compareLiveTvRankRecords(
+    aRank,
+    bRank,
+    a?.name,
+    b?.name
   );
 };
 
