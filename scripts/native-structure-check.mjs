@@ -24,6 +24,11 @@ const apps = [
 
 let failures = 0;
 
+const videoPlayer = requireFile(
+  "src/components/mg/VideoPlayer.jsx",
+  "web/native player coordination"
+);
+
 const requireFile = (filePath, label) => {
   const absolute = path.join(root, filePath);
   if (!fs.existsSync(absolute)) {
@@ -33,6 +38,34 @@ const requireFile = (filePath, label) => {
   }
   return fs.readFileSync(absolute, "utf8");
 };
+
+const nativeCoordinationChecks = [
+  [
+    /if\s*\(\s*!isLive\s*\|\|\s*isNativeFireTvPlayerAvailable\(\)\s*\)/m.test(
+      videoPlayer
+    ),
+    "native Live TV browser-listener guard",
+  ],
+  [
+    /!isLive\s*\|\|\s*sources\.length\s*<=\s*1\s*\|\|\s*isNativeFireTvPlayerAvailable\(\)/m.test(
+      videoPlayer
+    ),
+    "native Live TV watchdog guard",
+  ],
+  [
+    /if\s*\(\s*!isLive\s*\)\s*\{\s*nativeLaunchTimerRef\.current\s*=\s*window\.setTimeout/m.test(
+      videoPlayer
+    ),
+    "native Live TV duplicate fallback-timer guard",
+  ],
+];
+
+for (const [ok, label] of nativeCoordinationChecks) {
+  if (!ok) {
+    console.error(`FAIL player coordination: ${label}`);
+    failures += 1;
+  }
+}
 
 for (const app of apps) {
   const gradlePath = `${app.dir}/app/build.gradle.kts`;
