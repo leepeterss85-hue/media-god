@@ -28,6 +28,7 @@ import { devicePlaybackReliabilityAdjustment } from "@/components/mg/playbackRel
 import { readPlaybackPreferences } from "@/components/mg/playbackPreferences";
 import { readTrackPreferences } from "@/components/mg/mediaTrackPreferences";
 import { debridProviderScoreHints } from "@/components/mg/debridProviderReliability";
+import { chooseDebridResolutionStrategy } from "@/components/mg/debridResolutionStrategy";
 
 const PlayerContext = createContext(null);
 
@@ -366,34 +367,15 @@ const annotateDebridCache = async (items, hasDebrid) => {
       );
 
       const debridCached = cachedProviders.length > 0;
-      const existingStrategy = String(item?.resolutionStrategy || "").trim();
-      const torrentTrackers = Array.isArray(item?.torrentTrackers)
-        ? item.torrentTrackers.filter(Boolean)
-        : [];
-      const trackerRichMagnet = [
-        item?.richMagnet,
-        item?.magnet,
-        item?.magnetLink,
-        item?.src,
-        item?.url,
-      ].some((value) => /(?:[?&])tr=/i.test(String(value || "")));
-      const hasTorrentMetadata =
-        torrentTrackers.length > 0 || trackerRichMagnet;
 
       /*
        * Cache annotation must not turn a real hash/tracker-backed torrent back
-       * into an opaque Comet uncached row. Same-hash merging can legitimately
-       * leave cometUncached=true on a source after Torrentio/another discovery
-       * addon has supplied the actual torrent identity and trackers. In that
-       * case Media God owns the RD add/select/poll operation via rd_magnet.
+       * into an opaque Comet uncached row. Keep this decision in a pure helper
+       * so the same production rule is covered by the regression suite.
        */
-      const resolutionStrategy = debridCached
-        ? "cached_debrid"
-        : existingStrategy === "rd_magnet" || hasTorrentMetadata
-          ? "rd_magnet"
-          : item?.cometUncached === true
-            ? "comet_uncached"
-            : existingStrategy || "rd_magnet";
+      const resolutionStrategy = chooseDebridResolutionStrategy(item, {
+        debridCached,
+      });
 
       return {
         ...item,
