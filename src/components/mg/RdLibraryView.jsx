@@ -1,5 +1,17 @@
-import React, { useEffect, useState } from "react";
-import { Play, RefreshCw, Loader2, HardDrive, AlertCircle, Trash2 } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  Activity,
+  AlertCircle,
+  CheckCircle2,
+  HardDrive,
+  Loader2,
+  Play,
+  RefreshCw,
+  Search,
+  Trash2,
+  XCircle,
+} from "lucide-react";
+
 import { base44 } from "@/api/base44Client";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 import { cn } from "@/lib/utils";
@@ -8,30 +20,85 @@ const STATUS_LABEL = {
   downloaded: "Ready",
   downloading: "Downloading",
   magnet_conversion: "Converting",
-  waiting_files_selection: "Selecting",
+  waiting_files_selection: "Selecting files",
   waiting_selection: "Queued",
-  magnet_error: "Error",
-  files_error: "Error",
   queued: "Queued",
+  magnet_error: "Magnet error",
+  files_error: "Files error",
+  virus: "Blocked",
+  dead: "Unavailable",
+};
+
+const normaliseStatus = (torrent) =>
+  String(torrent?.status || "").trim().toLowerCase();
+
+const isReady = (torrent) =>
+  torrent?.ready === true || normaliseStatus(torrent) === "downloaded";
+
+const isError = (torrent) =>
+  /error|dead|virus|invalid/i.test(normaliseStatus(torrent));
+
+const isActive = (torrent) => !isReady(torrent) && !isError(torrent);
+
+const bucketFor = (torrent) => {
+  if (isReady(torrent)) return "ready";
+  if (isError(torrent)) return "errors";
+  return "active";
+};
+
+const formatBytes = (value) => {
+  const bytes = Number(value || 0);
+  if (!Number.isFinite(bytes) || bytes <= 0) return "";
+  if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} GB`;
+  if (bytes >= 1e6) return `${(bytes / 1e6).toFixed(0)} MB`;
+  if (bytes >= 1e3) return `${(bytes / 1e3).toFixed(0)} KB`;
+  return `${bytes} B`;
+};
+
+const formatDate = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }).format(date);
+  } catch {
+    return "";
+  }
+};
+
+const addedTime = (torrent) => {
+  const value = new Date(torrent?.added || 0).getTime();
+  return Number.isFinite(value) ? value : 0;
 };
 
 export default function RdLibraryView() {
   const [torrents, setTorrents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [busyId, setBusyId] = useState("");
+  const [clearingErrors, setClearingErrors] = useState(false);
+  const [tab, setTab] = useState("ready");
+  const [query, setQuery] = useState("");
   const player = usePlayer();
 
-  const load = async () => {
-    setLoading(true);
+  const load = async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true);
     setError("");
+
     try {
-      const res = await base44.functions.invoke("realDebrid", { action: "torrents_list" });
-      setTorrents(res.data?.torrents || []);
-    } catch (e) {
-      setError(e.message || "Could not load your Real-Debrid library.");
+      const response = await base44.functions.invoke("realDebrid", {
+        action: "torrents_list",
+      });
+      setTorrents(Array.isArray(response?.data?.torrents) ? response.data.torrents : []);
+    } catch (loadError) {
+      setError(loadError?.message || "Could not load your Real-Debrid library.");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -39,8 +106,27 @@ export default function RdLibraryView() {
     load();
   }, []);
 
-  const play = (t) => {
-    const torrentId = String(t?.id || "").trim();
+  const ready = useMemo(() => torrents.filter(isReady), [torrents]);
+  const active = useMemo(() => torrents.filter(isActive), [torrents]);
+  const errored = useMemo(() => torrents.filter(isError), [torrents]);
+
+  const visible = useMemo(() => {
+    const wanted = query.trim().toLowerCase();
+
+    return torrents
+      .filter((torrent) => {
+        if (tab !== "all" && bucketFor(torrent) !== tab) return false;
+        if (!wanted) return true;
+
+        return `${torrent?.filename || ""} ${torrent?.status || ""}`
+          .toLowerCase()
+          .includes(wanted);
+      })
+      .sort((a, b) => addedTime(b) - addedTime(a));
+  }, [query, tab, torrents]);
+
+  const play = (torrent) => {
+    const torrentId = String(torrent?.id || "").trim();
 
     if (!torrentId) {
       setError("This Real-Debrid item is missing its torrent ID.");
@@ -48,82 +134,165 @@ export default function RdLibraryView() {
     }
 
     player.play({
-      title: t.filename || "Real-Debrid stream",
+      title: torrent?.filename || "Real-Debrid stream",
       hasRd: true,
       hasDebrid: true,
       skipAddonLookup: true,
       skipRdLookup: true,
       sources: [
         {
-          label: t.filename || "Real-Debrid Library",
+          label: torrent?.filename || "Real-Debrid Library",
           type: "rd_torrent",
           src: torrentId,
           rdTorrentId: torrentId,
           viaRealDebrid: true,
           debridProvider: "realdebrid",
-          debridCached: t.ready === true,
+          debridCached: true,
         },
       ],
     });
   };
 
-  const remove = async (t) => {
-    setBusy(true);
+  const remove = async (torrent) => {
+    const torrentId = String(torrent?.id || "").trim();
+    if (!torrentId || busyId) return;
+
+    setBusyId(torrentId);
+    setError("");
+
     try {
-      await base44.functions.invoke("realDebrid", { action: "torrent_delete", torrent_id: t.id });
-      setTorrents((prev) => prev.filter((x) => x.id !== t.id));
-    } catch (e) {
-      setError(e.message || "Could not delete torrent.");
+      await base44.functions.invoke("realDebrid", {
+        action: "torrent_delete",
+        torrent_id: torrentId,
+      });
+      setTorrents((current) =>
+        current.filter((item) => String(item?.id || "") !== torrentId)
+      );
+    } catch (removeError) {
+      setError(removeError?.message || "Could not remove that Real-Debrid item.");
     } finally {
-      setBusy(false);
+      setBusyId("");
     }
   };
 
   const clearErrors = async () => {
-    setBusy(true);
-    const errs = torrents.filter((t) => !t.ready && (t.status || "").includes("error"));
-    for (const t of errs) {
+    if (clearingErrors || errored.length === 0) return;
+
+    setClearingErrors(true);
+    setError("");
+
+    for (const torrent of errored) {
+      const torrentId = String(torrent?.id || "").trim();
+      if (!torrentId) continue;
+
       try {
-        await base44.functions.invoke("realDebrid", { action: "torrent_delete", torrent_id: t.id });
-      } catch {}
+        await base44.functions.invoke("realDebrid", {
+          action: "torrent_delete",
+          torrent_id: torrentId,
+        });
+      } catch {
+        // Keep clearing the remaining stale errors.
+      }
     }
-    await load();
-    setBusy(false);
+
+    await load({ silent: true });
+    setClearingErrors(false);
   };
 
-  const errorCount = torrents.filter((t) => !t.ready && (t.status || "").includes("error")).length;
-
-  const fmt = (b) => (b > 1e9 ? `${(b / 1e9).toFixed(1)}GB` : `${(b / 1e6).toFixed(0)}MB`);
+  const tabs = [
+    { id: "ready", label: "Ready", count: ready.length, icon: CheckCircle2 },
+    { id: "active", label: "Active", count: active.length, icon: Activity },
+    { id: "errors", label: "Errors", count: errored.length, icon: XCircle },
+    { id: "all", label: "All", count: torrents.length, icon: HardDrive },
+  ];
 
   return (
-    <div className="p-4 md:p-6">
-      <div className="flex items-center justify-between mb-1">
-        <h1 className="text-xl font-bold text-white">RD Library</h1>
-        <button
-          onClick={load}
-          disabled={loading}
-          className="flex items-center gap-1.5 text-xs text-white/60 hover:text-white px-3 py-1.5 rounded-lg hover:bg-white/5 disabled:opacity-60"
-        >
-          {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-          Refresh
-        </button>
-        {errorCount > 0 && (
+    <div data-mg-rd-library-view="true" className="p-4 md:p-6 max-w-5xl mx-auto w-full">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
+        <div>
+          <div className="flex items-center gap-2">
+            <HardDrive className="w-5 h-5 text-mg-green" />
+            <h1 className="text-xl font-bold text-white">RD Library</h1>
+          </div>
+          <p className="mt-1 text-sm text-white/50">
+            Browse completed Real-Debrid items, current transfers and account errors.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {errored.length > 0 && (
+            <button
+              type="button"
+              onClick={clearErrors}
+              disabled={clearingErrors || Boolean(busyId)}
+              className="min-h-11 inline-flex items-center gap-2 rounded-lg border border-red-400/20 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-300 hover:bg-red-500/15 disabled:opacity-50"
+            >
+              {clearingErrors ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Trash2 className="w-4 h-4" />
+              )}
+              Clear errors ({errored.length})
+            </button>
+          )}
+
           <button
-            onClick={clearErrors}
-            disabled={busy}
-            className="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 px-3 py-1.5 rounded-lg hover:bg-red-500/10 disabled:opacity-60"
+            type="button"
+            onClick={() => load()}
+            disabled={loading}
+            className="min-h-11 inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/70 hover:bg-white/10 hover:text-white disabled:opacity-50"
           >
-            {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-            Clear errors ({errorCount})
+            {loading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <RefreshCw className="w-4 h-4" />
+            )}
+            Refresh
           </button>
-        )}
+        </div>
       </div>
-      <p className="text-sm text-white/50 mb-6">
-        {torrents.length} {torrents.length === 1 ? "torrent" : "torrents"} on your Real-Debrid account
-      </p>
+
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 mb-4">
+        {tabs.map((item) => {
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setTab(item.id)}
+              className={cn(
+                "rounded-xl border p-3 text-left transition",
+                tab === item.id
+                  ? "border-mg-green/50 bg-mg-green/10"
+                  : "border-white/10 bg-mg-card hover:bg-white/5"
+              )}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <p className={cn("text-xl font-bold", item.id === "errors" ? "text-red-300" : "text-white") }>
+                  {item.count}
+                </p>
+                <Icon className={cn("w-4 h-4", item.id === "ready" ? "text-mg-green" : item.id === "errors" ? "text-red-300" : "text-white/40")} />
+              </div>
+              <p className="mt-0.5 text-[10px] uppercase tracking-wide text-white/40">
+                {item.label}
+              </p>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="relative mb-5">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
+        <input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search your Real-Debrid library…"
+          className="min-h-11 w-full rounded-lg border border-white/10 bg-black/25 pl-9 pr-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-mg-green/50"
+        />
+      </div>
 
       {error && (
-        <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg p-3 mb-4">
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">
           <AlertCircle className="w-4 h-4 shrink-0" />
           <span>{error}</span>
         </div>
@@ -131,74 +300,119 @@ export default function RdLibraryView() {
 
       {loading ? (
         <div className="flex flex-col gap-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="h-16 bg-mg-card rounded-lg animate-pulse" />
+          {Array.from({ length: 5 }).map((_, index) => (
+            <div key={index} className="h-20 bg-mg-card rounded-xl animate-pulse" />
           ))}
         </div>
-      ) : torrents.length === 0 ? (
-        <div className="text-center py-20">
+      ) : visible.length === 0 ? (
+        <div className="rounded-xl border border-white/10 bg-mg-card/60 py-16 text-center">
           <HardDrive className="w-10 h-10 text-white/20 mx-auto mb-3" />
-          <p className="text-white/40 text-sm">No torrents on your Real-Debrid account yet.</p>
-          <p className="text-white/30 text-xs mt-1">
-            Add a magnet from the player and it'll show up here.
+          <p className="text-white/50 text-sm">
+            {query.trim()
+              ? "No library items match your search."
+              : tab === "ready"
+                ? "No completed Real-Debrid items yet."
+                : tab === "active"
+                  ? "No active transfers."
+                  : tab === "errors"
+                    ? "No Real-Debrid errors."
+                    : "Your Real-Debrid library is empty."}
           </p>
         </div>
       ) : (
         <div className="flex flex-col gap-2">
-          {torrents.map((t) => {
-            const ready = t.ready;
-            const status = STATUS_LABEL[t.status] || t.status;
+          {visible.map((torrent) => {
+            const readyNow = isReady(torrent);
+            const errorNow = isError(torrent);
+            const progress = Math.min(100, Math.max(0, Number(torrent?.progress || 0)));
+            const status = STATUS_LABEL[normaliseStatus(torrent)] || torrent?.status || "Pending";
+            const size = formatBytes(torrent?.bytes);
+            const added = formatDate(torrent?.added);
+            const itemBusy = String(torrent?.id || "") === busyId;
+
             return (
               <div
-                key={t.id}
-                className="flex items-center gap-3 bg-mg-card border border-white/10 rounded-lg p-3"
+                key={torrent.id}
+                className="flex items-center gap-3 rounded-xl border border-white/10 bg-mg-card p-3 sm:p-4"
               >
                 <div
                   className={cn(
-                    "w-10 h-10 rounded-md flex items-center justify-center shrink-0",
-                    ready ? "bg-mg-green/15 text-mg-green" : "bg-white/5 text-white/40"
+                    "w-11 h-11 rounded-lg flex items-center justify-center shrink-0",
+                    readyNow
+                      ? "bg-mg-green/15 text-mg-green"
+                      : errorNow
+                        ? "bg-red-500/10 text-red-300"
+                        : "bg-white/5 text-white/40"
                   )}
                 >
-                  <HardDrive className="w-5 h-5" />
+                  {readyNow ? (
+                    <CheckCircle2 className="w-5 h-5" />
+                  ) : errorNow ? (
+                    <XCircle className="w-5 h-5" />
+                  ) : (
+                    <Activity className="w-5 h-5" />
+                  )}
                 </div>
+
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm text-white truncate">{t.filename || "Untitled"}</p>
-                  <div className="flex items-center gap-2 mt-0.5">
+                  <p className="text-sm font-medium text-white truncate">
+                    {torrent.filename || "Untitled"}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2 mt-1">
                     <span
                       className={cn(
                         "text-[10px] font-semibold px-1.5 py-0.5 rounded",
-                        ready ? "bg-mg-green/15 text-mg-green" : "bg-white/5 text-white/50"
+                        readyNow
+                          ? "bg-mg-green/15 text-mg-green"
+                          : errorNow
+                            ? "bg-red-500/10 text-red-300"
+                            : "bg-white/5 text-white/50"
                       )}
                     >
                       {status}
                     </span>
-                    {t.bytes > 0 && <span className="text-[10px] text-white/40">{fmt(t.bytes)}</span>}
-                    {!ready && t.progress > 0 && (
-                      <span className="text-[10px] text-white/40">{Math.round(t.progress)}%</span>
+                    {size && <span className="text-[10px] text-white/40">{size}</span>}
+                    {added && <span className="text-[10px] text-white/35">Added {added}</span>}
+                    {!readyNow && !errorNow && progress > 0 && (
+                      <span className="text-[10px] text-white/40">{Math.round(progress)}%</span>
                     )}
                   </div>
-                  {!ready && t.progress > 0 && (
-                    <div className="h-1 bg-white/5 rounded-full mt-1.5 overflow-hidden">
-                      <div className="h-full bg-mg-green" style={{ width: `${Math.min(100, t.progress)}%` }} />
+
+                  {!readyNow && !errorNow && (
+                    <div className="h-1 bg-white/5 rounded-full mt-2 overflow-hidden">
+                      <div
+                        className="h-full bg-mg-green transition-all duration-500"
+                        style={{ width: `${progress}%` }}
+                      />
                     </div>
                   )}
                 </div>
+
                 <div className="flex items-center gap-1.5 shrink-0">
-                  {ready && (
+                  {readyNow && (
                     <button
-                      onClick={() => play(t)}
-                      className="flex items-center gap-1.5 bg-mg-green text-black font-semibold text-xs px-3 py-2 rounded-lg hover:bg-mg-green-dim"
+                      type="button"
+                      onClick={() => play(torrent)}
+                      className="min-h-10 flex items-center gap-1.5 bg-mg-green text-black font-semibold text-xs px-3 py-2 rounded-lg hover:bg-mg-green-dim"
                     >
-                      <Play className="w-3.5 h-3.5 fill-black" /> Play
+                      <Play className="w-3.5 h-3.5 fill-black" />
+                      Play
                     </button>
                   )}
+
                   <button
-                    onClick={() => remove(t)}
-                    disabled={busy}
+                    type="button"
+                    onClick={() => remove(torrent)}
+                    disabled={Boolean(busyId) || clearingErrors}
                     title="Remove from Real-Debrid"
-                    className="flex items-center justify-center w-8 h-8 rounded-lg text-white/40 hover:text-red-400 hover:bg-red-500/10 disabled:opacity-50"
+                    aria-label="Remove from Real-Debrid"
+                    className="flex items-center justify-center w-10 h-10 rounded-lg text-white/40 hover:text-red-300 hover:bg-red-500/10 disabled:opacity-40"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    {itemBusy ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
                   </button>
                 </div>
               </div>
