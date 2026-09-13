@@ -1,4 +1,4 @@
-import { base44 } from "@/api/base44Client";
+import { base44 } from "../../api/base44Client.js";
 
 export const ANT_SPORTS_BASE_URL = "https://antsports.tv";
 export const ANT_SPORTS_DIRECTORY_URL = `${ANT_SPORTS_BASE_URL}/us`;
