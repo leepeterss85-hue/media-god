@@ -15,6 +15,9 @@ const navbar = await read("src/components/mg/Navbar.jsx");
 const roadmap = await read("src/components/mg/RoadmapView.jsx");
 const downloads = await read("src/components/mg/DebridDashboard.jsx");
 const watchParty = await read("src/components/mg/WatchPartyView.jsx");
+const remoteTv = await read("src/components/mg/PlayerQrRemote.jsx");
+const remotePhone = await read("src/pages/PlayerRemote.jsx");
+const remoteSchema = await read("base44/entities/PlayerRemoteSession.jsonc");
 const liveTv = await read("src/components/mg/LiveTVView.jsx");
 const evSports = await read("src/components/mg/evSportsScraper.js");
 const freeTv = await read("src/components/mg/freeTvPlaylist.js");
@@ -82,6 +85,18 @@ for (const marker of [
 ]) {
   expect(watchParty.includes(marker), `Watch Party regression marker missing: ${marker}`);
 }
+
+for (const marker of ["remote_last_seen_at", "Phone connected", "Waiting for phone"]) {
+  expect(remoteTv.includes(marker), `TV remote status regression marker missing: ${marker}`);
+}
+expect(
+  remotePhone.includes("heartbeatTimer") && remotePhone.includes("remote_last_seen_at"),
+  "Phone remote heartbeat is missing"
+);
+expect(
+  remoteSchema.includes('"remote_last_seen_at"'),
+  "Phone remote heartbeat schema field is missing"
+);
 
 expect(
   evSports.includes("EV_SPORTS_SOURCE_PRIORITY = 220"),
