@@ -234,6 +234,7 @@ export default function PlayerQrRemote({ showIdle = false }) {
         status: "idle",
         expires_at: expiresAt,
         last_seen_at: new Date().toISOString(),
+        remote_last_seen_at: "",
       });
     };
 
@@ -620,6 +621,13 @@ export default function PlayerQrRemote({ showIdle = false }) {
   }, []);
 
   const playerOpen = Boolean(player?.isOpen);
+  const remoteLastSeenMs = session?.remote_last_seen_at
+    ? new Date(session.remote_last_seen_at).getTime()
+    : 0;
+  const remoteConnected =
+    Number.isFinite(remoteLastSeenMs) &&
+    remoteLastSeenMs > 0 &&
+    Date.now() - remoteLastSeenMs < 15000;
 
   /*
    * Keep the companion session alive at all times, but never place the QR over
@@ -673,13 +681,29 @@ export default function PlayerQrRemote({ showIdle = false }) {
         </div>
 
         <div className="mx-auto mt-5 max-w-lg rounded-xl border border-white/10 bg-black/20 p-4 text-left">
-          <p className="text-sm font-semibold text-mg-green 3xl:text-base">
-            Pairing ready
-          </p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold text-mg-green 3xl:text-base">
+              {remoteConnected ? "Phone connected" : "Pairing ready"}
+            </p>
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[10px] font-semibold ${
+                remoteConnected
+                  ? "border-mg-green/30 bg-mg-green/10 text-mg-green"
+                  : "border-white/10 bg-white/5 text-white/45"
+              }`}
+            >
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${
+                  remoteConnected ? "bg-mg-green" : "bg-white/30"
+                }`}
+              />
+              {remoteConnected ? "Connected" : "Waiting for phone"}
+            </span>
+          </div>
           <p className="mt-1 text-xs leading-relaxed text-white/50 3xl:text-sm">
-            After scanning, use Back or choose another Media God menu. The phone
-            remains paired in the background and the QR will not cover the TV or
-            player.
+            {remoteConnected
+              ? "Your phone remote is active. Use Back or choose another Media God menu; the connection stays alive in the background."
+              : "Scan the QR code with your phone. After pairing, you can leave this screen and the remote stays connected in the background."}
           </p>
         </div>
       </div>
