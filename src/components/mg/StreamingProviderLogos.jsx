@@ -71,10 +71,15 @@ export default function StreamingProviderLogos({
   limit = 3,
   className = "",
   compact = true,
+  initialProviders = [],
 }) {
   const rootRef = useRef(null);
   const [visible, setVisible] = useState(false);
-  const [providers, setProviders] = useState([]);
+  const [providers, setProviders] = useState(() =>
+    Array.isArray(initialProviders)
+      ? initialProviders
+      : []
+  );
 
   useEffect(() => {
     const element = rootRef.current;
@@ -109,12 +114,16 @@ export default function StreamingProviderLogos({
       };
     }
 
+    if (Array.isArray(initialProviders) && initialProviders.length > 0) {
+      setProviders(initialProviders);
+    }
+
     fetchProviders({
       mediaType,
       tmdbId,
       region,
     }).then((items) => {
-      if (!cancelled) {
+      if (!cancelled && items.length > 0) {
         setProviders(items);
       }
     });
@@ -122,7 +131,7 @@ export default function StreamingProviderLogos({
     return () => {
       cancelled = true;
     };
-  }, [visible, mediaType, tmdbId, region]);
+  }, [visible, mediaType, tmdbId, region, initialProviders]);
 
   const shown = providers.slice(0, Math.max(1, Number(limit || 3)));
 
