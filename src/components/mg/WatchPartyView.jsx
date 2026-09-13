@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   Check,
@@ -59,6 +59,8 @@ export default function WatchPartyView() {
   const [cTitle, setCTitle] = useState("");
   const [cUrl, setCUrl] = useState("");
   const [cPoster, setCPoster] = useState("");
+  const [presences, setPresences] = useState([]);
+  const presenceIdRef = useRef("");
 
   useEffect(() => {
     base44.auth.me().then(setUser).catch(() => {});
@@ -67,12 +69,110 @@ export default function WatchPartyView() {
   const isHost = Boolean(party && user && party.created_by_id === user.id);
   const roomCode = clean(party?.room_code).toUpperCase();
 
+  const activeParticipants = useMemo(() => {
+    const cutoff = Date.now() - 30000;
+    const byUser = new Map();
+
+    presences.forEach((presence) => {
+      const seen = new Date(presence?.last_seen_at || 0).getTime();
+      if (!Number.isFinite(seen) || seen < cutoff) return;
+
+      const key = clean(presence?.user_id || presence?.id);
+      if (!key) return;
+
+      const previous = byUser.get(key);
+      if (!previous || seen > previous.seen) {
+        byUser.set(key, {
+          seen,
+          name: clean(presence?.user_name) || "Guest",
+        });
+      }
+    });
+
+    return Array.from(byUser.values()).sort((a, b) => b.seen - a.seen);
+  }, [presences]);
+
   const shareUrl = useMemo(() => {
     if (!roomCode || typeof window === "undefined") return "";
     const url = new URL(window.location.origin);
     url.searchParams.set("party", roomCode);
     return url.toString();
   }, [roomCode]);
+
+  useEffect(() => {
+    if (!roomCode || !user?.id) {
+      setPresences([]);
+      presenceIdRef.current = "";
+      return undefined;
+    }
+
+    let cancelled = false;
+    let heartbeatTimer = null;
+
+    const userName = user?.full_name || user?.email || "Guest";
+
+    const loadRoomPresences = async () => {
+      try {
+        const rows = await base44.entities.WatchPartyPresence.filter({
+          room_code: roomCode,
+        });
+        if (!cancelled) setPresences(Array.isArray(rows) ? rows : []);
+      } catch {
+        // Presence is helpful but must never interrupt the room itself.
+      }
+    };
+
+    const heartbeat = async () => {
+      const now = new Date().toISOString();
+
+      try {
+        if (!presenceIdRef.current) {
+          const ownRows = await base44.entities.WatchPartyPresence.filter({
+            room_code: roomCode,
+            user_id: user.id,
+          });
+          const existing = Array.isArray(ownRows) ? ownRows[0] : null;
+
+          if (existing?.id) {
+            presenceIdRef.current = existing.id;
+          } else {
+            const created = await base44.entities.WatchPartyPresence.create({
+              room_code: roomCode,
+              user_id: user.id,
+              user_name: userName,
+              last_seen_at: now,
+            });
+            presenceIdRef.current = created?.id || "";
+          }
+        }
+
+        if (presenceIdRef.current) {
+          await base44.entities.WatchPartyPresence.update(presenceIdRef.current, {
+            user_name: userName,
+            last_seen_at: now,
+          });
+        }
+      } catch {
+        // Retry on the next heartbeat.
+      }
+
+      await loadRoomPresences();
+    };
+
+    heartbeat();
+    heartbeatTimer = window.setInterval(heartbeat, 10000);
+
+    return () => {
+      cancelled = true;
+      if (heartbeatTimer) window.clearInterval(heartbeatTimer);
+
+      const presenceId = presenceIdRef.current;
+      presenceIdRef.current = "";
+      if (presenceId) {
+        base44.entities.WatchPartyPresence.delete(presenceId).catch(() => {});
+      }
+    };
+  }, [roomCode, user?.id, user?.full_name, user?.email]);
 
   useEffect(() => {
     if (!party?.id) return undefined;
@@ -254,8 +354,15 @@ export default function WatchPartyView() {
   };
 
   const leave = () => {
+    const presenceId = presenceIdRef.current;
+    presenceIdRef.current = "";
+    if (presenceId) {
+      base44.entities.WatchPartyPresence.delete(presenceId).catch(() => {});
+    }
+
     setParty(null);
     setMessages([]);
+    setPresences([]);
     setMode("lobby");
     setError("");
     removePartyQuery();
@@ -268,8 +375,14 @@ export default function WatchPartyView() {
 
     try {
       await base44.entities.WatchParty.delete(party.id);
+      const presenceId = presenceIdRef.current;
+      presenceIdRef.current = "";
+      if (presenceId) {
+        base44.entities.WatchPartyPresence.delete(presenceId).catch(() => {});
+      }
       setParty(null);
       setMessages([]);
+      setPresences([]);
       setMode("lobby");
       removePartyQuery();
     } catch (endError) {
@@ -453,6 +566,10 @@ export default function WatchPartyView() {
               {linkCopied ? <Check className="w-3 h-3 text-mg-green" /> : "Share"}
             </button>
             <span className="text-[10px] text-white/30">{isHost ? "HOST" : "GUEST"}</span>
+            <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] font-semibold text-white/55">
+              <Users className="h-3 w-3 text-mg-green" />
+              {Math.max(1, activeParticipants.length)} online
+            </span>
           </div>
         </div>
 
@@ -511,6 +628,35 @@ export default function WatchPartyView() {
           </div>
         )}
       </div>
+
+      {activeParticipants.length > 0 && (
+        <div className="mb-4 rounded-xl border border-white/10 bg-mg-card/70 p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-white">
+              <Users className="h-4 w-4 text-mg-green" />
+              In this room
+            </div>
+            <span className="text-[10px] uppercase tracking-wide text-white/35">
+              Live presence
+            </span>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {activeParticipants.slice(0, 12).map((participant, index) => (
+              <span
+                key={`${participant.name}-${participant.seen}-${index}`}
+                className="rounded-full border border-white/10 bg-black/25 px-2.5 py-1 text-xs text-white/60"
+              >
+                {participant.name}
+              </span>
+            ))}
+            {activeParticipants.length > 12 && (
+              <span className="rounded-full border border-white/10 bg-black/25 px-2.5 py-1 text-xs text-white/45">
+                +{activeParticipants.length - 12} more
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="bg-mg-card border border-white/10 rounded-xl p-3">
         <div className="flex items-center gap-2 mb-2">
