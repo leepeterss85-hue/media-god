@@ -14,8 +14,11 @@ const home = await read("src/pages/Home.jsx");
 const navbar = await read("src/components/mg/Navbar.jsx");
 const roadmap = await read("src/components/mg/RoadmapView.jsx");
 const downloads = await read("src/components/mg/DebridDashboard.jsx");
+const rdLibrary = await read("src/components/mg/RdLibraryView.jsx");
+const realDebridBackend = await read("base44/functions/realDebrid/entry.ts");
 const addons = await read("src/components/mg/AddonsView.jsx");
 const watchParty = await read("src/components/mg/WatchPartyView.jsx");
+const watchPartyPresenceSchema = await read("base44/entities/WatchPartyPresence.jsonc");
 const remoteTv = await read("src/components/mg/PlayerQrRemote.jsx");
 const remotePhone = await read("src/pages/PlayerRemote.jsx");
 const remoteSchema = await read("base44/entities/PlayerRemoteSession.jsonc");
@@ -72,8 +75,28 @@ for (const marker of [
   '["all", "All"]',
   'skipAddonLookup: true',
   'skipRdLookup: true',
+  "retryFailed",
+  'action: "add_magnet"',
+  "validInfoHash",
 ]) {
   expect(downloads.includes(marker), `Downloads regression marker missing: ${marker}`);
+}
+
+for (const marker of [
+  'data-mg-rd-library-view="true"',
+  'setTab("ready")',
+  'placeholder="Search your Real-Debrid library…"',
+  'skipAddonLookup: true',
+  'skipRdLookup: true',
+]) {
+  expect(rdLibrary.includes(marker), `RD Library regression marker missing: ${marker}`);
+}
+
+for (const marker of ["original_filename:", "hash:", "seeders:", "speed:", "added:"]) {
+  expect(
+    realDebridBackend.includes(marker),
+    `Real-Debrid download metadata regression marker missing: ${marker}`
+  );
 }
 
 expect(
@@ -88,9 +111,18 @@ for (const marker of [
   "refreshRoom",
   "endRoom",
   "navigator.share",
+  "WatchPartyPresence",
+  "activeParticipants",
+  "Live presence",
 ]) {
   expect(watchParty.includes(marker), `Watch Party regression marker missing: ${marker}`);
 }
+expect(
+  watchPartyPresenceSchema.includes('"room_code"') &&
+    watchPartyPresenceSchema.includes('"user_id"') &&
+    watchPartyPresenceSchema.includes('"last_seen_at"'),
+  "Watch Party presence schema is incomplete"
+);
 
 for (const marker of ["remote_last_seen_at", "Phone connected", "Waiting for phone"]) {
   expect(remoteTv.includes(marker), `TV remote status regression marker missing: ${marker}`);
