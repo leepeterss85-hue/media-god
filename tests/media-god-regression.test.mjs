@@ -18,6 +18,14 @@ import {
 } from "../src/components/mg/debridResolutionStrategy.js";
 import { compareLiveTvRankRecords } from "../src/components/mg/liveTvRankingCore.js";
 import {
+  ANT_SPORTS_LIVE_PRIORITY,
+  ANT_SPORTS_UPCOMING_PRIORITY,
+} from "../src/components/mg/antSportsScraper.js";
+import {
+  EV_SPORTS_BASE_SCORE,
+  EV_SPORTS_SOURCE_PRIORITY,
+} from "../src/components/mg/evSportsScraper.js";
+import {
   chooseRequestedTorrentFileForPlayback,
   chooseVideoFileForPlayback,
   normaliseRequestedFileIndex,
@@ -105,16 +113,20 @@ test("BBC core channels keep curated direct video and official iPlayer fallbacks
     );
 
     assert.ok(direct, `${name} direct stream should exist`);
-    assert.match(String(direct.url || ""), /^https:\/\//i);
-  }
+    assert.equal(direct.sourceName, "BBC CDN Direct");
+    assert.ok(Number(direct.priority || 0) >= 143);
+    assert.match(String(direct.url || ""), /^https:\/\/.*akamaized\.net\/.*\.m3u8/i);
 
-  for (const name of ["BBC One", "BBC Two", "BBC Three", "BBC Four"]) {
     const official = PUBLIC_DIRECT_CHANNELS.find(
       (channel) => channel?.name === name && channel?.kind === "external"
     );
 
     assert.ok(official, `${name} iPlayer fallback should exist`);
-    assert.match(String(official.officialUrl || official.url || ""), /bbc\.co\.uk\/iplayer\/live\//i);
+    assert.equal(official.sourceName, "BBC iPlayer Official");
+    assert.match(
+      String(official.officialUrl || official.url || ""),
+      /bbc\.co\.uk\/iplayer\/live\//i
+    );
   }
 });
 
@@ -129,6 +141,24 @@ test("dead ITV relays are removed and spaced ITV names merge with ITVX cards", (
 
   assert.equal(stale.length, 0);
 
+  const expectedItvx = new Map([
+    ["ITV1", "https://www.itv.com/watch?channel=itv"],
+    ["ITV2", "https://www.itv.com/watch?channel=itv2"],
+    ["ITV3", "https://www.itv.com/watch?channel=itv3"],
+    ["ITV4", "https://www.itv.com/watch?channel=itv4"],
+    ["ITVBe", "https://www.itv.com/watch?channel=itvbe"],
+  ]);
+
+  for (const [name, url] of expectedItvx) {
+    const official = PUBLIC_DIRECT_CHANNELS.find(
+      (channel) => channel?.name === name && channel?.kind === "external"
+    );
+    assert.ok(official, `${name} ITVX entry should exist`);
+    assert.equal(official.sourceName, "ITVX Official");
+    assert.equal(official.officialUrl || official.url, url);
+    assert.ok(Number(official.priority || 0) >= 126);
+  }
+
   const merged = dedupeMergedChannels([
     {
       id: "itv-direct",
@@ -139,9 +169,9 @@ test("dead ITV relays are removed and spaced ITV names merge with ITVX cards", (
       kind: "direct",
       browserPlayable: false,
       geoRestricted: false,
-      score: -1000,
+      score: 999999,
       sourceName: "Old direct mirror",
-      sourcePriority: 10,
+      sourcePriority: 999,
       tags: ["United Kingdom"],
     },
     {
@@ -155,14 +185,85 @@ test("dead ITV relays are removed and spaced ITV names merge with ITVX cards", (
       geoRestricted: false,
       score: 1000,
       sourceName: "ITVX Official",
-      sourcePriority: 100,
+      sourcePriority: 132,
       tags: ["United Kingdom", "Official"],
     },
   ]);
 
   assert.equal(merged.length, 1);
   assert.equal(merged[0].url, "https://www.itv.com/watch?channel=itv");
+  assert.equal(merged[0].sourceName, "ITVX Official");
   assert.equal(merged[0].alternatives.length, 1);
+});
+
+test("locked BBC and ITV primaries cannot be displaced by higher-scored mirrors", () => {
+  const bbcLocked = PUBLIC_DIRECT_CHANNELS.find(
+    (channel) => channel?.name === "BBC One" && channel?.sourceName === "BBC CDN Direct"
+  );
+  const itvLocked = PUBLIC_DIRECT_CHANNELS.find(
+    (channel) => channel?.name === "ITV1" && channel?.sourceName === "ITVX Official"
+  );
+
+  const merged = dedupeMergedChannels([
+    {
+      id: "bbc-random",
+      name: "BBC One",
+      country: "GB",
+      group: "United Kingdom",
+      url: "https://example.test/bbc-one-super-high-score.m3u8",
+      kind: "direct",
+      browserPlayable: true,
+      geoRestricted: false,
+      score: 999999,
+      sourceName: "Random high-score mirror",
+      sourcePriority: 999,
+      tags: ["United Kingdom"],
+    },
+    {
+      ...bbcLocked,
+      browserPlayable: true,
+      geoRestricted: false,
+      score: 1,
+      sourcePriority: Number(bbcLocked?.priority || 0),
+      tags: ["United Kingdom"],
+    },
+    {
+      id: "itv-random",
+      name: "ITV1",
+      country: "GB",
+      group: "United Kingdom",
+      url: "https://example.test/itv1-super-high-score.m3u8",
+      kind: "direct",
+      browserPlayable: true,
+      geoRestricted: false,
+      score: 999999,
+      sourceName: "Random high-score ITV mirror",
+      sourcePriority: 999,
+      tags: ["United Kingdom"],
+    },
+    {
+      ...itvLocked,
+      browserPlayable: true,
+      geoRestricted: false,
+      score: 1,
+      sourcePriority: Number(itvLocked?.priority || 0),
+      tags: ["United Kingdom", "Official"],
+    },
+  ]);
+
+  const bbc = merged.find((channel) => channel?.name === "BBC One");
+  const itv = merged.find((channel) => channel?.name === "ITV1");
+
+  assert.equal(bbc?.sourceName, "BBC CDN Direct");
+  assert.equal(bbc?.url, bbcLocked?.url);
+  assert.equal(itv?.sourceName, "ITVX Official");
+  assert.equal(itv?.url, itvLocked?.url);
+});
+
+test("EV SPORTS remains above ANT SPORTS in source priority", () => {
+  assert.ok(EV_SPORTS_SOURCE_PRIORITY > ANT_SPORTS_LIVE_PRIORITY);
+  assert.ok(EV_SPORTS_SOURCE_PRIORITY > ANT_SPORTS_UPCOMING_PRIORITY);
+  assert.ok(EV_SPORTS_BASE_SCORE > 5200);
 });
 
 test("UK playlist category supplies GB when rows omit country metadata", () => {
