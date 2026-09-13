@@ -762,6 +762,33 @@ export default function SearchDialog({
                             </>
                           )}
                         </div>
+
+                        {Array.isArray(result.watch_providers) &&
+                          result.watch_providers.length > 0 && (
+                            <div
+                              className="mt-2 flex flex-wrap items-center gap-1.5"
+                              aria-label="Streaming services"
+                            >
+                              {result.watch_providers.slice(0, 5).map((provider) => (
+                                <span
+                                  key={`${provider.provider_id || provider.provider_name}-${provider.availability || "watch"}`}
+                                  className="inline-flex h-7 w-7 3xl:h-9 3xl:w-9 items-center justify-center overflow-hidden rounded-md border border-white/10 bg-white/5"
+                                  title={`${provider.provider_name}${provider.availability ? ` • ${provider.availability}` : ""}`}
+                                >
+                                  {provider.logo_url ? (
+                                    <img
+                                      src={provider.logo_url}
+                                      alt={provider.provider_name || "Streaming service"}
+                                      loading="lazy"
+                                      className="h-full w-full object-cover"
+                                    />
+                                  ) : (
+                                    <Tv className="h-3.5 w-3.5 text-white/35" />
+                                  )}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                       </div>
                     </button>
                   )
