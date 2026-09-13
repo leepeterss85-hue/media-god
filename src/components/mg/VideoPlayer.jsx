@@ -642,6 +642,7 @@ export default function VideoPlayer({
   const pollRef = useRef(null);
   const recoveryResumeRef = useRef(0);
   const rdResolutionQueueRef = useRef(Promise.resolve());
+  const retryInactiveTorrentHashRef = useRef("");
   const torrentFailoverTimerRef = useRef(null);
   const nativePlaybackRef = useRef({
     requestId: "",
@@ -2012,6 +2013,41 @@ export default function VideoPlayer({
             }
 
             const hash = magnetHash(magnet);
+
+            if (
+              hash &&
+              retryInactiveTorrentHashRef.current === hash
+            ) {
+              /*
+               * The user explicitly pressed Retry after Media God had already
+               * watched this exact torrent sit inactive for the full stall
+               * window. Ask the backend to clear that inactive same-hash RD job
+               * before adoption so Retry can genuinely restart it instead of
+               * reconnecting to the same dead partial download forever.
+               */
+              retryInactiveTorrentHashRef.current = "";
+
+              try {
+                await base44.functions.invoke(
+                  "realDebrid",
+                  {
+                    action: "reset_stale_hash",
+                    info_hash: hash,
+                    claim_for_playback: true,
+                    force_inactive_reset: true,
+                    title:
+                      source?.rdTitle ||
+                      source?.title ||
+                      "",
+                  }
+                );
+              } catch {
+                // Retry remains safe: adopt_hash below will preserve a job that
+                // has resumed activity and only a genuinely inactive job resets.
+              }
+
+              if (cancelled) return;
+            }
 
             /*
              * RD Library rows carry Real-Debrid's torrent ID, not a magnet or
@@ -4811,6 +4847,13 @@ export default function VideoPlayer({
     () => {
       streamActionGenerationRef.current += 1;
       setFileSwitching(false);
+
+      const retryHash = sourceTorrentHash(active);
+      retryInactiveTorrentHashRef.current =
+        String(rdPreparation?.status || "").toLowerCase() === "stalled" &&
+        retryHash
+          ? retryHash
+          : "";
 
       setRdOverride(
         null
