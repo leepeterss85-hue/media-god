@@ -378,6 +378,26 @@ export default function WatchPartyView() {
     }
   };
 
+  useEffect(() => {
+    if (!roomCode) return undefined;
+
+    const recoverRoom = () => {
+      if (document.visibilityState === "visible") {
+        refreshRoom();
+      }
+    };
+
+    window.addEventListener("online", recoverRoom);
+    document.addEventListener("visibilitychange", recoverRoom);
+
+    return () => {
+      window.removeEventListener("online", recoverRoom);
+      document.removeEventListener("visibilitychange", recoverRoom);
+    };
+    // refreshRoom intentionally reads the latest room code from state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomCode]);
+
   const leave = () => {
     const presenceId = presenceIdRef.current;
     presenceIdRef.current = "";
