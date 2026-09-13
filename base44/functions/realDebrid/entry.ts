@@ -516,7 +516,7 @@ export default async function (req) {
                 /^(?:magnet_conversion|waiting_files_selection|waiting_selection|queued|downloading)$/i.test(
                   String(torrent?.status || "")
                 ) &&
-                progress < 100 &&
+                progress <= 0.001 &&
                 Number(torrent?.speed || 0) <= 0 &&
                 Number(torrent?.seeders || 0) <= 0 &&
                 ageMs >= 10 * 60_000;
@@ -670,16 +670,24 @@ export default async function (req) {
       const currentStatus = String(match?.status || "").toLowerCase();
       const terminalFailure =
         /^(?:magnet_error|error|dead|virus)$/.test(currentStatus);
-      const stalled =
+      const activeLikeStatus =
         /^(?:magnet_conversion|waiting_files_selection|waiting_selection|queued|downloading)$/i.test(
           currentStatus
-        ) &&
-        progress < 100 &&
+        );
+      const stalled =
+        activeLikeStatus &&
+        progress <= 0.001 &&
         hasNoActivity &&
         ageMs >= 10 * 60_000;
       const explicitPlaybackReset = body.claim_for_playback === true;
+      const explicitInactiveReset =
+        body.force_inactive_reset === true &&
+        activeLikeStatus &&
+        progress < 100 &&
+        hasNoActivity;
       const resettable =
         stalled ||
+        explicitInactiveReset ||
         (explicitPlaybackReset && terminalFailure);
 
       if (!resettable) {
@@ -840,16 +848,15 @@ export default async function (req) {
        * short period while RD discovers peers. Treat it as stale only after a
        * full ten minutes with no seeders/speed.
        */
-      const stalePartial =
-        matchProgress > 0 &&
-        matchProgress < 100 &&
+      const staleNoProgress =
+        matchProgress <= 0.001 &&
         matchInactive &&
         /^(?:magnet_conversion|waiting_files_selection|waiting_selection|queued|downloading)$/i.test(
           String(match?.status || "")
         ) &&
         matchAgeMs >= 10 * 60_000;
 
-      if (stalePartial) {
+      if (staleNoProgress) {
         return Response.json({
           status: "stale",
           info_hash: hash,
