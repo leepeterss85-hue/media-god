@@ -3198,10 +3198,29 @@ export default function LiveTVView() {
                           Radio
                         </span>
                       ) : external ? (
-                        <span className="inline-flex items-center gap-1 rounded bg-white/5 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white/50">
-                          <ExternalLink className="h-2.5 w-2.5" />
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase",
+                            antSports
+                              ? antSportsLive
+                                ? "bg-mg-green/10 text-mg-green"
+                                : "bg-amber-500/10 text-amber-200"
+                              : "bg-white/5 text-white/50"
+                          )}
+                        >
+                          {antSportsLive ? (
+                            <Wifi className="h-2.5 w-2.5" />
+                          ) : (
+                            <ExternalLink className="h-2.5 w-2.5" />
+                          )}
 
-                          Web stream
+                          {antSports
+                            ? antSportsLive
+                              ? "ANT Live"
+                              : antSportsKickoff
+                                ? `Upcoming • ${antSportsKickoff}`
+                                : "Upcoming"
+                            : "Web stream"}
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 rounded bg-mg-green/10 px-1.5 py-0.5 text-[9px] font-bold uppercase text-mg-green">
@@ -3277,7 +3296,11 @@ export default function LiveTVView() {
                     {radio ? (
                       <Volume2 className="h-4 w-4 shrink-0 text-mg-green" />
                     ) : external ? (
-                      <ExternalLink className="h-4 w-4 shrink-0 text-white/30" />
+                      antSportsLive ? (
+                        <Wifi className="h-4 w-4 shrink-0 text-mg-green" />
+                      ) : (
+                        <ExternalLink className="h-4 w-4 shrink-0 text-white/30" />
+                      )
                     ) : (
                       <Wifi className="h-4 w-4 shrink-0 text-mg-green" />
                     )}
