@@ -742,7 +742,7 @@ function MediaGodApp() {
 
           {view ===
             "roadmap" && (
-            <RoadmapView />
+            <RoadmapView onBack={goBack} />
           )}
 
           {view ===
