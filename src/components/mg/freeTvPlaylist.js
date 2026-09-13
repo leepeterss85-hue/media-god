@@ -97,6 +97,14 @@ export const LIVE_TV_SOURCES = [
     country: "GB",
   },
   {
+    id: "iptv-org-bbc-uk",
+    name: "IPTV-org BBC UK",
+    url: "https://raw.githubusercontent.com/iptv-org/iptv/master/streams/uk_bbc.m3u",
+    priority: 126,
+    category: "United Kingdom",
+    country: "GB",
+  },
+  {
     id: "dearbulut-uk-healthchecked",
     name: "Dearbulut UK Health-Checked",
     url: "https://dearbulut.github.io/iptv/playlists/country/uk.m3u",
@@ -346,6 +354,139 @@ export const EXTERNAL_ADDON_SOURCES = [
 ];
 
 export const PUBLIC_DIRECT_CHANNELS = [
+  {
+    id: "BBCOne.uk@Direct",
+    tvgId: "BBCOne.uk",
+    name: "BBC One",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/BBC_One_logo_2021.svg/500px-BBC_One_logo_2021.svg.png",
+    url: "https://vs-hls-pushb-uk-live.akamaized.net/x=4/i=urn:bbc:pips:service:bbc_one_london/mobile_wifi_main_hd_abr_v2.m3u8",
+    category: "United Kingdom",
+    country: "GB",
+    priority: 148,
+    sourceName: "BBC CDN Direct",
+    kind: "direct",
+  },
+  {
+    id: "BBCTwo.uk@Direct",
+    tvgId: "BBCTwo.uk",
+    name: "BBC Two",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/BBC_Two_logo_2021.svg/500px-BBC_Two_logo_2021.svg.png",
+    url: "https://vs-hls-pushb-uk-live.akamaized.net/x=4/i=urn:bbc:pips:service:bbc_two_hd/mobile_wifi_main_hd_abr_v2.m3u8",
+    category: "United Kingdom",
+    country: "GB",
+    priority: 147,
+    sourceName: "BBC CDN Direct",
+    kind: "direct",
+  },
+  {
+    id: "BBCThree.uk@Direct",
+    tvgId: "BBCThree.uk",
+    name: "BBC Three",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/76/BBC_Three_2022.svg/500px-BBC_Three_2022.svg.png",
+    url: "https://vs-hls-pushb-uk-live.akamaized.net/x=4/i=urn:bbc:pips:service:bbc_three_hd/mobile_wifi_main_hd_abr_v2.m3u8",
+    category: "United Kingdom",
+    country: "GB",
+    priority: 146,
+    sourceName: "BBC CDN Direct",
+    kind: "direct",
+  },
+  {
+    id: "BBCFour.uk@Direct",
+    tvgId: "BBCFour.uk",
+    name: "BBC Four",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6d/BBC_Four_logo_2021.svg/500px-BBC_Four_logo_2021.svg.png",
+    url: "https://vs-hls-pushb-uk-live.akamaized.net/x=4/i=urn:bbc:pips:service:bbc_four_hd/mobile_wifi_main_hd_abr_v2.m3u8",
+    category: "United Kingdom",
+    country: "GB",
+    priority: 145,
+    sourceName: "BBC CDN Direct",
+    kind: "direct",
+  },
+  {
+    id: "BBCNews.uk@Direct",
+    tvgId: "BBCNews.uk",
+    name: "BBC News",
+    url: "https://vs-hls-push-ww-live.akamaized.net/x=4/i=urn:bbc:pips:service:bbc_news_channel_hd/mobile_wifi_main_hd_abr_v2.m3u8",
+    category: "News",
+    country: "GB",
+    priority: 144,
+    sourceName: "BBC CDN Direct",
+    kind: "direct",
+  },
+  {
+    id: "CBBC.uk@Direct",
+    tvgId: "CBBC.uk",
+    name: "CBBC",
+    url: "https://vs-hls-pushb-uk-live.akamaized.net/x=4/i=urn:bbc:pips:service:cbbc_hd/mobile_wifi_main_hd_abr_v2.m3u8",
+    category: "Kids",
+    country: "GB",
+    priority: 143,
+    sourceName: "BBC CDN Direct",
+    kind: "direct",
+  },
+  {
+    id: "CBeebies.uk@Direct",
+    tvgId: "CBeebies.uk",
+    name: "CBeebies",
+    url: "https://vs-hls-pushb-uk-live.akamaized.net/x=4/i=urn:bbc:pips:service:cbeebies_hd/mobile_wifi_main_hd_abr_v2.m3u8",
+    category: "Kids",
+    country: "GB",
+    priority: 143,
+    sourceName: "BBC CDN Direct",
+    kind: "direct",
+  },
+  {
+    id: "BBCOne.uk@Official",
+    tvgId: "BBCOne.uk",
+    name: "BBC One",
+    url: "https://www.bbc.co.uk/iplayer/live/bbcone",
+    category: "United Kingdom",
+    country: "GB",
+    priority: 118,
+    sourceName: "BBC iPlayer Official",
+    officialUrl: "https://www.bbc.co.uk/iplayer/live/bbcone",
+    officialLabel: "Open BBC One on iPlayer",
+    kind: "external",
+  },
+  {
+    id: "BBCTwo.uk@Official",
+    tvgId: "BBCTwo.uk",
+    name: "BBC Two",
+    url: "https://www.bbc.co.uk/iplayer/live/bbctwo",
+    category: "United Kingdom",
+    country: "GB",
+    priority: 117,
+    sourceName: "BBC iPlayer Official",
+    officialUrl: "https://www.bbc.co.uk/iplayer/live/bbctwo",
+    officialLabel: "Open BBC Two on iPlayer",
+    kind: "external",
+  },
+  {
+    id: "BBCThree.uk@Official",
+    tvgId: "BBCThree.uk",
+    name: "BBC Three",
+    url: "https://www.bbc.co.uk/iplayer/live/bbcthree",
+    category: "United Kingdom",
+    country: "GB",
+    priority: 116,
+    sourceName: "BBC iPlayer Official",
+    officialUrl: "https://www.bbc.co.uk/iplayer/live/bbcthree",
+    officialLabel: "Open BBC Three on iPlayer",
+    kind: "external",
+  },
+  {
+    id: "BBCFour.uk@Official",
+    tvgId: "BBCFour.uk",
+    name: "BBC Four",
+    url: "https://www.bbc.co.uk/iplayer/live/bbcfour",
+    category: "United Kingdom",
+    country: "GB",
+    priority: 115,
+    sourceName: "BBC iPlayer Official",
+    officialUrl: "https://www.bbc.co.uk/iplayer/live/bbcfour",
+    officialLabel: "Open BBC Four on iPlayer",
+    kind: "external",
+  },
   {
     id: "ANTSports.us@Official",
     tvgId: "ANTSports.us",
@@ -822,6 +963,7 @@ const cleanChannelName = (value) =>
 const normaliseChannelNameForKey = (value) =>
   cleanChannelName(value)
     .toLowerCase()
+    .replace(/\bitv\s+([1-4])\b/g, "itv$1")
     .replace(
       /\[[^\]]*(?:geo|not 24\/7|sd|hd|fhd|uhd|4k|1080|720|576|480)[^\]]*\]/gi,
       " "
@@ -1050,6 +1192,17 @@ const isKnownStaleSourceChannel = (channel) => {
   if (
     name === "sky mix" &&
     url === "http://188.138.29.131/skymix/index.m3u8"
+  ) {
+    return true;
+  }
+
+  // Free-TV's old ITV relay now returns an HTML landing page instead of HLS.
+  // The short ITV2 mirror currently redirects to the same dead relay. Drop
+  // these rows so Media God does not present them as playable video sources;
+  // the official ITVX cards remain visible until a real public stream exists.
+  if (
+    /^http:\/\/45\.14\.84\.37\/itv[1-4]\/index\.m3u8$/i.test(url) ||
+    url === "https://xemzi.short.gy/1000012"
   ) {
     return true;
   }
