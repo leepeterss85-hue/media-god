@@ -442,6 +442,23 @@ export default async function(req) {
       );
     }
 
+    if (
+      body.providers_only &&
+      movieId
+    ) {
+      const providerData =
+        await fetchWatchProviders(
+          {
+            id: movieId,
+            media_type: mediaType,
+          },
+          apiKey,
+          region
+        );
+
+      return Response.json(providerData);
+    }
+
     /*
      * GLOBAL SEARCH
      */
