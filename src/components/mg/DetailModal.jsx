@@ -482,7 +482,9 @@ const normaliseDetailPayload = (
         payload.watch_providers ??
           payload.watchProviders ??
           rawDetails.watch_providers ??
-          rawDetails.watchProviders
+          rawDetails.watchProviders ??
+          fallback.watch_providers ??
+          fallback.watchProviders
       ),
 
     cast:
