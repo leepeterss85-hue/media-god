@@ -136,7 +136,10 @@ const normaliseNameText = (value, { stripProviderDecorations = false } = {}) => 
     text = text
       .replace(/\bpowered\s+by\s+banijay\b.*$/g, " ")
       .replace(/\bby\s+lionsgate\b.*$/g, " ")
-      .replace(/\brakuten\s+tv\s*$/g, " ")
+      .replace(/\b(?:on\s+)?rakuten\s+tv\s*$/g, " ")
+      .replace(/\b(?:on\s+)?pluto\s+tv\s*$/g, " ")
+      .replace(/\bsamsung\s+tv\s+plus\s*$/g, " ")
+      .replace(/\bplex(?:\s+tv)?\s*$/g, " ")
       .replace(/\bfast\s*\+?\s*$/g, " ");
   }
 
@@ -169,6 +172,7 @@ const nameAliases = (value) => {
     add(base.replace(/\b5\s+(usa|star|action|select)\b/g, "5$1"));
     add(base.replace(/\b5(usa|star|action|select)\b/g, "5 $1"));
     add(base.replace(/^u\s+and\s+/, ""));
+    add(base.replace(/^uktv\s+/, ""));
     add(base.replace(/^bbc\s+1\b/, "bbc one"));
     add(base.replace(/^bbc\s+one\b/, "bbc 1"));
     add(base.replace(/^bbc\s+2\b/, "bbc two"));
@@ -225,8 +229,29 @@ const PREFERRED_GUIDE_IDS = {
     ["5 select", "5SELECT.uk"],
     ["s4c", "S4C.HD.uk"],
     ["dave", "U.and.Dave.HD.uk"],
+    ["u and dave", "U.and.Dave.HD.uk"],
     ["yesterday", "U.and.YESTERDAY.uk"],
+    ["u and yesterday", "U.and.YESTERDAY.uk"],
     ["drama", "U.and.Drama.uk"],
+    ["u and drama", "U.and.Drama.uk"],
+    ["alibi", "U.and.alibi.HD.uk"],
+    ["u and alibi", "U.and.alibi.HD.uk"],
+    ["gold", "U.and.GOLD.HD.uk"],
+    ["u and gold", "U.and.GOLD.HD.uk"],
+    ["eden", "U.and.Eden.uk"],
+    ["u and eden", "U.and.Eden.uk"],
+    ["u and w", "U.and.W.HD.uk"],
+    ["really", "Really.uk"],
+    ["food network", "Food.Network.uk"],
+    ["challenge", "Challenge.uk"],
+    ["quest", "QUEST.HD.uk"],
+    ["quest red", "Quest.Red.uk"],
+    ["4seven", "4seven.uk"],
+    ["great movies", "GREAT!.movies.uk"],
+    ["great action", "GREAT!.action.uk"],
+    ["great tv", "GREAT!.tv.uk"],
+    ["pop", "POP.uk"],
+    ["pop max", "POP.Max.uk"],
   ]),
 };
 
