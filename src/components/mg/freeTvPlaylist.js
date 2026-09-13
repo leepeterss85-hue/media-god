@@ -1117,7 +1117,10 @@ export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
         attr(line, "tvg-country") ||
           countryFromTvgId(tvgId) ||
           source?.country ||
-          ""
+          (String(source?.category || "").trim().toLowerCase() ===
+          "united kingdom"
+            ? "GB"
+            : "")
       );
       const group = attr(line, "group-title") || source.category || country || "Other";
       const channelNumber = attr(line, "tvg-chno");
