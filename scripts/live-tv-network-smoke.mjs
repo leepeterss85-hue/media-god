@@ -1,6 +1,7 @@
 import {
   LIVE_TV_SOURCES,
   PUBLIC_DIRECT_CHANNELS,
+  parseFreeTvPlaylist,
 } from "../src/components/mg/freeTvPlaylist.js";
 
 const withTimeout = async (url, timeoutMs = 12000) => {
@@ -78,6 +79,50 @@ for (const name of directNames) {
     if (!ok) failures += 1;
   } catch (error) {
     console.error(`FAIL stream ${channel.name}: ${error?.message || error}`);
+    failures += 1;
+  }
+}
+
+const samsungGlobal = LIVE_TV_SOURCES.find(
+  (item) => item.id === "samsung-tv-plus-all-buddy"
+);
+
+if (!samsungGlobal) {
+  console.error("missing playlist definition: samsung-tv-plus-all-buddy");
+  failures += 1;
+} else {
+  try {
+    const response = await withTimeout(samsungGlobal.url);
+    const text = await response.text();
+    const channels = parseFreeTvPlaylist(text, samsungGlobal);
+
+    for (const name of ["Formula 1 Channel", "MotorRacing"]) {
+      const channel = channels.find(
+        (item) => String(item?.name || "").trim().toLowerCase() === name.toLowerCase()
+      );
+
+      if (!channel?.url) {
+        console.error(`FAIL motorsport ${name}: not present in Samsung global playlist`);
+        failures += 1;
+        continue;
+      }
+
+      try {
+        const streamResponse = await withTimeout(channel.url);
+        const body = await streamResponse.text();
+        const hls = /#EXTM3U/i.test(body);
+        const ok = streamResponse.ok && hls;
+        console.log(
+          `${ok ? "ok" : "FAIL"} motorsport ${name}: HTTP ${streamResponse.status}, HLS ${hls ? "yes" : "no"}`
+        );
+        if (!ok) failures += 1;
+      } catch (error) {
+        console.error(`FAIL motorsport ${name}: ${error?.message || error}`);
+        failures += 1;
+      }
+    }
+  } catch (error) {
+    console.error(`FAIL Samsung motorsport discovery: ${error?.message || error}`);
     failures += 1;
   }
 }
