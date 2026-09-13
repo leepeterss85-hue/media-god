@@ -15,7 +15,9 @@ This is the normal pre-publish gate. It runs:
 - UK-first Live TV ranking priority
 - Real-Debrid resolution-strategy rules
 - Real-Debrid file-index validation
+- Real-Debrid season-pack episode selection and movie/sample rejection
 - EPG alias/name normalisation
+- Fire TV/mobile native-project structure and WebView/native ownership guards
 - ESLint
 - Vite production build
 - Base44 backend bundle checks for Real-Debrid, Live EPG and addon stream discovery
@@ -28,7 +30,7 @@ Run:
 npm run test:network
 ```
 
-This checks a small representative set of public Live TV repositories, direct HLS feeds and the UK XMLTV EPG endpoint. Because these are third-party services, a failure can mean an upstream outage rather than an application regression.
+This checks a small representative set of public Live TV repositories, direct HLS feeds and the UK XMLTV EPG endpoint. It then feeds the live UK playlists through Media God's production M3U parser and duplicate-merging code to catch malformed rows, missing UK metadata and bad merge results. Because these are third-party services, a failure can mean an upstream outage rather than an application regression.
 
 ## Full type check
 
