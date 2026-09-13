@@ -16,64 +16,19 @@ import {
 
 import { base44 } from "@/api/base44Client";
 import { usePlayer } from "@/components/mg/PlayerProvider";
+import {
+  DEBRID_STATUS_LABEL as STATUS_LABEL,
+  debridAddedTime as addedTime,
+  debridBucket as downloadBucket,
+  debridProgress as progressFor,
+  formatDebridBytes as formatBytes,
+  formatDebridSpeed as formatSpeed,
+  isDebridActive as isActive,
+  isDebridError as isError,
+  isDebridReady as isReady,
+  normaliseDebridStatus as normaliseStatus,
+} from "@/components/mg/debridLibraryUtils";
 import { cn } from "@/lib/utils";
-
-const STATUS_LABEL = {
-  downloading: "Downloading",
-  magnet_conversion: "Converting",
-  waiting_files_selection: "Selecting files",
-  waiting_selection: "Queued",
-  queued: "Queued",
-  downloaded: "Ready",
-  magnet_error: "Magnet error",
-  files_error: "Files error",
-  virus: "Blocked",
-  dead: "Unavailable",
-};
-
-const normaliseStatus = (torrent) =>
-  String(torrent?.status || "").trim().toLowerCase();
-
-const isReady = (torrent) =>
-  torrent?.ready === true || normaliseStatus(torrent) === "downloaded";
-
-const isError = (torrent) =>
-  /error|dead|virus|invalid/i.test(normaliseStatus(torrent));
-
-const isActive = (torrent) => !isReady(torrent) && !isError(torrent);
-
-const progressFor = (torrent) => {
-  const value = Number(torrent?.progress || 0);
-  return Number.isFinite(value) ? Math.min(100, Math.max(0, value)) : 0;
-};
-
-const formatBytes = (value) => {
-  const bytes = Number(value || 0);
-  if (!Number.isFinite(bytes) || bytes <= 0) return "";
-  if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} GB`;
-  if (bytes >= 1e6) return `${(bytes / 1e6).toFixed(0)} MB`;
-  if (bytes >= 1e3) return `${(bytes / 1e3).toFixed(0)} KB`;
-  return `${bytes} B`;
-};
-
-const downloadBucket = (torrent) => {
-  if (isReady(torrent)) return "ready";
-  if (isError(torrent)) return "errors";
-  return "active";
-};
-
-const formatSpeed = (value) => {
-  const bytesPerSecond = Number(value || 0);
-  if (!Number.isFinite(bytesPerSecond) || bytesPerSecond <= 0) return "";
-  if (bytesPerSecond >= 1e6) return `${(bytesPerSecond / 1e6).toFixed(1)} MB/s`;
-  if (bytesPerSecond >= 1e3) return `${(bytesPerSecond / 1e3).toFixed(0)} KB/s`;
-  return `${Math.round(bytesPerSecond)} B/s`;
-};
-
-const addedTime = (torrent) => {
-  const value = new Date(torrent?.added || 0).getTime();
-  return Number.isFinite(value) ? value : 0;
-};
 
 export default function DebridDashboard() {
   const [torrents, setTorrents] = useState([]);
