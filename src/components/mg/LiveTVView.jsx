@@ -2123,7 +2123,10 @@ export default function LiveTVView() {
 
   const renderQuickChannelCard = (channel) => {
     const memoryKey = channelMemoryKey(channel);
-    const guide = epgByKey[epgKeyForChannel(channel)] || {};
+    const matchedGuide = epgByKey[epgKeyForChannel(channel)] || {};
+    const guide = matchedGuide?.now
+      ? matchedGuide
+      : { now: channel?.providerNow || null, next: channel?.providerNext || null };
     const nowProgramme = guide?.now || null;
     const favourite = favouriteKeys.has(memoryKey);
     const playbackHealth = isRadioChannel(channel)
@@ -2900,7 +2903,10 @@ export default function LiveTVView() {
         <div className="grid gap-2" data-mg-live-tv-guide="true">
           {shown.map((channel, index) => {
             const memoryKey = channelMemoryKey(channel);
-            const guide = epgByKey[epgKeyForChannel(channel)] || {};
+            const matchedGuide = epgByKey[epgKeyForChannel(channel)] || {};
+            const guide = matchedGuide?.now
+              ? matchedGuide
+              : { now: channel?.providerNow || null, next: channel?.providerNext || null };
             const upcoming = Array.isArray(guide?.upcoming)
               ? guide.upcoming.slice(0, 4)
               : [guide?.now, guide?.next].filter(Boolean);
