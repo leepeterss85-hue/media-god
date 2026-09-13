@@ -580,6 +580,8 @@ export default function StreamSourcesBox({
                 year:
                   rdYear,
 
+                alternateYears,
+
                 mediaType,
 
                 season,
@@ -629,6 +631,8 @@ export default function StreamSourcesBox({
 
                   year:
                     rdYear,
+
+                  alternateYears,
 
                   mediaType,
 
