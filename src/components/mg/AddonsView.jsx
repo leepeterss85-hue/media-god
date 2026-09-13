@@ -1,6 +1,7 @@
 import React, {
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -250,6 +251,8 @@ export default function AddonsManager() {
     useState(
       []
     );
+
+  const autoHealthCheckedRef = useRef(false);
 
   const loadAddons =
     async () => {
@@ -653,6 +656,18 @@ export default function AddonsManager() {
         );
       }
     };
+
+  useEffect(() => {
+    if (loading || activeCount === 0 || autoHealthCheckedRef.current) {
+      return;
+    }
+
+    autoHealthCheckedRef.current = true;
+    testActiveAddons();
+    // Run once after the saved addon list is loaded. Manual Test active remains
+    // available for subsequent checks without repeatedly hitting providers.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, activeCount]);
 
   const healthBadge =
     (
