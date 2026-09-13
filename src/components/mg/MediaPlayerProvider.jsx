@@ -1958,6 +1958,16 @@ export function PlayerProvider({
             request?.rdYear ??
             request?.year ??
             "",
+          alternateYears:
+            Array.isArray(
+              request?.rdAlternateYears ||
+              request?.alternateYears
+            )
+              ? (
+                  request?.rdAlternateYears ||
+                  request?.alternateYears
+                )
+              : [],
           mediaType,
           season,
           episode,
