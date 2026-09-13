@@ -621,6 +621,8 @@ const LiveVideo = forwardRef(
       className,
       sourceLabel = "",
       isLive = false,
+      headers = {},
+      drm = null,
       subtitles = [],
       subtitlesEnabled = false,
       preferredSubtitleLanguage = "en",
@@ -1913,6 +1915,59 @@ const LiveVideo = forwardRef(
               });
             } catch {
               // Settings are optional across dash.js versions.
+            }
+
+            const requestHeaders =
+              headers && typeof headers === "object" && !Array.isArray(headers)
+                ? headers
+                : {};
+
+            if (Object.keys(requestHeaders).length > 0) {
+              try {
+                dashPlayer.extend(
+                  "RequestModifier",
+                  () => ({
+                    modifyRequestURL: (url) => url,
+                    modifyRequestHeader: (xhr) => {
+                      Object.entries(requestHeaders).forEach(([name, value]) => {
+                        try {
+                          if (name && value != null) {
+                            xhr.setRequestHeader(name, String(value));
+                          }
+                        } catch {
+                          // Browsers may reject forbidden headers such as User-Agent.
+                        }
+                      });
+                      return xhr;
+                    },
+                  }),
+                  true
+                );
+              } catch {
+                // Request modifiers are best effort across dash.js versions.
+              }
+            }
+
+            const licenseUrl = String(
+              drm?.licenseUrl || drm?.license_url || ""
+            ).trim();
+
+            if (licenseUrl) {
+              try {
+                const drmHeaders =
+                  drm?.headers && typeof drm.headers === "object" && !Array.isArray(drm.headers)
+                    ? drm.headers
+                    : requestHeaders;
+
+                dashPlayer.setProtectionData?.({
+                  "com.widevine.alpha": {
+                    serverURL: licenseUrl,
+                    httpRequestHeaders: drmHeaders,
+                  },
+                });
+              } catch {
+                // If EME/Widevine is unavailable, dash.js will report playback failure normally.
+              }
             }
 
             const events =
