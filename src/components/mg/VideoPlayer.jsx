@@ -1578,7 +1578,13 @@ export default function VideoPlayer({
   ]);
 
   useEffect(() => {
-    if (!isLive) {
+    if (!isLive || isNativeFireTvPlayerAvailable()) {
+      /*
+       * Native Fire TV playback lives in PlayerActivity/Media3, so there is no
+       * WebView <video> element to observe here. Trying to attach browser
+       * playback listeners while Media3 owns the stream can leave stale timers
+       * behind and make the web player think a healthy native stream failed.
+       */
       return undefined;
     }
 
@@ -4240,7 +4246,17 @@ export default function VideoPlayer({
     };
 
   useEffect(() => {
-    if (!isLive || sources.length <= 1) {
+    if (
+      !isLive ||
+      sources.length <= 1 ||
+      isNativeFireTvPlayerAvailable()
+    ) {
+      /*
+       * Do not run the browser startup/stall watchdog while Fire TV Media3 is
+       * playing Live TV. There is deliberately no HTMLVideoElement in native
+       * mode, so the old watchdog could time out a stream that was already
+       * playing and switch to another source/player behind it.
+       */
       return undefined;
     }
 
@@ -5270,30 +5286,40 @@ export default function VideoPlayer({
      * not actually take over, or when Fire OS returns without delivering the
      * expected result event. Either way, never leave Live TV spinning forever.
      */
-    nativeLaunchTimerRef.current = window.setTimeout(() => {
-      const pending = nativePlaybackRef.current;
+    if (!isLive) {
+      nativeLaunchTimerRef.current = window.setTimeout(() => {
+        const pending = nativePlaybackRef.current;
 
-      if (pending.requestId !== requestId) {
-        return;
-      }
+        if (pending.requestId !== requestId) {
+          return;
+        }
 
-      nativePlaybackRef.current = {
-        requestId: "",
-        url: "",
-      };
-      nativeLaunchTimerRef.current = null;
-      setForceNativePlayback(false);
-      setNativeFallbackUrl(nativePlaybackUrl);
+        nativePlaybackRef.current = {
+          requestId: "",
+          url: "",
+        };
+        nativeLaunchTimerRef.current = null;
+        setForceNativePlayback(false);
+        setNativeFallbackUrl(nativePlaybackUrl);
 
-      window.dispatchEvent(
-        new CustomEvent("mg:player-status", {
-          detail: {
-            message:
-              "Fire TV player did not open correctly — switched to the fallback player.",
-          },
-        })
-      );
-    }, 5500);
+        window.dispatchEvent(
+          new CustomEvent("mg:player-status", {
+            detail: {
+              message:
+                "Fire TV player did not open correctly — switched to the fallback player.",
+            },
+          })
+        );
+      }, 5500);
+    }
+
+    /*
+     * Live TV is different: once Media3 accepts the handoff it is the only
+     * playback owner. A WebView timeout must never decide that native playback
+     * failed and start a second player/source behind an already-running stream.
+     * PlayerActivity reports real native errors back through
+     * mg:native-player-result, which remains the single failover authority.
+     */
   }, [
     active,
     activeIdx,
