@@ -407,6 +407,7 @@ export default function PlayerRemote() {
   useEffect(() => {
     let cancelled = false;
     let unsubscribe = null;
+    let heartbeatTimer = null;
 
     const load = async () => {
       try {
@@ -434,6 +435,16 @@ export default function PlayerRemote() {
         setSession(record);
         setLoading(false);
 
+        const publishHeartbeat = () =>
+          base44.entities.PlayerRemoteSession
+            .update(record.id, {
+              remote_last_seen_at: new Date().toISOString(),
+            })
+            .catch(() => {});
+
+        publishHeartbeat();
+        heartbeatTimer = window.setInterval(publishHeartbeat, 5000);
+
         unsubscribe = base44.entities.PlayerRemoteSession.subscribe((event) => {
           if (event.data?.id !== record.id) return;
 
@@ -459,6 +470,7 @@ export default function PlayerRemote() {
     return () => {
       cancelled = true;
       if (unsubscribe) unsubscribe();
+      if (heartbeatTimer) window.clearInterval(heartbeatTimer);
     };
   }, [sessionCode]);
 
