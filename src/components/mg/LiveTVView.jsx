@@ -719,6 +719,59 @@ export default function LiveTVView() {
       });
 
       let loadedChannels = Array.isArray(result?.channels) ? result.channels : [];
+      let skyChannels = [];
+      let skySourceStatus = null;
+
+      try {
+        const skyResponse = await base44.functions.invoke("skySportNow", {
+          action: "channels",
+        });
+        const skyData = skyResponse?.data ?? skyResponse ?? {};
+
+        if (skyData?.connected === true && Array.isArray(skyData?.channels)) {
+          skyChannels = skyData.channels
+            .map(normaliseSkySportNowChannel)
+            .filter((channel) => channel.skySportNowEventId && channel.name);
+
+          skySourceStatus = {
+            id: "sky-sport-now",
+            name: "Sky Sport Now",
+            category: "Sports",
+            priority: 150,
+            count: skyChannels.length,
+            latencyMs: 0,
+            bytes: 0,
+            direct: true,
+            authenticated: true,
+            error: null,
+          };
+        }
+      } catch (skyError) {
+        const message = String(
+          skyError?.response?.data?.error ||
+            skyError?.message ||
+            ""
+        ).trim();
+
+        if (message && !/connect sky sport now|unauthorized/i.test(message)) {
+          skySourceStatus = {
+            id: "sky-sport-now",
+            name: "Sky Sport Now",
+            category: "Sports",
+            priority: 150,
+            count: 0,
+            latencyMs: 0,
+            bytes: 0,
+            direct: true,
+            authenticated: true,
+            error: message,
+          };
+        }
+      }
+
+      if (skyChannels.length > 0) {
+        loadedChannels = [...skyChannels, ...loadedChannels];
+      }
 
       /*
        * Never overwrite a current playlist result with an old hard-coded TV
@@ -754,14 +807,13 @@ export default function LiveTVView() {
 
       setChannels(loadedChannels);
 
-      setSourceStatus(
-        Array.isArray(result?.sourceStatus)
-          ? result.sourceStatus
-          : []
-      );
+      setSourceStatus([
+        ...(skySourceStatus ? [skySourceStatus] : []),
+        ...(Array.isArray(result?.sourceStatus) ? result.sourceStatus : []),
+      ]);
 
       setRawCount(
-        Number(result?.rawCount || 0)
+        Number(result?.rawCount || 0) + skyChannels.length
       );
 
       setBrowserRejectedCount(
