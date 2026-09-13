@@ -700,6 +700,12 @@ let cache = null;
 let cacheAt = 0;
 let inflight = null;
 
+export function clearFreeTvCache() {
+  cache = null;
+  cacheAt = 0;
+  inflight = null;
+}
+
 const attr = (line, name) => {
   const match = String(line || "").match(
     new RegExp(`${name}="([^"]*)"`, "i")
