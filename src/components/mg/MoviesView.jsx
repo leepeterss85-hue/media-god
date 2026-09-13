@@ -231,6 +231,7 @@ export default function MoviesView() {
                     mediaType="movie"
                     region="GB"
                     limit={3}
+                    initialProviders={movie.watch_providers}
                   />
                 </div>
 
