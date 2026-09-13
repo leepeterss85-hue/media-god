@@ -913,6 +913,20 @@ export default function LiveTVView() {
         }
       });
 
+      /*
+       * When the catalogue is larger than the EPG request cap, spend the guide
+       * slots on the channels the user is most likely to see first: favourites,
+       * UK channels, recent channels, learned-good feeds, then stronger source
+       * repositories. International channels remain eligible and are filled in
+       * once the priority rows have been covered.
+       */
+      buckets.forEach((list, country) => {
+        buckets.set(
+          country,
+          [...list].sort((a, b) => smartChannelCompare(a, b, channelRankByKey))
+        );
+      });
+
       const targets = [];
 
       if (selectedCountries.length === 1) {
@@ -964,9 +978,13 @@ export default function LiveTVView() {
         aliases: epgUniqueValues([
           channel?.name,
           channel?.rawName,
+          channel?.tvgName,
+          channel?.displayName,
           ...(channel?.alternatives || []).flatMap((candidate) => [
             candidate?.name,
             candidate?.rawName,
+            candidate?.tvgName,
+            candidate?.displayName,
           ]),
         ]),
         idAliases: epgUniqueValues([
@@ -1022,7 +1040,7 @@ export default function LiveTVView() {
       cancelled = true;
       if (timer) window.clearInterval(timer);
     };
-  }, [channels, countryFilter]);
+  }, [channels, countryFilter, favouriteKeys, recentKeys]);
 
   const activeRadioUrls = useMemo(
     () => {
