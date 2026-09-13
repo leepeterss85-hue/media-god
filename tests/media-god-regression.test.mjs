@@ -61,7 +61,7 @@ test("M3U parser handles quoted commas and normalises UK metadata", () => {
   });
 
   assert.ok(channel);
-  assert.equal(channel.name, "BBC One");
+  assert.equal(channel.name, "BBC One HD");
   assert.equal(channel.country, "GB");
   assert.equal(channel.tvgId, "BBC.One.Lon.HD.uk");
   assert.equal(channel.url, "https://example.test/bbc-one.m3u8");
