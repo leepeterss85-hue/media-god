@@ -519,6 +519,24 @@ export default function PlayerQrRemote({ showIdle = false }) {
           const currentSession = sessionRef.current;
           if (!currentSession || cancelled) return;
 
+          const currentExpiryMs = new Date(currentSession.expires_at || 0).getTime();
+          const shouldRenewExpiry =
+            !Number.isFinite(currentExpiryMs) ||
+            currentExpiryMs <= Date.now() + 60 * 60 * 1000;
+          const expiresAt = shouldRenewExpiry
+            ? new Date(Date.now() + SESSION_LIFETIME_MS).toISOString()
+            : currentSession.expires_at;
+
+          if (shouldRenewExpiry) {
+            const renewedSession = {
+              ...currentSession,
+              expires_at: expiresAt,
+            };
+            sessionRef.current = renewedSession;
+            rememberSession(renewedSession);
+            setSession((value) => ({ ...value, expires_at: expiresAt }));
+          }
+
           const video = getPlayerVideo();
           const context = window.__MG_PLAYER_CONTEXT__ || {};
           const trackPreferences = readTrackPreferences();
@@ -593,6 +611,7 @@ export default function PlayerQrRemote({ showIdle = false }) {
                 ? Number(video.muted ? 0 : video.volume || 0)
                 : 1,
               status: playing ? "playing" : "idle",
+              expires_at: expiresAt,
               last_seen_at: new Date().toISOString(),
             });
           } catch {
