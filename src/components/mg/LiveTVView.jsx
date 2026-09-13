@@ -381,6 +381,31 @@ const qualityLabel = (channel) => {
   return "";
 };
 
+const antSportsKickoffLabel = (channel) => {
+  if (channel?.sourceId !== "antsports-live") return "";
+
+  const matchTime = Number(channel?.antsports?.matchTime || 0);
+  if (matchTime > 0) {
+    const date = new Date(matchTime * 1000);
+    if (Number.isFinite(date.getTime())) {
+      return date.toLocaleString("en-GB", {
+        weekday: "short",
+        day: "2-digit",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+  }
+
+  return String(
+    channel?.antsports?.timeHeader ||
+      channel?.antsports?.matchDate2 ||
+      channel?.antsports?.matchDate ||
+      ""
+  ).trim();
+};
+
 const repositoryHealth = (source) => {
   if (source?.error) {
     return {
