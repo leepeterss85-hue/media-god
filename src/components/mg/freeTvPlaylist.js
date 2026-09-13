@@ -333,7 +333,7 @@ export const EXTERNAL_ADDON_SOURCES = [
     category: "Sports",
     country: "NZ",
     platform: "Kodi",
-    note: "Repository-based Kodi add-on. It requires the SlyGuy repository and its dependencies, so it is kept separate from M3U Live TV playlists.",
+    note: "Media God integration based on the SlyGuy Sky Sport Now flow. Connect your own subscription with the provider's TV code; live channels then appear in Live TV with protected playback handled by supported devices.",
   },
 ];
 
