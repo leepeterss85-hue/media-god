@@ -62,8 +62,6 @@ const downloadBucket = (torrent) => {
   return "active";
 };
 
-const validInfoHash = (value) => /^[a-f0-9]{40}$/i.test(String(value || "").trim());
-
 const formatSpeed = (value) => {
   const bytesPerSecond = Number(value || 0);
   if (!Number.isFinite(bytesPerSecond) || bytesPerSecond <= 0) return "";
@@ -179,14 +177,9 @@ export default function DebridDashboard() {
 
   const retryFailed = async (torrent) => {
     const torrentId = String(torrent?.id || "").trim();
-    const hash = String(torrent?.hash || "").trim().toLowerCase();
 
-    if (!torrentId || !validInfoHash(hash) || busyId) {
-      setError(
-        validInfoHash(hash)
-          ? "This failed Real-Debrid item cannot be retried right now."
-          : "Real-Debrid did not provide an info hash for this failed item, so it cannot be safely retried."
-      );
+    if (!torrentId || busyId) {
+      setError("This failed Real-Debrid item cannot be retried right now.");
       return;
     }
 
@@ -194,19 +187,13 @@ export default function DebridDashboard() {
     setError("");
 
     try {
-      await base44.functions.invoke("realDebrid", {
-        action: "torrent_delete",
-        torrent_id: torrentId,
-      });
-
       const response = await base44.functions.invoke("realDebrid", {
-        action: "add_magnet",
-        magnet: hash,
-        title: torrent?.filename || torrent?.original_filename || "Retry download",
+        action: "retry_torrent",
+        torrent_id: torrentId,
       });
       const data = response?.data ?? response ?? {};
 
-      if (data?.status === "failed" || data?.error) {
+      if (data?.restarted !== true || data?.error) {
         throw new Error(data?.error || "Real-Debrid could not restart this torrent.");
       }
 
@@ -438,7 +425,7 @@ export default function DebridDashboard() {
             const speed = formatSpeed(torrent?.speed);
             const seeders = Number(torrent?.seeders || 0);
             const itemBusy = String(torrent?.id || "") === busyId;
-            const canRetry = errorNow && validInfoHash(torrent?.hash);
+            const canRetry = errorNow && Boolean(String(torrent?.id || "").trim());
 
             return (
               <div
@@ -515,7 +502,7 @@ export default function DebridDashboard() {
                         title={
                           canRetry
                             ? "Retry this failed download"
-                            : "Retry unavailable because the torrent hash is missing"
+                            : "Retry unavailable for this item"
                         }
                         className="min-h-10 inline-flex items-center gap-1.5 rounded-lg border border-mg-green/25 bg-mg-green/10 px-3 py-2 text-xs font-semibold text-mg-green hover:bg-mg-green/15 disabled:opacity-35"
                       >
