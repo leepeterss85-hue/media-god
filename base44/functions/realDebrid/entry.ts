@@ -1496,10 +1496,6 @@ export default async function (req) {
           .map(normalise)
           .filter(Boolean);
 
-      const wantYear =
-        acceptableYears[0] ||
-        "";
-
       const titleStopWords =
         new Set([
           "a",
