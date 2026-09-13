@@ -5,7 +5,7 @@ import { Image } from "@/components/ui/image";
 import { cn } from "@/lib/utils";
 import { usePlayer, buildMediaSources } from "@/components/mg/PlayerProvider";
 
-export default function RoadmapView() {
+export default function RoadmapView({ onBack }) {
   const [films, setFilms] = useState([]);
   const [broadcasts, setBroadcasts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -66,7 +66,13 @@ export default function RoadmapView() {
   return (
     <div className="p-4 md:p-6 max-w-3xl">
       <div className="flex items-center gap-3 mb-4">
-        <button className="text-white/50 hover:text-white">
+        <button
+          type="button"
+          onClick={() => onBack?.()}
+          aria-label="Back to Media God home"
+          title="Back"
+          className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-white/50 hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mg-green"
+        >
           <ChevronLeft className="w-5 h-5" />
         </button>
         <h1 className="text-xl font-bold text-white tracking-wide">RELEASE ROADMAP</h1>
