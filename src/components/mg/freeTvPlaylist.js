@@ -323,6 +323,20 @@ export const FREE_TV_PLAYLIST_URL =
 // Country metadata is retained for browsing/searching only.
 export const LIVE_TV_REGION = "GLOBAL";
 
+export const EXTERNAL_ADDON_SOURCES = [
+  {
+    id: "slyguy-sky-sport-now-0.7.5",
+    name: "Sky Sport Now · SlyGuy Kodi add-on v0.7.5",
+    url: "https://github.com/matthuisman/slyguy.addons/commit/64a7e1b8035f08df2000338a8cf073259ca4ab9d",
+    repositoryUrl: "https://slyguy.uk/.repo/",
+    installGuideUrl: "https://www.matthuisman.nz/2020/02/slyguy-kodi-repository.html",
+    category: "Sports",
+    country: "NZ",
+    platform: "Kodi",
+    note: "Repository-based Kodi add-on. It requires the SlyGuy repository and its dependencies, so it is kept separate from M3U Live TV playlists.",
+  },
+];
+
 export const PUBLIC_DIRECT_CHANNELS = [
   {
     id: "BBCAlba.uk@Official",
