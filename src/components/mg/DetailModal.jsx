@@ -478,14 +478,18 @@ const normaliseDetailPayload = (
       ),
 
     watch_providers:
-      normaliseProviders(
-        payload.watch_providers ??
-          payload.watchProviders ??
-          rawDetails.watch_providers ??
-          rawDetails.watchProviders ??
+      normaliseProviders([
+        ...normaliseProviders(
+          payload.watch_providers ??
+            payload.watchProviders ??
+            rawDetails.watch_providers ??
+            rawDetails.watchProviders
+        ),
+        ...normaliseProviders(
           fallback.watch_providers ??
-          fallback.watchProviders
-      ),
+            fallback.watchProviders
+        ),
+      ]),
 
     cast:
       normaliseCast(
@@ -952,6 +956,18 @@ export default function DetailModal({
 
       rdYear:
         safeItem.year,
+
+      alternateYears:
+        asArray(
+          safeItem.alternate_years ??
+          safeItem.alternateYears
+        ),
+
+      rdAlternateYears:
+        asArray(
+          safeItem.alternate_years ??
+          safeItem.alternateYears
+        ),
 
       sources:
         buildMediaSources({
