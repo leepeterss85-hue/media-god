@@ -476,15 +476,21 @@ const channelPlaybackHealth = (channel) => {
   }));
   const usable = scored.filter((item) => !item.quarantined);
   const bestScore = Math.max(
-    ...scored.map((item) => Number(item.score || 0)),
-    0
+    ...scored.map((item) => Number(item.score || 0))
   );
   const allQuarantined = scored.length > 0 && usable.length === 0;
   const backupCanTakeOver =
     primaryQuarantined &&
     usable.some((item) => item.candidate?.url !== primaryUrl);
+  const healthierBackupAvailable =
+    primaryScore < 0 &&
+    usable.some(
+      (item) =>
+        item.candidate?.url !== primaryUrl &&
+        item.score >= primaryScore + 3500
+    );
 
-  if (backupCanTakeOver) {
+  if (backupCanTakeOver || healthierBackupAvailable) {
     return {
       label: "Backup",
       className: "border-amber-400/30 bg-amber-400/10 text-amber-200",
@@ -1459,7 +1465,7 @@ export default function LiveTVView() {
     const values = Array.from(
       new Set(
         channels
-          .map((channel) => String(channel?.country || "").trim().toUpperCase())
+          .map((channel) => epgCountryForChannel(channel))
           .filter(Boolean)
       )
     ).sort((a, b) =>
@@ -1556,7 +1562,20 @@ export default function LiveTVView() {
         }
 
         if (
-          !["All", "Favourites", "Recent", "Most Reliable"].includes(quickFilter) &&
+          quickFilter === "United Kingdom" &&
+          !isUkChannel(channel)
+        ) {
+          return false;
+        }
+
+        if (
+          ![
+            "All",
+            "Favourites",
+            "Recent",
+            "Most Reliable",
+            "United Kingdom",
+          ].includes(quickFilter) &&
           !tags.has(quickFilter)
         ) {
           return false;
@@ -1950,7 +1969,9 @@ export default function LiveTVView() {
     const guide = epgByKey[epgKeyForChannel(channel)] || {};
     const nowProgramme = guide?.now || null;
     const favourite = favouriteKeys.has(memoryKey);
-    const playbackHealth = channelPlaybackHealth(channel);
+    const playbackHealth = isRadioChannel(channel)
+      ? null
+      : channelPlaybackHealth(channel);
 
     return (
       <button
@@ -2855,20 +2876,10 @@ export default function LiveTVView() {
                   channel
                 );
 
-              const backupCount =
-                (
-                  channel.alternatives ||
-                  []
-                ).filter(
-                  (
-                    candidate
-                  ) =>
-                    candidate?.kind ===
-                      "direct" &&
-                    candidate?.url &&
-                    candidate?.browserPlayable !==
-                      false
-                ).length;
+              const backupCount = Math.max(
+                0,
+                playableChannelCandidates(channel).length - 1
+              );
 
               const guide = epgByKey[
                 epgKeyForChannel(channel)
