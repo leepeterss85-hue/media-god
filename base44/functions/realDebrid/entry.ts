@@ -1,5 +1,9 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.44";
-import { normaliseRequestedFileIndex } from "./regressionHelpers.js";
+import {
+  chooseRequestedTorrentFileForPlayback,
+  chooseVideoFileForPlayback,
+  normaliseRequestedFileIndex,
+} from "./regressionHelpers.js";
 
 const RD_BASE =
   "https://api.real-debrid.com/rest/1.0";
