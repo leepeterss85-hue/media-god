@@ -76,8 +76,7 @@ for (const marker of [
   'skipAddonLookup: true',
   'skipRdLookup: true',
   "retryFailed",
-  'action: "add_magnet"',
-  "validInfoHash",
+  'action: "retry_torrent"',
 ]) {
   expect(downloads.includes(marker), `Downloads regression marker missing: ${marker}`);
 }
