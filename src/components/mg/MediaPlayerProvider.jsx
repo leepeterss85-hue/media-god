@@ -367,11 +367,33 @@ const annotateDebridCache = async (items, hasDebrid) => {
 
       const debridCached = cachedProviders.length > 0;
       const existingStrategy = String(item?.resolutionStrategy || "").trim();
+      const torrentTrackers = Array.isArray(item?.torrentTrackers)
+        ? item.torrentTrackers.filter(Boolean)
+        : [];
+      const trackerRichMagnet = [
+        item?.richMagnet,
+        item?.magnet,
+        item?.magnetLink,
+        item?.src,
+        item?.url,
+      ].some((value) => /(?:[?&])tr=/i.test(String(value || "")));
+      const hasTorrentMetadata =
+        torrentTrackers.length > 0 || trackerRichMagnet;
+
+      /*
+       * Cache annotation must not turn a real hash/tracker-backed torrent back
+       * into an opaque Comet uncached row. Same-hash merging can legitimately
+       * leave cometUncached=true on a source after Torrentio/another discovery
+       * addon has supplied the actual torrent identity and trackers. In that
+       * case Media God owns the RD add/select/poll operation via rd_magnet.
+       */
       const resolutionStrategy = debridCached
         ? "cached_debrid"
-        : item?.cometUncached === true
-          ? "comet_uncached"
-          : existingStrategy || "rd_magnet";
+        : existingStrategy === "rd_magnet" || hasTorrentMetadata
+          ? "rd_magnet"
+          : item?.cometUncached === true
+            ? "comet_uncached"
+            : existingStrategy || "rd_magnet";
 
       return {
         ...item,
