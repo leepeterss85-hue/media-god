@@ -414,6 +414,51 @@ const normaliseEventMatchText = (value) =>
 
 const ANT_SPORTS_DIRECTORY_URL = "https://antsports.tv/us";
 
+const evSportsMatchName = (value) =>
+  normaliseStationName(value)
+    .replace(/\s+(?:4k|uhd)$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const matchingEvSportsChannelForChannel = (channel, allChannels) => {
+  if (!channel) return null;
+  if (channel?.sourceId === "evsports-live") return channel;
+
+  const wanted = evSportsMatchName(channel?.name);
+  if (!wanted) return null;
+
+  return [...(allChannels || [])]
+    .filter(
+      (candidate) =>
+        candidate?.sourceId === "evsports-live" &&
+        evSportsMatchName(candidate?.name) === wanted &&
+        /^https?:\/\//i.test(
+          String(candidate?.officialUrl || candidate?.url || "").trim()
+        )
+    )
+    .sort(
+      (a, b) =>
+        Number(b?.sourcePriority || 0) - Number(a?.sourcePriority || 0) ||
+        Number(b?.score || 0) - Number(a?.score || 0)
+    )[0] || null;
+};
+
+const evSportsDestinationForChannel = (channel, allChannels) => {
+  const matchedChannel = matchingEvSportsChannelForChannel(channel, allChannels);
+  if (!matchedChannel) return null;
+
+  const url = String(
+    matchedChannel?.officialUrl || matchedChannel?.url || ""
+  ).trim();
+  if (!/^https?:\/\//i.test(url)) return null;
+
+  return {
+    url,
+    label: `Open ${matchedChannel?.name || "channel"} on EV SPORTS`,
+    matchedChannel,
+  };
+};
+
 const ANT_SPORTS_FALLBACK_PATTERNS = [
   /^tnt sports [1-4]\b/i,
   /^sky sports\b/i,
@@ -2065,6 +2110,15 @@ export default function LiveTVView() {
       return;
     }
 
+    if (channel?.sourceId === "evsports-live") {
+      stopRadio();
+      setChannelNotice("");
+      setChannelNoticeAction(null);
+
+      openOfficialLiveUrl(channel.officialUrl || channel.url);
+      return;
+    }
+
     if (channel?.sourceId === "antsports-live") {
       stopRadio();
       setChannelNotice("");
@@ -2152,8 +2206,9 @@ export default function LiveTVView() {
       return;
     }
 
+    const evSportsFallback = evSportsDestinationForChannel(channel, channels);
     const antSportsFallback =
-      channelUsesAntSportsFallback(channel)
+      !evSportsFallback && channelUsesAntSportsFallback(channel)
         ? antSportsDestinationForChannel(channel, channels, epgByKey)
         : null;
 
@@ -2165,6 +2220,7 @@ export default function LiveTVView() {
       candidates.length === 0
     ) {
       const target =
+        evSportsFallback ||
         antSportsFallback ||
         officialLiveFallback(channel) ||
         (channel.officialUrl || channel.url
@@ -2183,14 +2239,17 @@ export default function LiveTVView() {
 
     if (candidates.length === 0) {
       const fallback =
+        evSportsFallback ||
         antSportsFallback ||
         officialLiveFallback(channel);
 
       setChannelNotice(
         fallback
-          ? antSportsFallback
-            ? `${channel.name || "This sports channel"} does not have a direct stream this device can play. Open the matching ANT SPORTS event, or the ANT SPORTS directory if no exact event match is available.`
-            : `${channel.name || "This channel"} does not have a direct stream this device can play. Use the broadcaster’s official live service instead.`
+          ? evSportsFallback
+            ? `${channel.name || "This sports channel"} does not have a direct stream this device can play. The matching EV SPORTS channel is available and has priority.`
+            : antSportsFallback
+              ? `${channel.name || "This sports channel"} does not have a direct stream this device can play. Open the matching ANT SPORTS event, or the ANT SPORTS directory if no exact event match is available.`
+              : `${channel.name || "This channel"} does not have a direct stream this device can play. Use the broadcaster’s official live service instead.`
           : `${channel.name || "This channel"} does not currently have a browser-playable stream.`
       );
       setChannelNoticeAction(
