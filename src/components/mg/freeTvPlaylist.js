@@ -1,5 +1,8 @@
 import { fetchAntSportsEvents } from "./antSportsScraper.js";
-import { fetchEvSportsChannels } from "./evSportsScraper.js";
+import {
+  EV_SPORTS_SOURCE_PRIORITY,
+  fetchEvSportsChannels,
+} from "./evSportsScraper.js";
 
 export const LIVE_TV_SOURCES = [
   {
@@ -2029,7 +2032,7 @@ export async function getFreeTvChannels(options = {}) {
         id: "evsports-live",
         name: "EV SPORTS · Saptarshi",
         category: "Sports",
-        priority: 220,
+        priority: EV_SPORTS_SOURCE_PRIORITY,
         count: evSportsChannels.length,
         latencyMs: Math.max(0, Date.now() - evSportsStartedAt),
         bytes: 0,
@@ -2042,7 +2045,7 @@ export async function getFreeTvChannels(options = {}) {
         id: "evsports-live",
         name: "EV SPORTS · Saptarshi",
         category: "Sports",
-        priority: 220,
+        priority: EV_SPORTS_SOURCE_PRIORITY,
         count: 0,
         latencyMs: Math.max(0, Date.now() - evSportsStartedAt),
         bytes: 0,
