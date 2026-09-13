@@ -1823,7 +1823,8 @@ export default function LiveTVView() {
 
         if (
           directOnly &&
-          channel?.kind !== "direct"
+          channel?.kind !== "direct" &&
+          !tags.has("Official")
         ) {
           return false;
         }
@@ -2876,7 +2877,7 @@ export default function LiveTVView() {
               : "border-white/10 bg-mg-card text-white/70 hover:text-white"
           )}
         >
-          Direct streams only
+          Direct + official
         </button>
 
         <div className="grid h-11 grid-cols-3 overflow-hidden rounded-lg border border-white/10 bg-mg-card">
