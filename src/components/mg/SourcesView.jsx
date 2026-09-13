@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 import {
+  EXTERNAL_ADDON_SOURCES,
   LIVE_TV_SOURCES,
   PUBLIC_DIRECT_CHANNELS,
   clearFreeTvCache,
@@ -1159,6 +1160,60 @@ export default function SourcesView() {
             ))}
           </div>
         )}
+      </section>
+
+      <section className="mt-4 rounded-2xl border border-white/10 bg-mg-card p-4 sm:p-5">
+        <h2 className="flex items-center gap-2 font-bold text-white">
+          <ExternalLink className="h-4 w-4 text-mg-green" />
+          External add-on repositories
+        </h2>
+        <p className="mt-1 text-xs text-white/40">
+          Repository-based integrations that are not ordinary M3U playlists. They are listed separately so Media God never tries to parse a Kodi add-on ZIP as Live TV.
+        </p>
+
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {EXTERNAL_ADDON_SOURCES.map((source) => (
+            <div key={source.id} className="rounded-lg border border-white/8 bg-black/15 p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-semibold text-white">{source.name}</p>
+                  <p className="mt-1 text-[10px] text-white/35">{source.note}</p>
+                </div>
+                <span className="rounded bg-white/5 px-2 py-0.5 text-[10px] uppercase text-white/40">
+                  {source.platform}
+                </span>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <a
+                  href={source.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex min-h-8 items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2.5 text-[10px] font-semibold text-white"
+                >
+                  <ExternalLink className="h-3 w-3" /> Commit
+                </a>
+                <a
+                  href={source.repositoryUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex min-h-8 items-center gap-1 rounded-lg border border-mg-green/25 bg-mg-green/10 px-2.5 text-[10px] font-semibold text-mg-green"
+                >
+                  <ExternalLink className="h-3 w-3" /> Repository
+                </a>
+                {source.installGuideUrl && (
+                  <a
+                    href={source.installGuideUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex min-h-8 items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2.5 text-[10px] font-semibold text-white"
+                  >
+                    <ExternalLink className="h-3 w-3" /> Guide
+                  </a>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
       </section>
 
       <section className="mt-4 rounded-2xl border border-white/10 bg-mg-card p-4 sm:p-5">
