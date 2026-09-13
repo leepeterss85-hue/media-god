@@ -277,11 +277,23 @@ export default function WatchPartyView() {
       return;
     }
 
+    if (posterUrl && !validWatchUrl(posterUrl)) {
+      setError("The optional poster must be a valid http/https URL.");
+      return;
+    }
+
     setBusy(true);
     setError("");
 
     try {
-      const room_code = genCode();
+      let room_code = genCode();
+
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        const existing = await base44.entities.WatchParty.filter({ room_code });
+        if (!Array.isArray(existing) || existing.length === 0) break;
+        room_code = genCode();
+      }
+
       const record = await base44.entities.WatchParty.create({
         room_code,
         title,
