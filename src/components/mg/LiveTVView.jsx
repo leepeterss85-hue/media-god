@@ -412,115 +412,130 @@ const normaliseEventMatchText = (value) =>
     .replace(/\s+/g, " ")
     .trim();
 
-const antSportsLinkedChannelPatterns = (event) => {
-  const sportKey = searchText(event?.antsports?.sportKey || event?.antsports?.sport);
-  const league = searchText(event?.antsports?.league);
-  const eventName = searchText(event?.name);
-  const patterns = [];
+const ANT_SPORTS_DIRECTORY_URL = "https://antsports.tv/us";
 
-  const add = (pattern) => patterns.push(pattern);
+const ANT_SPORTS_FALLBACK_PATTERNS = [
+  /^tnt sports [1-4]\b/i,
+  /^sky sports\b/i,
+  /^premier sports(?: [12])?\b/i,
+  /^dazn\b/i,
+  /\bufc\b/i,
+  /\bnfl\b/i,
+  /\bmlb\b/i,
+  /\bnhl\b/i,
+  /\bnba\b/i,
+  /\bncaaf\b/i,
+  /\bafl\b/i,
+  /\bgolf\b/i,
+  /\btennis\b/i,
+  /\bformula\s*1\b/i,
+  /\bf1\b/i,
+  /\bmotor\s*racing\b/i,
+  /\bmotorsport\b/i,
+  /\brugby\b/i,
+];
 
-  if (sportKey === "football") {
-    add(/^tnt sports [1-4]\b/i);
-    add(/^sky sports (?:football|premier league|main event)\b/i);
-    add(/^premier sports(?: [12])?\b/i);
-  }
+const channelUsesAntSportsFallback = (channel) => {
+  if (!channel) return false;
+  if (channel?.sourceId === "antsports-live") return true;
+  if (channel?.provider === "sky-sport-now") return false;
 
-  if (sportKey === "fighting") {
-    add(/^tnt sports [1-4]\b/i);
-    if (/\bufc\b/i.test(`${league} ${eventName}`)) add(/\bufc\b/i);
-  }
-
-  if (sportKey === "rugby") {
-    add(/^tnt sports [1-4]\b/i);
-    add(/^premier sports(?: [12])?\b/i);
-  }
-
-  if (["f1", "formula 1", "motorsport"].includes(sportKey)) {
-    add(/^sky sports f1\b/i);
-    add(/\bmotor\s*racing\b/i);
-    add(/\bformula\s*1\b/i);
-    add(/^tnt sports [1-4]\b/i);
-  }
-
-  if (sportKey === "mlb") add(/\bmlb\b/i);
-  if (sportKey === "nfl") add(/\bnfl\b/i);
-  if (sportKey === "nhl") add(/\bnhl\b/i);
-  if (sportKey === "golf") add(/\bgolf\b/i);
-  if (sportKey === "tennis") add(/\btennis\b/i);
-  if (sportKey === "afl") add(/\bafl\b/i);
-
-  if (
-    sportKey === "basketball" &&
-    /\bnba\b/i.test(`${league} ${eventName}`)
-  ) {
-    add(/\bnba\b/i);
-  }
-
-  return patterns;
+  const name = String(channel?.name || "").trim();
+  return ANT_SPORTS_FALLBACK_PATTERNS.some((pattern) => pattern.test(name));
 };
 
-const linkedAntSportsChannels = (event, allChannels, epgByKey) => {
-  if (event?.sourceId !== "antsports-live") return [];
+const matchingAntSportsEventForChannel = (channel, allChannels, epgByKey) => {
+  if (!channel) return null;
 
-  const home = normaliseEventMatchText(event?.antsports?.home);
-  const away = normaliseEventMatchText(event?.antsports?.away);
-  const eventName = normaliseEventMatchText(event?.name);
-  const namePatterns = antSportsLinkedChannelPatterns(event);
-  const scored = [];
+  const guide = epgByKey?.[epgKeyForChannel(channel)] || {};
+  const programmeTitles = [
+    guide?.now,
+    guide?.next,
+    channel?.providerNow,
+    channel?.providerNext,
+  ]
+    .map((programme) => normaliseEventMatchText(programme?.title))
+    .filter(Boolean);
 
-  for (const candidate of allChannels || []) {
-    if (!candidate || candidate === event || candidate?.sourceId === "antsports-live") {
-      continue;
-    }
+  if (programmeTitles.length === 0) return null;
 
-    const guide = epgByKey?.[epgKeyForChannel(candidate)] || {};
-    const programmes = [
-      guide?.now,
-      guide?.next,
-      candidate?.providerNow,
-      candidate?.providerNext,
-    ].filter(Boolean);
+  let best = null;
 
-    let epgMatch = false;
-    for (const programme of programmes) {
-      const title = normaliseEventMatchText(programme?.title);
-      if (!title) continue;
+  for (const event of allChannels || []) {
+    if (event?.sourceId !== "antsports-live") continue;
 
-      if (eventName && title.includes(eventName)) {
-        epgMatch = true;
-        break;
-      }
+    const eventName = normaliseEventMatchText(event?.name);
+    const home = normaliseEventMatchText(event?.antsports?.home);
+    const away = normaliseEventMatchText(event?.antsports?.away);
+    let score = 0;
 
+    for (const title of programmeTitles) {
       if (home && away && title.includes(home) && title.includes(away)) {
-        epgMatch = true;
-        break;
+        score = Math.max(score, 12000);
+      }
+
+      if (
+        eventName &&
+        (title.includes(eventName) || eventName.includes(title))
+      ) {
+        score = Math.max(score, 10000);
+      }
+
+      if (
+        home &&
+        away &&
+        (title.includes(home) || title.includes(away))
+      ) {
+        score = Math.max(score, 4000);
       }
     }
 
-    const name = String(candidate?.name || "").trim();
-    const nameMatch = namePatterns.some((pattern) => pattern.test(name));
-    if (!epgMatch && !nameMatch) continue;
+    if (score <= 0) continue;
+    if (event?.live === true) score += 2500;
 
-    let score = epgMatch ? 10000 : 1000;
-    if (candidate?.kind === "direct") score += 500;
-    if (isUkChannel(candidate)) score += 300;
-    score += Number(candidate?.sourcePriority || 0);
+    const matchTime = Number(event?.antsports?.matchTime || 0);
+    if (matchTime > 0) {
+      const distanceMinutes = Math.abs(matchTime * 1000 - Date.now()) / 60000;
+      score += Math.max(0, 1200 - Math.min(1200, distanceMinutes));
+    }
 
-    scored.push({ candidate, score });
+    if (!best || score > best.score) {
+      best = { event, score };
+    }
   }
 
-  const seen = new Set();
-  return scored
-    .sort((a, b) => b.score - a.score)
-    .map(({ candidate }) => candidate)
-    .filter((candidate) => {
-      const key = channelMemoryKey(candidate);
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    })
-    .slice(0, 12);
+  return best?.event || null;
+};
+
+const antSportsDestinationForChannel = (channel, allChannels, epgByKey) => {
+  const matchedEvent = matchingAntSportsEventForChannel(
+    channel,
+    allChannels,
+    epgByKey
+  );
+
+  const eventUrl = String(
+    matchedEvent?.officialUrl ||
+      matchedEvent?.url ||
+      ""
+  ).trim();
+
+  if (/^https?:\/\//i.test(eventUrl)) {
+    return {
+      url: eventUrl,
+      label:
+        matchedEvent?.live === true
+          ? "Open matching ANT SPORTS live event"
+          : "Open matching ANT SPORTS event",
+      matchedEvent,
+    };
+  }
+
+  return {
+    url: ANT_SPORTS_DIRECTORY_URL,
+    label: "Open ANT SPORTS",
+    matchedEvent: null,
+  };
 };
 
 const repositoryHealth = (source) => {
