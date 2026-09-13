@@ -6019,11 +6019,15 @@ export default function VideoPlayer({
                   {playerUiStatus}
                 </span>
 
-                {selectableSourceCount > 0 && (
+                {isLive && activeLiveSourcePosition.total > 0 ? (
+                  <span className="shrink-0 font-semibold text-white/60">
+                    Source {activeLiveSourcePosition.current || 1}/{activeLiveSourcePosition.total}
+                  </span>
+                ) : selectableSourceCount > 0 ? (
                   <span className="shrink-0">
                     {selectableSourceCount} {selectableSourceCount === 1 ? "source" : "sources"}
                   </span>
-                )}
+                ) : null}
 
                 {failedSourceCount > 0 && (
                   <span className="shrink-0 text-white/30">
@@ -6426,6 +6430,21 @@ export default function VideoPlayer({
                   Try Again
                 </button>
               )}
+            </div>
+          )}
+
+          {isLive && liveRecoveryNotice?.message && (
+            <div
+              data-mg-live-recovery-notice="true"
+              className={`pointer-events-none absolute left-1/2 top-3 z-50 max-w-[calc(100%-1.5rem)] -translate-x-1/2 rounded-full border px-3 py-1.5 text-center text-[11px] font-semibold shadow-xl backdrop-blur-md sm:text-xs ${
+                liveRecoveryNotice.kind === "error"
+                  ? "border-red-400/30 bg-red-950/85 text-red-100"
+                  : liveRecoveryNotice.kind === "connected"
+                    ? "border-mg-green/30 bg-black/80 text-mg-green"
+                    : "border-amber-300/25 bg-black/85 text-amber-100"
+              }`}
+            >
+              {liveRecoveryNotice.message}
             </div>
           )}
 
