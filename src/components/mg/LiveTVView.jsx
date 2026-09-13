@@ -1723,10 +1723,13 @@ export default function LiveTVView() {
             live: true,
             sourceName:
               candidate.sourceName,
+            sourceCategory: candidate?.sourceCategory || "",
             sourcePriority: Number(candidate?.sourcePriority || 0),
             quality: Number(candidate?.quality || 0),
             geoRestricted: candidate?.geoRestricted === true,
             browserPlayable: candidate?.browserPlayable !== false,
+            mixedContent: candidate?.mixedContent === true,
+            requiresHeaders: candidate?.requiresHeaders === true,
             format: candidate.format || "",
             mimeType,
             headers,
