@@ -7,6 +7,7 @@ const entries = [
   "base44/functions/realDebrid/entry.ts",
   "base44/functions/getLiveEpg/entry.ts",
   "base44/functions/fetchAddonStreams/entry.ts",
+  "base44/functions/antSportsLive/entry.ts",
 ];
 
 const outdir = await mkdtemp(join(tmpdir(), "media-god-backend-check-"));
