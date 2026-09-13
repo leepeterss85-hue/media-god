@@ -294,6 +294,10 @@ const epgCountryForChannel = (channel) => {
   return /^[A-Z]{2}$/.test(suffix) ? suffix : "";
 };
 
+const isUkChannel = (channel) =>
+  epgCountryForChannel(channel) === "GB" ||
+  (channel?.tags || []).includes("United Kingdom");
+
 const epgUniqueValues = (values, limit = 16) => {
   const seen = new Set();
   const result = [];
@@ -452,6 +456,87 @@ const playableChannelCandidates = (channel) => {
         a.index - b.index
     )
     .map(({ candidate }) => candidate);
+};
+
+const channelPlaybackHealth = (channel) => {
+  if (!channel || channel?.kind === "external") return null;
+
+  const candidates = playableChannelCandidates(channel);
+  if (candidates.length === 0) return null;
+
+  const primaryUrl = String(channel?.url || "").trim();
+  const primaryScore = primaryUrl ? liveTvUrlScore(primaryUrl) : 0;
+  const primaryQuarantined = primaryUrl
+    ? liveTvUrlQuarantined(primaryUrl)
+    : false;
+  const scored = candidates.map((candidate) => ({
+    candidate,
+    score: liveTvUrlScore(candidate?.url),
+    quarantined: liveTvUrlQuarantined(candidate?.url),
+  }));
+  const usable = scored.filter((item) => !item.quarantined);
+  const bestScore = Math.max(
+    ...scored.map((item) => Number(item.score || 0)),
+    0
+  );
+  const allQuarantined = scored.length > 0 && usable.length === 0;
+  const backupCanTakeOver =
+    primaryQuarantined &&
+    usable.some((item) => item.candidate?.url !== primaryUrl);
+
+  if (backupCanTakeOver) {
+    return {
+      label: "Backup",
+      className: "border-amber-400/30 bg-amber-400/10 text-amber-200",
+      title: "The primary feed recently failed; Media God has a healthier backup ready.",
+    };
+  }
+
+  if (allQuarantined || bestScore <= -2500) {
+    return {
+      label: "Recently failed",
+      className: "border-red-400/30 bg-red-400/10 text-red-200",
+      title: "This device recently saw playback failures on the available feed(s).",
+    };
+  }
+
+  if (bestScore >= 2500 || primaryScore >= 2500) {
+    return {
+      label: "Healthy",
+      className: "border-mg-green/30 bg-mg-green/10 text-mg-green",
+      title: "This device has recently played one of this channel's feeds successfully.",
+    };
+  }
+
+  return null;
+};
+
+const channelSourcePriority = (channel) =>
+  [channel, ...(channel?.alternatives || [])].reduce(
+    (best, candidate) => Math.max(best, Number(candidate?.sourcePriority || 0)),
+    0
+  );
+
+const channelBestQuality = (channel) =>
+  [channel, ...(channel?.alternatives || [])].reduce(
+    (best, candidate) => Math.max(best, Number(candidate?.quality || 0)),
+    0
+  );
+
+const smartChannelCompare = (a, b, rankByKey) => {
+  const aRank = rankByKey.get(channelMemoryKey(a)) || {};
+  const bRank = rankByKey.get(channelMemoryKey(b)) || {};
+
+  return (
+    Number(bRank.favourite === true) - Number(aRank.favourite === true) ||
+    Number(bRank.uk === true) - Number(aRank.uk === true) ||
+    Number(aRank.recentIndex ?? Number.MAX_SAFE_INTEGER) -
+      Number(bRank.recentIndex ?? Number.MAX_SAFE_INTEGER) ||
+    Number(bRank.reliability || 0) - Number(aRank.reliability || 0) ||
+    Number(bRank.sourcePriority || 0) - Number(aRank.sourcePriority || 0) ||
+    Number(bRank.quality || 0) - Number(aRank.quality || 0) ||
+    String(a?.name || "").localeCompare(String(b?.name || ""))
+  );
 };
 
 const prewarmChannel = (channel) => {
