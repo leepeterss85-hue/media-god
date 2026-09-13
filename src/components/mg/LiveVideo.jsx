@@ -2270,6 +2270,8 @@ const LiveVideo = forwardRef(
       src,
       sourceLabel,
       isLive,
+      headers,
+      drm,
       subtitlesEnabled,
       preferredSubtitleLanguage,
       preferredAudioLanguage,
