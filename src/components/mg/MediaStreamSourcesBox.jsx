@@ -1241,6 +1241,42 @@ export default function StreamSourcesBox({
         playCombinedDebrid,
     },
 
+    ...(providers || [])
+      .filter(
+        (provider) =>
+          provider?.link
+      )
+      .map(
+        (
+          provider,
+          index
+        ) => ({
+          id:
+            `provider-${index}-${provider?.name || "provider"}`,
+
+          kind:
+            "provider",
+
+          label:
+            provider?.name ||
+            "Provider",
+
+          note:
+            `${provider?.tier || "Where to watch"} • Official service`,
+
+          logo:
+            provider?.logo,
+
+          onClick:
+            () =>
+              window.open(
+                provider.link,
+                "_blank",
+                "noopener,noreferrer"
+              ),
+        })
+      ),
+
     ...visibleAddonStreams.map(
       (
         stream,
@@ -1379,42 +1415,6 @@ export default function StreamSourcesBox({
           ),
     },
 
-    ...(providers || [])
-      .filter(
-        (provider) =>
-          provider?.link
-      )
-      .map(
-        (
-          provider,
-          index
-        ) => ({
-          id:
-            `provider-${index}-${provider?.name || "provider"}`,
-
-          kind:
-            "provider",
-
-          label:
-            provider?.name ||
-            "Provider",
-
-          note:
-            provider?.tier ||
-            "Where to watch",
-
-          logo:
-            provider?.logo,
-
-          onClick:
-            () =>
-              window.open(
-                provider.link,
-                "_blank",
-                "noopener,noreferrer"
-              ),
-        })
-      ),
   ];
 
   const iconFor = (
