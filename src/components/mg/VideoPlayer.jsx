@@ -3055,6 +3055,34 @@ export default function VideoPlayer({
       let lastProgressAdvanceAt =
         Date.now();
 
+      let consecutivePollFailures =
+        0;
+
+      const scheduleTransientPollRetry =
+        (message) => {
+          consecutivePollFailures += 1;
+
+          setRdPreparation((current) => ({
+            ...(current || {}),
+            lastPollError: String(message || "Real-Debrid status check failed."),
+            updatedAt: Date.now(),
+            attempts,
+          }));
+
+          if (consecutivePollFailures > 4) {
+            return false;
+          }
+
+          const retryDelayMs = Math.min(
+            20000,
+            3000 * 2 ** Math.max(0, consecutivePollFailures - 1)
+          );
+
+          setRdPolling(true);
+          pollRef.current = window.setTimeout(tick, retryDelayMs);
+          return true;
+        };
+
       setRdPolling(
         true
       );
@@ -3130,6 +3158,10 @@ export default function VideoPlayer({
               res?.data ||
               {};
 
+            if (!data.error) {
+              consecutivePollFailures = 0;
+            }
+
             const progressData =
               data.torrent_progress ||
               {};
@@ -3174,6 +3206,7 @@ export default function VideoPlayer({
                 updatedAt:
                   Date.now(),
                 attempts,
+                lastPollError: "",
               })
             );
 
@@ -3326,6 +3359,13 @@ export default function VideoPlayer({
                 return;
               }
 
+              if (
+                rdErrorCode === "RD_TORRENT_INFO_FAILED" &&
+                scheduleTransientPollRetry(data.error)
+              ) {
+                return;
+              }
+
               setRdError(
                 data.error
               );
@@ -3336,11 +3376,20 @@ export default function VideoPlayer({
             error
           ) {
             if (
+              !cancelled &&
+              scheduleTransientPollRetry(
+                error?.message || "Real-Debrid polling failed."
+              )
+            ) {
+              return;
+            }
+
+            if (
               !cancelled
             ) {
               setRdError(
                 error?.message ||
-                  "Real-Debrid polling failed."
+                  "Real-Debrid polling failed after several retries."
               );
 
               setRdPolling(
@@ -3396,17 +3445,32 @@ export default function VideoPlayer({
            */
           const hasReportedPeerActivity =
             latestSeeders > 0 || latestSpeed > 0;
+          const activelyDownloading =
+            latestSpeed > 0;
 
+          /*
+           * RD's percentage can remain on the same whole number for a long
+           * time on a large torrent. A non-zero live download speed is stronger
+           * evidence than the rounded percentage, so give an actively moving
+           * job a 30-minute flat-percentage window. Seeders without throughput
+           * get a smaller grace period, and truly inactive jobs still fail much
+           * sooner. This prevents Media God from abandoning slow but healthy
+           * uncached downloads.
+           */
           const stallAfterMs =
             latestProgress <= 0.001
-              ? hasReportedPeerActivity
-                ? 10 * 60 * 1000
-                : hasOriginalTrackerMagnet
-                  ? 3 * 60 * 1000
-                  : 2 * 60 * 1000
-              : hasReportedPeerActivity
-                ? 10 * 60 * 1000
-                : 3 * 60 * 1000;
+              ? activelyDownloading
+                ? 30 * 60 * 1000
+                : latestSeeders > 0
+                  ? 15 * 60 * 1000
+                  : hasOriginalTrackerMagnet
+                    ? 3 * 60 * 1000
+                    : 2 * 60 * 1000
+              : activelyDownloading
+                ? 30 * 60 * 1000
+                : latestSeeders > 0
+                  ? 15 * 60 * 1000
+                  : 3 * 60 * 1000;
 
           const looksCompletelyStalled =
             latestProgress < 100 &&
@@ -3490,7 +3554,7 @@ export default function VideoPlayer({
 
           if (
             attempts <
-            360
+            1440
           ) {
             pollRef.current =
               setTimeout(
@@ -3511,10 +3575,20 @@ export default function VideoPlayer({
                 ? " No active seeders or download speed were reported."
                 : "";
 
+            setRdPreparation((current) => ({
+              ...(current || {}),
+              status: "stalled",
+              progress: latestProgress,
+              seeders: latestSeeders,
+              speed_bps: latestSpeed,
+              updatedAt: Date.now(),
+              attempts,
+            }));
+
             setRdError(
               latestProgress > 0
-                ? `Real-Debrid reached ${Math.round(latestProgress)}% but is still not ready after about 30 minutes.${stalledHint} Try another source or retry this one later.`
-                : `Real-Debrid has made no usable progress after about 30 minutes.${stalledHint} Try another source.`
+                ? `Media God monitored this Real-Debrid download for about 2 hours and it is still at ${Math.round(latestProgress)}%.${stalledHint} The torrent has been left in Real-Debrid; Retry to reconnect or choose another source.`
+                : `Media God monitored this Real-Debrid torrent for about 2 hours without usable progress.${stalledHint} The torrent has been left in Real-Debrid; Retry or choose another source.`
             );
           }
         };
