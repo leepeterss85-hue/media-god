@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   AlertCircle,
@@ -36,6 +36,7 @@ export default function RdLibraryView() {
   const [clearingErrors, setClearingErrors] = useState(false);
   const [tab, setTab] = useState("ready");
   const [query, setQuery] = useState("");
+  const timerRef = useRef(null);
   const player = usePlayer();
 
   const load = async ({ silent = false } = {}) => {
@@ -61,6 +62,23 @@ export default function RdLibraryView() {
   const ready = useMemo(() => torrents.filter(isReady), [torrents]);
   const active = useMemo(() => torrents.filter(isActive), [torrents]);
   const errored = useMemo(() => torrents.filter(isError), [torrents]);
+
+  useEffect(() => {
+    if (timerRef.current) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+
+    if (active.length === 0) return undefined;
+
+    timerRef.current = window.setTimeout(() => {
+      load({ silent: true });
+    }, 5000);
+
+    return () => {
+      if (timerRef.current) window.clearTimeout(timerRef.current);
+    };
+  }, [active.length, torrents]);
 
   const visible = useMemo(() => {
     const wanted = query.trim().toLowerCase();
