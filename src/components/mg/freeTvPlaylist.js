@@ -1633,62 +1633,75 @@ export async function getFreeTvChannels(options = {}) {
     }
 
     /*
-     * Official sports web destinations are real provider pages, not HLS
-     * streams. Keep them in the Live TV catalogue as low-priority external
-     * fallbacks so premium channels such as TNT Sports remain discoverable
-     * without pretending a provider webpage is a direct video stream.
+     * Official broadcaster/provider web destinations are real service pages,
+     * not HLS streams. Keep every curated external fallback in the catalogue
+     * at low priority. When a direct feed with the same station name/country
+     * exists it merges behind that feed as a fallback; when no direct feed is
+     * available the official page remains visible instead of the channel
+     * disappearing completely.
      */
-    const officialSportsChannels = PUBLIC_DIRECT_CHANNELS.filter(
+    const officialWebChannels = PUBLIC_DIRECT_CHANNELS.filter(
       (channel) =>
         channel?.kind === "external" &&
-        channel?.category === "Sports" &&
         /^https?:\/\//i.test(String(channel?.officialUrl || channel?.url || ""))
     );
 
-    for (const externalChannel of officialSportsChannels) {
+    for (const externalChannel of officialWebChannels) {
       const externalUrl = String(
         externalChannel.officialUrl || externalChannel.url || ""
       ).trim();
       const country = normaliseCountryCode(externalChannel.country || "");
       const priority = Number(externalChannel.priority || 50);
+      const category = externalChannel.category || "Other";
+      const sourceName =
+        externalChannel.sourceName || "Official broadcaster service";
 
       rawChannels.push({
         id: externalChannel.id,
         tvgId: externalChannel.tvgId || externalChannel.id,
-        name: externalChannel.name || "Sports",
-        rawName: externalChannel.name || "Sports",
-        group: externalChannel.category || "Sports",
+        name: externalChannel.name || "Live TV",
+        rawName: externalChannel.name || "Live TV",
+        group: category,
         country,
         logo: externalChannel.logo || "",
         url: externalUrl,
         officialUrl: externalUrl,
-        officialLabel: externalChannel.officialLabel || "Open official sports service",
+        officialLabel:
+          externalChannel.officialLabel || "Open official broadcaster service",
         kind: "external",
         format: "external",
         sourceId: `official-${externalChannel.id}`,
-        sourceName: externalChannel.sourceName || "Official sports service",
-        sourceNames: [externalChannel.sourceName || "Official sports service"],
+        sourceName,
+        sourceNames: [sourceName],
         sourcePriority: priority,
-        sourceCategory: "Sports",
+        sourceCategory: category,
         browserPlayable: true,
         browserReason: "",
         geoRestricted: false,
         geoBlocked: false,
         quality: 0,
-        tags: ["Sports", "Official", ...(country ? [country] : [])],
+        tags: [
+          ...inferTags({
+            sourceCategory: category,
+            group: category,
+            name: externalChannel.name,
+            country,
+          }),
+          "Official",
+        ],
         score: Math.max(100, priority * 10),
         alternatives: [],
       });
     }
 
-    if (officialSportsChannels.length > 0) {
-      rawCount += officialSportsChannels.length;
+    if (officialWebChannels.length > 0) {
+      rawCount += officialWebChannels.length;
       sourceStatus.push({
-        id: "official-sports-web",
-        name: "Official sports services",
-        category: "Sports",
+        id: "official-web-fallbacks",
+        name: "Official broadcaster fallbacks",
+        category: "Official",
         priority: 95,
-        count: officialSportsChannels.length,
+        count: officialWebChannels.length,
         latencyMs: 0,
         bytes: 0,
         direct: false,
