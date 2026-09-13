@@ -1,5 +1,21 @@
 export const UPDATE_HISTORY = [
   {
+    id: "non-live-tv-improvements-2026-09-14-v1",
+    date: "14 September 2026",
+    title: "Downloads, RD Library and Watch Party strengthened",
+    summary:
+      "A second improvement pass concentrated only on non-Live-TV features, leaving the working Live TV catalogue, routing and priorities untouched.",
+    changes: [
+      "Failed Real-Debrid downloads now have a dedicated Retry action that recreates only failed jobs and restores their previous file selection when Real-Debrid exposes it.",
+      "Downloads now shows transfer speed and seeders, sorts newer jobs first and can clear completed items in bulk after confirmation.",
+      "RD Library now has Ready, Active, Errors and All views, search, newest-first ordering, clearer status/progress information and safer per-item removal.",
+      "Real-Debrid library metadata now includes info hash, added/ended timestamps, speed and seeders for better download management without changing normal playback resolution.",
+      "Watch Party now tracks live room presence with a heartbeat, shows who is online and keeps chat ordered, capped and automatically scrolled to the newest message.",
+      "Shared debrid-library status utilities now keep Downloads and RD Library behaviour consistent, with dedicated automated tests for classification, progress and formatting.",
+      "The regression gate continues to assert the locked BBC/ITV primaries and EV SPORTS-over-ANT priority while these unrelated areas evolve.",
+    ],
+  },
+  {
     id: "media-god-polish-pass-2026-09-13-v1",
     date: "13 September 2026",
     title: "Downloads, Watch Party, Phone Remote and Roadmap upgraded",
