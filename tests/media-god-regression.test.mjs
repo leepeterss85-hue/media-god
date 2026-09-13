@@ -67,6 +67,19 @@ test("M3U parser handles quoted commas and normalises UK metadata", () => {
   assert.equal(channel.url, "https://example.test/bbc-one.m3u8");
 });
 
+test("UK playlist category supplies GB when rows omit country metadata", () => {
+  const playlist = `#EXTM3U\n#EXTINF:-1 tvg-id="opaque-id" group-title="Entertainment",UK Test Channel\nhttps://example.test/uk-test.m3u8\n`;
+  const [channel] = parseFreeTvPlaylist(playlist, {
+    id: "uk-category-test",
+    name: "UK Category Test",
+    priority: 100,
+    category: "United Kingdom",
+  });
+
+  assert.ok(channel);
+  assert.equal(channel.country, "GB");
+});
+
 test("duplicate UK feeds merge and prefer an open source over a geo-restricted mirror", () => {
   const merged = dedupeMergedChannels([
     {
