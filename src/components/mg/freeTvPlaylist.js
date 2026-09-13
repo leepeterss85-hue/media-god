@@ -1,3 +1,5 @@
+import { fetchAntSportsEvents } from "./antSportsScraper.js";
+
 export const LIVE_TV_SOURCES = [
   {
     id: "free-tv",
@@ -1609,6 +1611,47 @@ export async function getFreeTvChannels(options = {}) {
         bytes: 0,
         direct: true,
         error: null,
+      });
+    }
+
+    /*
+     * ANT SPORTS is a web service rather than an M3U repository. Load only its
+     * public live-event directory through the server-side helper and expose
+     * those rows as official external event links. This avoids treating an
+     * HTML page as HLS while still keeping the current live fixtures inside
+     * Media God's Live TV catalogue.
+     */
+    const antSportsStartedAt = Date.now();
+    try {
+      const antSportsEvents = await fetchAntSportsEvents();
+
+      rawCount += antSportsEvents.length;
+      rawChannels.push(...antSportsEvents);
+
+      sourceStatus.push({
+        id: "antsports-live",
+        name: "AntSports Live",
+        category: "Sports",
+        priority: 97,
+        count: antSportsEvents.length,
+        latencyMs: Math.max(0, Date.now() - antSportsStartedAt),
+        bytes: 0,
+        direct: true,
+        external: true,
+        error: null,
+      });
+    } catch (error) {
+      sourceStatus.push({
+        id: "antsports-live",
+        name: "AntSports Live",
+        category: "Sports",
+        priority: 97,
+        count: 0,
+        latencyMs: Math.max(0, Date.now() - antSportsStartedAt),
+        bytes: 0,
+        direct: true,
+        external: true,
+        error: error?.message || "ANT SPORTS live events could not be loaded",
       });
     }
 
