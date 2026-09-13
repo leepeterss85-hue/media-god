@@ -1368,14 +1368,18 @@ const lookupAddon = async ({
   let unsupportedControlStreams =
     0;
 
-  let ipBoundCometDirectStreams =
+  let ipBoundDirectStreams =
     0;
 
   const addonUrlParts =
     parseAddonUrl(addon?.url);
 
-  const deferCometDirectToBrowser =
-    addonUrlParts?.origin === "https://comet.elfhosted.com" &&
+  const ipBoundElfHostedOrigin =
+    addonUrlParts?.origin === "https://comet.elfhosted.com" ||
+    addonUrlParts?.origin === "https://aiostreams.elfhosted.com";
+
+  const deferIpBoundDirectToBrowser =
+    ipBoundElfHostedOrigin &&
     Boolean(addonUrlParts?.basePath && addonUrlParts.basePath !== "/");
 
   const normalised =
@@ -1416,19 +1420,19 @@ const lookupAddon = async ({
           }
 
           /*
-           * ElfHosted Comet binds generated direct debrid URLs to the IP
-           * address that requested the stream resource. A URL generated here
-           * on the Base44 server will therefore fail with "Wrong IP" when the
-           * user's phone/TV later tries to play it. Keep torrent/info-hash
-           * results server-side, but deliberately defer Comet's direct HTTP
-           * links so Media God's browser fallback requests them from the
-           * actual playback device instead.
+           * ElfHosted Comet and AIOStreams can bind generated direct debrid
+           * URLs to the IP address that requested the stream resource. A URL
+           * generated here on the Base44 server will therefore fail with
+           * "Wrong IP" when the user's phone/TV later tries to play it. Keep
+           * torrent/info-hash results server-side, but deliberately defer
+           * these direct HTTP links so Media God's browser fallback requests
+           * them from the actual playback device instead.
            */
           if (
-            deferCometDirectToBrowser &&
+            deferIpBoundDirectToBrowser &&
             item?.type === "url"
           ) {
-            ipBoundCometDirectStreams += 1;
+            ipBoundDirectStreams += 1;
             return false;
           }
 
@@ -1445,7 +1449,7 @@ const lookupAddon = async ({
         addonName,
 
       status:
-        ipBoundCometDirectStreams > 0
+        ipBoundDirectStreams > 0
           ? "browser_required"
           : normalised.length > 0
             ? "ok"
@@ -1458,10 +1462,10 @@ const lookupAddon = async ({
         normalised.length,
 
       message:
-        ipBoundCometDirectStreams > 0
-          ? `${ipBoundCometDirectStreams} Comet direct source${
-              ipBoundCometDirectStreams === 1 ? " was" : "s were"
-            } deferred to the playback device because Comet binds these links to the requesting IP.${
+        ipBoundDirectStreams > 0
+          ? `${ipBoundDirectStreams} ${addonName} direct source${
+              ipBoundDirectStreams === 1 ? " was" : "s were"
+            } deferred to the playback device because this ElfHosted addon binds these links to the requesting IP.${
               normalised.length > 0
                 ? ` ${normalised.length} non-IP-bound source${normalised.length === 1 ? " remains" : "s remain"} usable from the server.`
                 : ""
