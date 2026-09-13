@@ -774,6 +774,8 @@ export default function StreamSourcesBox({
 
     rdYear,
 
+    alternateYears,
+
     tmdbId,
 
     imdbId,
@@ -896,6 +898,11 @@ export default function StreamSourcesBox({
             title,
 
           rdYear,
+
+          alternateYears,
+
+          rdAlternateYears:
+            alternateYears,
 
           rdSeason:
             season,
