@@ -406,6 +406,123 @@ const antSportsKickoffLabel = (channel) => {
   ).trim();
 };
 
+const normaliseEventMatchText = (value) =>
+  searchText(value)
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const antSportsLinkedChannelPatterns = (event) => {
+  const sportKey = searchText(event?.antsports?.sportKey || event?.antsports?.sport);
+  const league = searchText(event?.antsports?.league);
+  const eventName = searchText(event?.name);
+  const patterns = [];
+
+  const add = (pattern) => patterns.push(pattern);
+
+  if (sportKey === "football") {
+    add(/^tnt sports [1-4]\b/i);
+    add(/^sky sports (?:football|premier league|main event)\b/i);
+    add(/^premier sports(?: [12])?\b/i);
+  }
+
+  if (sportKey === "fighting") {
+    add(/^tnt sports [1-4]\b/i);
+    if (/\bufc\b/i.test(`${league} ${eventName}`)) add(/\bufc\b/i);
+  }
+
+  if (sportKey === "rugby") {
+    add(/^tnt sports [1-4]\b/i);
+    add(/^premier sports(?: [12])?\b/i);
+  }
+
+  if (["f1", "formula 1", "motorsport"].includes(sportKey)) {
+    add(/^sky sports f1\b/i);
+    add(/\bmotor\s*racing\b/i);
+    add(/\bformula\s*1\b/i);
+    add(/^tnt sports [1-4]\b/i);
+  }
+
+  if (sportKey === "mlb") add(/\bmlb\b/i);
+  if (sportKey === "nfl") add(/\bnfl\b/i);
+  if (sportKey === "nhl") add(/\bnhl\b/i);
+  if (sportKey === "golf") add(/\bgolf\b/i);
+  if (sportKey === "tennis") add(/\btennis\b/i);
+  if (sportKey === "afl") add(/\bafl\b/i);
+
+  if (
+    sportKey === "basketball" &&
+    /\bnba\b/i.test(`${league} ${eventName}`)
+  ) {
+    add(/\bnba\b/i);
+  }
+
+  return patterns;
+};
+
+const linkedAntSportsChannels = (event, allChannels, epgByKey) => {
+  if (event?.sourceId !== "antsports-live") return [];
+
+  const home = normaliseEventMatchText(event?.antsports?.home);
+  const away = normaliseEventMatchText(event?.antsports?.away);
+  const eventName = normaliseEventMatchText(event?.name);
+  const namePatterns = antSportsLinkedChannelPatterns(event);
+  const scored = [];
+
+  for (const candidate of allChannels || []) {
+    if (!candidate || candidate === event || candidate?.sourceId === "antsports-live") {
+      continue;
+    }
+
+    const guide = epgByKey?.[epgKeyForChannel(candidate)] || {};
+    const programmes = [
+      guide?.now,
+      guide?.next,
+      candidate?.providerNow,
+      candidate?.providerNext,
+    ].filter(Boolean);
+
+    let epgMatch = false;
+    for (const programme of programmes) {
+      const title = normaliseEventMatchText(programme?.title);
+      if (!title) continue;
+
+      if (eventName && title.includes(eventName)) {
+        epgMatch = true;
+        break;
+      }
+
+      if (home && away && title.includes(home) && title.includes(away)) {
+        epgMatch = true;
+        break;
+      }
+    }
+
+    const name = String(candidate?.name || "").trim();
+    const nameMatch = namePatterns.some((pattern) => pattern.test(name));
+    if (!epgMatch && !nameMatch) continue;
+
+    let score = epgMatch ? 10000 : 1000;
+    if (candidate?.kind === "direct") score += 500;
+    if (isUkChannel(candidate)) score += 300;
+    score += Number(candidate?.sourcePriority || 0);
+
+    scored.push({ candidate, score });
+  }
+
+  const seen = new Set();
+  return scored
+    .sort((a, b) => b.score - a.score)
+    .map(({ candidate }) => candidate)
+    .filter((candidate) => {
+      const key = channelMemoryKey(candidate);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 12);
+};
+
 const repositoryHealth = (source) => {
   if (source?.error) {
     return {
@@ -649,6 +766,7 @@ export default function LiveTVView() {
   const [error, setError] = useState("");
   const [channelNotice, setChannelNotice] = useState("");
   const [channelNoticeAction, setChannelNoticeAction] = useState(null);
+  const [channelNoticeActions, setChannelNoticeActions] = useState([]);
   const [query, setQuery] = useState(String(initialViewState?.query || ""));
   const [group, setGroup] = useState(String(initialViewState?.group || DEFAULT_FILTER));
   const [countryFilter, setCountryFilter] = useState(
@@ -1878,6 +1996,8 @@ export default function LiveTVView() {
       return;
     }
 
+    setChannelNoticeActions([]);
+
     const memoryKey = channelMemoryKey(channel);
 
     writeStoredLiveTvState({
@@ -1923,6 +2043,29 @@ export default function LiveTVView() {
       }
 
       return;
+    }
+
+    if (channel?.sourceId === "antsports-live") {
+      const relatedChannels = linkedAntSportsChannels(channel, channels, epgByKey);
+
+      if (relatedChannels.length > 0) {
+        stopRadio();
+        setChannelNotice(
+          `${channel.name || "This ANT SPORTS event"} has other current TV links in Media God. Choose ANT SPORTS or one of the linked channels below. Channel availability can vary by event and region.`
+        );
+        setChannelNoticeAction(null);
+        setChannelNoticeActions([
+          {
+            label: channel?.live === true ? "Open ANT SPORTS live event" : "Open ANT SPORTS event",
+            url: channel.officialUrl || channel.url,
+          },
+          ...relatedChannels.map((relatedChannel) => ({
+            label: relatedChannel.name,
+            channel: relatedChannel,
+          })),
+        ]);
+        return;
+      }
     }
 
     if (channel.provider === "sky-sport-now") {
@@ -2448,12 +2591,42 @@ export default function LiveTVView() {
                 {channelNoticeAction.label || "Open official stream"}
               </button>
             )}
+
+            {channelNoticeActions.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {channelNoticeActions.map((action, index) => (
+                  <button
+                    key={`${action?.label || "link"}-${index}`}
+                    type="button"
+                    onClick={() => {
+                      if (action?.channel) {
+                        playChannel(action.channel);
+                        return;
+                      }
+
+                      if (action?.url) {
+                        openOfficialLiveUrl(action.url);
+                      }
+                    }}
+                    className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-amber-300/30 bg-black/25 px-3 py-2 text-xs font-bold text-white outline-none hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-mg-green"
+                  >
+                    {action?.channel ? (
+                      <Tv className="h-3.5 w-3.5" />
+                    ) : (
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    )}
+                    {action?.label || "Open link"}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <button
             type="button"
             onClick={() => {
               setChannelNotice("");
               setChannelNoticeAction(null);
+              setChannelNoticeActions([]);
             }}
             className="shrink-0 rounded-md px-2 py-1 text-xs font-semibold text-white/60 hover:bg-white/5 hover:text-white"
           >
