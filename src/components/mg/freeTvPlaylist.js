@@ -1633,6 +1633,71 @@ export async function getFreeTvChannels(options = {}) {
     }
 
     /*
+     * Official sports web destinations are real provider pages, not HLS
+     * streams. Keep them in the Live TV catalogue as low-priority external
+     * fallbacks so premium channels such as TNT Sports remain discoverable
+     * without pretending a provider webpage is a direct video stream.
+     */
+    const officialSportsChannels = PUBLIC_DIRECT_CHANNELS.filter(
+      (channel) =>
+        channel?.kind === "external" &&
+        channel?.category === "Sports" &&
+        /^https?:\/\//i.test(String(channel?.officialUrl || channel?.url || ""))
+    );
+
+    for (const externalChannel of officialSportsChannels) {
+      const externalUrl = String(
+        externalChannel.officialUrl || externalChannel.url || ""
+      ).trim();
+      const country = normaliseCountryCode(externalChannel.country || "");
+      const priority = Number(externalChannel.priority || 50);
+
+      rawChannels.push({
+        id: externalChannel.id,
+        tvgId: externalChannel.tvgId || externalChannel.id,
+        name: externalChannel.name || "Sports",
+        rawName: externalChannel.name || "Sports",
+        group: externalChannel.category || "Sports",
+        country,
+        logo: externalChannel.logo || "",
+        url: externalUrl,
+        officialUrl: externalUrl,
+        officialLabel: externalChannel.officialLabel || "Open official sports service",
+        kind: "external",
+        format: "external",
+        sourceId: `official-${externalChannel.id}`,
+        sourceName: externalChannel.sourceName || "Official sports service",
+        sourceNames: [externalChannel.sourceName || "Official sports service"],
+        sourcePriority: priority,
+        sourceCategory: "Sports",
+        browserPlayable: true,
+        browserReason: "",
+        geoRestricted: false,
+        geoBlocked: false,
+        quality: 0,
+        tags: ["Sports", "Official", ...(country ? [country] : [])],
+        score: Math.max(100, priority * 10),
+        alternatives: [],
+      });
+    }
+
+    if (officialSportsChannels.length > 0) {
+      rawCount += officialSportsChannels.length;
+      sourceStatus.push({
+        id: "official-sports-web",
+        name: "Official sports services",
+        category: "Sports",
+        priority: 95,
+        count: officialSportsChannels.length,
+        latencyMs: 0,
+        bytes: 0,
+        direct: false,
+        external: true,
+        error: null,
+      });
+    }
+
+    /*
      * Sky Mix is still free-to-air in the UK, but its Samsung TV Plus copy is
      * now licence-protected and the old public HLS endpoint is dead. Keep two
      * independently published UK tuner feeds as native-only fallbacks. They
