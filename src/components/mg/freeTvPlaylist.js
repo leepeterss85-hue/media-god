@@ -339,6 +339,19 @@ export const EXTERNAL_ADDON_SOURCES = [
 
 export const PUBLIC_DIRECT_CHANNELS = [
   {
+    id: "ANTSports.us@Official",
+    tvgId: "ANTSports.us",
+    name: "ANT SPORTS",
+    url: "https://antsports.tv/us",
+    category: "Sports",
+    country: "US",
+    priority: 65,
+    sourceName: "ANT SPORTS Official",
+    officialUrl: "https://antsports.tv/us",
+    officialLabel: "Open ANT SPORTS",
+    kind: "external",
+  },
+  {
     id: "BBCAlba.uk@Official",
     tvgId: "BBCAlba.uk",
     name: "BBC ALBA",
