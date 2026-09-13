@@ -4878,7 +4878,12 @@ export default function VideoPlayer({
     );
   };
 
-  const handleDirectPlaybackError = () => {
+  const handleDirectPlaybackError = (eventOrOptions = null) => {
+    const explicitLiveFailureClass =
+      typeof eventOrOptions === "string"
+        ? eventOrOptions
+        : String(eventOrOptions?.liveFailureClass || "");
+
     const fallback = String(
       active?.fallbackSrc || active?.fallback_stream_url || ""
     ).trim();
@@ -4920,7 +4925,14 @@ export default function VideoPlayer({
     }
 
     tryNextSource(
-      "This stream failed during playback."
+      "This stream failed during playback.",
+      {
+        liveFailureClass:
+          explicitLiveFailureClass ||
+          (source?.type === "live" || active?.live || active?.type === "live"
+            ? mediaElementFailureClass()
+            : ""),
+      }
     );
   };
 
