@@ -35,6 +35,9 @@ const parseNumber = (value, fallback = 0) => {
   return Number.isFinite(number) ? number : fallback;
 };
 
+const playerWindow = () => /** @type {any} */ (window);
+const getNativeAudioTracks = (video) => /** @type {any} */ (video)?.audioTracks || null;
+
 const getPlayerVideo = () => {
   if (typeof document === "undefined") return null;
 
@@ -323,7 +326,7 @@ export default function PlayerQrRemote({ showIdle = false }) {
               setSelectValue("Choose file", value);
             } else if (command === "audio") {
               const wanted = parseNumber(value, -1);
-              const nativeTracks = video?.audioTracks;
+              const nativeTracks = getNativeAudioTracks(video);
 
               if (
                 nativeTracks &&
@@ -341,7 +344,7 @@ export default function PlayerQrRemote({ showIdle = false }) {
                 const chosen = wanted >= 0 ? nativeTracks[wanted] : null;
                 if (chosen) {
                   rememberAudioPreference(
-                    window.__MG_PLAYER_CONTEXT__ || {},
+                    playerWindow().__MG_PLAYER_CONTEXT__ || {},
                     chosen
                   );
                   writeTrackPreferences({
@@ -362,7 +365,7 @@ export default function PlayerQrRemote({ showIdle = false }) {
                 );
                 hlsAudioActiveRef.current = wanted;
                 rememberAudioPreference(
-                  window.__MG_PLAYER_CONTEXT__ || {},
+                  playerWindow().__MG_PLAYER_CONTEXT__ || {},
                   chosen
                 );
                 writeTrackPreferences({
@@ -478,12 +481,12 @@ export default function PlayerQrRemote({ showIdle = false }) {
                   detail: {
                     tmdbId:
                       detail?.tmdbId ||
-                      window.__MG_PLAYER_CONTEXT__?.tmdbId ||
+                      playerWindow().__MG_PLAYER_CONTEXT__?.tmdbId ||
                       null,
                     seasonNumber: parseNumber(detail?.season, 0),
                     episodeNumber: parseNumber(detail?.episode, 0),
                     seriesTitle:
-                      window.__MG_PLAYER_CONTEXT__?.title || "TV Show",
+                      playerWindow().__MG_PLAYER_CONTEXT__?.title || "TV Show",
                   },
                 })
               );
@@ -538,22 +541,23 @@ export default function PlayerQrRemote({ showIdle = false }) {
           }
 
           const video = getPlayerVideo();
-          const context = window.__MG_PLAYER_CONTEXT__ || {};
+          const context = playerWindow().__MG_PLAYER_CONTEXT__ || {};
           const trackPreferences = readTrackPreferences();
           const sourceSelect = getSelect("Choose playback source");
           const fileSelect = getSelect("Choose file");
+          const nativeTracks = getNativeAudioTracks(video);
           const audioTracks = [];
           const subtitleTracks = [];
           let activeAudioIndex = -1;
           let activeSubtitleIndex = -1;
 
           if (
-            video?.audioTracks &&
-            typeof video.audioTracks.length === "number" &&
-            video.audioTracks.length > 0
+            nativeTracks &&
+            typeof nativeTracks.length === "number" &&
+            nativeTracks.length > 0
           ) {
-            for (let index = 0; index < video.audioTracks.length; index += 1) {
-              const track = video.audioTracks[index];
+            for (let index = 0; index < nativeTracks.length; index += 1) {
+              const track = nativeTracks[index];
               audioTracks.push(friendlyTrackLabel(track, "Audio", index));
               if (track?.enabled) activeAudioIndex = index;
             }
