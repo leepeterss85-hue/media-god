@@ -3372,6 +3372,7 @@ export default function VideoPlayer({
                   status: sourceNeedsCaching(active)
                     ? "stalled"
                     : current?.status || "stalled",
+                  stallReason: "poll_failure",
                   updatedAt: Date.now(),
                   attempts,
                 }));
@@ -3509,6 +3510,7 @@ export default function VideoPlayer({
               setRdPreparation((current) => ({
                 ...(current || {}),
                 status: "stalled",
+                stallReason: "no_progress",
                 progress: latestProgress,
                 seeders: latestSeeders,
                 speed_bps: latestSpeed,
@@ -3605,6 +3607,7 @@ export default function VideoPlayer({
             setRdPreparation((current) => ({
               ...(current || {}),
               status: "stalled",
+              stallReason: "monitoring_timeout",
               progress: latestProgress,
               seeders: latestSeeders,
               speed_bps: latestSpeed,
@@ -4952,6 +4955,7 @@ export default function VideoPlayer({
       const retryHash = sourceTorrentHash(active);
       retryInactiveTorrentHashRef.current =
         String(rdPreparation?.status || "").toLowerCase() === "stalled" &&
+        String(rdPreparation?.stallReason || "").toLowerCase() === "no_progress" &&
         retryHash
           ? retryHash
           : "";
