@@ -607,6 +607,7 @@ export default function LiveTVView() {
   const [radioStatus, setRadioStatus] = useState("");
   const [epgByKey, setEpgByKey] = useState({});
   const [epgMatched, setEpgMatched] = useState(0);
+  const [learningRevision, setLearningRevision] = useState(0);
   const [clockTick, setClockTick] = useState(() => Date.now());
   const [viewMode, setViewMode] = useState(() =>
     safeStoredViewMode(initialViewState?.viewMode)
@@ -632,6 +633,44 @@ export default function LiveTVView() {
   const scrollSaveTimerRef = useRef(null);
   const filterResetReadyRef = useRef(false);
   const player = usePlayer();
+
+  const channelRankByKey = useMemo(() => {
+    const recentOrder = new Map(
+      recentKeys.map((key, index) => [key, index])
+    );
+    const rank = new Map();
+
+    channels.forEach((channel) => {
+      const key = channelMemoryKey(channel);
+      const reliability = channelReliabilityScore(channel);
+
+      rank.set(key, {
+        favourite: favouriteKeys.has(key),
+        uk: isUkChannel(channel),
+        recentIndex: recentOrder.has(key)
+          ? recentOrder.get(key)
+          : Number.MAX_SAFE_INTEGER,
+        reliability: Number.isFinite(reliability) ? reliability : -999999,
+        sourcePriority: channelSourcePriority(channel),
+        quality: channelBestQuality(channel),
+      });
+    });
+
+    return rank;
+  }, [channels, favouriteKeys, recentKeys, learningRevision]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const refreshLearning = () => {
+      setLearningRevision((current) => current + 1);
+    };
+
+    window.addEventListener("mg:live-tv-diagnostic", refreshLearning);
+    return () => {
+      window.removeEventListener("mg:live-tv-diagnostic", refreshLearning);
+    };
+  }, []);
 
   const load = async (force = false) => {
     if (force) {
