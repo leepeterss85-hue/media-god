@@ -105,13 +105,6 @@ export const LIVE_TV_SOURCES = [
     country: "GB",
   },
   {
-    id: "antsports-scraper",
-    name: "AntSports Live",
-    url: "https://antsports.tv/us",
-    priority: 97,
-    category: "Sports",
-  },
-  {
     id: "radio-browser-uk",
     name: "UK Radio Browser",
     url: "https://all.api.radio-browser.info/m3u/stations/bycountrycodeexact/GB?hidebroken=true&order=votes&reverse=true&limit=1000",
