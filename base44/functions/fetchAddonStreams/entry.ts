@@ -1723,6 +1723,29 @@ export default async function (req) {
         body.year
       );
 
+    const alternateYears =
+      (
+        Array.isArray(
+          body.alternate_years ||
+          body.alternateYears
+        )
+          ? (
+              body.alternate_years ||
+              body.alternateYears
+            )
+          : []
+      )
+        .map(clean)
+        .filter(
+          (value) =>
+            /^\d{4}$/.test(value) &&
+            value !== year
+        )
+        .filter(
+          (value, index, list) =>
+            list.indexOf(value) === index
+        );
+
     const mediaType =
       body.media_type === "tv" ||
       body.mediaType === "tv"
@@ -1832,6 +1855,28 @@ export default async function (req) {
         ? `:${season}:${episode}`
         : "";
 
+    const titleWords =
+      title
+        .split(/\s+/)
+        .filter(Boolean);
+
+    const ambiguousShortTitle =
+      titleWords.length === 1 &&
+      title.length <= 6;
+
+    const yearSearchIds =
+      title
+        ? [
+            year,
+            ...alternateYears,
+          ]
+            .filter(Boolean)
+            .map(
+              (candidateYear) =>
+                `search:${title}:${candidateYear}${episodeSuffix}`
+            )
+        : [];
+
     const broadAlternateStreamIds = [
       tmdbId
         ? `tmdb:${tmdbId}${episodeSuffix}`
@@ -1842,10 +1887,12 @@ export default async function (req) {
       tmdbId
         ? `${tmdbId}${episodeSuffix}`
         : "",
-      title
-        ? `search:${title}${year ? `:${year}` : ""}${episodeSuffix}`
-        : "",
-      title
+      ...yearSearchIds,
+      title &&
+      !(
+        ambiguousShortTitle &&
+        (imdbId || tmdbId)
+      )
         ? `search:${title}${episodeSuffix}`
         : "",
     ]
@@ -1954,6 +2001,9 @@ export default async function (req) {
         imdbId,
 
       title,
+
+      alternate_years:
+        alternateYears,
 
       season,
 
