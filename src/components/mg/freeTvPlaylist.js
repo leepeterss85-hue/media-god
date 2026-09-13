@@ -1,4 +1,5 @@
 import { fetchAntSportsEvents } from "./antSportsScraper.js";
+import { fetchEvSportsChannels } from "./evSportsScraper.js";
 
 export const LIVE_TV_SOURCES = [
   {
@@ -1949,6 +1950,48 @@ export async function getFreeTvChannels(options = {}) {
         bytes: 0,
         direct: true,
         error: null,
+      });
+    }
+
+    /*
+     * EV SPORTS / Saptarshi publishes a public channel catalogue through its
+     * site CMS. Import every active Live Channels row plus every active panel
+     * channel as an external web stream destination. We deliberately keep the
+     * listed watch page intact rather than scraping/rehosting the media behind
+     * third-party embeds, so the catalogue can update upstream without Media
+     * God hard-coding transient HLS URLs.
+     */
+    const evSportsStartedAt = Date.now();
+    try {
+      const evSportsChannels = await fetchEvSportsChannels();
+
+      rawCount += evSportsChannels.length;
+      rawChannels.push(...evSportsChannels);
+
+      sourceStatus.push({
+        id: "evsports-live",
+        name: "EV SPORTS · Saptarshi",
+        category: "Sports",
+        priority: 132,
+        count: evSportsChannels.length,
+        latencyMs: Math.max(0, Date.now() - evSportsStartedAt),
+        bytes: 0,
+        direct: false,
+        external: true,
+        error: null,
+      });
+    } catch (error) {
+      sourceStatus.push({
+        id: "evsports-live",
+        name: "EV SPORTS · Saptarshi",
+        category: "Sports",
+        priority: 132,
+        count: 0,
+        latencyMs: Math.max(0, Date.now() - evSportsStartedAt),
+        bytes: 0,
+        direct: false,
+        external: true,
+        error: error?.message || "EV SPORTS channels could not be loaded",
       });
     }
 
