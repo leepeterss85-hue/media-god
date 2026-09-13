@@ -10,6 +10,7 @@ import {
 } from "@/components/mg/filterOptions";
 import GenreTags from "@/components/mg/GenreTags";
 import DetailModal from "@/components/mg/DetailModal";
+import StreamingProviderLogos from "@/components/mg/StreamingProviderLogos";
 import FeaturedSpotlight from "@/components/mg/FeaturedSpotlight";
 import useDebouncedValue from "@/components/mg/useDebouncedValue";
 
@@ -330,6 +331,15 @@ export default function TvShowsView() {
                   fittingType="fill"
                   loading="lazy"
                 />
+
+                <div className="pointer-events-none absolute bottom-2 left-2 z-10 rounded-lg bg-black/45 p-1 backdrop-blur-sm">
+                  <StreamingProviderLogos
+                    tmdbId={show.id || show.tmdb_id}
+                    mediaType="tv"
+                    region="GB"
+                    limit={3}
+                  />
+                </div>
 
                 <button
                   type="button"
