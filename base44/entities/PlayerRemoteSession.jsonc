@@ -110,6 +110,10 @@
     },
     "last_seen_at": {
       "type": "string"
+    },
+    "remote_last_seen_at": {
+      "type": "string",
+      "default": ""
     }
   },
   "required": [
