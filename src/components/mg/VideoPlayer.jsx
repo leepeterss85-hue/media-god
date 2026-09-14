@@ -143,7 +143,11 @@ const sourceResolutionStrategy = (item) => {
     isMagnet(value) ||
     Boolean(sourceTorrentHash(item));
 
-  if (!torrentLike && item?.debridCached !== true) {
+  if (
+    !torrentLike &&
+    item?.debridCached !== true &&
+    item?.cometUncached !== true
+  ) {
     return String(item?.resolutionStrategy || "").trim();
   }
 
