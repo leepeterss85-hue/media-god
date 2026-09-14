@@ -19,6 +19,7 @@ import SourcesView from "@/components/mg/SourcesView";
 import RoadmapView from "@/components/mg/RoadmapView";
 import UpdatesView from "@/components/mg/UpdatesView";
 import SettingsView from "@/components/mg/SettingsView";
+import SettingsTools from "@/components/mg/SettingsTools";
 import WatchPartyView from "@/components/mg/WatchPartyView";
 import FavoritesView from "@/components/mg/FavoritesView";
 import SearchDialog from "@/components/mg/SearchDialog";
@@ -613,6 +614,16 @@ function MediaGodApp() {
       )
     );
 
+  const openSettingsTool = useCallback((nextView) => {
+    setSearchOpen(false);
+    setSearchResult(null);
+    setLiveSearchRequest((current) => ({
+      query: "",
+      key: Number(current?.key || 0) + 1,
+    }));
+    setView(nextView);
+  }, []);
+
   return (
     <>
       <FireTvRemote />
@@ -820,7 +831,12 @@ function MediaGodApp() {
 
           {view ===
             "settings" && (
-            <SettingsView />
+            <div className="w-full">
+              <div className="w-full max-w-4xl 3xl:max-w-5xl 4xl:max-w-6xl px-4 pt-4 md:px-6 md:pt-6 3xl:px-8 3xl:pt-8 4xl:px-10 4xl:pt-10">
+                <SettingsTools onSelect={openSettingsTool} />
+              </div>
+              <SettingsView />
+            </div>
           )}
         </main>
       </div>
