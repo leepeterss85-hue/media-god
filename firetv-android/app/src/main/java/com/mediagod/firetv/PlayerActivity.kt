@@ -69,6 +69,11 @@ class PlayerActivity : Activity() {
     private var shouldPlayWhenReady = true
     private var resultSent = false
     private var genericHttpsMimeRetryIndex = 0
+    private val hideSourceSelectorRunnable = Runnable {
+        if (!resultSent && ::sourceSpinner.isInitialized) {
+            hideSourceSelector()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -182,6 +187,9 @@ class PlayerActivity : Activity() {
     }
 
     override fun onDestroy() {
+        if (::sourceSpinner.isInitialized) {
+            sourceSpinner.removeCallbacks(hideSourceSelectorRunnable)
+        }
         releasePlayer()
         super.onDestroy()
     }
@@ -277,6 +285,7 @@ class PlayerActivity : Activity() {
     private fun showSourceSelector() {
         if (nativeSources.size <= 1 || resultSent) return
 
+        sourceSpinner.removeCallbacks(hideSourceSelectorRunnable)
         sourceSpinner.visibility = View.VISIBLE
         sourceSpinner.requestFocus()
         playerView.showController()
@@ -285,6 +294,7 @@ class PlayerActivity : Activity() {
                 sourceSpinner.performClick()
             }
         }
+        sourceSpinner.postDelayed(hideSourceSelectorRunnable, 2500L)
     }
 
     private fun hideSourceSelector(): Boolean {
@@ -292,9 +302,9 @@ class PlayerActivity : Activity() {
             return false
         }
 
+        sourceSpinner.removeCallbacks(hideSourceSelectorRunnable)
         sourceSpinner.visibility = View.GONE
         playerView.requestFocus()
-        playerView.showController()
         return true
     }
 
