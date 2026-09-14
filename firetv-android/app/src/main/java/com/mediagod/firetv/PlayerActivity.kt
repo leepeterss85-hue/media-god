@@ -429,6 +429,7 @@ class PlayerActivity : Activity() {
         val episode = payload.optInt("episode", 0)
         val labels = mutableListOf<String>()
 
+        // Episodes / seasons are exposed as separate Season and Episode entries.
         if (episodePickerEnabled) {
             labels.add(
                 if (season > 0) "Season $season • choose season" else "Choose season"
