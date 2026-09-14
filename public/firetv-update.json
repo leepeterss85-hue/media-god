@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 18,
-  "versionName": "1.4.13",
+  "versionCode": 19,
+  "versionName": "1.4.14",
   "title": "Media God Fire TV",
-  "message": "Fire TV 1.4.13 keeps automatic next-episode playback fully clean by starting the native player with its controls hidden, while still showing controls when you use the remote. TV playback also adds Season and Episode choices to the torrent/source menu so you can open the existing episode picker without leaving playback tools.",
+  "message": "Fire TV 1.4.14 fixes the native Season and Episode selector so TV playback exposes season and episode choices even when browser episode metadata is incomplete, while preserving seamless auto-next and hidden player handoffs.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
