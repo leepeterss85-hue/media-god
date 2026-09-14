@@ -2186,6 +2186,9 @@ export default function VideoPlayer({
               magnet,
               src: magnet,
             });
+            const hasAuthoritativeTorrentMetadata =
+              hasTorrentTrackers &&
+              active?.torrentMetadataSource !== "public_fallback";
 
             /*
              * Any uncached torrent with usable tracker metadata can be owned by
@@ -2198,7 +2201,10 @@ export default function VideoPlayer({
             if (
               hash &&
               knownUncached &&
-              (resolutionStrategy !== "comet_uncached" || hasTorrentTrackers) &&
+              (
+                resolutionStrategy !== "comet_uncached" ||
+                hasAuthoritativeTorrentMetadata
+              ) &&
               source?.hasRd !== false
             ) {
               /*
@@ -2376,7 +2382,7 @@ export default function VideoPlayer({
 
             if (
               resolutionStrategy === "comet_uncached" &&
-              !hasTorrentTrackers
+              !hasAuthoritativeTorrentMetadata
             ) {
               if (
                 !hash ||
