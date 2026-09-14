@@ -22,10 +22,12 @@ import {
   debridBucket as downloadBucket,
   debridProgress as progressFor,
   formatDebridBytes as formatBytes,
+  formatDebridEta as formatEta,
   formatDebridSpeed as formatSpeed,
   isDebridActive as isActive,
   isDebridError as isError,
   isDebridReady as isReady,
+  isDebridRetryableError as isRetryableError,
   normaliseDebridStatus as normaliseStatus,
 } from "@/components/mg/debridLibraryUtils";
 import { cn } from "@/lib/utils";
@@ -37,6 +39,7 @@ export default function DebridDashboard() {
   const [busyId, setBusyId] = useState("");
   const [clearingErrors, setClearingErrors] = useState(false);
   const [clearingReady, setClearingReady] = useState(false);
+  const [retryingErrors, setRetryingErrors] = useState(false);
   const [tab, setTab] = useState("active");
   const [query, setQuery] = useState("");
   const timerRef = useRef(null);
@@ -65,6 +68,10 @@ export default function DebridDashboard() {
   const active = useMemo(() => torrents.filter(isActive), [torrents]);
   const ready = useMemo(() => torrents.filter(isReady), [torrents]);
   const errored = useMemo(() => torrents.filter(isError), [torrents]);
+  const retryableErrors = useMemo(
+    () => errored.filter(isRetryableError),
+    [errored]
+  );
 
   useEffect(() => {
     if (timerRef.current) {
@@ -161,6 +168,43 @@ export default function DebridDashboard() {
     } finally {
       setBusyId("");
     }
+  };
+
+  const retryAllErrors = async () => {
+    if (retryingErrors || retryableErrors.length === 0 || busyId) return;
+
+    setRetryingErrors(true);
+    setError("");
+
+    let restarted = 0;
+    let failed = 0;
+
+    for (const torrent of retryableErrors) {
+      const torrentId = String(torrent?.id || "").trim();
+      if (!torrentId) continue;
+
+      try {
+        const response = await base44.functions.invoke("realDebrid", {
+          action: "retry_torrent",
+          torrent_id: torrentId,
+        });
+        const data = response?.data ?? response ?? {};
+
+        if (data?.restarted === true && !data?.error) restarted += 1;
+        else failed += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+
+    await load({ silent: true });
+    if (restarted > 0) setTab("active");
+    if (failed > 0) {
+      setError(
+        `${restarted} failed download${restarted === 1 ? " was" : "s were"} restarted; ${failed} could not be retried.`
+      );
+    }
+    setRetryingErrors(false);
   };
 
   const clearReady = async () => {
@@ -287,11 +331,27 @@ export default function DebridDashboard() {
             </button>
           )}
 
+          {retryableErrors.length > 0 && (
+            <button
+              type="button"
+              onClick={retryAllErrors}
+              disabled={retryingErrors || clearingErrors || clearingReady || Boolean(busyId)}
+              className="min-h-11 inline-flex items-center gap-2 rounded-lg border border-mg-green/25 bg-mg-green/10 px-3 py-2 text-xs font-semibold text-mg-green hover:bg-mg-green/15 disabled:opacity-50"
+            >
+              {retryingErrors ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <RotateCcw className="w-4 h-4" />
+              )}
+              Retry errors ({retryableErrors.length})
+            </button>
+          )}
+
           {errored.length > 0 && (
             <button
               type="button"
               onClick={clearErrors}
-              disabled={clearingErrors || clearingReady || Boolean(busyId)}
+              disabled={clearingErrors || clearingReady || retryingErrors || Boolean(busyId)}
               className="min-h-11 inline-flex items-center gap-2 rounded-lg border border-red-400/20 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-300 hover:bg-red-500/15 disabled:opacity-50"
             >
               {clearingErrors ? (
@@ -427,9 +487,10 @@ export default function DebridDashboard() {
             const status = STATUS_LABEL[normaliseStatus(torrent)] || torrent?.status || "Pending";
             const size = formatBytes(torrent?.bytes);
             const speed = formatSpeed(torrent?.speed);
+            const eta = formatEta(torrent);
             const seeders = Number(torrent?.seeders || 0);
             const itemBusy = String(torrent?.id || "") === busyId;
-            const canRetry = errorNow && Boolean(String(torrent?.id || "").trim());
+            const canRetry = isRetryableError(torrent) && Boolean(String(torrent?.id || "").trim());
 
             return (
               <div
@@ -480,6 +541,9 @@ export default function DebridDashboard() {
                       {!readyNow && !errorNow && speed && (
                         <span className="text-[10px] text-white/40">{speed}</span>
                       )}
+                      {!readyNow && !errorNow && eta && (
+                        <span className="text-[10px] text-white/40">ETA {eta}</span>
+                      )}
                       {!readyNow && !errorNow && seeders > 0 && (
                         <span className="text-[10px] text-white/40">{seeders} seeders</span>
                       )}
@@ -502,7 +566,7 @@ export default function DebridDashboard() {
                       <button
                         type="button"
                         onClick={() => retryFailed(torrent)}
-                        disabled={Boolean(busyId) || clearingErrors || clearingReady || !canRetry}
+                        disabled={Boolean(busyId) || clearingErrors || clearingReady || retryingErrors || !canRetry}
                         title={
                           canRetry
                             ? "Retry this failed download"
@@ -522,7 +586,7 @@ export default function DebridDashboard() {
                     <button
                       type="button"
                       onClick={() => remove(torrent)}
-                      disabled={Boolean(busyId) || clearingErrors || clearingReady}
+                      disabled={Boolean(busyId) || clearingErrors || clearingReady || retryingErrors}
                       title={readyNow ? "Remove from Real-Debrid" : "Cancel and remove"}
                       aria-label={readyNow ? "Remove completed download" : "Cancel and remove download"}
                       className="flex h-10 w-10 items-center justify-center rounded-lg text-white/40 hover:bg-red-500/10 hover:text-red-300 disabled:opacity-40"
