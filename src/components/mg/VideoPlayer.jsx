@@ -714,6 +714,17 @@ export default function VideoPlayer({
     sourceSelectorEntriesRef.current = [];
   };
 
+  const selectorOpenKey = (event) =>
+    [
+      "Enter",
+      "NumpadEnter",
+      "Select",
+      "Accept",
+      " ",
+      "Spacebar",
+      "ArrowDown",
+    ].includes(String(event?.key || event?.code || ""));
+
   const visibleSourceSelectorEntries =
     sourceSelectorPinnedRef.current && sourceSelectorEntriesRef.current.length > 0
       ? sourceSelectorEntriesRef.current
@@ -6740,7 +6751,9 @@ export default function VideoPlayer({
                         visibleSourceSelectorValue
                       }
                       onPointerDown={pinSourceSelector}
-                      onFocus={pinSourceSelector}
+                      onKeyDown={(event) => {
+                        if (selectorOpenKey(event)) pinSourceSelector();
+                      }}
                       onBlur={releaseSourceSelector}
                       onChange={(
                         event
@@ -6927,7 +6940,9 @@ export default function VideoPlayer({
                 <select
                   value={visibleRdFileSelectorValue}
                   onPointerDown={pinRdFileSelector}
-                  onFocus={pinRdFileSelector}
+                  onKeyDown={(event) => {
+                    if (selectorOpenKey(event)) pinRdFileSelector();
+                  }}
                   onBlur={releaseRdFileSelector}
                   onChange={(event) => {
                     const file =
