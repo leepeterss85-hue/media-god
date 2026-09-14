@@ -404,6 +404,53 @@ class MainActivity : Activity() {
             }
             payload.put("requestId", requestId)
 
+            /*
+             * Older/stale WebView code could send canChooseEpisode=false when
+             * one metadata field (usually TMDB id) was missing, even though
+             * this was clearly TV episode playback. Normalise the native
+             * payload here so the PlayerActivity always gets its Season and
+             * Episode menu entries for TV episodes.
+             */
+            val title = payload.optString("title")
+            val titleEpisode = Regex(
+                "(?:^|\\b)S(\\d{1,3})E(\\d{1,4})(?:\\b|$)",
+                RegexOption.IGNORE_CASE
+            ).find(title)
+
+            val titleSeason =
+                titleEpisode?.groupValues?.getOrNull(1)?.toIntOrNull() ?: 0
+            val titleEpisodeNumber =
+                titleEpisode?.groupValues?.getOrNull(2)?.toIntOrNull() ?: 0
+
+            val suppliedSeason = payload.optInt("season", 0)
+            val suppliedEpisode = payload.optInt("episode", 0)
+            val resolvedSeason =
+                if (suppliedSeason > 0) suppliedSeason else titleSeason
+            val resolvedEpisode =
+                if (suppliedEpisode > 0) suppliedEpisode else titleEpisodeNumber
+
+            val mediaType = payload.optString("mediaType").trim().lowercase()
+            val looksLikeTvEpisode =
+                mediaType == "tv" ||
+                    mediaType == "series" ||
+                    (resolvedSeason > 0 && resolvedEpisode > 0)
+
+            if (!payload.optBoolean("live", false) && looksLikeTvEpisode) {
+                payload.put("canChooseEpisode", true)
+
+                if (resolvedSeason > 0) {
+                    payload.put("season", resolvedSeason)
+                }
+
+                if (resolvedEpisode > 0) {
+                    payload.put("episode", resolvedEpisode)
+                }
+
+                if (mediaType.isBlank()) {
+                    payload.put("mediaType", "tv")
+                }
+            }
+
             val accepted = synchronized(nativePlayerLock) {
                 if (playerOpen) {
                     false
