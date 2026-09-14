@@ -16,6 +16,8 @@ import {
 import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
 
+const PosterImage = /** @type {any} */ (Image);
+
 const TMDB_IMAGE_BASE =
   "https://image.tmdb.org/t/p/w500";
 
@@ -531,9 +533,10 @@ export default function SearchDialog({
        * existing during the same frame.
        */
       try {
-        document
-          .activeElement
-          ?.blur?.();
+        const activeElement = document.activeElement;
+        if (activeElement instanceof HTMLElement) {
+          activeElement.blur();
+        }
       } catch {
         // Optional.
       }
@@ -692,7 +695,7 @@ export default function SearchDialog({
                     >
                       <div className="w-11 h-16 sm:w-12 sm:h-17 3xl:w-16 3xl:h-24 4xl:w-20 4xl:h-28 rounded-md 3xl:rounded-lg overflow-hidden bg-mg-card shrink-0">
                         {result.poster_url ? (
-                          <Image
+                          <PosterImage
                             src={
                               result.poster_url
                             }
