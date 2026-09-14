@@ -16,6 +16,10 @@
     },
     "tmdb_id": {
       "type": "string"
+    },
+    "media_type": {
+      "type": "string",
+      "default": "movie"
     }
   },
   "required": [
