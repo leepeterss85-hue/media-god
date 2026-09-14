@@ -12,6 +12,7 @@ const expect = (condition, message) => {
 
 const home = await read("src/pages/Home.jsx");
 const navbar = await read("src/components/mg/Navbar.jsx");
+const searchDialog = await read("src/components/mg/SearchDialog.jsx");
 const roadmap = await read("src/components/mg/RoadmapView.jsx");
 const movies = await read("src/components/mg/MoviesView.jsx");
 const watchlist = await read("src/components/mg/WatchlistView.jsx");
@@ -54,16 +55,9 @@ const requiredViews = [
   ["movies", "Movies"],
   ["tv", "TV Shows"],
   ["live", "Live TV"],
+  ["music", "Music"],
   ["watchlist", "Watchlist"],
   ["favorites", "Favorites"],
-  ["watchparty", "Watch Party"],
-  ["rdlib", "RD Library"],
-  ["downloads", "Downloads"],
-  ["addons", "Addons"],
-  ["sources", "Sources"],
-  ["roadmap", "Roadmap"],
-  ["updates", "Updates"],
-  ["remote", "Phone Remote"],
   ["settings", "Settings"],
 ];
 
@@ -73,13 +67,43 @@ for (const [id, label] of requiredViews) {
     `Navbar is missing ${label}`
   );
 
-  if (id !== "remote") {
-    expect(
-      home.includes(`"${id}" && (`),
-      `Home does not render the ${label} view`
-    );
-  }
+  expect(
+    home.includes(`"${id}" && (`),
+    `Home does not render the ${label} view`
+  );
 }
+
+for (const hiddenLabel of [
+  "RD Library",
+  "Downloads",
+  "Phone Remote",
+  "Watch Party",
+  "Addons",
+  "Sources",
+  "Roadmap",
+  "Updates",
+]) {
+  expect(
+    !navbar.includes(`label: "${hiddenLabel}"`),
+    `Consumer navbar should not expose ${hiddenLabel}`
+  );
+}
+
+expect(
+  navbar.includes("onSearch") &&
+    navbar.includes("Sign out") &&
+    navbar.includes("Exit app"),
+  "Consumer navbar lost Search, sign-out or native exit controls"
+);
+expect(
+  searchDialog.includes("getFreeTvChannels") &&
+    searchDialog.includes('media_type: "live"') &&
+    searchDialog.includes("liveChannelSearchText") &&
+    searchDialog.includes("Search movies, TV shows, live TV channels") &&
+    home.includes('rawItem?.media_type === "live"') &&
+    home.includes('initialQuickFilter="Radio"'),
+  "Global search or Music navigation no longer includes Live TV channels"
+);
 
 expect(
   home.includes("<RoadmapView onBack={goBack} />"),
