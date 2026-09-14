@@ -440,32 +440,26 @@ const normaliseStream = (
     );
 
     /*
-     * A Comet debrid-download playback URL is not a dependable torrent-start
-     * API. Only surface the row when Comet also exposes the actual Stremio
-     * torrent sources; otherwise other addons with a real infoHash/magnet are
-     * the cache-capable discovery path.
+     * Prefer Comet's exact Stremio tracker list, but keep a valid uncached
+     * info-hash usable even when the browser-side row omits `sources`.
+     * Public fallback trackers let Real-Debrid start the torrent directly
+     * instead of relying on Comet's opaque playback endpoint to create it.
      */
-    if (providedTrackers.length === 0) {
-      return {
-        unsupported: true,
-        reason: "comet_uncached_missing_torrent_metadata",
-        label,
-      };
-    }
+    const effectiveTrackers = normaliseTrackerList(
+      providedTrackers,
+      PUBLIC_FALLBACK_TRACKERS
+    );
 
     const cacheMagnet = magnetFromHash(
       infoHash,
       clean(stream?.title || stream?.name || ""),
-      normaliseTrackerList(
-        providedTrackers,
-        PUBLIC_FALLBACK_TRACKERS
-      )
+      effectiveTrackers
     );
 
     const originalTrackerMagnet = magnetFromHash(
       infoHash,
       clean(stream?.title || stream?.name || ""),
-      providedTrackers
+      providedTrackers.length > 0 ? providedTrackers : effectiveTrackers
     );
 
     return {
@@ -494,7 +488,9 @@ const normaliseStream = (
       cacheRequired: true,
       cometUncached: true,
       resolutionStrategy: "rd_magnet",
-      torrentTrackers: providedTrackers,
+      torrentTrackers: effectiveTrackers,
+      torrentMetadataSource:
+        providedTrackers.length > 0 ? "comet" : "public_fallback",
     };
   }
 
