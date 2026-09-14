@@ -42,6 +42,8 @@ class PlayerActivity : Activity() {
         const val EXTRA_SELECTED_SOURCE_INDEX = "mg_selected_source_index"
 
         private const val CONTROLLER_HIDE_DELAY_MS = 2500L
+        private const val LIVE_STARTUP_TIMEOUT_MS = 15000L
+        private const val LIVE_STALL_TIMEOUT_MS = 12000L
     }
 
     private data class NativeSource(
@@ -72,6 +74,10 @@ class PlayerActivity : Activity() {
     private var resultSent = false
     private var genericHttpsMimeRetryIndex = 0
 
+    private val failedLiveSourceIndexes = linkedSetOf<Int>()
+    private var livePlaybackStarted = false
+    private var liveRecoveryPending = false
+
     private val hideControllerRunnable = Runnable {
         if (!resultSent && ::playerView.isInitialized) {
             playerView.hideController()
@@ -81,6 +87,18 @@ class PlayerActivity : Activity() {
     private val hideSourceSelectorRunnable = Runnable {
         if (!resultSent && ::sourceSpinner.isInitialized) {
             hideSourceSelector()
+        }
+    }
+
+    private val liveStartupTimeoutRunnable = Runnable {
+        if (!resultSent && live && !livePlaybackStarted) {
+            recoverLivePlayback("Live TV took too long to start.")
+        }
+    }
+
+    private val liveStallTimeoutRunnable = Runnable {
+        if (!resultSent && live && livePlaybackStarted) {
+            recoverLivePlayback("Live TV stopped responding.")
         }
     }
 
@@ -182,9 +200,22 @@ class PlayerActivity : Activity() {
         enterImmersiveMode()
         playerView.requestFocus()
         hideControllerNow()
+
+        if (live && player != null) {
+            if (livePlaybackStarted) {
+                if (player?.isPlaying == true) {
+                    clearLiveWatchdogs()
+                } else if (player?.playWhenReady == true) {
+                    armLiveStallWatchdog()
+                }
+            } else {
+                armLiveStartupWatchdog()
+            }
+        }
     }
 
     override fun onPause() {
+        clearLiveWatchdogs()
         player?.let {
             restorePositionMs = max(0L, it.currentPosition)
             shouldPlayWhenReady = it.playWhenReady
@@ -204,6 +235,7 @@ class PlayerActivity : Activity() {
         if (::playerView.isInitialized) {
             playerView.removeCallbacks(hideControllerRunnable)
         }
+        clearLiveWatchdogs()
         releasePlayer()
         super.onDestroy()
     }
@@ -257,7 +289,7 @@ class PlayerActivity : Activity() {
                 }
 
                 KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
-                KeyEvent.KEYCODE_HEADSETHOOK -> {
+                KeyEvent.KEYCODE_HEADSETOOK -> {
                     activePlayer?.let {
                         if (it.isPlaying) it.pause() else it.play()
                         showControllerTemporarily()
@@ -351,6 +383,99 @@ class PlayerActivity : Activity() {
         sourceSpinner.visibility = View.GONE
         playerView.requestFocus()
         hideControllerNow()
+        return true
+    }
+
+    private fun clearLiveWatchdogs() {
+        if (!::playerView.isInitialized) {
+            return
+        }
+
+        playerView.removeCallbacks(liveStartupTimeoutRunnable)
+        playerView.removeCallbacks(liveStallTimeoutRunnable)
+    }
+
+    private fun armLiveStartupWatchdog() {
+        if (!live || resultSent || !::playerView.isInitialized) {
+            return
+        }
+
+        playerView.removeCallbacks(liveStartupTimeoutRunnable)
+        playerView.removeCallbacks(liveStallTimeoutRunnable)
+        playerView.postDelayed(
+            liveStartupTimeoutRunnable,
+            LIVE_STARTUP_TIMEOUT_MS
+        )
+    }
+
+    private fun armLiveStallWatchdog() {
+        if (!live || resultSent || !livePlaybackStarted || !::playerView.isInitialized) {
+            return
+        }
+
+        playerView.removeCallbacks(liveStartupTimeoutRunnable)
+        playerView.removeCallbacks(liveStallTimeoutRunnable)
+        playerView.postDelayed(
+            liveStallTimeoutRunnable,
+            LIVE_STALL_TIMEOUT_MS
+        )
+    }
+
+    private fun nextLiveSourceIndex(): Int {
+        if (!live || nativeSources.size <= 1) {
+            return -1
+        }
+
+        for (offset in 1..nativeSources.size) {
+            val index = (activeSourceIndex + offset) % nativeSources.size
+            if (index == activeSourceIndex || failedLiveSourceIndexes.contains(index)) {
+                continue
+            }
+
+            val candidateUrl = nativeSources[index].url.trim()
+            if (candidateUrl.startsWith("https://") || candidateUrl.startsWith("http://")) {
+                return index
+            }
+        }
+
+        return -1
+    }
+
+    private fun recoverLivePlayback(message: String): Boolean {
+        if (!live || resultSent || liveRecoveryPending) {
+            return false
+        }
+
+        failedLiveSourceIndexes.add(activeSourceIndex)
+        val nextIndex = nextLiveSourceIndex()
+
+        if (nextIndex < 0) {
+            clearLiveWatchdogs()
+            finishWithResult(
+                reason = "error",
+                message = "$message No other Live TV source is available."
+            )
+            return true
+        }
+
+        liveRecoveryPending = true
+        clearLiveWatchdogs()
+
+        if (!::playerView.isInitialized) {
+            liveRecoveryPending = false
+            return false
+        }
+
+        playerView.post {
+            if (resultSent) {
+                liveRecoveryPending = false
+                return@post
+            }
+
+            liveRecoveryPending = false
+            switchNativeSource(nextIndex, automaticRecovery = true)
+        }
+
         return true
     }
 
@@ -529,7 +654,8 @@ class PlayerActivity : Activity() {
                         return
                     }
 
-                    switchNativeSource(sourcePosition)
+                    failedLiveSourceIndexes.remove(sourcePosition)
+                    switchNativeSource(sourcePosition, automaticRecovery = false)
                     hideSourceSelector()
                 }
             }
@@ -540,7 +666,10 @@ class PlayerActivity : Activity() {
         }
     }
 
-    private fun switchNativeSource(index: Int) {
+    private fun switchNativeSource(
+        index: Int,
+        automaticRecovery: Boolean = false
+    ) {
         if (
             index !in nativeSources.indices ||
             index == activeSourceIndex ||
@@ -549,13 +678,40 @@ class PlayerActivity : Activity() {
             return
         }
 
+        val nextUrl = nativeSources[index].url.trim()
+        if (!(nextUrl.startsWith("https://") || nextUrl.startsWith("http://"))) {
+            if (live) {
+                failedLiveSourceIndexes.add(index)
+
+                if (automaticRecovery) {
+                    recoverLivePlayback("The next Live TV source was not playable.")
+                } else {
+                    finishWithResult(
+                        reason = "source",
+                        selectedSourceIndex = nativeSources[index].webIndex
+                    )
+                }
+            }
+            return
+        }
+
+        clearLiveWatchdogs()
+        livePlaybackStarted = false
+        liveRecoveryPending = false
         activeSourceIndex = index
-        streamUrl = nativeSources[index].url
+        streamUrl = nextUrl
         genericHttpsMimeRetryIndex = 0
+        restorePositionMs = 0L
         releasePlayer()
         initialisePlayer()
         sourceSpinner.setSelection(activeSourceIndex + sourceSelectorOffset(), false)
-        showControllerTemporarily()
+
+        if (automaticRecovery) {
+            hideControllerNow()
+        } else {
+            showControllerTemporarily()
+        }
+
         playerView.requestFocus()
     }
 
@@ -621,12 +777,51 @@ class PlayerActivity : Activity() {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 if (isPlaying) {
                     window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
+                    if (live) {
+                        livePlaybackStarted = true
+                        liveRecoveryPending = false
+                        clearLiveWatchdogs()
+                    }
                 } else {
                     window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
+                    if (
+                        live &&
+                        livePlaybackStarted &&
+                        exoPlayer.playWhenReady &&
+                        exoPlayer.playbackState == Player.STATE_BUFFERING
+                    ) {
+                        armLiveStallWatchdog()
+                    }
                 }
             }
 
             override fun onPlaybackStateChanged(playbackState: Int) {
+                if (live) {
+                    when (playbackState) {
+                        Player.STATE_BUFFERING -> {
+                            if (livePlaybackStarted) {
+                                armLiveStallWatchdog()
+                            } else {
+                                armLiveStartupWatchdog()
+                            }
+                        }
+
+                        Player.STATE_READY -> {
+                            if (exoPlayer.isPlaying) {
+                                livePlaybackStarted = true
+                                clearLiveWatchdogs()
+                            }
+                        }
+
+                        Player.STATE_ENDED -> {
+                            recoverLivePlayback("This Live TV stream ended.")
+                        }
+                    }
+                    return
+                }
+
                 if (playbackState == Player.STATE_ENDED) {
                     finishWithResult("ended")
                 }
@@ -634,6 +829,19 @@ class PlayerActivity : Activity() {
 
             override fun onPlayerError(error: PlaybackException) {
                 if (retryUnknownHttpsSourceType(exoPlayer)) {
+                    if (live) {
+                        livePlaybackStarted = false
+                        armLiveStartupWatchdog()
+                    }
+                    return
+                }
+
+                if (
+                    live &&
+                    recoverLivePlayback(
+                        error.message ?: "Native Fire TV Live TV playback failed."
+                    )
+                ) {
                     return
                 }
 
@@ -660,6 +868,11 @@ class PlayerActivity : Activity() {
         exoPlayer.playWhenReady = shouldPlayWhenReady
         if (shouldPlayWhenReady) {
             exoPlayer.play()
+        }
+
+        if (live) {
+            livePlaybackStarted = false
+            armLiveStartupWatchdog()
         }
 
         hideControllerNow()
@@ -822,6 +1035,8 @@ class PlayerActivity : Activity() {
     }
 
     private fun releasePlayer() {
+        clearLiveWatchdogs()
+
         if (::playerView.isInitialized) {
             playerView.removeCallbacks(hideControllerRunnable)
         }
@@ -851,6 +1066,7 @@ class PlayerActivity : Activity() {
         }
 
         resultSent = true
+        clearLiveWatchdogs()
 
         val activePlayer = player
         val positionMs = max(
@@ -861,6 +1077,14 @@ class PlayerActivity : Activity() {
             0L,
             activePlayer?.duration?.takeIf { it > 0L } ?: 0L
         )
+        val resultSourceIndex =
+            if (selectedSourceIndex >= 0) {
+                selectedSourceIndex
+            } else if (live) {
+                nativeSources.getOrNull(activeSourceIndex)?.webIndex ?: -1
+            } else {
+                -1
+            }
 
         val result = Intent().apply {
             putExtra(EXTRA_REQUEST_ID, requestId)
@@ -868,7 +1092,7 @@ class PlayerActivity : Activity() {
             putExtra(EXTRA_POSITION_MS, positionMs)
             putExtra(EXTRA_DURATION_MS, durationMs)
             putExtra(EXTRA_MESSAGE, message)
-            putExtra(EXTRA_SELECTED_SOURCE_INDEX, selectedSourceIndex)
+            putExtra(EXTRA_SELECTED_SOURCE_INDEX, resultSourceIndex)
         }
 
         setResult(RESULT_OK, result)
