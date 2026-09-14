@@ -4,25 +4,18 @@ import React, {
 } from "react";
 
 import {
-  Activity,
   Bookmark,
-  Calendar,
-  Database,
   Film,
-  HardDrive,
   Heart,
   Home as HomeIcon,
   LogOut,
   MonitorPlay,
-  Megaphone,
   Power,
-  Puzzle,
+  Radio,
   Search,
   Settings,
   Shield,
-  Smartphone,
   Tv,
-  Users,
 } from "lucide-react";
 
 import { base44 } from "@/api/base44Client";
@@ -54,6 +47,11 @@ const NAV = [
     icon: Tv,
   },
   {
+    id: "music",
+    label: "Music",
+    icon: Radio,
+  },
+  {
     id: "watchlist",
     label: "Watchlist",
     icon: Bookmark,
@@ -62,46 +60,6 @@ const NAV = [
     id: "favorites",
     label: "Favorites",
     icon: Heart,
-  },
-  {
-    id: "watchparty",
-    label: "Watch Party",
-    icon: Users,
-  },
-  {
-    id: "rdlib",
-    label: "RD Library",
-    icon: HardDrive,
-  },
-  {
-    id: "downloads",
-    label: "Downloads",
-    icon: Activity,
-  },
-  {
-    id: "addons",
-    label: "Addons",
-    icon: Puzzle,
-  },
-  {
-    id: "sources",
-    label: "Sources",
-    icon: Database,
-  },
-  {
-    id: "roadmap",
-    label: "Roadmap",
-    icon: Calendar,
-  },
-  {
-    id: "updates",
-    label: "Updates",
-    icon: Megaphone,
-  },
-  {
-    id: "remote",
-    label: "Phone Remote",
-    icon: Smartphone,
   },
   {
     id: "settings",
