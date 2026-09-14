@@ -13,6 +13,7 @@ const expect = (condition, message) => {
 const home = await read("src/pages/Home.jsx");
 const navbar = await read("src/components/mg/Navbar.jsx");
 const roadmap = await read("src/components/mg/RoadmapView.jsx");
+const movies = await read("src/components/mg/MoviesView.jsx");
 const watchlist = await read("src/components/mg/WatchlistView.jsx");
 const watchlistSchema = await read("base44/entities/WatchlistItem.jsonc");
 const favorites = await read("src/components/mg/FavoritesView.jsx");
@@ -79,10 +80,18 @@ for (const [source, name] of [
   expect(source.includes("Clear all"), `${name} bulk clear control is missing`);
   expect(source.includes("DetailModal"), `${name} TV details fallback is missing`);
   expect(source.includes('mediaType="tv"'), `${name} TV details media type is missing`);
+  expect(source.includes("mediaFilter"), `${name} movie/TV filter is missing`);
+  expect(source.includes('["tv", "TV Shows"]'), `${name} TV filter control is missing`);
 }
 expect(
   watchlistSchema.includes('"media_type"'),
   "Watchlist schema no longer stores movie/TV media type"
+);
+expect(
+  movies.includes("WatchlistItem.filter") &&
+    movies.includes('media_type: "movie"') &&
+    movies.includes("Already in Watchlist"),
+  "Movies can create duplicate Watchlist rows again"
 );
 expect(
   roadmap.includes("onClick={() => onBack?.()}"),
