@@ -829,6 +829,7 @@ export default function HomeDashboard() {
         poster_url: movie.poster_url,
         description: movie.description,
         tmdb_id: id,
+        media_type: mediaTypeOf(movie),
       });
 
       const normalised = normaliseLibraryItem(
