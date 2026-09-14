@@ -648,6 +648,20 @@ const mergeSameHashSource = (current, incoming, hash) => {
     current?.torrentTrackers,
     incoming?.torrentTrackers
   );
+  const hasAuthoritativeTorrentMetadata = [current, incoming].some((item) => {
+    const trackers = Array.isArray(item?.torrentTrackers)
+      ? item.torrentTrackers.filter(Boolean)
+      : [];
+
+    return (
+      trackers.length > 0 &&
+      item?.torrentMetadataSource !== "public_fallback"
+    );
+  });
+  const mergedCometPlaybackUrl =
+    current?.cometPlaybackUrl || incoming?.cometPlaybackUrl || "";
+  const mergedCometUncached =
+    current?.cometUncached === true || incoming?.cometUncached === true;
   const fallbackMagnet = richestMagnet(
     current?.richMagnet,
     incoming?.richMagnet,
@@ -712,13 +726,26 @@ const mergeSameHashSource = (current, incoming, hash) => {
       Number(incoming?.reportedSeeders || 0)
     ),
     cometPlaybackUrl:
-      current?.cometPlaybackUrl || incoming?.cometPlaybackUrl || "",
+      mergedCometPlaybackUrl,
     cometUncached:
-      current?.cometUncached === true || incoming?.cometUncached === true,
+      mergedCometUncached,
+    torrentMetadataSource:
+      hasAuthoritativeTorrentMetadata
+        ? current?.torrentMetadataSource === "comet" ||
+          incoming?.torrentMetadataSource === "comet"
+          ? "comet"
+          : "addon"
+        : current?.torrentMetadataSource ||
+          incoming?.torrentMetadataSource ||
+          undefined,
     resolutionStrategy:
-      mergedTorrentTrackers.length > 0
-        ? "rd_magnet"
-        : current?.resolutionStrategy || incoming?.resolutionStrategy || undefined,
+      mergedCometUncached &&
+      !hasAuthoritativeTorrentMetadata &&
+      /^https?:\/\//i.test(mergedCometPlaybackUrl)
+        ? "comet_uncached"
+        : mergedTorrentTrackers.length > 0
+          ? "rd_magnet"
+          : current?.resolutionStrategy || incoming?.resolutionStrategy || undefined,
     behaviorHints:
       current?.behaviorHints || incoming?.behaviorHints || undefined,
     description:
