@@ -755,6 +755,11 @@ function MediaGodApp() {
               initialQuery={
                 liveSearchRequest.query
               }
+              initialQuickFilter={
+                liveSearchRequest.query
+                  ? ""
+                  : "All"
+              }
               searchRequestKey={
                 liveSearchRequest.key
               }
