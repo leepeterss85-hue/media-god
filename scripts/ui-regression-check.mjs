@@ -186,8 +186,11 @@ expect(
   videoPlayer.includes("sourceSelectorPinnedRef = useRef(false)") &&
     videoPlayer.includes("rdFileSelectorPinnedRef = useRef(false)") &&
     videoPlayer.includes("Pause polling completely while the user is choosing a") &&
-    videoPlayer.includes("Never move the active source underneath an open native selector"),
-  "Android/Fire TV torrent/source selectors can be dismissed by background player updates again"
+    videoPlayer.includes("Never move the active source underneath an open native selector") &&
+    !videoPlayer.includes("setSourceSelectorPinned(") &&
+    !videoPlayer.includes("setRdFileSelectorPinned(") &&
+    videoPlayer.includes('data-mg-rd-cache-source={sourceNeedsCaching(active) ? "true" : "false"}'),
+  "Torrent/source selectors can replay on focus or Android can mistake a real uncached RD job for Comet placeholder media"
 );
 
 expect(
