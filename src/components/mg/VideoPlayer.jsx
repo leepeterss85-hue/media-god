@@ -697,21 +697,25 @@ export default function VideoPlayer({
    */
   const [sourceSelectorPinned, setSourceSelectorPinned] =
     useState(false);
+  const sourceSelectorPinnedRef = useRef(false);
   const sourceSelectorEntriesRef = useRef([]);
   const sourceSelectorValueRef = useRef(0);
 
   const [rdFileSelectorPinned, setRdFileSelectorPinned] =
     useState(false);
+  const rdFileSelectorPinnedRef = useRef(false);
   const rdFileSelectorFilesRef = useRef([]);
   const rdFileSelectorValueRef = useRef("");
 
   const pinSourceSelector = () => {
     sourceSelectorEntriesRef.current = sortedSourceEntries;
     sourceSelectorValueRef.current = activeIdx;
+    sourceSelectorPinnedRef.current = true;
     setSourceSelectorPinned(true);
   };
 
   const releaseSourceSelector = () => {
+    sourceSelectorPinnedRef.current = false;
     setSourceSelectorPinned(false);
     sourceSelectorEntriesRef.current = [];
   };
@@ -735,10 +739,12 @@ export default function VideoPlayer({
           file.name === rdOverride?.file
       )?.id ?? ""
     );
+    rdFileSelectorPinnedRef.current = true;
     setRdFileSelectorPinned(true);
   };
 
   const releaseRdFileSelector = () => {
+    rdFileSelectorPinnedRef.current = false;
     setRdFileSelectorPinned(false);
     rdFileSelectorFilesRef.current = [];
   };
