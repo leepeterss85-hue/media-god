@@ -169,6 +169,7 @@ class PlayerActivity : Activity() {
 
         setContentView(root)
         playerView.requestFocus()
+        hideControllerNow()
     }
 
     override fun onStart() {
@@ -180,6 +181,7 @@ class PlayerActivity : Activity() {
         super.onResume()
         enterImmersiveMode()
         playerView.requestFocus()
+        hideControllerNow()
     }
 
     override fun onPause() {
@@ -210,7 +212,7 @@ class PlayerActivity : Activity() {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus) {
             enterImmersiveMode()
-            showControllerTemporarily()
+            hideControllerNow()
         }
     }
 
@@ -255,7 +257,7 @@ class PlayerActivity : Activity() {
                 }
 
                 KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
-                KeyEvent.KEYCODE_HEADSETHOOK -> {
+                KeyEvent.KEYCODE_HEADSETOOK -> {
                     activePlayer?.let {
                         if (it.isPlaying) it.pause() else it.play()
                         showControllerTemporarily()
@@ -611,7 +613,7 @@ class PlayerActivity : Activity() {
             exoPlayer.play()
         }
 
-        showControllerTemporarily()
+        hideControllerNow()
     }
 
     private fun buildMediaItem(mimeTypeOverride: String? = null): MediaItem {
