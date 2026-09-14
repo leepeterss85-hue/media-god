@@ -3,6 +3,8 @@ import { Play, Plus, Check } from "lucide-react";
 import { Image } from "@/components/ui/image";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 
+const PosterImage = /** @type {any} */ (Image);
+
 const isFireTvRuntime = () =>
   typeof document !== "undefined" &&
   (
@@ -105,7 +107,7 @@ export default function MediaCard({
   return (
     <article className="mg-fire-tv-card group shrink-0 w-28 min-[420px]:w-32 sm:w-36 md:w-40 xl:w-44 3xl:w-52 4xl:w-60">
       <div className="relative aspect-[2/3] rounded-md 3xl:rounded-lg overflow-hidden border border-white/10 bg-mg-card">
-        <Image
+        <PosterImage
           src={item.poster_url}
           alt={item.title}
           className="w-full h-full object-cover"
