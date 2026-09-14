@@ -123,7 +123,7 @@ class PlayerActivity : Activity() {
             useController = true
             controllerAutoShow = true
             controllerHideOnTouch = false
-            controllerShowTimeoutMs = 5000
+            controllerShowTimeoutMs = 2500
             setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
             isFocusable = true
             isFocusableInTouchMode = true
