@@ -23,6 +23,14 @@ const realDebridBackend = await read("base44/functions/realDebrid/entry.ts");
 const addonStreamsBackend = await read("base44/functions/fetchAddonStreams/entry.ts");
 const addonBrowserFallback = await read("src/components/mg/addonBrowserFallback.js");
 const videoPlayer = await read("src/components/mg/VideoPlayer.jsx");
+const playerProvider = await read("src/components/mg/PlayerProvider.jsx");
+const mediaPlayerControls = await read("src/components/mg/MediaPlayerControls.jsx");
+const fireTvPlayerActivity = await read(
+  "firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt"
+);
+const androidPlayerActivity = await read(
+  "android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt"
+);
 const addons = await read("src/components/mg/AddonsView.jsx");
 const watchParty = await read("src/components/mg/WatchPartyView.jsx");
 const watchPartySchema = await read("base44/entities/WatchParty.jsonc");
@@ -188,6 +196,23 @@ expect(
     videoPlayer.includes("!hasAuthoritativeTorrentMetadata"),
   "Uncached sources can no longer distinguish exact torrent metadata from synthetic public fallback trackers"
 );
+expect(
+  playerProvider.includes('window.addEventListener(\n      "mg:native-playback-ended"') &&
+    playerProvider.includes("advanceToNext(false);") &&
+    videoPlayer.includes('reason === "ended"') &&
+    videoPlayer.includes('new CustomEvent("mg:native-playback-ended"'),
+  "Native Android/Fire TV episode completion no longer feeds the TV auto-next pipeline"
+);
+expect(
+  mediaPlayerControls.includes("const scheduleHide = (delay = 2400) =>") &&
+    mediaPlayerControls.includes("scheduleHide(2400);") &&
+    mediaPlayerControls.includes("revealControls(2600);") &&
+    !mediaPlayerControls.includes("selectPinsControls") &&
+    fireTvPlayerActivity.includes("controllerShowTimeoutMs = 2500") &&
+    androidPlayerActivity.includes("controllerShowTimeoutMs = 2500"),
+  "Player buttons/source chrome can remain pinned instead of auto-hiding after a couple of seconds"
+);
+
 expect(
   videoPlayer.includes("sourceSelectorPinnedRef = useRef(false)") &&
     videoPlayer.includes("rdFileSelectorPinnedRef = useRef(false)") &&
