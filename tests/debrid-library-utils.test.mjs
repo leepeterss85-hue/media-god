@@ -48,7 +48,7 @@ test("debrid progress and transfer formatting stay bounded and readable", () => 
   assert.equal(formatDebridSpeed(0), "");
   assert.equal(
     formatDebridEta({ bytes: 1_000_000_000, speed: 10_000_000, progress: 50 }),
-    "1 min"
+    "<1 min"
   );
   assert.equal(
     formatDebridEta({ bytes: 10_000_000_000, speed: 1_000_000, progress: 50 }),
