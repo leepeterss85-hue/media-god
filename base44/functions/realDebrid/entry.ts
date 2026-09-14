@@ -3,6 +3,7 @@ import {
   chooseRequestedTorrentFileForPlayback,
   chooseVideoFileForPlayback,
   normaliseRequestedFileIndex,
+  torrentSelectionMetadataPending,
 } from "./regressionHelpers.js";
 
 const RD_BASE =
@@ -2608,6 +2609,28 @@ async function resolveStreamable(
       String(info.status || "")
     )
   ) {
+    /*
+     * Real-Debrid can briefly report waiting_files_selection before the file
+     * list itself has arrived. That race is easier to hit in the Android
+     * WebView because its first torrent-status poll lands very quickly after
+     * addMagnet. Treat an empty file list as "still preparing" instead of a
+     * permanent no-video error; the normal frontend poll will ask again.
+     */
+    if (torrentSelectionMetadataPending(info)) {
+      return {
+        ready: false,
+        rd_status:
+          info.status,
+        filename:
+          info.filename ||
+          "",
+        files: [],
+        metadata_pending: true,
+        torrent_progress:
+          buildTorrentProgress(info),
+      };
+    }
+
     const selectionTarget =
       chooseRequestedTorrentFile(
         info?.files,
