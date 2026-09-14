@@ -19,6 +19,9 @@ class AppUpdater(
     private val activity: MainActivity,
     private val publishStatus: (JSONObject) -> Unit,
 ) {
+    private class SigningIdentityMismatchException(message: String) :
+        IllegalStateException(message)
+
     companion object {
         private const val PREFS = "media_god_updater"
         private const val KEY_PENDING_UPDATE_PATH = "pending_update_path"
@@ -83,7 +86,11 @@ class AppUpdater(
                 downloading.set(false)
                 clearPendingUpdate()
                 sendStatus(
-                    status = "error",
+                    status = if (error is SigningIdentityMismatchException) {
+                        "signature_migration"
+                    } else {
+                        "error"
+                    },
                     message = error.message ?: "Could not download the Media God Fire TV update.",
                     progress = 0,
                 )
@@ -118,7 +125,11 @@ class AppUpdater(
             clearPendingUpdate()
             apk.delete()
             sendStatus(
-                status = "error",
+                status = if (error is SigningIdentityMismatchException) {
+                    "signature_migration"
+                } else {
+                    "error"
+                },
                 message = error.message ?: "The downloaded update could not be verified.",
                 progress = 100,
             )
@@ -264,12 +275,22 @@ class AppUpdater(
         val currentSigners = signerDigests(currentInfo)
         val archiveSigners = signerDigests(archiveInfo)
 
+        /*
+         * Some Fire OS PackageManager builds do not expose signer metadata for
+         * an APK archive even though the platform installer can validate it.
+         * "Could not read the signer" must never be treated as "different
+         * signer". Only declare a signing migration when both identities were
+         * actually read and are definitely disjoint. Fire OS still performs
+         * its own mandatory signature check before replacing the installed app.
+         */
         if (
-            currentSigners.isEmpty() ||
-            archiveSigners.isEmpty() ||
+            currentSigners.isNotEmpty() &&
+            archiveSigners.isNotEmpty() &&
             currentSigners.intersect(archiveSigners).isEmpty()
         ) {
-            throw IllegalStateException("Downloaded APK signing identity does not match Media God Fire TV.")
+            throw SigningIdentityMismatchException(
+                "Downloaded APK signing identity does not match Media God Fire TV."
+            )
         }
     }
 
@@ -313,9 +334,13 @@ class AppUpdater(
     private fun signerDigests(info: PackageInfo): Set<String> {
         val signatures =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                info.signingInfo?.apkContentsSigners ?: emptyArray()
+                val signingInfo = info.signingInfo
+                buildList {
+                    addAll(signingInfo?.apkContentsSigners?.toList().orEmpty())
+                    addAll(signingInfo?.signingCertificateHistory?.toList().orEmpty())
+                }.distinctBy { it.toCharsString() }
             } else {
-                info.signatures ?: emptyArray()
+                info.signatures?.toList().orEmpty()
             }
 
         return signatures.map { signature ->
@@ -332,7 +357,11 @@ class AppUpdater(
             clearPendingUpdate()
             apk.delete()
             sendStatus(
-                status = "error",
+                status = if (error is SigningIdentityMismatchException) {
+                    "signature_migration"
+                } else {
+                    "error"
+                },
                 message = error.message ?: "The downloaded update could not be verified.",
                 progress = 100,
             )
