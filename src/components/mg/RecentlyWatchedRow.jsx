@@ -14,6 +14,8 @@ import { base44 } from "@/api/base44Client";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 import { Image } from "@/components/ui/image";
 
+const PosterImage = /** @type {any} */ (Image);
+
 const WATCHED_THRESHOLD = 0.92;
 
 const positiveInt = (value) => {
@@ -290,7 +292,7 @@ export default function RecentlyWatchedRow() {
             className="mg-fire-tv-resume-card group relative w-36 sm:w-44 md:w-48 xl:w-52 3xl:w-64 4xl:w-72 shrink-0 text-left cursor-pointer snap-start rounded-lg focus:outline-none focus:ring-2 focus:ring-mg-green focus:ring-offset-2 focus:ring-offset-mg-background"
           >
             <div className="relative aspect-video rounded-lg 3xl:rounded-xl overflow-hidden bg-mg-card border border-white/10 group-focus:border-mg-green">
-              <Image
+              <PosterImage
                 src={item.poster_url}
                 fittingType="fill"
                 className="w-full h-full object-cover"
