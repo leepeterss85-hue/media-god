@@ -268,45 +268,36 @@ export default function MediaPlayerControls({
     }
   };
 
-  const scheduleHide = (delay = 3000) => {
+  const scheduleHide = (delay = 2400) => {
     clearHideTimer();
 
     /*
-     * A native <select> commonly keeps DOM focus after its chooser closes on
-     * Android/iOS. Treating that persistent mobile focus like an open menu
-     * pinned the whole player chrome on screen forever. Keyboard/TV runtimes
-     * still keep select focus protective; touch-first runtimes auto-hide.
+     * Native Android/Fire TV selects can keep DOM focus after the chooser has
+     * already closed. Focus must never pin the complete player chrome on top of
+     * the picture. Only an actual open menu/seeking gesture pauses auto-hide.
      */
-    const selectPinsControls =
-      selectFocusedRef.current && !isTouchFirstControlsRuntime();
-
     if (
       !playingRef.current ||
       seekingRef.current ||
-      menuOpenRef.current ||
-      selectPinsControls
+      menuOpenRef.current
     ) {
       return;
     }
 
     hideTimerRef.current =
       window.setTimeout(() => {
-        const selectStillPinsControls =
-          selectFocusedRef.current && !isTouchFirstControlsRuntime();
-
         if (
           mountedRef.current &&
           playingRef.current &&
           !seekingRef.current &&
-          !menuOpenRef.current &&
-          !selectStillPinsControls
+          !menuOpenRef.current
         ) {
           setShowControls(false);
         }
       }, delay);
   };
 
-  const revealControls = (delay = 3000) => {
+  const revealControls = (delay = 2400) => {
     setShowControls(true);
     scheduleHide(delay);
   };
@@ -992,7 +983,7 @@ export default function MediaPlayerControls({
     };
 
     const wakeLonger = () => {
-      revealControls(4200);
+      revealControls(2600);
     };
 
     stage.addEventListener(
@@ -1100,8 +1091,8 @@ export default function MediaPlayerControls({
     ) {
       scheduleHide(
         isAppFullscreen
-          ? 3000
-          : 3600
+          ? 2200
+          : 2600
       );
     }
   }, [
@@ -1465,7 +1456,7 @@ export default function MediaPlayerControls({
       playingRef.current &&
       !menuOpenRef.current
     ) {
-      scheduleHide(3600);
+      scheduleHide(2400);
     }
   };
 
@@ -1478,21 +1469,17 @@ export default function MediaPlayerControls({
   };
 
   const focusSelectControl = () => {
-    if (isTouchFirstControlsRuntime()) {
-      /*
-       * Mobile native pickers often leave the <select> focused after selection.
-       * Show the chrome while the picker is being used, but do not let that
-       * stale focus disable auto-hide indefinitely.
-       */
-      selectFocusedRef.current = false;
-      setShowControls(true);
-      scheduleHide(3600);
-      return;
-    }
-
-    selectFocusedRef.current = true;
-    clearHideTimer();
+    /*
+     * Focus survives the native chooser on Android and Fire TV, so treating
+     * focus as "menu still open" leaves the source selector and every button on
+     * screen until another remote action. Always let the chrome fade again.
+     */
+    selectFocusedRef.current = false;
     setShowControls(true);
+
+    if (playingRef.current && !menuOpenRef.current) {
+      scheduleHide(2400);
+    }
   };
 
   const blurSelectControl = () => {
