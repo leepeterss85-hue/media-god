@@ -934,6 +934,27 @@ export default async function (req) {
       );
 
       if (stream.error) {
+        /*
+         * The torrent already exists in Real-Debrid at this point. A transient
+         * info request failure must not be reported as though the uncached
+         * download itself failed to start. Keep the torrent attached to the
+         * player and let the normal torrent_info poll recover on the next tick.
+         */
+        if (stream.error_code === "RD_TORRENT_INFO_FAILED") {
+          return Response.json({
+            status: "preparing",
+            torrent_id: String(match.id),
+            info_hash: hash,
+            stream_url: "",
+            fallback_stream_url: "",
+            filename: match?.filename || body.title || "",
+            rd_status: String(match?.status || "preparing"),
+            files: [],
+            torrent_progress: buildTorrentProgress(match),
+            warning: stream.error,
+          });
+        }
+
         return Response.json({
           status: "failed",
           torrent_id: String(match.id),
@@ -2355,6 +2376,35 @@ async function addMagnet({
     );
 
   if (stream.error) {
+    /*
+     * addMagnet already succeeded and returned a Real-Debrid torrent id.
+     * If the very next info call is temporarily unavailable, preserve that
+     * successful uncached-download start instead of hiding it behind a failed
+     * response. The frontend will poll torrent_info and recover automatically.
+     */
+    if (stream.error_code === "RD_TORRENT_INFO_FAILED") {
+      return Response.json({
+        status: "preparing",
+        torrent_id: torrentId,
+        stream_url: "",
+        fallback_stream_url: "",
+        filename: body.title || "",
+        rd_status: "preparing",
+        files: [],
+        torrent_progress: {
+          status: "preparing",
+          progress: 0,
+          speed_bps: 0,
+          seeders: 0,
+          size_bytes: 0,
+          downloaded_bytes: 0,
+          added: "",
+          ended: "",
+        },
+        warning: stream.error,
+      });
+    }
+
     return Response.json({
       status: "failed",
       error:
