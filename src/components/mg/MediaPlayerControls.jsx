@@ -1708,9 +1708,12 @@ export default function MediaPlayerControls({
                   }}
                   onChange={(event) => {
                     const value = event.target.value;
+                    const selectedEntry = visibleSourceChoices.find(
+                      (entry) => String(entry.index) === String(value)
+                    );
                     setSourceChoicePinned(false);
                     sourceChoiceEntriesRef.current = [];
-                    onSelectSource?.(value);
+                    onSelectSource?.(value, selectedEntry?.item || null);
                   }}
                   onFocus={() => {
                     if (!sourceChoicePinned) {
