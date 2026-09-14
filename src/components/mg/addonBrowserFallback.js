@@ -487,7 +487,10 @@ const normaliseStream = (
       viaRealDebrid: true,
       cacheRequired: true,
       cometUncached: true,
-      resolutionStrategy: "rd_magnet",
+      cometPlaybackUrl:
+        isHttp(rawUrl) ? rawUrl : "",
+      resolutionStrategy:
+        providedTrackers.length > 0 ? "rd_magnet" : "comet_uncached",
       torrentTrackers: effectiveTrackers,
       torrentMetadataSource:
         providedTrackers.length > 0 ? "comet" : "public_fallback",
