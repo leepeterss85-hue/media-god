@@ -20,6 +20,13 @@ export const isDebridReady = (torrent) =>
 export const isDebridError = (torrent) =>
   /error|dead|virus|invalid/i.test(normaliseDebridStatus(torrent));
 
+export const isDebridRetryableError = (torrent) => {
+  const status = normaliseDebridStatus(torrent);
+  if (!isDebridError(torrent)) return false;
+  if (/virus|blocked|invalid/i.test(status)) return false;
+  return /error|dead/i.test(status);
+};
+
 export const isDebridActive = (torrent) =>
   !isDebridReady(torrent) && !isDebridError(torrent);
 
@@ -49,6 +56,36 @@ export const formatDebridSpeed = (value) => {
   if (bytesPerSecond >= 1e6) return `${(bytesPerSecond / 1e6).toFixed(1)} MB/s`;
   if (bytesPerSecond >= 1e3) return `${(bytesPerSecond / 1e3).toFixed(0)} KB/s`;
   return `${Math.round(bytesPerSecond)} B/s`;
+};
+
+export const formatDebridEta = (torrent) => {
+  const totalBytes = Number(torrent?.bytes || 0);
+  const speed = Number(torrent?.speed || 0);
+  const progress = debridProgress(torrent);
+
+  if (
+    !Number.isFinite(totalBytes) ||
+    totalBytes <= 0 ||
+    !Number.isFinite(speed) ||
+    speed <= 0 ||
+    progress <= 0 ||
+    progress >= 100
+  ) {
+    return "";
+  }
+
+  const remainingBytes = totalBytes * (1 - progress / 100);
+  const seconds = Math.ceil(remainingBytes / speed);
+
+  if (!Number.isFinite(seconds) || seconds <= 0) return "";
+  if (seconds < 60) return `<1 min`;
+
+  const minutes = Math.ceil(seconds / 60);
+  if (minutes < 60) return `${minutes} min`;
+
+  const hours = Math.floor(minutes / 60);
+  const leftoverMinutes = minutes % 60;
+  return leftoverMinutes > 0 ? `${hours}h ${leftoverMinutes}m` : `${hours}h`;
 };
 
 export const debridAddedTime = (torrent) => {
