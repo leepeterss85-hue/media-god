@@ -180,6 +180,13 @@ expect(
     videoPlayer.includes("const hasTorrentTrackers = debridTorrentHasMetadata"),
   "Tracker-bearing uncached sources can no longer use the direct Real-Debrid path"
 );
+expect(
+  videoPlayer.includes("sourceSelectorPinnedRef = useRef(false)") &&
+    videoPlayer.includes("rdFileSelectorPinnedRef = useRef(false)") &&
+    videoPlayer.includes("Pause polling completely while the user is choosing a") &&
+    videoPlayer.includes("Never move the active source underneath an open native selector"),
+  "Android/Fire TV torrent/source selectors can be dismissed by background player updates again"
+);
 
 expect(
   addons.includes("autoHealthCheckedRef") && addons.includes("testActiveAddons();"),
