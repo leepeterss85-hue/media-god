@@ -84,7 +84,8 @@ export default function WatchPartyView() {
     base44.auth.me().then(setUser).catch(() => {});
   }, []);
 
-  const isHost = Boolean(party && user && party.created_by_id === user.id);
+  const hostUserId = clean(party?.host_user_id || party?.created_by_id);
+  const isHost = Boolean(party && user && hostUserId === String(user.id));
   const roomCode = clean(party?.room_code).toUpperCase();
 
   const activeParticipants = useMemo(() => {
@@ -102,6 +103,7 @@ export default function WatchPartyView() {
       if (!previous || seen > previous.seen) {
         byUser.set(key, {
           seen,
+          userId: key,
           name: clean(presence?.user_name) || "Guest",
         });
       }
@@ -292,6 +294,40 @@ export default function WatchPartyView() {
     }
   };
 
+  const transferHost = async (participant) => {
+    const nextHostId = clean(participant?.userId);
+
+    if (
+      !party?.id ||
+      !isHost ||
+      busy ||
+      !nextHostId ||
+      nextHostId === hostUserId
+    ) {
+      return;
+    }
+
+    setBusy(true);
+    setError("");
+
+    try {
+      const updated = await base44.entities.WatchParty.update(party.id, {
+        host_user_id: nextHostId,
+        last_action_at: new Date().toISOString(),
+      });
+
+      setParty((current) => ({
+        ...current,
+        ...(updated || {}),
+        host_user_id: nextHostId,
+      }));
+    } catch (transferError) {
+      setError(transferError?.message || "Could not transfer host control.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const createRoom = async () => {
     const title = clean(cTitle);
     const videoUrl = clean(cUrl);
@@ -329,6 +365,7 @@ export default function WatchPartyView() {
         title,
         video_url: videoUrl,
         poster_url: posterUrl,
+        host_user_id: user?.id ? String(user.id) : "",
         is_playing: false,
         current_time: 0,
         participants: user?.id ? [user.id] : [],
@@ -754,14 +791,33 @@ export default function WatchPartyView() {
             </span>
           </div>
           <div className="mt-2 flex flex-wrap gap-2">
-            {activeParticipants.slice(0, 12).map((participant, index) => (
-              <span
-                key={`${participant.name}-${participant.seen}-${index}`}
-                className="rounded-full border border-white/10 bg-black/25 px-2.5 py-1 text-xs text-white/60"
-              >
-                {participant.name}
-              </span>
-            ))}
+            {activeParticipants.slice(0, 12).map((participant, index) => {
+              const participantIsHost = participant.userId === hostUserId;
+
+              return (
+                <div
+                  key={`${participant.userId}-${participant.seen}-${index}`}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-black/25 px-2.5 py-1 text-xs text-white/60"
+                >
+                  <span>{participant.name}</span>
+                  {participantIsHost && (
+                    <span className="text-[9px] font-bold uppercase tracking-wide text-mg-green">
+                      Host
+                    </span>
+                  )}
+                  {isHost && !participantIsHost && (
+                    <button
+                      type="button"
+                      onClick={() => transferHost(participant)}
+                      disabled={busy}
+                      className="rounded-full border border-mg-green/20 bg-mg-green/10 px-1.5 py-0.5 text-[9px] font-semibold text-mg-green hover:bg-mg-green/15 disabled:opacity-40"
+                    >
+                      Make host
+                    </button>
+                  )}
+                </div>
+              );
+            })}
             {activeParticipants.length > 12 && (
               <span className="rounded-full border border-white/10 bg-black/25 px-2.5 py-1 text-xs text-white/45">
                 +{activeParticipants.length - 12} more
