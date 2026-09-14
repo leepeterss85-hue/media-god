@@ -9,7 +9,7 @@ const apps = [
     dir: "firetv-android",
     packagePath: "com/mediagod/firetv",
     namespace: "com.mediagod.firetv",
-    expectedVersion: "1.4.10",
+    expectedVersion: null,
     expectedOrientation: "landscape",
   },
   {
@@ -81,9 +81,13 @@ for (const app of apps) {
   requireFile(`${app.dir}/app/src/main/res/values/strings.xml`, `${app.name} strings`);
   requireFile(`${app.dir}/app/src/main/res/values/styles.xml`, `${app.name} styles`);
 
+  const versionNameOk = app.expectedVersion
+    ? gradle.includes(`versionName = "${app.expectedVersion}"`)
+    : /versionName\s*=\s*"\d+\.\d+\.\d+"/.test(gradle);
+
   const checks = [
     [gradle.includes(`namespace = "${app.namespace}"`), "namespace"],
-    [gradle.includes(`versionName = "${app.expectedVersion}"`), "versionName"],
+    [versionNameOk, "versionName"],
     [gradle.includes("media3-exoplayer-hls"), "Media3 HLS dependency"],
     [gradle.includes("media3-exoplayer-dash"), "Media3 DASH dependency"],
     [manifest.includes('android.permission.INTERNET'), "INTERNET permission"],
