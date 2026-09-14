@@ -1180,6 +1180,18 @@ export default function VideoPlayer({
       statusMessage = "",
     } = {}
   ) => {
+    /*
+     * Never move the active source underneath an open native selector. Manual
+     * onChange releases the selector first, so an intentional user choice still
+     * switches immediately; only background recovery is held back.
+     */
+    if (
+      sourceSelectorPinnedRef.current ||
+      rdFileSelectorPinnedRef.current
+    ) {
+      return false;
+    }
+
     streamActionGenerationRef.current += 1;
 
     if (nativeLaunchTimerRef.current) {
@@ -1256,6 +1268,13 @@ export default function VideoPlayer({
       liveFailureClass = "",
     } = {}
   ) => {
+    if (
+      sourceSelectorPinnedRef.current ||
+      rdFileSelectorPinnedRef.current
+    ) {
+      return false;
+    }
+
     const hardFailureMessage =
       /(?:\b451\b|infringing[_ -]?file|copyright|wrong\s+ip|rate[-\s]?limit|not\s+cached|couldn['’]?t\s+start|could\s+not\s+start|comet\s+returned\s+its\s+error)/i.test(
         String(message || "")
