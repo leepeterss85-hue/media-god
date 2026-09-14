@@ -147,6 +147,8 @@ for (const marker of [
   'stream.error_code === "RD_TORRENT_INFO_FAILED"',
   'status: "preparing"',
   'warning: stream.error',
+  "torrentSelectionMetadataPending(info)",
+  "metadata_pending: true",
 ]) {
   expect(
     realDebridBackend.includes(marker),
