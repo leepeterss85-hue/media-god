@@ -2823,7 +2823,7 @@ export default function LiveTVView({
 
       <div
         data-mg-live-tv-category-row="true"
-        className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-9"
+        className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-10"
       >
         {[
           {
