@@ -2149,9 +2149,6 @@ export default function VideoPlayer({
 
             const resolutionStrategy = sourceResolutionStrategy(active);
             const knownUncached = sourceNeedsCaching(active);
-            const torrentTrackers = Array.isArray(active?.torrentTrackers)
-              ? active.torrentTrackers.filter(Boolean)
-              : [];
             const hasTorrentTrackers = debridTorrentHasMetadata({
               ...active,
               magnet,
