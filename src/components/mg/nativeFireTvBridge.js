@@ -140,6 +140,21 @@ export const openNativeFireTvExternalUrl = (url) => {
   }
 };
 
+const positiveWholeNumber = (value) => {
+  const number = Number(value);
+  return Number.isInteger(number) && number > 0 ? number : 0;
+};
+
+const episodeNumbersFromTitle = (title) => {
+  const text = String(title || "");
+  const match = text.match(/(?:^|\b)S(\d{1,3})E(\d{1,4})(?:\b|$)/i);
+
+  return {
+    season: positiveWholeNumber(match?.[1]),
+    episode: positiveWholeNumber(match?.[2]),
+  };
+};
+
 export const playNativeFireTv = ({
   requestId,
   url,
@@ -171,21 +186,57 @@ export const playNativeFireTv = ({
       ? window.__MG_PLAYER_CONTEXT__
       : {};
 
-  const mediaType = String(playerContext?.mediaType || "")
+  const titleEpisode = episodeNumbersFromTitle(title);
+  const contextSeason = positiveWholeNumber(
+    playerContext?.season ?? playerContext?.rdSeason
+  );
+  const contextEpisode = positiveWholeNumber(
+    playerContext?.episode ?? playerContext?.rdEpisode
+  );
+  const season = contextSeason || titleEpisode.season;
+  const episode = contextEpisode || titleEpisode.episode;
+
+  const rawMediaType = String(
+    playerContext?.mediaType || playerContext?.type || ""
+  )
     .trim()
     .toLowerCase();
-  const tmdbId = Number(playerContext?.tmdbId || 0);
-  const season = Number(playerContext?.season || 0);
-  const episode = Number(playerContext?.episode || 0);
+
+  const looksLikeTvEpisode =
+    rawMediaType === "tv" ||
+    rawMediaType === "series" ||
+    season > 0 ||
+    episode > 0 ||
+    (titleEpisode.season > 0 && titleEpisode.episode > 0);
+
+  const mediaType = looksLikeTvEpisode ? "tv" : rawMediaType;
+  const tmdbId = positiveWholeNumber(
+    playerContext?.tmdbId ??
+      playerContext?.tmdb_id ??
+      playerContext?.id
+  );
+
+  /*
+   * Do not hide Season / Episode just because one browser-context field is
+   * missing. Fire TV already knows how to return to Media God's existing
+   * season/episode picker. A clearly identified TV episode is enough to show
+   * those two native menu entries; TMDB id is useful metadata, not a gate.
+   */
   const canChooseEpisode =
     !live &&
-    mediaType === "tv" &&
-    Number.isFinite(tmdbId) &&
-    tmdbId > 0 &&
-    Number.isInteger(season) &&
+    looksLikeTvEpisode &&
     season > 0 &&
-    Number.isInteger(episode) &&
     episode > 0;
+
+  if (typeof window !== "undefined" && canChooseEpisode) {
+    window.__MG_PLAYER_CONTEXT__ = {
+      ...playerContext,
+      mediaType: "tv",
+      season,
+      episode,
+      ...(tmdbId > 0 ? { tmdbId } : {}),
+    };
+  }
 
   const payload = {
     requestId: String(requestId || `${Date.now()}`),
@@ -195,18 +246,9 @@ export const playNativeFireTv = ({
     startPositionMs: Math.max(0, Number(startPositionMs || 0)),
     live: Boolean(live),
     mediaType,
-    tmdbId:
-      Number.isFinite(tmdbId) && tmdbId > 0
-        ? tmdbId
-        : 0,
-    season:
-      Number.isInteger(season) && season > 0
-        ? season
-        : 0,
-    episode:
-      Number.isInteger(episode) && episode > 0
-        ? episode
-        : 0,
+    tmdbId,
+    season,
+    episode,
     canChooseEpisode,
     headers:
       headers && typeof headers === "object" && !Array.isArray(headers)
