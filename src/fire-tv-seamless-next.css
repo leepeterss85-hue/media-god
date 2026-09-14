@@ -1,0 +1,20 @@
+/*
+ * Fire TV seamless auto-next handoff.
+ *
+ * Native Media3 closes when an episode ends, then Media God resolves the next
+ * episode in the WebView before opening Media3 again. During that short handoff
+ * the ordinary WebView player would otherwise flash its Exit/title/source UI.
+ * Keep the player surface pure black until native playback takes over again.
+ */
+html.mg-fire-tv-seamless-next [data-mg-player-root="true"],
+body.mg-fire-tv-seamless-next [data-mg-player-root="true"] {
+  background: #000 !important;
+  pointer-events: none !important;
+}
+
+html.mg-fire-tv-seamless-next [data-mg-player-root="true"] > *,
+body.mg-fire-tv-seamless-next [data-mg-player-root="true"] > * {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
