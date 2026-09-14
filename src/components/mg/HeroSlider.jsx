@@ -10,6 +10,8 @@ import {
 import { Image } from "@/components/ui/image";
 import { cn } from "@/lib/utils";
 
+const BackdropImage = /** @type {any} */ (Image);
+
 const GRADIENTS = [
   "from-red-950 via-rose-900 to-pink-950",
   "from-blue-950 via-indigo-900 to-violet-950",
@@ -72,7 +74,7 @@ export default function HeroSlider({
   return (
     <section className="mg-fire-tv-hero relative w-full h-[52svh] min-h-[350px] max-h-[680px] sm:h-[56vh] md:min-h-[430px] 3xl:h-[62vh] 3xl:min-h-[620px] 3xl:max-h-[900px] 4xl:min-h-[760px] 4xl:max-h-[1100px] overflow-hidden">
       {item.backdrop_url ? (
-        <Image
+        <BackdropImage
           src={item.backdrop_url}
           alt={title}
           className="absolute inset-0 w-full h-full object-cover"
