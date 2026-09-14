@@ -289,7 +289,7 @@ class PlayerActivity : Activity() {
                 }
 
                 KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
-                KeyEvent.KEYCODE_HEADSETOOK -> {
+                KeyEvent.KEYCODE_HEADSETHOOK -> {
                     activePlayer?.let {
                         if (it.isPlaying) it.pause() else it.play()
                         showControllerTemporarily()
@@ -554,7 +554,6 @@ class PlayerActivity : Activity() {
         val episode = payload.optInt("episode", 0)
         val labels = mutableListOf<String>()
 
-        // Episodes / seasons are exposed as separate Season and Episode entries.
         if (episodePickerEnabled) {
             labels.add(
                 if (season > 0) "Season $season • choose season" else "Choose season"
@@ -613,8 +612,7 @@ class PlayerActivity : Activity() {
                 else -> "Choose playback source"
             }
 
-            val selectedPosition =
-                activeSourceIndex + sourceSelectorOffset()
+            val selectedPosition = activeSourceIndex + sourceSelectorOffset()
             setSelection(
                 selectedPosition.coerceIn(0, maxOf(0, labels.lastIndex)),
                 false
