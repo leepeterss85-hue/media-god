@@ -189,6 +189,11 @@ expect(
     videoPlayer.includes("Never move the active source underneath an open native selector") &&
     !videoPlayer.includes("setSourceSelectorPinned(") &&
     !videoPlayer.includes("setRdFileSelectorPinned(") &&
+    !videoPlayer.includes("onFocus={pinSourceSelector}") &&
+    !videoPlayer.includes("onFocus={pinRdFileSelector}") &&
+    videoPlayer.includes("const selectorOpenKey = (event) =>") &&
+    videoPlayer.includes("if (selectorOpenKey(event)) pinSourceSelector();") &&
+    videoPlayer.includes("if (selectorOpenKey(event)) pinRdFileSelector();") &&
     videoPlayer.includes('data-mg-rd-cache-source={sourceNeedsCaching(active) ? "true" : "false"}'),
   "Torrent/source selectors can replay on focus or Android can mistake a real uncached RD job for Comet placeholder media"
 );
