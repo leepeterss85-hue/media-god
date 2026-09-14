@@ -12,6 +12,8 @@ import DetailModal from "@/components/mg/DetailModal";
 import StreamingProviderLogos from "@/components/mg/StreamingProviderLogos";
 import useDebouncedValue from "@/components/mg/useDebouncedValue";
 
+const PosterImage = /** @type {any} */ (Image);
+
 const COUNTRIES = [
   { code: "", label: "All Countries" },
   { code: "GB", label: "United Kingdom" },
@@ -217,7 +219,7 @@ export default function MoviesView() {
           {movies.map((movie) => (
             <article key={movie.id} className="mg-fire-tv-library-card group min-w-0">
               <div className="relative aspect-[2/3] rounded-md 3xl:rounded-lg overflow-hidden border border-white/10 bg-mg-card">
-                <Image
+                <PosterImage
                   src={movie.poster_url}
                   alt={movie.title}
                   className="w-full h-full object-cover"
