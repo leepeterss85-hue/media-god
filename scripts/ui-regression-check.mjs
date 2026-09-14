@@ -200,8 +200,11 @@ expect(
     videoPlayer.includes("const selectorOpenKey = (event) =>") &&
     videoPlayer.includes("if (selectorOpenKey(event)) pinSourceSelector();") &&
     videoPlayer.includes("if (selectorOpenKey(event)) pinRdFileSelector();") &&
+    videoPlayer.includes("const sourceSelectionKey = (item, fallbackIndex = -1) =>") &&
+    videoPlayer.includes("manualSelection: !selectingLive") &&
+    videoPlayer.includes("selectSource(value, selectedEntry?.item || null);") &&
     videoPlayer.includes('data-mg-rd-cache-source={sourceNeedsCaching(active) ? "true" : "false"}'),
-  "Torrent/source selectors can replay on focus or Android can mistake a real uncached RD job for Comet placeholder media"
+  "Torrent/source selectors can replay, reject a refreshed manual choice, or Android can mistake a real uncached RD job for Comet placeholder media"
 );
 
 expect(
