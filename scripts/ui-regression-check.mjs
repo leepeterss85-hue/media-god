@@ -207,10 +207,13 @@ expect(
   mediaPlayerControls.includes("const scheduleHide = (delay = 2400) =>") &&
     mediaPlayerControls.includes("scheduleHide(2400);") &&
     mediaPlayerControls.includes("revealControls(2600);") &&
+    mediaPlayerControls.includes("scheduleHide(isLive ? 1800 : 2800)") &&
     !mediaPlayerControls.includes("selectPinsControls") &&
+    videoPlayer.includes("isLive={\n                  isLive\n                }") &&
     fireTvPlayerActivity.includes("controllerShowTimeoutMs = 2500") &&
+    fireTvPlayerActivity.includes("sourceSpinner.postDelayed(hideSourceSelectorRunnable, 2500L)") &&
     androidPlayerActivity.includes("controllerShowTimeoutMs = 2500"),
-  "Player buttons/source chrome can remain pinned instead of auto-hiding after a couple of seconds"
+  "Player buttons/source chrome, including Live TV and the Fire TV source selector, can remain pinned instead of auto-hiding after a couple of seconds"
 );
 
 expect(
