@@ -144,6 +144,9 @@ for (const marker of [
   "seeders:",
   "speed:",
   "added:",
+  'stream.error_code === "RD_TORRENT_INFO_FAILED"',
+  'status: "preparing"',
+  'warning: stream.error',
 ]) {
   expect(
     realDebridBackend.includes(marker),
