@@ -16,6 +16,16 @@ export const normaliseRequestedFileIndex = (value) => {
 export const isVideoTorrentFile = (file) =>
   Boolean(file?.path) && VIDEO_RE.test(String(file.path));
 
+export const torrentSelectionMetadataPending = (info = {}) => {
+  const status = String(info?.status || "").toLowerCase();
+  const files = Array.isArray(info?.files) ? info.files : [];
+
+  return (
+    /^(?:waiting_files_selection|waiting_selection)$/.test(status) &&
+    files.length === 0
+  );
+};
+
 export const chooseVideoFileForPlayback = (files, ep = {}) => {
   const safeFiles = Array.isArray(files) ? files : [];
   if (safeFiles.length === 0) return null;
