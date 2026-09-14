@@ -421,6 +421,22 @@ test("opaque Comet uncached rows remain comet_uncached", () => {
   );
 });
 
+test("Comet rows with only synthetic public trackers still use the Comet start path", () => {
+  const item = {
+    cometUncached: true,
+    cometPlaybackUrl:
+      "https://comet.example.test/playback/0123456789abcdef0123456789abcdef01234567/0",
+    resolutionStrategy: "comet_uncached",
+    torrentMetadataSource: "public_fallback",
+    torrentTrackers: ["udp://tracker.example.test:80/announce"],
+    magnet:
+      "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&tr=udp%3A%2F%2Ftracker.example.test%3A80%2Fannounce",
+  };
+
+  assert.equal(debridTorrentHasMetadata(item), true);
+  assert.equal(chooseDebridResolutionStrategy(item), "comet_uncached");
+});
+
 test("Real-Debrid waiting-selection race with no files remains preparing", () => {
   assert.equal(
     torrentSelectionMetadataPending({
