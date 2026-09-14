@@ -1,5 +1,21 @@
 export const UPDATE_HISTORY = [
   {
+    id: "non-live-tv-polish-pass-2026-09-14-v1",
+    date: "14 September 2026",
+    title: "Libraries, downloads and Watch Party strengthened",
+    summary:
+      "Media God's non-Live-TV areas received another reliability and usability pass while the working Live TV setup was left unchanged.",
+    changes: [
+      "Downloads and RD Library now show transfer speed and ETA, support per-item retry, retry-all for retryable failures and bulk completed cleanup.",
+      "Unsafe failure states such as blocked/virus or invalid torrents are no longer offered as retryable jobs.",
+      "Watchlist and Favorites now separate Movies and TV Shows, support bulk clearing and open TV entries through the proper show-details flow instead of treating them like films.",
+      "New Watchlist records now retain their movie/TV media type, and Movies avoids creating duplicate Watchlist rows.",
+      "Watch Party now detects offline/reconnect state, cleans up duplicate presence records, timestamps chat messages and allows the current host to transfer host control to another participant.",
+      "Several non-Live-TV catalogue and home components received type-safety cleanup without altering their runtime behaviour.",
+      "Regression coverage was expanded around these features and continues to assert the locked BBC/ITV and EV SPORTS-over-ANT rules without modifying Live TV code.",
+    ],
+  },
+  {
     id: "non-live-tv-improvements-2026-09-14-v1",
     date: "14 September 2026",
     title: "Downloads, RD Library and Watch Party strengthened",
