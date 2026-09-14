@@ -11,6 +11,7 @@ export const UPDATE_HISTORY = [
       "Comet Torrent Mode metadata recovery now runs when any uncached Comet result is missing torrent sources instead of being skipped because an unrelated row happened to include sources.",
       "Tracker-bearing uncached results are routed through Media God's direct Real-Debrid download path rather than the legacy opaque Comet playback trigger.",
       "If Real-Debrid creates the torrent but its immediate info request temporarily fails, Media God keeps the new torrent attached and continues polling instead of reporting that the download never started.",
+      "Android phone playback now also tolerates the brief Real-Debrid waiting-files-selection race where the torrent exists but its file list has not arrived yet; Media God keeps polling instead of incorrectly reporting that no playable video file exists.",
       "Android and Fire TV source/torrent selectors now pause Real-Debrid polling and automatic recovery while the native selection popup is open, so the first 2.5-second status poll can no longer dismiss the selector before a new torrent is chosen.",
       "Regression protection now covers tracker-bearing Comet strategy selection, both server/browser uncached fallback paths and the native selector stay-open guard.",
     ],
