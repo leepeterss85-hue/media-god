@@ -5,6 +5,7 @@ import React, {
 
 import {
   Bookmark,
+  CalendarDays,
   Film,
   Heart,
   Home as HomeIcon,
@@ -50,6 +51,11 @@ const NAV = [
     id: "music",
     label: "Music",
     icon: Radio,
+  },
+  {
+    id: "roadmap",
+    label: "Release Dates",
+    icon: CalendarDays,
   },
   {
     id: "watchlist",
