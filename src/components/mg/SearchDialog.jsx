@@ -799,16 +799,18 @@ export default function SearchDialog({
         </div>
 
         <div className="max-h-[75svh] sm:max-h-[68vh] overflow-y-auto overscroll-contain">
-          {loading && (
-            <div role="status" aria-live="polite" className="p-8 3xl:p-12 text-center text-white/40 flex items-center justify-center gap-2 3xl:text-lg">
+          {(loading || liveLoading) &&
+            query.trim().length >= 2 && (
+            <div role="status" aria-live="polite" className="p-4 3xl:p-6 text-center text-white/40 flex items-center justify-center gap-2 3xl:text-lg">
               <Loader2 className="w-4 h-4 3xl:w-6 3xl:h-6 animate-spin" />
 
-              Searching...
+              Searching movies, TV shows and live channels...
             </div>
           )}
 
           {!loading &&
-            error && (
+            error &&
+            liveResults.length === 0 && (
               <div role="alert" className="p-6 3xl:p-10 text-center">
                 <p className="text-sm 3xl:text-lg text-red-300">
                   {
@@ -818,13 +820,24 @@ export default function SearchDialog({
               </div>
             )}
 
+          {!liveLoading &&
+            liveError &&
+            results.length === 0 &&
+            query.trim().length >= 2 && (
+              <div role="status" className="px-6 pb-4 text-center">
+                <p className="text-xs 3xl:text-base text-amber-300/80">
+                  Live TV channel search is temporarily unavailable. Movie and TV search still works.
+                </p>
+              </div>
+            )}
+
           {!loading &&
-            !error &&
+            !liveLoading &&
             query.trim().length >= 2 &&
-            results.length ===
-              0 && (
+            results.length === 0 &&
+            liveResults.length === 0 && (
               <div className="p-8 3xl:p-12 text-center text-white/40 text-sm 3xl:text-lg">
-                No movie or TV results found for &quot;
+                No movies, TV shows or live channels found for &quot;
                 {
                   query
                 }
@@ -832,12 +845,9 @@ export default function SearchDialog({
               </div>
             )}
 
-          {!loading &&
-            !error &&
-            results.length >
-              0 && (
+          {(results.length > 0 || liveResults.length > 0) && (
               <div className="divide-y divide-white/5">
-                {results.slice(0, 60).map(
+                {[...liveResults, ...results].slice(0, 80).map(
                   (
                     result
                   ) => (
@@ -867,8 +877,7 @@ export default function SearchDialog({
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-white/30">
-                            {result.media_type ===
-                            "movie" ? (
+                            {result.media_type === "movie" ? (
                               <Film className="w-5 h-5 3xl:w-7 3xl:h-7" />
                             ) : (
                               <Tv className="w-5 h-5 3xl:w-7 3xl:h-7" />
@@ -886,11 +895,26 @@ export default function SearchDialog({
 
                         <div className="flex flex-wrap items-center gap-2 3xl:gap-3 text-xs 3xl:text-base text-white/40 mt-1">
                           <span>
-                            {result.media_type ===
-                            "tv"
-                              ? "TV show"
-                              : "Movie"}
+                            {result.media_type === "live"
+                              ? "Live TV channel"
+                              : result.media_type === "tv"
+                                ? "TV show"
+                                : "Movie"}
                           </span>
+
+                          {result.media_type === "live" && result.live_group && (
+                            <>
+                              <span>•</span>
+                              <span>{result.live_group}</span>
+                            </>
+                          )}
+
+                          {result.media_type === "live" && result.live_country && (
+                            <>
+                              <span>•</span>
+                              <span>{result.live_country}</span>
+                            </>
+                          )}
 
                           {result.year && (
                             <>
@@ -961,11 +985,9 @@ export default function SearchDialog({
               </div>
             )}
 
-          {!loading &&
-            !error &&
-            query.trim().length < 2 && (
+          {query.trim().length < 2 && (
               <div className="p-8 3xl:p-12 text-center text-white/40 text-sm 3xl:text-lg">
-                Type at least 2 characters to search movies and TV shows
+                Type at least 2 characters to search movies, TV shows and live TV channels
               </div>
             )}
         </div>
