@@ -94,6 +94,23 @@ export default function MoviesView() {
 
   const addToWatchlist = async (movie) => {
     try {
+      const existing = await base44.entities.WatchlistItem.filter({
+        tmdb_id: String(movie.id),
+        media_type: "movie",
+      });
+
+      if (Array.isArray(existing) && existing.length > 0) {
+        setWatched((current) => ({
+          ...current,
+          [movie.id]: true,
+        }));
+        toast({
+          title: "Already in Watchlist",
+          description: movie.title,
+        });
+        return;
+      }
+
       await base44.entities.WatchlistItem.create({
         title: movie.title,
         year: movie.year,
