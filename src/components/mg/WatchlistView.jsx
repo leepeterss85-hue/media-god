@@ -310,6 +310,14 @@ export default function WatchlistView() {
           ))}
         </div>
       )}
+
+      {selected && (
+        <DetailModal
+          item={selected}
+          mediaType="tv"
+          onClose={() => setSelected(null)}
+        />
+      )}
     </div>
   );
 }
