@@ -1181,18 +1181,27 @@ export default function VideoPlayer({
     {
       preservePosition = true,
       statusMessage = "",
+      manualSelection = false,
     } = {}
   ) => {
     /*
-     * Never move the active source underneath an open native selector. Manual
-     * onChange releases the selector first, so an intentional user choice still
-     * switches immediately; only background recovery is held back.
+     * Never move the active source underneath an open native selector during
+     * background recovery. A deliberate movie/TV source choice is allowed to
+     * break the pin because that exact choice is the action the user requested.
      */
     if (
-      sourceSelectorPinnedRef.current ||
-      rdFileSelectorPinnedRef.current
+      !manualSelection &&
+      (
+        sourceSelectorPinnedRef.current ||
+        rdFileSelectorPinnedRef.current
+      )
     ) {
       return false;
+    }
+
+    if (manualSelection) {
+      releaseSourceSelector();
+      releaseRdFileSelector();
     }
 
     streamActionGenerationRef.current += 1;
@@ -1477,19 +1486,72 @@ export default function VideoPlayer({
     return true;
   };
 
+  const sourceSelectionKey = (item, fallbackIndex = -1) => {
+    if (!item) return "";
+
+    const id = String(item?.id || "").trim();
+    if (id) return `id:${id}`;
+
+    const hash = sourceTorrentHash(item);
+    if (hash) {
+      return [
+        "torrent",
+        hash,
+        String(item?.fileIdx ?? item?.file_idx ?? ""),
+        String(item?.addon || item?.debridProvider || ""),
+        sourceDisplayLabel(item, fallbackIndex),
+      ].join(":");
+    }
+
+    const url = String(getSourceUrl(item) || "").trim();
+    if (url) return `url:${url}`;
+
+    return [
+      "label",
+      String(item?.type || ""),
+      sourceDisplayLabel(item, fallbackIndex),
+    ].join(":");
+  };
+
   const selectSource = (
-    index
+    index,
+    pinnedItem = null
   ) => {
-    const nextIndex =
-      Number(index);
+    const requestedIndex = Number(index);
+    const selectingLive =
+      source?.type === "live" || active?.live || active?.type === "live";
+
+    let nextIndex = requestedIndex;
+
+    /*
+     * Movie/TV source discovery can refresh or reorder the source array while a
+     * native Android selector is open. The option the user sees belongs to the
+     * pinned snapshot, so its old numeric index may no longer identify the same
+     * cached/uncached torrent when onChange fires. Resolve the chosen snapshot
+     * item back into the CURRENT source array before switching.
+     */
+    if (!selectingLive && pinnedItem) {
+      const exactIndex = sources.indexOf(pinnedItem);
+
+      if (exactIndex >= 0) {
+        nextIndex = exactIndex;
+      } else {
+        const wantedKey = sourceSelectionKey(pinnedItem, requestedIndex);
+        const refreshedIndex = sources.findIndex(
+          (candidate, candidateIndex) =>
+            sourceSelectionKey(candidate, candidateIndex) === wantedKey
+        );
+
+        if (refreshedIndex >= 0) {
+          nextIndex = refreshedIndex;
+        }
+      }
+    }
 
     if (
-      Number.isNaN(
-        nextIndex
-      ) ||
+      Number.isNaN(nextIndex) ||
       nextIndex < 0 ||
-      nextIndex >=
-        sources.length ||
+      nextIndex >= sources.length ||
       nextIndex === activeIdx
     ) {
       return;
@@ -1497,8 +1559,9 @@ export default function VideoPlayer({
 
     switchToSource(nextIndex, {
       preservePosition: true,
+      manualSelection: !selectingLive,
       statusMessage:
-        source?.type === "live" || active?.live || active?.type === "live"
+        selectingLive
           ? "Switching Live TV source…"
           : "Switching source…",
     });
