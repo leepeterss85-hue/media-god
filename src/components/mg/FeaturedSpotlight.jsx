@@ -3,6 +3,8 @@ import { Play, Star } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
 
+const PosterImage = /** @type {any} */ (Image);
+
 const unwrapFunctionData = (response) => {
   const first = response?.data ?? response ?? {};
 
@@ -72,7 +74,7 @@ export default function FeaturedSpotlight({ tmdbId, title, onOpen }) {
   return (
     <section className="relative w-full overflow-hidden rounded-xl 3xl:rounded-2xl border border-white/10 bg-mg-card mb-5 3xl:mb-8">
       {backdrop ? (
-        <Image
+        <PosterImage
           src={backdrop}
           alt={title}
           className="absolute inset-0 w-full h-full object-cover"
