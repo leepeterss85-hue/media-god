@@ -28,6 +28,9 @@ const mediaPlayerControls = await read("src/components/mg/MediaPlayerControls.js
 const fireTvPlayerActivity = await read(
   "firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt"
 );
+const fireTvAppUpdater = await read(
+  "firetv-android/app/src/main/java/com/mediagod/firetv/AppUpdater.kt"
+);
 const androidPlayerActivity = await read(
   "android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt"
 );
@@ -330,6 +333,15 @@ expect(
     fireTvUpdateNotice.includes("60000") &&
     androidUpdateNotice.includes('window.addEventListener("mg:check-android-mobile-update"'),
   "Native update checks no longer re-check reliably or expose the manual Settings trigger"
+);
+expect(
+  fireTvAppUpdater.includes("currentSigners.isNotEmpty()") &&
+    fireTvAppUpdater.includes("archiveSigners.isNotEmpty()") &&
+    fireTvAppUpdater.includes("signingCertificateHistory") &&
+    fireTvAppUpdater.includes('"signature_migration"') &&
+    fireTvUpdateNotice.includes("legacySignatureCheckError") &&
+    fireTvUpdateNotice.includes("Do not uninstall Media God Fire TV."),
+  "Fire TV can again mistake unavailable signer metadata for a real signing-key migration"
 );
 expect(
   fireTvRelease.includes('"versionCode": 15') &&
