@@ -401,6 +401,18 @@ test("debrid strategy preserves tracker-backed torrents as rd_magnet", () => {
   );
 });
 
+test("tracker-bearing Comet magnets use direct Real-Debrid download strategy", () => {
+  const item = {
+    cometUncached: true,
+    resolutionStrategy: "comet_uncached",
+    magnet:
+      "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&tr=udp%3A%2F%2Ftracker.example.test%3A80%2Fannounce",
+  };
+
+  assert.equal(debridTorrentHasMetadata(item), true);
+  assert.equal(chooseDebridResolutionStrategy(item), "rd_magnet");
+});
+
 test("opaque Comet uncached rows remain comet_uncached", () => {
   assert.equal(
     chooseDebridResolutionStrategy({ cometUncached: true }),
