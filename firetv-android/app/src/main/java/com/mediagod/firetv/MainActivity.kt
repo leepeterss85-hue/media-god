@@ -193,10 +193,12 @@ class MainActivity : Activity() {
             data?.getStringExtra(PlayerActivity.EXTRA_REQUEST_ID).orEmpty().ifBlank {
                 expectedRequestId
             }
+        val reason =
+            data?.getStringExtra(PlayerActivity.EXTRA_REASON) ?: "back"
 
         val result = JSONObject().apply {
             put("requestId", returnedRequestId)
-            put("reason", data?.getStringExtra(PlayerActivity.EXTRA_REASON) ?: "back")
+            put("reason", reason)
             put("positionMs", data?.getLongExtra(PlayerActivity.EXTRA_POSITION_MS, 0L) ?: 0L)
             put("durationMs", data?.getLongExtra(PlayerActivity.EXTRA_DURATION_MS, 0L) ?: 0L)
             put("message", data?.getStringExtra(PlayerActivity.EXTRA_MESSAGE).orEmpty())
@@ -206,16 +208,31 @@ class MainActivity : Activity() {
             )
         }
 
+        val episodePickerScript =
+            if (reason.equals("episode", ignoreCase = true)) {
+                val pickerKey = JSONObject.quote("episode:$returnedRequestId")
+                """
+                (function(){
+                  var key=$pickerKey;
+                  if(window.__MG_NATIVE_EPISODE_PICKER_KEY__===key){return;}
+                  window.__MG_NATIVE_EPISODE_PICKER_KEY__=key;
+                  window.dispatchEvent(new CustomEvent('mg:choose-episode'));
+                })();
+                """.trimIndent()
+            } else {
+                ""
+            }
+
         val resultScript =
-            "window.dispatchEvent(new CustomEvent('mg:native-player-result',{detail:JSON.parse(${JSONObject.quote(result.toString())})}));"
+            "window.dispatchEvent(new CustomEvent('mg:native-player-result',{detail:JSON.parse(${JSONObject.quote(result.toString())})}));$episodePickerScript"
 
         /*
          * Fire OS devices do not all order onActivityResult/onResume in the
          * same way. Dispatch now and also keep the same event queued for
          * onResume. If the immediate dispatch succeeds, the duplicate resume
          * event is harmless because the web player has already cleared the
-         * matching request id. If it cannot run while the WebView is paused,
-         * the queued copy guarantees delivery when Media God becomes active.
+         * matching request id. The episode-picker bridge is also guarded by
+         * the request id so it opens only once.
          */
         pendingNativeResultScript = resultScript
         dispatchJavascript(resultScript)
