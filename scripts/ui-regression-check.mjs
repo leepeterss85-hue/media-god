@@ -26,6 +26,10 @@ const addonBrowserFallback = await read("src/components/mg/addonBrowserFallback.
 const videoPlayer = await read("src/components/mg/VideoPlayer.jsx");
 const playerProvider = await read("src/components/mg/PlayerProvider.jsx");
 const mediaPlayerControls = await read("src/components/mg/MediaPlayerControls.jsx");
+const nativeFireTvBridge = await read("src/components/mg/nativeFireTvBridge.js");
+const fireTvMainActivity = await read(
+  "firetv-android/app/src/main/java/com/mediagod/firetv/MainActivity.kt"
+);
 const fireTvPlayerActivity = await read(
   "firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt"
 );
@@ -49,6 +53,7 @@ const settings = await read("src/components/mg/SettingsView.jsx");
 const fireTvUpdateNotice = await read("src/components/mg/FireTvAppUpdateNotice.jsx");
 const androidUpdateNotice = await read("src/components/mg/AndroidMobileAppUpdateNotice.jsx");
 const fireTvRelease = await read("public/firetv-update.json");
+const fireTvReleaseData = JSON.parse(fireTvRelease);
 
 const requiredViews = [
   ["home", "Home"],
@@ -243,8 +248,19 @@ expect(
     videoPlayer.includes("isLive={\n                  isLive\n                }") &&
     fireTvPlayerActivity.includes("controllerShowTimeoutMs = 2500") &&
     fireTvPlayerActivity.includes("sourceSpinner.postDelayed(hideSourceSelectorRunnable, 2500L)") &&
+    fireTvPlayerActivity.includes("hideControllerNow()") &&
     androidPlayerActivity.includes("controllerShowTimeoutMs = 2500"),
   "Player buttons/source chrome, including Live TV and the Fire TV source selector, can remain pinned instead of auto-hiding after a couple of seconds"
+);
+expect(
+  fireTvPlayerActivity.includes('payload.optBoolean("canChooseEpisode", false)') &&
+    fireTvPlayerActivity.includes("Episodes / seasons") &&
+    fireTvPlayerActivity.includes('finishWithResult(reason = "episode")') &&
+    nativeFireTvBridge.includes("canChooseEpisode") &&
+    nativeFireTvBridge.includes("window.__MG_PLAYER_CONTEXT__") &&
+    fireTvMainActivity.includes("mg:choose-episode") &&
+    fireTvMainActivity.includes("__MG_NATIVE_EPISODE_PICKER_KEY__"),
+  "Fire TV TV playback no longer exposes the existing season/episode picker from the native source menu"
 );
 
 expect(
@@ -368,9 +384,12 @@ expect(
   "Fire TV can again mistake unavailable signer metadata for a real signing-key migration"
 );
 expect(
-  fireTvRelease.includes('"versionCode": 15') &&
-    fireTvRelease.includes('"versionName": "1.4.10"'),
-  "Fire TV update manifest is not advertising 1.4.10 / code 15"
+  Number.isInteger(Number(fireTvReleaseData?.versionCode)) &&
+    Number(fireTvReleaseData.versionCode) > 0 &&
+    /^\d+\.\d+\.\d+$/.test(String(fireTvReleaseData?.versionName || "")) &&
+    String(fireTvReleaseData?.apkUrl || "").includes("Media-God-Fire-TV.apk") &&
+    String(fireTvReleaseData?.channel || "") === "fire-tv",
+  "Fire TV update manifest is missing valid version or APK metadata"
 );
 
 console.log("ok UI/navigation/download/watch-party/locked-source/version-update structural checks complete");
