@@ -187,10 +187,20 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
   );
 
   const signatureMigration =
-    updateState.status === "signature_migration" ||
+    updateState.status === "signature_migration";
+
+  /*
+   * Fire TV 1.4.9 used the older updater logic that could treat missing
+   * PackageManager signer metadata as a different certificate. The official
+   * 1.4.9 and 1.4.10 releases use the same permanent signing certificate, so
+   * that legacy error must not tell the user to uninstall the app.
+   */
+  const legacySignatureCheckError =
+    updateState.status === "error" &&
     /signing identity does not match/i.test(updateState.message);
 
-  const showDownloaderMigration = !canSelfUpdate || signatureMigration;
+  const showDownloaderMigration =
+    !canSelfUpdate || signatureMigration || legacySignatureCheckError;
 
   const updateBusy = [
     "downloading",
@@ -271,18 +281,22 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
             <h2 className="mt-1 text-xl font-bold text-white">
               {signatureMigration
                 ? "One-time Fire TV signing migration required"
-                : migration
-                  ? "Install the dedicated Media God Fire TV app"
-                  : `Media God Fire TV ${release.versionName || "update"} available`}
+                : legacySignatureCheckError
+                  ? `Media God Fire TV ${release.versionName || "update"} is ready`
+                  : migration
+                    ? "Install the dedicated Media God Fire TV app"
+                    : `Media God Fire TV ${release.versionName || "update"} available`}
             </h2>
             <p className="mt-2 text-sm leading-6 text-white/70">
               {signatureMigration
-                ? "This Fire TV has an older Media God APK signed with the previous development key. Fire OS cannot replace it with the permanent signed release, so this device needs one clean reinstall."
-                : migration
-                  ? "This is the one-time move into the dedicated Media God Fire TV app."
-                  : canSelfUpdate
-                    ? "Media God can download this update itself. Fire OS will ask you to approve installation before anything is replaced."
-                    : "This installed build does not yet contain the self-updater. Use Downloader once; later signed releases can update from inside the app."}
+                ? "Media God read both signing identities and they are genuinely different, so Fire OS cannot replace this installation in place."
+                : legacySignatureCheckError
+                  ? "Do not uninstall Media God. Fire TV 1.4.9 can falsely report a signing mismatch when Fire OS does not expose the downloaded APK certificate to the old updater. Install the new APK over the top and let Fire OS perform the final signature check."
+                  : migration
+                    ? "This is the one-time move into the dedicated Media God Fire TV app."
+                    : canSelfUpdate
+                      ? "Media God can download this update itself. Fire OS will ask you to approve installation before anything is replaced."
+                      : "This installed build does not yet contain the self-updater. Use Downloader once; later signed releases can update from inside the app."}
             </p>
           </div>
 
@@ -367,7 +381,9 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
               <Download className="h-5 w-5 text-mg-green" />
               {signatureMigration
                 ? "One-time clean reinstall"
-                : "One-time Downloader install"}
+                : legacySignatureCheckError
+                  ? "Install over the current 1.4.9 app"
+                  : "One-time Downloader install"}
             </div>
 
             {signatureMigration ? (
@@ -380,6 +396,18 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
                 </li>
                 <li>
                   <span className="font-bold text-white">3.</span> Install Media God Fire TV {release.versionName || "the latest version"} and sign in again if Fire TV asks you to.
+                </li>
+              </ol>
+            ) : legacySignatureCheckError ? (
+              <ol className="mt-3 space-y-2 text-sm leading-5 text-white/75">
+                <li>
+                  <span className="font-bold text-white">1.</span> Do not uninstall Media God Fire TV.
+                </li>
+                <li>
+                  <span className="font-bold text-white">2.</span> Open Downloader and enter the code below.
+                </li>
+                <li>
+                  <span className="font-bold text-white">3.</span> Install Media God Fire TV {release.versionName || "the latest version"} over the current app. Fire OS will verify the signing certificate itself.
                 </li>
               </ol>
             ) : (
@@ -411,7 +439,9 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
             <p className="text-xs leading-5 text-white/50">
               {signatureMigration
                 ? "The old 4372217 Downloader code has been retired. Use the new code above for the current Fire TV release. Uninstalling clears local Fire TV app data, so you may need to sign in again. After this clean install, future updates can use Update now normally."
-                : "Install this signed version once. Future Media God Fire TV updates can then use the in-app Update now button."}
+                : legacySignatureCheckError
+                  ? "The official Media God Fire TV 1.4.9 and 1.4.10 releases use the same permanent signing certificate. This route keeps the existing app and data. Only if Fire OS itself refuses the replacement as incompatible would a clean reinstall actually be necessary."
+                  : "Install this signed version once. Future Media God Fire TV updates can then use the in-app Update now button."}
             </p>
           </div>
         )}
