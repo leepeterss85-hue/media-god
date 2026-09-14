@@ -58,14 +58,14 @@ export default function SettingsTools({ onSelect }) {
   return (
     <section
       data-mg-settings-tools="true"
-      className="mt-6 3xl:mt-8 bg-mg-card border border-white/10 rounded-lg 3xl:rounded-xl overflow-hidden"
+      className="bg-mg-card border border-white/10 rounded-lg 3xl:rounded-xl overflow-hidden"
     >
       <div className="p-4 3xl:p-5 border-b border-white/5">
         <h2 className="text-sm 3xl:text-lg font-bold text-white">
-          More Media God tools
+          Settings menu
         </h2>
         <p className="text-xs 3xl:text-sm text-white/40 mt-1">
-          These tools stay available here without cluttering the main navigation bar.
+          Extra Media God tools stay here for users without cluttering the main navigation bar.
         </p>
       </div>
 
