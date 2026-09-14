@@ -12,6 +12,7 @@ import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
 import { useToast } from "@/components/ui/use-toast";
 import { buildMediaSources, usePlayer } from "@/components/mg/PlayerProvider";
+import DetailModal from "@/components/mg/DetailModal";
 
 const PosterImage = /** @type {any} */ (Image);
 
@@ -38,6 +39,7 @@ export default function FavoritesView() {
   const [query, setQuery] = useState("");
   const [sortMode, setSortMode] = useState("newest");
   const [clearing, setClearing] = useState(false);
+  const [selected, setSelected] = useState(null);
   const { toast } = useToast();
   const player = usePlayer();
 
@@ -121,12 +123,25 @@ export default function FavoritesView() {
   };
 
   const play = async (item) => {
+    const mediaType = item?.media_type === "tv" ? "tv" : "movie";
+
+    if (mediaType === "tv") {
+      setSelected({
+        ...item,
+        id: item?.tmdb_id || item?.id,
+        media_type: "tv",
+        mediaType: "tv",
+        type: "tv",
+      });
+      return;
+    }
+
     let trailerUrl = "";
     let providers = [];
 
     try {
       const response = await base44.functions.invoke("getTmdbMovies", {
-        media_type: item.media_type || "movie",
+        media_type: "movie",
         movie_id: item.tmdb_id,
       });
       trailerUrl = response.data?.trailer_url || "";
@@ -136,10 +151,15 @@ export default function FavoritesView() {
     }
 
     player.play({
+      id: item.tmdb_id,
+      tmdbId: item.tmdb_id,
+      tmdb_id: item.tmdb_id,
       title: item.title,
       poster: item.poster_url,
       rdTitle: item.title,
       rdYear: item.year,
+      mediaType: "movie",
+      type: "movie",
       sources: buildMediaSources(
         /** @type {any} */ ({
           title: item.title,
@@ -147,6 +167,7 @@ export default function FavoritesView() {
           poster: item.poster_url,
           trailerUrl,
           providers,
+          mediaType: "movie",
         })
       ),
     });
