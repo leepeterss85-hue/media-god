@@ -359,7 +359,7 @@ class HomeDetailErrorBoundary extends React.Component {
 }
 
 export default function HomeDashboard() {
-  const [rows, setRows] = useState({});
+  const [rows, setRows] = useState(/** @type {any} */ ({}));
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
   const [watched, setWatched] = useState({});
