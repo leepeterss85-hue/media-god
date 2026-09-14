@@ -1,6 +1,7 @@
 import React, {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { base44 } from "@/api/base44Client";
+import { getFreeTvChannels } from "@/components/mg/freeTvPlaylist";
 import { Image } from "@/components/ui/image";
 
 const PosterImage = /** @type {any} */ (Image);
@@ -197,6 +199,54 @@ const normaliseSearchResult = (
   };
 };
 
+const normaliseLiveChannelResult = (
+  channel
+) => {
+  if (!channel) {
+    return null;
+  }
+
+  const title = String(
+    channel?.name ||
+      channel?.rawName ||
+      "Live TV"
+  ).trim();
+
+  if (!title) {
+    return null;
+  }
+
+  const id = String(
+    channel?.id ||
+      channel?.tvgId ||
+      `${title}:${channel?.url || channel?.officialUrl || ""}`
+  ).trim();
+
+  return {
+    id,
+    title,
+    name: title,
+    media_type: "live",
+    mediaType: "live",
+    poster_url: String(channel?.logo || "").trim(),
+    description: "Live TV channel",
+    live_group: String(channel?.group || channel?.sourceCategory || "Live TV").trim(),
+    live_country: String(channel?.country || "").trim().toUpperCase(),
+    live_source: String(channel?.sourceName || "").trim(),
+    live_channel: channel,
+  };
+};
+
+const liveChannelSearchText = (
+  channel
+) =>
+  String(
+    `${channel?.name || ""} ${channel?.rawName || ""} ${channel?.group || ""} ${channel?.country || ""} ${channel?.sourceName || ""} ${(channel?.sourceNames || []).join(" ")} ${(channel?.tags || []).join(" ")}`
+  )
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+
 const extractResults = (
   response
 ) => {
@@ -280,6 +330,27 @@ export default function SearchDialog({
   const [
     error,
     setError,
+  ] = useState(
+    ""
+  );
+
+  const [
+    liveChannels,
+    setLiveChannels,
+  ] = useState(
+    []
+  );
+
+  const [
+    liveLoading,
+    setLiveLoading,
+  ] = useState(
+    false
+  );
+
+  const [
+    liveError,
+    setLiveError,
   ] = useState(
     ""
   );
@@ -413,6 +484,60 @@ export default function SearchDialog({
   useEffect(
     () => {
       if (!open) {
+        return undefined;
+      }
+
+      let cancelled = false;
+
+      setLiveLoading(
+        true
+      );
+      setLiveError(
+        ""
+      );
+
+      getFreeTvChannels()
+        .then((response) => {
+          if (cancelled) {
+            return;
+          }
+
+          setLiveChannels(
+            Array.isArray(response?.channels)
+              ? response.channels
+              : []
+          );
+        })
+        .catch((catalogError) => {
+          if (cancelled) {
+            return;
+          }
+
+          setLiveError(
+            catalogError?.message ||
+              "Live TV channels could not be loaded."
+          );
+        })
+        .finally(() => {
+          if (!cancelled) {
+            setLiveLoading(
+              false
+            );
+          }
+        });
+
+      return () => {
+        cancelled = true;
+      };
+    },
+    [
+      open,
+    ]
+  );
+
+  useEffect(
+    () => {
+      if (!open) {
         requestRef.current +=
           1;
 
@@ -500,6 +625,36 @@ export default function SearchDialog({
     ]
   );
 
+  const liveResults = useMemo(
+    () => {
+      const cleanQuery = String(query || "")
+        .trim()
+        .toLowerCase();
+
+      if (cleanQuery.length < 2) {
+        return [];
+      }
+
+      return liveChannels
+        .filter((channel) =>
+          liveChannelSearchText(channel).includes(cleanQuery)
+        )
+        .sort((a, b) =>
+          Number(String(b?.country || "").toUpperCase() === "GB") -
+            Number(String(a?.country || "").toUpperCase() === "GB") ||
+          Number(b?.sourcePriority || 0) - Number(a?.sourcePriority || 0) ||
+          String(a?.name || "").localeCompare(String(b?.name || ""))
+        )
+        .slice(0, 30)
+        .map(normaliseLiveChannelResult)
+        .filter(Boolean);
+    },
+    [
+      liveChannels,
+      query,
+    ]
+  );
+
   if (!open) {
     return null;
   }
@@ -509,15 +664,19 @@ export default function SearchDialog({
       rawResult
     ) => {
       const result =
-        normaliseSearchResult(
-          rawResult
-        );
+        rawResult?.media_type === "live"
+          ? normaliseLiveChannelResult(
+              rawResult?.live_channel || rawResult
+            )
+          : normaliseSearchResult(
+              rawResult
+            );
 
       if (
         !result
       ) {
         setError(
-          "That search result is not a movie or TV show."
+          "That search result could not be opened."
         );
 
         return;
@@ -565,7 +724,7 @@ export default function SearchDialog({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Search movies and TV shows"
+      aria-label="Search movies, TV shows and live TV channels"
       data-mg-search-dialog="true"
       className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-start justify-center sm:pt-[7vh] 3xl:pt-[9vh] p-0 sm:px-4"
       onClick={
@@ -599,7 +758,7 @@ export default function SearchDialog({
                   .value
               )
             }
-            placeholder="Search movies, TV shows..."
+            placeholder="Search movies, TV shows, live TV channels..."
             className="flex-1 min-w-0 bg-transparent border-0 outline-none text-white text-base sm:text-lg 3xl:text-xl 4xl:text-2xl placeholder:text-white/30 focus-visible:ring-0"
             autoComplete="off"
             aria-label="Search"
