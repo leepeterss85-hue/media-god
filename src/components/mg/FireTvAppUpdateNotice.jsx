@@ -8,6 +8,36 @@ import {
 
 const SESSION_DISMISS_PREFIX = "mg:fire-tv-app-update-dismissed:";
 
+const FIRE_TV_RELEASE_URLS = [
+  "/firetv-update.json",
+  "https://raw.githubusercontent.com/leepeterss85-hue/media-god/main/public/firetv-update.json",
+];
+
+const fetchLatestFireTvRelease = async () => {
+  const releases = await Promise.all(
+    FIRE_TV_RELEASE_URLS.map(async (url) => {
+      try {
+        const separator = url.includes("?") ? "&" : "?";
+        const response = await fetch(`${url}${separator}t=${Date.now()}`, {
+          cache: "no-store",
+        });
+
+        if (!response.ok) return null;
+        return await response.json();
+      } catch {
+        return null;
+      }
+    })
+  );
+
+  return releases
+    .filter(Boolean)
+    .sort(
+      (a, b) =>
+        Number(b?.versionCode || 0) - Number(a?.versionCode || 0)
+    )[0] || null;
+};
+
 const looksLikeFireTv = () => {
   if (typeof window === "undefined" || typeof navigator === "undefined") {
     return false;
@@ -39,22 +69,14 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
     progress: 0,
   });
 
-  const checkForUpdate = useCallback(async () => {
+  const checkForUpdate = useCallback(async ({ force = false } = {}) => {
     if (!enabled || !looksLikeFireTv()) {
       setVisible(false);
       return;
     }
 
     try {
-      const response = await fetch(`/firetv-update.json?t=${Date.now()}`, {
-        cache: "no-store",
-      });
-
-      if (!response.ok) {
-        return;
-      }
-
-      const nextRelease = await response.json();
+      const nextRelease = await fetchLatestFireTvRelease();
       const latestCode = Number(nextRelease?.versionCode || 0);
       const appInfo = nativeFireTvAppInfo();
       const currentCode = Number(appInfo?.versionCode || 0);
@@ -64,8 +86,16 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
       }
 
       const dismissKey = `${SESSION_DISMISS_PREFIX}${latestCode}`;
-      if (window.sessionStorage?.getItem(dismissKey) === "1") {
+      if (!force && window.sessionStorage?.getItem(dismissKey) === "1") {
         return;
+      }
+
+      if (force) {
+        try {
+          window.sessionStorage?.removeItem(dismissKey);
+        } catch {
+          // Session storage is optional in some Fire TV WebViews.
+        }
       }
 
       const needsUpdate = !appInfo || currentCode < latestCode;
@@ -82,13 +112,38 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
     checkForUpdate();
 
     const handleDetected = () => {
-      window.setTimeout(checkForUpdate, 150);
+      window.setTimeout(() => checkForUpdate(), 150);
     };
 
+    const handleManualCheck = () => {
+      checkForUpdate({ force: true });
+    };
+
+    const handleFocus = () => {
+      checkForUpdate();
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        checkForUpdate();
+      }
+    };
+
+    const intervalId = window.setInterval(() => {
+      checkForUpdate();
+    }, 60000);
+
     window.addEventListener("mg:tv-remote-detected", handleDetected);
+    window.addEventListener("mg:check-fire-tv-update", handleManualCheck);
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibility);
 
     return () => {
+      window.clearInterval(intervalId);
       window.removeEventListener("mg:tv-remote-detected", handleDetected);
+      window.removeEventListener("mg:check-fire-tv-update", handleManualCheck);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, [checkForUpdate]);
 
