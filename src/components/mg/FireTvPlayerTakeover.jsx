@@ -4,6 +4,13 @@ import {
   isAndroidMobileRuntime,
   isFireTvRuntime,
 } from "@/components/mg/runtimePlatform";
+import "@/fire-tv-seamless-next.css";
+
+const SEAMLESS_NEXT_CLASS =
+  "mg-fire-tv-seamless-next";
+
+const SEAMLESS_NEXT_SAFETY_MS =
+  45000;
 
 const isElement = (value) =>
   typeof HTMLElement !== "undefined" &&
@@ -93,7 +100,9 @@ const initialTvEnvironment = () =>
  * fought the real player controls and D-pad focus handling.
  *
  * VideoPlayer and the Fire TV CSS now own sizing/fullscreen. This helper only
- * publishes whether playback is open and marks a Fire TV environment.
+ * publishes whether playback is open, marks a Fire TV environment and keeps
+ * automatic next-episode handoffs visually silent while native Media3 takes
+ * over the next episode.
  */
 export default function FireTvPlayerTakeover() {
   useEffect(() => {
@@ -107,6 +116,49 @@ export default function FireTvPlayerTakeover() {
     let tvEnvironment = initialTvEnvironment();
     let frame = 0;
     let publishedOpen = false;
+    let seamlessNextTimer = 0;
+
+    const seamlessNextActive = () =>
+      document.documentElement.classList.contains(
+        SEAMLESS_NEXT_CLASS
+      ) ||
+      Boolean(
+        document.body?.classList.contains(
+          SEAMLESS_NEXT_CLASS
+        )
+      );
+
+    const setSeamlessNext = (active) => {
+      const enabled =
+        Boolean(active) &&
+        !isAndroidMobileRuntime();
+
+      document.documentElement.classList.toggle(
+        SEAMLESS_NEXT_CLASS,
+        enabled
+      );
+      document.body?.classList.toggle(
+        SEAMLESS_NEXT_CLASS,
+        enabled
+      );
+
+      if (seamlessNextTimer) {
+        window.clearTimeout(seamlessNextTimer);
+        seamlessNextTimer = 0;
+      }
+
+      if (enabled) {
+        seamlessNextTimer = window.setTimeout(() => {
+          seamlessNextTimer = 0;
+          document.documentElement.classList.remove(
+            SEAMLESS_NEXT_CLASS
+          );
+          document.body?.classList.remove(
+            SEAMLESS_NEXT_CLASS
+          );
+        }, SEAMLESS_NEXT_SAFETY_MS);
+      }
+    };
 
     const publish = (open) => {
       if (publishedOpen === open) {
@@ -125,6 +177,7 @@ export default function FireTvPlayerTakeover() {
     const markTvEnvironment = () => {
       if (isAndroidMobileRuntime()) {
         tvEnvironment = false;
+        setSeamlessNext(false);
         clearFireTvStateFromAndroidMobile();
         return;
       }
@@ -191,8 +244,18 @@ export default function FireTvPlayerTakeover() {
 
     const onKeyDown = (event) => {
       if (isAndroidMobileRuntime()) {
+        setSeamlessNext(false);
         clearFireTvStateFromAndroidMobile();
         return;
+      }
+
+      /*
+       * Auto-next stays completely clean until the user asks for controls.
+       * Any deliberate remote interaction immediately restores the ordinary
+       * player UI rather than trapping the user on a black transition screen.
+       */
+      if (seamlessNextActive()) {
+        setSeamlessNext(false);
       }
 
       if (isStrongTvRemoteEvidence(event)) {
@@ -201,7 +264,71 @@ export default function FireTvPlayerTakeover() {
       }
     };
 
+    const onNativePlayerResult = (event) => {
+      if (isAndroidMobileRuntime()) {
+        setSeamlessNext(false);
+        return;
+      }
+
+      const reason = String(
+        event?.detail?.reason || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      if (reason === "ended") {
+        markTvEnvironment();
+
+        if (tvEnvironment) {
+          setSeamlessNext(true);
+        }
+
+        return;
+      }
+
+      /*
+       * Back/source/error means the native player has returned control to the
+       * WebView intentionally, so the normal selector and controls must be
+       * visible again immediately.
+       */
+      setSeamlessNext(false);
+    };
+
+    const onPlayerStatus = (event) => {
+      if (!seamlessNextActive()) {
+        return;
+      }
+
+      const message = String(
+        event?.detail?.message || ""
+      ).toLowerCase();
+
+      if (
+        /(?:no later episode|could not load the next episode|could not open|player was busy|no working source|no playable source|next episode failed)/i.test(
+          message
+        )
+      ) {
+        setSeamlessNext(false);
+      }
+    };
+
+    const onCorePlayerClosed = () => {
+      setSeamlessNext(false);
+    };
+
     window.addEventListener("keydown", onKeyDown, true);
+    window.addEventListener(
+      "mg:native-player-result",
+      onNativePlayerResult
+    );
+    window.addEventListener(
+      "mg:player-status",
+      onPlayerStatus
+    );
+    window.addEventListener(
+      "mg:core-player-closed",
+      onCorePlayerClosed
+    );
 
     const observer = new MutationObserver(schedule);
     observer.observe(document.body, {
@@ -224,12 +351,30 @@ export default function FireTvPlayerTakeover() {
     return () => {
       observer.disconnect();
       window.removeEventListener("keydown", onKeyDown, true);
+      window.removeEventListener(
+        "mg:native-player-result",
+        onNativePlayerResult
+      );
+      window.removeEventListener(
+        "mg:player-status",
+        onPlayerStatus
+      );
+      window.removeEventListener(
+        "mg:core-player-closed",
+        onCorePlayerClosed
+      );
       window.removeEventListener("resize", schedule);
       window.removeEventListener("orientationchange", schedule);
 
       if (frame) {
         window.cancelAnimationFrame(frame);
       }
+
+      if (seamlessNextTimer) {
+        window.clearTimeout(seamlessNextTimer);
+      }
+
+      setSeamlessNext(false);
 
       document.documentElement.classList.remove(
         "mg-fire-tv-player-open"
