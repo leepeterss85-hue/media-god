@@ -620,37 +620,28 @@ const normaliseStream = (
     );
 
     /*
-     * Do not expose a Comet "RD download" row as cacheable unless Comet also
-     * gives us genuine torrent metadata. Current public Comet can return an
-     * opaque debrid playback row for an uncached result while withholding the
-     * torrent's Stremio `sources`. Calling that playback URL is not a reliable
-     * uncached-download API and was the source of Media God's repeated
-     * magnet_error / source-hopping loop.
-     *
-     * When tracker metadata IS present, Comet is only the discovery provider:
-     * Media God builds the magnet itself and Real-Debrid owns the download.
+     * Prefer Comet's exact Stremio tracker metadata when it is available, but
+     * do not throw away an otherwise valid uncached info hash when that
+     * companion metadata is missing. Media God can still submit a tracker-rich
+     * magnet to Real-Debrid using its public fallback tracker set. This avoids
+     * the old behaviour where a visible [RD⬇] source could never create an RD
+     * download simply because Comet omitted `sources` on that particular row.
      */
-    if (providedTrackers.length === 0) {
-      return {
-        unsupported: true,
-        reason: "comet_uncached_missing_torrent_metadata",
-        label,
-      };
-    }
+    const effectiveTrackers = normaliseTrackerList(
+      providedTrackers,
+      PUBLIC_FALLBACK_TRACKERS
+    );
 
     const cacheMagnet = magnetFromHash(
       infoHash,
       streamTitle(stream),
-      normaliseTrackerList(
-        providedTrackers,
-        PUBLIC_FALLBACK_TRACKERS
-      )
+      effectiveTrackers
     );
 
     const originalTrackerMagnet = magnetFromHash(
       infoHash,
       streamTitle(stream),
-      providedTrackers
+      providedTrackers.length > 0 ? providedTrackers : effectiveTrackers
     );
 
     return {
@@ -678,7 +669,9 @@ const normaliseStream = (
       cacheRequired: true,
       cometUncached: true,
       resolutionStrategy: "rd_magnet",
-      torrentTrackers: providedTrackers,
+      torrentTrackers: effectiveTrackers,
+      torrentMetadataSource:
+        providedTrackers.length > 0 ? "comet" : "public_fallback",
     };
   }
 
@@ -1324,10 +1317,16 @@ const lookupAddon = async ({
    * rows into the original response. No user setting or stored addon URL is
    * changed.
    */
-  const alreadyHasTorrentSources = rawStreams.some(
-    (stream) => Array.isArray(stream?.sources) && stream.sources.length > 0
+  const uncachedRowsMissingTorrentSources = rawStreams.some(
+    (stream) =>
+      isCometUncachedDownloadStream(stream, addonName) &&
+      normaliseTrackerList(
+        stream?.sources,
+        stream?.announce,
+        stream?.trackers
+      ).length === 0
   );
-  const torrentModeManifest = !alreadyHasTorrentSources
+  const torrentModeManifest = uncachedRowsMissingTorrentSources
     ? cometTorrentModeManifestUrl(addon?.url, addonName)
     : "";
 
