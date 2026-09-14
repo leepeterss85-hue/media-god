@@ -316,6 +316,14 @@ export default function FavoritesView() {
           ))}
         </div>
       )}
+
+      {selected && (
+        <DetailModal
+          item={selected}
+          mediaType="tv"
+          onClose={() => setSelected(null)}
+        />
+      )}
     </div>
   );
 }
