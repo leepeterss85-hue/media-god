@@ -14,6 +14,8 @@ import { usePlayer, buildMediaSources } from "@/components/mg/PlayerProvider";
 import { Image } from "@/components/ui/image";
 import { cn } from "@/lib/utils";
 
+const PosterImage = /** @type {any} */ (Image);
+
 export default function RoadmapView({ onBack }) {
   const [films, setFilms] = useState([]);
   const [broadcasts, setBroadcasts] = useState([]);
@@ -106,13 +108,15 @@ export default function RoadmapView({ onBack }) {
       player.play({
         title: item?.title,
         poster: item?.poster_url,
-        sources: buildMediaSources({
-          title: item?.title,
-          id: item?.tmdb_id || item?.id,
-          poster: item?.poster_url,
-          trailerUrl: "",
-          providers,
-        }),
+        sources: buildMediaSources(
+          /** @type {any} */ ({
+            title: item?.title,
+            id: item?.tmdb_id || item?.id,
+            poster: item?.poster_url,
+            trailerUrl: "",
+            providers,
+          })
+        ),
       });
     } catch (playError) {
       setError(playError?.message || "Could not open that trailer.");
@@ -131,13 +135,15 @@ export default function RoadmapView({ onBack }) {
       player.play({
         title: item?.title,
         poster: item?.poster_url,
-        sources: buildMediaSources({
-          title: item?.title,
-          id: item?.tmdb_id || item?.id,
-          poster: item?.poster_url,
-          trailerUrl,
-          providers,
-        }),
+        sources: buildMediaSources(
+          /** @type {any} */ ({
+            title: item?.title,
+            id: item?.tmdb_id || item?.id,
+            poster: item?.poster_url,
+            trailerUrl,
+            providers,
+          })
+        ),
       });
     } catch (playError) {
       setError(playError?.message || "Could not start that title.");
@@ -241,7 +247,7 @@ export default function RoadmapView({ onBack }) {
               >
                 <div className="w-16 h-24 sm:w-20 sm:h-28 shrink-0 rounded-lg overflow-hidden border border-white/10 bg-mg-surface">
                   {item?.poster_url ? (
-                    <Image
+                    <PosterImage
                       src={item.poster_url}
                       alt={item?.title || "Roadmap item"}
                       className="w-full h-full object-cover"
