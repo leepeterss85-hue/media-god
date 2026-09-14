@@ -257,7 +257,7 @@ class PlayerActivity : Activity() {
                 }
 
                 KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
-                KeyEvent.KEYCODE_HEADSETOOK -> {
+                KeyEvent.KEYCODE_HEADSETHOOK -> {
                     activePlayer?.let {
                         if (it.isPlaying) it.pause() else it.play()
                         showControllerTemporarily()
@@ -303,7 +303,7 @@ class PlayerActivity : Activity() {
         nativeSources.size > 1 || canChooseEpisode()
 
     private fun sourceSelectorOffset(): Int =
-        if (canChooseEpisode()) 1 else 0
+        if (canChooseEpisode()) 2 else 0
 
     private fun showControllerTemporarily() {
         if (!::playerView.isInitialized || resultSent) {
@@ -430,9 +430,12 @@ class PlayerActivity : Activity() {
         val labels = mutableListOf<String>()
 
         if (episodePickerEnabled) {
-            val currentEpisode =
-                if (season > 0 && episode > 0) "S${season} E${episode}" else "Current episode"
-            labels.add("Episodes / seasons • $currentEpisode")
+            labels.add(
+                if (season > 0) "Season $season • choose season" else "Choose season"
+            )
+            labels.add(
+                if (episode > 0) "Episode $episode • choose episode" else "Choose episode"
+            )
         }
 
         labels.addAll(
@@ -480,7 +483,7 @@ class PlayerActivity : Activity() {
             isFocusableInTouchMode = false
             contentDescription = when {
                 live -> "Choose Live TV source"
-                episodePickerEnabled -> "Choose episode or playback source"
+                episodePickerEnabled -> "Choose season, episode or playback source"
                 else -> "Choose playback source"
             }
 
@@ -504,7 +507,7 @@ class PlayerActivity : Activity() {
                         return
                     }
 
-                    if (episodePickerEnabled && position == 0) {
+                    if (episodePickerEnabled && position in 0..1) {
                         finishWithResult(reason = "episode")
                         return
                     }
