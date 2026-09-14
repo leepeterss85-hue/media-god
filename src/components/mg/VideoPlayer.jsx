@@ -6883,7 +6883,9 @@ export default function VideoPlayer({
                 <select
                   value={visibleSourceSelectorValue}
                   onPointerDown={pinSourceSelector}
-                  onFocus={pinSourceSelector}
+                  onKeyDown={(event) => {
+                    if (selectorOpenKey(event)) pinSourceSelector();
+                  }}
                   onBlur={releaseSourceSelector}
                   onChange={(event) => {
                     const value = event.target.value;
