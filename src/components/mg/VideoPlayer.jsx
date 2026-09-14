@@ -6828,8 +6828,11 @@ export default function VideoPlayer({
                         event
                       ) => {
                         const value = event.target.value;
+                        const selectedEntry = visibleSourceSelectorEntries.find(
+                          (entry) => String(entry.index) === String(value)
+                        );
                         releaseSourceSelector();
-                        selectSource(value);
+                        selectSource(value, selectedEntry?.item || null);
                       }}
                       className="min-h-11 w-full appearance-none rounded-lg border border-white/15 bg-black/60 py-2.5 pl-3 pr-9 text-xs font-medium text-white outline-none backdrop-blur transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/30 sm:min-h-10 sm:text-sm"
                       aria-label="Choose source or quality while loading"
@@ -6958,8 +6961,11 @@ export default function VideoPlayer({
                   onBlur={releaseSourceSelector}
                   onChange={(event) => {
                     const value = event.target.value;
+                    const selectedEntry = visibleSourceSelectorEntries.find(
+                      (entry) => String(entry.index) === String(value)
+                    );
                     releaseSourceSelector();
-                    selectSource(value);
+                    selectSource(value, selectedEntry?.item || null);
                   }}
                   className="min-h-11 w-full appearance-none rounded-lg border border-white/10 bg-mg-card py-2.5 pl-3 pr-9 text-xs font-medium text-white outline-none transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/30 sm:min-h-10 sm:text-sm"
                   aria-label="Choose playback source"
