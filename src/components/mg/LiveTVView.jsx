@@ -820,6 +820,7 @@ const radioUrlsFor = (channel) => {
 export default function LiveTVView({
   initialQuery = "",
   initialQuickFilter = "",
+  searchRequestKey = 0,
 }) {
   const [initialViewState] = useState(() => readStoredLiveTvState());
   const [channels, setChannels] = useState([]);
@@ -890,7 +891,7 @@ export default function LiveTVView({
     setCountryFilter(DEFAULT_FILTER);
     setDirectOnly(false);
     setViewMode("channels");
-  }, [initialQuery, initialQuickFilter]);
+  }, [initialQuery, initialQuickFilter, searchRequestKey]);
 
   const channelRankByKey = useMemo(() => {
     const recentOrder = new Map(
