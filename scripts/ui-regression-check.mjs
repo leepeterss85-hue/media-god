@@ -14,12 +14,14 @@ const home = await read("src/pages/Home.jsx");
 const navbar = await read("src/components/mg/Navbar.jsx");
 const roadmap = await read("src/components/mg/RoadmapView.jsx");
 const watchlist = await read("src/components/mg/WatchlistView.jsx");
+const watchlistSchema = await read("base44/entities/WatchlistItem.jsonc");
 const favorites = await read("src/components/mg/FavoritesView.jsx");
 const downloads = await read("src/components/mg/DebridDashboard.jsx");
 const rdLibrary = await read("src/components/mg/RdLibraryView.jsx");
 const realDebridBackend = await read("base44/functions/realDebrid/entry.ts");
 const addons = await read("src/components/mg/AddonsView.jsx");
 const watchParty = await read("src/components/mg/WatchPartyView.jsx");
+const watchPartySchema = await read("base44/entities/WatchParty.jsonc");
 const watchPartyPresenceSchema = await read("base44/entities/WatchPartyPresence.jsonc");
 const remoteTv = await read("src/components/mg/PlayerQrRemote.jsx");
 const remotePhone = await read("src/pages/PlayerRemote.jsx");
@@ -75,7 +77,13 @@ for (const [source, name] of [
   expect(source.includes('value="year"'), `${name} year sorting is missing`);
   expect(source.includes("clearAll"), `${name} bulk clear action is missing`);
   expect(source.includes("Clear all"), `${name} bulk clear control is missing`);
+  expect(source.includes("DetailModal"), `${name} TV details fallback is missing`);
+  expect(source.includes('mediaType="tv"'), `${name} TV details media type is missing`);
 }
+expect(
+  watchlistSchema.includes('"media_type"'),
+  "Watchlist schema no longer stores movie/TV media type"
+);
 expect(
   roadmap.includes("onClick={() => onBack?.()}"),
   "Roadmap back button is not interactive"
@@ -151,6 +159,9 @@ for (const marker of [
   "networkOnline",
   'addEventListener("offline"',
   "formatChatTime",
+  "transferHost",
+  "Make host",
+  "host_user_id",
 ]) {
   expect(watchParty.includes(marker), `Watch Party regression marker missing: ${marker}`);
 }
@@ -159,6 +170,11 @@ expect(
     watchPartyPresenceSchema.includes('"user_id"') &&
     watchPartyPresenceSchema.includes('"last_seen_at"'),
   "Watch Party presence schema is incomplete"
+);
+expect(
+  watchPartySchema.includes('"host_user_id"') &&
+    watchPartySchema.includes('"data.host_user_id"'),
+  "Watch Party host transfer schema/RLS is incomplete"
 );
 
 for (const marker of [
