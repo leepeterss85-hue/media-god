@@ -23,6 +23,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import SocialLoginSection from "@/components/mg/SocialLoginSection";
 import MultiDebridSettings from "@/components/mg/MultiDebridSettings";
+import { nativeFireTvAppInfo } from "@/components/mg/nativeFireTvBridge";
 import {
   readTrackPreferences,
   writeTrackPreferences,
@@ -81,6 +82,52 @@ const looksLikeFireTv = () => {
   return /(?:AFT[A-Z0-9]*|Fire TV|AmazonWebAppPlatform|Silk)/i.test(
     `${ua} ${platform}`
   );
+};
+
+const releaseUrlsForPlatform = (platform) => {
+  if (platform === "fire-tv") {
+    return [
+      "/firetv-update.json",
+      "https://raw.githubusercontent.com/leepeterss85-hue/media-god/main/public/firetv-update.json",
+    ];
+  }
+
+  if (platform === "android-mobile") {
+    return [
+      "/android-mobile-update.json",
+      "https://raw.githubusercontent.com/leepeterss85-hue/media-god/main/public/android-mobile-update.json",
+    ];
+  }
+
+  return [];
+};
+
+const fetchLatestNativeRelease = async (platform) => {
+  const urls = releaseUrlsForPlatform(platform);
+  if (urls.length === 0) return null;
+
+  const releases = await Promise.all(
+    urls.map(async (url) => {
+      try {
+        const separator = url.includes("?") ? "&" : "?";
+        const response = await fetch(`${url}${separator}t=${Date.now()}`, {
+          cache: "no-store",
+        });
+
+        if (!response.ok) return null;
+        return await response.json();
+      } catch {
+        return null;
+      }
+    })
+  );
+
+  return releases
+    .filter(Boolean)
+    .sort(
+      (a, b) =>
+        Number(b?.versionCode || 0) - Number(a?.versionCode || 0)
+    )[0] || null;
 };
 
 const normaliseRemoteSettings = (
@@ -308,6 +355,23 @@ export default function SettingsView() {
     setSaving,
   ] = useState(false);
 
+  const [
+    appVersionInfo,
+    setAppVersionInfo,
+  ] = useState(
+    () => nativeFireTvAppInfo()
+  );
+
+  const [
+    latestAppRelease,
+    setLatestAppRelease,
+  ] = useState(null);
+
+  const [
+    appVersionChecking,
+    setAppVersionChecking,
+  ] = useState(false);
+
   const pollTimerRef =
     useRef(null);
 
@@ -316,6 +380,34 @@ export default function SettingsView() {
 
   const { toast } =
     useToast();
+
+  const checkAppVersion = useCallback(
+    async ({ openPrompt = false } = {}) => {
+      setAppVersionChecking(true);
+
+      try {
+        const info = nativeFireTvAppInfo();
+        setAppVersionInfo(info);
+
+        const platform = String(info?.platform || "");
+        const latest = await fetchLatestNativeRelease(platform);
+        setLatestAppRelease(latest);
+
+        if (openPrompt && typeof window !== "undefined") {
+          if (platform === "fire-tv") {
+            window.dispatchEvent(new CustomEvent("mg:check-fire-tv-update"));
+          } else if (platform === "android-mobile") {
+            window.dispatchEvent(new CustomEvent("mg:check-android-mobile-update"));
+          }
+        }
+
+        return { info, latest };
+      } finally {
+        setAppVersionChecking(false);
+      }
+    },
+    []
+  );
 
   const loadMe =
     useCallback(
@@ -500,6 +592,7 @@ export default function SettingsView() {
 
       const load =
         async () => {
+          await checkAppVersion();
           await loadMe();
 
           if (
@@ -519,6 +612,7 @@ export default function SettingsView() {
       };
     },
     [
+      checkAppVersion,
       checkRd,
       loadMe,
     ]
@@ -1186,6 +1280,68 @@ export default function SettingsView() {
           </p>
         </div>
       )}
+
+      <div className="bg-mg-card border border-white/10 rounded-lg 3xl:rounded-xl p-4 3xl:p-5 mb-6 3xl:mb-8" data-mg-app-version="true">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <Tv className="h-4 w-4 text-mg-green" />
+              <h2 className="text-sm 3xl:text-lg font-bold text-white">
+                Media God version
+              </h2>
+            </div>
+
+            {appVersionInfo ? (
+              <>
+                <p className="mt-2 text-sm 3xl:text-base text-white/80">
+                  Installed: <span className="font-bold text-white">{appVersionInfo.versionName || "Unknown"}</span>
+                  {Number(appVersionInfo.versionCode || 0) > 0
+                    ? ` (code ${appVersionInfo.versionCode})`
+                    : ""}
+                </p>
+                <p className="mt-1 text-xs 3xl:text-sm text-white/45">
+                  {appVersionInfo.platform === "fire-tv"
+                    ? "Fire TV / Fire Stick app"
+                    : appVersionInfo.platform === "android-mobile"
+                      ? "Android phone / tablet app"
+                      : String(appVersionInfo.platform || "Native app")}
+                </p>
+              </>
+            ) : (
+              <p className="mt-2 text-sm 3xl:text-base text-white/65">
+                Hosted web version — no native APK detected on this device.
+              </p>
+            )}
+
+            {appVersionInfo && latestAppRelease && (
+              <p
+                className={cn(
+                  "mt-2 text-xs 3xl:text-sm font-semibold",
+                  Number(latestAppRelease.versionCode || 0) > Number(appVersionInfo.versionCode || 0)
+                    ? "text-amber-300"
+                    : "text-mg-green"
+                )}
+              >
+                {Number(latestAppRelease.versionCode || 0) > Number(appVersionInfo.versionCode || 0)
+                  ? `Update available: ${latestAppRelease.versionName || latestAppRelease.versionCode}`
+                  : `Up to date: ${latestAppRelease.versionName || appVersionInfo.versionName || "current"}`}
+              </p>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => checkAppVersion({ openPrompt: true })}
+            disabled={appVersionChecking || !appVersionInfo}
+            className="min-h-11 shrink-0 rounded-lg border border-mg-green/35 bg-mg-green/10 px-4 py-2 text-sm font-bold text-mg-green outline-none hover:bg-mg-green/15 focus:ring-2 focus:ring-mg-green disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <span className="inline-flex items-center gap-2">
+              <RefreshCw className={cn("h-4 w-4", appVersionChecking && "animate-spin")} />
+              {appVersionChecking ? "Checking…" : "Check for update"}
+            </span>
+          </button>
+        </div>
+      </div>
 
       <SocialLoginSection />
 
