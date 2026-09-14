@@ -14,6 +14,10 @@
     "video_url": {
       "type": "string"
     },
+    "host_user_id": {
+      "type": "string",
+      "default": ""
+    },
     "is_playing": {
       "type": "boolean",
       "default": false
@@ -44,10 +48,24 @@
       "created_by_id": "{{user.id}}"
     },
     "update": {
-      "created_by_id": "{{user.id}}"
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "data.host_user_id": "{{user.id}}"
+        }
+      ]
     },
     "delete": {
-      "created_by_id": "{{user.id}}"
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "data.host_user_id": "{{user.id}}"
+        }
+      ]
     }
   }
 }
