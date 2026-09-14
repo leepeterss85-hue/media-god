@@ -73,6 +73,8 @@ for (const [source, name] of [
   expect(source.includes(`aria-label="Sort ${name}"`), `${name} sorting is missing`);
   expect(source.includes('value="title"'), `${name} title sorting is missing`);
   expect(source.includes('value="year"'), `${name} year sorting is missing`);
+  expect(source.includes("clearAll"), `${name} bulk clear action is missing`);
+  expect(source.includes("Clear all"), `${name} bulk clear control is missing`);
 }
 expect(
   roadmap.includes("onClick={() => onBack?.()}"),
@@ -88,9 +90,12 @@ for (const marker of [
   'skipAddonLookup: true',
   'skipRdLookup: true',
   "retryFailed",
+  "retryAllErrors",
   'action: "retry_torrent"',
   "clearReady",
   "Clear completed",
+  "Retry errors",
+  "formatEta",
 ]) {
   expect(downloads.includes(marker), `Downloads regression marker missing: ${marker}`);
 }
@@ -102,6 +107,12 @@ for (const marker of [
   'skipAddonLookup: true',
   'skipRdLookup: true',
   "timerRef",
+  "retryFailed",
+  "retryAllErrors",
+  "clearReady",
+  "Clear completed",
+  "Retry errors",
+  "formatEta",
 ]) {
   expect(rdLibrary.includes(marker), `RD Library regression marker missing: ${marker}`);
 }
@@ -137,6 +148,9 @@ for (const marker of [
   "Live presence",
   "recoverRoom",
   "messageEndRef",
+  "networkOnline",
+  'addEventListener("offline"',
+  "formatChatTime",
 ]) {
   expect(watchParty.includes(marker), `Watch Party regression marker missing: ${marker}`);
 }
