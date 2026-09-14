@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 14,
-  "versionName": "1.4.9",
+  "versionCode": 15,
+  "versionName": "1.4.10",
   "title": "Media God Fire TV",
-  "message": "Fire TV 1.4.9 fixes playback from the Real-Debrid Library and hides the native source selector during normal playback. Press Menu or D-pad Up when you want to choose another source.",
+  "message": "Fire TV 1.4.10 adds the latest player updates, including faster control auto-hide, Live TV source-selector auto-hide, and improved next-episode handling while preserving the locked Live TV sources and priorities.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
