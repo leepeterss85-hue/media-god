@@ -164,6 +164,29 @@ export const playNativeFireTv = ({
     return false;
   }
 
+  const playerContext =
+    typeof window !== "undefined" &&
+    window.__MG_PLAYER_CONTEXT__ &&
+    typeof window.__MG_PLAYER_CONTEXT__ === "object"
+      ? window.__MG_PLAYER_CONTEXT__
+      : {};
+
+  const mediaType = String(playerContext?.mediaType || "")
+    .trim()
+    .toLowerCase();
+  const tmdbId = Number(playerContext?.tmdbId || 0);
+  const season = Number(playerContext?.season || 0);
+  const episode = Number(playerContext?.episode || 0);
+  const canChooseEpisode =
+    !live &&
+    mediaType === "tv" &&
+    Number.isFinite(tmdbId) &&
+    tmdbId > 0 &&
+    Number.isInteger(season) &&
+    season > 0 &&
+    Number.isInteger(episode) &&
+    episode > 0;
+
   const payload = {
     requestId: String(requestId || `${Date.now()}`),
     url: streamUrl,
@@ -171,6 +194,20 @@ export const playNativeFireTv = ({
     poster: String(poster || ""),
     startPositionMs: Math.max(0, Number(startPositionMs || 0)),
     live: Boolean(live),
+    mediaType,
+    tmdbId:
+      Number.isFinite(tmdbId) && tmdbId > 0
+        ? tmdbId
+        : 0,
+    season:
+      Number.isInteger(season) && season > 0
+        ? season
+        : 0,
+    episode:
+      Number.isInteger(episode) && episode > 0
+        ? episode
+        : 0,
+    canChooseEpisode,
     headers:
       headers && typeof headers === "object" && !Array.isArray(headers)
         ? headers
