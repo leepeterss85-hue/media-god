@@ -57,20 +57,6 @@ const isFireTvControlsRuntime = () => {
   );
 };
 
-const isTouchFirstControlsRuntime = () => {
-  if (typeof navigator === "undefined" || isFireTvControlsRuntime()) {
-    return false;
-  }
-
-  const hasTouch = Number(navigator.maxTouchPoints || 0) > 0;
-  const coarsePointer =
-    typeof window !== "undefined" &&
-    typeof window.matchMedia === "function" &&
-    window.matchMedia("(pointer: coarse)").matches;
-
-  return hasTouch || coarsePointer;
-};
-
 const formatTime = (seconds) => {
   if (!seconds || !Number.isFinite(Number(seconds))) {
     return "0:00";
@@ -251,7 +237,6 @@ export default function MediaPlayerControls({
   const playingRef = useRef(false);
   const seekingRef = useRef(false);
   const menuOpenRef = useRef(false);
-  const selectFocusedRef = useRef(false);
   const mountedRef = useRef(true);
 
   const getVideo = () => {
@@ -1474,7 +1459,6 @@ export default function MediaPlayerControls({
      * focus as "menu still open" leaves the source selector and every button on
      * screen until another remote action. Always let the chrome fade again.
      */
-    selectFocusedRef.current = false;
     setShowControls(true);
 
     if (playingRef.current && !menuOpenRef.current) {
@@ -1483,8 +1467,6 @@ export default function MediaPlayerControls({
   };
 
   const blurSelectControl = () => {
-    selectFocusedRef.current = false;
-
     if (!menuOpenRef.current) {
       scheduleHide();
     }
