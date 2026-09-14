@@ -231,7 +231,7 @@ class PlayerActivity : Activity() {
                 }
 
                 KeyEvent.KEYCODE_MENU -> {
-                    if (nativeSources.size > 1) {
+                    if (sourceSelectorAvailable()) {
                         if (sourceSpinner.visibility == View.VISIBLE) {
                             sourceSpinner.requestFocus()
                             sourceSpinner.performClick()
@@ -243,7 +243,7 @@ class PlayerActivity : Activity() {
                 }
 
                 KeyEvent.KEYCODE_DPAD_UP -> {
-                    if (nativeSources.size > 1 && !sourceSpinner.hasFocus()) {
+                    if (sourceSelectorAvailable() && !sourceSpinner.hasFocus()) {
                         showSourceSelector()
                         return true
                     }
@@ -257,7 +257,7 @@ class PlayerActivity : Activity() {
                 }
 
                 KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
-                KeyEvent.KEYCODE_HEADSETHOOK -> {
+                KeyEvent.KEYCODE_HEADSETOOK -> {
                     activePlayer?.let {
                         if (it.isPlaying) it.pause() else it.play()
                         showControllerTemporarily()
@@ -296,6 +296,15 @@ class PlayerActivity : Activity() {
     private fun dp(value: Int): Int =
         (value * resources.displayMetrics.density).toInt()
 
+    private fun canChooseEpisode(): Boolean =
+        !live && payload.optBoolean("canChooseEpisode", false)
+
+    private fun sourceSelectorAvailable(): Boolean =
+        nativeSources.size > 1 || canChooseEpisode()
+
+    private fun sourceSelectorOffset(): Int =
+        if (canChooseEpisode()) 1 else 0
+
     private fun showControllerTemporarily() {
         if (!::playerView.isInitialized || resultSent) {
             return
@@ -319,7 +328,7 @@ class PlayerActivity : Activity() {
     }
 
     private fun showSourceSelector() {
-        if (nativeSources.size <= 1 || resultSent) return
+        if (!sourceSelectorAvailable() || resultSent) return
 
         sourceSpinner.removeCallbacks(hideSourceSelectorRunnable)
         sourceSpinner.visibility = View.VISIBLE
@@ -415,9 +424,22 @@ class PlayerActivity : Activity() {
     }
 
     private fun buildSourceSpinner(): Spinner {
-        val labels = nativeSources.mapIndexed { index, item ->
-            "${index + 1}. ${item.label}"
+        val episodePickerEnabled = canChooseEpisode()
+        val season = payload.optInt("season", 0)
+        val episode = payload.optInt("episode", 0)
+        val labels = mutableListOf<String>()
+
+        if (episodePickerEnabled) {
+            val currentEpisode =
+                if (season > 0 && episode > 0) "S${season} E${episode}" else "Current episode"
+            labels.add("Episodes / seasons • $currentEpisode")
         }
+
+        labels.addAll(
+            nativeSources.mapIndexed { index, item ->
+                "${index + 1}. ${item.label}"
+            }
+        )
 
         val sourceAdapter = object : ArrayAdapter<String>(
             this,
@@ -456,8 +478,18 @@ class PlayerActivity : Activity() {
             visibility = View.GONE
             isFocusable = true
             isFocusableInTouchMode = false
-            contentDescription = if (live) "Choose Live TV source" else "Choose playback source"
-            setSelection(activeSourceIndex.coerceIn(0, maxOf(0, nativeSources.lastIndex)), false)
+            contentDescription = when {
+                live -> "Choose Live TV source"
+                episodePickerEnabled -> "Choose episode or playback source"
+                else -> "Choose playback source"
+            }
+
+            val selectedPosition =
+                activeSourceIndex + sourceSelectorOffset()
+            setSelection(
+                selectedPosition.coerceIn(0, maxOf(0, labels.lastIndex)),
+                false
+            )
 
             onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
                 override fun onNothingSelected(parent: AdapterView<*>?) = Unit
@@ -468,19 +500,32 @@ class PlayerActivity : Activity() {
                     position: Int,
                     id: Long
                 ) {
-                    if (!sourceSelectorReady || position == activeSourceIndex) {
+                    if (!sourceSelectorReady) {
+                        return
+                    }
+
+                    if (episodePickerEnabled && position == 0) {
+                        finishWithResult(reason = "episode")
+                        return
+                    }
+
+                    val sourcePosition = position - sourceSelectorOffset()
+                    if (
+                        sourcePosition !in nativeSources.indices ||
+                        sourcePosition == activeSourceIndex
+                    ) {
                         return
                     }
 
                     if (!live) {
                         finishWithResult(
                             reason = "source",
-                            selectedSourceIndex = nativeSources[position].webIndex
+                            selectedSourceIndex = nativeSources[sourcePosition].webIndex
                         )
                         return
                     }
 
-                    switchNativeSource(position)
+                    switchNativeSource(sourcePosition)
                     hideSourceSelector()
                 }
             }
@@ -505,7 +550,7 @@ class PlayerActivity : Activity() {
         genericHttpsMimeRetryIndex = 0
         releasePlayer()
         initialisePlayer()
-        sourceSpinner.setSelection(activeSourceIndex, false)
+        sourceSpinner.setSelection(activeSourceIndex + sourceSelectorOffset(), false)
         showControllerTemporarily()
         playerView.requestFocus()
     }
