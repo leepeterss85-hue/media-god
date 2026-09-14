@@ -412,6 +412,14 @@ function MediaGodApp() {
     null
   );
 
+  const [
+    liveSearchRequest,
+    setLiveSearchRequest,
+  ] = useState({
+    query: "",
+    key: 0,
+  });
+
   /*
    * One back routine for the entire application.
    */
@@ -505,6 +513,42 @@ function MediaGodApp() {
       (
         rawItem
       ) => {
+        if (
+          rawItem?.media_type === "live" ||
+          rawItem?.mediaType === "live"
+        ) {
+          const channelName = String(
+            rawItem?.title ||
+              rawItem?.name ||
+              ""
+          ).trim();
+
+          if (!channelName) {
+            console.error(
+              "Media God received an invalid live TV search result:",
+              rawItem
+            );
+
+            return;
+          }
+
+          setSearchOpen(
+            false
+          );
+          setSearchResult(
+            null
+          );
+          setLiveSearchRequest((current) => ({
+            query: channelName,
+            key: Number(current?.key || 0) + 1,
+          }));
+          setView(
+            "live"
+          );
+
+          return;
+        }
+
         const item =
           normaliseSearchSelection(
             rawItem
@@ -654,6 +698,11 @@ function MediaGodApp() {
                 null
               );
 
+              setLiveSearchRequest((current) => ({
+                query: "",
+                key: Number(current?.key || 0) + 1,
+              }));
+
               setView(
                 nextView
               );
@@ -702,7 +751,21 @@ function MediaGodApp() {
 
           {view ===
             "live" && (
-            <LiveTVView />
+            <LiveTVView
+              initialQuery={
+                liveSearchRequest.query
+              }
+              searchRequestKey={
+                liveSearchRequest.key
+              }
+            />
+          )}
+
+          {view ===
+            "music" && (
+            <LiveTVView
+              initialQuickFilter="Radio"
+            />
           )}
 
           {view ===
