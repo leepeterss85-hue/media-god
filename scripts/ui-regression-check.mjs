@@ -164,8 +164,10 @@ for (const [source, label] of [
     source.includes("effectiveTrackers") &&
       source.includes("PUBLIC_FALLBACK_TRACKERS") &&
       source.includes('torrentMetadataSource') &&
-      source.includes('"public_fallback"'),
-    `Uncached torrent fallback trackers are missing from ${label}`
+      source.includes('"public_fallback"') &&
+      source.includes("cometPlaybackUrl") &&
+      source.includes('providedTrackers.length > 0 ? "rd_magnet" : "comet_uncached"'),
+    `Uncached Comet fallback routing is missing from ${label}`
   );
   expect(
     !source.includes('reason: "comet_uncached_missing_torrent_metadata"'),
@@ -179,8 +181,12 @@ expect(
 expect(
   videoPlayer.includes("chooseDebridResolutionStrategy") &&
     videoPlayer.includes("debridTorrentHasMetadata") &&
-    videoPlayer.includes("const hasTorrentTrackers = debridTorrentHasMetadata"),
-  "Tracker-bearing uncached sources can no longer use the direct Real-Debrid path"
+    videoPlayer.includes("const hasTorrentTrackers = debridTorrentHasMetadata") &&
+    videoPlayer.includes("const hasAuthoritativeTorrentMetadata =") &&
+    videoPlayer.includes('active?.torrentMetadataSource !== "public_fallback"') &&
+    videoPlayer.includes('resolutionStrategy === "comet_uncached" &&') &&
+    videoPlayer.includes("!hasAuthoritativeTorrentMetadata"),
+  "Uncached sources can no longer distinguish exact torrent metadata from synthetic public fallback trackers"
 );
 expect(
   videoPlayer.includes("sourceSelectorPinnedRef = useRef(false)") &&
