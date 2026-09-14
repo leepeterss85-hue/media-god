@@ -401,6 +401,10 @@ export default function SearchDialog({
           true
         );
 
+        setResults(
+          []
+        );
+
         setError(
           ""
         );
@@ -833,6 +837,8 @@ export default function SearchDialog({
 
           {!loading &&
             !liveLoading &&
+            !error &&
+            !liveError &&
             query.trim().length >= 2 &&
             results.length === 0 &&
             liveResults.length === 0 && (
