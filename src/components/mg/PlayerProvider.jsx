@@ -1043,6 +1043,25 @@ function PlayerAutomationBridge({ children }) {
       advanceToNext(false);
     };
 
+    /*
+     * Android/Fire TV Media3 playback happens outside the WebView, so its
+     * natural end does not produce an HTMLMediaElement `ended` event. The
+     * native player reports the end back to VideoPlayer, which forwards this
+     * dedicated event so TV episodes use the exact same auto-next pipeline as
+     * browser playback.
+     */
+    const onNativePlaybackEnded = () => {
+      if (!autoNext || advancingRef.current) {
+        return;
+      }
+
+      if (!isTvRequest(currentRequestRef.current)) {
+        return;
+      }
+
+      advanceToNext(false);
+    };
+
     window.addEventListener(
       "mg:choose-episode",
       onChooseEpisode
@@ -1083,6 +1102,11 @@ function PlayerAutomationBridge({ children }) {
       "ended",
       onEnded,
       true
+    );
+
+    window.addEventListener(
+      "mg:native-playback-ended",
+      onNativePlaybackEnded
     );
 
     return () => {
@@ -1126,6 +1150,11 @@ function PlayerAutomationBridge({ children }) {
         "ended",
         onEnded,
         true
+      );
+
+      window.removeEventListener(
+        "mg:native-playback-ended",
+        onNativePlaybackEnded
       );
     };
   }, [
