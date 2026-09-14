@@ -1,5 +1,20 @@
 export const UPDATE_HISTORY = [
   {
+    id: "uncached-rd-download-repair-2026-09-14-v1",
+    date: "14 September 2026",
+    title: "Uncached torrent downloads repaired",
+    summary:
+      "Media God now keeps valid uncached torrent hashes usable even when an addon omits its tracker metadata, while leaving Live TV untouched.",
+    changes: [
+      "Comet uncached results with a valid info hash are no longer discarded just because that specific row omitted Stremio torrent sources.",
+      "Media God now prefers Comet's exact trackers when available and otherwise builds a tracker-rich Real-Debrid magnet using public fallback trackers.",
+      "Comet Torrent Mode metadata recovery now runs when any uncached Comet result is missing torrent sources instead of being skipped because an unrelated row happened to include sources.",
+      "Tracker-bearing uncached results are routed through Media God's direct Real-Debrid download path rather than the legacy opaque Comet playback trigger.",
+      "If Real-Debrid creates the torrent but its immediate info request temporarily fails, Media God keeps the new torrent attached and continues polling instead of reporting that the download never started.",
+      "Regression protection now covers tracker-bearing Comet strategy selection and both server/browser uncached fallback paths.",
+    ],
+  },
+  {
     id: "non-live-tv-polish-pass-2026-09-14-v1",
     date: "14 September 2026",
     title: "Libraries, downloads and Watch Party strengthened",
