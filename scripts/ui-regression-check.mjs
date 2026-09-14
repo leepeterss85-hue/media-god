@@ -254,7 +254,8 @@ expect(
 );
 expect(
   fireTvPlayerActivity.includes('payload.optBoolean("canChooseEpisode", false)') &&
-    fireTvPlayerActivity.includes("Episodes / seasons") &&
+    fireTvPlayerActivity.includes("choose season") &&
+    fireTvPlayerActivity.includes("choose episode") &&
     fireTvPlayerActivity.includes('finishWithResult(reason = "episode")') &&
     nativeFireTvBridge.includes("canChooseEpisode") &&
     nativeFireTvBridge.includes("window.__MG_PLAYER_CONTEXT__") &&
