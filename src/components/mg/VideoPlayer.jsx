@@ -41,6 +41,10 @@ import {
   recordDebridProviderResult,
 } from "@/components/mg/debridProviderReliability";
 import {
+  chooseDebridResolutionStrategy,
+  debridTorrentHasMetadata,
+} from "@/components/mg/debridResolutionStrategy";
+import {
   concisePlaybackSourceLabel,
   torrentFileLabel,
 } from "@/components/mg/playbackSourceLabels";
@@ -120,10 +124,6 @@ const sourceTorrentHash = (item) =>
 const sourceResolutionStrategy = (item) => {
   if (!item) return "";
 
-  if (item?.debridCached === true) {
-    return "cached_debrid";
-  }
-
   if (
     item?.rdTorrentId ||
     (
@@ -132,16 +132,6 @@ const sourceResolutionStrategy = (item) => {
     )
   ) {
     return "existing_rd";
-  }
-
-  const explicit = String(item?.resolutionStrategy || "").trim();
-
-  if (explicit) {
-    return explicit;
-  }
-
-  if (item?.cometUncached === true) {
-    return "comet_uncached";
   }
 
   const value = String(getSourceUrl(item) || "").trim();
@@ -153,7 +143,13 @@ const sourceResolutionStrategy = (item) => {
     isMagnet(value) ||
     Boolean(sourceTorrentHash(item));
 
-  return torrentLike ? "rd_magnet" : "";
+  if (!torrentLike && item?.debridCached !== true) {
+    return String(item?.resolutionStrategy || "").trim();
+  }
+
+  return chooseDebridResolutionStrategy(item, {
+    debridCached: item?.debridCached === true,
+  });
 };
 
 const sourceNeedsCaching = (item) => {
@@ -1933,8 +1929,9 @@ export default function VideoPlayer({
             /*
              * Generic magnet sources can arrive in several variants. Preserve
              * the richest tracker-bearing form for Media God's direct RD path.
-             * Comet-uncached sources do not use this magnet to start caching;
-             * their dedicated Comet playback URL owns that operation.
+             * Tracker-backed Comet uncached rows now use the same direct RD path;
+             * the legacy Comet playback trigger is only for a genuinely opaque
+             * Comet row with no usable torrent metadata at all.
              */
             const magnetCandidates = [
               richMagnet,
@@ -2155,7 +2152,11 @@ export default function VideoPlayer({
             const torrentTrackers = Array.isArray(active?.torrentTrackers)
               ? active.torrentTrackers.filter(Boolean)
               : [];
-            const hasTorrentTrackers = torrentTrackers.length > 0;
+            const hasTorrentTrackers = debridTorrentHasMetadata({
+              ...active,
+              magnet,
+              src: magnet,
+            });
 
             /*
              * Any uncached torrent with usable tracker metadata can be owned by
