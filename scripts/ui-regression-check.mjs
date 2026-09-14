@@ -41,6 +41,10 @@ const remoteSchema = await read("base44/entities/PlayerRemoteSession.jsonc");
 const liveTv = await read("src/components/mg/LiveTVView.jsx");
 const evSports = await read("src/components/mg/evSportsScraper.js");
 const freeTv = await read("src/components/mg/freeTvPlaylist.js");
+const settings = await read("src/components/mg/SettingsView.jsx");
+const fireTvUpdateNotice = await read("src/components/mg/FireTvAppUpdateNotice.jsx");
+const androidUpdateNotice = await read("src/components/mg/AndroidMobileAppUpdateNotice.jsx");
+const fireTvRelease = await read("public/firetv-update.json");
 
 const requiredViews = [
   ["home", "Home"],
@@ -312,4 +316,25 @@ expect(
   "BBC/ITV locked primary rules are missing"
 );
 
-console.log("ok UI/navigation/download/watch-party/locked-source structural checks complete");
+expect(
+  settings.includes('data-mg-app-version="true"') &&
+    settings.includes("Installed:") &&
+    settings.includes("Check for update") &&
+    settings.includes('new CustomEvent("mg:check-fire-tv-update")') &&
+    settings.includes('new CustomEvent("mg:check-android-mobile-update")'),
+  "Settings no longer shows the installed Media God app version or manual update check"
+);
+expect(
+  fireTvUpdateNotice.includes("raw.githubusercontent.com/leepeterss85-hue/media-god/main/public/firetv-update.json") &&
+    fireTvUpdateNotice.includes('window.addEventListener("mg:check-fire-tv-update"') &&
+    fireTvUpdateNotice.includes("60000") &&
+    androidUpdateNotice.includes('window.addEventListener("mg:check-android-mobile-update"'),
+  "Native update checks no longer re-check reliably or expose the manual Settings trigger"
+);
+expect(
+  fireTvRelease.includes('"versionCode": 15') &&
+    fireTvRelease.includes('"versionName": "1.4.10"'),
+  "Fire TV update manifest is not advertising 1.4.10 / code 15"
+);
+
+console.log("ok UI/navigation/download/watch-party/locked-source/version-update structural checks complete");
