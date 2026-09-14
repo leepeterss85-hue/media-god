@@ -47,11 +47,11 @@ export default function RoadmapView({ onBack }) {
     setBroadcasts(nextBroadcasts);
 
     if (filmResult.status === "rejected" && broadcastResult.status === "rejected") {
-      setError("The release roadmap could not be loaded right now.");
+      setError("Release dates could not be loaded right now.");
     } else if (filmResult.status === "rejected") {
-      setError("Upcoming films are temporarily unavailable, but saved broadcasts are still shown.");
+      setError("Upcoming film release dates are temporarily unavailable, but saved TV and broadcast dates are still shown.");
     } else if (broadcastResult.status === "rejected") {
-      setError("Saved broadcasts are temporarily unavailable, but upcoming films are still shown.");
+      setError("Saved TV and broadcast dates are temporarily unavailable, but upcoming film release dates are still shown.");
     }
 
     setLoading(false);
@@ -166,9 +166,9 @@ export default function RoadmapView({ onBack }) {
             <ChevronLeft className="w-5 h-5" />
           </button>
           <div className="min-w-0">
-            <h1 className="text-xl font-bold text-white tracking-wide">Release Roadmap</h1>
+            <h1 className="text-xl font-bold text-white tracking-wide">Release Dates</h1>
             <p className="text-xs text-white/40 mt-0.5">
-              Upcoming films and saved broadcast events in one place.
+              Upcoming film, TV and broadcast release dates in one place.
             </p>
           </div>
         </div>
@@ -190,10 +190,10 @@ export default function RoadmapView({ onBack }) {
 
       <div className="flex gap-2 border-b border-white/10 mb-5 overflow-x-auto">
         {[
-          { id: "film", label: `Film schedule (${films.length})` },
+          { id: "film", label: `Films (${films.length})` },
           {
             id: "broadcast",
-            label: `Broadcasts (${broadcasts.filter((item) => item?.type === "broadcast").length})`,
+            label: `TV & broadcasts (${broadcasts.filter((item) => item?.type === "broadcast").length})`,
           },
         ].map((item) => (
           <button
@@ -229,7 +229,7 @@ export default function RoadmapView({ onBack }) {
         <div className="rounded-xl border border-white/10 bg-mg-card/60 py-16 px-4 text-center">
           <CalendarDays className="mx-auto h-10 w-10 text-white/20" />
           <p className="mt-3 text-sm font-medium text-white/60">
-            {tab === "film" ? "No upcoming films were returned." : "No broadcast events have been saved yet."}
+            {tab === "film" ? "No upcoming film release dates were returned." : "No TV or broadcast release dates have been saved yet."}
           </p>
         </div>
       ) : (
@@ -249,7 +249,7 @@ export default function RoadmapView({ onBack }) {
                   {item?.poster_url ? (
                     <PosterImage
                       src={item.poster_url}
-                      alt={item?.title || "Roadmap item"}
+                      alt={item?.title || "Release date item"}
                       className="w-full h-full object-cover"
                       fittingType="fill"
                     />
