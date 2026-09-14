@@ -3103,6 +3103,24 @@ export default function VideoPlayer({
             return;
           }
 
+          /*
+           * Android/Fire TV renders <select> as a native popup. The first RD
+           * torrent status poll runs about 2.5 seconds after a cache job starts;
+           * updating React state while that native popup is open makes WebView
+           * dismiss it. Pause polling completely while the user is choosing a
+           * source/torrent file, then resume as soon as the selector closes.
+           */
+          if (
+            sourceSelectorPinnedRef.current ||
+            rdFileSelectorPinnedRef.current
+          ) {
+            pollRef.current = window.setTimeout(
+              tick,
+              500
+            );
+            return;
+          }
+
           attempts +=
             1;
 
@@ -5838,6 +5856,22 @@ export default function VideoPlayer({
 
     const rescue = (remainingChecks = 4, previousTime = 0) => {
       state.timer = null;
+
+      /*
+       * Manual source selection owns the player while its native selector is
+       * open. Do not let the compatibility watchdog update state or switch
+       * sources underneath the Android/Fire TV selection dialog.
+       */
+      if (
+        sourceSelectorPinnedRef.current ||
+        rdFileSelectorPinnedRef.current
+      ) {
+        state.timer = window.setTimeout(
+          () => rescue(remainingChecks, previousTime),
+          750
+        );
+        return;
+      }
 
       const video = stageRef.current?.querySelector("video");
       const currentTime = Number(video?.currentTime || 0);
