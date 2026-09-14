@@ -817,7 +817,10 @@ const radioUrlsFor = (channel) => {
   return urls;
 };
 
-export default function LiveTVView() {
+export default function LiveTVView({
+  initialQuery = "",
+  initialQuickFilter = "",
+}) {
   const [initialViewState] = useState(() => readStoredLiveTvState());
   const [channels, setChannels] = useState([]);
   const [sourceStatus, setSourceStatus] = useState([]);
@@ -829,13 +832,15 @@ export default function LiveTVView() {
   const [channelNotice, setChannelNotice] = useState("");
   const [channelNoticeAction, setChannelNoticeAction] = useState(null);
   const [channelNoticeActions, setChannelNoticeActions] = useState([]);
-  const [query, setQuery] = useState(String(initialViewState?.query || ""));
+  const [query, setQuery] = useState(
+    String(initialQuery || initialViewState?.query || "")
+  );
   const [group, setGroup] = useState(String(initialViewState?.group || DEFAULT_FILTER));
   const [countryFilter, setCountryFilter] = useState(
     String(initialViewState?.countryFilter || DEFAULT_FILTER)
   );
   const [quickFilter, setQuickFilter] = useState(
-    String(initialViewState?.quickFilter || DEFAULT_FILTER)
+    String(initialQuickFilter || initialViewState?.quickFilter || DEFAULT_FILTER)
   );
   const [directOnly, setDirectOnly] = useState(Boolean(initialViewState?.directOnly));
   const [radioStation, setRadioStation] = useState(null);
@@ -870,6 +875,22 @@ export default function LiveTVView() {
   const scrollSaveTimerRef = useRef(null);
   const filterResetReadyRef = useRef(false);
   const player = usePlayer();
+
+  useEffect(() => {
+    const requestedQuery = String(initialQuery || "").trim();
+    const requestedQuickFilter = String(initialQuickFilter || "").trim();
+
+    if (!requestedQuery && !requestedQuickFilter) {
+      return;
+    }
+
+    setQuery(requestedQuery);
+    setQuickFilter(requestedQuickFilter || DEFAULT_FILTER);
+    setGroup(DEFAULT_FILTER);
+    setCountryFilter(DEFAULT_FILTER);
+    setDirectOnly(false);
+    setViewMode("channels");
+  }, [initialQuery, initialQuickFilter]);
 
   const channelRankByKey = useMemo(() => {
     const recentOrder = new Map(
@@ -1767,6 +1788,7 @@ export default function LiveTVView() {
       Sports: 0,
       Motorsport: 0,
       Movies: 0,
+      Radio: 0,
       Favourites: 0,
       Recent: 0,
       "Most Reliable": 0,
@@ -1812,6 +1834,10 @@ export default function LiveTVView() {
         tags.has("Movies")
       ) {
         counts.Movies += 1;
+      }
+
+      if (tags.has("Radio")) {
+        counts.Radio += 1;
       }
     }
 
@@ -2828,6 +2854,11 @@ export default function LiveTVView() {
             id: "Movies",
             label: "Movies",
             icon: Film,
+          },
+          {
+            id: "Radio",
+            label: "Music",
+            icon: Radio,
           },
           {
             id: "Favourites",
