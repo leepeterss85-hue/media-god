@@ -15,6 +15,8 @@ import { base44 } from "@/api/base44Client";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 import { Image } from "@/components/ui/image";
 
+const PosterImage = /** @type {any} */ (Image);
+
 const WATCHED_THRESHOLD = 0.92;
 const MIN_PROGRESS_SECONDS = 5;
 
@@ -396,7 +398,7 @@ export default function ContinueWatchingRow() {
               className="mg-fire-tv-resume-card group relative w-44 sm:w-52 md:w-56 xl:w-60 3xl:w-72 4xl:w-80 shrink-0 text-left cursor-pointer snap-start rounded-xl focus:outline-none focus:ring-2 focus:ring-mg-green focus:ring-offset-2 focus:ring-offset-mg-background"
             >
               <div className="relative aspect-video rounded-xl overflow-hidden bg-mg-card border border-white/10 shadow-lg shadow-black/20 group-focus:border-mg-green">
-                <Image
+                <PosterImage
                   src={item.poster_url}
                   fittingType="fill"
                   className="w-full h-full object-cover"
