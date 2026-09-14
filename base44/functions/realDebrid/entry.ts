@@ -2539,6 +2539,10 @@ async function resolveStreamable(
     return {
       error:
         `info failed: ${infoRes.status}`,
+      error_code:
+        "RD_TORRENT_INFO_FAILED",
+      upstream_status:
+        infoRes.status,
     };
   }
 
@@ -2602,6 +2606,10 @@ async function resolveStreamable(
       return {
         error:
           `file selection failed: ${selectRes.status}`,
+        error_code:
+          "RD_FILE_SELECTION_FAILED",
+        upstream_status:
+          selectRes.status,
       };
     }
 
