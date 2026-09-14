@@ -695,14 +695,10 @@ export default function VideoPlayer({
    * choices for the duration of the user's selection gesture. The live list
    * resumes as soon as the select closes or a choice is made.
    */
-  const [sourceSelectorPinned, setSourceSelectorPinned] =
-    useState(false);
   const sourceSelectorPinnedRef = useRef(false);
   const sourceSelectorEntriesRef = useRef([]);
   const sourceSelectorValueRef = useRef(0);
 
-  const [rdFileSelectorPinned, setRdFileSelectorPinned] =
-    useState(false);
   const rdFileSelectorPinnedRef = useRef(false);
   const rdFileSelectorFilesRef = useRef([]);
   const rdFileSelectorValueRef = useRef("");
@@ -711,22 +707,20 @@ export default function VideoPlayer({
     sourceSelectorEntriesRef.current = sortedSourceEntries;
     sourceSelectorValueRef.current = activeIdx;
     sourceSelectorPinnedRef.current = true;
-    setSourceSelectorPinned(true);
   };
 
   const releaseSourceSelector = () => {
     sourceSelectorPinnedRef.current = false;
-    setSourceSelectorPinned(false);
     sourceSelectorEntriesRef.current = [];
   };
 
   const visibleSourceSelectorEntries =
-    sourceSelectorPinned && sourceSelectorEntriesRef.current.length > 0
+    sourceSelectorPinnedRef.current && sourceSelectorEntriesRef.current.length > 0
       ? sourceSelectorEntriesRef.current
       : sortedSourceEntries;
 
   const visibleSourceSelectorValue =
-    sourceSelectorPinned
+    sourceSelectorPinnedRef.current
       ? sourceSelectorValueRef.current
       : activeIdx;
 
@@ -740,22 +734,20 @@ export default function VideoPlayer({
       )?.id ?? ""
     );
     rdFileSelectorPinnedRef.current = true;
-    setRdFileSelectorPinned(true);
   };
 
   const releaseRdFileSelector = () => {
     rdFileSelectorPinnedRef.current = false;
-    setRdFileSelectorPinned(false);
     rdFileSelectorFilesRef.current = [];
   };
 
   const visibleRdFileSelectorFiles =
-    rdFileSelectorPinned && rdFileSelectorFilesRef.current.length > 0
+    rdFileSelectorPinnedRef.current && rdFileSelectorFilesRef.current.length > 0
       ? rdFileSelectorFilesRef.current
       : rdFiles;
 
   const visibleRdFileSelectorValue =
-    rdFileSelectorPinned
+    rdFileSelectorPinnedRef.current
       ? rdFileSelectorValueRef.current
       : String(
           rdFiles.find(
@@ -6202,7 +6194,7 @@ export default function VideoPlayer({
       data-mg-player-root="true"
       data-mg-player-fullscreen={isAppFullscreen ? "true" : "false"}
       data-mg-native-selector-mode={fireTvNativeSelectorMode ? "true" : "false"}
-      data-mg-rd-cache-source={active?.cacheRequired ? "true" : "false"}
+      data-mg-rd-cache-source={sourceNeedsCaching(active) ? "true" : "false"}
       className="fixed inset-0 z-[2147483646] bg-black/95 flex items-center justify-center p-2 sm:p-3 md:p-4"
       onClick={
         onClose
