@@ -5387,6 +5387,31 @@ export default function VideoPlayer({
       }
 
       if (
+        reason === "ended" &&
+        !isLive
+      ) {
+        const playerContext =
+          typeof window !== "undefined"
+            ? window.__MG_PLAYER_CONTEXT__ || {}
+            : {};
+
+        if (
+          playerContext?.mediaType === "tv" &&
+          playerContext?.autoNext !== false
+        ) {
+          window.dispatchEvent(
+            new CustomEvent("mg:native-playback-ended", {
+              detail: {
+                positionSeconds,
+                durationSeconds,
+              },
+            })
+          );
+          return;
+        }
+      }
+
+      if (
         reason === "back" &&
         !isLive
       ) {
