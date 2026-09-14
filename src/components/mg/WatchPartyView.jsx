@@ -20,6 +20,20 @@ import PartyPlayer from "@/components/mg/PartyPlayer";
 const genCode = () => Math.random().toString(36).slice(2, 8).toUpperCase();
 const clean = (value) => String(value ?? "").trim();
 
+const formatChatTime = (value) => {
+  const date = new Date(value || 0);
+  if (Number.isNaN(date.getTime())) return "";
+
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(date);
+  } catch {
+    return "";
+  }
+};
+
 const validWatchUrl = (value) => {
   const url = clean(value);
   if (!/^https?:\/\//i.test(url)) return false;
@@ -60,6 +74,9 @@ export default function WatchPartyView() {
   const [cUrl, setCUrl] = useState("");
   const [cPoster, setCPoster] = useState("");
   const [presences, setPresences] = useState([]);
+  const [networkOnline, setNetworkOnline] = useState(() =>
+    typeof navigator === "undefined" ? true : navigator.onLine !== false
+  );
   const presenceIdRef = useRef("");
   const messageEndRef = useRef(null);
 
@@ -132,10 +149,23 @@ export default function WatchPartyView() {
             room_code: roomCode,
             user_id: user.id,
           });
-          const existing = Array.isArray(ownRows) ? ownRows[0] : null;
+          const ownedRows = Array.isArray(ownRows) ? ownRows : [];
+          const existing = ownedRows
+            .slice()
+            .sort(
+              (a, b) =>
+                new Date(b?.last_seen_at || b?.updated_date || 0).getTime() -
+                new Date(a?.last_seen_at || a?.updated_date || 0).getTime()
+            )[0];
 
           if (existing?.id) {
             presenceIdRef.current = existing.id;
+
+            ownedRows
+              .filter((row) => row?.id && row.id !== existing.id)
+              .forEach((row) => {
+                base44.entities.WatchPartyPresence.delete(row.id).catch(() => {});
+              });
           } else {
             const created = await base44.entities.WatchPartyPresence.create({
               room_code: roomCode,
@@ -394,17 +424,33 @@ export default function WatchPartyView() {
     if (!roomCode) return undefined;
 
     const recoverRoom = () => {
+      setNetworkOnline(true);
       if (document.visibilityState === "visible") {
         refreshRoom();
       }
     };
 
+    const markOffline = () => {
+      setNetworkOnline(false);
+    };
+
+    const recoverOnVisibility = () => {
+      if (document.visibilityState === "visible") {
+        setNetworkOnline(typeof navigator === "undefined" ? true : navigator.onLine !== false);
+        if (typeof navigator === "undefined" || navigator.onLine !== false) {
+          refreshRoom();
+        }
+      }
+    };
+
     window.addEventListener("online", recoverRoom);
-    document.addEventListener("visibilitychange", recoverRoom);
+    window.addEventListener("offline", markOffline);
+    document.addEventListener("visibilitychange", recoverOnVisibility);
 
     return () => {
       window.removeEventListener("online", recoverRoom);
-      document.removeEventListener("visibilitychange", recoverRoom);
+      window.removeEventListener("offline", markOffline);
+      document.removeEventListener("visibilitychange", recoverOnVisibility);
     };
     // refreshRoom intentionally reads the latest room code from state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -664,6 +710,16 @@ export default function WatchPartyView() {
         </div>
       </div>
 
+      {!networkOnline && (
+        <div
+          role="status"
+          className="mb-3 flex items-center gap-2 rounded-lg border border-amber-400/20 bg-amber-400/10 p-3 text-sm text-amber-100"
+        >
+          <RefreshCw className="h-4 w-4 animate-spin" />
+          Connection lost. Watch Party will resync automatically when this device is back online.
+        </div>
+      )}
+
       {error && (
         <div role="alert" className="mb-3 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">
           {error}
@@ -725,14 +781,21 @@ export default function WatchPartyView() {
           {messages.length === 0 && (
             <p className="text-white/30 text-xs">No messages yet. Say hi!</p>
           )}
-          {messages.map((message) => (
-            <div key={message.id} className="text-sm break-words">
-              <span className="text-mg-green font-semibold text-xs">
-                {message.user_name || "Guest"}:{" "}
-              </span>
-              <span className="text-white/80">{message.text}</span>
-            </div>
-          ))}
+          {messages.map((message) => {
+            const time = formatChatTime(message?.created_date);
+
+            return (
+              <div key={message.id} className="text-sm break-words">
+                <span className="text-mg-green font-semibold text-xs">
+                  {message.user_name || "Guest"}:{" "}
+                </span>
+                <span className="text-white/80">{message.text}</span>
+                {time && (
+                  <span className="ml-2 text-[10px] text-white/25">{time}</span>
+                )}
+              </div>
+            );
+          })}
           <div ref={messageEndRef} aria-hidden="true" />
         </div>
 
