@@ -20,6 +20,9 @@ const favorites = await read("src/components/mg/FavoritesView.jsx");
 const downloads = await read("src/components/mg/DebridDashboard.jsx");
 const rdLibrary = await read("src/components/mg/RdLibraryView.jsx");
 const realDebridBackend = await read("base44/functions/realDebrid/entry.ts");
+const addonStreamsBackend = await read("base44/functions/fetchAddonStreams/entry.ts");
+const addonBrowserFallback = await read("src/components/mg/addonBrowserFallback.js");
+const videoPlayer = await read("src/components/mg/VideoPlayer.jsx");
 const addons = await read("src/components/mg/AddonsView.jsx");
 const watchParty = await read("src/components/mg/WatchPartyView.jsx");
 const watchPartySchema = await read("base44/entities/WatchParty.jsonc");
@@ -147,6 +150,33 @@ for (const marker of [
     `Real-Debrid download metadata regression marker missing: ${marker}`
   );
 }
+
+for (const [source, label] of [
+  [addonStreamsBackend, "server addon lookup"],
+  [addonBrowserFallback, "browser addon fallback"],
+]) {
+  expect(
+    source.includes("effectiveTrackers") &&
+      source.includes("PUBLIC_FALLBACK_TRACKERS") &&
+      source.includes('torrentMetadataSource') &&
+      source.includes('"public_fallback"'),
+    `Uncached torrent fallback trackers are missing from ${label}`
+  );
+  expect(
+    !source.includes('reason: "comet_uncached_missing_torrent_metadata"'),
+    `Opaque Comet uncached rows can still be discarded by ${label}`
+  );
+}
+expect(
+  addonStreamsBackend.includes("uncachedRowsMissingTorrentSources"),
+  "Comet Torrent Mode metadata recovery no longer targets incomplete uncached rows"
+);
+expect(
+  videoPlayer.includes("chooseDebridResolutionStrategy") &&
+    videoPlayer.includes("debridTorrentHasMetadata") &&
+    videoPlayer.includes("const hasTorrentTrackers = debridTorrentHasMetadata"),
+  "Tracker-bearing uncached sources can no longer use the direct Real-Debrid path"
+);
 
 expect(
   addons.includes("autoHealthCheckedRef") && addons.includes("testActiveAddons();"),
