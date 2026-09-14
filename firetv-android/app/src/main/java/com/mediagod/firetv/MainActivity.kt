@@ -353,8 +353,11 @@ class MainActivity : Activity() {
 
             runOnUiThread {
                 try {
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(target)).apply {
-                        addCategory(Intent.CATEGORY_BROWSABLE)
+                    val intent = Intent(
+                        this@MainActivity,
+                        ExternalWebActivity::class.java
+                    ).apply {
+                        putExtra(ExternalWebActivity.EXTRA_URL, target)
                     }
                     startActivity(intent)
                 } catch (_: Throwable) {
