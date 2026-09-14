@@ -31,6 +31,7 @@ export default function WatchlistView() {
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [sortMode, setSortMode] = useState("newest");
+  const [mediaFilter, setMediaFilter] = useState("all");
   const [clearing, setClearing] = useState(false);
   const [selected, setSelected] = useState(null);
   const { toast } = useToast();
@@ -57,16 +58,18 @@ export default function WatchlistView() {
 
   const visible = useMemo(() => {
     const wanted = query.trim().toLowerCase();
-    const filtered = wanted
-      ? items.filter((item) =>
-          `${item?.title || ""} ${item?.year || ""}`
-            .toLowerCase()
-            .includes(wanted)
-        )
-      : items;
+    const filtered = items.filter((item) => {
+      const itemType = item?.media_type === "tv" ? "tv" : "movie";
+      if (mediaFilter !== "all" && itemType !== mediaFilter) return false;
+      if (!wanted) return true;
+
+      return `${item?.title || ""} ${item?.year || ""}`
+        .toLowerCase()
+        .includes(wanted);
+    });
 
     return sortItems(filtered, sortMode);
-  }, [items, query, sortMode]);
+  }, [items, mediaFilter, query, sortMode]);
 
   const remove = async (item) => {
     try {
@@ -207,8 +210,8 @@ export default function WatchlistView() {
         </div>
       </div>
 
-      <div className="mb-5 flex flex-col gap-2 sm:flex-row">
-        <label className="relative flex-1">
+      <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        <label className="relative min-w-[220px] flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
           <input
             value={query}
@@ -217,6 +220,28 @@ export default function WatchlistView() {
             className="min-h-11 w-full rounded-lg border border-white/10 bg-black/25 pl-9 pr-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-mg-green/50"
           />
         </label>
+
+        <div className="flex gap-1 overflow-x-auto">
+          {[
+            ["all", "All"],
+            ["movie", "Movies"],
+            ["tv", "TV Shows"],
+          ].map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setMediaFilter(id)}
+              aria-pressed={mediaFilter === id}
+              className={`min-h-11 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                mediaFilter === id
+                  ? "bg-mg-green text-black"
+                  : "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
 
         <select
           value={sortMode}
@@ -285,8 +310,8 @@ export default function WatchlistView() {
                   type="button"
                   onClick={() => playItem(item)}
                   className="mg-hover-action absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100"
-                  aria-label={`Play ${item.title}`}
-                  title="Play"
+                  aria-label={item?.media_type === "tv" ? `Open ${item.title}` : `Play ${item.title}`}
+                  title={item?.media_type === "tv" ? "Open show" : "Play"}
                 >
                   <span className="flex h-10 w-10 items-center justify-center rounded-full bg-mg-green text-black">
                     <Play className="h-5 w-5 fill-black" />
