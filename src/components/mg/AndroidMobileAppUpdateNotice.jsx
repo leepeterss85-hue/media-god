@@ -10,6 +10,35 @@ import {
 
 const SESSION_DISMISS_PREFIX = "mg:android-mobile-app-update-dismissed:";
 
+const ANDROID_RELEASE_URLS = [
+  "/android-mobile-update.json",
+  "https://raw.githubusercontent.com/leepeterss85-hue/media-god/main/public/android-mobile-update.json",
+];
+
+const fetchLatestAndroidRelease = async () => {
+  const releases = await Promise.all(
+    ANDROID_RELEASE_URLS.map(async (url) => {
+      try {
+        const separator = url.includes("?") ? "&" : "?";
+        const response = await fetch(`${url}${separator}t=${Date.now()}`, {
+          cache: "no-store",
+        });
+        if (!response.ok) return null;
+        return await response.json();
+      } catch {
+        return null;
+      }
+    })
+  );
+
+  return releases
+    .filter(Boolean)
+    .sort(
+      (a, b) =>
+        Number(b?.versionCode || 0) - Number(a?.versionCode || 0)
+    )[0] || null;
+};
+
 const looksLikeAndroidMobile = () => {
   if (typeof window === "undefined" || typeof navigator === "undefined") {
     return false;
@@ -36,22 +65,14 @@ export default function AndroidMobileAppUpdateNotice({ enabled = true }) {
     progress: 0,
   });
 
-  const checkForUpdate = useCallback(async () => {
+  const checkForUpdate = useCallback(async ({ force = false } = {}) => {
     if (!enabled || !looksLikeAndroidMobile()) {
       setVisible(false);
       return;
     }
 
     try {
-      const response = await fetch(`/android-mobile-update.json?t=${Date.now()}`, {
-        cache: "no-store",
-      });
-
-      if (!response.ok) {
-        return;
-      }
-
-      const nextRelease = await response.json();
+      const nextRelease = await fetchLatestAndroidRelease();
       const latestCode = Number(nextRelease?.versionCode || 0);
       const appInfo = nativeFireTvAppInfo();
       const currentCode = Number(appInfo?.versionCode || 0);
@@ -61,8 +82,16 @@ export default function AndroidMobileAppUpdateNotice({ enabled = true }) {
       }
 
       const dismissKey = `${SESSION_DISMISS_PREFIX}${latestCode}`;
-      if (window.sessionStorage?.getItem(dismissKey) === "1") {
+      if (!force && window.sessionStorage?.getItem(dismissKey) === "1") {
         return;
+      }
+
+      if (force) {
+        try {
+          window.sessionStorage?.removeItem(dismissKey);
+        } catch {
+          // Session storage is optional in some Android WebViews.
+        }
       }
 
       setRelease(nextRelease);
@@ -77,13 +106,38 @@ export default function AndroidMobileAppUpdateNotice({ enabled = true }) {
     checkForUpdate();
 
     const handleDetected = () => {
-      window.setTimeout(checkForUpdate, 150);
+      window.setTimeout(() => checkForUpdate(), 150);
     };
 
+    const handleManualCheck = () => {
+      checkForUpdate({ force: true });
+    };
+
+    const handleFocus = () => {
+      checkForUpdate();
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        checkForUpdate();
+      }
+    };
+
+    const intervalId = window.setInterval(() => {
+      checkForUpdate();
+    }, 60000);
+
     window.addEventListener("mg:android-mobile-detected", handleDetected);
+    window.addEventListener("mg:check-android-mobile-update", handleManualCheck);
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibility);
 
     return () => {
+      window.clearInterval(intervalId);
       window.removeEventListener("mg:android-mobile-detected", handleDetected);
+      window.removeEventListener("mg:check-android-mobile-update", handleManualCheck);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, [checkForUpdate]);
 
