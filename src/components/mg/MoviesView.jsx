@@ -100,6 +100,7 @@ export default function MoviesView() {
         poster_url: movie.poster_url,
         description: movie.description,
         tmdb_id: movie.id,
+        media_type: "movie",
       });
 
       setWatched((current) => ({
