@@ -32,6 +32,8 @@ class PlayerActivity : Activity() {
         const val EXTRA_POSITION_MS = "mg_position_ms"
         const val EXTRA_DURATION_MS = "mg_duration_ms"
         const val EXTRA_MESSAGE = "mg_message"
+
+        private const val CONTROLLER_HIDE_DELAY_MS = 2500L
     }
 
     private lateinit var playerView: PlayerView
@@ -48,6 +50,12 @@ class PlayerActivity : Activity() {
     private var shouldPlayWhenReady = true
     private var resultSent = false
     private var genericHttpsMimeRetryIndex = 0
+
+    private val hideControllerRunnable = Runnable {
+        if (!resultSent && ::playerView.isInitialized) {
+            playerView.hideController()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -79,9 +87,9 @@ class PlayerActivity : Activity() {
         playerView = PlayerView(this).apply {
             setBackgroundColor(Color.BLACK)
             useController = true
-            controllerAutoShow = true
-            controllerHideOnTouch = false
-            controllerShowTimeoutMs = 2500
+            controllerAutoShow = false
+            controllerHideOnTouch = true
+            controllerShowTimeoutMs = CONTROLLER_HIDE_DELAY_MS.toInt()
             setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
             isFocusable = true
             isFocusableInTouchMode = true
@@ -117,6 +125,9 @@ class PlayerActivity : Activity() {
     }
 
     override fun onDestroy() {
+        if (::playerView.isInitialized) {
+            playerView.removeCallbacks(hideControllerRunnable)
+        }
         releasePlayer()
         super.onDestroy()
     }
@@ -125,7 +136,7 @@ class PlayerActivity : Activity() {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus) {
             enterImmersiveMode()
-            playerView.showController()
+            showControllerTemporarily()
         }
     }
 
@@ -143,21 +154,21 @@ class PlayerActivity : Activity() {
                 KeyEvent.KEYCODE_HEADSETHOOK -> {
                     activePlayer?.let {
                         if (it.isPlaying) it.pause() else it.play()
-                        playerView.showController()
+                        showControllerTemporarily()
                     }
                     return true
                 }
 
                 KeyEvent.KEYCODE_MEDIA_PLAY -> {
                     activePlayer?.play()
-                    playerView.showController()
+                    showControllerTemporarily()
                     return true
                 }
 
                 KeyEvent.KEYCODE_MEDIA_PAUSE,
                 KeyEvent.KEYCODE_MEDIA_STOP -> {
                     activePlayer?.pause()
-                    playerView.showController()
+                    showControllerTemporarily()
                     return true
                 }
 
@@ -174,6 +185,19 @@ class PlayerActivity : Activity() {
         }
 
         return super.dispatchKeyEvent(event)
+    }
+
+    private fun showControllerTemporarily() {
+        if (!::playerView.isInitialized || resultSent) {
+            return
+        }
+
+        playerView.removeCallbacks(hideControllerRunnable)
+        playerView.showController()
+        playerView.postDelayed(
+            hideControllerRunnable,
+            CONTROLLER_HIDE_DELAY_MS
+        )
     }
 
     private fun initialisePlayer() {
@@ -291,7 +315,7 @@ class PlayerActivity : Activity() {
             exoPlayer.play()
         }
 
-        playerView.showController()
+        showControllerTemporarily()
     }
 
     private fun buildMediaItem(mimeTypeOverride: String? = null): MediaItem {
@@ -458,10 +482,14 @@ class PlayerActivity : Activity() {
             .coerceAtMost(duration)
 
         activePlayer.seekTo(target)
-        playerView.showController()
+        showControllerTemporarily()
     }
 
     private fun releasePlayer() {
+        if (::playerView.isInitialized) {
+            playerView.removeCallbacks(hideControllerRunnable)
+        }
+
         val activePlayer = player ?: return
 
         restorePositionMs = max(0L, activePlayer.currentPosition)
