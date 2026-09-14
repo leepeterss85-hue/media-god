@@ -36,6 +36,16 @@ import PlaybackUpdateNotice from "@/components/mg/PlaybackUpdateNotice";
 import FireTvAppUpdateNotice from "@/components/mg/FireTvAppUpdateNotice";
 import AndroidMobileAppUpdateNotice from "@/components/mg/AndroidMobileAppUpdateNotice";
 
+const SETTINGS_TOOL_VIEWS = new Set([
+  "watchparty",
+  "rdlib",
+  "downloads",
+  "remote",
+  "addons",
+  "sources",
+  "updates",
+]);
+
 const normaliseMediaType = (
   item
 ) => {
@@ -463,6 +473,21 @@ function MediaGodApp() {
         ) {
           setSearchOpen(
             false
+          );
+
+          return true;
+        }
+
+        /*
+         * Utility pages opened from Settings return to Settings.
+         */
+        if (
+          SETTINGS_TOOL_VIEWS.has(
+            view
+          )
+        ) {
+          setView(
+            "settings"
           );
 
           return true;
