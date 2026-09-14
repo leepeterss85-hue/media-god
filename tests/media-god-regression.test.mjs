@@ -29,6 +29,7 @@ import {
   chooseRequestedTorrentFileForPlayback,
   chooseVideoFileForPlayback,
   normaliseRequestedFileIndex,
+  torrentSelectionMetadataPending,
 } from "../base44/functions/realDebrid/regressionHelpers.js";
 import {
   guideNameAliases,
@@ -417,6 +418,30 @@ test("opaque Comet uncached rows remain comet_uncached", () => {
   assert.equal(
     chooseDebridResolutionStrategy({ cometUncached: true }),
     "comet_uncached"
+  );
+});
+
+test("Real-Debrid waiting-selection race with no files remains preparing", () => {
+  assert.equal(
+    torrentSelectionMetadataPending({
+      status: "waiting_files_selection",
+      files: [],
+    }),
+    true
+  );
+  assert.equal(
+    torrentSelectionMetadataPending({
+      status: "waiting_files_selection",
+      files: [{ id: 1, path: "/Movie.1080p.mkv" }],
+    }),
+    false
+  );
+  assert.equal(
+    torrentSelectionMetadataPending({
+      status: "downloading",
+      files: [],
+    }),
+    false
   );
 });
 
