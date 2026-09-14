@@ -14,6 +14,8 @@ import StreamingProviderLogos from "@/components/mg/StreamingProviderLogos";
 import FeaturedSpotlight from "@/components/mg/FeaturedSpotlight";
 import useDebouncedValue from "@/components/mg/useDebouncedValue";
 
+const PosterImage = /** @type {any} */ (Image);
+
 const FEATURED_SHOWS = [{ tmdb_id: "106159", title: "Debris" }];
 
 const COUNTRIES = [
@@ -324,7 +326,7 @@ export default function TvShowsView() {
               className="mg-fire-tv-library-card group min-w-0"
             >
               <div className="relative aspect-[2/3] rounded-md 3xl:rounded-lg overflow-hidden border border-white/10 bg-mg-card">
-                <Image
+                <PosterImage
                   src={show.poster_url}
                   alt={show.title}
                   className="w-full h-full object-cover"
