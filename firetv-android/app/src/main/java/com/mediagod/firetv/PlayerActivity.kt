@@ -40,6 +40,8 @@ class PlayerActivity : Activity() {
         const val EXTRA_DURATION_MS = "mg_duration_ms"
         const val EXTRA_MESSAGE = "mg_message"
         const val EXTRA_SELECTED_SOURCE_INDEX = "mg_selected_source_index"
+
+        private const val CONTROLLER_HIDE_DELAY_MS = 2500L
     }
 
     private data class NativeSource(
@@ -69,6 +71,13 @@ class PlayerActivity : Activity() {
     private var shouldPlayWhenReady = true
     private var resultSent = false
     private var genericHttpsMimeRetryIndex = 0
+
+    private val hideControllerRunnable = Runnable {
+        if (!resultSent && ::playerView.isInitialized) {
+            playerView.hideController()
+        }
+    }
+
     private val hideSourceSelectorRunnable = Runnable {
         if (!resultSent && ::sourceSpinner.isInitialized) {
             hideSourceSelector()
@@ -126,8 +135,8 @@ class PlayerActivity : Activity() {
             id = View.generateViewId()
             setBackgroundColor(Color.BLACK)
             useController = true
-            controllerAutoShow = true
-            controllerHideOnTouch = false
+            controllerAutoShow = false
+            controllerHideOnTouch = true
             controllerShowTimeoutMs = 2500
             setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
             isFocusable = true
@@ -190,6 +199,9 @@ class PlayerActivity : Activity() {
         if (::sourceSpinner.isInitialized) {
             sourceSpinner.removeCallbacks(hideSourceSelectorRunnable)
         }
+        if (::playerView.isInitialized) {
+            playerView.removeCallbacks(hideControllerRunnable)
+        }
         releasePlayer()
         super.onDestroy()
     }
@@ -198,7 +210,7 @@ class PlayerActivity : Activity() {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus) {
             enterImmersiveMode()
-            playerView.showController()
+            showControllerTemporarily()
         }
     }
 
@@ -246,21 +258,21 @@ class PlayerActivity : Activity() {
                 KeyEvent.KEYCODE_HEADSETHOOK -> {
                     activePlayer?.let {
                         if (it.isPlaying) it.pause() else it.play()
-                        playerView.showController()
+                        showControllerTemporarily()
                     }
                     return true
                 }
 
                 KeyEvent.KEYCODE_MEDIA_PLAY -> {
                     activePlayer?.play()
-                    playerView.showController()
+                    showControllerTemporarily()
                     return true
                 }
 
                 KeyEvent.KEYCODE_MEDIA_PAUSE,
                 KeyEvent.KEYCODE_MEDIA_STOP -> {
                     activePlayer?.pause()
-                    playerView.showController()
+                    showControllerTemporarily()
                     return true
                 }
 
@@ -282,13 +294,35 @@ class PlayerActivity : Activity() {
     private fun dp(value: Int): Int =
         (value * resources.displayMetrics.density).toInt()
 
+    private fun showControllerTemporarily() {
+        if (!::playerView.isInitialized || resultSent) {
+            return
+        }
+
+        playerView.removeCallbacks(hideControllerRunnable)
+        playerView.showController()
+        playerView.postDelayed(
+            hideControllerRunnable,
+            CONTROLLER_HIDE_DELAY_MS
+        )
+    }
+
+    private fun hideControllerNow() {
+        if (!::playerView.isInitialized) {
+            return
+        }
+
+        playerView.removeCallbacks(hideControllerRunnable)
+        playerView.hideController()
+    }
+
     private fun showSourceSelector() {
         if (nativeSources.size <= 1 || resultSent) return
 
         sourceSpinner.removeCallbacks(hideSourceSelectorRunnable)
         sourceSpinner.visibility = View.VISIBLE
         sourceSpinner.requestFocus()
-        playerView.showController()
+        showControllerTemporarily()
         sourceSpinner.post {
             if (!resultSent && sourceSpinner.visibility == View.VISIBLE) {
                 sourceSpinner.performClick()
@@ -305,6 +339,7 @@ class PlayerActivity : Activity() {
         sourceSpinner.removeCallbacks(hideSourceSelectorRunnable)
         sourceSpinner.visibility = View.GONE
         playerView.requestFocus()
+        hideControllerNow()
         return true
     }
 
@@ -416,8 +451,6 @@ class PlayerActivity : Activity() {
         return Spinner(this, Spinner.MODE_DROPDOWN).apply {
             id = View.generateViewId()
             adapter = sourceAdapter
-            // Keep the selector off the picture during normal playback. The
-            // Fire TV Menu button or D-pad Up opens it only when needed.
             visibility = View.GONE
             isFocusable = true
             isFocusableInTouchMode = false
@@ -471,7 +504,7 @@ class PlayerActivity : Activity() {
         releasePlayer()
         initialisePlayer()
         sourceSpinner.setSelection(activeSourceIndex, false)
-        playerView.showController()
+        showControllerTemporarily()
         playerView.requestFocus()
     }
 
@@ -506,13 +539,6 @@ class PlayerActivity : Activity() {
         val mediaSourceFactory = DefaultMediaSourceFactory(this)
             .setDataSourceFactory(dataSourceFactory)
 
-        /*
-         * Fire TV models expose different hardware decoders and HDMI
-         * passthrough combinations. Let Media3 fall back to another decoder
-         * when the preferred one rejects a stream instead of immediately
-         * returning the source to the web player. This materially helps HEVC,
-         * AV1, VP9, MPEG-2, AC3/EAC3 and model-dependent DTS playback.
-         */
         val renderersFactory = DefaultRenderersFactory(this)
             .setEnableDecoderFallback(true)
 
@@ -556,13 +582,6 @@ class PlayerActivity : Activity() {
             }
 
             override fun onPlayerError(error: PlaybackException) {
-                /*
-                 * Extensionless HTTPS live endpoints are common in IPTV/CDN
-                 * lists. Media3 cannot always infer whether those URLs are
-                 * HLS or DASH from the address alone, so retry an otherwise
-                 * unknown HTTPS source with explicit adaptive MIME types
-                 * before returning the failure to the web catalogue.
-                 */
                 if (retryUnknownHttpsSourceType(exoPlayer)) {
                     return
                 }
@@ -592,7 +611,7 @@ class PlayerActivity : Activity() {
             exoPlayer.play()
         }
 
-        playerView.showController()
+        showControllerTemporarily()
     }
 
     private fun buildMediaItem(mimeTypeOverride: String? = null): MediaItem {
@@ -687,7 +706,7 @@ class PlayerActivity : Activity() {
             return false
         }
 
-        val suppliedMime = payload.optString("mimeType").trim()
+        val suppliedMime = currentSourceMimeType()
         if (suppliedMime.isNotBlank() || inferPrimaryMimeType(streamUrl) != null) {
             return false
         }
@@ -748,10 +767,14 @@ class PlayerActivity : Activity() {
             .coerceAtMost(duration)
 
         activePlayer.seekTo(target)
-        playerView.showController()
+        showControllerTemporarily()
     }
 
     private fun releasePlayer() {
+        if (::playerView.isInitialized) {
+            playerView.removeCallbacks(hideControllerRunnable)
+        }
+
         val activePlayer = player ?: return
 
         restorePositionMs = max(0L, activePlayer.currentPosition)
