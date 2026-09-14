@@ -30,6 +30,21 @@ export const chooseDebridResolutionStrategy = (
     return "cached_debrid";
   }
 
+  /*
+   * A Comet [RD⬇] row can contain a magnet that Media God enriched only with
+   * generic public fallback trackers. Those trackers are useful as a last
+   * resort, but they are not the torrent-specific metadata Comet uses for its
+   * own playback endpoint. Preserve the explicit comet_uncached strategy in
+   * that case so the device can ask Comet to start the exact torrent and then
+   * adopt the resulting Real-Debrid job by info hash.
+   */
+  if (
+    existingStrategy === "comet_uncached" &&
+    item?.torrentMetadataSource === "public_fallback"
+  ) {
+    return "comet_uncached";
+  }
+
   if (
     existingStrategy === "rd_magnet" ||
     debridTorrentHasMetadata(item)
