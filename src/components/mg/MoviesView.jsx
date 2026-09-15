@@ -10,30 +10,15 @@ import {
 } from "@/components/mg/filterOptions";
 import DetailModal from "@/components/mg/DetailModal";
 import StreamingProviderLogos from "@/components/mg/StreamingProviderLogos";
+import {
+  detectStreamingRegion,
+  getStreamingRegionOverride,
+  setStreamingRegionOverride,
+} from "@/components/mg/streamingRegion";
+import { COUNTRY_OPTIONS } from "@/components/mg/countryOptions";
 import useDebouncedValue from "@/components/mg/useDebouncedValue";
 
 const PosterImage = /** @type {any} */ (Image);
-
-const COUNTRIES = [
-  { code: "", label: "All Countries" },
-  { code: "GB", label: "United Kingdom" },
-  { code: "US", label: "United States" },
-  { code: "JP", label: "Japan" },
-  { code: "KR", label: "South Korea" },
-  { code: "IN", label: "India" },
-  { code: "FR", label: "France" },
-  { code: "DE", label: "Germany" },
-  { code: "ES", label: "Spain" },
-  { code: "IT", label: "Italy" },
-  { code: "AU", label: "Australia" },
-  { code: "CA", label: "Canada" },
-  { code: "MX", label: "Mexico" },
-  { code: "BR", label: "Brazil" },
-  { code: "CN", label: "China" },
-  { code: "TR", label: "Turkey" },
-  { code: "NL", label: "Netherlands" },
-  { code: "SE", label: "Sweden" },
-];
 
 const CATEGORIES = [
   { id: "now_playing", label: "In Cinemas" },
@@ -52,7 +37,7 @@ export default function MoviesView() {
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
-  const [country, setCountry] = useState("");
+  const [country, setCountry] = useState(() => getStreamingRegionOverride());
   const [category, setCategory] = useState("now_playing");
   const [genre, setGenre] = useState("");
   const [year, setYear] = useState("");
@@ -62,6 +47,7 @@ export default function MoviesView() {
   const { toast } = useToast();
   const requestRef = useRef(0);
   const debouncedQuery = useDebouncedValue(query, 180);
+  const streamingRegion = country || detectStreamingRegion();
 
   useEffect(() => {
     const requestId = ++requestRef.current;
@@ -72,6 +58,7 @@ export default function MoviesView() {
         media_type: "movie",
         category,
         country,
+        region: streamingRegion,
         genre,
         year,
         language,
@@ -90,7 +77,7 @@ export default function MoviesView() {
           setLoading(false);
         }
       });
-  }, [country, category, genre, year, language, debouncedQuery]);
+  }, [country, category, genre, year, language, debouncedQuery, streamingRegion]);
 
   const addToWatchlist = async (movie) => {
     try {
@@ -174,10 +161,15 @@ export default function MoviesView() {
             <Globe className="w-4 h-4 3xl:w-5 3xl:h-5 absolute left-3 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
             <select
               value={country}
-              onChange={(event) => setCountry(event.target.value)}
+              onChange={(event) => {
+                const nextCountry = event.target.value;
+                setCountry(nextCountry);
+                setStreamingRegionOverride(nextCountry);
+              }}
+              aria-label="Choose country for movies and streaming services"
               className={`${selectClass} pl-10 3xl:pl-11`}
             >
-              {COUNTRIES.map((item) => (
+              {COUNTRY_OPTIONS.map((item) => (
                 <option key={item.code} value={item.code} className="bg-mg-card">
                   {item.label}
                 </option>
@@ -249,7 +241,7 @@ export default function MoviesView() {
                   <StreamingProviderLogos
                     tmdbId={movie.id || movie.tmdb_id}
                     mediaType="movie"
-                    region="GB"
+                    region={streamingRegion}
                     limit={3}
                     initialProviders={movie.watch_providers}
                   />
