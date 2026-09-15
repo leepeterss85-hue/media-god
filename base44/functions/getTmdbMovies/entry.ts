@@ -103,6 +103,32 @@ const todayUtcYmd = () => {
   return `${yyyy}-${mm}-${dd}`;
 };
 
+const requestRegion = (req) => {
+  const headerCandidates = [
+    'cf-ipcountry',
+    'x-vercel-ip-country',
+    'cloudfront-viewer-country',
+    'x-country-code',
+  ];
+
+  for (const header of headerCandidates) {
+    const value = String(req?.headers?.get?.(header) || '').trim().toUpperCase();
+    if (/^[A-Z]{2}$/.test(value)) return value;
+  }
+
+  const acceptLanguage = String(
+    req?.headers?.get?.('accept-language') || ''
+  );
+
+  for (const part of acceptLanguage.split(',')) {
+    const locale = part.split(';')[0].trim();
+    const match = locale.match(/[-_]([A-Za-z]{2})(?:[-_]|$)/);
+    if (match?.[1]) return match[1].toUpperCase();
+  }
+
+  return 'US';
+};
+
 const normaliseSearchTitle = (value) =>
   String(value || '')
     .normalize('NFKD')
@@ -292,7 +318,6 @@ const fetchWatchProviders = async (
 
     const regional =
       data?.results?.[region] ||
-      data?.results?.GB ||
       {};
 
     const groups = [
@@ -552,13 +577,13 @@ export default async function(req) {
     const region =
       String(
         body.region ||
-        'GB'
+        requestRegion(req)
       ).toUpperCase();
 
     const timezone =
       String(
         body.timezone ||
-        'Europe/London'
+        'UTC'
       );
 
     const requestedDate =
@@ -1018,8 +1043,6 @@ export default async function(req) {
             providerResults[
               region
             ] ||
-            providerResults.GB ||
-            providerResults.US ||
             {};
 
           const link =
