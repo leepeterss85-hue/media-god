@@ -155,6 +155,127 @@ const episodeNumbersFromTitle = (title) => {
   };
 };
 
+const normaliseHintKey = (value) =>
+  String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+
+const hintString = (value) => {
+  if (value == null) return "";
+  if (["string", "number", "boolean"].includes(typeof value)) {
+    return String(value).replace(/\s+/g, " ").trim();
+  }
+  return "";
+};
+
+const findNestedHint = (value, wantedKeys, depth = 0) => {
+  if (!value || typeof value !== "object" || depth > 3) {
+    return "";
+  }
+
+  const wanted = new Set(wantedKeys.map(normaliseHintKey));
+  const entries = Array.isArray(value)
+    ? value.slice(0, 16).map((item, index) => [String(index), item])
+    : Object.entries(value).slice(0, 64);
+
+  for (const [key, item] of entries) {
+    if (wanted.has(normaliseHintKey(key))) {
+      const direct = hintString(item);
+      if (direct) return direct;
+    }
+  }
+
+  for (const [, item] of entries) {
+    const nested = findNestedHint(item, wantedKeys, depth + 1);
+    if (nested) return nested;
+  }
+
+  return "";
+};
+
+const safeObjectHint = (value) => {
+  if (!value || typeof value !== "object") return "";
+  try {
+    return JSON.stringify(value).replace(/\s+/g, " ").slice(0, 5000);
+  } catch {
+    return "";
+  }
+};
+
+const nativeSourceHints = (item = {}) => {
+  const mediaInfo =
+    item?.mediaInfo && typeof item.mediaInfo === "object"
+      ? item.mediaInfo
+      : item?.media_info && typeof item.media_info === "object"
+        ? item.media_info
+        : null;
+
+  const videoCodec =
+    hintString(item?.videoCodec || item?.video_codec || item?.vcodec) ||
+    findNestedHint(mediaInfo, [
+      "videoCodec",
+      "video_codec",
+      "vcodec",
+      "videoCodecName",
+      "video_codec_name",
+    ]);
+
+  const audioCodec =
+    hintString(item?.audioCodec || item?.audio_codec || item?.acodec) ||
+    findNestedHint(mediaInfo, [
+      "audioCodec",
+      "audio_codec",
+      "acodec",
+      "audioCodecName",
+      "audio_codec_name",
+    ]);
+
+  const container =
+    hintString(
+      item?.container ||
+        item?.containerName ||
+        item?.container_name ||
+        item?.formatName ||
+        item?.format_name
+    ) ||
+    findNestedHint(mediaInfo, [
+      "container",
+      "containerName",
+      "container_name",
+      "formatName",
+      "format_name",
+      "format",
+    ]);
+
+  const hintText = [
+    item?.label,
+    item?.name,
+    item?.title,
+    item?.filename,
+    item?.file,
+    item?.path,
+    item?.quality,
+    item?.format,
+    item?.codec,
+    item?.codecs,
+    videoCodec,
+    audioCodec,
+    container,
+    safeObjectHint(mediaInfo),
+  ]
+    .map(hintString)
+    .filter(Boolean)
+    .join(" • ")
+    .slice(0, 7000);
+
+  return {
+    videoCodec,
+    audioCodec,
+    container,
+    hintText,
+  };
+};
+
 export const playNativeFireTv = ({
   requestId,
   url,
@@ -238,50 +359,11 @@ export const playNativeFireTv = ({
     };
   }
 
-  const payload = {
-    requestId: String(requestId || `${Date.now()}`),
-    url: streamUrl,
-    title: String(title || ""),
-    poster: String(poster || ""),
-    startPositionMs: Math.max(0, Number(startPositionMs || 0)),
-    live: Boolean(live),
-    mediaType,
-    tmdbId,
-    season,
-    episode,
-    canChooseEpisode,
-    headers:
-      headers && typeof headers === "object" && !Array.isArray(headers)
-        ? headers
-        : {},
-    mimeType: String(mimeType || "").trim(),
-    drm:
-      drm && typeof drm === "object" && !Array.isArray(drm)
-        ? {
-            scheme: String(drm?.scheme || "widevine").trim(),
-            licenseUrl: String(drm?.licenseUrl || drm?.license_url || "").trim(),
-            headers:
-              drm?.headers && typeof drm.headers === "object" && !Array.isArray(drm.headers)
-                ? drm.headers
-                : {},
-          }
-        : null,
-    audioLanguage: String(audioLanguage || "en"),
-    subtitleLanguage: String(subtitleLanguage || "en"),
-    subtitlesEnabled: Boolean(subtitlesEnabled),
-    subtitles: Array.isArray(subtitles)
-      ? subtitles
-          .map((track) => ({
-            url: String(track?.url || track?.src || "").trim(),
-            language: String(track?.language || track?.lang || "").trim(),
-            label: String(track?.label || track?.name || "").trim(),
-            mimeType: String(track?.mimeType || track?.mime_type || "").trim(),
-          }))
-          .filter((track) => /^https?:\/\//i.test(track.url))
-          .slice(0, 20)
-      : [],
-    sources: Array.isArray(sources)
-      ? sources.map((item, index) => ({
+  const nativeSources = Array.isArray(sources)
+    ? sources.map((item, index) => {
+        const hints = nativeSourceHints(item);
+
+        return {
           label: String(
             item?.label || item?.name || item?.sourceName || `Source ${index + 1}`
           )
@@ -290,6 +372,10 @@ export const playNativeFireTv = ({
           sourceName: String(item?.sourceName || "").replace(/\s+/g, " ").trim(),
           url: String(item?.url || item?.src || item?.magnet || item?.magnetLink || "").trim(),
           mimeType: String(item?.mimeType || item?.mime_type || "").trim(),
+          videoCodec: hints.videoCodec,
+          audioCodec: hints.audioCodec,
+          container: hints.container,
+          hintText: hints.hintText,
           drm:
             item?.drm && typeof item.drm === "object" && !Array.isArray(item.drm)
               ? {
@@ -316,8 +402,73 @@ export const playNativeFireTv = ({
                   !Array.isArray(item.requestHeaders)
                 ? item.requestHeaders
                 : {},
-        }))
+        };
+      })
+    : [];
+
+  const selectedHints =
+    nativeSources.find(
+      (item) => Number(item.webIndex) === Number(activeSourceIndex)
+    ) ||
+    nativeSources.find((item) => item.url === streamUrl) ||
+    null;
+
+  const payload = {
+    requestId: String(requestId || `${Date.now()}`),
+    url: streamUrl,
+    title: String(title || ""),
+    poster: String(poster || ""),
+    startPositionMs: Math.max(0, Number(startPositionMs || 0)),
+    live: Boolean(live),
+    mediaType,
+    tmdbId,
+    season,
+    episode,
+    canChooseEpisode,
+    headers:
+      headers && typeof headers === "object" && !Array.isArray(headers)
+        ? headers
+        : {},
+    mimeType: String(mimeType || "").trim(),
+    videoCodec: selectedHints?.videoCodec || "",
+    audioCodec: selectedHints?.audioCodec || "",
+    container: selectedHints?.container || "",
+    hintText: [
+      selectedHints?.hintText,
+      title,
+      mimeType,
+      streamUrl,
+    ]
+      .map(hintString)
+      .filter(Boolean)
+      .join(" • ")
+      .slice(0, 8000),
+    drm:
+      drm && typeof drm === "object" && !Array.isArray(drm)
+        ? {
+            scheme: String(drm?.scheme || "widevine").trim(),
+            licenseUrl: String(drm?.licenseUrl || drm?.license_url || "").trim(),
+            headers:
+              drm?.headers && typeof drm.headers === "object" && !Array.isArray(drm.headers)
+                ? drm.headers
+                : {},
+          }
+        : null,
+    audioLanguage: String(audioLanguage || "en"),
+    subtitleLanguage: String(subtitleLanguage || "en"),
+    subtitlesEnabled: Boolean(subtitlesEnabled),
+    subtitles: Array.isArray(subtitles)
+      ? subtitles
+          .map((track) => ({
+            url: String(track?.url || track?.src || "").trim(),
+            language: String(track?.language || track?.lang || "").trim(),
+            label: String(track?.label || track?.name || "").trim(),
+            mimeType: String(track?.mimeType || track?.mime_type || "").trim(),
+          }))
+          .filter((track) => /^https?:\/\//i.test(track.url))
+          .slice(0, 20)
       : [],
+    sources: nativeSources,
     activeSourceIndex: Math.max(0, Number(activeSourceIndex || 0)),
   };
 
