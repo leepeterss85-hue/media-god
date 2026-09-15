@@ -2879,6 +2879,44 @@ export default function VideoPlayer({
                         triggerController.abort();
                         window.clearTimeout(triggerTimer);
 
+                        if (
+                          restartData.error_code ===
+                          "RD_RESTART_RESUMED_STALE_PARTIAL"
+                        ) {
+                          markSourceFailed(activeIdx);
+                          markTorrentHashFailed(active);
+                          const nextSource = findNextPlayableSource(activeIdx);
+
+                          if (nextSource !== -1) {
+                            setRdResolving(false);
+                            setRdPolling(false);
+                            setRdTorrentId(null);
+                            setRdPreparation(null);
+                            setRdError("");
+                            switchToSource(nextSource, {
+                              preservePosition: true,
+                              statusMessage:
+                                `Real-Debrid re-created this torrent at the same stuck ${Math.round(Number(restartData.previous_progress || 0))}% and it still did not move. Trying a different torrent hash for the same title…`,
+                            });
+                            return;
+                          }
+
+                          setRdResolving(false);
+                          setRdPolling(false);
+                          setRdTorrentId(null);
+                          setRdPreparation((current) => ({
+                            ...(current || {}),
+                            status: "stalled",
+                            stallReason: "rd_partial_state_persisted",
+                            progress: Number(restartData.fresh_progress || restartData.previous_progress || 0),
+                            updatedAt: Date.now(),
+                          }));
+                          setRdError(
+                            `${restartData.error || "Real-Debrid kept the same stalled partial state for this torrent hash."} No different torrent hash is currently available for this title.`
+                          );
+                          return;
+                        }
+
                         if (restartData.status === "ready" && restartData.stream_url) {
                           setRdOverride({
                             src: restartData.stream_url,
@@ -3995,6 +4033,42 @@ export default function VideoPlayer({
                     );
 
                     const restartData = restartResponse?.data || {};
+
+                    if (
+                      restartData.error_code ===
+                      "RD_RESTART_RESUMED_STALE_PARTIAL"
+                    ) {
+                      markSourceFailed(activeIdx);
+                      markTorrentHashFailed(active);
+                      const nextSource = findNextPlayableSource(activeIdx);
+
+                      if (nextSource !== -1) {
+                        setRdPolling(false);
+                        setRdTorrentId(null);
+                        setRdPreparation(null);
+                        setRdError("");
+                        switchToSource(nextSource, {
+                          preservePosition: true,
+                          statusMessage:
+                            `Real-Debrid re-created this torrent at the same stuck ${Math.round(Number(restartData.previous_progress || latestProgress || 0))}% and it still did not move. Trying a different torrent hash for the same title…`,
+                        });
+                        return;
+                      }
+
+                      setRdPolling(false);
+                      setRdTorrentId(null);
+                      setRdPreparation((current) => ({
+                        ...(current || {}),
+                        status: "stalled",
+                        stallReason: "rd_partial_state_persisted",
+                        progress: Number(restartData.fresh_progress || restartData.previous_progress || latestProgress || 0),
+                        updatedAt: Date.now(),
+                      }));
+                      setRdError(
+                        `${restartData.error || "Real-Debrid kept the same stalled partial state for this torrent hash."} No different torrent hash is currently available for this title.`
+                      );
+                      return;
+                    }
 
                     if (restartData.status === "ready" && restartData.stream_url) {
                       setRdOverride({
@@ -5566,6 +5640,44 @@ export default function VideoPlayer({
           );
 
           const restartData = restartResponse?.data || {};
+
+          if (
+            restartData.error_code ===
+            "RD_RESTART_RESUMED_STALE_PARTIAL"
+          ) {
+            markSourceFailed(activeIdx);
+            markTorrentHashFailed(active);
+            const nextSource = findNextPlayableSource(activeIdx);
+
+            if (nextSource !== -1) {
+              setRdResolving(false);
+              setRdPolling(false);
+              setRdTorrentId(null);
+              setRdPreparation(null);
+              setRdError("");
+              switchToSource(nextSource, {
+                preservePosition: true,
+                statusMessage:
+                  `Real-Debrid re-created this torrent at the same stuck ${Math.round(Number(restartData.previous_progress || 0))}% and it still did not move. Trying a different torrent hash for the same title…`,
+              });
+              return;
+            }
+
+            setRdResolving(false);
+            setRdPolling(false);
+            setRdTorrentId(null);
+            setRdPreparation((current) => ({
+              ...(current || {}),
+              status: "stalled",
+              stallReason: "rd_partial_state_persisted",
+              progress: Number(restartData.fresh_progress || restartData.previous_progress || 0),
+              updatedAt: Date.now(),
+            }));
+            setRdError(
+              `${restartData.error || "Real-Debrid kept the same stalled partial state for this torrent hash."} No different torrent hash is currently available for this title.`
+            );
+            return;
+          }
 
           if (restartData.status === "ready" && restartData.stream_url) {
             setRdOverride({
