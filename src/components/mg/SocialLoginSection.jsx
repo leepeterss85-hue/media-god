@@ -1,9 +1,5 @@
-import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
-import { useToast } from "@/components/ui/use-toast";
-import { Loader2 } from "lucide-react";
+import React from "react";
 import GoogleIcon from "@/components/GoogleIcon";
-import { mediaGodAuthReturnUrl } from "@/lib/mediaGodAuth";
 
 export const FacebookIcon = ({ className = "w-5 h-5" }) => (
   <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
@@ -36,42 +32,14 @@ export const SOCIAL_LOGIN_PROVIDERS = [
   { id: "apple", label: "Apple", Icon: AppleIcon },
 ];
 
-// Social account sign-in section for the Settings page. Each provider uses
-// the platform's loginWithProvider, which redirects to the provider and back
-// to the app root after authentication.
+/*
+ * Login.jsx and Register.jsx import the shared provider definitions above.
+ * Settings used to render a second copy of the same social-login controls,
+ * which duplicated the sign-in experience after a user was already logged in.
+ * Keep the default export for backwards compatibility with SettingsView, but
+ * deliberately render nothing there so social sign-in exists only on the
+ * normal login/register screens.
+ */
 export default function SocialLoginSection() {
-  const { toast } = useToast();
-  const [busy, setBusy] = useState(null);
-
-  const connect = (id) => {
-    setBusy(id);
-    try {
-      base44.auth.loginWithProvider(id, mediaGodAuthReturnUrl("/"));
-    } catch (e) {
-      setBusy(null);
-      toast({ title: "Could not start sign-in", description: e.message, variant: "destructive" });
-    }
-  };
-
-  return (
-    <div className="bg-mg-card border border-white/10 rounded-lg p-4 mb-6">
-      <h2 className="text-sm font-bold text-white mb-1">Social Login</h2>
-      <p className="text-xs text-white/40 mb-3">
-        Sign in faster with a social account. You'll be redirected to the provider and back.
-      </p>
-      <div className="grid grid-cols-2 gap-2">
-        {SOCIAL_LOGIN_PROVIDERS.map(({ id, label, Icon }) => (
-          <button
-            key={id}
-            onClick={() => connect(id)}
-            disabled={busy !== null}
-            className="flex items-center justify-center gap-2 bg-mg-surface border border-white/10 rounded-lg py-2.5 text-sm text-white font-medium hover:bg-white/10 disabled:opacity-60 transition-colors"
-          >
-            {busy === id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Icon className="w-4 h-4" />}
-            {label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
+  return null;
 }
