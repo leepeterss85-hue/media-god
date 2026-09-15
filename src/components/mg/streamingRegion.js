@@ -65,6 +65,18 @@ export const detectStreamingTimezone = () => {
   }
 };
 
+export const getStreamingRegionOverride = () => {
+  if (typeof window === "undefined") return "";
+
+  try {
+    return normaliseStreamingRegion(
+      window.localStorage?.getItem(REGION_STORAGE_KEY)
+    );
+  } catch {
+    return "";
+  }
+};
+
 export const setStreamingRegionOverride = (value) => {
   const region = normaliseStreamingRegion(value);
   if (typeof window === "undefined") return region;
