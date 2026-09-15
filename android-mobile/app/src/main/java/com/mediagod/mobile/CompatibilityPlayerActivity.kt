@@ -48,10 +48,14 @@ class CompatibilityPlayerActivity : Activity() {
     private var startPositionMs = 0L
     private var pendingStartPositionMs = 0L
     private var resultSent = false
+    private var resumeAfterPause = false
 
     private val hideControlsRunnable = Runnable {
         if (!resultSent && ::controls.isInitialized) {
             controls.visibility = View.GONE
+            if (::statusText.isInitialized) {
+                statusText.visibility = View.GONE
+            }
         }
     }
 
@@ -86,6 +90,21 @@ class CompatibilityPlayerActivity : Activity() {
     override fun onResume() {
         super.onResume()
         enterImmersiveMode()
+
+        if (resumeAfterPause && !resultSent) {
+            resumeAfterPause = false
+            vlcPlayer?.play()
+        }
+    }
+
+    override fun onPause() {
+        val activePlayer = vlcPlayer
+        resumeAfterPause = activePlayer?.isPlaying == true
+        if (resumeAfterPause) {
+            activePlayer?.pause()
+        }
+        startPositionMs = max(0L, activePlayer?.time ?: startPositionMs)
+        super.onPause()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -111,7 +130,7 @@ class CompatibilityPlayerActivity : Activity() {
                 KeyEvent.KEYCODE_DPAD_CENTER,
                 KeyEvent.KEYCODE_ENTER,
                 KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
-                KeyEvent.KEYCODE_HEADSEHOOK -> {
+                KeyEvent.KEYCODE_HEADSETHOOK -> {
                     togglePlayback()
                     return true
                 }
@@ -271,10 +290,12 @@ class CompatibilityPlayerActivity : Activity() {
                     when (event.type) {
                         MediaPlayer.Event.Opening -> {
                             statusText.text = "Compatibility decoder · opening"
+                            statusText.visibility = View.VISIBLE
                         }
 
                         MediaPlayer.Event.Buffering -> {
                             statusText.text = "Compatibility decoder · buffering"
+                            statusText.visibility = View.VISIBLE
                         }
 
                         MediaPlayer.Event.Playing -> {
