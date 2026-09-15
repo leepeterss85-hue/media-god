@@ -931,6 +931,8 @@ export default async function (req) {
           episode: body.episode,
           forceAudioRescue:
             body.force_audio_rescue === true,
+          preferBrowserTranscode:
+            body.prefer_browser_transcode === true,
         }
       );
 
@@ -1030,6 +1032,8 @@ export default async function (req) {
               normaliseRequestedFileIndex(body.file_idx),
             forceAudioRescue:
               body.force_audio_rescue === true,
+            preferBrowserTranscode:
+              body.prefer_browser_transcode === true,
           }
         );
 
@@ -1206,6 +1210,8 @@ export default async function (req) {
             body.allow_transcode !== false,
           forceAudioRescue:
             body.force_audio_rescue === true,
+          preferBrowserTranscode:
+            body.prefer_browser_transcode === true,
         });
 
       if (playable.error) {
@@ -2207,6 +2213,9 @@ async function addMagnet({
 
     forceAudioRescue:
       body.force_audio_rescue === true,
+
+    preferBrowserTranscode:
+      body.prefer_browser_transcode === true,
   };
 
   /*
