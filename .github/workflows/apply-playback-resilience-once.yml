@@ -18,7 +18,9 @@ jobs:
           fetch-depth: 0
 
       - name: Apply advanced playback experience suite
-        run: python scripts/apply_playback_experience_suite.py
+        run: |
+          python scripts/apply_playback_experience_suite.py
+          python scripts/fix_playback_experience_check.py
 
       - name: Install Java 17
         uses: actions/setup-java@v4
