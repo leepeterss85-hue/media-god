@@ -501,6 +501,20 @@ test("Real-Debrid explicit file index wins when it points to a playable video", 
   assert.equal(selected?.id, 2);
 });
 
+test("Real-Debrid explicit file index never forces a trailer/sample over the main feature", () => {
+  const files = [
+    { id: 1, path: "/Oasis.Dont.Look.Back.In.Anger.1080p.mkv", bytes: 2_900_000_000 },
+    { id: 2, path: "/Oasis.Dont.Look.Back.In.Anger.Trailer.1080p.mp4", bytes: 73_400_000 },
+  ];
+
+  const selected = chooseRequestedTorrentFileForPlayback(files, {
+    file_idx: 1,
+    title: "Oasis Dont Look Back In Anger",
+  });
+
+  assert.equal(selected?.id, 1);
+});
+
 test("Real-Debrid movie selection penalises samples and prefers the titled main feature", () => {
   const files = [
     { id: 1, path: "/Sample.mkv", bytes: 12_000_000_000 },
