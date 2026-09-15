@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 9,
-  "versionName": "1.0.8",
+  "versionCode": 10,
+  "versionName": "1.0.9",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.8 improves 4K/HDR playback on phones and tablets with Media3 1.11.0 plus device-aware UHD capability checks. It now considers 4K/8K size, frame rate, 10-bit/Main10 and Dolby Vision profile hints before choosing Media3 or the compatibility decoder, while newer Android devices can use their stronger HEVC, AV1, VP9 and HDR hardware directly.",
+  "message": "Media God Mobile 1.0.9 fixes Torrentio playback routing. Torrentio/debrid torrent and remux sources now bypass the native Media3 surface and open directly in Media God's LibVLC compatibility player, while non-Torrentio sources keep the device-aware 4K/HDR Media3 routing added in 1.0.8.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
