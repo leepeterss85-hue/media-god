@@ -9,7 +9,7 @@ const apps = [
     dir: "firetv-android",
     packagePath: "com/mediagod/firetv",
     namespace: "com.mediagod.firetv",
-    expectedVersion: "1.4.17",
+    expectedVersion: "1.4.18",
     expectedOrientation: "landscape",
   },
   {
@@ -17,7 +17,7 @@ const apps = [
     dir: "android-mobile",
     packagePath: "com/mediagod/mobile",
     namespace: "com.mediagod.mobile",
-    expectedVersion: "1.0.6",
+    expectedVersion: "1.0.7",
     expectedOrientation: "sensor",
   },
 ];
@@ -37,6 +37,10 @@ const requireFile = (filePath, label) => {
 const videoPlayer = requireFile(
   "src/components/mg/VideoPlayer.jsx",
   "web/native player coordination"
+);
+const nativeBridge = requireFile(
+  "src/components/mg/nativeFireTvBridge.js",
+  "web/native codec metadata bridge"
 );
 
 const nativeCoordinationChecks = [
@@ -58,6 +62,18 @@ const nativeCoordinationChecks = [
     ),
     "native Live TV duplicate fallback-timer guard",
   ],
+  [
+    nativeBridge.includes("videoCodec") &&
+      nativeBridge.includes("audioCodec") &&
+      nativeBridge.includes("container") &&
+      nativeBridge.includes("hintText"),
+    "native codec/container hint payload",
+  ],
+  [
+    nativeBridge.includes("mediaInfo") &&
+      nativeBridge.includes("findNestedHint"),
+    "nested media metadata extraction",
+  ],
 ];
 
 for (const [ok, label] of nativeCoordinationChecks) {
@@ -78,6 +94,10 @@ for (const app of apps) {
   const compatibilityActivity = requireFile(
     `${javaRoot}/CompatibilityPlayerActivity.kt`,
     `${app.name} compatibility player`
+  );
+  const compatibilityRouter = requireFile(
+    `${javaRoot}/PlaybackCompatibilityRouter.kt`,
+    `${app.name} codec preflight router`
   );
   requireFile(`${javaRoot}/AppUpdater.kt`, `${app.name} updater`);
   requireFile(`${app.dir}/app/src/main/res/xml/network_security_config.xml`, `${app.name} network security`);
@@ -105,9 +125,11 @@ for (const app of apps) {
     [manifest.includes(`android:screenOrientation="${app.expectedOrientation}"`), "player orientation"],
     [mainActivity.includes('addJavascriptInterface'), "JavaScript bridge"],
     [mainActivity.includes('mg:native-player-result'), "native result event"],
+    [mainActivity.includes('PlaybackCompatibilityRouter.decide(payload)'), "preflight routing decision"],
+    [mainActivity.includes('CompatibilityPlayerActivity::class.java'), "direct compatibility player routing"],
     [playerActivity.includes('DefaultHttpDataSource.Factory'), "Media3 HTTP data source"],
     [playerActivity.includes('setEnableDecoderFallback(true)'), "device decoder fallback"],
-    [playerActivity.includes('CompatibilityPlayerActivity::class.java'), "compatibility decoder launch"],
+    [playerActivity.includes('CompatibilityPlayerActivity::class.java'), "runtime compatibility decoder fallback"],
     [playerActivity.includes('MimeTypes.APPLICATION_M3U8'), "HLS MIME fallback"],
     [playerActivity.includes('MimeTypes.APPLICATION_MPD'), "DASH MIME fallback"],
     [playerActivity.includes('video/x-matroska'), "Matroska MIME recognition"],
@@ -115,6 +137,12 @@ for (const app of apps) {
     [compatibilityActivity.includes('LibVLC('), "LibVLC engine"],
     [compatibilityActivity.includes('setHWDecoderEnabled(true, false)'), "hardware-first VLC fallback"],
     [compatibilityActivity.includes('IMedia.Slave.Type.Subtitle'), "compatibility subtitle support"],
+    [compatibilityRouter.includes('MediaCodecList(MediaCodecList.ALL_CODECS)'), "device codec registry preflight"],
+    [compatibilityRouter.includes('video:') && compatibilityRouter.includes('audio:'), "codec-class routing"],
+    [compatibilityRouter.includes('prores') && compatibilityRouter.includes('vc1'), "extended video codec detection"],
+    [compatibilityRouter.includes('dts-hd') && compatibilityRouter.includes('truehd'), "extended audio codec detection"],
+    [compatibilityRouter.includes('container:legacy'), "legacy container preflight"],
+    [compatibilityRouter.includes('payload.optJSONObject("drm")'), "DRM Media3 guard"],
   ];
 
   for (const [ok, label] of checks) {
