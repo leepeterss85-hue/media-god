@@ -1438,6 +1438,17 @@ export default async function(req) {
       language ||
       providerIds.length > 0;
 
+    const includeGlobalReleases =
+      mediaType === 'movie' &&
+      Boolean(body.include_global_releases) &&
+      !query &&
+      providerIds.length === 0 &&
+      [
+        'now_playing',
+        'upcoming',
+        'movie_released_today',
+      ].includes(category);
+
     const buildUrl =
       (page) => {
         /*
@@ -1664,6 +1675,15 @@ export default async function(req) {
         return `${TMDB_BASE}/${path}?${params.toString()}`;
       };
 
+    const buildGlobalReleaseUrl =
+      (page) => {
+        const url = new URL(buildUrl(page));
+        url.searchParams.delete('region');
+        url.searchParams.delete('watch_region');
+        url.searchParams.delete('with_origin_country');
+        return url.toString();
+      };
+
     const providerPageCount =
       Math.max(
         1,
@@ -1722,6 +1742,32 @@ export default async function(req) {
               )
         )
       );
+
+    if (includeGlobalReleases) {
+      const globalPageCount = Math.min(pages, 3);
+      const globalResults = await Promise.all(
+        Array.from(
+          { length: globalPageCount },
+          (_, i) =>
+            fetch(
+              buildGlobalReleaseUrl(i + 1),
+              {
+                headers: {
+                  Accept: 'application/json',
+                },
+              }
+            )
+              .then((r) =>
+                r.ok
+                  ? r.json()
+                  : { results: [] }
+              )
+              .catch(() => ({ results: [] }))
+        )
+      );
+
+      pageResults.push(...globalResults);
+    }
 
     const seen =
       new Set();
