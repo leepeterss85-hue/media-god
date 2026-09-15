@@ -5068,6 +5068,7 @@ export default function VideoPlayer({
       }
 
       const url =
+        alternateEmbedFallback?.url ||
         rdOverride?.src ||
         active?.src ||
         active?.url;
@@ -5133,9 +5134,11 @@ export default function VideoPlayer({
           "",
 
         source_type:
-          rdOverride
-            ? "rd"
-            : "file",
+          alternateEmbedFallback?.url
+            ? "provider"
+            : rdOverride
+              ? "rd"
+              : "file",
       };
 
       const id =
@@ -5208,6 +5211,31 @@ export default function VideoPlayer({
 
   saveProgressRef.current =
     saveProgress;
+
+  useEffect(() => {
+    if (!alternateEmbedFallback?.url) return undefined;
+
+    const onAlternatePlayerEvent = (event) => {
+      if (event?.origin !== "https://vaplayer.ru") return;
+      if (event?.data?.type !== "PLAYER_EVENT") return;
+
+      const payload = event?.data?.data || {};
+      const time = Math.max(0, Number(payload?.player_progress || 0));
+      const duration = Math.max(0, Number(payload?.player_duration || 0));
+
+      if (time > 0) {
+        lastPosRef.current = { t: time, d: duration };
+        saveProgressRef.current?.(
+          time,
+          duration,
+          payload?.player_status === "completed"
+        );
+      }
+    };
+
+    window.addEventListener("message", onAlternatePlayerEvent);
+    return () => window.removeEventListener("message", onAlternatePlayerEvent);
+  }, [alternateEmbedFallback?.url]);
 
   useEffect(
     () => {
