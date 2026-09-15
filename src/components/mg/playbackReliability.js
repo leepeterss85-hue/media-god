@@ -281,3 +281,150 @@ export const clearPlaybackReliability = () => {
     // Best effort only.
   }
 };
+
+/*
+ * A permanent Real-Debrid rejection is different from an ordinary playback
+ * failure or an uncached torrent that simply needs more time. VideoPlayer
+ * deliberately keeps normal uncached torrents selected so users can see their
+ * cache progress, but RD 451/infringing-file responses can never recover by
+ * retrying the same hash. The player UI already renders the source selector in
+ * the user's chosen quality order, so this guard advances that existing
+ * selector exactly as a manual choice would. VideoPlayer's own onChange path
+ * remains the only code that actually changes playback state.
+ *
+ * This also fixes the contradictory screen that said "trying another source"
+ * while leaving the rejected Torrentio row selected.
+ */
+const installPermanentRdRejectionFailover = () => {
+  if (
+    typeof window === "undefined" ||
+    typeof document === "undefined" ||
+    window.__MG_RD_REJECTION_FAILOVER_INSTALLED__ === true
+  ) {
+    return;
+  }
+
+  window.__MG_RD_REJECTION_FAILOVER_INSTALLED__ = true;
+
+  let scheduled = 0;
+  let lastFailureKey = "";
+  let lastFailureAt = 0;
+
+  const visible = (element) => {
+    if (!(element instanceof HTMLElement)) return false;
+    const rect = element.getBoundingClientRect();
+    if (rect.width < 2 || rect.height < 2) return false;
+    const style = window.getComputedStyle(element);
+    return (
+      style.display !== "none" &&
+      style.visibility !== "hidden" &&
+      Number(style.opacity || 1) > 0.02
+    );
+  };
+
+  const sourceSelect = (playerRoot) => {
+    const selects = Array.from(
+      playerRoot.querySelectorAll(
+        'select[aria-label="Choose playback source"], select[aria-label="Choose source or quality while loading"]'
+      )
+    ).filter(visible);
+
+    return selects[selects.length - 1] || null;
+  };
+
+  const advance = () => {
+    scheduled = 0;
+
+    const playerRoot = document.querySelector('[data-mg-player-root="true"]');
+    if (!(playerRoot instanceof HTMLElement) || !visible(playerRoot)) {
+      lastFailureKey = "";
+      return;
+    }
+
+    const text = String(playerRoot.textContent || "").replace(/\s+/g, " ").trim();
+    const permanentRejection =
+      /rejected by Real-Debrid|\b451\b|infringing[_ -]?file|copyright|infringing/i.test(text);
+
+    if (!permanentRejection) {
+      lastFailureKey = "";
+      return;
+    }
+
+    const select = sourceSelect(playerRoot);
+    if (!(select instanceof HTMLSelectElement) || select.options.length < 2) {
+      return;
+    }
+
+    const currentIndex = select.selectedIndex;
+    if (currentIndex < 0) return;
+
+    const currentOption = select.options[currentIndex];
+    const currentLabel = normaliseReliabilityLabel(
+      currentOption?.dataset?.mgSourceLabel || currentOption?.textContent || ""
+    );
+    const failureKey = `${String(select.value)}|${currentLabel}`;
+    const now = Date.now();
+
+    if (
+      failureKey === lastFailureKey &&
+      now - lastFailureAt < 12000
+    ) {
+      return;
+    }
+
+    let nextOption = null;
+    for (let index = currentIndex + 1; index < select.options.length; index += 1) {
+      const option = select.options[index];
+      const optionText = String(option?.textContent || "");
+      if (
+        option &&
+        !option.disabled &&
+        String(option.value) !== String(select.value) &&
+        !/^\s*Unavailable\s*[•·-]/i.test(optionText)
+      ) {
+        nextOption = option;
+        break;
+      }
+    }
+
+    if (!nextOption) {
+      return;
+    }
+
+    lastFailureKey = failureKey;
+    lastFailureAt = now;
+
+    if (currentLabel) {
+      recordPlaybackReliability(currentLabel, "failure");
+    }
+
+    select.value = String(nextOption.value);
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  };
+
+  const schedule = () => {
+    if (scheduled) window.clearTimeout(scheduled);
+    scheduled = window.setTimeout(advance, 80);
+  };
+
+  const start = () => {
+    if (!document.body) {
+      window.setTimeout(start, 50);
+      return;
+    }
+
+    const observer = new MutationObserver(schedule);
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+
+    window.addEventListener("mg:player-status", schedule);
+    schedule();
+  };
+
+  start();
+};
+
+installPermanentRdRejectionFailover();
