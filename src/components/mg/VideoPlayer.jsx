@@ -719,7 +719,7 @@ export default function VideoPlayer({
    * Keep a per-playback hash blacklist for hard torrent/cache failures.
    */
   const failedTorrentHashesRef =
-    useRef(new Set());
+    useRef(readPersistentFailedTorrentHashes());
 
   const videoRef = useRef(null);
   const liveVideoRef = useRef(null);
