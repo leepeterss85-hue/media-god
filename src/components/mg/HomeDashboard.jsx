@@ -13,6 +13,7 @@ import {
   detectStreamingTimezone,
 } from "@/components/mg/streamingRegion";
 import ContinueWatchingRow from "@/components/mg/ContinueWatchingRow";
+import NewEpisodesRow from "@/components/mg/NewEpisodesRow";
 import RecentlyWatchedRow from "@/components/mg/RecentlyWatchedRow";
 import DetailModal from "@/components/mg/DetailModal";
 import { useToast } from "@/components/ui/use-toast";
@@ -375,16 +376,6 @@ export default function HomeDashboard({ onOpenTvService }) {
   const { toast } = useToast();
   const streamingRegion = useMemo(() => detectStreamingRegion(), []);
   const streamingTimezone = useMemo(() => detectStreamingTimezone(), []);
-
-  const todayLabel = useMemo(() => {
-    const date = new Date(`${todayKey}T12:00:00`);
-
-    return date.toLocaleDateString("en-GB", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-    });
-  }, [todayKey]);
 
   useEffect(() => {
     let timer = null;
@@ -901,50 +892,12 @@ export default function HomeDashboard({ onOpenTvService }) {
 
   return (
     <div className="w-full min-w-0" data-mg-home-dashboard="true">
-      <HeroSlider
-        items={hero}
-        onWatch={open}
-        onDetails={open}
-        onWatchlist={onWatchlist}
-      />
-
       <div data-mg-home-content="true" className="flex flex-col gap-6 3xl:gap-8 4xl:gap-10 py-5 sm:py-6 3xl:py-8">
-
-        {/* FIRST ROW UNDER HERO */}
+        {/* PERMANENT HOME PRIORITY ORDER — keep these rows first. */}
         <ContinueWatchingRow />
 
-        {(rows.todayMovies || []).length > 0 && (
-          <MediaRow
-            title={`New Films Today — ${todayLabel}`}
-            items={rows.todayMovies}
-            onOpen={open}
-            onWatchlist={onWatchlist}
-            watched={watched}
-          />
-        )}
-
-        {(rows.tvPremieresToday || []).length > 0 && (
-          <MediaRow
-            title={`New TV Premieres Today — ${todayLabel}`}
-            items={rows.tvPremieresToday}
-            onOpen={open}
-            onWatchlist={onWatchlist}
-            watched={watched}
-          />
-        )}
-
-        {(rows.moreTVToday || []).length > 0 && (
-          <MediaRow
-            title="More TV Airing Today"
-            items={rows.moreTVToday}
-            onOpen={(item) => open(item, "tv")}
-            onWatchlist={onWatchlist}
-            watched={watched}
-          />
-        )}
-
         <MediaRow
-          title="Newest Movies"
+          title="New Films"
           items={rows.newMovies}
           onOpen={open}
           onWatchlist={onWatchlist}
@@ -952,11 +905,17 @@ export default function HomeDashboard({ onOpenTvService }) {
         />
 
         <MediaRow
-          title="New & On TV"
+          title="New TV Shows"
           items={rows.newTV}
           onOpen={(item) => open(item, "tv")}
           onWatchlist={onWatchlist}
           watched={watched}
+        />
+
+        <NewEpisodesRow
+          historyRows={historyRows}
+          region={streamingRegion}
+          todayKey={todayKey}
         />
 
         {becauseYouWatched.length > 0 &&
@@ -969,6 +928,24 @@ export default function HomeDashboard({ onOpenTvService }) {
               watched={watched}
             />
           )}
+
+        {/* Everything below this point is secondary discovery content. */}
+        <HeroSlider
+          items={hero}
+          onWatch={open}
+          onDetails={open}
+          onWatchlist={onWatchlist}
+        />
+
+        {(rows.moreTVToday || []).length > 0 && (
+          <MediaRow
+            title="More TV Airing Today"
+            items={rows.moreTVToday}
+            onOpen={(item) => open(item, "tv")}
+            onWatchlist={onWatchlist}
+            watched={watched}
+          />
+        )}
 
         <RecentlyWatchedRow />
 
