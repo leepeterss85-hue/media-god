@@ -596,24 +596,7 @@ export default async function (req) {
                 continue;
               }
 
-              const progress = Math.max(
-                0,
-                Math.min(100, Number(torrent?.progress || 0))
-              );
-              const ageMs = Math.max(
-                0,
-                Date.now() - Date.parse(String(torrent?.added || "")) || 0
-              );
-              const stalled =
-                /^(?:magnet_conversion|waiting_files_selection|waiting_selection|queued|downloading)$/i.test(
-                  String(torrent?.status || "")
-                ) &&
-                progress <= 0.001 &&
-                Number(torrent?.speed || 0) <= 0 &&
-                Number(torrent?.seeders || 0) <= 0 &&
-                ageMs >= 10 * 60_000;
-
-              if (!stalled) continue;
+              if (!rdPartialTorrentLooksStale(torrent)) continue;
 
               const deleteRes = await rdFetch(
                 `${RD_BASE}/torrents/delete/${encodeURIComponent(torrentId)}`,
