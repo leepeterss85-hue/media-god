@@ -3904,9 +3904,30 @@ export default function VideoPlayer({
                   ? 15 * 60 * 1000
                   : 3 * 60 * 1000;
 
+          const rdAddedAt = Date.parse(
+            String(rdPreparation?.added || "")
+          );
+          const rdJobAgeMs = Number.isFinite(rdAddedAt)
+            ? Math.max(0, Date.now() - rdAddedAt)
+            : 0;
+          const expectedFullTransferMs =
+            activelyDownloading && latestSizeBytes > 0
+              ? (latestSizeBytes / latestSpeed) * 1000
+              : 0;
+          const staleByOriginalRdAge =
+            attempts >= 2 &&
+            latestProgress > 0 &&
+            latestProgress < 100 &&
+            expectedFullTransferMs > 0 &&
+            rdJobAgeMs >= Math.max(90 * 1000, expectedFullTransferMs * 6) &&
+            noProgressForMs >= 4000;
+
           const looksCompletelyStalled =
             latestProgress < 100 &&
-            noProgressForMs >= stallAfterMs;
+            (
+              noProgressForMs >= stallAfterMs ||
+              staleByOriginalRdAge
+            );
           const flatlineMinutes = Math.max(
             1,
             Math.round(stallAfterMs / 60000)
