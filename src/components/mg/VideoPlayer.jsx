@@ -3810,9 +3810,51 @@ export default function VideoPlayer({
           const looksCompletelyStalled =
             latestProgress < 100 &&
             noProgressForMs >= stallAfterMs;
+          const staleReportedSpeed =
+            activelyDownloading &&
+            noProgressForMs >= activeDownloadFlatlineMs;
+          const flatlineMinutes = Math.max(
+            1,
+            Math.round(stallAfterMs / 60000)
+          );
 
           if (looksCompletelyStalled) {
             if (sourceNeedsCaching(active)) {
+              if (staleReportedSpeed) {
+                const nextSource = findNextPlayableSource(activeIdx);
+                const stalledTorrentId = String(rdTorrentId || "").trim();
+
+                if (stalledTorrentId) {
+                  try {
+                    await base44.functions.invoke(
+                      "realDebrid",
+                      {
+                        action: "torrent_delete",
+                        torrent_id: stalledTorrentId,
+                      }
+                    );
+                  } catch {
+                    // Cleanup is best-effort; recovery should still continue.
+                  }
+                }
+
+                if (nextSource !== -1) {
+                  markSourceFailed(activeIdx);
+                  markTorrentHashFailed(active);
+                  releaseSourceSelector();
+                  releaseRdFileSelector();
+                  setRdPolling(false);
+                  setRdTorrentId(null);
+                  setRdPreparation(null);
+                  setRdError("");
+                  switchToSource(nextSource, {
+                    preservePosition: true,
+                    statusMessage:
+                      `Real-Debrid's reported speed stopped matching real progress for about ${flatlineMinutes} minute${flatlineMinutes === 1 ? "" : "s"} — trying another source…`,
+                  });
+                  return;
+                }
+              }
               /*
                * Do not delete or auto-switch an uncached torrent just because
                * its swarm has been quiet. The RD job may still recover and the
@@ -3835,14 +3877,14 @@ export default function VideoPlayer({
               setRdError(
                 latestProgress <= 0.001
                   ? activelyDownloading
-                    ? "Real-Debrid is still reporting download speed, but the rounded percentage has not moved for about 30 minutes. The torrent has been left in Real-Debrid; Retry to reconnect or choose another source manually."
+                    ? `Real-Debrid is still reporting download speed, but the rounded percentage has not moved for about ${flatlineMinutes} minute${flatlineMinutes === 1 ? "" : "s"}. The torrent has been left in Real-Debrid; Retry to reconnect or choose another source manually.`
                     : latestSeeders > 0
                       ? "Real-Debrid still sees seeders but has reported no download speed for about 15 minutes. The torrent has been left in Real-Debrid; Retry to reconnect or choose another source manually."
                       : sourceReportedSeeders > 0
                         ? "The addon reported seeders, but Real-Debrid has found no live peer activity for several minutes. The torrent has been left in Real-Debrid; Retry or choose another source manually."
                         : "Real-Debrid has found no live peer activity for this torrent for several minutes. The torrent has been left in Real-Debrid; Retry or choose another source manually."
                   : activelyDownloading
-                    ? `Real-Debrid has remained at ${latestProgress.toFixed(2)}% for about 30 minutes while still reporting download speed. The torrent has been left in Real-Debrid; Retry to reconnect or choose another source manually.`
+                    ? `Real-Debrid has remained at ${latestProgress.toFixed(2)}% for about ${flatlineMinutes} minute${flatlineMinutes === 1 ? "" : "s"} while still reporting download speed. The torrent has been left in Real-Debrid; Retry to reconnect or choose another source manually.`
                     : latestSeeders > 0
                       ? `Real-Debrid has remained at ${latestProgress.toFixed(2)}% with seeders but no download speed for about 15 minutes. The torrent has been left in Real-Debrid; Retry or choose another source manually.`
                       : `Real-Debrid has remained at ${latestProgress.toFixed(2)}% with no peer activity for several minutes. The torrent has been left in Real-Debrid; Retry or choose another source manually.`
