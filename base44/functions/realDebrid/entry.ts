@@ -682,7 +682,7 @@ export default async function (req) {
         );
       const stalled =
         activeLikeStatus &&
-        progress <= 0.001 &&
+        progress < 100 &&
         hasNoActivity &&
         ageMs >= 10 * 60_000;
       const explicitPlaybackReset = body.claim_for_playback === true;
@@ -864,7 +864,7 @@ export default async function (req) {
        * full ten minutes with no seeders/speed.
        */
       const staleNoProgress =
-        matchProgress <= 0.001 &&
+        matchProgress < 100 &&
         matchInactive &&
         /^(?:magnet_conversion|waiting_files_selection|waiting_selection|queued|downloading)$/i.test(
           String(match?.status || "")
