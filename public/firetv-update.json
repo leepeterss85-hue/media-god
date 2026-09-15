@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 25,
-  "versionName": "1.4.20",
+  "versionCode": 26,
+  "versionName": "1.4.21",
   "title": "Media God Fire TV",
-  "message": "Fire TV 1.4.20 fixes Torrentio playback routing. Torrentio/debrid torrent and remux sources now bypass the native Media3 surface and open directly in Media God's LibVLC compatibility player, avoiding the Media3 failure path while keeping the existing 4K/HDR capability checks for other sources.",
+  "message": "Fire TV 1.4.21 improves difficult 4K playback. Permanently rejected Real-Debrid torrents now advance to the next source instead of remaining selected, and the LibVLC compatibility player now decodes difficult surround audio to stereo PCM to prevent picture-with-no-sound playback on incompatible TV/HDMI audio paths.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
