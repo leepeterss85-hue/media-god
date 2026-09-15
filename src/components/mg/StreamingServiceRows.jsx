@@ -2,6 +2,10 @@ import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import MediaRow from "@/components/mg/MediaRow";
 import { resolveStreamingServices } from "@/components/mg/streamingServices";
+import {
+  detectStreamingRegion,
+  streamingRegionName,
+} from "@/components/mg/streamingRegion";
 
 const providerCatalogCache = new Map();
 
@@ -81,7 +85,7 @@ const interleave = (left, right, limit) => {
 };
 
 const getProviderCatalog = async (region) => {
-  const key = String(region || "GB").toUpperCase();
+  const key = String(region || detectStreamingRegion()).toUpperCase();
   if (!providerCatalogCache.has(key)) {
     providerCatalogCache.set(
       key,
@@ -123,7 +127,7 @@ const fetchItems = async ({ service, mediaType, region, rowLimit }) => {
 
 export default function StreamingServiceRows({
   mediaType = "tv",
-  region = "GB",
+  region = "",
   onOpen,
   onWatchlist,
   watched,
@@ -134,6 +138,8 @@ export default function StreamingServiceRows({
 }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const activeRegion = String(region || detectStreamingRegion()).toUpperCase();
+  const activeRegionName = streamingRegionName(activeRegion);
 
   useEffect(() => {
     let cancelled = false;
@@ -142,7 +148,7 @@ export default function StreamingServiceRows({
       setRows([]);
       setLoading(true);
 
-      const catalog = await getProviderCatalog(region);
+      const catalog = await getProviderCatalog(activeRegion);
       if (cancelled) return;
 
       const services = resolveStreamingServices(catalog).slice(
@@ -161,7 +167,7 @@ export default function StreamingServiceRows({
             items: await fetchItems({
               service,
               mediaType,
-              region,
+              region: activeRegion,
               rowLimit,
             }),
           }))
@@ -181,7 +187,7 @@ export default function StreamingServiceRows({
     return () => {
       cancelled = true;
     };
-  }, [mediaType, region, rowLimit, maxServices]);
+  }, [mediaType, activeRegion, rowLimit, maxServices]);
 
   if (!loading && rows.length === 0) return null;
 
@@ -192,7 +198,7 @@ export default function StreamingServiceRows({
           {heading}
         </h2>
         <p className="mt-1 text-xs text-white/45 sm:text-sm 3xl:text-base">
-          Browse what is officially available from each service in the UK. Playback still uses Media God&apos;s normal source system.
+          Browse what is officially available from each service in {activeRegionName}. Playback still uses Media God&apos;s normal source system.
         </p>
       </div>
 
