@@ -2678,6 +2678,25 @@ export default function VideoPlayer({
 
               if (cancelled) return;
 
+              if (
+                legacyCometReset?.status === "failed" &&
+                legacyCometReset?.error
+              ) {
+                setRdResolving(false);
+                setRdPolling(false);
+                setRdTorrentId(null);
+                setRdPreparation((current) => ({
+                  ...(current || {}),
+                  status: "stalled",
+                  stallReason: "stale_delete_not_confirmed",
+                  updatedAt: Date.now(),
+                }));
+                setRdError(
+                  `${legacyCometReset.error} Retry after a few seconds; Media God will not reattach to the same stale partial job.`
+                );
+                return;
+              }
+
               const triggerController = new AbortController();
               const triggerTimer = window.setTimeout(
                 () => triggerController.abort(),
