@@ -128,6 +128,22 @@ const sourceTorrentHash = (item) =>
       getSourceUrl(item)
   );
 
+const richestSourceMagnet = (item) =>
+  [
+    item?.richMagnet,
+    item?.magnet,
+    item?.magnetLink,
+    item?.src,
+    item?.url,
+  ]
+    .map((value) => String(value || "").trim())
+    .filter((value) => /^magnet:/i.test(value))
+    .sort((left, right) => {
+      const leftTrackers = (left.match(/(?:[?&])tr=/gi) || []).length;
+      const rightTrackers = (right.match(/(?:[?&])tr=/gi) || []).length;
+      return rightTrackers - leftTrackers || right.length - left.length;
+    })[0] || "";
+
 const stablePlaybackSourceKey = (item, fallbackIndex = -1) => {
   if (!item) return "";
 
