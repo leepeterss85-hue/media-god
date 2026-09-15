@@ -8,6 +8,7 @@ import { base44 } from "@/api/base44Client";
 import HeroSlider from "@/components/mg/HeroSlider";
 import MediaRow from "@/components/mg/MediaRow";
 import StreamingServiceRows from "@/components/mg/StreamingServiceRows";
+import { detectStreamingRegion } from "@/components/mg/streamingRegion";
 import ContinueWatchingRow from "@/components/mg/ContinueWatchingRow";
 import RecentlyWatchedRow from "@/components/mg/RecentlyWatchedRow";
 import DetailModal from "@/components/mg/DetailModal";
@@ -369,6 +370,7 @@ export default function HomeDashboard({ onOpenTvService }) {
   const [todayKey, setTodayKey] = useState(() => localDateKey());
 
   const { toast } = useToast();
+  const streamingRegion = useMemo(() => detectStreamingRegion(), []);
 
   const todayLabel = useMemo(() => {
     const date = new Date(`${todayKey}T12:00:00`);
@@ -524,7 +526,7 @@ export default function HomeDashboard({ onOpenTvService }) {
         media_type: "movie",
         category: "movie_released_today",
         date: todayKey,
-        region: "GB",
+        region: streamingRegion,
       }, "movie"),
 
       fetchRow({
@@ -536,7 +538,7 @@ export default function HomeDashboard({ onOpenTvService }) {
       fetchRow({
         media_type: "movie",
         category: "now_playing",
-        region: "GB",
+        region: streamingRegion,
       }, "movie"),
 
       fetchRow({
@@ -551,7 +553,7 @@ export default function HomeDashboard({ onOpenTvService }) {
       fetchRow({
         media_type: "movie",
         category: "popular",
-        region: "GB",
+        region: streamingRegion,
       }, "movie"),
 
       fetchRow({
@@ -562,7 +564,7 @@ export default function HomeDashboard({ onOpenTvService }) {
       fetchRow({
         media_type: "movie",
         category: "top_rated",
-        region: "GB",
+        region: streamingRegion,
       }, "movie"),
 
       fetchWatchlist(),
@@ -991,6 +993,7 @@ export default function HomeDashboard({ onOpenTvService }) {
 
         <StreamingServiceRows
           mediaType="mixed"
+          region={streamingRegion}
           heading="Movies & TV by Streaming Service"
           maxServices={12}
           rowLimit={18}
