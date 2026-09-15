@@ -20,6 +20,16 @@ import { useToast } from "@/components/ui/use-toast";
 
 const WATCHED_THRESHOLD = 0.92;
 
+/*
+ * HOME LAYOUT CONTRACT
+ *
+ * This leading Home sequence is product-locked. Do not reorder, remove or
+ * insert discovery rows into it without an explicit product decision to change
+ * the Home layout contract and its regression test at the same time.
+ */
+const HOME_LAYOUT_LOCK_ID =
+  "featured>continue-watching>new-films>new-tv>new-episodes>because-you-watched";
+
 const localDateKey = (date = new Date()) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -892,8 +902,13 @@ export default function HomeDashboard({ onOpenTvService }) {
 
   return (
     <div className="w-full min-w-0" data-mg-home-dashboard="true">
-      <div data-mg-home-content="true" className="flex flex-col gap-6 3xl:gap-8 4xl:gap-10 py-5 sm:py-6 3xl:py-8">
-        {/* Keep the featured/playing-now hero at the very top of Home. */}
+      <div
+        data-mg-home-content="true"
+        data-mg-home-layout-lock={HOME_LAYOUT_LOCK_ID}
+        className="flex flex-col gap-6 3xl:gap-8 4xl:gap-10 py-5 sm:py-6 3xl:py-8"
+      >
+        {/* HOME_LAYOUT_LOCK_START */}
+        {/* HOME_LOCK_SLOT:featured */}
         <HeroSlider
           items={hero}
           onWatch={open}
@@ -901,9 +916,11 @@ export default function HomeDashboard({ onOpenTvService }) {
           onWatchlist={onWatchlist}
         />
 
-        {/* PERMANENT HOME PRIORITY ORDER — keep these rows immediately below the hero. */}
+
+        {/* HOME_LOCK_SLOT:continue-watching */}
         <ContinueWatchingRow />
 
+        {/* HOME_LOCK_SLOT:new-films */}
         <MediaRow
           title="New Films"
           items={rows.newMovies}
@@ -912,6 +929,7 @@ export default function HomeDashboard({ onOpenTvService }) {
           watched={watched}
         />
 
+        {/* HOME_LOCK_SLOT:new-tv */}
         <MediaRow
           title="New TV Shows"
           items={rows.newTV}
@@ -920,12 +938,14 @@ export default function HomeDashboard({ onOpenTvService }) {
           watched={watched}
         />
 
+        {/* HOME_LOCK_SLOT:new-episodes */}
         <NewEpisodesRow
           historyRows={historyRows}
           region={streamingRegion}
           todayKey={todayKey}
         />
 
+        {/* HOME_LOCK_SLOT:because-you-watched */}
         {becauseYouWatched.length > 0 &&
           recommendationSeed?.title && (
             <MediaRow
@@ -936,6 +956,7 @@ export default function HomeDashboard({ onOpenTvService }) {
               watched={watched}
             />
           )}
+        {/* HOME_LAYOUT_LOCK_END */}
 
         {/* Everything below this point is secondary discovery content. */}
         {(rows.moreTVToday || []).length > 0 && (
