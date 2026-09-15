@@ -6,13 +6,14 @@ import React, {
 
 import { Tv } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { detectStreamingRegion } from "@/components/mg/streamingRegion";
 
 const providerCache = new Map();
 const providerRequests = new Map();
 
 const cacheKeyFor = (mediaType, tmdbId, region) =>
   `${String(mediaType || "movie")}:${String(tmdbId || "")}:${String(
-    region || "GB"
+    region || detectStreamingRegion()
   ).toUpperCase()}`;
 
 const fetchProviders = async ({ mediaType, tmdbId, region }) => {
@@ -67,7 +68,7 @@ const fetchProviders = async ({ mediaType, tmdbId, region }) => {
 export default function StreamingProviderLogos({
   tmdbId,
   mediaType = "movie",
-  region = "GB",
+  region = "",
   limit = 3,
   className = "",
   compact = true,
@@ -75,6 +76,7 @@ export default function StreamingProviderLogos({
 }) {
   const rootRef = useRef(null);
   const [visible, setVisible] = useState(false);
+  const activeRegion = String(region || detectStreamingRegion()).toUpperCase();
   const [providers, setProviders] = useState(() =>
     Array.isArray(initialProviders)
       ? initialProviders
@@ -121,7 +123,7 @@ export default function StreamingProviderLogos({
     fetchProviders({
       mediaType,
       tmdbId,
-      region,
+      region: activeRegion,
     }).then((items) => {
       if (!cancelled && items.length > 0) {
         setProviders(items);
@@ -131,7 +133,7 @@ export default function StreamingProviderLogos({
     return () => {
       cancelled = true;
     };
-  }, [visible, mediaType, tmdbId, region, initialProviders]);
+  }, [visible, mediaType, tmdbId, activeRegion, initialProviders]);
 
   const shown = providers.slice(0, Math.max(1, Number(limit || 3)));
 
