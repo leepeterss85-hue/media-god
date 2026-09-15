@@ -61,6 +61,7 @@ import {
   SOURCE_SORT_OPTIONS,
   writeSourceSortMode,
 } from "@/components/mg/sourceSelectorPreferences";
+import { runRealDebridCacheSession } from "@/components/mg/realDebridCacheEngine";
 
 const isMagnet = (value) =>
   String(value || "")
@@ -695,6 +696,9 @@ export default function VideoPlayer({
   const [rdTorrentId, setRdTorrentId] =
     useState(null);
 
+  const [rdCacheEngineNonce, setRdCacheEngineNonce] =
+    useState(0);
+
   const [fileSwitching, setFileSwitching] =
     useState(false);
 
@@ -727,6 +731,8 @@ export default function VideoPlayer({
   const pollRef = useRef(null);
   const recoveryResumeRef = useRef(0);
   const rdResolutionQueueRef = useRef(Promise.resolve());
+  const rdCacheEngineAbortRef = useRef(null);
+  const rdCacheEngineOwnsPollingRef = useRef(false);
   const retryInactiveTorrentHashRef = useRef("");
   const repairedStuckTorrentHashesRef = useRef(new Set());
   const torrentFailoverTimerRef = useRef(null);
