@@ -441,6 +441,15 @@ expect(
     realDebridCacheEngine.includes("monitorTorrent") &&
     realDebridCacheEngine.includes("RD_COMET_RESUMED_STALE_PARTIAL") &&
     realDebridCacheEngine.includes("RD_CACHE_RESTART_STALLED") &&
+    realDebridCacheEngine.includes('action: "trigger_comet_playback"') &&
+    realDebridCacheEngine.includes("isPermanentRdHashFailure") &&
+    realDebridCacheEngine.includes("upstreamCode === 35") &&
+    realDebridCacheEngine.includes("upstreamCode === 28") &&
+    addonStreamsBackend.includes('action === "trigger_comet_playback"') &&
+    addonStreamsBackend.includes("configuredCometPlaybackTarget") &&
+    addonStreamsBackend.includes("Mobile browser") === false &&
+    realDebridBackend.includes("rdFailureDetails") &&
+    realDebridBackend.includes("upstream_error_code") &&
     coreMediaPlayerProvider.includes("Trailers and provider links belong in the details/source UI") &&
     coreMediaPlayerProvider.includes("sources: publishedSources") &&
     videoPlayer.includes("const activeResolutionKey =") &&
