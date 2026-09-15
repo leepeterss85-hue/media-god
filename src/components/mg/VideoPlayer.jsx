@@ -5895,6 +5895,20 @@ export default function VideoPlayer({
       streamActionGenerationRef.current += 1;
       setFileSwitching(false);
 
+      if (sourceNeedsCaching(active)) {
+        rdCacheEngineAbortRef.current?.abort?.();
+        clearSourceFailed(activeIdx);
+        setRdOverride(null);
+        setRdFiles([]);
+        setRdTorrentId(null);
+        setRdPreparation(null);
+        setRdError("");
+        setRdPolling(false);
+        setRdResolving(true);
+        setRdCacheEngineNonce((value) => value + 1);
+        return;
+      }
+
       const retryHash = sourceTorrentHash(active);
       const retryMagnet = richestSourceMagnet(active);
       const stalledNoProgress =
