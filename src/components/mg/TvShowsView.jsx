@@ -318,11 +318,16 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
             <Globe className="w-4 h-4 3xl:w-5 3xl:h-5 absolute left-3 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
             <select
               value={country}
-              onChange={(event) => setCountry(event.target.value)}
-              aria-label="Filter TV shows by country"
+              onChange={(event) => {
+                const nextCountry = event.target.value;
+                setCountry(nextCountry);
+                setStreamingRegionOverride(nextCountry);
+                if (activeProvider) clearProvider();
+              }}
+              aria-label="Choose country for TV and streaming services"
               className={`${selectClass} pl-10 3xl:pl-11`}
             >
-              {COUNTRIES.map((item) => (
+              {COUNTRY_OPTIONS.map((item) => (
                 <option key={item.code} value={item.code} className="bg-mg-card">
                   {item.label}
                 </option>
@@ -371,7 +376,7 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
         </div>
       </div>
 
-      {!activeProvider && !query && !country && !genre && !year && !language && (
+      {!activeProvider && !query && !genre && !year && !language && (
         <div className="mb-7 3xl:mb-10">
           <StreamingServiceRows
             mediaType="tv"
