@@ -32,6 +32,14 @@
         </provider>
 
         <activity
+            android:name=".CompatibilityPlayerActivity"
+            android:configChanges="keyboardHidden|orientation|screenSize|smallestScreenSize|uiMode"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:screenOrientation="landscape"
+            android:supportsPictureInPicture="false" />
+
+        <activity
             android:name=".PlayerActivity"
             android:configChanges="keyboardHidden|orientation|screenSize|smallestScreenSize|uiMode"
             android:excludeFromRecents="true"
