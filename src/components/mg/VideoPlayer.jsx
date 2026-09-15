@@ -5404,55 +5404,139 @@ export default function VideoPlayer({
     };
 
   const retryResolution =
-    () => {
+    async () => {
       streamActionGenerationRef.current += 1;
       setFileSwitching(false);
 
       const retryHash = sourceTorrentHash(active);
-      retryInactiveTorrentHashRef.current =
+      const retryMagnet = richestSourceMagnet(active);
+      const stalledNoProgress =
         String(rdPreparation?.status || "").toLowerCase() === "stalled" &&
-        String(rdPreparation?.stallReason || "").toLowerCase() === "no_progress" &&
-        retryHash
+        String(rdPreparation?.stallReason || "").toLowerCase() === "no_progress";
+      const retryTorrentId = String(
+        rdPreparation?.torrent_id ||
+          rdTorrentId ||
+          ""
+      ).trim();
+
+      if (
+        stalledNoProgress &&
+        retryHash &&
+        retryMagnet &&
+        retryTorrentId
+      ) {
+        setRdOverride(null);
+        setRdFiles([]);
+        setRdError("");
+        setRdResolving(true);
+        setRdPolling(false);
+        setRdPreparation((current) => ({
+          ...(current || {}),
+          status: "restarting",
+          speed_bps: 0,
+          updatedAt: Date.now(),
+        }));
+
+        try {
+          const restartResponse = await base44.functions.invoke(
+            "realDebrid",
+            {
+              action: "restart_playback_torrent",
+              torrent_id: retryTorrentId,
+              info_hash: retryHash,
+              magnet: retryMagnet,
+              prefer_browser_transcode: prefersMobileBrowserRdCompatibility(),
+              title:
+                source?.rdTitle ||
+                source?.title ||
+                "",
+              ...(source?.rdYear != null ? { year: source.rdYear } : {}),
+              ...(source?.rdSeason != null ? { season: source.rdSeason } : {}),
+              ...(source?.rdEpisode != null ? { episode: source.rdEpisode } : {}),
+              ...(active?.fileIdx != null && Number.isFinite(Number(active.fileIdx))
+                ? { file_idx: Number(active.fileIdx) }
+                : {}),
+            }
+          );
+
+          const restartData = restartResponse?.data || {};
+
+          if (restartData.status === "ready" && restartData.stream_url) {
+            setRdOverride({
+              src: restartData.stream_url,
+              label:
+                restartData.filename ||
+                active?.label ||
+                "Real-Debrid Stream",
+              file: currentFilePath(restartData.files),
+              audioRescue: restartData.audio_rescue || null,
+              fallbackSrc: restartData.fallback_stream_url || "",
+              videoRescue: restartData.video_rescue || null,
+              mediaInfo: restartData.media_info || null,
+            });
+            setRdFiles(restartData.files || []);
+            setRdTorrentId(null);
+            setRdPreparation(null);
+            setRdResolving(false);
+            return;
+          }
+
+          if (restartData.torrent_id) {
+            setRdTorrentId(String(restartData.torrent_id));
+            setRdPreparation({
+              ...(restartData.torrent_progress || {}),
+              status:
+                restartData.torrent_progress?.status ||
+                restartData.rd_status ||
+                "restarting",
+              torrent_id: String(restartData.torrent_id),
+              startedAt: Date.now(),
+              updatedAt: Date.now(),
+              attempts: 0,
+            });
+            setRdPolling(true);
+            setRdResolving(false);
+            return;
+          }
+
+          throw new Error(
+            restartData.error ||
+              "Real-Debrid did not return a fresh torrent after the restart."
+          );
+        } catch (error) {
+          setRdResolving(false);
+          setRdPreparation((current) => ({
+            ...(current || {}),
+            status: "stalled",
+            stallReason: "no_progress",
+            torrent_id: retryTorrentId,
+            updatedAt: Date.now(),
+          }));
+          setRdError(
+            error?.message ||
+              "Real-Debrid could not restart this exact torrent."
+          );
+          return;
+        }
+      }
+
+      retryInactiveTorrentHashRef.current =
+        stalledNoProgress && retryHash
           ? retryHash
           : "";
 
-      setRdOverride(
-        null
-      );
-
-      setRdFiles(
-        []
-      );
-
-      setRdTorrentId(
-        null
-      );
-
+      setRdOverride(null);
+      setRdFiles([]);
+      setRdTorrentId(null);
       setRdPreparation(null);
+      setRdError("");
+      setRdResolving(true);
 
-      setRdError(
-        ""
-      );
-
-      setRdResolving(
-        true
-      );
-
-      const current =
-        activeIdx;
-
-      setActiveIdx(
-        -1
-      );
-
-      setTimeout(
-        () => {
-          setActiveIdx(
-            current
-          );
-        },
-        0
-      );
+      const current = activeIdx;
+      setActiveIdx(-1);
+      setTimeout(() => {
+        setActiveIdx(current);
+      }, 0);
     };
 
   const handleRdPlaybackError = () => {
