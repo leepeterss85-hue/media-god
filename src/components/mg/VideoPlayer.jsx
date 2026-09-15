@@ -5515,7 +5515,10 @@ export default function VideoPlayer({
         setRdPreparation((current) => ({
           ...(current || {}),
           status: "restarting",
+          progress: 0,
+          seeders: 0,
           speed_bps: 0,
+          downloaded_bytes: 0,
           updatedAt: Date.now(),
         }));
 
