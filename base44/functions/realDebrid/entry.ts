@@ -962,7 +962,7 @@ export default async function (req) {
               fresh_progress: latestProgress,
               previous_added: previousAdded,
             },
-            { status: 409 }
+            { status: 200 }
           );
         }
       }
