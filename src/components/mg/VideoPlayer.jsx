@@ -3298,6 +3298,9 @@ export default function VideoPlayer({
       let latestSpeed =
         0;
 
+      let latestSizeBytes =
+        0;
+
       let lastProgressValue =
         -1;
 
@@ -3476,6 +3479,11 @@ export default function VideoPlayer({
             latestSpeed = Math.max(
               0,
               Number(progressData.speed_bps || 0)
+            );
+
+            latestSizeBytes = Math.max(
+              0,
+              Number(progressData.size_bytes || latestSizeBytes || 0)
             );
 
             if (
