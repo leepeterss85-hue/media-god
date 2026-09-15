@@ -32,6 +32,7 @@ const realDebridBackend = await read("base44/functions/realDebrid/entry.ts");
 const addonStreamsBackend = await read("base44/functions/fetchAddonStreams/entry.ts");
 const addonBrowserFallback = await read("src/components/mg/addonBrowserFallback.js");
 const videoPlayer = await read("src/components/mg/VideoPlayer.jsx");
+const realDebridCacheEngine = await read("src/components/mg/realDebridCacheEngine.js");
 const mediaCompatibility = await read("src/components/mg/mediaCompatibility.js");
 const playbackReliabilityCore = await read("src/components/mg/playbackReliability.js");
 const playerProvider = await read("src/components/mg/PlayerProvider.jsx");
@@ -431,6 +432,15 @@ expect(
     videoPlayer.includes("clearedLegacyProgress") &&
     videoPlayer.includes("resumedLegacyPartialChecks") &&
     videoPlayer.includes("Trying a different torrent hash for the same title") &&
+    videoPlayer.includes("UNCACHED REAL-DEBRID CACHE ENGINE") &&
+    videoPlayer.includes("!sourceNeedsCaching(active)") &&
+    videoPlayer.includes("rdCacheEngineOwnsPollingRef.current") &&
+    videoPlayer.includes("runRealDebridCacheSession") &&
+    realDebridCacheEngine.includes("export async function runRealDebridCacheSession") &&
+    realDebridCacheEngine.includes("restartExactTorrent") &&
+    realDebridCacheEngine.includes("monitorTorrent") &&
+    realDebridCacheEngine.includes("RD_COMET_RESUMED_STALE_PARTIAL") &&
+    realDebridCacheEngine.includes("RD_CACHE_RESTART_STALLED") &&
     coreMediaPlayerProvider.includes("Trailers and provider links belong in the details/source UI") &&
     coreMediaPlayerProvider.includes("sources: publishedSources") &&
     videoPlayer.includes("const activeResolutionKey =") &&
