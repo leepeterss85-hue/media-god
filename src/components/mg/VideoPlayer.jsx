@@ -2655,8 +2655,10 @@ export default function VideoPlayer({
                * fresh active torrent alone, so Retry can safely reconnect to a
                * healthy in-progress download instead of deleting it.
                */
+              let legacyCometReset = {};
+
               try {
-                await base44.functions.invoke(
+                const cleanupResponse = await base44.functions.invoke(
                   "realDebrid",
                   {
                     action: "reset_stale_hash",
@@ -2668,8 +2670,10 @@ export default function VideoPlayer({
                       "",
                   }
                 );
+                legacyCometReset = cleanupResponse?.data || {};
               } catch {
                 // Cleanup is best-effort; Comet still gets the start request.
+                legacyCometReset = {};
               }
 
               if (cancelled) return;
@@ -2710,6 +2714,14 @@ export default function VideoPlayer({
               triggerComet();
 
               let lastAdoptError = "";
+              const clearedLegacyProgress = Math.max(
+                0,
+                Math.min(100, Number(legacyCometReset?.cleared_progress || 0))
+              );
+              const clearedLegacyTorrentId = String(
+                legacyCometReset?.torrent_id || ""
+              ).trim();
+              let resumedLegacyPartialChecks = 0;
 
               for (let adoptAttempt = 0; adoptAttempt < 48; adoptAttempt += 1) {
                 if (cancelled) {
@@ -2815,6 +2827,78 @@ export default function VideoPlayer({
                     adoptData.status === "preparing" &&
                     adoptData.torrent_id
                   ) {
+                    const adoptedProgress = Math.max(
+                      0,
+                      Math.min(
+                        100,
+                        Number(adoptData.torrent_progress?.progress || 0)
+                      )
+                    );
+                    const adoptedTorrentId = String(adoptData.torrent_id).trim();
+                    const resumedDeletedPartial =
+                      clearedLegacyProgress > 0 &&
+                      clearedLegacyProgress < 100 &&
+                      adoptedTorrentId &&
+                      adoptedTorrentId !== clearedLegacyTorrentId &&
+                      Math.abs(adoptedProgress - clearedLegacyProgress) <= 0.001;
+
+                    if (resumedDeletedPartial) {
+                      resumedLegacyPartialChecks += 1;
+
+                      if (resumedLegacyPartialChecks < 5) {
+                        continue;
+                      }
+
+                      triggerController.abort();
+                      window.clearTimeout(triggerTimer);
+
+                      try {
+                        await base44.functions.invoke(
+                          "realDebrid",
+                          {
+                            action: "torrent_delete",
+                            torrent_id: adoptedTorrentId,
+                          }
+                        );
+                      } catch {
+                        // The source hash is being abandoned either way.
+                      }
+
+                      markSourceFailed(activeIdx);
+                      markTorrentHashFailed(active);
+                      const nextSource = findNextPlayableSource(activeIdx);
+
+                      if (nextSource !== -1) {
+                        setRdResolving(false);
+                        setRdPolling(false);
+                        setRdTorrentId(null);
+                        setRdPreparation(null);
+                        setRdError("");
+                        switchToSource(nextSource, {
+                          preservePosition: true,
+                          statusMessage:
+                            `Real-Debrid removed the old ${Math.round(clearedLegacyProgress)}% job, but Comet re-created the same hash at the same stuck percentage and it still did not move. Trying a different torrent hash for the same title…`,
+                        });
+                        return;
+                      }
+
+                      setRdResolving(false);
+                      setRdPolling(false);
+                      setRdTorrentId(null);
+                      setRdPreparation({
+                        ...(adoptData.torrent_progress || {}),
+                        status: "stalled",
+                        stallReason: "rd_partial_state_persisted",
+                        progress: adoptedProgress,
+                        updatedAt: Date.now(),
+                        attempts: adoptAttempt + 1,
+                      });
+                      setRdError(
+                        `Real-Debrid removed the old ${Math.round(clearedLegacyProgress)}% job, but the same torrent hash immediately resumed at ${Math.round(adoptedProgress)}% and still did not advance. No different torrent hash is currently available for this title.`
+                      );
+                      return;
+                    }
+
                     triggerController.abort();
                     window.clearTimeout(triggerTimer);
                     setRdPreparation({
@@ -2835,7 +2919,7 @@ export default function VideoPlayer({
                       updatedAt: Date.now(),
                       attempts: 0,
                     });
-                    setRdTorrentId(String(adoptData.torrent_id));
+                    setRdTorrentId(adoptedTorrentId);
                     setRdResolving(false);
                     return;
                   }
