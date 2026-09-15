@@ -23,6 +23,11 @@ const invoke = async (payload) => {
   return response?.data || {};
 };
 
+const invokeAddonStreams = async (payload) => {
+  const response = await base44.functions.invoke("fetchAddonStreams", payload);
+  return response?.data || {};
+};
+
 const clampProgress = (value) =>
   Math.max(0, Math.min(100, Number(value || 0)));
 
@@ -424,24 +429,33 @@ const startViaComet = async ({
     attempt: 0,
   });
 
-  const controller = new AbortController();
-  const abortFromParent = () => controller.abort();
-  signal?.addEventListener("abort", abortFromParent, { once: true });
+  /*
+   * Comet's current playback handler is server-side: it can read the exact
+   * stored torrent sources for the chosen info hash and then ask the configured
+   * debrid provider to add/generate the link. Trigger it through our Base44
+   * backend so mobile-browser CORS, opaque redirects and WebView cancellation
+   * cannot prevent an uncached torrent from ever reaching Real-Debrid.
+   */
+  let trigger = {};
 
-  void fetch(cometUrl, {
-    method: "GET",
-    cache: "no-store",
-    redirect: "manual",
-    signal: controller.signal,
-  })
-    .then(async (response) => {
-      try {
-        await response.body?.cancel?.();
-      } catch {
-        // Triggering the endpoint is the only required browser-side effect.
-      }
-    })
-    .catch(() => {});
+  try {
+    trigger = await invokeAddonStreams({
+      action: "trigger_comet_playback",
+      playback_url: cometUrl,
+    });
+  } catch (error) {
+    return failureResult(
+      error?.message || "Media God could not ask Comet to start this torrent.",
+      { errorCode: "COMET_TRIGGER_FAILED" }
+    );
+  }
+
+  if (trigger?.triggered !== true) {
+    return failureResult(
+      trigger?.error || "Comet did not accept the uncached playback request.",
+      { errorCode: trigger?.error_code || "COMET_TRIGGER_FAILED" }
+    );
+  }
 
   let sameClearedProgressChecks = 0;
 
@@ -453,12 +467,10 @@ const startViaComet = async ({
       const adopted = await adoptByHash({ hash, context });
 
       if (adopted?.status === "ready" && adopted?.stream_url) {
-        controller.abort();
         return readyResult(adopted);
       }
 
       if (adopted?.status === "stale" && adopted?.torrent_id && magnet) {
-        controller.abort();
         const restarted = await restartExactTorrent({
           torrentId: String(adopted.torrent_id),
           hash,
@@ -514,7 +526,6 @@ const startViaComet = async ({
 
           if (sameClearedProgressChecks < 5) continue;
 
-          controller.abort();
           await deleteTorrent(adoptedTorrentId);
           return failureResult(
             `Real-Debrid removed the old ${Math.round(clearedProgress)}% job, but the same torrent hash resumed at the identical percentage and still did not move.`,
@@ -526,7 +537,6 @@ const startViaComet = async ({
           );
         }
 
-        controller.abort();
         return monitorTorrent({
           torrentId: adoptedTorrentId,
           hash,
@@ -539,7 +549,6 @@ const startViaComet = async ({
       }
 
       if (adopted?.status === "failed") {
-        controller.abort();
         return failureResult(
           adopted?.error || "Real-Debrid rejected the Comet torrent.",
           { errorCode: adopted?.error_code || "RD_COMET_ADOPT_FAILED" }
@@ -547,8 +556,7 @@ const startViaComet = async ({
       }
     }
   } finally {
-    controller.abort();
-    signal?.removeEventListener("abort", abortFromParent);
+    // The caller's AbortSignal owns this cache session end-to-end.
   }
 
   return failureResult(
