@@ -462,6 +462,12 @@ class MainActivity : Activity() {
             }
             payload.put("requestId", requestId)
 
+            val playbackDecision = PlaybackCompatibilityRouter.decide(payload)
+            if (playbackDecision.useCompatibility) {
+                payload.put("compatibilityPreflight", true)
+                payload.put("compatibilityReason", playbackDecision.reason)
+            }
+
             val accepted = synchronized(nativePlayerLock) {
                 if (playerOpen) {
                     false
@@ -484,7 +490,14 @@ class MainActivity : Activity() {
             }
 
             runOnUiThread {
-                val intent = Intent(this@MainActivity, PlayerActivity::class.java).apply {
+                val activityClass =
+                    if (playbackDecision.useCompatibility) {
+                        CompatibilityPlayerActivity::class.java
+                    } else {
+                        PlayerActivity::class.java
+                    }
+
+                val intent = Intent(this@MainActivity, activityClass).apply {
                     putExtra(PlayerActivity.EXTRA_PAYLOAD, payload.toString())
                 }
 
