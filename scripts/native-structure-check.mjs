@@ -9,7 +9,7 @@ const apps = [
     dir: "firetv-android",
     packagePath: "com/mediagod/firetv",
     namespace: "com.mediagod.firetv",
-    expectedVersion: "1.4.20",
+    expectedVersion: "1.4.21",
     expectedMedia3: "1.8.0",
     expectedOrientation: "landscape",
   },
@@ -18,7 +18,7 @@ const apps = [
     dir: "android-mobile",
     packagePath: "com/mediagod/mobile",
     namespace: "com.mediagod.mobile",
-    expectedVersion: "1.0.9",
+    expectedVersion: "1.0.10",
     expectedMedia3: "1.11.0",
     expectedOrientation: "sensor",
   },
@@ -43,6 +43,10 @@ const videoPlayer = requireFile(
 const nativeBridge = requireFile(
   "src/components/mg/nativeFireTvBridge.js",
   "web/native codec metadata bridge"
+);
+const playbackReliability = requireFile(
+  "src/components/mg/playbackReliability.js",
+  "permanent Real-Debrid rejection failover"
 );
 
 const nativeCoordinationChecks = [
@@ -85,6 +89,12 @@ const nativeCoordinationChecks = [
       nativeBridge.includes("fps") &&
       nativeBridge.includes("bitrate"),
     "4K/HDR metadata payload",
+  ],
+  [
+    playbackReliability.includes("installPermanentRdRejectionFailover") &&
+      playbackReliability.includes("rejected by Real-Debrid") &&
+      playbackReliability.includes('dispatchEvent(new Event("change", { bubbles: true }))'),
+    "permanent Real-Debrid rejection source advance",
   ],
 ];
 
@@ -149,6 +159,9 @@ for (const app of apps) {
     [playerActivity.includes("video/x-msvideo"), "AVI MIME recognition"],
     [compatibilityActivity.includes("LibVLC("), "LibVLC engine"],
     [compatibilityActivity.includes("setHWDecoderEnabled(true, false)"), "hardware-first VLC fallback"],
+    [compatibilityActivity.includes('setAudioOutput("android_audiotrack")'), "compatibility Android AudioTrack output"],
+    [compatibilityActivity.includes("setAudioDigitalOutputEnabled(false)"), "compatibility digital passthrough disabled"],
+    [compatibilityActivity.includes('setAudioOutputDevice("stereo")'), "compatibility stereo PCM downmix"],
     [compatibilityActivity.includes("IMedia.Slave.Type.Subtitle"), "compatibility subtitle support"],
     [compatibilityRouter.includes("MediaCodecList(MediaCodecList.ALL_CODECS)"), "device codec registry preflight"],
     [compatibilityRouter.includes("areSizeAndRateSupported"), "4K size/rate capability check"],
