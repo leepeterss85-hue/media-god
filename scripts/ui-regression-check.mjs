@@ -397,6 +397,12 @@ expect(
     videoPlayer.includes("now - sourceSelectorPinnedAtRef.current > 12000") &&
     videoPlayer.includes("expectedOnePercentMs") &&
     videoPlayer.includes("activeDownloadFlatlineMs") &&
+    videoPlayer.includes("repairedStuckTorrentHashesRef = useRef(new Set())") &&
+    videoPlayer.includes('force_progress_reset: true') &&
+    videoPlayer.includes("restarting the same torrent with its full tracker set") &&
+    videoPlayer.includes("setRdResolutionNonce((value) => value + 1)") &&
+    realDebridBackend.includes("explicitProgressReset") &&
+    realDebridBackend.includes("progress < 100") &&
     videoPlayer.includes("const activeResolutionKey =") &&
     videoPlayer.includes("stablePlaybackSourceKey(active, activeIdx)") &&
     videoPlayer.includes("rdMediaContextKey") &&
