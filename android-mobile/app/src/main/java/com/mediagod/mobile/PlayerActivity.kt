@@ -33,6 +33,7 @@ class PlayerActivity : Activity() {
         const val EXTRA_DURATION_MS = "mg_duration_ms"
         const val EXTRA_MESSAGE = "mg_message"
 
+        private const val REQUEST_COMPATIBILITY_PLAYER = 8402
         private const val CONTROLLER_HIDE_DELAY_MS = 2500L
     }
 
@@ -50,6 +51,7 @@ class PlayerActivity : Activity() {
     private var shouldPlayWhenReady = true
     private var resultSent = false
     private var genericHttpsMimeRetryIndex = 0
+    private var compatibilityPlayerOpen = false
 
     private val hideControllerRunnable = Runnable {
         if (!resultSent && ::playerView.isInitialized) {
@@ -102,7 +104,9 @@ class PlayerActivity : Activity() {
 
     override fun onStart() {
         super.onStart()
-        initialisePlayer()
+        if (!compatibilityPlayerOpen) {
+            initialisePlayer()
+        }
     }
 
     override fun onResume() {
@@ -140,6 +144,29 @@ class PlayerActivity : Activity() {
         }
     }
 
+    @Deprecated("Deprecated in Android; retained for broad Android compatibility")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        if (requestCode != REQUEST_COMPATIBILITY_PLAYER) {
+            return
+        }
+
+        compatibilityPlayerOpen = false
+        resultSent = true
+
+        val forwarded = data ?: Intent().apply {
+            putExtra(EXTRA_REQUEST_ID, requestId)
+            putExtra(EXTRA_REASON, "back")
+            putExtra(EXTRA_POSITION_MS, restorePositionMs)
+            putExtra(EXTRA_DURATION_MS, 0L)
+            putExtra(EXTRA_MESSAGE, "")
+        }
+
+        setResult(RESULT_OK, forwarded)
+        finish()
+    }
+
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (event.action == KeyEvent.ACTION_DOWN && !event.isLongPress) {
             val activePlayer = player
@@ -151,7 +178,7 @@ class PlayerActivity : Activity() {
                 }
 
                 KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
-                KeyEvent.KEYCODE_HEADSETHOOK -> {
+                KeyEvent.KEYCODE_HEADSEHOOK -> {
                     activePlayer?.let {
                         if (it.isPlaying) it.pause() else it.play()
                         showControllerTemporarily()
@@ -201,7 +228,7 @@ class PlayerActivity : Activity() {
     }
 
     private fun initialisePlayer() {
-        if (player != null || resultSent) {
+        if (player != null || resultSent || compatibilityPlayerOpen) {
             return
         }
 
@@ -230,11 +257,9 @@ class PlayerActivity : Activity() {
             .setDataSourceFactory(dataSourceFactory)
 
         /*
-         * Android phones and tablets expose a wide mix of hardware decoders.
-         * Let Media3 fall back to another decoder when the preferred one
-         * rejects a stream instead of immediately
-         * returning the source to the web player. This materially helps HEVC,
-         * AV1, VP9, MPEG-2, AC3/EAC3 and model-dependent DTS playback.
+         * Prefer the device's hardware decoder. Media3 may fall back to another
+         * device decoder first; if the platform genuinely cannot decode the
+         * source, onPlayerError opens Media God's broad LibVLC safety net.
          */
         val renderersFactory = DefaultRenderersFactory(this)
             .setEnableDecoderFallback(true)
@@ -279,14 +304,14 @@ class PlayerActivity : Activity() {
             }
 
             override fun onPlayerError(error: PlaybackException) {
-                /*
-                 * Extensionless HTTPS live endpoints are common in IPTV/CDN
-                 * lists. Media3 cannot always infer whether those URLs are
-                 * HLS or DASH from the address alone, so retry an otherwise
-                 * unknown HTTPS source with explicit adaptive MIME types
-                 * before returning the failure to the web catalogue.
-                 */
                 if (retryUnknownHttpsSourceType(exoPlayer)) {
+                    return
+                }
+
+                if (
+                    shouldUseCompatibilityFallback(error) &&
+                    launchCompatibilityPlayer(exoPlayer, error)
+                ) {
                     return
                 }
 
@@ -316,6 +341,59 @@ class PlayerActivity : Activity() {
         }
 
         showControllerTemporarily()
+    }
+
+    private fun shouldUseCompatibilityFallback(error: PlaybackException): Boolean {
+        if (payload.optJSONObject("drm") != null) {
+            return false
+        }
+
+        val code = error.errorCode
+
+        return code == 3003 ||
+            code in 4001..4005 ||
+            code in 5001..5004
+    }
+
+    private fun launchCompatibilityPlayer(
+        activePlayer: ExoPlayer,
+        error: PlaybackException
+    ): Boolean {
+        if (compatibilityPlayerOpen || resultSent) {
+            return false
+        }
+
+        val positionMs = max(0L, activePlayer.currentPosition)
+        restorePositionMs = positionMs
+        shouldPlayWhenReady = activePlayer.playWhenReady || shouldPlayWhenReady
+
+        val compatibilityPayload = try {
+            JSONObject(payload.toString())
+        } catch (_: Throwable) {
+            JSONObject()
+        }.apply {
+            put("requestId", requestId)
+            put("url", streamUrl)
+            put("startPositionMs", positionMs)
+            put("compatibilityErrorCode", error.errorCode)
+            put("compatibilityError", error.message.orEmpty())
+        }
+
+        compatibilityPlayerOpen = true
+        releasePlayer()
+
+        return try {
+            val intent = Intent(this, CompatibilityPlayerActivity::class.java).apply {
+                putExtra(EXTRA_PAYLOAD, compatibilityPayload.toString())
+            }
+
+            @Suppress("DEPRECATION")
+            startActivityForResult(intent, REQUEST_COMPATIBILITY_PLAYER)
+            true
+        } catch (_: Throwable) {
+            compatibilityPlayerOpen = false
+            false
+        }
     }
 
     private fun buildMediaItem(mimeTypeOverride: String? = null): MediaItem {
@@ -412,6 +490,18 @@ class PlayerActivity : Activity() {
         return when {
             lower.endsWith(".m3u8") -> MimeTypes.APPLICATION_M3U8
             lower.endsWith(".mpd") -> MimeTypes.APPLICATION_MPD
+            lower.endsWith(".mp4") || lower.endsWith(".m4v") -> "video/mp4"
+            lower.endsWith(".m4a") -> "audio/mp4"
+            lower.endsWith(".mkv") -> "video/x-matroska"
+            lower.endsWith(".mka") -> "audio/x-matroska"
+            lower.endsWith(".webm") -> "video/webm"
+            lower.endsWith(".ts") || lower.endsWith(".m2ts") || lower.endsWith(".mts") -> "video/mp2t"
+            lower.endsWith(".avi") -> "video/x-msvideo"
+            lower.endsWith(".mpg") || lower.endsWith(".mpeg") || lower.endsWith(".vob") -> "video/mpeg"
+            lower.endsWith(".mp3") -> "audio/mpeg"
+            lower.endsWith(".flac") -> "audio/flac"
+            lower.endsWith(".ogg") || lower.endsWith(".oga") || lower.endsWith(".opus") -> "audio/ogg"
+            lower.endsWith(".wav") -> "audio/wav"
             else -> null
         }
     }
