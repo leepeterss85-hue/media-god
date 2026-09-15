@@ -35,6 +35,7 @@ const videoPlayer = await read("src/components/mg/VideoPlayer.jsx");
 const mediaCompatibility = await read("src/components/mg/mediaCompatibility.js");
 const playbackReliabilityCore = await read("src/components/mg/playbackReliability.js");
 const playerProvider = await read("src/components/mg/PlayerProvider.jsx");
+const coreMediaPlayerProvider = await read("src/components/mg/MediaPlayerProvider.jsx");
 const mediaPlayerControls = await read("src/components/mg/MediaPlayerControls.jsx");
 const nativeFireTvBridge = await read("src/components/mg/nativeFireTvBridge.js");
 const fireTvMainActivity = await read(
@@ -402,7 +403,11 @@ expect(
     videoPlayer.includes("restarting the same torrent with its full tracker set") &&
     videoPlayer.includes("setRdResolutionNonce((value) => value + 1)") &&
     realDebridBackend.includes("explicitProgressReset") &&
+    realDebridBackend.includes("rdPartialTorrentLooksStale") &&
+    realDebridBackend.includes("nominalFullTransferMs") &&
     realDebridBackend.includes("progress < 100") &&
+    coreMediaPlayerProvider.includes("Trailers and provider links belong in the details/source UI") &&
+    coreMediaPlayerProvider.includes("sources: publishedSources") &&
     videoPlayer.includes("const activeResolutionKey =") &&
     videoPlayer.includes("stablePlaybackSourceKey(active, activeIdx)") &&
     videoPlayer.includes("rdMediaContextKey") &&
