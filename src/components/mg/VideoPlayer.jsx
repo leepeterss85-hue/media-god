@@ -3272,9 +3272,9 @@ export default function VideoPlayer({
     },
     [
       activeIdx,
-      active,
+      activeResolutionKey,
       activeUrl,
-      source,
+      rdMediaContextKey,
       isYoutube,
       isProvider,
       isDirectFile,
@@ -4018,7 +4018,6 @@ export default function VideoPlayer({
     [
       rdTorrentId,
       rdOverride,
-      source,
     ]
   );
 
