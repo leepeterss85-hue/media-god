@@ -20,6 +20,7 @@ const homeDashboard = await read("src/components/mg/HomeDashboard.jsx");
 const streamingServiceRows = await read("src/components/mg/StreamingServiceRows.jsx");
 const streamingServices = await read("src/components/mg/streamingServices.js");
 const streamingRegion = await read("src/components/mg/streamingRegion.js");
+const countryOptions = await read("src/components/mg/countryOptions.js");
 const tmdbBackend = await read("base44/functions/getTmdbMovies/entry.ts");
 const watchlist = await read("src/components/mg/WatchlistView.jsx");
 const watchlistSchema = await read("base44/entities/WatchlistItem.jsonc");
@@ -187,11 +188,23 @@ expect(
   streamingRegion.includes("detectStreamingRegion") &&
     streamingRegion.includes("navigator.languages") &&
     streamingRegion.includes("detectStreamingTimezone") &&
+    streamingRegion.includes("getStreamingRegionOverride") &&
+    streamingRegion.includes("setStreamingRegionOverride") &&
     streamingServiceRows.includes("activeRegionName") &&
     !streamingServiceRows.includes("available from each service in the UK") &&
     tvShows.includes("streamingRegion") &&
+    tvShows.includes("COUNTRY_OPTIONS") &&
+    tvShows.includes("setStreamingRegionOverride(nextCountry)") &&
     homeDashboard.includes("streamingTimezone"),
   "Streaming-service discovery is no longer region/timezone aware"
+);
+expect(
+  countryOptions.includes("ISO_ALPHA_2_CODES") &&
+    countryOptions.includes('label: "All Countries"') &&
+    countryOptions.includes("Intl.DisplayNames") &&
+    movies.includes("COUNTRY_OPTIONS") &&
+    movies.includes("setStreamingRegionOverride(nextCountry)"),
+  "Global country dropdown no longer drives movies/TV streaming region"
 );
 expect(
   tmdbBackend.includes("provider_catalog") &&
