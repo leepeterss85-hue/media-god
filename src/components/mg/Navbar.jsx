@@ -74,6 +74,41 @@ const NAV = [
   },
 ];
 
+const elementVisible = (element) => {
+  if (
+    typeof window === "undefined" ||
+    !(
+      element instanceof
+      HTMLElement
+    )
+  ) {
+    return false;
+  }
+
+  const rect =
+    element.getBoundingClientRect();
+
+  if (
+    rect.width < 2 ||
+    rect.height < 2
+  ) {
+    return false;
+  }
+
+  const style =
+    window.getComputedStyle(
+      element
+    );
+
+  return (
+    style.display !== "none" &&
+    style.visibility !== "hidden" &&
+    Number(
+      style.opacity || 1
+    ) > 0.02
+  );
+};
+
 const contextSaysPlayerOpen = () => {
   if (typeof window === "undefined") {
     return false;
@@ -97,67 +132,165 @@ const domSaysPlayerOpen = () => {
     return false;
   }
 
-  /*
-   * Trust the actual player DOM, not a body/html marker that may have been
-   * left behind by an interrupted Fire TV WebView transition. A stale class
-   * must never be allowed to keep the navigation hidden after the player
-   * portal has gone away.
-   */
   const explicitPlayer = document.querySelector(
     '[data-mg-player-root="true"]'
   );
 
-  if (explicitPlayer instanceof HTMLElement) {
+  if (
+    explicitPlayer instanceof HTMLElement &&
+    elementVisible(explicitPlayer)
+  ) {
     return true;
   }
 
-  return Boolean(
-    document.querySelector(
+  return Array.from(
+    document.querySelectorAll(
       [
         'select[aria-label="Choose playback source"]',
         'select[aria-label="Choose source or quality while loading"]',
         'button[aria-label="No sound"]',
         'button[title="No sound"]',
         'button[aria-label="Back to main menu"]',
+        '[data-mg-player-exit="true"]',
         '.fixed.inset-0 video',
       ].join(",")
     )
-  );
+  ).some(elementVisible);
 };
 
-const playerAlreadyOpen = () =>
+/*
+ * Media God uses the same overlay convention in the browser, phones/tablets
+ * and Fire TV: dialogs, aria-modal surfaces and fixed full-screen layers.
+ * Whenever one of those is visible it owns the screen and the main navbar
+ * must not remain beside or on top of it.
+ */
+const domSaysOverlayOpen = () => {
+  if (typeof document === "undefined") {
+    return false;
+  }
+
+  const selectors = [
+    '[role="dialog"]',
+    '[aria-modal="true"]',
+    '.fixed.inset-0',
+    '[data-mg-detail-dialog="true"]',
+    '[data-mg-search-dialog="true"]',
+    '[data-mg-player-root="true"]',
+    '[data-mg-overlay="true"]',
+  ];
+
+  return Array.from(
+    document.querySelectorAll(
+      selectors.join(",")
+    )
+  ).some((element) => {
+    if (!elementVisible(element)) {
+      return false;
+    }
+
+    /*
+     * Do not let a future navbar-owned helper accidentally hide the navbar
+     * itself. Everything else matching the shared overlay convention is a
+     * genuine screen/modal and should take the whole viewport.
+     */
+    if (
+      element.closest(
+        ".mg-fire-tv-nav"
+      )
+    ) {
+      return false;
+    }
+
+    return true;
+  });
+};
+
+const navigationShouldHide = () =>
   contextSaysPlayerOpen() ||
-  domSaysPlayerOpen();
+  domSaysPlayerOpen() ||
+  domSaysOverlayOpen();
+
+/*
+ * Keep the installed Media God version as the first settings card. The
+ * Settings view already marks both the page and version card with stable data
+ * attributes, so this stays safe even if the signed-in/account card changes.
+ */
+const moveSettingsVersionToTop = () => {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  const settingsView = document.querySelector(
+    '[data-mg-settings-view="true"]'
+  );
+
+  if (!(settingsView instanceof HTMLElement)) {
+    return;
+  }
+
+  const versionCard =
+    settingsView.querySelector(
+      '[data-mg-app-version="true"]'
+    );
+
+  if (!(versionCard instanceof HTMLElement)) {
+    return;
+  }
+
+  const heading = Array.from(
+    settingsView.children
+  ).find(
+    (child) =>
+      child instanceof HTMLElement &&
+      child.tagName === "H1"
+  );
+
+  if (!(heading instanceof HTMLElement)) {
+    return;
+  }
+
+  if (heading.nextElementSibling === versionCard) {
+    return;
+  }
+
+  settingsView.insertBefore(
+    versionCard,
+    heading.nextSibling
+  );
+};
 
 export default function Navbar({
   active,
   onSelect,
   onSearch,
 }) {
-  const [playerOpen, setPlayerOpen] =
-    useState(playerAlreadyOpen);
+  const [navigationBlocked, setNavigationBlocked] =
+    useState(navigationShouldHide);
   const canExitApp = nativeFireTvExitAvailable();
 
   useEffect(() => {
+    let syncFrame = 0;
+
     const syncFromEverything = () => {
-      setPlayerOpen(
-        contextSaysPlayerOpen() ||
-          domSaysPlayerOpen()
+      moveSettingsVersionToTop();
+
+      setNavigationBlocked(
+        navigationShouldHide()
       );
     };
 
-    const onPlayerContext = (event) => {
-      const detail = event?.detail || {};
+    const scheduleSync = () => {
+      if (syncFrame) {
+        return;
+      }
 
-      const open = Boolean(
-        detail.mediaType ||
-          detail.tmdbId ||
-          detail.imdbId ||
-          detail.title
-      );
+      syncFrame = window.requestAnimationFrame(() => {
+        syncFrame = 0;
+        syncFromEverything();
+      });
+    };
 
-      setPlayerOpen(open);
-
+    const setPlayerMarker = (open) => {
       if (open) {
         document.body?.classList.add(
           "mg-fire-tv-player-open"
@@ -175,20 +308,28 @@ export default function Navbar({
       }
     };
 
+    const onPlayerContext = (event) => {
+      const detail = event?.detail || {};
+
+      const open = Boolean(
+        detail.mediaType ||
+          detail.tmdbId ||
+          detail.imdbId ||
+          detail.title
+      );
+
+      setPlayerMarker(open);
+      scheduleSync();
+    };
+
     const onPlayerVisibility = (event) => {
-      if (event?.detail?.open) {
-        setPlayerOpen(true);
-        return;
-      }
-
-      document.body?.classList.remove(
-        "mg-fire-tv-player-open"
-      );
-      document.documentElement.classList.remove(
-        "mg-fire-tv-player-open"
+      setPlayerMarker(
+        Boolean(
+          event?.detail?.open
+        )
       );
 
-      setPlayerOpen(false);
+      scheduleSync();
     };
 
     window.addEventListener(
@@ -201,19 +342,6 @@ export default function Navbar({
       onPlayerVisibility
     );
 
-    let syncFrame = 0;
-
-    const scheduleSync = () => {
-      if (syncFrame) {
-        return;
-      }
-
-      syncFrame = window.requestAnimationFrame(() => {
-        syncFrame = 0;
-        syncFromEverything();
-      });
-    };
-
     const observer = new MutationObserver(
       scheduleSync
     );
@@ -221,13 +349,20 @@ export default function Navbar({
     observer.observe(document.body, {
       childList: true,
       subtree: true,
+      attributes: true,
+      attributeFilter: [
+        "class",
+        "style",
+        "hidden",
+        "aria-hidden",
+        "aria-modal",
+      ],
     });
 
     /*
-     * Player context/visibility events and the DOM observer are the primary
-     * signals. This slower watchdog is only a safety net, avoiding ten full
-     * player-state DOM scans every second while the app is idle. It also does
-     * no DOM work while the tab/app is hidden.
+     * Events and the DOM observer are the primary signals. The slower
+     * watchdog catches WebView transitions that change layout/visibility
+     * without changing child nodes.
      */
     const watchdog = window.setInterval(
       () => {
@@ -238,7 +373,7 @@ export default function Navbar({
       750
     );
 
-    syncFromEverything();
+    scheduleSync();
 
     return () => {
       window.removeEventListener(
@@ -270,10 +405,12 @@ export default function Navbar({
     );
 
   /*
-   * Playback owns the entire television. The navbar is physically removed
-   * from the React tree as soon as PlayerProvider publishes a media context.
+   * Players, details, search, season/episode/source selection and every other
+   * visible full-screen/modal surface own the viewport. Removing the navbar
+   * from the React output prevents it from covering those controls on Fire TV
+   * and keeps the same behaviour on phones, tablets and computers.
    */
-  if (playerOpen) {
+  if (navigationBlocked) {
     return null;
   }
 
