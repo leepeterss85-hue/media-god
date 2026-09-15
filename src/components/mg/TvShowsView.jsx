@@ -14,6 +14,7 @@ import StreamingProviderLogos from "@/components/mg/StreamingProviderLogos";
 import StreamingServiceRows from "@/components/mg/StreamingServiceRows";
 import {
   detectStreamingRegion,
+  detectStreamingTimezone,
   streamingRegionName,
 } from "@/components/mg/streamingRegion";
 import FeaturedSpotlight from "@/components/mg/FeaturedSpotlight";
@@ -115,6 +116,7 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
   const [activeProvider, setActiveProvider] = useState(null);
   const debouncedQuery = useDebouncedValue(query, 400);
   const streamingRegion = detectStreamingRegion();
+  const streamingTimezone = detectStreamingTimezone();
   const streamingRegionLabel = streamingRegionName(streamingRegion);
   const activeProviderIds = Array.isArray(activeProvider?.providerIds)
     ? activeProvider.providerIds
@@ -169,11 +171,12 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
           year,
           language,
           query: String(debouncedQuery || "").trim(),
+          region: streamingRegion,
+          timezone: streamingTimezone,
           ...(activeProviderIds.length
             ? {
                 provider_ids: activeProviderIds,
                 provider_pages: 10,
-                region: streamingRegion,
               }
             : {}),
         });
@@ -211,7 +214,7 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
     return () => {
       cancelled = true;
     };
-  }, [country, category, genre, year, language, debouncedQuery, activeProviderIdsKey, streamingRegion]);
+  }, [country, category, genre, year, language, debouncedQuery, activeProviderIdsKey, streamingRegion, streamingTimezone]);
 
   const featured = FEATURED_SHOWS.find((item) => item.title === "Debris");
 
