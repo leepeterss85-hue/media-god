@@ -174,6 +174,44 @@ const isRetryableRdStatus = (status) =>
     Number(status)
   );
 
+const rdPartialTorrentLooksStale = (info = {}) => {
+  const status = String(info?.status || "").toLowerCase();
+  const activeLike = /^(?:magnet_conversion|waiting_files_selection|waiting_selection|queued|downloading)$/i.test(status);
+  const progress = Math.max(0, Math.min(100, Number(info?.progress || 0)));
+  const speed = Math.max(0, Number(info?.speed || 0));
+  const seeders = Math.max(0, Number(info?.seeders || 0));
+  const sizeBytes = Math.max(0, Number(info?.bytes || info?.original_bytes || 0));
+  const addedAt = Date.parse(String(info?.added || ""));
+  const ageMs = Number.isFinite(addedAt)
+    ? Math.max(0, Date.now() - addedAt)
+    : 0;
+
+  if (!activeLike || progress >= 100 || ageMs <= 0) return false;
+
+  if (speed <= 0 && seeders <= 0) {
+    return ageMs >= 10 * 60_000;
+  }
+
+  /*
+   * Real-Debrid can leave the last non-zero speed/seeder values attached to a
+   * torrent that is no longer advancing. For a small job this made Media God
+   * repeatedly re-adopt an old partial percentage (for example 43%) forever.
+   * If the job is far older than the total transfer should plausibly take at
+   * RD's own reported speed, treat that activity figure as stale too.
+   */
+  if (speed > 0 && sizeBytes > 0) {
+    const nominalFullTransferMs = (sizeBytes / speed) * 1000;
+    const staleAfterMs = Math.max(
+      90_000,
+      nominalFullTransferMs * 6
+    );
+
+    return ageMs >= staleAfterMs;
+  }
+
+  return false;
+};
+
 const rdRetryDelayMs = (
   response,
   attempt
