@@ -1356,6 +1356,9 @@ export default async function (req) {
           error_code:
             stream.error_code ||
             "RD_ADOPT_FAILED",
+          upstream_status: stream.upstream_status ?? null,
+          upstream_error_code: stream.upstream_error_code ?? null,
+          upstream_error: stream.upstream_error || "",
         });
       }
 
@@ -1436,6 +1439,9 @@ export default async function (req) {
           error_code:
             stream.error_code ||
             "RD_TORRENT_INFO_FAILED",
+          upstream_status: stream.upstream_status ?? null,
+          upstream_error_code: stream.upstream_error_code ?? null,
+          upstream_error: stream.upstream_error || "",
         });
       }
 
