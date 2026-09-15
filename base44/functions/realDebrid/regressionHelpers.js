@@ -16,6 +16,11 @@ export const normaliseRequestedFileIndex = (value) => {
 export const isVideoTorrentFile = (file) =>
   Boolean(file?.path) && VIDEO_RE.test(String(file.path));
 
+const isLikelyExtraTorrentFile = (file) =>
+  /\b(?:sample|trailer|teaser|featurette|extras?|bonus|behind[ ._-]?the[ ._-]?scenes|interview|deleted[ ._-]?scene|proof)\b/i.test(
+    String(file?.path || "")
+  );
+
 export const torrentSelectionMetadataPending = (info = {}) => {
   const status = String(info?.status || "").toLowerCase();
   const files = Array.isArray(info?.files) ? info.files : [];
@@ -111,7 +116,9 @@ export const chooseRequestedTorrentFileForPlayback = (allFiles, ep = {}) => {
       files.find((file) => Number(file?.id) === requestedIndex + 1),
     ].filter(Boolean);
 
-    const indexedVideo = candidates.find(isVideoTorrentFile);
+    const indexedVideo = candidates.find(
+      (file) => isVideoTorrentFile(file) && !isLikelyExtraTorrentFile(file)
+    );
     if (indexedVideo) return indexedVideo;
   }
 
