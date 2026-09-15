@@ -275,7 +275,7 @@ const configuredCometPlaybackTarget = (value, addons = []) => {
       const addonName = clean(addon?.name);
       const parsed = parseAddonUrl(addon?.url);
 
-      if (!parsed || !/\bcomet\b/i.test(addonName)) {
+      if (!parsed) {
         return false;
       }
 
