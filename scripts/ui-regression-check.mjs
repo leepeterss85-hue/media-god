@@ -447,7 +447,7 @@ expect(
     realDebridCacheEngine.includes("upstreamCode === 28") &&
     addonStreamsBackend.includes('action === "trigger_comet_playback"') &&
     addonStreamsBackend.includes("configuredCometPlaybackTarget") &&
-    addonStreamsBackend.includes("Mobile browser") === false &&
+    addonStreamsBackend.includes('redirect: "manual"') &&
     realDebridBackend.includes("rdFailureDetails") &&
     realDebridBackend.includes("upstream_error_code") &&
     coreMediaPlayerProvider.includes("Trailers and provider links belong in the details/source UI") &&
