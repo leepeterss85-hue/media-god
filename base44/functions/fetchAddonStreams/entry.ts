@@ -259,6 +259,48 @@ const parseAddonUrl = (value) => {
   }
 };
 
+const configuredCometPlaybackTarget = (value, addons = []) => {
+  try {
+    const target = new URL(clean(value));
+
+    if (target.protocol !== "https:") {
+      return null;
+    }
+
+    if (!/\/playback\/[a-f0-9]{40}\//i.test(target.pathname)) {
+      return null;
+    }
+
+    const match = (Array.isArray(addons) ? addons : []).find((addon) => {
+      const addonName = clean(addon?.name);
+      const parsed = parseAddonUrl(addon?.url);
+
+      if (!parsed || !/\bcomet\b/i.test(addonName)) {
+        return false;
+      }
+
+      const prefix = `${parsed.basePath || ""}/playback/`.replace(/\/{2,}/g, "/");
+
+      return (
+        target.origin === parsed.origin &&
+        target.pathname.startsWith(prefix)
+      );
+    });
+
+    if (!match) {
+      return null;
+    }
+
+    return {
+      url: target.toString(),
+      origin: target.origin,
+      addonName: clean(match?.name) || "Comet",
+    };
+  } catch {
+    return null;
+  }
+};
+
 const isBareElfHostedComet = (value) => {
   const parsed = parseAddonUrl(value);
 
