@@ -903,14 +903,7 @@ export default async function (req) {
       }
 
       const torrents = await listRes.json();
-      const match = Array.isArray(torrents)
-        ? torrents.find(
-            (torrent) =>
-              String(torrent?.hash || "")
-                .trim()
-                .toLowerCase() === hash
-          )
-        : null;
+      const match = chooseSameHashTorrent(torrents, hash);
 
       if (!match?.id) {
         return Response.json({ status: "not_found", cleared: false });
@@ -1075,14 +1068,7 @@ export default async function (req) {
       }
 
       const torrents = await listRes.json();
-      const match = Array.isArray(torrents)
-        ? torrents.find(
-            (torrent) =>
-              String(torrent?.hash || "")
-                .trim()
-                .toLowerCase() === hash
-          )
-        : null;
+      const match = chooseSameHashTorrent(torrents, hash);
 
       if (!match?.id) {
         return Response.json({
