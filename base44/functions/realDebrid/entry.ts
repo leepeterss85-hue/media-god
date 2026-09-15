@@ -3002,6 +3002,8 @@ async function resolveStreamable(
       allowTranscode: true,
       forceAudioRescue:
         ep?.forceAudioRescue === true,
+      preferBrowserTranscode:
+        ep?.preferBrowserTranscode === true,
     });
 
   if (playable.error) {
@@ -3089,6 +3091,7 @@ async function choosePlayableRdStream({
   preferEnglish = true,
   allowTranscode = true,
   forceAudioRescue = false,
+  preferBrowserTranscode = false,
 }) {
   const originalUrl =
     unData?.download ||
@@ -3239,7 +3242,8 @@ async function choosePlayableRdStream({
   if (
     audioTracks.length ===
       0 &&
-    !videoCompatibilityRescue
+    !videoCompatibilityRescue &&
+    !preferBrowserTranscode
   ) {
     return {
       stream_url: originalUrl,
@@ -3326,6 +3330,7 @@ async function choosePlayableRdStream({
   if (
     !forceAudioRescue &&
     !videoCompatibilityRescue &&
+    !preferBrowserTranscode &&
     firstIsSafe &&
     (
       !preferEnglish ||
@@ -3408,8 +3413,10 @@ async function choosePlayableRdStream({
     const why =
       forceAudioRescue
         ? "Runtime no-sound recovery requested a browser-safe Real-Debrid transcode."
-        : videoCompatibilityRescue
-          ? "The original video codec/container is awkward for browser/WebView playback, so Media God selected Real-Debrid's compatibility stream."
+        : preferBrowserTranscode
+          ? "Phone browser playback requested Real-Debrid's HLS/MP4 compatibility stream instead of the original torrent container."
+          : videoCompatibilityRescue
+            ? "The original video codec/container is awkward for browser/WebView playback, so Media God selected Real-Debrid's compatibility stream."
           : preferEnglish &&
               englishTracks.length >
                 0 &&
@@ -3434,7 +3441,7 @@ async function choosePlayableRdStream({
       fallback_stream_url:
         originalUrl,
       filename:
-        `${originalFilename || mediaInfo?.filename || "Real-Debrid Stream"} [${formatLabel}${videoCompatibilityRescue ? " Compatibility" : " Audio Rescue"}]`,
+        `${originalFilename || mediaInfo?.filename || "Real-Debrid Stream"} [${formatLabel}${videoCompatibilityRescue || preferBrowserTranscode ? " Compatibility" : " Audio Rescue"}]`,
       audio_rescue: {
         used: audioTranscodeNeeded,
         state:
@@ -3453,13 +3460,15 @@ async function choosePlayableRdStream({
           transcode.quality,
       },
       video_rescue: {
-        used: videoCompatibilityRescue,
+        used: videoCompatibilityRescue || preferBrowserTranscode,
         state:
-          videoCompatibilityRescue
-            ? "transcoded_for_video_compatibility"
-            : "not_needed",
+          preferBrowserTranscode
+            ? "transcoded_for_mobile_browser"
+            : videoCompatibilityRescue
+              ? "transcoded_for_video_compatibility"
+              : "not_needed",
         reason:
-          videoCompatibilityRescue
+          videoCompatibilityRescue || preferBrowserTranscode
             ? why
             : "",
         format: transcode.format,
