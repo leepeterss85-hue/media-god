@@ -657,6 +657,9 @@ export default function VideoPlayer({
   const [rdResolving, setRdResolving] =
     useState(false);
 
+  const [rdResolutionNonce, setRdResolutionNonce] =
+    useState(0);
+
   const [rdPolling, setRdPolling] =
     useState(false);
 
@@ -711,6 +714,7 @@ export default function VideoPlayer({
   const recoveryResumeRef = useRef(0);
   const rdResolutionQueueRef = useRef(Promise.resolve());
   const retryInactiveTorrentHashRef = useRef("");
+  const repairedStuckTorrentHashesRef = useRef(new Set());
   const torrentFailoverTimerRef = useRef(null);
   const nativePlaybackRef = useRef({
     requestId: "",
@@ -3280,6 +3284,7 @@ export default function VideoPlayer({
       isDirectFile,
       isLive,
       isRdSource,
+      rdResolutionNonce,
     ]
   );
 
