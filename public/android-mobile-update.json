@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 8,
-  "versionName": "1.0.7",
+  "versionCode": 9,
+  "versionName": "1.0.8",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.7 adds device-aware codec and container preflight for Android phones and tablets. Media God now checks each device's installed decoders before playback, uses fast Media3 hardware decoding whenever the phone or tablet supports the format, and opens the broad compatibility engine immediately for unsupported or legacy codecs/containers. Newer phones and tablets can therefore make fuller use of their stronger HEVC, VP9, AV1 and audio decoder hardware while still retaining software fallback for difficult media.",
+  "message": "Media God Mobile 1.0.8 improves 4K/HDR playback on phones and tablets with Media3 1.11.0 plus device-aware UHD capability checks. It now considers 4K/8K size, frame rate, 10-bit/Main10 and Dolby Vision profile hints before choosing Media3 or the compatibility decoder, while newer Android devices can use their stronger HEVC, AV1, VP9 and HDR hardware directly.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"

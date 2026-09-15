@@ -9,7 +9,8 @@ const apps = [
     dir: "firetv-android",
     packagePath: "com/mediagod/firetv",
     namespace: "com.mediagod.firetv",
-    expectedVersion: "1.4.18",
+    expectedVersion: "1.4.19",
+    expectedMedia3: "1.8.0",
     expectedOrientation: "landscape",
   },
   {
@@ -17,7 +18,8 @@ const apps = [
     dir: "android-mobile",
     packagePath: "com/mediagod/mobile",
     namespace: "com.mediagod.mobile",
-    expectedVersion: "1.0.7",
+    expectedVersion: "1.0.8",
+    expectedMedia3: "1.11.0",
     expectedOrientation: "sensor",
   },
 ];
@@ -74,6 +76,16 @@ const nativeCoordinationChecks = [
       nativeBridge.includes("findNestedHint"),
     "nested media metadata extraction",
   ],
+  [
+    nativeBridge.includes("videoProfile") &&
+      nativeBridge.includes("bitDepth") &&
+      nativeBridge.includes("hdrFormat") &&
+      nativeBridge.includes("width") &&
+      nativeBridge.includes("height") &&
+      nativeBridge.includes("fps") &&
+      nativeBridge.includes("bitrate"),
+    "4K/HDR metadata payload",
+  ],
 ];
 
 for (const [ok, label] of nativeCoordinationChecks) {
@@ -112,38 +124,50 @@ for (const app of apps) {
   const checks = [
     [gradle.includes(`namespace = "${app.namespace}"`), "namespace"],
     [versionNameOk, "versionName"],
+    [gradle.includes(`val media3Version = "${app.expectedMedia3}"`), "Media3 version"],
     [gradle.includes("media3-exoplayer-hls"), "Media3 HLS dependency"],
     [gradle.includes("media3-exoplayer-dash"), "Media3 DASH dependency"],
     [gradle.includes("media3-exoplayer-smoothstreaming"), "Media3 SmoothStreaming dependency"],
     [gradle.includes("media3-exoplayer-rtsp"), "Media3 RTSP dependency"],
     [gradle.includes("org.videolan.android:libvlc-all:3.6.5"), "LibVLC compatibility dependency"],
-    [manifest.includes('android.permission.INTERNET'), "INTERNET permission"],
+    [manifest.includes("android.permission.INTERNET"), "INTERNET permission"],
     [manifest.includes('android:usesCleartextTraffic="true"'), "cleartext media support"],
     [manifest.includes('android:name=".MainActivity"'), "MainActivity declaration"],
     [manifest.includes('android:name=".PlayerActivity"'), "PlayerActivity declaration"],
     [manifest.includes('android:name=".CompatibilityPlayerActivity"'), "compatibility player declaration"],
     [manifest.includes(`android:screenOrientation="${app.expectedOrientation}"`), "player orientation"],
-    [mainActivity.includes('addJavascriptInterface'), "JavaScript bridge"],
-    [mainActivity.includes('mg:native-player-result'), "native result event"],
-    [mainActivity.includes('PlaybackCompatibilityRouter.decide(payload)'), "preflight routing decision"],
-    [mainActivity.includes('CompatibilityPlayerActivity::class.java'), "direct compatibility player routing"],
-    [playerActivity.includes('DefaultHttpDataSource.Factory'), "Media3 HTTP data source"],
-    [playerActivity.includes('setEnableDecoderFallback(true)'), "device decoder fallback"],
-    [playerActivity.includes('CompatibilityPlayerActivity::class.java'), "runtime compatibility decoder fallback"],
-    [playerActivity.includes('MimeTypes.APPLICATION_M3U8'), "HLS MIME fallback"],
-    [playerActivity.includes('MimeTypes.APPLICATION_MPD'), "DASH MIME fallback"],
-    [playerActivity.includes('video/x-matroska'), "Matroska MIME recognition"],
-    [playerActivity.includes('video/x-msvideo'), "AVI MIME recognition"],
-    [compatibilityActivity.includes('LibVLC('), "LibVLC engine"],
-    [compatibilityActivity.includes('setHWDecoderEnabled(true, false)'), "hardware-first VLC fallback"],
-    [compatibilityActivity.includes('IMedia.Slave.Type.Subtitle'), "compatibility subtitle support"],
-    [compatibilityRouter.includes('MediaCodecList(MediaCodecList.ALL_CODECS)'), "device codec registry preflight"],
-    [compatibilityRouter.includes('video:') && compatibilityRouter.includes('audio:'), "codec-class routing"],
-    [compatibilityRouter.includes('prores') && compatibilityRouter.includes('vc1'), "extended video codec detection"],
-    [compatibilityRouter.includes('dts-hd') && compatibilityRouter.includes('truehd'), "extended audio codec detection"],
-    [compatibilityRouter.includes('container:legacy'), "legacy container preflight"],
+    [mainActivity.includes("addJavascriptInterface"), "JavaScript bridge"],
+    [mainActivity.includes("mg:native-player-result"), "native result event"],
+    [mainActivity.includes("PlaybackCompatibilityRouter.decide(payload)"), "preflight routing decision"],
+    [mainActivity.includes("CompatibilityPlayerActivity::class.java"), "direct compatibility player routing"],
+    [playerActivity.includes("DefaultHttpDataSource.Factory"), "Media3 HTTP data source"],
+    [playerActivity.includes("setEnableDecoderFallback(true)"), "device decoder fallback"],
+    [playerActivity.includes("CompatibilityPlayerActivity::class.java"), "runtime compatibility decoder fallback"],
+    [playerActivity.includes("MimeTypes.APPLICATION_M3U8"), "HLS MIME fallback"],
+    [playerActivity.includes("MimeTypes.APPLICATION_MPD"), "DASH MIME fallback"],
+    [playerActivity.includes("video/x-matroska"), "Matroska MIME recognition"],
+    [playerActivity.includes("video/x-msvideo"), "AVI MIME recognition"],
+    [compatibilityActivity.includes("LibVLC("), "LibVLC engine"],
+    [compatibilityActivity.includes("setHWDecoderEnabled(true, false)"), "hardware-first VLC fallback"],
+    [compatibilityActivity.includes("IMedia.Slave.Type.Subtitle"), "compatibility subtitle support"],
+    [compatibilityRouter.includes("MediaCodecList(MediaCodecList.ALL_CODECS)"), "device codec registry preflight"],
+    [compatibilityRouter.includes("areSizeAndRateSupported"), "4K size/rate capability check"],
+    [compatibilityRouter.includes("HEVCProfileMain10"), "HEVC Main10 capability check"],
+    [compatibilityRouter.includes("bitrateRange"), "UHD bitrate capability check"],
+    [compatibilityRouter.includes("dolby-vision"), "Dolby Vision profile routing"],
+    [compatibilityRouter.includes("video:") && compatibilityRouter.includes("audio:"), "codec-class routing"],
+    [compatibilityRouter.includes("prores") && compatibilityRouter.includes("vc1"), "extended video codec detection"],
+    [compatibilityRouter.includes("dts-hd") && compatibilityRouter.includes("truehd"), "extended audio codec detection"],
+    [compatibilityRouter.includes("container:legacy"), "legacy container preflight"],
     [compatibilityRouter.includes('payload.optJSONObject("drm")'), "DRM Media3 guard"],
   ];
+
+  if (app.name === "Fire TV") {
+    checks.push([
+      compatibilityRouter.includes("firetv-dv-hdr10plus-mkv"),
+      "Fire TV Dolby Vision + HDR10+ MKV workaround",
+    ]);
+  }
 
   for (const [ok, label] of checks) {
     if (!ok) {

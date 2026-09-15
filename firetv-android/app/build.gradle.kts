@@ -11,8 +11,8 @@ android {
         applicationId = "com.mediagod.firetv"
         minSdk = 21
         targetSdk = 35
-        versionCode = 23
-        versionName = "1.4.18"
+        versionCode = 24
+        versionName = "1.4.19"
 
         buildConfigField(
             "String",
@@ -56,10 +56,10 @@ android {
 }
 
 dependencies {
-    // Keep Media3 on the Fire OS-friendly generation already proven by Media God.
-    // LibVLC is used only as a decoder/container compatibility fallback when the
-    // device/Media3 path cannot decode the selected source.
-    val media3Version = "1.5.1"
+    // Media3 1.8.0 is the newest stable generation before Media3 raised minSdk
+    // to 23. It keeps older Fire OS compatibility while adding important
+    // Dolby Vision fallback and TV track-selection fixes missing from 1.5.1.
+    val media3Version = "1.8.0"
 
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.media3:media3-exoplayer:$media3Version")
@@ -70,8 +70,6 @@ dependencies {
     implementation("androidx.media3:media3-ui:$media3Version")
     implementation("androidx.media3:media3-session:$media3Version")
 
-    // Stable VLC 3.x engine: broad software fallback for DTS/DTS-HD, TrueHD/MLP,
-    // ALAC, FLAC, Opus/Vorbis, MPEG audio, legacy MPEG-4/DivX/Xvid/VC-1 and
-    // unusual Matroska/AVI/TS-family combinations while still allowing HW decode.
+    // Broad fallback for difficult 4K/HDR/remux containers and audio codecs.
     implementation("org.videolan.android:libvlc-all:3.6.5")
 }

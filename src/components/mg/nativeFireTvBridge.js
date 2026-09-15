@@ -168,6 +168,37 @@ const hintString = (value) => {
   return "";
 };
 
+const hintNumber = (value) => {
+  if (value == null || value === "") return 0;
+
+  const direct = Number(value);
+  if (Number.isFinite(direct) && direct > 0) {
+    return direct;
+  }
+
+  const match = String(value).match(/\d+(?:\.\d+)?/);
+  const number = Number(match?.[0] || 0);
+  return Number.isFinite(number) && number > 0 ? number : 0;
+};
+
+const hintBitrate = (value) => {
+  if (value == null || value === "") return 0;
+
+  if (typeof value === "number") {
+    return Number.isFinite(value) && value > 0 ? value : 0;
+  }
+
+  const text = String(value).trim().toLowerCase();
+  const amount = hintNumber(text);
+  if (!amount) return 0;
+
+  if (/g(?:b|bit)ps|gb\/s/.test(text)) return amount * 1_000_000_000;
+  if (/m(?:b|bit)ps|mb\/s/.test(text)) return amount * 1_000_000;
+  if (/k(?:b|bit)ps|kb\/s/.test(text)) return amount * 1_000;
+
+  return amount;
+};
+
 const findNestedHint = (value, wantedKeys, depth = 0) => {
   if (!value || typeof value !== "object" || depth > 3) {
     return "";
@@ -218,6 +249,7 @@ const nativeSourceHints = (item = {}) => {
       "vcodec",
       "videoCodecName",
       "video_codec_name",
+      "codec",
     ]);
 
   const audioCodec =
@@ -247,6 +279,73 @@ const nativeSourceHints = (item = {}) => {
       "format",
     ]);
 
+  const videoProfile =
+    hintString(item?.videoProfile || item?.video_profile || item?.profile) ||
+    findNestedHint(mediaInfo, [
+      "videoProfile",
+      "video_profile",
+      "profile",
+      "codecProfile",
+      "codec_profile",
+    ]);
+
+  const width = hintNumber(
+    item?.width ||
+      item?.videoWidth ||
+      item?.video_width ||
+      findNestedHint(mediaInfo, ["width", "videoWidth", "video_width", "codedWidth"])
+  );
+
+  const height = hintNumber(
+    item?.height ||
+      item?.videoHeight ||
+      item?.video_height ||
+      findNestedHint(mediaInfo, ["height", "videoHeight", "video_height", "codedHeight"])
+  );
+
+  const fps = hintNumber(
+    item?.fps ||
+      item?.frameRate ||
+      item?.frame_rate ||
+      findNestedHint(mediaInfo, ["fps", "frameRate", "frame_rate", "framerate"])
+  );
+
+  const bitDepth = hintNumber(
+    item?.bitDepth ||
+      item?.bit_depth ||
+      findNestedHint(mediaInfo, ["bitDepth", "bit_depth", "bitsPerPixel", "bits_per_pixel"])
+  );
+
+  const bitrate = hintBitrate(
+    item?.bitrate ||
+      item?.bit_rate ||
+      item?.videoBitrate ||
+      item?.video_bitrate ||
+      findNestedHint(mediaInfo, [
+        "bitrate",
+        "bit_rate",
+        "videoBitrate",
+        "video_bitrate",
+      ])
+  );
+
+  const hdrFormat =
+    hintString(
+      item?.hdrFormat ||
+        item?.hdr_format ||
+        item?.dynamicRange ||
+        item?.dynamic_range
+    ) ||
+    findNestedHint(mediaInfo, [
+      "hdr",
+      "hdrFormat",
+      "hdr_format",
+      "dynamicRange",
+      "dynamic_range",
+      "colorTransfer",
+      "color_transfer",
+    ]);
+
   const hintText = [
     item?.label,
     item?.name,
@@ -261,17 +360,30 @@ const nativeSourceHints = (item = {}) => {
     videoCodec,
     audioCodec,
     container,
+    videoProfile,
+    width ? `${Math.round(width)}x${Math.round(height || 0)}` : "",
+    fps ? `${fps}fps` : "",
+    bitDepth ? `${bitDepth}bit` : "",
+    bitrate ? `${Math.round(bitrate)}bps` : "",
+    hdrFormat,
     safeObjectHint(mediaInfo),
   ]
     .map(hintString)
     .filter(Boolean)
     .join(" • ")
-    .slice(0, 7000);
+    .slice(0, 8000);
 
   return {
     videoCodec,
     audioCodec,
     container,
+    videoProfile,
+    width,
+    height,
+    fps,
+    bitDepth,
+    bitrate,
+    hdrFormat,
     hintText,
   };
 };
@@ -359,6 +471,8 @@ export const playNativeFireTv = ({
     };
   }
 
+  const contextHints = nativeSourceHints(playerContext);
+
   const nativeSources = Array.isArray(sources)
     ? sources.map((item, index) => {
         const hints = nativeSourceHints(item);
@@ -375,6 +489,13 @@ export const playNativeFireTv = ({
           videoCodec: hints.videoCodec,
           audioCodec: hints.audioCodec,
           container: hints.container,
+          videoProfile: hints.videoProfile,
+          width: hints.width,
+          height: hints.height,
+          fps: hints.fps,
+          bitDepth: hints.bitDepth,
+          bitrate: hints.bitrate,
+          hdrFormat: hints.hdrFormat,
           hintText: hints.hintText,
           drm:
             item?.drm && typeof item.drm === "object" && !Array.isArray(item.drm)
@@ -413,6 +534,19 @@ export const playNativeFireTv = ({
     nativeSources.find((item) => item.url === streamUrl) ||
     null;
 
+  const resolvedHints = {
+    videoCodec: selectedHints?.videoCodec || contextHints.videoCodec || "",
+    audioCodec: selectedHints?.audioCodec || contextHints.audioCodec || "",
+    container: selectedHints?.container || contextHints.container || "",
+    videoProfile: selectedHints?.videoProfile || contextHints.videoProfile || "",
+    width: selectedHints?.width || contextHints.width || 0,
+    height: selectedHints?.height || contextHints.height || 0,
+    fps: selectedHints?.fps || contextHints.fps || 0,
+    bitDepth: selectedHints?.bitDepth || contextHints.bitDepth || 0,
+    bitrate: selectedHints?.bitrate || contextHints.bitrate || 0,
+    hdrFormat: selectedHints?.hdrFormat || contextHints.hdrFormat || "",
+  };
+
   const payload = {
     requestId: String(requestId || `${Date.now()}`),
     url: streamUrl,
@@ -430,11 +564,19 @@ export const playNativeFireTv = ({
         ? headers
         : {},
     mimeType: String(mimeType || "").trim(),
-    videoCodec: selectedHints?.videoCodec || "",
-    audioCodec: selectedHints?.audioCodec || "",
-    container: selectedHints?.container || "",
+    videoCodec: resolvedHints.videoCodec,
+    audioCodec: resolvedHints.audioCodec,
+    container: resolvedHints.container,
+    videoProfile: resolvedHints.videoProfile,
+    width: resolvedHints.width,
+    height: resolvedHints.height,
+    fps: resolvedHints.fps,
+    bitDepth: resolvedHints.bitDepth,
+    bitrate: resolvedHints.bitrate,
+    hdrFormat: resolvedHints.hdrFormat,
     hintText: [
       selectedHints?.hintText,
+      contextHints.hintText,
       title,
       mimeType,
       streamUrl,
@@ -442,7 +584,7 @@ export const playNativeFireTv = ({
       .map(hintString)
       .filter(Boolean)
       .join(" • ")
-      .slice(0, 8000),
+      .slice(0, 10000),
     drm:
       drm && typeof drm === "object" && !Array.isArray(drm)
         ? {

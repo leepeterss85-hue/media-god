@@ -11,8 +11,8 @@ android {
         applicationId = "com.mediagod.mobile"
         minSdk = 23
         targetSdk = 35
-        versionCode = 8
-        versionName = "1.0.7"
+        versionCode = 9
+        versionName = "1.0.8"
 
         buildConfigField(
             "String",
@@ -56,7 +56,9 @@ android {
 }
 
 dependencies {
-    val media3Version = "1.5.1"
+    // Phones/tablets already target minSdk 23, so use the current stable
+    // Media3 generation with the latest Dolby Vision, AV1 and HDR fixes.
+    val media3Version = "1.11.0"
 
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.media3:media3-exoplayer:$media3Version")
@@ -67,7 +69,5 @@ dependencies {
     implementation("androidx.media3:media3-ui:$media3Version")
     implementation("androidx.media3:media3-session:$media3Version")
 
-    // Stable VLC 3.x engine used only after Media3/device decoding cannot handle
-    // the selected source. It supplies the wider codec/container safety net.
     implementation("org.videolan.android:libvlc-all:3.6.5")
 }
