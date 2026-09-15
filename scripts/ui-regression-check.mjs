@@ -163,28 +163,40 @@ expect(
   "Home streaming-service rows are missing"
 );
 
-const homeHeroIndex = homeDashboard.indexOf("<HeroSlider");
-const homeContinueIndex = homeDashboard.indexOf("<ContinueWatchingRow");
-const homeNewFilmsIndex = homeDashboard.indexOf('title="New Films"');
-const homeNewTvIndex = homeDashboard.indexOf('title="New TV Shows"');
-const homeNewEpisodesIndex = homeDashboard.indexOf("<NewEpisodesRow");
-const homeBecauseIndex = homeDashboard.indexOf("Because You Watched");
+const HOME_LAYOUT_LOCK_ID =
+  "featured>continue-watching>new-films>new-tv>new-episodes>because-you-watched";
+const homeLockStart = homeDashboard.indexOf("HOME_LAYOUT_LOCK_START");
+const homeLockEnd = homeDashboard.indexOf("HOME_LAYOUT_LOCK_END");
+const lockedHomeBlock =
+  homeLockStart >= 0 && homeLockEnd > homeLockStart
+    ? homeDashboard.slice(homeLockStart, homeLockEnd)
+    : "";
+const lockedHomeSlots = [
+  ...lockedHomeBlock.matchAll(/HOME_LOCK_SLOT:([a-z-]+)/g),
+].map((match) => match[1]);
+const lockedMediaRowCount =
+  (lockedHomeBlock.match(/<MediaRow\b/g) || []).length;
 
 expect(
-  [
-    homeContinueIndex,
-    homeNewFilmsIndex,
-    homeNewTvIndex,
-    homeNewEpisodesIndex,
-    homeBecauseIndex,
-    homeHeroIndex,
-  ].every((index) => index >= 0) &&
-    homeHeroIndex < homeContinueIndex &&
-    homeContinueIndex < homeNewFilmsIndex &&
-    homeNewFilmsIndex < homeNewTvIndex &&
-    homeNewTvIndex < homeNewEpisodesIndex &&
-    homeNewEpisodesIndex < homeBecauseIndex,
-  "Home priority order changed: featured hero must stay above Continue Watching, then New Films, New TV Shows, New Episodes and Because You Watched"
+  homeDashboard.includes(`"${HOME_LAYOUT_LOCK_ID}"`) &&
+    homeDashboard.includes("data-mg-home-layout-lock={HOME_LAYOUT_LOCK_ID}") &&
+    homeLockStart >= 0 &&
+    homeLockEnd > homeLockStart &&
+    lockedHomeSlots.join(">") === HOME_LAYOUT_LOCK_ID &&
+    (lockedHomeBlock.match(/<HeroSlider\b/g) || []).length === 1 &&
+    (lockedHomeBlock.match(/<ContinueWatchingRow\b/g) || []).length === 1 &&
+    (lockedHomeBlock.match(/<NewEpisodesRow\b/g) || []).length === 1 &&
+    lockedMediaRowCount === 3 &&
+    lockedHomeBlock.includes('title="New Films"') &&
+    lockedHomeBlock.includes('title="New TV Shows"') &&
+    lockedHomeBlock.includes("Because You Watched") &&
+    !lockedHomeBlock.includes("<RecentlyWatchedRow") &&
+    !lockedHomeBlock.includes("<StreamingServiceRows") &&
+    !lockedHomeBlock.includes('title="Trending Now"') &&
+    !lockedHomeBlock.includes('title="Popular Movies"') &&
+    !lockedHomeBlock.includes('title="Popular TV Shows"') &&
+    !lockedHomeBlock.includes('title="Top Rated Movies"'),
+  "LOCKED Home layout changed. Required order is Featured/Playing Now, Continue Watching, New Films, New TV Shows, New & Upcoming Episodes, Because You Watched. Secondary discovery rows must remain below it."
 );
 expect(
   newEpisodesRow.includes('data-mg-new-episodes-row="true"') &&
