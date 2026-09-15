@@ -62,6 +62,7 @@ import {
   writeSourceSortMode,
 } from "@/components/mg/sourceSelectorPreferences";
 import { runRealDebridCacheSession } from "@/components/mg/realDebridCacheEngine";
+import { buildAlternateEmbedFallback } from "@/components/mg/alternateEmbedFallback";
 
 const isMagnet = (value) =>
   String(value || "")
@@ -705,6 +706,9 @@ export default function VideoPlayer({
   const [nativeFallbackUrl, setNativeFallbackUrl] =
     useState("");
 
+  const [alternateEmbedFallback, setAlternateEmbedFallback] =
+    useState(null);
+
   const [forceNativePlayback, setForceNativePlayback] =
     useState(false);
 
@@ -724,6 +728,10 @@ export default function VideoPlayer({
    */
   const failedTorrentHashesRef =
     useRef(readPersistentFailedTorrentHashes());
+
+  useEffect(() => {
+    setAlternateEmbedFallback(null);
+  }, [activeIdx, source?.playRequestId]);
 
   const videoRef = useRef(null);
   const liveVideoRef = useRef(null);
@@ -2281,6 +2289,18 @@ export default function VideoPlayer({
               statusMessage:
                 `${result.message || "This Real-Debrid torrent could not progress after a verified restart."} Trying a different torrent hash for the same title…`,
             });
+            return;
+          }
+
+          const alternate = buildAlternateEmbedFallback(source, {
+            resumeAt: recoveryResumeRef.current,
+          });
+
+          if (alternate?.url) {
+            setRdPreparation(null);
+            setRdError("");
+            setAlternateEmbedFallback(alternate);
+            setForceNativePlayback(false);
             return;
           }
         }
@@ -6229,10 +6249,12 @@ export default function VideoPlayer({
    * URL in WebView again.
    */
   const useNativePlayback =
+    !alternateEmbedFallback?.url &&
     nativePlaybackAvailable &&
     (isLive || forceNativePlayback || isFireTvRemoteRuntime());
 
   const fireTvNativeSelectorMode =
+    !alternateEmbedFallback?.url &&
     nativeFireTvPlayer &&
     !isLive &&
     !forceNativePlayback &&
@@ -7558,6 +7580,16 @@ export default function VideoPlayer({
                 </button>
               )}
             </div>
+          ) : alternateEmbedFallback?.url ? (
+            <iframe
+              data-mg-alternate-embed-fallback="true"
+              src={alternateEmbedFallback.url}
+              title={`${source?.title || "Video"} alternate stream`}
+              className="w-full h-full bg-black"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+              allowFullScreen
+              referrerPolicy="strict-origin-when-cross-origin"
+            />
           ) : fireTvNativeSelectorMode ? (
             <div
               data-mg-native-fire-tv-selector="true"
