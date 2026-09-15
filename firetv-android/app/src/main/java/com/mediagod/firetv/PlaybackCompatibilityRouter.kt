@@ -148,6 +148,22 @@ object PlaybackCompatibilityRouter {
             url
         ).filter { it.isNotBlank() }.joinToString(" ")
 
+        val sourceIdentity = listOf(
+            selected?.optString("label").orEmpty(),
+            selected?.optString("sourceName").orEmpty(),
+            selected?.optString("hintText").orEmpty(),
+            payload.optString("sourceName"),
+            payload.optString("hintText")
+        ).filter { it.isNotBlank() }.joinToString(" ")
+
+        if (matches(sourceIdentity, "torrentio")) {
+            // Torrentio rows are usually debrid-backed torrent/remux files. Even
+            // when the device advertises the base video codec, the full file can
+            // still contain a container/audio/HDR combination that Media3 rejects.
+            // Route Torrentio directly to LibVLC instead of flashing Media3 first.
+            return Decision(true, "provider:torrentio")
+        }
+
         val width = firstPositiveInt(
             jsonNumber(selected, "width"),
             jsonNumber(payload, "width"),
