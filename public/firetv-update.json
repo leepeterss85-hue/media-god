@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 24,
-  "versionName": "1.4.19",
+  "versionCode": 25,
+  "versionName": "1.4.20",
   "title": "Media God Fire TV",
-  "message": "Fire TV 1.4.19 targets difficult 4K playback. It upgrades the Fire OS-safe Media3 engine to 1.8.0, adds decoder capability checks for real 4K/8K size and frame rate, recognises 10-bit/Main10 and Dolby Vision profiles before playback, routes unsupported UHD formats straight to the compatibility decoder, and works around problematic MKV streams carrying both Dolby Vision and HDR10+ metadata.",
+  "message": "Fire TV 1.4.20 fixes Torrentio playback routing. Torrentio/debrid torrent and remux sources now bypass the native Media3 surface and open directly in Media God's LibVLC compatibility player, avoiding the Media3 failure path while keeping the existing 4K/HDR capability checks for other sources.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
