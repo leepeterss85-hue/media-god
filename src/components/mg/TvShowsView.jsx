@@ -146,7 +146,7 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
         const response = await base44.functions.invoke("getTmdbMovies", {
           media_type: "tv",
           category,
-          country: activeProviderIds.length ? "" : country,
+          country: "",
           genre,
           year,
           language,
@@ -324,7 +324,7 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
                 setStreamingRegionOverride(nextCountry);
                 if (activeProvider) clearProvider();
               }}
-              aria-label="Choose country for TV and streaming services"
+              aria-label="Choose viewing country for TV availability and streaming services"
               className={`${selectClass} pl-10 3xl:pl-11`}
             >
               {COUNTRY_OPTIONS.map((item) => (
