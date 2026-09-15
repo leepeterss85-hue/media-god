@@ -719,10 +719,7 @@ export default async function (req) {
           currentStatus
         );
       const stalled =
-        activeLikeStatus &&
-        progress < 100 &&
-        hasNoActivity &&
-        ageMs >= 10 * 60_000;
+        rdPartialTorrentLooksStale(match);
       const explicitPlaybackReset = body.claim_for_playback === true;
       const explicitInactiveReset =
         body.force_inactive_reset === true &&
@@ -907,12 +904,7 @@ export default async function (req) {
        * full ten minutes with no seeders/speed.
        */
       const staleNoProgress =
-        matchProgress < 100 &&
-        matchInactive &&
-        /^(?:magnet_conversion|waiting_files_selection|waiting_selection|queued|downloading)$/i.test(
-          String(match?.status || "")
-        ) &&
-        matchAgeMs >= 10 * 60_000;
+        rdPartialTorrentLooksStale(match);
 
       if (staleNoProgress) {
         return Response.json({
