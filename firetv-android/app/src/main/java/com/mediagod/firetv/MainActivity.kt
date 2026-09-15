@@ -202,6 +202,15 @@ class MainActivity : Activity() {
             put("positionMs", data?.getLongExtra(PlayerActivity.EXTRA_POSITION_MS, 0L) ?: 0L)
             put("durationMs", data?.getLongExtra(PlayerActivity.EXTRA_DURATION_MS, 0L) ?: 0L)
             put("message", data?.getStringExtra(PlayerActivity.EXTRA_MESSAGE).orEmpty())
+            val diagnosticsText =
+                data?.getStringExtra(PlayerActivity.EXTRA_DIAGNOSTICS).orEmpty()
+            if (diagnosticsText.isNotBlank()) {
+                try {
+                    put("diagnostics", JSONObject(diagnosticsText))
+                } catch (_: Throwable) {
+                    put("diagnostics", diagnosticsText)
+                }
+            }
             put(
                 "selectedSourceIndex",
                 data?.getIntExtra(PlayerActivity.EXTRA_SELECTED_SOURCE_INDEX, -1) ?: -1
@@ -481,7 +490,59 @@ class MainActivity : Activity() {
                 return "busy"
             }
 
-            runOnUiThread {
+            Thread {
+                val preflight = NativeStreamPreflight.checkPayload(payload)
+                payload.put("streamPreflight", preflight.toJson())
+
+                if (
+                    payload.optString("mimeType").isBlank() &&
+                    preflight.contentType.isNotBlank()
+                ) {
+                    payload.put(
+                        "mimeType",
+                        preflight.contentType.substringBefore(';').trim()
+                    )
+                }
+
+                if (preflight.shouldSkip) {
+                    synchronized(nativePlayerLock) {
+                        playerOpen = false
+                        if (activeNativeRequestId == requestId) {
+                            activeNativeRequestId = ""
+                        }
+                    }
+
+                    val message =
+                        if (preflight.statusCode > 0) {
+                            "Stream pre-check rejected this source (HTTP ${preflight.statusCode}). Trying another source."
+                        } else {
+                            "Stream pre-check rejected this source. Trying another source."
+                        }
+
+                    val diagnostics = NativePlaybackDiagnostics.snapshot(
+                        payload = payload,
+                        url = url,
+                        engine = "preflight",
+                        event = "rejected",
+                        message = message,
+                        extra = preflight.toJson()
+                    )
+
+                    val result = JSONObject().apply {
+                        put("requestId", requestId)
+                        put("reason", "error")
+                        put("positionMs", 0)
+                        put("durationMs", 0)
+                        put("message", message)
+                        put("selectedSourceIndex", payload.optInt("activeSourceIndex", -1))
+                        put("diagnostics", diagnostics)
+                    }
+
+                    dispatchJavascript(
+                        "window.dispatchEvent(new CustomEvent('mg:native-player-result',{detail:JSON.parse(${JSONObject.quote(result.toString())})}));"
+                    )
+                } else {
+                    runOnUiThread {
                 val activityClass =
                     if (playbackDecision.useCompatibility) {
                         CompatibilityPlayerActivity::class.java
@@ -516,7 +577,9 @@ class MainActivity : Activity() {
                         "window.dispatchEvent(new CustomEvent('mg:native-player-result',{detail:JSON.parse(${JSONObject.quote(result.toString())})}));"
                     )
                 }
-            }
+                    }
+                }
+            }.start()
 
             return "true"
         }

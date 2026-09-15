@@ -9,7 +9,7 @@ const apps = [
     dir: "firetv-android",
     packagePath: "com/mediagod/firetv",
     namespace: "com.mediagod.firetv",
-    expectedVersion: "1.4.22",
+    expectedVersion: "1.4.23",
     expectedMedia3: "1.8.0",
     expectedOrientation: "landscape",
   },
@@ -18,7 +18,7 @@ const apps = [
     dir: "android-mobile",
     packagePath: "com/mediagod/mobile",
     namespace: "com.mediagod.mobile",
-    expectedVersion: "1.0.11",
+    expectedVersion: "1.0.12",
     expectedMedia3: "1.11.0",
     expectedOrientation: "sensor",
   },
@@ -121,6 +121,18 @@ for (const app of apps) {
     `${javaRoot}/PlaybackCompatibilityRouter.kt`,
     `${app.name} codec preflight router`
   );
+  const streamPreflight = requireFile(
+    `${javaRoot}/NativeStreamPreflight.kt`,
+    `${app.name} stream preflight`
+  );
+  const playbackDiagnostics = requireFile(
+    `${javaRoot}/NativePlaybackDiagnostics.kt`,
+    `${app.name} playback diagnostics`
+  );
+  const displayRateMatcher = requireFile(
+    `${javaRoot}/DisplayRateMatcher.kt`,
+    `${app.name} display rate matcher`
+  );
   requireFile(`${javaRoot}/AppUpdater.kt`, `${app.name} updater`);
   requireFile(`${app.dir}/app/src/main/res/xml/network_security_config.xml`, `${app.name} network security`);
   requireFile(`${app.dir}/app/src/main/res/xml/file_paths.xml`, `${app.name} file provider paths`);
@@ -150,8 +162,13 @@ for (const app of apps) {
     [mainActivity.includes("mg:native-player-result"), "native result event"],
     [mainActivity.includes("PlaybackCompatibilityRouter.decide(payload)"), "preflight routing decision"],
     [mainActivity.includes("CompatibilityPlayerActivity::class.java"), "direct compatibility player routing"],
+    [mainActivity.includes("NativeStreamPreflight.checkPayload(payload)"), "pre-play stream validation"],
+    [mainActivity.includes("EXTRA_DIAGNOSTICS"), "native diagnostics result forwarding"],
     [playerActivity.includes("DefaultHttpDataSource.Factory"), "Media3 HTTP data source"],
     [playerActivity.includes("setEnableDecoderFallback(true)"), "device decoder fallback"],
+    [playerActivity.includes("setVideoChangeFrameRateStrategy"), "Media3 frame-rate strategy"],
+    [playerActivity.includes("DisplayRateMatcher.apply"), "native display frame-rate matching"],
+    [playerActivity.includes("NativePlaybackDiagnostics.snapshot"), "Media3 diagnostics snapshot"],
     [playerActivity.includes("CompatibilityPlayerActivity::class.java"), "runtime compatibility decoder fallback"],
     [playerActivity.includes("MimeTypes.APPLICATION_M3U8"), "HLS MIME fallback"],
     [playerActivity.includes("MimeTypes.APPLICATION_MPD"), "DASH MIME fallback"],
@@ -162,24 +179,36 @@ for (const app of apps) {
     [compatibilityActivity.includes('setAudioOutput("android_audiotrack")'), "compatibility Android AudioTrack output"],
     [compatibilityActivity.includes("setAudioDigitalOutputEnabled(false)"), "compatibility digital passthrough disabled"],
     [compatibilityActivity.includes('setAudioOutputDevice("stereo")'), "compatibility stereo PCM downmix"],
+    [compatibilityActivity.includes("cycleAudioTrack"), "compatibility audio track selector"],
+    [compatibilityActivity.includes("audioTracks"), "compatibility audio track discovery"],
+    [compatibilityActivity.includes("DisplayRateMatcher.apply"), "compatibility refresh-rate matching"],
+    [compatibilityActivity.includes("NativePlaybackDiagnostics.snapshot"), "compatibility diagnostics snapshot"],
     [compatibilityActivity.includes("IMedia.Slave.Type.Subtitle"), "compatibility subtitle support"],
     [compatibilityRouter.includes("MediaCodecList(MediaCodecList.ALL_CODECS)"), "device codec registry preflight"],
     [compatibilityRouter.includes("areSizeAndRateSupported"), "4K size/rate capability check"],
     [compatibilityRouter.includes("HEVCProfileMain10"), "HEVC Main10 capability check"],
     [compatibilityRouter.includes("bitrateRange"), "UHD bitrate capability check"],
     [compatibilityRouter.includes("dolby-vision"), "Dolby Vision profile routing"],
+    [compatibilityRouter.includes('CodecSpec("hevc", listOf("video/hevc"))'), "Dolby Vision HEVC base-layer rescue"],
     [compatibilityRouter.includes("provider:torrentio"), "Torrentio compatibility-player preflight"],
     [compatibilityRouter.includes("video:") && compatibilityRouter.includes("audio:"), "codec-class routing"],
     [compatibilityRouter.includes("prores") && compatibilityRouter.includes("vc1"), "extended video codec detection"],
     [compatibilityRouter.includes("dts-hd") && compatibilityRouter.includes("truehd"), "extended audio codec detection"],
     [compatibilityRouter.includes("container:legacy"), "legacy container preflight"],
     [compatibilityRouter.includes('payload.optJSONObject("drm")'), "DRM Media3 guard"],
+    [streamPreflight.includes('setRequestProperty("Range", "bytes=0-1")') && streamPreflight.includes("451"), "resolved stream HTTP preflight"],
+    [playbackDiagnostics.includes("videoCodec") && playbackDiagnostics.includes("audioCodec") && playbackDiagnostics.includes("hdrFormat") && playbackDiagnostics.includes("bitDepth"), "native codec/HDR diagnostics"],
+    [displayRateMatcher.includes("preferredRefreshRate"), "display refresh-rate hint"],
   ];
 
   if (app.name === "Fire TV") {
     checks.push([
       compatibilityRouter.includes("firetv-dv-hdr10plus-mkv"),
       "Fire TV Dolby Vision + HDR10+ MKV workaround",
+    ]);
+    checks.push([
+      displayRateMatcher.includes("preferredDisplayModeId"),
+      "Fire TV same-resolution display mode matching",
     ]);
   }
 

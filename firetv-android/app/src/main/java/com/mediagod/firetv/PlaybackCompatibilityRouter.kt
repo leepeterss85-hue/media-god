@@ -334,8 +334,16 @@ object PlaybackCompatibilityRouter {
 
         if (codec.label == "dolby-vision") {
             if (hints.dolbyVisionProfile == 7) {
-                // Profile 7/FEL is a common UHD Blu-ray remux failure on Fire/Android TV.
-                return false
+                /*
+                 * Profile 7 remuxes often contain a perfectly usable HEVC base
+                 * layer even when the enhancement layer is unsupported. Prefer
+                 * that hardware path first; a real decoder failure still falls
+                 * through to LibVLC.
+                 */
+                val hevc = CodecSpec("hevc", listOf("video/hevc"))
+                return matchingDecoderTypes(hevc).any { (info, type) ->
+                    codecCapabilitiesAccept(info, type, hevc, hints)
+                }
             }
 
             val nativeDolbyVision = matchingDecoderTypes(codec)

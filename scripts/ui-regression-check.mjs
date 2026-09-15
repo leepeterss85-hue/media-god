@@ -24,6 +24,8 @@ const realDebridBackend = await read("base44/functions/realDebrid/entry.ts");
 const addonStreamsBackend = await read("base44/functions/fetchAddonStreams/entry.ts");
 const addonBrowserFallback = await read("src/components/mg/addonBrowserFallback.js");
 const videoPlayer = await read("src/components/mg/VideoPlayer.jsx");
+const mediaCompatibility = await read("src/components/mg/mediaCompatibility.js");
+const playbackReliabilityCore = await read("src/components/mg/playbackReliability.js");
 const playerProvider = await read("src/components/mg/PlayerProvider.jsx");
 const mediaPlayerControls = await read("src/components/mg/MediaPlayerControls.jsx");
 const nativeFireTvBridge = await read("src/components/mg/nativeFireTvBridge.js");
@@ -391,6 +393,29 @@ expect(
     String(fireTvReleaseData?.apkUrl || "").includes("Media-God-Fire-TV.apk") &&
     String(fireTvReleaseData?.channel || "") === "fire-tv",
   "Fire TV update manifest is missing valid version or APK metadata"
+);
+
+expect(
+  videoPlayer.includes("const activeRecoveryTraits = detectStreamTraits") &&
+    videoPlayer.includes("qualityRank: qualityRecoveryRank") &&
+    videoPlayer.includes("hdrRescueRank: hdrRecoveryRank"),
+  "quality-preserving 4K failover or HDR rescue ordering is missing"
+);
+expect(
+  videoPlayer.includes("__MG_NATIVE_PLAYBACK_DIAGNOSTICS__") &&
+    videoPlayer.includes("mg:native-playback-diagnostic"),
+  "native playback diagnostics history is missing"
+);
+expect(
+  mediaCompatibility.includes("nativePlayerAvailable\n      ? nativeFireTvCodecInfo()") &&
+    mediaCompatibility.includes("!deviceProfile?.nativePlayerAvailable || !codec"),
+  "phone/tablet native codec registry is not used for compatibility scoring"
+);
+expect(
+  playbackReliabilityCore.includes("android-mobile:") &&
+    playbackReliabilityCore.includes("hdr:dolby-vision") &&
+    playbackReliabilityCore.includes("bitdepth:10"),
+  "per-device mobile HDR/codec reliability learning is missing"
 );
 
 console.log("ok UI/navigation/download/watch-party/locked-source/version-update structural checks complete");

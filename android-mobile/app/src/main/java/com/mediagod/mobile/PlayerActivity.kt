@@ -32,6 +32,7 @@ class PlayerActivity : Activity() {
         const val EXTRA_POSITION_MS = "mg_position_ms"
         const val EXTRA_DURATION_MS = "mg_duration_ms"
         const val EXTRA_MESSAGE = "mg_message"
+        const val EXTRA_DIAGNOSTICS = "mg_diagnostics"
 
         private const val REQUEST_COMPATIBILITY_PLAYER = 8402
         private const val CONTROLLER_HIDE_DELAY_MS = 2500L
@@ -86,6 +87,13 @@ class PlayerActivity : Activity() {
         )
         enterImmersiveMode()
 
+        DisplayRateMatcher.apply(
+            this,
+            payload,
+            streamUrl,
+            forceDisplayMode = false
+        )
+
         playerView = PlayerView(this).apply {
             setBackgroundColor(Color.BLACK)
             useController = true
@@ -132,6 +140,7 @@ class PlayerActivity : Activity() {
         if (::playerView.isInitialized) {
             playerView.removeCallbacks(hideControllerRunnable)
         }
+        DisplayRateMatcher.clear(this)
         releasePlayer()
         super.onDestroy()
     }
@@ -266,6 +275,9 @@ class PlayerActivity : Activity() {
 
         val exoPlayer = ExoPlayer.Builder(this, renderersFactory)
             .setMediaSourceFactory(mediaSourceFactory)
+            .setVideoChangeFrameRateStrategy(
+                C.VIDEO_CHANGE_FRAME_RATE_STRATEGY_ONLY_IF_SEAMLESS
+            )
             .build()
 
         val audioAttributes = AudioAttributes.Builder()
@@ -289,6 +301,30 @@ class PlayerActivity : Activity() {
                 .build()
 
         exoPlayer.addListener(object : Player.Listener {
+            override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
+                var selectedFrameRate = 0f
+
+                outer@ for (group in tracks.groups) {
+                    if (group.type != C.TRACK_TYPE_VIDEO) continue
+                    for (index in 0 until group.length) {
+                        if (!group.isTrackSelected(index)) continue
+                        val frameRate = group.getTrackFormat(index).frameRate
+                        if (frameRate > 0f) {
+                            selectedFrameRate = frameRate
+                            break@outer
+                        }
+                    }
+                }
+
+                if (selectedFrameRate > 0f) {
+                    DisplayRateMatcher.apply(
+                        this@PlayerActivity,
+                        selectedFrameRate,
+                        forceDisplayMode = false
+                    )
+                }
+            }
+
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 if (isPlaying) {
                     window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -612,12 +648,21 @@ class PlayerActivity : Activity() {
             activePlayer?.duration?.takeIf { it > 0L } ?: 0L
         )
 
+        val diagnostics = NativePlaybackDiagnostics.snapshot(
+            payload = payload,
+            url = streamUrl,
+            engine = "media3",
+            event = reason,
+            message = message
+        ).toString()
+
         val result = Intent().apply {
             putExtra(EXTRA_REQUEST_ID, requestId)
             putExtra(EXTRA_REASON, reason)
             putExtra(EXTRA_POSITION_MS, positionMs)
             putExtra(EXTRA_DURATION_MS, durationMs)
             putExtra(EXTRA_MESSAGE, message)
+            putExtra(EXTRA_DIAGNOSTICS, diagnostics)
         }
 
         setResult(RESULT_OK, result)

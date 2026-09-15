@@ -200,7 +200,7 @@ const NATIVE_AUDIO_MIME = {
 };
 
 const nativeCodecSupportFor = (deviceProfile, kind, codec) => {
-  if (!deviceProfile?.nativeFireTv || !codec) return null;
+  if (!deviceProfile?.nativePlayerAvailable || !codec) return null;
 
   const available = Array.isArray(deviceProfile?.nativeCodecSupport?.[kind])
     ? deviceProfile.nativeCodecSupport[kind].map((value) => String(value).toLowerCase())
@@ -260,7 +260,7 @@ export const getPlaybackDeviceProfile = () => {
     (nativeFireTv || isFireTvRuntime());
 
   const nativeCodecSupport =
-    nativeFireTv
+    nativePlayerAvailable
       ? nativeFireTvCodecInfo() || { video: [], audio: [] }
       : { video: [], audio: [] };
 
@@ -1011,7 +1011,7 @@ const audioSupport = (
       return true;
     }
 
-    return deviceProfile?.nativeFireTv ? null : false;
+    return deviceProfile?.nativePlayerAvailable ? null : false;
   }
 
   if (audio === "xheaac") {
@@ -1019,7 +1019,7 @@ const audioSupport = (
       return true;
     }
 
-    return deviceProfile?.nativeFireTv ? null : false;
+    return deviceProfile?.nativePlayerAvailable ? null : false;
   }
 
   if (
@@ -1034,7 +1034,7 @@ const audioSupport = (
      * native player gets a real attempt instead of being rejected from a
      * browser codec probe. Web/mobile browsers still treat these as unsafe.
      */
-    return deviceProfile?.nativeFireTv ? null : false;
+    return deviceProfile?.nativePlayerAvailable ? null : false;
   }
 
   return null;

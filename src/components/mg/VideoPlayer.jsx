@@ -32,6 +32,7 @@ import {
 } from "@/components/mg/playbackReliability";
 import {
   detectLanguagePreference,
+  detectStreamTraits,
   getPlaybackDeviceProfile,
   hasSevereVideoRisk,
   scoreSourceCompatibility,
@@ -1110,6 +1111,43 @@ export default function VideoPlayer({
     const obeySelectorOrder =
       sourceSortMode !== "best" && !liveFailover;
 
+    const activeRecoveryTraits = detectStreamTraits(
+      active,
+      sourceDisplayLabel(active, fromIndex)
+    );
+    const activeRecoveryResolution = Number(
+      activeRecoveryTraits?.resolution || 0
+    );
+    const activeRecoveryDolbyVision =
+      activeRecoveryTraits?.dolbyVision === true;
+
+    const qualityRecoveryRank = (traits) => {
+      const resolution = Number(traits?.resolution || 0);
+      if (activeRecoveryResolution <= 0) return 0;
+      if (resolution === activeRecoveryResolution) return 0;
+      if (resolution > 0 && resolution < activeRecoveryResolution) {
+        return activeRecoveryResolution - resolution;
+      }
+      if (resolution > activeRecoveryResolution) {
+        return 10000 + resolution - activeRecoveryResolution;
+      }
+      return 20000;
+    };
+
+    const hdrRecoveryRank = (traits) => {
+      if (
+        !activeRecoveryDolbyVision ||
+        activeRecoveryResolution < 2000 ||
+        Number(traits?.resolution || 0) !== activeRecoveryResolution
+      ) {
+        return 0;
+      }
+
+      if (traits?.dolbyVision !== true && traits?.hdr === true) return 0;
+      if (traits?.dolbyVision !== true) return 1;
+      return 2;
+    };
+
     const candidates = sources
       .map((candidate, index) => {
         const url = getSourceUrl(candidate);
@@ -1135,8 +1173,15 @@ export default function VideoPlayer({
           return null;
         }
 
+        const candidateTraits = detectStreamTraits(
+          candidate,
+          sourceDisplayLabel(candidate, index)
+        );
+
         return {
           index,
+          qualityRank: qualityRecoveryRank(candidateTraits),
+          hdrRescueRank: hdrRecoveryRank(candidateTraits),
           selectorRank:
             selectorRankByIndex.get(index) ??
             Number.MAX_SAFE_INTEGER,
@@ -1163,6 +1208,14 @@ export default function VideoPlayer({
           // controls the visible list, but automatic failover should never jump
           // to a known-bad mirror merely because it appears earlier in that list.
           return b.score - a.score || a.index - b.index;
+        }
+
+        if (a.qualityRank !== b.qualityRank) {
+          return a.qualityRank - b.qualityRank;
+        }
+
+        if (a.hdrRescueRank !== b.hdrRescueRank) {
+          return a.hdrRescueRank - b.hdrRescueRank;
         }
 
         return obeySelectorOrder
@@ -5287,6 +5340,32 @@ export default function VideoPlayer({
 
     const onNativeResult = (event) => {
       const detail = event?.detail || {};
+
+      if (detail?.diagnostics) {
+        try {
+          const history = Array.isArray(window.__MG_NATIVE_PLAYBACK_DIAGNOSTICS__)
+            ? window.__MG_NATIVE_PLAYBACK_DIAGNOSTICS__
+            : [];
+          const entry = {
+            ...detail.diagnostics,
+            requestId: String(detail.requestId || ""),
+            reason: String(detail.reason || ""),
+          };
+          const nextHistory = [...history.slice(-49), entry];
+          window.__MG_NATIVE_PLAYBACK_DIAGNOSTICS__ = nextHistory;
+          window.localStorage.setItem(
+            "mg:native-playback-diagnostics:v1",
+            JSON.stringify(nextHistory)
+          );
+          window.dispatchEvent(
+            new CustomEvent("mg:native-playback-diagnostic", { detail: entry })
+          );
+          console.info("[Media God native playback]", entry);
+        } catch {
+          // Diagnostics must never interrupt playback.
+        }
+      }
+
       const activeRequest = nativePlaybackRef.current;
 
       if (
@@ -5359,6 +5438,11 @@ export default function VideoPlayer({
       }
 
       if (reason === "error") {
+        recordPlaybackReliability(
+          sourceDisplayLabel(active, activeIdx),
+          "failure"
+        );
+
         if (positionSeconds > 5) {
           recoveryResumeRef.current = positionSeconds;
         }
@@ -5395,6 +5479,11 @@ export default function VideoPlayer({
         reason === "ended" &&
         !isLive
       ) {
+        recordPlaybackReliability(
+          sourceDisplayLabel(active, activeIdx),
+          "good"
+        );
+
         const playerContext =
           typeof window !== "undefined"
             ? window.__MG_PLAYER_CONTEXT__ || {}

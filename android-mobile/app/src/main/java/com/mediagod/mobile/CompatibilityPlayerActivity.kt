@@ -38,6 +38,7 @@ class CompatibilityPlayerActivity : Activity() {
     private lateinit var controls: LinearLayout
     private lateinit var statusText: TextView
     private lateinit var playPauseButton: Button
+    private lateinit var audioButton: Button
 
     private var libVLC: LibVLC? = null
     private var vlcPlayer: MediaPlayer? = null
@@ -52,6 +53,9 @@ class CompatibilityPlayerActivity : Activity() {
 
     private val hideControlsRunnable = Runnable {
         if (!resultSent && ::controls.isInitialized) {
+            if (controls.hasFocus() && ::videoLayout.isInitialized) {
+                videoLayout.requestFocus()
+            }
             controls.visibility = View.GONE
             if (::statusText.isInitialized) {
                 statusText.visibility = View.GONE
@@ -83,6 +87,12 @@ class CompatibilityPlayerActivity : Activity() {
             WindowManager.LayoutParams.FLAG_FULLSCREEN
         )
         enterImmersiveMode()
+        DisplayRateMatcher.apply(
+            this,
+            payload,
+            streamUrl,
+            forceDisplayMode = false
+        )
         buildUi()
         startCompatibilityPlayback()
     }
@@ -121,6 +131,33 @@ class CompatibilityPlayerActivity : Activity() {
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (event.action == KeyEvent.ACTION_DOWN && !event.isLongPress) {
+            if (
+                ::controls.isInitialized &&
+                controls.hasFocus() &&
+                event.keyCode in setOf(
+                    KeyEvent.KEYCODE_DPAD_LEFT,
+                    KeyEvent.KEYCODE_DPAD_RIGHT,
+                    KeyEvent.KEYCODE_DPAD_UP,
+                    KeyEvent.KEYCODE_DPAD_DOWN,
+                    KeyEvent.KEYCODE_DPAD_CENTER,
+                    KeyEvent.KEYCODE_ENTER
+                )
+            ) {
+                showControlsTemporarily()
+                return super.dispatchKeyEvent(event)
+            }
+
+            if (
+                event.keyCode == KeyEvent.KEYCODE_DPAD_UP ||
+                event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN
+            ) {
+                showControlsTemporarily()
+                if (::audioButton.isInitialized) {
+                    audioButton.requestFocus()
+                }
+                return true
+            }
+
             when (event.keyCode) {
                 KeyEvent.KEYCODE_BACK -> {
                     finishWithResult("back")
@@ -169,6 +206,7 @@ class CompatibilityPlayerActivity : Activity() {
 
     override fun onDestroy() {
         if (::root.isInitialized) root.removeCallbacks(hideControlsRunnable)
+        DisplayRateMatcher.clear(this)
         releaseCompatibilityPlayer()
         super.onDestroy()
     }
@@ -200,6 +238,10 @@ class CompatibilityPlayerActivity : Activity() {
         playPauseButton = controlButton("Pause") {
             togglePlayback()
         }
+        audioButton = controlButton("Audio") {
+            cycleAudioTrack()
+        }
+
         val forwardButton = controlButton("+10s") {
             seekBy(10_000L)
         }
@@ -212,6 +254,7 @@ class CompatibilityPlayerActivity : Activity() {
             addView(backButton)
             addView(rewindButton)
             addView(playPauseButton)
+            addView(audioButton)
             addView(forwardButton)
         }
 
@@ -329,6 +372,8 @@ class CompatibilityPlayerActivity : Activity() {
                                 // Keep playback running on unusual vendor audio tables.
                             }
 
+                            updateAudioButtonLabel()
+
                             if (pendingStartPositionMs > 0L) {
                                 val target = pendingStartPositionMs
                                 pendingStartPositionMs = 0L
@@ -419,6 +464,66 @@ class CompatibilityPlayerActivity : Activity() {
         }
     }
 
+    private fun cycleAudioTrack() {
+        val player = vlcPlayer ?: return
+        val tracks = try {
+            player.audioTracks
+                ?.filter { it.id >= 0 }
+                .orEmpty()
+        } catch (_: Throwable) {
+            emptyList()
+        }
+
+        if (tracks.isEmpty()) {
+            statusText.text = "Audio · no selectable track"
+            statusText.visibility = View.VISIBLE
+            showControlsTemporarily()
+            return
+        }
+
+        val currentIndex = tracks.indexOfFirst { it.id == player.audioTrack }
+        val next = tracks[(currentIndex + 1).mod(tracks.size)]
+
+        try {
+            player.setAudioTrack(next.id)
+            player.setVolume(100)
+            val name = next.name?.trim().orEmpty().ifBlank { "Track ${next.id}" }
+            statusText.text = "Audio · $name"
+            statusText.visibility = View.VISIBLE
+        } catch (_: Throwable) {
+            statusText.text = "Audio · could not switch track"
+            statusText.visibility = View.VISIBLE
+        }
+
+        updateAudioButtonLabel()
+        showControlsTemporarily()
+    }
+
+    private fun updateAudioButtonLabel() {
+        if (!::audioButton.isInitialized) return
+
+        val player = vlcPlayer
+        val tracks = try {
+            player?.audioTracks
+                ?.filter { it.id >= 0 }
+                .orEmpty()
+        } catch (_: Throwable) {
+            emptyList()
+        }
+
+        if (tracks.isEmpty()) {
+            audioButton.text = "Audio"
+            return
+        }
+
+        val current = tracks.firstOrNull { it.id == player?.audioTrack } ?: tracks.first()
+        val name = current.name?.trim().orEmpty()
+        audioButton.text =
+            if (tracks.size > 1 && name.isNotBlank()) "Audio · $name"
+            else if (tracks.size > 1) "Audio · ${tracks.indexOf(current) + 1}/${tracks.size}"
+            else "Audio"
+    }
+
     private fun togglePlayback() {
         val player = vlcPlayer ?: return
         if (player.isPlaying) player.pause() else player.play()
@@ -480,6 +585,29 @@ class CompatibilityPlayerActivity : Activity() {
         resultSent = true
 
         val player = vlcPlayer
+        val audioExtra = JSONObject().apply {
+            try {
+                val currentAudioTrack = player?.audioTrack ?: -1
+                val currentAudioName = player?.audioTracks
+                    ?.firstOrNull { it.id == currentAudioTrack }
+                    ?.name
+                    ?.trim()
+                    .orEmpty()
+                put("selectedAudioTrack", currentAudioTrack)
+                put("selectedAudioName", currentAudioName)
+            } catch (_: Throwable) {
+                put("selectedAudioTrack", -1)
+            }
+        }
+        val diagnostics = NativePlaybackDiagnostics.snapshot(
+            payload = payload,
+            url = streamUrl,
+            engine = "libvlc",
+            event = reason,
+            message = message,
+            extra = audioExtra
+        ).toString()
+
         val result = Intent().apply {
             putExtra(PlayerActivity.EXTRA_REQUEST_ID, requestId)
             putExtra(PlayerActivity.EXTRA_REASON, reason)
@@ -492,6 +620,7 @@ class CompatibilityPlayerActivity : Activity() {
                 max(0L, player?.length?.takeIf { it > 0L } ?: 0L)
             )
             putExtra(PlayerActivity.EXTRA_MESSAGE, message)
+            putExtra(PlayerActivity.EXTRA_DIAGNOSTICS, diagnostics)
         }
 
         setResult(RESULT_OK, result)

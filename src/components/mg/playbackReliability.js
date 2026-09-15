@@ -25,9 +25,31 @@ const fireTvModel = () => {
   return String(navigator.userAgent || "").match(/\b(AFT[A-Z0-9]+)\b/i)?.[1]?.toUpperCase() || "";
 };
 
+const androidModel = () => {
+  if (typeof navigator === "undefined") return "";
+
+  const userAgent = String(navigator.userAgent || "");
+  const match = userAgent.match(
+    /\bAndroid\b[^;)]*;\s*([^;)]+?)(?:\s+Build\/|;|\))/i
+  );
+
+  return String(match?.[1] || "")
+    .replace(/\bwv\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+};
+
 export const playbackDeviceKey = (profile = getPlaybackDeviceProfile()) => {
   if (profile?.fireTv || profile?.isFireTv) {
     return `fire-tv:${fireTvModel() || "generic"}`;
+  }
+
+  if (profile?.nativeAndroidMobile || profile?.mobileApp) {
+    return `android-mobile:${androidModel() || "generic"}`;
   }
 
   return "browser";
@@ -51,6 +73,12 @@ const traitKeysFor = (label, profile) => {
   if (traits.video) keys.push(`${prefix}:video:${traits.video}`);
   if (traits.container) keys.push(`${prefix}:container:${traits.container}`);
   if (traits.resolution) keys.push(`${prefix}:resolution:${traits.resolution}`);
+  if (traits.dolbyVision) keys.push(`${prefix}:hdr:dolby-vision`);
+  else if (traits.hdr) keys.push(`${prefix}:hdr:hdr`);
+  if (traits.atmos) keys.push(`${prefix}:audio:atmos`);
+  if (/\b(?:10[ -]?bit|main[ ._-]?10|p010)\b/i.test(traits.text || "")) {
+    keys.push(`${prefix}:bitdepth:10`);
+  }
 
   return keys;
 };

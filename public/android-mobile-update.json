@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 12,
-  "versionName": "1.0.11",
+  "versionCode": 13,
+  "versionName": "1.0.12",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.11 fixes 4K recovery: Real-Debrid 451/infringing torrent rejections immediately advance to the next source instead of remaining selected, and LibVLC compatibility playback restores full volume, forces decoded stereo PCM and selects an available audio track for difficult remuxes that previously played without sound.",
+  "message": "Media God Mobile 1.0.12 adds the full playback resilience upgrade: quality-preserving 4K failover, HDR/Dolby Vision base-layer rescue, pre-play stream validation, display refresh-rate hints, a selectable LibVLC audio track control, richer native diagnostics, and per-phone/tablet codec and reliability learning.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
