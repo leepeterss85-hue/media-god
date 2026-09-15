@@ -893,7 +893,15 @@ export default function HomeDashboard({ onOpenTvService }) {
   return (
     <div className="w-full min-w-0" data-mg-home-dashboard="true">
       <div data-mg-home-content="true" className="flex flex-col gap-6 3xl:gap-8 4xl:gap-10 py-5 sm:py-6 3xl:py-8">
-        {/* PERMANENT HOME PRIORITY ORDER — keep these rows first. */}
+        {/* Keep the featured/playing-now hero at the very top of Home. */}
+        <HeroSlider
+          items={hero}
+          onWatch={open}
+          onDetails={open}
+          onWatchlist={onWatchlist}
+        />
+
+        {/* PERMANENT HOME PRIORITY ORDER — keep these rows immediately below the hero. */}
         <ContinueWatchingRow />
 
         <MediaRow
@@ -930,13 +938,6 @@ export default function HomeDashboard({ onOpenTvService }) {
           )}
 
         {/* Everything below this point is secondary discovery content. */}
-        <HeroSlider
-          items={hero}
-          onWatch={open}
-          onDetails={open}
-          onWatchlist={onWatchlist}
-        />
-
         {(rows.moreTVToday || []).length > 0 && (
           <MediaRow
             title="More TV Airing Today"
