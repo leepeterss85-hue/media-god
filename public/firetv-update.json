@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 20,
-  "versionName": "1.4.15",
+  "versionCode": 22,
+  "versionName": "1.4.17",
   "title": "Media God Fire TV",
-  "message": "Fire TV 1.4.15 improves native Live TV playback with startup and stall recovery, automatic source failover inside Media3, clean auto-hiding controls, and reliable manual source switching.",
+  "message": "Fire TV 1.4.17 adds a broad compatibility decoder fallback for difficult video and audio formats while keeping Media3 hardware decoding first. It improves playback for DTS/DTS-HD, TrueHD/MLP, ALAC, FLAC, Opus/Vorbis, MPEG audio, legacy MPEG-4/DivX/Xvid/VC-1 and unusual MKV/AVI/TS combinations, with wider container detection and automatic fallback only when the normal decoder cannot play the source.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
