@@ -203,8 +203,21 @@ expect(
     countryOptions.includes('label: "All Countries"') &&
     countryOptions.includes("Intl.DisplayNames") &&
     movies.includes("COUNTRY_OPTIONS") &&
-    movies.includes("setStreamingRegionOverride(nextCountry)"),
-  "Global country dropdown no longer drives movies/TV streaming region"
+    movies.includes("setStreamingRegionOverride(nextCountry)") &&
+    movies.includes('country: ""') &&
+    tvShows.includes('country: ""'),
+  "Global country dropdown no longer drives movies/TV viewing region independently of title origin"
+);
+expect(
+  movies.includes("include_global_releases: true") &&
+    homeDashboard.includes("include_global_releases: true") &&
+    roadmap.includes("include_global_releases: true") &&
+    roadmap.includes("Released elsewhere") &&
+    tmdbBackend.includes("includeGlobalReleases") &&
+    tmdbBackend.includes("globalReleasedDates") &&
+    tmdbBackend.includes("/movie/now_playing?") &&
+    tmdbBackend.includes("global_release_available"),
+  "Worldwide cinema-release overlay is missing or local cinema dates can hide already-released titles again"
 );
 expect(
   tmdbBackend.includes("provider_catalog") &&
