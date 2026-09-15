@@ -785,6 +785,7 @@ export default function DetailModal({
     itemId,
     resolvedMediaType,
     safeItem,
+    streamingRegion,
   ]);
 
   const trailerUrl =
