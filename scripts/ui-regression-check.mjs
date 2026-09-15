@@ -162,12 +162,12 @@ expect(
   "Home streaming-service rows are missing"
 );
 
+const homeHeroIndex = homeDashboard.indexOf("<HeroSlider");
 const homeContinueIndex = homeDashboard.indexOf("<ContinueWatchingRow");
 const homeNewFilmsIndex = homeDashboard.indexOf('title="New Films"');
 const homeNewTvIndex = homeDashboard.indexOf('title="New TV Shows"');
 const homeNewEpisodesIndex = homeDashboard.indexOf("<NewEpisodesRow");
 const homeBecauseIndex = homeDashboard.indexOf("Because You Watched");
-const homeHeroIndex = homeDashboard.indexOf("<HeroSlider", homeContinueIndex);
 
 expect(
   [
@@ -178,12 +178,12 @@ expect(
     homeBecauseIndex,
     homeHeroIndex,
   ].every((index) => index >= 0) &&
+    homeHeroIndex < homeContinueIndex &&
     homeContinueIndex < homeNewFilmsIndex &&
     homeNewFilmsIndex < homeNewTvIndex &&
     homeNewTvIndex < homeNewEpisodesIndex &&
-    homeNewEpisodesIndex < homeBecauseIndex &&
-    homeBecauseIndex < homeHeroIndex,
-  "Home priority order changed: Continue Watching, New Films, New TV Shows, New Episodes and Because You Watched must stay first"
+    homeNewEpisodesIndex < homeBecauseIndex,
+  "Home priority order changed: featured hero must stay above Continue Watching, then New Films, New TV Shows, New Episodes and Because You Watched"
 );
 expect(
   newEpisodesRow.includes('data-mg-new-episodes-row="true"') &&
