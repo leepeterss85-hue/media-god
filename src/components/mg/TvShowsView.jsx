@@ -211,7 +211,7 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
     return () => {
       cancelled = true;
     };
-  }, [country, category, genre, year, language, debouncedQuery, activeProviderIdsKey]);
+  }, [country, category, genre, year, language, debouncedQuery, activeProviderIdsKey, streamingRegion]);
 
   const featured = FEATURED_SHOWS.find((item) => item.title === "Debris");
 
