@@ -57,6 +57,14 @@ export const detectStreamingRegion = () => {
   return "US";
 };
 
+export const detectStreamingTimezone = () => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  } catch {
+    return "UTC";
+  }
+};
+
 export const setStreamingRegionOverride = (value) => {
   const region = normaliseStreamingRegion(value);
   if (typeof window === "undefined") return region;
