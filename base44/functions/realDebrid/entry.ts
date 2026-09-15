@@ -1087,10 +1087,12 @@ export default async function (req) {
       if (staleNoProgress) {
         return Response.json({
           status: "stale",
+          torrent_id: String(match.id),
           info_hash: hash,
           progress: matchProgress,
           rd_status: String(match?.status || ""),
           stale_for_ms: matchAgeMs,
+          torrent_progress: buildTorrentProgress(match),
         });
       }
 
