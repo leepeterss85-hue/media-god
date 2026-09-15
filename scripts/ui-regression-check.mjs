@@ -410,6 +410,8 @@ expect(
     videoPlayer.includes("now - sourceSelectorPinnedAtRef.current > 12000") &&
     videoPlayer.includes("expectedOnePercentMs") &&
     videoPlayer.includes("activeDownloadFlatlineMs") &&
+    videoPlayer.includes("staleByOriginalRdAge") &&
+    videoPlayer.includes("expectedFullTransferMs") &&
     videoPlayer.includes("repairedStuckTorrentHashesRef = useRef(new Set())") &&
     videoPlayer.includes('action: "restart_playback_torrent"') &&
     videoPlayer.includes("richestSourceMagnet(active)") &&
