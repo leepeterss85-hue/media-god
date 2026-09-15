@@ -531,6 +531,7 @@ export default function HomeDashboard({ onOpenTvService }) {
         category: "movie_released_today",
         date: todayKey,
         region: streamingRegion,
+        include_global_releases: true,
       }, "movie"),
 
       fetchRow({
@@ -544,6 +545,7 @@ export default function HomeDashboard({ onOpenTvService }) {
         media_type: "movie",
         category: "now_playing",
         region: streamingRegion,
+        include_global_releases: true,
       }, "movie"),
 
       fetchRow({
