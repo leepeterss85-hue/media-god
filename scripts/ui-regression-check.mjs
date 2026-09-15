@@ -17,6 +17,7 @@ const roadmap = await read("src/components/mg/RoadmapView.jsx");
 const movies = await read("src/components/mg/MoviesView.jsx");
 const tvShows = await read("src/components/mg/TvShowsView.jsx");
 const homeDashboard = await read("src/components/mg/HomeDashboard.jsx");
+const newEpisodesRow = await read("src/components/mg/NewEpisodesRow.jsx");
 const streamingServiceRows = await read("src/components/mg/StreamingServiceRows.jsx");
 const streamingServices = await read("src/components/mg/streamingServices.js");
 const streamingRegion = await read("src/components/mg/streamingRegion.js");
@@ -159,6 +160,40 @@ expect(
     homeDashboard.includes('mediaType="mixed"') &&
     homeDashboard.includes("onOpenTvService"),
   "Home streaming-service rows are missing"
+);
+
+const homeContinueIndex = homeDashboard.indexOf("<ContinueWatchingRow");
+const homeNewFilmsIndex = homeDashboard.indexOf('title="New Films"');
+const homeNewTvIndex = homeDashboard.indexOf('title="New TV Shows"');
+const homeNewEpisodesIndex = homeDashboard.indexOf("<NewEpisodesRow");
+const homeBecauseIndex = homeDashboard.indexOf("Because You Watched");
+const homeHeroIndex = homeDashboard.indexOf("<HeroSlider", homeContinueIndex);
+
+expect(
+  [
+    homeContinueIndex,
+    homeNewFilmsIndex,
+    homeNewTvIndex,
+    homeNewEpisodesIndex,
+    homeBecauseIndex,
+    homeHeroIndex,
+  ].every((index) => index >= 0) &&
+    homeContinueIndex < homeNewFilmsIndex &&
+    homeNewFilmsIndex < homeNewTvIndex &&
+    homeNewTvIndex < homeNewEpisodesIndex &&
+    homeNewEpisodesIndex < homeBecauseIndex &&
+    homeBecauseIndex < homeHeroIndex,
+  "Home priority order changed: Continue Watching, New Films, New TV Shows, New Episodes and Because You Watched must stay first"
+);
+expect(
+  newEpisodesRow.includes('data-mg-new-episodes-row="true"') &&
+    newEpisodesRow.includes("New & Upcoming Episodes from Your Shows") &&
+    newEpisodesRow.includes('media_type: "tv"') &&
+    newEpisodesRow.includes("season_number") &&
+    newEpisodesRow.includes("rdSeason") &&
+    newEpisodesRow.includes("rdEpisode") &&
+    newEpisodesRow.includes("disabled={upcoming}"),
+  "New/upcoming episodes row is missing watched-show discovery or safe episode playback"
 );
 expect(
   tvShows.includes("StreamingServiceRows") &&
