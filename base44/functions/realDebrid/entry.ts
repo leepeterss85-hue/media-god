@@ -1962,6 +1962,8 @@ export default async function (req) {
             year,
             season,
             episode,
+            preferBrowserTranscode:
+              body.prefer_browser_transcode === true,
           }
         );
 
