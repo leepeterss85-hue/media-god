@@ -737,10 +737,12 @@ export default function VideoPlayer({
    * resumes as soon as the select closes or a choice is made.
    */
   const sourceSelectorPinnedRef = useRef(false);
+  const sourceSelectorPinnedAtRef = useRef(0);
   const sourceSelectorEntriesRef = useRef([]);
   const sourceSelectorValueRef = useRef(0);
 
   const rdFileSelectorPinnedRef = useRef(false);
+  const rdFileSelectorPinnedAtRef = useRef(0);
   const rdFileSelectorFilesRef = useRef([]);
   const rdFileSelectorValueRef = useRef("");
 
@@ -748,10 +750,12 @@ export default function VideoPlayer({
     sourceSelectorEntriesRef.current = sortedSourceEntries;
     sourceSelectorValueRef.current = activeIdx;
     sourceSelectorPinnedRef.current = true;
+    sourceSelectorPinnedAtRef.current = Date.now();
   };
 
   const releaseSourceSelector = () => {
     sourceSelectorPinnedRef.current = false;
+    sourceSelectorPinnedAtRef.current = 0;
     sourceSelectorEntriesRef.current = [];
   };
 
@@ -786,10 +790,12 @@ export default function VideoPlayer({
       )?.id ?? ""
     );
     rdFileSelectorPinnedRef.current = true;
+    rdFileSelectorPinnedAtRef.current = Date.now();
   };
 
   const releaseRdFileSelector = () => {
     rdFileSelectorPinnedRef.current = false;
+    rdFileSelectorPinnedAtRef.current = 0;
     rdFileSelectorFilesRef.current = [];
   };
 
