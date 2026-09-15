@@ -2690,6 +2690,7 @@ export default function VideoPlayer({
                     {
                       action: "adopt_hash",
                       info_hash: hash,
+                      prefer_browser_transcode: prefersMobileBrowserRdCompatibility(),
                       title:
                         source?.rdTitle ||
                         source?.title ||
