@@ -19,6 +19,7 @@ import {
 
 import { base44 } from "@/api/base44Client";
 import EpisodeSelector from "@/components/mg/EpisodeSelector";
+import { detectStreamingRegion } from "@/components/mg/streamingRegion";
 import {
   usePlayer,
   buildMediaSources,
@@ -616,6 +617,8 @@ export default function DetailModal({
     mediaType,
   ]);
 
+  const streamingRegion = useMemo(() => detectStreamingRegion(), []);
+
   const resolvedMediaType =
     safeItem.media_type;
 
@@ -735,6 +738,8 @@ export default function DetailModal({
                 resolvedMediaType,
               movie_id:
                 itemId,
+              region:
+                streamingRegion,
             }
           );
 
