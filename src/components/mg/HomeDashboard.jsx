@@ -8,7 +8,10 @@ import { base44 } from "@/api/base44Client";
 import HeroSlider from "@/components/mg/HeroSlider";
 import MediaRow from "@/components/mg/MediaRow";
 import StreamingServiceRows from "@/components/mg/StreamingServiceRows";
-import { detectStreamingRegion } from "@/components/mg/streamingRegion";
+import {
+  detectStreamingRegion,
+  detectStreamingTimezone,
+} from "@/components/mg/streamingRegion";
 import ContinueWatchingRow from "@/components/mg/ContinueWatchingRow";
 import RecentlyWatchedRow from "@/components/mg/RecentlyWatchedRow";
 import DetailModal from "@/components/mg/DetailModal";
@@ -371,6 +374,7 @@ export default function HomeDashboard({ onOpenTvService }) {
 
   const { toast } = useToast();
   const streamingRegion = useMemo(() => detectStreamingRegion(), []);
+  const streamingTimezone = useMemo(() => detectStreamingTimezone(), []);
 
   const todayLabel = useMemo(() => {
     const date = new Date(`${todayKey}T12:00:00`);
@@ -532,7 +536,8 @@ export default function HomeDashboard({ onOpenTvService }) {
       fetchRow({
         media_type: "tv",
         category: "tv_airing_today",
-        timezone: "Europe/London",
+        region: streamingRegion,
+        timezone: streamingTimezone,
       }, "tv"),
 
       fetchRow({
@@ -544,6 +549,8 @@ export default function HomeDashboard({ onOpenTvService }) {
       fetchRow({
         media_type: "tv",
         category: "tv_on_the_air",
+        region: streamingRegion,
+        timezone: streamingTimezone,
       }, "tv"),
 
       fetchRow({
@@ -672,7 +679,7 @@ export default function HomeDashboard({ onOpenTvService }) {
     return () => {
       cancelled = true;
     };
-  }, [todayKey, streamingRegion]);
+  }, [todayKey, streamingRegion, streamingTimezone]);
 
   const completedHistoryTitles = useMemo(() => {
     const titles = new Set();
