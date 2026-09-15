@@ -3772,25 +3772,37 @@ export default function VideoPlayer({
             latestSpeed > 0;
 
           /*
-           * RD's percentage can remain on the same whole number for a long
-           * time on a large torrent. A non-zero live download speed is stronger
-           * evidence than the rounded percentage, so give an actively moving
-           * job a 30-minute flat-percentage window. Seeders without throughput
-           * get a smaller grace period, and truly inactive jobs still fail much
-           * sooner. This prevents Media God from abandoning slow but healthy
-           * uncached downloads.
+           * RD's percentage is rounded, so a large slow torrent can sit on one
+           * whole percentage for a while. But a tiny file claiming several
+           * MB/s should not remain at exactly 43% for many minutes. Scale the
+           * active-download grace period from the time it should take to move
+           * roughly one percentage point, with sensible minimum/maximum bounds.
+           * This catches stale RD speed reports without punishing genuinely
+           * large/slow downloads.
            */
+          const expectedOnePercentMs =
+            activelyDownloading && latestSizeBytes > 0
+              ? (latestSizeBytes / 100 / latestSpeed) * 1000
+              : 0;
+          const activeDownloadFlatlineMs =
+            expectedOnePercentMs > 0
+              ? Math.min(
+                  30 * 60 * 1000,
+                  Math.max(2 * 60 * 1000, expectedOnePercentMs * 8)
+                )
+              : 30 * 60 * 1000;
+
           const stallAfterMs =
             latestProgress <= 0.001
               ? activelyDownloading
-                ? 30 * 60 * 1000
+                ? activeDownloadFlatlineMs
                 : latestSeeders > 0
                   ? 15 * 60 * 1000
                   : hasOriginalTrackerMagnet
                     ? 3 * 60 * 1000
                     : 2 * 60 * 1000
               : activelyDownloading
-                ? 30 * 60 * 1000
+                ? activeDownloadFlatlineMs
                 : latestSeeders > 0
                   ? 15 * 60 * 1000
                   : 3 * 60 * 1000;
