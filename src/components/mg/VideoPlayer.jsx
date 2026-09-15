@@ -850,6 +850,16 @@ export default function VideoPlayer({
   const activeUrl =
     getSourceUrl(active);
 
+  const activeResolutionKey =
+    stablePlaybackSourceKey(active, activeIdx);
+
+  const rdMediaContextKey = [
+    source?.rdTitle || source?.title || "",
+    source?.rdYear ?? source?.year ?? "",
+    source?.rdSeason ?? source?.season ?? "",
+    source?.rdEpisode ?? source?.episode ?? "",
+  ].join("|");
+
   const liveSelectableIndices = () =>
     sources
       .map((item, index) => ({ item, index }))
