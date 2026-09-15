@@ -11,8 +11,8 @@ android {
         applicationId = "com.mediagod.firetv"
         minSdk = 21
         targetSdk = 35
-        versionCode = 26
-        versionName = "1.4.21"
+        versionCode = 27
+        versionName = "1.4.22"
 
         buildConfigField(
             "String",

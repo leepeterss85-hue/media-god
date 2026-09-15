@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 26,
-  "versionName": "1.4.21",
+  "versionCode": 27,
+  "versionName": "1.4.22",
   "title": "Media God Fire TV",
-  "message": "Fire TV 1.4.21 improves difficult 4K playback. Permanently rejected Real-Debrid torrents now advance to the next source instead of remaining selected, and the LibVLC compatibility player now decodes difficult surround audio to stereo PCM to prevent picture-with-no-sound playback on incompatible TV/HDMI audio paths.",
+  "message": "Fire TV 1.4.22 fixes 4K recovery: Real-Debrid 451/infringing torrent rejections immediately advance to the next source instead of remaining selected, and LibVLC compatibility playback restores full volume, forces decoded stereo PCM and selects an available audio track for difficult remuxes that previously played without sound.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",

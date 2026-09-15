@@ -314,6 +314,7 @@ class CompatibilityPlayerActivity : Activity() {
                 player.setAudioOutput("android_audiotrack")
                 player.setAudioDigitalOutputEnabled(false)
                 player.setAudioOutputDevice("stereo")
+                player.setVolume(100)
             } catch (_: Throwable) {
                 // Keep LibVLC defaults if a vendor build rejects the override.
             }
@@ -338,6 +339,17 @@ class CompatibilityPlayerActivity : Activity() {
                         MediaPlayer.Event.Playing -> {
                             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                             statusText.text = "Compatibility decoder"
+
+                            try {
+                                player.setVolume(100)
+                                if (player.audioTrack < 0) {
+                                    player.audioTracks
+                                        ?.firstOrNull { it.id >= 0 }
+                                        ?.let { player.setAudioTrack(it.id) }
+                                }
+                            } catch (_: Throwable) {
+                                // Keep playback running on unusual vendor audio tables.
+                            }
 
                             if (pendingStartPositionMs > 0L) {
                                 val target = pendingStartPositionMs

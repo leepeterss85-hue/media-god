@@ -1292,6 +1292,11 @@ export default function VideoPlayer({
         String(message || "")
       );
 
+    const permanentRdTorrentRejection =
+      /(?:\b451\b|infringing[_ -]?file|copyright|infringing)/i.test(
+        String(message || "")
+      );
+
     /*
      * Uncached torrent caching is an explicit operation, not ordinary playback
      * failover. Never silently abandon the torrent the user chose just because
@@ -1299,7 +1304,7 @@ export default function VideoPlayer({
      * the actual reason and let Retry/manual source selection decide what to do
      * next. Cached/direct playback can continue to use automatic failover.
      */
-    if (sourceNeedsCaching(active)) {
+    if (sourceNeedsCaching(active) && !permanentRdTorrentRejection) {
       if (torrentFailoverTimerRef.current) {
         window.clearTimeout(torrentFailoverTimerRef.current);
         torrentFailoverTimerRef.current = null;
