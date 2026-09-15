@@ -829,7 +829,7 @@ export default async function (req) {
         // The RD repair is authoritative; local association cleanup is best effort.
       }
 
-      return await addMagnet({
+      const freshResponse = await addMagnet({
         body: {
           ...body,
           magnet,
@@ -839,6 +839,18 @@ export default async function (req) {
         base44,
         saveLink: true,
       });
+      const freshPayload = await freshResponse.json();
+
+      return Response.json(
+        {
+          ...freshPayload,
+          restarted: true,
+          restart_verified: true,
+          previous_torrent_id: torrentId,
+          fresh_torrent_id: String(freshPayload?.torrent_id || ""),
+        },
+        { status: freshResponse.status }
+      );
     }
 
     /*
