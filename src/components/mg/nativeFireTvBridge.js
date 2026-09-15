@@ -1,3 +1,5 @@
+import { readPlaybackPreferences } from "@/components/mg/playbackPreferences";
+
 let nativeCodecInfoCache = null;
 
 const bridge = () => {
@@ -138,6 +140,54 @@ export const openNativeFireTvExternalUrl = (url) => {
   } catch {
     return false;
   }
+};
+
+const NATIVE_DIAGNOSTICS_KEY = "mg:native-playback-diagnostics:v1";
+
+const connectionDownlinkMbps = () => {
+  if (typeof navigator === "undefined") return 0;
+  const value = Number(navigator.connection?.downlink || 0);
+  return Number.isFinite(value) && value > 0 ? value : 0;
+};
+
+const diagnosticFingerprint = (value = {}) => {
+  const height = Number(value?.height || 0);
+  const resolution = height >= 1700 ? "4k" : height >= 900 ? "1080p" : height > 0 ? "sd" : "unknown";
+  return [
+    String(value?.videoCodec || "").toLowerCase(),
+    String(value?.audioCodec || "").toLowerCase(),
+    String(value?.container || value?.mimeType || "").toLowerCase(),
+    String(value?.hdrFormat || "").toLowerCase(),
+    Number(value?.bitDepth || 0) >= 10 ? "10bit" : "normalbit",
+    resolution,
+  ].join("|");
+};
+
+const learnedCompatibilityReason = (hints = {}) => {
+  if (typeof window === "undefined") return "";
+  let history = [];
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(NATIVE_DIAGNOSTICS_KEY) || "[]");
+    history = Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return "";
+  }
+
+  const wanted = diagnosticFingerprint(hints);
+  const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const failures = history.filter((entry) => {
+    if (Number(entry?.at || 0) < cutoff || diagnosticFingerprint(entry) !== wanted) return false;
+    const code = Number(entry?.compatibilityErrorCode || 0);
+    const text = [
+      entry?.compatibilityError,
+      entry?.compatibilityReason,
+      entry?.message,
+    ].filter(Boolean).join(" ");
+    return code === 3003 || (code >= 4001 && code <= 5004) ||
+      /decoder|codec|format|profile|unsupported|initialization/i.test(text);
+  });
+
+  return failures.length >= 2 ? "learned-device-decoder-failure" : "";
 };
 
 const positiveWholeNumber = (value) => {
@@ -404,6 +454,7 @@ export const playNativeFireTv = ({
   subtitles = [],
   sources = [],
   activeSourceIndex = 0,
+  preferForcedSubtitles = false,
 }) => {
   const native = bridge();
   const streamUrl = String(url || "").trim();
@@ -547,6 +598,16 @@ export const playNativeFireTv = ({
     hdrFormat: selectedHints?.hdrFormat || contextHints.hdrFormat || "",
   };
 
+  const advancedPlayback = readPlaybackPreferences();
+  const learnedReason = learnedCompatibilityReason(resolvedHints);
+  const userForcesCompatibility =
+    advancedPlayback.audioOutputMode !== "auto" ||
+    Number(advancedPlayback.lipSyncMs || 0) !== 0 ||
+    advancedPlayback.dialogueBoost !== "off" ||
+    advancedPlayback.volumeNormalization === true;
+  const forceCompatibilityReason = learnedReason ||
+    (userForcesCompatibility ? "advanced-audio-processing" : "");
+
   const payload = {
     requestId: String(requestId || `${Date.now()}`),
     url: streamUrl,
@@ -559,6 +620,18 @@ export const playNativeFireTv = ({
     season,
     episode,
     canChooseEpisode,
+    audioOutputMode: advancedPlayback.audioOutputMode,
+    lipSyncMs: advancedPlayback.lipSyncMs,
+    dialogueBoost: advancedPlayback.dialogueBoost,
+    volumeNormalization: advancedPlayback.volumeNormalization,
+    automaticNoSoundRecovery: advancedPlayback.automaticNoSoundRecovery,
+    networkAware4K: advancedPlayback.networkAware4K,
+    thermalProtection: advancedPlayback.thermalProtection,
+    networkDownlinkMbps: connectionDownlinkMbps(),
+    connectionEffectiveType: String(navigator?.connection?.effectiveType || ""),
+    forceCompatibility: Boolean(forceCompatibilityReason),
+    forceCompatibilityReason,
+    preferForcedSubtitles: Boolean(preferForcedSubtitles),
     headers:
       headers && typeof headers === "object" && !Array.isArray(headers)
         ? headers

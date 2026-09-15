@@ -107,6 +107,15 @@ object PlaybackCompatibilityRouter {
             return Decision(false)
         }
 
+        if (payload.optBoolean("forceCompatibility", false)) {
+            return Decision(
+                true,
+                payload.optString("forceCompatibilityReason").trim().ifBlank {
+                    "advanced-playback"
+                }
+            )
+        }
+
         val selected = selectedSource(payload)
         val url = payload.optString("url").trim()
         val mimeType = firstNonBlank(

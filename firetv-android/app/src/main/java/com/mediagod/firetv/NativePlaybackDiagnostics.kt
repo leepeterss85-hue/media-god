@@ -1,12 +1,10 @@
 package com.mediagod.firetv
 
+import android.content.Context
 import android.net.Uri
 import org.json.JSONObject
 
-/**
- * Produces a safe, compact playback snapshot for troubleshooting. Signed
- * Real-Debrid URLs are never exposed; only the host name is reported.
- */
+/** Safe compact playback snapshot; signed media URLs are never persisted. */
 object NativePlaybackDiagnostics {
     fun snapshot(
         payload: JSONObject,
@@ -14,7 +12,8 @@ object NativePlaybackDiagnostics {
         engine: String,
         event: String,
         message: String = "",
-        extra: JSONObject? = null
+        extra: JSONObject? = null,
+        context: Context? = null
     ): JSONObject {
         val source = selectedSource(payload, url)
         val result = JSONObject().apply {
@@ -38,7 +37,16 @@ object NativePlaybackDiagnostics {
             put("fps", firstNumber(source, payload, "fps"))
             put("bitrate", firstNumber(source, payload, "bitrate"))
             put("compatibilityReason", payload.optString("compatibilityReason"))
+            put("compatibilityErrorCode", payload.optInt("compatibilityErrorCode", 0))
+            put("compatibilityError", payload.optString("compatibilityError").take(240))
+            put("forceCompatibilityReason", payload.optString("forceCompatibilityReason"))
+            put("audioOutputMode", payload.optString("audioOutputMode", "auto"))
+            put("lipSyncMs", payload.optInt("lipSyncMs", 0))
+            put("dialogueBoost", payload.optString("dialogueBoost", "off"))
+            put("volumeNormalization", payload.optBoolean("volumeNormalization", false))
+            put("networkDownlinkMbps", payload.optDouble("networkDownlinkMbps", 0.0))
             put("preflight", payload.optJSONObject("streamPreflight"))
+            if (context != null) put("devicePerformance", DevicePerformanceGuard.snapshot(context))
         }
 
         if (extra != null) {
@@ -48,7 +56,6 @@ object NativePlaybackDiagnostics {
                 result.put(key, extra.opt(key))
             }
         }
-
         return result
     }
 
@@ -56,24 +63,16 @@ object NativePlaybackDiagnostics {
         val sources = payload.optJSONArray("sources") ?: return null
         val wantedWebIndex = payload.optInt("activeSourceIndex", -1)
         var urlMatch: JSONObject? = null
-
         for (index in 0 until sources.length()) {
             val item = sources.optJSONObject(index) ?: continue
-            if (item.optInt("webIndex", index) == wantedWebIndex) {
-                return item
-            }
-            if (urlMatch == null && item.optString("url").trim() == url.trim()) {
-                urlMatch = item
-            }
+            if (item.optInt("webIndex", index) == wantedWebIndex) return item
+            if (urlMatch == null && item.optString("url").trim() == url.trim()) urlMatch = item
         }
-
         return urlMatch
     }
 
     private fun first(source: JSONObject?, payload: JSONObject, key: String): String =
-        source?.optString(key)?.trim().orEmpty().ifBlank {
-            payload.optString(key).trim()
-        }
+        source?.optString(key)?.trim().orEmpty().ifBlank { payload.optString(key).trim() }
 
     private fun firstNumber(source: JSONObject?, payload: JSONObject, key: String): Double {
         fun number(json: JSONObject?): Double {
@@ -81,21 +80,12 @@ object NativePlaybackDiagnostics {
             val raw = json.opt(key) ?: return 0.0
             return when (raw) {
                 is Number -> raw.toDouble()
-                else -> Regex("""\d+(?:\.\d+)?""")
-                    .find(raw.toString())
-                    ?.value
-                    ?.toDoubleOrNull()
-                    ?: 0.0
+                else -> Regex("""\d+(?:\.\d+)?""").find(raw.toString())?.value?.toDoubleOrNull() ?: 0.0
             }
         }
-
         return number(source).takeIf { it > 0.0 } ?: number(payload)
     }
 
     private fun safeHost(url: String): String =
-        try {
-            Uri.parse(url).host.orEmpty()
-        } catch (_: Throwable) {
-            ""
-        }
+        try { Uri.parse(url).host.orEmpty() } catch (_: Throwable) { "" }
 }

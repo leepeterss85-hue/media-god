@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 28,
-  "versionName": "1.4.23",
+  "versionCode": 29,
+  "versionName": "1.4.24",
   "title": "Media God Fire TV",
-  "message": "Fire TV 1.4.23 adds the full playback resilience upgrade: quality-preserving 4K failover, HDR/Dolby Vision base-layer rescue, pre-play stream validation, 23.976/24/25/50/60-style refresh-rate matching, a selectable LibVLC audio track control, richer native diagnostics, and device-specific codec/reliability learning.",
+  "message": "Fire TV 1.4.24 adds advanced playback controls: automatic no-sound recovery, Auto/Stereo/Surround/Passthrough audio modes, embedded/external subtitle selection, lip-sync adjustment, network-aware 4K preflight, learned decoder blacklisting, Dolby Vision/HDR rescue, thermal protection, dialogue boost, volume normalization, richer diagnostics and seamless position-preserving failover.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",

@@ -23,6 +23,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import SocialLoginSection from "@/components/mg/SocialLoginSection";
 import MultiDebridSettings from "@/components/mg/MultiDebridSettings";
+import PlaybackAdvancedSettings from "@/components/mg/PlaybackAdvancedSettings";
 import { nativeFireTvAppInfo } from "@/components/mg/nativeFireTvBridge";
 import {
   readTrackPreferences,
@@ -1344,6 +1345,8 @@ export default function SettingsView() {
       </div>
 
       <SocialLoginSection />
+
+      <PlaybackAdvancedSettings />
 
       <div className="mt-6 bg-mg-card border border-white/10 rounded-lg 3xl:rounded-xl overflow-hidden">
         <div className="p-4 3xl:p-5 border-b border-white/5">

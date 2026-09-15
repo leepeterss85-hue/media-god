@@ -955,6 +955,46 @@ export default function VideoPlayer({
     };
   }, []);
 
+  const automaticNetworkScore = (item, label) => {
+    const preferences = readPlaybackPreferences();
+    if (!preferences.networkAware4K || typeof navigator === "undefined") return 0;
+
+    const traits = detectStreamTraits(item, label);
+    if (Number(traits.resolution || 0) < 2160) return 0;
+
+    const downlink = Number(navigator.connection?.downlink || 0);
+    if (!Number.isFinite(downlink) || downlink <= 0) return 0;
+
+    const rawBitrate = Number(
+      item?.bitrate || item?.bit_rate || item?.videoBitrate || item?.video_bitrate || 0
+    );
+    const labelRate = Number(
+      String(label || "").match(/(\d+(?:\.\d+)?)\s*(?:mbps|mb\/s)/i)?.[1] || 0
+    );
+    const bitrateMbps = rawBitrate > 100000 ? rawBitrate / 1_000_000 : rawBitrate > 0 ? rawBitrate : labelRate;
+    const remux = /\b(?:remux|blu-?ray|bdmv)\b/i.test(String(label || ""));
+    const required = bitrateMbps > 0 ? bitrateMbps * 1.2 : remux ? 55 : 24;
+
+    if (downlink < required * 0.72) return -70000;
+    if (downlink < required) return -22000;
+    if (downlink >= required * 1.5) return 6000;
+    return 0;
+  };
+
+  const hdrRecoveryScore = (item, label) => {
+    const activeTraits = detectStreamTraits(
+      active,
+      sourceDisplayLabel(active, activeIdx)
+    );
+    if (!activeTraits.dolbyVision) return 0;
+    const candidate = detectStreamTraits(item, label);
+    if (candidate.dolbyVision) return -8000;
+    const sameQuality = Number(candidate.resolution || 0) >= Number(activeTraits.resolution || 0);
+    if (candidate.hdr && sameQuality) return 36000;
+    if (sameQuality) return 26000;
+    return candidate.hdr ? 16000 : 10000;
+  };
+
   const recoverySourceScore = (item, index) => {
     const label = sourceDisplayLabel(item, index);
     const deviceProfile = getPlaybackDeviceProfile();
@@ -1041,7 +1081,9 @@ export default function VideoPlayer({
       liveBonus +
       liveQuarantinePenalty +
       liveGeoPenalty +
-      liveRepositoryBonus
+      liveRepositoryBonus +
+      automaticNetworkScore(item, label) +
+      hdrRecoveryScore(item, label)
     );
   };
 
@@ -5361,6 +5403,18 @@ export default function VideoPlayer({
             new CustomEvent("mg:native-playback-diagnostic", { detail: entry })
           );
           console.info("[Media God native playback]", entry);
+
+          const diagnosticFailure =
+            Number(entry.compatibilityErrorCode || 0) > 0 ||
+            /decoder|codec|format|profile|unsupported/i.test(
+              `${entry.compatibilityError || ""} ${entry.compatibilityReason || ""} ${entry.message || ""}`
+            );
+          if (diagnosticFailure) {
+            recordPlaybackReliability(
+              sourceDisplayLabel(active, activeIdx),
+              "failure"
+            );
+          }
         } catch {
           // Diagnostics must never interrupt playback.
         }
@@ -5623,6 +5677,7 @@ export default function VideoPlayer({
       audioLanguage: trackPreferences.audioLanguage,
       subtitleLanguage: trackPreferences.subtitleLanguage,
       subtitlesEnabled: trackPreferences.subtitlesEnabled,
+      preferForcedSubtitles: trackPreferences.preferForcedSubtitles,
       subtitles: Array.isArray(active?.subtitles)
         ? active.subtitles
         : [],
@@ -6014,6 +6069,42 @@ export default function VideoPlayer({
     };
 
   handleNoSoundRef.current = handleNoSound;
+
+
+  /* Automatic no-sound recovery is proactive for codec combinations that are
+   * commonly silent on Android/Fire TV/browser decoders, and immediate for a
+   * source that this device has already remembered as silent. */
+  useEffect(() => {
+    if (
+      isLive || isYoutube || isProvider || rdResolving || rdPolling ||
+      rdTorrentId || rdPreparation || readPlaybackPreferences().automaticNoSoundRecovery === false
+    ) {
+      return undefined;
+    }
+
+    const candidate = rdOverride
+      ? { ...active, src: rdOverride.src || activeUrl, label: rdOverride.label || active?.label }
+      : active;
+    const label = sourceDisplayLabel(candidate, activeIdx);
+    const traits = detectStreamTraits(candidate, label);
+    const rememberedSilent = hasRecentNoSoundHistory(label);
+    if (!rememberedSilent && !traits.audioRisk) return undefined;
+
+    const timer = window.setTimeout(() => {
+      const video = stageRef.current?.querySelector("video");
+      if (
+        video instanceof HTMLVideoElement &&
+        !video.paused && !video.ended && !video.error
+      ) {
+        handleNoSoundRef.current?.({ automatic: true });
+      }
+    }, rememberedSilent ? 2200 : 4200);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    active, activeIdx, activeUrl, isLive, isProvider, isYoutube,
+    rdOverride, rdPolling, rdResolving, rdTorrentId, rdPreparation,
+  ]);
 
   useEffect(() => {
     const state = autoVideoRescueRef.current;

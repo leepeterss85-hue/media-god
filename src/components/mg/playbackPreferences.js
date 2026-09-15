@@ -4,9 +4,24 @@ export const DEFAULT_PLAYBACK_PREFERENCES = {
   autoNext: true,
   quality: "Auto",
   autoRecovery: true,
+  audioOutputMode: "auto",
+  lipSyncMs: 0,
+  dialogueBoost: "off",
+  volumeNormalization: false,
+  automaticNoSoundRecovery: true,
+  networkAware4K: true,
+  thermalProtection: true,
 };
 
 const QUALITY_VALUES = ["Auto", "4K", "1080p", "720p", "480p"];
+const AUDIO_OUTPUT_VALUES = ["auto", "stereo", "surround", "passthrough"];
+const DIALOGUE_BOOST_VALUES = ["off", "low", "medium", "high"];
+
+const clampLipSync = (value) => {
+  const number = Number(value || 0);
+  if (!Number.isFinite(number)) return 0;
+  return Math.max(-500, Math.min(500, Math.round(number / 10) * 10));
+};
 
 export const normalisePlaybackPreferences = (value) => {
   const raw = value && typeof value === "object" ? value : {};
@@ -23,7 +38,41 @@ export const normalisePlaybackPreferences = (value) => {
       typeof raw.autoRecovery === "boolean"
         ? raw.autoRecovery
         : DEFAULT_PLAYBACK_PREFERENCES.autoRecovery,
+    audioOutputMode: AUDIO_OUTPUT_VALUES.includes(raw.audioOutputMode)
+      ? raw.audioOutputMode
+      : DEFAULT_PLAYBACK_PREFERENCES.audioOutputMode,
+    lipSyncMs: clampLipSync(raw.lipSyncMs),
+    dialogueBoost: DIALOGUE_BOOST_VALUES.includes(raw.dialogueBoost)
+      ? raw.dialogueBoost
+      : DEFAULT_PLAYBACK_PREFERENCES.dialogueBoost,
+    volumeNormalization:
+      typeof raw.volumeNormalization === "boolean"
+        ? raw.volumeNormalization
+        : DEFAULT_PLAYBACK_PREFERENCES.volumeNormalization,
+    automaticNoSoundRecovery:
+      typeof raw.automaticNoSoundRecovery === "boolean"
+        ? raw.automaticNoSoundRecovery
+        : DEFAULT_PLAYBACK_PREFERENCES.automaticNoSoundRecovery,
+    networkAware4K:
+      typeof raw.networkAware4K === "boolean"
+        ? raw.networkAware4K
+        : DEFAULT_PLAYBACK_PREFERENCES.networkAware4K,
+    thermalProtection:
+      typeof raw.thermalProtection === "boolean"
+        ? raw.thermalProtection
+        : DEFAULT_PLAYBACK_PREFERENCES.thermalProtection,
   };
+};
+
+const storedPreferences = () => {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(PLAYBACK_PREFERENCES_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
 };
 
 export const readPlaybackPreferences = () => {
@@ -32,8 +81,7 @@ export const readPlaybackPreferences = () => {
   }
 
   try {
-    const raw = window.localStorage.getItem(PLAYBACK_PREFERENCES_KEY);
-    const parsed = raw ? JSON.parse(raw) : {};
+    const parsed = storedPreferences();
     const legacyAutoNext = window.localStorage.getItem("mg_auto_next");
 
     return normalisePlaybackPreferences({
@@ -50,7 +98,10 @@ export const readPlaybackPreferences = () => {
 };
 
 export const writePlaybackPreferences = (value) => {
-  const next = normalisePlaybackPreferences(value);
+  const next = normalisePlaybackPreferences({
+    ...storedPreferences(),
+    ...(value && typeof value === "object" ? value : {}),
+  });
 
   if (typeof window !== "undefined") {
     try {

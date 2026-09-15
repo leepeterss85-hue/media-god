@@ -504,7 +504,11 @@ class MainActivity : Activity() {
                     )
                 }
 
-                if (preflight.shouldSkip) {
+                val networkRisk =
+                    payload.optBoolean("networkAware4K", true) &&
+                        preflight.networkRisk
+
+                if (preflight.shouldSkip || networkRisk) {
                     synchronized(nativePlayerLock) {
                         playerOpen = false
                         if (activeNativeRequestId == requestId) {
@@ -513,10 +517,13 @@ class MainActivity : Activity() {
                     }
 
                     val message =
-                        if (preflight.statusCode > 0) {
-                            "Stream pre-check rejected this source (HTTP ${preflight.statusCode}). Trying another source."
-                        } else {
-                            "Stream pre-check rejected this source. Trying another source."
+                        when {
+                            networkRisk ->
+                                "This 4K source needs about ${String.format("%.1f", preflight.requiredMbps)} Mbps but the pre-check measured ${String.format("%.1f", preflight.estimatedMbps)} Mbps. Trying another 4K/backup source."
+                            preflight.statusCode > 0 ->
+                                "Stream pre-check rejected this source (HTTP ${preflight.statusCode}). Trying another source."
+                            else ->
+                                "Stream pre-check rejected this source. Trying another source."
                         }
 
                     val diagnostics = NativePlaybackDiagnostics.snapshot(
@@ -525,7 +532,8 @@ class MainActivity : Activity() {
                         engine = "preflight",
                         event = "rejected",
                         message = message,
-                        extra = preflight.toJson()
+                        extra = preflight.toJson(),
+                        context = this@MainActivity
                     )
 
                     val result = JSONObject().apply {

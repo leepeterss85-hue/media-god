@@ -9,7 +9,7 @@ const apps = [
     dir: "firetv-android",
     packagePath: "com/mediagod/firetv",
     namespace: "com.mediagod.firetv",
-    expectedVersion: "1.4.23",
+    expectedVersion: "1.4.24",
     expectedMedia3: "1.8.0",
     expectedOrientation: "landscape",
   },
@@ -18,7 +18,7 @@ const apps = [
     dir: "android-mobile",
     packagePath: "com/mediagod/mobile",
     namespace: "com.mediagod.mobile",
-    expectedVersion: "1.0.12",
+    expectedVersion: "1.0.13",
     expectedMedia3: "1.11.0",
     expectedOrientation: "sensor",
   },
@@ -121,6 +121,10 @@ for (const app of apps) {
     `${javaRoot}/PlaybackCompatibilityRouter.kt`,
     `${app.name} codec preflight router`
   );
+  const devicePerformanceGuard = requireFile(
+    `${javaRoot}/DevicePerformanceGuard.kt`,
+    `${app.name} thermal and memory guard`
+  );
   const streamPreflight = requireFile(
     `${javaRoot}/NativeStreamPreflight.kt`,
     `${app.name} stream preflight`
@@ -196,7 +200,23 @@ for (const app of apps) {
     [compatibilityRouter.includes("dts-hd") && compatibilityRouter.includes("truehd"), "extended audio codec detection"],
     [compatibilityRouter.includes("container:legacy"), "legacy container preflight"],
     [compatibilityRouter.includes('payload.optJSONObject("drm")'), "DRM Media3 guard"],
-    [streamPreflight.includes('setRequestProperty("Range", "bytes=0-1")') && streamPreflight.includes("451"), "resolved stream HTTP preflight"],
+    [compatibilityRouter.includes('payload.optBoolean("forceCompatibility"'), "learned/advanced compatibility routing"],
+    [playerActivity.includes("setShowSubtitleButton(true)"), "Media3 subtitle-track selector"],
+    [compatibilityActivity.includes("spuTracks") && compatibilityActivity.includes("setSpuTrack"), "LibVLC subtitle-track selector"],
+    [compatibilityActivity.includes("setAudioDelay"), "lip-sync adjustment"],
+    [compatibilityActivity.includes("audioOutputMode") && compatibilityActivity.includes("setAudioDigitalOutputEnabled"), "selectable audio output modes"],
+    [compatibilityActivity.includes("automaticNoSoundRecovery") && compatibilityActivity.includes("recoverAudioTrack"), "automatic no-sound recovery"],
+    [compatibilityActivity.includes("equalizer-bands") && compatibilityActivity.includes("dialogueBoost"), "dialogue boost"],
+    [compatibilityActivity.includes("audio-replay-gain-mode") && compatibilityActivity.includes("volumeNormalization"), "volume normalization"],
+    [compatibilityActivity.includes("showPlaybackInfo"), "native playback info screen"],
+    [devicePerformanceGuard.includes("currentThermalStatus") && devicePerformanceGuard.includes("lowMemory"), "thermal/memory 4K protection"],
+    [
+      streamPreflight.includes('setRequestProperty("Range", "bytes=0-${wanted - 1}")') &&
+        streamPreflight.includes("networkRisk") &&
+        streamPreflight.includes("estimatedMbps") &&
+        streamPreflight.includes("451"),
+      "resolved stream HTTP/network preflight",
+    ],
     [playbackDiagnostics.includes("videoCodec") && playbackDiagnostics.includes("audioCodec") && playbackDiagnostics.includes("hdrFormat") && playbackDiagnostics.includes("bitDepth"), "native codec/HDR diagnostics"],
     [displayRateMatcher.includes("preferredRefreshRate"), "display refresh-rate hint"],
   ];

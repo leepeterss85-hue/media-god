@@ -97,6 +97,7 @@ class PlayerActivity : Activity() {
         playerView = PlayerView(this).apply {
             setBackgroundColor(Color.BLACK)
             useController = true
+            setShowSubtitleButton(true)
             controllerAutoShow = false
             controllerHideOnTouch = true
             controllerShowTimeoutMs = 2500
@@ -653,7 +654,8 @@ class PlayerActivity : Activity() {
             url = streamUrl,
             engine = "media3",
             event = reason,
-            message = message
+            message = message,
+            context = this
         ).toString()
 
         val result = Intent().apply {

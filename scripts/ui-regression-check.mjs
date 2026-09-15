@@ -418,4 +418,47 @@ expect(
   "per-device mobile HDR/codec reliability learning is missing"
 );
 
+const playbackAdvancedSettings = await read("src/components/mg/PlaybackAdvancedSettings.jsx");
+const playbackPreferences = await read("src/components/mg/playbackPreferences.js");
+const playerAutomation = await read("src/components/mg/PlayerProvider.jsx");
+
+for (const marker of [
+  "Audio output",
+  "Lip sync",
+  "Dialogue boost",
+  "Volume normalization",
+  "Automatic no-sound recovery",
+  "Network-aware 4K",
+  "Thermal / performance protection",
+  "Playback diagnostics",
+  "Clear playback learning",
+]) {
+  expect(playbackAdvancedSettings.includes(marker), `Advanced playback setting missing: ${marker}`);
+}
+expect(
+  playbackPreferences.includes('audioOutputMode: "auto"') &&
+    playbackPreferences.includes("lipSyncMs: 0") &&
+    playbackPreferences.includes("automaticNoSoundRecovery: true") &&
+    playbackPreferences.includes("networkAware4K: true") &&
+    playbackPreferences.includes("thermalProtection: true"),
+  "Advanced playback preference defaults are incomplete"
+);
+expect(
+  settings.includes("<PlaybackAdvancedSettings />"),
+  "Advanced playback settings are not mounted in Settings"
+);
+expect(
+  playerAutomation.includes("nextEpisodePreloadRef") &&
+    playerAutomation.includes('typeof core.prepare === "function"') &&
+    playerAutomation.includes("preparedFresh"),
+  "Next-episode source pre-resolution is no longer active"
+);
+expect(
+  videoPlayer.includes("preservePosition: true") &&
+    videoPlayer.includes("trackPreferences.audioLanguage") &&
+    videoPlayer.includes("automaticNetworkScore") &&
+    videoPlayer.includes("hdrRecoveryScore"),
+  "Seamless/network/HDR automatic recovery markers are incomplete"
+);
+
 console.log("ok UI/navigation/download/watch-party/locked-source/version-update structural checks complete");
