@@ -15,6 +15,11 @@ const navbar = await read("src/components/mg/Navbar.jsx");
 const searchDialog = await read("src/components/mg/SearchDialog.jsx");
 const roadmap = await read("src/components/mg/RoadmapView.jsx");
 const movies = await read("src/components/mg/MoviesView.jsx");
+const tvShows = await read("src/components/mg/TvShowsView.jsx");
+const homeDashboard = await read("src/components/mg/HomeDashboard.jsx");
+const streamingServiceRows = await read("src/components/mg/StreamingServiceRows.jsx");
+const streamingServices = await read("src/components/mg/streamingServices.js");
+const tmdbBackend = await read("base44/functions/getTmdbMovies/entry.ts");
 const watchlist = await read("src/components/mg/WatchlistView.jsx");
 const watchlistSchema = await read("base44/entities/WatchlistItem.jsonc");
 const favorites = await read("src/components/mg/FavoritesView.jsx");
@@ -145,6 +150,47 @@ expect(
 expect(
   roadmap.includes("onClick={() => onBack?.()}"),
   "Roadmap back button is not interactive"
+);
+
+expect(
+  homeDashboard.includes("StreamingServiceRows") &&
+    homeDashboard.includes('mediaType="mixed"') &&
+    homeDashboard.includes("onOpenTvService"),
+  "Home streaming-service rows are missing"
+);
+expect(
+  tvShows.includes("StreamingServiceRows") &&
+    tvShows.includes("activeProvider") &&
+    tvShows.includes("provider_pages: 10") &&
+    tvShows.includes("TV by Streaming Service"),
+  "TV streaming-service rows or full provider catalogue are missing"
+);
+expect(
+  streamingServiceRows.includes("provider_catalog") &&
+    streamingServiceRows.includes("provider_ids") &&
+    streamingServiceRows.includes("See all TV"),
+  "Streaming-service row loader is incomplete"
+);
+expect(
+  streamingServices.includes("Netflix") &&
+    streamingServices.includes("Prime Video") &&
+    streamingServices.includes("BBC iPlayer") &&
+    streamingServices.includes("ITVX") &&
+    streamingServices.includes("Channel 4"),
+  "Major UK streaming services are missing from the provider catalogue"
+);
+expect(
+  tmdbBackend.includes("provider_catalog") &&
+    tmdbBackend.includes("with_watch_providers") &&
+    tmdbBackend.includes("with_watch_monetization_types") &&
+    tmdbBackend.includes("watch_region"),
+  "TMDB provider discovery support is missing"
+);
+expect(
+  home.includes("tvProviderRequest") &&
+    home.includes("openTvStreamingService") &&
+    home.includes("handleTvProviderChange"),
+  "Streaming-service navigation between Home and TV is missing"
 );
 
 for (const marker of [

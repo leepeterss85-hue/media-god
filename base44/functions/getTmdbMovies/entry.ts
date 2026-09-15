@@ -490,11 +490,42 @@ export default async function(req) {
       body = {};
     }
 
-    const mediaType =
+    const requestedMediaType =
       body.media_type ===
       'tv'
         ? 'tv'
+        : body.media_type ===
+          'all'
+          ? 'all'
+          : 'movie';
+
+    const mediaType =
+      requestedMediaType ===
+      'tv'
+        ? 'tv'
         : 'movie';
+
+    const rawProviderIds =
+      Array.isArray(body.provider_ids)
+        ? body.provider_ids
+        : [
+            body.provider_ids ||
+            body.provider_id ||
+            '',
+          ];
+
+    const providerIds =
+      Array.from(
+        new Set(
+          rawProviderIds
+            .flatMap((value) =>
+              String(value || '')
+                .split(/[|,]/)
+            )
+            .map((value) => value.trim())
+            .filter((value) => /^\d+$/.test(value))
+        )
+      );
 
     const country =
       body.country ||
@@ -555,6 +586,87 @@ export default async function(req) {
             500,
         }
       );
+    }
+
+    if (
+      body.provider_catalog
+    ) {
+      const providerTypes =
+        requestedMediaType === 'all'
+          ? ['movie', 'tv']
+          : [mediaType];
+
+      const lists =
+        await Promise.all(
+          providerTypes.map(async (type) => {
+            const params =
+              new URLSearchParams({
+                api_key: apiKey,
+                language: 'en-GB',
+                watch_region: region,
+              });
+
+            try {
+              const response =
+                await fetch(
+                  `${TMDB_BASE}/watch/providers/${type}?${params.toString()}`,
+                  {
+                    headers: { Accept: 'application/json' },
+                  }
+                );
+
+              if (!response.ok) {
+                return [];
+              }
+
+              const data = await response.json();
+              return Array.isArray(data?.results)
+                ? data.results
+                : [];
+            } catch {
+              return [];
+            }
+          })
+        );
+
+      const providersById = new Map();
+
+      for (const provider of lists.flat()) {
+        const id = String(provider?.provider_id || '').trim();
+        if (!id) continue;
+
+        const priority = Number(
+          provider?.display_priorities?.[region] ??
+          provider?.display_priority ??
+          99999
+        );
+
+        const current = providersById.get(id);
+        if (current && Number(current.display_priority) <= priority) {
+          continue;
+        }
+
+        providersById.set(id, {
+          provider_id: provider?.provider_id || null,
+          provider_name: provider?.provider_name || 'Streaming service',
+          logo_url: provider?.logo_path
+            ? `${PROVIDER_LOGO_BASE}${provider.logo_path}`
+            : '',
+          display_priority: priority,
+        });
+      }
+
+      return Response.json({
+        providers: Array.from(providersById.values())
+          .sort((a, b) =>
+            Number(a.display_priority || 99999) -
+              Number(b.display_priority || 99999) ||
+            String(a.provider_name || '').localeCompare(
+              String(b.provider_name || '')
+            )
+          ),
+        region,
+      });
     }
 
     if (
@@ -1300,7 +1412,8 @@ export default async function(req) {
       country ||
       genre ||
       year ||
-      language;
+      language ||
+      providerIds.length > 0;
 
     const buildUrl =
       (page) => {
@@ -1446,6 +1559,23 @@ export default async function(req) {
           }
 
           if (
+            providerIds.length > 0
+          ) {
+            params.set(
+              'watch_region',
+              region
+            );
+            params.set(
+              'with_watch_providers',
+              providerIds.join('|')
+            );
+            params.set(
+              'with_watch_monetization_types',
+              'flatrate|free|ads'
+            );
+          }
+
+          if (
             mediaType ===
             'movie'
           ) {
@@ -1511,13 +1641,24 @@ export default async function(req) {
         return `${TMDB_BASE}/${path}?${params.toString()}`;
       };
 
+    const providerPageCount =
+      Math.max(
+        1,
+        Math.min(
+          10,
+          Number(body.provider_pages || 3) || 3
+        )
+      );
+
     const pages =
-      category ===
-      'movie_released_today'
-        ? 5
-        : query
-          ? 2
-          : 3;
+      providerIds.length > 0
+        ? providerPageCount
+        : category ===
+          'movie_released_today'
+          ? 5
+          : query
+            ? 2
+            : 3;
 
     const pageResults =
       await Promise.all(

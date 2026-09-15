@@ -7,6 +7,7 @@ import React, {
 import { base44 } from "@/api/base44Client";
 import HeroSlider from "@/components/mg/HeroSlider";
 import MediaRow from "@/components/mg/MediaRow";
+import StreamingServiceRows from "@/components/mg/StreamingServiceRows";
 import ContinueWatchingRow from "@/components/mg/ContinueWatchingRow";
 import RecentlyWatchedRow from "@/components/mg/RecentlyWatchedRow";
 import DetailModal from "@/components/mg/DetailModal";
@@ -358,7 +359,7 @@ class HomeDetailErrorBoundary extends React.Component {
   }
 }
 
-export default function HomeDashboard() {
+export default function HomeDashboard({ onOpenTvService }) {
   const [rows, setRows] = useState(/** @type {any} */ ({}));
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
@@ -986,6 +987,17 @@ export default function HomeDashboard() {
           onOpen={open}
           onWatchlist={onWatchlist}
           watched={watched}
+        />
+
+        <StreamingServiceRows
+          mediaType="mixed"
+          heading="Movies & TV by Streaming Service"
+          maxServices={12}
+          rowLimit={18}
+          onOpen={open}
+          onWatchlist={onWatchlist}
+          watched={watched}
+          onBrowseAll={onOpenTvService}
         />
 
         <MediaRow

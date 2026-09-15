@@ -410,6 +410,14 @@ function MediaGodApp() {
   );
 
   const [
+    tvProviderRequest,
+    setTvProviderRequest,
+  ] = useState({
+    service: null,
+    key: 0,
+  });
+
+  const [
     searchOpen,
     setSearchOpen,
   ] = useState(
@@ -494,6 +502,21 @@ function MediaGodApp() {
         }
 
         /*
+         * A streaming-service catalogue first returns to the normal TV page.
+         */
+        if (
+          view === "tv" &&
+          tvProviderRequest?.service
+        ) {
+          setTvProviderRequest((current) => ({
+            service: null,
+            key: Number(current?.key || 0) + 1,
+          }));
+
+          return true;
+        }
+
+        /*
          * Normal application pages return Home.
          */
         if (
@@ -516,6 +539,7 @@ function MediaGodApp() {
       [
         searchOpen,
         searchResult,
+        tvProviderRequest,
         view,
       ]
     );
@@ -649,6 +673,24 @@ function MediaGodApp() {
     setView(nextView);
   }, []);
 
+  const openTvStreamingService = useCallback((service) => {
+    if (!service?.providerIds?.length) return;
+    setSearchOpen(false);
+    setSearchResult(null);
+    setTvProviderRequest((current) => ({
+      service,
+      key: Number(current?.key || 0) + 1,
+    }));
+    setView("tv");
+  }, []);
+
+  const handleTvProviderChange = useCallback((service) => {
+    setTvProviderRequest((current) => ({
+      service: service || null,
+      key: Number(current?.key || 0) + 1,
+    }));
+  }, []);
+
   return (
     <>
       <FireTvRemote />
@@ -739,6 +781,13 @@ function MediaGodApp() {
                 key: Number(current?.key || 0) + 1,
               }));
 
+              if (nextView === "tv") {
+                setTvProviderRequest((current) => ({
+                  service: null,
+                  key: Number(current?.key || 0) + 1,
+                }));
+              }
+
               setView(
                 nextView
               );
@@ -772,7 +821,7 @@ function MediaGodApp() {
 
           {view ===
             "home" && (
-            <HomeDashboard />
+            <HomeDashboard onOpenTvService={openTvStreamingService} />
           )}
 
           {view ===
@@ -782,7 +831,11 @@ function MediaGodApp() {
 
           {view ===
             "tv" && (
-            <TvShowsView />
+            <TvShowsView
+              initialProvider={tvProviderRequest.service}
+              providerRequestKey={tvProviderRequest.key}
+              onProviderChange={handleTvProviderChange}
+            />
           )}
 
           {view ===

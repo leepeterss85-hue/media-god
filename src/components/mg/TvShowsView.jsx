@@ -11,6 +11,7 @@ import {
 import GenreTags from "@/components/mg/GenreTags";
 import DetailModal from "@/components/mg/DetailModal";
 import StreamingProviderLogos from "@/components/mg/StreamingProviderLogos";
+import StreamingServiceRows from "@/components/mg/StreamingServiceRows";
 import FeaturedSpotlight from "@/components/mg/FeaturedSpotlight";
 import useDebouncedValue from "@/components/mg/useDebouncedValue";
 
@@ -97,7 +98,7 @@ class TvDetailErrorBoundary extends React.Component {
   }
 }
 
-export default function TvShowsView() {
+export default function TvShowsView({ initialProvider = null, providerRequestKey = 0, onProviderChange }) {
   const [shows, setShows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -107,7 +108,45 @@ export default function TvShowsView() {
   const [year, setYear] = useState("");
   const [language, setLanguage] = useState("");
   const [selected, setSelected] = useState(null);
+  const [activeProvider, setActiveProvider] = useState(null);
   const debouncedQuery = useDebouncedValue(query, 400);
+  const activeProviderIds = Array.isArray(activeProvider?.providerIds)
+    ? activeProvider.providerIds
+    : [];
+  const activeProviderIdsKey = activeProviderIds.join("|");
+
+  const chooseProvider = (service) => {
+    if (!service?.providerIds?.length) return;
+    setActiveProvider(service);
+    setQuery("");
+    setCategory("tv_popular");
+    setCountry("");
+    setGenre("");
+    setYear("");
+    setLanguage("");
+    onProviderChange?.(service);
+    window.setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 0);
+  };
+
+  const clearProvider = () => {
+    setActiveProvider(null);
+    onProviderChange?.(null);
+  };
+
+  useEffect(() => {
+    if (!providerRequestKey) return;
+    if (initialProvider?.providerIds?.length) {
+      setActiveProvider(initialProvider);
+      setQuery("");
+      setCategory("tv_popular");
+      setCountry("");
+      setGenre("");
+      setYear("");
+      setLanguage("");
+    } else {
+      setActiveProvider(null);
+    }
+  }, [providerRequestKey, initialProvider]);
 
   useEffect(() => {
     let cancelled = false;
@@ -124,6 +163,13 @@ export default function TvShowsView() {
           year,
           language,
           query: String(debouncedQuery || "").trim(),
+          ...(activeProviderIds.length
+            ? {
+                provider_ids: activeProviderIds,
+                provider_pages: 10,
+                region: "GB",
+              }
+            : {}),
         });
 
         if (cancelled) {
@@ -159,7 +205,7 @@ export default function TvShowsView() {
     return () => {
       cancelled = true;
     };
-  }, [country, category, genre, year, language, debouncedQuery]);
+  }, [country, category, genre, year, language, debouncedQuery, activeProviderIdsKey]);
 
   const featured = FEATURED_SHOWS.find((item) => item.title === "Debris");
 
@@ -170,6 +216,7 @@ export default function TvShowsView() {
     !year &&
     !language &&
     category === "tv_airing_today" &&
+    !activeProvider &&
     featured;
 
   return (
@@ -202,9 +249,40 @@ export default function TvShowsView() {
         <div className="flex items-center gap-2 3xl:gap-3">
           <Globe className="w-5 h-5 3xl:w-6 3xl:h-6 text-mg-green" />
           <h1 className="text-xl md:text-2xl 3xl:text-3xl 4xl:text-4xl font-bold text-white tracking-wide">
-            TV SHOWS
+            {activeProvider ? `TV SHOWS — ${activeProvider.label}` : "TV SHOWS"}
           </h1>
         </div>
+
+        {activeProvider && (
+          <div
+            data-mg-active-streaming-provider="true"
+            className="flex flex-wrap items-center gap-3 rounded-xl border border-mg-green/30 bg-mg-green/10 p-3 3xl:p-4"
+          >
+            {activeProvider.logoUrl && (
+              <img
+                src={activeProvider.logoUrl}
+                alt=""
+                aria-hidden="true"
+                className="h-9 w-9 rounded-lg object-cover 3xl:h-11 3xl:w-11"
+              />
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-white 3xl:text-base">
+                Browsing all TV on {activeProvider.label}
+              </p>
+              <p className="text-xs text-white/45 3xl:text-sm">
+                UK subscription, free and ad-supported availability. Your normal genre, year and language filters still work.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={clearProvider}
+              className="min-h-10 rounded-full border border-white/15 bg-black/25 px-4 text-xs font-semibold text-white hover:bg-black/40 focus:outline-none focus:ring-2 focus:ring-mg-green/60 3xl:min-h-12 3xl:text-sm"
+            >
+              All TV Shows
+            </button>
+          </div>
+        )}
 
         <div
           data-mg-tv-category-row="true"
@@ -214,7 +292,7 @@ export default function TvShowsView() {
             <button
               key={item.id}
               type="button"
-              onClick={() => setCategory(item.id)}
+              onClick={() => { clearProvider(); setCategory(item.id); }}
               aria-label={`TV category ${item.label}`}
               aria-pressed={category === item.id}
               className={
@@ -240,7 +318,7 @@ export default function TvShowsView() {
             <Search className="w-4 h-4 3xl:w-5 3xl:h-5 absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
             <input
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => { const value = event.target.value; if (value && activeProvider) clearProvider(); setQuery(value); }}
               placeholder="Search shows..."
               aria-label="Search TV shows"
               className="w-full min-h-11 3xl:min-h-12 bg-mg-card border border-white/10 rounded-lg pl-10 3xl:pl-11 pr-3 py-2.5 3xl:py-3 text-sm 3xl:text-base 4xl:text-lg text-white placeholder:text-white/40 focus:outline-none focus:border-mg-green"
@@ -303,6 +381,19 @@ export default function TvShowsView() {
           </select>
         </div>
       </div>
+
+      {!activeProvider && !query && !country && !genre && !year && !language && (
+        <div className="mb-7 3xl:mb-10">
+          <StreamingServiceRows
+            mediaType="tv"
+            heading="TV by Streaming Service"
+            maxServices={20}
+            rowLimit={18}
+            onOpen={(item) => setSelected({ ...item, media_type: "tv", mediaType: "tv" })}
+            onBrowseAll={chooseProvider}
+          />
+        </div>
+      )}
 
       {loading ? (
         <div data-mg-library-grid="true" className={gridClass}>
@@ -379,7 +470,9 @@ export default function TvShowsView() {
 
       {!loading && shows.length === 0 && (
         <p className="text-white/40 text-sm 3xl:text-base">
-          No shows found for these filters.
+          {activeProvider
+            ? `No TV shows found on ${activeProvider.label} for these filters.`
+            : "No shows found for these filters."}
         </p>
       )}
 
