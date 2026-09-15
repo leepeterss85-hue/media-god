@@ -2146,6 +2146,202 @@ export default function VideoPlayer({
   );
 
   /*
+   * UNCACHED REAL-DEBRID CACHE ENGINE
+   *
+   * Uncached torrents used to share the same giant resolution/polling effects
+   * as cached library links, browser playback and source failover. That made a
+   * refresh or background source update capable of re-adopting an old partial
+   * RD job and presenting its last percentage forever. The cache lifecycle now
+   * has one owner and one AbortController from start -> monitor -> verified
+   * restart -> ready/failover. The older resolution path below is deliberately
+   * bypassed for every source that actually requires caching.
+   */
+  useEffect(() => {
+    if (
+      !active ||
+      isYoutube ||
+      isProvider ||
+      isDirectFile ||
+      isLive ||
+      !isRdSource ||
+      !sourceNeedsCaching(active)
+    ) {
+      return undefined;
+    }
+
+    rdCacheEngineAbortRef.current?.abort?.();
+    const controller = new AbortController();
+    rdCacheEngineAbortRef.current = controller;
+    rdCacheEngineOwnsPollingRef.current = true;
+
+    setRdResolving(true);
+    setRdPolling(false);
+    setRdError("");
+    setRdOverride(null);
+    setRdFiles([]);
+    setRdTorrentId(null);
+    setRdPreparation({
+      status: "starting",
+      progress: 0,
+      seeders: Math.max(0, Number(active?.reportedSeeders || 0)),
+      speed_bps: 0,
+      size_bytes: 0,
+      downloaded_bytes: 0,
+      startedAt: Date.now(),
+      updatedAt: Date.now(),
+      attempts: 0,
+      cacheEngine: "v2",
+    });
+
+    const context = {
+      title: source?.rdTitle || source?.title || "",
+      year: source?.rdYear ?? source?.year ?? null,
+      season: source?.rdSeason ?? source?.season ?? null,
+      episode: source?.rdEpisode ?? source?.episode ?? null,
+      fileIdx:
+        active?.fileIdx != null && Number.isFinite(Number(active.fileIdx))
+          ? Number(active.fileIdx)
+          : null,
+      preferBrowserTranscode: prefersMobileBrowserRdCompatibility(),
+    };
+
+    void runRealDebridCacheSession({
+      source: active,
+      context,
+      signal: controller.signal,
+      onProgress: (snapshot) => {
+        if (controller.signal.aborted) return;
+
+        const torrentId = String(snapshot?.torrent_id || "").trim();
+        const phase = String(snapshot?.phase || "").toLowerCase();
+
+        setRdTorrentId(torrentId || null);
+        setRdResolving(
+          phase === "starting" ||
+          phase === "restarting"
+        );
+        setRdPolling(
+          Boolean(torrentId) &&
+          phase !== "restarting"
+        );
+        setRdPreparation((current) => ({
+          ...(current || {}),
+          ...snapshot,
+          status: snapshot?.status || current?.status || "preparing",
+          progress: Math.max(
+            0,
+            Math.min(100, Number(snapshot?.progress ?? current?.progress ?? 0))
+          ),
+          startedAt: current?.startedAt || Date.now(),
+          updatedAt: Date.now(),
+          attempts: Number(snapshot?.attempt ?? current?.attempts ?? 0),
+          cacheEngine: "v2",
+        }));
+      },
+    })
+      .then((result) => {
+        if (controller.signal.aborted || !result) return;
+
+        if (result.status === "ready" && result.streamUrl) {
+          setRdOverride({
+            src: result.streamUrl,
+            label:
+              result.filename ||
+              active?.label ||
+              "Real-Debrid Stream",
+            file: currentFilePath(result.files),
+            audioRescue: result.audioRescue || null,
+            fallbackSrc: result.fallbackStreamUrl || "",
+            videoRescue: result.videoRescue || null,
+            mediaInfo: result.mediaInfo || null,
+          });
+          setRdFiles(result.files || []);
+          setRdResolving(false);
+          setRdPolling(false);
+          setRdTorrentId(null);
+          setRdPreparation(null);
+          setRdError("");
+          return;
+        }
+
+        setRdResolving(false);
+        setRdPolling(false);
+        setRdTorrentId(null);
+
+        if (result.hashFailed === true) {
+          markSourceFailed(activeIdx);
+          markTorrentHashFailed(active);
+          const nextSource = findNextPlayableSource(activeIdx);
+
+          if (nextSource !== -1) {
+            setRdPreparation(null);
+            setRdError("");
+            switchToSource(nextSource, {
+              preservePosition: true,
+              statusMessage:
+                `${result.message || "This Real-Debrid torrent could not progress after a verified restart."} Trying a different torrent hash for the same title…`,
+            });
+            return;
+          }
+        }
+
+        setRdPreparation((current) => ({
+          ...(current || {}),
+          status: "stalled",
+          stallReason:
+            result.errorCode ||
+            (result.hashFailed ? "hash_failed" : "cache_failed"),
+          progress: Math.max(
+            0,
+            Math.min(100, Number(result.progress ?? current?.progress ?? 0))
+          ),
+          updatedAt: Date.now(),
+          cacheEngine: "v2",
+        }));
+        setRdError(
+          result.message ||
+          "Real-Debrid could not prepare this uncached torrent."
+        );
+      })
+      .catch((error) => {
+        if (controller.signal.aborted || error?.name === "AbortError") return;
+
+        setRdResolving(false);
+        setRdPolling(false);
+        setRdTorrentId(null);
+        setRdPreparation((current) => ({
+          ...(current || {}),
+          status: "stalled",
+          stallReason: "cache_engine_error",
+          updatedAt: Date.now(),
+          cacheEngine: "v2",
+        }));
+        setRdError(
+          error?.message ||
+          "The Real-Debrid cache engine stopped unexpectedly."
+        );
+      });
+
+    return () => {
+      controller.abort();
+      if (rdCacheEngineAbortRef.current === controller) {
+        rdCacheEngineAbortRef.current = null;
+        rdCacheEngineOwnsPollingRef.current = false;
+      }
+    };
+  }, [
+    activeIdx,
+    activeResolutionKey,
+    rdMediaContextKey,
+    rdCacheEngineNonce,
+    isYoutube,
+    isProvider,
+    isDirectFile,
+    isLive,
+    isRdSource,
+  ]);
+
+  /*
    * MAIN PLAYBACK RESOLUTION
    */
   useEffect(
@@ -2168,6 +2364,10 @@ export default function VideoPlayer({
       if (
         !isRdSource
       ) {
+        return;
+      }
+
+      if (sourceNeedsCaching(active)) {
         return;
       }
 
@@ -3521,6 +3721,7 @@ export default function VideoPlayer({
   useEffect(
     () => {
       if (
+        rdCacheEngineOwnsPollingRef.current ||
         !rdTorrentId ||
         rdOverride
       ) {
