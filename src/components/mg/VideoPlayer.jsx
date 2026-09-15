@@ -3936,14 +3936,11 @@ export default function VideoPlayer({
                     setRdPreparation((current) => ({
                       ...(current || {}),
                       status: "restarting",
-                      progress: latestProgress,
-                      seeders: latestSeeders,
+                      progress: 0,
+                      seeders: 0,
                       speed_bps: 0,
                       size_bytes: latestSizeBytes,
-                      downloaded_bytes:
-                        latestSizeBytes > 0
-                          ? Math.round(latestSizeBytes * (latestProgress / 100))
-                          : 0,
+                      downloaded_bytes: 0,
                       updatedAt: Date.now(),
                       attempts,
                     }));
