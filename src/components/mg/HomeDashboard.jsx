@@ -672,7 +672,7 @@ export default function HomeDashboard({ onOpenTvService }) {
     return () => {
       cancelled = true;
     };
-  }, [todayKey]);
+  }, [todayKey, streamingRegion]);
 
   const completedHistoryTitles = useMemo(() => {
     const titles = new Set();
