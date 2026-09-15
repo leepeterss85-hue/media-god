@@ -1144,6 +1144,9 @@ export default async function (req) {
         status: "cleared",
         cleared: true,
         torrent_id: String(match.id),
+        cleared_progress: progress,
+        cleared_added: String(match?.added || ""),
+        cleared_status: currentStatus,
       });
     }
 
