@@ -67,6 +67,24 @@ const isMagnet = (value) =>
     .toLowerCase()
     .startsWith("magnet:");
 
+const prefersMobileBrowserRdCompatibility = () => {
+  if (typeof navigator === "undefined") return false;
+
+  /*
+   * The installed Android/Fire TV apps expose MediaGodNative and can hand the
+   * unrestricted Real-Debrid file to Media3/LibVLC. A normal phone browser
+   * cannot do that and Android Chrome in particular is unreliable with common
+   * torrent containers such as MKV even when the underlying codecs are valid.
+   * Ask Real-Debrid for its browser-safe HLS/MP4 stream only in that browser
+   * case. This keeps native-app playback on the original highest-quality file.
+   */
+  if (isNativeFireTvPlayerAvailable()) return false;
+
+  return /android|iphone|ipad|ipod|mobile/i.test(
+    String(navigator.userAgent || "")
+  );
+};
+
 const magnetHash = (value) => {
   const raw = String(value || "").trim();
   const match = raw.match(/btih:([a-f0-9]{40}|[a-f0-9]{64})/i);
