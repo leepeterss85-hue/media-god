@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 6,
-  "versionName": "1.0.5",
+  "versionCode": 7,
+  "versionName": "1.0.6",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.5 forces WebView to fetch the latest published Media God web bundle instead of reusing stale player JavaScript, while keeping login/cookies intact. This ensures the new Comet RD-download-to-Real-Debrid progress flow actually appears on phones and tablets.",
+  "message": "Media God Mobile 1.0.6 adds a broad compatibility decoder fallback for difficult video and audio formats while keeping Android hardware/Media3 decoding first. It improves playback for DTS/DTS-HD, TrueHD/MLP, ALAC, FLAC, Opus/Vorbis, MPEG audio, legacy MPEG-4/DivX/Xvid/VC-1 and unusual MKV/AVI/TS combinations, with wider container detection and automatic fallback only when the normal decoder cannot play the source.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
