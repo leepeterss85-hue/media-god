@@ -2280,6 +2280,7 @@ export default function VideoPlayer({
                 {
                   action: "torrent_info",
                   torrent_id: existingRdTorrentId,
+                  prefer_browser_transcode: prefersMobileBrowserRdCompatibility(),
                   title:
                     source?.rdTitle ||
                     source?.title ||
@@ -2405,6 +2406,7 @@ export default function VideoPlayer({
                   {
                     action: "adopt_hash",
                     info_hash: hash,
+                    prefer_browser_transcode: prefersMobileBrowserRdCompatibility(),
                     title:
                       source?.rdTitle ||
                       source?.title ||
@@ -2989,6 +2991,7 @@ export default function VideoPlayer({
                     "resolve_best",
 
                   magnet,
+                  prefer_browser_transcode: prefersMobileBrowserRdCompatibility(),
 
                   title:
                     source?.rdTitle ||
@@ -3343,6 +3346,7 @@ export default function VideoPlayer({
 
                   torrent_id:
                     rdTorrentId,
+                  prefer_browser_transcode: prefersMobileBrowserRdCompatibility(),
 
                   title:
                     source?.rdTitle ||
