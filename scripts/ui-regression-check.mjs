@@ -411,9 +411,13 @@ expect(
     videoPlayer.includes("expectedOnePercentMs") &&
     videoPlayer.includes("activeDownloadFlatlineMs") &&
     videoPlayer.includes("repairedStuckTorrentHashesRef = useRef(new Set())") &&
-    videoPlayer.includes('force_progress_reset: true') &&
-    videoPlayer.includes("restarting the same torrent with its full tracker set") &&
-    videoPlayer.includes("setRdResolutionNonce((value) => value + 1)") &&
+    videoPlayer.includes('action: "restart_playback_torrent"') &&
+    videoPlayer.includes("richestSourceMagnet(active)") &&
+    videoPlayer.includes("the exact torrent job was deleted and re-created") &&
+    realDebridBackend.includes('action === "restart_playback_torrent"') &&
+    realDebridBackend.includes("waitForTorrentDeletion") &&
+    realDebridBackend.includes("chooseSameHashTorrent") &&
+    realDebridBackend.includes("restart_verified: true") &&
     realDebridBackend.includes("explicitProgressReset") &&
     realDebridBackend.includes("rdPartialTorrentLooksStale") &&
     realDebridBackend.includes("nominalFullTransferMs") &&
