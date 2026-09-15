@@ -1701,6 +1701,95 @@ export default async function (req) {
         body?.action
       ).toLowerCase();
 
+    if (action === "trigger_comet_playback") {
+      const target = configuredCometPlaybackTarget(
+        body?.playback_url || body?.playbackUrl,
+        allActiveAddons
+      );
+
+      if (!target) {
+        return Response.json(
+          {
+            triggered: false,
+            error:
+              "The Comet playback URL does not belong to an active configured Comet addon.",
+            error_code: "COMET_PLAYBACK_URL_REJECTED",
+          },
+          { status: 400 }
+        );
+      }
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30_000);
+
+      try {
+        /*
+         * Trigger Comet from the Base44 backend, not from the user's browser.
+         * Current Comet resolves uncached playback server-side and can retrieve
+         * the exact stored torrent `sources_json` for this hash. Mobile browser
+         * CORS/manual-redirect behaviour must never decide whether an uncached
+         * Real-Debrid job gets created.
+         */
+        const response = await fetch(target.url, {
+          method: "GET",
+          redirect: "manual",
+          signal: controller.signal,
+          headers: {
+            accept: "*/*",
+            "cache-control": "no-cache",
+            pragma: "no-cache",
+            "user-agent": "Media-God/Comet-Uncached-Trigger",
+          },
+        });
+
+        const contentType = clean(response.headers.get("content-type"));
+        const location = clean(response.headers.get("location"));
+        let locationHost = "";
+
+        if (location) {
+          try {
+            locationHost = new URL(location, target.origin).hostname;
+          } catch {
+            locationHost = "";
+          }
+        }
+
+        try {
+          await response.body?.cancel?.();
+        } catch {
+          // Headers/status are enough: Comet has already completed its handler.
+        }
+
+        return Response.json({
+          triggered: true,
+          addon: target.addonName,
+          upstream_status: response.status,
+          redirected: response.status >= 300 && response.status < 400,
+          location_host: locationHost,
+          content_type: contentType,
+          status_video:
+            response.status === 200 && /video\//i.test(contentType),
+        });
+      } catch (error) {
+        return Response.json(
+          {
+            triggered: false,
+            error:
+              error?.name === "AbortError"
+                ? "Comet did not answer the uncached playback request within 30 seconds."
+                : error?.message || "Comet uncached playback request failed.",
+            error_code:
+              error?.name === "AbortError"
+                ? "COMET_TRIGGER_TIMEOUT"
+                : "COMET_TRIGGER_FAILED",
+          },
+          { status: 502 }
+        );
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
+
     if (
       action === "health"
     ) {
