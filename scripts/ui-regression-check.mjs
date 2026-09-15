@@ -19,6 +19,7 @@ const tvShows = await read("src/components/mg/TvShowsView.jsx");
 const homeDashboard = await read("src/components/mg/HomeDashboard.jsx");
 const streamingServiceRows = await read("src/components/mg/StreamingServiceRows.jsx");
 const streamingServices = await read("src/components/mg/streamingServices.js");
+const streamingRegion = await read("src/components/mg/streamingRegion.js");
 const tmdbBackend = await read("base44/functions/getTmdbMovies/entry.ts");
 const watchlist = await read("src/components/mg/WatchlistView.jsx");
 const watchlistSchema = await read("base44/entities/WatchlistItem.jsonc");
@@ -175,15 +176,30 @@ expect(
   streamingServices.includes("Netflix") &&
     streamingServices.includes("Prime Video") &&
     streamingServices.includes("BBC iPlayer") &&
-    streamingServices.includes("ITVX") &&
-    streamingServices.includes("Channel 4"),
-  "Major UK streaming services are missing from the provider catalogue"
+    streamingServices.includes("JioHotstar") &&
+    streamingServices.includes("Stan") &&
+    streamingServices.includes("Crave") &&
+    streamingServices.includes("Showmax") &&
+    streamingServices.includes("provider-${providerId}"),
+  "Global or regional streaming services are missing from the provider catalogue"
+);
+expect(
+  streamingRegion.includes("detectStreamingRegion") &&
+    streamingRegion.includes("navigator.languages") &&
+    streamingRegion.includes("detectStreamingTimezone") &&
+    streamingServiceRows.includes("activeRegionName") &&
+    !streamingServiceRows.includes("available from each service in the UK") &&
+    tvShows.includes("streamingRegion") &&
+    homeDashboard.includes("streamingTimezone"),
+  "Streaming-service discovery is no longer region/timezone aware"
 );
 expect(
   tmdbBackend.includes("provider_catalog") &&
     tmdbBackend.includes("with_watch_providers") &&
     tmdbBackend.includes("with_watch_monetization_types") &&
-    tmdbBackend.includes("watch_region"),
+    tmdbBackend.includes("watch_region") &&
+    tmdbBackend.includes("requestRegion(req)") &&
+    !tmdbBackend.includes("data?.results?.GB ||"),
   "TMDB provider discovery support is missing"
 );
 expect(
