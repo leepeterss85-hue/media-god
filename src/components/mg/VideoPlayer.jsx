@@ -674,9 +674,6 @@ export default function VideoPlayer({
   const [rdResolving, setRdResolving] =
     useState(false);
 
-  const [rdResolutionNonce, setRdResolutionNonce] =
-    useState(0);
-
   const [rdPolling, setRdPolling] =
     useState(false);
 
@@ -3282,7 +3279,6 @@ export default function VideoPlayer({
       isDirectFile,
       isLive,
       isRdSource,
-      rdResolutionNonce,
     ]
   );
 
