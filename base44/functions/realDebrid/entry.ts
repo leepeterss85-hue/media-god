@@ -2542,15 +2542,17 @@ async function addMagnet({
     );
 
   if (!addRes.ok) {
+    const failure = await rdFailureDetails(
+      addRes,
+      "Real-Debrid could not add this torrent"
+    );
+
     return Response.json({
       status: "failed",
-      error:
-        await rdFailureMessage(
-          addRes,
-          "Real-Debrid could not add this torrent"
-        ),
-      upstream_status:
-        addRes.status,
+      error: failure.message,
+      upstream_status: failure.upstream_status,
+      upstream_error_code: failure.upstream_error_code,
+      upstream_error: failure.upstream_error,
       retryable:
         isRetryableRdStatus(
           addRes.status
@@ -2668,15 +2670,17 @@ async function addMagnet({
         !selectTargetRes.ok &&
         selectTargetRes.status !== 202
       ) {
+        const failure = await rdFailureDetails(
+          selectTargetRes,
+          "Real-Debrid could not select the target video file"
+        );
+
         return Response.json({
           status: "failed",
-          error:
-            await rdFailureMessage(
-              selectTargetRes,
-              "Real-Debrid could not select the target video file"
-            ),
-          upstream_status:
-            selectTargetRes.status,
+          error: failure.message,
+          upstream_status: failure.upstream_status,
+          upstream_error_code: failure.upstream_error_code,
+          upstream_error: failure.upstream_error,
           retryable:
             isRetryableRdStatus(
               selectTargetRes.status
