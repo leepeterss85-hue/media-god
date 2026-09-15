@@ -3806,7 +3806,7 @@ export default function VideoPlayer({
             expectedOnePercentMs > 0
               ? Math.min(
                   30 * 60 * 1000,
-                  Math.max(2 * 60 * 1000, expectedOnePercentMs * 8)
+                  Math.max(45 * 1000, expectedOnePercentMs * 8)
                 )
               : 30 * 60 * 1000;
 
@@ -3835,12 +3835,75 @@ export default function VideoPlayer({
 
           if (looksCompletelyStalled) {
             if (sourceNeedsCaching(active)) {
+              const activeHash = sourceTorrentHash(active);
+              const canRepairSameTorrent =
+                activeHash &&
+                !repairedStuckTorrentHashesRef.current.has(activeHash);
+
               /*
-               * Do not delete or auto-switch an uncached torrent just because
-               * its swarm has been quiet. The RD job may still recover and the
-               * user explicitly chose this source. Stop active polling, keep
-               * the last progress/seeder diagnostics visible, and let Retry or
-               * manual source selection decide the next action.
+               * Repair the selected torrent itself before considering anything
+               * else. If RD's percentage has genuinely flat-lined, delete only
+               * the Media-God-owned RD job for this exact hash and re-submit the
+               * SAME tracker-rich magnet. This is a source repair, not failover.
+               */
+              if (canRepairSameTorrent) {
+                repairedStuckTorrentHashesRef.current.add(activeHash);
+
+                try {
+                  const resetResponse = await base44.functions.invoke(
+                    "realDebrid",
+                    {
+                      action: "reset_stale_hash",
+                      info_hash: activeHash,
+                      claim_for_playback: true,
+                      force_progress_reset: true,
+                      title:
+                        source?.rdTitle ||
+                        source?.title ||
+                        "",
+                    }
+                  );
+
+                  const resetData = resetResponse?.data || {};
+
+                  if (resetData.cleared === true || resetData.status === "not_found") {
+                    setRdPolling(false);
+                    setRdTorrentId(null);
+                    setRdError("");
+                    setRdPreparation({
+                      status: "restarting",
+                      progress: 0,
+                      seeders: 0,
+                      speed_bps: 0,
+                      size_bytes: latestSizeBytes,
+                      downloaded_bytes: 0,
+                      startedAt: Date.now(),
+                      updatedAt: Date.now(),
+                      attempts: 0,
+                    });
+
+                    window.dispatchEvent(
+                      new CustomEvent("mg:player-status", {
+                        detail: {
+                          message:
+                            `Real-Debrid stalled at ${latestProgress.toFixed(0)}% — restarting the same torrent with its full tracker set…`,
+                        },
+                      })
+                    );
+
+                    setRdResolutionNonce((value) => value + 1);
+                    return;
+                  }
+                } catch {
+                  // Fall through to the visible stalled state below. Never hide
+                  // a repair failure by silently switching to a different source.
+                }
+              }
+
+              /*
+               * If the same-torrent repair was already attempted and this hash
+               * still cannot progress, keep it selected and report the real RD
+               * state. Do not disguise the fault by hopping to another source.
                */
               setRdPolling(false);
               setRdTorrentId(null);
