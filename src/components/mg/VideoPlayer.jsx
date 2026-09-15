@@ -301,8 +301,30 @@ const formatCacheBytes = (value) => {
 };
 
 const formatCacheSpeed = (value) => {
-  const speed = formatCacheBytes(value);
-  return speed ? `${speed}/s` : "";
+  const bytesPerSecond = Math.max(0, Number(value || 0));
+  if (!bytesPerSecond) return "";
+
+  /*
+   * Real-Debrid reports torrent speed in bytes/second, while users normally
+   * recognise their internet/download speed in bits/second. Show Mbps so the
+   * number matches the way broadband and mobile-data speeds are advertised.
+   * Example: 2.95 MB/s ~= 23.6 Mbps.
+   */
+  const bitsPerSecond = bytesPerSecond * 8;
+
+  if (bitsPerSecond >= 1_000_000) {
+    const mbps = bitsPerSecond / 1_000_000;
+    const decimals = mbps >= 100 ? 0 : mbps >= 10 ? 1 : 2;
+    return `${mbps.toFixed(decimals)} Mbps`;
+  }
+
+  if (bitsPerSecond >= 1_000) {
+    const kbps = bitsPerSecond / 1_000;
+    const decimals = kbps >= 100 ? 0 : kbps >= 10 ? 1 : 2;
+    return `${kbps.toFixed(decimals)} Kbps`;
+  }
+
+  return `${Math.round(bitsPerSecond)} bps`;
 };
 
 const formatCacheDuration = (value) => {
