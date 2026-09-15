@@ -272,7 +272,6 @@ const configuredCometPlaybackTarget = (value, addons = []) => {
     }
 
     const match = (Array.isArray(addons) ? addons : []).find((addon) => {
-      const addonName = clean(addon?.name);
       const parsed = parseAddonUrl(addon?.url);
 
       if (!parsed) {
