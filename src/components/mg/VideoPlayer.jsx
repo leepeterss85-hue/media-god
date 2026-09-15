@@ -3823,9 +3823,6 @@ export default function VideoPlayer({
           const looksCompletelyStalled =
             latestProgress < 100 &&
             noProgressForMs >= stallAfterMs;
-          const staleReportedSpeed =
-            activelyDownloading &&
-            noProgressForMs >= activeDownloadFlatlineMs;
           const flatlineMinutes = Math.max(
             1,
             Math.round(stallAfterMs / 60000)
