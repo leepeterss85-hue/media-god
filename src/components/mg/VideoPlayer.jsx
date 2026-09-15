@@ -3905,7 +3905,7 @@ export default function VideoPlayer({
                   : 3 * 60 * 1000;
 
           const rdAddedAt = Date.parse(
-            String(rdPreparation?.added || "")
+            String(progressData?.added || rdPreparation?.added || "")
           );
           const rdJobAgeMs = Number.isFinite(rdAddedAt)
             ? Math.max(0, Date.now() - rdAddedAt)
