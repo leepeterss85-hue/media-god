@@ -3833,41 +3833,6 @@ export default function VideoPlayer({
 
           if (looksCompletelyStalled) {
             if (sourceNeedsCaching(active)) {
-              if (staleReportedSpeed) {
-                const nextSource = findNextPlayableSource(activeIdx);
-
-                if (nextSource !== -1) {
-                  const stalledTorrentId = String(rdTorrentId || "").trim();
-
-                  if (stalledTorrentId) {
-                    try {
-                      await base44.functions.invoke(
-                        "realDebrid",
-                        {
-                          action: "torrent_delete",
-                          torrent_id: stalledTorrentId,
-                        }
-                      );
-                    } catch {
-                      // Cleanup is best-effort; recovery should still continue.
-                    }
-                  }
-                  markSourceFailed(activeIdx);
-                  markTorrentHashFailed(active);
-                  releaseSourceSelector();
-                  releaseRdFileSelector();
-                  setRdPolling(false);
-                  setRdTorrentId(null);
-                  setRdPreparation(null);
-                  setRdError("");
-                  switchToSource(nextSource, {
-                    preservePosition: true,
-                    statusMessage:
-                      `Real-Debrid's reported speed stopped matching real progress for about ${flatlineMinutes} minute${flatlineMinutes === 1 ? "" : "s"} — trying another source…`,
-                  });
-                  return;
-                }
-              }
               /*
                * Do not delete or auto-switch an uncached torrent just because
                * its swarm has been quiet. The RD job may still recover and the
