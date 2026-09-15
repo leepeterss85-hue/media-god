@@ -11,6 +11,7 @@ import {
 
 import { base44 } from "@/api/base44Client";
 import { usePlayer, buildMediaSources } from "@/components/mg/PlayerProvider";
+import { detectStreamingRegion, streamingRegionName } from "@/components/mg/streamingRegion";
 import { Image } from "@/components/ui/image";
 import { cn } from "@/lib/utils";
 
@@ -24,13 +25,19 @@ export default function RoadmapView({ onBack }) {
   const [tab, setTab] = useState("film");
   const [busyKey, setBusyKey] = useState("");
   const player = usePlayer();
+  const releaseRegion = detectStreamingRegion();
+  const releaseRegionLabel = streamingRegionName(releaseRegion);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
 
     const [filmResult, broadcastResult] = await Promise.allSettled([
-      base44.functions.invoke("getTmdbMovies", { category: "upcoming" }),
+      base44.functions.invoke("getTmdbMovies", {
+        category: "upcoming",
+        region: releaseRegion,
+        include_global_releases: true,
+      }),
       base44.entities.RoadmapItem.list("-created_date", 50),
     ]);
 
@@ -55,7 +62,7 @@ export default function RoadmapView({ onBack }) {
     }
 
     setLoading(false);
-  }, []);
+  }, [releaseRegion]);
 
   useEffect(() => {
     load();
@@ -74,6 +81,7 @@ export default function RoadmapView({ onBack }) {
       try {
         const response = await base44.functions.invoke("getTmdbMovies", {
           movie_id: id,
+          region: releaseRegion,
         });
         return {
           trailerUrl: response?.data?.trailer_url || "",
@@ -168,7 +176,7 @@ export default function RoadmapView({ onBack }) {
           <div className="min-w-0">
             <h1 className="text-xl font-bold text-white tracking-wide">Release Dates</h1>
             <p className="text-xs text-white/40 mt-0.5">
-              Upcoming film, TV and broadcast release dates in one place.
+              Cinema dates for {releaseRegionLabel}, plus films already released elsewhere and available to try through Media God.
             </p>
           </div>
         </div>
@@ -265,11 +273,18 @@ export default function RoadmapView({ onBack }) {
                     <h2 className="font-bold text-white text-sm sm:text-base leading-tight">
                       {item?.title || "Untitled"}
                     </h2>
-                    {item?.release_date && (
-                      <span className="text-[10px] font-bold bg-mg-green/15 text-mg-green border border-mg-green/40 px-2 py-1 rounded whitespace-nowrap">
-                        {item.release_date}
-                      </span>
-                    )}
+                    <div className="flex flex-col items-end gap-1">
+                      {item?.release_date && (
+                        <span className="text-[10px] font-bold bg-mg-green/15 text-mg-green border border-mg-green/40 px-2 py-1 rounded whitespace-nowrap">
+                          {item.release_date}
+                        </span>
+                      )}
+                      {item?.global_release_available && item?.global_release_date && item?.global_release_date !== item?.release_date && (
+                        <span className="text-[10px] font-semibold bg-sky-400/10 text-sky-200 border border-sky-400/30 px-2 py-1 rounded whitespace-nowrap">
+                          Released elsewhere {item.global_release_date}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {description && (
