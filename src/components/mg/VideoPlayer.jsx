@@ -2208,28 +2208,8 @@ export default function VideoPlayer({
              * the legacy Comet playback trigger is only for a genuinely opaque
              * Comet row with no usable torrent metadata at all.
              */
-            const magnetCandidates = [
-              richMagnet,
-              active?.magnet,
-              active?.magnetLink,
-              active?.src,
-              active?.url,
-            ]
-              .map((value) => String(value || "").trim())
-              .filter((value) => /^magnet:/i.test(value));
-
             const magnet =
-              magnetCandidates
-                .slice()
-                .sort((left, right) => {
-                  const leftTrackers = (left.match(/(?:[?&])tr=/gi) || []).length;
-                  const rightTrackers = (right.match(/(?:[?&])tr=/gi) || []).length;
-
-                  return (
-                    rightTrackers - leftTrackers ||
-                    right.length - left.length
-                  );
-                })[0] ||
+              richestSourceMagnet(active) ||
               active?.src ||
               active?.url ||
               active?.magnet ||
