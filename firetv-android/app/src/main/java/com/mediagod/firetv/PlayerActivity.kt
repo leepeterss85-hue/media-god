@@ -41,6 +41,7 @@ class PlayerActivity : Activity() {
         const val EXTRA_MESSAGE = "mg_message"
         const val EXTRA_SELECTED_SOURCE_INDEX = "mg_selected_source_index"
 
+        private const val REQUEST_COMPATIBILITY_PLAYER = 8402
         private const val CONTROLLER_HIDE_DELAY_MS = 2500L
         private const val LIVE_STARTUP_TIMEOUT_MS = 15000L
         private const val LIVE_STALL_TIMEOUT_MS = 12000L
@@ -73,6 +74,7 @@ class PlayerActivity : Activity() {
     private var shouldPlayWhenReady = true
     private var resultSent = false
     private var genericHttpsMimeRetryIndex = 0
+    private var compatibilityPlayerOpen = false
 
     private val failedLiveSourceIndexes = linkedSetOf<Int>()
     private var livePlaybackStarted = false
@@ -192,7 +194,9 @@ class PlayerActivity : Activity() {
 
     override fun onStart() {
         super.onStart()
-        initialisePlayer()
+        if (!compatibilityPlayerOpen) {
+            initialisePlayer()
+        }
     }
 
     override fun onResume() {
@@ -248,6 +252,33 @@ class PlayerActivity : Activity() {
         }
     }
 
+    @Deprecated("Deprecated in Android; retained for Fire OS compatibility")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        if (requestCode != REQUEST_COMPATIBILITY_PLAYER) {
+            return
+        }
+
+        compatibilityPlayerOpen = false
+        resultSent = true
+
+        val forwarded = data ?: Intent().apply {
+            putExtra(EXTRA_REQUEST_ID, requestId)
+            putExtra(EXTRA_REASON, "back")
+            putExtra(EXTRA_POSITION_MS, restorePositionMs)
+            putExtra(EXTRA_DURATION_MS, 0L)
+            putExtra(EXTRA_MESSAGE, "")
+            putExtra(
+                EXTRA_SELECTED_SOURCE_INDEX,
+                nativeSources.getOrNull(activeSourceIndex)?.webIndex ?: -1
+            )
+        }
+
+        setResult(RESULT_OK, forwarded)
+        finish()
+    }
+
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (event.action == KeyEvent.ACTION_DOWN && !event.isLongPress) {
             val activePlayer = player
@@ -289,7 +320,7 @@ class PlayerActivity : Activity() {
                 }
 
                 KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
-                KeyEvent.KEYCODE_HEADSETHOOK -> {
+                KeyEvent.KEYCODE_HEADSEHOOK -> {
                     activePlayer?.let {
                         if (it.isPlaying) it.pause() else it.play()
                         showControllerTemporarily()
@@ -396,7 +427,7 @@ class PlayerActivity : Activity() {
     }
 
     private fun armLiveStartupWatchdog() {
-        if (!live || resultSent || !::playerView.isInitialized) {
+        if (!live || resultSent || compatibilityPlayerOpen || !::playerView.isInitialized) {
             return
         }
 
@@ -409,7 +440,13 @@ class PlayerActivity : Activity() {
     }
 
     private fun armLiveStallWatchdog() {
-        if (!live || resultSent || !livePlaybackStarted || !::playerView.isInitialized) {
+        if (
+            !live ||
+            resultSent ||
+            compatibilityPlayerOpen ||
+            !livePlaybackStarted ||
+            !::playerView.isInitialized
+        ) {
             return
         }
 
@@ -442,7 +479,7 @@ class PlayerActivity : Activity() {
     }
 
     private fun recoverLivePlayback(message: String): Boolean {
-        if (!live || resultSent || liveRecoveryPending) {
+        if (!live || resultSent || liveRecoveryPending || compatibilityPlayerOpen) {
             return false
         }
 
@@ -467,7 +504,7 @@ class PlayerActivity : Activity() {
         }
 
         playerView.post {
-            if (resultSent) {
+            if (resultSent || compatibilityPlayerOpen) {
                 liveRecoveryPending = false
                 return@post
             }
@@ -671,7 +708,8 @@ class PlayerActivity : Activity() {
         if (
             index !in nativeSources.indices ||
             index == activeSourceIndex ||
-            resultSent
+            resultSent ||
+            compatibilityPlayerOpen
         ) {
             return
         }
@@ -727,7 +765,7 @@ class PlayerActivity : Activity() {
             ?: payload.optJSONObject("drm")
 
     private fun initialisePlayer() {
-        if (player != null || resultSent) {
+        if (player != null || resultSent || compatibilityPlayerOpen) {
             return
         }
 
@@ -835,6 +873,13 @@ class PlayerActivity : Activity() {
                 }
 
                 if (
+                    shouldUseCompatibilityFallback(error) &&
+                    launchCompatibilityPlayer(exoPlayer, error)
+                ) {
+                    return
+                }
+
+                if (
                     live &&
                     recoverLivePlayback(
                         error.message ?: "Native Fire TV Live TV playback failed."
@@ -874,6 +919,72 @@ class PlayerActivity : Activity() {
         }
 
         hideControllerNow()
+    }
+
+    private fun shouldUseCompatibilityFallback(error: PlaybackException): Boolean {
+        if (currentSourceDrm() != null) {
+            return false
+        }
+
+        val code = error.errorCode
+
+        return code == 3003 ||
+            code in 4001..4005 ||
+            code in 5001..5004
+    }
+
+    private fun launchCompatibilityPlayer(
+        activePlayer: ExoPlayer,
+        error: PlaybackException
+    ): Boolean {
+        if (compatibilityPlayerOpen || resultSent) {
+            return false
+        }
+
+        val positionMs = max(0L, activePlayer.currentPosition)
+        restorePositionMs = positionMs
+        shouldPlayWhenReady = activePlayer.playWhenReady || shouldPlayWhenReady
+
+        val compatibilityPayload = try {
+            JSONObject(payload.toString())
+        } catch (_: Throwable) {
+            JSONObject()
+        }.apply {
+            put("requestId", requestId)
+            put("url", streamUrl)
+            put("startPositionMs", positionMs)
+            put("mimeType", currentSourceMimeType())
+            put(
+                "activeSourceIndex",
+                nativeSources.getOrNull(activeSourceIndex)?.webIndex
+                    ?: payload.optInt("activeSourceIndex", activeSourceIndex)
+            )
+            put("compatibilityErrorCode", error.errorCode)
+            put("compatibilityError", error.message.orEmpty())
+
+            val headerJson = JSONObject()
+            currentSourceHeaders().forEach { (key, value) ->
+                headerJson.put(key, value)
+            }
+            put("headers", headerJson)
+        }
+
+        compatibilityPlayerOpen = true
+        clearLiveWatchdogs()
+        releasePlayer()
+
+        return try {
+            val intent = Intent(this, CompatibilityPlayerActivity::class.java).apply {
+                putExtra(EXTRA_PAYLOAD, compatibilityPayload.toString())
+            }
+
+            @Suppress("DEPRECATION")
+            startActivityForResult(intent, REQUEST_COMPATIBILITY_PLAYER)
+            true
+        } catch (_: Throwable) {
+            compatibilityPlayerOpen = false
+            false
+        }
     }
 
     private fun buildMediaItem(mimeTypeOverride: String? = null): MediaItem {
@@ -959,6 +1070,18 @@ class PlayerActivity : Activity() {
         return when {
             lower.endsWith(".m3u8") -> MimeTypes.APPLICATION_M3U8
             lower.endsWith(".mpd") -> MimeTypes.APPLICATION_MPD
+            lower.endsWith(".mp4") || lower.endsWith(".m4v") -> "video/mp4"
+            lower.endsWith(".m4a") -> "audio/mp4"
+            lower.endsWith(".mkv") -> "video/x-matroska"
+            lower.endsWith(".mka") -> "audio/x-matroska"
+            lower.endsWith(".webm") -> "video/webm"
+            lower.endsWith(".ts") || lower.endsWith(".m2ts") || lower.endsWith(".mts") -> "video/mp2t"
+            lower.endsWith(".avi") -> "video/x-msvideo"
+            lower.endsWith(".mpg") || lower.endsWith(".mpeg") || lower.endsWith(".vob") -> "video/mpeg"
+            lower.endsWith(".mp3") -> "audio/mpeg"
+            lower.endsWith(".flac") -> "audio/flac"
+            lower.endsWith(".ogg") || lower.endsWith(".oga") || lower.endsWith(".opus") -> "audio/ogg"
+            lower.endsWith(".wav") -> "audio/wav"
             else -> null
         }
     }
