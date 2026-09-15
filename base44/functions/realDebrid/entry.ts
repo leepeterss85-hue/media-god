@@ -212,6 +212,54 @@ const rdPartialTorrentLooksStale = (info = {}) => {
   return false;
 };
 
+const torrentHashFromMagnet = (value) =>
+  String(value || "")
+    .match(/btih:([a-f0-9]{40})/i)?.[1]
+    ?.toLowerCase() || "";
+
+const torrentAddedMs = (torrent) => {
+  const value = Date.parse(String(torrent?.added || ""));
+  return Number.isFinite(value) ? value : 0;
+};
+
+const chooseSameHashTorrent = (torrents, hash) => {
+  const matches = (Array.isArray(torrents) ? torrents : []).filter(
+    (torrent) =>
+      String(torrent?.hash || "").trim().toLowerCase() === hash
+  );
+
+  if (matches.length === 0) return null;
+
+  return matches.slice().sort((left, right) => {
+    const leftReady = String(left?.status || "").toLowerCase() === "downloaded";
+    const rightReady = String(right?.status || "").toLowerCase() === "downloaded";
+    if (leftReady !== rightReady) return rightReady ? 1 : -1;
+
+    const leftStale = rdPartialTorrentLooksStale(left);
+    const rightStale = rdPartialTorrentLooksStale(right);
+    if (leftStale !== rightStale) return leftStale ? 1 : -1;
+
+    return torrentAddedMs(right) - torrentAddedMs(left);
+  })[0];
+};
+
+const waitForTorrentDeletion = async (torrentId, authHeaders) => {
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const verifyRes = await rdFetch(
+      `${RD_BASE}/torrents/info/${encodeURIComponent(String(torrentId))}`,
+      { headers: authHeaders },
+      { attempts: 1 }
+    );
+
+    if (verifyRes.status === 404) return true;
+    if (!verifyRes.ok && verifyRes.status !== 429) return true;
+
+    await sleep(250 + attempt * 100);
+  }
+
+  return false;
+};
+
 const rdRetryDelayMs = (
   response,
   attempt
