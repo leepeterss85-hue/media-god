@@ -1886,18 +1886,22 @@ export function PlayerProvider({
               };
             }
 
+            const publishedSources = request?.allowNonPlaybackFallback
+              ? ordered
+              : playable;
+
             if (fastStartPrimaryUrl) {
-              const lockedIndex = ordered.findIndex(
+              const lockedIndex = publishedSources.findIndex(
                 (item) => getSourceUrl(item) === fastStartPrimaryUrl
               );
 
               if (lockedIndex > 0) {
-                const [locked] = ordered.splice(lockedIndex, 1);
-                ordered.unshift(locked);
+                const [locked] = publishedSources.splice(lockedIndex, 1);
+                publishedSources.unshift(locked);
               }
             }
 
-            const primary = ordered[0] || {};
+            const primary = publishedSources[0] || {};
 
             if (!fastStartPrimaryUrl) {
               fastStartPrimaryUrl = getSourceUrl(primary);
@@ -1905,7 +1909,7 @@ export function PlayerProvider({
 
             return {
               ...current,
-              sources: ordered,
+              sources: publishedSources,
               src: getSourceUrl(primary),
               url: getSourceUrl(primary),
               sourceDiagnostics: {
