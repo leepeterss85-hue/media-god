@@ -3845,56 +3845,115 @@ export default function VideoPlayer({
                * SAME tracker-rich magnet. This is a source repair, not failover.
                */
               if (canRepairSameTorrent) {
-                repairedStuckTorrentHashesRef.current.add(activeHash);
+                const repairMagnet = richestSourceMagnet(active);
+                const currentTorrentId = String(rdTorrentId || "").trim();
 
-                try {
-                  const resetResponse = await base44.functions.invoke(
-                    "realDebrid",
-                    {
-                      action: "reset_stale_hash",
-                      info_hash: activeHash,
-                      claim_for_playback: true,
-                      force_progress_reset: true,
-                      title:
-                        source?.rdTitle ||
-                        source?.title ||
-                        "",
-                    }
-                  );
+                if (repairMagnet && currentTorrentId) {
+                  repairedStuckTorrentHashesRef.current.add(activeHash);
 
-                  const resetData = resetResponse?.data || {};
-
-                  if (resetData.cleared === true || resetData.status === "not_found") {
-                    setRdPolling(false);
-                    setRdTorrentId(null);
-                    setRdError("");
-                    setRdPreparation({
+                  try {
+                    setRdPreparation((current) => ({
+                      ...(current || {}),
                       status: "restarting",
-                      progress: 0,
-                      seeders: 0,
+                      progress: latestProgress,
+                      seeders: latestSeeders,
                       speed_bps: 0,
                       size_bytes: latestSizeBytes,
-                      downloaded_bytes: 0,
-                      startedAt: Date.now(),
+                      downloaded_bytes:
+                        latestSizeBytes > 0
+                          ? Math.round(latestSizeBytes * (latestProgress / 100))
+                          : 0,
                       updatedAt: Date.now(),
-                      attempts: 0,
-                    });
+                      attempts,
+                    }));
 
-                    window.dispatchEvent(
-                      new CustomEvent("mg:player-status", {
-                        detail: {
-                          message:
-                            `Real-Debrid stalled at ${latestProgress.toFixed(0)}% — restarting the same torrent with its full tracker set…`,
-                        },
-                      })
+                    const restartResponse = await base44.functions.invoke(
+                      "realDebrid",
+                      {
+                        action: "restart_playback_torrent",
+                        torrent_id: currentTorrentId,
+                        info_hash: activeHash,
+                        magnet: repairMagnet,
+                        prefer_browser_transcode: prefersMobileBrowserRdCompatibility(),
+                        title:
+                          source?.rdTitle ||
+                          source?.title ||
+                          "",
+                        ...(source?.rdYear != null
+                          ? { year: source.rdYear }
+                          : {}),
+                        ...(source?.rdSeason != null
+                          ? { season: source.rdSeason }
+                          : {}),
+                        ...(source?.rdEpisode != null
+                          ? { episode: source.rdEpisode }
+                          : {}),
+                        ...(active?.fileIdx != null &&
+                        Number.isFinite(Number(active.fileIdx))
+                          ? { file_idx: Number(active.fileIdx) }
+                          : {}),
+                      }
                     );
 
-                    setRdResolutionNonce((value) => value + 1);
-                    return;
+                    const restartData = restartResponse?.data || {};
+
+                    if (restartData.status === "ready" && restartData.stream_url) {
+                      setRdOverride({
+                        src: restartData.stream_url,
+                        label:
+                          restartData.filename ||
+                          active?.label ||
+                          "Real-Debrid Stream",
+                        file: currentFilePath(restartData.files),
+                        audioRescue: restartData.audio_rescue || null,
+                        fallbackSrc: restartData.fallback_stream_url || "",
+                        videoRescue: restartData.video_rescue || null,
+                        mediaInfo: restartData.media_info || null,
+                      });
+                      setRdFiles(restartData.files || []);
+                      setRdPolling(false);
+                      setRdTorrentId(null);
+                      setRdPreparation(null);
+                      setRdError("");
+                      return;
+                    }
+
+                    if (restartData.torrent_id) {
+                      setRdPolling(true);
+                      setRdTorrentId(String(restartData.torrent_id));
+                      setRdError("");
+                      setRdPreparation({
+                        ...(restartData.torrent_progress || {}),
+                        status:
+                          restartData.torrent_progress?.status ||
+                          restartData.rd_status ||
+                          "restarting",
+                        startedAt: Date.now(),
+                        updatedAt: Date.now(),
+                        attempts: 0,
+                      });
+
+                      window.dispatchEvent(
+                        new CustomEvent("mg:player-status", {
+                          detail: {
+                            message:
+                              `Real-Debrid stalled at ${latestProgress.toFixed(0)}% — the exact torrent job was deleted and re-created.`,
+                          },
+                        })
+                      );
+                      return;
+                    }
+
+                    throw new Error(
+                      restartData.error ||
+                        "Real-Debrid did not return a fresh torrent after the restart."
+                    );
+                  } catch (repairError) {
+                    setRdError(
+                      repairError?.message ||
+                        "Real-Debrid could not restart this exact torrent."
+                    );
                   }
-                } catch {
-                  // Fall through to the visible stalled state below. Never hide
-                  // a repair failure by silently switching to a different source.
                 }
               }
 
