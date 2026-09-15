@@ -711,6 +711,9 @@ export default async function (req) {
         { attempts: 3 }
       );
 
+      let previousProgress = 0;
+      let previousAdded = "";
+
       if (!currentInfoRes.ok && currentInfoRes.status !== 404) {
         return Response.json(
           {
@@ -729,6 +732,11 @@ export default async function (req) {
         const currentHash = String(currentInfo?.hash || "")
           .trim()
           .toLowerCase();
+        previousProgress = Math.max(
+          0,
+          Math.min(100, Number(currentInfo?.progress || 0))
+        );
+        previousAdded = String(currentInfo?.added || "");
 
         if (currentHash && currentHash !== expectedHash) {
           return Response.json(
@@ -840,6 +848,124 @@ export default async function (req) {
         saveLink: true,
       });
       const freshPayload = await freshResponse.json();
+      const freshTorrentId = String(freshPayload?.torrent_id || "").trim();
+
+      if (
+        freshResponse.ok &&
+        freshTorrentId &&
+        freshTorrentId === torrentId
+      ) {
+        return Response.json(
+          {
+            status: "failed",
+            error:
+              "Real-Debrid returned the deleted torrent id again, so Media God could not verify a fresh torrent job.",
+            error_code: "RD_RESTART_REUSED_TORRENT_ID",
+            previous_torrent_id: torrentId,
+            fresh_torrent_id: freshTorrentId,
+          },
+          { status: 409 }
+        );
+      }
+
+      /*
+       * Deleting a torrent through RD removes the user's torrent row, but RD can
+       * retain partial hash state internally. Re-adding the same hash may then
+       * immediately reappear at the exact old percentage instead of starting at
+       * zero. That is not a successful repair if the old job was already stale.
+       * Verify that the NEW torrent id actually moves before reporting success.
+       */
+      if (
+        freshResponse.ok &&
+        freshTorrentId &&
+        previousProgress > 0 &&
+        previousProgress < 100 &&
+        String(freshPayload?.status || "") !== "ready"
+      ) {
+        let latestInfo = null;
+        let moved = false;
+
+        for (let attempt = 0; attempt < 4; attempt += 1) {
+          if (attempt > 0) await sleep(1250);
+
+          const verifyRes = await rdFetch(
+            `${RD_BASE}/torrents/info/${encodeURIComponent(freshTorrentId)}`,
+            { headers: authHeaders },
+            { attempts: 2 }
+          );
+
+          if (!verifyRes.ok) continue;
+
+          latestInfo = await verifyRes.json();
+          const latestProgress = Math.max(
+            0,
+            Math.min(100, Number(latestInfo?.progress || 0))
+          );
+          const latestStatus = String(latestInfo?.status || "").toLowerCase();
+
+          if (
+            latestStatus === "downloaded" ||
+            latestProgress > previousProgress + 0.001 ||
+            latestProgress < previousProgress - 0.001
+          ) {
+            moved = true;
+            break;
+          }
+        }
+
+        const latestProgress = Math.max(
+          0,
+          Math.min(
+            100,
+            Number(latestInfo?.progress ?? freshPayload?.torrent_progress?.progress ?? 0)
+          )
+        );
+
+        if (!moved && Math.abs(latestProgress - previousProgress) <= 0.001) {
+          const cleanupRes = await rdFetch(
+            `${RD_BASE}/torrents/delete/${encodeURIComponent(freshTorrentId)}`,
+            {
+              method: "DELETE",
+              headers: authHeaders,
+            },
+            { attempts: 2 }
+          );
+
+          if (cleanupRes.ok || cleanupRes.status === 404) {
+            await waitForTorrentDeletion(freshTorrentId, authHeaders);
+          }
+
+          try {
+            const links = await base44.entities.RdLink.filter({
+              torrent_id: freshTorrentId,
+            });
+            for (const link of Array.isArray(links) ? links : []) {
+              if (link?.id) {
+                await base44.entities.RdLink.update(link.id, { torrent_id: "" });
+              }
+            }
+          } catch {
+            // RD state is authoritative; local cleanup is best effort.
+          }
+
+          return Response.json(
+            {
+              status: "failed",
+              error:
+                `Real-Debrid re-created this torrent at the same stale ${Math.round(previousProgress)}% and it still did not advance. The RD-side partial state for this hash cannot be repaired by deleting and re-adding the same magnet.`,
+              error_code: "RD_RESTART_RESUMED_STALE_PARTIAL",
+              restarted: true,
+              restart_verified: false,
+              previous_torrent_id: torrentId,
+              fresh_torrent_id: freshTorrentId,
+              previous_progress: previousProgress,
+              fresh_progress: latestProgress,
+              previous_added: previousAdded,
+            },
+            { status: 409 }
+          );
+        }
+      }
 
       return Response.json(
         {
@@ -847,7 +973,9 @@ export default async function (req) {
           restarted: true,
           restart_verified: true,
           previous_torrent_id: torrentId,
-          fresh_torrent_id: String(freshPayload?.torrent_id || ""),
+          fresh_torrent_id: freshTorrentId,
+          previous_progress: previousProgress,
+          previous_added: previousAdded,
         },
         { status: freshResponse.status }
       );
