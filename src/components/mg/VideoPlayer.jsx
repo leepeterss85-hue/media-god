@@ -2522,6 +2522,7 @@ export default function VideoPlayer({
                       action: "reset_stale_hash",
                       info_hash: hash,
                       claim_for_playback: true,
+                      force_progress_reset: true,
                       title:
                         source?.rdTitle ||
                         source?.title ||
