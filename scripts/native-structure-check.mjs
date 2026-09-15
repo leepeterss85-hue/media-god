@@ -9,7 +9,7 @@ const apps = [
     dir: "firetv-android",
     packagePath: "com/mediagod/firetv",
     namespace: "com.mediagod.firetv",
-    expectedVersion: null,
+    expectedVersion: "1.4.17",
     expectedOrientation: "landscape",
   },
   {
@@ -17,7 +17,7 @@ const apps = [
     dir: "android-mobile",
     packagePath: "com/mediagod/mobile",
     namespace: "com.mediagod.mobile",
-    expectedVersion: "1.0.5",
+    expectedVersion: "1.0.6",
     expectedOrientation: "sensor",
   },
 ];
@@ -75,6 +75,10 @@ for (const app of apps) {
   const manifest = requireFile(manifestPath, `${app.name} manifest`);
   const mainActivity = requireFile(`${javaRoot}/MainActivity.kt`, `${app.name} MainActivity`);
   const playerActivity = requireFile(`${javaRoot}/PlayerActivity.kt`, `${app.name} PlayerActivity`);
+  const compatibilityActivity = requireFile(
+    `${javaRoot}/CompatibilityPlayerActivity.kt`,
+    `${app.name} compatibility player`
+  );
   requireFile(`${javaRoot}/AppUpdater.kt`, `${app.name} updater`);
   requireFile(`${app.dir}/app/src/main/res/xml/network_security_config.xml`, `${app.name} network security`);
   requireFile(`${app.dir}/app/src/main/res/xml/file_paths.xml`, `${app.name} file provider paths`);
@@ -90,17 +94,27 @@ for (const app of apps) {
     [versionNameOk, "versionName"],
     [gradle.includes("media3-exoplayer-hls"), "Media3 HLS dependency"],
     [gradle.includes("media3-exoplayer-dash"), "Media3 DASH dependency"],
+    [gradle.includes("media3-exoplayer-smoothstreaming"), "Media3 SmoothStreaming dependency"],
+    [gradle.includes("media3-exoplayer-rtsp"), "Media3 RTSP dependency"],
+    [gradle.includes("org.videolan.android:libvlc-all:3.6.5"), "LibVLC compatibility dependency"],
     [manifest.includes('android.permission.INTERNET'), "INTERNET permission"],
     [manifest.includes('android:usesCleartextTraffic="true"'), "cleartext media support"],
     [manifest.includes('android:name=".MainActivity"'), "MainActivity declaration"],
     [manifest.includes('android:name=".PlayerActivity"'), "PlayerActivity declaration"],
+    [manifest.includes('android:name=".CompatibilityPlayerActivity"'), "compatibility player declaration"],
     [manifest.includes(`android:screenOrientation="${app.expectedOrientation}"`), "player orientation"],
     [mainActivity.includes('addJavascriptInterface'), "JavaScript bridge"],
     [mainActivity.includes('mg:native-player-result'), "native result event"],
     [playerActivity.includes('DefaultHttpDataSource.Factory'), "Media3 HTTP data source"],
-    [playerActivity.includes('setEnableDecoderFallback(true)'), "decoder fallback"],
+    [playerActivity.includes('setEnableDecoderFallback(true)'), "device decoder fallback"],
+    [playerActivity.includes('CompatibilityPlayerActivity::class.java'), "compatibility decoder launch"],
     [playerActivity.includes('MimeTypes.APPLICATION_M3U8'), "HLS MIME fallback"],
     [playerActivity.includes('MimeTypes.APPLICATION_MPD'), "DASH MIME fallback"],
+    [playerActivity.includes('video/x-matroska'), "Matroska MIME recognition"],
+    [playerActivity.includes('video/x-msvideo'), "AVI MIME recognition"],
+    [compatibilityActivity.includes('LibVLC('), "LibVLC engine"],
+    [compatibilityActivity.includes('setHWDecoderEnabled(true, false)'), "hardware-first VLC fallback"],
+    [compatibilityActivity.includes('IMedia.Slave.Type.Subtitle'), "compatibility subtitle support"],
   ];
 
   for (const [ok, label] of checks) {
