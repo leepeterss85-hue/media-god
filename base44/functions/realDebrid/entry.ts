@@ -3367,14 +3367,18 @@ async function resolveStreamable(
     );
 
   if (!unRes.ok) {
+    const failure = await rdFailureDetails(
+      unRes,
+      "Real-Debrid could not unrestrict this file"
+    );
+
     return {
-      error:
-        await rdFailureMessage(
-          unRes,
-          "Real-Debrid could not unrestrict this file"
-        ),
+      error: failure.message,
       error_code:
         `RD_UNRESTRICT_${unRes.status}`,
+      upstream_status: failure.upstream_status,
+      upstream_error_code: failure.upstream_error_code,
+      upstream_error: failure.upstream_error,
     };
   }
 
