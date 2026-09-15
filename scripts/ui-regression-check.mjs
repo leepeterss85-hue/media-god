@@ -393,6 +393,11 @@ expect(
   videoPlayer.includes("sourceSelectorPinnedRef = useRef(false)") &&
     videoPlayer.includes("rdFileSelectorPinnedRef = useRef(false)") &&
     videoPlayer.includes("Pause polling completely while the user is choosing a") &&
+    videoPlayer.includes("sourceSelectorPinnedAtRef = useRef(0)") &&
+    videoPlayer.includes("now - sourceSelectorPinnedAtRef.current > 12000") &&
+    videoPlayer.includes("expectedOnePercentMs") &&
+    videoPlayer.includes("activeDownloadFlatlineMs") &&
+    videoPlayer.includes("Real-Debrid's reported speed stopped matching real progress") &&
     videoPlayer.includes("Never move the active source underneath an open native selector") &&
     !videoPlayer.includes("setSourceSelectorPinned(") &&
     !videoPlayer.includes("setRdFileSelectorPinned(") &&
