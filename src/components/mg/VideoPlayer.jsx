@@ -3822,23 +3822,23 @@ export default function VideoPlayer({
             if (sourceNeedsCaching(active)) {
               if (staleReportedSpeed) {
                 const nextSource = findNextPlayableSource(activeIdx);
-                const stalledTorrentId = String(rdTorrentId || "").trim();
-
-                if (stalledTorrentId) {
-                  try {
-                    await base44.functions.invoke(
-                      "realDebrid",
-                      {
-                        action: "torrent_delete",
-                        torrent_id: stalledTorrentId,
-                      }
-                    );
-                  } catch {
-                    // Cleanup is best-effort; recovery should still continue.
-                  }
-                }
 
                 if (nextSource !== -1) {
+                  const stalledTorrentId = String(rdTorrentId || "").trim();
+
+                  if (stalledTorrentId) {
+                    try {
+                      await base44.functions.invoke(
+                        "realDebrid",
+                        {
+                          action: "torrent_delete",
+                          torrent_id: stalledTorrentId,
+                        }
+                      );
+                    } catch {
+                      // Cleanup is best-effort; recovery should still continue.
+                    }
+                  }
                   markSourceFailed(activeIdx);
                   markTorrentHashFailed(active);
                   releaseSourceSelector();
