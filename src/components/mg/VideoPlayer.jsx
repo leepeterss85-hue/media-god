@@ -2841,8 +2841,93 @@ export default function VideoPlayer({
                   }
 
                   if (adoptData.status === "stale") {
-                    lastAdoptError =
-                      "Real-Debrid still has an old stalled copy of this torrent.";
+                    const staleTorrentId = String(adoptData.torrent_id || "").trim();
+                    const repairMagnet = richestSourceMagnet(active);
+
+                    if (staleTorrentId && repairMagnet) {
+                      try {
+                        const restartResponse = await base44.functions.invoke(
+                          "realDebrid",
+                          {
+                            action: "restart_playback_torrent",
+                            torrent_id: staleTorrentId,
+                            info_hash: hash,
+                            magnet: repairMagnet,
+                            prefer_browser_transcode: prefersMobileBrowserRdCompatibility(),
+                            title:
+                              source?.rdTitle ||
+                              source?.title ||
+                              "",
+                            ...(source?.rdYear != null
+                              ? { year: source.rdYear }
+                              : {}),
+                            ...(source?.rdSeason != null
+                              ? { season: source.rdSeason }
+                              : {}),
+                            ...(source?.rdEpisode != null
+                              ? { episode: source.rdEpisode }
+                              : {}),
+                            ...(active?.fileIdx != null &&
+                            Number.isFinite(Number(active.fileIdx))
+                              ? { file_idx: Number(active.fileIdx) }
+                              : {}),
+                          }
+                        );
+
+                        const restartData = restartResponse?.data || {};
+
+                        triggerController.abort();
+                        window.clearTimeout(triggerTimer);
+
+                        if (restartData.status === "ready" && restartData.stream_url) {
+                          setRdOverride({
+                            src: restartData.stream_url,
+                            label:
+                              restartData.filename ||
+                              active?.label ||
+                              "Real-Debrid Stream",
+                            file: currentFilePath(restartData.files),
+                            audioRescue: restartData.audio_rescue || null,
+                            fallbackSrc: restartData.fallback_stream_url || "",
+                            videoRescue: restartData.video_rescue || null,
+                            mediaInfo: restartData.media_info || null,
+                          });
+                          setRdFiles(restartData.files || []);
+                          setRdResolving(false);
+                          setRdPreparation(null);
+                          return;
+                        }
+
+                        if (restartData.torrent_id) {
+                          setRdPreparation({
+                            ...(restartData.torrent_progress || {}),
+                            status:
+                              restartData.torrent_progress?.status ||
+                              restartData.rd_status ||
+                              "restarting",
+                            torrent_id: String(restartData.torrent_id),
+                            startedAt: Date.now(),
+                            updatedAt: Date.now(),
+                            attempts: 0,
+                          });
+                          setRdTorrentId(String(restartData.torrent_id));
+                          setRdResolving(false);
+                          return;
+                        }
+
+                        lastAdoptError =
+                          restartData.error ||
+                          "Real-Debrid did not return a fresh torrent after deleting the stale copy.";
+                      } catch (restartError) {
+                        lastAdoptError = String(
+                          restartError?.message ||
+                            "Real-Debrid could not restart the stale torrent."
+                        ).trim();
+                      }
+                    } else {
+                      lastAdoptError =
+                        "Real-Debrid still has an old stalled copy of this torrent.";
+                    }
                   } else if (adoptData.status === "failed") {
                     lastAdoptError = String(
                       adoptData.error ||
