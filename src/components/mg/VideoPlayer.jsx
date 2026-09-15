@@ -3355,11 +3355,37 @@ export default function VideoPlayer({
             sourceSelectorPinnedRef.current ||
             rdFileSelectorPinnedRef.current
           ) {
-            pollRef.current = window.setTimeout(
-              tick,
-              500
-            );
-            return;
+            /*
+             * Some Android browsers do not emit blur/change when a native
+             * <select> popup is dismissed without changing the value. That can
+             * leave the selector "pinned" forever and, because polling pauses
+             * while pinned, freeze the Real-Debrid progress display at an old
+             * percentage. Treat a pin older than 12 seconds as abandoned and
+             * resume polling automatically.
+             */
+            const now = Date.now();
+            const sourcePinStale =
+              sourceSelectorPinnedRef.current &&
+              sourceSelectorPinnedAtRef.current > 0 &&
+              now - sourceSelectorPinnedAtRef.current > 12000;
+            const filePinStale =
+              rdFileSelectorPinnedRef.current &&
+              rdFileSelectorPinnedAtRef.current > 0 &&
+              now - rdFileSelectorPinnedAtRef.current > 12000;
+
+            if (sourcePinStale) releaseSourceSelector();
+            if (filePinStale) releaseRdFileSelector();
+
+            if (
+              sourceSelectorPinnedRef.current ||
+              rdFileSelectorPinnedRef.current
+            ) {
+              pollRef.current = window.setTimeout(
+                tick,
+                500
+              );
+              return;
+            }
           }
 
           attempts +=
