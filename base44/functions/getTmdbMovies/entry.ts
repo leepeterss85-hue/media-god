@@ -1743,6 +1743,8 @@ export default async function(req) {
         )
       );
 
+    const globalReleasedDates = new Map();
+
     if (includeGlobalReleases) {
       const globalPageCount = Math.min(pages, 3);
       const globalResults = await Promise.all(
@@ -1765,6 +1767,58 @@ export default async function(req) {
               .catch(() => ({ results: [] }))
         )
       );
+
+      if (category === 'now_playing' || category === 'movie_released_today') {
+        for (const data of globalResults) {
+          for (const item of data?.results || []) {
+            const id = String(item?.id || '');
+            if (id) {
+              globalReleasedDates.set(id, String(item?.release_date || requestedDate || ''));
+            }
+          }
+        }
+      }
+
+      if (category === 'upcoming') {
+        const globalNowPlayingResults = await Promise.all(
+          Array.from(
+            { length: globalPageCount },
+            (_, i) => {
+              const params = new URLSearchParams({
+                api_key: apiKey,
+                language: 'en-GB',
+                page: String(i + 1),
+              });
+
+              return fetch(
+                `${TMDB_BASE}/movie/now_playing?${params.toString()}`,
+                {
+                  headers: {
+                    Accept: 'application/json',
+                  },
+                }
+              )
+                .then((r) =>
+                  r.ok
+                    ? r.json()
+                    : { results: [] }
+                )
+                .catch(() => ({ results: [] }));
+            }
+          )
+        );
+
+        for (const data of globalNowPlayingResults) {
+          for (const item of data?.results || []) {
+            const id = String(item?.id || '');
+            if (id) {
+              globalReleasedDates.set(id, String(item?.release_date || ''));
+            }
+          }
+        }
+
+        pageResults.push(...globalNowPlayingResults);
+      }
 
       pageResults.push(...globalResults);
     }
@@ -1824,11 +1878,16 @@ export default async function(req) {
 
     const mappedItems =
       merged.map(
-        (m) =>
-          mapItem(
+        (m) => ({
+          ...mapItem(
             m,
             mediaType
-          )
+          ),
+          global_release_available:
+            globalReleasedDates.has(String(m?.id || '')),
+          global_release_date:
+            globalReleasedDates.get(String(m?.id || '')) || '',
+        })
       );
 
     const overrides =
