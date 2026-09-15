@@ -377,6 +377,7 @@ const friendlyRdStatus = (value) => {
     magnet_conversion: "Reading magnet",
     comet_starting: "Starting in Comet",
     comet_start_failed: "Comet could not start torrent",
+    restarting: "Restarting torrent",
     stalled: "Waiting for peers",
     waiting_files_selection: "Selecting files",
     waiting_selection: "Queued",
