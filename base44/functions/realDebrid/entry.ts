@@ -759,7 +759,9 @@ export default async function (req) {
       }
 
       if (
-        ((explicitInactiveReset || explicitProgressReset) && !ownedByMediaGod) ||
+        ((explicitInactiveReset || explicitProgressReset) &&
+          !ownedByMediaGod &&
+          !explicitPlaybackReset) ||
         (!ownedByMediaGod && !explicitPlaybackReset)
       ) {
         /*
