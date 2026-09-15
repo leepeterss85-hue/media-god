@@ -1129,6 +1129,22 @@ export default async function (req) {
         });
       }
 
+      const deletionConfirmed = await waitForTorrentDeletion(
+        String(match.id),
+        authHeaders
+      );
+
+      if (!deletionConfirmed) {
+        return Response.json({
+          status: "failed",
+          cleared: false,
+          torrent_id: String(match.id),
+          error:
+            "Real-Debrid accepted the stale-torrent delete request but the torrent is still present. Media God will not start a replacement until deletion is confirmed.",
+          error_code: "RD_DELETE_NOT_CONFIRMED",
+        });
+      }
+
       if (ownedLink?.id) {
         try {
           await base44.entities.RdLink.update(
