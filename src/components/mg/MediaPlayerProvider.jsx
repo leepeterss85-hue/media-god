@@ -2268,32 +2268,25 @@ export function PlayerProvider({
             }
           );
 
-        if (
-          playbackSources.length ===
-            0 &&
-          !request
-            ?.allowNonPlaybackFallback
-        ) {
-          orderedSources = [
-            {
-              label:
-                diagnosticLabel,
-
-              type:
-                "status",
-
-              src:
-                "",
-
-              url:
-                "",
-
-              diagnostic:
-                true,
-            },
-
-            ...nonPlaybackSources,
-          ];
+        if (!request?.allowNonPlaybackFallback) {
+          /*
+           * Trailers and provider links belong in the details/source UI, but
+           * they must never become an automatic movie/episode playback fallback.
+           * Keep the player source array strictly playable for normal Watch.
+           * Explicit Trailer/Provider buttons opt in with allowNonPlaybackFallback.
+           */
+          orderedSources =
+            playbackSources.length > 0
+              ? playbackSources
+              : [
+                  {
+                    label: diagnosticLabel,
+                    type: "status",
+                    src: "",
+                    url: "",
+                    diagnostic: true,
+                  },
+                ];
         }
 
         if (
