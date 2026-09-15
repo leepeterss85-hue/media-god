@@ -103,6 +103,50 @@ const failureResult = (message, extra = {}) => ({
   ...extra,
 });
 
+const isPermanentRdHashFailure = (payload = {}) => {
+  const upstreamCode = Number(payload?.upstream_error_code);
+  const upstreamStatus = Number(payload?.upstream_status);
+  const errorCode = String(payload?.error_code || "").toUpperCase();
+  const text = [
+    payload?.error,
+    payload?.upstream_error,
+    payload?.message,
+  ]
+    .map((value) => String(value || ""))
+    .join(" ");
+
+  /*
+   * Real-Debrid documents 28 as File not allowed and 35 as Infringing file.
+   * In May 2026 many otherwise valid movie/TV hashes also began failing with
+   * HTTP 451 at add/unrestrict time. These are permanent for the selected hash,
+   * not cache-progress failures, so retrying the same torrent cannot fix them.
+   */
+  return (
+    upstreamCode === 28 ||
+    upstreamCode === 35 ||
+    upstreamStatus === 451 ||
+    errorCode.includes("UNRESTRICT_451") ||
+    /\binfringing(?:[_ -]?file)?\b|copyright|file\s+not\s+allowed|unavailable\s+for\s+legal\s+reasons/i.test(
+      text
+    )
+  );
+};
+
+const permanentRdFailureResult = (payload, fallbackCode) =>
+  failureResult(
+    payload?.error ||
+      "Real-Debrid permanently rejected this torrent file. Media God will try a different torrent hash.",
+    {
+      hashFailed: true,
+      errorCode:
+        payload?.error_code ||
+        fallbackCode ||
+        "RD_HASH_PERMANENTLY_REJECTED",
+      upstreamStatus: payload?.upstream_status ?? null,
+      upstreamErrorCode: payload?.upstream_error_code ?? null,
+    }
+  );
+
 const isTerminalTorrentStatus = (value) =>
   /^(?:dead|error|magnet_error|virus)$/i.test(String(value || ""));
 
@@ -194,6 +238,11 @@ const monitorTorrent = async ({
     }
 
     if (data?.error) {
+      if (isPermanentRdHashFailure(data)) {
+        await deleteTorrent(torrentId);
+        return permanentRdFailureResult(data, "RD_CACHE_HASH_REJECTED");
+      }
+
       if (String(data?.error_code || "") === "RD_TORRENT_INFO_FAILED") {
         await sleep(Math.min(8000, 2000 + attempt * 250), signal);
         continue;
@@ -549,6 +598,10 @@ const startViaComet = async ({
       }
 
       if (adopted?.status === "failed") {
+        if (isPermanentRdHashFailure(adopted)) {
+          return permanentRdFailureResult(adopted, "RD_COMET_HASH_REJECTED");
+        }
+
         return failureResult(
           adopted?.error || "Real-Debrid rejected the Comet torrent.",
           { errorCode: adopted?.error_code || "RD_COMET_ADOPT_FAILED" }
@@ -735,6 +788,10 @@ export async function runRealDebridCacheSession({
       onProgress,
       inheritedProgress: snapshot.progress,
     });
+  }
+
+  if (isPermanentRdHashFailure(started)) {
+    return permanentRdFailureResult(started, "RD_CACHE_HASH_REJECTED");
   }
 
   return failureResult(
