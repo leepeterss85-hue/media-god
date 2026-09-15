@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 22,
-  "versionName": "1.4.17",
+  "versionCode": 23,
+  "versionName": "1.4.18",
   "title": "Media God Fire TV",
-  "message": "Fire TV 1.4.17 adds a broad compatibility decoder fallback for difficult video and audio formats while keeping Media3 hardware decoding first. It improves playback for DTS/DTS-HD, TrueHD/MLP, ALAC, FLAC, Opus/Vorbis, MPEG audio, legacy MPEG-4/DivX/Xvid/VC-1 and unusual MKV/AVI/TS combinations, with wider container detection and automatic fallback only when the normal decoder cannot play the source.",
+  "message": "Fire TV 1.4.18 adds device-aware codec and container preflight. Media God now checks the Fire TV's installed decoders and source hints before playback, keeps supported H.264/HEVC/VP9/AV1 and other formats on fast Media3 hardware decoding, and opens the broad compatibility engine immediately for unsupported or legacy codecs/containers such as DTS/DTS-HD, TrueHD/MLP, VC-1, DivX/Xvid, AVI/WMV/FLV and other difficult media where appropriate.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
