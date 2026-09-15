@@ -3964,6 +3964,7 @@ export default function VideoPlayer({
                 ...(current || {}),
                 status: "stalled",
                 stallReason: "no_progress",
+                torrent_id: String(rdTorrentId || current?.torrent_id || ""),
                 progress: latestProgress,
                 seeders: latestSeeders,
                 speed_bps: latestSpeed,
