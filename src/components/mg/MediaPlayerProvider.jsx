@@ -2247,14 +2247,6 @@ export function PlayerProvider({
               item?.live
           );
 
-        const nonPlaybackSources =
-          orderedSources.filter(
-            (item) =>
-              !playbackSources.includes(
-                item
-              )
-          );
-
         const diagnosticLabel =
           buildDiagnosticLabel(
             {
