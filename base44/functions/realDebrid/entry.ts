@@ -691,9 +691,14 @@ export default async function (req) {
         activeLikeStatus &&
         progress < 100 &&
         hasNoActivity;
+      const explicitProgressReset =
+        body.force_progress_reset === true &&
+        activeLikeStatus &&
+        progress < 100;
       const resettable =
         stalled ||
         explicitInactiveReset ||
+        explicitProgressReset ||
         (explicitPlaybackReset && terminalFailure);
 
       if (!resettable) {
@@ -723,7 +728,7 @@ export default async function (req) {
       }
 
       if (
-        (explicitInactiveReset && !ownedByMediaGod) ||
+        ((explicitInactiveReset || explicitProgressReset) && !ownedByMediaGod) ||
         (!ownedByMediaGod && !explicitPlaybackReset)
       ) {
         /*
