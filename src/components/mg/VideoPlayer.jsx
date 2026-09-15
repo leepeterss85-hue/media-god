@@ -4057,6 +4057,8 @@ export default function VideoPlayer({
         new Set();
       failedTorrentHashesRef.current =
         readPersistentFailedTorrentHashes();
+      repairedStuckTorrentHashesRef.current =
+        new Set();
 
       setFailedSources(
         new Set()
