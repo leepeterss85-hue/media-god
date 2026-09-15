@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 7,
-  "versionName": "1.0.6",
+  "versionCode": 8,
+  "versionName": "1.0.7",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.6 adds a broad compatibility decoder fallback for difficult video and audio formats while keeping Android hardware/Media3 decoding first. It improves playback for DTS/DTS-HD, TrueHD/MLP, ALAC, FLAC, Opus/Vorbis, MPEG audio, legacy MPEG-4/DivX/Xvid/VC-1 and unusual MKV/AVI/TS combinations, with wider container detection and automatic fallback only when the normal decoder cannot play the source.",
+  "message": "Media God Mobile 1.0.7 adds device-aware codec and container preflight for Android phones and tablets. Media God now checks each device's installed decoders before playback, uses fast Media3 hardware decoding whenever the phone or tablet supports the format, and opens the broad compatibility engine immediately for unsupported or legacy codecs/containers. Newer phones and tablets can therefore make fuller use of their stronger HEVC, VP9, AV1 and audio decoder hardware while still retaining software fallback for difficult media.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
