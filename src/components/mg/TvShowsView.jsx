@@ -15,35 +15,17 @@ import StreamingServiceRows from "@/components/mg/StreamingServiceRows";
 import {
   detectStreamingRegion,
   detectStreamingTimezone,
+  getStreamingRegionOverride,
+  setStreamingRegionOverride,
   streamingRegionName,
 } from "@/components/mg/streamingRegion";
+import { COUNTRY_OPTIONS } from "@/components/mg/countryOptions";
 import FeaturedSpotlight from "@/components/mg/FeaturedSpotlight";
 import useDebouncedValue from "@/components/mg/useDebouncedValue";
 
 const PosterImage = /** @type {any} */ (Image);
 
 const FEATURED_SHOWS = [{ tmdb_id: "106159", title: "Debris" }];
-
-const COUNTRIES = [
-  { code: "", label: "All Countries" },
-  { code: "GB", label: "United Kingdom" },
-  { code: "US", label: "United States" },
-  { code: "JP", label: "Japan" },
-  { code: "KR", label: "South Korea" },
-  { code: "IN", label: "India" },
-  { code: "FR", label: "France" },
-  { code: "DE", label: "Germany" },
-  { code: "ES", label: "Spain" },
-  { code: "IT", label: "Italy" },
-  { code: "AU", label: "Australia" },
-  { code: "CA", label: "Canada" },
-  { code: "MX", label: "Mexico" },
-  { code: "BR", label: "Brazil" },
-  { code: "CN", label: "China" },
-  { code: "TR", label: "Turkey" },
-  { code: "NL", label: "Netherlands" },
-  { code: "SE", label: "Sweden" },
-];
 
 const CATEGORIES = [
   { id: "tv_airing_today", label: "Airing Today" },
@@ -107,7 +89,7 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
   const [shows, setShows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
-  const [country, setCountry] = useState("");
+  const [country, setCountry] = useState(() => getStreamingRegionOverride());
   const [category, setCategory] = useState("tv_airing_today");
   const [genre, setGenre] = useState("");
   const [year, setYear] = useState("");
@@ -115,7 +97,7 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
   const [selected, setSelected] = useState(null);
   const [activeProvider, setActiveProvider] = useState(null);
   const debouncedQuery = useDebouncedValue(query, 400);
-  const streamingRegion = detectStreamingRegion();
+  const streamingRegion = country || detectStreamingRegion();
   const streamingTimezone = detectStreamingTimezone();
   const streamingRegionLabel = streamingRegionName(streamingRegion);
   const activeProviderIds = Array.isArray(activeProvider?.providerIds)
@@ -128,7 +110,6 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
     setActiveProvider(service);
     setQuery("");
     setCategory("tv_popular");
-    setCountry("");
     setGenre("");
     setYear("");
     setLanguage("");
@@ -147,7 +128,6 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
       setActiveProvider(initialProvider);
       setQuery("");
       setCategory("tv_popular");
-      setCountry("");
       setGenre("");
       setYear("");
       setLanguage("");
@@ -166,7 +146,7 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
         const response = await base44.functions.invoke("getTmdbMovies", {
           media_type: "tv",
           category,
-          country,
+          country: activeProviderIds.length ? "" : country,
           genre,
           year,
           language,
