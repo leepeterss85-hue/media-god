@@ -18,7 +18,7 @@ jobs:
           fetch-depth: 0
 
       - name: Apply targeted repair
-        run: python scripts/repair_4k_rd_audio.py
+        run: python scripts/repair_4k_rd_audio_v2.py
 
       - name: Run regression checks
         run: |
@@ -37,7 +37,6 @@ jobs:
                   android-mobile/app/build.gradle.kts \
                   public/firetv-update.json \
                   public/android-mobile-update.json \
-                  scripts/native-structure-check.mjs \
-                  scripts/ui-regression-check.mjs
+                  scripts/native-structure-check.mjs
           git commit -m "Fix RD rejection failover and silent 4K audio"
           git push origin HEAD:main
