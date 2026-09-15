@@ -368,11 +368,12 @@ async function rdFetch(
   );
 }
 
-const rdFailureMessage = async (
+const rdFailureDetails = async (
   response,
   label
 ) => {
   let detail = "";
+  let upstreamErrorCode = null;
 
   try {
     const text =
@@ -390,6 +391,11 @@ const rdFailureMessage = async (
           parsed?.error ||
           parsed?.message ||
           text;
+
+        const parsedCode = Number(parsed?.error_code);
+        upstreamErrorCode = Number.isFinite(parsedCode)
+          ? parsedCode
+          : null;
       } catch {
         detail = text;
       }
@@ -398,12 +404,23 @@ const rdFailureMessage = async (
     detail = "";
   }
 
-  return `${label} (${response.status})${
-    detail
-      ? `: ${String(detail).slice(0, 280)}`
-      : ""
-  }`;
+  return {
+    message: `${label} (${response.status})${
+      detail
+        ? `: ${String(detail).slice(0, 280)}`
+        : ""
+    }`,
+    upstream_status: Number(response?.status || 0) || null,
+    upstream_error_code: upstreamErrorCode,
+    upstream_error: detail,
+  };
 };
+
+const rdFailureMessage = async (
+  response,
+  label
+) =>
+  (await rdFailureDetails(response, label)).message;
 
 const summariseAudioTrack = (track, key = "") => ({
   key,
