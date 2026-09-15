@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "com.mediagod.mobile"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.mediagod.mobile"
@@ -58,6 +58,8 @@ android {
 dependencies {
     // Phones/tablets already target minSdk 23, so use the current stable
     // Media3 generation with the latest Dolby Vision, AV1 and HDR fixes.
+    // Media3 1.11 requires compileSdk 36, but targetSdk stays at 35 so this
+    // compile-only update does not opt existing users into Android 16 behavior.
     val media3Version = "1.11.0"
 
     implementation("androidx.core:core-ktx:1.13.1")
