@@ -281,6 +281,21 @@ class CompatibilityPlayerActivity : Activity() {
 
             val player = MediaPlayer(engine)
             vlcPlayer = player
+
+            /*
+             * The fallback player is used specifically for difficult remux and
+             * codec combinations. Decode encoded surround formats locally and
+             * send stereo PCM to Android instead of allowing a device/output
+             * mismatch to produce picture with no sound.
+             */
+            try {
+                player.setAudioOutput("android_audiotrack")
+                player.setAudioDigitalOutputEnabled(false)
+                player.setAudioOutputDevice("stereo")
+            } catch (_: Throwable) {
+                // Keep LibVLC defaults if a vendor build rejects the override.
+            }
+
             player.attachViews(videoLayout, null, true, false)
 
             player.setEventListener { event ->
