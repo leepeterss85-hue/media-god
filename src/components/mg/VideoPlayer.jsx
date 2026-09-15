@@ -5121,6 +5121,7 @@ export default function VideoPlayer({
 
               link:
                 file.link,
+              prefer_browser_transcode: prefersMobileBrowserRdCompatibility(),
             }
           );
 
