@@ -704,10 +704,6 @@ export default async function (req) {
         0,
         Math.min(100, Number(match?.progress || 0))
       );
-      const addedAt = Date.parse(String(match?.added || ""));
-      const ageMs = Number.isFinite(addedAt)
-        ? Math.max(0, Date.now() - addedAt)
-        : 0;
       const hasNoActivity =
         Number(match?.speed || 0) <= 0 &&
         Number(match?.seeders || 0) <= 0;
@@ -892,16 +888,11 @@ export default async function (req) {
       const matchAgeMs = Number.isFinite(matchAddedAt)
         ? Math.max(0, Date.now() - matchAddedAt)
         : 0;
-      const matchInactive =
-        Number(match?.speed || 0) <= 0 &&
-        Number(match?.seeders || 0) <= 0;
-
       /*
-       * Staleness is based only on the current RD job, never on hidden history
-       * from an older Media God attempt. A freshly created Comet torrent can
-       * legitimately sit at the same whole-number percentage with 0 B/s for a
-       * short period while RD discovers peers. Treat it as stale only after a
-       * full ten minutes with no seeders/speed.
+       * Staleness is based only on the current RD job. Fresh torrents get a
+       * generous runway, but an old partial job can also be stale when RD keeps
+       * repeating an obsolete non-zero speed that is inconsistent with its age
+       * and total size.
        */
       const staleNoProgress =
         rdPartialTorrentLooksStale(match);
