@@ -424,6 +424,13 @@ expect(
     realDebridBackend.includes("rdPartialTorrentLooksStale") &&
     realDebridBackend.includes("nominalFullTransferMs") &&
     realDebridBackend.includes("progress < 100") &&
+    realDebridBackend.includes("RD_RESTART_RESUMED_STALE_PARTIAL") &&
+    realDebridBackend.includes("freshTorrentId === torrentId") &&
+    realDebridBackend.includes("deletionConfirmed = await waitForTorrentDeletion") &&
+    videoPlayer.includes("rd_partial_state_persisted") &&
+    videoPlayer.includes("clearedLegacyProgress") &&
+    videoPlayer.includes("resumedLegacyPartialChecks") &&
+    videoPlayer.includes("Trying a different torrent hash for the same title") &&
     coreMediaPlayerProvider.includes("Trailers and provider links belong in the details/source UI") &&
     coreMediaPlayerProvider.includes("sources: publishedSources") &&
     videoPlayer.includes("const activeResolutionKey =") &&
