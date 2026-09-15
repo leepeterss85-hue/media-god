@@ -32,7 +32,7 @@ const fetchProviders = async ({ mediaType, tmdbId, region }) => {
       providers_only: true,
       movie_id: tmdbId,
       media_type: mediaType === "tv" ? "tv" : "movie",
-      region: String(region || "GB").toUpperCase(),
+      region: String(region || detectStreamingRegion()).toUpperCase(),
     })
     .then((response) => {
       const first = response?.data ?? response ?? {};
