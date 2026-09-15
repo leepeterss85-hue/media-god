@@ -12,6 +12,10 @@ import GenreTags from "@/components/mg/GenreTags";
 import DetailModal from "@/components/mg/DetailModal";
 import StreamingProviderLogos from "@/components/mg/StreamingProviderLogos";
 import StreamingServiceRows from "@/components/mg/StreamingServiceRows";
+import {
+  detectStreamingRegion,
+  streamingRegionName,
+} from "@/components/mg/streamingRegion";
 import FeaturedSpotlight from "@/components/mg/FeaturedSpotlight";
 import useDebouncedValue from "@/components/mg/useDebouncedValue";
 
@@ -110,6 +114,8 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
   const [selected, setSelected] = useState(null);
   const [activeProvider, setActiveProvider] = useState(null);
   const debouncedQuery = useDebouncedValue(query, 400);
+  const streamingRegion = detectStreamingRegion();
+  const streamingRegionLabel = streamingRegionName(streamingRegion);
   const activeProviderIds = Array.isArray(activeProvider?.providerIds)
     ? activeProvider.providerIds
     : [];
@@ -167,7 +173,7 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
             ? {
                 provider_ids: activeProviderIds,
                 provider_pages: 10,
-                region: "GB",
+                region: streamingRegion,
               }
             : {}),
         });
@@ -271,7 +277,7 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
                 Browsing all TV on {activeProvider.label}
               </p>
               <p className="text-xs text-white/45 3xl:text-sm">
-                UK subscription, free and ad-supported availability. Your normal genre, year and language filters still work.
+                Subscription, free and ad-supported availability in {streamingRegionLabel}. Your normal genre, year and language filters still work.
               </p>
             </div>
             <button
@@ -386,6 +392,7 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
         <div className="mb-7 3xl:mb-10">
           <StreamingServiceRows
             mediaType="tv"
+            region={streamingRegion}
             heading="TV by Streaming Service"
             maxServices={20}
             rowLimit={18}
@@ -429,7 +436,7 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
                   <StreamingProviderLogos
                     tmdbId={show.id || show.tmdb_id}
                     mediaType="tv"
-                    region="GB"
+                    region={streamingRegion}
                     limit={3}
                     initialProviders={show.watch_providers}
                   />
