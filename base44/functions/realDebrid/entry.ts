@@ -692,6 +692,174 @@ export default async function (req) {
 
     /*
      * ---------------------------------------------------------
+     * RESTART THE EXACT TORRENT CURRENTLY ATTACHED TO PLAYBACK
+     *
+     * Hash-only cleanup is not strong enough when RD contains more than one
+     * row for the same info hash: the player can delete one row and then adopt
+     * another old partial row at the exact same percentage. This action owns
+     * the repair end-to-end using the CURRENT torrent id, confirms deletion,
+     * removes duplicate partial rows for the same hash, then re-adds the exact
+     * tracker-rich magnet and re-selects the intended video file.
+     * ---------------------------------------------------------
+     */
+    if (action === "restart_playback_torrent") {
+      const torrentId = String(body.torrent_id || "").trim();
+      const magnet = String(body.magnet || "").trim();
+      const expectedHash = String(
+        body.info_hash || torrentHashFromMagnet(magnet) || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      if (!torrentId) {
+        return Response.json({ error: "torrent_id required" }, { status: 400 });
+      }
+
+      if (!/^magnet:/i.test(magnet) || !/^[a-f0-9]{40}$/.test(expectedHash)) {
+        return Response.json(
+          { error: "A tracker-bearing magnet and valid info hash are required." },
+          { status: 400 }
+        );
+      }
+
+      const currentInfoRes = await rdFetch(
+        `${RD_BASE}/torrents/info/${encodeURIComponent(torrentId)}`,
+        { headers: authHeaders },
+        { attempts: 3 }
+      );
+
+      if (!currentInfoRes.ok && currentInfoRes.status !== 404) {
+        return Response.json(
+          {
+            status: "failed",
+            error: await rdFailureMessage(
+              currentInfoRes,
+              "Real-Debrid could not inspect the stalled torrent"
+            ),
+          },
+          { status: 502 }
+        );
+      }
+
+      if (currentInfoRes.ok) {
+        const currentInfo = await currentInfoRes.json();
+        const currentHash = String(currentInfo?.hash || "")
+          .trim()
+          .toLowerCase();
+
+        if (currentHash && currentHash !== expectedHash) {
+          return Response.json(
+            {
+              status: "failed",
+              error: "The active Real-Debrid torrent no longer matches the selected source.",
+              error_code: "RD_RESTART_HASH_MISMATCH",
+            },
+            { status: 409 }
+          );
+        }
+
+        const deleteRes = await rdFetch(
+          `${RD_BASE}/torrents/delete/${encodeURIComponent(torrentId)}`,
+          {
+            method: "DELETE",
+            headers: authHeaders,
+          },
+          { attempts: 3 }
+        );
+
+        if (!deleteRes.ok && deleteRes.status !== 404) {
+          return Response.json(
+            {
+              status: "failed",
+              error: await rdFailureMessage(
+                deleteRes,
+                "Real-Debrid could not remove the stalled torrent"
+              ),
+            },
+            { status: 502 }
+          );
+        }
+
+        const deleted = await waitForTorrentDeletion(torrentId, authHeaders);
+        if (!deleted) {
+          return Response.json(
+            {
+              status: "failed",
+              error:
+                "Real-Debrid accepted the delete request but the old torrent is still present. Media God will not pretend it restarted.",
+              error_code: "RD_DELETE_NOT_CONFIRMED",
+            },
+            { status: 409 }
+          );
+        }
+      }
+
+      /*
+       * Remove other incomplete rows for the same hash before re-adding. They
+       * are duplicate representations of the same torrent and otherwise make
+       * hash adoption nondeterministic. Never remove a completed copy.
+       */
+      const listRes = await rdFetch(
+        `${RD_BASE}/torrents?limit=5000`,
+        { headers: authHeaders },
+        { attempts: 3 }
+      );
+
+      if (listRes.ok) {
+        const torrents = await listRes.json();
+        const duplicates = (Array.isArray(torrents) ? torrents : []).filter(
+          (torrent) =>
+            String(torrent?.hash || "").trim().toLowerCase() === expectedHash &&
+            String(torrent?.status || "").toLowerCase() !== "downloaded" &&
+            String(torrent?.id || "") !== torrentId
+        );
+
+        for (const duplicate of duplicates) {
+          const duplicateId = String(duplicate?.id || "").trim();
+          if (!duplicateId) continue;
+
+          const duplicateDeleteRes = await rdFetch(
+            `${RD_BASE}/torrents/delete/${encodeURIComponent(duplicateId)}`,
+            {
+              method: "DELETE",
+              headers: authHeaders,
+            },
+            { attempts: 2 }
+          );
+
+          if (duplicateDeleteRes.ok || duplicateDeleteRes.status === 404) {
+            await waitForTorrentDeletion(duplicateId, authHeaders);
+          }
+        }
+      }
+
+      try {
+        const links = await base44.entities.RdLink.filter({
+          torrent_id: torrentId,
+        });
+        for (const link of Array.isArray(links) ? links : []) {
+          if (link?.id) {
+            await base44.entities.RdLink.update(link.id, { torrent_id: "" });
+          }
+        }
+      } catch {
+        // The RD repair is authoritative; local association cleanup is best effort.
+      }
+
+      return await addMagnet({
+        body: {
+          ...body,
+          magnet,
+        },
+        authHeaders,
+        formHeaders,
+        base44,
+        saveLink: true,
+      });
+    }
+
+    /*
+     * ---------------------------------------------------------
      * RESET A STALE MEDIA-GOD-CREATED COMET CACHE JOB
      *
      * Earlier Media God builds could submit an uncached Comet
