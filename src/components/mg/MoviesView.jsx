@@ -57,8 +57,9 @@ export default function MoviesView() {
       .invoke("getTmdbMovies", {
         media_type: "movie",
         category,
-        country,
+        country: "",
         region: streamingRegion,
+        include_global_releases: true,
         genre,
         year,
         language,
@@ -166,7 +167,7 @@ export default function MoviesView() {
                 setCountry(nextCountry);
                 setStreamingRegionOverride(nextCountry);
               }}
-              aria-label="Choose country for movies and streaming services"
+              aria-label="Choose viewing country for cinema dates and streaming services"
               className={`${selectClass} pl-10 3xl:pl-11`}
             >
               {COUNTRY_OPTIONS.map((item) => (
