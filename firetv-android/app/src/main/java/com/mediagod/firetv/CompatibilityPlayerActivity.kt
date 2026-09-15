@@ -301,6 +301,23 @@ class CompatibilityPlayerActivity : Activity() {
 
             val player = MediaPlayer(engine)
             vlcPlayer = player
+
+            /*
+             * Compatibility playback exists for streams whose normal Android
+             * codec/output path was unreliable. Do not let an encoded DTS,
+             * TrueHD, E-AC-3 or similar track become a silent passthrough
+             * attempt. Decode it in LibVLC and send universal stereo PCM to
+             * Fire OS/HDMI instead. Normal Media3 playback keeps its normal
+             * surround behaviour; this only applies to the fallback player.
+             */
+            try {
+                player.setAudioOutput("android_audiotrack")
+                player.setAudioDigitalOutputEnabled(false)
+                player.setAudioOutputDevice("stereo")
+            } catch (_: Throwable) {
+                // Keep LibVLC defaults if a vendor build rejects the override.
+            }
+
             player.attachViews(videoLayout, null, true, false)
 
             player.setEventListener { event ->
