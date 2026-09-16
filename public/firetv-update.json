@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 29,
-  "versionName": "1.4.24",
+  "versionCode": 30,
+  "versionName": "1.4.25",
   "title": "Media God Fire TV",
-  "message": "Fire TV 1.4.24 adds advanced playback controls: automatic no-sound recovery, Auto/Stereo/Surround/Passthrough audio modes, embedded/external subtitle selection, lip-sync adjustment, network-aware 4K preflight, learned decoder blacklisting, Dolby Vision/HDR rescue, thermal protection, dialogue boost, volume normalization, richer diagnostics and seamless position-preserving failover.",
+  "message": "Fire TV 1.4.25 finishes TV-series playback: next episodes prepare after the first minute, season and episode navigation stays available, recap/intro/credits can be skipped, credits can jump straight to the next episode, and Auto Next now uses a cancellable countdown with a seamless handoff.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
