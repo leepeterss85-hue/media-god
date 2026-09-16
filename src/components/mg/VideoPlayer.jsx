@@ -4329,10 +4329,24 @@ export default function VideoPlayer({
                   null,
               });
 
-              setRdFiles(
-                data.files ||
-                  []
-              );
+              setRdFiles((current) => {
+                const incoming = Array.isArray(data.files) ? data.files : [];
+
+                if (!rdManualFileSelection || current.length === 0) {
+                  return incoming;
+                }
+
+                const byPath = new Map(
+                  incoming.map((file) => [String(file?.path || ""), file])
+                );
+
+                return current.map((file) => {
+                  const replacement = byPath.get(String(file?.path || ""));
+                  return replacement ? { ...file, ...replacement } : file;
+                });
+              });
+
+              setRdManualFileSelection(null);
 
               setRdPolling(
                 false
