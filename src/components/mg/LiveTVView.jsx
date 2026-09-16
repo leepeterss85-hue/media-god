@@ -554,6 +554,38 @@ const matchingAntSportsEventForChannel = (channel, allChannels, epgByKey) => {
   return best?.event || null;
 };
 
+const matchingLiveAntFormulaOneEvent = (allChannels) => {
+  let best = null;
+
+  for (const event of allChannels || []) {
+    if (event?.sourceId !== "antsports-live" || event?.live !== true) continue;
+
+    const joined = [
+      event?.name,
+      event?.antsports?.sport,
+      event?.antsports?.matchType,
+      event?.antsports?.league,
+      ...(Array.isArray(event?.tags) ? event.tags : []),
+    ]
+      .map((value) => String(value || "").toLowerCase())
+      .join(" ");
+
+    if (!/\bformula\s*1\b|\bf1\b|\bgrand\s+prix\b/.test(joined)) continue;
+
+    const matchTime = Number(event?.antsports?.matchTime || 0);
+    const distance =
+      matchTime > 0
+        ? Math.abs(matchTime * 1000 - Date.now())
+        : Number.MAX_SAFE_INTEGER;
+
+    if (!best || distance < best.distance) {
+      best = { event, distance };
+    }
+  }
+
+  return best?.event || null;
+};
+
 const antSportsDestinationForChannel = (channel, allChannels, epgByKey) => {
   const matchedEvent = matchingAntSportsEventForChannel(
     channel,
@@ -2153,22 +2185,34 @@ export default function LiveTVView({
       }
 
       const evChannelName = String(channel?.name || "").trim();
-      const evRequiresTopLevelPlayer =
+      const evIsFormulaOne =
         /\bsky\s*sports\s*f1\b|\bformula\s*1\b|\bf1\b/i.test(evChannelName);
 
-      /*
-       * EV's Sky Sports F1 page is unusually sensitive to its playback
-       * environment. Before EV channels were moved into Media God's provider
-       * iframe, F1 opened in the native Fire TV ExternalWebActivity/top-level
-       * browser and remained usable there. Keep that proven path for F1 only;
-       * all other EV channels still use the integrated provider player below.
-       *
-       * The separate hard-coded Sky Sports F1 HLS fallback is not used here:
-       * it currently returns HTTP 403, so switching to it would replace a
-       * partially working source with a known-dead one.
-       */
-      if (evRequiresTopLevelPlayer) {
-        openOfficialLiveUrl(evSportsWatchUrl);
+      if (evIsFormulaOne) {
+        const liveAntF1 = matchingLiveAntFormulaOneEvent(channels);
+        const liveAntF1Url = String(
+          liveAntF1?.officialUrl || liveAntF1?.url || ""
+        ).trim();
+
+        if (/^https?:\/\//i.test(liveAntF1Url)) {
+          openOfficialLiveUrl(liveAntF1Url);
+          return;
+        }
+
+        setChannelNotice(
+          "EV SPORTS' current Sky Sports F1 source is serving the same frozen 15-second clip. No separate live Formula 1 event source is available right now."
+        );
+        setChannelNoticeAction(null);
+        setChannelNoticeActions([
+          {
+            label: "Open official Sky Sports F1",
+            url: "https://www.skysports.com/watch/sky-sports-f1",
+          },
+          {
+            label: "Try EV F1 anyway",
+            url: evSportsWatchUrl,
+          },
+        ]);
         return;
       }
 
