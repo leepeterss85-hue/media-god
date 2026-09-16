@@ -43,7 +43,6 @@ import {
   SOURCE_SELECTOR_SORT_EVENT,
   writeSourceSortMode,
 } from "@/components/mg/sourceSelectorPreferences";
-import { sourceHasEdition } from "@/components/mg/mediaEdition";
 
 const isFireTvControlsRuntime = () => {
   if (typeof document === "undefined" || typeof navigator === "undefined") {
@@ -1724,8 +1723,14 @@ export default function MediaPlayerControls({
                   }}
                   onFocus={() => {
                     if (!sourceChoicePinned) {
-                      sourceChoiceEntriesRef.current = sortedSourceEntries;
-                      sourceChoiceValueRef.current = activeIdx;
+                      sourceChoiceEntriesRef.current = presentationSourceEntries;
+                      sourceChoiceValueRef.current = presentationSourceEntries.some(
+                        (entry) => entry.index === activeIdx
+                      )
+                        ? activeIdx
+                        : selectedEditionState.preparing
+                          ? "__preparing__"
+                          : presentationSourceEntries[0]?.index ?? "";
                       setSourceChoicePinned(true);
                     }
                     focusSelectControl();
