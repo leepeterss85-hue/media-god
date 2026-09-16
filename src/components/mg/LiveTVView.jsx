@@ -2194,19 +2194,10 @@ export default function LiveTVView({
         setChannelNoticeAction(null);
         setChannelNoticeActions([]);
 
-        const liveAntF1 = matchingLiveAntFormulaOneEvent(channels);
-        const liveAntF1Url = String(
-          liveAntF1?.officialUrl || liveAntF1?.url || ""
-        ).trim();
-
-        if (/^https?:\/\//i.test(liveAntF1Url)) {
-          openOfficialLiveUrl(liveAntF1Url);
-          return;
-        }
-
         /*
-         * If no separate lawful live Formula 1 event route is available,
-         * fall back to Sky's official subscription player.
+         * Sky Sports F1 is a subscription channel. Keep the F1 card working by
+         * routing it to Sky's official playback page rather than embedding an
+         * unofficial rebroadcast or a stale EV mirror.
          */
         openOfficialLiveUrl("https://www.skysports.com/watch/sky-sports-f1");
         return;
