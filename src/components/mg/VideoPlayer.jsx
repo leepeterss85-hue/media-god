@@ -2490,6 +2490,27 @@ export default function VideoPlayer({
           markTorrentHashFailed(active);
         }
 
+        if (preserveUncachedSource) {
+          setRdPreparation((current) => ({
+            ...(current || {}),
+            status: "stalled",
+            stallReason:
+              result.errorCode ||
+              (result.hashFailed ? "hash_failed" : "cache_failed"),
+            progress: Math.max(
+              0,
+              Math.min(100, Number(result.progress ?? current?.progress ?? 0))
+            ),
+            updatedAt: Date.now(),
+            cacheEngine: "v2",
+          }));
+          setRdError(
+            result.message ||
+            "Real-Debrid paused this uncached torrent. The same source has been kept selected; Retry will reconnect to it."
+          );
+          return;
+        }
+
         const nextReadySource = findNextPlayableSource(activeIdx, {
           allowCaching: false,
         });
@@ -2552,50 +2573,15 @@ export default function VideoPlayer({
       .catch((error) => {
         if (controller.signal.aborted || error?.name === "AbortError") return;
 
+        /*
+         * An unexpected cache-engine exception is not proof that the selected
+         * torrent/hash is bad. Keep the uncached source selected and preserve
+         * its last torrent id in rdPreparation so Retry can reconnect instead
+         * of silently jumping to a different source.
+         */
         setRdResolving(false);
         setRdPolling(false);
         setRdTorrentId(null);
-        markSourceFailed(activeIdx);
-
-        const nextReadySource = findNextPlayableSource(activeIdx, {
-          allowCaching: false,
-        });
-
-        if (nextReadySource !== -1) {
-          setRdPreparation(null);
-          setRdError("");
-          switchToSource(nextReadySource, {
-            preservePosition: true,
-            statusMessage:
-              "The uncached torrent engine stopped — trying an already-playable backup…",
-          });
-          return;
-        }
-
-        const alternate = buildAlternateEmbedFallback(source, {
-          resumeAt: recoveryResumeRef.current,
-        });
-
-        if (alternate?.url) {
-          setRdPreparation(null);
-          setRdError("");
-          setAlternateEmbedFallback(alternate);
-          setForceNativePlayback(false);
-          return;
-        }
-
-        const nextSource = findNextPlayableSource(activeIdx);
-        if (nextSource !== -1) {
-          setRdPreparation(null);
-          setRdError("");
-          switchToSource(nextSource, {
-            preservePosition: true,
-            statusMessage:
-              "The uncached torrent engine stopped — trying a different torrent…",
-          });
-          return;
-        }
-
         setRdPreparation((current) => ({
           ...(current || {}),
           status: "stalled",
@@ -2604,8 +2590,7 @@ export default function VideoPlayer({
           cacheEngine: "v2",
         }));
         setRdError(
-          error?.message ||
-          "The Real-Debrid cache engine stopped unexpectedly."
+          `${error?.message || "The Real-Debrid cache engine stopped unexpectedly."} The same uncached source has been kept selected; Retry will reconnect to it.`
         );
       });
 
