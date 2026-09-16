@@ -1,5 +1,21 @@
 export const UPDATE_HISTORY = [
   {
+    id: "uncached-rd-cache-handoff-repair-2026-09-16-v2",
+    date: "16 September 2026",
+    title: "Uncached Real-Debrid downloads no longer escape the cache workflow",
+    summary:
+      "Fixed uncached torrent rows that could masquerade as direct streams, premature stale detection and automatic source switching during recoverable Real-Debrid stalls.",
+    changes: [
+      "Any source with uncached torrent identity now enters the Real-Debrid cache engine even if an addon labels it as a generic HTTPS stream.",
+      "The player can no longer load a few seconds of a partial/provider stream and bypass the intended Real-Debrid download path.",
+      "Real-Debrid cache stall timing is now measured in several minutes rather than 75 seconds to two minutes, with much more tolerance for active speed, seeders, queueing and file-selection phases.",
+      "A stalled Real-Debrid download is left in place and remains selected so Retry reconnects to the same job instead of deleting/blacklisting it and jumping to another torrent.",
+      "The VOD buffering watchdog now respects uncached-torrent ownership and cannot silently switch activeIdx away from an explicitly selected uncached source.",
+      "retrySameSource is now honoured before cached backups or alternate embeds, so recoverable cache failures genuinely preserve the selected torrent.",
+      "Regression coverage now protects uncached stream classification, same-source recovery and generous Real-Debrid stall windows.",
+    ],
+  },
+  {
     id: "media-edition-support-2026-09-16-v1",
     date: "16 September 2026",
     title: "Director's cuts and alternate editions added",
