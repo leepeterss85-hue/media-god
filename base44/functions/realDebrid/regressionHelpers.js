@@ -107,7 +107,35 @@ export const chooseVideoFileForPlayback = (files, ep = {}) => {
 
 export const chooseRequestedTorrentFileForPlayback = (allFiles, ep = {}) => {
   const files = Array.isArray(allFiles) ? allFiles : [];
-  const requestedIndex = normaliseRequestedFileIndex(ep?.file_idx);
+  const manualSelection =
+    ep?.manual_file_selection === true || ep?.manualFileSelection === true;
+  const requestedFileId = normaliseRequestedFileIndex(
+    ep?.file_id ?? ep?.fileId
+  );
+  const requestedPath = String(
+    ep?.file_path ?? ep?.filePath ?? ""
+  ).trim();
+  const requestedIndex = normaliseRequestedFileIndex(
+    ep?.file_idx ?? ep?.fileIdx
+  );
+
+  if (manualSelection && requestedPath) {
+    const exactPath = files.find(
+      (file) =>
+        String(file?.path || "").trim() === requestedPath &&
+        isVideoTorrentFile(file)
+    );
+    if (exactPath) return exactPath;
+  }
+
+  if (manualSelection && Number.isInteger(requestedFileId)) {
+    const exactId = files.find(
+      (file) =>
+        Number(file?.id) === requestedFileId &&
+        isVideoTorrentFile(file)
+    );
+    if (exactId) return exactId;
+  }
 
   if (Number.isInteger(requestedIndex) && requestedIndex >= 0) {
     const candidates = [
@@ -117,7 +145,9 @@ export const chooseRequestedTorrentFileForPlayback = (allFiles, ep = {}) => {
     ].filter(Boolean);
 
     const indexedVideo = candidates.find(
-      (file) => isVideoTorrentFile(file) && !isLikelyExtraTorrentFile(file)
+      (file) =>
+        isVideoTorrentFile(file) &&
+        (manualSelection || !isLikelyExtraTorrentFile(file))
     );
     if (indexedVideo) return indexedVideo;
   }
