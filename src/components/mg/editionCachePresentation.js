@@ -17,7 +17,17 @@ export const sourceEntriesForPresentation = (entries, mode = "best") => {
   if (!value.startsWith("edition:")) return list;
 
   const edition = value.slice("edition:".length);
-  return list.filter((entry) => sourceHasEdition(entry.item, edition));
+
+  /*
+   * Edition selection is a priority view, not a source filter. The user must
+   * always be able to see every ready/cached source at the same time. Put the
+   * selected edition first, but keep all other ready sources underneath it.
+   * Uncached/pending torrent rows remain hidden until they are actually ready.
+   */
+  const matching = list.filter((entry) => sourceHasEdition(entry.item, edition));
+  const remaining = list.filter((entry) => !sourceHasEdition(entry.item, edition));
+
+  return [...matching, ...remaining];
 };
 
 export const editionPresentationState = (entries, mode = "best") => {
@@ -50,7 +60,7 @@ export const editionPresentationState = (entries, mode = "best") => {
     readyCount,
     cachedCount,
     pendingCount,
-    preparing: cachedCount === 0 && pendingCount > 0,
+    preparing: readyCount === 0 && pendingCount > 0,
   };
 };
 
