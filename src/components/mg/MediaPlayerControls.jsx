@@ -1675,7 +1675,12 @@ export default function MediaPlayerControls({
 
                   if (next.startsWith("edition:")) {
                     const nextEntries = sortSourceEntries(sources, next);
-                    const match = sourceEntriesForPresentation(nextEntries, next)[0];
+                    const requestedEdition = next.slice("edition:".length);
+                    const match = nextEntries.find(
+                      (entry) =>
+                        entry?.readyForUser === true &&
+                        entry?.editionValue === requestedEdition
+                    );
 
                     if (match && match.index !== activeIdx) {
                       onSelectSource?.(match.index, match.item);
@@ -1744,12 +1749,11 @@ export default function MediaPlayerControls({
                   aria-label="Choose source or quality"
                   title="Choose source or quality"
                 >
-                  {selectedEditionState.preparing &&
-                    visibleSourceChoices.length === 0 && (
-                      <option value="__preparing__" disabled>
-                        Preparing {selectedEditionState.label}…
-                      </option>
-                    )}
+                  {selectedEditionState.preparing && (
+                    <option value="__preparing__" disabled>
+                      Preparing {selectedEditionState.label}…
+                    </option>
+                  )}
 
                   {visibleSourceChoices.map(
                     ({
