@@ -1551,6 +1551,7 @@ export default function VideoPlayer({
 
     clearSourceFailed(nextIndex);
     setRdTorrentId(null);
+    setRdManualFileSelection(null);
     setRdPreparation(null);
     setRdError("");
     setRdResolving(false);
@@ -6278,7 +6279,9 @@ export default function VideoPlayer({
               return current.length > 0
                 ? current.map((entry) => {
                     const replacement = byPath.get(String(entry?.path || ""));
-                    return replacement ? { ...entry, ...replacement } : entry;
+                    return replacement && (replacement?.link || replacement?.selected)
+                      ? { ...entry, ...replacement }
+                      : entry;
                   })
                 : data.files;
             });
