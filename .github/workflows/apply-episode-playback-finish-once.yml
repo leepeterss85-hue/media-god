@@ -19,7 +19,9 @@ jobs:
           fetch-depth: 0
 
       - name: Apply episode playback finishing patch
-        run: python scripts/apply_episode_playback_finish.py
+        run: |
+          python scripts/apply_episode_playback_finish.py
+          python scripts/fix_episode_finish_gate.py
 
       - name: Use Node 20
         uses: actions/setup-node@v4
@@ -74,6 +76,7 @@ jobs:
             src/components/mg/FireTvPlayerTakeover.jsx \
             src/components/mg/mediaEdition.js \
             firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt \
+            scripts/ui-regression-check.mjs \
             scripts/episode-playback-regression-check.mjs
           if git diff --cached --quiet; then
             echo "No episode playback changes remained to commit."
