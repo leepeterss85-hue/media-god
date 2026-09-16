@@ -7492,8 +7492,26 @@ export default function VideoPlayer({
       displayedError
     );
 
+  const sourceCacheStateLabel = (item, index) => {
+    const base = concisePlaybackSourceLabel(item, index);
+    const hash = sourceTorrentHash(item);
+    const runtimeReady = Boolean(
+      hash && runtimeReadyTorrentHashes.has(hash)
+    );
+
+    if (runtimeReady || item?.debridCached === true) {
+      return `Cached / Ready • ${base}`;
+    }
+
+    if (sourceNeedsCaching(item)) {
+      return `Uncached • ${base}`;
+    }
+
+    return base;
+  };
+
   const activeSourceLabel =
-    concisePlaybackSourceLabel(
+    sourceCacheStateLabel(
       active,
       activeIdx
     );
@@ -7540,10 +7558,8 @@ export default function VideoPlayer({
     )
   );
 
-  const cacheStatusLabel =
-    friendlyRdStatus(
-      rdPreparation?.status
-    );
+  const cachePhase = cachePhaseDetails(rdPreparation || {});
+  const cacheStatusLabel = cachePhase.label;
 
   const cacheSeeders = Math.max(
     0,
@@ -7615,8 +7631,8 @@ export default function VideoPlayer({
   const cacheHint =
     cachePollWarning && rdPolling
       ? "Real-Debrid's status check was interrupted. Media God is retrying the check without cancelling the torrent download."
-      : cacheProgress >= 100
-      ? "Download is complete. Real-Debrid is preparing the playable link."
+      : cachePhase.key === "finalizing" || cacheProgress >= 100
+      ? "Download is complete. Real-Debrid is preparing the playable link. Playback will begin automatically."
       : cacheSeeders <= 0 &&
           cacheSpeedBps <= 0 &&
           cacheElapsedSeconds >= 30
@@ -7636,7 +7652,9 @@ export default function VideoPlayer({
         ? "Resolving"
         : rdPolling || rdTorrentId
           ? rdPreparation
-            ? `Caching ${cacheProgress}%`
+            ? cachePhase.key === "downloading"
+              ? `${cacheStatusLabel} ${cacheProgress}%`
+              : cacheStatusLabel
             : "Preparing"
           : fireTvNativeSelectorMode
             ? "Choose source"
@@ -7808,7 +7826,7 @@ export default function VideoPlayer({
                   <div className="mt-4 w-full rounded-xl border border-white/10 bg-white/[0.03] p-3 text-left">
                     <div className="flex items-center justify-between gap-3">
                       <span className="text-xs font-semibold text-white/75">
-                        {cacheStatusLabel}
+                        Step {cachePhase.step}/5 · {cacheStatusLabel}
                       </span>
 
                       <span className="text-sm font-bold tabular-nums text-mg-green">
@@ -8237,7 +8255,7 @@ export default function VideoPlayer({
                             );
 
                           const rawLabel = sourceDisplayLabel(item, index);
-                          const label = concisePlaybackSourceLabel(item, index);
+                          const label = sourceCacheStateLabel(item, index);
 
                           return (
                             <option
