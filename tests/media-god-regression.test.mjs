@@ -29,6 +29,7 @@ import {
 import {
   chooseRequestedTorrentFileForPlayback,
   chooseVideoFileForPlayback,
+  mapTorrentLinksByFileId,
   normaliseRequestedFileIndex,
   torrentSelectionMetadataPending,
 } from "../base44/functions/realDebrid/regressionHelpers.js";
@@ -85,6 +86,38 @@ test("Fire TV Home keeps a dedicated vertical scroll container", () => {
   assert.match(fireTvCss, /\[data-mg-home-dashboard="true"\][\s\S]{0,700}?height:\s*100vh\s*!important/);
   assert.match(fireTvCss, /\[data-mg-home-dashboard="true"\][\s\S]{0,900}?overflow-y:\s*auto\s*!important/);
   assert.match(fireTvCss, /\[data-mg-home-dashboard="true"\][\s\S]{0,1100}?scroll-padding-bottom:\s*40px\s*!important/);
+});
+
+test("uncached v2 engine owns Real-Debrid slot preflight and preserves blocked source", () => {
+  const cacheEngineSource = readFileSync(
+    new URL("../src/components/mg/realDebridCacheEngine.js", import.meta.url),
+    "utf8"
+  );
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(cacheEngineSource, /action:\s*"uncached_preflight"/);
+  assert.match(cacheEngineSource, /errorCode:\s*"RD_ACTIVE_SLOTS_FULL"/);
+  assert.match(cacheEngineSource, /accountBlocked:\s*true/);
+  assert.match(playerSource, /const accountBlocked\s*=[\s\S]{0,180}?RD_ACTIVE_SLOTS_FULL/);
+  assert.match(playerSource, /if \(!accountBlocked\) \{\s*markSourceFailed\(activeIdx\)/);
+});
+
+test("Real-Debrid selected-file links map to the requested episode instead of link zero", () => {
+  const files = [
+    { id: 1, path: "/Show.S01E01.mkv", selected: 1 },
+    { id: 2, path: "/Show.S01E02.mkv", selected: 1 },
+    { id: 3, path: "/Show.S01E03.mkv", selected: 0 },
+    { id: 4, path: "/readme.txt", selected: 0 },
+  ];
+  const links = ["https://rd.test/e01", "https://rd.test/e02"];
+  const map = mapTorrentLinksByFileId(files, links);
+
+  assert.equal(map.get(1), "https://rd.test/e01");
+  assert.equal(map.get(2), "https://rd.test/e02");
+  assert.equal(map.has(3), false);
 });
 
 test("country normalisation keeps UK/GB and USA/US consistent", () => {
