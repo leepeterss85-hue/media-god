@@ -37,6 +37,11 @@ import {
   guideNameAliases,
   normaliseGuideName,
 } from "../base44/functions/getLiveEpg/nameMatching.js";
+import {
+  detectMediaEdition,
+  mediaEditionSortScore,
+  sourceHasEdition,
+} from "../src/components/mg/mediaEdition.js";
 
 const memoryStorage = () => {
   const data = new Map();
@@ -185,6 +190,67 @@ test("browser addon fallback retries alternate identifiers after an initial 404"
     browserFallbackSource,
     /Browser fallback found no indexed source for this title after trying the available identifiers\./
   );
+});
+
+test("movie and TV edition detection covers common official cuts without DC false positives", () => {
+  assert.equal(
+    detectMediaEdition({ name: "Blade.Runner.1982.Directors.Cut.2160p.mkv" }).value,
+    "directors_cut"
+  );
+  assert.equal(
+    detectMediaEdition({ name: "The.Lord.of.the.Rings.Extended.Edition.1080p.mkv" }).value,
+    "extended"
+  );
+  assert.equal(
+    detectMediaEdition({ name: "Episode.S02E03.Extended.Episode.1080p.mkv" }).value,
+    "extended"
+  );
+  assert.equal(
+    detectMediaEdition({ name: "Movie.IMAX.Expanded.2160p.mkv" }).value,
+    "imax"
+  );
+  assert.equal(
+    detectMediaEdition({ name: "Film.Broadcast.TV.Cut.720p.mkv" }).value,
+    "broadcast_cut"
+  );
+  assert.equal(
+    detectMediaEdition({ name: "DC.League.of.Super-Pets.2022.1080p.mkv" }).value,
+    "standard"
+  );
+});
+
+test("edition preference prioritises the requested cut and theatrical accepts untagged originals", () => {
+  const directors = { name: "Movie.Directors.Cut.1080p.mkv" };
+  const extended = { name: "Movie.Extended.Edition.2160p.mkv" };
+  const standard = { name: "Movie.1080p.mkv" };
+
+  assert.ok(
+    mediaEditionSortScore(directors, "directors_cut") >
+      mediaEditionSortScore(extended, "directors_cut")
+  );
+  assert.equal(sourceHasEdition(directors, "directors_cut"), true);
+  assert.equal(sourceHasEdition(extended, "directors_cut"), false);
+  assert.equal(sourceHasEdition(standard, "theatrical"), true);
+});
+
+test("edition choices are wired into source labels and player selectors", () => {
+  const labels = readFileSync(
+    new URL("../src/components/mg/playbackSourceLabels.js", import.meta.url),
+    "utf8"
+  );
+  const sourcePreferences = readFileSync(
+    new URL("../src/components/mg/sourceSelectorPreferences.js", import.meta.url),
+    "utf8"
+  );
+  const player = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(labels, /detectMediaEdition/);
+  assert.match(sourcePreferences, /edition:\$\{option\.value\}/);
+  assert.match(player, /Sort \/ edition/);
+  assert.match(player, /sourceHasEdition\(entry\.item, edition\)/);
 });
 
 test("country normalisation keeps UK/GB and USA/US consistent", () => {
