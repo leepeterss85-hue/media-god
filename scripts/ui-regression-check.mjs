@@ -434,7 +434,7 @@ expect(
     videoPlayer.includes("resumedLegacyPartialChecks") &&
     videoPlayer.includes("Trying a different torrent hash for the same title") &&
     videoPlayer.includes("UNCACHED REAL-DEBRID CACHE ENGINE") &&
-    videoPlayer.includes("!sourceNeedsCaching(active)") &&
+    videoPlayer.includes("!sourceNeedsCachingForSession(active)") &&
     videoPlayer.includes("rdCacheEngineOwnsPollingRef.current") &&
     videoPlayer.includes("runRealDebridCacheSession") &&
     realDebridCacheEngine.includes("export async function runRealDebridCacheSession") &&
@@ -477,7 +477,10 @@ expect(
     videoPlayer.includes("const sourceSelectionKey = (item, fallbackIndex = -1) =>") &&
     videoPlayer.includes("manualSelection: !selectingLive") &&
     videoPlayer.includes("selectSource(value, selectedEntry?.item || null);") &&
-    videoPlayer.includes('data-mg-rd-cache-source={sourceNeedsCaching(active) ? "true" : "false"}'),
+    videoPlayer.includes("sourceEntriesForPresentation") &&
+    videoPlayer.includes("selectedEditionState.preparing") &&
+    videoPlayer.includes("Preparing {selectedEditionState.label}") &&
+    videoPlayer.includes('data-mg-rd-cache-source={sourceNeedsCachingForSession(active) ? "true" : "false"}'),
   "Torrent/source selectors can replay, reject a refreshed manual choice, or Android can mistake a real uncached RD job for Comet placeholder media"
 );
 
