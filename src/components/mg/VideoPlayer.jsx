@@ -8450,9 +8450,12 @@ export default function VideoPlayer({
           ) : alternateEmbedFallback?.url ? (
             <iframe
               data-mg-alternate-embed-fallback="true"
+              data-mg-provider-frame="true"
               src={alternateEmbedFallback.url}
               title={`${source?.title || "Video"} alternate stream`}
-              className="w-full h-full bg-black"
+              aria-label="Embedded player controls"
+              tabIndex={0}
+              className="w-full h-full bg-black focus:outline-none"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
               allowFullScreen
               referrerPolicy="strict-origin-when-cross-origin"
@@ -8614,6 +8617,7 @@ export default function VideoPlayer({
             />
           ) : isProvider ? (
             <iframe
+              data-mg-provider-frame="true"
               src={
                 active.src
               }
@@ -8621,7 +8625,9 @@ export default function VideoPlayer({
                 source?.title ||
                 "Provider"
               }
-              className="w-full h-full"
+              aria-label="Embedded player controls"
+              tabIndex={0}
+              className="w-full h-full focus:outline-none"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen"
               allowFullScreen
               referrerPolicy="strict-origin-when-cross-origin"
