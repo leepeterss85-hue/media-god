@@ -8677,7 +8677,7 @@ export default function VideoPlayer({
                   </p>
                 </div>
 
-                {sources.length >
+                {selectableSourceCount >
                   1 && (
                   <div className="relative min-w-[9rem] max-w-[46vw] sm:min-w-[14rem] sm:max-w-sm">
                     <select
@@ -8828,7 +8828,7 @@ export default function VideoPlayer({
             </label>
           )}
 
-          {sources.length > 1 && (
+          {selectableSourceCount > 1 && (
             <label className="min-w-[12rem] flex-1 basis-[16rem]">
               <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.12em] text-white/40">
                 Source / quality
@@ -8853,6 +8853,11 @@ export default function VideoPlayer({
                   className="min-h-11 w-full appearance-none rounded-lg border border-white/10 bg-mg-card py-2.5 pl-3 pr-9 text-xs font-medium text-white outline-none transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/30 sm:min-h-10 sm:text-sm"
                   aria-label="Choose playback source"
                 >
+                  {visibleSourceSelectorValue === "" ? (
+                    <option value="" disabled>
+                      Preparing uncached sources…
+                    </option>
+                  ) : null}
                   {visibleSourceSelectorEntries.map(
                     ({ item, index }) => {
                       const failed =
