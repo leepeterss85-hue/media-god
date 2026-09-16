@@ -8329,9 +8329,9 @@ export default function VideoPlayer({
             )}
           </div>
           {sources.length > 1 && (
-            <label className="w-[6.75rem] shrink-0 sm:w-[8.5rem]">
+            <label className="w-[9.5rem] shrink-0 sm:w-[11.5rem]">
               <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.12em] text-white/40">
-                Sort
+                Sort / edition
               </span>
 
               <select
