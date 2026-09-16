@@ -176,22 +176,38 @@ const isTerminalTorrentStatus = (value) =>
   /^(?:dead|error|magnet_error|virus)$/i.test(String(value || ""));
 
 const staleWindowMs = (snapshot) => {
+  const status = String(snapshot?.status || "").trim().toLowerCase();
   const speed = Math.max(0, Number(snapshot?.speed_bps || 0));
   const size = Math.max(0, Number(snapshot?.size_bytes || 0));
   const progress = clampProgress(snapshot?.progress);
   const seeders = Math.max(0, Number(snapshot?.seeders || 0));
 
+  /*
+   * Real-Debrid reports percentage in fairly coarse steps for large files.
+   * A perfectly healthy transfer can therefore sit at 3-5% for a while even
+   * though bytes are still arriving. The old 75s/2m watchdog was aggressive
+   * enough to restart legitimate downloads and then abandon the hash.
+   *
+   * Metadata conversion, file selection and queueing also legitimately take
+   * several minutes, so never classify those phases as stale quickly.
+   */
+  if (/^(?:magnet_conversion|waiting_files_selection|waiting_selection|queued|starting|preparing)$/.test(status)) {
+    return 10 * 60_000;
+  }
+
   if (speed > 0 && size > 0) {
     const remainingBytes = Math.max(0, size * (1 - progress / 100));
     const expectedRemainingMs = (remainingBytes / speed) * 1000;
     return Math.min(
-      2 * 60_000,
-      Math.max(25_000, expectedRemainingMs * 2.5)
+      60 * 60_000,
+      Math.max(10 * 60_000, expectedRemainingMs * 6)
     );
   }
 
-  if (seeders > 0) return 2 * 60_000;
-  return 75_000;
+  if (speed > 0) return 15 * 60_000;
+  if (seeders > 0) return 12 * 60_000;
+  if (progress > 0) return 10 * 60_000;
+  return 8 * 60_000;
 };
 
 const deleteTorrent = async (torrentId) => {
@@ -442,7 +458,9 @@ const monitorTorrent = async ({
 
         if (restarted?.error_code === "RD_RESTART_RESUMED_STALE_PARTIAL") {
           return failureResult(restarted.error, {
-            hashFailed: true,
+            hashFailed: false,
+            retryable: true,
+            retrySameSource: true,
             errorCode: restarted.error_code,
             progress: clampProgress(
               restarted?.fresh_progress ?? restarted?.previous_progress ?? progress
@@ -485,11 +503,12 @@ const monitorTorrent = async ({
         );
       }
 
-      await deleteTorrent(torrentId);
       return failureResult(
-        `Real-Debrid stayed at ${Math.round(progress)}% after a verified restart.`,
+        `Real-Debrid stayed at ${Math.round(progress)}% after a verified restart. The torrent has been left in Real-Debrid so Retry can reconnect to the same job.`,
         {
-          hashFailed: true,
+          hashFailed: false,
+          retryable: true,
+          retrySameSource: true,
           errorCode: "RD_CACHE_RESTART_STALLED",
           progress,
         }
