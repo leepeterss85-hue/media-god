@@ -88,6 +88,29 @@ const progressFrom = (payload) => {
   };
 };
 
+const cachePhaseFrom = (snapshot = {}) => {
+  const status = String(snapshot?.status || "").trim().toLowerCase();
+  const progress = clampProgress(snapshot?.progress);
+
+  if (/^(?:waiting_files_selection|waiting_selection)$/.test(status)) {
+    return "selecting";
+  }
+
+  if (status === "downloaded" || progress >= 100) {
+    return "finalizing";
+  }
+
+  if (/^(?:magnet_conversion|queued|starting|preparing)$/.test(status)) {
+    return "starting";
+  }
+
+  if (status === "restarting") {
+    return "restarting";
+  }
+
+  return "downloading";
+};
+
 const readyResult = (payload) => ({
   status: "ready",
   streamUrl: String(payload?.stream_url || ""),
@@ -293,7 +316,7 @@ const monitorTorrent = async ({
     onProgress?.({
       ...snapshot,
       torrent_id: String(torrentId),
-      phase: "downloading",
+      phase: cachePhaseFrom(snapshot),
       attempt: attempt + 1,
     });
 
@@ -445,7 +468,7 @@ const monitorTorrent = async ({
       );
     }
 
-    await sleep(progress >= 100 ? 1500 : 3000, signal);
+    await sleep(progress >= 100 ? 750 : 3000, signal);
   }
 
   return failureResult("Real-Debrid preparation timed out.", {
@@ -705,6 +728,100 @@ export async function runRealDebridCacheSession({
     });
   }
 
+  /*
+   * Retry must reconnect to the exact RD job the player was already watching
+   * before it performs a hash-wide adoption or submits another magnet. This
+   * prevents a normal Retry from creating duplicate same-hash torrents while a
+   * healthy download is still running in the user's Real-Debrid account.
+   */
+  const preferredTorrentId = String(context?.preferredTorrentId || "").trim();
+
+  if (preferredTorrentId) {
+    try {
+      const existing = await invoke({
+        action: "torrent_info",
+        torrent_id: preferredTorrentId,
+        prefer_browser_transcode: context.preferBrowserTranscode === true,
+        title: context.title || "",
+        ...(context.year != null ? { year: context.year } : {}),
+        ...(context.season != null ? { season: context.season } : {}),
+        ...(context.episode != null ? { episode: context.episode } : {}),
+        ...(context.fileIdx != null && Number.isFinite(Number(context.fileIdx))
+          ? { file_idx: Number(context.fileIdx) }
+          : {}),
+      });
+
+      if (existing?.status === "ready" && existing?.stream_url) {
+        return readyResult(existing);
+      }
+
+      if (existing?.status === "preparing") {
+        const snapshot = progressFrom(existing);
+        onProgress?.({
+          ...snapshot,
+          torrent_id: preferredTorrentId,
+          phase: cachePhaseFrom(snapshot),
+          attempt: 0,
+          resumedExisting: true,
+        });
+
+        return monitorTorrent({
+          torrentId: preferredTorrentId,
+          hash,
+          magnet,
+          context,
+          signal,
+          onProgress,
+          inheritedProgress: snapshot.progress,
+        });
+      }
+
+      if (
+        existing?.status === "failed" &&
+        /^RD_TORRENT_(?:MAGNET_ERROR|ERROR|DEAD|VIRUS)$/i.test(
+          String(existing?.error_code || "")
+        )
+      ) {
+        const restarted = await restartExactTorrent({
+          torrentId: preferredTorrentId,
+          hash,
+          magnet,
+          context,
+        });
+
+        if (restarted?.status === "ready" && restarted?.stream_url) {
+          return readyResult(restarted);
+        }
+
+        if (restarted?.torrent_id) {
+          const snapshot = progressFrom(restarted);
+          onProgress?.({
+            ...snapshot,
+            torrent_id: String(restarted.torrent_id),
+            phase: "restarting",
+            attempt: 0,
+          });
+
+          return monitorTorrent({
+            torrentId: String(restarted.torrent_id),
+            hash,
+            magnet,
+            context,
+            signal,
+            onProgress,
+            repairCount: 1,
+            inheritedProgress: snapshot.progress,
+          });
+        }
+      }
+    } catch {
+      /*
+       * A transient exact-id lookup failure must not force a new torrent. The
+       * hash adoption below gets a second chance to find the same live RD job.
+       */
+    }
+  }
+
   const adopted = await adoptByHash({ hash, context });
 
   if (adopted?.status === "ready" && adopted?.stream_url) {
@@ -771,7 +888,7 @@ export async function runRealDebridCacheSession({
     onProgress?.({
       ...snapshot,
       torrent_id: String(adopted.torrent_id),
-      phase: "downloading",
+      phase: cachePhaseFrom(snapshot),
       attempt: 0,
     });
 
@@ -860,7 +977,7 @@ export async function runRealDebridCacheSession({
     onProgress?.({
       ...snapshot,
       torrent_id: String(started.torrent_id),
-      phase: "downloading",
+      phase: cachePhaseFrom(snapshot),
       attempt: 0,
     });
 
