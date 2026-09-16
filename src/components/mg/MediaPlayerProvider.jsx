@@ -29,6 +29,10 @@ import { readPlaybackPreferences } from "@/components/mg/playbackPreferences";
 import { readTrackPreferences } from "@/components/mg/mediaTrackPreferences";
 import { debridProviderScoreHints } from "@/components/mg/debridProviderReliability";
 import { chooseDebridResolutionStrategy } from "@/components/mg/debridResolutionStrategy";
+import {
+  readSourceSortMode,
+  sortSourceEntries,
+} from "@/components/mg/sourceSelectorPreferences";
 
 const PlayerContext = createContext(null);
 
@@ -1307,7 +1311,10 @@ const orderSources = ({
    * English is preferred never let a foreign or unknown source sit ahead of a
    * confirmed English source merely because it was discovered first.
    */
-  return prioritisePreferredAudioSources(ordered);
+  const languageOrdered = prioritisePreferredAudioSources(ordered);
+  const sortMode = readSourceSortMode();
+
+  return sortSourceEntries(languageOrdered, sortMode).map((entry) => entry.item);
 };
 
 const compactAddonDiagnostics = (
