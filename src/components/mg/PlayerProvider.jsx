@@ -32,6 +32,27 @@ const positiveInt = (value) => {
     : null;
 };
 
+const finiteSeconds = (value) => {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0
+    ? number
+    : null;
+};
+
+const playbackMarker = (request, type, edge) => {
+  const capitalType = `${type.charAt(0).toUpperCase()}${type.slice(1)}`;
+  const capitalEdge = `${edge.charAt(0).toUpperCase()}${edge.slice(1)}`;
+  const markers = request?.skipMarkers || request?.skip_markers || {};
+  const nested = markers?.[type] || {};
+
+  return finiteSeconds(
+    request?.[`${type}${capitalEdge}`] ??
+      request?.[`${type}_${edge}`] ??
+      request?.[`skip${capitalType}${capitalEdge}`] ??
+      nested?.[edge]
+  );
+};
+
 const isTvRequest = (request) =>
   request?.mediaType === "tv" ||
   request?.type === "series" ||
@@ -467,6 +488,12 @@ function PlayerAutomationBridge({ children }) {
           "",
 
         autoNext: Boolean(enabled),
+
+        recapStart: playbackMarker(request, "recap", "start"),
+        recapEnd: playbackMarker(request, "recap", "end"),
+        introStart: playbackMarker(request, "intro", "start"),
+        introEnd: playbackMarker(request, "intro", "end"),
+        creditsStart: playbackMarker(request, "credits", "start"),
       };
 
       window.__MG_PLAYER_CONTEXT__ = detail;
@@ -921,15 +948,6 @@ function PlayerAutomationBridge({ children }) {
     };
 
     const onTimeUpdate = (event) => {
-      if (!autoNext || advancingRef.current) {
-        return;
-      }
-
-      const current = currentRequestRef.current;
-      if (!isTvRequest(current)) {
-        return;
-      }
-
       const target = event?.target;
       if (
         typeof HTMLVideoElement !== "undefined" &&
@@ -940,6 +958,32 @@ function PlayerAutomationBridge({ children }) {
 
       const duration = Number(target?.duration || 0);
       const currentTime = Number(target?.currentTime || 0);
+
+      if (
+        typeof window !== "undefined" &&
+        Number.isFinite(duration) &&
+        duration > 0 &&
+        Number.isFinite(currentTime)
+      ) {
+        window.dispatchEvent(
+          new CustomEvent("mg:playback-position", {
+            detail: {
+              currentTime: Math.max(0, currentTime),
+              duration,
+              remaining: Math.max(0, duration - currentTime),
+            },
+          })
+        );
+      }
+
+      if (!autoNext || advancingRef.current) {
+        return;
+      }
+
+      const current = currentRequestRef.current;
+      if (!isTvRequest(current)) {
+        return;
+      }
 
       if (!Number.isFinite(duration) || duration < 180 || currentTime < 60) {
         return;
