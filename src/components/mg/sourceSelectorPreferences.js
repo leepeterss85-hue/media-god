@@ -123,24 +123,14 @@ const sourceSize = (item) => {
 };
 
 export const sourceIsCached = (item) => {
-  /*
-   * An authoritative Real-Debrid cache result must win over stale discovery
-   * flags. Comet rows can begin life as cacheRequired/cometUncached and later
-   * be confirmed cached by the batch debrid check. Keeping the old flags ahead
-   * of debridCached hid those genuinely cached rows from the source selector,
-   * so users could see only one cached source at a time even when several were
-   * ready. Runtime-ready hashes are equally authoritative.
-   */
-  if (item?.debridCached === true || item?.runtimeReadyCached === true) {
-    return true;
-  }
-
   if (item?.cacheRequired === true || item?.cometUncached === true) {
     return false;
   }
 
   return (
+    item?.debridCached === true ||
     item?.viaRealDebrid === true ||
+    item?.runtimeReadyCached === true ||
     /\b(?:cached|instant|ready)\b/i.test(sourceText(item))
   );
 };
@@ -217,14 +207,16 @@ export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
   const list = (Array.isArray(sources) ? sources : []).map((item, index) => {
     const cached = sourceIsCached(item);
     const pendingCache = sourceNeedsCachePreparation(item);
+    const authoritativeReady =
+      item?.debridCached === true || item?.runtimeReadyCached === true;
     const edition = detectMediaEdition(item);
 
     return {
       item,
       index,
-      cached,
-      pendingCache,
-      readyForUser: !pendingCache,
+      cached: cached || authoritativeReady,
+      pendingCache: authoritativeReady ? false : pendingCache,
+      readyForUser: authoritativeReady || !pendingCache,
       editionValue: edition.value,
       editionLabel: edition.label,
       resolution: sourceResolution(item),
