@@ -8385,7 +8385,7 @@ export default function VideoPlayer({
                         );
 
                       const rawLabel = sourceDisplayLabel(item, index);
-                      const label = concisePlaybackSourceLabel(item, index);
+                      const label = sourceCacheStateLabel(item, index);
 
                       return (
                         <option
