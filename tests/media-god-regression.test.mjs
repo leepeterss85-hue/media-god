@@ -140,6 +140,37 @@ test("new uncached RD jobs are owned before file selection and terminal selectio
   );
 });
 
+test("uncached player exposes the full RD cache lifecycle and marks completed sources ready", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(playerSource, /Step \{cachePhase\.step\}\/5/);
+  assert.match(playerSource, /Selecting file/);
+  assert.match(playerSource, /Finalising stream/);
+  assert.match(playerSource, /Cached \/ Ready •/);
+  assert.match(playerSource, /markTorrentHashReady\(active\)/);
+});
+
+test("uncached retry reuses the exact RD torrent and final-link failures retry at 100 percent", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+  const cacheEngineSource = readFileSync(
+    new URL("../src/components/mg/realDebridCacheEngine.js", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(playerSource, /retryExistingTorrentIdRef\.current\s*=\s*String/);
+  assert.match(cacheEngineSource, /preferredTorrentId/);
+  assert.match(cacheEngineSource, /torrent_id:\s*preferredTorrentId/);
+  assert.match(cacheEngineSource, /phase:\s*"finalizing"/);
+  assert.match(cacheEngineSource, /RD_CACHE_FINAL_LINK_UNAVAILABLE/);
+  assert.match(cacheEngineSource, /lastProgress\s*>=\s*99\.999/);
+});
+
 test("country normalisation keeps UK/GB and USA/US consistent", () => {
   assert.equal(normaliseCountryCode("UK"), "GB");
   assert.equal(normaliseCountryCode("GBR"), "GB");
