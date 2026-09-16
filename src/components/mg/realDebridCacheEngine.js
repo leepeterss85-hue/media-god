@@ -750,6 +750,46 @@ export async function runRealDebridCacheSession({
     });
   }
 
+  /*
+   * The v2 cache engine is the only owner of uncached-torrent startup, so the
+   * Real-Debrid active-slot preflight must live here too. The older player path
+   * still contains a preflight for backwards compatibility, but every source
+   * that actually requires caching bypasses that path before it can run.
+   *
+   * Keep this best-effort for API/diagnostic failures, but when RD explicitly
+   * says the account is saturated do not submit another magnet. Slot exhaustion
+   * is account-wide; trying a different hash cannot fix it and must not poison
+   * the selected source's reliability history.
+   */
+  try {
+    const preflight = await invoke({
+      action: "uncached_preflight",
+      keep_hash: hash,
+    });
+
+    if (preflight?.saturated === true) {
+      const activeCount = Math.max(0, Number(preflight?.active_count || 0));
+      const activeLimit = Math.max(0, Number(preflight?.active_limit || 0));
+
+      return failureResult(
+        activeLimit > 0
+          ? `Real-Debrid has ${activeCount}/${activeLimit} active torrent slots in use. Finish or remove one active torrent, then retry this source.`
+          : "Real-Debrid has no free active torrent slot for an uncached download.",
+        {
+          accountBlocked: true,
+          retryable: true,
+          errorCode: "RD_ACTIVE_SLOTS_FULL",
+          activeCount,
+          activeLimit,
+          clearedStalled: Math.max(0, Number(preflight?.cleared_stalled || 0)),
+        }
+      );
+    }
+  } catch {
+    // Preflight cleanup/diagnostics are best-effort. The normal RD add call
+    // below still reports the authoritative failure if the service is down.
+  }
+
   onProgress?.({
     status: "starting",
     progress: 0,
