@@ -1,5 +1,21 @@
 export const UPDATE_HISTORY = [
   {
+    id: "media-edition-support-2026-09-16-v1",
+    date: "16 September 2026",
+    title: "Director's cuts and alternate editions added",
+    summary:
+      "Media God now detects, labels and prioritises alternate film and TV editions directly from source and torrent filenames.",
+    changes: [
+      "Added recognition for Theatrical, Director's Cut, Extended, Unrated, Final Cut, Special Edition, Ultimate Edition, IMAX/Expanded, Uncut, Alternate Version, Assembly Cut, International/European Cut, Roadshow, Redux and Anniversary editions.",
+      "Also recognises Collector's Edition, Broadcast/TV Cut, Restored/Remastered and Black & White/Noir edition labels where sources identify them explicitly.",
+      "Source labels and Real-Debrid torrent-file labels now show the detected edition alongside quality, HDR, codec, audio and cache information.",
+      "The player Sort / edition selector can prioritise a requested edition and automatically switches to the best matching source when one is available.",
+      "If a requested edition is unavailable, Media God keeps the current source usable rather than failing playback; standard untagged releases are valid Theatrical fallbacks.",
+      "The selected edition preference is preserved through the existing source-sort preference so later playback opens with the same edition priority.",
+      "Regression protection covers film cuts, extended TV episodes, IMAX/expanded editions, broadcast cuts, theatrical fallback and false-positive protection for ordinary DC-titled films.",
+    ],
+  },
+  {
     id: "uncached-rd-download-repair-2026-09-14-v1",
     date: "14 September 2026",
     title: "Uncached torrent downloads repaired",
