@@ -45,10 +45,9 @@ import {
 } from "../src/components/mg/mediaEdition.js";
 import {
   editionPresentationState,
-  sortSourceEntries,
   sourceEntriesForPresentation,
   sourceSortOptionsForEntries,
-} from "../src/components/mg/sourceSelectorPreferences.js";
+} from "../src/components/mg/editionCachePresentation.js";
 
 const memoryStorage = () => {
   const data = new Map();
@@ -325,6 +324,30 @@ test("edition choices are wired into source labels and player selectors", () => 
 });
 
 test("cached edition presentation hides uncached rows, keeps the edition visible, then exposes it after cache completion", () => {
+  const toPresentationEntries = (items) =>
+    items.map((item, index) => {
+      const edition = detectMediaEdition(item);
+      const cached =
+        item?.debridCached === true ||
+        item?.viaRealDebrid === true ||
+        item?.runtimeReadyCached === true;
+      const pendingCache =
+        cached !== true &&
+        (item?.cacheRequired === true ||
+          item?.cometUncached === true ||
+          item?.debridCacheChecked === true);
+
+      return {
+        item,
+        index,
+        cached,
+        pendingCache,
+        readyForUser: !pendingCache,
+        editionValue: edition.value,
+        editionLabel: edition.label,
+      };
+    });
+
   const initialSources = [
     {
       label: "Movie Standard 1080p Cached",
@@ -353,10 +376,7 @@ test("cached edition presentation hides uncached rows, keeps the edition visible
     },
   ];
 
-  const initialEntries = sortSourceEntries(
-    initialSources,
-    "edition:directors_cut"
-  );
+  const initialEntries = toPresentationEntries(initialSources);
   const initialPresented = sourceEntriesForPresentation(
     initialEntries,
     "edition:directors_cut"
@@ -388,10 +408,7 @@ test("cached edition presentation hides uncached rows, keeps the edition visible
         }
       : item
   );
-  const afterEntries = sortSourceEntries(
-    afterCacheSources,
-    "edition:directors_cut"
-  );
+  const afterEntries = toPresentationEntries(afterCacheSources);
   const afterPresented = sourceEntriesForPresentation(
     afterEntries,
     "edition:directors_cut"
@@ -407,7 +424,7 @@ test("cached edition presentation hides uncached rows, keeps the edition visible
   assert.equal(afterState.readyCount, 1);
 
   const bestEntries = sourceEntriesForPresentation(
-    sortSourceEntries(afterCacheSources, "best"),
+    afterEntries,
     "best"
   );
   assert.equal(bestEntries.length, 2);
