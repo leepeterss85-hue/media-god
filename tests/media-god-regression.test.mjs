@@ -327,7 +327,7 @@ test("edition choices are wired into source labels and player selectors", () => 
   assert.match(player, /Preparing \{selectedEditionState\.label\}/);
 });
 
-test("cached edition presentation hides uncached rows, keeps the edition visible, then exposes it after cache completion", () => {
+test("cached edition presentation hides uncached rows but keeps every ready source visible while prioritising the selected edition", () => {
   const toPresentationEntries = (items) =>
     items.map((item, index) => {
       const edition = detectMediaEdition(item);
@@ -394,7 +394,8 @@ test("cached edition presentation hides uncached rows, keeps the edition visible
     "edition:directors_cut"
   );
 
-  assert.equal(initialPresented.length, 0);
+  assert.equal(initialPresented.length, 1);
+  assert.equal(initialPresented[0].index, 0);
   assert.equal(initialState.preparing, true);
   assert.equal(initialState.pendingCount, 2);
   assert.match(
@@ -422,8 +423,11 @@ test("cached edition presentation hides uncached rows, keeps the edition visible
     "edition:directors_cut"
   );
 
-  assert.equal(afterPresented.length, 1);
-  assert.equal(afterPresented[0].index, 1);
+  assert.equal(afterPresented.length, 2);
+  assert.deepEqual(
+    afterPresented.map((entry) => entry.index),
+    [1, 0]
+  );
   assert.equal(afterState.preparing, false);
   assert.equal(afterState.readyCount, 1);
 
