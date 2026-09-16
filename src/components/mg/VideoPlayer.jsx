@@ -63,6 +63,7 @@ import {
 } from "@/components/mg/sourceSelectorPreferences";
 import { runRealDebridCacheSession } from "@/components/mg/realDebridCacheEngine";
 import { buildAlternateEmbedFallback } from "@/components/mg/alternateEmbedFallback";
+import { sourceHasEdition } from "@/components/mg/mediaEdition";
 
 const isMagnet = (value) =>
   String(value || "")
@@ -8339,6 +8340,17 @@ export default function VideoPlayer({
                 onChange={(event) => {
                   const next = writeSourceSortMode(event.target.value);
                   setSourceSortMode(next);
+
+                  if (next.startsWith("edition:")) {
+                    const edition = next.slice("edition:".length);
+                    const match = sortSourceEntries(sources, next).find((entry) =>
+                      sourceHasEdition(entry.item, edition)
+                    );
+
+                    if (match && match.index !== activeIdx) {
+                      selectSource(match.index, match.item);
+                    }
+                  }
                 }}
                 className="min-h-11 w-full rounded-lg border border-white/10 bg-mg-card px-2 py-2.5 text-xs font-medium text-white outline-none transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/30 sm:min-h-10 sm:text-sm"
                 aria-label="Sort playback sources"
