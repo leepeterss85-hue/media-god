@@ -2035,6 +2035,201 @@ export default function VideoPlayer({
       isGenericHttpsStream
     );
 
+  /*
+   * TRUSTED CACHED BACKGROUND BUILDER
+   *
+   * The player used to make every uncached torrent a foreground problem. Build
+   * a small trusted shelf instead: while the user is already on a playable
+   * source, Media God may prepare ONE missing torrent at a time in the user's
+   * own Real-Debrid account. Each edition keeps up to five cached front-line
+   * choices; completed jobs become Trusted Cached immediately. A title may
+   * start at most five new background jobs in one viewing session so this can
+   * never flood the account or compete with foreground cache work.
+   */
+  useEffect(() => {
+    const titleKey = rdMediaContextKey;
+
+    if (backgroundCacheTitleKeyRef.current !== titleKey) {
+      backgroundCacheControllerRef.current?.abort?.();
+      backgroundCacheControllerRef.current = null;
+      backgroundCacheAttemptedRef.current = new Set();
+      backgroundCacheCompletedRef.current = 0;
+      backgroundCacheTitleKeyRef.current = titleKey;
+    }
+
+    if (
+      !titleKey ||
+      isLive ||
+      isYoutube ||
+      isProvider ||
+      activeNeedsCaching ||
+      rdResolving ||
+      rdPolling ||
+      rdTorrentId ||
+      rdPreparation ||
+      fileSwitching ||
+      backgroundCacheCompletedRef.current >= 5
+    ) {
+      return undefined;
+    }
+
+    const cachedCounts = new Map();
+
+    sortedSourceEntries.forEach((entry) => {
+      if (!entry?.cached) return;
+      const edition = entry.editionValue || detectMediaEdition(entry.item).value;
+      cachedCounts.set(edition, Number(cachedCounts.get(edition) || 0) + 1);
+    });
+
+    const candidates = sortedSourceEntries
+      .map((entry) => {
+        const original = sources[entry.index];
+        const edition = entry.editionValue || detectMediaEdition(original).value;
+        const hash = sourceTorrentHash(original);
+        const magnet = richestSourceMagnet(original);
+
+        return {
+          ...entry,
+          original,
+          edition,
+          hash,
+          magnet,
+          cachedCount: Number(cachedCounts.get(edition) || 0),
+        };
+      })
+      .filter(
+        (entry) =>
+          entry.index !== activeIdx &&
+          !entry.cached &&
+          entry.cachedCount < 5 &&
+          sourceNeedsCaching(entry.original) &&
+          /^[a-f0-9]{40}$/i.test(entry.hash) &&
+          /^magnet:/i.test(entry.magnet) &&
+          !backgroundCacheAttemptedRef.current.has(entry.hash) &&
+          !failedTorrentHashesRef.current.has(entry.hash)
+      )
+      .sort(
+        (left, right) =>
+          left.cachedCount - right.cachedCount ||
+          Number(right.reportedSeeders || 0) - Number(left.reportedSeeders || 0) ||
+          Number(right.trackerRich) - Number(left.trackerRich) ||
+          Number(right.compatibility || 0) - Number(left.compatibility || 0) ||
+          left.index - right.index
+      );
+
+    const candidate = candidates[0];
+    if (!candidate) return undefined;
+
+    let cancelled = false;
+    let controller = null;
+
+    const timer = window.setTimeout(() => {
+      if (cancelled) return;
+
+      backgroundCacheAttemptedRef.current.add(candidate.hash);
+      controller = new AbortController();
+      backgroundCacheControllerRef.current = controller;
+
+      window.dispatchEvent(
+        new CustomEvent("mg:background-cache-status", {
+          detail: {
+            state: "starting",
+            edition: candidate.edition,
+            hash: candidate.hash,
+          },
+        })
+      );
+
+      void runRealDebridCacheSession({
+        source: candidate.original,
+        context: {
+          title: source?.rdTitle || source?.title || "",
+          year: source?.rdYear ?? source?.year ?? null,
+          season: source?.rdSeason ?? source?.season ?? null,
+          episode: source?.rdEpisode ?? source?.episode ?? null,
+          fileIdx:
+            candidate.original?.fileIdx != null &&
+            Number.isFinite(Number(candidate.original.fileIdx))
+              ? Number(candidate.original.fileIdx)
+              : null,
+          preferBrowserTranscode: false,
+          preferredTorrentId: "",
+        },
+        signal: controller.signal,
+        onProgress: null,
+      })
+        .then((result) => {
+          if (cancelled || controller.signal.aborted || !result) return;
+
+          if (result.status === "ready" && result.streamUrl) {
+            recordTrustedCachedSource(candidate.original);
+            backgroundCacheCompletedRef.current += 1;
+            setRuntimeReadyTorrentHashes((current) => {
+              if (current.has(candidate.hash)) return current;
+              const next = new Set(current);
+              next.add(candidate.hash);
+              return next;
+            });
+
+            window.dispatchEvent(
+              new CustomEvent("mg:background-cache-status", {
+                detail: {
+                  state: "ready",
+                  edition: candidate.edition,
+                  hash: candidate.hash,
+                },
+              })
+            );
+          }
+
+          if (result.accountBlocked !== true) {
+            setBackgroundCacheNonce((value) => value + 1);
+          }
+        })
+        .catch((error) => {
+          if (cancelled || controller?.signal?.aborted || error?.name === "AbortError") {
+            return;
+          }
+
+          setBackgroundCacheNonce((value) => value + 1);
+        })
+        .finally(() => {
+          if (backgroundCacheControllerRef.current === controller) {
+            backgroundCacheControllerRef.current = null;
+          }
+        });
+    }, 10_000);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      controller?.abort?.();
+      if (backgroundCacheControllerRef.current === controller) {
+        backgroundCacheControllerRef.current = null;
+      }
+    };
+  }, [
+    activeIdx,
+    activeNeedsCaching,
+    backgroundCacheNonce,
+    fileSwitching,
+    isLive,
+    isProvider,
+    isYoutube,
+    rdMediaContextKey,
+    rdPolling,
+    rdPreparation,
+    rdResolving,
+    rdTorrentId,
+    runtimeReadyTorrentHashes,
+    source?.episode,
+    source?.rdEpisode,
+    source?.rdSeason,
+    source?.season,
+    source?.title,
+    sources.length,
+  ]);
+
   useEffect(() => {
     recoveryResumeRef.current = 0;
     autoRecoveryRef.current.lastTime = 0;
