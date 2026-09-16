@@ -106,6 +106,15 @@ export const mediaEditionSortScore = (item, preferred = "any") => {
   return edition.explicit ? -5000 : 0;
 };
 
-export const sourceHasEdition = (item, edition) =>
-  String(edition || "any") === "any" ||
-  detectMediaEdition(item).value === String(edition);
+export const sourceHasEdition = (item, edition) => {
+  const wanted = String(edition || "any");
+  if (wanted === "any") return true;
+
+  const detected = detectMediaEdition(item).value;
+  if (detected === wanted) return true;
+
+  // Sources with no edition tag are normally the standard theatrical/master
+  // release, so they are valid fallbacks when the user explicitly asks for
+  // Theatrical. Never treat an explicitly different cut as theatrical.
+  return wanted === "theatrical" && detected === "standard";
+};
