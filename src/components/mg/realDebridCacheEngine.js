@@ -218,24 +218,47 @@ const monitorTorrent = async ({
     inheritedProgress == null ? -1 : clampProgress(inheritedProgress);
   let lastMoveAt = Date.now();
   let sameProgressChecks = 0;
+  let consecutiveStatusFailures = 0;
 
   for (let attempt = 0; attempt < 2400; attempt += 1) {
     if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 
-    const data = await invoke({
-      action: "torrent_info",
-      torrent_id: String(torrentId),
-      prefer_browser_transcode: context.preferBrowserTranscode === true,
-      title: context.title || "",
-      ...(context.year != null ? { year: context.year } : {}),
-      ...(context.season != null ? { season: context.season } : {}),
-      ...(context.episode != null ? { episode: context.episode } : {}),
-      ...(context.fileIdx != null && Number.isFinite(Number(context.fileIdx))
-        ? { file_idx: Number(context.fileIdx) }
-        : {}),
-    });
+    let data = {};
+
+    try {
+      data = await invoke({
+        action: "torrent_info",
+        torrent_id: String(torrentId),
+        prefer_browser_transcode: context.preferBrowserTranscode === true,
+        title: context.title || "",
+        ...(context.year != null ? { year: context.year } : {}),
+        ...(context.season != null ? { season: context.season } : {}),
+        ...(context.episode != null ? { episode: context.episode } : {}),
+        ...(context.fileIdx != null && Number.isFinite(Number(context.fileIdx))
+          ? { file_idx: Number(context.fileIdx) }
+          : {}),
+      });
+    } catch (error) {
+      consecutiveStatusFailures += 1;
+
+      if (consecutiveStatusFailures >= 8) {
+        return failureResult(
+          error?.message ||
+            "Real-Debrid's torrent status service is temporarily unavailable.",
+          {
+            retryable: true,
+            retrySameSource: true,
+            errorCode: "RD_CACHE_STATUS_UNAVAILABLE",
+          }
+        );
+      }
+
+      await sleep(Math.min(8000, 2000 + attempt * 250), signal);
+      continue;
+    }
 
     if (data?.status === "ready" && data?.stream_url) {
+      consecutiveStatusFailures = 0;
       return readyResult(data);
     }
 
@@ -246,6 +269,16 @@ const monitorTorrent = async ({
       }
 
       if (String(data?.error_code || "") === "RD_TORRENT_INFO_FAILED") {
+        consecutiveStatusFailures += 1;
+
+        if (consecutiveStatusFailures >= 8) {
+          return failureResult(data.error, {
+            retryable: true,
+            retrySameSource: true,
+            errorCode: "RD_CACHE_STATUS_UNAVAILABLE",
+          });
+        }
+
         await sleep(Math.min(8000, 2000 + attempt * 250), signal);
         continue;
       }
@@ -255,6 +288,7 @@ const monitorTorrent = async ({
       });
     }
 
+    consecutiveStatusFailures = 0;
     const snapshot = progressFrom(data);
     onProgress?.({
       ...snapshot,
