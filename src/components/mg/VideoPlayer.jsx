@@ -1786,6 +1786,62 @@ export default function VideoPlayer({
     active?.type ===
     "provider";
 
+  useEffect(() => {
+    if (!isProvider || !isFireTvRemoteRuntime()) {
+      return undefined;
+    }
+
+    const stage = stageRef.current;
+    const root = stage?.closest?.('[data-mg-player-root="true"]');
+
+    if (!(root instanceof HTMLElement)) {
+      return undefined;
+    }
+
+    let hideTimer = null;
+
+    const clearProviderHideTimer = () => {
+      if (hideTimer) {
+        window.clearTimeout(hideTimer);
+        hideTimer = null;
+      }
+    };
+
+    const scheduleProviderChromeHide = () => {
+      clearProviderHideTimer();
+      hideTimer = window.setTimeout(() => {
+        root.dataset.mgControlsVisible = "false";
+      }, 2200);
+    };
+
+    const revealProviderChrome = () => {
+      root.dataset.mgControlsVisible = "true";
+      scheduleProviderChromeHide();
+    };
+
+    /*
+     * Provider/iframe playback has no parent <video> element, so the normal
+     * PlayerControls component never receives a `playing` event. Without this
+     * bridge the Exit/source/Fix-audio panel stays visible forever over EV
+     * SPORTS and over movie/TV provider fallbacks. Treat an opened provider as
+     * playing for chrome purposes only: hide after a short delay and let the
+     * first Fire TV D-pad/OK action reveal it again.
+     */
+    revealProviderChrome();
+    window.addEventListener("mg:player-reveal-controls", revealProviderChrome);
+    root.addEventListener("focusin", revealProviderChrome);
+
+    return () => {
+      clearProviderHideTimer();
+      window.removeEventListener("mg:player-reveal-controls", revealProviderChrome);
+      root.removeEventListener("focusin", revealProviderChrome);
+
+      if (root.dataset.mgControlsVisible != null) {
+        delete root.dataset.mgControlsVisible;
+      }
+    };
+  }, [isProvider, activeUrl]);
+
   const activeType = String(active?.type || "").trim().toLowerCase();
   const activeMediaHint = [
     active?.format,
