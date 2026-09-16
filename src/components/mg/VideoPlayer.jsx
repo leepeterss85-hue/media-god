@@ -57,6 +57,7 @@ import {
 import {
   readSourceSortMode,
   sortSourceEntries,
+  sourceIsUserSelectable,
   SOURCE_SELECTOR_SORT_EVENT,
   SOURCE_SORT_OPTIONS,
   writeSourceSortMode,
@@ -827,7 +828,6 @@ export default function VideoPlayer({
   const rdCacheEngineOwnsPollingRef = useRef(false);
   const backgroundCacheControllerRef = useRef(null);
   const backgroundCacheAttemptedRef = useRef(new Set());
-  const backgroundCacheCompletedRef = useRef(0);
   const backgroundCacheTitleKeyRef = useRef("");
   const retryExistingTorrentIdRef = useRef("");
   const retryInactiveTorrentHashRef = useRef("");
@@ -888,6 +888,10 @@ export default function VideoPlayer({
     sourceSortMode
   );
 
+  const selectableSourceEntries = sortedSourceEntries.filter(({ item }) =>
+    sourceIsUserSelectable(item)
+  );
+
   /*
    * Android/Fire TV native <select> popups close if React changes their
    * option list while they are open. Source discovery can legitimately add
@@ -906,8 +910,12 @@ export default function VideoPlayer({
   const rdFileSelectorValueRef = useRef("");
 
   const pinSourceSelector = () => {
-    sourceSelectorEntriesRef.current = sortedSourceEntries;
-    sourceSelectorValueRef.current = activeIdx;
+    sourceSelectorEntriesRef.current = selectableSourceEntries;
+    sourceSelectorValueRef.current = selectableSourceEntries.some(
+      (entry) => entry.index === activeIdx
+    )
+      ? activeIdx
+      : "";
     sourceSelectorPinnedRef.current = true;
     sourceSelectorPinnedAtRef.current = Date.now();
   };
@@ -932,12 +940,17 @@ export default function VideoPlayer({
   const visibleSourceSelectorEntries =
     sourceSelectorPinnedRef.current && sourceSelectorEntriesRef.current.length > 0
       ? sourceSelectorEntriesRef.current
-      : sortedSourceEntries;
+      : selectableSourceEntries;
 
-  const visibleSourceSelectorValue =
-    sourceSelectorPinnedRef.current
-      ? sourceSelectorValueRef.current
-      : activeIdx;
+  const requestedSourceSelectorValue = sourceSelectorPinnedRef.current
+    ? sourceSelectorValueRef.current
+    : activeIdx;
+
+  const visibleSourceSelectorValue = visibleSourceSelectorEntries.some(
+    (entry) => String(entry.index) === String(requestedSourceSelectorValue)
+  )
+    ? requestedSourceSelectorValue
+    : "";
 
   const pinRdFileSelector = () => {
     rdFileSelectorFilesRef.current = rdFiles;
@@ -2042,9 +2055,9 @@ export default function VideoPlayer({
    * a small trusted shelf instead: while the user is already on a playable
    * source, Media God may prepare ONE missing torrent at a time in the user's
    * own Real-Debrid account. Each edition keeps up to five cached front-line
-   * choices; completed jobs become Trusted Cached immediately. A title may
-   * start at most five new background jobs in one viewing session so this can
-   * never flood the account or compete with foreground cache work.
+   * choices; completed jobs become Trusted Cached immediately. Jobs still run
+   * strictly one at a time, but there is no title-wide five-job cap, so every
+   * discovered edition can gradually build its own ready shelf in the background.
    */
   useEffect(() => {
     const titleKey = rdMediaContextKey;
@@ -2053,7 +2066,6 @@ export default function VideoPlayer({
       backgroundCacheControllerRef.current?.abort?.();
       backgroundCacheControllerRef.current = null;
       backgroundCacheAttemptedRef.current = new Set();
-      backgroundCacheCompletedRef.current = 0;
       backgroundCacheTitleKeyRef.current = titleKey;
     }
 
@@ -2067,8 +2079,7 @@ export default function VideoPlayer({
       rdPolling ||
       rdTorrentId ||
       rdPreparation ||
-      fileSwitching ||
-      backgroundCacheCompletedRef.current >= 5
+      fileSwitching
     ) {
       return undefined;
     }
@@ -2163,7 +2174,6 @@ export default function VideoPlayer({
 
           if (result.status === "ready" && result.streamUrl) {
             recordTrustedCachedSource(candidate.original);
-            backgroundCacheCompletedRef.current += 1;
             setRuntimeReadyTorrentHashes((current) => {
               if (current.has(candidate.hash)) return current;
               const next = new Set(current);
@@ -7291,23 +7301,26 @@ export default function VideoPlayer({
       subtitles: Array.isArray(active?.subtitles)
         ? active.subtitles
         : [],
-      sources: sources.map((candidate, index) => {
-        const baseLabel = sourceDisplayLabel(candidate, index);
-        const provider = String(candidate?.sourceName || "").trim();
+      sources: sourcesForSelector
+        .map((candidate, index) => ({ candidate, index }))
+        .filter(({ candidate }) => sourceIsUserSelectable(candidate))
+        .map(({ candidate, index }) => {
+          const baseLabel = sourceDisplayLabel(candidate, index);
+          const provider = String(candidate?.sourceName || "").trim();
 
-        return {
-          ...candidate,
-          label:
-            provider && !baseLabel.toLowerCase().includes(provider.toLowerCase())
-              ? `${baseLabel} • ${provider}`
-              : baseLabel,
-          url:
-            index === activeIdx && /^https?:\/\//i.test(nativePlaybackUrl)
-              ? nativePlaybackUrl
-              : getSourceUrl(candidate),
-          webIndex: index,
-        };
-      }),
+          return {
+            ...candidate,
+            label:
+              provider && !baseLabel.toLowerCase().includes(provider.toLowerCase())
+                ? `${baseLabel} • ${provider}`
+                : baseLabel,
+            url:
+              index === activeIdx && /^https?:\/\//i.test(nativePlaybackUrl)
+                ? nativePlaybackUrl
+                : getSourceUrl(candidate),
+            webIndex: index,
+          };
+        }),
       activeSourceIndex: activeIdx,
     });
 
@@ -7966,15 +7979,14 @@ export default function VideoPlayer({
     ? liveSourcePosition(activeIdx)
     : { current: 0, total: 0 };
 
-  const selectableSourceCount =
-    sources.filter(
-      (item) =>
-        item &&
-        !item?.diagnostic &&
-        item?.type !== "status" &&
-        item?.type !== "provider" &&
-        item?.type !== "youtube"
-    ).length;
+  const selectableSourceCount = selectableSourceEntries.filter(
+    ({ item }) =>
+      item &&
+      !item?.diagnostic &&
+      item?.type !== "status" &&
+      item?.type !== "provider" &&
+      item?.type !== "youtube"
+  ).length;
 
   const failedSourceCount =
     Array.from(
@@ -8462,7 +8474,7 @@ export default function VideoPlayer({
                   ""
                 }
                 sources={
-                  sources
+                  sourcesForSelector
                 }
                 activeIdx={
                   activeIdx
@@ -8586,7 +8598,7 @@ export default function VideoPlayer({
                   ""
                 }
                 sources={
-                  sources
+                  sourcesForSelector
                 }
                 activeIdx={
                   activeIdx
@@ -8690,6 +8702,11 @@ export default function VideoPlayer({
                       className="min-h-11 w-full appearance-none rounded-lg border border-white/15 bg-black/60 py-2.5 pl-3 pr-9 text-xs font-medium text-white outline-none backdrop-blur transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/30 sm:min-h-10 sm:text-sm"
                       aria-label="Choose source or quality while loading"
                     >
+                      {visibleSourceSelectorValue === "" ? (
+                        <option value="" disabled>
+                          Preparing uncached sources…
+                        </option>
+                      ) : null}
                       {visibleSourceSelectorEntries.map(
                         ({
                           item,
@@ -8788,8 +8805,10 @@ export default function VideoPlayer({
 
                   if (next.startsWith("edition:")) {
                     const edition = next.slice("edition:".length);
-                    const match = sortSourceEntries(sources, next).find((entry) =>
-                      sourceHasEdition(entry.item, edition)
+                    const match = sortSourceEntries(sourcesForSelector, next).find(
+                      (entry) =>
+                        sourceIsUserSelectable(entry.item) &&
+                        sourceHasEdition(entry.item, edition)
                     );
 
                     if (match && match.index !== activeIdx) {
