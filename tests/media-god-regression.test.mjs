@@ -43,6 +43,12 @@ import {
   mediaEditionSortScore,
   sourceHasEdition,
 } from "../src/components/mg/mediaEdition.js";
+import {
+  editionPresentationState,
+  sortSourceEntries,
+  sourceEntriesForPresentation,
+  sourceSortOptionsForEntries,
+} from "../src/components/mg/sourceSelectorPreferences.js";
 
 const memoryStorage = () => {
   const data = new Map();
@@ -184,7 +190,7 @@ test("uncached torrent rows can never bypass the RD cache engine as direct strea
   );
 
   assert.match(playerSource, /const activeTorrentHash = sourceTorrentHash\(active\)/);
-  assert.match(playerSource, /const activeNeedsCaching = sourceNeedsCaching\(active\)/);
+  assert.match(playerSource, /const activeNeedsCaching = sourceNeedsCachingForSession\(active\)/);
   assert.match(
     playerSource,
     /const isRdSource =[\s\S]{0,600}?Boolean\(activeTorrentHash\)[\s\S]{0,120}?activeNeedsCaching/
@@ -211,7 +217,7 @@ test("uncached cache stalls stay on the same torrent and use generous RD timing"
   );
   assert.match(
     playerSource,
-    /if \(sourceNeedsCaching\(active\)\) \{[\s\S]{0,700}?same cached source has been kept selected/
+    /if \(sourceNeedsCachingForSession\(active\)\) \{[\s\S]{0,700}?same cached source has been kept selected/
   );
   assert.match(cacheEngineSource, /Math\.max\(10 \* 60_000, expectedRemainingMs \* 6\)/);
   assert.match(cacheEngineSource, /if \(speed > 0\) return 15 \* 60_000/);
@@ -281,7 +287,7 @@ test("bonus and extras detection labels common disc/file content", () => {
   );
 });
 
-test("edition preference prioritises the requested cut and theatrical accepts untagged originals", () => {
+test("edition preference prioritises the requested cut and keeps standard/theatrical boxes exact", () => {
   const directors = { name: "Movie.Directors.Cut.1080p.mkv" };
   const extended = { name: "Movie.Extended.Edition.2160p.mkv" };
   const standard = { name: "Movie.1080p.mkv" };
@@ -292,7 +298,8 @@ test("edition preference prioritises the requested cut and theatrical accepts un
   );
   assert.equal(sourceHasEdition(directors, "directors_cut"), true);
   assert.equal(sourceHasEdition(extended, "directors_cut"), false);
-  assert.equal(sourceHasEdition(standard, "theatrical"), true);
+  assert.equal(sourceHasEdition(standard, "standard"), true);
+  assert.equal(sourceHasEdition(standard, "theatrical"), false);
 });
 
 test("edition choices are wired into source labels and player selectors", () => {
@@ -311,8 +318,103 @@ test("edition choices are wired into source labels and player selectors", () => 
 
   assert.match(labels, /detectMediaEdition/);
   assert.match(sourcePreferences, /edition:\$\{option\.value\}/);
+  assert.match(sourcePreferences, /sourceEntriesForPresentation/);
+  assert.match(sourcePreferences, /Preparing/);
   assert.match(player, /Sort \/ edition/);
-  assert.match(player, /sourceHasEdition\(entry\.item, edition\)/);
+  assert.match(player, /Preparing \{selectedEditionState\.label\}/);
+});
+
+test("cached edition presentation hides uncached rows, keeps the edition visible, then exposes it after cache completion", () => {
+  const initialSources = [
+    {
+      label: "Movie Standard 1080p Cached",
+      debridCached: true,
+      infoHash: "1111111111111111111111111111111111111111",
+    },
+    {
+      label: "Movie Directors Cut 2160p",
+      description: "Director's Cut",
+      infoHash: "2222222222222222222222222222222222222222",
+      magnet: "magnet:?xt=urn:btih:2222222222222222222222222222222222222222",
+      cacheRequired: true,
+      debridCacheChecked: true,
+      debridCached: false,
+      reportedSeeders: 42,
+    },
+    {
+      label: "Movie Directors Cut 1080p",
+      description: "Director's Cut",
+      infoHash: "3333333333333333333333333333333333333333",
+      magnet: "magnet:?xt=urn:btih:3333333333333333333333333333333333333333",
+      cacheRequired: true,
+      debridCacheChecked: true,
+      debridCached: false,
+      reportedSeeders: 20,
+    },
+  ];
+
+  const initialEntries = sortSourceEntries(
+    initialSources,
+    "edition:directors_cut"
+  );
+  const initialPresented = sourceEntriesForPresentation(
+    initialEntries,
+    "edition:directors_cut"
+  );
+  const initialState = editionPresentationState(
+    initialEntries,
+    "edition:directors_cut"
+  );
+  const options = sourceSortOptionsForEntries(
+    initialEntries,
+    "edition:directors_cut"
+  );
+
+  assert.equal(initialPresented.length, 0);
+  assert.equal(initialState.preparing, true);
+  assert.equal(initialState.pendingCount, 2);
+  assert.match(
+    options.find((option) => option.value === "edition:directors_cut")?.label || "",
+    /Preparing/
+  );
+
+  const afterCacheSources = initialSources.map((item, index) =>
+    index === 1
+      ? {
+          ...item,
+          cacheRequired: false,
+          debridCached: true,
+          runtimeReadyCached: true,
+        }
+      : item
+  );
+  const afterEntries = sortSourceEntries(
+    afterCacheSources,
+    "edition:directors_cut"
+  );
+  const afterPresented = sourceEntriesForPresentation(
+    afterEntries,
+    "edition:directors_cut"
+  );
+  const afterState = editionPresentationState(
+    afterEntries,
+    "edition:directors_cut"
+  );
+
+  assert.equal(afterPresented.length, 1);
+  assert.equal(afterPresented[0].index, 1);
+  assert.equal(afterState.preparing, false);
+  assert.equal(afterState.readyCount, 1);
+
+  const bestEntries = sourceEntriesForPresentation(
+    sortSourceEntries(afterCacheSources, "best"),
+    "best"
+  );
+  assert.equal(bestEntries.length, 2);
+  assert.deepEqual(
+    bestEntries.map((entry) => entry.index).sort((a, b) => a - b),
+    [0, 1]
+  );
 });
 
 test("country normalisation keeps UK/GB and USA/US consistent", () => {
