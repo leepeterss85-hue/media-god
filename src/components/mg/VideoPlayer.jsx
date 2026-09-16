@@ -1975,14 +1975,18 @@ export default function VideoPlayer({
       activeLooksLikeMedia
     );
 
-  const isDirectFile =
-    activeType === "file" ||
-    activeType === "url" ||
-    activeType === "live" ||
-    activeType === "direct" ||
-    activeType === "stream" ||
-    isGenericHttpsStream;
+  const activeTorrentHash = sourceTorrentHash(active);
+  const activeNeedsCaching = sourceNeedsCaching(active);
 
+  /*
+   * Torrent identity is authoritative. Addons can expose an uncached torrent
+   * as a generic HTTPS/"stream" row while also attaching infoHash/magnet
+   * metadata. Treating that row as a normal direct file bypasses the RD cache
+   * engine: Chromium can load metadata (and sometimes a few seconds of an
+   * upstream placeholder/partial stream), then the VOD watchdog abandons it.
+   * Any source that still needs caching must therefore NEVER enter the direct
+   * file path merely because its URL/type looks streamable.
+   */
   const isRdSource =
     active?.type === "rd" ||
     active?.type ===
@@ -1991,13 +1995,21 @@ export default function VideoPlayer({
       "torrent" ||
     active?.type ===
       "magnet" ||
-    isMagnet(
-      activeUrl
-    ) ||
-    Boolean(
-      magnetHash(
-        activeUrl
-      )
+    isMagnet(activeUrl) ||
+    Boolean(magnetHash(activeUrl)) ||
+    Boolean(activeTorrentHash) ||
+    activeNeedsCaching;
+
+  const isDirectFile =
+    !activeNeedsCaching &&
+    !isRdSource &&
+    (
+      activeType === "file" ||
+      activeType === "url" ||
+      activeType === "live" ||
+      activeType === "direct" ||
+      activeType === "stream" ||
+      isGenericHttpsStream
     );
 
   useEffect(() => {
