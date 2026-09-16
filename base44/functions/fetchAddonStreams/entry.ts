@@ -1294,11 +1294,53 @@ const lookupAddon = async ({
       "skipped_fast";
   }
 
-  const result =
+  let result =
     await fetchAddonJson(
       targetUrl,
       streamTimeoutMs
     );
+
+  let alternateIdUsed = "";
+
+  /*
+   * Some addons (notably Comet) can return HTTP 404 for a freshly-added TMDB
+   * id even though the same title is resolvable through an IMDb/search id.
+   * Treat 404 as an identifier miss, not as a terminal addon failure, and try
+   * the alternate ids Media God already prepared before surfacing the error.
+   */
+  if (
+    !result.ok &&
+    result.status === 404 &&
+    Array.isArray(alternateStreamIds) &&
+    alternateStreamIds.length > 0
+  ) {
+    for (const alternateStreamId of alternateStreamIds) {
+      if (!alternateStreamId || alternateStreamId === streamId) {
+        continue;
+      }
+
+      const alternateUrl = getStreamUrl(
+        addon?.url,
+        type,
+        alternateStreamId
+      );
+
+      if (!alternateUrl) {
+        continue;
+      }
+
+      const alternateResult = await fetchAddonJson(
+        alternateUrl,
+        streamTimeoutMs
+      );
+
+      if (alternateResult.ok) {
+        result = alternateResult;
+        alternateIdUsed = alternateStreamId;
+        break;
+      }
+    }
+  }
 
   if (
     !result.ok
@@ -1323,8 +1365,10 @@ const lookupAddon = async ({
           0,
 
         message:
-          result.error ||
-          `Stream endpoint returned ${result.status}. Manifest status: ${manifestStatus}.`,
+          result.status === 404
+            ? `No stream was found for the available TMDB/IMDb/title identifiers. Manifest status: ${manifestStatus}.`
+            : result.error ||
+              `Stream endpoint returned ${result.status}. Manifest status: ${manifestStatus}.`,
       },
     };
   }
@@ -1335,8 +1379,6 @@ const lookupAddon = async ({
     )
       ? result.data.streams
       : [];
-
-  let alternateIdUsed = "";
 
   if (
     rawStreams.length === 0 &&
