@@ -4250,6 +4250,16 @@ export default function VideoPlayer({
               setRdPolling(false);
               setRdTorrentId(null);
 
+              if (rdManualFileSelection) {
+                setRdError(
+                  `Real-Debrid stopped the selected extra: ${friendlyRdStatus(
+                    currentRdStatus
+                  )}. Choose the file again to retry it.`
+                );
+                setRdManualFileSelection(null);
+                return;
+              }
+
               const uncachedActive = sourceNeedsCaching(active);
 
               if (uncachedActive) {
