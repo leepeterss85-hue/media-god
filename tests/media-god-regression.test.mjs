@@ -438,6 +438,54 @@ test("cached edition presentation hides uncached rows, keeps the edition visible
   );
 });
 
+test("selected edition only promotes after a complete cache and then starts playback", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(
+    playerSource,
+    /if \(result\.status === "ready" && result\.streamUrl\) \{[\s\S]{0,900}?setRuntimeReadyTorrentHashes/[\s\S]{0,900}?state: "ready"/
+  );
+  assert.match(
+    playerSource,
+    /if \(userWaitingForEdition\) \{[\s\S]{0,500}?switchToSource\(candidate\.index/[\s\S]{0,300}?is ready — starting playback/
+  );
+  assert.match(
+    playerSource,
+    /entry\.cachedCount > 0[\s\S]{0,500}?sourceNeedsCachingForSession\(entry\.original\)/
+  );
+});
+
+test("Fire TV native skip and next controls are fully wired back to the web episode flow", () => {
+  const nativePlayer = readFileSync(
+    new URL(
+      "../firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt",
+      import.meta.url
+    ),
+    "utf8"
+  );
+  const bridge = readFileSync(
+    new URL("../src/components/mg/nativeFireTvBridge.js", import.meta.url),
+    "utf8"
+  );
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(nativePlayer, /private fun buildAssistControls\(\): LinearLayout/);
+  assert.match(nativePlayer, /Skip intro \/ titles/);
+  assert.match(nativePlayer, /Skip credits → Next/);
+  assert.match(nativePlayer, /finishWithResult\("next"\)/);
+  assert.match(bridge, /creditsStart: playerMarkerSeconds\(playerContext, "creditsStart"\)/);
+  assert.match(
+    playerSource,
+    /reason === "next"[\s\S]{0,220}?mg:play-next-episode/
+  );
+});
+
 test("country normalisation keeps UK/GB and USA/US consistent", () => {
   assert.equal(normaliseCountryCode("UK"), "GB");
   assert.equal(normaliseCountryCode("GBR"), "GB");
