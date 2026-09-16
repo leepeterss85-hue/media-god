@@ -637,7 +637,7 @@ function PlayerAutomationBridge({ children }) {
         const prepared = cachedPreload?.prepared;
         const preparedFresh =
           prepared &&
-          Number(prepared?.preparedAt || 0) > Date.now() - 15 * 60 * 1000 &&
+          Number(prepared?.preparedAt || 0) > Date.now() - 2 * 60 * 60 * 1000 &&
           Array.isArray(prepared?.sources) &&
           prepared.sources.length > 0;
 
@@ -985,14 +985,18 @@ function PlayerAutomationBridge({ children }) {
         return;
       }
 
+      /*
+       * Start preparing the following episode once this one has been playing
+       * for a minute. That gives Real-Debrid/torrent sources almost the whole
+       * episode to become ready instead of waiting for the closing credits.
+       */
       if (!Number.isFinite(duration) || duration < 180 || currentTime < 60) {
         return;
       }
 
       const remaining = duration - currentTime;
-      const preloadWindow = Math.min(150, Math.max(75, duration * 0.12));
 
-      if (remaining > preloadWindow) {
+      if (!Number.isFinite(remaining) || remaining <= 5) {
         return;
       }
 
@@ -1017,6 +1021,13 @@ function PlayerAutomationBridge({ children }) {
         try {
           const next = await findNextEpisodeRequest(current);
           if (!next) return null;
+
+          /*
+           * Queue the canonical next-episode resume row immediately as well as
+           * preparing its source. If the app is interrupted later in the
+           * episode, Continue Watching still knows the correct following item.
+           */
+          await queueContinueWatching(next);
 
           const prepared =
             typeof core.prepare === "function"

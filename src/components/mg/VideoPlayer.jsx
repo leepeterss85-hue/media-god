@@ -7150,6 +7150,21 @@ export default function VideoPlayer({
       }
 
       if (
+        reason === "next" &&
+        !isLive
+      ) {
+        recordPlaybackReliability(
+          sourceDisplayLabel(active, activeIdx),
+          "good"
+        );
+
+        window.dispatchEvent(
+          new CustomEvent("mg:play-next-episode")
+        );
+        return;
+      }
+
+      if (
         reason === "ended" &&
         !isLive
       ) {

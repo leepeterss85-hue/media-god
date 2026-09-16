@@ -8,6 +8,7 @@ import {
   FastForward,
   Repeat2,
   SkipForward,
+  X,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -87,6 +88,9 @@ export default function MediaGodV2Assist() {
   const [position, setPosition] = useState(0);
   const [duration, setDuration] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [nextCountdownDeadline, setNextCountdownDeadline] = useState(0);
+  const [nextCountdownSeconds, setNextCountdownSeconds] = useState(0);
+  const [nextCountdownCancelled, setNextCountdownCancelled] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -95,6 +99,7 @@ export default function MediaGodV2Assist() {
       setContext(event?.detail || null);
       setPosition(0);
       setDuration(0);
+      setPlaying(false);
     };
 
     const onPosition = (event) => {
@@ -156,6 +161,11 @@ export default function MediaGodV2Assist() {
   const isTv = context?.mediaType === "tv";
   const isMovie = context?.mediaType === "movie";
   const isPlayableVod = isTv || isMovie;
+  const episodeKey = [
+    context?.tmdbId ?? context?.tmdb_id ?? "",
+    context?.season ?? "",
+    context?.episode ?? "",
+  ].join(":");
 
   const recapStart = markerSeconds(context?.recapStart, duration);
   const recapEnd = markerSeconds(context?.recapEnd, duration);
@@ -225,6 +235,100 @@ export default function MediaGodV2Assist() {
     position >= 60 &&
     remaining <= Math.min(180, Math.max(75, duration * 0.1));
 
+  /*
+   * The broad nextEpisodeWindow is deliberately only an invitation to skip.
+   * Automatic countdown is more conservative: exact credits metadata can
+   * start it immediately, otherwise we wait until the final 15 seconds. This
+   * prevents a heuristic credits guess from jumping several minutes early.
+   */
+  const exactCreditsCountdownWindow =
+    isTv &&
+    creditsStart != null &&
+    creditsStart > 0 &&
+    position >= creditsStart &&
+    duration > 0 &&
+    position < duration - 0.5;
+
+  const autoNextCountdownWindow =
+    isTv &&
+    duration >= 180 &&
+    position >= 60 &&
+    (
+      exactCreditsCountdownWindow ||
+      remaining <= 15
+    );
+
+  const showNextAction =
+    isTv &&
+    (nextEpisodeWindow || exactCreditsCountdownWindow);
+
+  useEffect(() => {
+    setNextCountdownDeadline(0);
+    setNextCountdownSeconds(0);
+    setNextCountdownCancelled(false);
+  }, [episodeKey]);
+
+  useEffect(() => {
+    if (
+      !isTv ||
+      !context?.autoNext ||
+      !autoNextCountdownWindow ||
+      !playing ||
+      nextCountdownCancelled
+    ) {
+      if (
+        nextCountdownDeadline &&
+        (!autoNextCountdownWindow || !playing || !context?.autoNext)
+      ) {
+        setNextCountdownDeadline(0);
+        setNextCountdownSeconds(0);
+      }
+      return undefined;
+    }
+
+    let deadline = Number(nextCountdownDeadline || 0);
+
+    if (!deadline) {
+      deadline = Date.now() + 10_000;
+      setNextCountdownDeadline(deadline);
+      setNextCountdownSeconds(10);
+    }
+
+    const tick = () => {
+      const milliseconds = deadline - Date.now();
+
+      if (milliseconds <= 0) {
+        setNextCountdownDeadline(0);
+        setNextCountdownSeconds(0);
+        setNextCountdownCancelled(true);
+        window.dispatchEvent(new CustomEvent("mg:play-next-episode"));
+        return false;
+      }
+
+      setNextCountdownSeconds(
+        Math.max(1, Math.ceil(milliseconds / 1000))
+      );
+      return true;
+    };
+
+    tick();
+    const timer = window.setInterval(() => {
+      if (!tick()) {
+        window.clearInterval(timer);
+      }
+    }, 250);
+
+    return () => window.clearInterval(timer);
+  }, [
+    autoNextCountdownWindow,
+    context?.autoNext,
+    episodeKey,
+    isTv,
+    nextCountdownCancelled,
+    nextCountdownDeadline,
+    playing,
+  ]);
+
   if (!context || !isPlayableVod) return null;
 
   const skipRecap = () => {
@@ -247,7 +351,16 @@ export default function MediaGodV2Assist() {
 
   const playNext = () => {
     if (typeof window === "undefined") return;
+    setNextCountdownDeadline(0);
+    setNextCountdownSeconds(0);
+    setNextCountdownCancelled(true);
     window.dispatchEvent(new CustomEvent("mg:play-next-episode"));
+  };
+
+  const cancelAutoNextCountdown = () => {
+    setNextCountdownDeadline(0);
+    setNextCountdownSeconds(0);
+    setNextCountdownCancelled(true);
   };
 
   const skipCredits = () => {
@@ -264,11 +377,17 @@ export default function MediaGodV2Assist() {
   const toggleAutoNext = () => {
     if (typeof window === "undefined") return;
 
+    const enabled = !context?.autoNext;
+
+    if (!enabled) {
+      cancelAutoNextCountdown();
+    } else {
+      setNextCountdownCancelled(false);
+    }
+
     window.dispatchEvent(
       new CustomEvent("mg:set-auto-next", {
-        detail: {
-          enabled: !context?.autoNext,
-        },
+        detail: { enabled },
       })
     );
   };
@@ -314,7 +433,7 @@ export default function MediaGodV2Assist() {
         </button>
       )}
 
-      {isTv && nextEpisodeWindow && (
+      {showNextAction && (
         <button
           type="button"
           onClick={playNext}
@@ -322,9 +441,27 @@ export default function MediaGodV2Assist() {
           aria-label="Play next episode"
         >
           <SkipForward className="h-4 w-4" />
-          Play next
+          {nextCountdownSeconds > 0 &&
+          context?.autoNext &&
+          !nextCountdownCancelled
+            ? `Next episode in ${nextCountdownSeconds}s`
+            : "Play next"}
         </button>
       )}
+
+      {nextCountdownSeconds > 0 &&
+        context?.autoNext &&
+        !nextCountdownCancelled && (
+          <button
+            type="button"
+            onClick={cancelAutoNextCountdown}
+            className={buttonClass}
+            aria-label="Cancel automatic next episode"
+          >
+            <X className="h-4 w-4" />
+            Cancel
+          </button>
+        )}
 
       {isTv && (
         <button

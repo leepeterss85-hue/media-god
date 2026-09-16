@@ -164,11 +164,20 @@ export const sourceHasEdition = (item, edition) => {
   const wanted = String(edition || "any");
   if (wanted === "any") return true;
 
+  const detected = detectMediaEdition(item);
+
   /*
-   * Edition boxes are exact. Standard / Original and an explicitly tagged
-   * Theatrical cut are allowed to be separate categories because users may
-   * deliberately choose either one. Untagged sources therefore stay in the
-   * Standard / Original box instead of silently satisfying another edition.
+   * An untagged original is the theatrical/default release when no more
+   * specific edition marker is present. Explicit Director's Cut, Extended,
+   * Unrated, etc. remain separate and do not leak into the theatrical group.
    */
-  return detectMediaEdition(item).value === wanted;
+  if (
+    wanted === "theatrical" &&
+    detected.value === "standard" &&
+    detected.explicit === false
+  ) {
+    return true;
+  }
+
+  return detected.value === wanted;
 };

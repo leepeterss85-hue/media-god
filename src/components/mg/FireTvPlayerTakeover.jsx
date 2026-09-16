@@ -276,7 +276,7 @@ export default function FireTvPlayerTakeover() {
         .trim()
         .toLowerCase();
 
-      if (reason === "ended") {
+      if (reason === "ended" || reason === "next") {
         markTvEnvironment();
 
         if (tvEnvironment) {
