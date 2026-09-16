@@ -1490,11 +1490,26 @@ export default function VideoPlayer({
       liveFailureClass = "",
     } = {}
   ) => {
-    if (
-      sourceSelectorPinnedRef.current ||
-      rdFileSelectorPinnedRef.current
-    ) {
+    const activeIsLive =
+      source?.type === "live" || active?.live || active?.type === "live";
+    const selectorPinned =
+      sourceSelectorPinnedRef.current || rdFileSelectorPinnedRef.current;
+
+    /*
+     * A native Android/Fire TV source chooser can remain focused after the
+     * visual popup has gone away. Do not let that stale UI pin strand a failed
+     * live stream on screen. Fatal/immediate recovery and all live-TV recovery
+     * are allowed to dismiss the stale selector snapshot and continue to the
+     * next healthy source. Movie/TV background recovery still respects an
+     * actively pinned selector unless the failure is explicitly immediate.
+     */
+    if (selectorPinned && !immediate && !activeIsLive) {
       return false;
+    }
+
+    if (selectorPinned) {
+      releaseSourceSelector();
+      releaseRdFileSelector();
     }
 
     const hardFailureMessage =
@@ -1551,8 +1566,6 @@ export default function VideoPlayer({
       return false;
     }
 
-    const activeIsLive =
-      source?.type === "live" || active?.live || active?.type === "live";
     const classifiedLiveFailure = activeIsLive
       ? classifyLiveFailure(message, liveFailureClass)
       : "";
