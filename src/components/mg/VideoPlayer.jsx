@@ -2298,6 +2298,8 @@ export default function VideoPlayer({
         null
       );
 
+      retryExistingTorrentIdRef.current = "";
+
       if (
         pollRef.current
       ) {
@@ -2343,6 +2345,11 @@ export default function VideoPlayer({
     rdCacheEngineAbortRef.current = controller;
     rdCacheEngineOwnsPollingRef.current = true;
 
+    const preferredTorrentId = String(
+      retryExistingTorrentIdRef.current || ""
+    ).trim();
+    retryExistingTorrentIdRef.current = "";
+
     setRdResolving(true);
     setRdPolling(false);
     setRdError("");
@@ -2351,6 +2358,7 @@ export default function VideoPlayer({
     setRdTorrentId(null);
     setRdPreparation({
       status: "starting",
+      phase: "starting",
       progress: 0,
       seeders: Math.max(0, Number(active?.reportedSeeders || 0)),
       speed_bps: 0,
@@ -2372,6 +2380,7 @@ export default function VideoPlayer({
           ? Number(active.fileIdx)
           : null,
       preferBrowserTranscode: prefersMobileBrowserRdCompatibility(),
+      preferredTorrentId,
     };
 
     void runRealDebridCacheSession({
@@ -2412,6 +2421,7 @@ export default function VideoPlayer({
         if (controller.signal.aborted || !result) return;
 
         if (result.status === "ready" && result.streamUrl) {
+          markTorrentHashReady(active);
           setRdOverride({
             src: result.streamUrl,
             label:
@@ -6184,6 +6194,11 @@ export default function VideoPlayer({
       setFileSwitching(false);
 
       if (sourceNeedsCaching(active)) {
+        retryExistingTorrentIdRef.current = String(
+          rdPreparation?.torrent_id ||
+            rdTorrentId ||
+            ""
+        ).trim();
         rdCacheEngineAbortRef.current?.abort?.();
         clearSourceFailed(activeIdx);
         setRdOverride(null);
