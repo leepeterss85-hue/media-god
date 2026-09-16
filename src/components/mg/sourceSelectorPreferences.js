@@ -2,6 +2,10 @@ import {
   getPlaybackDeviceProfile,
   scoreSourceCompatibility,
 } from "@/components/mg/mediaCompatibility";
+import {
+  MEDIA_EDITION_OPTIONS,
+  mediaEditionSortScore,
+} from "@/components/mg/mediaEdition";
 
 export const SOURCE_SELECTOR_SORT_KEY = "mg:source-selector-sort-v1";
 export const SOURCE_SELECTOR_SORT_EVENT = "mg:source-selector-sort-changed";
@@ -13,6 +17,12 @@ export const SOURCE_SORT_OPTIONS = [
   { value: "1080p", label: "1080p" },
   { value: "compatible", label: "Compatible" },
   { value: "smallest", label: "Smallest" },
+  ...MEDIA_EDITION_OPTIONS.filter((option) => option.value !== "any").map(
+    (option) => ({
+      value: `edition:${option.value}`,
+      label: option.label,
+    })
+  ),
 ];
 
 const allowedModes = new Set(SOURCE_SORT_OPTIONS.map((item) => item.value));
@@ -153,11 +163,26 @@ export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
     compatibility: compatibilityScore(item),
     reportedSeeders: sourceReportedSeeders(item),
     trackerRich: sourceHasTrackerRichMagnet(item),
+    editionScore: String(mode || "").startsWith("edition:")
+      ? mediaEditionSortScore(item, String(mode).slice("edition:".length))
+      : 0,
   }));
 
   if (mode === "best") return list;
 
   return list.slice().sort((a, b) => {
+    if (String(mode || "").startsWith("edition:")) {
+      return (
+        b.editionScore - a.editionScore ||
+        Number(b.cached) - Number(a.cached) ||
+        b.compatibility - a.compatibility ||
+        b.resolution - a.resolution ||
+        Number(b.trackerRich) - Number(a.trackerRich) ||
+        b.reportedSeeders - a.reportedSeeders ||
+        a.index - b.index
+      );
+    }
+
     if (mode === "cached") {
       return (
         Number(b.cached) - Number(a.cached) ||
