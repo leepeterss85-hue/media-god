@@ -446,7 +446,7 @@ test("selected edition only promotes after a complete cache and then starts play
 
   assert.match(
     playerSource,
-    /if \(result\.status === "ready" && result\.streamUrl\) \{[\s\S]{0,900}?setRuntimeReadyTorrentHashes/[\s\S]{0,900}?state: "ready"/
+    /if \(result\.status === "ready" && result\.streamUrl\) \{[\s\S]{0,900}?setRuntimeReadyTorrentHashes[\s\S]{0,900}?state: "ready"/
   );
   assert.match(
     playerSource,
