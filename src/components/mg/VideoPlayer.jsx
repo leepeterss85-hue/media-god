@@ -2360,11 +2360,13 @@ export default function VideoPlayer({
          * so Retry works after a slot becomes available, and never churn through
          * every other uncached hash for the same account-wide failure.
          */
-        const accountBlocked =
+        const preserveUncachedSource =
           result.accountBlocked === true ||
-          result.errorCode === "RD_ACTIVE_SLOTS_FULL";
+          result.retrySameSource === true ||
+          result.errorCode === "RD_ACTIVE_SLOTS_FULL" ||
+          result.errorCode === "RD_CACHE_STATUS_UNAVAILABLE";
 
-        if (!accountBlocked) {
+        if (!preserveUncachedSource) {
           markSourceFailed(activeIdx);
         }
         if (result.hashFailed === true) {
@@ -2398,7 +2400,7 @@ export default function VideoPlayer({
           return;
         }
 
-        if (!accountBlocked) {
+        if (!preserveUncachedSource) {
           const nextSource = findNextPlayableSource(activeIdx);
           if (nextSource !== -1) {
             setRdPreparation(null);
