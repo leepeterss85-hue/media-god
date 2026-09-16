@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import {
   dedupeMergedChannels,
@@ -57,6 +58,34 @@ const memoryStorage = () => {
 globalThis.window = {
   localStorage: memoryStorage(),
 };
+
+test("Fire TV Home cards preserve movie vs TV identity", () => {
+  const mediaCardSource = readFileSync(
+    new URL("../src/components/mg/MediaCard.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(
+    mediaCardSource,
+    /media_type:\s*mediaType,[\s\S]*mediaType,[\s\S]*type:\s*mediaType\s*===\s*"tv"\s*\?\s*"tv"\s*:\s*"movie"/
+  );
+
+  assert.doesNotMatch(
+    mediaCardSource,
+    /if\s*\(\(isFireTvRuntime\(\)[\s\S]{0,500}?media_type:\s*"tv"/
+  );
+});
+
+test("Fire TV Home keeps a dedicated vertical scroll container", () => {
+  const fireTvCss = readFileSync(
+    new URL("../src/fire-tv-stable.css", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(fireTvCss, /\[data-mg-home-dashboard="true"\][\s\S]{0,700}?height:\s*100vh\s*!important/);
+  assert.match(fireTvCss, /\[data-mg-home-dashboard="true"\][\s\S]{0,900}?overflow-y:\s*auto\s*!important/);
+  assert.match(fireTvCss, /\[data-mg-home-dashboard="true"\][\s\S]{0,1100}?scroll-padding-bottom:\s*40px\s*!important/);
+});
 
 test("country normalisation keeps UK/GB and USA/US consistent", () => {
   assert.equal(normaliseCountryCode("UK"), "GB");
