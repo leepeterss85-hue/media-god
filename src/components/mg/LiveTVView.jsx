@@ -2142,7 +2142,50 @@ export default function LiveTVView({
       setChannelNotice("");
       setChannelNoticeAction(null);
 
-      openOfficialLiveUrl(channel.officialUrl || channel.url);
+      const evSportsWatchUrl = String(
+        channel.officialUrl || channel.url || ""
+      ).trim();
+      const evSportsHomeUrl = "https://saptarshiorg.github.io/";
+
+      if (!/^https?:\/\//i.test(evSportsWatchUrl)) {
+        openOfficialLiveUrl(evSportsHomeUrl);
+        return;
+      }
+
+      /*
+       * EV SPORTS publishes watch_url values as web-player/embed destinations,
+       * not as guaranteed HLS/DASH media URLs. Their own public front end opens
+       * those destinations inside its stream-player frame. Mirror that contract
+       * here: keep the EV page inside Media God's provider iframe instead of
+       * handing HTML to LiveVideo or leaving the app for a separate browser.
+       */
+      player.play({
+        id: channel.tvgId || channel.id,
+        title: channel.name,
+        poster: channel.logo || "",
+        type: "live",
+        mediaType: "live",
+        noRd: true,
+        officialUrl: evSportsHomeUrl,
+        officialLabel: "Open EV SPORTS",
+        sources: [
+          {
+            label: "LIVE • EV SPORTS",
+            type: "provider",
+            src: evSportsWatchUrl,
+            url: evSportsWatchUrl,
+            live: true,
+            sourceName: channel.sourceName || "EV SPORTS · Saptarshi",
+            sourceCategory: channel.sourceCategory || "Sports",
+            sourcePriority: Number(channel.sourcePriority || 220),
+            quality: Number(channel.quality || 0),
+            browserPlayable: true,
+            format: "external",
+            officialUrl: evSportsHomeUrl,
+            officialLabel: "Open EV SPORTS",
+          },
+        ],
+      });
       return;
     }
 
