@@ -327,6 +327,33 @@ const rememberPersistentFailedTorrentHash = (hash) => {
   }
 };
 
+const forgetPersistentFailedTorrentHash = (hash) => {
+  const normalized = String(hash || "").trim().toLowerCase();
+
+  if (
+    typeof window === "undefined" ||
+    !/^[a-f0-9]{40,64}$/i.test(normalized)
+  ) {
+    return;
+  }
+
+  try {
+    const raw = JSON.parse(
+      window.localStorage.getItem(FAILED_TORRENT_HASHES_KEY) || "{}"
+    );
+
+    if (raw && typeof raw === "object") {
+      delete raw[normalized];
+      window.localStorage.setItem(
+        FAILED_TORRENT_HASHES_KEY,
+        JSON.stringify(raw)
+      );
+    }
+  } catch {
+    // Persistence is only a recovery optimisation.
+  }
+};
+
 const formatCacheBytes = (value) => {
   const bytes = Math.max(0, Number(value || 0));
 
@@ -411,6 +438,49 @@ const friendlyRdStatus = (value) => {
   };
 
   return labels[status] || (status ? status.replace(/_/g, " ") : "Preparing");
+};
+
+const cachePhaseDetails = (preparation = {}) => {
+  const phase = String(preparation?.phase || "").trim().toLowerCase();
+  const status = String(preparation?.status || "").trim().toLowerCase();
+  const progress = Math.max(0, Math.min(100, Number(preparation?.progress || 0)));
+
+  if (phase === "ready" || status === "ready") {
+    return { key: "ready", step: 5, label: "Ready" };
+  }
+
+  if (
+    phase === "finalizing" ||
+    status === "downloaded" ||
+    progress >= 100
+  ) {
+    return { key: "finalizing", step: 4, label: "Finalising stream" };
+  }
+
+  if (
+    phase === "selecting" ||
+    /^(?:waiting_files_selection|waiting_selection)$/.test(status)
+  ) {
+    return { key: "selecting", step: 2, label: "Selecting file" };
+  }
+
+  if (
+    phase === "downloading" ||
+    status === "downloading" ||
+    progress > 0
+  ) {
+    return { key: "downloading", step: 3, label: "Downloading" };
+  }
+
+  if (phase === "restarting" || status === "restarting") {
+    return { key: "starting", step: 1, label: "Restarting torrent" };
+  }
+
+  return {
+    key: "starting",
+    step: 1,
+    label: friendlyRdStatus(status || "preparing"),
+  };
 };
 
 const friendlyPlaybackError = (value) => {
@@ -700,6 +770,9 @@ export default function VideoPlayer({
   const [rdCacheEngineNonce, setRdCacheEngineNonce] =
     useState(0);
 
+  const [runtimeReadyTorrentHashes, setRuntimeReadyTorrentHashes] =
+    useState(() => new Set());
+
   const [fileSwitching, setFileSwitching] =
     useState(false);
 
@@ -741,6 +814,7 @@ export default function VideoPlayer({
   const rdResolutionQueueRef = useRef(Promise.resolve());
   const rdCacheEngineAbortRef = useRef(null);
   const rdCacheEngineOwnsPollingRef = useRef(false);
+  const retryExistingTorrentIdRef = useRef("");
   const retryInactiveTorrentHashRef = useRef("");
   const repairedStuckTorrentHashesRef = useRef(new Set());
   const torrentFailoverTimerRef = useRef(null);
@@ -1219,6 +1293,22 @@ export default function VideoPlayer({
       failedTorrentHashesRef.current.add(hash);
       rememberPersistentFailedTorrentHash(hash);
     }
+
+    return hash;
+  };
+
+  const markTorrentHashReady = (item = active) => {
+    const hash = sourceTorrentHash(item);
+    if (!hash) return "";
+
+    failedTorrentHashesRef.current.delete(hash);
+    forgetPersistentFailedTorrentHash(hash);
+    setRuntimeReadyTorrentHashes((current) => {
+      if (current.has(hash)) return current;
+      const next = new Set(current);
+      next.add(hash);
+      return next;
+    });
 
     return hash;
   };
