@@ -4,16 +4,11 @@ const validImdbId = (value) => /^tt\d{6,10}$/i.test(clean(value));
 const validTmdbId = (value) => /^\d{1,10}$/.test(clean(value));
 
 const firstPlayableId = (source) => {
-  const imdbCandidates = [
-    source?.imdbId,
-    source?.imdb_id,
-    source?.sourceDiagnostics?.imdbId,
-  ];
-
-  for (const value of imdbCandidates) {
-    if (validImdbId(value)) return clean(value);
-  }
-
+  /*
+   * EV Stream/VidAPI's own movie flow prefers TMDB when both identifiers are
+   * available, then falls back to IMDb. Match that ordering here instead of
+   * unnecessarily converting a well-known TMDB title through IMDb first.
+   */
   const tmdbCandidates = [
     source?.tmdbId,
     source?.tmdb_id,
@@ -23,6 +18,16 @@ const firstPlayableId = (source) => {
 
   for (const value of tmdbCandidates) {
     if (validTmdbId(value)) return clean(value);
+  }
+
+  const imdbCandidates = [
+    source?.imdbId,
+    source?.imdb_id,
+    source?.sourceDiagnostics?.imdbId,
+  ];
+
+  for (const value of imdbCandidates) {
+    if (validImdbId(value)) return clean(value);
   }
 
   return "";
