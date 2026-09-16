@@ -2152,11 +2152,31 @@ export default function LiveTVView({
         return;
       }
 
+      const evChannelName = String(channel?.name || "").trim();
+      const evRequiresTopLevelPlayer =
+        /\bsky\s*sports\s*f1\b|\bformula\s*1\b|\bf1\b/i.test(evChannelName);
+
+      /*
+       * EV's Sky Sports F1 page is unusually sensitive to its playback
+       * environment. Before EV channels were moved into Media God's provider
+       * iframe, F1 opened in the native Fire TV ExternalWebActivity/top-level
+       * browser and remained usable there. Keep that proven path for F1 only;
+       * all other EV channels still use the integrated provider player below.
+       *
+       * The separate hard-coded Sky Sports F1 HLS fallback is not used here:
+       * it currently returns HTTP 403, so switching to it would replace a
+       * partially working source with a known-dead one.
+       */
+      if (evRequiresTopLevelPlayer) {
+        openOfficialLiveUrl(evSportsWatchUrl);
+        return;
+      }
+
       /*
        * EV SPORTS publishes watch_url values as web-player/embed destinations,
        * not as guaranteed HLS/DASH media URLs. Their own public front end opens
        * those destinations inside its stream-player frame. Mirror that contract
-       * here: keep the EV page inside Media God's provider iframe instead of
+       * here: keep normal EV pages inside Media God's provider iframe instead of
        * handing HTML to LiveVideo or leaving the app for a separate browser.
        */
       player.play({
