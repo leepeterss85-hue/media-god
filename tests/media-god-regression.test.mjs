@@ -120,6 +120,25 @@ test("Real-Debrid selected-file links map to the requested episode instead of li
   assert.equal(map.has(3), false);
 });
 
+test("new uncached RD jobs are owned before file selection and terminal selection failures clean up", () => {
+  const rdBackend = readFileSync(
+    new URL("../base44/functions/realDebrid/entry.ts", import.meta.url),
+    "utf8"
+  );
+  const ownershipIndex = rdBackend.indexOf("await rememberRdTorrentAssociation({");
+  const initialInfoIndex = rdBackend.indexOf("const initialInfoRes =", ownershipIndex);
+
+  assert.ok(ownershipIndex >= 0);
+  assert.ok(initialInfoIndex > ownershipIndex);
+  assert.match(
+    rdBackend,
+    /RD_NO_VIDEO_FILE[\s\S]{0,500}?|deleteNewTorrentBestEffort/
+  );
+  assert.ok(
+    rdBackend.includes("await deleteNewTorrentBestEffort(torrentId, authHeaders, base44);")
+  );
+});
+
 test("country normalisation keeps UK/GB and USA/US consistent", () => {
   assert.equal(normaliseCountryCode("UK"), "GB");
   assert.equal(normaliseCountryCode("GBR"), "GB");
