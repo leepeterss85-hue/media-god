@@ -442,7 +442,9 @@ expect(
     realDebridCacheEngine.includes("monitorTorrent") &&
     realDebridCacheEngine.includes("RD_COMET_RESUMED_STALE_PARTIAL") &&
     realDebridCacheEngine.includes("RD_CACHE_RESTART_STALLED") &&
-    realDebridCacheEngine.includes('action: "trigger_comet_playback"') &&
+    realDebridCacheEngine.includes("directOwnAccountStrategy") &&
+    realDebridCacheEngine.includes("same Real-Debrid") &&
+    !realDebridCacheEngine.includes("const useCometStart =") &&
     realDebridCacheEngine.includes("isPermanentRdHashFailure") &&
     realDebridCacheEngine.includes("upstreamCode === 35") &&
     realDebridCacheEngine.includes("upstreamCode === 28") &&
