@@ -8050,18 +8050,13 @@ export default function VideoPlayer({
     const runtimeReady = Boolean(
       hash && runtimeReadyTorrentHashes.has(hash)
     );
-    const trustedCached =
-      runtimeReady ||
-      sortedSourceEntries.find((entry) => entry.index === index)?.trustedCached === true;
 
     if (runtimeReady || item?.debridCached === true) {
-      return trustedCached
-        ? `Trusted Cached • ${base}`
-        : `Cached / Ready • ${base}`;
+      return `Cached / Ready • ${base}`;
     }
 
     if (sourceNeedsCachingForSession(item)) {
-      return `Uncached • ${base}`;
+      return `Preparing • ${detectMediaEdition(item).label}`;
     }
 
     return base;
@@ -8077,15 +8072,7 @@ export default function VideoPlayer({
     ? liveSourcePosition(activeIdx)
     : { current: 0, total: 0 };
 
-  const selectableSourceCount =
-    sources.filter(
-      (item) =>
-        item &&
-        !item?.diagnostic &&
-        item?.type !== "status" &&
-        item?.type !== "provider" &&
-        item?.type !== "youtube"
-    ).length;
+  const selectableSourceCount = presentationSourceEntries.length;
 
   const failedSourceCount =
     Array.from(
