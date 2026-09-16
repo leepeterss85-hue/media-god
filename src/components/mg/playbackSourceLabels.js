@@ -1,3 +1,5 @@
+import { detectMediaEdition } from "@/components/mg/mediaEdition";
+
 const clean = (value) =>
   String(value || "")
     .replace(/\s+/g, " ")
@@ -40,6 +42,9 @@ export const concisePlaybackSourceLabel = (item, index = 0) => {
       .join(" ")
   );
   const parts = [];
+  const edition = detectMediaEdition(item);
+
+  if (edition.explicit) pushUnique(parts, edition.label);
 
   if (/\b2160p?\b|\b4k\b/i.test(text)) pushUnique(parts, "4K");
   else if (/\b1080p?\b/i.test(text)) pushUnique(parts, "1080p");
@@ -131,6 +136,13 @@ export const torrentFileLabel = (file, index = 0) => {
   const path = clean(file?.path || file?.name || `File ${index + 1}`);
   const text = path;
   const parts = [];
+  const edition = detectMediaEdition({
+    ...file,
+    path,
+    name: file?.name || path,
+  });
+
+  if (edition.explicit) pushUnique(parts, edition.label);
 
   if (/\b2160p?\b|\b4k\b|\buhd\b/i.test(text)) pushUnique(parts, "4K");
   else if (/\b1080p?\b|\bfhd\b/i.test(text)) pushUnique(parts, "1080p");
