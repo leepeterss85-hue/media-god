@@ -768,6 +768,9 @@ export default function VideoPlayer({
   const [rdTorrentId, setRdTorrentId] =
     useState(null);
 
+  const [rdManualFileSelection, setRdManualFileSelection] =
+    useState(null);
+
   const [rdCacheEngineNonce, setRdCacheEngineNonce] =
     useState(0);
 
@@ -4860,6 +4863,7 @@ export default function VideoPlayer({
     [
       rdTorrentId,
       rdOverride,
+      rdManualFileSelection,
     ]
   );
 
