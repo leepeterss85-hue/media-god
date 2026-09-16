@@ -7424,7 +7424,7 @@ export default function VideoPlayer({
       subtitles: Array.isArray(active?.subtitles)
         ? active.subtitles
         : [],
-      sources: sources.map((candidate, index) => {
+      sources: presentationSourceEntries.map(({ item: candidate, index }) => {
         const baseLabel = sourceDisplayLabel(candidate, index);
         const provider = String(candidate?.sourceName || "").trim();
 
