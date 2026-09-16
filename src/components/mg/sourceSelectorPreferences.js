@@ -10,6 +10,7 @@ import {
   markTrustedCachedPools,
   prioritiseTrustedCachedPools,
 } from "@/components/mg/trustedCachedSources";
+import { chooseDebridResolutionStrategy } from "@/components/mg/debridResolutionStrategy";
 
 export const SOURCE_SELECTOR_SORT_KEY = "mg:source-selector-sort-v1";
 export const SOURCE_SELECTOR_SORT_EVENT = "mg:source-selector-sort-changed";
@@ -124,6 +125,86 @@ const sourceIsCached = (item) => {
     item?.viaRealDebrid === true ||
     /\b(?:cached|instant|ready)\b/i.test(sourceText(item))
   );
+};
+
+const selectableTorrentHash = (item) => {
+  const raw = String(
+    item?.infoHash ||
+      item?.info_hash ||
+      item?.hash ||
+      item?.magnet ||
+      item?.magnetLink ||
+      item?.richMagnet ||
+      item?.src ||
+      item?.url ||
+      ""
+  );
+
+  return raw.match(/(?:btih:)?([a-f0-9]{40,64})/i)?.[1]?.toLowerCase() || "";
+};
+
+const selectableSourceUrl = (item) =>
+  String(
+    item?.src ||
+      item?.url ||
+      item?.magnet ||
+      item?.magnetLink ||
+      ""
+  ).trim();
+
+export const sourceIsUserSelectable = (item) => {
+  if (!item) return false;
+
+  // These states are authoritative: the background/foreground RD cache engine
+  // has already proved that this torrent is ready for immediate playback.
+  if (item?.debridCached === true || item?.runtimeReadyCached === true) {
+    return true;
+  }
+
+  // Discovery flags identify a torrent that still needs Real-Debrid work. Keep
+  // it in the internal source pool so background caching can continue, but do
+  // not expose it in any user-facing source chooser yet.
+  if (item?.cacheRequired === true || item?.cometUncached === true) {
+    return false;
+  }
+
+  const hash = selectableTorrentHash(item);
+  const url = selectableSourceUrl(item);
+  const type = String(item?.type || "").trim().toLowerCase();
+  const torrentLike =
+    type === "rd" ||
+    type === "rd_torrent" ||
+    type === "torrent" ||
+    type === "magnet" ||
+    /^magnet:/i.test(url) ||
+    Boolean(hash);
+
+  // Normal direct/provider URLs are not waiting on the torrent cache pipeline.
+  if (!torrentLike) return true;
+
+  // A resolved Real-Debrid HTTP stream is already usable even when its original
+  // torrent hash is retained as metadata on the source row.
+  if (item?.viaRealDebrid === true && /^https?:\/\//i.test(url)) {
+    return true;
+  }
+
+  const strategy = chooseDebridResolutionStrategy(item, {
+    debridCached: false,
+  });
+
+  if (strategy === "comet_uncached" || strategy === "rd_magnet") {
+    return false;
+  }
+
+  if (
+    item?.debridCacheChecked === true &&
+    item?.debridCached !== true &&
+    Boolean(hash)
+  ) {
+    return false;
+  }
+
+  return true;
 };
 
 const sourceReportedSeeders = (item) => {
