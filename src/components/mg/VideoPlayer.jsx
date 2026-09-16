@@ -918,6 +918,21 @@ export default function VideoPlayer({
     sourceSortMode
   );
 
+  useEffect(() => {
+    if (
+      sources.length > 0 &&
+      String(sourceSortMode || "").startsWith("edition:") &&
+      !selectedEditionState.discovered
+    ) {
+      const next = writeSourceSortMode("best");
+      setSourceSortMode(next);
+    }
+  }, [
+    selectedEditionState.discovered,
+    sourceSortMode,
+    sources.length,
+  ]);
+
   /*
    * Android/Fire TV native <select> popups close if React changes their
    * option list while they are open. Source discovery can legitimately add
