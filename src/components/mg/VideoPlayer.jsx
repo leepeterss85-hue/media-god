@@ -55,10 +55,12 @@ import {
   recordLiveTvPlaybackResult,
 } from "@/components/mg/liveTvPlaybackLearning";
 import {
+  editionPresentationState,
   readSourceSortMode,
   sortSourceEntries,
+  sourceEntriesForPresentation,
+  sourceSortOptionsForEntries,
   SOURCE_SELECTOR_SORT_EVENT,
-  SOURCE_SORT_OPTIONS,
   writeSourceSortMode,
 } from "@/components/mg/sourceSelectorPreferences";
 import { runRealDebridCacheSession } from "@/components/mg/realDebridCacheEngine";
@@ -872,12 +874,20 @@ export default function VideoPlayer({
     abandoned: new Set(),
   });
 
+  const sourceNeedsCachingForSession = (item) => {
+    const hash = sourceTorrentHash(item);
+    if (hash && runtimeReadyTorrentHashes.has(hash)) return false;
+    return sourceNeedsCaching(item);
+  };
+
   const sourcesForSelector = sources.map((item) => {
     const hash = sourceTorrentHash(item);
     return hash && runtimeReadyTorrentHashes.has(hash)
       ? {
           ...item,
           debridCached: true,
+          cacheRequired: false,
+          cometUncached: false,
           runtimeReadyCached: true,
         }
       : item;
@@ -885,6 +895,21 @@ export default function VideoPlayer({
 
   const sortedSourceEntries = sortSourceEntries(
     sourcesForSelector,
+    sourceSortMode
+  );
+
+  const presentationSourceEntries = sourceEntriesForPresentation(
+    sortedSourceEntries,
+    sourceSortMode
+  );
+
+  const selectedEditionState = editionPresentationState(
+    sortedSourceEntries,
+    sourceSortMode
+  );
+
+  const sourceSortOptions = sourceSortOptionsForEntries(
+    sortedSourceEntries,
     sourceSortMode
   );
 
@@ -906,8 +931,14 @@ export default function VideoPlayer({
   const rdFileSelectorValueRef = useRef("");
 
   const pinSourceSelector = () => {
-    sourceSelectorEntriesRef.current = sortedSourceEntries;
-    sourceSelectorValueRef.current = activeIdx;
+    sourceSelectorEntriesRef.current = presentationSourceEntries;
+    sourceSelectorValueRef.current = presentationSourceEntries.some(
+      (entry) => entry.index === activeIdx
+    )
+      ? activeIdx
+      : selectedEditionState.preparing
+        ? "__preparing__"
+        : presentationSourceEntries[0]?.index ?? "";
     sourceSelectorPinnedRef.current = true;
     sourceSelectorPinnedAtRef.current = Date.now();
   };
@@ -932,12 +963,16 @@ export default function VideoPlayer({
   const visibleSourceSelectorEntries =
     sourceSelectorPinnedRef.current && sourceSelectorEntriesRef.current.length > 0
       ? sourceSelectorEntriesRef.current
-      : sortedSourceEntries;
+      : presentationSourceEntries;
 
   const visibleSourceSelectorValue =
     sourceSelectorPinnedRef.current
       ? sourceSelectorValueRef.current
-      : activeIdx;
+      : presentationSourceEntries.some((entry) => entry.index === activeIdx)
+        ? activeIdx
+        : selectedEditionState.preparing
+          ? "__preparing__"
+          : presentationSourceEntries[0]?.index ?? "";
 
   const pinRdFileSelector = () => {
     rdFileSelectorFilesRef.current = rdFiles;
