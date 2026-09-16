@@ -2486,11 +2486,15 @@ const rememberRdTorrentAssociation = async ({
   }
 };
 
-const deleteNewTorrentBestEffort = async (torrentId, authHeaders) => {
+const deleteNewTorrentBestEffort = async (
+  torrentId,
+  authHeaders,
+  base44 = null
+) => {
   if (!torrentId) return;
 
   try {
-    await rdFetch(
+    const deleteRes = await rdFetch(
       `${RD_BASE}/torrents/delete/${encodeURIComponent(String(torrentId))}`,
       {
         method: "DELETE",
@@ -2498,6 +2502,21 @@ const deleteNewTorrentBestEffort = async (torrentId, authHeaders) => {
       },
       { attempts: 2 }
     );
+
+    if ((deleteRes.ok || deleteRes.status === 404) && base44) {
+      try {
+        const links = await base44.entities.RdLink.filter({
+          torrent_id: String(torrentId),
+        });
+        for (const link of Array.isArray(links) ? links : []) {
+          if (link?.id) {
+            await base44.entities.RdLink.update(link.id, { torrent_id: "" });
+          }
+        }
+      } catch {
+        // RD deletion is authoritative; local link cleanup is housekeeping.
+      }
+    }
   } catch {
     // The next uncached preflight can still recover an owned stale job.
   }
@@ -2769,7 +2788,7 @@ async function addMagnet({
           });
         }
 
-        await deleteNewTorrentBestEffort(torrentId, authHeaders);
+        await deleteNewTorrentBestEffort(torrentId, authHeaders, base44);
         return Response.json({
           status: "failed",
           torrent_id: torrentId,
