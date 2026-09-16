@@ -2189,30 +2189,17 @@ export default function LiveTVView({
         /\bsky\s*sports\s*f1\b|\bformula\s*1\b|\bf1\b/i.test(evChannelName);
 
       if (evIsFormulaOne) {
-        const liveAntF1 = matchingLiveAntFormulaOneEvent(channels);
-        const liveAntF1Url = String(
-          liveAntF1?.officialUrl || liveAntF1?.url || ""
-        ).trim();
-
-        if (/^https?:\/\//i.test(liveAntF1Url)) {
-          openOfficialLiveUrl(liveAntF1Url);
-          return;
-        }
-
-        setChannelNotice(
-          "EV SPORTS' current Sky Sports F1 source is serving the same frozen 15-second clip. No separate live Formula 1 event source is available right now."
-        );
+        stopRadio();
+        setChannelNotice("");
         setChannelNoticeAction(null);
-        setChannelNoticeActions([
-          {
-            label: "Open official Sky Sports F1",
-            url: "https://www.skysports.com/watch/sky-sports-f1",
-          },
-          {
-            label: "Try EV F1 anyway",
-            url: evSportsWatchUrl,
-          },
-        ]);
+        setChannelNoticeActions([]);
+
+        /*
+         * Sky Sports F1 is a subscription channel. Keep the F1 card working by
+         * routing it to Sky's official playback page rather than embedding an
+         * unofficial rebroadcast or a stale EV mirror.
+         */
+        openOfficialLiveUrl("https://www.skysports.com/watch/sky-sports-f1");
         return;
       }
 
