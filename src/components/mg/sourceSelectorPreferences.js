@@ -4,23 +4,25 @@ import {
 } from "@/components/mg/mediaCompatibility";
 import {
   MEDIA_EDITION_OPTIONS,
+  detectMediaEdition,
   mediaEditionSortScore,
+  sourceHasEdition,
 } from "@/components/mg/mediaEdition";
-import {
-  markTrustedCachedPools,
-  prioritiseTrustedCachedPools,
-} from "@/components/mg/trustedCachedSources";
 
 export const SOURCE_SELECTOR_SORT_KEY = "mg:source-selector-sort-v1";
 export const SOURCE_SELECTOR_SORT_EVENT = "mg:source-selector-sort-changed";
 
-export const SOURCE_SORT_OPTIONS = [
+const BASE_SOURCE_SORT_OPTIONS = [
   { value: "best", label: "Best" },
   { value: "cached", label: "Cached" },
   { value: "4k", label: "4K" },
   { value: "1080p", label: "1080p" },
   { value: "compatible", label: "Compatible" },
   { value: "smallest", label: "Smallest" },
+];
+
+export const SOURCE_SORT_OPTIONS = [
+  ...BASE_SOURCE_SORT_OPTIONS,
   ...MEDIA_EDITION_OPTIONS.filter((option) => option.value !== "any").map(
     (option) => ({
       value: `edition:${option.value}`,
@@ -35,7 +37,9 @@ export const readSourceSortMode = () => {
   if (typeof window === "undefined") return "best";
 
   try {
-    const value = String(window.localStorage.getItem(SOURCE_SELECTOR_SORT_KEY) || "best");
+    const value = String(
+      window.localStorage.getItem(SOURCE_SELECTOR_SORT_KEY) || "best"
+    );
     return allowedModes.has(value) ? value : "best";
   } catch {
     return "best";
@@ -114,7 +118,7 @@ const sourceSize = (item) => {
   return amount * 1024 ** 2;
 };
 
-const sourceIsCached = (item) => {
+export const sourceIsCached = (item) => {
   if (item?.cacheRequired === true || item?.cometUncached === true) {
     return false;
   }
@@ -122,7 +126,45 @@ const sourceIsCached = (item) => {
   return (
     item?.debridCached === true ||
     item?.viaRealDebrid === true ||
+    item?.runtimeReadyCached === true ||
     /\b(?:cached|instant|ready)\b/i.test(sourceText(item))
+  );
+};
+
+const itemTorrentHash = (item) => {
+  const raw = String(
+    item?.infoHash ||
+      item?.info_hash ||
+      item?.hash ||
+      item?.magnet ||
+      item?.magnetLink ||
+      item?.richMagnet ||
+      item?.src ||
+      item?.url ||
+      ""
+  );
+
+  return raw.match(/(?:btih:)?([a-f0-9]{40,64})/i)?.[1]?.toLowerCase() || "";
+};
+
+export const sourceNeedsCachePreparation = (item) => {
+  if (!item || sourceIsCached(item)) return false;
+
+  const strategy = String(
+    item?.resolutionStrategy || item?.resolution_strategy || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  return (
+    strategy === "comet_uncached" ||
+    strategy === "rd_magnet" ||
+    item?.cacheRequired === true ||
+    item?.cometUncached === true ||
+    (
+      item?.debridCacheChecked === true &&
+      Boolean(itemTorrentHash(item))
+    )
   );
 };
 
@@ -158,11 +200,19 @@ const targetResolutionScore = (resolution, target) => {
 };
 
 export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
-  const list = markTrustedCachedPools(
-    (Array.isArray(sources) ? sources : []).map((item, index) => ({
+  const list = (Array.isArray(sources) ? sources : []).map((item, index) => {
+    const cached = sourceIsCached(item);
+    const pendingCache = sourceNeedsCachePreparation(item);
+    const edition = detectMediaEdition(item);
+
+    return {
       item,
       index,
-      cached: sourceIsCached(item),
+      cached,
+      pendingCache,
+      readyForUser: !pendingCache,
+      editionValue: edition.value,
+      editionLabel: edition.label,
       resolution: sourceResolution(item),
       size: sourceSize(item),
       compatibility: compatibilityScore(item),
@@ -171,16 +221,26 @@ export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
       editionScore: String(mode || "").startsWith("edition:")
         ? mediaEditionSortScore(item, String(mode).slice("edition:".length))
         : 0,
-    }))
-  );
+    };
+  });
 
-  if (mode === "best") return prioritiseTrustedCachedPools(list);
+  if (mode === "best") {
+    return list.slice().sort((a, b) =>
+      Number(b.readyForUser) - Number(a.readyForUser) ||
+      Number(b.cached) - Number(a.cached) ||
+      b.compatibility - a.compatibility ||
+      b.resolution - a.resolution ||
+      Number(b.trackerRich) - Number(a.trackerRich) ||
+      b.reportedSeeders - a.reportedSeeders ||
+      a.index - b.index
+    );
+  }
 
   return list.slice().sort((a, b) => {
     if (String(mode || "").startsWith("edition:")) {
       return (
         b.editionScore - a.editionScore ||
-        Number(b.trustedCached) - Number(a.trustedCached) ||
+        Number(b.readyForUser) - Number(a.readyForUser) ||
         Number(b.cached) - Number(a.cached) ||
         b.compatibility - a.compatibility ||
         b.resolution - a.resolution ||
@@ -192,8 +252,8 @@ export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
 
     if (mode === "cached") {
       return (
-        Number(b.trustedCached) - Number(a.trustedCached) ||
         Number(b.cached) - Number(a.cached) ||
+        Number(b.readyForUser) - Number(a.readyForUser) ||
         b.compatibility - a.compatibility ||
         Number(b.trackerRich) - Number(a.trackerRich) ||
         b.reportedSeeders - a.reportedSeeders ||
@@ -238,4 +298,90 @@ export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
 
     return a.index - b.index;
   });
+};
+
+export const sourceEntriesForPresentation = (entries, mode = "best") => {
+  const list = (Array.isArray(entries) ? entries : []).filter(
+    (entry) =>
+      entry?.readyForUser === true &&
+      entry?.item &&
+      !entry.item?.diagnostic &&
+      entry.item?.type !== "status"
+  );
+
+  const value = String(mode || "best");
+  if (!value.startsWith("edition:")) return list;
+
+  const edition = value.slice("edition:".length);
+  return list.filter((entry) => sourceHasEdition(entry.item, edition));
+};
+
+export const editionPresentationState = (entries, mode = "best") => {
+  const value = String(mode || "best");
+  if (!value.startsWith("edition:")) {
+    return {
+      edition: "",
+      label: "",
+      discovered: false,
+      readyCount: 0,
+      pendingCount: 0,
+      preparing: false,
+    };
+  }
+
+  const edition = value.slice("edition:".length);
+  const option = MEDIA_EDITION_OPTIONS.find((item) => item.value === edition);
+  const matching = (Array.isArray(entries) ? entries : []).filter(
+    (entry) => sourceHasEdition(entry?.item, edition)
+  );
+  const readyCount = matching.filter((entry) => entry.readyForUser === true).length;
+  const pendingCount = matching.filter((entry) => entry.pendingCache === true).length;
+
+  return {
+    edition,
+    label: option?.label || matching[0]?.editionLabel || edition,
+    discovered: matching.length > 0,
+    readyCount,
+    pendingCount,
+    preparing: readyCount === 0 && pendingCount > 0,
+  };
+};
+
+export const sourceSortOptionsForEntries = (entries, currentMode = "best") => {
+  const list = Array.isArray(entries) ? entries : [];
+  const discovered = new Set(
+    list
+      .filter(
+        (entry) =>
+          entry?.item &&
+          !entry.item?.diagnostic &&
+          entry.item?.type !== "status"
+      )
+      .map((entry) => entry.editionValue || detectMediaEdition(entry.item).value)
+  );
+
+  const currentEdition = String(currentMode || "").startsWith("edition:")
+    ? String(currentMode).slice("edition:".length)
+    : "";
+
+  if (currentEdition) discovered.add(currentEdition);
+
+  const editionOptions = MEDIA_EDITION_OPTIONS
+    .filter((option) => option.value !== "any" && discovered.has(option.value))
+    .map((option) => {
+      const mode = `edition:${option.value}`;
+      const state = editionPresentationState(list, mode);
+
+      return {
+        value: mode,
+        label: state.preparing
+          ? `${option.label} • Preparing`
+          : option.label,
+        preparing: state.preparing,
+        readyCount: state.readyCount,
+        pendingCount: state.pendingCount,
+      };
+    });
+
+  return [...BASE_SOURCE_SORT_OPTIONS, ...editionOptions];
 };
