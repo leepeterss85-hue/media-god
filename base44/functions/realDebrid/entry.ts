@@ -1498,6 +1498,235 @@ export default async function (req) {
 
     /*
      * ---------------------------------------------------------
+     * SELECT AN EXACT TORRENT VIDEO FILE
+     *
+     * Automatic playback intentionally avoids trailers, samples and bonus
+     * material. A deliberate file choice is different: the user has asked for
+     * that exact video. If Real-Debrid already exposes its link, resolve it in
+     * place. Otherwise create a separate same-hash torrent job and select only
+     * the requested file so the main movie/episode job remains untouched.
+     * ---------------------------------------------------------
+     */
+    if (action === "select_torrent_file") {
+      const torrentId = String(body.torrent_id || "").trim();
+      const requestedFileId = normaliseRequestedFileIndex(body.file_id);
+      const requestedPath = String(body.file_path || "").trim();
+
+      if (!torrentId) {
+        return Response.json({ error: "torrent_id required" }, { status: 400 });
+      }
+
+      if (!Number.isInteger(requestedFileId) && !requestedPath) {
+        return Response.json(
+          { error: "file_id or file_path required" },
+          { status: 400 }
+        );
+      }
+
+      const infoRes = await rdFetch(
+        `${RD_BASE}/torrents/info/${torrentId}`,
+        { headers: authHeaders },
+        { attempts: 3 }
+      );
+
+      if (!infoRes.ok) {
+        return Response.json(
+          {
+            error: `Could not inspect the Real-Debrid torrent: ${infoRes.status}`,
+            error_code: "RD_TORRENT_INFO_FAILED",
+          },
+          { status: 502 }
+        );
+      }
+
+      const info = await infoRes.json();
+      const allFiles = Array.isArray(info?.files) ? info.files : [];
+      const target =
+        (requestedPath
+          ? allFiles.find(
+              (file) =>
+                String(file?.path || "").trim() === requestedPath &&
+                isVideoFile(file)
+            )
+          : null) ||
+        (Number.isInteger(requestedFileId)
+          ? allFiles.find(
+              (file) => Number(file?.id) === requestedFileId && isVideoFile(file)
+            )
+          : null);
+
+      if (!target) {
+        return Response.json(
+          {
+            error: "The selected torrent item is not an available video file.",
+            error_code: "RD_SELECTED_FILE_NOT_FOUND",
+          },
+          { status: 404 }
+        );
+      }
+
+      const manualContext = {
+        title: body.title,
+        year: body.year,
+        season: body.season,
+        episode: body.episode,
+        file_id: Number(target.id),
+        file_path: String(target.path || ""),
+        manual_file_selection: true,
+        forceAudioRescue: body.force_audio_rescue === true,
+        preferBrowserTranscode: body.prefer_browser_transcode === true,
+      };
+
+      const linkById = mapTorrentLinksByFileId(
+        allFiles,
+        Array.isArray(info?.links) ? info.links : []
+      );
+      const existingTargetLink = String(
+        target?.link || linkById.get(target.id) || ""
+      ).trim();
+
+      if (existingTargetLink) {
+        const stream = await resolveStreamable(
+          torrentId,
+          authHeaders,
+          formHeaders,
+          manualContext
+        );
+
+        if (stream.error) {
+          return Response.json({
+            status: "failed",
+            torrent_id: torrentId,
+            error: stream.error,
+            error_code: stream.error_code || "RD_SELECTED_FILE_FAILED",
+            upstream_status: stream.upstream_status ?? null,
+          });
+        }
+
+        return Response.json({
+          status: stream.ready ? "ready" : "preparing",
+          torrent_id: torrentId,
+          stream_url: stream.stream_url || "",
+          fallback_stream_url: stream.fallback_stream_url || "",
+          filename: stream.filename || target.path || "",
+          rd_status: stream.rd_status,
+          files: stream.files || buildFileEntries(info, target),
+          audio_rescue: stream.audio_rescue || null,
+          video_rescue: stream.video_rescue || null,
+          media_info: stream.media_info || null,
+          torrent_progress: stream.torrent_progress || buildTorrentProgress(info),
+          manual_file_selection: true,
+        });
+      }
+
+      const hash = String(info?.hash || "").trim().toLowerCase();
+      if (!/^[a-f0-9]{40}$|^[a-f0-9]{64}$/.test(hash)) {
+        return Response.json(
+          {
+            error:
+              "This extra has no Real-Debrid link yet and the parent torrent does not expose a reusable info hash.",
+            error_code: "RD_SELECTED_FILE_NO_HASH",
+          },
+          { status: 409 }
+        );
+      }
+
+      const suppliedMagnet = String(body.magnet || "").trim();
+      const suppliedHash = String(
+        suppliedMagnet.match(/btih:([a-f0-9]{40}|[a-f0-9]{64})/i)?.[1] || ""
+      )
+        .trim()
+        .toLowerCase();
+      const magnet =
+        /^magnet:/i.test(suppliedMagnet) && suppliedHash === hash
+          ? suppliedMagnet
+          : `magnet:?xt=urn:btih:${hash}`;
+
+      const addRes = await rdFetch(
+        `${RD_BASE}/torrents/addMagnet`,
+        {
+          method: "POST",
+          headers: formHeaders,
+          body: `magnet=${encodeURIComponent(magnet)}`,
+        },
+        { attempts: 3 }
+      );
+
+      if (!addRes.ok) {
+        const failure = await rdFailureDetails(
+          addRes,
+          "Real-Debrid could not create a separate job for the selected extra"
+        );
+        return Response.json({
+          status: "failed",
+          error: failure.message,
+          error_code: `RD_SELECTED_FILE_ADD_${addRes.status}`,
+          upstream_status: failure.upstream_status,
+          upstream_error_code: failure.upstream_error_code,
+          upstream_error: failure.upstream_error,
+        });
+      }
+
+      const addData = await addRes.json();
+      const selectedTorrentId = String(addData?.id || "").trim();
+      if (!selectedTorrentId) {
+        return Response.json(
+          {
+            status: "failed",
+            error: "Real-Debrid did not return a torrent id for the selected extra.",
+            error_code: "RD_SELECTED_FILE_NO_TORRENT_ID",
+          },
+          { status: 502 }
+        );
+      }
+
+      let stream = null;
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        stream = await resolveStreamable(
+          selectedTorrentId,
+          authHeaders,
+          formHeaders,
+          manualContext
+        );
+
+        if (stream?.error || stream?.ready || (stream?.files || []).length > 0) {
+          break;
+        }
+
+        await sleep(450);
+      }
+
+      if (stream?.error) {
+        return Response.json({
+          status: "failed",
+          torrent_id: selectedTorrentId,
+          error: stream.error,
+          error_code: stream.error_code || "RD_SELECTED_FILE_FAILED",
+          upstream_status: stream.upstream_status ?? null,
+        });
+      }
+
+      return Response.json({
+        status: stream?.ready ? "ready" : "preparing",
+        torrent_id: selectedTorrentId,
+        parent_torrent_id: torrentId,
+        stream_url: stream?.stream_url || "",
+        fallback_stream_url: stream?.fallback_stream_url || "",
+        filename: stream?.filename || target.path || "",
+        rd_status: stream?.rd_status || "preparing",
+        files: stream?.files || [],
+        audio_rescue: stream?.audio_rescue || null,
+        video_rescue: stream?.video_rescue || null,
+        media_info: stream?.media_info || null,
+        torrent_progress: stream?.torrent_progress || null,
+        selected_file_id: Number(target.id),
+        selected_file_path: String(target.path || ""),
+        manual_file_selection: true,
+      });
+    }
+
+    /*
+     * ---------------------------------------------------------
      * TORRENT FILES
      * ---------------------------------------------------------
      */
