@@ -924,6 +924,27 @@ export default function FireTvRemote() {
        */
       const direction = directionFromEvent(event);
       const selectKey = isSelectKey(event);
+      const providerFrame =
+        player instanceof HTMLElement
+          ? player.querySelector('[data-mg-provider-frame="true"]')
+          : null;
+      const providerFrameFocused =
+        providerFrame instanceof HTMLIFrameElement &&
+        document.activeElement === providerFrame;
+
+      /*
+       * Once focus has entered a cross-origin provider player, leave D-pad/OK
+       * alone. Those key events belong to the embedded EV/provider UI (for
+       * controls such as Unmute), not Media God's parent spatial navigator.
+       * The physical Back button remains owned centrally by the native/WebView
+       * navigation path, so the viewer can still leave the provider safely.
+       */
+      if (
+        providerFrameFocused &&
+        (direction || selectKey || mediaAction)
+      ) {
+        return;
+      }
 
       /*
        * When playback chrome has auto-hidden, the first D-pad/OK press should
@@ -939,6 +960,21 @@ export default function FireTvRemote() {
         event.preventDefault();
         event.stopPropagation();
         event.stopImmediatePropagation();
+
+        /*
+         * Provider playback has its own cross-origin controls. When Media
+         * God's chrome is hidden, enter that browsing context instead of
+         * waking parent Play/Pause controls. The next D-pad/OK input is then
+         * delivered to EV/provider itself, restoring access to its Unmute and
+         * other native embed controls on Fire TV.
+         */
+        if (
+          providerFrame instanceof HTMLIFrameElement &&
+          visible(providerFrame)
+        ) {
+          focusElement(providerFrame);
+          return;
+        }
 
         window.dispatchEvent(
           new CustomEvent("mg:player-reveal-controls")
@@ -1180,7 +1216,10 @@ export default function FireTvRemote() {
           scope.contains(selected) &&
           visible(selected)
         ) {
-          if (String(selected.tagName || "").toLowerCase() === "select") {
+          if (
+            String(selected.tagName || "").toLowerCase() === "select" ||
+            selected.matches?.('[data-mg-provider-frame="true"]')
+          ) {
             return;
           }
 
