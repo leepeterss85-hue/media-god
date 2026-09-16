@@ -6138,9 +6138,162 @@ export default function VideoPlayer({
       if (
         !file?.link
       ) {
-        setRdError(
-          "This file does not have a Real-Debrid link yet."
-        );
+        const parentTorrentId = String(
+          file?.torrent_id ||
+            file?.torrentId ||
+            rdPreparation?.torrent_id ||
+            rdTorrentId ||
+            active?.rdTorrentId ||
+            ""
+        ).trim();
+
+        if (!parentTorrentId) {
+          setRdError(
+            "This extra is not linked yet and Media God no longer has the parent Real-Debrid torrent id. Reopen the title and choose the extra again."
+          );
+          return;
+        }
+
+        setFileSwitching(true);
+        setRdError("");
+        setRdPreparation({
+          status: "starting",
+          phase: "starting",
+          progress: 0,
+          torrent_id: parentTorrentId,
+          selected_file_path: file?.path || "",
+          manual_file_selection: true,
+          startedAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+
+        try {
+          const response = await base44.functions.invoke(
+            "realDebrid",
+            {
+              action: "select_torrent_file",
+              torrent_id: parentTorrentId,
+              file_id: file?.id,
+              file_path: file?.path || "",
+              magnet: richestSourceMagnet(active),
+              title: source?.rdTitle || source?.title || "",
+              ...(source?.rdYear != null ? { year: source.rdYear } : {}),
+              ...(source?.rdSeason != null ? { season: source.rdSeason } : {}),
+              ...(source?.rdEpisode != null ? { episode: source.rdEpisode } : {}),
+              prefer_browser_transcode: prefersMobileBrowserRdCompatibility(),
+            }
+          );
+
+          if (!actionStillCurrent()) {
+            return;
+          }
+
+          const data = response?.data || {};
+
+          if (data?.error || data?.status === "failed") {
+            throw new Error(
+              data?.error || "Real-Debrid could not prepare the selected extra."
+            );
+          }
+
+          if (data?.status === "ready" && data?.stream_url) {
+            setRdOverride({
+              src: data.stream_url,
+              label:
+                data.filename ||
+                file?.path ||
+                "Real-Debrid Extra",
+              file: file?.path || data.filename || "",
+              provider: "realdebrid",
+              audioRescue: data.audio_rescue || null,
+              fallbackSrc: data.fallback_stream_url || "",
+              videoRescue: data.video_rescue || null,
+              mediaInfo: data.media_info || null,
+            });
+
+            if (Array.isArray(data.files) && data.files.length > 0) {
+              setRdFiles((current) => {
+                const byPath = new Map(
+                  data.files.map((entry) => [String(entry?.path || ""), entry])
+                );
+                return current.length > 0
+                  ? current.map((entry) => {
+                      const replacement = byPath.get(String(entry?.path || ""));
+                      return replacement ? { ...entry, ...replacement } : entry;
+                    })
+                  : data.files;
+              });
+            }
+
+            setRdManualFileSelection(null);
+            setRdTorrentId(null);
+            setRdPreparation(null);
+            setRdPolling(false);
+            return;
+          }
+
+          const selectedTorrentId = String(data?.torrent_id || "").trim();
+          if (!selectedTorrentId) {
+            throw new Error(
+              "Real-Debrid accepted the selected extra but did not return a torrent id to monitor."
+            );
+          }
+
+          const manualSelection = {
+            fileId: Number(data?.selected_file_id ?? file?.id),
+            path: String(data?.selected_file_path || file?.path || ""),
+            parentTorrentId,
+          };
+
+          setRdManualFileSelection(manualSelection);
+          setRdTorrentId(selectedTorrentId);
+          setRdPreparation({
+            ...(data?.torrent_progress || {}),
+            status:
+              data?.rd_status ||
+              data?.torrent_progress?.status ||
+              "preparing",
+            phase:
+              Number(data?.torrent_progress?.progress || 0) >= 100
+                ? "finalizing"
+                : "downloading",
+            torrent_id: selectedTorrentId,
+            parent_torrent_id: parentTorrentId,
+            selected_file_path: manualSelection.path,
+            manual_file_selection: true,
+            startedAt: Date.now(),
+            updatedAt: Date.now(),
+          });
+          setRdPolling(true);
+
+          if (Array.isArray(data.files) && data.files.length > 0) {
+            setRdFiles((current) => {
+              const byPath = new Map(
+                data.files.map((entry) => [String(entry?.path || ""), entry])
+              );
+              return current.length > 0
+                ? current.map((entry) => {
+                    const replacement = byPath.get(String(entry?.path || ""));
+                    return replacement ? { ...entry, ...replacement } : entry;
+                  })
+                : data.files;
+            });
+          }
+        } catch (error) {
+          if (actionStillCurrent()) {
+            setRdManualFileSelection(null);
+            setRdTorrentId(null);
+            setRdPreparation(null);
+            setRdPolling(false);
+            setRdError(
+              error?.message || "Real-Debrid could not prepare the selected extra."
+            );
+          }
+        } finally {
+          if (actionStillCurrent()) {
+            setFileSwitching(false);
+          }
+        }
 
         return;
       }
