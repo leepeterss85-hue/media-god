@@ -5892,7 +5892,9 @@ export default function VideoPlayer({
         active?.type === "torrent" ||
         active?.type === "magnet" ||
         isMagnet(activeUrl) ||
-        Boolean(magnetHash(activeUrl));
+        Boolean(magnetHash(activeUrl)) ||
+        Boolean(sourceTorrentHash(active)) ||
+        sourceNeedsCaching(active);
       const recoveryCooldownMs = activeTorrentLike
         ? 30000
         : 18000;
@@ -6039,7 +6041,9 @@ export default function VideoPlayer({
         active?.type === "torrent" ||
         active?.type === "magnet" ||
         isMagnet(activeUrl) ||
-        Boolean(magnetHash(activeUrl));
+        Boolean(magnetHash(activeUrl)) ||
+        Boolean(sourceTorrentHash(active)) ||
+        sourceNeedsCaching(active);
       const stallThresholdMs = activeTorrentLike
         ? 40000
         : 28000;
@@ -6056,6 +6060,7 @@ export default function VideoPlayer({
     active,
     activeIdx,
     isLive,
+    rdOverride,
     rdPolling,
     rdResolving,
     rdTorrentId,
