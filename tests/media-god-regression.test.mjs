@@ -39,6 +39,7 @@ import {
 } from "../base44/functions/getLiveEpg/nameMatching.js";
 import {
   detectMediaEdition,
+  detectMediaExtra,
   mediaEditionSortScore,
   sourceHasEdition,
 } from "../src/components/mg/mediaEdition.js";
@@ -216,6 +217,25 @@ test("movie and TV edition detection covers common official cuts without DC fals
   assert.equal(
     detectMediaEdition({ name: "DC.League.of.Super-Pets.2022.1080p.mkv" }).value,
     "standard"
+  );
+});
+
+test("bonus and extras detection labels common disc/file content", () => {
+  assert.equal(
+    detectMediaExtra({ path: "/Extras/Deleted.Scene.03.mkv" }).value,
+    "deleted_scene"
+  );
+  assert.equal(
+    detectMediaExtra({ path: "/Bonus/Behind.The.Scenes.mp4" }).value,
+    "behind_scenes"
+  );
+  assert.equal(
+    detectMediaExtra({ path: "/Featurettes/Making.Of.The.Movie.mkv" }).value,
+    "featurette"
+  );
+  assert.equal(
+    detectMediaExtra({ path: "/Main.Movie.Extended.Uncut.2160p.mkv" }).value,
+    "main_feature"
   );
 });
 
@@ -696,7 +716,7 @@ test("Real-Debrid explicit file index wins when it points to a playable video", 
   assert.equal(selected?.id, 2);
 });
 
-test("Real-Debrid explicit file index never forces a trailer/sample over the main feature", () => {
+test("Real-Debrid automatic file selection never forces a trailer/sample over the main feature", () => {
   const files = [
     { id: 1, path: "/Oasis.Dont.Look.Back.In.Anger.1080p.mkv", bytes: 2_900_000_000 },
     { id: 2, path: "/Oasis.Dont.Look.Back.In.Anger.Trailer.1080p.mp4", bytes: 73_400_000 },
@@ -708,6 +728,44 @@ test("Real-Debrid explicit file index never forces a trailer/sample over the mai
   });
 
   assert.equal(selected?.id, 1);
+});
+
+test("Real-Debrid manual file selection honours the exact extra or bonus video", () => {
+  const files = [
+    { id: 1, path: "/Movie.1080p.mkv", bytes: 3_900_000_000 },
+    { id: 7, path: "/Extras/Deleted.Scene.Extended.mkv", bytes: 420_000_000 },
+    { id: 8, path: "/Extras/Behind.The.Scenes.mp4", bytes: 610_000_000 },
+  ];
+
+  const byId = chooseRequestedTorrentFileForPlayback(files, {
+    file_id: 7,
+    manual_file_selection: true,
+  });
+  assert.equal(byId?.id, 7);
+
+  const byPath = chooseRequestedTorrentFileForPlayback(files, {
+    file_path: "/Extras/Behind.The.Scenes.mp4",
+    manual_file_selection: true,
+  });
+  assert.equal(byPath?.id, 8);
+});
+
+test("manual Real-Debrid extras use an isolated exact-file job and player polling", () => {
+  const backend = readFileSync(
+    new URL("../base44/functions/realDebrid/entry.ts", import.meta.url),
+    "utf8"
+  );
+  const player = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(backend, /action === "select_torrent_file"/);
+  assert.match(backend, /main movie\/episode job remains untouched/);
+  assert.match(backend, /manual_file_selection:\s*true/);
+  assert.match(player, /action:\s*"select_torrent_file"/);
+  assert.match(player, /rdManualFileSelection/);
+  assert.match(player, /manual_file_selection:\s*true/);
 });
 
 test("Real-Debrid movie selection penalises samples and prefers the titled main feature", () => {
