@@ -1385,6 +1385,10 @@ const compactAddonDiagnostics = (
           return `${name}: ${playable} usable`;
         }
 
+        if (status === "http_404") {
+          return `${name}: not indexed for this title`;
+        }
+
         return `${name}: ${status}`;
       }
     )
