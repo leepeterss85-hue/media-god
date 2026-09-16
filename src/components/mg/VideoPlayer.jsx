@@ -2291,33 +2291,56 @@ export default function VideoPlayer({
         setRdPolling(false);
         setRdTorrentId(null);
 
+        /*
+         * EV/SX Movies keeps an IMDb iframe fallback ready instead of forcing
+         * the viewer through one uncached source after another. Mirror that
+         * behaviour here after the cache engine reaches a terminal result:
+         * first prefer a source that is already playable/cached, then use the
+         * alternate IMDb player, and only try another uncached torrent when no
+         * instant fallback exists for this title.
+         */
+        markSourceFailed(activeIdx);
         if (result.hashFailed === true) {
-          markSourceFailed(activeIdx);
           markTorrentHashFailed(active);
-          const nextSource = findNextPlayableSource(activeIdx);
+        }
 
-          if (nextSource !== -1) {
-            setRdPreparation(null);
-            setRdError("");
-            switchToSource(nextSource, {
-              preservePosition: true,
-              statusMessage:
-                `${result.message || "This Real-Debrid torrent could not progress after a verified restart."} Trying a different torrent hash for the same title…`,
-            });
-            return;
-          }
+        const nextReadySource = findNextPlayableSource(activeIdx, {
+          allowCaching: false,
+        });
 
-          const alternate = buildAlternateEmbedFallback(source, {
-            resumeAt: recoveryResumeRef.current,
+        if (nextReadySource !== -1) {
+          setRdPreparation(null);
+          setRdError("");
+          switchToSource(nextReadySource, {
+            preservePosition: true,
+            statusMessage:
+              `${result.message || "This uncached torrent could not be prepared."} Trying an already-playable backup…`,
           });
+          return;
+        }
 
-          if (alternate?.url) {
-            setRdPreparation(null);
-            setRdError("");
-            setAlternateEmbedFallback(alternate);
-            setForceNativePlayback(false);
-            return;
-          }
+        const alternate = buildAlternateEmbedFallback(source, {
+          resumeAt: recoveryResumeRef.current,
+        });
+
+        if (alternate?.url) {
+          setRdPreparation(null);
+          setRdError("");
+          setAlternateEmbedFallback(alternate);
+          setForceNativePlayback(false);
+          return;
+        }
+
+        const nextSource = findNextPlayableSource(activeIdx);
+        if (nextSource !== -1) {
+          setRdPreparation(null);
+          setRdError("");
+          switchToSource(nextSource, {
+            preservePosition: true,
+            statusMessage:
+              `${result.message || "This uncached torrent could not be prepared."} No instant backup was available, so Media God is trying a different torrent…`,
+          });
+          return;
         }
 
         setRdPreparation((current) => ({
@@ -2344,6 +2367,47 @@ export default function VideoPlayer({
         setRdResolving(false);
         setRdPolling(false);
         setRdTorrentId(null);
+        markSourceFailed(activeIdx);
+
+        const nextReadySource = findNextPlayableSource(activeIdx, {
+          allowCaching: false,
+        });
+
+        if (nextReadySource !== -1) {
+          setRdPreparation(null);
+          setRdError("");
+          switchToSource(nextReadySource, {
+            preservePosition: true,
+            statusMessage:
+              "The uncached torrent engine stopped — trying an already-playable backup…",
+          });
+          return;
+        }
+
+        const alternate = buildAlternateEmbedFallback(source, {
+          resumeAt: recoveryResumeRef.current,
+        });
+
+        if (alternate?.url) {
+          setRdPreparation(null);
+          setRdError("");
+          setAlternateEmbedFallback(alternate);
+          setForceNativePlayback(false);
+          return;
+        }
+
+        const nextSource = findNextPlayableSource(activeIdx);
+        if (nextSource !== -1) {
+          setRdPreparation(null);
+          setRdError("");
+          switchToSource(nextSource, {
+            preservePosition: true,
+            statusMessage:
+              "The uncached torrent engine stopped — trying a different torrent…",
+          });
+          return;
+        }
+
         setRdPreparation((current) => ({
           ...(current || {}),
           status: "stalled",
