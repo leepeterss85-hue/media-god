@@ -11,6 +11,10 @@ import {
   prioritiseTrustedCachedPools,
 } from "@/components/mg/trustedCachedSources";
 import { chooseDebridResolutionStrategy } from "@/components/mg/debridResolutionStrategy";
+import {
+  sourceHasAuthoritativeCachedSignal,
+  sourceHasPendingCacheSignal,
+} from "@/components/mg/sourceCacheVisibility";
 
 export const SOURCE_SELECTOR_SORT_KEY = "mg:source-selector-sort-v1";
 export const SOURCE_SELECTOR_SORT_EVENT = "mg:source-selector-sort-changed";
@@ -116,12 +120,12 @@ const sourceSize = (item) => {
 };
 
 const sourceIsCached = (item) => {
-  if (item?.cacheRequired === true || item?.cometUncached === true) {
+  if (sourceHasPendingCacheSignal(item)) {
     return false;
   }
 
   return (
-    item?.debridCached === true ||
+    sourceHasAuthoritativeCachedSignal(item) ||
     item?.viaRealDebrid === true ||
     /\b(?:cached|instant|ready)\b/i.test(sourceText(item))
   );
@@ -157,14 +161,18 @@ export const sourceIsUserSelectable = (item) => {
 
   // These states are authoritative: the background/foreground RD cache engine
   // has already proved that this torrent is ready for immediate playback.
-  if (item?.debridCached === true || item?.runtimeReadyCached === true) {
+  if (sourceHasAuthoritativeCachedSignal(item)) {
     return true;
   }
 
-  // Discovery flags identify a torrent that still needs Real-Debrid work. Keep
-  // it in the internal source pool so background caching can continue, but do
-  // not expose it in any user-facing source chooser yet.
-  if (item?.cacheRequired === true || item?.cometUncached === true) {
+  /*
+   * Check every cache-state shape before trusting a provider/direct URL. Some
+   * addons return their uncached RD action as an ordinary HTTP row and carry
+   * the waiting state only in the label, status, or resolution strategy. The
+   * row stays in the internal source pool for background caching, but it must
+   * not appear in a user-facing chooser until a ready signal is recorded.
+   */
+  if (sourceHasPendingCacheSignal(item)) {
     return false;
   }
 
@@ -192,15 +200,7 @@ export const sourceIsUserSelectable = (item) => {
     debridCached: false,
   });
 
-  if (strategy === "comet_uncached" || strategy === "rd_magnet") {
-    return false;
-  }
-
-  if (
-    item?.debridCacheChecked === true &&
-    item?.debridCached !== true &&
-    Boolean(hash)
-  ) {
+  if (sourceHasPendingCacheSignal(item, strategy)) {
     return false;
   }
 

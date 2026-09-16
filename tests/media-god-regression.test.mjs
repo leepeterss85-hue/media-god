@@ -43,6 +43,10 @@ import {
   mediaEditionSortScore,
   sourceHasEdition,
 } from "../src/components/mg/mediaEdition.js";
+import {
+  sourceHasAuthoritativeCachedSignal,
+  sourceHasPendingCacheSignal,
+} from "../src/components/mg/sourceCacheVisibility.js";
 
 const memoryStorage = () => {
   const data = new Map();
@@ -676,6 +680,76 @@ test("opaque Comet uncached rows remain comet_uncached", () => {
     chooseDebridResolutionStrategy({ cometUncached: true }),
     "comet_uncached"
   );
+});
+
+test("source selector hides uncached provider URLs until caching finishes", () => {
+  const providerRow = {
+    type: "provider",
+    url: "https://comet.example.test/playback/hash/0",
+    label: "Comet: [RD⬇️] 1080p",
+  };
+
+  assert.equal(sourceHasPendingCacheSignal(providerRow), true);
+  assert.equal(
+    sourceHasPendingCacheSignal({
+      ...providerRow,
+      runtimeReadyCached: true,
+    }),
+    false
+  );
+  assert.equal(
+    sourceHasAuthoritativeCachedSignal({
+      ...providerRow,
+      runtimeReadyCached: true,
+    }),
+    true
+  );
+});
+
+test("source selector recognises every uncached Real-Debrid payload shape", () => {
+  assert.equal(
+    sourceHasPendingCacheSignal({
+      type: "provider",
+      url: "https://example.test/status",
+      resolution_strategy: "comet_uncached",
+    }),
+    true
+  );
+  assert.equal(
+    sourceHasPendingCacheSignal({
+      viaRealDebrid: true,
+      url: "https://example.test/file",
+      debridCacheChecked: true,
+      debridCached: false,
+    }),
+    true
+  );
+  assert.equal(
+    sourceHasPendingCacheSignal({
+      rd_status: "waiting_files_selection",
+    }),
+    true
+  );
+  assert.equal(
+    sourceHasPendingCacheSignal({
+      label: "Real-Debrid downloading 42%",
+    }),
+    true
+  );
+});
+
+test("authoritative cached state wins over stale uncached discovery metadata", () => {
+  const ready = {
+    debridCached: true,
+    cacheRequired: true,
+    cometUncached: true,
+    resolutionStrategy: "comet_uncached",
+    rd_status: "downloading",
+    label: "Comet: [RD⬇] 4K",
+  };
+
+  assert.equal(sourceHasAuthoritativeCachedSignal(ready), true);
+  assert.equal(sourceHasPendingCacheSignal(ready), false);
 });
 
 test("Comet rows with only synthetic public trackers still use the Comet start path", () => {
