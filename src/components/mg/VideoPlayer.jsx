@@ -8779,6 +8779,7 @@ export default function VideoPlayer({
                         event
                       ) => {
                         const value = event.target.value;
+                        if (value === "__preparing__") return;
                         const selectedEntry = visibleSourceSelectorEntries.find(
                           (entry) => String(entry.index) === String(value)
                         );
@@ -8788,6 +8789,13 @@ export default function VideoPlayer({
                       className="min-h-11 w-full appearance-none rounded-lg border border-white/15 bg-black/60 py-2.5 pl-3 pr-9 text-xs font-medium text-white outline-none backdrop-blur transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/30 sm:min-h-10 sm:text-sm"
                       aria-label="Choose source or quality while loading"
                     >
+                      {selectedEditionState.preparing &&
+                        visibleSourceSelectorEntries.length === 0 && (
+                          <option value="__preparing__" disabled>
+                            Preparing {selectedEditionState.label}…
+                          </option>
+                        )}
+
                       {visibleSourceSelectorEntries.map(
                         ({
                           item,
