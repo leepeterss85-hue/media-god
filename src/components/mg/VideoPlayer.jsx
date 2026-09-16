@@ -64,6 +64,7 @@ import {
 import { runRealDebridCacheSession } from "@/components/mg/realDebridCacheEngine";
 import { buildAlternateEmbedFallback } from "@/components/mg/alternateEmbedFallback";
 import { sourceHasEdition } from "@/components/mg/mediaEdition";
+import { recordTrustedCachedSource } from "@/components/mg/trustedCachedSources";
 
 const isMagnet = (value) =>
   String(value || "")
@@ -1307,6 +1308,7 @@ export default function VideoPlayer({
 
     failedTorrentHashesRef.current.delete(hash);
     forgetPersistentFailedTorrentHash(hash);
+    recordTrustedCachedSource(item);
     setRuntimeReadyTorrentHashes((current) => {
       if (current.has(hash)) return current;
       const next = new Set(current);
@@ -7721,9 +7723,14 @@ export default function VideoPlayer({
     const runtimeReady = Boolean(
       hash && runtimeReadyTorrentHashes.has(hash)
     );
+    const trustedCached =
+      runtimeReady ||
+      sortedSourceEntries.find((entry) => entry.index === index)?.trustedCached === true;
 
     if (runtimeReady || item?.debridCached === true) {
-      return `Cached / Ready • ${base}`;
+      return trustedCached
+        ? `Trusted Cached • ${base}`
+        : `Cached / Ready • ${base}`;
     }
 
     if (sourceNeedsCaching(item)) {
