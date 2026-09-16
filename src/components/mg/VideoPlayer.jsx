@@ -2167,11 +2167,11 @@ export default function VideoPlayer({
       ? String(sourceSortMode).slice("edition:".length)
       : "";
 
-    const readyCounts = new Map();
+    const cachedCounts = new Map();
     sortedSourceEntries.forEach((entry) => {
-      if (entry?.readyForUser !== true) return;
+      if (entry?.cached !== true) return;
       const edition = entry.editionValue || detectMediaEdition(entry.item).value;
-      readyCounts.set(edition, Number(readyCounts.get(edition) || 0) + 1);
+      cachedCounts.set(edition, Number(cachedCounts.get(edition) || 0) + 1);
     });
 
     const candidates = sortedSourceEntries
@@ -2187,13 +2187,13 @@ export default function VideoPlayer({
           edition,
           hash,
           magnet,
-          readyCount: Number(readyCounts.get(edition) || 0),
+          cachedCount: Number(cachedCounts.get(edition) || 0),
         };
       })
       .filter((entry) => {
         if (
           entry.index === activeIdx ||
-          entry.readyCount > 0 ||
+          entry.cachedCount > 0 ||
           !sourceNeedsCachingForSession(entry.original) ||
           !/^[a-f0-9]{40}$/i.test(entry.hash) ||
           !/^magnet:/i.test(entry.magnet) ||
