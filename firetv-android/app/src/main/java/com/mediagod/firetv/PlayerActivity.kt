@@ -290,6 +290,7 @@ class PlayerActivity : Activity() {
         }
         if (::playerView.isInitialized) {
             playerView.removeCallbacks(hideControllerRunnable)
+            playerView.removeCallbacks(updateAssistControlsRunnable)
         }
         clearLiveWatchdogs()
         DisplayRateMatcher.clear(this)
