@@ -1654,9 +1654,9 @@ export default function MediaPlayerControls({
                 }}
                 onFocus={focusSelectControl}
                 onBlur={blurSelectControl}
-                className="hidden min-h-10 w-[7.5rem] shrink-0 rounded-lg border border-white/15 bg-black/60 px-2 text-xs font-medium text-white outline-none backdrop-blur transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/30 md:block"
-                aria-label="Sort playback sources"
-                title="Sort playback sources"
+                className="hidden min-h-10 w-[10.5rem] shrink-0 rounded-lg border border-white/15 bg-black/60 px-2 text-xs font-medium text-white outline-none backdrop-blur transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/30 md:block"
+                aria-label="Sort playback sources or choose edition"
+                title="Sort playback sources or choose edition"
               >
                 {SOURCE_SORT_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
