@@ -171,6 +171,22 @@ test("uncached retry reuses the exact RD torrent and final-link failures retry a
   assert.match(cacheEngineSource, /lastProgress\s*>=\s*99\.999/);
 });
 
+test("browser addon fallback retries alternate identifiers after an initial 404", () => {
+  const browserFallbackSource = readFileSync(
+    new URL("../src/components/mg/addonBrowserFallback.js", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(
+    browserFallbackSource,
+    /!result\.ok\s*&&\s*result\.status\s*===\s*404[\s\S]{0,1200}?alternateStreamIds/
+  );
+  assert.match(
+    browserFallbackSource,
+    /Browser fallback found no indexed source for this title after trying the available identifiers\./
+  );
+});
+
 test("country normalisation keeps UK/GB and USA/US consistent", () => {
   assert.equal(normaliseCountryCode("UK"), "GB");
   assert.equal(normaliseCountryCode("GBR"), "GB");
