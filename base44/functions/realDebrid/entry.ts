@@ -2,6 +2,7 @@ import { createClientFromRequest } from "npm:@base44/sdk@0.8.44";
 import {
   chooseRequestedTorrentFileForPlayback,
   chooseVideoFileForPlayback,
+  mapTorrentLinksByFileId,
   normaliseRequestedFileIndex,
   torrentSelectionMetadataPending,
 } from "./regressionHelpers.js";
@@ -2889,27 +2890,7 @@ function buildFileEntries(
   const allFiles = Array.isArray(info?.files) ? info.files : [];
   const files = allFiles.filter(isVideoFile);
   const links = Array.isArray(info?.links) ? info.links : [];
-  const linkById = new Map();
-
-  if (links.length === allFiles.length) {
-    allFiles.forEach((file, index) => {
-      if (links[index]) linkById.set(file.id, links[index]);
-    });
-  } else {
-    const selectedFiles = allFiles.filter(
-      (file) => file?.selected === 1 || file?.selected === true
-    );
-
-    if (selectedFiles.length > 0 && links.length === selectedFiles.length) {
-      selectedFiles.forEach((file, index) => {
-        if (links[index]) linkById.set(file.id, links[index]);
-      });
-    } else if (links.length === files.length) {
-      files.forEach((file, index) => {
-        if (links[index]) linkById.set(file.id, links[index]);
-      });
-    }
-  }
+  const linkById = mapTorrentLinksByFileId(allFiles, links);
 
   return files.map(
     (file) => ({
@@ -3252,72 +3233,25 @@ async function resolveStreamable(
       : [];
 
   const linkByFileId =
-    new Map();
-
-  if (
-    fileLinks.length ===
-    allFiles.length
-  ) {
-    allFiles.forEach(
-      (file, index) => {
-        const link =
-          fileLinks[index];
-
-        if (link) {
-          linkByFileId.set(
-            file.id,
-            link
-          );
-        }
-      }
+    mapTorrentLinksByFileId(
+      allFiles,
+      fileLinks
     );
-  }
 
   /*
-   * Some RD responses only expose links in the same order as
-   * selected files. Fall back carefully if needed.
+   * Real-Debrid may return links only for selected files. Resolve the chosen
+   * movie/episode by file id instead of assuming link[0] belongs to the target.
+   * A blind first-link fallback can play the wrong episode from a season pack
+   * or a previously-selected file from an older same-hash torrent.
    */
-  let targetLink =
+  const targetLink =
     target
-      ? linkByFileId.get(
-          target.id
-        ) || ""
+      ? String(
+          target?.link ||
+          linkByFileId.get(target.id) ||
+          ""
+        ).trim()
       : "";
-
-  if (
-    !targetLink &&
-    target &&
-    fileLinks.length ===
-      videoFiles.length
-  ) {
-    const videoIndex =
-      videoFiles.findIndex(
-        (file) =>
-          file.id ===
-          target.id
-      );
-
-    if (
-      videoIndex >= 0
-    ) {
-      targetLink =
-        fileLinks[
-          videoIndex
-        ] || "";
-    }
-  }
-
-  /*
-   * Final fallback.
-   */
-  if (
-    !targetLink &&
-    fileLinks.length >
-      0
-  ) {
-    targetLink =
-      fileLinks[0];
-  }
 
   const fileEntries =
     buildFileEntries(
