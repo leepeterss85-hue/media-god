@@ -124,3 +124,34 @@ export const chooseRequestedTorrentFileForPlayback = (allFiles, ep = {}) => {
 
   return chooseVideoFileForPlayback(files.filter(isVideoTorrentFile), ep);
 };
+
+export const mapTorrentLinksByFileId = (allFiles, links) => {
+  const files = Array.isArray(allFiles) ? allFiles : [];
+  const safeLinks = Array.isArray(links) ? links : [];
+  const selectedFiles = files.filter(
+    (file) => file?.selected === 1 || file?.selected === true
+  );
+  const videoFiles = files.filter(isVideoTorrentFile);
+  let linkedFiles = [];
+
+  if (safeLinks.length === files.length) {
+    linkedFiles = files;
+  } else if (
+    selectedFiles.length > 0 &&
+    safeLinks.length === selectedFiles.length
+  ) {
+    linkedFiles = selectedFiles;
+  } else if (safeLinks.length === videoFiles.length) {
+    linkedFiles = videoFiles;
+  }
+
+  const result = new Map();
+  linkedFiles.forEach((file, index) => {
+    const link = String(safeLinks[index] || "").trim();
+    if (file?.id != null && link) {
+      result.set(file.id, link);
+    }
+  });
+
+  return result;
+};
