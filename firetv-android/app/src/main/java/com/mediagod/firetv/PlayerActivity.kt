@@ -12,7 +12,9 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
+import android.widget.Button
 import android.widget.FrameLayout
+import android.widget.LinearLayout
 import android.widget.Spinner
 import android.widget.TextView
 import androidx.media3.common.AudioAttributes
@@ -59,6 +61,11 @@ class PlayerActivity : Activity() {
 
     private lateinit var playerView: PlayerView
     private lateinit var sourceSpinner: Spinner
+    private lateinit var assistControls: LinearLayout
+    private lateinit var skipRecapButton: Button
+    private lateinit var skipIntroButton: Button
+    private lateinit var skipCreditsButton: Button
+    private lateinit var playNextButton: Button
     private var player: ExoPlayer? = null
     private var mediaSession: MediaSession? = null
 
@@ -70,6 +77,13 @@ class PlayerActivity : Activity() {
     private var streamUrl = ""
     private var title = ""
     private var live = false
+    private var mediaType = ""
+    private var autoNext = true
+    private var recapStartMs = -1L
+    private var recapEndMs = -1L
+    private var introStartMs = -1L
+    private var introEndMs = -1L
+    private var creditsStartMs = -1L
     private var initialPositionMs = 0L
     private var restorePositionMs = 0L
     private var shouldPlayWhenReady = true
@@ -90,6 +104,14 @@ class PlayerActivity : Activity() {
     private val hideSourceSelectorRunnable = Runnable {
         if (!resultSent && ::sourceSpinner.isInitialized) {
             hideSourceSelector()
+        }
+    }
+
+    private val updateAssistControlsRunnable = object : Runnable {
+        override fun run() {
+            if (resultSent || !::playerView.isInitialized) return
+            updateAssistControls()
+            playerView.postDelayed(this, 750L)
         }
     }
 
@@ -118,6 +140,13 @@ class PlayerActivity : Activity() {
         streamUrl = payload.optString("url").trim()
         title = payload.optString("title")
         live = payload.optBoolean("live", false)
+        mediaType = payload.optString("mediaType").trim().lowercase()
+        autoNext = payload.optBoolean("autoNext", true)
+        recapStartMs = payloadMarkerMs("recapStart")
+        recapEndMs = payloadMarkerMs("recapEnd")
+        introStartMs = payloadMarkerMs("introStart")
+        introEndMs = payloadMarkerMs("introEnd")
+        creditsStartMs = payloadMarkerMs("creditsStart")
         initialPositionMs = max(0L, payload.optLong("startPositionMs", 0L))
         restorePositionMs = initialPositionMs
 
@@ -174,6 +203,7 @@ class PlayerActivity : Activity() {
         }
 
         sourceSpinner = buildSourceSpinner()
+        assistControls = buildAssistControls()
         playerView.nextFocusUpId = sourceSpinner.id
         sourceSpinner.nextFocusDownId = playerView.id
 
@@ -194,10 +224,22 @@ class PlayerActivity : Activity() {
                     marginEnd = dp(24)
                 }
             )
+            addView(
+                assistControls,
+                FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    dp(54)
+                ).apply {
+                    gravity = Gravity.BOTTOM or Gravity.END
+                    bottomMargin = dp(42)
+                    marginEnd = dp(30)
+                }
+            )
         }
 
         setContentView(root)
         playerView.requestFocus()
+        playerView.post(updateAssistControlsRunnable)
         hideControllerNow()
     }
 
@@ -325,6 +367,16 @@ class PlayerActivity : Activity() {
                 KeyEvent.KEYCODE_DPAD_DOWN -> {
                     if (sourceSpinner.visibility == View.VISIBLE && sourceSpinner.hasFocus()) {
                         hideSourceSelector()
+                        return true
+                    }
+
+                    if (
+                        ::assistControls.isInitialized &&
+                        assistControls.visibility == View.VISIBLE &&
+                        !assistControls.hasFocus()
+                    ) {
+                        firstVisibleAssistButton()?.requestFocus()
+                        showControllerTemporarily()
                         return true
                     }
                 }
