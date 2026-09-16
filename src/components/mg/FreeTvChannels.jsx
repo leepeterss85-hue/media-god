@@ -61,7 +61,6 @@ export const SKY_STREAM_OVERRIDES = {
   "sky sports premier league": "https://live20.bozztv.com/trn03/gin-skysportspl/index.m3u8",
   "sky sports football": "https://live20.bozztv.com/trn03/gin-skysportsfootball/index.m3u8",
   "sky sports cricket": "https://live20.bozztv.com/trn03/gin-skysportscricket/index.m3u8",
-  "sky sports f1": "https://live20.bozztv.com/trn03/gin-skysportsf1/index.m3u8",
   "sky showcase": "https://live20.bozztv.com/trn03/gin-skyshowcase/index.m3u8",
   "sky news": "https://skynews2-plutolive-vo.akamaized.net/playlist.m3u8",
   "gb news": "https://gbnews-live.rakuten.tv/v1/master.m3u8",
