@@ -4154,13 +4154,18 @@ export default function VideoPlayer({
                       }
                     : {}),
 
-                  ...(active?.fileIdx != null &&
-                  Number.isFinite(Number(active.fileIdx))
+                  ...(rdManualFileSelection
                     ? {
-                        file_idx:
-                          Number(active.fileIdx),
+                        file_id: Number(rdManualFileSelection.fileId),
+                        file_path: rdManualFileSelection.path || "",
+                        manual_file_selection: true,
                       }
-                    : {}),
+                    : active?.fileIdx != null &&
+                        Number.isFinite(Number(active.fileIdx))
+                      ? {
+                          file_idx: Number(active.fileIdx),
+                        }
+                      : {}),
                 }
               );
 
