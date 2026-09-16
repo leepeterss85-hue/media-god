@@ -8885,20 +8885,20 @@ export default function VideoPlayer({
                   setSourceSortMode(next);
 
                   if (next.startsWith("edition:")) {
-                    const edition = next.slice("edition:".length);
-                    const match = sortSourceEntries(sources, next).find((entry) =>
-                      sourceHasEdition(entry.item, edition)
-                    );
+                    const nextEntries = sortSourceEntries(sourcesForSelector, next);
+                    const match = sourceEntriesForPresentation(nextEntries, next)[0];
 
                     if (match && match.index !== activeIdx) {
                       selectSource(match.index, match.item);
+                    } else if (!match) {
+                      setBackgroundCacheNonce((value) => value + 1);
                     }
                   }
                 }}
                 className="min-h-11 w-full rounded-lg border border-white/10 bg-mg-card px-2 py-2.5 text-xs font-medium text-white outline-none transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/30 sm:min-h-10 sm:text-sm"
                 aria-label="Sort playback sources"
               >
-                {SOURCE_SORT_OPTIONS.map((option) => (
+                {sourceSortOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
@@ -8923,6 +8923,7 @@ export default function VideoPlayer({
                   onBlur={releaseSourceSelector}
                   onChange={(event) => {
                     const value = event.target.value;
+                    if (value === "__preparing__") return;
                     const selectedEntry = visibleSourceSelectorEntries.find(
                       (entry) => String(entry.index) === String(value)
                     );
@@ -8932,6 +8933,13 @@ export default function VideoPlayer({
                   className="min-h-11 w-full appearance-none rounded-lg border border-white/10 bg-mg-card py-2.5 pl-3 pr-9 text-xs font-medium text-white outline-none transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/30 sm:min-h-10 sm:text-sm"
                   aria-label="Choose playback source"
                 >
+                  {selectedEditionState.preparing &&
+                    visibleSourceSelectorEntries.length === 0 && (
+                      <option value="__preparing__" disabled>
+                        Preparing {selectedEditionState.label}…
+                      </option>
+                    )}
+
                   {visibleSourceSelectorEntries.map(
                     ({ item, index }) => {
                       const failed =
