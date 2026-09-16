@@ -903,6 +903,11 @@ export default function VideoPlayer({
     sourceSortMode
   );
 
+  const allReadySourceEntries = sourceEntriesForPresentation(
+    sortSourceEntries(sourcesForSelector, "best"),
+    "best"
+  );
+
   const selectedEditionState = editionPresentationState(
     sortedSourceEntries,
     sourceSortMode
@@ -2071,15 +2076,51 @@ export default function VideoPlayer({
     );
 
   /*
-   * TRUSTED CACHED BACKGROUND BUILDER
+   * READY-SOURCE PRESENTATION GUARD
    *
-   * The player used to make every uncached torrent a foreground problem. Build
-   * a small trusted shelf instead: while the user is already on a playable
-   * source, Media God may prepare ONE missing torrent at a time in the user's
-   * own Real-Debrid account. Each edition keeps up to five cached front-line
-   * choices; completed jobs become Trusted Cached immediately. A title may
-   * start at most five new background jobs in one viewing session so this can
-   * never flood the account or compete with foreground cache work.
+   * An uncached discovery row is raw material for the cache queue, not a source
+   * the viewer should be forced to play. If the provider initially points at an
+   * uncached row while any ready source exists, move onto the best ready source
+   * before the foreground RD cache engine is allowed to start.
+   */
+  useEffect(() => {
+    if (
+      isLive ||
+      isYoutube ||
+      isProvider ||
+      !activeNeedsCaching ||
+      allReadySourceEntries.length === 0
+    ) {
+      return;
+    }
+
+    const ready = allReadySourceEntries.find((entry) => entry.index !== activeIdx);
+    if (!ready) return;
+
+    switchToSource(ready.index, {
+      preservePosition: false,
+      statusMessage: "Opening a ready-to-play source while Media God prepares missing editions in the background…",
+    });
+  }, [
+    activeIdx,
+    activeNeedsCaching,
+    allReadySourceEntries.length,
+    isLive,
+    isProvider,
+    isYoutube,
+    rdMediaContextKey,
+  ]);
+
+  /*
+   * MISSING-EDITION BACKGROUND CACHE BUILDER
+   *
+   * Every ready/cached source remains visible. Uncached torrents never appear
+   * as selectable playback rows; they are only candidates for filling an
+   * edition box that currently has ZERO ready sources. One RD job is monitored
+   * at a time. When the viewer explicitly selects an edition, that edition is
+   * the only background target until it has its first ready source or all of
+   * its candidates have failed. With no edition selected, Media God fills other
+   * missing edition boxes gradually in the background.
    */
   useEffect(() => {
     const titleKey = rdMediaContextKey;
@@ -2102,18 +2143,20 @@ export default function VideoPlayer({
       rdPolling ||
       rdTorrentId ||
       rdPreparation ||
-      fileSwitching ||
-      backgroundCacheCompletedRef.current >= 5
+      fileSwitching
     ) {
       return undefined;
     }
 
-    const cachedCounts = new Map();
+    const selectedEdition = String(sourceSortMode || "").startsWith("edition:")
+      ? String(sourceSortMode).slice("edition:".length)
+      : "";
 
+    const readyCounts = new Map();
     sortedSourceEntries.forEach((entry) => {
-      if (!entry?.cached) return;
+      if (entry?.readyForUser !== true) return;
       const edition = entry.editionValue || detectMediaEdition(entry.item).value;
-      cachedCounts.set(edition, Number(cachedCounts.get(edition) || 0) + 1);
+      readyCounts.set(edition, Number(readyCounts.get(edition) || 0) + 1);
     });
 
     const candidates = sortedSourceEntries
@@ -2129,26 +2172,30 @@ export default function VideoPlayer({
           edition,
           hash,
           magnet,
-          cachedCount: Number(cachedCounts.get(edition) || 0),
+          readyCount: Number(readyCounts.get(edition) || 0),
         };
       })
-      .filter(
-        (entry) =>
-          entry.index !== activeIdx &&
-          !entry.cached &&
-          entry.cachedCount < 5 &&
-          sourceNeedsCachingForSession(entry.original) &&
-          /^[a-f0-9]{40}$/i.test(entry.hash) &&
-          /^magnet:/i.test(entry.magnet) &&
-          !backgroundCacheAttemptedRef.current.has(entry.hash) &&
-          !failedTorrentHashesRef.current.has(entry.hash)
-      )
+      .filter((entry) => {
+        if (
+          entry.index === activeIdx ||
+          entry.readyCount > 0 ||
+          !sourceNeedsCachingForSession(entry.original) ||
+          !/^[a-f0-9]{40}$/i.test(entry.hash) ||
+          !/^magnet:/i.test(entry.magnet) ||
+          backgroundCacheAttemptedRef.current.has(entry.hash) ||
+          failedTorrentHashesRef.current.has(entry.hash)
+        ) {
+          return false;
+        }
+
+        return !selectedEdition || entry.edition === selectedEdition;
+      })
       .sort(
         (left, right) =>
-          left.cachedCount - right.cachedCount ||
           Number(right.reportedSeeders || 0) - Number(left.reportedSeeders || 0) ||
           Number(right.trackerRich) - Number(left.trackerRich) ||
           Number(right.compatibility || 0) - Number(left.compatibility || 0) ||
+          Number(right.resolution || 0) - Number(left.resolution || 0) ||
           left.index - right.index
       );
 
@@ -2157,6 +2204,7 @@ export default function VideoPlayer({
 
     let cancelled = false;
     let controller = null;
+    const userWaitingForEdition = selectedEdition === candidate.edition;
 
     const timer = window.setTimeout(() => {
       if (cancelled) return;
@@ -2187,11 +2235,24 @@ export default function VideoPlayer({
             Number.isFinite(Number(candidate.original.fileIdx))
               ? Number(candidate.original.fileIdx)
               : null,
-          preferBrowserTranscode: false,
+          preferBrowserTranscode: prefersMobileBrowserRdCompatibility(),
           preferredTorrentId: "",
         },
         signal: controller.signal,
-        onProgress: null,
+        onProgress: (snapshot) => {
+          if (controller.signal.aborted) return;
+          window.dispatchEvent(
+            new CustomEvent("mg:background-cache-status", {
+              detail: {
+                state: "preparing",
+                edition: candidate.edition,
+                hash: candidate.hash,
+                progress: Math.max(0, Math.min(100, Number(snapshot?.progress || 0))),
+                phase: String(snapshot?.phase || snapshot?.status || "preparing"),
+              },
+            })
+          );
+        },
       })
         .then((result) => {
           if (cancelled || controller.signal.aborted || !result) return;
@@ -2212,9 +2273,22 @@ export default function VideoPlayer({
                   state: "ready",
                   edition: candidate.edition,
                   hash: candidate.hash,
+                  progress: 100,
                 },
               })
             );
+
+            if (userWaitingForEdition) {
+              window.setTimeout(() => {
+                switchToSource(candidate.index, {
+                  preservePosition: false,
+                  manualSelection: true,
+                  statusMessage: `${candidate.editionLabel || "Selected edition"} is ready — starting playback…`,
+                });
+              }, 0);
+            }
+          } else if (result.hashFailed === true) {
+            markTorrentHashFailed(candidate.original);
           }
 
           if (result.accountBlocked !== true) {
@@ -2233,7 +2307,7 @@ export default function VideoPlayer({
             backgroundCacheControllerRef.current = null;
           }
         });
-    }, 10_000);
+    }, userWaitingForEdition ? 250 : 5000);
 
     return () => {
       cancelled = true;
@@ -2257,6 +2331,7 @@ export default function VideoPlayer({
     rdResolving,
     rdTorrentId,
     runtimeReadyTorrentHashes,
+    sourceSortMode,
     source?.episode,
     source?.rdEpisode,
     source?.rdSeason,
