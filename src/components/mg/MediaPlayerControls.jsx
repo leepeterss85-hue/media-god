@@ -37,6 +37,7 @@ import { concisePlaybackSourceLabel } from "@/components/mg/playbackSourceLabels
 import {
   readSourceSortMode,
   sortSourceEntries,
+  sourceIsUserSelectable,
   SOURCE_SELECTOR_SORT_EVENT,
   SOURCE_SORT_OPTIONS,
   writeSourceSortMode,
@@ -216,6 +217,9 @@ export default function MediaPlayerControls({
     sources,
     sourceSortMode
   );
+  const selectableSourceEntries = sortedSourceEntries.filter(({ item }) =>
+    sourceIsUserSelectable(item)
+  );
 
   const [sourceChoicePinned, setSourceChoicePinned] = useState(false);
   const sourceChoiceEntriesRef = useRef([]);
@@ -224,12 +228,17 @@ export default function MediaPlayerControls({
   const visibleSourceChoices =
     sourceChoicePinned && sourceChoiceEntriesRef.current.length > 0
       ? sourceChoiceEntriesRef.current
-      : sortedSourceEntries;
+      : selectableSourceEntries;
 
-  const visibleSourceChoiceValue =
-    sourceChoicePinned
-      ? sourceChoiceValueRef.current
-      : activeIdx;
+  const requestedSourceChoiceValue = sourceChoicePinned
+    ? sourceChoiceValueRef.current
+    : activeIdx;
+
+  const visibleSourceChoiceValue = visibleSourceChoices.some(
+    (entry) => String(entry.index) === String(requestedSourceChoiceValue)
+  )
+    ? requestedSourceChoiceValue
+    : "";
 
   const hideTimerRef = useRef(null);
   const trackPreferencesRef = useRef(trackPreferences);
@@ -1655,8 +1664,10 @@ export default function MediaPlayerControls({
 
                   if (next.startsWith("edition:")) {
                     const edition = next.slice("edition:".length);
-                    const match = sortSourceEntries(sources, next).find((entry) =>
-                      sourceHasEdition(entry.item, edition)
+                    const match = sortSourceEntries(sources, next).find(
+                      (entry) =>
+                        sourceIsUserSelectable(entry.item) &&
+                        sourceHasEdition(entry.item, edition)
                     );
 
                     if (match && match.index !== activeIdx) {
@@ -1678,13 +1689,17 @@ export default function MediaPlayerControls({
               </select>
             ) : null}
 
-            {sources.length > 1 ? (
+            {selectableSourceEntries.length > 1 ? (
               <div className="relative min-w-[7.5rem] max-w-[42vw] sm:min-w-[13rem] sm:max-w-sm">
                 <select
                   value={visibleSourceChoiceValue}
                   onPointerDown={() => {
-                    sourceChoiceEntriesRef.current = sortedSourceEntries;
-                    sourceChoiceValueRef.current = activeIdx;
+                    sourceChoiceEntriesRef.current = selectableSourceEntries;
+                    sourceChoiceValueRef.current = selectableSourceEntries.some(
+                      (entry) => entry.index === activeIdx
+                    )
+                      ? activeIdx
+                      : "";
                     setSourceChoicePinned(true);
                   }}
                   onChange={(event) => {
@@ -1698,8 +1713,12 @@ export default function MediaPlayerControls({
                   }}
                   onFocus={() => {
                     if (!sourceChoicePinned) {
-                      sourceChoiceEntriesRef.current = sortedSourceEntries;
-                      sourceChoiceValueRef.current = activeIdx;
+                      sourceChoiceEntriesRef.current = selectableSourceEntries;
+                      sourceChoiceValueRef.current = selectableSourceEntries.some(
+                        (entry) => entry.index === activeIdx
+                      )
+                        ? activeIdx
+                        : "";
                       setSourceChoicePinned(true);
                     }
                     focusSelectControl();
@@ -1713,6 +1732,11 @@ export default function MediaPlayerControls({
                   aria-label="Choose source or quality"
                   title="Choose source or quality"
                 >
+                  {visibleSourceChoiceValue === "" ? (
+                    <option value="" disabled>
+                      Preparing uncached sources…
+                    </option>
+                  ) : null}
                   {visibleSourceChoices.map(
                     ({
                       item,
