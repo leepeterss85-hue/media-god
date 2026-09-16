@@ -35,10 +35,12 @@ import {
 } from "@/components/mg/mediaTrackPreferences";
 import { concisePlaybackSourceLabel } from "@/components/mg/playbackSourceLabels";
 import {
+  editionPresentationState,
   readSourceSortMode,
   sortSourceEntries,
+  sourceEntriesForPresentation,
+  sourceSortOptionsForEntries,
   SOURCE_SELECTOR_SORT_EVENT,
-  SOURCE_SORT_OPTIONS,
   writeSourceSortMode,
 } from "@/components/mg/sourceSelectorPreferences";
 import { sourceHasEdition } from "@/components/mg/mediaEdition";
@@ -217,6 +219,21 @@ export default function MediaPlayerControls({
     sourceSortMode
   );
 
+  const presentationSourceEntries = sourceEntriesForPresentation(
+    sortedSourceEntries,
+    sourceSortMode
+  );
+
+  const selectedEditionState = editionPresentationState(
+    sortedSourceEntries,
+    sourceSortMode
+  );
+
+  const sourceSortOptions = sourceSortOptionsForEntries(
+    sortedSourceEntries,
+    sourceSortMode
+  );
+
   const [sourceChoicePinned, setSourceChoicePinned] = useState(false);
   const sourceChoiceEntriesRef = useRef([]);
   const sourceChoiceValueRef = useRef(0);
@@ -224,12 +241,16 @@ export default function MediaPlayerControls({
   const visibleSourceChoices =
     sourceChoicePinned && sourceChoiceEntriesRef.current.length > 0
       ? sourceChoiceEntriesRef.current
-      : sortedSourceEntries;
+      : presentationSourceEntries;
 
   const visibleSourceChoiceValue =
     sourceChoicePinned
       ? sourceChoiceValueRef.current
-      : activeIdx;
+      : presentationSourceEntries.some((entry) => entry.index === activeIdx)
+        ? activeIdx
+        : selectedEditionState.preparing
+          ? "__preparing__"
+          : presentationSourceEntries[0]?.index ?? "";
 
   const hideTimerRef = useRef(null);
   const trackPreferencesRef = useRef(trackPreferences);
