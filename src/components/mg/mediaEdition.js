@@ -6,6 +6,7 @@ const clean = (value) =>
 
 export const MEDIA_EDITION_OPTIONS = [
   { value: "any", label: "Any edition" },
+  { value: "standard", label: "Standard / Original" },
   { value: "theatrical", label: "Theatrical" },
   { value: "directors_cut", label: "Director's Cut" },
   { value: "extended", label: "Extended" },
@@ -163,11 +164,11 @@ export const sourceHasEdition = (item, edition) => {
   const wanted = String(edition || "any");
   if (wanted === "any") return true;
 
-  const detected = detectMediaEdition(item).value;
-  if (detected === wanted) return true;
-
-  // Sources with no edition tag are normally the standard theatrical/master
-  // release, so they are valid fallbacks when the user explicitly asks for
-  // Theatrical. Never treat an explicitly different cut as theatrical.
-  return wanted === "theatrical" && detected === "standard";
+  /*
+   * Edition boxes are exact. Standard / Original and an explicitly tagged
+   * Theatrical cut are allowed to be separate categories because users may
+   * deliberately choose either one. Untagged sources therefore stay in the
+   * Standard / Original box instead of silently satisfying another edition.
+   */
+  return detectMediaEdition(item).value === wanted;
 };
