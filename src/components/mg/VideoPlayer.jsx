@@ -4393,6 +4393,15 @@ export default function VideoPlayer({
                 null
               );
 
+              if (rdManualFileSelection) {
+                setRdPreparation(null);
+                setRdError(
+                  `${data.error || "The selected extra could not be prepared."} Choose the file again to retry it.`
+                );
+                setRdManualFileSelection(null);
+                return;
+              }
+
               if (
                 rdErrorCode ===
                 "RD_NO_VIDEO_FILE"
