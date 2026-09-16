@@ -17,7 +17,7 @@ export const isVideoTorrentFile = (file) =>
   Boolean(file?.path) && VIDEO_RE.test(String(file.path));
 
 const isLikelyExtraTorrentFile = (file) =>
-  /\b(?:sample|trailer|teaser|featurette|extras?|bonus|behind[ ._-]?the[ ._-]?scenes|interview|deleted[ ._-]?scene|proof)\b/i.test(
+  /\b(?:sample|trailer|teaser|featurette|extras?|bonus|special[ ._-]?features?|behind[ ._-]?(?:the[ ._-]?)?scenes|making[ ._-]?of|interview|deleted[ ._-]?scene|alternate[ ._-]?ending|gag[ ._-]?reel|bloopers?|outtakes?|commentary|music[ ._-]?video|storyboards?|previz|proof)\b/i.test(
     String(file?.path || "")
   );
 
@@ -74,7 +74,7 @@ export const chooseVideoFileForPlayback = (files, ep = {}) => {
     let score = Number(file?.bytes || 0);
 
     if (
-      /\b(?:sample|trailer|teaser|featurette|extras?|bonus|behind[ ._-]?the[ ._-]?scenes|interview|deleted[ ._-]?scene|proof)\b/i.test(
+      /\b(?:sample|trailer|teaser|featurette|extras?|bonus|special[ ._-]?features?|behind[ ._-]?(?:the[ ._-]?)?scenes|making[ ._-]?of|interview|deleted[ ._-]?scene|alternate[ ._-]?ending|gag[ ._-]?reel|bloopers?|outtakes?|commentary|music[ ._-]?video|storyboards?|previz|proof)\b/i.test(
         text
       )
     ) {
