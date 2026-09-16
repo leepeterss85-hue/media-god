@@ -65,10 +65,7 @@ import {
 } from "@/components/mg/sourceSelectorPreferences";
 import { runRealDebridCacheSession } from "@/components/mg/realDebridCacheEngine";
 import { buildAlternateEmbedFallback } from "@/components/mg/alternateEmbedFallback";
-import {
-  detectMediaEdition,
-  sourceHasEdition,
-} from "@/components/mg/mediaEdition";
+import { detectMediaEdition } from "@/components/mg/mediaEdition";
 import { recordTrustedCachedSource } from "@/components/mg/trustedCachedSources";
 
 const isMagnet = (value) =>
