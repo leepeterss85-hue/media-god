@@ -1,0 +1,135 @@
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+
+    private fun payloadMarkerMs(key: String): Long {
+        val value = payload.optDouble(key, -1.0)
+        if (!value.isFinite() || value < 0.0) return -1L
+        return if (value >= 10_000.0) value.toLong() else (value * 1000.0).toLong()
+    }
+
+    private fun isTvEpisode(): Boolean = !live && (
+        mediaType == "tv" || mediaType == "series" ||
+            payload.optInt("season", 0) > 0 || payload.optInt("episode", 0) > 0
+    )
+
+    private fun buildAssistButton(label: String, onClick: () -> Unit): Button =
+        Button(this).apply {
+            text = label
+            isAllCaps = false
+            setTextColor(Color.WHITE)
+            setBackgroundColor(Color.argb(220, 18, 18, 18))
+            textSize = 13f
+            minHeight = dp(44)
+            minWidth = dp(94)
+            isFocusable = true
+            visibility = View.GONE
+            setPadding(dp(9), 0, dp(9), 0)
+            setOnClickListener { onClick() }
+        }
+
+    private fun buildAssistControls(): LinearLayout {
+        skipRecapButton = buildAssistButton("Skip recap") {
+            val active = player ?: return@buildAssistButton
+            seekAssistTo(if (recapEndMs > active.currentPosition) recapEndMs + 250L else active.currentPosition + 45_000L)
+        }
+        skipIntroButton = buildAssistButton("Skip intro") {
+            val active = player ?: return@buildAssistButton
+            seekAssistTo(if (introEndMs > active.currentPosition) introEndMs + 250L else active.currentPosition + 85_000L)
+        }
+        skipCreditsButton = buildAssistButton("Skip credits") {
+            if (isTvEpisode()) finishWithResult("next") else {
+                val active = player ?: return@buildAssistButton
+                val total = active.duration.takeIf { it > 0L } ?: return@buildAssistButton
+                seekAssistTo(maxOf(0L, total - 750L))
+            }
+        }
+        playNextButton = buildAssistButton("Play next") { finishWithResult("next") }
+        cancelNextButton = buildAssistButton("Cancel") {
+            nextEpisodeCountdownCancelled = true
+            nextEpisodeCountdownStartedAtMs = -1L
+            updateAssistControls()
+        }
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(4), dp(3), dp(4), dp(3))
+            setBackgroundColor(Color.argb(175, 0, 0, 0))
+            visibility = View.GONE
+            addView(skipRecapButton)
+            addView(skipIntroButton)
+            addView(skipCreditsButton)
+            addView(playNextButton)
+            addView(cancelNextButton)
+        }
+    }
+
+    private fun seekAssistTo(targetMs: Long) {
+        val active = player ?: return
+        if (live && !active.isCurrentMediaItemSeekable) return
+        val total = active.duration.takeIf { it > 0L } ?: Long.MAX_VALUE
+        active.seekTo(targetMs.coerceAtLeast(0L).coerceAtMost(total))
+        active.play()
+        showControllerTemporarily()
+    }
+
+    private fun showAssist(button: Button, visible: Boolean) {
+        button.visibility = if (visible) View.VISIBLE else View.GONE
+    }
+
+    private fun updateAssistControls() {
+        if (resultSent || live || !::assistControls.isInitialized) {
+            if (::assistControls.isInitialized) assistControls.visibility = View.GONE
+            return
+        }
+        val active = player ?: run { assistControls.visibility = View.GONE; return }
+        val pos = maxOf(0L, active.currentPosition)
+        val total = active.duration.takeIf { it > 0L } ?: 0L
+        val remaining = if (total > 0L) maxOf(0L, total - pos) else Long.MAX_VALUE
+        val tv = isTvEpisode()
+        val playing = active.isPlaying
+
+        val recap = tv && (
+            (recapEndMs > 0L && pos >= maxOf(0L, recapStartMs) && pos < recapEndMs) ||
+            (recapEndMs < 0L && playing && pos in 4_000L..75_000L && (total <= 0L || remaining > 180_000L))
+        )
+        val intro = tv && (
+            (introEndMs > 0L && pos >= maxOf(0L, introStartMs) && pos < introEndMs) ||
+            (introEndMs < 0L && playing && pos in 45_000L..420_000L && (total <= 0L || remaining > 120_000L))
+        )
+        val fallbackCredits = if (tv) {
+            if (total > 0L) minOf(240_000L, maxOf(75_000L, (total * 0.09).toLong())) else 0L
+        } else {
+            if (total > 0L) minOf(360_000L, maxOf(120_000L, (total * 0.08).toLong())) else 0L
+        }
+        val exactCredits = total >= 300_000L && creditsStartMs > 0L && pos >= creditsStartMs && pos < total - 500L
+        val credits = exactCredits || (total >= 300_000L && creditsStartMs < 0L && pos > (total * 0.55).toLong() && remaining <= fallbackCredits)
+        val nextWindow = if (total > 0L) minOf(180_000L, maxOf(75_000L, (total * 0.10).toLong())) else 0L
+        val showNext = tv && total >= 180_000L && pos >= 60_000L && (remaining <= nextWindow || exactCredits)
+
+        showAssist(skipRecapButton, recap)
+        showAssist(skipIntroButton, intro)
+        showAssist(skipCreditsButton, credits)
+        skipCreditsButton.text = if (tv && credits) "Skip credits → Next" else "Skip credits"
+        showAssist(playNextButton, showNext)
+
+        val countdown = tv && total >= 180_000L && pos >= 60_000L && (exactCredits || remaining <= 15_000L)
+        if (autoNext && countdown && playing && !nextEpisodeCountdownCancelled) {
+            if (nextEpisodeCountdownStartedAtMs < 0L) nextEpisodeCountdownStartedAtMs = android.os.SystemClock.elapsedRealtime()
+            val left = NEXT_EPISODE_COUNTDOWN_MS - (android.os.SystemClock.elapsedRealtime() - nextEpisodeCountdownStartedAtMs)
+            if (left <= 0L) {
+                nextEpisodeCountdownCancelled = true
+                nextEpisodeCountdownStartedAtMs = -1L
+                finishWithResult("next")
+                return
+            }
+            playNextButton.text = "Next episode in ${maxOf(1L, (left + 999L) / 1000L)}s"
+            showAssist(playNextButton, true)
+            showAssist(cancelNextButton, true)
+        } else {
+            if (!countdown || !playing || !autoNext) nextEpisodeCountdownStartedAtMs = -1L
+            playNextButton.text = "Play next"
+            showAssist(cancelNextButton, false)
+        }
+
+        assistControls.visibility = if (listOf(skipRecapButton, skipIntroButton, skipCreditsButton, playNextButton, cancelNextButton).any { it.visibility == View.VISIBLE }) View.VISIBLE else View.GONE
+    }
+
