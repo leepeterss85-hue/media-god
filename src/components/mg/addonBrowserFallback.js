@@ -1035,11 +1035,53 @@ const fetchOneAddon = async ({
     };
   }
 
-  const result =
+  let result =
     await fetchBrowserJson(
       url,
       10000
     );
+
+  let alternateIdUsed = "";
+
+  /*
+   * Match the server-side 404 behaviour. A newly released title can be absent
+   * under one identifier (often TMDB) while the same configured addon already
+   * recognises an IMDb or title/year identifier. Do not surface the first 404
+   * until every alternate identifier prepared by Media God has been tried.
+   */
+  if (
+    !result.ok &&
+    result.status === 404 &&
+    Array.isArray(alternateStreamIds) &&
+    alternateStreamIds.length > 0
+  ) {
+    for (const alternateStreamId of alternateStreamIds) {
+      if (!alternateStreamId || alternateStreamId === streamId) {
+        continue;
+      }
+
+      const alternateUrl = buildStreamUrl(
+        addon?.url,
+        type,
+        alternateStreamId
+      );
+
+      if (!alternateUrl) {
+        continue;
+      }
+
+      const alternateResult = await fetchBrowserJson(
+        alternateUrl,
+        10000
+      );
+
+      if (alternateResult.ok) {
+        result = alternateResult;
+        alternateIdUsed = alternateStreamId;
+        break;
+      }
+    }
+  }
 
   if (!result.ok) {
     return {
@@ -1062,9 +1104,11 @@ const fetchOneAddon = async ({
           0,
 
         message:
-          result.status > 0
-            ? `Browser fallback returned HTTP ${result.status}.`
-            : `Browser fallback failed: ${result.error}`,
+          result.status === 404
+            ? "Browser fallback found no indexed source for this title after trying the available identifiers."
+            : result.status > 0
+              ? `Browser fallback returned HTTP ${result.status}.`
+              : `Browser fallback failed: ${result.error}`,
 
         browser:
           true,
@@ -1078,8 +1122,6 @@ const fetchOneAddon = async ({
     )
       ? result.data.streams
       : [];
-
-  let alternateIdUsed = "";
 
   if (
     rawStreams.length === 0 &&
