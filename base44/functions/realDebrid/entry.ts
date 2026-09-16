@@ -2804,7 +2804,7 @@ async function addMagnet({
         "waiting_files_selection" &&
       initialFiles.length > 0
     ) {
-      await deleteNewTorrentBestEffort(torrentId, authHeaders);
+      await deleteNewTorrentBestEffort(torrentId, authHeaders, base44);
       return Response.json({
         status: "failed",
         torrent_id: torrentId,
