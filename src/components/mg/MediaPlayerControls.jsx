@@ -1675,10 +1675,8 @@ export default function MediaPlayerControls({
                   setSourceSortMode(next);
 
                   if (next.startsWith("edition:")) {
-                    const edition = next.slice("edition:".length);
-                    const match = sortSourceEntries(sources, next).find((entry) =>
-                      sourceHasEdition(entry.item, edition)
-                    );
+                    const nextEntries = sortSourceEntries(sources, next);
+                    const match = sourceEntriesForPresentation(nextEntries, next)[0];
 
                     if (match && match.index !== activeIdx) {
                       onSelectSource?.(match.index, match.item);
@@ -1691,7 +1689,7 @@ export default function MediaPlayerControls({
                 aria-label="Sort playback sources or choose edition"
                 title="Sort playback sources or choose edition"
               >
-                {SOURCE_SORT_OPTIONS.map((option) => (
+                {sourceSortOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
@@ -1704,12 +1702,19 @@ export default function MediaPlayerControls({
                 <select
                   value={visibleSourceChoiceValue}
                   onPointerDown={() => {
-                    sourceChoiceEntriesRef.current = sortedSourceEntries;
-                    sourceChoiceValueRef.current = activeIdx;
+                    sourceChoiceEntriesRef.current = presentationSourceEntries;
+                    sourceChoiceValueRef.current = presentationSourceEntries.some(
+                      (entry) => entry.index === activeIdx
+                    )
+                      ? activeIdx
+                      : selectedEditionState.preparing
+                        ? "__preparing__"
+                        : presentationSourceEntries[0]?.index ?? "";
                     setSourceChoicePinned(true);
                   }}
                   onChange={(event) => {
                     const value = event.target.value;
+                    if (value === "__preparing__") return;
                     const selectedEntry = visibleSourceChoices.find(
                       (entry) => String(entry.index) === String(value)
                     );
@@ -1734,6 +1739,13 @@ export default function MediaPlayerControls({
                   aria-label="Choose source or quality"
                   title="Choose source or quality"
                 >
+                  {selectedEditionState.preparing &&
+                    visibleSourceChoices.length === 0 && (
+                      <option value="__preparing__" disabled>
+                        Preparing {selectedEditionState.label}…
+                      </option>
+                    )}
+
                   {visibleSourceChoices.map(
                     ({
                       item,
