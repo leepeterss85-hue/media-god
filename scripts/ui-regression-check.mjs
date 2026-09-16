@@ -464,7 +464,7 @@ expect(
     videoPlayer.includes("const activeResolutionKey =") &&
     videoPlayer.includes("stablePlaybackSourceKey(active, activeIdx)") &&
     videoPlayer.includes("rdMediaContextKey") &&
-    /\[\s*rdTorrentId,\s*rdOverride,\s*\]\s*\n\s*\);/.test(videoPlayer) &&
+    /\[\s*rdTorrentId,\s*rdOverride,\s*rdManualFileSelection,\s*\]\s*\n\s*\);/.test(videoPlayer) &&
     !/\[\s*rdTorrentId,\s*rdOverride,\s*source,\s*\]\s*\n\s*\);/.test(videoPlayer) &&
     videoPlayer.includes("Never move the active source underneath an open native selector") &&
     !videoPlayer.includes("setSourceSelectorPinned(") &&
