@@ -101,8 +101,9 @@ test("uncached v2 engine owns Real-Debrid slot preflight and preserves blocked s
   assert.match(cacheEngineSource, /action:\s*"uncached_preflight"/);
   assert.match(cacheEngineSource, /errorCode:\s*"RD_ACTIVE_SLOTS_FULL"/);
   assert.match(cacheEngineSource, /accountBlocked:\s*true/);
-  assert.match(playerSource, /const accountBlocked\s*=[\s\S]{0,180}?RD_ACTIVE_SLOTS_FULL/);
-  assert.match(playerSource, /if \(!accountBlocked\) \{\s*markSourceFailed\(activeIdx\)/);
+  assert.match(playerSource, /const preserveUncachedSource\s*=[\s\S]{0,260}?RD_ACTIVE_SLOTS_FULL/);
+  assert.match(playerSource, /RD_CACHE_STATUS_UNAVAILABLE/);
+  assert.match(playerSource, /if \(!preserveUncachedSource\) \{\s*markSourceFailed\(activeIdx\)/);
 });
 
 test("Real-Debrid selected-file links map to the requested episode instead of link zero", () => {
