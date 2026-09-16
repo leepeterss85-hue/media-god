@@ -27,6 +27,38 @@ export const MEDIA_EDITION_OPTIONS = [
   { value: "noir", label: "Black & White / Noir" },
 ];
 
+export const MEDIA_EXTRA_OPTIONS = [
+  { value: "deleted_scene", label: "Deleted Scene" },
+  { value: "alternate_ending", label: "Alternate Ending" },
+  { value: "featurette", label: "Featurette" },
+  { value: "behind_scenes", label: "Behind the Scenes" },
+  { value: "making_of", label: "Making Of" },
+  { value: "interview", label: "Interview" },
+  { value: "gag_reel", label: "Gag Reel / Bloopers" },
+  { value: "commentary", label: "Commentary" },
+  { value: "music_video", label: "Music Video" },
+  { value: "storyboard", label: "Storyboard / Previz" },
+  { value: "trailer", label: "Trailer / Teaser" },
+  { value: "sample", label: "Sample" },
+  { value: "bonus", label: "Bonus / Extra" },
+];
+
+const EXTRA_RULES = [
+  ["deleted_scene", /\bdeleted\s+scenes?\b/i],
+  ["alternate_ending", /\b(?:alternate|alternative)\s+endings?\b/i],
+  ["featurette", /\bfeaturettes?\b/i],
+  ["behind_scenes", /\bbehind\s+(?:the\s+)?scenes\b|\bbts\b/i],
+  ["making_of", /\bmaking\s+of\b/i],
+  ["interview", /\binterviews?\b/i],
+  ["gag_reel", /\b(?:gag\s+reel|bloopers?|outtakes?)\b/i],
+  ["commentary", /\bcommentary\b/i],
+  ["music_video", /\bmusic\s+videos?\b/i],
+  ["storyboard", /\b(?:storyboards?|previz|previsuali[sz]ation)\b/i],
+  ["trailer", /\b(?:trailers?|teasers?)\b/i],
+  ["sample", /\bsamples?\b/i],
+  ["bonus", /\b(?:bonus|extras?|special\s+features?)\b/i],
+];
+
 const EDITION_RULES = [
   ["directors_cut", /\b(?:director'?s?|directors)\s+(?:cut|edition|version)\b/i],
   ["extended", /\bextended(?:\s+(?:cut|edition|version))?\b|\bextended\s+episode\b/i],
@@ -88,6 +120,27 @@ export const detectMediaEdition = (item) => {
 };
 
 export const mediaEditionLabel = (item) => detectMediaEdition(item).label;
+
+export const detectMediaExtra = (item) => {
+  const text = mediaEditionText(item);
+
+  for (const [value, re] of EXTRA_RULES) {
+    if (re.test(text)) {
+      const option = MEDIA_EXTRA_OPTIONS.find((entry) => entry.value === value);
+      return {
+        value,
+        label: option?.label || value,
+        explicit: true,
+      };
+    }
+  }
+
+  return {
+    value: "main_feature",
+    label: "Main Feature",
+    explicit: false,
+  };
+};
 
 export const mediaEditionSortScore = (item, preferred = "any") => {
   const edition = detectMediaEdition(item);
