@@ -55,17 +55,18 @@ import {
   recordLiveTvPlaybackResult,
 } from "@/components/mg/liveTvPlaybackLearning";
 import {
-  editionPresentationState,
   readSourceSortMode,
   sortSourceEntries,
-  sourceEntriesForPresentation,
-  sourceSortOptionsForEntries,
   SOURCE_SELECTOR_SORT_EVENT,
+  SOURCE_SORT_OPTIONS,
   writeSourceSortMode,
 } from "@/components/mg/sourceSelectorPreferences";
 import { runRealDebridCacheSession } from "@/components/mg/realDebridCacheEngine";
 import { buildAlternateEmbedFallback } from "@/components/mg/alternateEmbedFallback";
-import { detectMediaEdition } from "@/components/mg/mediaEdition";
+import {
+  detectMediaEdition,
+  sourceHasEdition,
+} from "@/components/mg/mediaEdition";
 import { recordTrustedCachedSource } from "@/components/mg/trustedCachedSources";
 
 const isMagnet = (value) =>
@@ -871,20 +872,12 @@ export default function VideoPlayer({
     abandoned: new Set(),
   });
 
-  const sourceNeedsCachingForSession = (item) => {
-    const hash = sourceTorrentHash(item);
-    if (hash && runtimeReadyTorrentHashes.has(hash)) return false;
-    return sourceNeedsCaching(item);
-  };
-
   const sourcesForSelector = sources.map((item) => {
     const hash = sourceTorrentHash(item);
     return hash && runtimeReadyTorrentHashes.has(hash)
       ? {
           ...item,
           debridCached: true,
-          cacheRequired: false,
-          cometUncached: false,
           runtimeReadyCached: true,
         }
       : item;
@@ -894,41 +887,6 @@ export default function VideoPlayer({
     sourcesForSelector,
     sourceSortMode
   );
-
-  const presentationSourceEntries = sourceEntriesForPresentation(
-    sortedSourceEntries,
-    sourceSortMode
-  );
-
-  const allReadySourceEntries = sourceEntriesForPresentation(
-    sortSourceEntries(sourcesForSelector, "best"),
-    "best"
-  );
-
-  const selectedEditionState = editionPresentationState(
-    sortedSourceEntries,
-    sourceSortMode
-  );
-
-  const sourceSortOptions = sourceSortOptionsForEntries(
-    sortedSourceEntries,
-    sourceSortMode
-  );
-
-  useEffect(() => {
-    if (
-      sources.length > 0 &&
-      String(sourceSortMode || "").startsWith("edition:") &&
-      !selectedEditionState.discovered
-    ) {
-      const next = writeSourceSortMode("best");
-      setSourceSortMode(next);
-    }
-  }, [
-    selectedEditionState.discovered,
-    sourceSortMode,
-    sources.length,
-  ]);
 
   /*
    * Android/Fire TV native <select> popups close if React changes their
@@ -948,14 +906,8 @@ export default function VideoPlayer({
   const rdFileSelectorValueRef = useRef("");
 
   const pinSourceSelector = () => {
-    sourceSelectorEntriesRef.current = presentationSourceEntries;
-    sourceSelectorValueRef.current = presentationSourceEntries.some(
-      (entry) => entry.index === activeIdx
-    )
-      ? activeIdx
-      : selectedEditionState.preparing
-        ? "__preparing__"
-        : presentationSourceEntries[0]?.index ?? "";
+    sourceSelectorEntriesRef.current = sortedSourceEntries;
+    sourceSelectorValueRef.current = activeIdx;
     sourceSelectorPinnedRef.current = true;
     sourceSelectorPinnedAtRef.current = Date.now();
   };
@@ -980,16 +932,12 @@ export default function VideoPlayer({
   const visibleSourceSelectorEntries =
     sourceSelectorPinnedRef.current && sourceSelectorEntriesRef.current.length > 0
       ? sourceSelectorEntriesRef.current
-      : presentationSourceEntries;
+      : sortedSourceEntries;
 
   const visibleSourceSelectorValue =
     sourceSelectorPinnedRef.current
       ? sourceSelectorValueRef.current
-      : presentationSourceEntries.some((entry) => entry.index === activeIdx)
-        ? activeIdx
-        : selectedEditionState.preparing
-          ? "__preparing__"
-          : presentationSourceEntries[0]?.index ?? "";
+      : activeIdx;
 
   const pinRdFileSelector = () => {
     rdFileSelectorFilesRef.current = rdFiles;
@@ -1495,7 +1443,7 @@ export default function VideoPlayer({
           candidate?.type === "status" ||
           candidate?.type === "provider" ||
           candidate?.type === "youtube" ||
-          (allowCaching === false && sourceNeedsCachingForSession(candidate)) ||
+          (allowCaching === false && sourceNeedsCaching(candidate)) ||
           (!url && !torrent)
         ) {
           return null;
@@ -1701,7 +1649,7 @@ export default function VideoPlayer({
      * the actual reason and let Retry/manual source selection decide what to do
      * next. Cached/direct playback can continue to use automatic failover.
      */
-    if (sourceNeedsCachingForSession(active) && !permanentRdTorrentRejection) {
+    if (sourceNeedsCaching(active) && !permanentRdTorrentRejection) {
       if (torrentFailoverTimerRef.current) {
         window.clearTimeout(torrentFailoverTimerRef.current);
         torrentFailoverTimerRef.current = null;
@@ -2051,7 +1999,7 @@ export default function VideoPlayer({
     );
 
   const activeTorrentHash = sourceTorrentHash(active);
-  const activeNeedsCaching = sourceNeedsCachingForSession(active);
+  const activeNeedsCaching = sourceNeedsCaching(active);
 
   /*
    * Torrent identity is authoritative. Addons can expose an uncached torrent
@@ -2088,51 +2036,15 @@ export default function VideoPlayer({
     );
 
   /*
-   * READY-SOURCE PRESENTATION GUARD
+   * TRUSTED CACHED BACKGROUND BUILDER
    *
-   * An uncached discovery row is raw material for the cache queue, not a source
-   * the viewer should be forced to play. If the provider initially points at an
-   * uncached row while any ready source exists, move onto the best ready source
-   * before the foreground RD cache engine is allowed to start.
-   */
-  useEffect(() => {
-    if (
-      isLive ||
-      isYoutube ||
-      isProvider ||
-      !activeNeedsCaching ||
-      allReadySourceEntries.length === 0
-    ) {
-      return;
-    }
-
-    const ready = allReadySourceEntries.find((entry) => entry.index !== activeIdx);
-    if (!ready) return;
-
-    switchToSource(ready.index, {
-      preservePosition: false,
-      statusMessage: "Opening a ready-to-play source while Media God prepares missing editions in the background…",
-    });
-  }, [
-    activeIdx,
-    activeNeedsCaching,
-    allReadySourceEntries.length,
-    isLive,
-    isProvider,
-    isYoutube,
-    rdMediaContextKey,
-  ]);
-
-  /*
-   * MISSING-EDITION BACKGROUND CACHE BUILDER
-   *
-   * Every ready/cached source remains visible. Uncached torrents never appear
-   * as selectable playback rows; they are only candidates for filling an
-   * edition box that currently has ZERO ready sources. One RD job is monitored
-   * at a time. When the viewer explicitly selects an edition, that edition is
-   * the only background target until it has its first ready source or all of
-   * its candidates have failed. With no edition selected, Media God fills other
-   * missing edition boxes gradually in the background.
+   * The player used to make every uncached torrent a foreground problem. Build
+   * a small trusted shelf instead: while the user is already on a playable
+   * source, Media God may prepare ONE missing torrent at a time in the user's
+   * own Real-Debrid account. Each edition keeps up to five cached front-line
+   * choices; completed jobs become Trusted Cached immediately. A title may
+   * start at most five new background jobs in one viewing session so this can
+   * never flood the account or compete with foreground cache work.
    */
   useEffect(() => {
     const titleKey = rdMediaContextKey;
@@ -2155,18 +2067,16 @@ export default function VideoPlayer({
       rdPolling ||
       rdTorrentId ||
       rdPreparation ||
-      fileSwitching
+      fileSwitching ||
+      backgroundCacheCompletedRef.current >= 5
     ) {
       return undefined;
     }
 
-    const selectedEdition = String(sourceSortMode || "").startsWith("edition:")
-      ? String(sourceSortMode).slice("edition:".length)
-      : "";
-
     const cachedCounts = new Map();
+
     sortedSourceEntries.forEach((entry) => {
-      if (entry?.cached !== true) return;
+      if (!entry?.cached) return;
       const edition = entry.editionValue || detectMediaEdition(entry.item).value;
       cachedCounts.set(edition, Number(cachedCounts.get(edition) || 0) + 1);
     });
@@ -2187,27 +2097,23 @@ export default function VideoPlayer({
           cachedCount: Number(cachedCounts.get(edition) || 0),
         };
       })
-      .filter((entry) => {
-        if (
-          entry.index === activeIdx ||
-          entry.cachedCount > 0 ||
-          !sourceNeedsCachingForSession(entry.original) ||
-          !/^[a-f0-9]{40}$/i.test(entry.hash) ||
-          !/^magnet:/i.test(entry.magnet) ||
-          backgroundCacheAttemptedRef.current.has(entry.hash) ||
-          failedTorrentHashesRef.current.has(entry.hash)
-        ) {
-          return false;
-        }
-
-        return !selectedEdition || entry.edition === selectedEdition;
-      })
+      .filter(
+        (entry) =>
+          entry.index !== activeIdx &&
+          !entry.cached &&
+          entry.cachedCount < 5 &&
+          sourceNeedsCaching(entry.original) &&
+          /^[a-f0-9]{40}$/i.test(entry.hash) &&
+          /^magnet:/i.test(entry.magnet) &&
+          !backgroundCacheAttemptedRef.current.has(entry.hash) &&
+          !failedTorrentHashesRef.current.has(entry.hash)
+      )
       .sort(
         (left, right) =>
+          left.cachedCount - right.cachedCount ||
           Number(right.reportedSeeders || 0) - Number(left.reportedSeeders || 0) ||
           Number(right.trackerRich) - Number(left.trackerRich) ||
           Number(right.compatibility || 0) - Number(left.compatibility || 0) ||
-          Number(right.resolution || 0) - Number(left.resolution || 0) ||
           left.index - right.index
       );
 
@@ -2216,7 +2122,6 @@ export default function VideoPlayer({
 
     let cancelled = false;
     let controller = null;
-    const userWaitingForEdition = selectedEdition === candidate.edition;
 
     const timer = window.setTimeout(() => {
       if (cancelled) return;
@@ -2247,24 +2152,11 @@ export default function VideoPlayer({
             Number.isFinite(Number(candidate.original.fileIdx))
               ? Number(candidate.original.fileIdx)
               : null,
-          preferBrowserTranscode: prefersMobileBrowserRdCompatibility(),
+          preferBrowserTranscode: false,
           preferredTorrentId: "",
         },
         signal: controller.signal,
-        onProgress: (snapshot) => {
-          if (controller.signal.aborted) return;
-          window.dispatchEvent(
-            new CustomEvent("mg:background-cache-status", {
-              detail: {
-                state: "preparing",
-                edition: candidate.edition,
-                hash: candidate.hash,
-                progress: Math.max(0, Math.min(100, Number(snapshot?.progress || 0))),
-                phase: String(snapshot?.phase || snapshot?.status || "preparing"),
-              },
-            })
-          );
-        },
+        onProgress: null,
       })
         .then((result) => {
           if (cancelled || controller.signal.aborted || !result) return;
@@ -2285,22 +2177,9 @@ export default function VideoPlayer({
                   state: "ready",
                   edition: candidate.edition,
                   hash: candidate.hash,
-                  progress: 100,
                 },
               })
             );
-
-            if (userWaitingForEdition) {
-              window.setTimeout(() => {
-                switchToSource(candidate.index, {
-                  preservePosition: false,
-                  manualSelection: true,
-                  statusMessage: `${candidate.editionLabel || "Selected edition"} is ready — starting playback…`,
-                });
-              }, 0);
-            }
-          } else if (result.hashFailed === true) {
-            markTorrentHashFailed(candidate.original);
           }
 
           if (result.accountBlocked !== true) {
@@ -2319,7 +2198,7 @@ export default function VideoPlayer({
             backgroundCacheControllerRef.current = null;
           }
         });
-    }, userWaitingForEdition ? 250 : 5000);
+    }, 10_000);
 
     return () => {
       cancelled = true;
@@ -2343,7 +2222,6 @@ export default function VideoPlayer({
     rdResolving,
     rdTorrentId,
     runtimeReadyTorrentHashes,
-    sourceSortMode,
     source?.episode,
     source?.rdEpisode,
     source?.rdSeason,
@@ -2692,8 +2570,7 @@ export default function VideoPlayer({
       isDirectFile ||
       isLive ||
       !isRdSource ||
-      !sourceNeedsCachingForSession(active) ||
-      allReadySourceEntries.some((entry) => entry.index !== activeIdx)
+      !sourceNeedsCaching(active)
     ) {
       return undefined;
     }
@@ -2980,7 +2857,7 @@ export default function VideoPlayer({
         return;
       }
 
-      if (sourceNeedsCachingForSession(active)) {
+      if (sourceNeedsCaching(active)) {
         return;
       }
 
@@ -3220,7 +3097,7 @@ export default function VideoPlayer({
             let debridProviders = explicitProvider ? [explicitProvider] : [];
 
             const resolutionStrategy = sourceResolutionStrategy(active);
-            const knownUncached = sourceNeedsCachingForSession(active);
+            const knownUncached = sourceNeedsCaching(active);
             const hasTorrentTrackers = debridTorrentHasMetadata({
               ...active,
               magnet,
@@ -4235,7 +4112,7 @@ export default function VideoPlayer({
             if (
               !cancelled
             ) {
-              const uncachedActive = sourceNeedsCachingForSession(active);
+              const uncachedActive = sourceNeedsCaching(active);
               const terminalRdResolveFailure =
                 uncachedActive &&
                 (
@@ -4599,7 +4476,7 @@ export default function VideoPlayer({
                 return;
               }
 
-              const uncachedActive = sourceNeedsCachingForSession(active);
+              const uncachedActive = sourceNeedsCaching(active);
 
               if (uncachedActive) {
                 /*
@@ -4769,7 +4646,7 @@ export default function VideoPlayer({
               if (rdErrorCode === "RD_TORRENT_INFO_FAILED") {
                 setRdPreparation((current) => ({
                   ...(current || {}),
-                  status: sourceNeedsCachingForSession(active)
+                  status: sourceNeedsCaching(active)
                     ? "stalled"
                     : current?.status || "stalled",
                   stallReason: "poll_failure",
@@ -4803,7 +4680,7 @@ export default function VideoPlayer({
             ) {
               setRdPreparation((current) => ({
                 ...(current || {}),
-                status: sourceNeedsCachingForSession(active)
+                status: sourceNeedsCaching(active)
                   ? "stalled"
                   : current?.status || "stalled",
                 stallReason: "poll_failure",
@@ -4935,7 +4812,7 @@ export default function VideoPlayer({
           );
 
           if (looksCompletelyStalled) {
-            if (sourceNeedsCachingForSession(active)) {
+            if (sourceNeedsCaching(active)) {
               const activeHash = sourceTorrentHash(active);
               const canRepairSameTorrent =
                 activeHash &&
@@ -6201,7 +6078,7 @@ export default function VideoPlayer({
        * correct protection for uncached sources. Keep the same RD source/job
        * selected and let Retry reconnect to it instead.
        */
-      if (sourceNeedsCachingForSession(active)) {
+      if (sourceNeedsCaching(active)) {
         state.lastProgressAt = Date.now();
         setRdError(
           rdOverride?.src
@@ -6220,7 +6097,7 @@ export default function VideoPlayer({
         isMagnet(activeUrl) ||
         Boolean(magnetHash(activeUrl)) ||
         Boolean(sourceTorrentHash(active)) ||
-        sourceNeedsCachingForSession(active);
+        sourceNeedsCaching(active);
       const recoveryCooldownMs = activeTorrentLike
         ? 30000
         : 18000;
@@ -6369,7 +6246,7 @@ export default function VideoPlayer({
         isMagnet(activeUrl) ||
         Boolean(magnetHash(activeUrl)) ||
         Boolean(sourceTorrentHash(active)) ||
-        sourceNeedsCachingForSession(active);
+        sourceNeedsCaching(active);
       const stallThresholdMs = activeTorrentLike
         ? 40000
         : 28000;
@@ -6757,7 +6634,7 @@ export default function VideoPlayer({
       streamActionGenerationRef.current += 1;
       setFileSwitching(false);
 
-      if (sourceNeedsCachingForSession(active)) {
+      if (sourceNeedsCaching(active)) {
         retryExistingTorrentIdRef.current = String(
           rdPreparation?.torrent_id ||
             rdTorrentId ||
@@ -7263,16 +7140,6 @@ export default function VideoPlayer({
       }
 
       if (
-        reason === "next" &&
-        !isLive
-      ) {
-        window.dispatchEvent(
-          new CustomEvent("mg:play-next-episode")
-        );
-        return;
-      }
-
-      if (
         reason === "ended" &&
         !isLive
       ) {
@@ -7424,7 +7291,7 @@ export default function VideoPlayer({
       subtitles: Array.isArray(active?.subtitles)
         ? active.subtitles
         : [],
-      sources: presentationSourceEntries.map(({ item: candidate, index }) => {
+      sources: sources.map((candidate, index) => {
         const baseLabel = sourceDisplayLabel(candidate, index);
         const provider = String(candidate?.sourceName || "").trim();
 
@@ -8072,13 +7939,18 @@ export default function VideoPlayer({
     const runtimeReady = Boolean(
       hash && runtimeReadyTorrentHashes.has(hash)
     );
+    const trustedCached =
+      runtimeReady ||
+      sortedSourceEntries.find((entry) => entry.index === index)?.trustedCached === true;
 
     if (runtimeReady || item?.debridCached === true) {
-      return `Cached / Ready • ${base}`;
+      return trustedCached
+        ? `Trusted Cached • ${base}`
+        : `Cached / Ready • ${base}`;
     }
 
-    if (sourceNeedsCachingForSession(item)) {
-      return `Preparing • ${detectMediaEdition(item).label}`;
+    if (sourceNeedsCaching(item)) {
+      return `Uncached • ${base}`;
     }
 
     return base;
@@ -8094,7 +7966,15 @@ export default function VideoPlayer({
     ? liveSourcePosition(activeIdx)
     : { current: 0, total: 0 };
 
-  const selectableSourceCount = presentationSourceEntries.length;
+  const selectableSourceCount =
+    sources.filter(
+      (item) =>
+        item &&
+        !item?.diagnostic &&
+        item?.type !== "status" &&
+        item?.type !== "provider" &&
+        item?.type !== "youtube"
+    ).length;
 
   const failedSourceCount =
     Array.from(
@@ -8237,7 +8117,7 @@ export default function VideoPlayer({
       data-mg-player-root="true"
       data-mg-player-fullscreen={isAppFullscreen ? "true" : "false"}
       data-mg-native-selector-mode={fireTvNativeSelectorMode ? "true" : "false"}
-      data-mg-rd-cache-source={sourceNeedsCachingForSession(active) ? "true" : "false"}
+      data-mg-rd-cache-source={sourceNeedsCaching(active) ? "true" : "false"}
       className="fixed inset-0 z-[2147483646] bg-black/95 flex items-center justify-center p-2 sm:p-3 md:p-4"
       onClick={
         onClose
@@ -8427,7 +8307,7 @@ export default function VideoPlayer({
               </div>
 
               <p className="text-sm font-semibold text-white/85 sm:text-base">
-                {sourceNeedsCachingForSession(active)
+                {sourceNeedsCaching(active)
                   ? "This torrent needs attention"
                   : "This source is unavailable"}
               </p>
@@ -8450,12 +8330,9 @@ export default function VideoPlayer({
           ) : alternateEmbedFallback?.url ? (
             <iframe
               data-mg-alternate-embed-fallback="true"
-              data-mg-provider-frame="true"
               src={alternateEmbedFallback.url}
               title={`${source?.title || "Video"} alternate stream`}
-              aria-label="Embedded player controls"
-              tabIndex={0}
-              className="w-full h-full bg-black focus:outline-none"
+              className="w-full h-full bg-black"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
               allowFullScreen
               referrerPolicy="strict-origin-when-cross-origin"
@@ -8585,7 +8462,7 @@ export default function VideoPlayer({
                   ""
                 }
                 sources={
-                  sourcesForSelector
+                  sources
                 }
                 activeIdx={
                   activeIdx
@@ -8617,7 +8494,6 @@ export default function VideoPlayer({
             />
           ) : isProvider ? (
             <iframe
-              data-mg-provider-frame="true"
               src={
                 active.src
               }
@@ -8625,9 +8501,7 @@ export default function VideoPlayer({
                 source?.title ||
                 "Provider"
               }
-              aria-label="Embedded player controls"
-              tabIndex={0}
-              className="w-full h-full focus:outline-none"
+              className="w-full h-full"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen"
               allowFullScreen
               referrerPolicy="strict-origin-when-cross-origin"
@@ -8712,7 +8586,7 @@ export default function VideoPlayer({
                   ""
                 }
                 sources={
-                  sourcesForSelector
+                  sources
                 }
                 activeIdx={
                   activeIdx
@@ -8807,7 +8681,6 @@ export default function VideoPlayer({
                         event
                       ) => {
                         const value = event.target.value;
-                        if (value === "__preparing__") return;
                         const selectedEntry = visibleSourceSelectorEntries.find(
                           (entry) => String(entry.index) === String(value)
                         );
@@ -8817,12 +8690,6 @@ export default function VideoPlayer({
                       className="min-h-11 w-full appearance-none rounded-lg border border-white/15 bg-black/60 py-2.5 pl-3 pr-9 text-xs font-medium text-white outline-none backdrop-blur transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/30 sm:min-h-10 sm:text-sm"
                       aria-label="Choose source or quality while loading"
                     >
-                      {selectedEditionState.preparing && (
-                        <option value="__preparing__" disabled>
-                          Preparing {selectedEditionState.label}…
-                        </option>
-                      )}
-
                       {visibleSourceSelectorEntries.map(
                         ({
                           item,
@@ -8920,25 +8787,20 @@ export default function VideoPlayer({
                   setSourceSortMode(next);
 
                   if (next.startsWith("edition:")) {
-                    const nextEntries = sortSourceEntries(sourcesForSelector, next);
-                    const requestedEdition = next.slice("edition:".length);
-                    const match = nextEntries.find(
-                      (entry) =>
-                        entry?.readyForUser === true &&
-                        entry?.editionValue === requestedEdition
+                    const edition = next.slice("edition:".length);
+                    const match = sortSourceEntries(sources, next).find((entry) =>
+                      sourceHasEdition(entry.item, edition)
                     );
 
                     if (match && match.index !== activeIdx) {
                       selectSource(match.index, match.item);
-                    } else if (!match) {
-                      setBackgroundCacheNonce((value) => value + 1);
                     }
                   }
                 }}
                 className="min-h-11 w-full rounded-lg border border-white/10 bg-mg-card px-2 py-2.5 text-xs font-medium text-white outline-none transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/30 sm:min-h-10 sm:text-sm"
                 aria-label="Sort playback sources"
               >
-                {sourceSortOptions.map((option) => (
+                {SOURCE_SORT_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
@@ -8963,7 +8825,6 @@ export default function VideoPlayer({
                   onBlur={releaseSourceSelector}
                   onChange={(event) => {
                     const value = event.target.value;
-                    if (value === "__preparing__") return;
                     const selectedEntry = visibleSourceSelectorEntries.find(
                       (entry) => String(entry.index) === String(value)
                     );
@@ -8973,12 +8834,6 @@ export default function VideoPlayer({
                   className="min-h-11 w-full appearance-none rounded-lg border border-white/10 bg-mg-card py-2.5 pl-3 pr-9 text-xs font-medium text-white outline-none transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/30 sm:min-h-10 sm:text-sm"
                   aria-label="Choose playback source"
                 >
-                  {selectedEditionState.preparing && (
-                    <option value="__preparing__" disabled>
-                      Preparing {selectedEditionState.label}…
-                    </option>
-                  )}
-
                   {visibleSourceSelectorEntries.map(
                     ({ item, index }) => {
                       const failed =

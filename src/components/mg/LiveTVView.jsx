@@ -204,7 +204,7 @@ const OFFICIAL_LIVE_FALLBACKS = [
   [/^itv\s*be\b/i, "https://www.itv.com/watch?channel=itvbe", "Open ITVX"],
   [/^channel\s*4\b/i, "https://www.channel4.com/now/c4", "Open Channel 4"],
   [/^e4\b/i, "https://www.channel4.com/now/e4", "Open Channel 4"],
-  [/^(?:more4|film4|4seven|4\s*seven)\b/i, "https://www.channel4.com/now", "Open Channel 4"],
+  [/^(?:more4|film4)\b/i, "https://www.channel4.com/now", "Open Channel 4"],
   [/^channel\s*5\b/i, "https://www.5.tv/", "Open 5"],
   [/^5(?:usa|star|action|select)\b/i, "https://www.5.tv/", "Open 5"],
   [/^sky mix\b/i, "https://www.sky.com/watch/channel/pick", "Open Sky Mix on Sky"],
@@ -221,12 +221,6 @@ const OFFICIAL_LIVE_FALLBACKS = [
   [/^cbs news\b/i, "https://www.cbsnews.com/live/", "Open CBS News"],
   [/^nbc news now\b/i, "https://www.nbcnews.com/now", "Open NBC News NOW"],
   [/^euronews\b/i, "https://www.euronews.com/live", "Open Euronews"],
-  [/^(?:rt[eé]\s*1|rt[eé]\s*one)\b/i, "https://www.rte.ie/player/", "Open RTÉ Player"],
-  [/^(?:rt[eé]\s*2|rt[eé]\s*two)\b/i, "https://www.rte.ie/player/", "Open RTÉ Player"],
-  [/^(?:dave|u&dave)\b/i, "https://u.co.uk/", "Open U"],
-  [/^(?:drama|u&drama)\b/i, "https://u.co.uk/", "Open U"],
-  [/^(?:yesterday|u&yesterday)\b/i, "https://u.co.uk/", "Open U"],
-  [/^(?:w|u&w)\b/i, "https://u.co.uk/", "Open U"],
   [/^cgtn\b/i, "https://www.cgtn.com/tv", "Open CGTN"],
   [/^arirang tv\b/i, "https://www.arirang.com/tv", "Open Arirang"],
   [/^voa\b/i, "https://www.voanews.com/", "Open VOA"],
@@ -2195,17 +2189,30 @@ export default function LiveTVView({
         /\bsky\s*sports\s*f1\b|\bformula\s*1\b|\bf1\b/i.test(evChannelName);
 
       if (evIsFormulaOne) {
-        stopRadio();
-        setChannelNotice("");
-        setChannelNoticeAction(null);
-        setChannelNoticeActions([]);
+        const liveAntF1 = matchingLiveAntFormulaOneEvent(channels);
+        const liveAntF1Url = String(
+          liveAntF1?.officialUrl || liveAntF1?.url || ""
+        ).trim();
 
-        /*
-         * Sky Sports F1 is a subscription channel. Keep the F1 card working by
-         * routing it to Sky's official playback page rather than embedding an
-         * unofficial rebroadcast or a stale EV mirror.
-         */
-        openOfficialLiveUrl("https://www.skysports.com/watch/sky-sports-f1");
+        if (/^https?:\/\//i.test(liveAntF1Url)) {
+          openOfficialLiveUrl(liveAntF1Url);
+          return;
+        }
+
+        setChannelNotice(
+          "EV SPORTS' current Sky Sports F1 source is serving the same frozen 15-second clip. No separate live Formula 1 event source is available right now."
+        );
+        setChannelNoticeAction(null);
+        setChannelNoticeActions([
+          {
+            label: "Open official Sky Sports F1",
+            url: "https://www.skysports.com/watch/sky-sports-f1",
+          },
+          {
+            label: "Try EV F1 anyway",
+            url: evSportsWatchUrl,
+          },
+        ]);
         return;
       }
 

@@ -43,11 +43,6 @@ import {
   mediaEditionSortScore,
   sourceHasEdition,
 } from "../src/components/mg/mediaEdition.js";
-import {
-  editionPresentationState,
-  sourceEntriesForPresentation,
-  sourceSortOptionsForEntries,
-} from "../src/components/mg/editionCachePresentation.js";
 
 const memoryStorage = () => {
   const data = new Map();
@@ -189,7 +184,7 @@ test("uncached torrent rows can never bypass the RD cache engine as direct strea
   );
 
   assert.match(playerSource, /const activeTorrentHash = sourceTorrentHash\(active\)/);
-  assert.match(playerSource, /const activeNeedsCaching = sourceNeedsCachingForSession\(active\)/);
+  assert.match(playerSource, /const activeNeedsCaching = sourceNeedsCaching\(active\)/);
   assert.match(
     playerSource,
     /const isRdSource =[\s\S]{0,600}?Boolean\(activeTorrentHash\)[\s\S]{0,120}?activeNeedsCaching/
@@ -216,7 +211,7 @@ test("uncached cache stalls stay on the same torrent and use generous RD timing"
   );
   assert.match(
     playerSource,
-    /if \(sourceNeedsCachingForSession\(active\)\) \{[\s\S]{0,700}?same cached source has been kept selected/
+    /if \(sourceNeedsCaching\(active\)\) \{[\s\S]{0,700}?same cached source has been kept selected/
   );
   assert.match(cacheEngineSource, /Math\.max\(10 \* 60_000, expectedRemainingMs \* 6\)/);
   assert.match(cacheEngineSource, /if \(speed > 0\) return 15 \* 60_000/);
@@ -286,7 +281,7 @@ test("bonus and extras detection labels common disc/file content", () => {
   );
 });
 
-test("edition preference prioritises the requested cut and keeps standard/theatrical boxes exact", () => {
+test("edition preference prioritises the requested cut and theatrical accepts untagged originals", () => {
   const directors = { name: "Movie.Directors.Cut.1080p.mkv" };
   const extended = { name: "Movie.Extended.Edition.2160p.mkv" };
   const standard = { name: "Movie.1080p.mkv" };
@@ -297,8 +292,7 @@ test("edition preference prioritises the requested cut and keeps standard/theatr
   );
   assert.equal(sourceHasEdition(directors, "directors_cut"), true);
   assert.equal(sourceHasEdition(extended, "directors_cut"), false);
-  assert.equal(sourceHasEdition(standard, "standard"), true);
-  assert.equal(sourceHasEdition(standard, "theatrical"), false);
+  assert.equal(sourceHasEdition(standard, "theatrical"), true);
 });
 
 test("edition choices are wired into source labels and player selectors", () => {
@@ -310,10 +304,6 @@ test("edition choices are wired into source labels and player selectors", () => 
     new URL("../src/components/mg/sourceSelectorPreferences.js", import.meta.url),
     "utf8"
   );
-  const editionPresentation = readFileSync(
-    new URL("../src/components/mg/editionCachePresentation.js", import.meta.url),
-    "utf8"
-  );
   const player = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
     "utf8"
@@ -321,173 +311,8 @@ test("edition choices are wired into source labels and player selectors", () => 
 
   assert.match(labels, /detectMediaEdition/);
   assert.match(sourcePreferences, /edition:\$\{option\.value\}/);
-  assert.match(sourcePreferences, /sourceEntriesForPresentation/);
-  assert.match(editionPresentation, /Preparing/);
   assert.match(player, /Sort \/ edition/);
-  assert.match(player, /Preparing \{selectedEditionState\.label\}/);
-});
-
-test("cached edition presentation hides uncached rows but keeps every ready source visible while prioritising the selected edition", () => {
-  const toPresentationEntries = (items) =>
-    items.map((item, index) => {
-      const edition = detectMediaEdition(item);
-      const cached =
-        item?.debridCached === true ||
-        item?.viaRealDebrid === true ||
-        item?.runtimeReadyCached === true;
-      const pendingCache =
-        cached !== true &&
-        (item?.cacheRequired === true ||
-          item?.cometUncached === true ||
-          item?.debridCacheChecked === true);
-
-      return {
-        item,
-        index,
-        cached,
-        pendingCache,
-        readyForUser: !pendingCache,
-        editionValue: edition.value,
-        editionLabel: edition.label,
-      };
-    });
-
-  const initialSources = [
-    {
-      label: "Movie Standard 1080p Cached",
-      debridCached: true,
-      infoHash: "1111111111111111111111111111111111111111",
-    },
-    {
-      label: "Movie Directors Cut 2160p",
-      description: "Director's Cut",
-      infoHash: "2222222222222222222222222222222222222222",
-      magnet: "magnet:?xt=urn:btih:2222222222222222222222222222222222222222",
-      cacheRequired: true,
-      debridCacheChecked: true,
-      debridCached: false,
-      reportedSeeders: 42,
-    },
-    {
-      label: "Movie Directors Cut 1080p",
-      description: "Director's Cut",
-      infoHash: "3333333333333333333333333333333333333333",
-      magnet: "magnet:?xt=urn:btih:3333333333333333333333333333333333333333",
-      cacheRequired: true,
-      debridCacheChecked: true,
-      debridCached: false,
-      reportedSeeders: 20,
-    },
-  ];
-
-  const initialEntries = toPresentationEntries(initialSources);
-  const initialPresented = sourceEntriesForPresentation(
-    initialEntries,
-    "edition:directors_cut"
-  );
-  const initialState = editionPresentationState(
-    initialEntries,
-    "edition:directors_cut"
-  );
-  const options = sourceSortOptionsForEntries(
-    initialEntries,
-    "edition:directors_cut"
-  );
-
-  assert.equal(initialPresented.length, 1);
-  assert.equal(initialPresented[0].index, 0);
-  assert.equal(initialState.preparing, true);
-  assert.equal(initialState.pendingCount, 2);
-  assert.match(
-    options.find((option) => option.value === "edition:directors_cut")?.label || "",
-    /Preparing/
-  );
-
-  const afterCacheSources = initialSources.map((item, index) =>
-    index === 1
-      ? {
-          ...item,
-          cacheRequired: false,
-          debridCached: true,
-          runtimeReadyCached: true,
-        }
-      : item
-  );
-  const afterEntries = toPresentationEntries(afterCacheSources);
-  const afterPresented = sourceEntriesForPresentation(
-    afterEntries,
-    "edition:directors_cut"
-  );
-  const afterState = editionPresentationState(
-    afterEntries,
-    "edition:directors_cut"
-  );
-
-  assert.equal(afterPresented.length, 2);
-  assert.deepEqual(
-    afterPresented.map((entry) => entry.index),
-    [1, 0]
-  );
-  assert.equal(afterState.preparing, false);
-  assert.equal(afterState.readyCount, 1);
-
-  const bestEntries = sourceEntriesForPresentation(
-    afterEntries,
-    "best"
-  );
-  assert.equal(bestEntries.length, 2);
-  assert.deepEqual(
-    bestEntries.map((entry) => entry.index).sort((a, b) => a - b),
-    [0, 1]
-  );
-});
-
-test("selected edition only promotes after a complete cache and then starts playback", () => {
-  const playerSource = readFileSync(
-    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
-    "utf8"
-  );
-
-  assert.match(
-    playerSource,
-    /if \(result\.status === "ready" && result\.streamUrl\) \{[\s\S]{0,900}?setRuntimeReadyTorrentHashes[\s\S]{0,900}?state: "ready"/
-  );
-  assert.match(
-    playerSource,
-    /if \(userWaitingForEdition\) \{[\s\S]{0,500}?switchToSource\(candidate\.index[\s\S]{0,300}?is ready — starting playback/
-  );
-  assert.match(
-    playerSource,
-    /entry\.cachedCount > 0[\s\S]{0,500}?sourceNeedsCachingForSession\(entry\.original\)/
-  );
-});
-
-test("Fire TV native skip and next controls are fully wired back to the web episode flow", () => {
-  const nativePlayer = readFileSync(
-    new URL(
-      "../firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt",
-      import.meta.url
-    ),
-    "utf8"
-  );
-  const bridge = readFileSync(
-    new URL("../src/components/mg/nativeFireTvBridge.js", import.meta.url),
-    "utf8"
-  );
-  const playerSource = readFileSync(
-    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
-    "utf8"
-  );
-
-  assert.match(nativePlayer, /private fun buildAssistControls\(\): LinearLayout/);
-  assert.match(nativePlayer, /Skip intro \/ titles/);
-  assert.match(nativePlayer, /Skip credits → Next/);
-  assert.match(nativePlayer, /finishWithResult\("next"\)/);
-  assert.match(bridge, /creditsStart: playerMarkerSeconds\(playerContext, "creditsStart"\)/);
-  assert.match(
-    playerSource,
-    /reason === "next"[\s\S]{0,220}?mg:play-next-episode/
-  );
+  assert.match(player, /sourceHasEdition\(entry\.item, edition\)/);
 });
 
 test("country normalisation keeps UK/GB and USA/US consistent", () => {

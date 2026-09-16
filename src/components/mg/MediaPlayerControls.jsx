@@ -35,14 +35,13 @@ import {
 } from "@/components/mg/mediaTrackPreferences";
 import { concisePlaybackSourceLabel } from "@/components/mg/playbackSourceLabels";
 import {
-  editionPresentationState,
   readSourceSortMode,
   sortSourceEntries,
-  sourceEntriesForPresentation,
-  sourceSortOptionsForEntries,
   SOURCE_SELECTOR_SORT_EVENT,
+  SOURCE_SORT_OPTIONS,
   writeSourceSortMode,
 } from "@/components/mg/sourceSelectorPreferences";
+import { sourceHasEdition } from "@/components/mg/mediaEdition";
 
 const isFireTvControlsRuntime = () => {
   if (typeof document === "undefined" || typeof navigator === "undefined") {
@@ -218,21 +217,6 @@ export default function MediaPlayerControls({
     sourceSortMode
   );
 
-  const presentationSourceEntries = sourceEntriesForPresentation(
-    sortedSourceEntries,
-    sourceSortMode
-  );
-
-  const selectedEditionState = editionPresentationState(
-    sortedSourceEntries,
-    sourceSortMode
-  );
-
-  const sourceSortOptions = sourceSortOptionsForEntries(
-    sortedSourceEntries,
-    sourceSortMode
-  );
-
   const [sourceChoicePinned, setSourceChoicePinned] = useState(false);
   const sourceChoiceEntriesRef = useRef([]);
   const sourceChoiceValueRef = useRef(0);
@@ -240,16 +224,12 @@ export default function MediaPlayerControls({
   const visibleSourceChoices =
     sourceChoicePinned && sourceChoiceEntriesRef.current.length > 0
       ? sourceChoiceEntriesRef.current
-      : presentationSourceEntries;
+      : sortedSourceEntries;
 
   const visibleSourceChoiceValue =
     sourceChoicePinned
       ? sourceChoiceValueRef.current
-      : presentationSourceEntries.some((entry) => entry.index === activeIdx)
-        ? activeIdx
-        : selectedEditionState.preparing
-          ? "__preparing__"
-          : presentationSourceEntries[0]?.index ?? "";
+      : activeIdx;
 
   const hideTimerRef = useRef(null);
   const trackPreferencesRef = useRef(trackPreferences);
@@ -1674,12 +1654,9 @@ export default function MediaPlayerControls({
                   setSourceSortMode(next);
 
                   if (next.startsWith("edition:")) {
-                    const nextEntries = sortSourceEntries(sources, next);
-                    const requestedEdition = next.slice("edition:".length);
-                    const match = nextEntries.find(
-                      (entry) =>
-                        entry?.readyForUser === true &&
-                        entry?.editionValue === requestedEdition
+                    const edition = next.slice("edition:".length);
+                    const match = sortSourceEntries(sources, next).find((entry) =>
+                      sourceHasEdition(entry.item, edition)
                     );
 
                     if (match && match.index !== activeIdx) {
@@ -1693,7 +1670,7 @@ export default function MediaPlayerControls({
                 aria-label="Sort playback sources or choose edition"
                 title="Sort playback sources or choose edition"
               >
-                {sourceSortOptions.map((option) => (
+                {SOURCE_SORT_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
@@ -1706,19 +1683,12 @@ export default function MediaPlayerControls({
                 <select
                   value={visibleSourceChoiceValue}
                   onPointerDown={() => {
-                    sourceChoiceEntriesRef.current = presentationSourceEntries;
-                    sourceChoiceValueRef.current = presentationSourceEntries.some(
-                      (entry) => entry.index === activeIdx
-                    )
-                      ? activeIdx
-                      : selectedEditionState.preparing
-                        ? "__preparing__"
-                        : presentationSourceEntries[0]?.index ?? "";
+                    sourceChoiceEntriesRef.current = sortedSourceEntries;
+                    sourceChoiceValueRef.current = activeIdx;
                     setSourceChoicePinned(true);
                   }}
                   onChange={(event) => {
                     const value = event.target.value;
-                    if (value === "__preparing__") return;
                     const selectedEntry = visibleSourceChoices.find(
                       (entry) => String(entry.index) === String(value)
                     );
@@ -1728,14 +1698,8 @@ export default function MediaPlayerControls({
                   }}
                   onFocus={() => {
                     if (!sourceChoicePinned) {
-                      sourceChoiceEntriesRef.current = presentationSourceEntries;
-                      sourceChoiceValueRef.current = presentationSourceEntries.some(
-                        (entry) => entry.index === activeIdx
-                      )
-                        ? activeIdx
-                        : selectedEditionState.preparing
-                          ? "__preparing__"
-                          : presentationSourceEntries[0]?.index ?? "";
+                      sourceChoiceEntriesRef.current = sortedSourceEntries;
+                      sourceChoiceValueRef.current = activeIdx;
                       setSourceChoicePinned(true);
                     }
                     focusSelectControl();
@@ -1749,12 +1713,6 @@ export default function MediaPlayerControls({
                   aria-label="Choose source or quality"
                   title="Choose source or quality"
                 >
-                  {selectedEditionState.preparing && (
-                    <option value="__preparing__" disabled>
-                      Preparing {selectedEditionState.label}…
-                    </option>
-                  )}
-
                   {visibleSourceChoices.map(
                     ({
                       item,
