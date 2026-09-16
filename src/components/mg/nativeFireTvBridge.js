@@ -438,6 +438,11 @@ const nativeSourceHints = (item = {}) => {
   };
 };
 
+const playerMarkerSeconds = (context, key) => {
+  const value = Number(context?.[key]);
+  return Number.isFinite(value) && value >= 0 ? value : -1;
+};
+
 export const playNativeFireTv = ({
   requestId,
   url,
@@ -620,6 +625,12 @@ export const playNativeFireTv = ({
     season,
     episode,
     canChooseEpisode,
+    autoNext: playerContext?.autoNext !== false,
+    recapStart: playerMarkerSeconds(playerContext, "recapStart"),
+    recapEnd: playerMarkerSeconds(playerContext, "recapEnd"),
+    introStart: playerMarkerSeconds(playerContext, "introStart"),
+    introEnd: playerMarkerSeconds(playerContext, "introEnd"),
+    creditsStart: playerMarkerSeconds(playerContext, "creditsStart"),
     audioOutputMode: advancedPlayback.audioOutputMode,
     lipSyncMs: advancedPlayback.lipSyncMs,
     dialogueBoost: advancedPlayback.dialogueBoost,
