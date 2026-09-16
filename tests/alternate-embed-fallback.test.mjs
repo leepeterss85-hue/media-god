@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import { buildAlternateEmbedFallback } from "../src/components/mg/alternateEmbedFallback.js";
 
-test("alternate movie fallback prefers IMDb and preserves resume position", () => {
+test("alternate movie fallback mirrors EV by preferring TMDB and preserves resume position", () => {
   const result = buildAlternateEmbedFallback(
     {
       mediaType: "movie",
@@ -15,13 +15,13 @@ test("alternate movie fallback prefers IMDb and preserves resume position", () =
   );
 
   assert.ok(result);
-  assert.match(result.url, /^https:\/\/vaplayer\.ru\/embed\/movie\/tt1234567\?/);
+  assert.match(result.url, /^https:\/\/vaplayer\.ru\/embed\/movie\/98765\?/);
   assert.match(result.url, /autoplay=1/);
   assert.match(result.url, /resumeAt=321/);
   assert.match(result.url, /title=Example\+Film/);
 });
 
-test("alternate TV fallback uses TMDB season and episode when IMDb is unavailable", () => {
+test("alternate TV fallback uses TMDB season and episode", () => {
   const result = buildAlternateEmbedFallback({
     mediaType: "tv",
     tmdbId: 205715,
