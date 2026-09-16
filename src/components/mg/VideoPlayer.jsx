@@ -1478,7 +1478,7 @@ export default function VideoPlayer({
           candidate?.type === "status" ||
           candidate?.type === "provider" ||
           candidate?.type === "youtube" ||
-          (allowCaching === false && sourceNeedsCaching(candidate)) ||
+          (allowCaching === false && sourceNeedsCachingForSession(candidate)) ||
           (!url && !torrent)
         ) {
           return null;
@@ -1684,7 +1684,7 @@ export default function VideoPlayer({
      * the actual reason and let Retry/manual source selection decide what to do
      * next. Cached/direct playback can continue to use automatic failover.
      */
-    if (sourceNeedsCaching(active) && !permanentRdTorrentRejection) {
+    if (sourceNeedsCachingForSession(active) && !permanentRdTorrentRejection) {
       if (torrentFailoverTimerRef.current) {
         window.clearTimeout(torrentFailoverTimerRef.current);
         torrentFailoverTimerRef.current = null;
@@ -2034,7 +2034,7 @@ export default function VideoPlayer({
     );
 
   const activeTorrentHash = sourceTorrentHash(active);
-  const activeNeedsCaching = sourceNeedsCaching(active);
+  const activeNeedsCaching = sourceNeedsCachingForSession(active);
 
   /*
    * Torrent identity is authoritative. Addons can expose an uncached torrent
@@ -2137,7 +2137,7 @@ export default function VideoPlayer({
           entry.index !== activeIdx &&
           !entry.cached &&
           entry.cachedCount < 5 &&
-          sourceNeedsCaching(entry.original) &&
+          sourceNeedsCachingForSession(entry.original) &&
           /^[a-f0-9]{40}$/i.test(entry.hash) &&
           /^magnet:/i.test(entry.magnet) &&
           !backgroundCacheAttemptedRef.current.has(entry.hash) &&
@@ -2605,7 +2605,7 @@ export default function VideoPlayer({
       isDirectFile ||
       isLive ||
       !isRdSource ||
-      !sourceNeedsCaching(active)
+      !sourceNeedsCachingForSession(active)
     ) {
       return undefined;
     }
@@ -2892,7 +2892,7 @@ export default function VideoPlayer({
         return;
       }
 
-      if (sourceNeedsCaching(active)) {
+      if (sourceNeedsCachingForSession(active)) {
         return;
       }
 
@@ -3132,7 +3132,7 @@ export default function VideoPlayer({
             let debridProviders = explicitProvider ? [explicitProvider] : [];
 
             const resolutionStrategy = sourceResolutionStrategy(active);
-            const knownUncached = sourceNeedsCaching(active);
+            const knownUncached = sourceNeedsCachingForSession(active);
             const hasTorrentTrackers = debridTorrentHasMetadata({
               ...active,
               magnet,
@@ -4147,7 +4147,7 @@ export default function VideoPlayer({
             if (
               !cancelled
             ) {
-              const uncachedActive = sourceNeedsCaching(active);
+              const uncachedActive = sourceNeedsCachingForSession(active);
               const terminalRdResolveFailure =
                 uncachedActive &&
                 (
@@ -4511,7 +4511,7 @@ export default function VideoPlayer({
                 return;
               }
 
-              const uncachedActive = sourceNeedsCaching(active);
+              const uncachedActive = sourceNeedsCachingForSession(active);
 
               if (uncachedActive) {
                 /*
@@ -4681,7 +4681,7 @@ export default function VideoPlayer({
               if (rdErrorCode === "RD_TORRENT_INFO_FAILED") {
                 setRdPreparation((current) => ({
                   ...(current || {}),
-                  status: sourceNeedsCaching(active)
+                  status: sourceNeedsCachingForSession(active)
                     ? "stalled"
                     : current?.status || "stalled",
                   stallReason: "poll_failure",
@@ -4715,7 +4715,7 @@ export default function VideoPlayer({
             ) {
               setRdPreparation((current) => ({
                 ...(current || {}),
-                status: sourceNeedsCaching(active)
+                status: sourceNeedsCachingForSession(active)
                   ? "stalled"
                   : current?.status || "stalled",
                 stallReason: "poll_failure",
@@ -4847,7 +4847,7 @@ export default function VideoPlayer({
           );
 
           if (looksCompletelyStalled) {
-            if (sourceNeedsCaching(active)) {
+            if (sourceNeedsCachingForSession(active)) {
               const activeHash = sourceTorrentHash(active);
               const canRepairSameTorrent =
                 activeHash &&
@@ -6113,7 +6113,7 @@ export default function VideoPlayer({
        * correct protection for uncached sources. Keep the same RD source/job
        * selected and let Retry reconnect to it instead.
        */
-      if (sourceNeedsCaching(active)) {
+      if (sourceNeedsCachingForSession(active)) {
         state.lastProgressAt = Date.now();
         setRdError(
           rdOverride?.src
@@ -6132,7 +6132,7 @@ export default function VideoPlayer({
         isMagnet(activeUrl) ||
         Boolean(magnetHash(activeUrl)) ||
         Boolean(sourceTorrentHash(active)) ||
-        sourceNeedsCaching(active);
+        sourceNeedsCachingForSession(active);
       const recoveryCooldownMs = activeTorrentLike
         ? 30000
         : 18000;
@@ -6281,7 +6281,7 @@ export default function VideoPlayer({
         isMagnet(activeUrl) ||
         Boolean(magnetHash(activeUrl)) ||
         Boolean(sourceTorrentHash(active)) ||
-        sourceNeedsCaching(active);
+        sourceNeedsCachingForSession(active);
       const stallThresholdMs = activeTorrentLike
         ? 40000
         : 28000;
@@ -6669,7 +6669,7 @@ export default function VideoPlayer({
       streamActionGenerationRef.current += 1;
       setFileSwitching(false);
 
-      if (sourceNeedsCaching(active)) {
+      if (sourceNeedsCachingForSession(active)) {
         retryExistingTorrentIdRef.current = String(
           rdPreparation?.torrent_id ||
             rdTorrentId ||
@@ -7984,7 +7984,7 @@ export default function VideoPlayer({
         : `Cached / Ready • ${base}`;
     }
 
-    if (sourceNeedsCaching(item)) {
+    if (sourceNeedsCachingForSession(item)) {
       return `Uncached • ${base}`;
     }
 
@@ -8152,7 +8152,7 @@ export default function VideoPlayer({
       data-mg-player-root="true"
       data-mg-player-fullscreen={isAppFullscreen ? "true" : "false"}
       data-mg-native-selector-mode={fireTvNativeSelectorMode ? "true" : "false"}
-      data-mg-rd-cache-source={sourceNeedsCaching(active) ? "true" : "false"}
+      data-mg-rd-cache-source={sourceNeedsCachingForSession(active) ? "true" : "false"}
       className="fixed inset-0 z-[2147483646] bg-black/95 flex items-center justify-center p-2 sm:p-3 md:p-4"
       onClick={
         onClose
@@ -8342,7 +8342,7 @@ export default function VideoPlayer({
               </div>
 
               <p className="text-sm font-semibold text-white/85 sm:text-base">
-                {sourceNeedsCaching(active)
+                {sourceNeedsCachingForSession(active)
                   ? "This torrent needs attention"
                   : "This source is unavailable"}
               </p>
