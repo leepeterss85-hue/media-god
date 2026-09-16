@@ -1244,7 +1244,8 @@ export default function VideoPlayer({
   };
 
   const findNextPlayableSource = (
-    fromIndex
+    fromIndex,
+    { allowCaching = true } = {}
   ) => {
     /*
      * Automatic failover must follow the same source ordering the user sees
@@ -1325,6 +1326,7 @@ export default function VideoPlayer({
           candidate?.type === "status" ||
           candidate?.type === "provider" ||
           candidate?.type === "youtube" ||
+          (allowCaching === false && sourceNeedsCaching(candidate)) ||
           (!url && !torrent)
         ) {
           return null;
