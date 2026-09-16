@@ -636,22 +636,31 @@ export async function runRealDebridCacheSession({
   const strategy = String(
     source?.resolutionStrategy || source?.resolution_strategy || ""
   ).toLowerCase();
-  const authoritativeTrackers =
-    Array.isArray(source?.torrentTrackers) &&
-    source.torrentTrackers.length > 0 &&
-    source?.torrentMetadataSource !== "public_fallback";
-  const useCometStart =
-    strategy === "comet_uncached" && !authoritativeTrackers;
 
-  if (useCometStart) {
-    return startViaComet({
-      source,
-      hash,
-      magnet,
-      context,
-      signal,
-      onProgress,
-    });
+  /*
+   * IMPORTANT: every uncached torrent is now created in the SAME Real-Debrid
+   * account Media God is monitoring. Older Comet uncached handling could ask
+   * Comet's configured debrid account to create the torrent, then poll Media
+   * God's separately connected RD account for the hash. If those credentials
+   * differed, the download existed in one account while this player watched
+   * another, making every uncached source appear stuck/not-created.
+   *
+   * fetchAddonStreams already recovers Comet Torrent Mode tracker metadata when
+   * available. When Comet omits those trackers, the source still carries the
+   * same info hash with our public fallback tracker set. Either way, submit the
+   * magnet directly through Media God's own RD OAuth session and keep Comet as
+   * discovery metadata only — never as the owner of the download lifecycle.
+   */
+  const directOwnAccountStrategy =
+    strategy === "comet_uncached" ||
+    strategy === "rd_magnet" ||
+    strategy === "";
+
+  if (!directOwnAccountStrategy) {
+    return failureResult(
+      `Unsupported uncached Real-Debrid strategy: ${strategy || "unknown"}.`,
+      { errorCode: "RD_CACHE_UNSUPPORTED_STRATEGY" }
+    );
   }
 
   if (!/^magnet:/i.test(magnet)) {
