@@ -41,6 +41,7 @@ import {
   SOURCE_SORT_OPTIONS,
   writeSourceSortMode,
 } from "@/components/mg/sourceSelectorPreferences";
+import { sourceHasEdition } from "@/components/mg/mediaEdition";
 
 const isFireTvControlsRuntime = () => {
   if (typeof document === "undefined" || typeof navigator === "undefined") {
@@ -1651,6 +1652,17 @@ export default function MediaPlayerControls({
                 onChange={(event) => {
                   const next = writeSourceSortMode(event.target.value);
                   setSourceSortMode(next);
+
+                  if (next.startsWith("edition:")) {
+                    const edition = next.slice("edition:".length);
+                    const match = sortSourceEntries(sources, next).find((entry) =>
+                      sourceHasEdition(entry.item, edition)
+                    );
+
+                    if (match && match.index !== activeIdx) {
+                      onSelectSource?.(match.index, match.item);
+                    }
+                  }
                 }}
                 onFocus={focusSelectControl}
                 onBlur={blurSelectControl}
