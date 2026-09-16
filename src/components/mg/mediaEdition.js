@@ -21,10 +21,14 @@ export const MEDIA_EDITION_OPTIONS = [
   { value: "roadshow", label: "Roadshow" },
   { value: "redux", label: "Redux" },
   { value: "anniversary", label: "Anniversary Edition" },
+  { value: "collectors_edition", label: "Collector's Edition" },
+  { value: "broadcast_cut", label: "Broadcast / TV Cut" },
+  { value: "restored", label: "Restored / Remastered" },
+  { value: "noir", label: "Black & White / Noir" },
 ];
 
 const EDITION_RULES = [
-  ["directors_cut", /\b(?:director'?s?|directors)\s+(?:cut|edition|version)\b|\bdc\b/i],
+  ["directors_cut", /\b(?:director'?s?|directors)\s+(?:cut|edition|version)\b/i],
   ["extended", /\bextended(?:\s+(?:cut|edition|version))?\b|\bextended\s+episode\b/i],
   ["unrated", /\bunrated(?:\s+(?:cut|edition|version))?\b/i],
   ["final_cut", /\bfinal\s+cut\b/i],
@@ -34,7 +38,11 @@ const EDITION_RULES = [
   ["international_cut", /\b(?:international|european)\s+(?:cut|version|edition)\b/i],
   ["roadshow", /\broadshow(?:\s+(?:cut|version|edition))?\b/i],
   ["redux", /\bredux\b/i],
-  ["anniversary", /\b(?:anniversary|collector'?s)\s+(?:cut|edition|version)\b/i],
+  ["anniversary", /\banniversary\s+(?:cut|edition|version)\b/i],
+  ["collectors_edition", /\bcollector'?s?\s+(?:cut|edition|version)\b/i],
+  ["broadcast_cut", /\b(?:broadcast|television|tv)\s+(?:cut|edit|version|edition)\b/i],
+  ["restored", /\b(?:restored|remastered)(?:\s+(?:cut|edition|version))?\b/i],
+  ["noir", /\b(?:black\s*(?:and|&)\s*white|noir|black\s*&\s*chrome)\s+(?:cut|edition|version)\b/i],
   ["imax", /\bimax\b|\bexpanded\s+(?:aspect|ratio|frame|version)\b|\bopen\s+matte\b/i],
   ["uncut", /\buncut\b|\buncensored\b/i],
   ["alternate", /\balternate\s+(?:cut|version|ending|edit)\b|\balternative\s+(?:cut|version|ending|edit)\b/i],
