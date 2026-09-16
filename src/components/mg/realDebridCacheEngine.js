@@ -291,18 +291,46 @@ const monitorTorrent = async ({
         return permanentRdFailureResult(data, "RD_CACHE_HASH_REJECTED");
       }
 
-      if (String(data?.error_code || "") === "RD_TORRENT_INFO_FAILED") {
+      const upstreamStatus = Number(data?.upstream_status || 0);
+      const retryableFinalLinkFailure =
+        [408, 425, 429, 500, 502, 503, 504].includes(upstreamStatus) ||
+        /^RD_UNRESTRICT_(?:408|425|429|500|502|503|504)$/i.test(
+          String(data?.error_code || "")
+        );
+
+      if (
+        String(data?.error_code || "") === "RD_TORRENT_INFO_FAILED" ||
+        retryableFinalLinkFailure
+      ) {
         consecutiveStatusFailures += 1;
 
         if (consecutiveStatusFailures >= 8) {
           return failureResult(data.error, {
             retryable: true,
             retrySameSource: true,
-            errorCode: "RD_CACHE_STATUS_UNAVAILABLE",
+            errorCode:
+              retryableFinalLinkFailure && lastProgress >= 99.999
+                ? "RD_CACHE_FINAL_LINK_UNAVAILABLE"
+                : "RD_CACHE_STATUS_UNAVAILABLE",
           });
         }
 
-        await sleep(Math.min(8000, 2000 + attempt * 250), signal);
+        if (lastProgress >= 99.999) {
+          onProgress?.({
+            status: "downloaded",
+            progress: 100,
+            torrent_id: String(torrentId),
+            phase: "finalizing",
+            attempt: attempt + 1,
+          });
+        }
+
+        await sleep(
+          lastProgress >= 99.999
+            ? 1000
+            : Math.min(8000, 2000 + attempt * 250),
+          signal
+        );
         continue;
       }
 
