@@ -175,7 +175,7 @@ const permanentRdFailureResult = (payload, fallbackCode) =>
 const isTerminalTorrentStatus = (value) =>
   /^(?:dead|error|magnet_error|virus)$/i.test(String(value || ""));
 
-const staleWindowMs = (snapshot) => {
+export const staleWindowMs = (snapshot) => {
   const status = String(snapshot?.status || "").trim().toLowerCase();
   const speed = Math.max(0, Number(snapshot?.speed_bps || 0));
   const size = Math.max(0, Number(snapshot?.size_bytes || 0));
