@@ -2354,8 +2354,19 @@ export default function VideoPlayer({
          * first prefer a source that is already playable/cached, then use the
          * alternate IMDb player, and only try another uncached torrent when no
          * instant fallback exists for this title.
+         *
+         * Active-slot exhaustion is different: it is an account-wide RD state,
+         * not evidence that this source/hash is bad. Preserve the current source
+         * so Retry works after a slot becomes available, and never churn through
+         * every other uncached hash for the same account-wide failure.
          */
-        markSourceFailed(activeIdx);
+        const accountBlocked =
+          result.accountBlocked === true ||
+          result.errorCode === "RD_ACTIVE_SLOTS_FULL";
+
+        if (!accountBlocked) {
+          markSourceFailed(activeIdx);
+        }
         if (result.hashFailed === true) {
           markTorrentHashFailed(active);
         }
@@ -2387,16 +2398,18 @@ export default function VideoPlayer({
           return;
         }
 
-        const nextSource = findNextPlayableSource(activeIdx);
-        if (nextSource !== -1) {
-          setRdPreparation(null);
-          setRdError("");
-          switchToSource(nextSource, {
-            preservePosition: true,
-            statusMessage:
-              `${result.message || "This uncached torrent could not be prepared."} No instant backup was available, so Media God is trying a different torrent…`,
-          });
-          return;
+        if (!accountBlocked) {
+          const nextSource = findNextPlayableSource(activeIdx);
+          if (nextSource !== -1) {
+            setRdPreparation(null);
+            setRdError("");
+            switchToSource(nextSource, {
+              preservePosition: true,
+              statusMessage:
+                `${result.message || "This uncached torrent could not be prepared."} No instant backup was available, so Media God is trying a different torrent…`,
+            });
+            return;
+          }
         }
 
         setRdPreparation((current) => ({
