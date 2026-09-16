@@ -32,6 +32,7 @@ import androidx.media3.ui.PlayerView
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.math.max
+import kotlin.math.min
 
 class PlayerActivity : Activity() {
     companion object {
@@ -416,6 +417,166 @@ class PlayerActivity : Activity() {
         }
 
         return super.dispatchKeyEvent(event)
+    }
+
+    private fun payloadMarkerMs(key: String): Long {
+        val seconds = payload.optDouble(key, -1.0)
+        if (seconds.isNaN() || seconds.isInfinite() || seconds < 0.0) {
+            return -1L
+        }
+        return (seconds * 1000.0).toLong().coerceAtLeast(0L)
+    }
+
+    private fun assistButton(label: String, action: () -> Unit): Button =
+        Button(this).apply {
+            text = label
+            isAllCaps = false
+            setTextColor(Color.WHITE)
+            setBackgroundColor(Color.argb(220, 18, 18, 18))
+            textSize = 13f
+            isFocusable = true
+            isFocusableInTouchMode = false
+            minHeight = dp(46)
+            setPadding(dp(14), 0, dp(14), 0)
+            visibility = View.GONE
+            setOnClickListener {
+                action()
+                showControllerTemporarily()
+            }
+        }
+
+    private fun buildAssistControls(): LinearLayout {
+        skipRecapButton = assistButton("Skip recap") {
+            seekAssistTarget(
+                if (recapEndMs > 0L) recapEndMs + 250L
+                else (player?.currentPosition ?: restorePositionMs) + 45_000L
+            )
+        }
+
+        skipIntroButton = assistButton("Skip intro / titles") {
+            seekAssistTarget(
+                if (introEndMs > 0L) introEndMs + 250L
+                else (player?.currentPosition ?: restorePositionMs) + 85_000L
+            )
+        }
+
+        skipCreditsButton = assistButton(
+            if (mediaType == "tv") "Skip credits → Next" else "Skip credits"
+        ) {
+            if (mediaType == "tv") {
+                finishWithResult("next")
+            } else {
+                val duration = player?.duration?.takeIf { it > 0L } ?: 0L
+                if (duration > 0L) seekAssistTarget(max(0L, duration - 750L))
+            }
+        }
+
+        playNextButton = assistButton("Play next") {
+            finishWithResult("next")
+        }
+
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            visibility = View.GONE
+            addView(skipRecapButton)
+            addView(skipIntroButton)
+            addView(skipCreditsButton)
+            addView(playNextButton)
+        }
+    }
+
+    private fun seekAssistTarget(targetMs: Long) {
+        val activePlayer = player ?: return
+        val duration = activePlayer.duration.takeIf { it > 0L } ?: Long.MAX_VALUE
+        val target = targetMs.coerceAtLeast(0L).coerceAtMost(
+            if (duration == Long.MAX_VALUE) duration else max(0L, duration - 500L)
+        )
+        activePlayer.seekTo(target)
+        restorePositionMs = target
+        activePlayer.play()
+    }
+
+    private fun firstVisibleAssistButton(): Button? =
+        listOf(
+            skipRecapButton,
+            skipIntroButton,
+            skipCreditsButton,
+            playNextButton
+        ).firstOrNull { it.visibility == View.VISIBLE }
+
+    private fun updateAssistControls() {
+        if (
+            live ||
+            !::assistControls.isInitialized ||
+            !::skipRecapButton.isInitialized ||
+            !::skipIntroButton.isInitialized ||
+            !::skipCreditsButton.isInitialized ||
+            !::playNextButton.isInitialized
+        ) {
+            return
+        }
+
+        val activePlayer = player
+        val duration = activePlayer?.duration?.takeIf { it > 0L } ?: 0L
+        val position = max(0L, activePlayer?.currentPosition ?: restorePositionMs)
+        val remaining = if (duration > 0L) max(0L, duration - position) else Long.MAX_VALUE
+        val tv = mediaType == "tv"
+
+        val exactRecap =
+            tv &&
+            recapEndMs > 0L &&
+            position >= max(0L, recapStartMs) &&
+            position < recapEndMs
+        val fallbackRecap =
+            tv &&
+            recapEndMs < 0L &&
+            position in 4_000L..75_000L &&
+            (duration <= 0L || remaining > 180_000L)
+
+        val exactIntro =
+            tv &&
+            introEndMs > 0L &&
+            position >= max(0L, introStartMs) &&
+            position < introEndMs
+        val fallbackIntro =
+            tv &&
+            introEndMs < 0L &&
+            position in 45_000L..420_000L &&
+            (duration <= 0L || remaining > 120_000L)
+
+        val creditsWindow = if (duration >= 300_000L) {
+            if (creditsStartMs > 0L) {
+                position >= creditsStartMs && position < duration - 500L
+            } else {
+                val fallback = if (tv) {
+                    min(240_000L, max(75_000L, (duration * 9L) / 100L))
+                } else {
+                    min(360_000L, max(120_000L, (duration * 8L) / 100L))
+                }
+                position > (duration * 55L) / 100L && remaining <= fallback
+            }
+        } else {
+            false
+        }
+
+        val nextWindow =
+            tv &&
+            duration >= 180_000L &&
+            position >= 60_000L &&
+            remaining <= min(180_000L, max(75_000L, duration / 10L))
+
+        skipRecapButton.visibility = if (exactRecap || fallbackRecap) View.VISIBLE else View.GONE
+        skipIntroButton.visibility = if (exactIntro || fallbackIntro) View.VISIBLE else View.GONE
+        skipCreditsButton.visibility = if (creditsWindow) View.VISIBLE else View.GONE
+        playNextButton.visibility = if (nextWindow) View.VISIBLE else View.GONE
+
+        val anyVisible = firstVisibleAssistButton() != null
+        assistControls.visibility = if (anyVisible) View.VISIBLE else View.GONE
+
+        if (!anyVisible && assistControls.hasFocus()) {
+            playerView.requestFocus()
+        }
     }
 
     private fun dp(value: Int): Int =
