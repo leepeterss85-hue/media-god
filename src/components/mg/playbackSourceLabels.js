@@ -1,4 +1,7 @@
-import { detectMediaEdition } from "@/components/mg/mediaEdition";
+import {
+  detectMediaEdition,
+  detectMediaExtra,
+} from "@/components/mg/mediaEdition";
 
 const clean = (value) =>
   String(value || "")
@@ -141,7 +144,13 @@ export const torrentFileLabel = (file, index = 0) => {
     path,
     name: file?.name || path,
   });
+  const extra = detectMediaExtra({
+    ...file,
+    path,
+    name: file?.name || path,
+  });
 
+  if (extra.explicit) pushUnique(parts, extra.label);
   if (edition.explicit) pushUnique(parts, edition.label);
 
   if (/\b2160p?\b|\b4k\b|\buhd\b/i.test(text)) pushUnique(parts, "4K");
