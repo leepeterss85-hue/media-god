@@ -310,6 +310,10 @@ test("edition choices are wired into source labels and player selectors", () => 
     new URL("../src/components/mg/sourceSelectorPreferences.js", import.meta.url),
     "utf8"
   );
+  const editionPresentation = readFileSync(
+    new URL("../src/components/mg/editionCachePresentation.js", import.meta.url),
+    "utf8"
+  );
   const player = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
     "utf8"
@@ -318,7 +322,7 @@ test("edition choices are wired into source labels and player selectors", () => 
   assert.match(labels, /detectMediaEdition/);
   assert.match(sourcePreferences, /edition:\$\{option\.value\}/);
   assert.match(sourcePreferences, /sourceEntriesForPresentation/);
-  assert.match(sourcePreferences, /Preparing/);
+  assert.match(editionPresentation, /Preparing/);
   assert.match(player, /Sort \/ edition/);
   assert.match(player, /Preparing \{selectedEditionState\.label\}/);
 });
