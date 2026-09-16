@@ -6,6 +6,10 @@ import {
   MEDIA_EDITION_OPTIONS,
   mediaEditionSortScore,
 } from "@/components/mg/mediaEdition";
+import {
+  markTrustedCachedPools,
+  prioritiseTrustedCachedPools,
+} from "@/components/mg/trustedCachedSources";
 
 export const SOURCE_SELECTOR_SORT_KEY = "mg:source-selector-sort-v1";
 export const SOURCE_SELECTOR_SORT_EVENT = "mg:source-selector-sort-changed";
@@ -154,26 +158,29 @@ const targetResolutionScore = (resolution, target) => {
 };
 
 export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
-  const list = (Array.isArray(sources) ? sources : []).map((item, index) => ({
-    item,
-    index,
-    cached: sourceIsCached(item),
-    resolution: sourceResolution(item),
-    size: sourceSize(item),
-    compatibility: compatibilityScore(item),
-    reportedSeeders: sourceReportedSeeders(item),
-    trackerRich: sourceHasTrackerRichMagnet(item),
-    editionScore: String(mode || "").startsWith("edition:")
-      ? mediaEditionSortScore(item, String(mode).slice("edition:".length))
-      : 0,
-  }));
+  const list = markTrustedCachedPools(
+    (Array.isArray(sources) ? sources : []).map((item, index) => ({
+      item,
+      index,
+      cached: sourceIsCached(item),
+      resolution: sourceResolution(item),
+      size: sourceSize(item),
+      compatibility: compatibilityScore(item),
+      reportedSeeders: sourceReportedSeeders(item),
+      trackerRich: sourceHasTrackerRichMagnet(item),
+      editionScore: String(mode || "").startsWith("edition:")
+        ? mediaEditionSortScore(item, String(mode).slice("edition:".length))
+        : 0,
+    }))
+  );
 
-  if (mode === "best") return list;
+  if (mode === "best") return prioritiseTrustedCachedPools(list);
 
   return list.slice().sort((a, b) => {
     if (String(mode || "").startsWith("edition:")) {
       return (
         b.editionScore - a.editionScore ||
+        Number(b.trustedCached) - Number(a.trustedCached) ||
         Number(b.cached) - Number(a.cached) ||
         b.compatibility - a.compatibility ||
         b.resolution - a.resolution ||
@@ -185,6 +192,7 @@ export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
 
     if (mode === "cached") {
       return (
+        Number(b.trustedCached) - Number(a.trustedCached) ||
         Number(b.cached) - Number(a.cached) ||
         b.compatibility - a.compatibility ||
         Number(b.trackerRich) - Number(a.trackerRich) ||
