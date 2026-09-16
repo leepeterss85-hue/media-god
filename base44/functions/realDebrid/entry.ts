@@ -2447,6 +2447,62 @@ export default async function (req) {
   }
 }
 
+const rememberRdTorrentAssociation = async ({
+  base44,
+  saveLink,
+  body,
+  metadata,
+  magnet,
+  torrentId,
+}) => {
+  if (!saveLink || !body?.title || !torrentId) return;
+
+  try {
+    const title = String(body.title).trim();
+    const existing = await base44.entities.RdLink.filter({
+      title,
+      year: metadata.year,
+      season: metadata.season,
+      episode: metadata.episode,
+    });
+
+    if (Array.isArray(existing) && existing.length > 0) {
+      await base44.entities.RdLink.update(existing[0].id, {
+        magnet,
+        torrent_id: String(torrentId),
+      });
+    } else {
+      await base44.entities.RdLink.create({
+        title,
+        year: metadata.year,
+        season: metadata.season,
+        episode: metadata.episode,
+        magnet,
+        torrent_id: String(torrentId),
+      });
+    }
+  } catch {
+    // Ownership bookkeeping is an optimisation and must never block playback.
+  }
+};
+
+const deleteNewTorrentBestEffort = async (torrentId, authHeaders) => {
+  if (!torrentId) return;
+
+  try {
+    await rdFetch(
+      `${RD_BASE}/torrents/delete/${encodeURIComponent(String(torrentId))}`,
+      {
+        method: "DELETE",
+        headers: authHeaders,
+      },
+      { attempts: 2 }
+    );
+  } catch {
+    // The next uncached preflight can still recover an owned stale job.
+  }
+};
+
 /*
  * ============================================================
  * ADD MAGNET / RESOLVE MAGNET
@@ -2621,6 +2677,21 @@ async function addMagnet({
   };
 
   /*
+   * Record ownership as soon as RD creates the torrent, before any metadata or
+   * file-selection step can fail. Otherwise a failed selection leaves an active
+   * torrent slot behind that the next uncached preflight is not allowed to
+   * clean because Media God cannot prove that it created the job.
+   */
+  await rememberRdTorrentAssociation({
+    base44,
+    saveLink,
+    body,
+    metadata,
+    magnet,
+    torrentId,
+  });
+
+  /*
    * Select only the intended video file whenever RD has already
    * resolved the torrent metadata. Selecting every file can turn
    * a single movie into a huge multi-file download and can leave
@@ -2681,17 +2752,32 @@ async function addMagnet({
           selectTargetRes,
           "Real-Debrid could not select the target video file"
         );
+        const retryable = isRetryableRdStatus(selectTargetRes.status);
 
+        if (retryable) {
+          return Response.json({
+            status: "preparing",
+            torrent_id: torrentId,
+            stream_url: "",
+            fallback_stream_url: "",
+            filename: initialInfo?.filename || body.title || "",
+            rd_status: String(initialInfo?.status || "waiting_files_selection"),
+            files: buildFileEntries(initialInfo, targetFile),
+            torrent_progress: buildTorrentProgress(initialInfo),
+            warning: failure.message,
+            retryable: true,
+          });
+        }
+
+        await deleteNewTorrentBestEffort(torrentId, authHeaders);
         return Response.json({
           status: "failed",
+          torrent_id: torrentId,
           error: failure.message,
           upstream_status: failure.upstream_status,
           upstream_error_code: failure.upstream_error_code,
           upstream_error: failure.upstream_error,
-          retryable:
-            isRetryableRdStatus(
-              selectTargetRes.status
-            ),
+          retryable: false,
         });
       }
     } else if (
@@ -2699,85 +2785,15 @@ async function addMagnet({
         "waiting_files_selection" &&
       initialFiles.length > 0
     ) {
+      await deleteNewTorrentBestEffort(torrentId, authHeaders);
       return Response.json({
         status: "failed",
+        torrent_id: torrentId,
         error:
           "Real-Debrid resolved this torrent, but Media God could not identify a playable video file to select.",
         error_code:
           "RD_NO_VIDEO_FILE",
       });
-    }
-  }
-
-  /*
-   * Save the association so future plays can potentially
-   * reuse it.
-   */
-  if (
-    saveLink &&
-    body.title
-  ) {
-    try {
-      const existing =
-        await base44.entities.RdLink.filter(
-          {
-            title:
-              String(
-                body.title
-              ).trim(),
-
-            year:
-              metadata.year,
-
-            season:
-              metadata.season,
-
-            episode:
-              metadata.episode,
-          }
-        );
-
-      if (
-        existing?.length >
-        0
-      ) {
-        await base44.entities.RdLink.update(
-          existing[0].id,
-          {
-            magnet,
-            torrent_id:
-              torrentId,
-          }
-        );
-      } else {
-        await base44.entities.RdLink.create(
-          {
-            title:
-              String(
-                body.title
-              ).trim(),
-
-            year:
-              metadata.year,
-
-            season:
-              metadata.season,
-
-            episode:
-              metadata.episode,
-
-            magnet,
-
-            torrent_id:
-              torrentId,
-          }
-        );
-      }
-    } catch {
-      /*
-       * Saving the link is an optimisation.
-       * Playback must not fail because the database write failed.
-       */
     }
   }
 
