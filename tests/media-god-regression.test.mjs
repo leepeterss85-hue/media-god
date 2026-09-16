@@ -177,6 +177,48 @@ test("uncached retry reuses the exact RD torrent and final-link failures retry a
   assert.match(cacheEngineSource, /lastProgress\s*>=\s*99\.999/);
 });
 
+test("uncached torrent rows can never bypass the RD cache engine as direct streams", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(playerSource, /const activeTorrentHash = sourceTorrentHash\(active\)/);
+  assert.match(playerSource, /const activeNeedsCaching = sourceNeedsCaching\(active\)/);
+  assert.match(
+    playerSource,
+    /const isRdSource =[\s\S]{0,600}?Boolean\(activeTorrentHash\)[\s\S]{0,120}?activeNeedsCaching/
+  );
+  assert.match(
+    playerSource,
+    /const isDirectFile =[\s\S]{0,120}?!activeNeedsCaching[\s\S]{0,120}?!isRdSource/
+  );
+});
+
+test("uncached cache stalls stay on the same torrent and use generous RD timing", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+  const cacheEngineSource = readFileSync(
+    new URL("../src/components/mg/realDebridCacheEngine.js", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(
+    playerSource,
+    /if \(preserveUncachedSource\) \{[\s\S]{0,900}?Retry will reconnect/
+  );
+  assert.match(
+    playerSource,
+    /if \(sourceNeedsCaching\(active\)\) \{[\s\S]{0,700}?same cached source has been kept selected/
+  );
+  assert.match(cacheEngineSource, /Math\.max\(10 \* 60_000, expectedRemainingMs \* 6\)/);
+  assert.match(cacheEngineSource, /if \(speed > 0\) return 15 \* 60_000/);
+  assert.match(cacheEngineSource, /if \(seeders > 0\) return 12 \* 60_000/);
+  assert.match(cacheEngineSource, /retrySameSource:\s*true[\s\S]{0,220}?RD_CACHE_RESTART_STALLED/);
+});
+
 test("browser addon fallback retries alternate identifiers after an initial 404", () => {
   const browserFallbackSource = readFileSync(
     new URL("../src/components/mg/addonBrowserFallback.js", import.meta.url),
