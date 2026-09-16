@@ -1425,6 +1425,12 @@ export default async function (req) {
               body.episode,
             file_idx:
               normaliseRequestedFileIndex(body.file_idx),
+            file_id:
+              normaliseRequestedFileIndex(body.file_id),
+            file_path:
+              String(body.file_path || "").trim(),
+            manual_file_selection:
+              body.manual_file_selection === true,
             forceAudioRescue:
               body.force_audio_rescue === true,
             preferBrowserTranscode:
@@ -2930,6 +2936,7 @@ function buildFileEntries(
   return files.map(
     (file) => ({
       id: file.id,
+      torrent_id: String(info?.id || ""),
       path: file.path || "",
       bytes: file.bytes || 0,
       link: file.link || linkById.get(file.id) || "",
