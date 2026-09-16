@@ -8560,7 +8560,7 @@ export default function VideoPlayer({
                   ""
                 }
                 sources={
-                  sources
+                  sourcesForSelector
                 }
                 activeIdx={
                   activeIdx
@@ -8684,7 +8684,7 @@ export default function VideoPlayer({
                   ""
                 }
                 sources={
-                  sources
+                  sourcesForSelector
                 }
                 activeIdx={
                   activeIdx
