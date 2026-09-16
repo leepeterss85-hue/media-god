@@ -450,7 +450,7 @@ test("selected edition only promotes after a complete cache and then starts play
   );
   assert.match(
     playerSource,
-    /if \(userWaitingForEdition\) \{[\s\S]{0,500}?switchToSource\(candidate\.index/[\s\S]{0,300}?is ready — starting playback/
+    /if \(userWaitingForEdition\) \{[\s\S]{0,500}?switchToSource\(candidate\.index[\s\S]{0,300}?is ready — starting playback/
   );
   assert.match(
     playerSource,
