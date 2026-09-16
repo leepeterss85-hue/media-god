@@ -207,16 +207,14 @@ export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
   const list = (Array.isArray(sources) ? sources : []).map((item, index) => {
     const cached = sourceIsCached(item);
     const pendingCache = sourceNeedsCachePreparation(item);
-    const authoritativeReady =
-      item?.debridCached === true || item?.runtimeReadyCached === true;
     const edition = detectMediaEdition(item);
 
     return {
       item,
       index,
-      cached: cached || authoritativeReady,
-      pendingCache: authoritativeReady ? false : pendingCache,
-      readyForUser: authoritativeReady || !pendingCache,
+      cached,
+      pendingCache,
+      readyForUser: !pendingCache,
       editionValue: edition.value,
       editionLabel: edition.label,
       resolution: sourceResolution(item),
@@ -305,4 +303,5 @@ export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
     return a.index - b.index;
   });
 };
+
 
