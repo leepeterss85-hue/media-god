@@ -63,7 +63,10 @@ import {
 } from "@/components/mg/sourceSelectorPreferences";
 import { runRealDebridCacheSession } from "@/components/mg/realDebridCacheEngine";
 import { buildAlternateEmbedFallback } from "@/components/mg/alternateEmbedFallback";
-import { sourceHasEdition } from "@/components/mg/mediaEdition";
+import {
+  detectMediaEdition,
+  sourceHasEdition,
+} from "@/components/mg/mediaEdition";
 import { recordTrustedCachedSource } from "@/components/mg/trustedCachedSources";
 
 const isMagnet = (value) =>
@@ -775,6 +778,9 @@ export default function VideoPlayer({
   const [rdCacheEngineNonce, setRdCacheEngineNonce] =
     useState(0);
 
+  const [backgroundCacheNonce, setBackgroundCacheNonce] =
+    useState(0);
+
   const [runtimeReadyTorrentHashes, setRuntimeReadyTorrentHashes] =
     useState(() => new Set());
 
@@ -819,6 +825,10 @@ export default function VideoPlayer({
   const rdResolutionQueueRef = useRef(Promise.resolve());
   const rdCacheEngineAbortRef = useRef(null);
   const rdCacheEngineOwnsPollingRef = useRef(false);
+  const backgroundCacheControllerRef = useRef(null);
+  const backgroundCacheAttemptedRef = useRef(new Set());
+  const backgroundCacheCompletedRef = useRef(0);
+  const backgroundCacheTitleKeyRef = useRef("");
   const retryExistingTorrentIdRef = useRef("");
   const retryInactiveTorrentHashRef = useRef("");
   const repairedStuckTorrentHashesRef = useRef(new Set());
@@ -862,8 +872,19 @@ export default function VideoPlayer({
     abandoned: new Set(),
   });
 
+  const sourcesForSelector = sources.map((item) => {
+    const hash = sourceTorrentHash(item);
+    return hash && runtimeReadyTorrentHashes.has(hash)
+      ? {
+          ...item,
+          debridCached: true,
+          runtimeReadyCached: true,
+        }
+      : item;
+  });
+
   const sortedSourceEntries = sortSourceEntries(
-    sources,
+    sourcesForSelector,
     sourceSortMode
   );
 
