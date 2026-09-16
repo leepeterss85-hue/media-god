@@ -5867,6 +5867,24 @@ export default function VideoPlayer({
         return false;
       }
 
+      /*
+       * An uncached torrent is an explicit Real-Debrid cache operation. Once
+       * that source has been chosen, a browser buffering watchdog must never
+       * silently abandon it and jump to another movie/torrent row. That direct
+       * switch used to bypass tryNextSource(), which already contains the
+       * correct protection for uncached sources. Keep the same RD source/job
+       * selected and let Retry reconnect to it instead.
+       */
+      if (sourceNeedsCaching(active)) {
+        state.lastProgressAt = Date.now();
+        setRdError(
+          rdOverride?.src
+            ? "The Real-Debrid stream stopped buffering. The same cached source has been kept selected; use Retry to reconnect instead of switching to another torrent."
+            : "This uncached torrent is still owned by Real-Debrid. Media God kept the same source selected; use Retry to reconnect to its download."
+        );
+        return false;
+      }
+
       const now = Date.now();
       const activeTorrentLike =
         active?.type === "rd" ||
