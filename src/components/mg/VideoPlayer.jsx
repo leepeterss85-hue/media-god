@@ -2680,7 +2680,8 @@ export default function VideoPlayer({
       isDirectFile ||
       isLive ||
       !isRdSource ||
-      !sourceNeedsCachingForSession(active)
+      !sourceNeedsCachingForSession(active) ||
+      allReadySourceEntries.some((entry) => entry.index !== activeIdx)
     ) {
       return undefined;
     }
