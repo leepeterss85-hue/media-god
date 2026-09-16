@@ -53,9 +53,9 @@ export default function MediaCard({
       onOpen({
         ...item,
         id: tmdbId,
-        media_type: "tv",
-        mediaType: "tv",
-        type: "tv",
+        media_type: mediaType,
+        mediaType,
+        type: mediaType === "tv" ? "tv" : "movie",
       });
       return;
     }
