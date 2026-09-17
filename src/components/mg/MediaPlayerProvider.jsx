@@ -1855,6 +1855,9 @@ export function PlayerProvider({
               ];
 
         const initialPrimary = initialSources[0] || {};
+        let publishedSourceSnapshot = initialSources.filter(
+          (item) => item && !item?.diagnostic
+        );
         let fastStartPrimaryUrl = getSourceUrl(initialPrimary);
         const preparedEpisodeHandoff =
           request?.preparedEpisodeHandoff === true &&
@@ -1983,6 +1986,7 @@ export function PlayerProvider({
               existing,
               publishedSources
             );
+            publishedSourceSnapshot = publishedSources;
 
             if (fastStartPrimaryUrl) {
               const lockedIndex = publishedSources.findIndex(
@@ -2390,6 +2394,17 @@ export function PlayerProvider({
             },
           ];
         }
+
+        /*
+         * Apply the same stable-order contract to the final cache-annotated pass.
+         * Existing rows keep their positions; richer cache/provider metadata replaces
+         * them in place and genuinely new hashes are appended in ranked order.
+         */
+        orderedSources = preservePublishedSourceOrder(
+          publishedSourceSnapshot,
+          orderedSources
+        );
+        publishedSourceSnapshot = orderedSources;
 
         if (fastStartPrimaryUrl) {
           const lockedIndex = orderedSources.findIndex(
