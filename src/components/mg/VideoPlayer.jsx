@@ -36,6 +36,7 @@ import {
   getPlaybackDeviceProfile,
   hasSevereVideoRisk,
   scoreSourceCompatibility,
+  sourceAudioCompatibility,
 } from "@/components/mg/mediaCompatibility";
 import {
   debridProviderScoreHints,
@@ -2095,6 +2096,100 @@ export default function VideoPlayer({
       activeType === "stream" ||
       isGenericHttpsStream
     );
+
+  const playbackDeviceProfile = getPlaybackDeviceProfile();
+  const activeAudioCompatibility = sourceAudioCompatibility(
+    active,
+    sourceDisplayLabel(active, activeIdx),
+    playbackDeviceProfile
+  );
+  const automaticAudioSafeSourceIndex = sourcesForSelector
+    .map((item, index) => {
+      if (
+        index === activeIdx ||
+        failedSourcesRef.current.has(index) ||
+        !sourceIsUserSelectable(item) ||
+        sourceNeedsCaching(item)
+      ) {
+        return null;
+      }
+
+      const label = sourceDisplayLabel(item, index);
+      const audio = sourceAudioCompatibility(
+        item,
+        label,
+        playbackDeviceProfile
+      );
+
+      if (audio.supported === false) {
+        return null;
+      }
+
+      return {
+        index,
+        supported: audio.supported === true,
+        risky: audio.risky,
+        score: scoreSourceCompatibility(item, label, {
+          deviceProfile: playbackDeviceProfile,
+          qualityPreference: readPlaybackPreferences().quality,
+        }),
+      };
+    })
+    .filter(Boolean)
+    .sort(
+      (left, right) =>
+        Number(right.supported) - Number(left.supported) ||
+        Number(left.risky) - Number(right.risky) ||
+        right.score - left.score ||
+        left.index - right.index
+    )[0]?.index ?? -1;
+
+  /*
+   * AUTOMATIC AUDIO-SAFE STARTUP
+   *
+   * The device's native decoder inventory is authoritative when it is
+   * available. If the current ready source is known to use an unsupported
+   * audio codec, move to the best already-ready source whose audio is not
+   * known unsupported before native playback gets a chance to open silently.
+   * Preserve position in case decoder information arrives after playback has
+   * already started.
+   */
+  useEffect(() => {
+    if (
+      isLive ||
+      isYoutube ||
+      isProvider ||
+      readPlaybackPreferences().automaticNoSoundRecovery === false ||
+      activeAudioCompatibility.supported !== false ||
+      automaticAudioSafeSourceIndex < 0 ||
+      rdResolving ||
+      rdPolling ||
+      rdTorrentId ||
+      fileSwitching ||
+      sourceSelectorPinnedRef.current ||
+      rdFileSelectorPinnedRef.current
+    ) {
+      return;
+    }
+
+    switchToSource(automaticAudioSafeSourceIndex, {
+      preservePosition: true,
+      statusMessage:
+        "Audio compatibility · switching automatically to a source supported by this device…",
+    });
+  }, [
+    activeIdx,
+    activeAudioCompatibility.supported,
+    automaticAudioSafeSourceIndex,
+    fileSwitching,
+    isLive,
+    isProvider,
+    isYoutube,
+    rdMediaContextKey,
+    rdPolling,
+    rdResolving,
+    rdTorrentId,
+  ]);
 
   /*
    * READY-SOURCE FIRST
