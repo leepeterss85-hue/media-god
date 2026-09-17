@@ -675,9 +675,13 @@ expect(
 expect(
   mediaGodV2Assist.includes("createPortal(controls, portalTarget)") &&
     mediaGodV2Assist.includes('data-mg-episode-assist="true"') &&
-    mediaGodV2Assist.includes("onPointerDown={stopPointerPropagation}") &&
+    mediaGodV2Assist.includes("pointer-events-auto absolute left-3 top-3 z-[120]") &&
+    mediaGodV2Assist.includes("onPointerDown={(event) => runAction(event, skipIntro)}") &&
+    mediaGodV2Assist.includes("runClickFallback") &&
+    mediaGodV2Assist.includes("runKeyAction") &&
+    mediaGodV2Assist.includes("tabIndex={0}") &&
     mediaGodV2Assist.includes("focus:ring-4"),
-  "Episode assist controls can fall behind the full-screen player or lose click/focus handling"
+  "Episode assist controls can fall behind the full-screen player or lose first-press click/focus handling"
 );
 expect(
   fireTvPlayerActivity.includes("assistControlsWereVisible") &&
