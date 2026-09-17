@@ -40,7 +40,6 @@ import {
   sortSourceEntries,
   sourceIsUserSelectable,
   SOURCE_SELECTOR_SORT_EVENT,
-  SOURCE_SORT_OPTIONS,
   writeSourceSortMode,
 } from "@/components/mg/sourceSelectorPreferences";
 import { sourceHasEdition } from "@/components/mg/mediaEdition";

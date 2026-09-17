@@ -5,9 +5,14 @@ import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager
+import android.widget.Button
+import android.widget.FrameLayout
+import android.widget.LinearLayout
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -36,9 +41,16 @@ class PlayerActivity : Activity() {
 
         private const val REQUEST_COMPATIBILITY_PLAYER = 8402
         private const val CONTROLLER_HIDE_DELAY_MS = 2500L
+        private const val NEXT_EPISODE_COUNTDOWN_MS = 10000L
     }
 
     private lateinit var playerView: PlayerView
+    private lateinit var assistControls: LinearLayout
+    private lateinit var skipRecapButton: Button
+    private lateinit var skipIntroButton: Button
+    private lateinit var skipCreditsButton: Button
+    private lateinit var playNextButton: Button
+    private lateinit var cancelNextButton: Button
     private var player: ExoPlayer? = null
     private var mediaSession: MediaSession? = null
 
@@ -53,6 +65,14 @@ class PlayerActivity : Activity() {
     private var resultSent = false
     private var genericHttpsMimeRetryIndex = 0
     private var compatibilityPlayerOpen = false
+    private var autoNext = true
+    private var recapStartMs = -1L
+    private var recapEndMs = -1L
+    private var introStartMs = -1L
+    private var introEndMs = -1L
+    private var creditsStartMs = -1L
+    private var nextEpisodeCountdownStartedAtMs = -1L
+    private var nextEpisodeCountdownCancelled = false
 
     private fun hostedProviderDescriptor(): String {
         val payloadLabel = payload.optString("sourceLabel").trim()
@@ -95,6 +115,14 @@ class PlayerActivity : Activity() {
         }
     }
 
+    private val updateAssistControlsRunnable = object : Runnable {
+        override fun run() {
+            if (resultSent || !::playerView.isInitialized) return
+            updateAssistControls()
+            playerView.postDelayed(this, 500L)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -108,6 +136,12 @@ class PlayerActivity : Activity() {
         streamUrl = payload.optString("url").trim()
         title = payload.optString("title")
         live = payload.optBoolean("live", false)
+        autoNext = payload.optBoolean("autoNext", true)
+        recapStartMs = payloadMarkerMs("recapStart")
+        recapEndMs = payloadMarkerMs("recapEnd")
+        introStartMs = payloadMarkerMs("introStart")
+        introEndMs = payloadMarkerMs("introEnd")
+        creditsStartMs = payloadMarkerMs("creditsStart")
         initialPositionMs = max(0L, payload.optLong("startPositionMs", 0L))
         restorePositionMs = initialPositionMs
 
@@ -142,8 +176,33 @@ class PlayerActivity : Activity() {
             contentDescription = if (title.isBlank()) "Media God player" else title
         }
 
-        setContentView(playerView)
+        assistControls = buildAssistControls()
+
+        val root = FrameLayout(this).apply {
+            setBackgroundColor(Color.BLACK)
+            addView(
+                playerView,
+                FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
+            )
+            addView(
+                assistControls,
+                FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    gravity = Gravity.BOTTOM or Gravity.END
+                    bottomMargin = dp(24)
+                    marginEnd = dp(16)
+                }
+            )
+        }
+
+        setContentView(root)
         playerView.requestFocus()
+        playerView.post(updateAssistControlsRunnable)
     }
 
     override fun onStart() {
@@ -175,6 +234,7 @@ class PlayerActivity : Activity() {
     override fun onDestroy() {
         if (::playerView.isInitialized) {
             playerView.removeCallbacks(hideControllerRunnable)
+            playerView.removeCallbacks(updateAssistControlsRunnable)
         }
         DisplayRateMatcher.clear(this)
         releasePlayer()
@@ -220,6 +280,13 @@ class PlayerActivity : Activity() {
                 KeyEvent.KEYCODE_BACK -> {
                     finishWithResult("back")
                     return true
+                }
+
+                KeyEvent.KEYCODE_MEDIA_NEXT -> {
+                    if (isTvEpisode()) {
+                        finishWithResult("next")
+                        return true
+                    }
                 }
 
                 KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
@@ -640,6 +707,200 @@ class PlayerActivity : Activity() {
             lower.endsWith(".ttml") || lower.endsWith(".xml") -> MimeTypes.APPLICATION_TTML
             else -> MimeTypes.TEXT_VTT
         }
+    }
+
+    private fun dp(value: Int): Int =
+        (value * resources.displayMetrics.density).toInt()
+
+    private fun payloadMarkerMs(key: String): Long {
+        val value = payload.optDouble(key, -1.0)
+        if (!value.isFinite() || value < 0.0) return -1L
+        return if (value >= 10_000.0) {
+            value.toLong().coerceAtLeast(0L)
+        } else {
+            (value * 1000.0).toLong().coerceAtLeast(0L)
+        }
+    }
+
+    private fun isTvEpisode(): Boolean =
+        !live &&
+            (
+                payload.optString("mediaType").equals("tv", ignoreCase = true) ||
+                    payload.optString("mediaType").equals("series", ignoreCase = true) ||
+                    payload.optInt("season", 0) > 0 ||
+                    payload.optInt("episode", 0) > 0
+            )
+
+    private fun buildAssistButton(label: String, onClick: () -> Unit): Button =
+        Button(this).apply {
+            text = label
+            isAllCaps = false
+            textSize = 13f
+            minHeight = dp(48)
+            minWidth = dp(108)
+            setPadding(dp(10), 0, dp(10), 0)
+            setTextColor(Color.WHITE)
+            setBackgroundColor(Color.argb(220, 20, 20, 20))
+            visibility = View.GONE
+            isFocusable = true
+            isFocusableInTouchMode = true
+            setOnClickListener { onClick() }
+        }
+
+    private fun buildAssistControls(): LinearLayout {
+        skipRecapButton = buildAssistButton("Skip recap") {
+            val activePlayer = player ?: return@buildAssistButton
+            val target =
+                if (recapEndMs > activePlayer.currentPosition) recapEndMs + 250L
+                else activePlayer.currentPosition + 45_000L
+            seekAssistTo(target)
+        }
+
+        skipIntroButton = buildAssistButton("Skip intro") {
+            val activePlayer = player ?: return@buildAssistButton
+            val target =
+                if (introEndMs > activePlayer.currentPosition) introEndMs + 250L
+                else activePlayer.currentPosition + 85_000L
+            seekAssistTo(target)
+        }
+
+        skipCreditsButton = buildAssistButton("Skip credits") {
+            if (isTvEpisode()) {
+                finishWithResult("next")
+            } else {
+                val activePlayer = player ?: return@buildAssistButton
+                val mediaDuration = activePlayer.duration.takeIf { it > 0L } ?: return@buildAssistButton
+                seekAssistTo(maxOf(0L, mediaDuration - 750L))
+            }
+        }
+
+        playNextButton = buildAssistButton("Play next") {
+            finishWithResult("next")
+        }
+
+        cancelNextButton = buildAssistButton("Cancel") {
+            nextEpisodeCountdownCancelled = true
+            nextEpisodeCountdownStartedAtMs = -1L
+            updateAssistControls()
+        }
+
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(4), dp(3), dp(4), dp(3))
+            setBackgroundColor(Color.argb(170, 0, 0, 0))
+            visibility = View.GONE
+            addView(skipRecapButton)
+            addView(skipIntroButton)
+            addView(skipCreditsButton)
+            addView(playNextButton)
+            addView(cancelNextButton)
+        }
+    }
+
+    private fun setAssistVisible(button: Button, visible: Boolean) {
+        button.visibility = if (visible) View.VISIBLE else View.GONE
+    }
+
+    private fun seekAssistTo(targetMs: Long) {
+        val activePlayer = player ?: return
+        if (live && !activePlayer.isCurrentMediaItemSeekable) return
+        val mediaDuration = activePlayer.duration.takeIf { it > 0L } ?: Long.MAX_VALUE
+        activePlayer.seekTo(targetMs.coerceAtLeast(0L).coerceAtMost(mediaDuration))
+        activePlayer.play()
+        showControllerTemporarily()
+    }
+
+    private fun updateAssistControls() {
+        if (resultSent || !::assistControls.isInitialized || live) {
+            if (::assistControls.isInitialized) assistControls.visibility = View.GONE
+            return
+        }
+
+        val activePlayer = player ?: run {
+            assistControls.visibility = View.GONE
+            return
+        }
+
+        val position = maxOf(0L, activePlayer.currentPosition)
+        val mediaDuration = activePlayer.duration.takeIf { it > 0L } ?: 0L
+        val remaining = if (mediaDuration > 0L) maxOf(0L, mediaDuration - position) else Long.MAX_VALUE
+        val tvEpisode = isTvEpisode()
+        val playingNow = activePlayer.isPlaying
+
+        val exactRecap =
+            tvEpisode && recapEndMs > 0L &&
+                position >= maxOf(0L, recapStartMs) && position < recapEndMs
+        val fallbackRecap =
+            tvEpisode && recapEndMs < 0L && playingNow &&
+                position in 4_000L..75_000L &&
+                (mediaDuration <= 0L || remaining > 180_000L)
+
+        val exactIntro =
+            tvEpisode && introEndMs > 0L &&
+                position >= maxOf(0L, introStartMs) && position < introEndMs
+        val fallbackIntro =
+            tvEpisode && introEndMs < 0L && playingNow &&
+                position in 1_000L..420_000L &&
+                (mediaDuration <= 0L || remaining > 120_000L)
+
+        val creditsFallbackWindow =
+            if (tvEpisode) {
+                if (mediaDuration > 0L) minOf(240_000L, maxOf(75_000L, (mediaDuration * 0.09).toLong())) else 0L
+            } else {
+                if (mediaDuration > 0L) minOf(360_000L, maxOf(120_000L, (mediaDuration * 0.08).toLong())) else 0L
+            }
+        val exactCredits =
+            mediaDuration >= 300_000L && creditsStartMs > 0L &&
+                position >= creditsStartMs && position < mediaDuration - 500L
+        val fallbackCredits =
+            mediaDuration >= 300_000L && creditsStartMs < 0L &&
+                position > (mediaDuration * 0.55).toLong() && remaining <= creditsFallbackWindow
+        val creditsVisible = exactCredits || fallbackCredits
+
+        setAssistVisible(skipRecapButton, exactRecap || fallbackRecap)
+        setAssistVisible(skipIntroButton, exactIntro || fallbackIntro)
+        setAssistVisible(skipCreditsButton, creditsVisible)
+        skipCreditsButton.text = if (tvEpisode && creditsVisible) "Skip credits → Next" else "Skip credits"
+
+        val showNext = tvEpisode && position >= 1_000L
+        setAssistVisible(playNextButton, showNext)
+
+        val countdownWindow =
+            tvEpisode && mediaDuration >= 180_000L && position >= 60_000L &&
+                (exactCredits || remaining <= 15_000L)
+
+        if (autoNext && countdownWindow && playingNow && !nextEpisodeCountdownCancelled) {
+            if (nextEpisodeCountdownStartedAtMs < 0L) {
+                nextEpisodeCountdownStartedAtMs = android.os.SystemClock.elapsedRealtime()
+            }
+            val elapsed = android.os.SystemClock.elapsedRealtime() - nextEpisodeCountdownStartedAtMs
+            val left = NEXT_EPISODE_COUNTDOWN_MS - elapsed
+            if (left <= 0L) {
+                nextEpisodeCountdownCancelled = true
+                nextEpisodeCountdownStartedAtMs = -1L
+                finishWithResult("next")
+                return
+            }
+            val seconds = maxOf(1L, (left + 999L) / 1000L)
+            playNextButton.text = "Next episode in ${seconds}s"
+            setAssistVisible(cancelNextButton, true)
+        } else {
+            if (!countdownWindow || !playingNow || !autoNext) {
+                nextEpisodeCountdownStartedAtMs = -1L
+            }
+            playNextButton.text = "Play next"
+            setAssistVisible(cancelNextButton, false)
+        }
+
+        assistControls.visibility =
+            if (
+                skipRecapButton.visibility == View.VISIBLE ||
+                    skipIntroButton.visibility == View.VISIBLE ||
+                    skipCreditsButton.visibility == View.VISIBLE ||
+                    playNextButton.visibility == View.VISIBLE ||
+                    cancelNextButton.visibility == View.VISIBLE
+            ) View.VISIBLE else View.GONE
     }
 
     private fun seekBy(deltaMs: Long) {
