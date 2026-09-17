@@ -20,6 +20,7 @@ import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.HttpDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -99,6 +100,24 @@ class PlayerActivity : Activity() {
             .filter { it.isNotBlank() }
             .joinToString(" ")
     }
+
+    private fun httpResponseCode(error: PlaybackException): Int {
+        var cause: Throwable? = error
+        var depth = 0
+
+        while (cause != null && depth < 12) {
+            if (cause is HttpDataSource.InvalidResponseCodeException) {
+                return cause.responseCode
+            }
+            cause = cause.cause
+            depth += 1
+        }
+
+        return 0
+    }
+
+    private fun isExpiredPlaybackLink(error: PlaybackException): Boolean =
+        httpResponseCode(error) in setOf(401, 403, 410)
 
     private fun isHostedProviderErrorClip(durationMs: Long): Boolean {
         if (live || durationMs <= 0L) return false
@@ -529,6 +548,16 @@ class PlayerActivity : Activity() {
             }
 
             override fun onPlayerError(error: PlaybackException) {
+                if (!live && isExpiredPlaybackLink(error)) {
+                    val responseCode = httpResponseCode(error)
+                    clearPlaybackWatchdogs()
+                    finishWithResult(
+                        "expired",
+                        "Stream link expired (HTTP $responseCode). Refreshing the same stream…"
+                    )
+                    return
+                }
+
                 if (retryUnknownHttpsSourceType(exoPlayer)) {
                     if (playbackStarted) armStallWatchdog() else armStartupWatchdog()
                     return
