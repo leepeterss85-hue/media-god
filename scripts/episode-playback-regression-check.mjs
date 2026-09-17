@@ -160,8 +160,15 @@ expect(
     videoPlayer.includes('activeAudioCompatibility.supported !== false') &&
     videoPlayer.includes('Audio compatibility · switching automatically') &&
     videoPlayer.includes('const knownUnsupportedAudio = audioCompatibility.supported === false') &&
-    videoPlayer.includes('rememberedSilent || knownUnsupportedAudio ? 2200 : 4200'),
-  "actual device audio support automatically chooses a safer ready source and triggers no-sound rescue without user input"
+    videoPlayer.includes('rememberedSilent || knownUnsupportedAudio ? 2200 : 4200') &&
+    videoPlayer.includes('const activeLearnedSilent = hasRecentNoSoundHistory') &&
+    videoPlayer.includes('learnedSilent: hasRecentNoSoundHistory') &&
+    videoPlayer.includes('.find((entry) => !entry.learnedSilent)?.index ?? -1') &&
+    videoPlayer.includes('(activeAudioCompatibility.supported !== false && !activeLearnedSilent)') &&
+    playbackReliability.includes('current.noSound = Math.max(0, Number(current.noSound || 0) - 1)') &&
+    playbackReliability.includes('score < 0') &&
+    playbackReliability.includes('? 0.85'),
+  "actual device audio support and learned silent-codec history automatically choose safer sources and rehabilitate after good playback"
 );
 
 expect(
