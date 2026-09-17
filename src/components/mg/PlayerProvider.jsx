@@ -524,14 +524,115 @@ function PlayerAutomationBridge({ children }) {
     []
   );
 
+  const preloadNextEpisode = useCallback(
+    (request) => {
+      if (!isTvRequest(request)) {
+        return Promise.resolve(null);
+      }
+
+      const currentKey = episodeIdentityForRequest(request);
+      if (!currentKey) {
+        return Promise.resolve(null);
+      }
+
+      const existing = nextEpisodePreloadRef.current;
+      if (existing.currentKey === currentKey) {
+        if (existing.promise) {
+          return existing.promise;
+        }
+
+        if (existing.next) {
+          return Promise.resolve(existing.prepared || existing.next);
+        }
+      }
+
+      const preloadPromise = (async () => {
+        try {
+          const next = await findNextEpisodeRequest(request);
+          if (!next) {
+            if (nextEpisodePreloadRef.current.currentKey === currentKey) {
+              nextEpisodePreloadRef.current = {
+                currentKey,
+                next: null,
+                prepared: null,
+                promise: null,
+              };
+            }
+            return null;
+          }
+
+          await queueContinueWatching(next);
+
+          const prepared =
+            typeof core.prepare === "function"
+              ? await core.prepare(next)
+              : null;
+
+          if (
+            episodeIdentityForRequest(currentRequestRef.current) !== currentKey
+          ) {
+            return null;
+          }
+
+          nextEpisodePreloadRef.current = {
+            currentKey,
+            next,
+            prepared,
+            promise: null,
+          };
+
+          return prepared || next;
+        } catch (error) {
+          console.warn(
+            "[Media God] Could not prepare the next episode in advance",
+            error
+          );
+
+          if (nextEpisodePreloadRef.current.currentKey === currentKey) {
+            nextEpisodePreloadRef.current = {
+              currentKey,
+              next: null,
+              prepared: null,
+              promise: null,
+            };
+          }
+
+          return null;
+        }
+      })();
+
+      nextEpisodePreloadRef.current = {
+        currentKey,
+        next: null,
+        prepared: null,
+        promise: preloadPromise,
+      };
+
+      return preloadPromise;
+    },
+    [core]
+  );
+
   const play = useCallback(
     async (request = {}) => {
       currentRequestRef.current = request;
       publishContext(request);
 
-      return core.play(request);
+      const playbackPromise = core.play(request);
+
+      /*
+       * Prepare the following episode as soon as playback begins. This is
+       * especially important on Fire TV because Media3 pauses the WebView while
+       * it owns the screen, so waiting for browser timeupdate events meant the
+       * next source was never actually ready when the native player finished.
+       */
+      if (isTvRequest(request)) {
+        void preloadNextEpisode(request);
+      }
+
+      return playbackPromise;
     },
-    [core, publishContext]
+    [core, preloadNextEpisode, publishContext]
   );
 
   const resetEnhancedPlayerState = useCallback(() => {
