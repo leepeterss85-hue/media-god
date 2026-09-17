@@ -1821,6 +1821,7 @@ export default function LiveTVView({
       Sports: 0,
       Motorsport: 0,
       Movies: 0,
+      "Video Channels": 0,
       Radio: 0,
       Favourites: 0,
       Recent: 0,
@@ -1867,6 +1868,10 @@ export default function LiveTVView({
         tags.has("Movies")
       ) {
         counts.Movies += 1;
+      }
+
+      if (tags.has("Video Channels")) {
+        counts["Video Channels"] += 1;
       }
 
       if (tags.has("Radio")) {
@@ -2670,7 +2675,7 @@ export default function LiveTVView({
           </div>
 
           <p className="max-w-3xl text-xs text-white/45 sm:text-sm">
-            UK-aware public Live TV, sports, movies and radio with Sky, TNT, and public news streams integrated.
+            UK-aware public Live TV, sports, movies, video channels and radio with Sky, TNT, and public news streams integrated.
           </p>
         </div>
 
@@ -2930,7 +2935,7 @@ export default function LiveTVView({
 
       <div
         data-mg-live-tv-category-row="true"
-        className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-10"
+        className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-11"
       >
         {[
           {
@@ -2964,8 +2969,13 @@ export default function LiveTVView({
             icon: Film,
           },
           {
+            id: "Video Channels",
+            label: "Video Channels",
+            icon: Play,
+          },
+          {
             id: "Radio",
-            label: "Music",
+            label: "Radio",
             icon: Radio,
           },
           {
