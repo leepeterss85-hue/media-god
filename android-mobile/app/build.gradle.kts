@@ -1,3 +1,4 @@
+// Episode controls + subtitle defaults release verification.
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
