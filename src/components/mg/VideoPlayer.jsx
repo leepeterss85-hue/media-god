@@ -9009,7 +9009,22 @@ export default function VideoPlayer({
                   const next = writeSourceSortMode(event.target.value);
                   setSourceSortMode(next);
 
-                  if (next.startsWith("edition:")) {
+                  if (next === "4k" || next === "1080p") {
+                    const match = sortSourceEntries(sourcesForSelector, next).find(
+                      (entry) => {
+                        if (!sourceIsUserSelectable(entry.item)) return false;
+
+                        return next === "4k"
+                          ? Number(entry.resolution || 0) >= 2000
+                          : Number(entry.resolution || 0) >= 900 &&
+                              Number(entry.resolution || 0) < 2000;
+                      }
+                    );
+
+                    if (match && match.index !== activeIdx) {
+                      selectSource(match.index, match.item);
+                    }
+                  } else if (next.startsWith("edition:")) {
                     const edition = next.slice("edition:".length);
                     const match = sortSourceEntries(sourcesForSelector, next).find(
                       (entry) =>
