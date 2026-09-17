@@ -2053,7 +2053,14 @@ export default function VideoPlayer({
     );
 
   const activeTorrentHash = sourceTorrentHash(active);
-  const activeNeedsCaching = sourceNeedsCaching(active);
+  const activeRuntimeReady = Boolean(
+    activeTorrentHash && runtimeReadyTorrentHashes.has(activeTorrentHash)
+  );
+  const activeHasResolvedStream = Boolean(
+    rdOverride?.src || rdOverride?.url || activeRuntimeReady
+  );
+  const activeNeedsCaching =
+    !activeHasResolvedStream && sourceNeedsCaching(active);
 
   /*
    * Torrent identity is authoritative. Addons can expose an uncached torrent
@@ -2171,12 +2178,22 @@ export default function VideoPlayer({
       return undefined;
     }
 
+    const qualityBucketFor = (entry) => {
+      const resolution = Number(entry?.resolution || 0);
+      if (resolution >= 2000) return "4k";
+      if (resolution >= 900) return "1080p";
+      if (resolution >= 650) return "720p";
+      return "other";
+    };
+
     const cachedCounts = new Map();
 
     sortedSourceEntries.forEach((entry) => {
       if (!entry?.cached) return;
       const edition = entry.editionValue || detectMediaEdition(entry.item).value;
-      cachedCounts.set(edition, Number(cachedCounts.get(edition) || 0) + 1);
+      const bucket = qualityBucketFor(entry);
+      const key = `${edition}|${bucket}`;
+      cachedCounts.set(key, Number(cachedCounts.get(key) || 0) + 1);
     });
 
     const candidates = sortedSourceEntries
@@ -2186,13 +2203,17 @@ export default function VideoPlayer({
         const hash = sourceTorrentHash(original);
         const magnet = richestSourceMagnet(original);
 
+        const qualityBucket = qualityBucketFor(entry);
+        const cacheBucketKey = `${edition}|${qualityBucket}`;
+
         return {
           ...entry,
           original,
           edition,
           hash,
           magnet,
-          cachedCount: Number(cachedCounts.get(edition) || 0),
+          qualityBucket,
+          cachedCount: Number(cachedCounts.get(cacheBucketKey) || 0),
         };
       })
       .filter(
@@ -2208,6 +2229,8 @@ export default function VideoPlayer({
       )
       .sort(
         (left, right) =>
+          Number(right.qualityBucket === "4k") - Number(left.qualityBucket === "4k") ||
+          Number(right.qualityBucket === "1080p") - Number(left.qualityBucket === "1080p") ||
           left.cachedCount - right.cachedCount ||
           Number(right.reportedSeeders || 0) - Number(left.reportedSeeders || 0) ||
           Number(right.trackerRich) - Number(left.trackerRich) ||

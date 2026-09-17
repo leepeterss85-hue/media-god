@@ -98,6 +98,17 @@ const FOREIGN_RE =
 const RES_RE =
   /(2160|1080|720|480)p/i;
 
+const sourceResolution = (item, label = "") => {
+  const explicit = Number(item?.resolution || item?.height || 0);
+  if (Number.isFinite(explicit) && explicit >= 240) return explicit;
+
+  const text = String(label || item?.label || item?.name || item?.title || "");
+  const match = text.match(RES_RE);
+  if (match) return Number(match[1] || 0);
+  if (/\b(?:4k|uhd)\b/i.test(text)) return 2160;
+  return 0;
+};
+
 const AUDIO_AAC_RE =
   /\b(aac|aac2\.0|aac5\.1|he-aac)\b/i;
 
@@ -404,16 +415,7 @@ const scoreSource = (item) => {
       ""
     );
 
-  const resolution =
-    Number(
-      (
-        label.match(
-          RES_RE
-        ) ||
-        []
-      )[1] ||
-      0
-    );
+  const resolution = sourceResolution(item, label);
 
   const foreignPenalty =
     FOREIGN_RE.test(
