@@ -190,7 +190,7 @@ const NATIVE_AUDIO_MIME = {
   eac3: ["audio/eac3", "audio/e-ac-3", "audio/eac3-joc"],
   ac4: ["audio/ac4"],
   dts: ["audio/vnd.dts", "audio/vnd.dts.hd"],
-  truehd: ["audio/true-hd"],
+  truehd: ["audio/true-hd", "audio/vnd.dolby.mlp"],
   opus: ["audio/opus"],
   flac: ["audio/flac"],
   vorbis: ["audio/vorbis"],
@@ -926,6 +926,18 @@ const audioSupport = (
 
   if (nativeSupport === true) {
     return true;
+  }
+
+  /*
+   * When the native Android/Fire TV bridge returned a real decoder inventory,
+   * a negative match is meaningful. Do not throw that answer away and fall
+   * back to optimistic Fire TV/browser guesses: doing so can rank a silent
+   * AC3/EAC3/DTS/TrueHD source above an AAC source the device can definitely
+   * decode. The native compatibility player can still rescue the file later,
+   * but automatic source ranking should prefer sound that works first time.
+   */
+  if (nativeSupport === false) {
+    return false;
   }
 
   if (
