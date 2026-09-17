@@ -120,10 +120,20 @@ expect(
   mediaPlayerProvider.includes('fastMode: false') &&
     mediaPlayerProvider.includes('excludeAddonNames: []') &&
     mediaPlayerProvider.includes('every extra torrent hash is another chance') &&
+    mediaPlayerProvider.includes('preservePublishedSourceOrder') &&
+    mediaPlayerProvider.includes('publishedSourceSnapshot') &&
     mediaPlayerProvider.includes('if (lockedIndex > 0)') &&
     !mediaPlayerProvider.includes('successfulAddonNames.length >=') &&
     !mediaPlayerProvider.includes('lockedIsKnownUncachedMagnet && cachedAlternativeExists'),
-  "fast start always expands into full cache discovery and source refresh cannot replace the playing source"
+  "fast start always expands into full cache discovery and every published source keeps a stable playback index"
+);
+
+expect(
+  mediaPlayerProvider.includes('item?.infoHash') &&
+    mediaPlayerProvider.includes('item?.info_hash') &&
+    mediaPlayerProvider.includes('item?.richMagnet') &&
+    mediaPlayerProvider.includes('Boolean(sourceMagnetHash(item))'),
+  "cache annotation includes torrent hashes carried as metadata on provider and HTTP source rows"
 );
 
 expect(
