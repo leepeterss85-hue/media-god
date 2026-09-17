@@ -14,6 +14,7 @@ const provider = read("src/components/mg/PlayerProvider.jsx");
 const mediaPlayerProvider = read("src/components/mg/MediaPlayerProvider.jsx");
 const assist = read("src/components/mg/MediaGodV2Assist.jsx");
 const videoPlayer = read("src/components/mg/VideoPlayer.jsx");
+const liveVideo = read("src/components/mg/LiveVideo.jsx");
 const takeover = read("src/components/mg/FireTvPlayerTakeover.jsx");
 const native = read("firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt");
 const edition = read("src/components/mg/mediaEdition.js");
@@ -171,17 +172,25 @@ expect(
     sourcePreferences.includes('audio.supported === false') &&
     videoPlayer.includes('const automaticAudioSafeSourceIndex') &&
     videoPlayer.includes('activeAudioCompatibility.supported !== false') &&
-    videoPlayer.includes('Audio compatibility · switching automatically') &&
-    videoPlayer.includes('const knownUnsupportedAudio = audioCompatibility.supported === false') &&
-    videoPlayer.includes('rememberedSilent || knownUnsupportedAudio ? 2200 : 4200') &&
+    videoPlayer.includes('const playbackAlreadyStarted') &&
+    videoPlayer.includes('const nativePlaybackAlreadyOwned') &&
+    videoPlayer.includes('Audio compatibility · choosing a source supported by this device') &&
     videoPlayer.includes('const activeLearnedSilent = hasRecentNoSoundHistory') &&
     videoPlayer.includes('learnedSilent: hasRecentNoSoundHistory') &&
     videoPlayer.includes('.find((entry) => !entry.learnedSilent)?.index ?? -1') &&
     videoPlayer.includes('(activeAudioCompatibility.supported !== false && !activeLearnedSilent)') &&
+    !videoPlayer.includes('const knownUnsupportedAudio = audioCompatibility.supported === false') &&
+    !videoPlayer.includes('rememberedSilent || knownUnsupportedAudio ? 2200 : 4200') &&
+    liveVideo.includes('const stableConfigSignature') &&
+    liveVideo.includes('const onErrorRef = useRef(onError)') &&
+    liveVideo.includes('const headersSignature = stableConfigSignature(headers)') &&
+    liveVideo.includes('const drmSignature = stableConfigSignature(drm)') &&
+    liveVideo.includes('nativeAudioPreferenceApplied') &&
+    liveVideo.includes('userAudioSelection') &&
     playbackReliability.includes('current.noSound = Math.max(0, Number(current.noSound || 0) - 1)') &&
     playbackReliability.includes('score < 0') &&
     playbackReliability.includes('? 0.85'),
-  "actual device audio support and learned silent-codec history automatically choose safer sources and rehabilitate after good playback"
+  "audio compatibility is decided before startup while a playing stream keeps decoder and audio-track ownership stable"
 );
 
 expect(
