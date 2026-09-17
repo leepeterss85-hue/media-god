@@ -22,6 +22,7 @@ const mediaCompatibility = read("src/components/mg/mediaCompatibility.js");
 const controls = read("src/components/mg/MediaPlayerControls.jsx");
 const mobileNative = read("android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt");
 const trackPreferences = read("src/components/mg/mediaTrackPreferences.js");
+const playbackReliability = read("src/components/mg/playbackReliability.js");
 const nativeBridge = read("src/components/mg/nativeFireTvBridge.js");
 const fireCompatibility = read("firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt");
 const mobileCompatibility = read("android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt");
