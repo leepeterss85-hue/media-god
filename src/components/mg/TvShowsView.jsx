@@ -11,6 +11,7 @@ import {
 import GenreTags from "@/components/mg/GenreTags";
 import DetailModal from "@/components/mg/DetailModal";
 import StreamingProviderLogos from "@/components/mg/StreamingProviderLogos";
+import ReeznCardAction from "@/components/mg/ReeznCardAction";
 import StreamingServiceRows from "@/components/mg/StreamingServiceRows";
 import {
   detectStreamingRegion,
@@ -418,6 +419,10 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
                   className="w-full h-full object-cover"
                   fittingType="fill"
                   loading="lazy"
+                />
+
+                <ReeznCardAction
+                  focusKey={`tv:${show.id || show.tmdb_id || show.title}`}
                 />
 
                 <div className="pointer-events-none absolute bottom-2 left-2 z-10 rounded-lg bg-black/45 p-1 backdrop-blur-sm">

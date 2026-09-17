@@ -2,6 +2,7 @@ import React from "react";
 import { Play, Plus, Check } from "lucide-react";
 import { Image } from "@/components/ui/image";
 import { usePlayer } from "@/components/mg/PlayerProvider";
+import ReeznCardAction from "@/components/mg/ReeznCardAction";
 
 const PosterImage = /** @type {any} */ (Image);
 
@@ -112,6 +113,10 @@ export default function MediaCard({
           alt={item.title}
           className="w-full h-full object-cover"
           fittingType="fill"
+        />
+
+        <ReeznCardAction
+          focusKey={`${getMediaType(item)}:${item?.id || item?.tmdb_id || item?.title || "item"}`}
         />
 
         <button

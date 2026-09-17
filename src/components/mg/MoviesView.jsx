@@ -10,6 +10,7 @@ import {
 } from "@/components/mg/filterOptions";
 import DetailModal from "@/components/mg/DetailModal";
 import StreamingProviderLogos from "@/components/mg/StreamingProviderLogos";
+import ReeznCardAction from "@/components/mg/ReeznCardAction";
 import {
   detectStreamingRegion,
   getStreamingRegionOverride,
@@ -236,6 +237,10 @@ export default function MoviesView() {
                   className="w-full h-full object-cover"
                   fittingType="fill"
                   loading="lazy"
+                />
+
+                <ReeznCardAction
+                  focusKey={`movie:${movie.id || movie.tmdb_id || movie.title}`}
                 />
 
                 <div className="pointer-events-none absolute bottom-2 left-2 z-10 rounded-lg bg-black/45 p-1 backdrop-blur-sm">
