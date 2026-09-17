@@ -2098,9 +2098,14 @@ export default function VideoPlayer({
     );
 
   const playbackDeviceProfile = getPlaybackDeviceProfile();
+  const activeAudioLabel = sourceDisplayLabel(active, activeIdx);
   const activeAudioCompatibility = sourceAudioCompatibility(
     active,
-    sourceDisplayLabel(active, activeIdx),
+    activeAudioLabel,
+    playbackDeviceProfile
+  );
+  const activeLearnedSilent = hasRecentNoSoundHistory(
+    activeAudioLabel,
     playbackDeviceProfile
   );
   const automaticAudioSafeSourceIndex = sourcesForSelector
@@ -2129,6 +2134,7 @@ export default function VideoPlayer({
         index,
         supported: audio.supported === true,
         risky: audio.risky,
+        learnedSilent: hasRecentNoSoundHistory(label, playbackDeviceProfile),
         score: scoreSourceCompatibility(item, label, {
           deviceProfile: playbackDeviceProfile,
           qualityPreference: readPlaybackPreferences().quality,
@@ -2138,11 +2144,13 @@ export default function VideoPlayer({
     .filter(Boolean)
     .sort(
       (left, right) =>
+        Number(left.learnedSilent) - Number(right.learnedSilent) ||
         Number(right.supported) - Number(left.supported) ||
         Number(left.risky) - Number(right.risky) ||
         right.score - left.score ||
         left.index - right.index
-    )[0]?.index ?? -1;
+    )
+    .find((entry) => !entry.learnedSilent)?.index ?? -1;
 
   /*
    * AUTOMATIC AUDIO-SAFE STARTUP
@@ -2160,7 +2168,7 @@ export default function VideoPlayer({
       isYoutube ||
       isProvider ||
       readPlaybackPreferences().automaticNoSoundRecovery === false ||
-      activeAudioCompatibility.supported !== false ||
+      (activeAudioCompatibility.supported !== false && !activeLearnedSilent) ||
       automaticAudioSafeSourceIndex < 0 ||
       rdResolving ||
       rdPolling ||
@@ -2180,6 +2188,7 @@ export default function VideoPlayer({
   }, [
     activeIdx,
     activeAudioCompatibility.supported,
+    activeLearnedSilent,
     automaticAudioSafeSourceIndex,
     fileSwitching,
     isLive,
