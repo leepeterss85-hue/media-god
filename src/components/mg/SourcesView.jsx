@@ -1303,11 +1303,30 @@ export default function SourcesView() {
         </p>
 
         <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {EXTERNAL_ADDON_SOURCES.map((source) => (
-            <div key={source.id} className="rounded-lg border border-white/8 bg-black/15 p-3">
+          {[...EXTERNAL_ADDON_SOURCES]
+            .sort(
+              (left, right) =>
+                Number(right.id === "reezn-tv") - Number(left.id === "reezn-tv")
+            )
+            .map((source) => (
+            <div
+              key={source.id}
+              className={`rounded-lg border p-3 ${
+                source.id === "reezn-tv"
+                  ? "border-mg-green/40 bg-mg-green/[0.08]"
+                  : "border-white/8 bg-black/15"
+              }`}
+            >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="truncate text-xs font-semibold text-white">{source.name}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="truncate text-xs font-semibold text-white">{source.name}</p>
+                    {source.id === "reezn-tv" && (
+                      <span className="rounded bg-mg-green/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-mg-green">
+                        Featured
+                      </span>
+                    )}
+                  </div>
                   <p className="mt-1 text-[10px] text-white/35">{source.note}</p>
                 </div>
                 <span
