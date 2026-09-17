@@ -202,7 +202,15 @@ class PlayerActivity : Activity() {
 
     private val vodStallTimeoutRunnable = Runnable {
         if (!resultSent && !live && vodPlaybackStarted) {
-            recoverVodPlayback("Playback stopped responding.")
+            /*
+             * Keep ownership of a movie/episode once playback has started.
+             * Buffering alone is not proof that the stream is dead. The old
+             * watchdog changed sources after 30 seconds and could race Media3,
+             * audio fallback and the WebView recovery path, causing repeated
+             * stream launches and decoder instability. Real player/HTTP/codec
+             * errors still recover through onPlayerError.
+             */
+            clearVodWatchdogs()
         }
     }
 
