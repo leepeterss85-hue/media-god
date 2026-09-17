@@ -38,6 +38,8 @@ class AppUpdater(
     }
 
     private val downloading = AtomicBoolean(false)
+    @Volatile private var installerHandoffInProgress = false
+
 
     fun isSupported(): Boolean = true
 
@@ -101,6 +103,8 @@ class AppUpdater(
     }
 
     fun onResume() {
+        installerHandoffInProgress = false
+
         val apk = pendingUpdateFile() ?: return
 
         if (!apk.exists()) {
@@ -119,7 +123,6 @@ class AppUpdater(
 
         try {
             verifyDownloadedApk(apk)
-            clearPendingUpdate()
             openInstaller(apk)
         } catch (error: Throwable) {
             clearPendingUpdate()
@@ -396,38 +399,100 @@ class AppUpdater(
             return
         }
 
-        clearPendingUpdate()
         openInstaller(apk)
     }
 
+    /**
+     * Called by MainActivity when another native screen takes foreground.
+     * We only clear the pending APK once Media God has actually yielded focus
+     * to an installer launch. This prevents Fire OS from deferring the package
+     * UI until a later app resume while the updater has already forgotten the
+     * downloaded APK.
+     */
+    fun onHostPaused() {
+        if (!installerHandoffInProgress) return
+        installerHandoffInProgress = false
+        clearPendingUpdate()
+    }
+
     private fun openInstaller(apk: File) {
-        try {
-            val uri = FileProvider.getUriForFile(
+        val uri = try {
+            FileProvider.getUriForFile(
                 activity,
                 "${BuildConfig.APPLICATION_ID}.fileprovider",
                 apk,
             )
-
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, "application/vnd.android.package-archive")
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-
-            sendStatus(
-                status = "installer",
-                message = "Fire OS is ready to install the Media God Fire TV update.",
-                progress = 100,
-            )
-
-            activity.startActivity(intent)
         } catch (error: Throwable) {
             sendStatus(
                 status = "error",
-                message = error.message ?: "Could not open the Fire OS package installer.",
+                message = error.message ?: "Could not prepare the Fire OS package installer.",
                 progress = 100,
             )
+            return
         }
+
+        val installIntent = Intent(Intent.ACTION_INSTALL_PACKAGE).apply {
+            data = uri
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+
+        val compatibilityIntent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, "application/vnd.android.package-archive")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+
+        sendStatus(
+            status = "installer",
+            message = "Opening the Fire OS installer now…",
+            progress = 100,
+        )
+
+        installerHandoffInProgress = true
+
+        val launchedPrimary = try {
+            activity.startActivity(installIntent)
+            true
+        } catch (_: Throwable) {
+            false
+        }
+
+        if (!launchedPrimary) {
+            try {
+                activity.startActivity(compatibilityIntent)
+                return
+            } catch (error: Throwable) {
+                installerHandoffInProgress = false
+                sendStatus(
+                    status = "error",
+                    message = error.message ?: "Could not open the Fire OS package installer.",
+                    progress = 100,
+                )
+                return
+            }
+        }
+
+        /*
+         * A few Fire OS package-installer builds accept ACTION_INSTALL_PACKAGE
+         * but fail to bring their UI to the foreground on the first request.
+         * If Media God still owns window focus shortly afterwards, try the
+         * older APK VIEW route while keeping the same pending file.
+         */
+        activity.window.decorView.postDelayed({
+            if (!installerHandoffInProgress || !activity.hasWindowFocus()) {
+                return@postDelayed
+            }
+
+            try {
+                activity.startActivity(compatibilityIntent)
+            } catch (error: Throwable) {
+                installerHandoffInProgress = false
+                sendStatus(
+                    status = "error",
+                    message = error.message ?: "Fire OS did not open the package installer.",
+                    progress = 100,
+                )
+            }
+        }, 1_000L)
     }
 
     private fun pendingUpdateFile(): File? {

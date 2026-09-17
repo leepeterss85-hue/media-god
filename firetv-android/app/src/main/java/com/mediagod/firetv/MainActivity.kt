@@ -120,6 +120,9 @@ class MainActivity : Activity() {
     }
 
     override fun onPause() {
+        if (::appUpdater.isInitialized) {
+            appUpdater.onHostPaused()
+        }
         webView.onPause()
         webView.pauseTimers()
         super.onPause()
