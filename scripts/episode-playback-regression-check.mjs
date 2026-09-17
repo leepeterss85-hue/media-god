@@ -40,6 +40,13 @@ expect(
 );
 
 expect(
+  videoPlayer.includes('__episode_handoff__') &&
+    videoPlayer.includes('playRequestId: currentPlayRequestId') &&
+    videoPlayer.includes('current.playRequestId === currentPlayRequestId'),
+  "ended native episodes cannot relaunch the just-finished URL during next-episode handoff"
+);
+
+expect(
   takeover.includes('reason === "ended" || reason === "next"'),
   "Fire TV keeps the inter-episode native handoff visually seamless"
 );
