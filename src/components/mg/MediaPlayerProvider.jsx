@@ -2106,21 +2106,6 @@ export function PlayerProvider({
                         ) > 0
                     );
 
-                  const successfulAddonNames =
-                    fastSuccessDiagnostics
-                      .map(
-                        (item) =>
-                          String(
-                            item?.name ||
-                            ""
-                          ).trim()
-                      )
-                      .filter(Boolean)
-                      .filter(
-                        (name, index, list) =>
-                          list.indexOf(name) === index
-                      );
-
                   const addonsAvailable =
                     Number(
                       fastLookup?.addonsAvailable ||
@@ -2344,24 +2329,6 @@ export function PlayerProvider({
           const lockedIndex = orderedSources.findIndex(
             (item) => getSourceUrl(item) === fastStartPrimaryUrl
           );
-          const lockedItem = lockedIndex >= 0 ? orderedSources[lockedIndex] : null;
-          const lockedIsKnownUncachedMagnet = Boolean(
-            lockedItem &&
-              isMagnetSource(lockedItem) &&
-              lockedItem?.debridCacheChecked &&
-              !lockedItem?.debridCached
-          );
-          const cachedAlternativeExists = orderedSources.some(
-            (item, index) => index !== lockedIndex && item?.debridCached === true
-          );
-          const bestLanguageRank = orderedSources[0]
-            ? sourceLanguageRank(orderedSources[0])
-            : 99;
-          const lockedLanguageRank = lockedItem
-            ? sourceLanguageRank(lockedItem)
-            : 99;
-          const languageWouldRegress = lockedLanguageRank > bestLanguageRank;
-
           /*
            * Once fast-start has published a real source, discovery is allowed to
            * enrich the chooser but must not silently replace index 0 underneath an
