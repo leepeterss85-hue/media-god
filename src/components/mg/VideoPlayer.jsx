@@ -498,24 +498,34 @@ const friendlyPlaybackError = (value) => {
   }
 
   if (/\b451\b|infringing[_ -]?file|copyright|infringing/i.test(message)) {
-    return "This torrent was rejected by Real-Debrid — trying another source.";
+    return "That stream is no longer available. Media God will use another available option.";
   }
 
-  if (/\b502\b|bad gateway|temporarily unavailable/i.test(message)) {
-    return "The source service is temporarily unavailable — trying another source.";
+  if (/\b502\b|bad gateway|temporarily unavailable|rate[-\s]?limit/i.test(message)) {
+    return "That stream is temporarily unavailable. Media God is checking the next best option.";
   }
 
-  if (/no other playable source/i.test(message)) {
-    return "No working source was found. Choose another source or try again.";
+  if (/no other playable source|no working backup|no unused backup/i.test(message)) {
+    return "We couldn’t find a working stream right now. Try again in a moment and Media God will check again.";
   }
 
-  if (/no sound|audio/i.test(message) && /fail|error|unsupported/i.test(message)) {
-    return "This source has an audio problem. Try Fix audio or another source.";
+  if (/no sound|audio/i.test(message) && /fail|error|unsupported|problem/i.test(message)) {
+    return "Media God detected a sound problem and is trying a safer audio option automatically.";
   }
 
-  return message.length > 170
-    ? `${message.slice(0, 167)}…`
-    : message;
+  if (/active torrent slots|slots in use|paused this uncached torrent/i.test(message)) {
+    return "This stream can’t be prepared right now. Try again shortly and Media God will continue automatically.";
+  }
+
+  if (/no active seeders|no live peer|stalled|no progress|download speed/i.test(message)) {
+    return "This stream is taking too long to become ready. Try again or choose another available stream.";
+  }
+
+  if (/poll|status check|cache engine|metadata|magnet|comet|real-debrid/i.test(message)) {
+    return "Media God couldn’t finish preparing this stream. Try again and it will re-check the best available option.";
+  }
+
+  return "This stream couldn’t start. Try again and Media God will re-check the best available option.";
 };
 
 const openExternalPlaybackFallback = (url) => {
@@ -9122,26 +9132,35 @@ export default function VideoPlayer({
             )}
           </div>
 
-          <div
-            data-mg-source-health="true"
-            className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-white/5 bg-white/[0.025] px-2.5 py-1.5 text-[10px] font-medium text-white/40 sm:text-xs"
+          <details
+            data-mg-playback-details="true"
+            className="w-full rounded-lg border border-white/5 bg-white/[0.025] px-2.5 py-1.5 text-[10px] font-medium text-white/40 sm:text-xs"
           >
-            <span className="font-bold uppercase tracking-[0.12em] text-mg-green/80">
-              Source health
-            </span>
-            <span>
-              Found {Math.max(Number(source?.sourceDiagnostics?.combinedSourceCount || 0), sources.length)}
-            </span>
-            <span>
-              Cache checked {Number(source?.sourceDiagnostics?.cacheCandidateCount || 0)}
-            </span>
-            <span>
-              Cached {Number(source?.sourceDiagnostics?.cachedSourceCount || 0)}
-            </span>
-            <span>
-              Ready {selectableSourceCount}
-            </span>
-          </div>
+            <summary className="cursor-pointer select-none font-semibold text-white/45">
+              Playback details
+            </summary>
+
+            <div
+              data-mg-source-health="true"
+              className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1"
+            >
+              <span className="font-bold uppercase tracking-[0.12em] text-mg-green/80">
+                Source health
+              </span>
+              <span>
+                Found {Math.max(Number(source?.sourceDiagnostics?.combinedSourceCount || 0), sources.length)}
+              </span>
+              <span>
+                Cache checked {Number(source?.sourceDiagnostics?.cacheCandidateCount || 0)}
+              </span>
+              <span>
+                Cached {Number(source?.sourceDiagnostics?.cachedSourceCount || 0)}
+              </span>
+              <span>
+                Ready {selectableSourceCount}
+              </span>
+            </div>
+          </details>
 
           {availableSortOptions.length > 1 && (
             <label className="w-[10.5rem] shrink-0 sm:w-[12.5rem]">
@@ -9200,7 +9219,7 @@ export default function VideoPlayer({
           {selectableSourceCount > 1 && (
             <label className="min-w-[12rem] flex-1 basis-[16rem]">
               <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.12em] text-white/40">
-                Source / quality
+                Stream / quality
               </span>
 
               <div className="relative">
@@ -9221,10 +9240,11 @@ export default function VideoPlayer({
                   }}
                   className="min-h-11 w-full appearance-none rounded-lg border border-white/10 bg-mg-card py-2.5 pl-3 pr-9 text-xs font-medium text-white outline-none transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/30 sm:min-h-10 sm:text-sm"
                   aria-label="Choose playback source"
+                  title="Choose a different stream or quality"
                 >
                   {visibleSourceSelectorValue === "" ? (
                     <option value="" disabled>
-                      Preparing uncached sources…
+                      Preparing more streams…
                     </option>
                   ) : null}
                   {visibleSourceSelectorEntries.map(
@@ -9268,7 +9288,7 @@ export default function VideoPlayer({
             visibleRdFileSelectorFiles.length > 1 && (
               <label className="min-w-[12rem] flex-1 basis-[18rem]">
                 <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.12em] text-white/40">
-                  Torrent file
+                  Video file
                 </span>
 
                 <select
@@ -9351,7 +9371,7 @@ export default function VideoPlayer({
             title="Try another audio track or source"
           >
             <VolumeX className="h-4 w-4" />
-            <span className="hidden sm:inline">Fix audio</span>
+            <span className="hidden sm:inline">Sound help</span>
           </button>
 
         </div>
