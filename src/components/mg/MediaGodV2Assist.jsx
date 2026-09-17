@@ -1,6 +1,7 @@
 import React, {
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
@@ -108,6 +109,7 @@ export default function MediaGodV2Assist() {
   const [nextCountdownSeconds, setNextCountdownSeconds] = useState(0);
   const [nextCountdownCancelled, setNextCountdownCancelled] = useState(false);
   const [portalTarget, setPortalTarget] = useState(() => getPlayerRoot());
+  const lastDirectActionAtRef = useRef(0);
 
   useEffect(() => {
     if (typeof document === "undefined") return undefined;
@@ -257,7 +259,7 @@ export default function MediaGodV2Assist() {
     isTv &&
     introEnd == null &&
     playing &&
-    position >= 45 &&
+    position >= 1 &&
     position <= 420 &&
     (!duration || remaining > 120);
 
@@ -311,7 +313,7 @@ export default function MediaGodV2Assist() {
 
   const showNextAction =
     isTv &&
-    (nextEpisodeWindow || exactCreditsCountdownWindow);
+    position >= 1;
 
   useEffect(() => {
     setNextCountdownDeadline(0);
@@ -385,11 +387,29 @@ export default function MediaGodV2Assist() {
   const runAction = (event, action) => {
     event?.preventDefault?.();
     event?.stopPropagation?.();
+    event?.nativeEvent?.stopImmediatePropagation?.();
+    lastDirectActionAtRef.current = Date.now();
     action();
   };
 
-  const stopPointerPropagation = (event) => {
+  const runClickFallback = (event, action) => {
+    event?.preventDefault?.();
     event?.stopPropagation?.();
+    event?.nativeEvent?.stopImmediatePropagation?.();
+
+    if (Date.now() - Number(lastDirectActionAtRef.current || 0) < 550) {
+      return;
+    }
+
+    runAction(event, action);
+  };
+
+  const runKeyAction = (event, action) => {
+    const key = String(event?.key || event?.code || "");
+    if (!["Enter", "NumpadEnter", " ", "Spacebar", "Space"].includes(key)) {
+      return;
+    }
+    runAction(event, action);
   };
 
   const skipRecap = () => {
@@ -458,14 +478,16 @@ export default function MediaGodV2Assist() {
 
   const controls = (
     <div
-      className="pointer-events-none absolute left-3 top-3 z-[90] flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-2"
+      className="pointer-events-auto absolute left-3 top-3 z-[120] flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-2"
       data-mg-episode-assist="true"
     >
       {canSkipRecap && (
         <button
           type="button"
-          onPointerDown={stopPointerPropagation}
-          onClick={(event) => runAction(event, skipRecap)}
+          onPointerDown={(event) => runAction(event, skipRecap)}
+          onClick={(event) => runClickFallback(event, skipRecap)}
+          onKeyDown={(event) => runKeyAction(event, skipRecap)}
+          tabIndex={0}
           className={buttonClass}
           aria-label="Skip recap"
         >
@@ -477,8 +499,10 @@ export default function MediaGodV2Assist() {
       {canSkipIntro && (
         <button
           type="button"
-          onPointerDown={stopPointerPropagation}
-          onClick={(event) => runAction(event, skipIntro)}
+          onPointerDown={(event) => runAction(event, skipIntro)}
+          onClick={(event) => runClickFallback(event, skipIntro)}
+          onKeyDown={(event) => runKeyAction(event, skipIntro)}
+          tabIndex={0}
           className={buttonClass}
           aria-label="Skip intro or opening titles"
         >
@@ -490,8 +514,10 @@ export default function MediaGodV2Assist() {
       {creditsWindow && (
         <button
           type="button"
-          onPointerDown={stopPointerPropagation}
-          onClick={(event) => runAction(event, skipCredits)}
+          onPointerDown={(event) => runAction(event, skipCredits)}
+          onClick={(event) => runClickFallback(event, skipCredits)}
+          onKeyDown={(event) => runKeyAction(event, skipCredits)}
+          tabIndex={0}
           className={buttonClass}
           aria-label={isTv ? "Skip credits and play next episode" : "Skip credits"}
         >
@@ -503,8 +529,10 @@ export default function MediaGodV2Assist() {
       {showNextAction && (
         <button
           type="button"
-          onPointerDown={stopPointerPropagation}
-          onClick={(event) => runAction(event, playNext)}
+          onPointerDown={(event) => runAction(event, playNext)}
+          onClick={(event) => runClickFallback(event, playNext)}
+          onKeyDown={(event) => runKeyAction(event, playNext)}
+          tabIndex={0}
           className={buttonClass}
           aria-label="Play next episode"
         >
@@ -522,8 +550,10 @@ export default function MediaGodV2Assist() {
         !nextCountdownCancelled && (
           <button
             type="button"
-            onPointerDown={stopPointerPropagation}
-            onClick={(event) => runAction(event, cancelAutoNextCountdown)}
+            onPointerDown={(event) => runAction(event, cancelAutoNextCountdown)}
+            onClick={(event) => runClickFallback(event, cancelAutoNextCountdown)}
+            onKeyDown={(event) => runKeyAction(event, cancelAutoNextCountdown)}
+            tabIndex={0}
             className={buttonClass}
             aria-label="Cancel automatic next episode"
           >
@@ -535,8 +565,10 @@ export default function MediaGodV2Assist() {
       {isTv && (
         <button
           type="button"
-          onPointerDown={stopPointerPropagation}
-          onClick={(event) => runAction(event, toggleAutoNext)}
+          onPointerDown={(event) => runAction(event, toggleAutoNext)}
+          onClick={(event) => runClickFallback(event, toggleAutoNext)}
+          onKeyDown={(event) => runKeyAction(event, toggleAutoNext)}
+          tabIndex={0}
           className={cn(
             "pointer-events-auto inline-flex min-h-12 min-w-[7.5rem] touch-manipulation items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold shadow-2xl backdrop-blur-md transition focus:outline-none focus:ring-4 focus:ring-mg-green/70 active:scale-[0.98]",
             context?.autoNext
