@@ -1052,6 +1052,24 @@ const audioSupport = (
   return null;
 };
 
+export const sourceAudioCompatibility = (
+  item,
+  extraText = "",
+  deviceProfile = getPlaybackDeviceProfile()
+) => {
+  const traits = detectStreamTraits(item, extraText);
+  const codec = String(traits?.audio || "").trim().toLowerCase();
+
+  return {
+    codec,
+    supported: codec ? audioSupport(codec, deviceProfile) : null,
+    risky:
+      codec === "dts" ||
+      codec === "truehd" ||
+      traits?.audioRisk === true,
+  };
+};
+
 const qualityPreferenceTarget = (
   preference
 ) => {
