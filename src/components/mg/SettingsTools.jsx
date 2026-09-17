@@ -11,6 +11,14 @@ import {
 
 const TOOLS = [
   {
+    id: "reezn",
+    target: "sources",
+    label: "Reezn",
+    description: "Open Reezn and other external media providers.",
+    icon: Link,
+    featured: true,
+  },
+  {
     id: "rdlib",
     label: "RD Library",
     description: "Browse and play your Real-Debrid library.",
@@ -42,8 +50,8 @@ const TOOLS = [
   },
   {
     id: "sources",
-    label: "Sources",
-    description: "Manage playback source providers and source settings.",
+    label: "Sources & Providers",
+    description: "Manage playback sources, Reezn and external providers.",
     icon: Link,
   },
   {
@@ -77,8 +85,12 @@ export default function SettingsTools({ onSelect }) {
             <button
               key={item.id}
               type="button"
-              onClick={() => onSelect?.(item.id)}
-              className="group min-h-20 rounded-lg border border-white/10 bg-white/[0.03] p-3 text-left transition hover:border-mg-green/35 hover:bg-mg-green/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mg-green 3xl:min-h-24 3xl:p-4"
+              onClick={() => onSelect?.(item.target || item.id)}
+              className={`group min-h-20 rounded-lg border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mg-green 3xl:min-h-24 3xl:p-4 ${
+                item.featured
+                  ? "border-mg-green/45 bg-mg-green/[0.10] hover:border-mg-green/70 hover:bg-mg-green/[0.14]"
+                  : "border-white/10 bg-white/[0.03] hover:border-mg-green/35 hover:bg-mg-green/[0.06]"
+              }`}
               aria-label={`Open ${item.label}`}
             >
               <span className="flex items-start gap-3">
