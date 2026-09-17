@@ -406,7 +406,27 @@ const preservePublishedSourceOrder = (published, incoming) => {
   previous.forEach((item) => {
     const key = stableDiscoveredSourceKey(item);
     if (key && nextByKey.has(key)) {
-      stable.push(nextByKey.get(key));
+      const enriched = nextByKey.get(key);
+      const previousUrl = String(getSourceUrl(item) || "").trim();
+
+      /*
+       * Discovery is allowed to enrich labels/cache/provider metadata, but it
+       * must never replace the transport of a source that has already been
+       * published to a running player. A late addon/cache result changing the
+       * src/url underneath VideoPlayer was effectively an unsolicited source
+       * switch and could restart video, reset audio tracks or launch Media3
+       * again. Explicit refresh/failover remains owned by VideoPlayer.
+       */
+      stable.push({
+        ...item,
+        ...enriched,
+        ...(previousUrl
+          ? {
+              src: item?.src || previousUrl,
+              url: item?.url || previousUrl,
+            }
+          : {}),
+      });
       used.add(key);
       return;
     }
