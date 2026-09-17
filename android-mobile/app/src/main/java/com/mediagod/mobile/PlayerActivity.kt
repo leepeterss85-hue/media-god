@@ -158,10 +158,22 @@ class PlayerActivity : Activity() {
 
     private val stallTimeoutRunnable = Runnable {
         if (!resultSent && !compatibilityPlayerOpen && playbackStarted) {
-            finishWithResult(
-                "error",
-                if (live) "Live TV stopped responding." else "Playback stopped responding."
-            )
+            if (live) {
+                finishWithResult(
+                    "error",
+                    "Live TV stopped responding."
+                )
+            } else {
+                /*
+                 * A movie/episode that has already started keeps ownership of
+                 * its stream during ordinary buffering. Do not return a fake
+                 * playback error merely because 30 seconds elapsed; the shared
+                 * web recovery layer could then open another stream while the
+                 * native decoder was still recovering. Genuine Media3/HTTP/
+                 * codec errors still return through onPlayerError.
+                 */
+                clearPlaybackWatchdogs()
+            }
         }
     }
 
