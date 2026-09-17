@@ -2441,6 +2441,14 @@ export function PlayerProvider({
           }
         }
 
+        const cacheCandidateCount = cacheAnnotatedCombined.filter((item) =>
+          Boolean(sourceMagnetHash(item))
+        ).length;
+        const cachedSourceCount = cacheAnnotatedCombined.filter(
+          (item) => item?.debridCached === true || item?.viaRealDebrid === true
+        ).length;
+        const combinedSourceCount = cacheAnnotatedCombined.length;
+
         const primary =
           orderedSources[0] ||
           {};
