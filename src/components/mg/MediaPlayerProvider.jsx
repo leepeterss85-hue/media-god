@@ -23,6 +23,7 @@ import {
   detectLanguagePreference,
   getPlaybackDeviceProfile,
   scoreSourceCompatibility,
+  sourceAudioCompatibility,
 } from "@/components/mg/mediaCompatibility";
 import { devicePlaybackReliabilityAdjustment } from "@/components/mg/playbackReliability";
 import { readPlaybackPreferences } from "@/components/mg/playbackPreferences";
@@ -580,6 +581,19 @@ const scoreSource = (item) => {
       qualityPreference: playbackPreferences.quality,
     }
   );
+  const audioCapability = sourceAudioCompatibility(
+    item,
+    audioText,
+    deviceProfile
+  );
+  const audioCapabilityScore =
+    audioCapability.supported === false
+      ? -120000
+      : audioCapability.supported === true
+        ? 18000
+        : audioCapability.risky
+          ? -12000
+          : 0;
   const deviceLearning = devicePlaybackReliabilityAdjustment(
     label,
     deviceProfile
@@ -605,6 +619,7 @@ const scoreSource = (item) => {
     directBonus +
     languagePriority +
     audioCompatibility +
+    audioCapabilityScore +
     compatibilityScore +
     reliabilityAdjustment(item) +
     deviceLearning +
