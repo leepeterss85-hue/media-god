@@ -41,6 +41,10 @@ class PlayerActivity : Activity() {
 
         private const val REQUEST_COMPATIBILITY_PLAYER = 8402
         private const val CONTROLLER_HIDE_DELAY_MS = 2500L
+        private const val LIVE_STARTUP_TIMEOUT_MS = 15000L
+        private const val LIVE_STALL_TIMEOUT_MS = 12000L
+        private const val VOD_STARTUP_TIMEOUT_MS = 20000L
+        private const val VOD_STALL_TIMEOUT_MS = 30000L
         private const val NEXT_EPISODE_COUNTDOWN_MS = 10000L
     }
 
@@ -73,6 +77,7 @@ class PlayerActivity : Activity() {
     private var creditsStartMs = -1L
     private var nextEpisodeCountdownStartedAtMs = -1L
     private var nextEpisodeCountdownCancelled = false
+    private var playbackStarted = false
 
     private fun hostedProviderDescriptor(): String {
         val payloadLabel = payload.optString("sourceLabel").trim()
@@ -120,6 +125,24 @@ class PlayerActivity : Activity() {
             if (resultSent || !::playerView.isInitialized) return
             updateAssistControls()
             playerView.postDelayed(this, 500L)
+        }
+    }
+
+    private val startupTimeoutRunnable = Runnable {
+        if (!resultSent && !compatibilityPlayerOpen && !playbackStarted) {
+            finishWithResult(
+                "error",
+                if (live) "Live TV took too long to start." else "This stream took too long to start."
+            )
+        }
+    }
+
+    private val stallTimeoutRunnable = Runnable {
+        if (!resultSent && !compatibilityPlayerOpen && playbackStarted) {
+            finishWithResult(
+                "error",
+                if (live) "Live TV stopped responding." else "Playback stopped responding."
+            )
         }
     }
 
