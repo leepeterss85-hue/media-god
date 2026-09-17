@@ -747,6 +747,15 @@ function PlayerAutomationBridge({ children }) {
               ...next,
               imdbId: prepared?.imdbId || next?.imdbId || next?.imdb_id || "",
               sources: prepared.sources,
+
+              /*
+               * The prepare pass already completed the full addon/RD source
+               * search. Reusing it avoids repeating network discovery while
+               * the viewer is waiting for the handoff.
+               */
+              skipAddonLookup: true,
+              skipRdLookup: true,
+              preparedEpisodeHandoff: true,
             }
           : next;
 
