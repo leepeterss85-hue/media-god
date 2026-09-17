@@ -1,5 +1,17 @@
 export const UPDATE_HISTORY = [
   {
+    id: "fire-tv-1-4-30-update-delivery-2026-09-17-v1",
+    date: "17 September 2026",
+    title: "Fire TV 1.4.30 update delivery repaired",
+    summary:
+      "Fire TV now receives the final episode-control build as a genuinely newer Android package so installations of the earlier 1.4.29 build are prompted to update.",
+    changes: [
+      "Fire TV versionCode advances from 34 to 35 and the visible version advances from 1.4.29 to 1.4.30.",
+      "The stable update manifest now advertises 1.4.30, forcing every 1.4.29 installation to recognise the final build as newer.",
+      "The release contains the corrected Skip Intro window, end-only Next Episode control and subtitles-off default.",
+    ],
+  },
+  {
     id: "episode-controls-source-picker-2026-09-17-v2",
     date: "17 September 2026",
     title: "Episode controls and source picker tightened",
