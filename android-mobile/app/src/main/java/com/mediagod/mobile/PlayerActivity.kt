@@ -608,6 +608,7 @@ class PlayerActivity : Activity() {
         }
 
         compatibilityPlayerOpen = true
+        clearPlaybackWatchdogs()
         releasePlayer()
 
         return try {
@@ -1005,6 +1006,8 @@ class PlayerActivity : Activity() {
     }
 
     private fun releasePlayer() {
+        clearPlaybackWatchdogs()
+
         if (::playerView.isInitialized) {
             playerView.removeCallbacks(hideControllerRunnable)
         }
@@ -1030,6 +1033,7 @@ class PlayerActivity : Activity() {
         }
 
         resultSent = true
+        clearPlaybackWatchdogs()
 
         val activePlayer = player
         val positionMs = max(
