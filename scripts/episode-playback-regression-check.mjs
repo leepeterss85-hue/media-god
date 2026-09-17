@@ -200,6 +200,22 @@ expect(
 );
 
 expect(
+  native.includes("HttpDataSource.InvalidResponseCodeException") &&
+    native.includes("setOf(401, 403, 410)") &&
+    native.includes('reason = "expired"') &&
+    mobileNative.includes("HttpDataSource.InvalidResponseCodeException") &&
+    mobileNative.includes("setOf(401, 403, 410)") &&
+    mobileNative.includes('"expired"') &&
+    mediaPlayerProvider.includes("const refreshExpiredSource") &&
+    mediaPlayerProvider.includes("linkRefreshedAt: Date.now()") &&
+    videoPlayer.includes('if (reason === "expired")') &&
+    videoPlayer.includes("await retryResolution()") &&
+    videoPlayer.includes("await onRefreshSource") &&
+    videoPlayer.includes("The same stream could not be refreshed — trying a backup"),
+  "expired 401/403/410 VOD links refresh the same source at the saved position before backup failover"
+);
+
+expect(
   assist.includes("runClickFallback") &&
     assist.includes("runKeyAction") &&
     assist.includes("!(recapEnd > 0)") &&
