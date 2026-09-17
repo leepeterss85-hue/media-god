@@ -25,6 +25,7 @@ import SocialLoginSection from "@/components/mg/SocialLoginSection";
 import MultiDebridSettings from "@/components/mg/MultiDebridSettings";
 import PlaybackAdvancedSettings from "@/components/mg/PlaybackAdvancedSettings";
 import { nativeFireTvAppInfo } from "@/components/mg/nativeFireTvBridge";
+import { fetchLatestNativeRelease } from "@/components/mg/nativeReleaseInfo";
 import {
   readTrackPreferences,
   writeTrackPreferences,
@@ -83,52 +84,6 @@ const looksLikeFireTv = () => {
   return /(?:AFT[A-Z0-9]*|Fire TV|AmazonWebAppPlatform|Silk)/i.test(
     `${ua} ${platform}`
   );
-};
-
-const releaseUrlsForPlatform = (platform) => {
-  if (platform === "fire-tv") {
-    return [
-      "/firetv-update.json",
-      "https://raw.githubusercontent.com/leepeterss85-hue/media-god/main/public/firetv-update.json",
-    ];
-  }
-
-  if (platform === "android-mobile") {
-    return [
-      "/android-mobile-update.json",
-      "https://raw.githubusercontent.com/leepeterss85-hue/media-god/main/public/android-mobile-update.json",
-    ];
-  }
-
-  return [];
-};
-
-const fetchLatestNativeRelease = async (platform) => {
-  const urls = releaseUrlsForPlatform(platform);
-  if (urls.length === 0) return null;
-
-  const releases = await Promise.all(
-    urls.map(async (url) => {
-      try {
-        const separator = url.includes("?") ? "&" : "?";
-        const response = await fetch(`${url}${separator}t=${Date.now()}`, {
-          cache: "no-store",
-        });
-
-        if (!response.ok) return null;
-        return await response.json();
-      } catch {
-        return null;
-      }
-    })
-  );
-
-  return releases
-    .filter(Boolean)
-    .sort(
-      (a, b) =>
-        Number(b?.versionCode || 0) - Number(a?.versionCode || 0)
-    )[0] || null;
 };
 
 const normaliseRemoteSettings = (
@@ -391,7 +346,7 @@ export default function SettingsView() {
         setAppVersionInfo(info);
 
         const platform = String(info?.platform || "");
-        const latest = await fetchLatestNativeRelease(platform);
+        const latest = await fetchLatestNativeRelease(platform, { force: openPrompt });
         setLatestAppRelease(latest);
 
         if (openPrompt && typeof window !== "undefined") {
@@ -487,7 +442,8 @@ export default function SettingsView() {
   const checkRd =
     useCallback(
       async (
-        showToast = false
+        showToast = false,
+        refreshUser = true
       ) => {
         setRdChecking(
           true
@@ -531,7 +487,9 @@ export default function SettingsView() {
             });
           }
 
-          await loadMe();
+          if (refreshUser) {
+            await loadMe();
+          }
 
           return status;
         } catch (
@@ -588,29 +546,11 @@ export default function SettingsView() {
 
   useEffect(
     () => {
-      let mounted =
-        true;
-
-      const load =
-        async () => {
-          await checkAppVersion();
-          await loadMe();
-
-          if (
-            mounted
-          ) {
-            await checkRd(
-              false
-            );
-          }
-        };
-
-      load();
-
-      return () => {
-        mounted =
-          false;
-      };
+      void Promise.all([
+        checkAppVersion(),
+        loadMe(),
+        checkRd(false, false),
+      ]);
     },
     [
       checkAppVersion,

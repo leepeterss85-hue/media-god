@@ -5,38 +5,9 @@ import {
   nativeFireTvAppInfo,
   startNativeFireTvUpdate,
 } from "@/components/mg/nativeFireTvBridge";
+import { fetchLatestNativeRelease } from "@/components/mg/nativeReleaseInfo";
 
 const SESSION_DISMISS_PREFIX = "mg:fire-tv-app-update-dismissed:";
-
-const FIRE_TV_RELEASE_URLS = [
-  "/firetv-update.json",
-  "https://raw.githubusercontent.com/leepeterss85-hue/media-god/main/public/firetv-update.json",
-];
-
-const fetchLatestFireTvRelease = async () => {
-  const releases = await Promise.all(
-    FIRE_TV_RELEASE_URLS.map(async (url) => {
-      try {
-        const separator = url.includes("?") ? "&" : "?";
-        const response = await fetch(`${url}${separator}t=${Date.now()}`, {
-          cache: "no-store",
-        });
-
-        if (!response.ok) return null;
-        return await response.json();
-      } catch {
-        return null;
-      }
-    })
-  );
-
-  return releases
-    .filter(Boolean)
-    .sort(
-      (a, b) =>
-        Number(b?.versionCode || 0) - Number(a?.versionCode || 0)
-    )[0] || null;
-};
 
 const looksLikeFireTv = () => {
   if (typeof window === "undefined" || typeof navigator === "undefined") {
@@ -76,7 +47,7 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
     }
 
     try {
-      const nextRelease = await fetchLatestFireTvRelease();
+      const nextRelease = await fetchLatestNativeRelease("fire-tv", { force });
       const latestCode = Number(nextRelease?.versionCode || 0);
       const appInfo = nativeFireTvAppInfo();
       const currentCode = Number(appInfo?.versionCode || 0);

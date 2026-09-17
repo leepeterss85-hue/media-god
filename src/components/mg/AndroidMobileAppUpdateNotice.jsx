@@ -7,37 +7,9 @@ import {
   openNativeFireTvExternalUrl,
   startNativeFireTvUpdate,
 } from "@/components/mg/nativeFireTvBridge";
+import { fetchLatestNativeRelease } from "@/components/mg/nativeReleaseInfo";
 
 const SESSION_DISMISS_PREFIX = "mg:android-mobile-app-update-dismissed:";
-
-const ANDROID_RELEASE_URLS = [
-  "/android-mobile-update.json",
-  "https://raw.githubusercontent.com/leepeterss85-hue/media-god/main/public/android-mobile-update.json",
-];
-
-const fetchLatestAndroidRelease = async () => {
-  const releases = await Promise.all(
-    ANDROID_RELEASE_URLS.map(async (url) => {
-      try {
-        const separator = url.includes("?") ? "&" : "?";
-        const response = await fetch(`${url}${separator}t=${Date.now()}`, {
-          cache: "no-store",
-        });
-        if (!response.ok) return null;
-        return await response.json();
-      } catch {
-        return null;
-      }
-    })
-  );
-
-  return releases
-    .filter(Boolean)
-    .sort(
-      (a, b) =>
-        Number(b?.versionCode || 0) - Number(a?.versionCode || 0)
-    )[0] || null;
-};
 
 const looksLikeAndroidMobile = () => {
   if (typeof window === "undefined" || typeof navigator === "undefined") {
@@ -72,7 +44,7 @@ export default function AndroidMobileAppUpdateNotice({ enabled = true }) {
     }
 
     try {
-      const nextRelease = await fetchLatestAndroidRelease();
+      const nextRelease = await fetchLatestNativeRelease("android-mobile", { force });
       const latestCode = Number(nextRelease?.versionCode || 0);
       const appInfo = nativeFireTvAppInfo();
       const currentCode = Number(appInfo?.versionCode || 0);

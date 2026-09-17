@@ -65,6 +65,8 @@ const freeTv = await read("src/components/mg/freeTvPlaylist.js");
 const settings = await read("src/components/mg/SettingsView.jsx");
 const fireTvUpdateNotice = await read("src/components/mg/FireTvAppUpdateNotice.jsx");
 const androidUpdateNotice = await read("src/components/mg/AndroidMobileAppUpdateNotice.jsx");
+const nativeReleaseInfo = await read("src/components/mg/nativeReleaseInfo.js");
+const pageErrorBoundary = await read("src/components/mg/PageErrorBoundary.jsx");
 const fireTvRelease = await read("public/firetv-update.json");
 const fireTvReleaseData = JSON.parse(fireTvRelease);
 
@@ -567,11 +569,25 @@ expect(
   "Settings no longer shows the installed Media God app version or manual update check"
 );
 expect(
-  fireTvUpdateNotice.includes("raw.githubusercontent.com/leepeterss85-hue/media-god/main/public/firetv-update.json") &&
+  nativeReleaseInfo.includes("raw.githubusercontent.com/leepeterss85-hue/media-god/main/public/firetv-update.json") &&
+    nativeReleaseInfo.includes("raw.githubusercontent.com/leepeterss85-hue/media-god/main/public/android-mobile-update.json") &&
+    nativeReleaseInfo.includes("AbortController") &&
+    nativeReleaseInfo.includes("CACHE_TTL_MS") &&
+    fireTvUpdateNotice.includes('fetchLatestNativeRelease("fire-tv"') &&
     fireTvUpdateNotice.includes('window.addEventListener("mg:check-fire-tv-update"') &&
-    fireTvUpdateNotice.includes("60000") &&
-    androidUpdateNotice.includes('window.addEventListener("mg:check-android-mobile-update"'),
-  "Native update checks no longer re-check reliably or expose the manual Settings trigger"
+    androidUpdateNotice.includes('fetchLatestNativeRelease("android-mobile"') &&
+    androidUpdateNotice.includes('window.addEventListener("mg:check-android-mobile-update"') &&
+    settings.includes("checkRd(false, false)") &&
+    settings.includes("void Promise.all(["),
+  "Native update checks or Settings startup optimisation regressed"
+);
+expect(
+  home.includes("const WatchlistView = lazy(") &&
+    home.includes("const SettingsView = lazy(") &&
+    home.includes("<SafeDeferredView") &&
+    pageErrorBoundary.includes("Back to Home") &&
+    pageErrorBoundary.includes("Try again"),
+  "Deferred secondary screens or page-level crash recovery are missing"
 );
 expect(
   fireTvAppUpdater.includes("currentSigners.isNotEmpty()") &&

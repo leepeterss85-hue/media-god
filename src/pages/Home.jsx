@@ -1,5 +1,7 @@
 import React, {
   Component,
+  Suspense,
+  lazy,
   useCallback,
   useState,
 } from "react";
@@ -11,17 +13,6 @@ import HomeDashboard from "@/components/mg/HomeDashboard";
 import MoviesView from "@/components/mg/MoviesView";
 import TvShowsView from "@/components/mg/TvShowsView";
 import LiveTVView from "@/components/mg/LiveTVView";
-import WatchlistView from "@/components/mg/WatchlistView";
-import RdLibraryView from "@/components/mg/RdLibraryView";
-import DebridDashboard from "@/components/mg/DebridDashboard";
-import AddonsView from "@/components/mg/AddonsView";
-import SourcesView from "@/components/mg/SourcesView";
-import RoadmapView from "@/components/mg/RoadmapView";
-import UpdatesView from "@/components/mg/UpdatesView";
-import SettingsView from "@/components/mg/SettingsView";
-import SettingsTools from "@/components/mg/SettingsTools";
-import WatchPartyView from "@/components/mg/WatchPartyView";
-import FavoritesView from "@/components/mg/FavoritesView";
 import SearchDialog from "@/components/mg/SearchDialog";
 import DetailModal from "@/components/mg/DetailModal";
 import FireTvRemote from "@/components/mg/FireTvRemote";
@@ -35,6 +26,37 @@ import RdBanner from "@/components/mg/RdBanner";
 import PlaybackUpdateNotice from "@/components/mg/PlaybackUpdateNotice";
 import FireTvAppUpdateNotice from "@/components/mg/FireTvAppUpdateNotice";
 import AndroidMobileAppUpdateNotice from "@/components/mg/AndroidMobileAppUpdateNotice";
+import PageErrorBoundary from "@/components/mg/PageErrorBoundary";
+
+const WatchlistView = lazy(() => import("@/components/mg/WatchlistView"));
+const RdLibraryView = lazy(() => import("@/components/mg/RdLibraryView"));
+const DebridDashboard = lazy(() => import("@/components/mg/DebridDashboard"));
+const AddonsView = lazy(() => import("@/components/mg/AddonsView"));
+const SourcesView = lazy(() => import("@/components/mg/SourcesView"));
+const RoadmapView = lazy(() => import("@/components/mg/RoadmapView"));
+const UpdatesView = lazy(() => import("@/components/mg/UpdatesView"));
+const SettingsView = lazy(() => import("@/components/mg/SettingsView"));
+const SettingsTools = lazy(() => import("@/components/mg/SettingsTools"));
+const WatchPartyView = lazy(() => import("@/components/mg/WatchPartyView"));
+const FavoritesView = lazy(() => import("@/components/mg/FavoritesView"));
+
+
+const ViewLoadingFallback = ({ label }) => (
+  <div className="flex min-h-[32vh] w-full items-center justify-center p-6 text-white">
+    <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-mg-card px-5 py-4 shadow-xl">
+      <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/20 border-t-mg-green" />
+      <span className="text-sm font-semibold text-white/80">Loading {label}…</span>
+    </div>
+  </div>
+);
+
+const SafeDeferredView = ({ resetKey, label, onHome, children }) => (
+  <PageErrorBoundary resetKey={resetKey} label={label} onHome={onHome}>
+    <Suspense fallback={<ViewLoadingFallback label={label} />}>
+      {children}
+    </Suspense>
+  </PageErrorBoundary>
+);
 
 const SETTINGS_TOOL_VIEWS = new Set([
   "watchparty",
@@ -826,16 +848,20 @@ function MediaGodApp() {
 
           {view ===
             "movies" && (
-            <MoviesView />
+            <SafeDeferredView resetKey={view} label="Movies" onHome={() => setView("home")}>
+              <MoviesView />
+            </SafeDeferredView>
           )}
 
           {view ===
             "tv" && (
-            <TvShowsView
-              initialProvider={tvProviderRequest.service}
-              providerRequestKey={tvProviderRequest.key}
-              onProviderChange={handleTvProviderChange}
-            />
+            <SafeDeferredView resetKey={view} label="TV Shows" onHome={() => setView("home")}>
+              <TvShowsView
+                initialProvider={tvProviderRequest.service}
+                providerRequestKey={tvProviderRequest.key}
+                onProviderChange={handleTvProviderChange}
+              />
+            </SafeDeferredView>
           )}
 
           {view ===
@@ -864,57 +890,77 @@ function MediaGodApp() {
 
           {view ===
             "watchlist" && (
-            <WatchlistView />
+            <SafeDeferredView resetKey={view} label="Watchlist" onHome={() => setView("home")}>
+              <WatchlistView />
+            </SafeDeferredView>
           )}
 
           {view ===
             "favorites" && (
-            <FavoritesView />
+            <SafeDeferredView resetKey={view} label="Favorites" onHome={() => setView("home")}>
+              <FavoritesView />
+            </SafeDeferredView>
           )}
 
           {view ===
             "watchparty" && (
-            <WatchPartyView />
+            <SafeDeferredView resetKey={view} label="Watch Party" onHome={() => setView("home")}>
+              <WatchPartyView />
+            </SafeDeferredView>
           )}
 
           {view ===
             "rdlib" && (
-            <RdLibraryView />
+            <SafeDeferredView resetKey={view} label="RD Library" onHome={() => setView("home")}>
+              <RdLibraryView />
+            </SafeDeferredView>
           )}
 
           {view ===
             "downloads" && (
-            <DebridDashboard />
+            <SafeDeferredView resetKey={view} label="Downloads" onHome={() => setView("home")}>
+              <DebridDashboard />
+            </SafeDeferredView>
           )}
 
           {view ===
             "addons" && (
-            <AddonsView />
+            <SafeDeferredView resetKey={view} label="Addons" onHome={() => setView("home")}>
+              <AddonsView />
+            </SafeDeferredView>
           )}
 
           {view ===
             "sources" && (
-            <SourcesView />
+            <SafeDeferredView resetKey={view} label="Sources" onHome={() => setView("home")}>
+              <SourcesView />
+            </SafeDeferredView>
           )}
 
           {view ===
             "roadmap" && (
-            <RoadmapView onBack={goBack} />
+            <SafeDeferredView resetKey={view} label="Release Dates" onHome={() => setView("home")}>
+              <RoadmapView onBack={goBack} />
+            </SafeDeferredView>
           )}
 
           {view ===
             "updates" && (
-            <UpdatesView />
+            <SafeDeferredView resetKey={view} label="Updates" onHome={() => setView("home")}>
+              <UpdatesView />
+            </SafeDeferredView>
           )}
 
           {view ===
             "settings" && (
-            <div className="w-full">
-              <div className="w-full max-w-4xl 3xl:max-w-5xl 4xl:max-w-6xl px-4 pt-4 md:px-6 md:pt-6 3xl:px-8 3xl:pt-8 4xl:px-10 4xl:pt-10">
-                <SettingsTools onSelect={openSettingsTool} />
+            <SafeDeferredView resetKey={view} label="Settings" onHome={() => setView("home")}>
+              <div className="w-full">
+                <div className="w-full max-w-4xl 3xl:max-w-5xl 4xl:max-w-6xl px-4 pt-4 md:px-6 md:pt-6 3xl:px-8 3xl:pt-8 4xl:px-10 4xl:pt-10">
+                  <SettingsTools onSelect={openSettingsTool} />
+                </div>
+                <SettingsView />
               </div>
-              <SettingsView />
-            </div>
+            </SafeDeferredView>
           )}
         </main>
       </div>
