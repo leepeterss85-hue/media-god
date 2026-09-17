@@ -1826,6 +1826,108 @@ export function PlayerProvider({
       [hasRd, hasDebrid]
     );
 
+  const refreshExpiredSource =
+    useCallback(
+      async ({
+        activeIndex = 0,
+        activeSource = null,
+      } = {}) => {
+        const snapshot = source;
+        const index = Number(activeIndex);
+
+        if (
+          !snapshot ||
+          !Number.isInteger(index) ||
+          index < 0 ||
+          snapshot?.type === "live" ||
+          activeSource?.live ||
+          activeSource?.type === "live"
+        ) {
+          return { refreshed: false };
+        }
+
+        const oldUrl = String(getSourceUrl(activeSource) || "").trim();
+        const wantedIdentity = refreshableSourceIdentity(activeSource);
+
+        if (!oldUrl || !wantedIdentity) {
+          return { refreshed: false };
+        }
+
+        try {
+          const refreshed = await prepare({
+            ...snapshot,
+            sources: [],
+            preparedEpisodeHandoff: false,
+            skipAddonLookup: false,
+            skipRdLookup: false,
+          });
+
+          const candidates = Array.isArray(refreshed?.sources)
+            ? refreshed.sources.filter(Boolean)
+            : [];
+          const match = candidates.find(
+            (item) =>
+              refreshableSourceIdentity(item) === wantedIdentity &&
+              /^https?:\/\//i.test(String(getSourceUrl(item) || "").trim()) &&
+              String(getSourceUrl(item) || "").trim() !== oldUrl
+          );
+
+          if (!match) {
+            return { refreshed: false };
+          }
+
+          const freshUrl = String(getSourceUrl(match) || "").trim();
+
+          setSource((current) => {
+            if (
+              !current ||
+              current.playRequestId !== snapshot.playRequestId
+            ) {
+              return current;
+            }
+
+            const currentSources = Array.isArray(current.sources)
+              ? [...current.sources]
+              : [];
+
+            if (index >= currentSources.length) {
+              return current;
+            }
+
+            currentSources[index] = {
+              ...currentSources[index],
+              ...match,
+              src: freshUrl,
+              url: freshUrl,
+            };
+
+            return {
+              ...current,
+              sources: currentSources,
+              ...(index === 0
+                ? {
+                    src: freshUrl,
+                    url: freshUrl,
+                  }
+                : {}),
+              sourceDiagnostics: {
+                ...(current.sourceDiagnostics || {}),
+                linkRefreshedAt: Date.now(),
+              },
+            };
+          });
+
+          return {
+            refreshed: true,
+            url: freshUrl,
+          };
+        } catch {
+          return { refreshed: false };
+        }
+      },
+      [source, prepare]
+    );
+
   const play =
     useCallback(
       async (
