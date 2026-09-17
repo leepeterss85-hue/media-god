@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 21,
-  "versionName": "1.0.20",
+  "versionCode": 22,
+  "versionName": "1.0.21",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.20 adds expired-link recovery: HTTP 401, 403 and 410 playback failures now refresh the same movie or episode stream and resume at the saved position before Media God falls back to another source.",
+  "message": "Media God Mobile 1.0.21 stabilises movie and episode playback with one playback owner. Ordinary buffering no longer opens replacement streams, duplicate recovery callbacks are blocked, and genuine playback errors still recover safely.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
