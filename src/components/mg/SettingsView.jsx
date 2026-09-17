@@ -1332,7 +1332,7 @@ export default function SettingsView() {
               </p>
 
               <p className="text-xs 3xl:text-sm text-white/40">
-                If a movie or episode genuinely stalls, switch to an unused backup source and resume at the same position. Torrent streams receive a longer grace period before switching.
+                Choose the best stream before playback and recover from genuine playback errors. Once a movie or episode is playing, normal buffering stays on that stream instead of opening extra replacements.
               </p>
             </div>
 
