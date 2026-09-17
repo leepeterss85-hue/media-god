@@ -224,16 +224,32 @@ const getSourceUrl = (item) =>
   ).trim();
 
 const sourceMagnetHash = (item) => {
-  const raw = getSourceUrl(item);
-  const match = raw.match(/btih:([a-f0-9]{40}|[a-f0-9]{64})/i);
-  const hash = String(
-    match?.[1] ||
-      (/^[a-f0-9]{40}$|^[a-f0-9]{64}$/i.test(raw) ? raw : "")
-  )
-    .toLowerCase()
-    .trim();
+  const candidates = [
+    item?.infoHash,
+    item?.info_hash,
+    item?.hash,
+    item?.magnet,
+    item?.magnetLink,
+    item?.richMagnet,
+    getSourceUrl(item),
+  ];
 
-  return hash;
+  for (const value of candidates) {
+    const raw = String(value || "").trim();
+    if (!raw) continue;
+
+    const match = raw.match(/btih:([a-f0-9]{40}|[a-f0-9]{64})/i);
+    const hash = String(
+      match?.[1] ||
+        (/^[a-f0-9]{40}$|^[a-f0-9]{64}$/i.test(raw) ? raw : "")
+    )
+      .toLowerCase()
+      .trim();
+
+    if (hash) return hash;
+  }
+
+  return "";
 };
 
 const isMagnetSource = (item) => {
@@ -247,7 +263,8 @@ const isMagnetSource = (item) => {
     item?.type === "rd_torrent" ||
     item?.type === "magnet" ||
     item?.type === "torrent" ||
-    value.startsWith("magnet:")
+    value.startsWith("magnet:") ||
+    Boolean(sourceMagnetHash(item))
   );
 };
 
