@@ -100,6 +100,15 @@ expect(
 );
 
 expect(
+  videoPlayer.includes('const activeRuntimeReady = Boolean(') &&
+    videoPlayer.includes('const activeHasResolvedStream = Boolean(') &&
+    videoPlayer.includes('!activeHasResolvedStream && sourceNeedsCaching(active)') &&
+    videoPlayer.includes('const qualityBucketFor = (entry) =>') &&
+    videoPlayer.includes('qualityBucket === "4k"'),
+  "resolved cache streams cannot restart and 4K cache candidates keep their own quality bucket"
+);
+
+expect(
   assist.includes("runClickFallback") &&
     assist.includes("runKeyAction") &&
     assist.includes("!(recapEnd > 0)") &&
