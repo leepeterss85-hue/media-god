@@ -454,14 +454,18 @@ export default function MediaGodV2Assist() {
   };
 
   const buttonClass =
-    "pointer-events-auto inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/15 bg-black/80 px-3 py-2 text-xs font-semibold text-white shadow-xl backdrop-blur-sm hover:border-mg-green/50 hover:text-mg-green focus:outline-none focus:ring-2 focus:ring-mg-green";
+    "pointer-events-auto inline-flex min-h-12 min-w-[7.5rem] touch-manipulation items-center justify-center gap-2 rounded-xl border border-white/20 bg-black/85 px-4 py-2.5 text-sm font-semibold text-white shadow-2xl backdrop-blur-md transition hover:border-mg-green/60 hover:text-mg-green focus:outline-none focus:ring-4 focus:ring-mg-green/70 active:scale-[0.98]";
 
-  return (
-    <div className="fixed left-3 top-3 z-[80] flex max-w-[calc(100vw-1.5rem)] flex-wrap items-center gap-2 pointer-events-none">
+  const controls = (
+    <div
+      className="pointer-events-none absolute left-3 top-3 z-[90] flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-2"
+      data-mg-episode-assist="true"
+    >
       {canSkipRecap && (
         <button
           type="button"
-          onClick={skipRecap}
+          onPointerDown={stopPointerPropagation}
+          onClick={(event) => runAction(event, skipRecap)}
           className={buttonClass}
           aria-label="Skip recap"
         >
@@ -473,7 +477,8 @@ export default function MediaGodV2Assist() {
       {canSkipIntro && (
         <button
           type="button"
-          onClick={skipIntro}
+          onPointerDown={stopPointerPropagation}
+          onClick={(event) => runAction(event, skipIntro)}
           className={buttonClass}
           aria-label="Skip intro or opening titles"
         >
@@ -485,7 +490,8 @@ export default function MediaGodV2Assist() {
       {creditsWindow && (
         <button
           type="button"
-          onClick={skipCredits}
+          onPointerDown={stopPointerPropagation}
+          onClick={(event) => runAction(event, skipCredits)}
           className={buttonClass}
           aria-label={isTv ? "Skip credits and play next episode" : "Skip credits"}
         >
@@ -497,7 +503,8 @@ export default function MediaGodV2Assist() {
       {showNextAction && (
         <button
           type="button"
-          onClick={playNext}
+          onPointerDown={stopPointerPropagation}
+          onClick={(event) => runAction(event, playNext)}
           className={buttonClass}
           aria-label="Play next episode"
         >
@@ -515,7 +522,8 @@ export default function MediaGodV2Assist() {
         !nextCountdownCancelled && (
           <button
             type="button"
-            onClick={cancelAutoNextCountdown}
+            onPointerDown={stopPointerPropagation}
+            onClick={(event) => runAction(event, cancelAutoNextCountdown)}
             className={buttonClass}
             aria-label="Cancel automatic next episode"
           >
@@ -527,12 +535,13 @@ export default function MediaGodV2Assist() {
       {isTv && (
         <button
           type="button"
-          onClick={toggleAutoNext}
+          onPointerDown={stopPointerPropagation}
+          onClick={(event) => runAction(event, toggleAutoNext)}
           className={cn(
-            "pointer-events-auto inline-flex min-h-10 items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold shadow-xl backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-mg-green",
+            "pointer-events-auto inline-flex min-h-12 min-w-[7.5rem] touch-manipulation items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold shadow-2xl backdrop-blur-md transition focus:outline-none focus:ring-4 focus:ring-mg-green/70 active:scale-[0.98]",
             context?.autoNext
-              ? "border-mg-green/40 bg-mg-green/15 text-mg-green"
-              : "border-white/15 bg-black/80 text-white/70 hover:text-white"
+              ? "border-mg-green/50 bg-mg-green/20 text-mg-green"
+              : "border-white/20 bg-black/85 text-white/75 hover:text-white"
           )}
           aria-label="Toggle automatic next episode"
         >
@@ -542,10 +551,12 @@ export default function MediaGodV2Assist() {
       )}
 
       {isTv && context?.season != null && context?.episode != null && (
-        <span className="pointer-events-none rounded-lg border border-white/10 bg-black/70 px-2.5 py-2 text-[10px] font-semibold text-white/60 backdrop-blur-sm">
+        <span className="pointer-events-none rounded-xl border border-white/10 bg-black/75 px-3 py-2.5 text-xs font-semibold text-white/65 backdrop-blur-md">
           S{String(context.season).padStart(2, "0")} E{String(context.episode).padStart(2, "0")}
         </span>
       )}
     </div>
   );
+
+  return createPortal(controls, portalTarget);
 }
