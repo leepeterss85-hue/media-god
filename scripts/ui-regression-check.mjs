@@ -603,6 +603,15 @@ expect(
     fireTvUpdateNotice.includes("Do not uninstall Media God Fire TV."),
   "Fire TV can again mistake unavailable signer metadata for a real signing-key migration"
 );
+
+expect(
+  fireTvAppUpdater.includes("Intent.ACTION_INSTALL_PACKAGE") &&
+    fireTvAppUpdater.includes("installerHandoffInProgress") &&
+    fireTvAppUpdater.includes("fun onHostPaused()") &&
+    fireTvAppUpdater.includes("activity.hasWindowFocus()") &&
+    fireTvAppUpdater.includes("activity.startActivity(compatibilityIntent)"),
+  "Fire TV updater no longer foregrounds the native installer immediately or lacks its compatibility fallback"
+);
 expect(
   Number.isInteger(Number(fireTvReleaseData?.versionCode)) &&
     Number(fireTvReleaseData.versionCode) > 0 &&
