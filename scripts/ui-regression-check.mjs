@@ -39,6 +39,8 @@ const playbackReliabilityCore = await read("src/components/mg/playbackReliabilit
 const playerProvider = await read("src/components/mg/PlayerProvider.jsx");
 const coreMediaPlayerProvider = await read("src/components/mg/MediaPlayerProvider.jsx");
 const mediaPlayerControls = await read("src/components/mg/MediaPlayerControls.jsx");
+const mediaGodV2Assist = await read("src/components/mg/MediaGodV2Assist.jsx");
+const seamlessNextCss = await read("src/fire-tv-seamless-next.css");
 const nativeFireTvBridge = await read("src/components/mg/nativeFireTvBridge.js");
 const fireTvMainActivity = await read(
   "firetv-android/app/src/main/java/com/mediagod/firetv/MainActivity.kt"
@@ -661,9 +663,31 @@ expect(
 );
 expect(
   playerAutomation.includes("nextEpisodePreloadRef") &&
+    playerAutomation.includes("const preloadNextEpisode = useCallback(") &&
+    playerAutomation.includes("void preloadNextEpisode(request);") &&
     playerAutomation.includes('typeof core.prepare === "function"') &&
-    playerAutomation.includes("preparedFresh"),
-  "Next-episode source pre-resolution is no longer active"
+    playerAutomation.includes("preparedFresh") &&
+    playerAutomation.includes("preparedEpisodeHandoff: true") &&
+    coreMediaPlayerProvider.includes("phase: preparedEpisodeHandoff") &&
+    coreMediaPlayerProvider.includes("prepared-handoff"),
+  "Immediate next-episode source pre-resolution or prepared-source handoff is no longer active"
+);
+expect(
+  mediaGodV2Assist.includes("createPortal(controls, portalTarget)") &&
+    mediaGodV2Assist.includes('data-mg-episode-assist="true"') &&
+    mediaGodV2Assist.includes("onPointerDown={stopPointerPropagation}") &&
+    mediaGodV2Assist.includes("focus:ring-4"),
+  "Episode assist controls can fall behind the full-screen player or lose click/focus handling"
+);
+expect(
+  fireTvPlayerActivity.includes("assistControlsWereVisible") &&
+    fireTvPlayerActivity.includes("configureAssistFocus") &&
+    fireTvPlayerActivity.includes("moveAssistFocus") &&
+    fireTvPlayerActivity.includes("focused.performClick()") &&
+    fireTvPlayerActivity.includes("ColorStateList") &&
+    seamlessNextCss.includes('content: "Loading next episode…";') &&
+    seamlessNextCss.includes("z-index: 2147483647"),
+  "Fire TV episode prompts can lose remote focus or expose the episode list during native handoff"
 );
 expect(
   videoPlayer.includes("preservePosition: true") &&
