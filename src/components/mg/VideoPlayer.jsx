@@ -7628,6 +7628,7 @@ export default function VideoPlayer({
             label: failedSources.has(index)
               ? `Unavailable • ${visibleLabel}`
               : visibleLabel,
+            failed: failedSources.has(index),
             url:
               index === activeIdx && /^https?:\/\//i.test(nativePlaybackUrl)
                 ? nativePlaybackUrl
