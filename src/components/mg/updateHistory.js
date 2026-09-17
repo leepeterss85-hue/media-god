@@ -1,5 +1,20 @@
 export const UPDATE_HISTORY = [
   {
+    id: "seamless-episode-controls-2026-09-17-v1",
+    date: "17 September 2026",
+    title: "Skip Intro and Next Episode made seamless",
+    summary:
+      "Episode controls now respond reliably across browser, phone and Fire TV playback, while the following episode is prepared early and handed over without exposing the episode list.",
+    changes: [
+      "Skip recap, Skip intro, Skip credits, Play next, Cancel and Auto next now render inside the real full-screen player layer with larger touch targets and dependable click handling.",
+      "The following episode and its ranked Real-Debrid/addon sources begin preparing as soon as the current episode starts, including while Fire TV is about to hand playback to native Media3.",
+      "A prepared episode reuses its completed source search instead of repeating the same network discovery during the handoff.",
+      "Fire TV assist actions automatically receive a clear green remote focus, support direct OK activation and wrap predictably with Left/Right.",
+      "The WebView stays behind a full black Loading next episode curtain while native playback changes episodes, so the season and episode list can no longer flash between players.",
+      "Fire TV release metadata is updated to 1.4.26.",
+    ],
+  },
+  {
     id: "uncached-rd-cache-handoff-repair-2026-09-16-v2",
     date: "16 September 2026",
     title: "Uncached Real-Debrid downloads no longer escape the cache workflow",
