@@ -199,13 +199,20 @@ expect(
     native.includes("private fun recoverVodPlayback") &&
     native.includes("preservePosition = true") &&
     native.includes("candidate.recoveryScore") &&
+    native.includes("Buffering alone is not proof that the stream is dead") &&
     nativeBridge.includes("recoveryScore: Number(item?.recoveryScore || 0)") &&
     videoPlayer.includes("recoveryScore: recoverySourceScore(candidate, index)") &&
+    videoPlayer.includes("const sourceSwitchCoordinatorRef") &&
+    videoPlayer.includes("currentSwitch.fromIndex === activeIdx") &&
+    videoPlayer.includes("currentVideo.pause()") &&
+    videoPlayer.includes("midPlaybackSourceHopping === true") &&
+    mediaPlayerProvider.includes("must never replace the transport of a source") &&
     mobileNative.includes("VOD_STARTUP_TIMEOUT_MS") &&
     mobileNative.includes("VOD_STALL_TIMEOUT_MS") &&
     mobileNative.includes("private fun armStartupWatchdog") &&
-    mobileNative.includes("private fun armStallWatchdog"),
-  "native movie and episode playback self-heals startup hangs and mid-playback stalls while preserving the best backup path"
+    mobileNative.includes("private fun armStallWatchdog") &&
+    mobileNative.includes("A movie/episode that has already started keeps ownership"),
+  "movie and episode playback has one owner: startup/hard failures may recover, ordinary buffering cannot race into extra streams"
 );
 
 expect(
