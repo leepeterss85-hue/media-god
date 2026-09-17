@@ -721,6 +721,7 @@ const audioTrackScore = (track, preferredLanguage = "en") => {
 export default function VideoPlayer({
   source,
   onClose,
+  onRefreshSource,
 }) {
   const sources =
     source?.sources &&
@@ -7271,7 +7272,7 @@ export default function VideoPlayer({
       return undefined;
     }
 
-    const onNativeResult = (event) => {
+    const onNativeResult = async (event) => {
       const detail = event?.detail || {};
 
       if (detail?.diagnostics) {
@@ -7397,6 +7398,72 @@ export default function VideoPlayer({
           setForceNativePlayback(true);
         }
 
+        return;
+      }
+
+      if (reason === "expired") {
+        if (positionSeconds > 5) {
+          recoveryResumeRef.current = positionSeconds;
+        }
+
+        setForceNativePlayback(false);
+        setNativeFallbackUrl("");
+        clearSourceFailed(activeIdx);
+
+        window.dispatchEvent(
+          new CustomEvent("mg:player-status", {
+            detail: {
+              message:
+                "Stream link expired — refreshing the same stream…",
+            },
+          })
+        );
+
+        const activeStrategy = sourceResolutionStrategy(active);
+        const sameSourceCanBeResolvedAgain = Boolean(
+          rdOverride ||
+          sourceTorrentHash(active) ||
+          ["cached_debrid", "existing_rd", "rd_magnet", "comet_uncached"].includes(
+            activeStrategy
+          ) ||
+          active?.type === "rd" ||
+          active?.type === "rd_torrent"
+        );
+
+        if (sameSourceCanBeResolvedAgain) {
+          await retryResolution();
+          return;
+        }
+
+        const refreshed =
+          typeof onRefreshSource === "function"
+            ? await onRefreshSource({
+                activeIndex: activeIdx,
+                activeSource: active,
+              })
+            : { refreshed: false };
+
+        if (refreshed?.refreshed) {
+          window.dispatchEvent(
+            new CustomEvent("mg:player-status", {
+              detail: {
+                message:
+                  "Stream refreshed — resuming playback…",
+              },
+            })
+          );
+          return;
+        }
+
+        window.dispatchEvent(
+          new CustomEvent("mg:player-status", {
+            detail: {
+              message:
+                "The same stream could not be refreshed — trying a backup…",
+            },
+          })
+        );
+        handleDirectPlaybackError({ liveFailureClass: "native" });
         return;
       }
 
