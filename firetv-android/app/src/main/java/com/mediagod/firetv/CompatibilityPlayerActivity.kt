@@ -454,7 +454,7 @@ class CompatibilityPlayerActivity : Activity() {
 
     private fun applyPreferredSubtitle() {
         val player = vlcPlayer ?: return
-        if (!payload.optBoolean("subtitlesEnabled", true)) {
+        if (!payload.optBoolean("subtitlesEnabled", false)) {
             try { player.setSpuTrack(-1) } catch (_: Throwable) {}
             updateSubtitleButtonLabel(); return
         }

@@ -840,8 +840,8 @@ class PlayerActivity : Activity() {
             tvEpisode && introEndMs > 0L &&
                 position >= maxOf(0L, introStartMs) && position < introEndMs
         val fallbackIntro =
-            tvEpisode && introEndMs < 0L && playingNow &&
-                position in 1_000L..420_000L &&
+            tvEpisode && introEndMs < 0L &&
+                position in 0L..300_000L &&
                 (mediaDuration <= 0L || remaining > 120_000L)
 
         val creditsFallbackWindow =
@@ -863,7 +863,14 @@ class PlayerActivity : Activity() {
         setAssistVisible(skipCreditsButton, creditsVisible)
         skipCreditsButton.text = if (tvEpisode && creditsVisible) "Skip credits → Next" else "Skip credits"
 
-        val showNext = tvEpisode && position >= 1_000L
+        val nextWindowMs =
+            if (mediaDuration > 0L) {
+                minOf(180_000L, maxOf(75_000L, (mediaDuration * 0.10).toLong()))
+            } else 0L
+        val nextEpisodeWindow =
+            tvEpisode && mediaDuration >= 180_000L && position >= 60_000L &&
+                remaining <= nextWindowMs
+        val showNext = nextEpisodeWindow
         setAssistVisible(playNextButton, showNext)
 
         val countdownWindow =
