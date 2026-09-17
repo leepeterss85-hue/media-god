@@ -595,6 +595,18 @@ expect(
     freeTv.includes('sourceName === "ITVX Official"'),
   "BBC/ITV locked primary rules are missing"
 );
+expect(
+  freeTv.includes('name: "IPTV-org Video Channels"') &&
+    freeTv.includes('category: "Video Channels"') &&
+    freeTv.includes('tags.add("Video Channels")') &&
+    liveTv.includes('"Video Channels": 0') &&
+    liveTv.includes('id: "Video Channels"') &&
+    liveTv.includes('label: "Video Channels"') &&
+    liveTv.includes('id: "Radio"') &&
+    liveTv.includes('label: "Radio"') &&
+    searchDialog.includes('(channel?.tags || []).join(" ")'),
+  "Live TV video channels are no longer separated from radio or searchable by their Video Channels tag"
+);
 
 expect(
   settings.includes('data-mg-app-version="true"') &&
