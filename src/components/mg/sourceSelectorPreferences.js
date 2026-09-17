@@ -4,6 +4,7 @@ import {
 } from "@/components/mg/mediaCompatibility";
 import {
   MEDIA_EDITION_OPTIONS,
+  detectMediaEdition,
   mediaEditionSortScore,
 } from "@/components/mg/mediaEdition";
 import {
@@ -33,6 +34,79 @@ export const SOURCE_SORT_OPTIONS = [
     })
   ),
 ];
+
+export const availableSourceSortOptions = (sources, options = {}) => {
+  const mediaType = String(options?.mediaType || "").toLowerCase();
+  const items = (Array.isArray(sources) ? sources : []).filter((item) =>
+    sourceIsUserSelectable(item)
+  );
+
+  const available = [{ value: "best", label: "Best available" }];
+
+  if (items.length <= 1) {
+    return available;
+  }
+
+  if (items.some((item) => sourceIsCached(item))) {
+    available.push({ value: "cached", label: "Cached / ready" });
+  }
+
+  const resolutions = items.map(sourceResolution);
+  if (resolutions.some((value) => value >= 2000)) {
+    available.push({ value: "4k", label: "4K" });
+  }
+  if (resolutions.some((value) => value >= 900 && value < 2000)) {
+    available.push({ value: "1080p", label: "1080p" });
+  }
+
+  available.push({ value: "compatible", label: "Most compatible" });
+
+  if (items.filter((item) => sourceSize(item) > 0).length >= 2) {
+    available.push({ value: "smallest", label: "Smallest file" });
+  }
+
+  /*
+   * Film editions are only useful when that edition actually exists in the
+   * current source set. TV episodes must never inherit the global movie-edition
+   * catalogue (Director's Cut, Roadshow, etc.) just because those modes exist
+   * elsewhere in the app.
+   */
+  if (mediaType !== "tv" && mediaType !== "series") {
+    const detected = items.map((item) => detectMediaEdition(item));
+    const editionValues = new Set(
+      detected
+        .filter((entry) => entry?.explicit)
+        .map((entry) => entry.value)
+    );
+
+    const hasStandard = detected.some(
+      (entry) => entry?.value === "standard" && entry?.explicit === false
+    );
+
+    if (editionValues.size > 0 && hasStandard) {
+      available.push({
+        value: "edition:standard",
+        label: "Standard / Original",
+      });
+    }
+
+    MEDIA_EDITION_OPTIONS
+      .filter(
+        (option) =>
+          option.value !== "any" &&
+          option.value !== "standard" &&
+          editionValues.has(option.value)
+      )
+      .forEach((option) => {
+        available.push({
+          value: `edition:${option.value}`,
+          label: option.label,
+        });
+      });
+  }
+
+  return available;
+};
 
 const allowedModes = new Set(SOURCE_SORT_OPTIONS.map((item) => item.value));
 
