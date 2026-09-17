@@ -238,10 +238,9 @@ export default function MediaGodV2Assist() {
 
   const fallbackRecapWindow =
     isTv &&
-    recapEnd == null &&
-    playing &&
-    position >= 4 &&
-    position <= 75 &&
+    !(recapEnd > 0) &&
+    position >= 0 &&
+    position <= 90 &&
     (!duration || remaining > 180);
 
   const canSkipRecap = exactRecapWindow || fallbackRecapWindow;
@@ -255,9 +254,9 @@ export default function MediaGodV2Assist() {
 
   const fallbackIntroWindow =
     isTv &&
-    introEnd == null &&
-    position >= 0 &&
-    position <= 300 &&
+    !(introEnd > 0) &&
+    position >= 30 &&
+    position <= 420 &&
     (!duration || remaining > 120);
 
   const canSkipIntro = exactIntroWindow || fallbackIntroWindow;
@@ -274,6 +273,7 @@ export default function MediaGodV2Assist() {
       : Math.min(360, Math.max(120, duration * 0.08));
 
     return (
+      !(creditsStart > 0) &&
       position > duration * 0.55 &&
       remaining <= fallbackWindow
     );

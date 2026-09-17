@@ -832,16 +832,16 @@ class PlayerActivity : Activity() {
             tvEpisode && recapEndMs > 0L &&
                 position >= maxOf(0L, recapStartMs) && position < recapEndMs
         val fallbackRecap =
-            tvEpisode && recapEndMs < 0L && playingNow &&
-                position in 4_000L..75_000L &&
+            tvEpisode && recapEndMs <= 0L &&
+                position in 0L..90_000L &&
                 (mediaDuration <= 0L || remaining > 180_000L)
 
         val exactIntro =
             tvEpisode && introEndMs > 0L &&
                 position >= maxOf(0L, introStartMs) && position < introEndMs
         val fallbackIntro =
-            tvEpisode && introEndMs < 0L &&
-                position in 0L..300_000L &&
+            tvEpisode && introEndMs <= 0L &&
+                position in 30_000L..420_000L &&
                 (mediaDuration <= 0L || remaining > 120_000L)
 
         val creditsFallbackWindow =
@@ -854,7 +854,7 @@ class PlayerActivity : Activity() {
             mediaDuration >= 300_000L && creditsStartMs > 0L &&
                 position >= creditsStartMs && position < mediaDuration - 500L
         val fallbackCredits =
-            mediaDuration >= 300_000L && creditsStartMs < 0L &&
+            mediaDuration >= 300_000L && creditsStartMs <= 0L &&
                 position > (mediaDuration * 0.55).toLong() && remaining <= creditsFallbackWindow
         val creditsVisible = exactCredits || fallbackCredits
 
