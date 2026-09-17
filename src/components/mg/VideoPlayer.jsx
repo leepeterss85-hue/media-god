@@ -8006,9 +8006,15 @@ export default function VideoPlayer({
       ? { ...active, src: rdOverride.src || activeUrl, label: rdOverride.label || active?.label }
       : active;
     const label = sourceDisplayLabel(candidate, activeIdx);
-    const traits = detectStreamTraits(candidate, label);
+    const audioCompatibility = sourceAudioCompatibility(
+      candidate,
+      label,
+      getPlaybackDeviceProfile()
+    );
     const rememberedSilent = hasRecentNoSoundHistory(label);
-    if (!rememberedSilent && !traits.audioRisk) return undefined;
+    const knownUnsupportedAudio = audioCompatibility.supported === false;
+    const automaticAudioRisk = knownUnsupportedAudio || audioCompatibility.risky;
+    if (!rememberedSilent && !automaticAudioRisk) return undefined;
 
     const timer = window.setTimeout(() => {
       const video = stageRef.current?.querySelector("video");
@@ -8018,7 +8024,7 @@ export default function VideoPlayer({
       ) {
         handleNoSoundRef.current?.({ automatic: true });
       }
-    }, rememberedSilent ? 2200 : 4200);
+    }, rememberedSilent || knownUnsupportedAudio ? 2200 : 4200);
 
     return () => window.clearTimeout(timer);
   }, [
