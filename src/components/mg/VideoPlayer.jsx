@@ -836,6 +836,7 @@ export default function VideoPlayer({
   const nativePlaybackRef = useRef({
     requestId: "",
     url: "",
+    playRequestId: null,
   });
   const nativeLaunchTimerRef = useRef(null);
   const liveRecoveryNoticeTimerRef = useRef(null);
@@ -1556,6 +1557,7 @@ export default function VideoPlayer({
     nativePlaybackRef.current = {
       requestId: "",
       url: "",
+      playRequestId: null,
     };
 
     if (torrentFailoverTimerRef.current) {
@@ -7078,13 +7080,31 @@ export default function VideoPlayer({
         }
       }
 
-      nativePlaybackRef.current = {
-        requestId: "",
-        url: "",
-      };
-
       const reason = String(detail.reason || "back").toLowerCase();
       const selectedSourceIndex = Number(detail.selectedSourceIndex);
+      const currentPlayRequestId = source?.playRequestId ?? null;
+
+      /*
+       * IMPORTANT: native Media3 returns to the WebView before the async
+       * next-episode resolver has necessarily published the following source.
+       * If we clear the native ownership ref immediately, any render in that
+       * small gap can launch the just-finished URL again. Keep a handoff lock
+       * tied to this playRequestId until the next episode gets a new request.
+       * This is what prevents an ended episode (especially season-pack sources)
+       * from appearing to restart instead of advancing.
+       */
+      nativePlaybackRef.current =
+        !isLive && (reason === "ended" || reason === "next")
+          ? {
+              requestId: "__episode_handoff__",
+              url: nativePlaybackUrl,
+              playRequestId: currentPlayRequestId,
+            }
+          : {
+              requestId: "",
+              url: "",
+              playRequestId: null,
+            };
 
       if (
         reason === "source" &&
@@ -7261,7 +7281,13 @@ export default function VideoPlayer({
 
     const current = nativePlaybackRef.current;
 
-    if (current.url === nativePlaybackUrl && current.requestId) {
+    const currentPlayRequestId = source?.playRequestId ?? null;
+
+    if (
+      current.url === nativePlaybackUrl &&
+      current.requestId &&
+      current.playRequestId === currentPlayRequestId
+    ) {
       return;
     }
 
@@ -7286,6 +7312,7 @@ export default function VideoPlayer({
     nativePlaybackRef.current = {
       requestId,
       url: nativePlaybackUrl,
+      playRequestId: currentPlayRequestId,
     };
 
     const started = playNativeFireTv({
@@ -7343,6 +7370,7 @@ export default function VideoPlayer({
       nativePlaybackRef.current = {
         requestId: "",
         url: "",
+        playRequestId: null,
       };
 
       /* If an unexpected old/custom wrapper exposes a broken/busy bridge,
@@ -7379,6 +7407,7 @@ export default function VideoPlayer({
         nativePlaybackRef.current = {
           requestId: "",
           url: "",
+          playRequestId: null,
         };
         nativeLaunchTimerRef.current = null;
         setForceNativePlayback(false);
