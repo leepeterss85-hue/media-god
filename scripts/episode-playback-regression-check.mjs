@@ -16,6 +16,9 @@ const videoPlayer = read("src/components/mg/VideoPlayer.jsx");
 const takeover = read("src/components/mg/FireTvPlayerTakeover.jsx");
 const native = read("firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt");
 const edition = read("src/components/mg/mediaEdition.js");
+const sourcePreferences = read("src/components/mg/sourceSelectorPreferences.js");
+const controls = read("src/components/mg/MediaPlayerControls.jsx");
+const mobileNative = read("android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt");
 
 expect(
   provider.includes("currentTime < 60") &&
@@ -69,6 +72,35 @@ expect(
     native.includes("NEXT_EPISODE_COUNTDOWN_MS") &&
     native.includes("Skip credits → Next"),
   "Fire TV native player has skip controls and a cancellable auto-next countdown"
+);
+
+
+expect(
+  sourcePreferences.includes("availableSourceSortOptions") &&
+    sourcePreferences.includes('mediaType !== "tv"') &&
+    sourcePreferences.includes("editionValues.has(option.value)") &&
+    videoPlayer.includes("availableSortOptions") &&
+    controls.includes("availableSortOptions"),
+  "source picker only exposes filters and editions present for the current title and suppresses movie editions for TV"
+);
+
+expect(
+  assist.includes("runClickFallback") &&
+    assist.includes("runKeyAction") &&
+    assist.includes("position >= 1") &&
+    assist.includes("z-[120]") &&
+    native.includes("position in 1_000L..420_000L") &&
+    native.includes("val showNext = tvEpisode && position >= 1_000L"),
+  "episode controls respond on first interaction and keep Play Next available during TV playback"
+);
+
+expect(
+  mobileNative.includes("private fun buildAssistControls()") &&
+    mobileNative.includes("private fun updateAssistControls()") &&
+    mobileNative.includes("Skip credits → Next") &&
+    mobileNative.includes('finishWithResult("next")') &&
+    mobileNative.includes("NEXT_EPISODE_COUNTDOWN_MS"),
+  "Android mobile native player keeps the TV episode skip and next controls"
 );
 
 expect(

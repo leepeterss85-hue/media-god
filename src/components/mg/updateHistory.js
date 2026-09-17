@@ -1,5 +1,20 @@
 export const UPDATE_HISTORY = [
   {
+    id: "episode-controls-source-picker-2026-09-17-v2",
+    date: "17 September 2026",
+    title: "Episode controls and source picker tightened",
+    summary:
+      "TV playback controls now react on the first press/tap, Play Next remains available during an episode, and source filtering only offers choices that exist for the current title.",
+    changes: [
+      "Skip Intro, Skip Recap, Skip Credits, Play Next, Cancel and Auto Next now handle pointer, click and keyboard/remote activation directly instead of relying on a single click path.",
+      "Play Next stays available throughout TV playback rather than appearing only near the credits, and fallback Skip Intro becomes available from the start of an episode when no chapter marker exists.",
+      "The source sort menu is built from the current ready/playable source set, so TV episodes no longer show movie-only edition options such as Director's Cut, Roadshow or Unrated when they do not exist.",
+      "Failed sources are removed from the current chooser and Fire TV only receives the remaining selectable sources for its native source menu.",
+      "Android Mobile now has native Media3 Skip Intro, Skip Credits and Play Next controls instead of losing episode actions when the native player opens.",
+      "Fire TV is updated to 1.4.28 and Android Mobile to 1.0.16.",
+    ],
+  },
+  {
     id: "hosted-error-clip-failover-2026-09-17-v1",
     date: "17 September 2026",
     title: "AIOStreams failed releases now skip automatically",

@@ -174,6 +174,12 @@ for (const app of apps) {
     [playerActivity.includes("DisplayRateMatcher.apply"), "native display frame-rate matching"],
     [playerActivity.includes("NativePlaybackDiagnostics.snapshot"), "Media3 diagnostics snapshot"],
     [
+      playerActivity.includes("buildAssistControls") &&
+        playerActivity.includes("updateAssistControls") &&
+        playerActivity.includes('finishWithResult("next")'),
+      "native episode skip/next controls",
+    ],
+    [
       playerActivity.includes("isHostedProviderErrorClip") &&
         playerActivity.includes("115_000L..125_000L") &&
         playerActivity.includes("AIOStreams / ElfHosted returned a short error clip"),
