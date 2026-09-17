@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 33,
-  "versionName": "1.4.28",
+  "versionCode": 34,
+  "versionName": "1.4.29",
   "title": "Media God Fire TV",
-  "message": "Fire TV 1.4.28 makes episode controls respond immediately, keeps Play Next available throughout TV episodes, and limits source filtering to qualities and editions that actually exist for the current title.",
+  "message": "Fire TV 1.4.29 fixes episode playback controls: Skip Intro stays available during the opening window, Play Next only appears near the end or credits, and subtitles start off unless you turn them on.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
