@@ -1191,21 +1191,16 @@ const qualityScore = (
 
 export const hasSevereAudioRisk = (
   item,
-  extraText = ""
+  extraText = "",
+  deviceProfile = getPlaybackDeviceProfile()
 ) => {
-  const traits =
-    detectStreamTraits(
-      item,
-      extraText
-    );
-
-  return (
-    traits.audio ===
-      "dts" ||
-    traits.audio ===
-      "truehd" ||
-    traits.audioRisk
+  const status = sourceAudioCompatibility(
+    item,
+    extraText,
+    deviceProfile
   );
+
+  return status.supported === false || status.risky;
 };
 
 export const hasSevereVideoRisk = (
@@ -1669,7 +1664,9 @@ export const orderSourcesForPlayback = (
       ) => {
         const severeAudioRisk =
           hasSevereAudioRisk(
-            item
+            item,
+            "",
+            deviceProfile
           );
 
         return {
