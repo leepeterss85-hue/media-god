@@ -1221,7 +1221,8 @@ class PlayerActivity : Activity() {
                     headers = readHeaders(item.optJSONObject("headers")),
                     mimeType = item.optString("mimeType").trim(),
                     drm = item.optJSONObject("drm"),
-                    webIndex = webIndex
+                    webIndex = webIndex,
+                    failed = item.optBoolean("failed", false)
                 )
             )
         }
@@ -1238,7 +1239,8 @@ class PlayerActivity : Activity() {
                     headers = readHeaders(payload.optJSONObject("headers")),
                     mimeType = payload.optString("mimeType").trim(),
                     drm = payload.optJSONObject("drm"),
-                    webIndex = payload.optInt("activeSourceIndex", 0)
+                    webIndex = payload.optInt("activeSourceIndex", 0),
+                    failed = false
                 )
             )
         }
