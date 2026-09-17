@@ -1296,10 +1296,10 @@ export default function SourcesView() {
       <section className="mt-4 rounded-2xl border border-white/10 bg-mg-card p-4 sm:p-5">
         <h2 className="flex items-center gap-2 font-bold text-white">
           <ExternalLink className="h-4 w-4 text-mg-green" />
-          External add-on repositories
+          Reezn & external providers
         </h2>
         <p className="mt-1 text-xs text-white/40">
-          Sky Sport Now is integrated directly through your own subscription. Media God uses the provider's TV/device login, keeps the account token server-side, and requests a fresh protected stream only when you press Play.
+          Reezn is available here as a dedicated external provider, alongside connected services such as Sky Sport Now. Reezn opens as its own Android / Fire TV app, while supported connected providers can use Media God's built-in account flow.
         </p>
 
         <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
