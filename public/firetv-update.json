@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 32,
-  "versionName": "1.4.27",
+  "versionCode": 33,
+  "versionName": "1.4.28",
   "title": "Media God Fire TV",
-  "message": "Fire TV 1.4.27 detects the short AIOStreams / ElfHosted error clip shown when a release cannot be fetched and immediately returns to Media God source failover instead of playing the error as the episode.",
+  "message": "Fire TV 1.4.28 makes episode controls respond immediately, keeps Play Next available throughout TV episodes, and limits source filtering to qualities and editions that actually exist for the current title.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",

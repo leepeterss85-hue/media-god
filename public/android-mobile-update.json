@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 16,
-  "versionName": "1.0.15",
+  "versionCode": 17,
+  "versionName": "1.0.16",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.15 detects the short AIOStreams / ElfHosted error clip shown when a release cannot be fetched and automatically advances to another playable source instead of treating the error clip as the requested title.",
+  "message": "Media God Mobile 1.0.16 adds native Skip Intro, Skip Credits and Play Next controls and limits source filtering to choices that are actually available for the current movie or episode.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
