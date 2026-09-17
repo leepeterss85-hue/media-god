@@ -1,4 +1,4 @@
-// Native playback self-healing release verification.
+// Single-owner playback stability release verification.
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.mediagod.firetv"
         minSdk = 21
         targetSdk = 35
-        versionCode = 39
-        versionName = "1.4.34"
+        versionCode = 40
+        versionName = "1.4.35"
 
         buildConfigField(
             "String",
