@@ -37,7 +37,7 @@ import {
 
 const DEFAULT_PREFERENCES = {
   autoplay: true,
-  subs: true,
+  subs: false,
   quality: "Auto",
 };
 
@@ -399,9 +399,9 @@ export default function SettingsView() {
           const nextTracks = writeTrackPreferences({
             ...localTracks,
             subtitlesEnabled:
-              preferences.subs ??
-              localTracks.subtitlesEnabled ??
-              DEFAULT_PREFERENCES.subs,
+              Number(preferences.subtitlePreferenceVersion || 0) >= 2
+                ? (preferences.subs ?? localTracks.subtitlesEnabled)
+                : (localTracks.subtitlesEnabled ?? DEFAULT_PREFERENCES.subs),
             audioLanguage:
               preferences.audioLanguage ||
               localTracks.audioLanguage,
@@ -692,6 +692,7 @@ export default function SettingsView() {
 
               autoplay: nextPlayback.autoNext,
               subs: nextTracks.subtitlesEnabled,
+              subtitlePreferenceVersion: nextTracks.subtitlePreferenceVersion,
               quality: nextPlayback.quality,
               autoRecovery: nextPlayback.autoRecovery,
               audioLanguage: nextTracks.audioLanguage,

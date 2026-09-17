@@ -10,7 +10,6 @@ import {
 
 import {
   FastForward,
-  Repeat2,
   SkipForward,
   X,
 } from "lucide-react";
@@ -258,9 +257,8 @@ export default function MediaGodV2Assist() {
   const fallbackIntroWindow =
     isTv &&
     introEnd == null &&
-    playing &&
-    position >= 1 &&
-    position <= 420 &&
+    position >= 0 &&
+    position <= 300 &&
     (!duration || remaining > 120);
 
   const canSkipIntro = exactIntroWindow || fallbackIntroWindow;
@@ -312,8 +310,7 @@ export default function MediaGodV2Assist() {
     );
 
   const showNextAction =
-    isTv &&
-    position >= 1;
+    nextEpisodeWindow || autoNextCountdownWindow;
 
   useEffect(() => {
     setNextCountdownDeadline(0);
@@ -455,24 +452,6 @@ export default function MediaGodV2Assist() {
     }
   };
 
-  const toggleAutoNext = () => {
-    if (typeof window === "undefined") return;
-
-    const enabled = !context?.autoNext;
-
-    if (!enabled) {
-      cancelAutoNextCountdown();
-    } else {
-      setNextCountdownCancelled(false);
-    }
-
-    window.dispatchEvent(
-      new CustomEvent("mg:set-auto-next", {
-        detail: { enabled },
-      })
-    );
-  };
-
   const buttonClass =
     "pointer-events-auto inline-flex min-h-12 min-w-[7.5rem] touch-manipulation items-center justify-center gap-2 rounded-xl border border-white/20 bg-black/85 px-4 py-2.5 text-sm font-semibold text-white shadow-2xl backdrop-blur-md transition hover:border-mg-green/60 hover:text-mg-green focus:outline-none focus:ring-4 focus:ring-mg-green/70 active:scale-[0.98]";
 
@@ -562,31 +541,6 @@ export default function MediaGodV2Assist() {
           </button>
         )}
 
-      {isTv && (
-        <button
-          type="button"
-          onPointerDown={(event) => runAction(event, toggleAutoNext)}
-          onClick={(event) => runClickFallback(event, toggleAutoNext)}
-          onKeyDown={(event) => runKeyAction(event, toggleAutoNext)}
-          tabIndex={0}
-          className={cn(
-            "pointer-events-auto inline-flex min-h-12 min-w-[7.5rem] touch-manipulation items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold shadow-2xl backdrop-blur-md transition focus:outline-none focus:ring-4 focus:ring-mg-green/70 active:scale-[0.98]",
-            context?.autoNext
-              ? "border-mg-green/50 bg-mg-green/20 text-mg-green"
-              : "border-white/20 bg-black/85 text-white/75 hover:text-white"
-          )}
-          aria-label="Toggle automatic next episode"
-        >
-          <Repeat2 className="h-4 w-4" />
-          Auto next {context?.autoNext ? "On" : "Off"}
-        </button>
-      )}
-
-      {isTv && context?.season != null && context?.episode != null && (
-        <span className="pointer-events-none rounded-xl border border-white/10 bg-black/75 px-3 py-2.5 text-xs font-semibold text-white/65 backdrop-blur-md">
-          S{String(context.season).padStart(2, "0")} E{String(context.episode).padStart(2, "0")}
-        </span>
-      )}
     </div>
   );
 

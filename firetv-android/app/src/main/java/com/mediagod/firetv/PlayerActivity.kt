@@ -771,8 +771,7 @@ class PlayerActivity : Activity() {
         val fallbackIntro =
             tvEpisode &&
                 introEndMs < 0L &&
-                playingNow &&
-                position in 1_000L..420_000L &&
+                position in 0L..300_000L &&
                 (duration <= 0L || remaining > 120_000L)
 
         val creditsFallbackWindow =
@@ -1344,7 +1343,7 @@ class PlayerActivity : Activity() {
 
         val preferredAudio = payload.optString("audioLanguage", "en")
         val preferredSubtitle = payload.optString("subtitleLanguage", "en")
-        val subtitlesEnabled = payload.optBoolean("subtitlesEnabled", true)
+        val subtitlesEnabled = payload.optBoolean("subtitlesEnabled", false)
 
         exoPlayer.trackSelectionParameters =
             exoPlayer.trackSelectionParameters

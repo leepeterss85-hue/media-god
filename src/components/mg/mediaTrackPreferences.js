@@ -1,10 +1,12 @@
 export const MEDIA_TRACK_PREFERENCES_KEY = "mg:media-track-preferences-v1";
 export const MEDIA_TITLE_AUDIO_PREFERENCES_KEY = "mg:title-audio-preferences-v1";
-export const MEDIA_TITLE_SUBTITLE_PREFERENCES_KEY = "mg:title-subtitle-preferences-v1";
+export const MEDIA_TITLE_SUBTITLE_PREFERENCES_KEY = "mg:title-subtitle-preferences-v2";
+export const SUBTITLE_PREFERENCE_VERSION = 2;
 
 export const DEFAULT_MEDIA_TRACK_PREFERENCES = {
   audioLanguage: "en",
-  subtitlesEnabled: true,
+  subtitlesEnabled: false,
+  subtitlePreferenceVersion: SUBTITLE_PREFERENCE_VERSION,
   subtitleLanguage: "en",
   preferForcedSubtitles: true,
   preferSdhSubtitles: false,
@@ -50,9 +52,11 @@ export const normaliseTrackPreferences = (value) => {
       DEFAULT_MEDIA_TRACK_PREFERENCES.audioLanguage
     ),
     subtitlesEnabled:
+      Number(raw.subtitlePreferenceVersion || 0) >= SUBTITLE_PREFERENCE_VERSION &&
       typeof raw.subtitlesEnabled === "boolean"
         ? raw.subtitlesEnabled
-        : DEFAULT_MEDIA_TRACK_PREFERENCES.subtitlesEnabled,
+        : false,
+    subtitlePreferenceVersion: SUBTITLE_PREFERENCE_VERSION,
     subtitleLanguage: normaliseLanguage(
       raw.subtitleLanguage,
       DEFAULT_MEDIA_TRACK_PREFERENCES.subtitleLanguage

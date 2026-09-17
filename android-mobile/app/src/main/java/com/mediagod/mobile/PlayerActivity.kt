@@ -393,7 +393,7 @@ class PlayerActivity : Activity() {
 
         val preferredAudio = payload.optString("audioLanguage", "en")
         val preferredSubtitle = payload.optString("subtitleLanguage", "en")
-        val subtitlesEnabled = payload.optBoolean("subtitlesEnabled", true)
+        val subtitlesEnabled = payload.optBoolean("subtitlesEnabled", false)
 
         exoPlayer.trackSelectionParameters =
             exoPlayer.trackSelectionParameters

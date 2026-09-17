@@ -77,6 +77,7 @@ const localAccountPreferenceSeed = () => {
   if (storageHas(MEDIA_TRACK_PREFERENCES_KEY)) {
     const tracks = readTrackPreferences();
     patch.subs = tracks.subtitlesEnabled;
+    patch.subtitlePreferenceVersion = tracks.subtitlePreferenceVersion;
     patch.audioLanguage = tracks.audioLanguage;
     patch.subtitleLanguage = tracks.subtitleLanguage;
     patch.preferForcedSubtitles = tracks.preferForcedSubtitles;
@@ -137,9 +138,14 @@ export const hydrateAccountPreferences = async (user) => {
       : {}),
   });
 
+  const legacyRemoteSubtitlePreference =
+    Number(remote.subtitlePreferenceVersion || 0) < 2;
+
   writeTrackPreferences({
     ...localTracks,
-    ...(hasOwn(remote, "subs") ? { subtitlesEnabled: remote.subs } : {}),
+    ...(!legacyRemoteSubtitlePreference && hasOwn(remote, "subs")
+      ? { subtitlesEnabled: remote.subs }
+      : {}),
     ...(hasOwn(remote, "audioLanguage")
       ? { audioLanguage: remote.audioLanguage }
       : {}),
@@ -180,6 +186,11 @@ export const hydrateAccountPreferences = async (user) => {
   // the device and are missing from the account; a new device never replaces
   // established account values with defaults.
   const seed = missingRemoteSeed(remote, localAccountPreferenceSeed());
+
+  if (legacyRemoteSubtitlePreference) {
+    seed.subs = false;
+    seed.subtitlePreferenceVersion = 2;
+  }
 
   if (Object.keys(seed).length > 0) {
     try {
@@ -253,6 +264,7 @@ export const installAccountPreferenceSync = () => {
     const value = event?.detail || {};
     queueAccountPreferencePatch({
       subs: value.subtitlesEnabled,
+      subtitlePreferenceVersion: value.subtitlePreferenceVersion,
       audioLanguage: value.audioLanguage,
       subtitleLanguage: value.subtitleLanguage,
       preferForcedSubtitles: value.preferForcedSubtitles,
