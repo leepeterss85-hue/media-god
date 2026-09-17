@@ -1,5 +1,20 @@
 export const UPDATE_HISTORY = [
   {
+    id: "single-playback-owner-stability-2026-09-17-v1",
+    date: "17 September 2026",
+    title: "Video playback now keeps one stream in control",
+    summary:
+      "Movies and episodes no longer let overlapping recovery systems open several streams, restart healthy playback or reset audio during ordinary buffering.",
+    changes: [
+      "Only one source transition can leave a failing stream at a time, so duplicate browser/native error callbacks cannot cascade through several backups.",
+      "The outgoing browser video is paused and muted before a replacement stream is allowed to start, preventing overlapping decoder/audio ownership.",
+      "Background addon and cache discovery can still enrich source metadata, but it can no longer replace the transport URL of a source that is already published to the player.",
+      "Once a movie or episode has started, ordinary buffering no longer triggers automatic source hopping on the web player, Fire TV or Android Mobile.",
+      "Startup failures and genuine Media3/browser/HTTP/decoder errors still use the normal recovery path, and expired 401/403/410 links still refresh the same stream first.",
+      "Fire TV advances to 1.4.35 / versionCode 40 and Android Mobile to 1.0.21 / versionCode 22.",
+    ],
+  },
+  {
     id: "expired-link-same-source-refresh-2026-09-17-v1",
     date: "17 September 2026",
     title: "Expired playback links now refresh before source failover",
