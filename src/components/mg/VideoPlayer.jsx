@@ -8995,6 +8995,28 @@ export default function VideoPlayer({
               </span>
             )}
           </div>
+
+          <div
+            data-mg-source-health="true"
+            className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-white/5 bg-white/[0.025] px-2.5 py-1.5 text-[10px] font-medium text-white/40 sm:text-xs"
+          >
+            <span className="font-bold uppercase tracking-[0.12em] text-mg-green/80">
+              Source health
+            </span>
+            <span>
+              Found {Math.max(Number(source?.sourceDiagnostics?.combinedSourceCount || 0), sources.length)}
+            </span>
+            <span>
+              Cache checked {Number(source?.sourceDiagnostics?.cacheCandidateCount || 0)}
+            </span>
+            <span>
+              Cached {Number(source?.sourceDiagnostics?.cachedSourceCount || 0)}
+            </span>
+            <span>
+              Ready {selectableSourceCount}
+            </span>
+          </div>
+
           {availableSortOptions.length > 1 && (
             <label className="w-[10.5rem] shrink-0 sm:w-[12.5rem]">
               <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.12em] text-white/40">
