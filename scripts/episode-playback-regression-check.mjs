@@ -11,6 +11,7 @@ const expect = (condition, message) => {
 };
 
 const provider = read("src/components/mg/PlayerProvider.jsx");
+const mediaPlayerProvider = read("src/components/mg/MediaPlayerProvider.jsx");
 const assist = read("src/components/mg/MediaGodV2Assist.jsx");
 const videoPlayer = read("src/components/mg/VideoPlayer.jsx");
 const takeover = read("src/components/mg/FireTvPlayerTakeover.jsx");
@@ -113,6 +114,16 @@ expect(
     videoPlayer.includes('? Number(entry.resolution || 0) >= 2000') &&
     videoPlayer.includes('selectSource(match.index, match.item);'),
   "4K and 1080p quality choices switch to a real ready source instead of only sorting the list"
+);
+
+expect(
+  mediaPlayerProvider.includes('fastMode: false') &&
+    mediaPlayerProvider.includes('excludeAddonNames: []') &&
+    mediaPlayerProvider.includes('every extra torrent hash is another chance') &&
+    mediaPlayerProvider.includes('if (lockedIndex > 0)') &&
+    !mediaPlayerProvider.includes('successfulAddonNames.length >=') &&
+    !mediaPlayerProvider.includes('lockedIsKnownUncachedMagnet && cachedAlternativeExists'),
+  "fast start always expands into full cache discovery and source refresh cannot replace the playing source"
 );
 
 expect(
