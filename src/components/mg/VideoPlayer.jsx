@@ -8270,12 +8270,12 @@ export default function VideoPlayer({
 
     if (runtimeReady || item?.debridCached === true) {
       return trustedCached
-        ? `Trusted Cached • ${base}`
-        : `Cached / Ready • ${base}`;
+        ? `Ready • ${base}`
+        : `Ready • ${base}`;
     }
 
     if (sourceNeedsCaching(item)) {
-      return `Uncached • ${base}`;
+      return `Preparing • ${base}`;
     }
 
     return base;
@@ -8415,21 +8415,32 @@ export default function VideoPlayer({
           ? "Download is paused right now. Media God will keep checking automatically."
           : "Playback will start automatically as soon as Real-Debrid reports the file ready.";
 
+  const simpleCacheHint =
+    cachePhase.key === "finalizing" || cacheProgress >= 100
+      ? "Almost ready. Playback will start automatically."
+      : cachePollWarning && rdPolling
+        ? "Still working. Media God is retrying automatically."
+        : cacheSeeders <= 0 && cacheSpeedBps <= 0 && cacheElapsedSeconds >= 30
+          ? "This stream is taking longer than usual. Media God is still checking it."
+          : cacheSpeedBps <= 0 && cacheProgress > 0 && cacheElapsedSeconds >= 30
+            ? "This stream is temporarily slow. Media God is still working in the background."
+            : "Playback will start automatically as soon as the stream is ready.";
+
   const playerUiStatus =
     displayedError && !busy
-      ? "Source issue"
+      ? "Needs attention"
       : rdResolving
-        ? "Resolving"
+        ? "Finding stream"
         : rdPolling || rdTorrentId
           ? rdPreparation
             ? cachePhase.key === "downloading"
-              ? `${cacheStatusLabel} ${cacheProgress}%`
-              : cacheStatusLabel
-            : "Preparing"
+              ? `Getting ready ${cacheProgress}%`
+              : "Getting ready"
+            : "Getting ready"
           : fireTvNativeSelectorMode
-            ? "Choose source"
+            ? "Choose stream"
             : useNativePlayback
-              ? "Opening player"
+              ? "Opening"
               : rdOverride || isDirectFile
                 ? "Ready"
                 : isLive
