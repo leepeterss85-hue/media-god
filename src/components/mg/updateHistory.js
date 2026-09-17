@@ -1,5 +1,17 @@
 export const UPDATE_HISTORY = [
   {
+    id: "fire-tv-1-4-32-installer-handoff-2026-09-17-v1",
+    date: "17 September 2026",
+    title: "Fire TV updater opens the installer immediately",
+    summary:
+      "The in-app Fire TV updater now hands the downloaded APK directly to the foreground Fire OS package installer instead of waiting for Media God to be closed and reopened.",
+    changes: [
+      "Uses Android's package-install action first, with the older APK-view intent retained as a one-second compatibility fallback for Fire OS builds that accept the first request without foregrounding it.",
+      "The downloaded APK stays pending until Media God actually yields foreground to the installer, so a deferred Fire OS handoff cannot lose the update.",
+      "Fire TV advances to 1.4.32 / versionCode 37 so every 1.4.31 installation recognises this updater repair as newer.",
+    ],
+  },
+  {
     id: "opening-controls-zero-marker-repair-2026-09-17-v1",
     date: "17 September 2026",
     title: "Skip Recap and Skip Intro restored for empty chapter markers",
