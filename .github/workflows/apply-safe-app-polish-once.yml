@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - scripts/apply_safe_app_polish.py
+      - scripts/apply_safe_app_polish_v2.py
       - .github/workflows/apply-safe-app-polish-once.yml
 
 permissions:
@@ -26,7 +27,7 @@ jobs:
           cache: npm
 
       - name: Apply safe polish patch
-        run: python scripts/apply_safe_app_polish.py
+        run: python scripts/apply_safe_app_polish_v2.py
 
       - name: Install dependencies
         run: npm ci
