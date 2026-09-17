@@ -484,31 +484,53 @@ class PlayerActivity : Activity() {
 
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 if (isPlaying) {
+                    playbackStarted = true
+                    clearPlaybackWatchdogs()
                     window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                 } else {
                     window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    if (
+                        playbackStarted &&
+                        exoPlayer.playWhenReady &&
+                        exoPlayer.playbackState == Player.STATE_BUFFERING
+                    ) {
+                        armStallWatchdog()
+                    }
                 }
             }
 
             override fun onPlaybackStateChanged(playbackState: Int) {
-                if (playbackState == Player.STATE_READY) {
-                    val durationMs = exoPlayer.duration.takeIf { it > 0L } ?: 0L
-                    if (isHostedProviderErrorClip(durationMs)) {
-                        finishWithResult(
-                            "error",
-                            "AIOStreams / ElfHosted returned a short error clip instead of the requested release."
-                        )
-                        return
+                when (playbackState) {
+                    Player.STATE_BUFFERING -> {
+                        if (playbackStarted) armStallWatchdog() else armStartupWatchdog()
                     }
-                }
 
-                if (playbackState == Player.STATE_ENDED) {
-                    finishWithResult("ended")
+                    Player.STATE_READY -> {
+                        if (exoPlayer.isPlaying) {
+                            playbackStarted = true
+                            clearPlaybackWatchdogs()
+                        }
+
+                        val durationMs = exoPlayer.duration.takeIf { it > 0L } ?: 0L
+                        if (isHostedProviderErrorClip(durationMs)) {
+                            finishWithResult(
+                                "error",
+                                "This provider returned an error clip instead of the requested video."
+                            )
+                            return
+                        }
+                    }
+
+                    Player.STATE_ENDED -> {
+                        clearPlaybackWatchdogs()
+                        finishWithResult("ended")
+                    }
                 }
             }
 
             override fun onPlayerError(error: PlaybackException) {
                 if (retryUnknownHttpsSourceType(exoPlayer)) {
+                    if (playbackStarted) armStallWatchdog() else armStartupWatchdog()
                     return
                 }
 
@@ -542,6 +564,8 @@ class PlayerActivity : Activity() {
         exoPlayer.playWhenReady = shouldPlayWhenReady
         if (shouldPlayWhenReady) {
             exoPlayer.play()
+            playbackStarted = false
+            armStartupWatchdog()
         }
 
         showControllerTemporarily()
