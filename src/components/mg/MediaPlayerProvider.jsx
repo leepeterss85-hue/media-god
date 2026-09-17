@@ -2950,6 +2950,9 @@ export function PlayerProvider({
               onClose={
                 close
               }
+              onRefreshSource={
+                refreshExpiredSource
+              }
             />
           </PlayerRenderBoundary>,
           document.body
