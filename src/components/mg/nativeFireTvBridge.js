@@ -618,6 +618,8 @@ export const playNativeFireTv = ({
     url: streamUrl,
     title: String(title || ""),
     poster: String(poster || ""),
+    sourceLabel: String(selectedHints?.label || ""),
+    sourceName: String(selectedHints?.sourceName || ""),
     startPositionMs: Math.max(0, Number(startPositionMs || 0)),
     live: Boolean(live),
     mediaType,

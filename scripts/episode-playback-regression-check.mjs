@@ -47,6 +47,16 @@ expect(
 );
 
 expect(
+  videoPlayer.includes("hostedErrorProvider") &&
+    videoPlayer.includes("hostedErrorDuration") &&
+    videoPlayer.includes("AIOStreams / ElfHosted") &&
+    videoPlayer.includes("loadedDuration >= 115") &&
+    videoPlayer.includes("loadedDuration <= 125") &&
+    videoPlayer.includes("{ immediate: true }"),
+  "AIOStreams and ElfHosted short error clips fail over immediately instead of playing as the title"
+);
+
+expect(
   takeover.includes('reason === "ended" || reason === "next"'),
   "Fire TV keeps the inter-episode native handoff visually seamless"
 );

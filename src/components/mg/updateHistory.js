@@ -1,5 +1,18 @@
 export const UPDATE_HISTORY = [
   {
+    id: "hosted-error-clip-failover-2026-09-17-v1",
+    date: "17 September 2026",
+    title: "AIOStreams failed releases now skip automatically",
+    summary:
+      "Media God now recognises the short AIOStreams / ElfHosted error clip shown when a release cannot be fetched and immediately moves to another usable source.",
+    changes: [
+      "The ~2 minute 'Could not fetch this release' provider clip is no longer treated as the movie or episode itself.",
+      "Browser playback marks that provider source failed, clears the fake clip position and immediately advances to the next ranked playable source.",
+      "Fire TV and Android mobile Media3 players now detect the same hosted error-clip duration and report a source failure back to Media God instead of waiting for it to end.",
+      "Fire TV is updated to 1.4.27 and Android Mobile to 1.0.15 so installed native apps can receive the same protection.",
+    ],
+  },
+  {
     id: "seamless-episode-controls-2026-09-17-v1",
     date: "17 September 2026",
     title: "Skip Intro and Next Episode made seamless",

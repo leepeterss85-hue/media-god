@@ -9,7 +9,7 @@ const apps = [
     dir: "firetv-android",
     packagePath: "com/mediagod/firetv",
     namespace: "com.mediagod.firetv",
-    expectedVersion: "1.4.26",
+    expectedVersion: "1.4.27",
     expectedMedia3: "1.8.0",
     expectedOrientation: "landscape",
   },
@@ -18,7 +18,7 @@ const apps = [
     dir: "android-mobile",
     packagePath: "com/mediagod/mobile",
     namespace: "com.mediagod.mobile",
-    expectedVersion: "1.0.14",
+    expectedVersion: "1.0.15",
     expectedMedia3: "1.11.0",
     expectedOrientation: "sensor",
   },
@@ -173,6 +173,12 @@ for (const app of apps) {
     [playerActivity.includes("setVideoChangeFrameRateStrategy"), "Media3 frame-rate strategy"],
     [playerActivity.includes("DisplayRateMatcher.apply"), "native display frame-rate matching"],
     [playerActivity.includes("NativePlaybackDiagnostics.snapshot"), "Media3 diagnostics snapshot"],
+    [
+      playerActivity.includes("isHostedProviderErrorClip") &&
+        playerActivity.includes("115_000L..125_000L") &&
+        playerActivity.includes("AIOStreams / ElfHosted returned a short error clip"),
+      "AIOStreams/ElfHosted short error-clip failover",
+    ],
     [playerActivity.includes("CompatibilityPlayerActivity::class.java"), "runtime compatibility decoder fallback"],
     [playerActivity.includes("MimeTypes.APPLICATION_M3U8"), "HLS MIME fallback"],
     [playerActivity.includes("MimeTypes.APPLICATION_MPD"), "DASH MIME fallback"],

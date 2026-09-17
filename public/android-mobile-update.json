@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 15,
-  "versionName": "1.0.14",
+  "versionCode": 16,
+  "versionName": "versionName",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.14 packages the latest completed TV-series episode experience for Android phones and tablets, including the existing season and episode navigation, skip controls, Auto Next countdown and early next-episode preparation, without changing Live TV or the media player's established playback behavior.",
+  "message": "Media God Mobile 1.0.15 detects the short AIOStreams / ElfHosted error clip shown when a release cannot be fetched and automatically advances to another playable source instead of treating the error clip as the requested title.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"

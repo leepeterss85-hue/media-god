@@ -5796,31 +5796,39 @@ export default function VideoPlayer({
       );
 
       /*
-       * The public Comet service can return a valid ~2 minute MP4 that is
-       * actually its own "Couldn't start this stream" error card. Because
-       * that file is valid video, the browser never raises a media error and
-       * normal failover used to treat it as successful playback. Reject that
-       * very specific Comet signature and move to the next real source.
+       * Some hosted Stremio providers return a perfectly valid short MP4 when
+       * the requested release cannot be fetched. The player therefore sees a
+       * normal video instead of a media error. Comet has long used this pattern,
+       * and AIOStreams / ElfHosted can return the same ~2 minute error card
+       * (for example "Couldn't fetch this release"). Treat those known error
+       * clips as failed sources and move straight to the next usable source.
        */
       const activeSourceText = [
         active?.addon,
+        active?.sourceName,
+        active?.provider,
         active?.label,
         active?.name,
         active?.title,
+        getSourceUrl(active),
       ]
         .filter(Boolean)
         .join(" ");
 
-      const cometNamedError =
-        /\b(?:public\s+)?rate[-\s]?limit(?:ed)?\s+exceeded\b|couldn['’]?t\s+start\s+this\s+stream|could\s+not\s+start\s+this\s+stream|not\s+cached[^\n]{0,80}(?:debrid|server|yet|wait)|\bwrong\s+ip\b|infringing[_\s-]?file|\bcopyright\b/i.test(
+      const hostedErrorProvider =
+        /\bcomet\b|\baiostreams?\b|\belf\s*hosted\b|aiostreams\.elfhosted\.com|comet\.elfhosted\.com/i.test(
           activeSourceText
         );
 
-      const cometErrorVideo =
-        /\bcomet\b/i.test(activeSourceText) &&
+      const hostedNamedError =
+        /\b(?:public\s+)?rate[-\s]?limit(?:ed)?\s+exceeded\b|couldn['’]?t\s+start\s+this\s+stream|could\s+not\s+start\s+this\s+stream|couldn['’]?t\s+fetch\s+this\s+release|could\s+not\s+fetch\s+this\s+release|debrid\s+service\s+wasn['’]?t\s+able\s+to\s+download|dead\s+or\s+have\s+no\s+seeders|not\s+cached[^\n]{0,80}(?:debrid|server|yet|wait)|\bwrong\s+ip\b|infringing[_\s-]?file|\bcopyright\b/i.test(
+          activeSourceText
+        );
+
+      const hostedErrorDuration =
+        !isLive &&
+        Number.isFinite(loadedDuration) &&
         (
-          cometNamedError ||
-          (!isLive && !Number.isFinite(loadedDuration)) ||
           loadedDuration <= 15 ||
           (
             loadedDuration >= 115 &&
@@ -5828,14 +5836,38 @@ export default function VideoPlayer({
           )
         );
 
-      if (cometErrorVideo) {
+      const hostedErrorVideo =
+        hostedErrorProvider &&
+        (
+          hostedNamedError ||
+          (!isLive && !Number.isFinite(loadedDuration)) ||
+          hostedErrorDuration
+        );
+
+      if (hostedErrorVideo) {
+        try {
+          video.pause?.();
+          video.currentTime = 0;
+        } catch {
+          // The source is already being abandoned; failover remains safe.
+        }
+
+        recoveryResumeRef.current = 0;
+        lastPosRef.current = { t: 0, d: 0 };
+
         recordPlaybackReliability(
           sourceDisplayLabel(active, activeIdx),
           "failure"
         );
 
+        const providerName =
+          /\baiostreams?\b|\belf\s*hosted\b/i.test(activeSourceText)
+            ? "AIOStreams / ElfHosted"
+            : "Comet";
+
         tryNextSource(
-          "Comet returned its error video instead of the requested stream."
+          `${providerName} returned an error clip instead of the requested release.`,
+          { immediate: true }
         );
 
         return;

@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 31,
-  "versionName": "1.4.26",
+  "versionCode": 32,
+  "versionName": "versionName",
   "title": "Media God Fire TV",
-  "message": "Fire TV 1.4.26 makes Skip Intro and Next Episode reliably selectable with the remote, prepares the following episode immediately, reuses its ready sources, and keeps the episode-list screen hidden behind a clean native handoff.",
+  "message": "Fire TV 1.4.27 detects the short AIOStreams / ElfHosted error clip shown when a release cannot be fetched and immediately returns to Media God source failover instead of playing the error as the episode.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
