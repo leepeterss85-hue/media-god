@@ -611,14 +611,65 @@ class PlayerActivity : Activity() {
         playerView.requestFocus()
     }
 
+    private fun visibleAssistButtons(): List<Button> =
+        if (!::assistControls.isInitialized) {
+            emptyList()
+        } else {
+            listOf(
+                skipRecapButton,
+                skipIntroButton,
+                skipCreditsButton,
+                playNextButton,
+                cancelNextButton
+            ).filter { it.visibility == View.VISIBLE }
+        }
+
     private fun firstVisibleAssistButton(): Button? =
-        listOf(
-            skipRecapButton,
-            skipIntroButton,
-            skipCreditsButton,
-            playNextButton,
-            cancelNextButton
-        ).firstOrNull { it.visibility == View.VISIBLE }
+        visibleAssistButtons().firstOrNull()
+
+    private fun configureAssistFocus(buttons: List<Button>) {
+        if (buttons.isEmpty()) {
+            playerView.nextFocusDownId = View.NO_ID
+            return
+        }
+
+        buttons.forEachIndexed { index, button ->
+            val previous = buttons[(index - 1 + buttons.size) % buttons.size]
+            val next = buttons[(index + 1) % buttons.size]
+
+            button.nextFocusLeftId = previous.id
+            button.nextFocusRightId = next.id
+            button.nextFocusUpId = playerView.id
+            button.nextFocusDownId = playerView.id
+        }
+
+        playerView.nextFocusDownId = buttons.first().id
+    }
+
+    private fun moveAssistFocus(direction: Int): Boolean {
+        if (
+            !::assistControls.isInitialized ||
+            assistControls.visibility != View.VISIBLE ||
+            !assistControls.hasFocus()
+        ) {
+            return false
+        }
+
+        val buttons = visibleAssistButtons()
+        if (buttons.isEmpty()) return false
+
+        val currentIndex = buttons.indexOfFirst { it.hasFocus() }
+        val nextIndex =
+            if (currentIndex < 0) {
+                if (direction < 0) buttons.lastIndex else 0
+            } else {
+                (currentIndex + direction + buttons.size) % buttons.size
+            }
+
+        buttons[nextIndex].requestFocus()
+        showControllerTemporarily()
+        return true
+    }
 
     private fun setAssistVisible(button: Button, visible: Boolean) {
         button.visibility = if (visible) View.VISIBLE else View.GONE
@@ -648,6 +699,14 @@ class PlayerActivity : Activity() {
         val remaining = if (duration > 0L) maxOf(0L, duration - position) else Long.MAX_VALUE
         val tvEpisode = isTvEpisode()
         val playingNow = activePlayer.isPlaying
+        val focusedAssistBeforeUpdate =
+            listOf(
+                skipRecapButton,
+                skipIntroButton,
+                skipCreditsButton,
+                playNextButton,
+                cancelNextButton
+            ).firstOrNull { it.hasFocus() }
 
         val exactRecap =
             tvEpisode &&
@@ -758,15 +817,45 @@ class PlayerActivity : Activity() {
             setAssistVisible(cancelNextButton, false)
         }
 
-        val anyVisible = listOf(
-            skipRecapButton,
-            skipIntroButton,
-            skipCreditsButton,
-            playNextButton,
-            cancelNextButton
-        ).any { it.visibility == View.VISIBLE }
+        val visibleButtons = visibleAssistButtons()
+        val anyVisible = visibleButtons.isNotEmpty()
 
-        assistControls.visibility = if (anyVisible) View.VISIBLE else View.GONE
+        if (anyVisible) {
+            assistControls.visibility = View.VISIBLE
+            configureAssistFocus(visibleButtons)
+
+            val focusedActionDisappeared =
+                focusedAssistBeforeUpdate != null &&
+                    focusedAssistBeforeUpdate.visibility != View.VISIBLE
+
+            if (
+                !sourceSpinner.hasFocus() &&
+                (!assistControlsWereVisible || focusedActionDisappeared)
+            ) {
+                val target = visibleButtons.first()
+                target.post {
+                    if (
+                        !resultSent &&
+                        target.visibility == View.VISIBLE &&
+                        !sourceSpinner.hasFocus()
+                    ) {
+                        target.requestFocus()
+                    }
+                }
+            }
+        } else {
+            if (
+                assistControls.hasFocus() ||
+                focusedAssistBeforeUpdate != null
+            ) {
+                playerView.requestFocus()
+            }
+
+            assistControls.visibility = View.GONE
+            playerView.nextFocusDownId = View.NO_ID
+        }
+
+        assistControlsWereVisible = anyVisible
     }
 
     private fun canChooseEpisode(): Boolean =
