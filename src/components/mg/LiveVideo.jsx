@@ -946,6 +946,9 @@ const LiveVideo = forwardRef(
       let nativeAudioTimer =
         null;
 
+      let nativeAudioPreferenceApplied = false;
+      let userAudioSelection = false;
+
       const source =
         String(
           src
@@ -1189,6 +1192,7 @@ const LiveVideo = forwardRef(
         }
 
         try {
+          userAudioSelection = true;
           hls.audioTrack = targetIndex;
           video.muted = false;
           video.volume = 1;
@@ -1267,6 +1271,7 @@ const LiveVideo = forwardRef(
         }
 
         try {
+          userAudioSelection = true;
           hls.audioTrack = index;
           video.muted = false;
           video.volume = Math.max(0.01, Number(video.volume || 1));
@@ -1284,29 +1289,33 @@ const LiveVideo = forwardRef(
 
       const preferEnglishNativeAudio =
         () => {
-          selectPreferredNativeAudioTrack(
+          if (userAudioSelection || nativeAudioPreferenceApplied) {
+            return;
+          }
+
+          nativeAudioPreferenceApplied = selectPreferredNativeAudioTrack(
             video,
             preferredAudioLanguageRef.current
           );
 
-          if (
-            nativeAudioTimer
-          ) {
-            window.clearTimeout(
-              nativeAudioTimer
-            );
+          if (nativeAudioTimer) {
+            window.clearTimeout(nativeAudioTimer);
+            nativeAudioTimer = null;
           }
 
-          nativeAudioTimer =
-            window.setTimeout(
+          if (!nativeAudioPreferenceApplied) {
+            nativeAudioTimer = window.setTimeout(
               () => {
-                selectPreferredNativeAudioTrack(
+                if (userAudioSelection || nativeAudioPreferenceApplied) return;
+
+                nativeAudioPreferenceApplied = selectPreferredNativeAudioTrack(
                   video,
-                  preferredAudioLanguage
+                  preferredAudioLanguageRef.current
                 );
               },
               700
             );
+          }
         };
 
       const reportError =
@@ -1723,6 +1732,10 @@ const LiveVideo = forwardRef(
 
             const preferEnglishHlsAudio =
               () => {
+                if (userAudioSelection) {
+                  return;
+                }
+
                 const tracks =
                   hls?.audioTracks ||
                   [];
