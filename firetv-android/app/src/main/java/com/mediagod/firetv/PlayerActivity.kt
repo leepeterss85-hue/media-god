@@ -61,7 +61,8 @@ class PlayerActivity : Activity() {
         val mimeType: String,
         val drm: JSONObject?,
         val webIndex: Int,
-        val failed: Boolean
+        val failed: Boolean,
+        val recoveryScore: Double
     )
 
     private lateinit var playerView: PlayerView
@@ -1114,25 +1115,27 @@ class PlayerActivity : Activity() {
             return -1
         }
 
-        for (offset in 1..nativeSources.size) {
-            val index = (activeSourceIndex + offset) % nativeSources.size
-            val candidate = nativeSources[index]
-
-            if (
-                index == activeSourceIndex ||
-                candidate.failed ||
-                failedVodSourceIndexes.contains(index)
-            ) {
-                continue
+        return nativeSources
+            .mapIndexedNotNull { index, candidate ->
+                val candidateUrl = candidate.url.trim()
+                if (
+                    index == activeSourceIndex ||
+                    candidate.failed ||
+                    failedVodSourceIndexes.contains(index) ||
+                    !(candidateUrl.startsWith("https://") || candidateUrl.startsWith("http://"))
+                ) {
+                    null
+                } else {
+                    index to candidate.recoveryScore
+                }
             }
-
-            val candidateUrl = candidate.url.trim()
-            if (candidateUrl.startsWith("https://") || candidateUrl.startsWith("http://")) {
-                return index
-            }
-        }
-
-        return -1
+            .sortedWith(
+                compareByDescending<Pair<Int, Double>> { it.second }
+                    .thenBy { it.first }
+            )
+            .firstOrNull()
+            ?.first
+            ?: -1
     }
 
     private fun recoverVodPlayback(message: String): Boolean {
@@ -1222,7 +1225,8 @@ class PlayerActivity : Activity() {
                     mimeType = item.optString("mimeType").trim(),
                     drm = item.optJSONObject("drm"),
                     webIndex = webIndex,
-                    failed = item.optBoolean("failed", false)
+                    failed = item.optBoolean("failed", false),
+                    recoveryScore = item.optDouble("recoveryScore", 0.0)
                 )
             )
         }
@@ -1240,7 +1244,8 @@ class PlayerActivity : Activity() {
                     mimeType = payload.optString("mimeType").trim(),
                     drm = payload.optJSONObject("drm"),
                     webIndex = payload.optInt("activeSourceIndex", 0),
-                    failed = false
+                    failed = false,
+                    recoveryScore = 0.0
                 )
             )
         }
