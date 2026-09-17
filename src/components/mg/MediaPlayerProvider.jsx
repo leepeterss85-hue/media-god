@@ -319,6 +319,61 @@ const normaliseSource = (item) => {
 const dedupeSources = (items) =>
   mergeAddonStreams(items);
 
+const stableDiscoveredSourceKey = (item) => {
+  if (!item) return "";
+
+  const hash = sourceMagnetHash(item);
+  if (hash) {
+    return `torrent:${hash}:${String(item?.fileIdx ?? item?.file_idx ?? "")}`;
+  }
+
+  const url = String(getSourceUrl(item) || "").trim();
+  if (url) return `url:${url}`;
+
+  const id = String(item?.id || "").trim();
+  return id ? `id:${id}` : "";
+};
+
+const preservePublishedSourceOrder = (published, incoming) => {
+  const previous = Array.isArray(published)
+    ? published.filter((item) => item && !item?.diagnostic)
+    : [];
+  const next = Array.isArray(incoming) ? incoming.filter(Boolean) : [];
+
+  if (previous.length === 0) return next;
+  if (next.length === 0) return previous;
+
+  const nextByKey = new Map();
+  next.forEach((item) => {
+    const key = stableDiscoveredSourceKey(item);
+    if (key && !nextByKey.has(key)) nextByKey.set(key, item);
+  });
+
+  const used = new Set();
+  const stable = [];
+
+  previous.forEach((item) => {
+    const key = stableDiscoveredSourceKey(item);
+    if (key && nextByKey.has(key)) {
+      stable.push(nextByKey.get(key));
+      used.add(key);
+      return;
+    }
+
+    if (key) used.add(key);
+    stable.push(item);
+  });
+
+  next.forEach((item) => {
+    const key = stableDiscoveredSourceKey(item);
+    if (key && used.has(key)) return;
+    if (key) used.add(key);
+    stable.push(item);
+  });
+
+  return dedupeSources(stable);
+};
+
 const annotateDebridCache = async (items, hasDebrid) => {
   const sources = Array.isArray(items) ? items : [];
   if (!hasDebrid) return sources;
