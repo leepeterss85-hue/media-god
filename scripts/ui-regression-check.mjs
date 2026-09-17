@@ -65,6 +65,10 @@ const liveTv = await read("src/components/mg/LiveTVView.jsx");
 const evSports = await read("src/components/mg/evSportsScraper.js");
 const freeTv = await read("src/components/mg/freeTvPlaylist.js");
 const sourcesView = await read("src/components/mg/SourcesView.jsx");
+const mediaCard = await read("src/components/mg/MediaCard.jsx");
+const moviesView = await read("src/components/mg/MoviesView.jsx");
+const tvShowsView = await read("src/components/mg/TvShowsView.jsx");
+const reeznCardAction = await read("src/components/mg/ReeznCardAction.jsx");
 const settings = await read("src/components/mg/SettingsView.jsx");
 const settingsTools = await read("src/components/mg/SettingsTools.jsx");
 const fireTvUpdateNotice = await read("src/components/mg/FireTvAppUpdateNotice.jsx");
@@ -90,6 +94,16 @@ expect(
     sourcesView.includes('source.connectionType === "sky-sport-now"') &&
     sourcesView.includes('source.actionLabel || "Open source"'),
   "Reezn is prominent in Settings and remains isolated from Sky login controls"
+);
+
+
+expect(
+  reeznCardAction.includes('data-mg-reezn-card-action="true"') &&
+    reeznCardAction.includes('aria-label="Open Reezn"') &&
+    mediaCard.includes('<ReeznCardAction') &&
+    moviesView.includes('<ReeznCardAction') &&
+    tvShowsView.includes('<ReeznCardAction'),
+  "Reezn action remains visible on home, movie and TV browse cards"
 );
 
 const requiredViews = [
