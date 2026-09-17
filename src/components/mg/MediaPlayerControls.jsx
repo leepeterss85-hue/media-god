@@ -35,6 +35,7 @@ import {
 } from "@/components/mg/mediaTrackPreferences";
 import { concisePlaybackSourceLabel } from "@/components/mg/playbackSourceLabels";
 import {
+  availableSourceSortOptions,
   readSourceSortMode,
   sortSourceEntries,
   sourceIsUserSelectable,
@@ -179,6 +180,7 @@ export default function MediaPlayerControls({
   videoRef,
   stageRef,
   isLive = false,
+  mediaType = "",
   onFullscreen,
   isAppFullscreen = false,
   onBack,
@@ -213,12 +215,30 @@ export default function MediaPlayerControls({
     () => readTrackPreferences()
   );
 
+  const availableSortOptions = availableSourceSortOptions(sources, {
+    mediaType,
+  });
+  const availableSortOptionValues = availableSortOptions
+    .map((option) => option.value)
+    .join("|");
+
+  useEffect(() => {
+    if (!availableSortOptionValues.split("|").includes(sourceSortMode)) {
+      setSourceSortMode(writeSourceSortMode("best"));
+    }
+  }, [availableSortOptionValues, sourceSortMode]);
+
   const sortedSourceEntries = sortSourceEntries(
     sources,
     sourceSortMode
   );
-  const selectableSourceEntries = sortedSourceEntries.filter(({ item }) =>
-    sourceIsUserSelectable(item)
+  const selectableSourceEntries = sortedSourceEntries.filter(
+    ({ item, index }) =>
+      sourceIsUserSelectable(item) &&
+      !(
+        (typeof failedSources?.has === "function" && failedSources.has(index)) ||
+        (Array.isArray(failedSources) && failedSources.includes(index))
+      )
   );
 
   const [sourceChoicePinned, setSourceChoicePinned] = useState(false);
@@ -1655,7 +1675,7 @@ export default function MediaPlayerControls({
               </p>
             </div>
 
-            {sources.length > 1 ? (
+            {availableSortOptions.length > 1 ? (
               <select
                 value={sourceSortMode}
                 onChange={(event) => {
@@ -1678,10 +1698,10 @@ export default function MediaPlayerControls({
                 onFocus={focusSelectControl}
                 onBlur={blurSelectControl}
                 className="hidden min-h-10 w-[10.5rem] shrink-0 rounded-lg border border-white/15 bg-black/60 px-2 text-xs font-medium text-white outline-none backdrop-blur transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/30 md:block"
-                aria-label="Sort playback sources or choose edition"
-                title="Sort playback sources or choose edition"
+                aria-label="Filter available playback sources"
+                title="Filter available playback sources"
               >
-                {SOURCE_SORT_OPTIONS.map((option) => (
+                {availableSortOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
