@@ -6,6 +6,39 @@
  * the ordinary WebView player would otherwise flash its Exit/title/source UI.
  * Keep the player surface pure black until native playback takes over again.
  */
+/*
+ * Keep an independent full-screen curtain above the WebView during the native
+ * episode-to-episode handoff. The React player is intentionally remounted for
+ * a fresh torrent/media session; without this curtain, its one-frame teardown
+ * can expose the season/episode page underneath.
+ */
+body.mg-fire-tv-seamless-next::after {
+  content: "Loading next episode…";
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  background: #000;
+  color: rgba(255, 255, 255, 0.72);
+  font: 600 16px/1.4 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: 0.02em;
+  pointer-events: auto;
+  animation: mg-seamless-next-pulse 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes mg-seamless-next-pulse {
+  from {
+    color: rgba(255, 255, 255, 0.42);
+  }
+
+  to {
+    color: rgba(255, 255, 255, 0.9);
+  }
+}
+
 html.mg-fire-tv-seamless-next [data-mg-player-root="true"],
 body.mg-fire-tv-seamless-next [data-mg-player-root="true"] {
   background: #000 !important;
