@@ -3,6 +3,9 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import {
+  createPortal,
+} from "react-dom";
 
 import {
   FastForward,
@@ -13,10 +16,23 @@ import {
 
 import { cn } from "@/lib/utils";
 
+const getPlayerRoot = () => {
+  if (typeof document === "undefined") return null;
+
+  const root = document.querySelector(
+    '[data-mg-player-root="true"]'
+  );
+
+  return root instanceof HTMLElement && root.isConnected
+    ? root
+    : null;
+};
+
 const getVisibleVideo = () => {
   if (typeof document === "undefined") return null;
 
-  const videos = Array.from(document.querySelectorAll("video"));
+  const root = getPlayerRoot() || document;
+  const videos = Array.from(root.querySelectorAll("video"));
 
   return (
     videos.find((video) => {
@@ -91,6 +107,41 @@ export default function MediaGodV2Assist() {
   const [nextCountdownDeadline, setNextCountdownDeadline] = useState(0);
   const [nextCountdownSeconds, setNextCountdownSeconds] = useState(0);
   const [nextCountdownCancelled, setNextCountdownCancelled] = useState(false);
+  const [portalTarget, setPortalTarget] = useState(() => getPlayerRoot());
+
+  useEffect(() => {
+    if (typeof document === "undefined") return undefined;
+
+    let frame = 0;
+
+    const refreshTarget = () => {
+      frame = 0;
+      const nextTarget = getPlayerRoot();
+      setPortalTarget((current) =>
+        current === nextTarget ? current : nextTarget
+      );
+    };
+
+    const scheduleRefresh = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(refreshTarget);
+    };
+
+    const observer = new MutationObserver(scheduleRefresh);
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+
+    window.addEventListener("mg:player-context", scheduleRefresh);
+    refreshTarget();
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("mg:player-context", scheduleRefresh);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -329,7 +380,17 @@ export default function MediaGodV2Assist() {
     playing,
   ]);
 
-  if (!context || !isPlayableVod) return null;
+  if (!context || !isPlayableVod || !portalTarget) return null;
+
+  const runAction = (event, action) => {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    action();
+  };
+
+  const stopPointerPropagation = (event) => {
+    event?.stopPropagation?.();
+  };
 
   const skipRecap = () => {
     const exactTarget =
