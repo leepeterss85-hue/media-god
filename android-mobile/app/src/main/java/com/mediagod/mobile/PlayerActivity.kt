@@ -362,6 +362,37 @@ class PlayerActivity : Activity() {
         )
     }
 
+    private fun clearPlaybackWatchdogs() {
+        if (!::playerView.isInitialized) return
+        playerView.removeCallbacks(startupTimeoutRunnable)
+        playerView.removeCallbacks(stallTimeoutRunnable)
+    }
+
+    private fun armStartupWatchdog() {
+        if (resultSent || compatibilityPlayerOpen || !::playerView.isInitialized) return
+        clearPlaybackWatchdogs()
+        playerView.postDelayed(
+            startupTimeoutRunnable,
+            if (live) LIVE_STARTUP_TIMEOUT_MS else VOD_STARTUP_TIMEOUT_MS
+        )
+    }
+
+    private fun armStallWatchdog() {
+        if (
+            resultSent ||
+            compatibilityPlayerOpen ||
+            !playbackStarted ||
+            !::playerView.isInitialized
+        ) {
+            return
+        }
+        clearPlaybackWatchdogs()
+        playerView.postDelayed(
+            stallTimeoutRunnable,
+            if (live) LIVE_STALL_TIMEOUT_MS else VOD_STALL_TIMEOUT_MS
+        )
+    }
+
     private fun initialisePlayer() {
         if (player != null || resultSent || compatibilityPlayerOpen) {
             return
