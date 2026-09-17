@@ -89,6 +89,17 @@ expect(
 );
 
 expect(
+  videoPlayer.includes('({ item }) => sourceIsUserSelectable(item)') &&
+    videoPlayer.includes('failedSourcesRef.current.has(index)') &&
+    videoPlayer.includes('Unavailable • ${visibleLabel}') &&
+    videoPlayer.includes('const automaticReadySourceIndex') &&
+    videoPlayer.includes('Opening a ready source while Media God prepares the other torrents in the background') &&
+    videoPlayer.includes('rdCacheEngineOwnsPollingRef.current = false') &&
+    videoPlayer.includes('}, 1_500);'),
+  "cached source search keeps the full ready list, retries failed rows manually and continues hidden background caching"
+);
+
+expect(
   assist.includes("runClickFallback") &&
     assist.includes("runKeyAction") &&
     assist.includes("!(recapEnd > 0)") &&
