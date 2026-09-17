@@ -109,6 +109,13 @@ expect(
 );
 
 expect(
+  videoPlayer.includes('if (next === "4k" || next === "1080p")') &&
+    videoPlayer.includes('? Number(entry.resolution || 0) >= 2000') &&
+    videoPlayer.includes('selectSource(match.index, match.item);'),
+  "4K and 1080p quality choices switch to a real ready source instead of only sorting the list"
+);
+
+expect(
   assist.includes("runClickFallback") &&
     assist.includes("runKeyAction") &&
     assist.includes("!(recapEnd > 0)") &&
