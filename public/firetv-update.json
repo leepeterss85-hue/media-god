@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 39,
-  "versionName": "1.4.34",
+  "versionCode": 40,
+  "versionName": "1.4.35",
   "title": "Media God Fire TV",
-  "message": "Fire TV 1.4.34 adds expired-link recovery: HTTP 401, 403 and 410 failures now return to Media God so the same movie or episode stream is refreshed and resumed at the saved position before any backup source is tried.",
+  "message": "Fire TV 1.4.35 stabilises movie and episode playback with one playback owner. Ordinary buffering no longer opens extra streams, duplicate recovery callbacks are blocked, and only genuine playback errors can replace a running stream.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
