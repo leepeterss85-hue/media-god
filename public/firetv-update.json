@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 30,
-  "versionName": "1.4.25",
+  "versionCode": 31,
+  "versionName": "1.4.26",
   "title": "Media God Fire TV",
-  "message": "Fire TV 1.4.25 finishes TV-series playback: next episodes prepare after the first minute, season and episode navigation stays available, recap/intro/credits can be skipped, credits can jump straight to the next episode, and Auto Next now uses a cancellable countdown with a seamless handoff.",
+  "message": "Fire TV 1.4.26 makes Skip Intro and Next Episode reliably selectable with the remote, prepares the following episode immediately, reuses its ready sources, and keeps the episode-list screen hidden behind a clean native handoff.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
