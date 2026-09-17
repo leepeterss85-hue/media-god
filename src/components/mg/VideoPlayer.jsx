@@ -55,6 +55,7 @@ import {
   recordLiveTvPlaybackResult,
 } from "@/components/mg/liveTvPlaybackLearning";
 import {
+  availableSourceSortOptions,
   readSourceSortMode,
   sortSourceEntries,
   sourceIsUserSelectable,
@@ -884,13 +885,41 @@ export default function VideoPlayer({
       : item;
   });
 
+  const playbackMediaType =
+    isLive
+      ? "live"
+      : source?.mediaType === "tv" ||
+          source?.type === "series" ||
+          source?.season != null ||
+          source?.episode != null ||
+          source?.rdSeason != null ||
+          source?.rdEpisode != null
+        ? "tv"
+        : "movie";
+
+  const availableSortOptions = availableSourceSortOptions(
+    sourcesForSelector,
+    { mediaType: playbackMediaType }
+  );
+  const availableSortOptionValues = availableSortOptions
+    .map((option) => option.value)
+    .join("|");
+
+  useEffect(() => {
+    if (!availableSortOptions.some((option) => option.value === sourceSortMode)) {
+      setSourceSortMode(writeSourceSortMode("best"));
+    }
+  }, [availableSortOptionValues, sourceSortMode]);
+
   const sortedSourceEntries = sortSourceEntries(
     sourcesForSelector,
     sourceSortMode
   );
 
-  const selectableSourceEntries = sortedSourceEntries.filter(({ item }) =>
-    sourceIsUserSelectable(item)
+  const selectableSourceEntries = sortedSourceEntries.filter(
+    ({ item, index }) =>
+      sourceIsUserSelectable(item) &&
+      !failedSources.has(index)
   );
 
   /*
@@ -7377,7 +7406,10 @@ export default function VideoPlayer({
         : [],
       sources: sourcesForSelector
         .map((candidate, index) => ({ candidate, index }))
-        .filter(({ candidate }) => sourceIsUserSelectable(candidate))
+        .filter(
+          ({ candidate, index }) =>
+            sourceIsUserSelectable(candidate) && !failedSources.has(index)
+        )
         .map(({ candidate, index }) => {
           const baseLabel = sourceDisplayLabel(candidate, index);
           const provider = String(candidate?.sourceName || "").trim();
@@ -8536,6 +8568,7 @@ export default function VideoPlayer({
                 isLive={
                   isLive
                 }
+                mediaType={playbackMediaType}
                 onFullscreen={
                   goFullscreen
                 }
@@ -8660,6 +8693,7 @@ export default function VideoPlayer({
                 isLive={
                   isLive
                 }
+                mediaType={playbackMediaType}
                 onFullscreen={
                   goFullscreen
                 }
@@ -8867,10 +8901,12 @@ export default function VideoPlayer({
               </span>
             )}
           </div>
-          {sources.length > 1 && (
-            <label className="w-[9.5rem] shrink-0 sm:w-[11.5rem]">
+          {availableSortOptions.length > 1 && (
+            <label className="w-[10.5rem] shrink-0 sm:w-[12.5rem]">
               <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.12em] text-white/40">
-                Sort / edition
+                {playbackMediaType === "tv"
+                  ? "Available quality"
+                  : "Available filters / editions"}
               </span>
 
               <select
@@ -8895,7 +8931,7 @@ export default function VideoPlayer({
                 className="min-h-11 w-full rounded-lg border border-white/10 bg-mg-card px-2 py-2.5 text-xs font-medium text-white outline-none transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/30 sm:min-h-10 sm:text-sm"
                 aria-label="Sort playback sources"
               >
-                {SOURCE_SORT_OPTIONS.map((option) => (
+                {availableSortOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
