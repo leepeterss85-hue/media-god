@@ -2174,10 +2174,32 @@ export default function VideoPlayer({
    * already started.
    */
   useEffect(() => {
+    const mountedVideo = stageRef.current?.querySelector("video");
+    const playbackAlreadyStarted =
+      mountedVideo instanceof HTMLVideoElement &&
+      !mountedVideo.paused &&
+      !mountedVideo.ended &&
+      !mountedVideo.error &&
+      mountedVideo.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
+      Number(mountedVideo.currentTime || 0) > 0.75;
+    const nativePlaybackAlreadyOwned = Boolean(
+      nativePlaybackRef.current?.requestId
+    );
+
+    /*
+     * Compatibility may choose a safer source before playback starts, but it
+     * must never replace a stream that is already visibly playing. Mid-playback
+     * codec guesses were causing unnecessary decoder teardown, position jumps
+     * and audio-track resets. Once playback owns the screen, only a real media
+     * error, an explicit Fix audio action or a deliberate source choice may
+     * replace it.
+     */
     if (
       isLive ||
       isYoutube ||
       isProvider ||
+      playbackAlreadyStarted ||
+      nativePlaybackAlreadyOwned ||
       readPlaybackPreferences().automaticNoSoundRecovery === false ||
       (activeAudioCompatibility.supported !== false && !activeLearnedSilent) ||
       automaticAudioSafeSourceIndex < 0 ||
@@ -2192,9 +2214,9 @@ export default function VideoPlayer({
     }
 
     switchToSource(automaticAudioSafeSourceIndex, {
-      preservePosition: true,
+      preservePosition: false,
       statusMessage:
-        "Audio compatibility · switching automatically to a source supported by this device…",
+        "Audio compatibility · choosing a source supported by this device…",
     });
   }, [
     activeIdx,
@@ -8079,46 +8101,15 @@ export default function VideoPlayer({
   handleNoSoundRef.current = handleNoSound;
 
 
-  /* Automatic no-sound recovery is proactive for codec combinations that are
-   * commonly silent on Android/Fire TV/browser decoders, and immediate for a
-   * source that this device has already remembered as silent. */
-  useEffect(() => {
-    if (
-      isLive || isYoutube || isProvider || rdResolving || rdPolling ||
-      rdTorrentId || rdPreparation || readPlaybackPreferences().automaticNoSoundRecovery === false
-    ) {
-      return undefined;
-    }
-
-    const candidate = rdOverride
-      ? { ...active, src: rdOverride.src || activeUrl, label: rdOverride.label || active?.label }
-      : active;
-    const label = sourceDisplayLabel(candidate, activeIdx);
-    const audioCompatibility = sourceAudioCompatibility(
-      candidate,
-      label,
-      getPlaybackDeviceProfile()
-    );
-    const rememberedSilent = hasRecentNoSoundHistory(label);
-    const knownUnsupportedAudio = audioCompatibility.supported === false;
-    const automaticAudioRisk = knownUnsupportedAudio || audioCompatibility.risky;
-    if (!rememberedSilent && !automaticAudioRisk) return undefined;
-
-    const timer = window.setTimeout(() => {
-      const video = stageRef.current?.querySelector("video");
-      if (
-        video instanceof HTMLVideoElement &&
-        !video.paused && !video.ended && !video.error
-      ) {
-        handleNoSoundRef.current?.({ automatic: true });
-      }
-    }, rememberedSilent || knownUnsupportedAudio ? 2200 : 4200);
-
-    return () => window.clearTimeout(timer);
-  }, [
-    active, activeIdx, activeUrl, isLive, isProvider, isYoutube,
-    rdOverride, rdPolling, rdResolving, rdTorrentId, rdPreparation,
-  ]);
+  /*
+   * Do not guess that a playing video is silent from its filename/codec label.
+   * Compatibility scoring and learned no-sound history are used before startup,
+   * while real decoder errors still trigger normal recovery. Once playback has
+   * started, automatic audio rescue is intentionally non-destructive: the user
+   * can invoke Fix audio, or the native/browser decoder can report a real error.
+   * This prevents the old 2–4 second timer from tearing down a healthy stream
+   * and coming back with a different/missing audio track.
+   */
 
   useEffect(() => {
     const state = autoVideoRescueRef.current;
