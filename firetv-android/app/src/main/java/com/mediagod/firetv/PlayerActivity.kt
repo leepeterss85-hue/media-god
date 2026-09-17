@@ -365,8 +365,44 @@ class PlayerActivity : Activity() {
                 }
 
                 KeyEvent.KEYCODE_DPAD_UP -> {
+                    if (
+                        ::assistControls.isInitialized &&
+                        assistControls.hasFocus()
+                    ) {
+                        playerView.requestFocus()
+                        showControllerTemporarily()
+                        return true
+                    }
+
                     if (sourceSelectorAvailable() && !sourceSpinner.hasFocus()) {
                         showSourceSelector()
+                        return true
+                    }
+                }
+
+                KeyEvent.KEYCODE_DPAD_LEFT -> {
+                    if (moveAssistFocus(-1)) {
+                        return true
+                    }
+                }
+
+                KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                    if (moveAssistFocus(1)) {
+                        return true
+                    }
+                }
+
+                KeyEvent.KEYCODE_DPAD_CENTER,
+                KeyEvent.KEYCODE_ENTER,
+                KeyEvent.KEYCODE_NUMPAD_ENTER -> {
+                    val focused = currentFocus
+                    if (
+                        ::assistControls.isInitialized &&
+                        assistControls.hasFocus() &&
+                        focused is Button &&
+                        focused.visibility == View.VISIBLE
+                    ) {
+                        focused.performClick()
                         return true
                     }
                 }
