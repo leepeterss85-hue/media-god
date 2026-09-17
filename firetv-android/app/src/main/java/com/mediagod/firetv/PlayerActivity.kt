@@ -49,6 +49,8 @@ class PlayerActivity : Activity() {
         private const val CONTROLLER_HIDE_DELAY_MS = 2500L
         private const val LIVE_STARTUP_TIMEOUT_MS = 15000L
         private const val LIVE_STALL_TIMEOUT_MS = 12000L
+        private const val VOD_STARTUP_TIMEOUT_MS = 20000L
+        private const val VOD_STALL_TIMEOUT_MS = 30000L
         private const val NEXT_EPISODE_COUNTDOWN_MS = 10000L
     }
 
@@ -58,7 +60,8 @@ class PlayerActivity : Activity() {
         val headers: Map<String, String>,
         val mimeType: String,
         val drm: JSONObject?,
-        val webIndex: Int
+        val webIndex: Int,
+        val failed: Boolean
     )
 
     private lateinit var playerView: PlayerView
@@ -98,8 +101,11 @@ class PlayerActivity : Activity() {
     private var compatibilityPlayerOpen = false
 
     private val failedLiveSourceIndexes = linkedSetOf<Int>()
+    private val failedVodSourceIndexes = linkedSetOf<Int>()
     private var livePlaybackStarted = false
     private var liveRecoveryPending = false
+    private var vodPlaybackStarted = false
+    private var vodRecoveryPending = false
 
     private fun hostedProviderDescriptor(): String {
         val payloadLabel = payload.optString("sourceLabel").trim()
@@ -165,6 +171,18 @@ class PlayerActivity : Activity() {
     private val liveStallTimeoutRunnable = Runnable {
         if (!resultSent && live && livePlaybackStarted) {
             recoverLivePlayback("Live TV stopped responding.")
+        }
+    }
+
+    private val vodStartupTimeoutRunnable = Runnable {
+        if (!resultSent && !live && !vodPlaybackStarted) {
+            recoverVodPlayback("This stream took too long to start.")
+        }
+    }
+
+    private val vodStallTimeoutRunnable = Runnable {
+        if (!resultSent && !live && vodPlaybackStarted) {
+            recoverVodPlayback("Playback stopped responding.")
         }
     }
 
