@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 14,
-  "versionName": "1.0.13",
+  "versionCode": 15,
+  "versionName": "1.0.14",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.13 adds advanced playback controls for phones and tablets: automatic no-sound recovery, Auto/Stereo/Surround/Passthrough audio modes, subtitle selection, lip-sync adjustment, network-aware 4K preflight, learned decoder blacklisting, HDR rescue, thermal/memory protection, dialogue boost, volume normalization and richer diagnostics.",
+  "message": "Media God Mobile 1.0.14 packages the latest completed TV-series episode experience for Android phones and tablets, including the existing season and episode navigation, skip controls, Auto Next countdown and early next-episode preparation, without changing Live TV or the media player's established playback behavior.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
