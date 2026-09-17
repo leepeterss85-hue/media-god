@@ -429,7 +429,8 @@ class PlayerActivity : Activity() {
 
                 KeyEvent.KEYCODE_DPAD_CENTER,
                 KeyEvent.KEYCODE_ENTER,
-                KeyEvent.KEYCODE_NUMPAD_ENTER -> {
+                KeyEvent.KEYCODE_NUMPAD_ENTER,
+                KeyEvent.KEYCODE_BUTTON_A -> {
                     val focused = currentFocus
                     if (
                         ::assistControls.isInitialized &&
@@ -455,6 +456,13 @@ class PlayerActivity : Activity() {
                     ) {
                         firstVisibleAssistButton()?.requestFocus()
                         showControllerTemporarily()
+                        return true
+                    }
+                }
+
+                KeyEvent.KEYCODE_MEDIA_NEXT -> {
+                    if (isTvEpisode()) {
+                        finishWithResult("next")
                         return true
                     }
                 }
@@ -764,7 +772,7 @@ class PlayerActivity : Activity() {
             tvEpisode &&
                 introEndMs < 0L &&
                 playingNow &&
-                position in 45_000L..420_000L &&
+                position in 1_000L..420_000L &&
                 (duration <= 0L || remaining > 120_000L)
 
         val creditsFallbackWindow =
@@ -815,7 +823,7 @@ class PlayerActivity : Activity() {
                 duration >= 180_000L &&
                 position >= 60_000L &&
                 (exactCredits || remaining <= 15_000L)
-        val showNext = tvEpisode && (nextEpisodeWindow || exactCredits)
+        val showNext = tvEpisode && position >= 1_000L
 
         setAssistVisible(playNextButton, showNext)
 
