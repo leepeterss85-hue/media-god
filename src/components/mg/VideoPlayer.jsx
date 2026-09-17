@@ -6431,7 +6431,16 @@ export default function VideoPlayer({
   ]);
 
   useEffect(() => {
-    if (isLive || sources.length <= 1) {
+    /*
+     * Once a movie/episode is genuinely playing, normal buffering must not
+     * authorize an automatic source hop. Hard media/HTTP/decoder failures have
+     * their own explicit recovery paths; this legacy polling watchdog is kept
+     * disabled so it cannot race them and open multiple replacement streams.
+     */
+    const midPlaybackSourceHoppingAllowed =
+      readPlaybackPreferences().midPlaybackSourceHopping === true;
+
+    if (!midPlaybackSourceHoppingAllowed || isLive || sources.length <= 1) {
       return undefined;
     }
 
