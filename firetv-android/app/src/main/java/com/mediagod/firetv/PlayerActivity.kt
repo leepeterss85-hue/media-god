@@ -1522,6 +1522,10 @@ class PlayerActivity : Activity() {
                         livePlaybackStarted = true
                         liveRecoveryPending = false
                         clearLiveWatchdogs()
+                    } else {
+                        vodPlaybackStarted = true
+                        vodRecoveryPending = false
+                        clearVodWatchdogs()
                     }
                 } else {
                     window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -1533,6 +1537,13 @@ class PlayerActivity : Activity() {
                         exoPlayer.playbackState == Player.STATE_BUFFERING
                     ) {
                         armLiveStallWatchdog()
+                    } else if (
+                        !live &&
+                        vodPlaybackStarted &&
+                        exoPlayer.playWhenReady &&
+                        exoPlayer.playbackState == Player.STATE_BUFFERING
+                    ) {
+                        armVodStallWatchdog()
                     }
                 }
             }
@@ -1562,19 +1573,40 @@ class PlayerActivity : Activity() {
                     return
                 }
 
-                if (playbackState == Player.STATE_READY) {
-                    val durationMs = exoPlayer.duration.takeIf { it > 0L } ?: 0L
-                    if (isHostedProviderErrorClip(durationMs)) {
-                        finishWithResult(
-                            "error",
-                            "AIOStreams / ElfHosted returned a short error clip instead of the requested release."
-                        )
-                        return
+                when (playbackState) {
+                    Player.STATE_BUFFERING -> {
+                        if (vodPlaybackStarted) {
+                            armVodStallWatchdog()
+                        } else {
+                            armVodStartupWatchdog()
+                        }
                     }
-                }
 
-                if (playbackState == Player.STATE_ENDED) {
-                    finishWithResult("ended")
+                    Player.STATE_READY -> {
+                        if (exoPlayer.isPlaying) {
+                            vodPlaybackStarted = true
+                            clearVodWatchdogs()
+                        }
+
+                        val durationMs = exoPlayer.duration.takeIf { it > 0L } ?: 0L
+                        if (isHostedProviderErrorClip(durationMs)) {
+                            if (!recoverVodPlayback(
+                                    "This provider returned an error clip instead of the requested video."
+                                )
+                            ) {
+                                finishWithResult(
+                                    "error",
+                                    "This provider returned an error clip instead of the requested video."
+                                )
+                            }
+                            return
+                        }
+                    }
+
+                    Player.STATE_ENDED -> {
+                        clearVodWatchdogs()
+                        finishWithResult("ended")
+                    }
                 }
             }
 
@@ -1583,6 +1615,10 @@ class PlayerActivity : Activity() {
                     if (live) {
                         livePlaybackStarted = false
                         armLiveStartupWatchdog()
+                    } else if (vodPlaybackStarted) {
+                        armVodStallWatchdog()
+                    } else {
+                        armVodStartupWatchdog()
                     }
                     return
                 }
@@ -1598,6 +1634,15 @@ class PlayerActivity : Activity() {
                     live &&
                     recoverLivePlayback(
                         error.message ?: "Native Fire TV Live TV playback failed."
+                    )
+                ) {
+                    return
+                }
+
+                if (
+                    !live &&
+                    recoverVodPlayback(
+                        error.message ?: "This stream could not be played."
                     )
                 ) {
                     return
@@ -1631,6 +1676,9 @@ class PlayerActivity : Activity() {
         if (live) {
             livePlaybackStarted = false
             armLiveStartupWatchdog()
+        } else {
+            vodPlaybackStarted = false
+            armVodStartupWatchdog()
         }
 
         hideControllerNow()
