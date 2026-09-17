@@ -7,6 +7,7 @@ on:
       - main
     paths:
       - "firetv-android/**"
+      - "public/firetv-update.json"
       - "src/components/mg/nativeFireTvBridge.js"
       - "src/components/mg/VideoPlayer.jsx"
       - "src/components/mg/fireTvStableMode.js"
@@ -33,6 +34,33 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Validate Fire TV update manifest version
+        run: |
+          python3 - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+
+          gradle = Path("firetv-android/app/build.gradle.kts").read_text()
+          manifest = json.loads(Path("public/firetv-update.json").read_text())
+
+          code_match = re.search(r"versionCode\s*=\s*(\d+)", gradle)
+          name_match = re.search(r'versionName\s*=\s*"([^"]+)"', gradle)
+          if not code_match or not name_match:
+              raise SystemExit("Could not read Fire TV APK version from build.gradle.kts")
+
+          apk_code = int(code_match.group(1))
+          apk_name = name_match.group(1)
+          feed_code = int(manifest.get("versionCode", 0))
+          feed_name = str(manifest.get("versionName", ""))
+
+          if (feed_code, feed_name) != (apk_code, apk_name):
+              raise SystemExit(
+                  f"Fire TV update feed {feed_name}/{feed_code} does not match APK {apk_name}/{apk_code}"
+              )
+          print(f"Fire TV update feed matches APK: {apk_name} (code {apk_code})")
+          PY
 
       - name: Set up Java 17
         uses: actions/setup-java@v4

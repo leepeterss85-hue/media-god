@@ -71,6 +71,9 @@ const nativeReleaseInfo = await read("src/components/mg/nativeReleaseInfo.js");
 const pageErrorBoundary = await read("src/components/mg/PageErrorBoundary.jsx");
 const fireTvRelease = await read("public/firetv-update.json");
 const fireTvReleaseData = JSON.parse(fireTvRelease);
+const fireTvGradle = await read("firetv-android/app/build.gradle.kts");
+const fireTvGradleVersionCode = Number(fireTvGradle.match(/versionCode\s*=\s*(\d+)/)?.[1] || 0);
+const fireTvGradleVersionName = fireTvGradle.match(/versionName\s*=\s*"([^"]+)"/)?.[1] || "";
 
 const requiredViews = [
   ["home", "Home"],
@@ -607,6 +610,13 @@ expect(
     String(fireTvReleaseData?.apkUrl || "").includes("Media-God-Fire-TV.apk") &&
     String(fireTvReleaseData?.channel || "") === "fire-tv",
   "Fire TV update manifest is missing valid version or APK metadata"
+);
+expect(
+  fireTvGradleVersionCode > 0 &&
+    fireTvGradleVersionName &&
+    Number(fireTvReleaseData.versionCode) === fireTvGradleVersionCode &&
+    String(fireTvReleaseData.versionName) === fireTvGradleVersionName,
+  `Fire TV update manifest ${fireTvReleaseData.versionName || "?"}/${fireTvReleaseData.versionCode || "?"} does not match APK ${fireTvGradleVersionName || "?"}/${fireTvGradleVersionCode || "?"}`
 );
 
 expect(
