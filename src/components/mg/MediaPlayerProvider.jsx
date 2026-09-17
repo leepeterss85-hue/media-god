@@ -2578,6 +2578,12 @@ export function PlayerProvider({
                     .length
                 : 0,
 
+            combinedSourceCount,
+
+            cacheCandidateCount,
+
+            cachedSourceCount,
+
             browserAttempted:
               Boolean(
                 addonLookup
