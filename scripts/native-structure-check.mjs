@@ -182,7 +182,7 @@ for (const app of apps) {
     [
       playerActivity.includes("isHostedProviderErrorClip") &&
         playerActivity.includes("115_000L..125_000L") &&
-        playerActivity.includes("AIOStreams / ElfHosted returned a short error clip"),
+        playerActivity.includes("This provider returned an error clip instead of the requested video."),
       "AIOStreams/ElfHosted short error-clip failover",
     ],
     [playerActivity.includes("CompatibilityPlayerActivity::class.java"), "runtime compatibility decoder fallback"],
