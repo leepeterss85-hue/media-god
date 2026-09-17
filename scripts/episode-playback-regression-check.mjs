@@ -143,9 +143,21 @@ expect(
     mediaPlayerProvider.includes('cacheCandidateCount,') &&
     mediaPlayerProvider.includes('cachedSourceCount,') &&
     videoPlayer.includes('data-mg-source-health="true"') &&
+    videoPlayer.includes('data-mg-playback-details="true"') &&
     videoPlayer.includes('Cache checked') &&
     videoPlayer.includes('Ready {selectableSourceCount}'),
-  "player exposes source-health counts for discovery, cache checks, cached hits and ready sources"
+  "player keeps source-health diagnostics available behind Playback details"
+);
+
+expect(
+  videoPlayer.includes('Getting your video ready…') &&
+    videoPlayer.includes('We’re having trouble with this stream') &&
+    videoPlayer.includes('Preparing more streams…') &&
+    videoPlayer.includes('Stream / quality') &&
+    videoPlayer.includes('Sound help') &&
+    videoPlayer.includes('(displayedError || audioNeedsAttention)') &&
+    !videoPlayer.includes('Retry this source</button>'),
+  "normal playback uses simple consumer-facing language while troubleshooting controls stay contextual"
 );
 
 expect(
