@@ -155,8 +155,13 @@ expect(
     mediaPlayerProvider.includes('audioCapability.supported === false') &&
     mediaPlayerProvider.includes('? -120000') &&
     sourcePreferences.includes('sourceAudioCompatibility') &&
-    sourcePreferences.includes('audio.supported === false'),
-  "actual device audio decoder support outranks resolution and drives automatic no-sound recovery"
+    sourcePreferences.includes('audio.supported === false') &&
+    videoPlayer.includes('const automaticAudioSafeSourceIndex') &&
+    videoPlayer.includes('activeAudioCompatibility.supported !== false') &&
+    videoPlayer.includes('Audio compatibility · switching automatically') &&
+    videoPlayer.includes('const knownUnsupportedAudio = audioCompatibility.supported === false') &&
+    videoPlayer.includes('rememberedSilent || knownUnsupportedAudio ? 2200 : 4200'),
+  "actual device audio support automatically chooses a safer ready source and triggers no-sound rescue without user input"
 );
 
 expect(
