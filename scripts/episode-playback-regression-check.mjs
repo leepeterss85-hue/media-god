@@ -137,6 +137,16 @@ expect(
 );
 
 expect(
+  mediaPlayerProvider.includes('const combinedSourceCount = cacheAnnotatedCombined.length') &&
+    mediaPlayerProvider.includes('cacheCandidateCount,') &&
+    mediaPlayerProvider.includes('cachedSourceCount,') &&
+    videoPlayer.includes('data-mg-source-health="true"') &&
+    videoPlayer.includes('Cache checked') &&
+    videoPlayer.includes('Ready {selectableSourceCount}'),
+  "player exposes source-health counts for discovery, cache checks, cached hits and ready sources"
+);
+
+expect(
   assist.includes("runClickFallback") &&
     assist.includes("runKeyAction") &&
     assist.includes("!(recapEnd > 0)") &&
