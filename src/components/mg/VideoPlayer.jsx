@@ -885,7 +885,9 @@ export default function VideoPlayer({
   });
 
   const playbackMediaType =
-    isLive
+    source?.type === "live" ||
+    sources[activeIdx]?.live ||
+    sources[activeIdx]?.type === "live"
       ? "live"
       : source?.mediaType === "tv" ||
           source?.type === "series" ||
@@ -905,7 +907,7 @@ export default function VideoPlayer({
     .join("|");
 
   useEffect(() => {
-    if (!availableSortOptions.some((option) => option.value === sourceSortMode)) {
+    if (!availableSortOptionValues.split("|").includes(sourceSortMode)) {
       setSourceSortMode(writeSourceSortMode("best"));
     }
   }, [availableSortOptionValues, sourceSortMode]);

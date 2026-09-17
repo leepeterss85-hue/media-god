@@ -314,8 +314,12 @@ test("edition choices are wired into source labels and player selectors", () => 
   );
 
   assert.match(labels, /detectMediaEdition/);
-  assert.match(sourcePreferences, /edition:\$\{option\.value\}/);
-  assert.match(player, /Sort \/ edition/);
+  assert.match(sourcePreferences, /availableSourceSortOptions/);
+  assert.match(sourcePreferences, /mediaType !== "tv"/);
+  assert.match(sourcePreferences, /editionValues\.has\(option\.value\)/);
+  assert.match(player, /Available quality/);
+  assert.match(player, /Available filters \/ editions/);
+  assert.match(player, /availableSortOptions\.map/);
   assert.match(player, /sourceHasEdition\(entry\.item, edition\)/);
 });
 
