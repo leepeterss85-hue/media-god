@@ -1,5 +1,19 @@
 export const UPDATE_HISTORY = [
   {
+    id: "opening-controls-zero-marker-repair-2026-09-17-v1",
+    date: "17 September 2026",
+    title: "Skip Recap and Skip Intro restored for empty chapter markers",
+    summary:
+      "TV episodes such as Reacher now keep opening skip controls available even when the provider sends zero or unusable chapter endpoints instead of omitting them.",
+    changes: [
+      "Zero-valued recap and intro endpoints are treated as missing metadata, so the safe opening fallbacks are used instead of suppressing the buttons.",
+      "Skip Recap remains available through the first 90 seconds when no usable recap endpoint exists.",
+      "Skip Intro remains available from 30 seconds through seven minutes when no usable intro endpoint exists, covering longer cold opens.",
+      "The recap fallback no longer disappears just because playback is paused or buffering.",
+      "Fire TV advances to 1.4.31 (versionCode 36) and Android Mobile to 1.0.18 (versionCode 19), ensuring installed apps recognise this as a newer native release.",
+    ],
+  },
+  {
     id: "fire-tv-1-4-30-update-delivery-2026-09-17-v1",
     date: "17 September 2026",
     title: "Fire TV 1.4.30 update delivery repaired",
