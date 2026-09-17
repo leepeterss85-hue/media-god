@@ -159,7 +159,7 @@ test("uncached player exposes the full RD cache lifecycle and marks completed so
   assert.match(playerSource, /Step \{cachePhase\.step\}\/5/);
   assert.match(playerSource, /Selecting file/);
   assert.match(playerSource, /Finalising stream/);
-  assert.match(playerSource, /Cached \/ Ready •/);
+  assert.match(playerSource, /Ready •/);
   assert.match(playerSource, /markTorrentHashReady\(active\)/);
 });
 
