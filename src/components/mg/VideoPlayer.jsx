@@ -853,6 +853,12 @@ export default function VideoPlayer({
   const nativeLaunchTimerRef = useRef(null);
   const liveRecoveryNoticeTimerRef = useRef(null);
   const streamActionGenerationRef = useRef(0);
+  const sourceSwitchCoordinatorRef = useRef({
+    playRequestId: null,
+    fromIndex: -1,
+    targetIndex: -1,
+    startedAt: 0,
+  });
 
   useEffect(() => {
     return () => {
@@ -1578,6 +1584,38 @@ export default function VideoPlayer({
       manualSelection = false,
     } = {}
   ) => {
+    const requestedIndex = Number(nextIndex);
+    const playRequestId = source?.playRequestId ?? null;
+    const now = Date.now();
+    const currentSwitch = sourceSwitchCoordinatorRef.current;
+
+    if (
+      !Number.isInteger(requestedIndex) ||
+      requestedIndex < 0 ||
+      requestedIndex >= sources.length ||
+      requestedIndex === activeIdx
+    ) {
+      return false;
+    }
+
+    /*
+     * Only one transition may leave a given source. Several browser/native
+     * callbacks can report the same failure within the same render frame; before
+     * React commits the first switch they all still see the old activeIdx. The
+     * old behaviour let every callback open another stream in turn. Reject all
+     * duplicate transitions from that same source for a short handoff window.
+     * A genuine failure of the NEW source has a different activeIdx and remains
+     * eligible for recovery immediately.
+     */
+    if (
+      !manualSelection &&
+      currentSwitch.playRequestId === playRequestId &&
+      currentSwitch.fromIndex === activeIdx &&
+      now - Number(currentSwitch.startedAt || 0) < 8000
+    ) {
+      return false;
+    }
+
     /*
      * Never move the active source underneath an open native selector during
      * background recovery. A deliberate movie/TV source choice is allowed to
@@ -1597,6 +1635,13 @@ export default function VideoPlayer({
       releaseSourceSelector();
       releaseRdFileSelector();
     }
+
+    sourceSwitchCoordinatorRef.current = {
+      playRequestId,
+      fromIndex: activeIdx,
+      targetIndex: requestedIndex,
+      startedAt: now,
+    };
 
     streamActionGenerationRef.current += 1;
 
@@ -1634,11 +1679,24 @@ export default function VideoPlayer({
           )
         : 0;
 
+    /*
+     * Stop the old media owner synchronously before React mounts the replacement.
+     * This prevents overlapping audio/video decoders while state is changing.
+     */
+    if (currentVideo instanceof HTMLVideoElement) {
+      try {
+        currentVideo.pause();
+        currentVideo.muted = true;
+      } catch {
+        // The component cleanup will finish releasing the old decoder.
+      }
+    }
+
     if (resumeAt > 5) {
       recoveryResumeRef.current = resumeAt;
     }
 
-    clearSourceFailed(nextIndex);
+    clearSourceFailed(requestedIndex);
     setRdTorrentId(null);
     setRdManualFileSelection(null);
     setRdPreparation(null);
@@ -1651,7 +1709,7 @@ export default function VideoPlayer({
     setRdFiles([]);
     setForceNativePlayback(false);
     setNativeFallbackUrl("");
-    setActiveIdx(nextIndex);
+    setActiveIdx(requestedIndex);
 
     if (statusMessage) {
       window.dispatchEvent(
@@ -1665,6 +1723,8 @@ export default function VideoPlayer({
         })
       );
     }
+
+    return true;
   };
 
   const tryNextSource = (
