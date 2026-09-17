@@ -1,7 +1,7 @@
 {
   "channel": "android-mobile",
   "versionCode": 16,
-  "versionName": "versionName",
+  "versionName": "1.0.15",
   "title": "Media God Mobile",
   "message": "Media God Mobile 1.0.15 detects the short AIOStreams / ElfHosted error clip shown when a release cannot be fetched and automatically advances to another playable source instead of treating the error clip as the requested title.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",

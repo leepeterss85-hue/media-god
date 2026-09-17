@@ -1,7 +1,7 @@
 {
   "channel": "fire-tv",
   "versionCode": 32,
-  "versionName": "versionName",
+  "versionName": "1.4.27",
   "title": "Media God Fire TV",
   "message": "Fire TV 1.4.27 detects the short AIOStreams / ElfHosted error clip shown when a release cannot be fetched and immediately returns to Media God source failover instead of playing the error as the episode.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
