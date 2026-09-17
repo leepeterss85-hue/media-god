@@ -1969,9 +1969,20 @@ export function PlayerProvider({
               };
             }
 
-            const publishedSources = request?.allowNonPlaybackFallback
+            let publishedSources = request?.allowNonPlaybackFallback
               ? ordered
               : playable;
+
+            /*
+             * Search is allowed to enrich source metadata and append new choices,
+             * but never to renumber sources that have already been published to
+             * VideoPlayer. This makes the active index and failed-source indexes
+             * stable for the lifetime of this playback request.
+             */
+            publishedSources = preservePublishedSourceOrder(
+              existing,
+              publishedSources
+            );
 
             if (fastStartPrimaryUrl) {
               const lockedIndex = publishedSources.findIndex(
