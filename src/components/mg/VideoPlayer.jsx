@@ -8534,17 +8534,17 @@ export default function VideoPlayer({
 
                 {isLive && activeLiveSourcePosition.total > 0 ? (
                   <span className="shrink-0 font-semibold text-white/60">
-                    Source {activeLiveSourcePosition.current || 1}/{activeLiveSourcePosition.total}
+                    Stream {activeLiveSourcePosition.current || 1}/{activeLiveSourcePosition.total}
                   </span>
                 ) : selectableSourceCount > 0 ? (
                   <span className="shrink-0">
-                    {selectableSourceCount} {selectableSourceCount === 1 ? "source" : "sources"}
+                    {selectableSourceCount} {selectableSourceCount === 1 ? "stream" : "streams"}
                   </span>
                 ) : null}
 
                 {failedSourceCount > 0 && (
                   <span className="shrink-0 text-white/30">
-                    · {failedSourceCount} unavailable
+                    · {failedSourceCount} skipped
                   </span>
                 )}
               </div>
@@ -9335,7 +9335,8 @@ export default function VideoPlayer({
 
           {nativePlaybackAvailable &&
             !isLive &&
-            !forceNativePlayback && (
+            !forceNativePlayback &&
+            (displayedError || audioNeedsAttention) && (
               <button
                 type="button"
                 data-mg-native-decoder="true"
@@ -9353,6 +9354,7 @@ export default function VideoPlayer({
               </button>
             )}
 
+          {(displayedError || audioNeedsAttention || readPlaybackPreferences().automaticNoSoundRecovery === false) && (
           <button
             type="button"
             data-mg-no-sound="true"
@@ -9373,6 +9375,7 @@ export default function VideoPlayer({
             <VolumeX className="h-4 w-4" />
             <span className="hidden sm:inline">Sound help</span>
           </button>
+          )}
 
         </div>
 
@@ -9413,7 +9416,7 @@ export default function VideoPlayer({
                   }
                   className="min-h-9 shrink-0 rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green"
                 >
-                  Retry
+                  Try again
                 </button>
               )}
             </div>
