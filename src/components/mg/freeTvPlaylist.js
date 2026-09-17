@@ -301,10 +301,10 @@ export const LIVE_TV_SOURCES = [
   },
   {
     id: "iptv-org-music",
-    name: "IPTV-org Music",
+    name: "IPTV-org Video Channels",
     url: "https://iptv-org.github.io/iptv/categories/music.m3u",
     priority: 78,
-    category: "Music",
+    category: "Video Channels",
   },
   {
     id: "iptv-org-comedy",
@@ -850,7 +850,7 @@ export const PUBLIC_DIRECT_CHANNELS = [
     name: "V2BEAT TV",
     logo: "https://i.imgur.com/PXGqyLn.png",
     url: "https://abr.de1se01.v2beat.live/playlist.m3u8",
-    category: "Music",
+    category: "Video Channels",
     country: "GB",
     priority: 108,
     sourceName: "V2BEAT Public",
@@ -862,7 +862,7 @@ export const PUBLIC_DIRECT_CHANNELS = [
     name: "Afrobeat TV Entertainment",
     logo: "https://i.imgur.com/232ndRK.png",
     url: "https://stream.ecable.tv/afrobeats/index.m3u8",
-    category: "Music",
+    category: "Video Channels",
     country: "GB",
     priority: 108,
     sourceName: "Afrobeat TV Public",
@@ -1431,6 +1431,13 @@ const inferTags = ({ sourceCategory, group, name, country }) => {
   if (motorsport) tags.add("Motorsport");
   if (/movie|cinema|film/.test(joined)) tags.add("Movies");
   if (/news/.test(joined)) tags.add("News");
+  if (
+    /video channels|music video|\bmtv\b|\bvevo\b/.test(joined) ||
+    (String(sourceCategory || "").toLowerCase() === "video channels" &&
+      !/\bradio\b/.test(joined))
+  ) {
+    tags.add("Video Channels");
+  }
   if (/united kingdom|\buk\b|great britain/.test(joined) || /^(gb|uk)$/i.test(String(country || ""))) {
     tags.add("United Kingdom");
   }
