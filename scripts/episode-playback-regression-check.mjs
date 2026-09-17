@@ -19,6 +19,10 @@ const edition = read("src/components/mg/mediaEdition.js");
 const sourcePreferences = read("src/components/mg/sourceSelectorPreferences.js");
 const controls = read("src/components/mg/MediaPlayerControls.jsx");
 const mobileNative = read("android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt");
+const trackPreferences = read("src/components/mg/mediaTrackPreferences.js");
+const nativeBridge = read("src/components/mg/nativeFireTvBridge.js");
+const fireCompatibility = read("firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt");
+const mobileCompatibility = read("android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt");
 
 expect(
   provider.includes("currentTime < 60") &&
@@ -87,11 +91,15 @@ expect(
 expect(
   assist.includes("runClickFallback") &&
     assist.includes("runKeyAction") &&
-    assist.includes("position >= 1") &&
+    assist.includes("position <= 300") &&
+    assist.includes("const showNextAction =") &&
+    assist.includes("nextEpisodeWindow || autoNextCountdownWindow") &&
     assist.includes("z-[120]") &&
-    native.includes("position in 1_000L..420_000L") &&
-    native.includes("val showNext = tvEpisode && position >= 1_000L"),
-  "episode controls respond on first interaction and keep Play Next available during TV playback"
+    native.includes("position in 0L..300_000L") &&
+    native.includes("val showNext = nextEpisodeWindow") &&
+    mobileNative.includes("position in 0L..300_000L") &&
+    mobileNative.includes("val showNext = nextEpisodeWindow"),
+  "Skip Intro remains available in the opening window and Play Next only appears near the episode end"
 );
 
 expect(
@@ -101,6 +109,17 @@ expect(
     mobileNative.includes('finishWithResult("next")') &&
     mobileNative.includes("NEXT_EPISODE_COUNTDOWN_MS"),
   "Android mobile native player keeps the TV episode skip and next controls"
+);
+
+expect(
+  trackPreferences.includes("subtitlesEnabled: false") &&
+    trackPreferences.includes("SUBTITLE_PREFERENCE_VERSION = 2") &&
+    nativeBridge.includes("subtitlesEnabled = false") &&
+    native.includes('optBoolean("subtitlesEnabled", false)') &&
+    mobileNative.includes('optBoolean("subtitlesEnabled", false)') &&
+    fireCompatibility.includes('optBoolean("subtitlesEnabled", false)') &&
+    mobileCompatibility.includes('optBoolean("subtitlesEnabled", false)'),
+  "subtitles default off across web, Fire TV, Android mobile and compatibility playback"
 );
 
 expect(
