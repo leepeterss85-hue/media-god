@@ -2757,6 +2757,11 @@ export default function VideoPlayer({
       .then((result) => {
         if (controller.signal.aborted || !result) return;
 
+        if (rdCacheEngineAbortRef.current === controller) {
+          rdCacheEngineAbortRef.current = null;
+          rdCacheEngineOwnsPollingRef.current = false;
+        }
+
         if (result.status === "ready" && result.streamUrl) {
           markTorrentHashReady(active);
           setRdOverride({
@@ -2892,6 +2897,11 @@ export default function VideoPlayer({
       })
       .catch((error) => {
         if (controller.signal.aborted || error?.name === "AbortError") return;
+
+        if (rdCacheEngineAbortRef.current === controller) {
+          rdCacheEngineAbortRef.current = null;
+          rdCacheEngineOwnsPollingRef.current = false;
+        }
 
         /*
          * An unexpected cache-engine exception is not proof that the selected
