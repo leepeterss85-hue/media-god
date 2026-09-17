@@ -91,15 +91,23 @@ expect(
 expect(
   assist.includes("runClickFallback") &&
     assist.includes("runKeyAction") &&
-    assist.includes("position <= 300") &&
+    assist.includes("!(recapEnd > 0)") &&
+    assist.includes("position <= 90") &&
+    assist.includes("!(introEnd > 0)") &&
+    assist.includes("position <= 420") &&
     assist.includes("const showNextAction =") &&
     assist.includes("nextEpisodeWindow || autoNextCountdownWindow") &&
     assist.includes("z-[120]") &&
-    native.includes("position in 0L..300_000L") &&
+    native.includes("recapEndMs <= 0L") &&
+    native.includes("position in 0L..90_000L") &&
+    native.includes("introEndMs <= 0L") &&
+    native.includes("position in 30_000L..420_000L") &&
     native.includes("val showNext = nextEpisodeWindow") &&
-    mobileNative.includes("position in 0L..300_000L") &&
+    mobileNative.includes("recapEndMs <= 0L") &&
+    mobileNative.includes("introEndMs <= 0L") &&
+    mobileNative.includes("position in 30_000L..420_000L") &&
     mobileNative.includes("val showNext = nextEpisodeWindow"),
-  "Skip Intro remains available in the opening window and Play Next only appears near the episode end"
+  "zero or missing opening markers keep Skip Recap and Skip Intro available while Play Next stays end-only"
 );
 
 expect(
