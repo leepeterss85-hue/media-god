@@ -8505,7 +8505,7 @@ export default function VideoPlayer({
               <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[10px] text-white/45 sm:text-[11px]">
                 <span
                   className={`inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 font-semibold ${
-                    playerUiStatus === "Source issue"
+                    playerUiStatus === "Needs attention"
                       ? "bg-red-500/15 text-red-300"
                       : playerUiStatus === "Ready" || playerUiStatus === "Live"
                         ? "bg-mg-green/15 text-mg-green"
@@ -8513,7 +8513,7 @@ export default function VideoPlayer({
                   }`}
                 >
                   <span className={`h-1.5 w-1.5 rounded-full ${
-                    playerUiStatus === "Source issue"
+                    playerUiStatus === "Needs attention"
                       ? "bg-red-400"
                       : playerUiStatus === "Ready" || playerUiStatus === "Live"
                         ? "bg-mg-green"
@@ -8596,18 +8596,18 @@ export default function VideoPlayer({
 
               <div className="w-full">
                 <p className="text-sm font-semibold text-white/85 sm:text-base">
-                  {rdPreparation ? "Caching to Real-Debrid" : playerUiStatus}
+                  Getting your video ready…
                 </p>
 
-                <p className="mt-1 line-clamp-2 text-xs text-white/45">
-                  {activeSourceLabel || "Finding the best available source…"}
+                <p className="mt-1 text-xs leading-relaxed text-white/50 sm:text-sm">
+                  {rdPreparation ? simpleCacheHint : "Media God is finding the best available stream for this device."}
                 </p>
 
                 {rdPreparation && (
-                  <div className="mt-4 w-full rounded-xl border border-white/10 bg-white/[0.03] p-3 text-left">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-xs font-semibold text-white/75">
-                        Step {cachePhase.step}/5 · {cacheStatusLabel}
+                  <div className="mt-4 w-full">
+                    <div className="flex items-center justify-between gap-3 text-left">
+                      <span className="text-xs font-semibold text-white/65">
+                        Preparing stream
                       </span>
 
                       <span className="text-sm font-bold tabular-nums text-mg-green">
@@ -8622,15 +8622,22 @@ export default function VideoPlayer({
                       />
                     </div>
 
-                    <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-white/50 sm:text-xs">
-                      {cacheStats.map((item) => (
-                        <span key={item}>{item}</span>
-                      ))}
-                    </div>
+                    <details className="mt-3 rounded-lg border border-white/5 bg-white/[0.025] p-2 text-left text-[10px] text-white/40 sm:text-xs">
+                      <summary className="cursor-pointer select-none font-semibold text-white/45">
+                        Playback details
+                      </summary>
 
-                    <p className="mt-2 text-[10px] leading-relaxed text-white/40 sm:text-xs">
-                      {cacheHint}
-                    </p>
+                      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+                        <span>Step {cachePhase.step}/5 · {cacheStatusLabel}</span>
+                        {cacheStats.map((item) => (
+                          <span key={item}>{item}</span>
+                        ))}
+                      </div>
+
+                      <p className="mt-2 leading-relaxed text-white/35">
+                        {cacheHint}
+                      </p>
+                    </details>
                   </div>
                 )}
               </div>
@@ -8642,13 +8649,11 @@ export default function VideoPlayer({
               </div>
 
               <p className="text-sm font-semibold text-white/85 sm:text-base">
-                {sourceNeedsCaching(active)
-                  ? "This torrent needs attention"
-                  : "This source is unavailable"}
+                We’re having trouble with this stream
               </p>
 
               <p className="max-w-md text-xs leading-relaxed text-white/50 sm:text-sm">
-                {friendlyError || "Media God rejected an error/status stream instead of playing it as video."}
+                {friendlyError || "Media God couldn’t start this stream. Try again and it will re-check the best available option."}
               </p>
 
               {isRdSource && (
@@ -8658,7 +8663,7 @@ export default function VideoPlayer({
                   className="mt-1 flex min-h-10 items-center gap-2 rounded-lg bg-mg-green px-4 text-xs font-bold text-black hover:bg-mg-green-dim focus:outline-none focus:ring-2 focus:ring-white/70"
                 >
                   <RefreshCw className="h-3.5 w-3.5" />
-                  Retry this source
+                  Try again
                 </button>
               )}
             </div>
@@ -8710,7 +8715,7 @@ export default function VideoPlayer({
               </p>
 
               <p className="max-w-md text-white/45 text-xs">
-                Media God is handing this stream to the Android native video engine.
+                Media God is opening the best player for this stream.
               </p>
             </div>
           ) : rdOverride ? (
