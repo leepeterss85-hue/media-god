@@ -185,6 +185,21 @@ expect(
 );
 
 expect(
+  native.includes("VOD_STARTUP_TIMEOUT_MS") &&
+    native.includes("VOD_STALL_TIMEOUT_MS") &&
+    native.includes("private fun recoverVodPlayback") &&
+    native.includes("preservePosition = true") &&
+    native.includes("candidate.recoveryScore") &&
+    nativeBridge.includes("recoveryScore: Number(item?.recoveryScore || 0)") &&
+    videoPlayer.includes("recoveryScore: recoverySourceScore(candidate, index)") &&
+    mobileNative.includes("VOD_STARTUP_TIMEOUT_MS") &&
+    mobileNative.includes("VOD_STALL_TIMEOUT_MS") &&
+    mobileNative.includes("private fun armStartupWatchdog") &&
+    mobileNative.includes("private fun armStallWatchdog"),
+  "native movie and episode playback self-heals startup hangs and mid-playback stalls while preserving the best backup path"
+);
+
+expect(
   assist.includes("runClickFallback") &&
     assist.includes("runKeyAction") &&
     assist.includes("!(recapEnd > 0)") &&
