@@ -1074,6 +1074,109 @@ class PlayerActivity : Activity() {
         return true
     }
 
+    private fun clearVodWatchdogs() {
+        if (!::playerView.isInitialized) {
+            return
+        }
+
+        playerView.removeCallbacks(vodStartupTimeoutRunnable)
+        playerView.removeCallbacks(vodStallTimeoutRunnable)
+    }
+
+    private fun armVodStartupWatchdog() {
+        if (live || resultSent || compatibilityPlayerOpen || !::playerView.isInitialized) {
+            return
+        }
+
+        playerView.removeCallbacks(vodStartupTimeoutRunnable)
+        playerView.removeCallbacks(vodStallTimeoutRunnable)
+        playerView.postDelayed(vodStartupTimeoutRunnable, VOD_STARTUP_TIMEOUT_MS)
+    }
+
+    private fun armVodStallWatchdog() {
+        if (
+            live ||
+            resultSent ||
+            compatibilityPlayerOpen ||
+            !vodPlaybackStarted ||
+            !::playerView.isInitialized
+        ) {
+            return
+        }
+
+        playerView.removeCallbacks(vodStartupTimeoutRunnable)
+        playerView.removeCallbacks(vodStallTimeoutRunnable)
+        playerView.postDelayed(vodStallTimeoutRunnable, VOD_STALL_TIMEOUT_MS)
+    }
+
+    private fun nextVodSourceIndex(): Int {
+        if (live || nativeSources.size <= 1) {
+            return -1
+        }
+
+        for (offset in 1..nativeSources.size) {
+            val index = (activeSourceIndex + offset) % nativeSources.size
+            val candidate = nativeSources[index]
+
+            if (
+                index == activeSourceIndex ||
+                candidate.failed ||
+                failedVodSourceIndexes.contains(index)
+            ) {
+                continue
+            }
+
+            val candidateUrl = candidate.url.trim()
+            if (candidateUrl.startsWith("https://") || candidateUrl.startsWith("http://")) {
+                return index
+            }
+        }
+
+        return -1
+    }
+
+    private fun recoverVodPlayback(message: String): Boolean {
+        if (live || resultSent || vodRecoveryPending || compatibilityPlayerOpen) {
+            return false
+        }
+
+        failedVodSourceIndexes.add(activeSourceIndex)
+        val nextIndex = nextVodSourceIndex()
+
+        if (nextIndex < 0) {
+            clearVodWatchdogs()
+            finishWithResult(
+                reason = "error",
+                message = "$message No other ready stream is available."
+            )
+            return true
+        }
+
+        vodRecoveryPending = true
+        clearVodWatchdogs()
+
+        if (!::playerView.isInitialized) {
+            vodRecoveryPending = false
+            return false
+        }
+
+        playerView.post {
+            if (resultSent || compatibilityPlayerOpen) {
+                vodRecoveryPending = false
+                return@post
+            }
+
+            vodRecoveryPending = false
+            switchNativeSource(
+                nextIndex,
+                automaticRecovery = true,
+                preservePosition = true
+            )
+        }
+
+        return true
+    }
+
     private fun readHeaders(json: JSONObject?): Map<String, String> {
         if (json == null) return emptyMap()
 
