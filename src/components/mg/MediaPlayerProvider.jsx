@@ -352,6 +352,39 @@ const stableDiscoveredSourceKey = (item) => {
   return id ? `id:${id}` : "";
 };
 
+const refreshableSourceIdentity = (item) => {
+  if (!item) return "";
+
+  const hash = sourceMagnetHash(item);
+  if (hash) {
+    return `torrent:${hash}:${String(item?.fileIdx ?? item?.file_idx ?? "")}`;
+  }
+
+  const id = String(item?.id || "").trim().toLowerCase();
+  if (id) return `id:${id}`;
+
+  const provider = [
+    item?.addon,
+    item?.addonName,
+    item?.sourceName,
+    item?.provider,
+    item?.debridProvider,
+  ]
+    .map((value) => String(value || "").trim().toLowerCase())
+    .filter(Boolean)
+    .join("|");
+  const label = String(
+    item?.label || item?.name || item?.title || ""
+  )
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+
+  return provider || label
+    ? `direct:${provider}:${label}`
+    : "";
+};
+
 const preservePublishedSourceOrder = (published, incoming) => {
   const previous = Array.isArray(published)
     ? published.filter((item) => item && !item?.diagnostic)
