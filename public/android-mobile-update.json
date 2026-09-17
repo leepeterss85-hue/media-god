@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 20,
-  "versionName": "1.0.19",
+  "versionCode": 21,
+  "versionName": "1.0.20",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.19 adds automatic native playback recovery: streams that take too long to start or stall for too long now return to Media God's recovery engine at the same playback position so another compatible stream can take over automatically.",
+  "message": "Media God Mobile 1.0.20 adds expired-link recovery: HTTP 401, 403 and 410 playback failures now refresh the same movie or episode stream and resume at the saved position before Media God falls back to another source.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
