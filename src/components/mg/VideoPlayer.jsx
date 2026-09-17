@@ -7467,20 +7467,20 @@ export default function VideoPlayer({
         : [],
       sources: sourcesForSelector
         .map((candidate, index) => ({ candidate, index }))
-        .filter(
-          ({ candidate, index }) =>
-            sourceIsUserSelectable(candidate) && !failedSources.has(index)
-        )
+        .filter(({ candidate }) => sourceIsUserSelectable(candidate))
         .map(({ candidate, index }) => {
           const baseLabel = sourceDisplayLabel(candidate, index);
           const provider = String(candidate?.sourceName || "").trim();
+          const visibleLabel =
+            provider && !baseLabel.toLowerCase().includes(provider.toLowerCase())
+              ? `${baseLabel} • ${provider}`
+              : baseLabel;
 
           return {
             ...candidate,
-            label:
-              provider && !baseLabel.toLowerCase().includes(provider.toLowerCase())
-                ? `${baseLabel} • ${provider}`
-                : baseLabel,
+            label: failedSources.has(index)
+              ? `Unavailable • ${visibleLabel}`
+              : visibleLabel,
             url:
               index === activeIdx && /^https?:\/\//i.test(nativePlaybackUrl)
                 ? nativePlaybackUrl
