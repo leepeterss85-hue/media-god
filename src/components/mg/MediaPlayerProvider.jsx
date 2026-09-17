@@ -2127,20 +2127,23 @@ export function PlayerProvider({
                       0
                     );
 
-                  if (
-                    addonsAvailable > 0 &&
-                    successfulAddonNames.length >=
-                      addonsAvailable
-                  ) {
-                    return fastLookup;
-                  }
-
+                  /*
+                   * Fast mode exists only to get something onto the player quickly.
+                   * It uses shorter timeouts and fewer alternate identifiers, so a
+                   * provider returning one early row is NOT proof that we have its
+                   * complete source set. Always run the comprehensive pass after
+                   * fast start and merge it back in. This is especially important
+                   * for cache discovery: every extra torrent hash is another chance
+                   * to find an already-cached Real-Debrid/debrid release.
+                   *
+                   * The two passes are sequential (never parallel), so we still
+                   * avoid the old burst of duplicate provider requests.
+                   */
                   const fullLookup =
                     await fetchAddonSources({
                       ...addonArgs,
                       fastMode: false,
-                      excludeAddonNames:
-                        successfulAddonNames,
+                      excludeAddonNames: [],
                     });
 
                   const streams =
@@ -2359,11 +2362,15 @@ export function PlayerProvider({
             : 99;
           const languageWouldRegress = lockedLanguageRank > bestLanguageRank;
 
-          if (
-            lockedIndex > 0 &&
-            !languageWouldRegress &&
-            !(lockedIsKnownUncachedMagnet && cachedAlternativeExists)
-          ) {
+          /*
+           * Once fast-start has published a real source, discovery is allowed to
+           * enrich the chooser but must not silently replace index 0 underneath an
+           * already-open player. Changing the source array's first row here can
+           * make Fire TV/native playback relaunch the same title from the beginning.
+           * Keep the published source stable; VideoPlayer owns deliberate failover
+           * (including moving from an uncached torrent to a ready cached source).
+           */
+          if (lockedIndex > 0) {
             const [locked] = orderedSources.splice(lockedIndex, 1);
             orderedSources.unshift(locked);
           }
