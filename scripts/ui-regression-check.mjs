@@ -64,6 +64,7 @@ const remoteSchema = await read("base44/entities/PlayerRemoteSession.jsonc");
 const liveTv = await read("src/components/mg/LiveTVView.jsx");
 const evSports = await read("src/components/mg/evSportsScraper.js");
 const freeTv = await read("src/components/mg/freeTvPlaylist.js");
+const sourcesView = await read("src/components/mg/SourcesView.jsx");
 const settings = await read("src/components/mg/SettingsView.jsx");
 const fireTvUpdateNotice = await read("src/components/mg/FireTvAppUpdateNotice.jsx");
 const androidUpdateNotice = await read("src/components/mg/AndroidMobileAppUpdateNotice.jsx");
@@ -74,6 +75,15 @@ const fireTvReleaseData = JSON.parse(fireTvRelease);
 const fireTvGradle = await read("firetv-android/app/build.gradle.kts");
 const fireTvGradleVersionCode = Number(fireTvGradle.match(/versionCode\s*=\s*(\d+)/)?.[1] || 0);
 const fireTvGradleVersionName = fireTvGradle.match(/versionName\s*=\s*"([^"]+)"/)?.[1] || "";
+
+expect(
+  freeTv.includes('id: "reezn-tv"') &&
+    freeTv.includes('name: "Reezn"') &&
+    freeTv.includes('connectionType: "external-app"') &&
+    sourcesView.includes('source.connectionType === "sky-sport-now"') &&
+    sourcesView.includes('source.actionLabel || "Open source"'),
+  "Reezn remains available as an external provider without inheriting Sky login controls"
+);
 
 const requiredViews = [
   ["home", "Home"],
