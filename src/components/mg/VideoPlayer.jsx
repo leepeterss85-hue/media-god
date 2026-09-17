@@ -1740,6 +1740,18 @@ export default function VideoPlayer({
       source?.type === "live" || active?.live || active?.type === "live";
     const selectorPinned =
       sourceSelectorPinnedRef.current || rdFileSelectorPinnedRef.current;
+    const currentSwitch = sourceSwitchCoordinatorRef.current;
+
+    /* Ignore duplicate/stale failure callbacks from a source that has already
+     * handed ownership to another stream. This is checked before blacklisting
+     * anything so an old video element cannot poison more rows after it is gone. */
+    if (
+      currentSwitch.playRequestId === (source?.playRequestId ?? null) &&
+      currentSwitch.fromIndex === activeIdx &&
+      Date.now() - Number(currentSwitch.startedAt || 0) < 8000
+    ) {
+      return false;
+    }
 
     /*
      * A native Android/Fire TV source chooser can remain focused after the
