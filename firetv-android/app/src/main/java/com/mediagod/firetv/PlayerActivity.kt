@@ -1366,7 +1366,8 @@ class PlayerActivity : Activity() {
 
     private fun switchNativeSource(
         index: Int,
-        automaticRecovery: Boolean = false
+        automaticRecovery: Boolean = false,
+        preservePosition: Boolean = false
     ) {
         if (
             index !in nativeSources.indices ||
@@ -1390,18 +1391,31 @@ class PlayerActivity : Activity() {
                         selectedSourceIndex = nativeSources[index].webIndex
                     )
                 }
+            } else if (automaticRecovery) {
+                failedVodSourceIndexes.add(index)
+                recoverVodPlayback("The next stream was not playable.")
             }
             return
         }
 
+        val resumePositionMs =
+            if (preservePosition && !live) {
+                max(0L, player?.currentPosition ?: restorePositionMs)
+            } else {
+                0L
+            }
+
         clearLiveWatchdogs()
+        clearVodWatchdogs()
         livePlaybackStarted = false
         liveRecoveryPending = false
+        vodPlaybackStarted = false
+        vodRecoveryPending = false
         activeSourceIndex = index
         streamUrl = nextUrl
         genericHttpsMimeRetryIndex = 0
-        restorePositionMs = 0L
         releasePlayer()
+        restorePositionMs = resumePositionMs
         initialisePlayer()
         sourceSpinner.setSelection(activeSourceIndex + sourceSelectorOffset(), false)
 
