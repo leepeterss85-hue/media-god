@@ -822,7 +822,7 @@ class PlayerActivity : Activity() {
                 duration >= 180_000L &&
                 position >= 60_000L &&
                 (exactCredits || remaining <= 15_000L)
-        val showNext = tvEpisode && position >= 1_000L
+        val showNext = nextEpisodeWindow
 
         setAssistVisible(playNextButton, showNext)
 
