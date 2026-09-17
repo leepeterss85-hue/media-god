@@ -188,7 +188,12 @@ test("uncached torrent rows can never bypass the RD cache engine as direct strea
   );
 
   assert.match(playerSource, /const activeTorrentHash = sourceTorrentHash\(active\)/);
-  assert.match(playerSource, /const activeNeedsCaching = sourceNeedsCaching\(active\)/);
+  assert.match(playerSource, /const activeRuntimeReady = Boolean\(/);
+  assert.match(playerSource, /const activeHasResolvedStream = Boolean\(/);
+  assert.match(
+    playerSource,
+    /!activeHasResolvedStream && sourceNeedsCaching\(active\)/
+  );
   assert.match(
     playerSource,
     /const isRdSource =[\s\S]{0,600}?Boolean\(activeTorrentHash\)[\s\S]{0,120}?activeNeedsCaching/
