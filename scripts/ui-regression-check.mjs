@@ -66,6 +66,7 @@ const evSports = await read("src/components/mg/evSportsScraper.js");
 const freeTv = await read("src/components/mg/freeTvPlaylist.js");
 const sourcesView = await read("src/components/mg/SourcesView.jsx");
 const settings = await read("src/components/mg/SettingsView.jsx");
+const settingsTools = await read("src/components/mg/SettingsTools.jsx");
 const fireTvUpdateNotice = await read("src/components/mg/FireTvAppUpdateNotice.jsx");
 const androidUpdateNotice = await read("src/components/mg/AndroidMobileAppUpdateNotice.jsx");
 const nativeReleaseInfo = await read("src/components/mg/nativeReleaseInfo.js");
@@ -80,9 +81,15 @@ expect(
   freeTv.includes('id: "reezn-tv"') &&
     freeTv.includes('name: "Reezn"') &&
     freeTv.includes('connectionType: "external-app"') &&
+    settingsTools.includes('id: "reezn"') &&
+    settingsTools.includes('target: "sources"') &&
+    settingsTools.includes('featured: true') &&
+    sourcesView.includes('Reezn & external providers') &&
+    sourcesView.includes('source.id === "reezn-tv"') &&
+    sourcesView.includes('Featured') &&
     sourcesView.includes('source.connectionType === "sky-sport-now"') &&
     sourcesView.includes('source.actionLabel || "Open source"'),
-  "Reezn remains available as an external provider without inheriting Sky login controls"
+  "Reezn is prominent in Settings and remains isolated from Sky login controls"
 );
 
 const requiredViews = [
