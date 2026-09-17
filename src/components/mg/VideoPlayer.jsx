@@ -2157,11 +2157,15 @@ export default function VideoPlayer({
       isLive ||
       isYoutube ||
       isProvider ||
-      activeNeedsCaching ||
       rdResolving ||
       rdPolling ||
       rdTorrentId ||
-      rdPreparation ||
+      (
+        rdPreparation &&
+        !["stalled", "failed", "error"].includes(
+          String(rdPreparation?.status || "").toLowerCase()
+        )
+      ) ||
       fileSwitching
     ) {
       return undefined;
@@ -2219,6 +2223,11 @@ export default function VideoPlayer({
 
     const timer = window.setTimeout(() => {
       if (cancelled) return;
+
+      /* Never compete with the foreground cache engine. Once that selected
+       * source finishes or stalls, this effect reruns and the next hidden hash
+       * can be prepared in the background. */
+      if (rdCacheEngineOwnsPollingRef.current) return;
 
       backgroundCacheAttemptedRef.current.add(candidate.hash);
       controller = new AbortController();
@@ -2291,7 +2300,7 @@ export default function VideoPlayer({
             backgroundCacheControllerRef.current = null;
           }
         });
-    }, 10_000);
+    }, 1_500);
 
     return () => {
       cancelled = true;
