@@ -1312,20 +1312,24 @@ export default function SourcesView() {
                 </div>
                 <span
                   className={`rounded px-2 py-0.5 text-[10px] uppercase ${
-                    skyStatus.connected
+                    source.connectionType === "sky-sport-now" && skyStatus.connected
                       ? "bg-mg-green/15 text-mg-green"
                       : "bg-white/5 text-white/40"
                   }`}
                 >
-                  {skyStatus.loading
-                    ? "Checking"
-                    : skyStatus.connected
-                      ? "Connected"
-                      : source.platform}
+                  {source.connectionType === "sky-sport-now"
+                    ? skyStatus.loading
+                      ? "Checking"
+                      : skyStatus.connected
+                        ? "Connected"
+                        : source.platform
+                    : source.platform}
                 </span>
               </div>
 
-              {skyDevice?.pin && !skyStatus.connected && (
+              {source.connectionType === "sky-sport-now" &&
+                skyDevice?.pin &&
+                !skyStatus.connected && (
                 <div className="mt-3 rounded-lg border border-mg-green/25 bg-mg-green/10 p-3">
                   <p className="text-[10px] uppercase tracking-wide text-white/45">
                     Sky Sport Now TV code
@@ -1348,34 +1352,36 @@ export default function SourcesView() {
               )}
 
               <div className="mt-3 flex flex-wrap gap-2">
-                {skyStatus.connected ? (
-                  <button
-                    type="button"
-                    onClick={disconnectSky}
-                    disabled={skyBusy}
-                    className="flex min-h-9 items-center gap-1 rounded-lg border border-red-500/20 bg-red-500/10 px-3 text-xs font-semibold text-red-200 disabled:opacity-50"
-                  >
-                    <Unlink className="h-3.5 w-3.5" />
-                    {skyBusy ? "Disconnecting…" : "Disconnect Sky Sport Now"}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={startSkyConnect}
-                    disabled={skyBusy || skyStatus.loading}
-                    className="flex min-h-9 items-center gap-1 rounded-lg border border-mg-green/30 bg-mg-green/10 px-3 text-xs font-semibold text-mg-green disabled:opacity-50"
-                  >
-                    <Tv className="h-3.5 w-3.5" />
-                    {skyBusy ? "Starting…" : skyDevice?.pin ? "New login code" : "Connect Sky Sport Now"}
-                  </button>
-                )}
+                {source.connectionType === "sky-sport-now" &&
+                  (skyStatus.connected ? (
+                    <button
+                      type="button"
+                      onClick={disconnectSky}
+                      disabled={skyBusy}
+                      className="flex min-h-9 items-center gap-1 rounded-lg border border-red-500/20 bg-red-500/10 px-3 text-xs font-semibold text-red-200 disabled:opacity-50"
+                    >
+                      <Unlink className="h-3.5 w-3.5" />
+                      {skyBusy ? "Disconnecting…" : "Disconnect Sky Sport Now"}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={startSkyConnect}
+                      disabled={skyBusy || skyStatus.loading}
+                      className="flex min-h-9 items-center gap-1 rounded-lg border border-mg-green/30 bg-mg-green/10 px-3 text-xs font-semibold text-mg-green disabled:opacity-50"
+                    >
+                      <Tv className="h-3.5 w-3.5" />
+                      {skyBusy ? "Starting…" : skyDevice?.pin ? "New login code" : "Connect Sky Sport Now"}
+                    </button>
+                  ))}
                 <a
                   href={source.url}
                   target="_blank"
                   rel="noreferrer"
                   className="flex min-h-9 items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-3 text-xs font-semibold text-white"
                 >
-                  <ExternalLink className="h-3.5 w-3.5" /> SlyGuy source
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  {source.actionLabel || "Open source"}
                 </a>
               </div>
             </div>
