@@ -8699,7 +8699,7 @@ export default function VideoPlayer({
               </p>
 
               <p className="max-w-md text-white/50 text-xs">
-                Resume to return to the Fire TV player. Source selection is now available inside the native player.
+                Resume to return to the Fire TV player. Stream selection is available inside the player.
               </p>
 
               <button
@@ -9044,7 +9044,7 @@ export default function VideoPlayer({
                     >
                       {visibleSourceSelectorValue === "" ? (
                         <option value="" disabled>
-                          Preparing uncached sources…
+                          Preparing more streams…
                         </option>
                       ) : null}
                       {visibleSourceSelectorEntries.map(
@@ -9127,7 +9127,7 @@ export default function VideoPlayer({
 
             {selectableSourceCount > 0 && (
               <span className="shrink-0 text-[10px] font-medium text-white/35 sm:text-xs">
-                {selectableSourceCount} {selectableSourceCount === 1 ? "source" : "sources"}
+                {selectableSourceCount} {selectableSourceCount === 1 ? "stream" : "streams"}
               </span>
             )}
           </div>
@@ -9316,7 +9316,7 @@ export default function VideoPlayer({
                   }}
                   disabled={fileSwitching}
                   className="min-h-11 w-full rounded-lg border border-white/10 bg-mg-card px-3 py-2.5 text-xs font-medium text-white outline-none transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/30 disabled:opacity-60 sm:min-h-10 sm:text-sm"
-                  aria-label="Choose torrent file"
+                  aria-label="Choose video file"
                 >
                   {visibleRdFileSelectorFiles.map(
                     (file, index) => (
