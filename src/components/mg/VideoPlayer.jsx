@@ -924,11 +924,13 @@ export default function VideoPlayer({
     ({ item }) => sourceIsUserSelectable(item)
   );
 
-  const automaticReadySourceEntries = selectableSourceEntries.filter(
-    ({ item, index }) =>
-      !failedSourcesRef.current.has(index) &&
-      !sourceNeedsCaching(item)
-  );
+  const automaticReadySourceIndex =
+    selectableSourceEntries.find(
+      ({ item, index }) =>
+        index !== activeIdx &&
+        !failedSourcesRef.current.has(index) &&
+        !sourceNeedsCaching(item)
+    )?.index ?? -1;
 
   /*
    * Android/Fire TV native <select> popups close if React changes their
@@ -2086,6 +2088,48 @@ export default function VideoPlayer({
       activeType === "stream" ||
       isGenericHttpsStream
     );
+
+  /*
+   * READY-SOURCE FIRST
+   *
+   * If discovery ranks an uncached torrent first while another source is
+   * already ready, move straight to the ready source and let the uncached
+   * torrents remain hidden cache candidates. This restores the older Search
+   * behaviour where one slow torrent could not block every cached backup.
+   */
+  useEffect(() => {
+    if (
+      isLive ||
+      isYoutube ||
+      isProvider ||
+      !activeNeedsCaching ||
+      automaticReadySourceIndex < 0 ||
+      rdResolving ||
+      rdPolling ||
+      rdTorrentId ||
+      fileSwitching
+    ) {
+      return;
+    }
+
+    switchToSource(automaticReadySourceIndex, {
+      preservePosition: false,
+      statusMessage:
+        "Opening a ready source while Media God prepares the other torrents in the background…",
+    });
+  }, [
+    activeIdx,
+    activeNeedsCaching,
+    automaticReadySourceIndex,
+    fileSwitching,
+    isLive,
+    isProvider,
+    isYoutube,
+    rdMediaContextKey,
+    rdPolling,
+    rdResolving,
+    rdTorrentId,
+  ]);
 
   /*
    * TRUSTED CACHED BACKGROUND BUILDER
