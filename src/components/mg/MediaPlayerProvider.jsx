@@ -1799,6 +1799,9 @@ export function PlayerProvider({
 
         const initialPrimary = initialSources[0] || {};
         let fastStartPrimaryUrl = getSourceUrl(initialPrimary);
+        const preparedEpisodeHandoff =
+          request?.preparedEpisodeHandoff === true &&
+          initialPlayableSources.length > 0;
         const suppliedImdbId = String(
           request?.imdbId || request?.imdb_id || ""
         ).trim();
@@ -1830,7 +1833,9 @@ export function PlayerProvider({
           hasRd,
           hasDebrid,
           sourceDiagnostics: {
-            phase: "searching",
+            phase: preparedEpisodeHandoff
+              ? "prepared-handoff"
+              : "searching",
             tmdbId,
             mediaType,
             season,
@@ -1839,6 +1844,16 @@ export function PlayerProvider({
             debridConnected: hasDebrid,
           },
         });
+
+        /*
+         * A prepared episode already has the fully ranked, cache-annotated
+         * source list. Publish it in one render and let VideoPlayer resolve the
+         * selected torrent/direct stream immediately instead of repeating the
+         * whole discovery pass during the handoff.
+         */
+        if (preparedEpisodeHandoff) {
+          return true;
+        }
 
         const publishEarlySources = (
           incomingSources,
