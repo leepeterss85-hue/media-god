@@ -2,6 +2,7 @@ package com.mediagod.firetv
 
 import android.app.Activity
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
@@ -88,6 +89,7 @@ class PlayerActivity : Activity() {
     private var creditsStartMs = -1L
     private var nextEpisodeCountdownStartedAtMs = -1L
     private var nextEpisodeCountdownCancelled = false
+    private var assistControlsWereVisible = false
     private var initialPositionMs = 0L
     private var restorePositionMs = 0L
     private var shouldPlayWhenReady = true
@@ -455,18 +457,55 @@ class PlayerActivity : Activity() {
         onClick: () -> Unit
     ): Button =
         Button(this).apply {
+            id = View.generateViewId()
             text = label
             isAllCaps = false
-            setTextColor(Color.WHITE)
-            setBackgroundColor(Color.argb(220, 18, 18, 18))
             textSize = 14f
-            minHeight = dp(46)
-            minWidth = dp(112)
+            minHeight = dp(50)
+            minWidth = dp(128)
             isFocusable = true
             isFocusableInTouchMode = false
             visibility = View.GONE
-            setPadding(dp(12), 0, dp(12), 0)
-            setOnClickListener { onClick() }
+            stateListAnimator = null
+            setPadding(dp(14), 0, dp(14), 0)
+
+            backgroundTintList = ColorStateList(
+                arrayOf(
+                    intArrayOf(android.R.attr.state_focused),
+                    intArrayOf(android.R.attr.state_pressed),
+                    intArrayOf()
+                ),
+                intArrayOf(
+                    Color.rgb(43, 238, 122),
+                    Color.rgb(31, 204, 101),
+                    Color.rgb(24, 24, 24)
+                )
+            )
+
+            setTextColor(
+                ColorStateList(
+                    arrayOf(
+                        intArrayOf(android.R.attr.state_focused),
+                        intArrayOf(android.R.attr.state_pressed),
+                        intArrayOf()
+                    ),
+                    intArrayOf(
+                        Color.BLACK,
+                        Color.BLACK,
+                        Color.WHITE
+                    )
+                )
+            )
+
+            setOnFocusChangeListener { _, hasFocus ->
+                if (hasFocus) {
+                    showControllerTemporarily()
+                }
+            }
+
+            setOnClickListener {
+                onClick()
+            }
         }
 
     private fun buildAssistControls(): LinearLayout {
