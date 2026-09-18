@@ -1,3 +1,4 @@
+import { prioritiseCompatibleAutoplayEntries } from "@/components/mg/automaticSourceOrder";
 import {
   getPlaybackDeviceProfile,
   scoreSourceCompatibility,
@@ -340,7 +341,14 @@ export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
     }))
   );
 
-  if (mode === "best") return prioritiseTrustedCachedPools(list);
+  if (mode === "best") {
+    const trustedFirst = prioritiseTrustedCachedPools(list).map((entry) => ({
+      ...entry,
+      autoplayReady: sourceIsUserSelectable(entry.item),
+    }));
+
+    return prioritiseCompatibleAutoplayEntries(trustedFirst);
+  }
 
   return list.slice().sort((a, b) => {
     if (String(mode || "").startsWith("edition:")) {
