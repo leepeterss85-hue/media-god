@@ -44,9 +44,15 @@ import {
   sourceHasEdition,
 } from "../src/components/mg/mediaEdition.js";
 import {
+  promoteReadySourceOverPending,
   sourceHasAuthoritativeCachedSignal,
   sourceHasPendingCacheSignal,
+  sourceIsImmediatelyReady,
 } from "../src/components/mg/sourceCacheVisibility.js";
+import {
+  sortAudioTrackChoices,
+  trackLanguage,
+} from "../src/components/mg/mediaTrackPreferences.js";
 
 const memoryStorage = () => {
   const data = new Map();
@@ -759,6 +765,84 @@ test("authoritative cached state wins over stale uncached discovery metadata", (
 
   assert.equal(sourceHasAuthoritativeCachedSignal(ready), true);
   assert.equal(sourceHasPendingCacheSignal(ready), false);
+});
+
+test("fast start promotes a cached source over a still-preparing first source", () => {
+  const pending = {
+    type: "rd",
+    magnet:
+      "magnet:?xt=urn:btih:1111111111111111111111111111111111111111",
+    debridCacheChecked: true,
+    debridCached: false,
+    resolutionStrategy: "rd_magnet",
+  };
+  const ready = {
+    type: "rd",
+    magnet:
+      "magnet:?xt=urn:btih:2222222222222222222222222222222222222222",
+    debridCached: true,
+    resolutionStrategy: "cached_debrid",
+  };
+
+  const promoted = promoteReadySourceOverPending({
+    stable: [pending, ready],
+    ranked: [ready, pending],
+  });
+
+  assert.equal(sourceIsImmediatelyReady(ready), true);
+  assert.equal(promoted[0], ready);
+  assert.equal(promoted[1], pending);
+});
+
+test("fast start keeps the published source order once playback is locked", () => {
+  const pending = {
+    type: "rd",
+    magnet:
+      "magnet:?xt=urn:btih:3333333333333333333333333333333333333333",
+    debridCacheChecked: true,
+    debridCached: false,
+  };
+  const ready = {
+    type: "rd",
+    magnet:
+      "magnet:?xt=urn:btih:4444444444444444444444444444444444444444",
+    debridCached: true,
+  };
+  const stable = [pending, ready];
+
+  assert.deepEqual(
+    promoteReadySourceOverPending({
+      stable,
+      ranked: [ready, pending],
+      lockedUrl: "https://stream.example.test/locked",
+    }),
+    stable
+  );
+});
+
+test("audio tracks favour the current language and compatible main audio", () => {
+  const tracks = [
+    { index: 0, language: "zh", label: "Mandarin AAC 2.0" },
+    { index: 1, language: "en", label: "English Commentary AAC 2.0" },
+    { index: 2, language: "eng", label: "English AAC 2.0" },
+    { index: 3, language: "en", label: "English DTS 5.1" },
+  ];
+
+  assert.deepEqual(
+    sortAudioTrackChoices(tracks, {
+      preferredLanguage: "en",
+      activeIndex: -1,
+    }).map((track) => track.index),
+    [2, 3, 0, 1]
+  );
+  assert.equal(trackLanguage({ label: "Mandarin AAC 2.0" }), "zh");
+  assert.equal(
+    sortAudioTrackChoices(tracks, {
+      preferredLanguage: "en",
+      activeIndex: 1,
+    })[0].index,
+    1
+  );
 });
 
 test("Comet rows with only synthetic public trackers still use the Comet start path", () => {
