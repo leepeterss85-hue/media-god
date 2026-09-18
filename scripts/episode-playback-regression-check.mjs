@@ -146,6 +146,14 @@ expect(
 );
 
 expect(
+  mediaPlayerProvider.includes("const directFastStreams = fastStreams.filter(isDirectSource)") &&
+    mediaPlayerProvider.includes("FAST DIRECT") &&
+    mediaPlayerProvider.includes("const cacheAnnotatedFast = await annotateDebridCache(") &&
+    mediaPlayerProvider.includes("FAST CACHE CHECKED"),
+  "fast startup opens direct streams immediately and cache-checks torrent candidates before foreground preparation"
+);
+
+expect(
   mediaPlayerProvider.includes('item?.infoHash') &&
     mediaPlayerProvider.includes('item?.info_hash') &&
     mediaPlayerProvider.includes('item?.richMagnet') &&
