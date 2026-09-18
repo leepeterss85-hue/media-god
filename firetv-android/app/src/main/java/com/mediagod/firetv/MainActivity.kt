@@ -123,6 +123,34 @@ class MainActivity : Activity() {
         if (::appUpdater.isInitialized) {
             appUpdater.onHostPaused()
         }
+
+        /*
+         * WebView.onPause()/pauseTimers() do not guarantee that HTML5 media is
+         * silenced. Before a native PlayerActivity covers the WebView, stop any
+         * browser audio/video explicitly so Media3/LibVLC is the only playback
+         * owner and two streams can never be audible at the same time.
+         */
+        try {
+            webView.evaluateJavascript(
+                """
+                (function(){
+                  window.__MG_NATIVE_PLAYBACK_ACTIVE__=true;
+                  document.querySelectorAll('video,audio').forEach(function(media){
+                    try{
+                      media.pause();
+                      media.muted=true;
+                      media.removeAttribute('autoplay');
+                      if(media.dataset){media.dataset.mgNativePlaybackSuspended='true';}
+                    }catch(e){}
+                  });
+                })();
+                """.trimIndent(),
+                null
+            )
+        } catch (_: Throwable) {
+            // Best-effort only; the JavaScript handoff also stops WebView media.
+        }
+
         webView.onPause()
         webView.pauseTimers()
         super.onPause()
