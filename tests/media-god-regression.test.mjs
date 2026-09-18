@@ -1000,9 +1000,49 @@ test("Live TV ranking keeps favourites first, then UK, then recent/reliability",
   );
 });
 
-test("exclusive playback transfers ownership and stops only the active stream", () => {
+test("exclusive playback retires the old surface and keeps only the active stream visible", () => {
+  const fakeSurface = () => {
+    const attributes = new Map();
+    const styles = new Map();
+
+    return {
+      attributes,
+      dataset: {},
+      pauseCalls: 0,
+      loadCalls: 0,
+      pause() {
+        this.pauseCalls += 1;
+      },
+      load() {
+        this.loadCalls += 1;
+      },
+      querySelectorAll() {
+        return [];
+      },
+      setAttribute(name, value) {
+        attributes.set(String(name), String(value));
+      },
+      removeAttribute(name) {
+        attributes.delete(String(name));
+      },
+      style: {
+        setProperty(name, value) {
+          styles.set(String(name), String(value));
+        },
+        removeProperty(name) {
+          styles.delete(String(name));
+        },
+        getPropertyValue(name) {
+          return styles.get(String(name)) || "";
+        },
+      },
+    };
+  };
+
   const firstOwner = {};
   const secondOwner = {};
+  const firstSurface = fakeSurface();
+  const secondSurface = fakeSurface();
   let firstStops = 0;
   let secondStops = 0;
 
@@ -1010,25 +1050,64 @@ test("exclusive playback transfers ownership and stops only the active stream", 
   assert.equal(hasExclusivePlaybackOwner(), false);
 
   assert.equal(
-    claimExclusivePlayback(firstOwner, () => {
-      firstStops += 1;
-    }),
+    claimExclusivePlayback(
+      firstOwner,
+      () => {
+        firstStops += 1;
+      },
+      { element: firstSurface, poster: "https://img.test/first.jpg" }
+    ),
     true
   );
+  assert.equal(firstSurface.attributes.get("poster"), "https://img.test/first.jpg");
   assert.equal(hasExclusivePlaybackOwner(), true);
 
-  claimExclusivePlayback(secondOwner, () => {
-    secondStops += 1;
-  });
+  claimExclusivePlayback(
+    secondOwner,
+    () => {
+      secondStops += 1;
+    },
+    { element: secondSurface, poster: "https://img.test/second.jpg" }
+  );
+
   assert.equal(firstStops, 1);
   assert.equal(secondStops, 0);
+  assert.equal(firstSurface.pauseCalls > 0, true);
+  assert.equal(firstSurface.attributes.has("poster"), false);
+  assert.equal(firstSurface.style.getPropertyValue("display"), "none");
+  assert.equal(firstSurface.dataset.mgPlaybackRetired, "true");
+  assert.equal(secondSurface.attributes.get("poster"), "https://img.test/second.jpg");
+  assert.equal(secondSurface.style.getPropertyValue("display"), "");
 
   releaseExclusivePlayback(firstOwner);
   assert.equal(hasExclusivePlaybackOwner(), true);
 
   stopExclusivePlayback();
   assert.equal(secondStops, 1);
+  assert.equal(secondSurface.style.getPropertyValue("display"), "none");
   assert.equal(hasExclusivePlaybackOwner(), false);
+});
+
+test("the player stage pins one active video surface to the full frame", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+  const liveVideoSource = readFileSync(
+    new URL("../src/components/mg/LiveVideo.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(playerSource, /data-mg-player-stage="true"/);
+  assert.match(
+    playerSource,
+    /absolute inset-0 h-full w-full flex-none object-contain bg-black/
+  );
+  assert.match(liveVideoSource, /data-mg-playback-surface="true"/);
+  assert.match(
+    liveVideoSource,
+    /claimExclusivePlayback\([\s\S]{0,180}?element:\s*video,[\s\S]{0,80}?poster/
+  );
 });
 
 test("autoplay puts the three most compatible ready sources first", () => {
