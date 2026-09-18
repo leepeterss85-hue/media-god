@@ -8754,13 +8754,13 @@ export default function VideoPlayer({
             <>
               <LiveVideo
                 key={
-                  rdOverride.src
+                  effectiveRdPlaybackUrl
                 }
                 ref={
                   videoRef
                 }
                 src={
-                  rdOverride.src
+                  effectiveRdPlaybackUrl
                 }
                 sourceLabel={
                   rdOverride?.label ||
@@ -8809,7 +8809,7 @@ export default function VideoPlayer({
 
               <PlayerControls
                 key={
-                  rdOverride.src
+                  effectiveRdPlaybackUrl
                 }
                 videoRef={
                   videoRef
@@ -8886,10 +8886,10 @@ export default function VideoPlayer({
                   liveVideoRef
                 }
                 key={
-                  active.src
+                  effectiveDirectPlaybackUrl
                 }
                 src={
-                  active.src
+                  effectiveDirectPlaybackUrl
                 }
                 sourceLabel={
                   active?.format ||
@@ -8934,7 +8934,7 @@ export default function VideoPlayer({
 
               <PlayerControls
                 key={
-                  active.src
+                  effectiveDirectPlaybackUrl
                 }
                 videoRef={
                   liveVideoRef
