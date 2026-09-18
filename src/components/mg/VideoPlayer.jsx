@@ -19,6 +19,7 @@ import CastButton from "@/components/mg/CastButton";
 import LiveVideo from "@/components/mg/LiveVideo";
 import PlayerControls from "@/components/mg/PlayerControls";
 import {
+  cancelNativeFireTvPlayback,
   isNativeFireTvPlayerAvailable,
   openNativeFireTvExternalUrl,
   playNativeFireTv,
@@ -848,6 +849,10 @@ export default function VideoPlayer({
 
   useEffect(() => {
     return () => {
+      cancelNativeFireTvPlayback(
+        nativePlaybackRef.current?.requestId || ""
+      );
+
       if (torrentFailoverTimerRef.current) {
         window.clearTimeout(torrentFailoverTimerRef.current);
         torrentFailoverTimerRef.current = null;
@@ -1592,6 +1597,10 @@ export default function VideoPlayer({
 
     streamActionGenerationRef.current += 1;
 
+    cancelNativeFireTvPlayback(
+      nativePlaybackRef.current?.requestId || ""
+    );
+
     if (nativeLaunchTimerRef.current) {
       window.clearTimeout(nativeLaunchTimerRef.current);
       nativeLaunchTimerRef.current = null;
@@ -1625,6 +1634,15 @@ export default function VideoPlayer({
             )
           )
         : 0;
+
+    if (currentVideo instanceof HTMLVideoElement) {
+      try {
+        currentVideo.muted = true;
+        currentVideo.pause();
+      } catch {
+        // LiveVideo cleanup completes the decoder release after the switch.
+      }
+    }
 
     if (resumeAt > 5) {
       recoveryResumeRef.current = resumeAt;
