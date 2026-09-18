@@ -43,12 +43,19 @@ export const availableSourceSortOptions = (sources, options = {}) => {
 
   const available = [{ value: "best", label: "Best available" }];
 
-  if (items.length <= 1) {
-    return available;
+  const hasCached = items.some((item) => sourceIsCached(item));
+
+  /*
+   * Movies should always expose the Cached / ready filter when a cached source
+   * exists, even if it is currently the only selectable source. The old early
+   * return hid the entire filter box in exactly that case.
+   */
+  if (hasCached) {
+    available.push({ value: "cached", label: "Cached / ready" });
   }
 
-  if (items.some((item) => sourceIsCached(item))) {
-    available.push({ value: "cached", label: "Cached / ready" });
+  if (items.length <= 1) {
+    return available;
   }
 
   const resolutions = items.map(sourceResolution);
