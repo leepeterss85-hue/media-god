@@ -57,6 +57,11 @@ import {
   releaseExclusivePlayback,
   stopExclusivePlayback,
 } from "../src/components/mg/exclusivePlayback.js";
+import {
+  preferredAudioTrackScore,
+  rememberedAudioTrackScore,
+  trackLanguage,
+} from "../src/components/mg/mediaTrackPreferences.js";
 
 const memoryStorage = () => {
   const data = new Map();
@@ -1043,5 +1048,83 @@ test("autoplay puts the three most compatible ready sources first", () => {
   assert.equal(
     ordered.slice(0, COMPATIBLE_AUTOPLAY_LIMIT).some((entry) => entry.id === "not-ready"),
     false
+  );
+});
+
+test("English audio rank stays ahead of compatibility in the autoplay top three", () => {
+  const ordered = prioritiseCompatibleAutoplayEntries([
+    {
+      id: "foreign-most-compatible",
+      index: 0,
+      autoplayReady: true,
+      languageRank: 3,
+      compatibility: 1000,
+    },
+    {
+      id: "unknown",
+      index: 1,
+      autoplayReady: true,
+      languageRank: 2,
+      compatibility: 900,
+    },
+    {
+      id: "english",
+      index: 2,
+      autoplayReady: true,
+      languageRank: 0,
+      compatibility: 200,
+    },
+    {
+      id: "multi-audio",
+      index: 3,
+      autoplayReady: true,
+      languageRank: 1,
+      compatibility: 500,
+    },
+  ]);
+
+  assert.deepEqual(
+    ordered.slice(0, COMPATIBLE_AUTOPLAY_LIMIT).map((entry) => entry.id),
+    ["english", "multi-audio", "unknown"]
+  );
+});
+
+test("audio tracks prefer English main audio while preserving explicit language memory", () => {
+  const englishMain = {
+    language: "eng",
+    label: "English Main DTS-HD 5.1",
+  };
+  const englishCommentary = {
+    label: "English Commentary AAC 2.0",
+  };
+  const frenchDefault = {
+    language: "fr",
+    label: "French Main AAC 5.1",
+    default: true,
+  };
+
+  assert.equal(trackLanguage({ label: "English AAC 5.1" }), "en");
+  assert.ok(
+    preferredAudioTrackScore(englishMain, "en") >
+      preferredAudioTrackScore(frenchDefault, "en")
+  );
+  assert.ok(
+    preferredAudioTrackScore(englishMain, "en") >
+      preferredAudioTrackScore(englishCommentary, "en")
+  );
+
+  const rememberedEnglish = {
+    language: "en",
+    codec: "aac",
+    channels: "5.1",
+    commentary: false,
+    descriptive: false,
+  };
+  assert.ok(rememberedAudioTrackScore(frenchDefault, rememberedEnglish) < 0);
+  assert.ok(
+    rememberedAudioTrackScore(
+      { language: "en", label: "English AAC 5.1" },
+      rememberedEnglish
+    ) > 0
   );
 });
