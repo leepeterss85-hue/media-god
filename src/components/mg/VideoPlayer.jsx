@@ -6578,6 +6578,8 @@ export default function VideoPlayer({
         return;
       }
 
+      unlockVodResolvedUrl();
+
       const actionGeneration = ++streamActionGenerationRef.current;
       const actionStillCurrent = () =>
         streamActionGenerationRef.current === actionGeneration;
@@ -6913,6 +6915,7 @@ export default function VideoPlayer({
 
   const retryResolution =
     async () => {
+      unlockVodResolvedUrl();
       streamActionGenerationRef.current += 1;
       setFileSwitching(false);
 
@@ -7747,6 +7750,11 @@ export default function VideoPlayer({
   const handleNoSound =
     async (options = {}) => {
       const automatic = options?.automatic === true;
+
+      if (!automatic) {
+        unlockVodResolvedUrl();
+      }
+
       const actionGeneration = ++streamActionGenerationRef.current;
       const actionStillCurrent = () =>
         streamActionGenerationRef.current === actionGeneration;
