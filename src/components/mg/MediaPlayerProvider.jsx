@@ -19,6 +19,7 @@ import {
 } from "@/components/mg/addonBrowserFallback";
 
 import VideoPlayer from "@/components/mg/VideoPlayer";
+import { isNativeFireTvPlayerAvailable } from "@/components/mg/nativeFireTvBridge";
 import {
   detectLanguagePreference,
   getPlaybackDeviceProfile,
@@ -1133,6 +1134,7 @@ const findRdLibrarySource = async ({
   alternateYears = [],
   season,
   episode,
+  fastStart = false,
 }) => {
   if (!title) {
     return {
@@ -1179,6 +1181,9 @@ const findRdLibrarySource = async ({
                 episode,
               }
             : {}),
+
+          fast_start:
+            Boolean(fastStart),
         }
       );
 
@@ -2104,6 +2109,7 @@ export function PlayerProvider({
                     : [],
                 season,
                 episode,
+                fastStart: isNativeFireTvPlayerAvailable(),
               })
             : Promise.resolve({
                 source: null,
