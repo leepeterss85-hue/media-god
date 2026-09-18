@@ -2143,19 +2143,70 @@ export function PlayerProvider({
               })
             : Promise.resolve(skippedAddonLookup);
 
-        fastAddonPromise.then((addonLookup) => {
-          if (
-            Array.isArray(addonLookup?.streams) &&
-            addonLookup.streams.length > 0
-          ) {
-            publishEarlySources(addonLookup.streams, {
+        fastAddonPromise.then(async (addonLookup) => {
+          const fastStreams = Array.isArray(addonLookup?.streams)
+            ? addonLookup.streams
+            : [];
+
+          if (fastStreams.length === 0 || !isCurrentPlay()) {
+            return;
+          }
+
+          /*
+           * Direct HTTP/HLS/file streams are already playable, so publish them
+           * immediately. Torrent rows are different: publishing an unannotated
+           * magnet can make the player begin a slow uncached preparation even
+           * when another hash from this same fast result is already cached.
+           */
+          const directFastStreams = fastStreams.filter(isDirectSource);
+
+          if (directFastStreams.length > 0) {
+            publishEarlySources(directFastStreams, {
               imdbId: suppliedImdbId,
               imdbStatus: suppliedImdbId ? "SUPPLIED" : "RESOLVING",
-              addonLookupStatus: "FAST READY",
+              addonLookupStatus: "FAST DIRECT",
               addonsChecked: Number(addonLookup?.addonsChecked || 0),
-              discoveredCount: addonLookup.streams.length,
+              discoveredCount: fastStreams.length,
             });
           }
+
+          const hasTorrentCandidates = fastStreams.some(isMagnetSource);
+
+          if (!hasTorrentCandidates) {
+            if (directFastStreams.length === 0) {
+              publishEarlySources(fastStreams, {
+                imdbId: suppliedImdbId,
+                imdbStatus: suppliedImdbId ? "SUPPLIED" : "RESOLVING",
+                addonLookupStatus: "FAST READY",
+                addonsChecked: Number(addonLookup?.addonsChecked || 0),
+                discoveredCount: fastStreams.length,
+              });
+            }
+            return;
+          }
+
+          const cacheAnnotatedFast = await annotateDebridCache(
+            fastStreams,
+            hasDebrid
+          );
+
+          if (!isCurrentPlay()) {
+            return;
+          }
+
+          publishEarlySources(cacheAnnotatedFast, {
+            imdbId: suppliedImdbId,
+            imdbStatus: suppliedImdbId ? "SUPPLIED" : "RESOLVING",
+            addonLookupStatus: "FAST CACHE CHECKED",
+            addonsChecked: Number(addonLookup?.addonsChecked || 0),
+            discoveredCount: fastStreams.length,
+            cacheCandidateCount: cacheAnnotatedFast.filter((item) =>
+              Boolean(sourceMagnetHash(item))
+            ).length,
+            cachedSourceCount: cacheAnnotatedFast.filter(
+              (item) => item?.debridCached === true || item?.viaRealDebrid === true
+            ).length,
+          });
         });
 
         const imdbInfo =
