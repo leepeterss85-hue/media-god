@@ -210,6 +210,70 @@ test("player retries only unknown cache hashes and never records them as a miss"
   assert.match(providerSource, /debridCacheCheckState:\s*"unknown"/);
 });
 
+test("new movie reboots supplement non-English primary addon results with title-year aliases", () => {
+  const serverSource = readFileSync(
+    new URL("../base44/functions/fetchAddonStreams/entry.ts", import.meta.url),
+    "utf8"
+  );
+  const browserSource = readFileSync(
+    new URL("../src/components/mg/addonBrowserFallback.js", import.meta.url),
+    "utf8"
+  );
+
+  for (const source of [serverSource, browserSource]) {
+    assert.match(source, /streamHasPreferredEnglishAudio/);
+    assert.match(source, /yearQualifiedSearchIds/);
+    assert.match(
+      source,
+      /mediaType\s*===\s*"movie"[\s\S]{0,500}?!rawStreams\.some\(streamHasPreferredEnglishAudio\)/
+    );
+  }
+
+  assert.match(
+    serverSource,
+    /rawStreams\s*=\s*dedupe\(\[[\s\S]{0,220}?\.\.\.rawStreams,[\s\S]{0,220}?\.\.\.alternateStreams/
+  );
+  assert.match(
+    browserSource,
+    /rawStreams\s*=\s*\[[\s\S]{0,220}?\.\.\.rawStreams,[\s\S]{0,220}?\.\.\.alternateStreams/
+  );
+});
+
+test("TV playback publishes the episode-list destination before closing", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+  const providerSource = readFileSync(
+    new URL("../src/components/mg/PlayerProvider.jsx", import.meta.url),
+    "utf8"
+  );
+  const homeSource = readFileSync(
+    new URL("../src/pages/Home.jsx", import.meta.url),
+    "utf8"
+  );
+
+  const playerDispatch = playerSource.indexOf(
+    'new CustomEvent("mg:return-to-episode-selector"'
+  );
+  const playerClose = playerSource.indexOf("onClose?.();", playerDispatch);
+  assert.ok(playerDispatch >= 0);
+  assert.ok(playerClose > playerDispatch);
+
+  const providerChoose = providerSource.indexOf("const onChooseEpisode =");
+  const providerDispatch = providerSource.indexOf(
+    'new CustomEvent("mg:return-to-episode-selector"',
+    providerChoose
+  );
+  const providerClose = providerSource.indexOf("close();", providerDispatch);
+  assert.ok(providerChoose >= 0);
+  assert.ok(providerDispatch > providerChoose);
+  assert.ok(providerClose > providerDispatch);
+
+  assert.match(homeSource, /button\[data-mg-player-exit="true"\]/);
+  assert.match(homeSource, /button\[aria-label="Exit player"\]/);
+});
+
 test("uncached v2 engine owns Real-Debrid slot preflight and preserves blocked source", () => {
   const cacheEngineSource = readFileSync(
     new URL("../src/components/mg/realDebridCacheEngine.js", import.meta.url),
