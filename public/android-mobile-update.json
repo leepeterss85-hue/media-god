@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 24,
-  "versionName": "1.0.23",
+  "versionCode": 25,
+  "versionName": "1.0.24",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.23 restores the last stable pre-sound-change playback engine for fast, direct playback.",
+  "message": "Media God Mobile 1.0.24 enforces a single playback owner so WebView media cannot continue underneath native playback, and keeps Cached/4K episode source modes visible when those ready sources exist.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
