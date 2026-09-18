@@ -12,8 +12,8 @@ android {
         applicationId = "com.mediagod.mobile"
         minSdk = 23
         targetSdk = 35
-        versionCode = 19
-        versionName = "1.0.18"
+        versionCode = 26
+        versionName = "1.0.25"
 
         buildConfigField(
             "String",
