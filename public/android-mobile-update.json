@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 28,
-  "versionName": "1.0.27",
+  "versionCode": 29,
+  "versionName": "1.0.28",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.27 adds preventative single-player lifecycle protection, device regression coverage, and clearer English-first audio preference handling.",
+  "message": "Media God Mobile 1.0.28 fixes missing cached torrents by retrying incomplete debrid cache checks and never treating a temporary provider failure as a confirmed cache miss.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
