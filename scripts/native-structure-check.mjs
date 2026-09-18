@@ -9,7 +9,7 @@ const apps = [
     dir: "firetv-android",
     packagePath: "com/mediagod/firetv",
     namespace: "com.mediagod.firetv",
-    expectedVersion: "1.4.36",
+    expectedVersion: "1.4.37",
     expectedMedia3: "1.8.0",
     expectedOrientation: "landscape",
   },
@@ -18,7 +18,7 @@ const apps = [
     dir: "android-mobile",
     packagePath: "com/mediagod/mobile",
     namespace: "com.mediagod.mobile",
-    expectedVersion: "1.0.22",
+    expectedVersion: "1.0.23",
     expectedMedia3: "1.11.0",
     expectedOrientation: "sensor",
   },
@@ -67,6 +67,13 @@ const nativeCoordinationChecks = [
       videoPlayer
     ),
     "native Live TV duplicate fallback-timer guard",
+  ],
+  [
+    nativeBridge.includes("cancelNativeFireTvPlayback") &&
+      nativeBridge.includes("native.cancelPlayback") &&
+      videoPlayer.includes("currentVideo.muted = true") &&
+      videoPlayer.includes("currentVideo.pause()"),
+    "single-owner source replacement",
   ],
   [
     nativeBridge.includes("videoCodec") &&
@@ -167,6 +174,12 @@ for (const app of apps) {
     [mainActivity.includes("PlaybackCompatibilityRouter.decide(payload)"), "preflight routing decision"],
     [mainActivity.includes("CompatibilityPlayerActivity::class.java"), "direct compatibility player routing"],
     [mainActivity.includes("NativeStreamPreflight.checkPayload(payload)"), "pre-play stream validation"],
+    [
+      mainActivity.includes("fun cancelPlayback(requestId: String)") &&
+        mainActivity.includes("nativeRequestIsCurrent(requestId)") &&
+        mainActivity.includes("markNativeActivityStarted(requestId)"),
+      "stale native handoff cancellation",
+    ],
     [mainActivity.includes("EXTRA_DIAGNOSTICS"), "native diagnostics result forwarding"],
     [playerActivity.includes("DefaultHttpDataSource.Factory"), "Media3 HTTP data source"],
     [playerActivity.includes("setEnableDecoderFallback(true)"), "device decoder fallback"],
