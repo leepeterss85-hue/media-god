@@ -1,4 +1,4 @@
-// TV episode Back-to-selector release verification.
+// Complete cached-source chooser release verification.
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.mediagod.firetv"
         minSdk = 21
         targetSdk = 35
-        versionCode = 49
-        versionName = "1.4.44"
+        versionCode = 50
+        versionName = "1.4.45"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
