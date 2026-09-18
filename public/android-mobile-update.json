@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 31,
-  "versionName": "1.0.30",
+  "versionCode": 32,
+  "versionName": "1.0.31",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.30 makes TV episode Back return to the same show's season and episode selector instead of falling through to Home. Movies and Live TV keep their existing Back behaviour.",
+  "message": "Media God Mobile 1.0.31 restores the complete cached-source chooser for films and TV. Unknown cache checks no longer hide possible cached results, and temporarily failed cached sources remain available for manual retry.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
