@@ -36,7 +36,7 @@ expect(
 
 expect(
   assist.includes("Next ${nextEpisodeLabel} in ${nextCountdownSeconds}s") &&
-    assist.includes("Cancel automatic next episode") &&
+    assist.includes("Keep watching current episode") &&
     assist.includes('new CustomEvent("mg:play-next-episode")') &&
     assist.includes("context?.nextEpisodeAvailable !== false") &&
     assist.includes("remaining <= 20") &&
