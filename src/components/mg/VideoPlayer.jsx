@@ -7320,6 +7320,7 @@ export default function VideoPlayer({
           switchToSource(selectedSourceIndex, {
             preservePosition: true,
             statusMessage: "Switching source from the Fire TV player…",
+            manualSelection: true,
           });
         } else {
           setForceNativePlayback(true);
