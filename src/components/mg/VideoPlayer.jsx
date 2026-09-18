@@ -155,22 +155,20 @@ const richestSourceMagnet = (item) =>
 const stablePlaybackSourceKey = (item, fallbackIndex = -1) => {
   if (!item) return "";
 
-  const id = String(item?.id || "").trim();
-  if (id) return `id:${id}`;
-
   const hash = sourceTorrentHash(item);
   if (hash) {
     return [
       "torrent",
       hash,
       String(item?.fileIdx ?? item?.file_idx ?? ""),
-      String(item?.addon || item?.debridProvider || ""),
-      sourceDisplayLabel(item, fallbackIndex),
     ].join(":");
   }
 
   const url = String(getSourceUrl(item) || "").trim();
   if (url) return `url:${url}`;
+
+  const id = String(item?.id || "").trim();
+  if (id) return `id:${id}`;
 
   return [
     "label",
