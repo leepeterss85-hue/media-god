@@ -169,6 +169,13 @@ expect(
 );
 
 expect(
+  sourcePreferences.includes("const hasCached = items.some((item) => sourceIsCached(item))") &&
+    sourcePreferences.includes("const movieLike =") &&
+    sourcePreferences.includes("hasCached && (items.length > 1 || movieLike)"),
+  "movies keep the Cached / ready dropdown available even when only one cached source is selectable"
+);
+
+expect(
   assist.includes("runClickFallback") &&
     assist.includes("runKeyAction") &&
     assist.includes("!(recapEnd > 0)") &&
