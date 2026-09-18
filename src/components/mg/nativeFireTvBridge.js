@@ -443,6 +443,28 @@ const playerMarkerSeconds = (context, key) => {
   return Number.isFinite(value) && value >= 0 ? value : -1;
 };
 
+const setNativePlaybackOwnership = (active) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.__MG_NATIVE_PLAYBACK_ACTIVE__ = Boolean(active);
+
+  if (!active || typeof document === "undefined") {
+    return;
+  }
+
+  document.querySelectorAll("video, audio").forEach((media) => {
+    try {
+      media.pause();
+      media.muted = true;
+      media.removeAttribute("autoplay");
+    } catch {
+      // The element may disappear during React/native handoff.
+    }
+  });
+};
+
 export const playNativeFireTv = ({
   requestId,
   url,
@@ -704,14 +726,18 @@ export const playNativeFireTv = ({
     const result = native.play(JSON.stringify(payload));
     const status = String(result ?? "").trim().toLowerCase();
 
-    return (
+    const accepted =
       result !== false &&
       status !== "" &&
       status !== "false" &&
       status !== "error" &&
-      status !== "busy"
-    );
+      status !== "busy";
+
+    setNativePlaybackOwnership(accepted);
+
+    return accepted;
   } catch {
+    setNativePlaybackOwnership(false);
     return false;
   }
 };
