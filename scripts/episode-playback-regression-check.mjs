@@ -129,6 +129,22 @@ expect(
   "fast start always expands into full cache discovery and every published source keeps a stable playback index"
 );
 
+const firstFrameFastPathIndex = mediaPlayerProvider.indexOf(
+  "const fastAddonPromise ="
+);
+const imdbResolveIndex = mediaPlayerProvider.indexOf(
+  ": await resolveImdbInfo("
+);
+
+expect(
+  mediaPlayerProvider.includes("FIRST-FRAME FAST PATH") &&
+    mediaPlayerProvider.includes("const immediateAddonArgs =") &&
+    firstFrameFastPathIndex >= 0 &&
+    imdbResolveIndex >= 0 &&
+    firstFrameFastPathIndex < imdbResolveIndex,
+  "fast addon discovery starts before IMDb resolution so identifier lookup cannot delay first playback"
+);
+
 expect(
   mediaPlayerProvider.includes('item?.infoHash') &&
     mediaPlayerProvider.includes('item?.info_hash') &&
