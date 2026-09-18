@@ -142,7 +142,7 @@ export const openNativeFireTvExternalUrl = (url) => {
   }
 };
 
-const NATIVE_DIAGNOSTICS_KEY = "mg:native-playback-diagnostics:v1";
+const NATIVE_DIAGNOSTICS_KEY = "mg:native-playback-diagnostics:v2";
 
 const connectionDownlinkMbps = () => {
   if (typeof navigator === "undefined") return 0;
