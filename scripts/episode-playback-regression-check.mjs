@@ -159,6 +159,16 @@ expect(
 );
 
 expect(
+  nativeBridge.includes("const setNativePlaybackOwnership = (active) =>") &&
+    nativeBridge.includes('document.querySelectorAll("video, audio")') &&
+    nativeBridge.includes("setNativePlaybackOwnership(accepted)") &&
+    liveVideo.includes("window.__MG_NATIVE_PLAYBACK_ACTIVE__ === true") &&
+    videoPlayer.includes("window.__MG_NATIVE_PLAYBACK_ACTIVE__ = false") &&
+    videoPlayer.includes("window.__MG_NATIVE_PLAYBACK_ACTIVE__ === true"),
+  "native playback is the sole owner: WebView media is stopped and cannot restart underneath it"
+);
+
+expect(
   assist.includes("runClickFallback") &&
     assist.includes("runKeyAction") &&
     assist.includes("!(recapEnd > 0)") &&
