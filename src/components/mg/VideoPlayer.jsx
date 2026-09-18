@@ -1697,6 +1697,17 @@ export default function VideoPlayer({
   ) => {
     const activeIsLive =
       source?.type === "live" || active?.live || active?.type === "live";
+
+    if (!activeIsLive && vodSourceLockedRef.current) {
+      setRdResolving(false);
+      setRdPolling(false);
+      setRdTorrentId(null);
+      setRdError(
+        `${String(message || "This source could not be played.").trim()} Media God kept this movie/episode on the same file. Choose another source manually if needed.`
+      );
+      return false;
+    }
+
     const selectorPinned =
       sourceSelectorPinnedRef.current || rdFileSelectorPinnedRef.current;
 
