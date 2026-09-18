@@ -25,7 +25,10 @@ import {
   openNativeFireTvExternalUrl,
   playNativeFireTv,
 } from "@/components/mg/nativeFireTvBridge";
-import { readTrackPreferences } from "@/components/mg/mediaTrackPreferences";
+import {
+  preferredAudioTrackScore,
+  readTrackPreferences,
+} from "@/components/mg/mediaTrackPreferences";
 import { readPlaybackPreferences } from "@/components/mg/playbackPreferences";
 import {
   hasRecentNoSoundHistory,
@@ -672,42 +675,8 @@ const isDesktopFullscreenBrowser = () => {
   );
 };
 
-const audioTrackScore = (track, preferredLanguage = "en") => {
-  const text = `${track?.language || ""} ${track?.label || ""}`;
-  const language = String(track?.language || "").toLowerCase();
-  const preferred = String(preferredLanguage || "").toLowerCase();
-
-  let score = 0;
-
-  if (
-    preferred &&
-    (
-      language === preferred ||
-      language.startsWith(`${preferred}-`) ||
-      (preferred === "en" && /\b(?:eng|english)\b/i.test(text))
-    )
-  ) {
-    score += 10000;
-  }
-
-  if (/\b(?:aac|he-?aac|mp4a)\b/i.test(text)) score += 2600;
-  else if (/\b(?:e-?ac-?3|eac3|ec-?3|ddp|dd\+)\b/i.test(text)) score += 1400;
-  else if (/\b(?:ac-?3|ac3|dolby digital)\b/i.test(text)) score += 1200;
-  else if (/\bopus\b/i.test(text)) score += 900;
-  else if (/\bflac\b/i.test(text)) score += 850;
-  else if (/\b(?:alac|apple lossless)\b/i.test(text)) score += 750;
-  else if (/\bvorbis\b/i.test(text)) score += 700;
-  else if (/\b(?:pcm|lpcm)\b/i.test(text)) score += 650;
-  else if (/\b(?:mp3|mpeg audio)\b/i.test(text)) score += 700;
-  else if (/\bmp2\b/i.test(text)) score += 350;
-  else if (/\b(?:truehd|mlp|dts(?:-?hd)?|dts:x|dca)\b/i.test(text)) score -= 5000;
-
-  if (/\b(?:commentary|audio description|descriptive|visually impaired)\b/i.test(text)) {
-    score -= 3200;
-  }
-
-  return score;
-};
+const audioTrackScore = (track, preferredLanguage = "en") =>
+  preferredAudioTrackScore(track, preferredLanguage);
 
 export default function VideoPlayer({
   source,
