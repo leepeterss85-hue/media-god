@@ -1429,7 +1429,7 @@ export default function SettingsView() {
                 Preferred audio language
               </p>
               <p className="text-xs 3xl:text-sm text-white/40">
-                Choose the audio track Media God should try first when a source exposes multiple languages.
+                English is the default. Main/original tracks are preferred; commentary and audio-description tracks are ranked lower.
               </p>
             </div>
 
