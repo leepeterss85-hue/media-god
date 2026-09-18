@@ -7206,6 +7206,8 @@ export default function VideoPlayer({
         return;
       }
 
+      window.__MG_NATIVE_PLAYBACK_ACTIVE__ = false;
+
       if (nativeLaunchTimerRef.current) {
         window.clearTimeout(nativeLaunchTimerRef.current);
         nativeLaunchTimerRef.current = null;
@@ -7525,6 +7527,8 @@ export default function VideoPlayer({
     });
 
     if (!started) {
+      window.__MG_NATIVE_PLAYBACK_ACTIVE__ = false;
+
       nativePlaybackRef.current = {
         requestId: "",
         url: "",
@@ -7561,6 +7565,8 @@ export default function VideoPlayer({
         if (pending.requestId !== requestId) {
           return;
         }
+
+        window.__MG_NATIVE_PLAYBACK_ACTIVE__ = false;
 
         nativePlaybackRef.current = {
           requestId: "",
@@ -7601,6 +7607,13 @@ export default function VideoPlayer({
 
   const handleNoSound =
     async (options = {}) => {
+      if (
+        typeof window !== "undefined" &&
+        window.__MG_NATIVE_PLAYBACK_ACTIVE__ === true
+      ) {
+        return;
+      }
+
       const automatic = options?.automatic === true;
       const actionGeneration = ++streamActionGenerationRef.current;
       const actionStillCurrent = () =>
