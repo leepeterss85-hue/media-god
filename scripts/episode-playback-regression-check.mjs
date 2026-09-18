@@ -156,6 +156,15 @@ expect(
 );
 
 expect(
+  videoPlayer.includes("const vodSourceLockedRef = useRef(false)") &&
+    videoPlayer.includes("vodSourceLockedRef.current = true") &&
+    videoPlayer.includes("vodSourceLockedRef.current && !manualSelection") &&
+    videoPlayer.includes("if (!activeIsLive && vodSourceLockedRef.current)") &&
+    videoPlayer.includes("manualSelection: true"),
+  "movie and episode playback locks to one source once a real URL is active; only manual selection can change files"
+);
+
+expect(
   assist.includes("runClickFallback") &&
     assist.includes("runKeyAction") &&
     assist.includes("!(recapEnd > 0)") &&
