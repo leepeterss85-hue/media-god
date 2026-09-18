@@ -754,16 +754,28 @@ class PlayerActivity : Activity() {
         skipRecapButton = buildAssistButton("Skip recap") {
             val activePlayer = player ?: return@buildAssistButton
             val target =
-                if (recapEndMs > activePlayer.currentPosition) recapEndMs + 250L
-                else activePlayer.currentPosition + 45_000L
+                if (recapEndMs > activePlayer.currentPosition) {
+                    recapEndMs + 250L
+                } else {
+                    minOf(
+                        75_000L,
+                        maxOf(activePlayer.currentPosition + 30_000L, 50_000L)
+                    )
+                }
             seekAssistTo(target)
         }
 
         skipIntroButton = buildAssistButton("Skip intro") {
             val activePlayer = player ?: return@buildAssistButton
             val target =
-                if (introEndMs > activePlayer.currentPosition) introEndMs + 250L
-                else activePlayer.currentPosition + 85_000L
+                if (introEndMs > activePlayer.currentPosition) {
+                    introEndMs + 250L
+                } else {
+                    minOf(
+                        210_000L,
+                        maxOf(activePlayer.currentPosition + 60_000L, 105_000L)
+                    )
+                }
             seekAssistTo(target)
         }
 
@@ -830,55 +842,96 @@ class PlayerActivity : Activity() {
         val remaining = if (mediaDuration > 0L) maxOf(0L, mediaDuration - position) else Long.MAX_VALUE
         val tvEpisode = isTvEpisode()
         val playingNow = activePlayer.isPlaying
-
+        val episodeNumber = payload.optInt("episode", 0).coerceAtLeast(0)
+        val nextEpisodeKnown =
+            payload.has("nextEpisodeAvailable") &&
+                !payload.isNull("nextEpisodeAvailable")
+        val hasNextEpisode =
+            !nextEpisodeKnown ||
+                payload.optBoolean("nextEpisodeAvailable", true)
         val exactRecap =
-            tvEpisode && recapEndMs > 0L &&
-                position >= maxOf(0L, recapStartMs) && position < recapEndMs
+            tvEpisode &&
+                recapEndMs > 0L &&
+                position >= maxOf(0L, recapStartMs) &&
+                position < recapEndMs
         val fallbackRecap =
-            tvEpisode && recapEndMs <= 0L &&
-                position in 0L..90_000L &&
+            tvEpisode &&
+                recapEndMs <= 0L &&
+                episodeNumber > 1 &&
+                playingNow &&
+                position in 4_000L..65_000L &&
                 (mediaDuration <= 0L || remaining > 180_000L)
+        val recapVisible = exactRecap || fallbackRecap
 
         val exactIntro =
-            tvEpisode && introEndMs > 0L &&
-                position >= maxOf(0L, introStartMs) && position < introEndMs
+            tvEpisode &&
+                introEndMs > 0L &&
+                position >= maxOf(0L, introStartMs) &&
+                position < introEndMs
+        val fallbackIntroStartMs =
+            if (recapEndMs > 0L) {
+                maxOf(15_000L, minOf(180_000L, recapEndMs + 2_000L))
+            } else if (episodeNumber > 1) {
+                65_000L
+            } else {
+                15_000L
+            }
         val fallbackIntro =
-            tvEpisode && introEndMs <= 0L &&
-                position in 30_000L..420_000L &&
+            tvEpisode &&
+                introEndMs <= 0L &&
+                playingNow &&
+                !recapVisible &&
+                position in fallbackIntroStartMs..210_000L &&
                 (mediaDuration <= 0L || remaining > 120_000L)
+        val introVisible = exactIntro || fallbackIntro
 
         val creditsFallbackWindow =
             if (tvEpisode) {
-                if (mediaDuration > 0L) minOf(240_000L, maxOf(75_000L, (mediaDuration * 0.09).toLong())) else 0L
+                if (mediaDuration > 0L) {
+                    minOf(90_000L, maxOf(45_000L, (mediaDuration * 0.04).toLong()))
+                } else 0L
             } else {
-                if (mediaDuration > 0L) minOf(360_000L, maxOf(120_000L, (mediaDuration * 0.08).toLong())) else 0L
+                if (mediaDuration > 0L) {
+                    minOf(180_000L, maxOf(90_000L, (mediaDuration * 0.05).toLong()))
+                } else 0L
             }
+
         val exactCredits =
-            mediaDuration >= 300_000L && creditsStartMs > 0L &&
-                position >= creditsStartMs && position < mediaDuration - 500L
+            mediaDuration >= 300_000L &&
+                creditsStartMs > 0L &&
+                position >= creditsStartMs &&
+                position < mediaDuration - 500L
         val fallbackCredits =
-            mediaDuration >= 300_000L && creditsStartMs <= 0L &&
-                position > (mediaDuration * 0.55).toLong() && remaining <= creditsFallbackWindow
+            mediaDuration >= 300_000L &&
+                creditsStartMs <= 0L &&
+                position > (mediaDuration * 0.70).toLong() &&
+                remaining <= creditsFallbackWindow
         val creditsVisible = exactCredits || fallbackCredits
 
-        setAssistVisible(skipRecapButton, exactRecap || fallbackRecap)
-        setAssistVisible(skipIntroButton, exactIntro || fallbackIntro)
-        setAssistVisible(skipCreditsButton, creditsVisible)
-        skipCreditsButton.text = if (tvEpisode && creditsVisible) "Skip credits → Next" else "Skip credits"
+        setAssistVisible(skipRecapButton, recapVisible)
+        setAssistVisible(skipIntroButton, introVisible)
+        // TV has one clear end-of-episode action instead of duplicate
+        // "Skip credits" and "Play next" buttons.
+        setAssistVisible(skipCreditsButton, creditsVisible && !tvEpisode)
+        skipCreditsButton.text = "Skip credits"
 
-        val nextWindowMs =
-            if (mediaDuration > 0L) {
-                minOf(180_000L, maxOf(75_000L, (mediaDuration * 0.10).toLong()))
-            } else 0L
         val nextEpisodeWindow =
-            tvEpisode && mediaDuration >= 180_000L && position >= 60_000L &&
-                remaining <= nextWindowMs
-        val showNext = nextEpisodeWindow
-        setAssistVisible(playNextButton, showNext)
+            tvEpisode &&
+                hasNextEpisode &&
+                mediaDuration >= 180_000L &&
+                position >= 60_000L &&
+                (exactCredits || remaining <= 60_000L)
+        setAssistVisible(playNextButton, nextEpisodeWindow)
 
         val countdownWindow =
-            tvEpisode && mediaDuration >= 180_000L && position >= 60_000L &&
-                (exactCredits || remaining <= 15_000L)
+            tvEpisode &&
+                hasNextEpisode &&
+                mediaDuration >= 180_000L &&
+                position >= 60_000L &&
+                (
+                    (exactCredits && remaining <= 75_000L) ||
+                        remaining <= 20_000L
+                )
 
         if (autoNext && countdownWindow && playingNow && !nextEpisodeCountdownCancelled) {
             if (nextEpisodeCountdownStartedAtMs < 0L) {
