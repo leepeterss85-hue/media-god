@@ -8454,6 +8454,7 @@ export default function VideoPlayer({
         </div>
 
         <div
+          data-mg-player-stage="true"
           ref={
             stageRef
           }
@@ -8644,7 +8645,7 @@ export default function VideoPlayer({
                 onError={
                   handleRdPlaybackError
                 }
-                className="w-full h-full object-contain bg-black"
+                className="absolute inset-0 h-full w-full flex-none object-contain bg-black"
               />
 
               <PlayerControls
@@ -8760,7 +8761,7 @@ export default function VideoPlayer({
                 preferredAudioLanguage={
                   trackPreferences.audioLanguage
                 }
-                className="w-full h-full object-contain bg-black"
+                className="absolute inset-0 h-full w-full flex-none object-contain bg-black"
                 onLoadedMetadata={
                   handleLoadedMetadata
                 }
