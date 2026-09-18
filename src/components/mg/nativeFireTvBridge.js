@@ -443,6 +443,26 @@ const playerMarkerSeconds = (context, key) => {
   return Number.isFinite(value) && value >= 0 ? value : -1;
 };
 
+const stopWebMediaForNativePlayback = () => {
+  if (typeof window === "undefined" || typeof document === "undefined") {
+    return;
+  }
+
+  window.__MG_NATIVE_PLAYBACK_ACTIVE__ = true;
+
+  document.querySelectorAll("video, audio").forEach((media) => {
+    try {
+      media.pause();
+      media.muted = true;
+      media.removeAttribute("autoplay");
+      media.dataset.mgNativePlaybackSuspended = "true";
+    } catch {
+      // Native playback still owns the foreground even if an old element
+      // disappears between the query and the pause call.
+    }
+  });
+};
+
 export const playNativeFireTv = ({
   requestId,
   url,
@@ -701,17 +721,32 @@ export const playNativeFireTv = ({
   };
 
   try {
+    /*
+     * Native Media3/LibVLC must be the only playback owner. WebView.onPause()
+     * does not guarantee that HTML5 media stops, so explicitly quiesce every
+     * browser media element before Android starts the native player.
+     */
+    stopWebMediaForNativePlayback();
+
     const result = native.play(JSON.stringify(payload));
     const status = String(result ?? "").trim().toLowerCase();
 
-    return (
+    const accepted =
       result !== false &&
       status !== "" &&
       status !== "false" &&
       status !== "error" &&
-      status !== "busy"
-    );
+      status !== "busy";
+
+    if (!accepted && typeof window !== "undefined") {
+      window.__MG_NATIVE_PLAYBACK_ACTIVE__ = false;
+    }
+
+    return accepted;
   } catch {
+    if (typeof window !== "undefined") {
+      window.__MG_NATIVE_PLAYBACK_ACTIVE__ = false;
+    }
     return false;
   }
 };
