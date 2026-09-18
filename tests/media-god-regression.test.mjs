@@ -45,8 +45,10 @@ import {
 } from "../src/components/mg/mediaEdition.js";
 import {
   promoteReadySourceOverPending,
+  sourceCachedProviderKeys,
   sourceHasAuthoritativeCachedSignal,
   sourceHasPendingCacheSignal,
+  sourceHasReusableCacheRouting,
   sourceIsImmediatelyReady,
 } from "../src/components/mg/sourceCacheVisibility.js";
 import {
@@ -818,6 +820,49 @@ test("fast start keeps the published source order once playback is locked", () =
     }),
     stable
   );
+});
+
+test("cached provider routing is reused without another cache lookup", () => {
+  const ready = {
+    debridCached: true,
+    debridProvider: "Real-Debrid",
+    cachedProviders: ["realdebrid", "TorBox", "Real-Debrid"],
+  };
+
+  assert.deepEqual(sourceCachedProviderKeys(ready), [
+    "realdebrid",
+    "torbox",
+  ]);
+  assert.equal(sourceHasReusableCacheRouting(ready), true);
+  assert.equal(
+    sourceHasReusableCacheRouting({
+      debridCached: false,
+      cachedProviders: ["realdebrid"],
+    }),
+    false
+  );
+});
+
+test("cached playback skips duplicate lookup and native playback skips optional inspection", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+  const rdBackend = readFileSync(
+    new URL("../base44/functions/realDebrid/entry.ts", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(
+    playerSource,
+    /if \(hash && source\?\.hasDebrid && !reuseCacheRouting\)/
+  );
+  assert.match(playerSource, /fast_mode:\s*true/);
+  assert.match(
+    playerSource,
+    /fast_start:\s*isNativeFireTvPlayerAvailable\(\)/
+  );
+  assert.match(rdBackend, /deferred_native_fast_start/);
 });
 
 test("audio tracks favour the current language and compatible main audio", () => {
