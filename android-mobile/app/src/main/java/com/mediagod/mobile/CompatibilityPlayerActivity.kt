@@ -360,12 +360,33 @@ class CompatibilityPlayerActivity : Activity() {
             configureAudioOutput(player)
             val tracks = player.audioTracks?.filter { it.id >= 0 }.orEmpty()
             if (tracks.isEmpty()) return
-            val preferred = payload.optString("audioLanguage", "en").lowercase()
+            val preferred = payload.optString("audioLanguage", "en").trim().lowercase()
+            val preferredAliases = when (preferred) {
+                "en", "eng", "english" -> "en|eng|english"
+                "fr", "fre", "fra", "french" -> "fr|fre|fra|french"
+                "es", "spa", "spanish" -> "es|spa|spanish"
+                "de", "ger", "deu", "german" -> "de|ger|deu|german"
+                "it", "ita", "italian" -> "it|ita|italian"
+                else -> Regex.escape(preferred)
+            }
             fun score(name: String): Int {
-                val text = name.lowercase(); var value = 0
-                if (preferred == "en" && Regex("""\b(?:eng|english)\b""").containsMatchIn(text)) value += 100
-                else if (preferred.isNotBlank() && text.contains(preferred)) value += 80
-                if (Regex("""commentary|audio description|descriptive""").containsMatchIn(text)) value -= 100
+                val text = name.lowercase()
+                val preferredTrack =
+                    preferredAliases.isNotBlank() &&
+                        Regex(
+                            """(?:^|[\s._\-\[\]()])(?:$preferredAliases)(?=$|[\s._\-\[\]()])""",
+                            RegexOption.IGNORE_CASE
+                        ).containsMatchIn(text)
+                var value = 0
+                if (preferredTrack) value += 1000
+                else if (
+                    Regex(
+                        """\b(?:mul|multi(?:[ ._-]?audio)?|dual(?:[ ._-]?audio)?)\b""",
+                        RegexOption.IGNORE_CASE
+                    ).containsMatchIn(text)
+                ) value += 450
+                if (Regex("""commentary|audio description|descriptive|visually impaired""").containsMatchIn(text)) value -= 250
+                if (Regex("""\b(?:main|original|primary)\b""").containsMatchIn(text)) value += 25
                 if (Regex("""aac|ac-?3|e-?ac-?3|opus|flac""").containsMatchIn(text)) value += 12
                 if (Regex("""truehd|dts|mlp""").containsMatchIn(text) && audioOutputMode == "auto") value -= 8
                 return value
