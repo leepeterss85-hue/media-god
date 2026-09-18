@@ -4,7 +4,7 @@ import {
   writePlaybackPreferences,
 } from "@/components/mg/playbackPreferences";
 
-const DIAGNOSTICS_KEY = "mg:native-playback-diagnostics:v1";
+const DIAGNOSTICS_KEY = "mg:native-playback-diagnostics:v2";
 
 const readDiagnostics = () => {
   if (typeof window === "undefined") return [];
