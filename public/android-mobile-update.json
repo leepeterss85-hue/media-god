@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 30,
-  "versionName": "1.0.29",
+  "versionCode": 31,
+  "versionName": "1.0.30",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.29 overhauls episode controls: recap and intro prompts are phase-aware, Next Episode appears only near the real ending, duplicate credits/next buttons are removed, and auto-next waits until the appropriate end window.",
+  "message": "Media God Mobile 1.0.30 makes TV episode Back return to the same show's season and episode selector instead of falling through to Home. Movies and Live TV keep their existing Back behaviour.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
