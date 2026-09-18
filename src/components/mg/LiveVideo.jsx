@@ -1163,6 +1163,7 @@ const LiveVideo = forwardRef(
         };
 
         if (
+          window.__MG_NATIVE_PLAYBACK_ACTIVE__ === true ||
           !hls ||
           !Array.isArray(hls.audioTracks) ||
           hls.audioTracks.length < 2
@@ -1257,7 +1258,12 @@ const LiveVideo = forwardRef(
       };
 
       const onHlsAudioSelection = (event) => {
-        if (!hls) return;
+        if (
+          window.__MG_NATIVE_PLAYBACK_ACTIVE__ === true ||
+          !hls
+        ) {
+          return;
+        }
 
         const index = Number(event?.detail?.index);
         const tracks = Array.isArray(hls.audioTracks) ? hls.audioTracks : [];
@@ -1342,7 +1348,8 @@ const LiveVideo = forwardRef(
       const playAutomatically =
         async () => {
           if (
-            cancelled
+            cancelled ||
+            window.__MG_NATIVE_PLAYBACK_ACTIVE__ === true
           ) {
             return;
           }
