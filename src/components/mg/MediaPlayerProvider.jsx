@@ -31,6 +31,10 @@ import { readTrackPreferences } from "@/components/mg/mediaTrackPreferences";
 import { debridProviderScoreHints } from "@/components/mg/debridProviderReliability";
 import { chooseDebridResolutionStrategy } from "@/components/mg/debridResolutionStrategy";
 import {
+  promoteReadySourceOverPending,
+  sourceIsImmediatelyReady,
+} from "@/components/mg/sourceCacheVisibility";
+import {
   readSourceSortMode,
   sortSourceEntries,
 } from "@/components/mg/sourceSelectorPreferences";
@@ -1890,7 +1894,10 @@ export function PlayerProvider({
         let publishedSourceSnapshot = initialSources.filter(
           (item) => item && !item?.diagnostic
         );
-        let fastStartPrimaryUrl = getSourceUrl(initialPrimary);
+        let fastStartPrimaryUrl =
+          sourceIsImmediatelyReady(initialPrimary)
+            ? getSourceUrl(initialPrimary)
+            : "";
         const preparedEpisodeHandoff =
           request?.preparedEpisodeHandoff === true &&
           initialPlayableSources.length > 0;
@@ -2014,10 +2021,17 @@ export function PlayerProvider({
              * VideoPlayer. This makes the active index and failed-source indexes
              * stable for the lifetime of this playback request.
              */
+            const rankedPublishedSources = publishedSources;
+
             publishedSources = preservePublishedSourceOrder(
               existing,
               publishedSources
             );
+            publishedSources = promoteReadySourceOverPending({
+              stable: publishedSources,
+              ranked: rankedPublishedSources,
+              lockedUrl: fastStartPrimaryUrl,
+            });
             publishedSourceSnapshot = publishedSources;
 
             if (fastStartPrimaryUrl) {
@@ -2033,7 +2047,10 @@ export function PlayerProvider({
 
             const primary = publishedSources[0] || {};
 
-            if (!fastStartPrimaryUrl) {
+            if (
+              !fastStartPrimaryUrl &&
+              sourceIsImmediatelyReady(primary)
+            ) {
               fastStartPrimaryUrl = getSourceUrl(primary);
             }
 
@@ -2497,11 +2514,25 @@ export function PlayerProvider({
          * Existing rows keep their positions; richer cache/provider metadata replaces
          * them in place and genuinely new hashes are appended in ranked order.
          */
+        const rankedFinalSources = orderedSources;
+
         orderedSources = preservePublishedSourceOrder(
           publishedSourceSnapshot,
           orderedSources
         );
+        orderedSources = promoteReadySourceOverPending({
+          stable: orderedSources,
+          ranked: rankedFinalSources,
+          lockedUrl: fastStartPrimaryUrl,
+        });
         publishedSourceSnapshot = orderedSources;
+
+        if (
+          !fastStartPrimaryUrl &&
+          sourceIsImmediatelyReady(orderedSources[0])
+        ) {
+          fastStartPrimaryUrl = getSourceUrl(orderedSources[0]);
+        }
 
         if (fastStartPrimaryUrl) {
           const lockedIndex = orderedSources.findIndex(
