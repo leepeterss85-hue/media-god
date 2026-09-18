@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 26,
-  "versionName": "1.0.25",
+  "versionCode": 27,
+  "versionName": "1.0.26",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.25 restores the complete Media God app to the last known-good pre-audio-change playback snapshot.",
+  "message": "Media God Mobile 1.0.26 prevents duplicate video surfaces, keeps the active stream full-size, and includes English-first playback priority.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
