@@ -1,5 +1,18 @@
 export const UPDATE_HISTORY = [
   {
+    id: "cached-source-chooser-complete-2026-09-18-v1",
+    date: "18 September 2026",
+    title: "Cached film and episode sources restored",
+    summary:
+      "Film and TV source menus now retain every cached or not-yet-confirmed source instead of losing choices after incomplete checks or temporary playback failures.",
+    changes: [
+      "Incomplete Real-Debrid cache responses stay unknown and visible; they are no longer converted into uncached rows by the final selector filter.",
+      "Only an explicit uncached, downloading or cache-required signal hides a source while background caching continues.",
+      "A cached source that fails temporarily remains in the chooser with an Unavailable label so it can be retried manually.",
+      "Android Mobile advances to 1.0.31 (versionCode 32) and Fire TV advances to 1.4.45 (versionCode 50).",
+    ],
+  },
+  {
     id: "episode-controls-phase-aware-2026-09-18-v1",
     date: "18 September 2026",
     title: "Episode controls now appear only when they are useful",
