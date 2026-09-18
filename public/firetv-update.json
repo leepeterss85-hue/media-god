@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 37,
-  "versionName": "1.4.32",
+  "versionCode": 44,
+  "versionName": "1.4.39",
   "title": "Media God Fire TV",
-  "message": "Fire TV 1.4.32 fixes the in-app updater handoff so the Fire OS Install / Cancel screen opens immediately after download instead of waiting for Media God to be closed and reopened.",
+  "message": "Fire TV 1.4.39 restores the complete Media God app to the last known-good pre-audio-change playback snapshot.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
