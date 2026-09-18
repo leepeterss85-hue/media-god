@@ -27,7 +27,6 @@ import {
   rememberSubtitlePreference,
   rememberedAudioTrackScore,
   rememberedSubtitleTrackScore,
-  sortAudioTrackChoices,
   subtitleCueStyle,
   trackLanguage,
   trackLooksForced,
@@ -528,19 +527,9 @@ export default function MediaPlayerControls({
       }
     }
 
-    const audioContext =
-      typeof window !== "undefined"
-        ? window.__MG_PLAYER_CONTEXT__ || { title }
-        : { title };
-    const orderedAudio = sortAudioTrackChoices(nextAudio, {
-      preferredLanguage: preferences.audioLanguage,
-      remembered: readRememberedAudioPreference(audioContext),
-      activeIndex: activeAudio,
-    });
-
     setSubtitleTracks(nextSubtitles);
     setSelectedSubtitle(activeSubtitle);
-    setAudioTracks(orderedAudio);
+    setAudioTracks(nextAudio);
     setSelectedAudio(activeAudio);
 
     setPlaybackRate(
