@@ -7896,40 +7896,16 @@ export default function VideoPlayer({
   handleNoSoundRef.current = handleNoSound;
 
 
-  /* Automatic no-sound recovery is proactive for codec combinations that are
-   * commonly silent on Android/Fire TV/browser decoders, and immediate for a
-   * source that this device has already remembered as silent. */
-  useEffect(() => {
-    if (
-      isLive || isYoutube || isProvider || rdResolving || rdPolling ||
-      rdTorrentId || rdPreparation || readPlaybackPreferences().automaticNoSoundRecovery === false
-    ) {
-      return undefined;
-    }
-
-    const candidate = rdOverride
-      ? { ...active, src: rdOverride.src || activeUrl, label: rdOverride.label || active?.label }
-      : active;
-    const label = sourceDisplayLabel(candidate, activeIdx);
-    const traits = detectStreamTraits(candidate, label);
-    const rememberedSilent = hasRecentNoSoundHistory(label);
-    if (!rememberedSilent && !traits.audioRisk) return undefined;
-
-    const timer = window.setTimeout(() => {
-      const video = stageRef.current?.querySelector("video");
-      if (
-        video instanceof HTMLVideoElement &&
-        !video.paused && !video.ended && !video.error
-      ) {
-        handleNoSoundRef.current?.({ automatic: true });
-      }
-    }, rememberedSilent ? 2200 : 4200);
-
-    return () => window.clearTimeout(timer);
-  }, [
-    active, activeIdx, activeUrl, isLive, isProvider, isYoutube,
-    rdOverride, rdPolling, rdResolving, rdTorrentId, rdPreparation,
-  ]);
+  /*
+   * No automatic no-sound intervention.
+   *
+   * Audio tracks and native decoders can take several seconds to settle after
+   * playback begins. Treating that short startup window as proof of a silent
+   * source caused the player to run Fix Audio automatically and then advance
+   * through otherwise healthy streams. Audio rescue is deliberately manual:
+   * the current source stays pinned unless there is a real playback error or
+   * the user explicitly asks to change/fix audio.
+   */
 
   useEffect(() => {
     const state = autoVideoRescueRef.current;
