@@ -2298,7 +2298,11 @@ const LiveVideo = forwardRef(
        */
       claimExclusivePlayback(
         playbackOwner,
-        releasePlaybackResources
+        releasePlaybackResources,
+        {
+          element: video,
+          poster,
+        }
       );
 
       resetVideo();
@@ -2343,6 +2347,7 @@ const LiveVideo = forwardRef(
     return (
       <video
         ref={videoRef}
+        data-mg-playback-surface="true"
         poster={poster}
         controls={controls}
         playsInline
