@@ -28,8 +28,56 @@ class MainActivity : Activity() {
     private val nativePlayerLock = Any()
     @Volatile private var playerOpen = false
     @Volatile private var activeNativeRequestId = ""
+    @Volatile private var nativeActivityStarted = false
     private var pendingNativeResultScript: String? = null
     private lateinit var appUpdater: AppUpdater
+
+    private fun nativeRequestIsCurrent(requestId: String): Boolean =
+        synchronized(nativePlayerLock) {
+            playerOpen && activeNativeRequestId == requestId
+        }
+
+    private fun markNativeActivityStarted(requestId: String): Boolean =
+        synchronized(nativePlayerLock) {
+            if (
+                !playerOpen ||
+                activeNativeRequestId != requestId ||
+                nativeActivityStarted
+            ) {
+                false
+            } else {
+                nativeActivityStarted = true
+                true
+            }
+        }
+
+    private fun releaseNativeRequest(requestId: String): Boolean =
+        synchronized(nativePlayerLock) {
+            if (!playerOpen || activeNativeRequestId != requestId) {
+                false
+            } else {
+                playerOpen = false
+                activeNativeRequestId = ""
+                nativeActivityStarted = false
+                true
+            }
+        }
+
+    private fun cancelPendingNativeRequest(requestId: String): Boolean =
+        synchronized(nativePlayerLock) {
+            val target = requestId.trim()
+            if (
+                !playerOpen ||
+                nativeActivityStarted ||
+                (target.isNotBlank() && activeNativeRequestId != target)
+            ) {
+                false
+            } else {
+                playerOpen = false
+                activeNativeRequestId = ""
+                true
+            }
+        }
 
     @SuppressLint("SetJavaScriptEnabled", "JavascriptInterface")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -189,6 +237,7 @@ class MainActivity : Activity() {
             val value = activeNativeRequestId
             playerOpen = false
             activeNativeRequestId = ""
+            nativeActivityStarted = false
             value
         }
 
@@ -402,6 +451,10 @@ class MainActivity : Activity() {
         }
 
         @JavascriptInterface
+        fun cancelPlayback(requestId: String): Boolean =
+            cancelPendingNativeRequest(requestId)
+
+        @JavascriptInterface
         fun play(payloadJson: String): String {
             val payload = try {
                 JSONObject(payloadJson)
@@ -478,6 +531,7 @@ class MainActivity : Activity() {
                 } else {
                     playerOpen = true
                     activeNativeRequestId = requestId
+                    nativeActivityStarted = false
                     true
                 }
             }
@@ -511,12 +565,13 @@ class MainActivity : Activity() {
                     payload.optBoolean("networkAware4K", true) &&
                         preflight.networkRisk
 
+                if (!nativeRequestIsCurrent(requestId)) {
+                    return@Thread
+                }
+
                 if (preflight.shouldSkip || networkRisk) {
-                    synchronized(nativePlayerLock) {
-                        playerOpen = false
-                        if (activeNativeRequestId == requestId) {
-                            activeNativeRequestId = ""
-                        }
+                    if (!releaseNativeRequest(requestId)) {
+                        return@Thread
                     }
 
                     val message =
@@ -554,6 +609,10 @@ class MainActivity : Activity() {
                     )
                 } else {
                     runOnUiThread {
+                if (!markNativeActivityStarted(requestId)) {
+                    return@runOnUiThread
+                }
+
                 val activityClass =
                     if (playbackDecision.useCompatibility) {
                         CompatibilityPlayerActivity::class.java
@@ -569,11 +628,8 @@ class MainActivity : Activity() {
                     @Suppress("DEPRECATION")
                     startActivityForResult(intent, REQUEST_NATIVE_PLAYER)
                 } catch (error: Throwable) {
-                    synchronized(nativePlayerLock) {
-                        playerOpen = false
-                        if (activeNativeRequestId == requestId) {
-                            activeNativeRequestId = ""
-                        }
+                    if (!releaseNativeRequest(requestId)) {
+                        return@runOnUiThread
                     }
 
                     val result = JSONObject().apply {
