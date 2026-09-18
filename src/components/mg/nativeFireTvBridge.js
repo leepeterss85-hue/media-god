@@ -637,7 +637,7 @@ export const playNativeFireTv = ({
     lipSyncMs: advancedPlayback.lipSyncMs,
     dialogueBoost: advancedPlayback.dialogueBoost,
     volumeNormalization: advancedPlayback.volumeNormalization,
-    automaticNoSoundRecovery: advancedPlayback.automaticNoSoundRecovery,
+    automaticNoSoundRecovery: false,
     networkAware4K: advancedPlayback.networkAware4K,
     thermalProtection: advancedPlayback.thermalProtection,
     networkDownlinkMbps: connectionDownlinkMbps(),
