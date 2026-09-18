@@ -1583,6 +1583,24 @@ export default function VideoPlayer({
       manualSelection = false,
     } = {}
   ) => {
+    const currentIsLive =
+      source?.type === "live" ||
+      active?.live ||
+      active?.type === "live";
+
+    if (!currentIsLive && vodSourceLockedRef.current && !manualSelection) {
+      if (statusMessage) {
+        setRdError(
+          `${statusMessage} The current movie/episode source is locked. Choose another source manually if you want to change files.`
+        );
+      }
+      return false;
+    }
+
+    if (!currentIsLive && manualSelection) {
+      vodSourceLockedRef.current = false;
+    }
+
     /*
      * Never move the active source underneath an open native selector during
      * background recovery. A deliberate movie/TV source choice is allowed to
