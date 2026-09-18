@@ -6,8 +6,10 @@ import { usePlayer } from "@/components/mg/PlayerProvider";
 import { findChannelsByTitle } from "@/components/mg/freeTvPlaylist";
 import {
   friendlyTrackLabel,
+  readRememberedAudioPreference,
   readTrackPreferences,
   rememberAudioPreference,
+  sortAudioTrackChoices,
   writeTrackPreferences,
 } from "@/components/mg/mediaTrackPreferences";
 
@@ -353,26 +355,38 @@ export default function PlayerQrRemote({ showIdle = false }) {
                       chosen?.language || chosen?.label || "en",
                   });
                 }
-              } else if (
-                wanted >= 0 &&
-                wanted < hlsAudioTracksRef.current.length
-              ) {
-                const chosen = hlsAudioTracksRef.current[wanted];
-                window.dispatchEvent(
-                  new CustomEvent("mg:hls-audio-track-selected", {
-                    detail: { index: wanted },
-                  })
+              } else if (wanted >= 0) {
+                const hlsPosition = hlsAudioTracksRef.current.findIndex(
+                  (track, index) =>
+                    Number.isInteger(Number(track?.index))
+                      ? Number(track.index) === wanted
+                      : index === wanted
                 );
-                hlsAudioActiveRef.current = wanted;
-                rememberAudioPreference(
-                  playerWindow().__MG_PLAYER_CONTEXT__ || {},
-                  chosen
-                );
-                writeTrackPreferences({
-                  ...readTrackPreferences(),
-                  audioLanguage:
-                    chosen?.language || chosen?.lang || chosen?.label || "en",
-                });
+                const chosen =
+                  hlsPosition >= 0
+                    ? hlsAudioTracksRef.current[hlsPosition]
+                    : null;
+
+                if (chosen) {
+                  window.dispatchEvent(
+                    new CustomEvent("mg:hls-audio-track-selected", {
+                      detail: { index: wanted },
+                    })
+                  );
+                  hlsAudioActiveRef.current = wanted;
+                  rememberAudioPreference(
+                    playerWindow().__MG_PLAYER_CONTEXT__ || {},
+                    chosen
+                  );
+                  writeTrackPreferences({
+                    ...readTrackPreferences(),
+                    audioLanguage:
+                      chosen?.language ||
+                      chosen?.lang ||
+                      chosen?.label ||
+                      "en",
+                  });
+                }
               }
             } else if (command === "subtitle" && video?.textTracks) {
               const wanted = parseNumber(value, -1);
@@ -558,12 +572,28 @@ export default function PlayerQrRemote({ showIdle = false }) {
           ) {
             for (let index = 0; index < nativeTracks.length; index += 1) {
               const track = nativeTracks[index];
-              audioTracks.push(friendlyTrackLabel(track, "Audio", index));
+              audioTracks.push({
+                index,
+                kind: "native",
+                label: friendlyTrackLabel(track, "Audio", index),
+                language: track?.language || "",
+                raw: track,
+              });
               if (track?.enabled) activeAudioIndex = index;
             }
           } else if (hlsAudioTracksRef.current.length > 0) {
             hlsAudioTracksRef.current.forEach((track, index) => {
-              audioTracks.push(friendlyTrackLabel(track, "Audio", index));
+              const trackIndex = Number.isInteger(Number(track?.index))
+                ? Number(track.index)
+                : index;
+
+              audioTracks.push({
+                index: trackIndex,
+                kind: "hls",
+                label: friendlyTrackLabel(track, "Audio", index),
+                language: track?.language || track?.lang || "",
+                raw: track,
+              });
             });
             activeAudioIndex = hlsAudioActiveRef.current;
           }
@@ -578,6 +608,11 @@ export default function PlayerQrRemote({ showIdle = false }) {
             }
           }
 
+          const orderedAudioTracks = sortAudioTrackChoices(audioTracks, {
+            preferredLanguage: trackPreferences.audioLanguage,
+            remembered: readRememberedAudioPreference(context),
+            activeIndex: activeAudioIndex,
+          });
           const playing = Boolean(playerRef.current?.isOpen);
 
           try {
@@ -594,7 +629,12 @@ export default function PlayerQrRemote({ showIdle = false }) {
               ),
               file_labels: JSON.stringify(fileLabels()),
               active_file_id: String(fileSelect?.value || ""),
-              audio_labels: JSON.stringify(audioTracks),
+              audio_labels: JSON.stringify(
+                orderedAudioTracks.map((track) => ({
+                  index: track.index,
+                  label: track.label,
+                }))
+              ),
               active_audio_index: activeAudioIndex,
               subtitle_labels: JSON.stringify(subtitleTracks),
               active_subtitle_index: activeSubtitleIndex,
