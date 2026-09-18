@@ -20,6 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import {
   friendlyTrackLabel,
+  preferredAudioTrackScore,
   readRememberedAudioPreference,
   readRememberedSubtitlePreference,
   readTrackPreferences,
@@ -480,6 +481,8 @@ export default function MediaPlayerControls({
       preferences.subtitleOffsetSeconds
     );
 
+    let orderedAudio = nextAudio;
+
     if (nextAudio.length > 0) {
       const preferredLanguage = preferences.audioLanguage;
       const context =
@@ -499,12 +502,25 @@ export default function MediaPlayerControls({
         rememberedRanked[0]?.score > 0
           ? rememberedRanked[0].item
           : null;
-      const languagePreferred =
-        nextAudio.find(
-          (item) =>
-            !preferredLanguage || trackLanguage(item) === preferredLanguage
-        ) || nextAudio[0];
-      const preferred = rememberedPreferred || languagePreferred;
+      const languageRanked = nextAudio
+        .slice()
+        .sort(
+          (a, b) =>
+            preferredAudioTrackScore(b.raw || b, preferredLanguage) -
+              preferredAudioTrackScore(a.raw || a, preferredLanguage) ||
+            a.index - b.index
+        );
+
+      orderedAudio = rememberedPreferred
+        ? [
+            rememberedPreferred,
+            ...languageRanked.filter(
+              (item) => item.index !== rememberedPreferred.index
+            ),
+          ]
+        : languageRanked;
+
+      const preferred = rememberedPreferred || orderedAudio[0];
 
       if (preferred && preferred.index !== activeAudio) {
         if (preferred.kind === "hls") {
@@ -529,7 +545,7 @@ export default function MediaPlayerControls({
 
     setSubtitleTracks(nextSubtitles);
     setSelectedSubtitle(activeSubtitle);
-    setAudioTracks(nextAudio);
+    setAudioTracks(orderedAudio);
     setSelectedAudio(activeAudio);
 
     setPlaybackRate(
