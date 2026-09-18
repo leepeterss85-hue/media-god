@@ -1,8 +1,10 @@
 import { prioritiseCompatibleAutoplayEntries } from "@/components/mg/automaticSourceOrder";
 import {
+  detectLanguagePreference,
   getPlaybackDeviceProfile,
   scoreSourceCompatibility,
 } from "@/components/mg/mediaCompatibility";
+import { readTrackPreferences } from "@/components/mg/mediaTrackPreferences";
 import {
   MEDIA_EDITION_OPTIONS,
   detectMediaEdition,
@@ -315,6 +317,22 @@ const compatibilityScore = (item) =>
     qualityPreference: "Auto",
   });
 
+const preferredSourceLanguageRank = (
+  item,
+  preferredAudioLanguage = "en"
+) => {
+  if (String(preferredAudioLanguage || "en").toLowerCase() !== "en") {
+    return 0;
+  }
+
+  const language = detectLanguagePreference(item);
+  if (language === "english") return 0;
+  if (language === "multi") return 1;
+  if (language === "unknown") return 2;
+  if (language === "foreign") return 3;
+  return 2;
+};
+
 const targetResolutionScore = (resolution, target) => {
   if (!resolution) return -100000;
   if (resolution === target) return 100000;
@@ -325,6 +343,9 @@ const targetResolutionScore = (resolution, target) => {
 };
 
 export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
+  const preferredAudioLanguage = String(
+    readTrackPreferences()?.audioLanguage || "en"
+  ).toLowerCase();
   const list = markTrustedCachedPools(
     (Array.isArray(sources) ? sources : []).map((item, index) => ({
       item,
@@ -333,6 +354,7 @@ export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
       resolution: sourceResolution(item),
       size: sourceSize(item),
       compatibility: compatibilityScore(item),
+      languageRank: preferredSourceLanguageRank(item, preferredAudioLanguage),
       reportedSeeders: sourceReportedSeeders(item),
       trackerRich: sourceHasTrackerRichMagnet(item),
       editionScore: String(mode || "").startsWith("edition:")
