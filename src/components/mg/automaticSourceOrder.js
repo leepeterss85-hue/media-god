@@ -31,8 +31,16 @@ export const prioritiseCompatibleAutoplayEntries = (
 
   const preferredIndexes = new Set(preferred.map(entryIndex));
 
+  const remaining = list
+    .filter((entry) => !preferredIndexes.has(entryIndex(entry)))
+    .sort(
+      (left, right) =>
+        Number(left?.languageRank ?? 0) - Number(right?.languageRank ?? 0) ||
+        entryIndex(left) - entryIndex(right)
+    );
+
   return [
     ...preferred,
-    ...list.filter((entry) => !preferredIndexes.has(entryIndex(entry))),
+    ...remaining,
   ];
 };
