@@ -92,3 +92,112 @@ export const sourceHasPendingCacheSignal = (item, strategy = "") => {
     )
   );
 };
+
+const sourcePlaybackUrl = (item) =>
+  clean(
+    item?.src ||
+      item?.url ||
+      item?.stream_url ||
+      item?.streamUrl ||
+      item?.magnet ||
+      item?.magnetLink
+  );
+
+const sourcePlaybackHash = (item) => {
+  const raw = clean(
+    item?.infoHash ||
+      item?.info_hash ||
+      item?.hash ||
+      item?.richMagnet ||
+      item?.magnet ||
+      item?.magnetLink ||
+      item?.src ||
+      item?.url
+  );
+
+  return raw.match(/(?:btih:)?([a-f0-9]{40}|[a-f0-9]{64})/i)?.[1]?.toLowerCase() || "";
+};
+
+export const sourcePlaybackKey = (item) => {
+  if (!item) return "";
+
+  const hash = sourcePlaybackHash(item);
+  if (hash) {
+    return `torrent:${hash}:${clean(item?.fileIdx ?? item?.file_idx)}`;
+  }
+
+  const url = sourcePlaybackUrl(item);
+  if (url) return `url:${url}`;
+
+  const id = clean(item?.id);
+  return id ? `id:${id}` : "";
+};
+
+export const sourceRequiresPreparation = (item) => {
+  if (!item) return false;
+  if (sourceHasPendingCacheSignal(item)) return true;
+  if (sourceHasAuthoritativeCachedSignal(item)) return false;
+
+  const url = sourcePlaybackUrl(item);
+  const type = clean(item?.type).toLowerCase();
+  const torrentLike =
+    type === "rd" ||
+    type === "rd_torrent" ||
+    type === "torrent" ||
+    type === "magnet" ||
+    /^magnet:/i.test(url) ||
+    Boolean(sourcePlaybackHash(item));
+
+  return !(
+    item?.viaRealDebrid === true &&
+    /^https?:\/\//i.test(url)
+  ) && torrentLike;
+};
+
+export const sourceIsImmediatelyReady = (item) => {
+  if (!item || sourceRequiresPreparation(item)) return false;
+  if (sourceHasAuthoritativeCachedSignal(item)) return true;
+
+  const url = sourcePlaybackUrl(item);
+
+  return (
+    item?.viaRealDebrid === true ||
+    item?.live === true ||
+    clean(item?.type).toLowerCase() === "live" ||
+    /^(?:https?:|blob:|data:)/i.test(url)
+  );
+};
+
+export const promoteReadySourceOverPending = ({
+  stable,
+  ranked,
+  lockedUrl = "",
+} = {}) => {
+  const stableSources = Array.isArray(stable) ? stable.filter(Boolean) : [];
+  const rankedSources = Array.isArray(ranked) ? ranked.filter(Boolean) : [];
+
+  if (
+    stableSources.length < 2 ||
+    clean(lockedUrl) ||
+    !sourceRequiresPreparation(stableSources[0])
+  ) {
+    return stableSources;
+  }
+
+  const readyCandidate = rankedSources.find(sourceIsImmediatelyReady);
+  if (!readyCandidate) return stableSources;
+
+  const wantedKey = sourcePlaybackKey(readyCandidate);
+  const readyIndex = stableSources.findIndex(
+    (item) =>
+      item === readyCandidate ||
+      (wantedKey && sourcePlaybackKey(item) === wantedKey)
+  );
+
+  if (readyIndex <= 0) return stableSources;
+
+  const promoted = stableSources.slice();
+  const [ready] = promoted.splice(readyIndex, 1);
+  promoted.unshift(ready);
+  return promoted;
+};
