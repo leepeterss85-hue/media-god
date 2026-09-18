@@ -14,6 +14,7 @@ const provider = read("src/components/mg/PlayerProvider.jsx");
 const mediaPlayerProvider = read("src/components/mg/MediaPlayerProvider.jsx");
 const assist = read("src/components/mg/MediaGodV2Assist.jsx");
 const videoPlayer = read("src/components/mg/VideoPlayer.jsx");
+const liveVideo = read("src/components/mg/LiveVideo.jsx");
 const takeover = read("src/components/mg/FireTvPlayerTakeover.jsx");
 const native = read("firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt");
 const edition = read("src/components/mg/mediaEdition.js");
@@ -144,6 +145,17 @@ expect(
     videoPlayer.includes('Cache checked') &&
     videoPlayer.includes('Ready {selectableSourceCount}'),
   "player exposes source-health counts for discovery, cache checks, cached hits and ready sources"
+);
+
+expect(
+  liveVideo.includes("const stableConfigSignature = (value) =>") &&
+    liveVideo.includes("const onErrorRef = useRef(onError)") &&
+    liveVideo.includes("const headersSignature = stableConfigSignature(headers)") &&
+    liveVideo.includes("const drmSignature = stableConfigSignature(drm)") &&
+    liveVideo.includes("headersSignature,") &&
+    liveVideo.includes("drmSignature,") &&
+    !liveVideo.includes("      sourceLabel,\n      isLive,\n      headers,\n      drm,"),
+  "LiveVideo keeps one decoder for the same URL instead of restarting playback on incidental React prop changes"
 );
 
 expect(
