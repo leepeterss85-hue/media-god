@@ -7171,6 +7171,31 @@ export default function VideoPlayer({
     /^https?:\/\//i.test(nativePlaybackUrl) &&
     nativeFallbackUrl !== nativePlaybackUrl;
 
+  useEffect(() => {
+    if (isLive || isYoutube || isProvider) {
+      return;
+    }
+
+    const resolvedVodUrl = String(
+      rdOverride?.src ||
+        (isDirectFile ? activeUrl : "") ||
+        ""
+    ).trim();
+
+    if (/^https?:\/\//i.test(resolvedVodUrl)) {
+      vodSourceLockedRef.current = true;
+    }
+  }, [
+    activeIdx,
+    activeUrl,
+    isDirectFile,
+    isLive,
+    isProvider,
+    isYoutube,
+    rdOverride?.src,
+    source?.playRequestId,
+  ]);
+
   /*
    * Fire TV must not decode resolved VOD inside the WebView. The original
    * dedicated build was stable because Media3 owned the actual video surface;
