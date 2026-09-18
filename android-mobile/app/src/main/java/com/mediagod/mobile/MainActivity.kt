@@ -143,6 +143,32 @@ class MainActivity : Activity() {
     }
 
     override fun onPause() {
+        /*
+         * WebView timers can pause while HTML5 media continues decoding/audio.
+         * Stop browser media before the native player covers this activity so
+         * Android has exactly one playback owner.
+         */
+        try {
+            webView.evaluateJavascript(
+                """
+                (function(){
+                  window.__MG_NATIVE_PLAYBACK_ACTIVE__=true;
+                  document.querySelectorAll('video,audio').forEach(function(media){
+                    try{
+                      media.pause();
+                      media.muted=true;
+                      media.removeAttribute('autoplay');
+                      if(media.dataset){media.dataset.mgNativePlaybackSuspended='true';}
+                    }catch(e){}
+                  });
+                })();
+                """.trimIndent(),
+                null
+            )
+        } catch (_: Throwable) {
+            // Best-effort only; the JavaScript handoff also stops WebView media.
+        }
+
         webView.onPause()
         webView.pauseTimers()
         super.onPause()
