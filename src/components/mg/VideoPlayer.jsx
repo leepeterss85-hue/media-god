@@ -2144,6 +2144,62 @@ export default function VideoPlayer({
       isGenericHttpsStream
     );
 
+  const unlockVodResolvedUrl = () => {
+    vodSourceLockedRef.current = false;
+    vodResolvedUrlRef.current = {
+      requestKey: vodRequestKey,
+      src: "",
+    };
+  };
+
+  const setRdOverride = (nextValue, { manual = false } = {}) => {
+    if (manual) {
+      unlockVodResolvedUrl();
+    }
+
+    setRdOverrideState((current) => {
+      const next =
+        typeof nextValue === "function"
+          ? nextValue(current)
+          : nextValue;
+
+      if (isLive) {
+        return next;
+      }
+
+      const nextSrc = String(next?.src || next?.url || "").trim();
+      const currentSrc = String(current?.src || current?.url || "").trim();
+      const locked =
+        vodResolvedUrlRef.current?.requestKey === vodRequestKey
+          ? String(vodResolvedUrlRef.current?.src || "").trim()
+          : "";
+
+      if (!manual && vodSourceLockedRef.current && locked) {
+        if (!next) {
+          return current;
+        }
+
+        if (nextSrc && nextSrc !== locked) {
+          return current;
+        }
+
+        if (!nextSrc && currentSrc) {
+          return current;
+        }
+      }
+
+      if (/^https?:\/\//i.test(nextSrc)) {
+        vodSourceLockedRef.current = true;
+        vodResolvedUrlRef.current = {
+          requestKey: vodRequestKey,
+          src: nextSrc,
+        };
+      }
+
+      return next;
+    });
+  };
+
   /*
    * READY-SOURCE FIRST
    *
