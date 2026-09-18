@@ -14,7 +14,6 @@ import {
   markTrustedCachedPools,
   prioritiseTrustedCachedPools,
 } from "@/components/mg/trustedCachedSources";
-import { chooseDebridResolutionStrategy } from "@/components/mg/debridResolutionStrategy";
 import {
   sourceHasAuthoritativeCachedSignal,
   sourceHasPendingCacheSignal,
@@ -264,34 +263,12 @@ export const sourceIsUserSelectable = (item) => {
     return false;
   }
 
-  const hash = selectableTorrentHash(item);
-  const url = selectableSourceUrl(item);
-  const type = String(item?.type || "").trim().toLowerCase();
-  const torrentLike =
-    type === "rd" ||
-    type === "rd_torrent" ||
-    type === "torrent" ||
-    type === "magnet" ||
-    /^magnet:/i.test(url) ||
-    Boolean(hash);
-
-  // Normal direct/provider URLs are not waiting on the torrent cache pipeline.
-  if (!torrentLike) return true;
-
-  // A resolved Real-Debrid HTTP stream is already usable even when its original
-  // torrent hash is retained as metadata on the source row.
-  if (item?.viaRealDebrid === true && /^https?:\/\//i.test(url)) {
-    return true;
-  }
-
-  const strategy = chooseDebridResolutionStrategy(item, {
-    debridCached: false,
-  });
-
-  if (sourceHasPendingCacheSignal(item, strategy)) {
-    return false;
-  }
-
+  /*
+   * Do not turn an incomplete or unknown cache lookup into an uncached verdict.
+   * Explicit uncached/downloading signals were rejected above; every remaining
+   * row stays visible so a transient provider timeout cannot remove a genuinely
+   * cached film or episode source from the chooser.
+   */
   return true;
 };
 
