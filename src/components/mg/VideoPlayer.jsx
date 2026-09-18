@@ -46,6 +46,10 @@ import {
   debridTorrentHasMetadata,
 } from "@/components/mg/debridResolutionStrategy";
 import {
+  sourceCachedProviderKeys,
+  sourceHasReusableCacheRouting,
+} from "@/components/mg/sourceCacheVisibility";
+import {
   concisePlaybackSourceLabel,
   torrentFileLabel,
 } from "@/components/mg/playbackSourceLabels";
@@ -3229,7 +3233,15 @@ export default function VideoPlayer({
             const explicitProvider = String(active?.debridProvider || "")
               .toLowerCase()
               .replace(/[^a-z]/g, "");
-            let debridProviders = explicitProvider ? [explicitProvider] : [];
+            const cachedProviderRouting = sourceCachedProviderKeys(active);
+            const reuseCacheRouting = sourceHasReusableCacheRouting(active);
+            let debridProviders = [
+              explicitProvider,
+              ...cachedProviderRouting,
+            ].filter(
+              (provider, index, list) =>
+                provider && list.indexOf(provider) === index
+            );
 
             const resolutionStrategy = sourceResolutionStrategy(active);
             const knownUncached = sourceNeedsCaching(active);
@@ -3955,7 +3967,7 @@ export default function VideoPlayer({
               return;
             }
 
-            if (hash && source?.hasDebrid) {
+            if (hash && source?.hasDebrid && !reuseCacheRouting) {
               try {
                 const cacheResponse = await base44.functions.invoke(
                   "multiDebrid",
@@ -3963,6 +3975,7 @@ export default function VideoPlayer({
                     action: "check_cache",
                     hashes: [hash],
                     provider_scores: debridProviderScoreHints(),
+                    fast_mode: true,
                   }
                 );
 
