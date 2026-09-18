@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 19,
-  "versionName": "1.0.18",
+  "versionCode": 26,
+  "versionName": "1.0.25",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.18 restores Skip Recap and Skip Intro when episode providers send empty or zero chapter markers, and keeps Next Episode limited to the end window.",
+  "message": "Media God Mobile 1.0.25 restores the complete Media God app to the last known-good pre-audio-change playback snapshot.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
