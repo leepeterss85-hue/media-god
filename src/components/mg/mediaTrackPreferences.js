@@ -84,26 +84,32 @@ const normaliseLanguage = (value, fallback = "en") => {
   if (aliases[primary]) return aliases[primary];
 
   const labelledLanguage = [
-    ["en", /\b(?:en|eng|english)\b/i],
-    ["fr", /\b(?:fr|fre|fra|french)\b/i],
-    ["es", /\b(?:es|spa|spanish)\b/i],
-    ["de", /\b(?:de|ger|deu|german)\b/i],
-    ["it", /\b(?:it|ita|italian)\b/i],
-    ["pt", /\b(?:pt|por|portuguese)\b/i],
-    ["nl", /\b(?:nl|dut|nld|dutch)\b/i],
-    ["pl", /\b(?:pl|pol|polish)\b/i],
-    ["ja", /\b(?:ja|jpn|japanese)\b/i],
-    ["ko", /\b(?:ko|kor|korean)\b/i],
-    ["zh", /\b(?:zh|chi|zho|chinese|mandarin|cantonese)\b/i],
-    ["ar", /\b(?:ar|ara|arabic)\b/i],
-    ["hi", /\b(?:hi|hin|hindi)\b/i],
-    ["ru", /\b(?:ru|rus|russian)\b/i],
-    ["uk", /\b(?:uk|ukr|ukrainian)\b/i],
-    ["tr", /\b(?:tr|tur|turkish)\b/i],
-    ["multi", /\b(?:mul|multi(?:[ ._-]?audio)?|dual(?:[ ._-]?audio)?)\b/i],
-  ].find(([, pattern]) => pattern.test(text));
+    { language: "en", pattern: /\b(?:en|eng|english)\b/i },
+    { language: "fr", pattern: /\b(?:fr|fre|fra|french)\b/i },
+    { language: "es", pattern: /\b(?:es|spa|spanish)\b/i },
+    { language: "de", pattern: /\b(?:de|ger|deu|german)\b/i },
+    { language: "it", pattern: /\b(?:it|ita|italian)\b/i },
+    { language: "pt", pattern: /\b(?:pt|por|portuguese)\b/i },
+    { language: "nl", pattern: /\b(?:nl|dut|nld|dutch)\b/i },
+    { language: "pl", pattern: /\b(?:pl|pol|polish)\b/i },
+    { language: "ja", pattern: /\b(?:ja|jpn|japanese)\b/i },
+    { language: "ko", pattern: /\b(?:ko|kor|korean)\b/i },
+    {
+      language: "zh",
+      pattern: /\b(?:zh|chi|zho|chinese|mandarin|cantonese)\b/i,
+    },
+    { language: "ar", pattern: /\b(?:ar|ara|arabic)\b/i },
+    { language: "hi", pattern: /\b(?:hi|hin|hindi)\b/i },
+    { language: "ru", pattern: /\b(?:ru|rus|russian)\b/i },
+    { language: "uk", pattern: /\b(?:uk|ukr|ukrainian)\b/i },
+    { language: "tr", pattern: /\b(?:tr|tur|turkish)\b/i },
+    {
+      language: "multi",
+      pattern: /\b(?:mul|multi(?:[ ._-]?audio)?|dual(?:[ ._-]?audio)?)\b/i,
+    },
+  ].find(({ pattern }) => pattern.test(text));
 
-  return labelledLanguage?.[0] || primary || fallback;
+  return labelledLanguage?.language || primary || fallback;
 };
 
 export const normaliseTrackPreferences = (value) => {
