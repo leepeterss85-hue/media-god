@@ -789,7 +789,7 @@ class PlayerActivity : Activity() {
             }
         }
 
-        playNextButton = buildAssistButton("Play next") {
+        playNextButton = buildAssistButton("Next episode") {
             finishWithResult("next")
         }
 
@@ -883,7 +883,7 @@ class PlayerActivity : Activity() {
                 !recapVisible &&
                 position in fallbackIntroStartMs..210_000L &&
                 (mediaDuration <= 0L || remaining > 120_000L)
-        val introVisible = exactIntro || fallbackIntro
+        val introVisible = !recapVisible && (exactIntro || fallbackIntro)
 
         val creditsFallbackWindow =
             if (tvEpisode) {
@@ -952,7 +952,7 @@ class PlayerActivity : Activity() {
             if (!countdownWindow || !playingNow || !autoNext) {
                 nextEpisodeCountdownStartedAtMs = -1L
             }
-            playNextButton.text = "Play next"
+            playNextButton.text = "Next episode"
             setAssistVisible(cancelNextButton, false)
         }
 
