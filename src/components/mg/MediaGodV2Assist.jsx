@@ -278,7 +278,8 @@ export default function MediaGodV2Assist() {
     position <= 210 &&
     (!duration || remaining > 120);
 
-  const canSkipIntro = exactIntroWindow || fallbackIntroWindow;
+  const canSkipIntro =
+    !canSkipRecap && (exactIntroWindow || fallbackIntroWindow);
 
   const exactCreditsWindow =
     isPlayableVod &&
