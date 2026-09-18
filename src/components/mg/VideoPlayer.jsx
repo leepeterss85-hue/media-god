@@ -1604,7 +1604,7 @@ export default function VideoPlayer({
     }
 
     if (!currentIsLive && manualSelection) {
-      vodSourceLockedRef.current = false;
+      unlockVodResolvedUrl();
     }
 
     /*
@@ -3097,6 +3097,17 @@ export default function VideoPlayer({
       }
 
       if (sourceNeedsCaching(active)) {
+        return;
+      }
+
+      if (
+        !isLive &&
+        vodSourceLockedRef.current &&
+        vodResolvedUrlRef.current?.requestKey === vodRequestKey &&
+        /^https?:\/\//i.test(
+          String(vodResolvedUrlRef.current?.src || "")
+        )
+      ) {
         return;
       }
 
