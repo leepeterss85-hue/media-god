@@ -17,6 +17,8 @@ import {
 import { base44 } from "@/api/base44Client";
 import CastButton from "@/components/mg/CastButton";
 import LiveVideo from "@/components/mg/LiveVideo";
+import { COMPATIBLE_AUTOPLAY_LIMIT } from "@/components/mg/automaticSourceOrder";
+import { stopExclusivePlayback } from "@/components/mg/exclusivePlayback";
 import PlayerControls from "@/components/mg/PlayerControls";
 import {
   isNativeFireTvPlayerAvailable,
@@ -1436,6 +1438,10 @@ export default function VideoPlayer({
 
     const liveFailover =
       isLive || sources.some((item) => item?.live || item?.type === "live");
+    const compatibilityFirstRecovery =
+      !liveFailover &&
+      sourceSortMode === "best" &&
+      failedSourcesRef.current.size < COMPATIBLE_AUTOPLAY_LIMIT;
     const obeySelectorOrder =
       sourceSortMode !== "best" && !liveFailover;
 
@@ -1539,6 +1545,14 @@ export default function VideoPlayer({
           return b.score - a.score || a.index - b.index;
         }
 
+        if (compatibilityFirstRecovery) {
+          return (
+            a.selectorRank - b.selectorRank ||
+            b.score - a.score ||
+            a.index - b.index
+          );
+        }
+
         if (a.qualityRank !== b.qualityRank) {
           return a.qualityRank - b.qualityRank;
         }
@@ -1625,6 +1639,8 @@ export default function VideoPlayer({
     if (resumeAt > 5) {
       recoveryResumeRef.current = resumeAt;
     }
+
+    stopExclusivePlayback();
 
     clearSourceFailed(nextIndex);
     setRdTorrentId(null);
