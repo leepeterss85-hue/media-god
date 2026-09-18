@@ -275,6 +275,74 @@ class MainActivity : Activity() {
                 var meta=document.querySelector('meta[name="viewport"]');
                 if(!meta){meta=document.createElement('meta');meta.name='viewport';document.head.appendChild(meta);}
                 meta.setAttribute('content','width=960, height=540, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
+
+                /*
+                 * Some Android WebView builds keep the old hardware video layer
+                 * alive for one render after a source switch. Retire every
+                 * superseded surface before paint so poster and video layers
+                 * can never shrink into a side-by-side pair.
+                 */
+                if(!window.__MG_SINGLE_VIDEO_SURFACE_GUARD__){
+                  window.__MG_SINGLE_VIDEO_SURFACE_GUARD__=true;
+                  var singleSurfaceQueued=false;
+                  var retirePlaybackSurface=function(video){
+                    if(!video){return;}
+                    try{video.pause();}catch(e){}
+                    try{
+                      video.removeAttribute('autoplay');
+                      video.removeAttribute('poster');
+                      video.removeAttribute('src');
+                      Array.prototype.slice.call(video.querySelectorAll('source')).forEach(function(source){
+                        source.removeAttribute('src');
+                      });
+                      video.load();
+                    }catch(e){}
+                    video.setAttribute('data-mg-playback-retired','true');
+                    video.style.setProperty('display','none','important');
+                    video.style.setProperty('visibility','hidden','important');
+                    video.style.setProperty('pointer-events','none','important');
+                  };
+                  var restorePlaybackSurface=function(video){
+                    if(!video){return;}
+                    video.removeAttribute('data-mg-playback-retired');
+                    video.style.removeProperty('display');
+                    video.style.removeProperty('visibility');
+                    video.style.removeProperty('pointer-events');
+                    video.style.setProperty('position','absolute','important');
+                    video.style.setProperty('inset','0','important');
+                    video.style.setProperty('width','100%','important');
+                    video.style.setProperty('height','100%','important');
+                    video.style.setProperty('max-width','100%','important');
+                    video.style.setProperty('flex','0 0 100%','important');
+                  };
+                  var enforceSinglePlaybackSurface=function(){
+                    singleSurfaceQueued=false;
+                    var videos=Array.prototype.slice.call(
+                      document.querySelectorAll('[data-mg-player-root="true"] video')
+                    );
+                    if(videos.length===0){return;}
+                    var keep=videos[videos.length-1];
+                    videos.forEach(function(video){
+                      if(video===keep){restorePlaybackSurface(video);}
+                      else{retirePlaybackSurface(video);}
+                    });
+                  };
+                  var queueSinglePlaybackSurfaceGuard=function(){
+                    if(singleSurfaceQueued){return;}
+                    singleSurfaceQueued=true;
+                    Promise.resolve().then(enforceSinglePlaybackSurface);
+                  };
+                  if(document.body){
+                    new MutationObserver(queueSinglePlaybackSurfaceGuard).observe(
+                      document.body,
+                      {childList:true,subtree:true,attributes:true,attributeFilter:['src','poster']}
+                    );
+                  }
+                  document.addEventListener('play',queueSinglePlaybackSurfaceGuard,true);
+                  window.addEventListener('mg:player-visibility',queueSinglePlaybackSurfaceGuard);
+                  queueSinglePlaybackSurfaceGuard();
+                }
+
                 window.dispatchEvent(new CustomEvent('mg:tv-remote-detected'));
               } catch(e) {}
             })();
