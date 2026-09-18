@@ -12,8 +12,10 @@ android {
         applicationId = "com.mediagod.firetv"
         minSdk = 21
         targetSdk = 35
-        versionCode = 45
-        versionName = "1.4.40"
+        versionCode = 46
+        versionName = "1.4.41"
+
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField(
             "String",
@@ -73,4 +75,8 @@ dependencies {
 
     // Broad fallback for difficult 4K/HDR/remux containers and audio codecs.
     implementation("org.videolan.android:libvlc-all:3.6.5")
+
+    androidTestImplementation("androidx.test:core-ktx:1.6.1")
+    androidTestImplementation("androidx.test.ext:junit-ktx:1.2.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
 }

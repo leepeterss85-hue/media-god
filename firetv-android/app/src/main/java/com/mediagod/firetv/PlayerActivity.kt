@@ -316,6 +316,7 @@ class PlayerActivity : Activity() {
             restorePositionMs = max(0L, it.currentPosition)
             shouldPlayWhenReady = it.playWhenReady
         }
+        releasePlayer()
         super.onPause()
     }
 
@@ -1348,6 +1349,7 @@ class PlayerActivity : Activity() {
             exoPlayer.trackSelectionParameters
                 .buildUpon()
                 .setPreferredAudioLanguage(preferredAudio)
+                .setPreferredAudioRoleFlags(C.ROLE_FLAG_MAIN)
                 .setPreferredTextLanguage(preferredSubtitle)
                 .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !subtitlesEnabled)
                 .build()
@@ -1476,6 +1478,7 @@ class PlayerActivity : Activity() {
         val mediaItem = buildMediaItem()
 
         player = exoPlayer
+        PlaybackInstanceRegistry.onPlayerAttached()
         playerView.player = exoPlayer
         mediaSession = MediaSession.Builder(this, exoPlayer).build()
 
@@ -1753,6 +1756,7 @@ class PlayerActivity : Activity() {
         playerView.player = null
         activePlayer.release()
         player = null
+        PlaybackInstanceRegistry.onPlayerReleased()
     }
 
     private fun finishWithResult(

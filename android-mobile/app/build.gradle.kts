@@ -12,8 +12,10 @@ android {
         applicationId = "com.mediagod.mobile"
         minSdk = 23
         targetSdk = 35
-        versionCode = 27
-        versionName = "1.0.26"
+        versionCode = 28
+        versionName = "1.0.27"
+
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField(
             "String",
@@ -73,4 +75,8 @@ dependencies {
     implementation("androidx.media3:media3-session:$media3Version")
 
     implementation("org.videolan.android:libvlc-all:3.6.5")
+
+    androidTestImplementation("androidx.test:core-ktx:1.6.1")
+    androidTestImplementation("androidx.test.ext:junit-ktx:1.2.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
 }
