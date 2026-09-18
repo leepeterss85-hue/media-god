@@ -15,6 +15,7 @@ import {
   isMpegTsLike,
 } from "@/components/mg/mediaCompatibility";
 import {
+  preferredAudioTrackScore,
   readRememberedSubtitlePreference,
   readTrackPreferences,
   rememberedSubtitleTrackScore,
@@ -208,70 +209,10 @@ const hlsTrackText = (track) =>
     .filter(Boolean)
     .join(" ");
 
-const audioCodecSafetyScore = (value) => {
-  const text = String(value || "");
-
-  if (/\b(?:truehd|mlp|dts(?:-?hd)?|dts:x|dca)\b/i.test(text)) {
-    return -4500;
-  }
-
-  if (/\b(?:aac|he-?aac|mp4a)\b/i.test(text)) return 2600;
-  if (/\b(?:e-?ac-?3|eac3|ec-?3|ddp|dd\+)\b/i.test(text)) return 1400;
-  if (/\b(?:ac-?3|ac3|dolby digital)\b/i.test(text)) return 1200;
-  if (/\bopus\b/i.test(text)) return 900;
-  if (/\bflac\b/i.test(text)) return 850;
-  if (/\b(?:alac|apple lossless)\b/i.test(text)) return 750;
-  if (/\bvorbis\b/i.test(text)) return 700;
-  if (/\b(?:pcm|lpcm)\b/i.test(text)) return 650;
-  if (/\b(?:mp3|mpeg audio)\b/i.test(text)) return 700;
-  if (/\bmp2\b/i.test(text)) return 350;
-
-  return 0;
-};
-
 const audioTrackPreferenceScore = (
   track,
   preferredLanguage = "en"
-) => {
-  const text = [
-    track?.language,
-    track?.lang,
-    track?.label,
-    track?.name,
-    track?.audioCodec,
-    track?.attrs?.LANGUAGE,
-    track?.attrs?.NAME,
-    track?.attrs?.GROUP_ID,
-  ]
-    .filter(Boolean)
-    .join(" ");
-
-  const language =
-    track?.language ||
-    track?.lang ||
-    track?.attrs?.LANGUAGE ||
-    track?.name ||
-    "";
-
-  let score = audioCodecSafetyScore(text);
-
-  if (
-    languageMatches(language, preferredLanguage) ||
-    (normaliseLanguage(preferredLanguage) === "en" &&
-      /\b(?:eng|english)\b/i.test(text))
-  ) {
-    score += 10000;
-  }
-
-  if (/\b(?:commentary|audio description|descriptive|visually impaired)\b/i.test(text)) {
-    score -= 3200;
-  }
-
-  if (track?.default || track?.attrs?.DEFAULT === "YES") score += 120;
-  if (track?.autoselect || track?.attrs?.AUTOSELECT === "YES") score += 60;
-
-  return score;
-};
+) => preferredAudioTrackScore(track, preferredLanguage);
 
 const choosePreferredHlsAudioTrack = (
   tracks,
