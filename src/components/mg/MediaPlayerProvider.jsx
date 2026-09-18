@@ -31,6 +31,10 @@ import { readTrackPreferences } from "@/components/mg/mediaTrackPreferences";
 import { debridProviderScoreHints } from "@/components/mg/debridProviderReliability";
 import { chooseDebridResolutionStrategy } from "@/components/mg/debridResolutionStrategy";
 import {
+  classifyDebridCacheCheck,
+  mergeDebridCacheCheckState,
+} from "@/components/mg/debridCacheCheck";
+import {
   readSourceSortMode,
   sortSourceEntries,
 } from "@/components/mg/sourceSelectorPreferences";
@@ -392,6 +396,14 @@ const preservePublishedSourceOrder = (published, incoming) => {
   return dedupeSources(stable);
 };
 
+const DEBRID_CACHE_BATCH_SIZE = 80;
+const DEBRID_CACHE_RETRY_DELAY_MS = 180;
+
+const waitForDebridCacheRetry = () =>
+  new Promise((resolve) => {
+    setTimeout(resolve, DEBRID_CACHE_RETRY_DELAY_MS);
+  });
+
 const annotateDebridCache = async (items, hasDebrid) => {
   const sources = Array.isArray(items) ? items : [];
   if (!hasDebrid) return sources;
@@ -404,11 +416,29 @@ const annotateDebridCache = async (items, hasDebrid) => {
 
   if (hashes.length === 0) return sources;
 
-  try {
+  const best = {};
+  const providerStats = {};
+  const stateByHash = Object.fromEntries(
+    hashes.map((hash) => [
+      hash,
+      {
+        state: "unknown",
+        cachedProviders: [],
+      },
+    ])
+  );
+
+  const checkBatches = async (hashesToCheck) => {
     const batches = [];
 
-    for (let index = 0; index < hashes.length; index += 80) {
-      batches.push(hashes.slice(index, index + 80));
+    for (
+      let index = 0;
+      index < hashesToCheck.length;
+      index += DEBRID_CACHE_BATCH_SIZE
+    ) {
+      batches.push(
+        hashesToCheck.slice(index, index + DEBRID_CACHE_BATCH_SIZE)
+      );
     }
 
     const settled = await Promise.allSettled(
@@ -422,44 +452,91 @@ const annotateDebridCache = async (items, hasDebrid) => {
           }
         );
 
-        return unwrap(response);
+        return {
+          batch,
+          data: unwrap(response) || {},
+        };
       })
     );
-
-    const cached = {};
-    const best = {};
-    const providerStats = {};
 
     settled.forEach((result) => {
       if (result.status !== "fulfilled") return;
 
-      const data = result.value || {};
-
-      Object.entries(data?.cached || {}).forEach(([provider, values]) => {
-        cached[provider] = {
-          ...(cached[provider] || {}),
-          ...(values || {}),
-        };
-      });
+      const { batch, data } = result.value;
+      const classified = classifyDebridCacheCheck(data, batch);
 
       Object.assign(best, data?.bestProviderByHash || {});
       Object.assign(providerStats, data?.providerStats || {});
+
+      batch.forEach((hash) => {
+        stateByHash[hash] = mergeDebridCacheCheckState(
+          stateByHash[hash],
+          classified?.[hash]
+        );
+      });
     });
+  };
+
+  try {
+    await checkBatches(hashes);
+
+    const unknownHashes = hashes.filter(
+      (hash) => stateByHash?.[hash]?.state === "unknown"
+    );
+
+    /*
+     * A failed/partial debrid response is not evidence that a torrent is
+     * uncached. Retry only the unknown hashes once so a transient RD/provider
+     * failure cannot remove genuinely cached torrents from the source chooser.
+     */
+    if (unknownHashes.length > 0) {
+      await waitForDebridCacheRetry();
+      await checkBatches(unknownHashes);
+    }
 
     return sources.map((item) => {
       const hash = sourceMagnetHash(item);
       if (!hash) return item;
 
-      const cachedProviders = Object.keys(cached).filter(
-        (key) => cached?.[key]?.[hash] === true
-      );
+      const result = stateByHash?.[hash] || {
+        state: "unknown",
+        cachedProviders: [],
+      };
 
-      const debridCached = cachedProviders.length > 0;
+      if (result.state === "unknown") {
+        /*
+         * Never convert an incomplete cache check into a confirmed miss.
+         * Preserve an earlier positive cache signal and leave everything else
+         * unconfirmed so the next source refresh can check it again.
+         */
+        if (
+          item?.debridCached === true ||
+          item?.runtimeReadyCached === true
+        ) {
+          return item;
+        }
+
+        return {
+          ...item,
+          debridCacheChecked: false,
+          debridCached: undefined,
+          cachedProviders: Array.isArray(item?.cachedProviders)
+            ? item.cachedProviders
+            : [],
+          debridCacheCheckState: "unknown",
+          debridProvider: item?.debridProvider || "",
+          debridProviderStats: providerStats,
+        };
+      }
+
+      const debridCached = result.state === "cached";
+      const cachedProviders = debridCached
+        ? result.cachedProviders || []
+        : [];
 
       /*
-       * Cache annotation must not turn a real hash/tracker-backed torrent back
-       * into an opaque Comet uncached row. Keep this decision in a pure helper
-       * so the same production rule is covered by the regression suite.
+       * Only a complete successful provider response is allowed to record a
+       * confirmed uncached result. Positive cache hits remain authoritative.
        */
       const resolutionStrategy = chooseDebridResolutionStrategy(item, {
         debridCached,
@@ -470,6 +547,7 @@ const annotateDebridCache = async (items, hasDebrid) => {
         debridCacheChecked: true,
         debridCached,
         cachedProviders,
+        debridCacheCheckState: result.state,
         debridProvider: best?.[hash] || item?.debridProvider || "",
         debridProviderStats: providerStats,
         resolutionStrategy,
