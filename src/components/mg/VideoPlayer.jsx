@@ -902,21 +902,21 @@ export default function VideoPlayer({
     };
 
     /*
-     * Close playback first, then restore the show's season/episode screen.
-     * This also covers episodes opened from Search or Continue Watching where
-     * there may not already be a detail screen mounted underneath the player.
+     * Restore the episode-screen identity before closing playback. Closing the
+     * core player clears shared playback context synchronously, so dispatching
+     * after close could race with Home and leave the user on the dashboard.
+     * Home can mount/focus the show selector while the player still covers it,
+     * then the close reveals that exact episode screen cleanly.
      */
-    onClose?.();
-
     if (typeof window !== "undefined") {
-      window.setTimeout(() => {
-        window.dispatchEvent(
-          new CustomEvent("mg:return-to-episode-selector", {
-            detail: episodeContext,
-          })
-        );
-      }, 0);
+      window.dispatchEvent(
+        new CustomEvent("mg:return-to-episode-selector", {
+          detail: episodeContext,
+        })
+      );
     }
+
+    onClose?.();
   }, [
     onClose,
     playbackMediaType,
