@@ -737,7 +737,7 @@ expect(
 expect(
   mediaGodV2Assist.includes("createPortal(controls, portalTarget)") &&
     mediaGodV2Assist.includes('data-mg-episode-assist="true"') &&
-    mediaGodV2Assist.includes("pointer-events-auto absolute left-3 top-3 z-[120]") &&
+    mediaGodV2Assist.includes("pointer-events-auto absolute bottom-20 right-4 z-[120]") &&
     mediaGodV2Assist.includes("onPointerDown={(event) => runAction(event, skipIntro)}") &&
     mediaGodV2Assist.includes("runClickFallback") &&
     mediaGodV2Assist.includes("runKeyAction") &&
