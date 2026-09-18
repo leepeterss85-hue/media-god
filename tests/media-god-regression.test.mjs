@@ -47,6 +47,16 @@ import {
   sourceHasAuthoritativeCachedSignal,
   sourceHasPendingCacheSignal,
 } from "../src/components/mg/sourceCacheVisibility.js";
+import {
+  COMPATIBLE_AUTOPLAY_LIMIT,
+  prioritiseCompatibleAutoplayEntries,
+} from "../src/components/mg/automaticSourceOrder.js";
+import {
+  claimExclusivePlayback,
+  hasExclusivePlaybackOwner,
+  releaseExclusivePlayback,
+  stopExclusivePlayback,
+} from "../src/components/mg/exclusivePlayback.js";
 
 const memoryStorage = () => {
   const data = new Map();
@@ -982,5 +992,56 @@ test("Live TV ranking keeps favourites first, then UK, then recent/reliability",
   };
   assert.ok(
     compareLiveTvRankRecords(evSports, antSports, "EV SPORTS", "ANT SPORTS") < 0
+  );
+});
+
+test("exclusive playback transfers ownership and stops only the active stream", () => {
+  const firstOwner = {};
+  const secondOwner = {};
+  let firstStops = 0;
+  let secondStops = 0;
+
+  stopExclusivePlayback();
+  assert.equal(hasExclusivePlaybackOwner(), false);
+
+  assert.equal(
+    claimExclusivePlayback(firstOwner, () => {
+      firstStops += 1;
+    }),
+    true
+  );
+  assert.equal(hasExclusivePlaybackOwner(), true);
+
+  claimExclusivePlayback(secondOwner, () => {
+    secondStops += 1;
+  });
+  assert.equal(firstStops, 1);
+  assert.equal(secondStops, 0);
+
+  releaseExclusivePlayback(firstOwner);
+  assert.equal(hasExclusivePlaybackOwner(), true);
+
+  stopExclusivePlayback();
+  assert.equal(secondStops, 1);
+  assert.equal(hasExclusivePlaybackOwner(), false);
+});
+
+test("autoplay puts the three most compatible ready sources first", () => {
+  const ordered = prioritiseCompatibleAutoplayEntries([
+    { id: "ready-low", index: 0, autoplayReady: true, compatibility: 100 },
+    { id: "not-ready", index: 1, autoplayReady: false, compatibility: 1000 },
+    { id: "ready-best", index: 2, autoplayReady: true, compatibility: 400 },
+    { id: "ready-third", index: 3, autoplayReady: true, compatibility: 200 },
+    { id: "ready-second", index: 4, autoplayReady: true, compatibility: 300 },
+  ]);
+
+  assert.equal(COMPATIBLE_AUTOPLAY_LIMIT, 3);
+  assert.deepEqual(
+    ordered.slice(0, COMPATIBLE_AUTOPLAY_LIMIT).map((entry) => entry.id),
+    ["ready-best", "ready-second", "ready-third"]
+  );
+  assert.equal(
+    ordered.slice(0, COMPATIBLE_AUTOPLAY_LIMIT).some((entry) => entry.id === "not-ready"),
+    false
   );
 });
