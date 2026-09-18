@@ -18,7 +18,7 @@ export const DEFAULT_MEDIA_TRACK_PREFERENCES = {
 const normaliseLanguage = (value, fallback = "en") => {
   const text = String(value || "").trim().toLowerCase();
 
-  if (!text) return fallback;
+  if (!text || /^(?:und|unknown|zxx)$/i.test(text)) return fallback;
 
   const aliases = {
     english: "en",
@@ -38,9 +38,72 @@ const normaliseLanguage = (value, fallback = "en") => {
     italian: "it",
     ita: "it",
     it: "it",
+    portuguese: "pt",
+    por: "pt",
+    pt: "pt",
+    dutch: "nl",
+    dut: "nl",
+    nld: "nl",
+    nl: "nl",
+    polish: "pl",
+    pol: "pl",
+    pl: "pl",
+    japanese: "ja",
+    jpn: "ja",
+    ja: "ja",
+    korean: "ko",
+    kor: "ko",
+    ko: "ko",
+    chinese: "zh",
+    mandarin: "zh",
+    cantonese: "zh",
+    chi: "zh",
+    zho: "zh",
+    zh: "zh",
+    arabic: "ar",
+    ara: "ar",
+    ar: "ar",
+    hindi: "hi",
+    hin: "hi",
+    hi: "hi",
+    russian: "ru",
+    rus: "ru",
+    ru: "ru",
+    ukrainian: "uk",
+    ukr: "uk",
+    uk: "uk",
+    turkish: "tr",
+    tur: "tr",
+    tr: "tr",
+    multi: "multi",
+    mul: "multi",
   };
 
-  return aliases[text] || text.split(/[-_]/)[0] || fallback;
+  const primary = text.split(/[-_]/)[0];
+  if (aliases[text]) return aliases[text];
+  if (aliases[primary]) return aliases[primary];
+
+  const labelledLanguage = [
+    ["en", /\b(?:en|eng|english)\b/i],
+    ["fr", /\b(?:fr|fre|fra|french)\b/i],
+    ["es", /\b(?:es|spa|spanish)\b/i],
+    ["de", /\b(?:de|ger|deu|german)\b/i],
+    ["it", /\b(?:it|ita|italian)\b/i],
+    ["pt", /\b(?:pt|por|portuguese)\b/i],
+    ["nl", /\b(?:nl|dut|nld|dutch)\b/i],
+    ["pl", /\b(?:pl|pol|polish)\b/i],
+    ["ja", /\b(?:ja|jpn|japanese)\b/i],
+    ["ko", /\b(?:ko|kor|korean)\b/i],
+    ["zh", /\b(?:zh|chi|zho|chinese|mandarin|cantonese)\b/i],
+    ["ar", /\b(?:ar|ara|arabic)\b/i],
+    ["hi", /\b(?:hi|hin|hindi)\b/i],
+    ["ru", /\b(?:ru|rus|russian)\b/i],
+    ["uk", /\b(?:uk|ukr|ukrainian)\b/i],
+    ["tr", /\b(?:tr|tur|turkish)\b/i],
+    ["multi", /\b(?:mul|multi(?:[ ._-]?audio)?|dual(?:[ ._-]?audio)?)\b/i],
+  ].find(([, pattern]) => pattern.test(text));
+
+  return labelledLanguage?.[0] || primary || fallback;
 };
 
 export const normaliseTrackPreferences = (value) => {
@@ -187,6 +250,66 @@ const audioChannelKey = (track) => {
   if (value === "6") return "5.1";
   if (value === "2") return "2.0";
   return value;
+};
+
+const audioTrackText = (track) =>
+  [
+    track?.language,
+    track?.lang,
+    track?.srclang,
+    track?.label,
+    track?.name,
+    track?.audioCodec,
+    track?.codec,
+    track?.attrs?.LANGUAGE,
+    track?.attrs?.NAME,
+    track?.attrs?.CODECS,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+const audioCodecPreferenceScore = (track) => {
+  const codec = audioCodecKey(track);
+
+  if (codec === "aac") return 2600;
+  if (codec === "eac3") return 1600;
+  if (codec === "ac3") return 1400;
+  if (codec === "opus") return 1000;
+  if (codec === "flac") return 900;
+  if (codec === "mp3") return 700;
+  if (codec === "truehd" || codec === "dts") return -4500;
+  return 0;
+};
+
+export const preferredAudioTrackScore = (
+  track,
+  preferredLanguage = "en"
+) => {
+  const text = audioTrackText(track);
+  const preferred = normaliseLanguage(preferredLanguage || "en", "en");
+  const language = trackLanguage(track);
+  let score = audioCodecPreferenceScore(track);
+
+  if (language && language === preferred) {
+    score += 100000;
+  } else if (
+    language === "multi" ||
+    /\b(?:mul|multi(?:[ ._-]?audio)?|dual(?:[ ._-]?audio)?)\b/i.test(text)
+  ) {
+    score += 50000;
+  } else if (language) {
+    score -= 5000;
+  }
+
+  if (/\b(?:main|original|primary)\b/i.test(text)) score += 4000;
+  if (/\b(?:commentary|audio description|descriptive|visually impaired)\b/i.test(text)) {
+    score -= 30000;
+  }
+
+  if (track?.default || track?.attrs?.DEFAULT === "YES") score += 250;
+  if (track?.autoselect || track?.attrs?.AUTOSELECT === "YES") score += 100;
+
+  return score;
 };
 
 const mediaPreferenceContextKey = (context = {}) => {
@@ -345,7 +468,11 @@ export const rememberedAudioTrackScore = (track, profile) => {
   const candidate = audioProfileFromTrack(track);
   let score = 0;
 
-  if (profile.language && candidate.language === profile.language) score += 12000;
+  if (profile.language) {
+    if (candidate.language !== profile.language) return -20000;
+    score += 20000;
+  }
+
   if (profile.codec && candidate.codec === profile.codec) score += 6500;
   if (profile.channels && candidate.channels === profile.channels) score += 1800;
   if (profile.commentary === false && candidate.commentary) score -= 7000;
