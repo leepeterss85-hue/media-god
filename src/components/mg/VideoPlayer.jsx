@@ -19,7 +19,6 @@ import CastButton from "@/components/mg/CastButton";
 import LiveVideo from "@/components/mg/LiveVideo";
 import PlayerControls from "@/components/mg/PlayerControls";
 import {
-  cancelNativeFireTvPlayback,
   isNativeFireTvPlayerAvailable,
   openNativeFireTvExternalUrl,
   playNativeFireTv,
@@ -46,10 +45,6 @@ import {
   chooseDebridResolutionStrategy,
   debridTorrentHasMetadata,
 } from "@/components/mg/debridResolutionStrategy";
-import {
-  sourceCachedProviderKeys,
-  sourceHasReusableCacheRouting,
-} from "@/components/mg/sourceCacheVisibility";
 import {
   concisePlaybackSourceLabel,
   torrentFileLabel,
@@ -849,10 +844,6 @@ export default function VideoPlayer({
 
   useEffect(() => {
     return () => {
-      cancelNativeFireTvPlayback(
-        nativePlaybackRef.current?.requestId || ""
-      );
-
       if (torrentFailoverTimerRef.current) {
         window.clearTimeout(torrentFailoverTimerRef.current);
         torrentFailoverTimerRef.current = null;
@@ -1597,16 +1588,6 @@ export default function VideoPlayer({
 
     streamActionGenerationRef.current += 1;
 
-    /*
-     * A source chosen while Android is still preflighting the previous native
-     * handoff must cancel that old request before a replacement can start.
-     * Otherwise the old activity can open late while the new WebView stream is
-     * already playing.
-     */
-    cancelNativeFireTvPlayback(
-      nativePlaybackRef.current?.requestId || ""
-    );
-
     if (nativeLaunchTimerRef.current) {
       window.clearTimeout(nativeLaunchTimerRef.current);
       nativeLaunchTimerRef.current = null;
@@ -1640,21 +1621,6 @@ export default function VideoPlayer({
             )
           )
         : 0;
-
-    /*
-     * Stop the current WebView decoder synchronously. React's LiveVideo cleanup
-     * still performs the full HLS/DASH/native release after the render, but
-     * pausing and muting here guarantees that Android never has two audible
-     * source owners during the handoff.
-     */
-    if (currentVideo instanceof HTMLVideoElement) {
-      try {
-        currentVideo.muted = true;
-        currentVideo.pause();
-      } catch {
-        // LiveVideo's effect cleanup completes the decoder release.
-      }
-    }
 
     if (resumeAt > 5) {
       recoveryResumeRef.current = resumeAt;
@@ -3185,7 +3151,6 @@ export default function VideoPlayer({
                   action: "torrent_info",
                   torrent_id: existingRdTorrentId,
                   prefer_browser_transcode: prefersMobileBrowserRdCompatibility(),
-                  fast_start: isNativeFireTvPlayerAvailable(),
                   title:
                     source?.rdTitle ||
                     source?.title ||
@@ -3264,15 +3229,7 @@ export default function VideoPlayer({
             const explicitProvider = String(active?.debridProvider || "")
               .toLowerCase()
               .replace(/[^a-z]/g, "");
-            const cachedProviderRouting = sourceCachedProviderKeys(active);
-            const reuseCacheRouting = sourceHasReusableCacheRouting(active);
-            let debridProviders = [
-              explicitProvider,
-              ...cachedProviderRouting,
-            ].filter(
-              (provider, index, list) =>
-                provider && list.indexOf(provider) === index
-            );
+            let debridProviders = explicitProvider ? [explicitProvider] : [];
 
             const resolutionStrategy = sourceResolutionStrategy(active);
             const knownUncached = sourceNeedsCaching(active);
@@ -3998,7 +3955,7 @@ export default function VideoPlayer({
               return;
             }
 
-            if (hash && source?.hasDebrid && !reuseCacheRouting) {
+            if (hash && source?.hasDebrid) {
               try {
                 const cacheResponse = await base44.functions.invoke(
                   "multiDebrid",
@@ -4006,7 +3963,6 @@ export default function VideoPlayer({
                     action: "check_cache",
                     hashes: [hash],
                     provider_scores: debridProviderScoreHints(),
-                    fast_mode: true,
                   }
                 );
 
@@ -4134,7 +4090,6 @@ export default function VideoPlayer({
 
                   magnet,
                   prefer_browser_transcode: prefersMobileBrowserRdCompatibility(),
-                  fast_start: isNativeFireTvPlayerAvailable(),
 
                   title:
                     source?.rdTitle ||

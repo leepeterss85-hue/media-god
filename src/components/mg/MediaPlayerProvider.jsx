@@ -19,7 +19,6 @@ import {
 } from "@/components/mg/addonBrowserFallback";
 
 import VideoPlayer from "@/components/mg/VideoPlayer";
-import { isNativeFireTvPlayerAvailable } from "@/components/mg/nativeFireTvBridge";
 import {
   detectLanguagePreference,
   getPlaybackDeviceProfile,
@@ -31,10 +30,6 @@ import { readPlaybackPreferences } from "@/components/mg/playbackPreferences";
 import { readTrackPreferences } from "@/components/mg/mediaTrackPreferences";
 import { debridProviderScoreHints } from "@/components/mg/debridProviderReliability";
 import { chooseDebridResolutionStrategy } from "@/components/mg/debridResolutionStrategy";
-import {
-  promoteReadySourceOverPending,
-  sourceIsImmediatelyReady,
-} from "@/components/mg/sourceCacheVisibility";
 import {
   readSourceSortMode,
   sortSourceEntries,
@@ -397,11 +392,7 @@ const preservePublishedSourceOrder = (published, incoming) => {
   return dedupeSources(stable);
 };
 
-const annotateDebridCache = async (
-  items,
-  hasDebrid,
-  { fastMode = false, providers = [] } = {}
-) => {
+const annotateDebridCache = async (items, hasDebrid) => {
   const sources = Array.isArray(items) ? items : [];
   if (!hasDebrid) return sources;
 
@@ -428,10 +419,6 @@ const annotateDebridCache = async (
             action: "check_cache",
             hashes: batch,
             provider_scores: debridProviderScoreHints(),
-            fast_mode: Boolean(fastMode),
-            ...(Array.isArray(providers) && providers.length > 0
-              ? { providers }
-              : {}),
           }
         );
 
@@ -459,13 +446,6 @@ const annotateDebridCache = async (
       Object.assign(providerStats, data?.providerStats || {});
     });
 
-    const successfulProviders = Object.keys(cached).filter(
-      (key) =>
-        !cached?.[key]?.__error &&
-        !providerStats?.[key]?.error
-    );
-    const cacheCheckSucceeded = successfulProviders.length > 0;
-
     return sources.map((item) => {
       const hash = sourceMagnetHash(item);
       if (!hash) return item;
@@ -487,8 +467,7 @@ const annotateDebridCache = async (
 
       return {
         ...item,
-        debridCacheChecked: cacheCheckSucceeded,
-        debridCacheUnavailable: !cacheCheckSucceeded,
+        debridCacheChecked: true,
         debridCached,
         cachedProviders,
         debridProvider: best?.[hash] || item?.debridProvider || "",
@@ -1134,7 +1113,6 @@ const findRdLibrarySource = async ({
   alternateYears = [],
   season,
   episode,
-  fastStart = false,
 }) => {
   if (!title) {
     return {
@@ -1181,9 +1159,6 @@ const findRdLibrarySource = async ({
                 episode,
               }
             : {}),
-
-          fast_start:
-            Boolean(fastStart),
         }
       );
 
@@ -1915,10 +1890,7 @@ export function PlayerProvider({
         let publishedSourceSnapshot = initialSources.filter(
           (item) => item && !item?.diagnostic
         );
-        let fastStartPrimaryUrl =
-          sourceIsImmediatelyReady(initialPrimary)
-            ? getSourceUrl(initialPrimary)
-            : "";
+        let fastStartPrimaryUrl = getSourceUrl(initialPrimary);
         const preparedEpisodeHandoff =
           request?.preparedEpisodeHandoff === true &&
           initialPlayableSources.length > 0;
@@ -2042,17 +2014,10 @@ export function PlayerProvider({
              * VideoPlayer. This makes the active index and failed-source indexes
              * stable for the lifetime of this playback request.
              */
-            const rankedPublishedSources = publishedSources;
-
             publishedSources = preservePublishedSourceOrder(
               existing,
               publishedSources
             );
-            publishedSources = promoteReadySourceOverPending({
-              stable: publishedSources,
-              ranked: rankedPublishedSources,
-              lockedUrl: fastStartPrimaryUrl,
-            });
             publishedSourceSnapshot = publishedSources;
 
             if (fastStartPrimaryUrl) {
@@ -2068,10 +2033,7 @@ export function PlayerProvider({
 
             const primary = publishedSources[0] || {};
 
-            if (
-              !fastStartPrimaryUrl &&
-              sourceIsImmediatelyReady(primary)
-            ) {
+            if (!fastStartPrimaryUrl) {
               fastStartPrimaryUrl = getSourceUrl(primary);
             }
 
@@ -2109,7 +2071,6 @@ export function PlayerProvider({
                     : [],
                 season,
                 episode,
-                fastStart: isNativeFireTvPlayerAvailable(),
               })
             : Promise.resolve({
                 source: null,
@@ -2182,74 +2143,19 @@ export function PlayerProvider({
               })
             : Promise.resolve(skippedAddonLookup);
 
-        fastAddonPromise.then(async (addonLookup) => {
-          const fastStreams = Array.isArray(addonLookup?.streams)
-            ? addonLookup.streams
-            : [];
-
-          if (fastStreams.length === 0 || !isCurrentPlay()) {
-            return;
-          }
-
-          /*
-           * Direct HTTP/HLS/file streams are already playable, so publish them
-           * immediately. Torrent rows are different: publishing an unannotated
-           * magnet can make the player begin a slow uncached preparation even
-           * when another hash from this same fast result is already cached.
-           */
-          const directFastStreams = fastStreams.filter(isDirectSource);
-
-          if (directFastStreams.length > 0) {
-            publishEarlySources(directFastStreams, {
+        fastAddonPromise.then((addonLookup) => {
+          if (
+            Array.isArray(addonLookup?.streams) &&
+            addonLookup.streams.length > 0
+          ) {
+            publishEarlySources(addonLookup.streams, {
               imdbId: suppliedImdbId,
               imdbStatus: suppliedImdbId ? "SUPPLIED" : "RESOLVING",
-              addonLookupStatus: "FAST DIRECT",
+              addonLookupStatus: "FAST READY",
               addonsChecked: Number(addonLookup?.addonsChecked || 0),
-              discoveredCount: fastStreams.length,
+              discoveredCount: addonLookup.streams.length,
             });
           }
-
-          const hasTorrentCandidates = fastStreams.some(isMagnetSource);
-
-          if (!hasTorrentCandidates) {
-            if (directFastStreams.length === 0) {
-              publishEarlySources(fastStreams, {
-                imdbId: suppliedImdbId,
-                imdbStatus: suppliedImdbId ? "SUPPLIED" : "RESOLVING",
-                addonLookupStatus: "FAST READY",
-                addonsChecked: Number(addonLookup?.addonsChecked || 0),
-                discoveredCount: fastStreams.length,
-              });
-            }
-            return;
-          }
-
-          const cacheAnnotatedFast = await annotateDebridCache(
-            fastStreams,
-            hasDebrid,
-            {
-              fastMode: true,
-              providers: hasRd ? ["realdebrid"] : [],
-            }
-          );
-
-          if (!isCurrentPlay()) {
-            return;
-          }
-
-          publishEarlySources(cacheAnnotatedFast, {
-            imdbId: suppliedImdbId,
-            imdbStatus: suppliedImdbId ? "SUPPLIED" : "RESOLVING",
-            addonLookupStatus: "FAST CACHE CHECKED",
-            addonsChecked: Number(addonLookup?.addonsChecked || 0),
-            discoveredCount: fastStreams.length,
-            cacheCandidateCount: cacheAnnotatedFast.filter((item) =>
-              Boolean(sourceMagnetHash(item))
-            ).length,
-            cachedSourceCount: cacheAnnotatedFast.filter(
-              (item) => item?.debridCached === true || item?.viaRealDebrid === true
-            ).length,
-          });
         });
 
         const imdbInfo =
@@ -2540,25 +2446,11 @@ export function PlayerProvider({
          * Existing rows keep their positions; richer cache/provider metadata replaces
          * them in place and genuinely new hashes are appended in ranked order.
          */
-        const rankedFinalSources = orderedSources;
-
         orderedSources = preservePublishedSourceOrder(
           publishedSourceSnapshot,
           orderedSources
         );
-        orderedSources = promoteReadySourceOverPending({
-          stable: orderedSources,
-          ranked: rankedFinalSources,
-          lockedUrl: fastStartPrimaryUrl,
-        });
         publishedSourceSnapshot = orderedSources;
-
-        if (
-          !fastStartPrimaryUrl &&
-          sourceIsImmediatelyReady(orderedSources[0])
-        ) {
-          fastStartPrimaryUrl = getSourceUrl(orderedSources[0]);
-        }
 
         if (fastStartPrimaryUrl) {
           const lockedIndex = orderedSources.findIndex(
