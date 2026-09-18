@@ -2180,6 +2180,18 @@ export default function VideoPlayer({
         }
 
         if (nextSrc && nextSrc !== locked) {
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(
+              new CustomEvent("mg:vod-url-lock-blocked", {
+                detail: {
+                  version: "vod-url-lock-v2",
+                  current: locked,
+                  attempted: nextSrc,
+                },
+              })
+            );
+          }
+
           return current;
         }
 
