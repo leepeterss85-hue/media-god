@@ -201,7 +201,10 @@ export const trackLanguage = (track) =>
     track?.language ||
       track?.lang ||
       track?.srclang ||
+      track?.attrs?.LANGUAGE ||
       track?.label ||
+      track?.name ||
+      track?.attrs?.NAME ||
       "",
     ""
   );
