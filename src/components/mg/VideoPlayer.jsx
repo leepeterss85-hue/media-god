@@ -841,6 +841,23 @@ export default function VideoPlayer({
   const nativeLaunchTimerRef = useRef(null);
   const liveRecoveryNoticeTimerRef = useRef(null);
   const streamActionGenerationRef = useRef(0);
+  const vodSourceLockedRef = useRef(false);
+  const vodRequestKeyRef = useRef("");
+
+  const vodRequestKey = [
+    source?.playRequestId ?? "",
+    source?.tmdbId ?? source?.tmdb_id ?? "",
+    source?.season ?? "",
+    source?.episode ?? "",
+    source?.title ?? "",
+  ].join("|");
+
+  useEffect(() => {
+    if (vodRequestKeyRef.current === vodRequestKey) return;
+
+    vodRequestKeyRef.current = vodRequestKey;
+    vodSourceLockedRef.current = false;
+  }, [vodRequestKey]);
 
   useEffect(() => {
     return () => {
