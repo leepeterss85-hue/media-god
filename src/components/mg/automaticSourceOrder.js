@@ -6,6 +6,7 @@ const entryIndex = (entry) =>
     : Number.MAX_SAFE_INTEGER;
 
 const compareCompatibleReadyEntries = (left, right) =>
+  Number(left?.languageRank ?? 0) - Number(right?.languageRank ?? 0) ||
   Number(right?.compatibility || 0) - Number(left?.compatibility || 0) ||
   Number(Boolean(right?.trustedCached)) - Number(Boolean(left?.trustedCached)) ||
   Number(Boolean(right?.cached)) - Number(Boolean(left?.cached)) ||
