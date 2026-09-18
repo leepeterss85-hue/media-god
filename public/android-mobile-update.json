@@ -3,7 +3,7 @@
   "versionCode": 24,
   "versionName": "1.0.23",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.23 stops the previous video before another source opens and cancels stale native player launches.",
+  "message": "Media God Mobile 1.0.23 restores the last stable pre-sound-change playback engine for fast, direct playback.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
