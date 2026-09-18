@@ -170,7 +170,9 @@ expect(
     videoPlayer.includes("const setRdOverride = (nextValue, { manual = false } = {}) =>") &&
     videoPlayer.includes("const effectiveRdPlaybackUrl =") &&
     videoPlayer.includes("const effectiveDirectPlaybackUrl =") &&
-    videoPlayer.includes("vodResolvedUrlRef.current?.requestKey === vodRequestKey"),
+    videoPlayer.includes("vodResolvedUrlRef.current?.requestKey === vodRequestKey") &&
+    videoPlayer.includes('mg:vod-url-lock-blocked') &&
+    videoPlayer.includes('vod-url-lock-v2'),
   "resolved movie and episode URLs stay frozen while background RD/source metadata updates continue"
 );
 
