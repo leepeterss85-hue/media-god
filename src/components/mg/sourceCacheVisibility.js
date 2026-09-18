@@ -41,6 +41,37 @@ export const sourceHasAuthoritativeCachedSignal = (item) =>
   item?.debridCached === true ||
   item?.runtimeReadyCached === true;
 
+const DEBRID_PROVIDER_KEYS = new Set([
+  "realdebrid",
+  "alldebrid",
+  "torbox",
+  "premiumize",
+  "debridlink",
+]);
+
+const normaliseDebridProviderKey = (value) =>
+  clean(value)
+    .toLowerCase()
+    .replace(/[^a-z]/g, "");
+
+export const sourceCachedProviderKeys = (item) => {
+  if (!sourceHasAuthoritativeCachedSignal(item)) return [];
+
+  return [
+    item?.debridProvider,
+    ...(Array.isArray(item?.cachedProviders) ? item.cachedProviders : []),
+  ]
+    .map(normaliseDebridProviderKey)
+    .filter(
+      (provider, index, list) =>
+        DEBRID_PROVIDER_KEYS.has(provider) &&
+        list.indexOf(provider) === index
+    );
+};
+
+export const sourceHasReusableCacheRouting = (item) =>
+  sourceCachedProviderKeys(item).length > 0;
+
 export const sourceHasPendingCacheSignal = (item, strategy = "") => {
   if (!item || sourceHasAuthoritativeCachedSignal(item)) {
     return false;
