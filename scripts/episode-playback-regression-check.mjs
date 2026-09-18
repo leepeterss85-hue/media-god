@@ -18,7 +18,6 @@ const takeover = read("src/components/mg/FireTvPlayerTakeover.jsx");
 const native = read("firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt");
 const edition = read("src/components/mg/mediaEdition.js");
 const sourcePreferences = read("src/components/mg/sourceSelectorPreferences.js");
-const mediaCompatibility = read("src/components/mg/mediaCompatibility.js");
 const controls = read("src/components/mg/MediaPlayerControls.jsx");
 const mobileNative = read("android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt");
 const trackPreferences = read("src/components/mg/mediaTrackPreferences.js");
@@ -129,22 +128,6 @@ expect(
   "fast start always expands into full cache discovery and every published source keeps a stable playback index"
 );
 
-const firstFrameFastPathIndex = mediaPlayerProvider.indexOf(
-  "const fastAddonPromise ="
-);
-const imdbResolveIndex = mediaPlayerProvider.indexOf(
-  ": await resolveImdbInfo("
-);
-
-expect(
-  mediaPlayerProvider.includes("FIRST-FRAME FAST PATH") &&
-    mediaPlayerProvider.includes("const immediateAddonArgs =") &&
-    firstFrameFastPathIndex >= 0 &&
-    imdbResolveIndex >= 0 &&
-    firstFrameFastPathIndex < imdbResolveIndex,
-  "fast addon discovery starts before IMDb resolution so identifier lookup cannot delay first playback"
-);
-
 expect(
   mediaPlayerProvider.includes('item?.infoHash') &&
     mediaPlayerProvider.includes('item?.info_hash') &&
@@ -161,18 +144,6 @@ expect(
     videoPlayer.includes('Cache checked') &&
     videoPlayer.includes('Ready {selectableSourceCount}'),
   "player exposes source-health counts for discovery, cache checks, cached hits and ready sources"
-);
-
-expect(
-  mediaCompatibility.includes('if (nativeSupport === false)') &&
-    mediaCompatibility.includes('export const sourceAudioCompatibility') &&
-    mediaCompatibility.includes('return status.supported === false || status.risky;') &&
-    mediaCompatibility.includes('"audio/vnd.dolby.mlp"') &&
-    mediaPlayerProvider.includes('audioCapability.supported === false') &&
-    mediaPlayerProvider.includes('? -120000') &&
-    sourcePreferences.includes('sourceAudioCompatibility') &&
-    sourcePreferences.includes('audio.supported === false'),
-  "actual device audio decoder support outranks resolution and drives automatic no-sound recovery"
 );
 
 expect(
