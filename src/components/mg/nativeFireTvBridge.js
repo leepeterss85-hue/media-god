@@ -655,6 +655,13 @@ export const playNativeFireTv = ({
     episode,
     canChooseEpisode,
     autoNext: playerContext?.autoNext !== false,
+    nextEpisodeAvailable:
+      playerContext?.nextEpisodeAvailable == null
+        ? null
+        : Boolean(playerContext.nextEpisodeAvailable),
+    nextSeason: Number(playerContext?.nextSeason || 0),
+    nextEpisode: Number(playerContext?.nextEpisode || 0),
+    nextEpisodeName: String(playerContext?.nextEpisodeName || ""),
     recapStart: playerMarkerSeconds(playerContext, "recapStart"),
     recapEnd: playerMarkerSeconds(playerContext, "recapEnd"),
     introStart: playerMarkerSeconds(playerContext, "introStart"),

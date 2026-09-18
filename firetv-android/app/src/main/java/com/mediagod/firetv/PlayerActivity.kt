@@ -592,16 +592,28 @@ class PlayerActivity : Activity() {
         skipRecapButton = buildAssistButton("Skip recap") {
             val activePlayer = player ?: return@buildAssistButton
             val target =
-                if (recapEndMs > activePlayer.currentPosition) recapEndMs + 250L
-                else activePlayer.currentPosition + 45_000L
+                if (recapEndMs > activePlayer.currentPosition) {
+                    recapEndMs + 250L
+                } else {
+                    minOf(
+                        75_000L,
+                        maxOf(activePlayer.currentPosition + 30_000L, 50_000L)
+                    )
+                }
             seekAssistTo(target)
         }
 
         skipIntroButton = buildAssistButton("Skip intro") {
             val activePlayer = player ?: return@buildAssistButton
             val target =
-                if (introEndMs > activePlayer.currentPosition) introEndMs + 250L
-                else activePlayer.currentPosition + 85_000L
+                if (introEndMs > activePlayer.currentPosition) {
+                    introEndMs + 250L
+                } else {
+                    minOf(
+                        210_000L,
+                        maxOf(activePlayer.currentPosition + 60_000L, 105_000L)
+                    )
+                }
             seekAssistTo(target)
         }
 
@@ -615,11 +627,11 @@ class PlayerActivity : Activity() {
             }
         }
 
-        playNextButton = buildAssistButton("Play next") {
+        playNextButton = buildAssistButton("Next episode") {
             finishWithResult("next")
         }
 
-        cancelNextButton = buildAssistButton("Cancel") {
+        cancelNextButton = buildAssistButton("Stay here") {
             nextEpisodeCountdownCancelled = true
             nextEpisodeCountdownStartedAtMs = -1L
             updateAssistControls()
@@ -743,6 +755,13 @@ class PlayerActivity : Activity() {
         val remaining = if (duration > 0L) maxOf(0L, duration - position) else Long.MAX_VALUE
         val tvEpisode = isTvEpisode()
         val playingNow = activePlayer.isPlaying
+        val episodeNumber = payload.optInt("episode", 0).coerceAtLeast(0)
+        val nextEpisodeKnown =
+            payload.has("nextEpisodeAvailable") &&
+                !payload.isNull("nextEpisodeAvailable")
+        val hasNextEpisode =
+            !nextEpisodeKnown ||
+                payload.optBoolean("nextEpisodeAvailable", true)
         val focusedAssistBeforeUpdate =
             listOf(
                 skipRecapButton,
@@ -760,28 +779,42 @@ class PlayerActivity : Activity() {
         val fallbackRecap =
             tvEpisode &&
                 recapEndMs <= 0L &&
-                position in 0L..90_000L &&
+                episodeNumber > 1 &&
+                playingNow &&
+                position in 4_000L..65_000L &&
                 (duration <= 0L || remaining > 180_000L)
+        val recapVisible = exactRecap || fallbackRecap
 
         val exactIntro =
             tvEpisode &&
                 introEndMs > 0L &&
                 position >= maxOf(0L, introStartMs) &&
                 position < introEndMs
+        val fallbackIntroStartMs =
+            if (recapEndMs > 0L) {
+                maxOf(15_000L, minOf(180_000L, recapEndMs + 2_000L))
+            } else if (episodeNumber > 1) {
+                65_000L
+            } else {
+                15_000L
+            }
         val fallbackIntro =
             tvEpisode &&
                 introEndMs <= 0L &&
-                position in 30_000L..420_000L &&
+                playingNow &&
+                !recapVisible &&
+                position in fallbackIntroStartMs..210_000L &&
                 (duration <= 0L || remaining > 120_000L)
+        val introVisible = !recapVisible && (exactIntro || fallbackIntro)
 
         val creditsFallbackWindow =
             if (tvEpisode) {
                 if (duration > 0L) {
-                    minOf(240_000L, maxOf(75_000L, (duration * 0.09).toLong()))
+                    minOf(90_000L, maxOf(45_000L, (duration * 0.04).toLong()))
                 } else 0L
             } else {
                 if (duration > 0L) {
-                    minOf(360_000L, maxOf(120_000L, (duration * 0.08).toLong()))
+                    minOf(180_000L, maxOf(90_000L, (duration * 0.05).toLong()))
                 } else 0L
             }
 
@@ -793,38 +826,34 @@ class PlayerActivity : Activity() {
         val fallbackCredits =
             duration >= 300_000L &&
                 creditsStartMs <= 0L &&
-                position > (duration * 0.55).toLong() &&
+                position > (duration * 0.70).toLong() &&
                 remaining <= creditsFallbackWindow
         val creditsVisible = exactCredits || fallbackCredits
 
-        val nextWindowMs =
-            if (duration > 0L) {
-                minOf(180_000L, maxOf(75_000L, (duration * 0.10).toLong()))
-            } else 0L
+        setAssistVisible(skipRecapButton, recapVisible)
+        setAssistVisible(skipIntroButton, introVisible)
+        // TV has one clear end-of-episode action instead of duplicate
+        // "Skip credits" and "Play next" buttons.
+        setAssistVisible(skipCreditsButton, creditsVisible && !tvEpisode)
+        skipCreditsButton.text = "Skip credits"
+
         val nextEpisodeWindow =
             tvEpisode &&
+                hasNextEpisode &&
                 duration >= 180_000L &&
                 position >= 60_000L &&
-                remaining <= nextWindowMs
-
-        setAssistVisible(skipRecapButton, exactRecap || fallbackRecap)
-        setAssistVisible(skipIntroButton, exactIntro || fallbackIntro)
-        setAssistVisible(skipCreditsButton, creditsVisible)
-
-        if (tvEpisode && creditsVisible) {
-            skipCreditsButton.text = "Skip credits → Next"
-        } else {
-            skipCreditsButton.text = "Skip credits"
-        }
+                (exactCredits || remaining <= 60_000L)
+        setAssistVisible(playNextButton, nextEpisodeWindow)
 
         val countdownWindow =
             tvEpisode &&
+                hasNextEpisode &&
                 duration >= 180_000L &&
                 position >= 60_000L &&
-                (exactCredits || remaining <= 15_000L)
-        val showNext = nextEpisodeWindow
-
-        setAssistVisible(playNextButton, showNext)
+                (
+                    (exactCredits && remaining <= 75_000L) ||
+                        remaining <= 20_000L
+                )
 
         if (
             autoNext &&
@@ -855,7 +884,7 @@ class PlayerActivity : Activity() {
             if (!countdownWindow || !playingNow || !autoNext) {
                 nextEpisodeCountdownStartedAtMs = -1L
             }
-            playNextButton.text = "Play next"
+            playNextButton.text = "Next episode"
             setAssistVisible(cancelNextButton, false)
         }
 

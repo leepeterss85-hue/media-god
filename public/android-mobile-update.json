@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 29,
-  "versionName": "1.0.28",
+  "versionCode": 30,
+  "versionName": "1.0.29",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.28 fixes missing cached torrents by retrying incomplete debrid cache checks and never treating a temporary provider failure as a confirmed cache miss.",
+  "message": "Media God Mobile 1.0.29 overhauls episode controls: recap and intro prompts are phase-aware, Next Episode appears only near the real ending, duplicate credits/next buttons are removed, and auto-next waits until the appropriate end window.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"

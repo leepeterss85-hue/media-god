@@ -1,5 +1,20 @@
 export const UPDATE_HISTORY = [
   {
+    id: "episode-controls-phase-aware-2026-09-18-v1",
+    date: "18 September 2026",
+    title: "Episode controls now appear only when they are useful",
+    summary:
+      "Skip recap, Skip intro and Next episode now follow the actual playback phase instead of lingering over the programme.",
+    changes: [
+      "Exact chapter markers remain authoritative. Without markers, recap is limited to 4–65 seconds on episode 2 onward, while intro ends by 3:30 and never overlaps the recap action.",
+      "Fallback skip jumps are capped to conservative targets instead of blindly jumping fixed 45-second or 85-second chunks.",
+      "Next Episode appears at an exact credits marker or in the final minute; automatic next waits until the final 20 seconds, or the final 75 seconds after an exact credits marker.",
+      "TV episodes now show one clear Next Episode action instead of duplicate Skip Credits and Play Next buttons, and a confirmed series finale suppresses next-episode prompts.",
+      "Episode prompts align at the bottom-right across web and native players, and the auto-next escape action is renamed Stay here.",
+      "Fire TV advances to 1.4.43 (versionCode 48) and Android Mobile to 1.0.29 (versionCode 30).",
+    ],
+  },
+  {
     id: "fire-tv-1-4-32-installer-handoff-2026-09-17-v1",
     date: "17 September 2026",
     title: "Fire TV updater opens the installer immediately",

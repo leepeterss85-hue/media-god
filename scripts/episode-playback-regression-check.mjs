@@ -35,11 +35,13 @@ expect(
 );
 
 expect(
-  assist.includes("Next episode in ${nextCountdownSeconds}s") &&
-    assist.includes("Cancel automatic next episode") &&
+  assist.includes("Next ${nextEpisodeLabel} in ${nextCountdownSeconds}s") &&
+    assist.includes("Keep watching current episode") &&
     assist.includes('new CustomEvent("mg:play-next-episode")') &&
-    assist.includes("exactCreditsCountdownWindow"),
-  "web/mobile overlay has marker-aware skip and cancellable next-episode countdown"
+    assist.includes("context?.nextEpisodeAvailable !== false") &&
+    assist.includes("remaining <= 20") &&
+    assist.includes("creditsWindow && !isTv"),
+  "web/mobile overlay has phase-aware, finale-aware skip and cancellable next-episode controls"
 );
 
 expect(
@@ -76,8 +78,10 @@ expect(
     native.includes("private fun payloadMarkerMs") &&
     native.includes('finishWithResult("next")') &&
     native.includes("NEXT_EPISODE_COUNTDOWN_MS") &&
-    native.includes("Skip credits → Next"),
-  "Fire TV native player has skip controls and a cancellable auto-next countdown"
+    native.includes("creditsVisible && !tvEpisode") &&
+    native.includes("remaining <= 60_000L") &&
+    native.includes("remaining <= 20_000L"),
+  "Fire TV native player keeps one phase-relevant end action and a conservative auto-next countdown"
 );
 
 
@@ -178,32 +182,39 @@ expect(
 expect(
   assist.includes("runClickFallback") &&
     assist.includes("runKeyAction") &&
-    assist.includes("!(recapEnd > 0)") &&
-    assist.includes("position <= 90") &&
-    assist.includes("!(introEnd > 0)") &&
-    assist.includes("position <= 420") &&
+    assist.includes("episodeNumber > 1") &&
+    assist.includes("position <= 65") &&
+    assist.includes("position <= 210") &&
+    assist.includes("!canSkipRecap") &&
+    assist.includes("remaining <= 60") &&
+    assist.includes("remaining <= 20") &&
     assist.includes("const showNextAction =") &&
-    assist.includes("nextEpisodeWindow || autoNextCountdownWindow") &&
     assist.includes("z-[120]") &&
-    native.includes("recapEndMs <= 0L") &&
-    native.includes("position in 0L..90_000L") &&
-    native.includes("introEndMs <= 0L") &&
-    native.includes("position in 30_000L..420_000L") &&
-    native.includes("val showNext = nextEpisodeWindow") &&
-    mobileNative.includes("recapEndMs <= 0L") &&
-    mobileNative.includes("introEndMs <= 0L") &&
-    mobileNative.includes("position in 30_000L..420_000L") &&
-    mobileNative.includes("val showNext = nextEpisodeWindow"),
-  "zero or missing opening markers keep Skip Recap and Skip Intro available while Play Next stays end-only"
+    provider.includes('availability: "unknown"') &&
+    provider.includes('availability: "no"') &&
+    provider.includes('availability: "yes"') &&
+    provider.includes("nextEpisodeAvailable:") &&
+    nativeBridge.includes("nextEpisodeAvailable:") &&
+    native.includes("episodeNumber > 1") &&
+    native.includes("position in 4_000L..65_000L") &&
+    native.includes("fallbackIntroStartMs..210_000L") &&
+    native.includes("creditsVisible && !tvEpisode") &&
+    mobileNative.includes("episodeNumber > 1") &&
+    mobileNative.includes("position in 4_000L..65_000L") &&
+    mobileNative.includes("fallbackIntroStartMs..210_000L") &&
+    mobileNative.includes("creditsVisible && !tvEpisode"),
+  "episode actions move through recap, intro and end phases without broad overlapping fallback prompts"
 );
 
 expect(
   mobileNative.includes("private fun buildAssistControls()") &&
     mobileNative.includes("private fun updateAssistControls()") &&
-    mobileNative.includes("Skip credits → Next") &&
+    mobileNative.includes("creditsVisible && !tvEpisode") &&
+    mobileNative.includes("remaining <= 60_000L") &&
+    mobileNative.includes("remaining <= 20_000L") &&
     mobileNative.includes('finishWithResult("next")') &&
     mobileNative.includes("NEXT_EPISODE_COUNTDOWN_MS"),
-  "Android mobile native player keeps the TV episode skip and next controls"
+  "Android mobile native player keeps the same phase-aware episode skip and next controls"
 );
 
 expect(

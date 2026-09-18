@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 47,
-  "versionName": "1.4.42",
+  "versionCode": 48,
+  "versionName": "1.4.43",
   "title": "Media God Fire TV",
-  "message": "Fire TV 1.4.42 fixes missing cached torrents by retrying incomplete debrid cache checks and never treating a temporary provider failure as a confirmed cache miss.",
+  "message": "Fire TV 1.4.43 overhauls episode controls: recap and intro prompts are phase-aware, Next Episode appears only near the real ending, duplicate credits/next buttons are removed, and auto-next waits until the appropriate end window.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",

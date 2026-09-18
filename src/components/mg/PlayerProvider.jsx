@@ -430,6 +430,7 @@ function PlayerAutomationBridge({ children }) {
     next: null,
     prepared: null,
     promise: null,
+    availability: "unknown",
   });
   const lastPreloadCheckRef = useRef(0);
 
@@ -442,6 +443,17 @@ function PlayerAutomationBridge({ children }) {
       if (typeof window === "undefined") {
         return;
       }
+
+      const requestKey = episodeIdentityForRequest(request);
+      const preloadState = nextEpisodePreloadRef.current;
+      const preloadMatches =
+        Boolean(requestKey) &&
+        preloadState.currentKey === requestKey &&
+        !preloadState.promise;
+      const knownNext =
+        preloadMatches && preloadState.availability === "yes"
+          ? preloadState.next
+          : null;
 
       const detail = {
         mediaType:
@@ -488,6 +500,17 @@ function PlayerAutomationBridge({ children }) {
           "",
 
         autoNext: Boolean(enabled),
+
+        nextEpisodeAvailable:
+          preloadMatches && preloadState.availability !== "unknown"
+            ? preloadState.availability === "yes"
+            : null,
+        nextSeason:
+          positiveInt(knownNext?.season ?? knownNext?.rdSeason) || null,
+        nextEpisode:
+          positiveInt(knownNext?.episode ?? knownNext?.rdEpisode) || null,
+        nextEpisodeName:
+          String(knownNext?.episodeName || "").trim(),
 
         recapStart: playbackMarker(request, "recap", "start"),
         recapEnd: playbackMarker(request, "recap", "end"),
@@ -556,7 +579,11 @@ function PlayerAutomationBridge({ children }) {
                 next: null,
                 prepared: null,
                 promise: null,
+                availability: "no",
               };
+              if (episodeIdentityForRequest(currentRequestRef.current) === currentKey) {
+                publishContext(request);
+              }
             }
             return null;
           }
@@ -579,7 +606,9 @@ function PlayerAutomationBridge({ children }) {
             next,
             prepared,
             promise: null,
+            availability: "yes",
           };
+          publishContext(request);
 
           return prepared || next;
         } catch (error) {
@@ -594,7 +623,11 @@ function PlayerAutomationBridge({ children }) {
               next: null,
               prepared: null,
               promise: null,
+              availability: "unknown",
             };
+            if (episodeIdentityForRequest(currentRequestRef.current) === currentKey) {
+              publishContext(request);
+            }
           }
 
           return null;
@@ -606,11 +639,12 @@ function PlayerAutomationBridge({ children }) {
         next: null,
         prepared: null,
         promise: preloadPromise,
+        availability: "unknown",
       };
 
       return preloadPromise;
     },
-    [core]
+    [core, publishContext]
   );
 
   const play = useCallback(
@@ -643,6 +677,7 @@ function PlayerAutomationBridge({ children }) {
       next: null,
       prepared: null,
       promise: null,
+      availability: "unknown",
     };
     publishContext(null);
   }, [publishContext]);
