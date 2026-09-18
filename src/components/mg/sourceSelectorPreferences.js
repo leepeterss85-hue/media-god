@@ -43,12 +43,10 @@ export const availableSourceSortOptions = (sources, options = {}) => {
 
   const available = [{ value: "best", label: "Best available" }];
 
-  /*
-   * Do not hide quality/cache modes just because only one source is ready.
-   * Episodes often begin with a single prepared cached 4K source; suppressing
-   * the modes in that case makes Cached and 4K appear to be missing even though
-   * the source is present and playable.
-   */
+  if (items.length <= 1) {
+    return available;
+  }
+
   if (items.some((item) => sourceIsCached(item))) {
     available.push({ value: "cached", label: "Cached / ready" });
   }

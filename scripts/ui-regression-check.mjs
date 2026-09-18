@@ -714,7 +714,7 @@ for (const marker of [
 expect(
   playbackPreferences.includes('audioOutputMode: "auto"') &&
     playbackPreferences.includes("lipSyncMs: 0") &&
-    playbackPreferences.includes("automaticNoSoundRecovery: false") &&
+    playbackPreferences.includes("automaticNoSoundRecovery: true") &&
     playbackPreferences.includes("networkAware4K: true") &&
     playbackPreferences.includes("thermalProtection: true"),
   "Advanced playback preference defaults are incomplete"

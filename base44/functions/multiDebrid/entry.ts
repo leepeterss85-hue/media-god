@@ -358,12 +358,7 @@ const parseTorBoxCache = (data, hashes) => {
   return output;
 };
 
-const checkCacheForProvider = async (
-  providerKey,
-  token,
-  hashes,
-  timeoutMs = 12000
-) => {
+const checkCacheForProvider = async (providerKey, token, hashes) => {
   const output = {};
   hashes.forEach((hash) => {
     output[hash] = false;
@@ -374,8 +369,7 @@ const checkCacheForProvider = async (
   if (providerKey === "realdebrid") {
     const data = await requestJson(
       `${PROVIDERS.realdebrid.baseUrl}/torrents/instantAvailability/${hashes.join("/")}`,
-      { headers: authHeaders(token) },
-      timeoutMs
+      { headers: authHeaders(token) }
     );
 
     hashes.forEach((hash) => {
@@ -392,8 +386,7 @@ const checkCacheForProvider = async (
 
     const data = await requestJson(
       `${PROVIDERS.alldebrid.baseUrl}/magnet/instant?${query.toString()}`,
-      { headers: authHeaders(token) },
-      timeoutMs
+      { headers: authHeaders(token) }
     );
 
     const magnets = data?.data?.magnets || data?.data?.torrents || data?.data || [];
@@ -426,8 +419,7 @@ const checkCacheForProvider = async (
         method: "POST",
         headers: authHeaders(token, { "Content-Type": "application/json" }),
         body: JSON.stringify({ hashes }),
-      },
-      timeoutMs
+      }
     );
 
     return parseTorBoxCache(data, hashes);
@@ -440,8 +432,7 @@ const checkCacheForProvider = async (
         method: "POST",
         headers: formHeaders(token),
         body: formBody(hashes.map((hash) => ["items[]", hash])),
-      },
-      timeoutMs
+      }
     );
 
     const response = Array.isArray(data?.response) ? data.response : [];
@@ -456,8 +447,7 @@ const checkCacheForProvider = async (
     const query = new URLSearchParams({ url: hashes.join(",") });
     const data = await requestJson(
       `${PROVIDERS.debridlink.baseUrl}/seedbox/cached?${query.toString()}`,
-      { headers: authHeaders(token) },
-      timeoutMs
+      { headers: authHeaders(token) }
     );
 
     const value = data?.value || data?.data || data || {};
@@ -896,10 +886,6 @@ export default async function (req) {
       const cached = {};
       const providerStats = {};
       const hints = providerScoreHints(body);
-      const cacheTimeoutMs =
-        body?.fast_mode === true || body?.fastMode === true
-          ? 3000
-          : 12000;
 
       await Promise.all(
         priority.map(async (key) => {
@@ -908,12 +894,7 @@ export default async function (req) {
           const startedAt = Date.now();
 
           try {
-            cached[key] = await checkCacheForProvider(
-              key,
-              token,
-              hashes,
-              cacheTimeoutMs
-            );
+            cached[key] = await checkCacheForProvider(key, token, hashes);
             providerStats[key] = {
               latencyMs: Date.now() - startedAt,
               error: "",

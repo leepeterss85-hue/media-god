@@ -4,7 +4,7 @@ import {
   writePlaybackPreferences,
 } from "@/components/mg/playbackPreferences";
 
-const DIAGNOSTICS_KEY = "mg:native-playback-diagnostics:v2";
+const DIAGNOSTICS_KEY = "mg:native-playback-diagnostics:v1";
 
 const readDiagnostics = () => {
   if (typeof window === "undefined") return [];
@@ -91,7 +91,6 @@ export default function PlaybackAdvancedSettings() {
       window.localStorage.removeItem(DIAGNOSTICS_KEY);
       window.localStorage.removeItem("mg:playback-reliability-v1");
       window.localStorage.removeItem("mg:playback-reliability-v2");
-      window.localStorage.removeItem("mg:playback-reliability-v3");
     } catch {
       // Storage is best effort.
     }

@@ -8,7 +8,7 @@ export const DEFAULT_PLAYBACK_PREFERENCES = {
   lipSyncMs: 0,
   dialogueBoost: "off",
   volumeNormalization: false,
-  automaticNoSoundRecovery: false,
+  automaticNoSoundRecovery: true,
   networkAware4K: true,
   thermalProtection: true,
 };
@@ -49,7 +49,10 @@ export const normalisePlaybackPreferences = (value) => {
       typeof raw.volumeNormalization === "boolean"
         ? raw.volumeNormalization
         : DEFAULT_PLAYBACK_PREFERENCES.volumeNormalization,
-    automaticNoSoundRecovery: false,
+    automaticNoSoundRecovery:
+      typeof raw.automaticNoSoundRecovery === "boolean"
+        ? raw.automaticNoSoundRecovery
+        : DEFAULT_PLAYBACK_PREFERENCES.automaticNoSoundRecovery,
     networkAware4K:
       typeof raw.networkAware4K === "boolean"
         ? raw.networkAware4K

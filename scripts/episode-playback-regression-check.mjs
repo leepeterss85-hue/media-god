@@ -14,15 +14,12 @@ const provider = read("src/components/mg/PlayerProvider.jsx");
 const mediaPlayerProvider = read("src/components/mg/MediaPlayerProvider.jsx");
 const assist = read("src/components/mg/MediaGodV2Assist.jsx");
 const videoPlayer = read("src/components/mg/VideoPlayer.jsx");
-const liveVideo = read("src/components/mg/LiveVideo.jsx");
 const takeover = read("src/components/mg/FireTvPlayerTakeover.jsx");
 const native = read("firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt");
-const fireMain = read("firetv-android/app/src/main/java/com/mediagod/firetv/MainActivity.kt");
 const edition = read("src/components/mg/mediaEdition.js");
 const sourcePreferences = read("src/components/mg/sourceSelectorPreferences.js");
 const controls = read("src/components/mg/MediaPlayerControls.jsx");
 const mobileNative = read("android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt");
-const mobileMain = read("android-mobile/app/src/main/java/com/mediagod/mobile/MainActivity.kt");
 const trackPreferences = read("src/components/mg/mediaTrackPreferences.js");
 const nativeBridge = read("src/components/mg/nativeFireTvBridge.js");
 const fireCompatibility = read("firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt");
@@ -147,62 +144,6 @@ expect(
     videoPlayer.includes('Cache checked') &&
     videoPlayer.includes('Ready {selectableSourceCount}'),
   "player exposes source-health counts for discovery, cache checks, cached hits and ready sources"
-);
-
-expect(
-  videoPlayer.includes("No automatic no-sound intervention.") &&
-    !videoPlayer.includes("rememberedSilent ? 2200 : 4200") &&
-    nativeBridge.includes('automaticNoSoundRecovery: false') &&
-    nativeBridge.includes('mg:native-playback-diagnostics:v2') &&
-    mediaPlayerProvider.includes('mg:playback-reliability-v3'),
-  "playback never abandons a healthy source after a two-second no-sound guess and ignores sound-era learned state"
-);
-
-expect(
-  videoPlayer.includes("const vodSourceLockedRef = useRef(false)") &&
-    videoPlayer.includes("vodSourceLockedRef.current = true") &&
-    videoPlayer.includes("vodSourceLockedRef.current && !manualSelection") &&
-    videoPlayer.includes("if (!activeIsLive && vodSourceLockedRef.current)") &&
-    videoPlayer.includes("manualSelection: true"),
-  "movie and episode playback locks to one source once a real URL is active; only manual selection can change files"
-);
-
-expect(
-  videoPlayer.includes("const vodResolvedUrlRef = useRef({") &&
-    videoPlayer.includes("const setRdOverride = (nextValue, { manual = false } = {}) =>") &&
-    videoPlayer.includes("const effectiveRdPlaybackUrl =") &&
-    videoPlayer.includes("const effectiveDirectPlaybackUrl =") &&
-    videoPlayer.includes("vodResolvedUrlRef.current?.requestKey === vodRequestKey") &&
-    videoPlayer.includes('mg:vod-url-lock-blocked') &&
-    videoPlayer.includes('vod-url-lock-v2'),
-  "resolved movie and episode URLs stay frozen while background RD/source metadata updates continue"
-);
-
-expect(
-  liveVideo.includes("const stableConfigSignature = (value) =>") &&
-    liveVideo.includes("const onErrorRef = useRef(onError)") &&
-    liveVideo.includes("const headersSignature = stableConfigSignature(headers)") &&
-    liveVideo.includes("const drmSignature = stableConfigSignature(drm)") &&
-    liveVideo.includes("headersSignature,") &&
-    liveVideo.includes("drmSignature,"),
-  "LiveVideo decoder ownership depends on stable stream/config values instead of incidental React prop identity"
-);
-
-expect(
-  nativeBridge.includes("const stopWebMediaForNativePlayback = () =>") &&
-    nativeBridge.includes('document.querySelectorAll("video, audio")') &&
-    nativeBridge.includes("stopWebMediaForNativePlayback();") &&
-    fireMain.includes("WebView.onPause()/pauseTimers() do not guarantee that HTML5 media is") &&
-    fireMain.includes("document.querySelectorAll('video,audio')") &&
-    mobileMain.includes("Stop browser media before the native player covers this activity") &&
-    mobileMain.includes("document.querySelectorAll('video,audio')"),
-  "native playback hard-stops WebView audio/video so only one decoder owns playback"
-);
-
-expect(
-  sourcePreferences.includes("Do not hide quality/cache modes just because only one source is ready.") &&
-    !sourcePreferences.includes("if (items.length <= 1)"),
-  "episode source controls keep Cached and 4K modes visible even when only one ready source exists"
 );
 
 expect(

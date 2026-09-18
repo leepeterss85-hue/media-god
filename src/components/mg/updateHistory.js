@@ -1,18 +1,5 @@
 export const UPDATE_HISTORY = [
   {
-    id: "single-owner-native-handoff-episode-source-visibility-2026-09-18-v1",
-    date: "18 September 2026",
-    title: "Native playback now has one owner and episode source modes stay visible",
-    summary:
-      "Fire TV and Android now stop every WebView media element before native playback opens, preventing two streams from playing at once. Episode source controls also keep Cached and 4K modes visible whenever those ready sources exist, even if only one source is currently selectable.",
-    changes: [
-      "The web-to-native handoff explicitly pauses and mutes all browser video/audio before Media3 or LibVLC opens.",
-      "The Android wrappers repeat the same stop during onPause as a native backstop, so WebView media cannot continue underneath the foreground player.",
-      "Cached and 4K source modes are no longer hidden merely because an episode currently has one ready source.",
-      "Fire TV advances to 1.4.38 / versionCode 43 and Android Mobile to 1.0.24 / versionCode 25.",
-    ],
-  },
-  {
     id: "fire-tv-1-4-32-installer-handoff-2026-09-17-v1",
     date: "17 September 2026",
     title: "Fire TV updater opens the installer immediately",

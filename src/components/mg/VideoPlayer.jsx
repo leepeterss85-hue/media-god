@@ -155,20 +155,22 @@ const richestSourceMagnet = (item) =>
 const stablePlaybackSourceKey = (item, fallbackIndex = -1) => {
   if (!item) return "";
 
+  const id = String(item?.id || "").trim();
+  if (id) return `id:${id}`;
+
   const hash = sourceTorrentHash(item);
   if (hash) {
     return [
       "torrent",
       hash,
       String(item?.fileIdx ?? item?.file_idx ?? ""),
+      String(item?.addon || item?.debridProvider || ""),
+      sourceDisplayLabel(item, fallbackIndex),
     ].join(":");
   }
 
   const url = String(getSourceUrl(item) || "").trim();
   if (url) return `url:${url}`;
-
-  const id = String(item?.id || "").trim();
-  if (id) return `id:${id}`;
 
   return [
     "label",
@@ -762,7 +764,7 @@ export default function VideoPlayer({
   const [rdPreparation, setRdPreparation] =
     useState(null);
 
-  const [rdOverride, setRdOverrideState] =
+  const [rdOverride, setRdOverride] =
     useState(null);
 
   const [rdFiles, setRdFiles] =
@@ -839,31 +841,6 @@ export default function VideoPlayer({
   const nativeLaunchTimerRef = useRef(null);
   const liveRecoveryNoticeTimerRef = useRef(null);
   const streamActionGenerationRef = useRef(0);
-  const vodSourceLockedRef = useRef(false);
-  const vodRequestKeyRef = useRef("");
-  const vodResolvedUrlRef = useRef({
-    requestKey: "",
-    src: "",
-  });
-
-  const vodRequestKey = [
-    source?.playRequestId ?? "",
-    source?.tmdbId ?? source?.tmdb_id ?? "",
-    source?.season ?? "",
-    source?.episode ?? "",
-    source?.title ?? "",
-  ].join("|");
-
-  useEffect(() => {
-    if (vodRequestKeyRef.current === vodRequestKey) return;
-
-    vodRequestKeyRef.current = vodRequestKey;
-    vodSourceLockedRef.current = false;
-    vodResolvedUrlRef.current = {
-      requestKey: vodRequestKey,
-      src: "",
-    };
-  }, [vodRequestKey]);
 
   useEffect(() => {
     return () => {
@@ -1589,24 +1566,6 @@ export default function VideoPlayer({
       manualSelection = false,
     } = {}
   ) => {
-    const currentIsLive =
-      source?.type === "live" ||
-      active?.live ||
-      active?.type === "live";
-
-    if (!currentIsLive && vodSourceLockedRef.current && !manualSelection) {
-      if (statusMessage) {
-        setRdError(
-          `${statusMessage} The current movie/episode source is locked. Choose another source manually if you want to change files.`
-        );
-      }
-      return false;
-    }
-
-    if (!currentIsLive && manualSelection) {
-      unlockVodResolvedUrl();
-    }
-
     /*
      * Never move the active source underneath an open native selector during
      * background recovery. A deliberate movie/TV source choice is allowed to
@@ -1647,6 +1606,10 @@ export default function VideoPlayer({
 
     const currentVideo =
       stageRef.current?.querySelector("video");
+    const currentIsLive =
+      source?.type === "live" ||
+      active?.live ||
+      active?.type === "live";
     const resumeAt =
       preservePosition && !currentIsLive
         ? Math.max(
@@ -1703,17 +1666,6 @@ export default function VideoPlayer({
   ) => {
     const activeIsLive =
       source?.type === "live" || active?.live || active?.type === "live";
-
-    if (!activeIsLive && vodSourceLockedRef.current) {
-      setRdResolving(false);
-      setRdPolling(false);
-      setRdTorrentId(null);
-      setRdError(
-        `${String(message || "This source could not be played.").trim()} Media God kept this movie/episode on the same file. Choose another source manually if needed.`
-      );
-      return false;
-    }
-
     const selectorPinned =
       sourceSelectorPinnedRef.current || rdFileSelectorPinnedRef.current;
 
@@ -2143,74 +2095,6 @@ export default function VideoPlayer({
       activeType === "stream" ||
       isGenericHttpsStream
     );
-
-  const unlockVodResolvedUrl = () => {
-    vodSourceLockedRef.current = false;
-    vodResolvedUrlRef.current = {
-      requestKey: vodRequestKey,
-      src: "",
-    };
-  };
-
-  const setRdOverride = (nextValue, { manual = false } = {}) => {
-    if (manual) {
-      unlockVodResolvedUrl();
-    }
-
-    setRdOverrideState((current) => {
-      const next =
-        typeof nextValue === "function"
-          ? nextValue(current)
-          : nextValue;
-
-      if (isLive) {
-        return next;
-      }
-
-      const nextSrc = String(next?.src || next?.url || "").trim();
-      const currentSrc = String(current?.src || current?.url || "").trim();
-      const locked =
-        vodResolvedUrlRef.current?.requestKey === vodRequestKey
-          ? String(vodResolvedUrlRef.current?.src || "").trim()
-          : "";
-
-      if (!manual && vodSourceLockedRef.current && locked) {
-        if (!next) {
-          return current;
-        }
-
-        if (nextSrc && nextSrc !== locked) {
-          if (typeof window !== "undefined") {
-            window.dispatchEvent(
-              new CustomEvent("mg:vod-url-lock-blocked", {
-                detail: {
-                  version: "vod-url-lock-v2",
-                  current: locked,
-                  attempted: nextSrc,
-                },
-              })
-            );
-          }
-
-          return current;
-        }
-
-        if (!nextSrc && currentSrc) {
-          return current;
-        }
-      }
-
-      if (/^https?:\/\//i.test(nextSrc)) {
-        vodSourceLockedRef.current = true;
-        vodResolvedUrlRef.current = {
-          requestKey: vodRequestKey,
-          src: nextSrc,
-        };
-      }
-
-      return next;
-    });
-  };
 
   /*
    * READY-SOURCE FIRST
@@ -3109,17 +2993,6 @@ export default function VideoPlayer({
       }
 
       if (sourceNeedsCaching(active)) {
-        return;
-      }
-
-      if (
-        !isLive &&
-        vodSourceLockedRef.current &&
-        vodResolvedUrlRef.current?.requestKey === vodRequestKey &&
-        /^https?:\/\//i.test(
-          String(vodResolvedUrlRef.current?.src || "")
-        )
-      ) {
         return;
       }
 
@@ -6590,8 +6463,6 @@ export default function VideoPlayer({
         return;
       }
 
-      unlockVodResolvedUrl();
-
       const actionGeneration = ++streamActionGenerationRef.current;
       const actionStillCurrent = () =>
         streamActionGenerationRef.current === actionGeneration;
@@ -6927,7 +6798,6 @@ export default function VideoPlayer({
 
   const retryResolution =
     async () => {
-      unlockVodResolvedUrl();
       streamActionGenerationRef.current += 1;
       setFileSwitching(false);
 
@@ -7245,28 +7115,11 @@ export default function VideoPlayer({
   const nativeFireTvPlayer =
     isNativeFireTvPlayerAvailable();
 
-  const lockedVodPlaybackUrl =
-    !isLive &&
-    vodResolvedUrlRef.current?.requestKey === vodRequestKey &&
-    /^https?:\/\//i.test(
-      String(vodResolvedUrlRef.current?.src || "")
-    )
-      ? String(vodResolvedUrlRef.current.src).trim()
-      : "";
-
-  const effectiveRdPlaybackUrl =
-    lockedVodPlaybackUrl ||
-    String(rdOverride?.src || "").trim();
-
-  const effectiveDirectPlaybackUrl =
-    lockedVodPlaybackUrl ||
-    String(activeUrl || "").trim();
-
   const nativePlaybackUrl =
     nativeFireTvPlayer
       ? String(
-          effectiveRdPlaybackUrl ||
-            (isDirectFile ? effectiveDirectPlaybackUrl : "") ||
+          rdOverride?.src ||
+            (isDirectFile ? activeUrl : "") ||
             ""
         ).trim()
       : "";
@@ -7275,43 +7128,6 @@ export default function VideoPlayer({
     nativeFireTvPlayer &&
     /^https?:\/\//i.test(nativePlaybackUrl) &&
     nativeFallbackUrl !== nativePlaybackUrl;
-
-  useEffect(() => {
-    if (isLive || isYoutube || isProvider) {
-      return;
-    }
-
-    const resolvedVodUrl = String(
-      rdOverride?.src ||
-        (isDirectFile ? activeUrl : "") ||
-        ""
-    ).trim();
-
-    if (/^https?:\/\//i.test(resolvedVodUrl)) {
-      vodSourceLockedRef.current = true;
-
-      if (
-        vodResolvedUrlRef.current?.requestKey !== vodRequestKey ||
-        !/^https?:\/\//i.test(
-          String(vodResolvedUrlRef.current?.src || "")
-        )
-      ) {
-        vodResolvedUrlRef.current = {
-          requestKey: vodRequestKey,
-          src: resolvedVodUrl,
-        };
-      }
-    }
-  }, [
-    activeIdx,
-    activeUrl,
-    isDirectFile,
-    isLive,
-    isProvider,
-    isYoutube,
-    rdOverride?.src,
-    source?.playRequestId,
-  ]);
 
   /*
    * Fire TV must not decode resolved VOD inside the WebView. The original
@@ -7357,7 +7173,7 @@ export default function VideoPlayer({
           const nextHistory = [...history.slice(-49), entry];
           window.__MG_NATIVE_PLAYBACK_DIAGNOSTICS__ = nextHistory;
           window.localStorage.setItem(
-            "mg:native-playback-diagnostics:v2",
+            "mg:native-playback-diagnostics:v1",
             JSON.stringify(nextHistory)
           );
           window.dispatchEvent(
@@ -7462,7 +7278,6 @@ export default function VideoPlayer({
           switchToSource(selectedSourceIndex, {
             preservePosition: true,
             statusMessage: "Switching source from the Fire TV player…",
-            manualSelection: true,
           });
         } else {
           setForceNativePlayback(true);
@@ -7482,10 +7297,6 @@ export default function VideoPlayer({
         }
 
         setForceNativePlayback(false);
-
-        if (!isLive && /^https?:\/\//i.test(nativePlaybackUrl)) {
-          setNativeFallbackUrl(nativePlaybackUrl);
-        }
 
         window.dispatchEvent(
           new CustomEvent("mg:player-status", {
@@ -7791,11 +7602,6 @@ export default function VideoPlayer({
   const handleNoSound =
     async (options = {}) => {
       const automatic = options?.automatic === true;
-
-      if (!automatic) {
-        unlockVodResolvedUrl();
-      }
-
       const actionGeneration = ++streamActionGenerationRef.current;
       const actionStillCurrent = () =>
         streamActionGenerationRef.current === actionGeneration;
@@ -8090,16 +7896,40 @@ export default function VideoPlayer({
   handleNoSoundRef.current = handleNoSound;
 
 
-  /*
-   * No automatic no-sound intervention.
-   *
-   * Audio tracks and native decoders can take several seconds to settle after
-   * playback begins. Treating that short startup window as proof of a silent
-   * source caused the player to run Fix Audio automatically and then advance
-   * through otherwise healthy streams. Audio rescue is deliberately manual:
-   * the current source stays pinned unless there is a real playback error or
-   * the user explicitly asks to change/fix audio.
-   */
+  /* Automatic no-sound recovery is proactive for codec combinations that are
+   * commonly silent on Android/Fire TV/browser decoders, and immediate for a
+   * source that this device has already remembered as silent. */
+  useEffect(() => {
+    if (
+      isLive || isYoutube || isProvider || rdResolving || rdPolling ||
+      rdTorrentId || rdPreparation || readPlaybackPreferences().automaticNoSoundRecovery === false
+    ) {
+      return undefined;
+    }
+
+    const candidate = rdOverride
+      ? { ...active, src: rdOverride.src || activeUrl, label: rdOverride.label || active?.label }
+      : active;
+    const label = sourceDisplayLabel(candidate, activeIdx);
+    const traits = detectStreamTraits(candidate, label);
+    const rememberedSilent = hasRecentNoSoundHistory(label);
+    if (!rememberedSilent && !traits.audioRisk) return undefined;
+
+    const timer = window.setTimeout(() => {
+      const video = stageRef.current?.querySelector("video");
+      if (
+        video instanceof HTMLVideoElement &&
+        !video.paused && !video.ended && !video.error
+      ) {
+        handleNoSoundRef.current?.({ automatic: true });
+      }
+    }, rememberedSilent ? 2200 : 4200);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    active, activeIdx, activeUrl, isLive, isProvider, isYoutube,
+    rdOverride, rdPolling, rdResolving, rdTorrentId, rdPreparation,
+  ]);
 
   useEffect(() => {
     const state = autoVideoRescueRef.current;
@@ -8766,13 +8596,13 @@ export default function VideoPlayer({
             <>
               <LiveVideo
                 key={
-                  effectiveRdPlaybackUrl
+                  rdOverride.src
                 }
                 ref={
                   videoRef
                 }
                 src={
-                  effectiveRdPlaybackUrl
+                  rdOverride.src
                 }
                 sourceLabel={
                   rdOverride?.label ||
@@ -8821,7 +8651,7 @@ export default function VideoPlayer({
 
               <PlayerControls
                 key={
-                  effectiveRdPlaybackUrl
+                  rdOverride.src
                 }
                 videoRef={
                   videoRef
@@ -8898,10 +8728,10 @@ export default function VideoPlayer({
                   liveVideoRef
                 }
                 key={
-                  effectiveDirectPlaybackUrl
+                  active.src
                 }
                 src={
-                  effectiveDirectPlaybackUrl
+                  active.src
                 }
                 sourceLabel={
                   active?.format ||
@@ -8946,7 +8776,7 @@ export default function VideoPlayer({
 
               <PlayerControls
                 key={
-                  effectiveDirectPlaybackUrl
+                  active.src
                 }
                 videoRef={
                   liveVideoRef

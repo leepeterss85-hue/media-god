@@ -3,7 +3,7 @@ import {
   getPlaybackDeviceProfile,
 } from "@/components/mg/mediaCompatibility";
 
-export const PLAYBACK_RELIABILITY_KEY = "mg:playback-reliability-v3";
+export const PLAYBACK_RELIABILITY_KEY = "mg:playback-reliability-v2";
 
 const FAILURE_TTL = 20 * 60 * 1000;
 const NO_SOUND_TTL = 6 * 60 * 60 * 1000;

@@ -73,19 +73,8 @@ export default function PlayerRemote() {
     [session?.file_labels]
   );
 
-  const audioOptions = useMemo(
-    () =>
-      parseJson(session?.audio_labels, []).map((item, index) =>
-        item && typeof item === "object"
-          ? {
-              index: Number(item.index ?? index),
-              label: String(item.label || `Audio ${index + 1}`),
-            }
-          : {
-              index,
-              label: String(item || `Audio ${index + 1}`),
-            }
-      ),
+  const audioLabels = useMemo(
+    () => parseJson(session?.audio_labels, []),
     [session?.audio_labels]
   );
 
@@ -874,7 +863,7 @@ export default function PlayerRemote() {
                 </label>
               )}
 
-              {audioOptions.length > 0 && (
+              {audioLabels.length > 0 && (
                 <label>
                   <span className="mb-1.5 block text-xs font-semibold text-white/60">Audio track</span>
                   <select
@@ -882,12 +871,9 @@ export default function PlayerRemote() {
                     onChange={(event) => send("audio", event.target.value)}
                     className="min-h-12 w-full rounded-xl border border-white/15 bg-[#161616] px-3 text-sm text-white outline-none focus:border-mg-green"
                   >
-                    {audioOptions.map((track, position) => (
-                      <option
-                        key={`${track.index}-${track.label}`}
-                        value={track.index}
-                      >
-                        {track.label || `Audio ${position + 1}`}
+                    {audioLabels.map((label, index) => (
+                      <option key={`${index}-${label}`} value={index}>
+                        {label || `Audio ${index + 1}`}
                       </option>
                     ))}
                   </select>

@@ -142,7 +142,7 @@ export const openNativeFireTvExternalUrl = (url) => {
   }
 };
 
-const NATIVE_DIAGNOSTICS_KEY = "mg:native-playback-diagnostics:v2";
+const NATIVE_DIAGNOSTICS_KEY = "mg:native-playback-diagnostics:v1";
 
 const connectionDownlinkMbps = () => {
   if (typeof navigator === "undefined") return 0;
@@ -443,26 +443,6 @@ const playerMarkerSeconds = (context, key) => {
   return Number.isFinite(value) && value >= 0 ? value : -1;
 };
 
-const stopWebMediaForNativePlayback = () => {
-  if (typeof window === "undefined" || typeof document === "undefined") {
-    return;
-  }
-
-  window.__MG_NATIVE_PLAYBACK_ACTIVE__ = true;
-
-  document.querySelectorAll("video, audio").forEach((media) => {
-    try {
-      media.pause();
-      media.muted = true;
-      media.removeAttribute("autoplay");
-      media.dataset.mgNativePlaybackSuspended = "true";
-    } catch {
-      // Native playback still owns the foreground even if an old element
-      // disappears between the query and the pause call.
-    }
-  });
-};
-
 export const playNativeFireTv = ({
   requestId,
   url,
@@ -657,7 +637,7 @@ export const playNativeFireTv = ({
     lipSyncMs: advancedPlayback.lipSyncMs,
     dialogueBoost: advancedPlayback.dialogueBoost,
     volumeNormalization: advancedPlayback.volumeNormalization,
-    automaticNoSoundRecovery: false,
+    automaticNoSoundRecovery: advancedPlayback.automaticNoSoundRecovery,
     networkAware4K: advancedPlayback.networkAware4K,
     thermalProtection: advancedPlayback.thermalProtection,
     networkDownlinkMbps: connectionDownlinkMbps(),
@@ -721,32 +701,17 @@ export const playNativeFireTv = ({
   };
 
   try {
-    /*
-     * Native Media3/LibVLC must be the only playback owner. WebView.onPause()
-     * does not guarantee that HTML5 media stops, so explicitly quiesce every
-     * browser media element before Android starts the native player.
-     */
-    stopWebMediaForNativePlayback();
-
     const result = native.play(JSON.stringify(payload));
     const status = String(result ?? "").trim().toLowerCase();
 
-    const accepted =
+    return (
       result !== false &&
       status !== "" &&
       status !== "false" &&
       status !== "error" &&
-      status !== "busy";
-
-    if (!accepted && typeof window !== "undefined") {
-      window.__MG_NATIVE_PLAYBACK_ACTIVE__ = false;
-    }
-
-    return accepted;
+      status !== "busy"
+    );
   } catch {
-    if (typeof window !== "undefined") {
-      window.__MG_NATIVE_PLAYBACK_ACTIVE__ = false;
-    }
     return false;
   }
 };
