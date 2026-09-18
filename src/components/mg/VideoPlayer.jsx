@@ -762,7 +762,7 @@ export default function VideoPlayer({
   const [rdPreparation, setRdPreparation] =
     useState(null);
 
-  const [rdOverride, setRdOverride] =
+  const [rdOverride, setRdOverrideState] =
     useState(null);
 
   const [rdFiles, setRdFiles] =
@@ -841,6 +841,10 @@ export default function VideoPlayer({
   const streamActionGenerationRef = useRef(0);
   const vodSourceLockedRef = useRef(false);
   const vodRequestKeyRef = useRef("");
+  const vodResolvedUrlRef = useRef({
+    requestKey: "",
+    src: "",
+  });
 
   const vodRequestKey = [
     source?.playRequestId ?? "",
@@ -855,6 +859,10 @@ export default function VideoPlayer({
 
     vodRequestKeyRef.current = vodRequestKey;
     vodSourceLockedRef.current = false;
+    vodResolvedUrlRef.current = {
+      requestKey: vodRequestKey,
+      src: "",
+    };
   }, [vodRequestKey]);
 
   useEffect(() => {
