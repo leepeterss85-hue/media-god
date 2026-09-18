@@ -14,6 +14,7 @@ const provider = read("src/components/mg/PlayerProvider.jsx");
 const mediaPlayerProvider = read("src/components/mg/MediaPlayerProvider.jsx");
 const assist = read("src/components/mg/MediaGodV2Assist.jsx");
 const videoPlayer = read("src/components/mg/VideoPlayer.jsx");
+const liveVideo = read("src/components/mg/LiveVideo.jsx");
 const takeover = read("src/components/mg/FireTvPlayerTakeover.jsx");
 const native = read("firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt");
 const edition = read("src/components/mg/mediaEdition.js");
@@ -162,6 +163,25 @@ expect(
     videoPlayer.includes("if (!activeIsLive && vodSourceLockedRef.current)") &&
     videoPlayer.includes("manualSelection: true"),
   "movie and episode playback locks to one source once a real URL is active; only manual selection can change files"
+);
+
+expect(
+  videoPlayer.includes("const vodResolvedUrlRef = useRef({") &&
+    videoPlayer.includes("const setRdOverride = (nextValue, { manual = false } = {}) =>") &&
+    videoPlayer.includes("const effectiveRdPlaybackUrl =") &&
+    videoPlayer.includes("const effectiveDirectPlaybackUrl =") &&
+    videoPlayer.includes("vodResolvedUrlRef.current?.requestKey === vodRequestKey"),
+  "resolved movie and episode URLs stay frozen while background RD/source metadata updates continue"
+);
+
+expect(
+  liveVideo.includes("const stableConfigSignature = (value) =>") &&
+    liveVideo.includes("const onErrorRef = useRef(onError)") &&
+    liveVideo.includes("const headersSignature = stableConfigSignature(headers)") &&
+    liveVideo.includes("const drmSignature = stableConfigSignature(drm)") &&
+    liveVideo.includes("headersSignature,") &&
+    liveVideo.includes("drmSignature,"),
+  "LiveVideo decoder ownership depends on stable stream/config values instead of incidental React prop identity"
 );
 
 expect(
