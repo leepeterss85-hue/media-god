@@ -7,6 +7,10 @@ import React, {
 } from "react";
 import Hls from "hls.js";
 import {
+  claimExclusivePlayback,
+  releaseExclusivePlayback,
+} from "@/components/mg/exclusivePlayback";
+import {
   isFlvLike,
   isMpegTsLike,
 } from "@/components/mg/mediaCompatibility";
@@ -912,6 +916,12 @@ const LiveVideo = forwardRef(
 
       let cancelled =
         false;
+
+      let released =
+        false;
+
+      const playbackOwner =
+        {};
 
       let hls =
         null;
@@ -2237,6 +2247,119 @@ const LiveVideo = forwardRef(
           }
         };
 
+      const releasePlaybackResources =
+        () => {
+          if (released) {
+            return;
+          }
+
+          released =
+            true;
+
+          cancelled =
+            true;
+
+          video.removeEventListener(
+            "error",
+            onNativeError
+          );
+
+          video.removeEventListener(
+            "loadedmetadata",
+            preferEnglishNativeAudio
+          );
+
+          video.removeEventListener(
+            "canplay",
+            preferEnglishNativeAudio
+          );
+
+          window.removeEventListener(
+            "mg:subtitle-track-selected",
+            onSubtitleSelection
+          );
+
+          window.removeEventListener(
+            "mg:audio-rescue-request",
+            onAudioRescueRequest
+          );
+
+          window.removeEventListener(
+            "mg:hls-audio-track-selected",
+            onHlsAudioSelection
+          );
+
+          window.dispatchEvent(
+            new CustomEvent("mg:hls-audio-tracks", {
+              detail: {
+                tracks: [],
+                activeIndex: -1,
+              },
+            })
+          );
+
+          if (
+            nativeAudioTimer
+          ) {
+            window.clearTimeout(
+              nativeAudioTimer
+            );
+
+            nativeAudioTimer =
+              null;
+          }
+
+          if (hls) {
+            try {
+              hls.destroy();
+            } catch {
+              // Ignore.
+            }
+
+            hls =
+              null;
+          }
+
+          if (dashPlayer) {
+            try {
+              dashPlayer.reset?.();
+            } catch {
+              // Ignore.
+            }
+
+            dashPlayer =
+              null;
+          }
+
+          if (
+            mpegPlayer
+          ) {
+            try {
+              mpegPlayer.pause?.();
+              mpegPlayer.unload?.();
+              mpegPlayer.detachMediaElement?.();
+              mpegPlayer.destroy?.();
+            } catch {
+              // Ignore.
+            }
+
+            mpegPlayer =
+              null;
+          }
+
+          resetVideo();
+        };
+
+      /*
+       * Only one decoder/network pipeline may own playback at a time. Claiming
+       * this lease synchronously releases any older HLS, DASH, MPEG-TS or
+       * native <video> pipeline before this source starts.
+       */
+      claimExclusivePlayback(
+        playbackOwner,
+        releasePlaybackResources
+      );
+
       resetVideo();
 
       if (
@@ -2257,98 +2380,10 @@ const LiveVideo = forwardRef(
       }
 
       return () => {
-        cancelled =
-          true;
-
-        video.removeEventListener(
-          "error",
-          onNativeError
+        releasePlaybackResources();
+        releaseExclusivePlayback(
+          playbackOwner
         );
-
-        video.removeEventListener(
-          "loadedmetadata",
-          preferEnglishNativeAudio
-        );
-
-        video.removeEventListener(
-          "canplay",
-          preferEnglishNativeAudio
-        );
-
-        window.removeEventListener(
-          "mg:subtitle-track-selected",
-          onSubtitleSelection
-        );
-
-        window.removeEventListener(
-          "mg:audio-rescue-request",
-          onAudioRescueRequest
-        );
-
-        window.removeEventListener(
-          "mg:hls-audio-track-selected",
-          onHlsAudioSelection
-        );
-
-        window.dispatchEvent(
-          new CustomEvent("mg:hls-audio-tracks", {
-            detail: {
-              tracks: [],
-              activeIndex: -1,
-            },
-          })
-        );
-
-        if (
-          nativeAudioTimer
-        ) {
-          window.clearTimeout(
-            nativeAudioTimer
-          );
-
-          nativeAudioTimer =
-            null;
-        }
-
-        if (hls) {
-          try {
-            hls.destroy();
-          } catch {
-            // Ignore.
-          }
-
-          hls =
-            null;
-        }
-
-        if (dashPlayer) {
-          try {
-            dashPlayer.reset?.();
-          } catch {
-            // Ignore.
-          }
-
-          dashPlayer =
-            null;
-        }
-
-        if (
-          mpegPlayer
-        ) {
-          try {
-            mpegPlayer.pause?.();
-            mpegPlayer.unload?.();
-            mpegPlayer.detachMediaElement?.();
-            mpegPlayer.destroy?.();
-          } catch {
-            // Ignore.
-          }
-
-          mpegPlayer =
-            null;
-        }
-
-        resetVideo();
       };
     }, [
       src,
