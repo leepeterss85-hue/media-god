@@ -7233,11 +7233,28 @@ export default function VideoPlayer({
   const nativeFireTvPlayer =
     isNativeFireTvPlayerAvailable();
 
+  const lockedVodPlaybackUrl =
+    !isLive &&
+    vodResolvedUrlRef.current?.requestKey === vodRequestKey &&
+    /^https?:\/\//i.test(
+      String(vodResolvedUrlRef.current?.src || "")
+    )
+      ? String(vodResolvedUrlRef.current.src).trim()
+      : "";
+
+  const effectiveRdPlaybackUrl =
+    lockedVodPlaybackUrl ||
+    String(rdOverride?.src || "").trim();
+
+  const effectiveDirectPlaybackUrl =
+    lockedVodPlaybackUrl ||
+    String(activeUrl || "").trim();
+
   const nativePlaybackUrl =
     nativeFireTvPlayer
       ? String(
-          rdOverride?.src ||
-            (isDirectFile ? activeUrl : "") ||
+          effectiveRdPlaybackUrl ||
+            (isDirectFile ? effectiveDirectPlaybackUrl : "") ||
             ""
         ).trim()
       : "";
@@ -7260,6 +7277,18 @@ export default function VideoPlayer({
 
     if (/^https?:\/\//i.test(resolvedVodUrl)) {
       vodSourceLockedRef.current = true;
+
+      if (
+        vodResolvedUrlRef.current?.requestKey !== vodRequestKey ||
+        !/^https?:\/\//i.test(
+          String(vodResolvedUrlRef.current?.src || "")
+        )
+      ) {
+        vodResolvedUrlRef.current = {
+          requestKey: vodRequestKey,
+          src: resolvedVodUrl,
+        };
+      }
     }
   }, [
     activeIdx,
