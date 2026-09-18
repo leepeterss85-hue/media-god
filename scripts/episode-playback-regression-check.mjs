@@ -56,7 +56,10 @@ expect(
     videoPlayer.includes('playbackMediaType === "tv"') &&
     provider.includes('new CustomEvent("mg:return-to-episode-selector"') &&
     provider.includes("close();") &&
+    provider.indexOf('new CustomEvent("mg:return-to-episode-selector"') <
+      provider.indexOf("close();", provider.indexOf("const onChooseEpisode =")) &&
     home.includes('window.addEventListener(\n      "mg:return-to-episode-selector"') &&
+    home.includes('button[data-mg-player-exit="true"]') &&
     home.includes('document.getElementById(\n      "mg-episode-selector"') &&
     home.includes("revealEpisodeSelectorWhenReady") &&
     home.includes("setSearchResult(item)"),
