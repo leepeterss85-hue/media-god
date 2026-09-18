@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 42,
-  "versionName": "1.4.37",
+  "versionCode": 43,
+  "versionName": "1.4.38",
   "title": "Media God Fire TV",
-  "message": "Fire TV 1.4.37 restores the last stable pre-sound-change playback engine for fast, direct playback.",
+  "message": "Fire TV 1.4.38 enforces a single playback owner so WebView media cannot continue underneath native playback, and keeps Cached/4K episode source modes visible when those ready sources exist.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
