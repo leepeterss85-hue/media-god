@@ -631,7 +631,7 @@ class PlayerActivity : Activity() {
             finishWithResult("next")
         }
 
-        cancelNextButton = buildAssistButton("Cancel") {
+        cancelNextButton = buildAssistButton("Stay here") {
             nextEpisodeCountdownCancelled = true
             nextEpisodeCountdownStartedAtMs = -1L
             updateAssistControls()
