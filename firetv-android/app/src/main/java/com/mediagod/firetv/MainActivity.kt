@@ -609,41 +609,41 @@ class MainActivity : Activity() {
                     )
                 } else {
                     runOnUiThread {
-                if (!markNativeActivityStarted(requestId)) {
-                    return@runOnUiThread
-                }
+                        if (!markNativeActivityStarted(requestId)) {
+                            return@runOnUiThread
+                        }
 
-                val activityClass =
-                    if (playbackDecision.useCompatibility) {
-                        CompatibilityPlayerActivity::class.java
-                    } else {
-                        PlayerActivity::class.java
-                    }
+                        val activityClass =
+                            if (playbackDecision.useCompatibility) {
+                                CompatibilityPlayerActivity::class.java
+                            } else {
+                                PlayerActivity::class.java
+                            }
 
-                val intent = Intent(this@MainActivity, activityClass).apply {
-                    putExtra(PlayerActivity.EXTRA_PAYLOAD, payload.toString())
-                }
+                        val intent = Intent(this@MainActivity, activityClass).apply {
+                            putExtra(PlayerActivity.EXTRA_PAYLOAD, payload.toString())
+                        }
 
-                try {
-                    @Suppress("DEPRECATION")
-                    startActivityForResult(intent, REQUEST_NATIVE_PLAYER)
-                } catch (error: Throwable) {
-                    if (!releaseNativeRequest(requestId)) {
-                        return@runOnUiThread
-                    }
+                        try {
+                            @Suppress("DEPRECATION")
+                            startActivityForResult(intent, REQUEST_NATIVE_PLAYER)
+                        } catch (error: Throwable) {
+                            if (!releaseNativeRequest(requestId)) {
+                                return@runOnUiThread
+                            }
 
-                    val result = JSONObject().apply {
-                        put("requestId", requestId)
-                        put("reason", "error")
-                        put("positionMs", 0)
-                        put("durationMs", 0)
-                        put("message", error.message ?: "Could not open Fire TV player")
-                    }
+                            val result = JSONObject().apply {
+                                put("requestId", requestId)
+                                put("reason", "error")
+                                put("positionMs", 0)
+                                put("durationMs", 0)
+                                put("message", error.message ?: "Could not open Fire TV player")
+                            }
 
-                    dispatchJavascript(
-                        "window.dispatchEvent(new CustomEvent('mg:native-player-result',{detail:JSON.parse(${JSONObject.quote(result.toString())})}));"
-                    )
-                }
+                            dispatchJavascript(
+                                "window.dispatchEvent(new CustomEvent('mg:native-player-result',{detail:JSON.parse(${JSONObject.quote(result.toString())})}));"
+                            )
+                        }
                     }
                 }
             }.start()
