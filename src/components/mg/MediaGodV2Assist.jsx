@@ -503,7 +503,7 @@ export default function MediaGodV2Assist() {
 
   const controls = (
     <div
-      className="pointer-events-auto absolute left-3 top-3 z-[120] flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-2"
+      className="pointer-events-auto absolute bottom-20 right-4 z-[120] flex max-w-[calc(100%-2rem)] flex-wrap items-center justify-end gap-2"
       data-mg-episode-assist="true"
     >
       {canSkipRecap && (
@@ -580,10 +580,10 @@ export default function MediaGodV2Assist() {
             onKeyDown={(event) => runKeyAction(event, cancelAutoNextCountdown)}
             tabIndex={0}
             className={buttonClass}
-            aria-label="Cancel automatic next episode"
+            aria-label="Keep watching current episode"
           >
             <X className="h-4 w-4" />
-            Cancel
+            Stay here
           </button>
         )}
 
