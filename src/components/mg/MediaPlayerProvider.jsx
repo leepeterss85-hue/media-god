@@ -23,7 +23,6 @@ import {
   detectLanguagePreference,
   getPlaybackDeviceProfile,
   scoreSourceCompatibility,
-  sourceAudioCompatibility,
 } from "@/components/mg/mediaCompatibility";
 import { devicePlaybackReliabilityAdjustment } from "@/components/mg/playbackReliability";
 import { readPlaybackPreferences } from "@/components/mg/playbackPreferences";
@@ -581,19 +580,6 @@ const scoreSource = (item) => {
       qualityPreference: playbackPreferences.quality,
     }
   );
-  const audioCapability = sourceAudioCompatibility(
-    item,
-    audioText,
-    deviceProfile
-  );
-  const audioCapabilityScore =
-    audioCapability.supported === false
-      ? -120000
-      : audioCapability.supported === true
-        ? 18000
-        : audioCapability.risky
-          ? -12000
-          : 0;
   const deviceLearning = devicePlaybackReliabilityAdjustment(
     label,
     deviceProfile
@@ -619,7 +605,6 @@ const scoreSource = (item) => {
     directBonus +
     languagePriority +
     audioCompatibility +
-    audioCapabilityScore +
     compatibilityScore +
     reliabilityAdjustment(item) +
     deviceLearning +
@@ -2087,77 +2072,6 @@ export function PlayerProvider({
           }
         });
 
-        /*
-         * FIRST-FRAME FAST PATH
-         *
-         * Source lookup does not need to wait for IMDb resolution. TMDB/title
-         * identity is already enough for the server lookup, and waiting here
-         * used to add the whole resolveImdb round-trip to every cold start.
-         * Start the short fast-mode pass immediately; IMDb resolution continues
-         * in parallel and is still used by the comprehensive pass below.
-         */
-        const skippedAddonLookup = {
-          streams: [],
-          diagnostics: [],
-          addonsChecked: 0,
-          reason: "Source lookup skipped.",
-          status: "SKIPPED",
-          error: "",
-          browserAttempted: false,
-          browserRecovered: 0,
-          browserDiagnostics: [],
-        };
-
-        const immediateAddonArgs = {
-          imdbId: suppliedImdbId,
-          tmdbId,
-          title:
-            request?.rdTitle ||
-            request?.title ||
-            "",
-          year:
-            request?.rdYear ??
-            request?.year ??
-            "",
-          alternateYears:
-            Array.isArray(
-              request?.rdAlternateYears ||
-              request?.alternateYears
-            )
-              ? (
-                  request?.rdAlternateYears ||
-                  request?.alternateYears
-                )
-              : [],
-          mediaType,
-          season,
-          episode,
-        };
-
-        const fastAddonPromise =
-          !isLive &&
-          !request?.skipAddonLookup
-            ? fetchAddonSources({
-                ...immediateAddonArgs,
-                fastMode: true,
-              })
-            : Promise.resolve(skippedAddonLookup);
-
-        fastAddonPromise.then((addonLookup) => {
-          if (
-            Array.isArray(addonLookup?.streams) &&
-            addonLookup.streams.length > 0
-          ) {
-            publishEarlySources(addonLookup.streams, {
-              imdbId: suppliedImdbId,
-              imdbStatus: suppliedImdbId ? "SUPPLIED" : "RESOLVING",
-              addonLookupStatus: "FAST READY",
-              addonsChecked: Number(addonLookup?.addonsChecked || 0),
-              discoveredCount: addonLookup.streams.length,
-            });
-          }
-        });
-
         const imdbInfo =
           isLive
             ? {
@@ -2189,9 +2103,66 @@ export function PlayerProvider({
           imdbInfo.imdbId;
 
         const addonArgs = {
-          ...immediateAddonArgs,
           imdbId,
+          tmdbId,
+          title:
+            request?.rdTitle ||
+            request?.title ||
+            "",
+          year:
+            request?.rdYear ??
+            request?.year ??
+            "",
+          alternateYears:
+            Array.isArray(
+              request?.rdAlternateYears ||
+              request?.alternateYears
+            )
+              ? (
+                  request?.rdAlternateYears ||
+                  request?.alternateYears
+                )
+              : [],
+          mediaType,
+          season,
+          episode,
         };
+
+        const skippedAddonLookup = {
+          streams: [],
+          diagnostics: [],
+          addonsChecked: 0,
+          reason: "Source lookup skipped.",
+          status: "SKIPPED",
+          error: "",
+          browserAttempted: false,
+          browserRecovered: 0,
+          browserDiagnostics: [],
+        };
+
+        const fastAddonPromise =
+          !isLive &&
+          !request?.skipAddonLookup
+            ? fetchAddonSources({
+                ...addonArgs,
+                fastMode: true,
+              })
+            : Promise.resolve(skippedAddonLookup);
+
+        fastAddonPromise.then((addonLookup) => {
+          if (
+            Array.isArray(addonLookup?.streams) &&
+            addonLookup.streams.length > 0
+          ) {
+            publishEarlySources(addonLookup.streams, {
+              imdbId,
+              imdbStatus: imdbInfo?.status || "UNKNOWN",
+              addonLookupStatus: "FAST READY",
+              addonsChecked: Number(addonLookup?.addonsChecked || 0),
+              discoveredCount: addonLookup.streams.length,
+            });
+          }
+        });
 
         /*
          * Do not fire the full addon pass at the same instant as the fast

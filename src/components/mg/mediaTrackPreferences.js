@@ -38,65 +38,9 @@ const normaliseLanguage = (value, fallback = "en") => {
     italian: "it",
     ita: "it",
     it: "it",
-    portuguese: "pt",
-    por: "pt",
-    pt: "pt",
-    dutch: "nl",
-    nld: "nl",
-    dut: "nl",
-    nl: "nl",
-    polish: "pl",
-    pol: "pl",
-    pl: "pl",
-    japanese: "ja",
-    jpn: "ja",
-    ja: "ja",
-    korean: "ko",
-    kor: "ko",
-    ko: "ko",
-    chinese: "zh",
-    mandarin: "zh",
-    cantonese: "zh",
-    zho: "zh",
-    chi: "zh",
-    cmn: "zh",
-    zh: "zh",
-    arabic: "ar",
-    ara: "ar",
-    ar: "ar",
-    hindi: "hi",
-    hin: "hi",
-    hi: "hi",
-    thai: "th",
-    tha: "th",
-    th: "th",
-    vietnamese: "vi",
-    vie: "vi",
-    vi: "vi",
-    indonesian: "id",
-    ind: "id",
-    id: "id",
-    malay: "ms",
-    msa: "ms",
-    may: "ms",
-    ms: "ms",
-    filipino: "tl",
-    tagalog: "tl",
-    fil: "tl",
-    tl: "tl",
-    russian: "ru",
-    rus: "ru",
-    ru: "ru",
-    turkish: "tr",
-    tur: "tr",
-    tr: "tr",
   };
 
-  const detected = Object.entries(aliases).find(([alias]) =>
-    new RegExp(`(?:^|[^a-z])${alias}(?:[^a-z]|$)`, "i").test(text)
-  );
-
-  return detected?.[1] || text.split(/[-_]/)[0] || fallback;
+  return aliases[text] || text.split(/[-_]/)[0] || fallback;
 };
 
 export const normaliseTrackPreferences = (value) => {
@@ -224,11 +168,7 @@ const audioCodecKey = (track) => {
   if (/\b(?:aac|he-?aac|mp4a)\b/i.test(text)) return "aac";
   if (/\bopus\b/i.test(text)) return "opus";
   if (/\bflac\b/i.test(text)) return "flac";
-  if (/\b(?:alac|apple lossless)\b/i.test(text)) return "alac";
-  if (/\bvorbis\b/i.test(text)) return "vorbis";
-  if (/\b(?:pcm|lpcm)\b/i.test(text)) return "pcm";
   if (/\b(?:mp3|mpeg audio)\b/i.test(text)) return "mp3";
-  if (/\bmp2\b/i.test(text)) return "mp2";
   return "";
 };
 
@@ -414,109 +354,6 @@ export const rememberedAudioTrackScore = (track, profile) => {
   return score;
 };
 
-const AUDIO_CODEC_ORDER_SCORE = {
-  aac: 3200,
-  eac3: 2600,
-  ac3: 2400,
-  opus: 2100,
-  flac: 1900,
-  alac: 1750,
-  vorbis: 1650,
-  pcm: 1500,
-  mp3: 1400,
-  mp2: 900,
-  xheaac: 500,
-  ac4: 250,
-  truehd: -4200,
-  dts: -4500,
-};
-
-const AUDIO_CHANNEL_ORDER_SCORE = {
-  "2.0": 700,
-  "2.1": 650,
-  "5.1": 600,
-  "7.1": 500,
-  "1.0": 300,
-};
-
-export const audioTrackOrderScore = (
-  track,
-  {
-    preferredLanguage = "en",
-    remembered = null,
-    activeIndex = -1,
-    index = -1,
-  } = {}
-) => {
-  const candidate = track?.raw || track;
-  const profile = audioProfileFromTrack(candidate);
-  const preferred = normaliseLanguage(preferredLanguage, "");
-  const candidateIndex = Number(track?.index ?? index);
-  const selectedIndex = Number(activeIndex);
-  const text = String(
-    candidate?.label ||
-      candidate?.name ||
-      track?.label ||
-      ""
-  );
-
-  let score = 0;
-
-  if (
-    Number.isInteger(candidateIndex) &&
-    Number.isInteger(selectedIndex) &&
-    candidateIndex === selectedIndex
-  ) {
-    score += 60000;
-  }
-
-  score += rememberedAudioTrackScore(candidate, remembered);
-
-  if (preferred && profile.language === preferred) {
-    score += 24000;
-  } else if (profile.language) {
-    score += 750;
-  }
-
-  if (
-    candidate?.default === true ||
-    candidate?.autoselect === true ||
-    candidate?.enabled === true
-  ) {
-    score += 2500;
-  }
-
-  if (profile.commentary || profile.descriptive) {
-    score -= 40000;
-  } else {
-    score += 6000;
-  }
-
-  score += AUDIO_CODEC_ORDER_SCORE[profile.codec] || 0;
-  score += AUDIO_CHANNEL_ORDER_SCORE[profile.channels] || 0;
-
-  if (/\boriginal\b/i.test(text)) score += 300;
-
-  return score;
-};
-
-export const sortAudioTrackChoices = (tracks, options = {}) =>
-  (Array.isArray(tracks) ? tracks : [])
-    .map((item, position) => ({
-      item,
-      position,
-      score: audioTrackOrderScore(item, {
-        ...options,
-        index: position,
-      }),
-    }))
-    .sort(
-      (left, right) =>
-        right.score - left.score ||
-        left.position - right.position
-    )
-    .map(({ item }) => item);
-
 const languageDisplayName = (value) => {
   const language = normaliseLanguage(value, "");
   if (!language) return "";
@@ -535,13 +372,6 @@ const languageDisplayName = (value) => {
     zh: "Chinese",
     ar: "Arabic",
     hi: "Hindi",
-    th: "Thai",
-    vi: "Vietnamese",
-    id: "Indonesian",
-    ms: "Malay",
-    tl: "Filipino",
-    ru: "Russian",
-    tr: "Turkish",
   };
 
   return names[language] || String(value || language).trim();

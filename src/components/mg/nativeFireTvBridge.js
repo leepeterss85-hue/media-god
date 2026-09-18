@@ -21,26 +21,6 @@ export const isNativeFireTvPlayerAvailable = () => {
   return Boolean(native && typeof native.play === "function");
 };
 
-/*
- * Cancel a native handoff that is still in its network/preflight phase.
- * Current APKs reject cancellation after PlayerActivity owns the screen, so
- * this cannot tear down playback behind the user's back. Older APKs simply do
- * not expose the method and safely fall back to the normal component cleanup.
- */
-export const cancelNativeFireTvPlayback = (requestId = "") => {
-  const native = bridge();
-
-  if (!native || typeof native.cancelPlayback !== "function") {
-    return false;
-  }
-
-  try {
-    return native.cancelPlayback(String(requestId || "")) === true;
-  } catch {
-    return false;
-  }
-};
-
 export const nativeFireTvDisplayInfo = () => {
   const native = bridge();
 

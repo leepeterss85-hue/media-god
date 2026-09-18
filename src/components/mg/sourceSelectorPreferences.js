@@ -1,7 +1,6 @@
 import {
   getPlaybackDeviceProfile,
   scoreSourceCompatibility,
-  sourceAudioCompatibility,
 } from "@/components/mg/mediaCompatibility";
 import {
   MEDIA_EDITION_OPTIONS,
@@ -298,26 +297,11 @@ const sourceHasTrackerRichMagnet = (item) => {
   return /^magnet:/i.test(raw) && /(?:[?&])tr=/i.test(raw);
 };
 
-const compatibilityScore = (item) => {
-  const deviceProfile = getPlaybackDeviceProfile();
-  const text = sourceText(item);
-  const audio = sourceAudioCompatibility(item, text, deviceProfile);
-  const audioScore =
-    audio.supported === false
-      ? -120000
-      : audio.supported === true
-        ? 18000
-        : audio.risky
-          ? -12000
-          : 0;
-
-  return (
-    scoreSourceCompatibility(item, text, {
-      deviceProfile,
-      qualityPreference: "Auto",
-    }) + audioScore
-  );
-};
+const compatibilityScore = (item) =>
+  scoreSourceCompatibility(item, sourceText(item), {
+    deviceProfile: getPlaybackDeviceProfile(),
+    qualityPreference: "Auto",
+  });
 
 const targetResolutionScore = (resolution, target) => {
   if (!resolution) return -100000;
