@@ -1641,10 +1641,6 @@ export default function VideoPlayer({
 
     const currentVideo =
       stageRef.current?.querySelector("video");
-    const currentIsLive =
-      source?.type === "live" ||
-      active?.live ||
-      active?.type === "live";
     const resumeAt =
       preservePosition && !currentIsLive
         ? Math.max(
