@@ -316,6 +316,12 @@ const findOverlayBackTarget =
     const selectors = [
       'button[aria-label="Exit fullscreen"]',
 
+      'button[data-mg-player-exit="true"]',
+
+      'button[aria-label="Exit player"]',
+
+      'button[aria-label="Back to main menu"]',
+
       'button[aria-label="Close season and episode picker"]',
 
       'button[aria-label="Close details"]',
