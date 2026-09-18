@@ -7366,6 +7366,10 @@ export default function VideoPlayer({
 
         setForceNativePlayback(false);
 
+        if (!isLive && /^https?:\/\//i.test(nativePlaybackUrl)) {
+          setNativeFallbackUrl(nativePlaybackUrl);
+        }
+
         window.dispatchEvent(
           new CustomEvent("mg:player-status", {
             detail: {
