@@ -218,31 +218,6 @@ const sourceIsCached = (item) => {
   );
 };
 
-const selectableTorrentHash = (item) => {
-  const raw = String(
-    item?.infoHash ||
-      item?.info_hash ||
-      item?.hash ||
-      item?.magnet ||
-      item?.magnetLink ||
-      item?.richMagnet ||
-      item?.src ||
-      item?.url ||
-      ""
-  );
-
-  return raw.match(/(?:btih:)?([a-f0-9]{40,64})/i)?.[1]?.toLowerCase() || "";
-};
-
-const selectableSourceUrl = (item) =>
-  String(
-    item?.src ||
-      item?.url ||
-      item?.magnet ||
-      item?.magnetLink ||
-      ""
-  ).trim();
-
 export const sourceIsUserSelectable = (item) => {
   if (!item) return false;
 
