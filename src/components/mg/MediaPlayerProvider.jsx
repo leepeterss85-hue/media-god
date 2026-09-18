@@ -396,7 +396,11 @@ const preservePublishedSourceOrder = (published, incoming) => {
   return dedupeSources(stable);
 };
 
-const annotateDebridCache = async (items, hasDebrid) => {
+const annotateDebridCache = async (
+  items,
+  hasDebrid,
+  { fastMode = false, providers = [] } = {}
+) => {
   const sources = Array.isArray(items) ? items : [];
   if (!hasDebrid) return sources;
 
@@ -423,6 +427,10 @@ const annotateDebridCache = async (items, hasDebrid) => {
             action: "check_cache",
             hashes: batch,
             provider_scores: debridProviderScoreHints(),
+            fast_mode: Boolean(fastMode),
+            ...(Array.isArray(providers) && providers.length > 0
+              ? { providers }
+              : {}),
           }
         );
 
@@ -450,6 +458,13 @@ const annotateDebridCache = async (items, hasDebrid) => {
       Object.assign(providerStats, data?.providerStats || {});
     });
 
+    const successfulProviders = Object.keys(cached).filter(
+      (key) =>
+        !cached?.[key]?.__error &&
+        !providerStats?.[key]?.error
+    );
+    const cacheCheckSucceeded = successfulProviders.length > 0;
+
     return sources.map((item) => {
       const hash = sourceMagnetHash(item);
       if (!hash) return item;
@@ -471,7 +486,8 @@ const annotateDebridCache = async (items, hasDebrid) => {
 
       return {
         ...item,
-        debridCacheChecked: true,
+        debridCacheChecked: cacheCheckSucceeded,
+        debridCacheUnavailable: !cacheCheckSucceeded,
         debridCached,
         cachedProviders,
         debridProvider: best?.[hash] || item?.debridProvider || "",
@@ -2204,7 +2220,11 @@ export function PlayerProvider({
 
           const cacheAnnotatedFast = await annotateDebridCache(
             fastStreams,
-            hasDebrid
+            hasDebrid,
+            {
+              fastMode: true,
+              providers: hasRd ? ["realdebrid"] : [],
+            }
           );
 
           if (!isCurrentPlay()) {
