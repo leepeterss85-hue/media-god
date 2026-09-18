@@ -1435,6 +1435,8 @@ export default async function (req) {
               body.force_audio_rescue === true,
             preferBrowserTranscode:
               body.prefer_browser_transcode === true,
+            fastStart:
+              body.fast_start === true,
           }
         );
 
@@ -2597,6 +2599,8 @@ export default async function (req) {
             episode,
             preferBrowserTranscode:
               body.prefer_browser_transcode === true,
+            fastStart:
+              body.fast_start === true,
           }
         );
 
@@ -2928,6 +2932,9 @@ async function addMagnet({
 
     preferBrowserTranscode:
       body.prefer_browser_transcode === true,
+
+    fastStart:
+      body.fast_start === true,
   };
 
   /*
@@ -3617,6 +3624,8 @@ async function resolveStreamable(
         ep?.forceAudioRescue === true,
       preferBrowserTranscode:
         ep?.preferBrowserTranscode === true,
+      fastStart:
+        ep?.fastStart === true,
     });
 
   if (playable.error) {
@@ -3705,6 +3714,7 @@ async function choosePlayableRdStream({
   allowTranscode = true,
   forceAudioRescue = false,
   preferBrowserTranscode = false,
+  fastStart = false,
 }) {
   const originalUrl =
     unData?.download ||
@@ -3727,6 +3737,43 @@ async function choosePlayableRdStream({
         "Real-Debrid did not return a playable download URL.",
       error_code:
         "NO_STREAM_URL",
+    };
+  }
+
+  /*
+   * The installed Android/Fire TV apps hand the original unrestricted file
+   * straight to Media3/LibVLC. Media inspection is useful for browser audio
+   * rescue, but it is not required before native playback and can add another
+   * slow Real-Debrid round trip. Start the original file immediately; the
+   * existing automatic no-sound/Fix audio flow can still request a transcode
+   * only when the device proves it needs one.
+   */
+  if (
+    fastStart &&
+    !forceAudioRescue &&
+    !preferBrowserTranscode
+  ) {
+    return {
+      stream_url:
+        originalUrl,
+      filename:
+        originalFilename,
+      audio_rescue: {
+        used: false,
+        state:
+          "deferred_native_fast_start",
+        reason:
+          "Native playback started before optional media inspection.",
+      },
+      video_rescue: {
+        used: false,
+        state:
+          "deferred_native_fast_start",
+        reason:
+          "Native playback started with the original Real-Debrid file.",
+      },
+      media_info:
+        null,
     };
   }
 
