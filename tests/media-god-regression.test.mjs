@@ -843,7 +843,7 @@ test("cached provider routing is reused without another cache lookup", () => {
   );
 });
 
-test("cached playback skips duplicate lookup and native playback skips optional inspection", () => {
+test("cached playback reuses cache routing without skipping native media inspection", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
     "utf8"
@@ -858,11 +858,11 @@ test("cached playback skips duplicate lookup and native playback skips optional 
     /if \(hash && source\?\.hasDebrid && !reuseCacheRouting\)/
   );
   assert.match(playerSource, /fast_mode:\s*true/);
-  assert.match(
+  assert.doesNotMatch(
     playerSource,
     /fast_start:\s*isNativeFireTvPlayerAvailable\(\)/
   );
-  assert.match(rdBackend, /deferred_native_fast_start/);
+  assert.doesNotMatch(rdBackend, /deferred_native_fast_start/);
 });
 
 test("audio tracks favour the current language and compatible main audio", () => {
