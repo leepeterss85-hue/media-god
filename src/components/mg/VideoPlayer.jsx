@@ -7345,7 +7345,7 @@ export default function VideoPlayer({
           const nextHistory = [...history.slice(-49), entry];
           window.__MG_NATIVE_PLAYBACK_DIAGNOSTICS__ = nextHistory;
           window.localStorage.setItem(
-            "mg:native-playback-diagnostics:v1",
+            "mg:native-playback-diagnostics:v2",
             JSON.stringify(nextHistory)
           );
           window.dispatchEvent(
