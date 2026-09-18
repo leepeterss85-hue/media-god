@@ -232,13 +232,13 @@ export default function MediaPlayerControls({
     sources,
     sourceSortMode
   );
+  /*
+   * A transient playback failure must not delete a known cached source from
+   * the chooser. Keep it visible with the existing "Unavailable" label so the
+   * user can retry it manually; automatic recovery still avoids failed rows.
+   */
   const selectableSourceEntries = sortedSourceEntries.filter(
-    ({ item, index }) =>
-      sourceIsUserSelectable(item) &&
-      !(
-        (typeof failedSources?.has === "function" && failedSources.has(index)) ||
-        (Array.isArray(failedSources) && failedSources.includes(index))
-      )
+    ({ item }) => sourceIsUserSelectable(item)
   );
 
   const [sourceChoicePinned, setSourceChoicePinned] = useState(false);
