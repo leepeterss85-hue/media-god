@@ -847,19 +847,17 @@ function PlayerAutomationBridge({ children }) {
       };
 
       /*
-       * This event is used by the in-player "Back to episodes" control and by
-       * the native TV player. Close playback first so the episode screen is
-       * visible when Home restores/focuses it.
+       * Publish the destination before closing playback. The core close clears
+       * shared player state immediately; restoring the show first prevents a
+       * Back action from briefly or permanently falling through to Home.
        */
-      close();
+      window.dispatchEvent(
+        new CustomEvent("mg:return-to-episode-selector", {
+          detail,
+        })
+      );
 
-      window.setTimeout(() => {
-        window.dispatchEvent(
-          new CustomEvent("mg:return-to-episode-selector", {
-            detail,
-          })
-        );
-      }, 0);
+      close();
     };
 
     const onPlaySpecificEpisode = async (event) => {
