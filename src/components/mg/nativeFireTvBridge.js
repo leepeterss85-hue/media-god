@@ -569,8 +569,6 @@ export const playNativeFireTv = ({
           webIndex: Number.isFinite(Number(item?.webIndex))
             ? Number(item.webIndex)
             : index,
-          failed: item?.failed === true,
-          recoveryScore: Number(item?.recoveryScore || 0),
           headers:
             item?.headers &&
             typeof item.headers === "object" &&

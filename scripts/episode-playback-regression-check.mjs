@@ -14,7 +14,6 @@ const provider = read("src/components/mg/PlayerProvider.jsx");
 const mediaPlayerProvider = read("src/components/mg/MediaPlayerProvider.jsx");
 const assist = read("src/components/mg/MediaGodV2Assist.jsx");
 const videoPlayer = read("src/components/mg/VideoPlayer.jsx");
-const liveVideo = read("src/components/mg/LiveVideo.jsx");
 const takeover = read("src/components/mg/FireTvPlayerTakeover.jsx");
 const native = read("firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt");
 const edition = read("src/components/mg/mediaEdition.js");
@@ -23,7 +22,6 @@ const mediaCompatibility = read("src/components/mg/mediaCompatibility.js");
 const controls = read("src/components/mg/MediaPlayerControls.jsx");
 const mobileNative = read("android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt");
 const trackPreferences = read("src/components/mg/mediaTrackPreferences.js");
-const playbackReliability = read("src/components/mg/playbackReliability.js");
 const nativeBridge = read("src/components/mg/nativeFireTvBridge.js");
 const fireCompatibility = read("firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt");
 const mobileCompatibility = read("android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt");
@@ -144,21 +142,9 @@ expect(
     mediaPlayerProvider.includes('cacheCandidateCount,') &&
     mediaPlayerProvider.includes('cachedSourceCount,') &&
     videoPlayer.includes('data-mg-source-health="true"') &&
-    videoPlayer.includes('data-mg-playback-details="true"') &&
     videoPlayer.includes('Cache checked') &&
     videoPlayer.includes('Ready {selectableSourceCount}'),
-  "player keeps source-health diagnostics available behind Playback details"
-);
-
-expect(
-  videoPlayer.includes('Getting your video ready…') &&
-    videoPlayer.includes('We’re having trouble with this stream') &&
-    videoPlayer.includes('Preparing more streams…') &&
-    videoPlayer.includes('Stream / quality') &&
-    videoPlayer.includes('Sound help') &&
-    videoPlayer.includes('(displayedError || audioNeedsAttention)') &&
-    !videoPlayer.includes('Retry this source</button>'),
-  "normal playback uses simple consumer-facing language while troubleshooting controls stay contextual"
+  "player exposes source-health counts for discovery, cache checks, cached hits and ready sources"
 );
 
 expect(
@@ -169,66 +155,8 @@ expect(
     mediaPlayerProvider.includes('audioCapability.supported === false') &&
     mediaPlayerProvider.includes('? -120000') &&
     sourcePreferences.includes('sourceAudioCompatibility') &&
-    sourcePreferences.includes('audio.supported === false') &&
-    videoPlayer.includes('const automaticAudioSafeSourceIndex') &&
-    videoPlayer.includes('activeAudioCompatibility.supported !== false') &&
-    videoPlayer.includes('const playbackAlreadyStarted') &&
-    videoPlayer.includes('const nativePlaybackAlreadyOwned') &&
-    videoPlayer.includes('Audio compatibility · choosing a source supported by this device') &&
-    videoPlayer.includes('const activeLearnedSilent = hasRecentNoSoundHistory') &&
-    videoPlayer.includes('learnedSilent: hasRecentNoSoundHistory') &&
-    videoPlayer.includes('.find((entry) => !entry.learnedSilent)?.index ?? -1') &&
-    videoPlayer.includes('(activeAudioCompatibility.supported !== false && !activeLearnedSilent)') &&
-    !videoPlayer.includes('const knownUnsupportedAudio = audioCompatibility.supported === false') &&
-    !videoPlayer.includes('rememberedSilent || knownUnsupportedAudio ? 2200 : 4200') &&
-    liveVideo.includes('const stableConfigSignature') &&
-    liveVideo.includes('const onErrorRef = useRef(onError)') &&
-    liveVideo.includes('const headersSignature = stableConfigSignature(headers)') &&
-    liveVideo.includes('const drmSignature = stableConfigSignature(drm)') &&
-    liveVideo.includes('nativeAudioPreferenceApplied') &&
-    liveVideo.includes('userAudioSelection') &&
-    playbackReliability.includes('current.noSound = Math.max(0, Number(current.noSound || 0) - 1)') &&
-    playbackReliability.includes('score < 0') &&
-    playbackReliability.includes('? 0.85'),
-  "audio compatibility is decided before startup while a playing stream keeps decoder and audio-track ownership stable"
-);
-
-expect(
-  native.includes("VOD_STARTUP_TIMEOUT_MS") &&
-    native.includes("VOD_STALL_TIMEOUT_MS") &&
-    native.includes("private fun recoverVodPlayback") &&
-    native.includes("preservePosition = true") &&
-    native.includes("candidate.recoveryScore") &&
-    native.includes("Buffering alone is not proof that the stream is dead") &&
-    nativeBridge.includes("recoveryScore: Number(item?.recoveryScore || 0)") &&
-    videoPlayer.includes("recoveryScore: recoverySourceScore(candidate, index)") &&
-    videoPlayer.includes("const sourceSwitchCoordinatorRef") &&
-    videoPlayer.includes("currentSwitch.fromIndex === activeIdx") &&
-    videoPlayer.includes("currentVideo.pause()") &&
-    videoPlayer.includes("midPlaybackSourceHopping === true") &&
-    mediaPlayerProvider.includes("must never replace the transport of a source") &&
-    mobileNative.includes("VOD_STARTUP_TIMEOUT_MS") &&
-    mobileNative.includes("VOD_STALL_TIMEOUT_MS") &&
-    mobileNative.includes("private fun armStartupWatchdog") &&
-    mobileNative.includes("private fun armStallWatchdog") &&
-    mobileNative.includes("A movie/episode that has already started keeps ownership"),
-  "movie and episode playback has one owner: startup/hard failures may recover, ordinary buffering cannot race into extra streams"
-);
-
-expect(
-  native.includes("HttpDataSource.InvalidResponseCodeException") &&
-    native.includes("setOf(401, 403, 410)") &&
-    native.includes('reason = "expired"') &&
-    mobileNative.includes("HttpDataSource.InvalidResponseCodeException") &&
-    mobileNative.includes("setOf(401, 403, 410)") &&
-    mobileNative.includes('"expired"') &&
-    mediaPlayerProvider.includes("const refreshExpiredSource") &&
-    mediaPlayerProvider.includes("linkRefreshedAt: Date.now()") &&
-    videoPlayer.includes('if (reason === "expired")') &&
-    videoPlayer.includes("await retryResolution()") &&
-    videoPlayer.includes("await onRefreshSource") &&
-    videoPlayer.includes("The same stream could not be refreshed — trying a backup"),
-  "expired 401/403/410 VOD links refresh the same source at the saved position before backup failover"
+    sourcePreferences.includes('audio.supported === false'),
+  "actual device audio decoder support outranks resolution and drives automatic no-sound recovery"
 );
 
 expect(

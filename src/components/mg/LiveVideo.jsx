@@ -36,31 +36,6 @@ const DASHJS_CDN =
 let mpegTsLoader = null;
 let dashJsLoader = null;
 
-const stableConfigSignature = (value) => {
-  const normalise = (input) => {
-    if (Array.isArray(input)) {
-      return input.map(normalise);
-    }
-
-    if (input && typeof input === "object") {
-      return Object.keys(input)
-        .sort()
-        .reduce((result, key) => {
-          result[key] = normalise(input[key]);
-          return result;
-        }, {});
-    }
-
-    return input ?? null;
-  };
-
-  try {
-    return JSON.stringify(normalise(value));
-  } catch {
-    return String(value || "");
-  }
-};
-
 const loadMpegTs = () => {
   if (typeof window === "undefined") {
     return Promise.resolve(null);
@@ -663,34 +638,6 @@ const LiveVideo = forwardRef(
     const videoRef =
       useRef(null);
 
-    /*
-     * Playback ownership must be tied to the actual stream, not to incidental
-     * React prop identity. VideoPlayer re-renders while progress, cache status,
-     * controls and diagnostics change; inline callback/object props can therefore
-     * be new references every render even though the media URL is unchanged.
-     * Keep the latest values in refs so those UI renders never tear down and
-     * recreate the decoder underneath a playing video.
-     */
-    const onErrorRef = useRef(onError);
-    const sourceLabelRef = useRef(sourceLabel);
-    const headersRef = useRef(headers);
-    const drmRef = useRef(drm);
-    const subtitlesEnabledRef = useRef(subtitlesEnabled);
-    const preferredSubtitleLanguageRef = useRef(preferredSubtitleLanguage);
-    const preferredAudioLanguageRef = useRef(preferredAudioLanguage);
-    const externalSubtitleCountRef = useRef(0);
-
-    onErrorRef.current = onError;
-    sourceLabelRef.current = sourceLabel;
-    headersRef.current = headers;
-    drmRef.current = drm;
-    subtitlesEnabledRef.current = subtitlesEnabled;
-    preferredSubtitleLanguageRef.current = preferredSubtitleLanguage;
-    preferredAudioLanguageRef.current = preferredAudioLanguage;
-
-    const headersSignature = stableConfigSignature(headers);
-    const drmSignature = stableConfigSignature(drm);
-
     const [
       preparedSubtitles,
       setPreparedSubtitles,
@@ -702,8 +649,6 @@ const LiveVideo = forwardRef(
       )
         ? subtitles.length
         : 0;
-
-    externalSubtitleCountRef.current = externalSubtitleCount;
 
     useImperativeHandle(
       ref,
@@ -946,9 +891,6 @@ const LiveVideo = forwardRef(
       let nativeAudioTimer =
         null;
 
-      let nativeAudioPreferenceApplied = false;
-      let userAudioSelection = false;
-
       const source =
         String(
           src
@@ -957,25 +899,25 @@ const LiveVideo = forwardRef(
       const hlsSource =
         isHlsUrl(
           source,
-          sourceLabelRef.current
+          sourceLabel
         );
 
       const dashSource =
         isDashUrl(
           source,
-          sourceLabelRef.current
+          sourceLabel
         );
 
       const tsSource =
         isMpegTsLike(
           source,
-          sourceLabelRef.current
+          sourceLabel
         );
 
       const flvSource =
         isFlvLike(
           source,
-          sourceLabelRef.current
+          sourceLabel
         );
 
       /*
@@ -1182,7 +1124,7 @@ const LiveVideo = forwardRef(
         const targetIndex =
           choosePreferredHlsAudioTrack(
             hls.audioTracks,
-            preferredAudioLanguageRef.current,
+            preferredAudioLanguage,
             currentIndex
           );
 
@@ -1192,7 +1134,6 @@ const LiveVideo = forwardRef(
         }
 
         try {
-          userAudioSelection = true;
           hls.audioTrack = targetIndex;
           video.muted = false;
           video.volume = 1;
@@ -1271,7 +1212,6 @@ const LiveVideo = forwardRef(
         }
 
         try {
-          userAudioSelection = true;
           hls.audioTrack = index;
           video.muted = false;
           video.volume = Math.max(0.01, Number(video.volume || 1));
@@ -1289,33 +1229,29 @@ const LiveVideo = forwardRef(
 
       const preferEnglishNativeAudio =
         () => {
-          if (userAudioSelection || nativeAudioPreferenceApplied) {
-            return;
-          }
-
-          nativeAudioPreferenceApplied = selectPreferredNativeAudioTrack(
+          selectPreferredNativeAudioTrack(
             video,
-            preferredAudioLanguageRef.current
+            preferredAudioLanguage
           );
 
-          if (nativeAudioTimer) {
-            window.clearTimeout(nativeAudioTimer);
-            nativeAudioTimer = null;
+          if (
+            nativeAudioTimer
+          ) {
+            window.clearTimeout(
+              nativeAudioTimer
+            );
           }
 
-          if (!nativeAudioPreferenceApplied) {
-            nativeAudioTimer = window.setTimeout(
+          nativeAudioTimer =
+            window.setTimeout(
               () => {
-                if (userAudioSelection || nativeAudioPreferenceApplied) return;
-
-                nativeAudioPreferenceApplied = selectPreferredNativeAudioTrack(
+                selectPreferredNativeAudioTrack(
                   video,
-                  preferredAudioLanguageRef.current
+                  preferredAudioLanguage
                 );
               },
               700
             );
-          }
         };
 
       const reportError =
@@ -1331,10 +1267,10 @@ const LiveVideo = forwardRef(
             true;
 
           if (
-            typeof onErrorRef.current ===
+            typeof onError ===
             "function"
           ) {
-            onErrorRef.current(
+            onError(
               error instanceof
                 Error
                 ? error
@@ -1544,7 +1480,7 @@ const LiveVideo = forwardRef(
               if (audioTracks.length > 1) {
                 const targetAudio = choosePreferredHlsAudioTrack(
                   audioTracks,
-                  preferredAudioLanguageRef.current,
+                  preferredAudioLanguage,
                   currentAudio
                 );
 
@@ -1732,10 +1668,6 @@ const LiveVideo = forwardRef(
 
             const preferEnglishHlsAudio =
               () => {
-                if (userAudioSelection) {
-                  return;
-                }
-
                 const tracks =
                   hls?.audioTracks ||
                   [];
@@ -1743,7 +1675,7 @@ const LiveVideo = forwardRef(
                 const englishIndex =
                   choosePreferredHlsAudioTrack(
                     tracks,
-                    preferredAudioLanguageRef.current
+                    preferredAudioLanguage
                   );
 
                 if (
@@ -1827,8 +1759,8 @@ const LiveVideo = forwardRef(
                   [];
 
                 if (
-                  !subtitlesEnabledRef.current ||
-                  externalSubtitleCountRef.current >
+                  !subtitlesEnabled ||
+                  externalSubtitleCount >
                     0 ||
                   tracks.length ===
                     0
@@ -1849,7 +1781,7 @@ const LiveVideo = forwardRef(
                 const preferredIndex =
                   choosePreferredHlsSubtitleTrack(
                     tracks,
-                    preferredSubtitleLanguageRef.current
+                    preferredSubtitleLanguage
                   );
 
                 if (
@@ -1987,10 +1919,8 @@ const LiveVideo = forwardRef(
 
             const requestHeaders = Object.fromEntries(
               Object.entries(
-                headersRef.current &&
-                typeof headersRef.current === "object" &&
-                !Array.isArray(headersRef.current)
-                  ? headersRef.current
+                headers && typeof headers === "object" && !Array.isArray(headers)
+                  ? headers
                   : {}
               ).filter(
                 ([name, value]) =>
@@ -2028,17 +1958,15 @@ const LiveVideo = forwardRef(
             }
 
             const licenseUrl = String(
-              drmRef.current?.licenseUrl || drmRef.current?.license_url || ""
+              drm?.licenseUrl || drm?.license_url || ""
             ).trim();
 
             if (licenseUrl) {
               try {
                 const drmHeaders = Object.fromEntries(
                   Object.entries(
-                    drmRef.current?.headers &&
-                    typeof drmRef.current.headers === "object" &&
-                    !Array.isArray(drmRef.current.headers)
-                      ? drmRef.current.headers
+                    drm?.headers && typeof drm.headers === "object" && !Array.isArray(drm.headers)
+                      ? drm.headers
                       : requestHeaders
                   ).filter(
                     ([name, value]) =>
@@ -2133,7 +2061,7 @@ const LiveVideo = forwardRef(
             const type =
               mpegTsType(
                 source,
-                sourceLabelRef.current
+                sourceLabel
               );
 
             mpegPlayer =
@@ -2358,9 +2286,15 @@ const LiveVideo = forwardRef(
       };
     }, [
       src,
+      sourceLabel,
       isLive,
-      headersSignature,
-      drmSignature,
+      headers,
+      drm,
+      subtitlesEnabled,
+      preferredSubtitleLanguage,
+      preferredAudioLanguage,
+      externalSubtitleCount,
+      onError,
     ]);
 
     const preferredExternalSubtitleIndex =

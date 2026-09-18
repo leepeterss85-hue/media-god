@@ -9,7 +9,7 @@ const apps = [
     dir: "firetv-android",
     packagePath: "com/mediagod/firetv",
     namespace: "com.mediagod.firetv",
-    expectedVersion: "1.4.35",
+    expectedVersion: "1.4.32",
     expectedMedia3: "1.8.0",
     expectedOrientation: "landscape",
   },
@@ -18,7 +18,7 @@ const apps = [
     dir: "android-mobile",
     packagePath: "com/mediagod/mobile",
     namespace: "com.mediagod.mobile",
-    expectedVersion: "1.0.21",
+    expectedVersion: "1.0.18",
     expectedMedia3: "1.11.0",
     expectedOrientation: "sensor",
   },
@@ -182,7 +182,7 @@ for (const app of apps) {
     [
       playerActivity.includes("isHostedProviderErrorClip") &&
         playerActivity.includes("115_000L..125_000L") &&
-        playerActivity.includes("This provider returned an error clip instead of the requested video."),
+        playerActivity.includes("AIOStreams / ElfHosted returned a short error clip"),
       "AIOStreams/ElfHosted short error-clip failover",
     ],
     [playerActivity.includes("CompatibilityPlayerActivity::class.java"), "runtime compatibility decoder fallback"],

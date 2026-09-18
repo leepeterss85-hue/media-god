@@ -169,17 +169,6 @@ const applyEvent = (record, kind, value) => {
     current.lastGood = now;
     current.failures = Math.max(0, Number(current.failures || 0) - 1);
     current.buffers = Math.max(0, Number(current.buffers || 0) - 1);
-
-    /*
-     * A successful sustained playback is evidence that a previously silent
-     * source/codec can work on this exact device/output path. Gradually
-     * rehabilitate no-sound history instead of pinning the source or codec in
-     * the penalty box for the full TTL after conditions have improved.
-     */
-    current.noSound = Math.max(0, Number(current.noSound || 0) - 1);
-    if (current.noSound === 0) {
-      current.lastNoSound = 0;
-    }
   }
 
   return current;
@@ -261,28 +250,12 @@ const deviceAndTraitAdjustment = (label, profile) => {
   const store = readStore();
   const deviceSpecific = scoreRecord(store[sourceDeviceKey(label, profile)]);
   const traitScores = traitKeysFor(label, profile)
-    .map((key) => ({ key, score: scoreRecord(store[key]) }))
-    .filter(({ score }) => Number.isFinite(score));
+    .map((key) => scoreRecord(store[key]))
+    .filter(Number.isFinite);
 
-  const traitAdjustment = traitScores.reduce((total, { key, score }) => {
-    const audioTrait = /:audio:/.test(key);
-    const capped = audioTrait
-      ? Math.max(-36000, Math.min(16000, score))
-      : Math.max(-30000, Math.min(12000, score));
-
-    /*
-     * Audio failures are unusually binary: picture-with-no-sound is not a
-     * usable source. Give device-specific audio learning far more authority
-     * than ordinary container/resolution history, while still allowing good
-     * playback to rehabilitate the codec through applyEvent("good").
-     */
-    const weight = audioTrait
-      ? score < 0
-        ? 0.85
-        : 0.3
-      : 0.12;
-
-    return total + capped * weight;
+  const traitAdjustment = traitScores.reduce((total, score) => {
+    const capped = Math.max(-30000, Math.min(12000, score));
+    return total + capped * 0.12;
   }, 0);
 
   return Math.round(deviceSpecific + traitAdjustment);

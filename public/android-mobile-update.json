@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 22,
-  "versionName": "1.0.21",
+  "versionCode": 19,
+  "versionName": "1.0.18",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.21 stabilises movie and episode playback with one playback owner. Ordinary buffering no longer opens replacement streams, duplicate recovery callbacks are blocked, and genuine playback errors still recover safely.",
+  "message": "Media God Mobile 1.0.18 restores Skip Recap and Skip Intro when episode providers send empty or zero chapter markers, and keeps Next Episode limited to the end window.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"

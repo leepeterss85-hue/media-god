@@ -1,4 +1,4 @@
-// Single-owner playback stability release verification.
+// Episode controls + subtitle defaults release verification.
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.mediagod.firetv"
         minSdk = 21
         targetSdk = 35
-        versionCode = 40
-        versionName = "1.4.35"
+        versionCode = 37
+        versionName = "1.4.32"
 
         buildConfigField(
             "String",

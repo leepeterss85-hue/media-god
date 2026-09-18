@@ -20,7 +20,6 @@ import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.datasource.DefaultHttpDataSource
-import androidx.media3.datasource.HttpDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -42,10 +41,6 @@ class PlayerActivity : Activity() {
 
         private const val REQUEST_COMPATIBILITY_PLAYER = 8402
         private const val CONTROLLER_HIDE_DELAY_MS = 2500L
-        private const val LIVE_STARTUP_TIMEOUT_MS = 15000L
-        private const val LIVE_STALL_TIMEOUT_MS = 12000L
-        private const val VOD_STARTUP_TIMEOUT_MS = 20000L
-        private const val VOD_STALL_TIMEOUT_MS = 30000L
         private const val NEXT_EPISODE_COUNTDOWN_MS = 10000L
     }
 
@@ -78,7 +73,6 @@ class PlayerActivity : Activity() {
     private var creditsStartMs = -1L
     private var nextEpisodeCountdownStartedAtMs = -1L
     private var nextEpisodeCountdownCancelled = false
-    private var playbackStarted = false
 
     private fun hostedProviderDescriptor(): String {
         val payloadLabel = payload.optString("sourceLabel").trim()
@@ -100,24 +94,6 @@ class PlayerActivity : Activity() {
             .filter { it.isNotBlank() }
             .joinToString(" ")
     }
-
-    private fun httpResponseCode(error: PlaybackException): Int {
-        var cause: Throwable? = error
-        var depth = 0
-
-        while (cause != null && depth < 12) {
-            if (cause is HttpDataSource.InvalidResponseCodeException) {
-                return cause.responseCode
-            }
-            cause = cause.cause
-            depth += 1
-        }
-
-        return 0
-    }
-
-    private fun isExpiredPlaybackLink(error: PlaybackException): Boolean =
-        httpResponseCode(error) in setOf(401, 403, 410)
 
     private fun isHostedProviderErrorClip(durationMs: Long): Boolean {
         if (live || durationMs <= 0L) return false
@@ -144,36 +120,6 @@ class PlayerActivity : Activity() {
             if (resultSent || !::playerView.isInitialized) return
             updateAssistControls()
             playerView.postDelayed(this, 500L)
-        }
-    }
-
-    private val startupTimeoutRunnable = Runnable {
-        if (!resultSent && !compatibilityPlayerOpen && !playbackStarted) {
-            finishWithResult(
-                "error",
-                if (live) "Live TV took too long to start." else "This stream took too long to start."
-            )
-        }
-    }
-
-    private val stallTimeoutRunnable = Runnable {
-        if (!resultSent && !compatibilityPlayerOpen && playbackStarted) {
-            if (live) {
-                finishWithResult(
-                    "error",
-                    "Live TV stopped responding."
-                )
-            } else {
-                /*
-                 * A movie/episode that has already started keeps ownership of
-                 * its stream during ordinary buffering. Do not return a fake
-                 * playback error merely because 30 seconds elapsed; the shared
-                 * web recovery layer could then open another stream while the
-                 * native decoder was still recovering. Genuine Media3/HTTP/
-                 * codec errors still return through onPlayerError.
-                 */
-                clearPlaybackWatchdogs()
-            }
         }
     }
 
@@ -393,37 +339,6 @@ class PlayerActivity : Activity() {
         )
     }
 
-    private fun clearPlaybackWatchdogs() {
-        if (!::playerView.isInitialized) return
-        playerView.removeCallbacks(startupTimeoutRunnable)
-        playerView.removeCallbacks(stallTimeoutRunnable)
-    }
-
-    private fun armStartupWatchdog() {
-        if (resultSent || compatibilityPlayerOpen || !::playerView.isInitialized) return
-        clearPlaybackWatchdogs()
-        playerView.postDelayed(
-            startupTimeoutRunnable,
-            if (live) LIVE_STARTUP_TIMEOUT_MS else VOD_STARTUP_TIMEOUT_MS
-        )
-    }
-
-    private fun armStallWatchdog() {
-        if (
-            resultSent ||
-            compatibilityPlayerOpen ||
-            !playbackStarted ||
-            !::playerView.isInitialized
-        ) {
-            return
-        }
-        clearPlaybackWatchdogs()
-        playerView.postDelayed(
-            stallTimeoutRunnable,
-            if (live) LIVE_STALL_TIMEOUT_MS else VOD_STALL_TIMEOUT_MS
-        )
-    }
-
     private fun initialisePlayer() {
         if (player != null || resultSent || compatibilityPlayerOpen) {
             return
@@ -515,63 +430,31 @@ class PlayerActivity : Activity() {
 
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 if (isPlaying) {
-                    playbackStarted = true
-                    clearPlaybackWatchdogs()
                     window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                 } else {
                     window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                    if (
-                        playbackStarted &&
-                        exoPlayer.playWhenReady &&
-                        exoPlayer.playbackState == Player.STATE_BUFFERING
-                    ) {
-                        armStallWatchdog()
-                    }
                 }
             }
 
             override fun onPlaybackStateChanged(playbackState: Int) {
-                when (playbackState) {
-                    Player.STATE_BUFFERING -> {
-                        if (playbackStarted) armStallWatchdog() else armStartupWatchdog()
+                if (playbackState == Player.STATE_READY) {
+                    val durationMs = exoPlayer.duration.takeIf { it > 0L } ?: 0L
+                    if (isHostedProviderErrorClip(durationMs)) {
+                        finishWithResult(
+                            "error",
+                            "AIOStreams / ElfHosted returned a short error clip instead of the requested release."
+                        )
+                        return
                     }
+                }
 
-                    Player.STATE_READY -> {
-                        if (exoPlayer.isPlaying) {
-                            playbackStarted = true
-                            clearPlaybackWatchdogs()
-                        }
-
-                        val durationMs = exoPlayer.duration.takeIf { it > 0L } ?: 0L
-                        if (isHostedProviderErrorClip(durationMs)) {
-                            finishWithResult(
-                                "error",
-                                "This provider returned an error clip instead of the requested video."
-                            )
-                            return
-                        }
-                    }
-
-                    Player.STATE_ENDED -> {
-                        clearPlaybackWatchdogs()
-                        finishWithResult("ended")
-                    }
+                if (playbackState == Player.STATE_ENDED) {
+                    finishWithResult("ended")
                 }
             }
 
             override fun onPlayerError(error: PlaybackException) {
-                if (!live && isExpiredPlaybackLink(error)) {
-                    val responseCode = httpResponseCode(error)
-                    clearPlaybackWatchdogs()
-                    finishWithResult(
-                        "expired",
-                        "Stream link expired (HTTP $responseCode). Refreshing the same stream…"
-                    )
-                    return
-                }
-
                 if (retryUnknownHttpsSourceType(exoPlayer)) {
-                    if (playbackStarted) armStallWatchdog() else armStartupWatchdog()
                     return
                 }
 
@@ -605,8 +488,6 @@ class PlayerActivity : Activity() {
         exoPlayer.playWhenReady = shouldPlayWhenReady
         if (shouldPlayWhenReady) {
             exoPlayer.play()
-            playbackStarted = false
-            armStartupWatchdog()
         }
 
         showControllerTemporarily()
@@ -649,7 +530,6 @@ class PlayerActivity : Activity() {
         }
 
         compatibilityPlayerOpen = true
-        clearPlaybackWatchdogs()
         releasePlayer()
 
         return try {
@@ -1047,8 +927,6 @@ class PlayerActivity : Activity() {
     }
 
     private fun releasePlayer() {
-        clearPlaybackWatchdogs()
-
         if (::playerView.isInitialized) {
             playerView.removeCallbacks(hideControllerRunnable)
         }
@@ -1074,7 +952,6 @@ class PlayerActivity : Activity() {
         }
 
         resultSent = true
-        clearPlaybackWatchdogs()
 
         val activePlayer = player
         val positionMs = max(

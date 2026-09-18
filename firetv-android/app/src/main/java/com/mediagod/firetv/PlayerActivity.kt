@@ -25,7 +25,6 @@ import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.datasource.DefaultHttpDataSource
-import androidx.media3.datasource.HttpDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -50,8 +49,6 @@ class PlayerActivity : Activity() {
         private const val CONTROLLER_HIDE_DELAY_MS = 2500L
         private const val LIVE_STARTUP_TIMEOUT_MS = 15000L
         private const val LIVE_STALL_TIMEOUT_MS = 12000L
-        private const val VOD_STARTUP_TIMEOUT_MS = 20000L
-        private const val VOD_STALL_TIMEOUT_MS = 30000L
         private const val NEXT_EPISODE_COUNTDOWN_MS = 10000L
     }
 
@@ -61,9 +58,7 @@ class PlayerActivity : Activity() {
         val headers: Map<String, String>,
         val mimeType: String,
         val drm: JSONObject?,
-        val webIndex: Int,
-        val failed: Boolean,
-        val recoveryScore: Double
+        val webIndex: Int
     )
 
     private lateinit var playerView: PlayerView
@@ -103,11 +98,8 @@ class PlayerActivity : Activity() {
     private var compatibilityPlayerOpen = false
 
     private val failedLiveSourceIndexes = linkedSetOf<Int>()
-    private val failedVodSourceIndexes = linkedSetOf<Int>()
     private var livePlaybackStarted = false
     private var liveRecoveryPending = false
-    private var vodPlaybackStarted = false
-    private var vodRecoveryPending = false
 
     private fun hostedProviderDescriptor(): String {
         val payloadLabel = payload.optString("sourceLabel").trim()
@@ -129,24 +121,6 @@ class PlayerActivity : Activity() {
             .filter { it.isNotBlank() }
             .joinToString(" ")
     }
-
-    private fun httpResponseCode(error: PlaybackException): Int {
-        var cause: Throwable? = error
-        var depth = 0
-
-        while (cause != null && depth < 12) {
-            if (cause is HttpDataSource.InvalidResponseCodeException) {
-                return cause.responseCode
-            }
-            cause = cause.cause
-            depth += 1
-        }
-
-        return 0
-    }
-
-    private fun isExpiredPlaybackLink(error: PlaybackException): Boolean =
-        httpResponseCode(error) in setOf(401, 403, 410)
 
     private fun isHostedProviderErrorClip(durationMs: Long): Boolean {
         if (live || durationMs <= 0L) return false
@@ -191,26 +165,6 @@ class PlayerActivity : Activity() {
     private val liveStallTimeoutRunnable = Runnable {
         if (!resultSent && live && livePlaybackStarted) {
             recoverLivePlayback("Live TV stopped responding.")
-        }
-    }
-
-    private val vodStartupTimeoutRunnable = Runnable {
-        if (!resultSent && !live && !vodPlaybackStarted) {
-            recoverVodPlayback("This stream took too long to start.")
-        }
-    }
-
-    private val vodStallTimeoutRunnable = Runnable {
-        if (!resultSent && !live && vodPlaybackStarted) {
-            /*
-             * Keep ownership of a movie/episode once playback has started.
-             * Buffering alone is not proof that the stream is dead. The old
-             * watchdog changed sources after 30 seconds and could race Media3,
-             * audio fallback and the WebView recovery path, causing repeated
-             * stream launches and decoder instability. Real player/HTTP/codec
-             * errors still recover through onPlayerError.
-             */
-            clearVodWatchdogs()
         }
     }
 
@@ -1102,111 +1056,6 @@ class PlayerActivity : Activity() {
         return true
     }
 
-    private fun clearVodWatchdogs() {
-        if (!::playerView.isInitialized) {
-            return
-        }
-
-        playerView.removeCallbacks(vodStartupTimeoutRunnable)
-        playerView.removeCallbacks(vodStallTimeoutRunnable)
-    }
-
-    private fun armVodStartupWatchdog() {
-        if (live || resultSent || compatibilityPlayerOpen || !::playerView.isInitialized) {
-            return
-        }
-
-        playerView.removeCallbacks(vodStartupTimeoutRunnable)
-        playerView.removeCallbacks(vodStallTimeoutRunnable)
-        playerView.postDelayed(vodStartupTimeoutRunnable, VOD_STARTUP_TIMEOUT_MS)
-    }
-
-    private fun armVodStallWatchdog() {
-        if (
-            live ||
-            resultSent ||
-            compatibilityPlayerOpen ||
-            !vodPlaybackStarted ||
-            !::playerView.isInitialized
-        ) {
-            return
-        }
-
-        playerView.removeCallbacks(vodStartupTimeoutRunnable)
-        playerView.removeCallbacks(vodStallTimeoutRunnable)
-        playerView.postDelayed(vodStallTimeoutRunnable, VOD_STALL_TIMEOUT_MS)
-    }
-
-    private fun nextVodSourceIndex(): Int {
-        if (live || nativeSources.size <= 1) {
-            return -1
-        }
-
-        return nativeSources
-            .mapIndexedNotNull { index, candidate ->
-                val candidateUrl = candidate.url.trim()
-                if (
-                    index == activeSourceIndex ||
-                    candidate.failed ||
-                    failedVodSourceIndexes.contains(index) ||
-                    !(candidateUrl.startsWith("https://") || candidateUrl.startsWith("http://"))
-                ) {
-                    null
-                } else {
-                    index to candidate.recoveryScore
-                }
-            }
-            .sortedWith(
-                compareByDescending<Pair<Int, Double>> { it.second }
-                    .thenBy { it.first }
-            )
-            .firstOrNull()
-            ?.first
-            ?: -1
-    }
-
-    private fun recoverVodPlayback(message: String): Boolean {
-        if (live || resultSent || vodRecoveryPending || compatibilityPlayerOpen) {
-            return false
-        }
-
-        failedVodSourceIndexes.add(activeSourceIndex)
-        val nextIndex = nextVodSourceIndex()
-
-        if (nextIndex < 0) {
-            clearVodWatchdogs()
-            finishWithResult(
-                reason = "error",
-                message = "$message No other ready stream is available."
-            )
-            return true
-        }
-
-        vodRecoveryPending = true
-        clearVodWatchdogs()
-
-        if (!::playerView.isInitialized) {
-            vodRecoveryPending = false
-            return false
-        }
-
-        playerView.post {
-            if (resultSent || compatibilityPlayerOpen) {
-                vodRecoveryPending = false
-                return@post
-            }
-
-            vodRecoveryPending = false
-            switchNativeSource(
-                nextIndex,
-                automaticRecovery = true,
-                preservePosition = true
-            )
-        }
-
-        return true
-    }
-
     private fun readHeaders(json: JSONObject?): Map<String, String> {
         if (json == null) return emptyMap()
 
@@ -1251,9 +1100,7 @@ class PlayerActivity : Activity() {
                     headers = readHeaders(item.optJSONObject("headers")),
                     mimeType = item.optString("mimeType").trim(),
                     drm = item.optJSONObject("drm"),
-                    webIndex = webIndex,
-                    failed = item.optBoolean("failed", false),
-                    recoveryScore = item.optDouble("recoveryScore", 0.0)
+                    webIndex = webIndex
                 )
             )
         }
@@ -1270,9 +1117,7 @@ class PlayerActivity : Activity() {
                     headers = readHeaders(payload.optJSONObject("headers")),
                     mimeType = payload.optString("mimeType").trim(),
                     drm = payload.optJSONObject("drm"),
-                    webIndex = payload.optInt("activeSourceIndex", 0),
-                    failed = false,
-                    recoveryScore = 0.0
+                    webIndex = payload.optInt("activeSourceIndex", 0)
                 )
             )
         }
@@ -1398,8 +1243,7 @@ class PlayerActivity : Activity() {
 
     private fun switchNativeSource(
         index: Int,
-        automaticRecovery: Boolean = false,
-        preservePosition: Boolean = false
+        automaticRecovery: Boolean = false
     ) {
         if (
             index !in nativeSources.indices ||
@@ -1423,31 +1267,18 @@ class PlayerActivity : Activity() {
                         selectedSourceIndex = nativeSources[index].webIndex
                     )
                 }
-            } else if (automaticRecovery) {
-                failedVodSourceIndexes.add(index)
-                recoverVodPlayback("The next stream was not playable.")
             }
             return
         }
 
-        val resumePositionMs =
-            if (preservePosition && !live) {
-                max(0L, player?.currentPosition ?: restorePositionMs)
-            } else {
-                0L
-            }
-
         clearLiveWatchdogs()
-        clearVodWatchdogs()
         livePlaybackStarted = false
         liveRecoveryPending = false
-        vodPlaybackStarted = false
-        vodRecoveryPending = false
         activeSourceIndex = index
         streamUrl = nextUrl
         genericHttpsMimeRetryIndex = 0
+        restorePositionMs = 0L
         releasePlayer()
-        restorePositionMs = resumePositionMs
         initialisePlayer()
         sourceSpinner.setSelection(activeSourceIndex + sourceSelectorOffset(), false)
 
@@ -1554,10 +1385,6 @@ class PlayerActivity : Activity() {
                         livePlaybackStarted = true
                         liveRecoveryPending = false
                         clearLiveWatchdogs()
-                    } else {
-                        vodPlaybackStarted = true
-                        vodRecoveryPending = false
-                        clearVodWatchdogs()
                     }
                 } else {
                     window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -1569,13 +1396,6 @@ class PlayerActivity : Activity() {
                         exoPlayer.playbackState == Player.STATE_BUFFERING
                     ) {
                         armLiveStallWatchdog()
-                    } else if (
-                        !live &&
-                        vodPlaybackStarted &&
-                        exoPlayer.playWhenReady &&
-                        exoPlayer.playbackState == Player.STATE_BUFFERING
-                    ) {
-                        armVodStallWatchdog()
                     }
                 }
             }
@@ -1605,63 +1425,27 @@ class PlayerActivity : Activity() {
                     return
                 }
 
-                when (playbackState) {
-                    Player.STATE_BUFFERING -> {
-                        if (vodPlaybackStarted) {
-                            armVodStallWatchdog()
-                        } else {
-                            armVodStartupWatchdog()
-                        }
+                if (playbackState == Player.STATE_READY) {
+                    val durationMs = exoPlayer.duration.takeIf { it > 0L } ?: 0L
+                    if (isHostedProviderErrorClip(durationMs)) {
+                        finishWithResult(
+                            "error",
+                            "AIOStreams / ElfHosted returned a short error clip instead of the requested release."
+                        )
+                        return
                     }
+                }
 
-                    Player.STATE_READY -> {
-                        if (exoPlayer.isPlaying) {
-                            vodPlaybackStarted = true
-                            clearVodWatchdogs()
-                        }
-
-                        val durationMs = exoPlayer.duration.takeIf { it > 0L } ?: 0L
-                        if (isHostedProviderErrorClip(durationMs)) {
-                            if (!recoverVodPlayback(
-                                    "This provider returned an error clip instead of the requested video."
-                                )
-                            ) {
-                                finishWithResult(
-                                    "error",
-                                    "This provider returned an error clip instead of the requested video."
-                                )
-                            }
-                            return
-                        }
-                    }
-
-                    Player.STATE_ENDED -> {
-                        clearVodWatchdogs()
-                        finishWithResult("ended")
-                    }
+                if (playbackState == Player.STATE_ENDED) {
+                    finishWithResult("ended")
                 }
             }
 
             override fun onPlayerError(error: PlaybackException) {
-                if (!live && isExpiredPlaybackLink(error)) {
-                    val responseCode = httpResponseCode(error)
-                    clearVodWatchdogs()
-                    finishWithResult(
-                        reason = "expired",
-                        message = "Stream link expired (HTTP $responseCode). Refreshing the same stream…",
-                        selectedSourceIndex = nativeSources.getOrNull(activeSourceIndex)?.webIndex ?: -1
-                    )
-                    return
-                }
-
                 if (retryUnknownHttpsSourceType(exoPlayer)) {
                     if (live) {
                         livePlaybackStarted = false
                         armLiveStartupWatchdog()
-                    } else if (vodPlaybackStarted) {
-                        armVodStallWatchdog()
-                    } else {
-                        armVodStartupWatchdog()
                     }
                     return
                 }
@@ -1677,15 +1461,6 @@ class PlayerActivity : Activity() {
                     live &&
                     recoverLivePlayback(
                         error.message ?: "Native Fire TV Live TV playback failed."
-                    )
-                ) {
-                    return
-                }
-
-                if (
-                    !live &&
-                    recoverVodPlayback(
-                        error.message ?: "This stream could not be played."
                     )
                 ) {
                     return
@@ -1719,9 +1494,6 @@ class PlayerActivity : Activity() {
         if (live) {
             livePlaybackStarted = false
             armLiveStartupWatchdog()
-        } else {
-            vodPlaybackStarted = false
-            armVodStartupWatchdog()
         }
 
         hideControllerNow()
@@ -1777,7 +1549,6 @@ class PlayerActivity : Activity() {
 
         compatibilityPlayerOpen = true
         clearLiveWatchdogs()
-        clearVodWatchdogs()
         releasePlayer()
 
         return try {
@@ -1964,7 +1735,6 @@ class PlayerActivity : Activity() {
 
     private fun releasePlayer() {
         clearLiveWatchdogs()
-        clearVodWatchdogs()
 
         if (::playerView.isInitialized) {
             playerView.removeCallbacks(hideControllerRunnable)
@@ -1996,7 +1766,6 @@ class PlayerActivity : Activity() {
 
         resultSent = true
         clearLiveWatchdogs()
-        clearVodWatchdogs()
 
         val activePlayer = player
         val positionMs = max(

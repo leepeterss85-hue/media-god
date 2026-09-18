@@ -36,7 +36,6 @@ import {
   getPlaybackDeviceProfile,
   hasSevereVideoRisk,
   scoreSourceCompatibility,
-  sourceAudioCompatibility,
 } from "@/components/mg/mediaCompatibility";
 import {
   debridProviderScoreHints,
@@ -498,34 +497,24 @@ const friendlyPlaybackError = (value) => {
   }
 
   if (/\b451\b|infringing[_ -]?file|copyright|infringing/i.test(message)) {
-    return "That stream is no longer available. Media God will use another available option.";
+    return "This torrent was rejected by Real-Debrid — trying another source.";
   }
 
-  if (/\b502\b|bad gateway|temporarily unavailable|rate[-\s]?limit/i.test(message)) {
-    return "That stream is temporarily unavailable. Media God is checking the next best option.";
+  if (/\b502\b|bad gateway|temporarily unavailable/i.test(message)) {
+    return "The source service is temporarily unavailable — trying another source.";
   }
 
-  if (/no other playable source|no working backup|no unused backup/i.test(message)) {
-    return "We couldn’t find a working stream right now. Try again in a moment and Media God will check again.";
+  if (/no other playable source/i.test(message)) {
+    return "No working source was found. Choose another source or try again.";
   }
 
-  if (/no sound|audio/i.test(message) && /fail|error|unsupported|problem/i.test(message)) {
-    return "Media God detected a sound problem and is trying a safer audio option automatically.";
+  if (/no sound|audio/i.test(message) && /fail|error|unsupported/i.test(message)) {
+    return "This source has an audio problem. Try Fix audio or another source.";
   }
 
-  if (/active torrent slots|slots in use|paused this uncached torrent/i.test(message)) {
-    return "This stream can’t be prepared right now. Try again shortly and Media God will continue automatically.";
-  }
-
-  if (/no active seeders|no live peer|stalled|no progress|download speed/i.test(message)) {
-    return "This stream is taking too long to become ready. Try again or choose another available stream.";
-  }
-
-  if (/poll|status check|cache engine|metadata|magnet|comet|real-debrid/i.test(message)) {
-    return "Media God couldn’t finish preparing this stream. Try again and it will re-check the best available option.";
-  }
-
-  return "This stream couldn’t start. Try again and Media God will re-check the best available option.";
+  return message.length > 170
+    ? `${message.slice(0, 167)}…`
+    : message;
 };
 
 const openExternalPlaybackFallback = (url) => {
@@ -721,7 +710,6 @@ const audioTrackScore = (track, preferredLanguage = "en") => {
 export default function VideoPlayer({
   source,
   onClose,
-  onRefreshSource,
 }) {
   const sources =
     source?.sources &&
@@ -853,12 +841,6 @@ export default function VideoPlayer({
   const nativeLaunchTimerRef = useRef(null);
   const liveRecoveryNoticeTimerRef = useRef(null);
   const streamActionGenerationRef = useRef(0);
-  const sourceSwitchCoordinatorRef = useRef({
-    playRequestId: null,
-    fromIndex: -1,
-    targetIndex: -1,
-    startedAt: 0,
-  });
 
   useEffect(() => {
     return () => {
@@ -1584,38 +1566,6 @@ export default function VideoPlayer({
       manualSelection = false,
     } = {}
   ) => {
-    const requestedIndex = Number(nextIndex);
-    const playRequestId = source?.playRequestId ?? null;
-    const now = Date.now();
-    const currentSwitch = sourceSwitchCoordinatorRef.current;
-
-    if (
-      !Number.isInteger(requestedIndex) ||
-      requestedIndex < 0 ||
-      requestedIndex >= sources.length ||
-      requestedIndex === activeIdx
-    ) {
-      return false;
-    }
-
-    /*
-     * Only one transition may leave a given source. Several browser/native
-     * callbacks can report the same failure within the same render frame; before
-     * React commits the first switch they all still see the old activeIdx. The
-     * old behaviour let every callback open another stream in turn. Reject all
-     * duplicate transitions from that same source for a short handoff window.
-     * A genuine failure of the NEW source has a different activeIdx and remains
-     * eligible for recovery immediately.
-     */
-    if (
-      !manualSelection &&
-      currentSwitch.playRequestId === playRequestId &&
-      currentSwitch.fromIndex === activeIdx &&
-      now - Number(currentSwitch.startedAt || 0) < 8000
-    ) {
-      return false;
-    }
-
     /*
      * Never move the active source underneath an open native selector during
      * background recovery. A deliberate movie/TV source choice is allowed to
@@ -1635,13 +1585,6 @@ export default function VideoPlayer({
       releaseSourceSelector();
       releaseRdFileSelector();
     }
-
-    sourceSwitchCoordinatorRef.current = {
-      playRequestId,
-      fromIndex: activeIdx,
-      targetIndex: requestedIndex,
-      startedAt: now,
-    };
 
     streamActionGenerationRef.current += 1;
 
@@ -1679,24 +1622,11 @@ export default function VideoPlayer({
           )
         : 0;
 
-    /*
-     * Stop the old media owner synchronously before React mounts the replacement.
-     * This prevents overlapping audio/video decoders while state is changing.
-     */
-    if (currentVideo instanceof HTMLVideoElement) {
-      try {
-        currentVideo.pause();
-        currentVideo.muted = true;
-      } catch {
-        // The component cleanup will finish releasing the old decoder.
-      }
-    }
-
     if (resumeAt > 5) {
       recoveryResumeRef.current = resumeAt;
     }
 
-    clearSourceFailed(requestedIndex);
+    clearSourceFailed(nextIndex);
     setRdTorrentId(null);
     setRdManualFileSelection(null);
     setRdPreparation(null);
@@ -1709,7 +1639,7 @@ export default function VideoPlayer({
     setRdFiles([]);
     setForceNativePlayback(false);
     setNativeFallbackUrl("");
-    setActiveIdx(requestedIndex);
+    setActiveIdx(nextIndex);
 
     if (statusMessage) {
       window.dispatchEvent(
@@ -1723,8 +1653,6 @@ export default function VideoPlayer({
         })
       );
     }
-
-    return true;
   };
 
   const tryNextSource = (
@@ -1740,18 +1668,6 @@ export default function VideoPlayer({
       source?.type === "live" || active?.live || active?.type === "live";
     const selectorPinned =
       sourceSelectorPinnedRef.current || rdFileSelectorPinnedRef.current;
-    const currentSwitch = sourceSwitchCoordinatorRef.current;
-
-    /* Ignore duplicate/stale failure callbacks from a source that has already
-     * handed ownership to another stream. This is checked before blacklisting
-     * anything so an old video element cannot poison more rows after it is gone. */
-    if (
-      currentSwitch.playRequestId === (source?.playRequestId ?? null) &&
-      currentSwitch.fromIndex === activeIdx &&
-      Date.now() - Number(currentSwitch.startedAt || 0) < 8000
-    ) {
-      return false;
-    }
 
     /*
      * A native Android/Fire TV source chooser can remain focused after the
@@ -2179,131 +2095,6 @@ export default function VideoPlayer({
       activeType === "stream" ||
       isGenericHttpsStream
     );
-
-  const playbackDeviceProfile = getPlaybackDeviceProfile();
-  const activeAudioLabel = sourceDisplayLabel(active, activeIdx);
-  const activeAudioCompatibility = sourceAudioCompatibility(
-    active,
-    activeAudioLabel,
-    playbackDeviceProfile
-  );
-  const activeLearnedSilent = hasRecentNoSoundHistory(
-    activeAudioLabel,
-    playbackDeviceProfile
-  );
-  const automaticAudioSafeSourceIndex = sourcesForSelector
-    .map((item, index) => {
-      if (
-        index === activeIdx ||
-        failedSourcesRef.current.has(index) ||
-        !sourceIsUserSelectable(item) ||
-        sourceNeedsCaching(item)
-      ) {
-        return null;
-      }
-
-      const label = sourceDisplayLabel(item, index);
-      const audio = sourceAudioCompatibility(
-        item,
-        label,
-        playbackDeviceProfile
-      );
-
-      if (audio.supported === false) {
-        return null;
-      }
-
-      return {
-        index,
-        supported: audio.supported === true,
-        risky: audio.risky,
-        learnedSilent: hasRecentNoSoundHistory(label, playbackDeviceProfile),
-        score: scoreSourceCompatibility(item, label, {
-          deviceProfile: playbackDeviceProfile,
-          qualityPreference: readPlaybackPreferences().quality,
-        }),
-      };
-    })
-    .filter(Boolean)
-    .sort(
-      (left, right) =>
-        Number(left.learnedSilent) - Number(right.learnedSilent) ||
-        Number(right.supported) - Number(left.supported) ||
-        Number(left.risky) - Number(right.risky) ||
-        right.score - left.score ||
-        left.index - right.index
-    )
-    .find((entry) => !entry.learnedSilent)?.index ?? -1;
-
-  /*
-   * AUTOMATIC AUDIO-SAFE STARTUP
-   *
-   * The device's native decoder inventory is authoritative when it is
-   * available. If the current ready source is known to use an unsupported
-   * audio codec, move to the best already-ready source whose audio is not
-   * known unsupported before native playback gets a chance to open silently.
-   * Preserve position in case decoder information arrives after playback has
-   * already started.
-   */
-  useEffect(() => {
-    const mountedVideo = stageRef.current?.querySelector("video");
-    const playbackAlreadyStarted =
-      mountedVideo instanceof HTMLVideoElement &&
-      !mountedVideo.paused &&
-      !mountedVideo.ended &&
-      !mountedVideo.error &&
-      mountedVideo.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
-      Number(mountedVideo.currentTime || 0) > 0.75;
-    const nativePlaybackAlreadyOwned = Boolean(
-      nativePlaybackRef.current?.requestId
-    );
-
-    /*
-     * Compatibility may choose a safer source before playback starts, but it
-     * must never replace a stream that is already visibly playing. Mid-playback
-     * codec guesses were causing unnecessary decoder teardown, position jumps
-     * and audio-track resets. Once playback owns the screen, only a real media
-     * error, an explicit Fix audio action or a deliberate source choice may
-     * replace it.
-     */
-    if (
-      isLive ||
-      isYoutube ||
-      isProvider ||
-      playbackAlreadyStarted ||
-      nativePlaybackAlreadyOwned ||
-      readPlaybackPreferences().automaticNoSoundRecovery === false ||
-      (activeAudioCompatibility.supported !== false && !activeLearnedSilent) ||
-      automaticAudioSafeSourceIndex < 0 ||
-      rdResolving ||
-      rdPolling ||
-      rdTorrentId ||
-      fileSwitching ||
-      sourceSelectorPinnedRef.current ||
-      rdFileSelectorPinnedRef.current
-    ) {
-      return;
-    }
-
-    switchToSource(automaticAudioSafeSourceIndex, {
-      preservePosition: false,
-      statusMessage:
-        "Audio compatibility · choosing a source supported by this device…",
-    });
-  }, [
-    activeIdx,
-    activeAudioCompatibility.supported,
-    activeLearnedSilent,
-    automaticAudioSafeSourceIndex,
-    fileSwitching,
-    isLive,
-    isProvider,
-    isYoutube,
-    rdMediaContextKey,
-    rdPolling,
-    rdResolving,
-    rdTorrentId,
-  ]);
 
   /*
    * READY-SOURCE FIRST
@@ -6431,16 +6222,7 @@ export default function VideoPlayer({
   ]);
 
   useEffect(() => {
-    /*
-     * Once a movie/episode is genuinely playing, normal buffering must not
-     * authorize an automatic source hop. Hard media/HTTP/decoder failures have
-     * their own explicit recovery paths; this legacy polling watchdog is kept
-     * disabled so it cannot race them and open multiple replacement streams.
-     */
-    const midPlaybackSourceHoppingAllowed =
-      readPlaybackPreferences().midPlaybackSourceHopping === true;
-
-    if (!midPlaybackSourceHoppingAllowed || isLive || sources.length <= 1) {
+    if (isLive || sources.length <= 1) {
       return undefined;
     }
 
@@ -7375,7 +7157,7 @@ export default function VideoPlayer({
       return undefined;
     }
 
-    const onNativeResult = async (event) => {
+    const onNativeResult = (event) => {
       const detail = event?.detail || {};
 
       if (detail?.diagnostics) {
@@ -7501,72 +7283,6 @@ export default function VideoPlayer({
           setForceNativePlayback(true);
         }
 
-        return;
-      }
-
-      if (reason === "expired") {
-        if (positionSeconds > 5) {
-          recoveryResumeRef.current = positionSeconds;
-        }
-
-        setForceNativePlayback(false);
-        setNativeFallbackUrl("");
-        clearSourceFailed(activeIdx);
-
-        window.dispatchEvent(
-          new CustomEvent("mg:player-status", {
-            detail: {
-              message:
-                "Stream link expired — refreshing the same stream…",
-            },
-          })
-        );
-
-        const activeStrategy = sourceResolutionStrategy(active);
-        const sameSourceCanBeResolvedAgain = Boolean(
-          rdOverride ||
-          sourceTorrentHash(active) ||
-          ["cached_debrid", "existing_rd", "rd_magnet", "comet_uncached"].includes(
-            activeStrategy
-          ) ||
-          active?.type === "rd" ||
-          active?.type === "rd_torrent"
-        );
-
-        if (sameSourceCanBeResolvedAgain) {
-          await retryResolution();
-          return;
-        }
-
-        const refreshed =
-          typeof onRefreshSource === "function"
-            ? await onRefreshSource({
-                activeIndex: activeIdx,
-                activeSource: active,
-              })
-            : { refreshed: false };
-
-        if (refreshed?.refreshed) {
-          window.dispatchEvent(
-            new CustomEvent("mg:player-status", {
-              detail: {
-                message:
-                  "Stream refreshed — resuming playback…",
-              },
-            })
-          );
-          return;
-        }
-
-        window.dispatchEvent(
-          new CustomEvent("mg:player-status", {
-            detail: {
-              message:
-                "The same stream could not be refreshed — trying a backup…",
-            },
-          })
-        );
-        handleDirectPlaybackError({ liveFailureClass: "native" });
         return;
       }
 
@@ -7798,8 +7514,6 @@ export default function VideoPlayer({
             label: failedSources.has(index)
               ? `Unavailable • ${visibleLabel}`
               : visibleLabel,
-            failed: failedSources.has(index),
-            recoveryScore: recoverySourceScore(candidate, index),
             url:
               index === activeIdx && /^https?:\/\//i.test(nativePlaybackUrl)
                 ? nativePlaybackUrl
@@ -8182,15 +7896,40 @@ export default function VideoPlayer({
   handleNoSoundRef.current = handleNoSound;
 
 
-  /*
-   * Do not guess that a playing video is silent from its filename/codec label.
-   * Compatibility scoring and learned no-sound history are used before startup,
-   * while real decoder errors still trigger normal recovery. Once playback has
-   * started, automatic audio rescue is intentionally non-destructive: the user
-   * can invoke Fix audio, or the native/browser decoder can report a real error.
-   * This prevents the old 2–4 second timer from tearing down a healthy stream
-   * and coming back with a different/missing audio track.
-   */
+  /* Automatic no-sound recovery is proactive for codec combinations that are
+   * commonly silent on Android/Fire TV/browser decoders, and immediate for a
+   * source that this device has already remembered as silent. */
+  useEffect(() => {
+    if (
+      isLive || isYoutube || isProvider || rdResolving || rdPolling ||
+      rdTorrentId || rdPreparation || readPlaybackPreferences().automaticNoSoundRecovery === false
+    ) {
+      return undefined;
+    }
+
+    const candidate = rdOverride
+      ? { ...active, src: rdOverride.src || activeUrl, label: rdOverride.label || active?.label }
+      : active;
+    const label = sourceDisplayLabel(candidate, activeIdx);
+    const traits = detectStreamTraits(candidate, label);
+    const rememberedSilent = hasRecentNoSoundHistory(label);
+    if (!rememberedSilent && !traits.audioRisk) return undefined;
+
+    const timer = window.setTimeout(() => {
+      const video = stageRef.current?.querySelector("video");
+      if (
+        video instanceof HTMLVideoElement &&
+        !video.paused && !video.ended && !video.error
+      ) {
+        handleNoSoundRef.current?.({ automatic: true });
+      }
+    }, rememberedSilent ? 2200 : 4200);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    active, activeIdx, activeUrl, isLive, isProvider, isYoutube,
+    rdOverride, rdPolling, rdResolving, rdTorrentId, rdPreparation,
+  ]);
 
   useEffect(() => {
     const state = autoVideoRescueRef.current;
@@ -8421,12 +8160,12 @@ export default function VideoPlayer({
 
     if (runtimeReady || item?.debridCached === true) {
       return trustedCached
-        ? `Ready • ${base}`
-        : `Ready • ${base}`;
+        ? `Trusted Cached • ${base}`
+        : `Cached / Ready • ${base}`;
     }
 
     if (sourceNeedsCaching(item)) {
-      return `Preparing • ${base}`;
+      return `Uncached • ${base}`;
     }
 
     return base;
@@ -8566,32 +8305,21 @@ export default function VideoPlayer({
           ? "Download is paused right now. Media God will keep checking automatically."
           : "Playback will start automatically as soon as Real-Debrid reports the file ready.";
 
-  const simpleCacheHint =
-    cachePhase.key === "finalizing" || cacheProgress >= 100
-      ? "Almost ready. Playback will start automatically."
-      : cachePollWarning && rdPolling
-        ? "Still working. Media God is retrying automatically."
-        : cacheSeeders <= 0 && cacheSpeedBps <= 0 && cacheElapsedSeconds >= 30
-          ? "This stream is taking longer than usual. Media God is still checking it."
-          : cacheSpeedBps <= 0 && cacheProgress > 0 && cacheElapsedSeconds >= 30
-            ? "This stream is temporarily slow. Media God is still working in the background."
-            : "Playback will start automatically as soon as the stream is ready.";
-
   const playerUiStatus =
     displayedError && !busy
-      ? "Needs attention"
+      ? "Source issue"
       : rdResolving
-        ? "Finding stream"
+        ? "Resolving"
         : rdPolling || rdTorrentId
           ? rdPreparation
             ? cachePhase.key === "downloading"
-              ? `Getting ready ${cacheProgress}%`
-              : "Getting ready"
-            : "Getting ready"
+              ? `${cacheStatusLabel} ${cacheProgress}%`
+              : cacheStatusLabel
+            : "Preparing"
           : fireTvNativeSelectorMode
-            ? "Choose stream"
+            ? "Choose source"
             : useNativePlayback
-              ? "Opening"
+              ? "Opening player"
               : rdOverride || isDirectFile
                 ? "Ready"
                 : isLive
@@ -8656,7 +8384,7 @@ export default function VideoPlayer({
               <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[10px] text-white/45 sm:text-[11px]">
                 <span
                   className={`inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 font-semibold ${
-                    playerUiStatus === "Needs attention"
+                    playerUiStatus === "Source issue"
                       ? "bg-red-500/15 text-red-300"
                       : playerUiStatus === "Ready" || playerUiStatus === "Live"
                         ? "bg-mg-green/15 text-mg-green"
@@ -8664,7 +8392,7 @@ export default function VideoPlayer({
                   }`}
                 >
                   <span className={`h-1.5 w-1.5 rounded-full ${
-                    playerUiStatus === "Needs attention"
+                    playerUiStatus === "Source issue"
                       ? "bg-red-400"
                       : playerUiStatus === "Ready" || playerUiStatus === "Live"
                         ? "bg-mg-green"
@@ -8675,17 +8403,17 @@ export default function VideoPlayer({
 
                 {isLive && activeLiveSourcePosition.total > 0 ? (
                   <span className="shrink-0 font-semibold text-white/60">
-                    Stream {activeLiveSourcePosition.current || 1}/{activeLiveSourcePosition.total}
+                    Source {activeLiveSourcePosition.current || 1}/{activeLiveSourcePosition.total}
                   </span>
                 ) : selectableSourceCount > 0 ? (
                   <span className="shrink-0">
-                    {selectableSourceCount} {selectableSourceCount === 1 ? "stream" : "streams"}
+                    {selectableSourceCount} {selectableSourceCount === 1 ? "source" : "sources"}
                   </span>
                 ) : null}
 
                 {failedSourceCount > 0 && (
                   <span className="shrink-0 text-white/30">
-                    · {failedSourceCount} skipped
+                    · {failedSourceCount} unavailable
                   </span>
                 )}
               </div>
@@ -8747,18 +8475,18 @@ export default function VideoPlayer({
 
               <div className="w-full">
                 <p className="text-sm font-semibold text-white/85 sm:text-base">
-                  Getting your video ready…
+                  {rdPreparation ? "Caching to Real-Debrid" : playerUiStatus}
                 </p>
 
-                <p className="mt-1 text-xs leading-relaxed text-white/50 sm:text-sm">
-                  {rdPreparation ? simpleCacheHint : "Media God is finding the best available stream for this device."}
+                <p className="mt-1 line-clamp-2 text-xs text-white/45">
+                  {activeSourceLabel || "Finding the best available source…"}
                 </p>
 
                 {rdPreparation && (
-                  <div className="mt-4 w-full">
-                    <div className="flex items-center justify-between gap-3 text-left">
-                      <span className="text-xs font-semibold text-white/65">
-                        Preparing stream
+                  <div className="mt-4 w-full rounded-xl border border-white/10 bg-white/[0.03] p-3 text-left">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs font-semibold text-white/75">
+                        Step {cachePhase.step}/5 · {cacheStatusLabel}
                       </span>
 
                       <span className="text-sm font-bold tabular-nums text-mg-green">
@@ -8773,22 +8501,15 @@ export default function VideoPlayer({
                       />
                     </div>
 
-                    <details className="mt-3 rounded-lg border border-white/5 bg-white/[0.025] p-2 text-left text-[10px] text-white/40 sm:text-xs">
-                      <summary className="cursor-pointer select-none font-semibold text-white/45">
-                        Playback details
-                      </summary>
+                    <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-white/50 sm:text-xs">
+                      {cacheStats.map((item) => (
+                        <span key={item}>{item}</span>
+                      ))}
+                    </div>
 
-                      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
-                        <span>Step {cachePhase.step}/5 · {cacheStatusLabel}</span>
-                        {cacheStats.map((item) => (
-                          <span key={item}>{item}</span>
-                        ))}
-                      </div>
-
-                      <p className="mt-2 leading-relaxed text-white/35">
-                        {cacheHint}
-                      </p>
-                    </details>
+                    <p className="mt-2 text-[10px] leading-relaxed text-white/40 sm:text-xs">
+                      {cacheHint}
+                    </p>
                   </div>
                 )}
               </div>
@@ -8800,11 +8521,13 @@ export default function VideoPlayer({
               </div>
 
               <p className="text-sm font-semibold text-white/85 sm:text-base">
-                We’re having trouble with this stream
+                {sourceNeedsCaching(active)
+                  ? "This torrent needs attention"
+                  : "This source is unavailable"}
               </p>
 
               <p className="max-w-md text-xs leading-relaxed text-white/50 sm:text-sm">
-                {friendlyError || "Media God couldn’t start this stream. Try again and it will re-check the best available option."}
+                {friendlyError || "Media God rejected an error/status stream instead of playing it as video."}
               </p>
 
               {isRdSource && (
@@ -8814,7 +8537,7 @@ export default function VideoPlayer({
                   className="mt-1 flex min-h-10 items-center gap-2 rounded-lg bg-mg-green px-4 text-xs font-bold text-black hover:bg-mg-green-dim focus:outline-none focus:ring-2 focus:ring-white/70"
                 >
                   <RefreshCw className="h-3.5 w-3.5" />
-                  Try again
+                  Retry this source
                 </button>
               )}
             </div>
@@ -8840,7 +8563,7 @@ export default function VideoPlayer({
               </p>
 
               <p className="max-w-md text-white/50 text-xs">
-                Resume to return to the Fire TV player. Stream selection is available inside the player.
+                Resume to return to the Fire TV player. Source selection is now available inside the native player.
               </p>
 
               <button
@@ -8866,7 +8589,7 @@ export default function VideoPlayer({
               </p>
 
               <p className="max-w-md text-white/45 text-xs">
-                Media God is opening the best player for this stream.
+                Media God is handing this stream to the Android native video engine.
               </p>
             </div>
           ) : rdOverride ? (
@@ -9185,7 +8908,7 @@ export default function VideoPlayer({
                     >
                       {visibleSourceSelectorValue === "" ? (
                         <option value="" disabled>
-                          Preparing more streams…
+                          Preparing uncached sources…
                         </option>
                       ) : null}
                       {visibleSourceSelectorEntries.map(
@@ -9268,40 +8991,31 @@ export default function VideoPlayer({
 
             {selectableSourceCount > 0 && (
               <span className="shrink-0 text-[10px] font-medium text-white/35 sm:text-xs">
-                {selectableSourceCount} {selectableSourceCount === 1 ? "stream" : "streams"}
+                {selectableSourceCount} {selectableSourceCount === 1 ? "source" : "sources"}
               </span>
             )}
           </div>
 
-          <details
-            data-mg-playback-details="true"
-            className="w-full rounded-lg border border-white/5 bg-white/[0.025] px-2.5 py-1.5 text-[10px] font-medium text-white/40 sm:text-xs"
+          <div
+            data-mg-source-health="true"
+            className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-white/5 bg-white/[0.025] px-2.5 py-1.5 text-[10px] font-medium text-white/40 sm:text-xs"
           >
-            <summary className="cursor-pointer select-none font-semibold text-white/45">
-              Playback details
-            </summary>
-
-            <div
-              data-mg-source-health="true"
-              className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1"
-            >
-              <span className="font-bold uppercase tracking-[0.12em] text-mg-green/80">
-                Source health
-              </span>
-              <span>
-                Found {Math.max(Number(source?.sourceDiagnostics?.combinedSourceCount || 0), sources.length)}
-              </span>
-              <span>
-                Cache checked {Number(source?.sourceDiagnostics?.cacheCandidateCount || 0)}
-              </span>
-              <span>
-                Cached {Number(source?.sourceDiagnostics?.cachedSourceCount || 0)}
-              </span>
-              <span>
-                Ready {selectableSourceCount}
-              </span>
-            </div>
-          </details>
+            <span className="font-bold uppercase tracking-[0.12em] text-mg-green/80">
+              Source health
+            </span>
+            <span>
+              Found {Math.max(Number(source?.sourceDiagnostics?.combinedSourceCount || 0), sources.length)}
+            </span>
+            <span>
+              Cache checked {Number(source?.sourceDiagnostics?.cacheCandidateCount || 0)}
+            </span>
+            <span>
+              Cached {Number(source?.sourceDiagnostics?.cachedSourceCount || 0)}
+            </span>
+            <span>
+              Ready {selectableSourceCount}
+            </span>
+          </div>
 
           {availableSortOptions.length > 1 && (
             <label className="w-[10.5rem] shrink-0 sm:w-[12.5rem]">
@@ -9360,7 +9074,7 @@ export default function VideoPlayer({
           {selectableSourceCount > 1 && (
             <label className="min-w-[12rem] flex-1 basis-[16rem]">
               <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.12em] text-white/40">
-                Stream / quality
+                Source / quality
               </span>
 
               <div className="relative">
@@ -9381,11 +9095,10 @@ export default function VideoPlayer({
                   }}
                   className="min-h-11 w-full appearance-none rounded-lg border border-white/10 bg-mg-card py-2.5 pl-3 pr-9 text-xs font-medium text-white outline-none transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/30 sm:min-h-10 sm:text-sm"
                   aria-label="Choose playback source"
-                  title="Choose a different stream or quality"
                 >
                   {visibleSourceSelectorValue === "" ? (
                     <option value="" disabled>
-                      Preparing more streams…
+                      Preparing uncached sources…
                     </option>
                   ) : null}
                   {visibleSourceSelectorEntries.map(
@@ -9429,7 +9142,7 @@ export default function VideoPlayer({
             visibleRdFileSelectorFiles.length > 1 && (
               <label className="min-w-[12rem] flex-1 basis-[18rem]">
                 <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.12em] text-white/40">
-                  Video file
+                  Torrent file
                 </span>
 
                 <select
@@ -9457,7 +9170,7 @@ export default function VideoPlayer({
                   }}
                   disabled={fileSwitching}
                   className="min-h-11 w-full rounded-lg border border-white/10 bg-mg-card px-3 py-2.5 text-xs font-medium text-white outline-none transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/30 disabled:opacity-60 sm:min-h-10 sm:text-sm"
-                  aria-label="Choose video file"
+                  aria-label="Choose torrent file"
                 >
                   {visibleRdFileSelectorFiles.map(
                     (file, index) => (
@@ -9476,8 +9189,7 @@ export default function VideoPlayer({
 
           {nativePlaybackAvailable &&
             !isLive &&
-            !forceNativePlayback &&
-            (displayedError || audioNeedsAttention) && (
+            !forceNativePlayback && (
               <button
                 type="button"
                 data-mg-native-decoder="true"
@@ -9495,7 +9207,6 @@ export default function VideoPlayer({
               </button>
             )}
 
-          {(displayedError || audioNeedsAttention || readPlaybackPreferences().automaticNoSoundRecovery === false) && (
           <button
             type="button"
             data-mg-no-sound="true"
@@ -9514,9 +9225,8 @@ export default function VideoPlayer({
             title="Try another audio track or source"
           >
             <VolumeX className="h-4 w-4" />
-            <span className="hidden sm:inline">Sound help</span>
+            <span className="hidden sm:inline">Fix audio</span>
           </button>
-          )}
 
         </div>
 
@@ -9557,7 +9267,7 @@ export default function VideoPlayer({
                   }
                   className="min-h-9 shrink-0 rounded-lg border border-white/10 bg-white/10 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green"
                 >
-                  Try again
+                  Retry
                 </button>
               )}
             </div>

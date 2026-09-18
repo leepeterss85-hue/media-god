@@ -1,35 +1,5 @@
 export const UPDATE_HISTORY = [
   {
-    id: "single-playback-owner-stability-2026-09-17-v1",
-    date: "17 September 2026",
-    title: "Video playback now keeps one stream in control",
-    summary:
-      "Movies and episodes no longer let overlapping recovery systems open several streams, restart healthy playback or reset audio during ordinary buffering.",
-    changes: [
-      "Only one source transition can leave a failing stream at a time, so duplicate browser/native error callbacks cannot cascade through several backups.",
-      "The outgoing browser video is paused and muted before a replacement stream is allowed to start, preventing overlapping decoder/audio ownership.",
-      "Background addon and cache discovery can still enrich source metadata, but it can no longer replace the transport URL of a source that is already published to the player.",
-      "Once a movie or episode has started, ordinary buffering no longer triggers automatic source hopping on the web player, Fire TV or Android Mobile.",
-      "Startup failures and genuine Media3/browser/HTTP/decoder errors still use the normal recovery path, and expired 401/403/410 links still refresh the same stream first.",
-      "Fire TV advances to 1.4.35 / versionCode 40 and Android Mobile to 1.0.21 / versionCode 22.",
-    ],
-  },
-  {
-    id: "expired-link-same-source-refresh-2026-09-17-v1",
-    date: "17 September 2026",
-    title: "Expired playback links now refresh before source failover",
-    summary:
-      "Movies and episodes now recover from expired signed stream URLs by refreshing the same source first and resuming at the saved playback position.",
-    changes: [
-      "Native Fire TV and Android players now recognise HTTP 401, 403 and 410 playback responses as expired-link failures instead of treating them as ordinary dead streams.",
-      "Real-Debrid and torrent-backed playback is re-resolved through the same source so Media God can obtain a fresh playable URL without changing the user's selected release.",
-      "Direct addon streams are re-fetched and replaced in-place when the same provider returns a fresh URL.",
-      "Only when the same source cannot be refreshed does Media God move on to the normal compatibility-ranked backup stream.",
-      "Playback position is preserved through the refresh and backup paths.",
-      "Fire TV advances to 1.4.34 / versionCode 39 and Android Mobile to 1.0.20 / versionCode 21.",
-    ],
-  },
-  {
     id: "fire-tv-1-4-32-installer-handoff-2026-09-17-v1",
     date: "17 September 2026",
     title: "Fire TV updater opens the installer immediately",

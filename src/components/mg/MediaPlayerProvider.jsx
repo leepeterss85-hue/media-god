@@ -352,39 +352,6 @@ const stableDiscoveredSourceKey = (item) => {
   return id ? `id:${id}` : "";
 };
 
-const refreshableSourceIdentity = (item) => {
-  if (!item) return "";
-
-  const hash = sourceMagnetHash(item);
-  if (hash) {
-    return `torrent:${hash}:${String(item?.fileIdx ?? item?.file_idx ?? "")}`;
-  }
-
-  const id = String(item?.id || "").trim().toLowerCase();
-  if (id) return `id:${id}`;
-
-  const provider = [
-    item?.addon,
-    item?.addonName,
-    item?.sourceName,
-    item?.provider,
-    item?.debridProvider,
-  ]
-    .map((value) => String(value || "").trim().toLowerCase())
-    .filter(Boolean)
-    .join("|");
-  const label = String(
-    item?.label || item?.name || item?.title || ""
-  )
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
-
-  return provider || label
-    ? `direct:${provider}:${label}`
-    : "";
-};
-
 const preservePublishedSourceOrder = (published, incoming) => {
   const previous = Array.isArray(published)
     ? published.filter((item) => item && !item?.diagnostic)
@@ -406,27 +373,7 @@ const preservePublishedSourceOrder = (published, incoming) => {
   previous.forEach((item) => {
     const key = stableDiscoveredSourceKey(item);
     if (key && nextByKey.has(key)) {
-      const enriched = nextByKey.get(key);
-      const previousUrl = String(getSourceUrl(item) || "").trim();
-
-      /*
-       * Discovery is allowed to enrich labels/cache/provider metadata, but it
-       * must never replace the transport of a source that has already been
-       * published to a running player. A late addon/cache result changing the
-       * src/url underneath VideoPlayer was effectively an unsolicited source
-       * switch and could restart video, reset audio tracks or launch Media3
-       * again. Explicit refresh/failover remains owned by VideoPlayer.
-       */
-      stable.push({
-        ...item,
-        ...enriched,
-        ...(previousUrl
-          ? {
-              src: item?.src || previousUrl,
-              url: item?.url || previousUrl,
-            }
-          : {}),
-      });
+      stable.push(nextByKey.get(key));
       used.add(key);
       return;
     }
@@ -1846,108 +1793,6 @@ export function PlayerProvider({
       [hasRd, hasDebrid]
     );
 
-  const refreshExpiredSource =
-    useCallback(
-      async ({
-        activeIndex = 0,
-        activeSource = null,
-      } = {}) => {
-        const snapshot = source;
-        const index = Number(activeIndex);
-
-        if (
-          !snapshot ||
-          !Number.isInteger(index) ||
-          index < 0 ||
-          snapshot?.type === "live" ||
-          activeSource?.live ||
-          activeSource?.type === "live"
-        ) {
-          return { refreshed: false };
-        }
-
-        const oldUrl = String(getSourceUrl(activeSource) || "").trim();
-        const wantedIdentity = refreshableSourceIdentity(activeSource);
-
-        if (!oldUrl || !wantedIdentity) {
-          return { refreshed: false };
-        }
-
-        try {
-          const refreshed = await prepare({
-            ...snapshot,
-            sources: [],
-            preparedEpisodeHandoff: false,
-            skipAddonLookup: false,
-            skipRdLookup: false,
-          });
-
-          const candidates = Array.isArray(refreshed?.sources)
-            ? refreshed.sources.filter(Boolean)
-            : [];
-          const match = candidates.find(
-            (item) =>
-              refreshableSourceIdentity(item) === wantedIdentity &&
-              /^https?:\/\//i.test(String(getSourceUrl(item) || "").trim()) &&
-              String(getSourceUrl(item) || "").trim() !== oldUrl
-          );
-
-          if (!match) {
-            return { refreshed: false };
-          }
-
-          const freshUrl = String(getSourceUrl(match) || "").trim();
-
-          setSource((current) => {
-            if (
-              !current ||
-              current.playRequestId !== snapshot.playRequestId
-            ) {
-              return current;
-            }
-
-            const currentSources = Array.isArray(current.sources)
-              ? [...current.sources]
-              : [];
-
-            if (index >= currentSources.length) {
-              return current;
-            }
-
-            currentSources[index] = {
-              ...currentSources[index],
-              ...match,
-              src: freshUrl,
-              url: freshUrl,
-            };
-
-            return {
-              ...current,
-              sources: currentSources,
-              ...(index === 0
-                ? {
-                    src: freshUrl,
-                    url: freshUrl,
-                  }
-                : {}),
-              sourceDiagnostics: {
-                ...(current.sourceDiagnostics || {}),
-                linkRefreshedAt: Date.now(),
-              },
-            };
-          });
-
-          return {
-            refreshed: true,
-            url: freshUrl,
-          };
-        } catch {
-          return { refreshed: false };
-        }
-      },
-      [source, prepare]
-    );
-
   const play =
     useCallback(
       async (
@@ -2969,9 +2814,6 @@ export function PlayerProvider({
               }
               onClose={
                 close
-              }
-              onRefreshSource={
-                refreshExpiredSource
               }
             />
           </PlayerRenderBoundary>,
