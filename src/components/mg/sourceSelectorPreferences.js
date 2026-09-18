@@ -50,7 +50,11 @@ export const availableSourceSortOptions = (sources, options = {}) => {
    * exists, even if it is currently the only selectable source. The old early
    * return hid the entire filter box in exactly that case.
    */
-  if (hasCached) {
+  const movieLike =
+    mediaType !== "tv" &&
+    mediaType !== "series";
+
+  if (hasCached && (items.length > 1 || movieLike)) {
     available.push({ value: "cached", label: "Cached / ready" });
   }
 
