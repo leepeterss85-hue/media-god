@@ -1,3 +1,4 @@
+import { stopExclusivePlayback } from "@/components/mg/exclusivePlayback";
 import { readPlaybackPreferences } from "@/components/mg/playbackPreferences";
 
 let nativeCodecInfoCache = null;
@@ -449,6 +450,10 @@ const setNativePlaybackOwnership = (active) => {
   }
 
   window.__MG_NATIVE_PLAYBACK_ACTIVE__ = Boolean(active);
+
+  if (active) {
+    stopExclusivePlayback();
+  }
 
   if (!active || typeof document === "undefined") {
     return;
