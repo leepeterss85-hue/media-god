@@ -49,9 +49,10 @@ export const sourceHasPendingCacheSignal = (item, strategy = "") => {
   if (
     item?.cacheRequired === true ||
     item?.cometUncached === true ||
+    normaliseState(item?.debridCacheCheckState) === "uncached" ||
     (
       item?.debridCacheChecked === true &&
-      item?.debridCached !== true
+      item?.debridCached === false
     )
   ) {
     return true;
