@@ -147,6 +147,15 @@ expect(
 );
 
 expect(
+  videoPlayer.includes("No automatic no-sound intervention.") &&
+    !videoPlayer.includes("rememberedSilent ? 2200 : 4200") &&
+    nativeBridge.includes('automaticNoSoundRecovery: false') &&
+    nativeBridge.includes('mg:native-playback-diagnostics:v2') &&
+    mediaPlayerProvider.includes('mg:playback-reliability-v3'),
+  "playback never abandons a healthy source after a two-second no-sound guess and ignores sound-era learned state"
+);
+
+expect(
   assist.includes("runClickFallback") &&
     assist.includes("runKeyAction") &&
     assist.includes("!(recapEnd > 0)") &&
