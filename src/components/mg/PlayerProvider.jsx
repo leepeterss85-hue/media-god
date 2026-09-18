@@ -826,9 +826,40 @@ function PlayerAutomationBridge({ children }) {
     }
 
     const onChooseEpisode = () => {
-      window.dispatchEvent(
-        new CustomEvent("mg:open-episode-picker")
-      );
+      const current = currentRequestRef.current;
+
+      if (!isTvRequest(current)) {
+        return;
+      }
+
+      const detail = {
+        mediaType: "tv",
+        tmdbId:
+          current?.tmdbId ??
+          current?.tmdb_id ??
+          current?.id ??
+          null,
+        title: seriesTitleFromRequest(current),
+        year: current?.rdYear ?? current?.year ?? null,
+        poster: current?.poster || "",
+        season: current?.season ?? current?.rdSeason ?? null,
+        episode: current?.episode ?? current?.rdEpisode ?? null,
+      };
+
+      /*
+       * This event is used by the in-player "Back to episodes" control and by
+       * the native TV player. Close playback first so the episode screen is
+       * visible when Home restores/focuses it.
+       */
+      close();
+
+      window.setTimeout(() => {
+        window.dispatchEvent(
+          new CustomEvent("mg:return-to-episode-selector", {
+            detail,
+          })
+        );
+      }, 0);
     };
 
     const onPlaySpecificEpisode = async (event) => {
@@ -1360,6 +1391,7 @@ function PlayerAutomationBridge({ children }) {
   }, [
     advanceToNext,
     autoNext,
+    close,
     play,
     publishContext,
     publishStatus,

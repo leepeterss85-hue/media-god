@@ -1,4 +1,5 @@
 import React, {
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -868,6 +869,71 @@ export default function VideoPlayer({
           source?.rdEpisode != null
         ? "tv"
         : "movie";
+
+  const returnFromPlayback = useCallback(() => {
+    if (playbackMediaType !== "tv") {
+      onClose?.();
+      return;
+    }
+
+    const tmdbId =
+      source?.tmdbId ??
+      source?.tmdb_id ??
+      source?.id ??
+      null;
+
+    const seriesTitle = String(
+      source?.rdTitle ||
+        source?.seriesTitle ||
+        source?.title ||
+        "TV Show"
+    )
+      .replace(/\s+[—-]\s+S\d{1,2}E\d{1,3}.*$/i, "")
+      .trim();
+
+    const episodeContext = {
+      mediaType: "tv",
+      tmdbId,
+      title: seriesTitle || "TV Show",
+      year: source?.rdYear ?? source?.year ?? null,
+      poster: source?.poster || "",
+      season: source?.season ?? source?.rdSeason ?? null,
+      episode: source?.episode ?? source?.rdEpisode ?? null,
+    };
+
+    /*
+     * Close playback first, then restore the show's season/episode screen.
+     * This also covers episodes opened from Search or Continue Watching where
+     * there may not already be a detail screen mounted underneath the player.
+     */
+    onClose?.();
+
+    if (typeof window !== "undefined") {
+      window.setTimeout(() => {
+        window.dispatchEvent(
+          new CustomEvent("mg:return-to-episode-selector", {
+            detail: episodeContext,
+          })
+        );
+      }, 0);
+    }
+  }, [
+    onClose,
+    playbackMediaType,
+    source?.episode,
+    source?.id,
+    source?.poster,
+    source?.rdEpisode,
+    source?.rdSeason,
+    source?.rdTitle,
+    source?.rdYear,
+    source?.season,
+    source?.seriesTitle,
+    source?.title,
+    source?.tmdbId,
+    source?.tmdb_id,
+    source?.year,
+  ]);
 
   const availableSortOptions = availableSourceSortOptions(
     sourcesForSelector,
@@ -5315,7 +5381,7 @@ export default function VideoPlayer({
               return;
             }
 
-            onClose();
+            returnFromPlayback();
             return;
           }
 
@@ -7360,11 +7426,14 @@ export default function VideoPlayer({
         reason === "back" &&
         !isLive
       ) {
+        if (playbackMediaType === "tv") {
+          returnFromPlayback();
+          return;
+        }
+
         /*
-         * Return to Media God's source/torrent selector without immediately
-         * sending the same URL back to Media3 and without asking WebView to
-         * decode it. Choosing another source/file clears this URL lock; the
-         * Resume button below clears it explicitly for the current source.
+         * Movies keep the existing safe native-to-WebView handoff. Only TV
+         * episodes use Back as an explicit return to the episode selector.
          */
         setForceNativePlayback(false);
         setNativeFallbackUrl(String(activeRequest.url || "").trim());
@@ -7373,7 +7442,7 @@ export default function VideoPlayer({
           new CustomEvent("mg:player-status", {
             detail: {
               message:
-                "Playback paused — resume the Fire TV player or return to the episode list.",
+                "Playback paused — resume the player or choose another source.",
             },
           })
         );
@@ -7400,6 +7469,8 @@ export default function VideoPlayer({
     rdOverride,
     forceNativePlayback,
     onClose,
+    returnFromPlayback,
+    playbackMediaType,
     activeIdx,
     sources,
   ]);
@@ -8332,7 +8403,7 @@ export default function VideoPlayer({
       data-mg-rd-cache-source={sourceNeedsCaching(active) ? "true" : "false"}
       className="fixed inset-0 z-[2147483646] bg-black/95 flex items-center justify-center p-2 sm:p-3 md:p-4"
       onClick={
-        onClose
+        returnFromPlayback
       }
     >
       <div
@@ -8351,7 +8422,7 @@ export default function VideoPlayer({
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                onClose?.();
+                returnFromPlayback();
               }}
               className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 text-xs font-semibold text-white transition hover:border-mg-green/40 hover:bg-white/10 focus:bg-white/10 focus:outline-none focus:ring-2 focus:ring-mg-green sm:min-h-10"
               aria-label="Exit player"
@@ -8669,7 +8740,7 @@ export default function VideoPlayer({
                   isAppFullscreen
                 }
                 onBack={
-                  onClose
+                  returnFromPlayback
                 }
                 title={
                   source?.title ||
@@ -8794,7 +8865,7 @@ export default function VideoPlayer({
                   isAppFullscreen
                 }
                 onBack={
-                  onClose
+                  returnFromPlayback
                 }
                 title={
                   source?.title ||
@@ -8859,7 +8930,7 @@ export default function VideoPlayer({
                 <button
                   type="button"
                   onClick={
-                    onClose
+                    returnFromPlayback
                   }
                   className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg bg-black/45 px-3 text-xs font-semibold text-white backdrop-blur hover:bg-black/65 focus:outline-none focus:ring-2 focus:ring-mg-green/50"
                   aria-label="Back to main menu"

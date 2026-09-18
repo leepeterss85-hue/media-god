@@ -11,6 +11,7 @@ const expect = (condition, message) => {
 };
 
 const provider = read("src/components/mg/PlayerProvider.jsx");
+const home = read("src/pages/Home.jsx");
 const mediaPlayerProvider = read("src/components/mg/MediaPlayerProvider.jsx");
 const assist = read("src/components/mg/MediaGodV2Assist.jsx");
 const videoPlayer = read("src/components/mg/VideoPlayer.jsx");
@@ -48,6 +49,18 @@ expect(
   videoPlayer.includes('reason === "next"') &&
     videoPlayer.includes('new CustomEvent("mg:play-next-episode")'),
   "native Fire TV Next returns through the shared episode playback pipeline"
+);
+
+expect(
+  videoPlayer.includes('new CustomEvent("mg:return-to-episode-selector"') &&
+    videoPlayer.includes('playbackMediaType === "tv"') &&
+    provider.includes('new CustomEvent("mg:return-to-episode-selector"') &&
+    provider.includes("close();") &&
+    home.includes('window.addEventListener(\n      "mg:return-to-episode-selector"') &&
+    home.includes('document.getElementById(\n      "mg-episode-selector"') &&
+    home.includes("revealEpisodeSelectorWhenReady") &&
+    home.includes("setSearchResult(item)"),
+  "TV episode Back restores the show season/episode selector instead of falling through to Home"
 );
 
 expect(

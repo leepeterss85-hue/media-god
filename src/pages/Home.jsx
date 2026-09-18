@@ -3,6 +3,7 @@ import React, {
   Suspense,
   lazy,
   useCallback,
+  useEffect,
   useState,
 } from "react";
 
@@ -243,6 +244,61 @@ const elementVisible =
     );
   };
 
+const revealEpisodeSelector = () => {
+  if (typeof document === "undefined") {
+    return false;
+  }
+
+  const target =
+    document.getElementById(
+      "mg-episode-selector"
+    );
+
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  target.scrollIntoView({
+    behavior: "smooth",
+    block: "start",
+  });
+
+  const focusTarget =
+    target.querySelector(
+      'select[aria-label="Choose season"], button'
+    );
+
+  window.setTimeout(
+    () => focusTarget?.focus?.(),
+    80
+  );
+
+  return true;
+};
+
+const revealEpisodeSelectorWhenReady = (
+  attempt = 0
+) => {
+  if (revealEpisodeSelector()) {
+    return;
+  }
+
+  if (
+    typeof window === "undefined" ||
+    attempt >= 32
+  ) {
+    return;
+  }
+
+  window.setTimeout(
+    () =>
+      revealEpisodeSelectorWhenReady(
+        attempt + 1
+      ),
+    125
+  );
+};
+
 /*
  * Finds the close/back control belonging to the current
  * full-screen overlay.
@@ -460,6 +516,93 @@ function MediaGodApp() {
     query: "",
     key: 0,
   });
+
+  useEffect(() => {
+    const onReturnToEpisodeSelector = (
+      event
+    ) => {
+      const detail =
+        event?.detail ||
+        {};
+
+      if (
+        String(
+          detail?.mediaType ||
+            ""
+        ).toLowerCase() !==
+        "tv"
+      ) {
+        return;
+      }
+
+      /*
+       * If the show details were already underneath the player, restore that
+       * exact selector. This is the normal path when playback started from the
+       * show's episode list.
+       */
+      if (
+        revealEpisodeSelector()
+      ) {
+        return;
+      }
+
+      /*
+       * Continue Watching, Search and remote playback can start an episode
+       * without a details modal underneath it. Re-create the TV detail screen
+       * from the playback identity, then focus its episode selector as soon as
+       * TMDB seasons finish loading.
+       */
+      const item =
+        normaliseSearchSelection({
+          id:
+            detail?.tmdbId ??
+            null,
+          tmdb_id:
+            detail?.tmdbId ??
+            null,
+          tmdbId:
+            detail?.tmdbId ??
+            null,
+          title:
+            detail?.title ||
+            "TV Show",
+          year:
+            detail?.year ||
+            "",
+          poster_url:
+            detail?.poster ||
+            "",
+          media_type:
+            "tv",
+          mediaType:
+            "tv",
+        });
+
+      if (!item) {
+        return;
+      }
+
+      setSearchOpen(false);
+      setSearchResult(item);
+
+      window.requestAnimationFrame(
+        () =>
+          revealEpisodeSelectorWhenReady()
+      );
+    };
+
+    window.addEventListener(
+      "mg:return-to-episode-selector",
+      onReturnToEpisodeSelector
+    );
+
+    return () => {
+      window.removeEventListener(
+        "mg:return-to-episode-selector",
+        onReturnToEpisodeSelector
+      );
+    };
+  }, []);
 
   /*
    * One back routine for the entire application.
