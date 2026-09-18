@@ -48,6 +48,10 @@ import {
   sourceHasPendingCacheSignal,
 } from "../src/components/mg/sourceCacheVisibility.js";
 import {
+  classifyDebridCacheCheck,
+  mergeDebridCacheCheckState,
+} from "../src/components/mg/debridCacheCheck.js";
+import {
   COMPATIBLE_AUTOPLAY_LIMIT,
   prioritiseCompatibleAutoplayEntries,
 } from "../src/components/mg/automaticSourceOrder.js";
@@ -111,6 +115,99 @@ test("Fire TV Home keeps a dedicated vertical scroll container", () => {
   assert.match(fireTvCss, /\[data-mg-home-dashboard="true"\][\s\S]{0,700}?height:\s*100vh\s*!important/);
   assert.match(fireTvCss, /\[data-mg-home-dashboard="true"\][\s\S]{0,900}?overflow-y:\s*auto\s*!important/);
   assert.match(fireTvCss, /\[data-mg-home-dashboard="true"\][\s\S]{0,1100}?scroll-padding-bottom:\s*40px\s*!important/);
+});
+
+test("partial debrid cache failures stay unknown instead of becoming uncached", () => {
+  const hash = "a".repeat(40);
+  const result = classifyDebridCacheCheck(
+    {
+      providersChecked: ["realdebrid"],
+      cached: {
+        realdebrid: {
+          [hash]: false,
+        },
+      },
+      providerStats: {
+        realdebrid: {
+          latencyMs: 1200,
+          error: "Temporary Real-Debrid timeout",
+        },
+      },
+    },
+    [hash]
+  );
+
+  assert.equal(result[hash].state, "unknown");
+});
+
+test("complete debrid cache misses are confirmed uncached", () => {
+  const hash = "b".repeat(40);
+  const result = classifyDebridCacheCheck(
+    {
+      providersChecked: ["realdebrid"],
+      cached: {
+        realdebrid: {
+          [hash]: false,
+        },
+      },
+      providerStats: {
+        realdebrid: {
+          latencyMs: 80,
+          error: "",
+        },
+      },
+    },
+    [hash]
+  );
+
+  assert.equal(result[hash].state, "uncached");
+});
+
+test("positive cache hits survive partial provider errors", () => {
+  const hash = "c".repeat(40);
+  const result = classifyDebridCacheCheck(
+    {
+      providersChecked: ["realdebrid", "torbox"],
+      cached: {
+        realdebrid: {
+          [hash]: true,
+        },
+        torbox: {
+          [hash]: false,
+        },
+      },
+      providerStats: {
+        realdebrid: {
+          latencyMs: 75,
+          error: "",
+        },
+        torbox: {
+          latencyMs: 900,
+          error: "Temporary provider error",
+        },
+      },
+    },
+    [hash]
+  );
+
+  assert.equal(result[hash].state, "cached");
+  assert.deepEqual(result[hash].cachedProviders, ["realdebrid"]);
+  assert.equal(
+    mergeDebridCacheCheckState(result[hash], { state: "unknown", cachedProviders: [] }).state,
+    "cached"
+  );
+});
+
+test("player retries only unknown cache hashes and never records them as a miss", () => {
+  const providerSource = readFileSync(
+    new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(providerSource, /const unknownHashes = hashes\.filter/);
+  assert.match(providerSource, /await checkBatches\(unknownHashes\)/);
+  assert.match(providerSource, /debridCacheChecked:\s*false/);
+  assert.match(providerSource, /debridCacheCheckState:\s*"unknown"/);
 });
 
 test("uncached v2 engine owns Real-Debrid slot preflight and preserves blocked source", () => {
