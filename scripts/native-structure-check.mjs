@@ -218,6 +218,11 @@ for (const app of apps) {
     [compatibilityActivity.includes("setAudioDelay"), "lip-sync adjustment"],
     [compatibilityActivity.includes("audioOutputMode") && compatibilityActivity.includes("setAudioDigitalOutputEnabled"), "selectable audio output modes"],
     [compatibilityActivity.includes("automaticNoSoundRecovery") && compatibilityActivity.includes("recoverAudioTrack"), "automatic no-sound recovery"],
+    [
+      compatibilityActivity.includes("preferredAliases") &&
+        compatibilityActivity.includes("value += 1000"),
+      "preferred/English audio track priority",
+    ],
     [compatibilityActivity.includes("equalizer-bands") && compatibilityActivity.includes("dialogueBoost"), "dialogue boost"],
     [compatibilityActivity.includes("audio-replay-gain-mode") && compatibilityActivity.includes("volumeNormalization"), "volume normalization"],
     [compatibilityActivity.includes("showPlaybackInfo"), "native playback info screen"],
