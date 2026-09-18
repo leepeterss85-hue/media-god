@@ -3,7 +3,7 @@
   "versionCode": 42,
   "versionName": "1.4.37",
   "title": "Media God Fire TV",
-  "message": "Fire TV 1.4.37 stops the previous video before another source opens and cancels stale native player launches.",
+  "message": "Fire TV 1.4.37 restores the last stable pre-sound-change playback engine for fast, direct playback.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
