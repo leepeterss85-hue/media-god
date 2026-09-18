@@ -859,6 +859,44 @@ test("source selector recognises every uncached Real-Debrid payload shape", () =
   );
 });
 
+test("unknown cache checks and failed cached rows remain in the source chooser", () => {
+  const unknown = {
+    type: "torrent",
+    infoHash: "d".repeat(40),
+    debridCacheChecked: false,
+    debridCached: undefined,
+    debridCacheCheckState: "unknown",
+  };
+
+  assert.equal(sourceHasPendingCacheSignal(unknown), false);
+
+  const selectorSource = readFileSync(
+    new URL("../src/components/mg/sourceSelectorPreferences.js", import.meta.url),
+    "utf8"
+  );
+  const controlsSource = readFileSync(
+    new URL("../src/components/mg/MediaPlayerControls.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(
+    selectorSource,
+    /Do not turn an incomplete or unknown cache lookup into an uncached verdict/
+  );
+  assert.doesNotMatch(
+    selectorSource,
+    /const strategy = chooseDebridResolutionStrategy/
+  );
+  assert.match(
+    controlsSource,
+    /transient playback failure must not delete a known cached source/
+  );
+  assert.doesNotMatch(
+    controlsSource,
+    /sourceIsUserSelectable\(item\)\s*&&\s*!\(/
+  );
+});
+
 test("authoritative cached state wins over stale uncached discovery metadata", () => {
   const ready = {
     debridCached: true,
