@@ -91,6 +91,7 @@ export default function PlaybackAdvancedSettings() {
       window.localStorage.removeItem(DIAGNOSTICS_KEY);
       window.localStorage.removeItem("mg:playback-reliability-v1");
       window.localStorage.removeItem("mg:playback-reliability-v2");
+      window.localStorage.removeItem("mg:playback-reliability-v3");
     } catch {
       // Storage is best effort.
     }
