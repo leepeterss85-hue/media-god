@@ -19,6 +19,7 @@ import {
 } from "@/components/mg/addonBrowserFallback";
 
 import VideoPlayer from "@/components/mg/VideoPlayer";
+import { stopExclusivePlayback } from "@/components/mg/exclusivePlayback";
 import {
   detectLanguagePreference,
   getPlaybackDeviceProfile,
@@ -1784,6 +1785,8 @@ export function PlayerProvider({
         request = {}
       ) => {
         const playId = ++playSequenceRef.current;
+        stopExclusivePlayback();
+
         const isCurrentPlay = () =>
           playSequenceRef.current === playId;
 
@@ -2696,6 +2699,7 @@ export function PlayerProvider({
     useCallback(
       () => {
         playSequenceRef.current += 1;
+        stopExclusivePlayback();
 
         setSource(
           null
