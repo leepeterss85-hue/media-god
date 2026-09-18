@@ -3155,6 +3155,7 @@ export default function VideoPlayer({
                   action: "torrent_info",
                   torrent_id: existingRdTorrentId,
                   prefer_browser_transcode: prefersMobileBrowserRdCompatibility(),
+                  fast_start: isNativeFireTvPlayerAvailable(),
                   title:
                     source?.rdTitle ||
                     source?.title ||
