@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 46,
-  "versionName": "1.4.41",
+  "versionCode": 47,
+  "versionName": "1.4.42",
   "title": "Media God Fire TV",
-  "message": "Fire TV 1.4.41 adds preventative single-player lifecycle protection, device regression coverage, and clearer English-first audio preference handling.",
+  "message": "Fire TV 1.4.42 fixes missing cached torrents by retrying incomplete debrid cache checks and never treating a temporary provider failure as a confirmed cache miss.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
