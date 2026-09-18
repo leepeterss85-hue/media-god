@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 49,
-  "versionName": "1.4.44",
+  "versionCode": 50,
+  "versionName": "1.4.45",
   "title": "Media God Fire TV",
-  "message": "Fire TV 1.4.44 makes TV episode Back return to the same show's season and episode selector instead of falling through to Home. Movies and Live TV keep their existing Back behaviour.",
+  "message": "Fire TV 1.4.45 restores the complete cached-source chooser for films and TV. Unknown cache checks no longer hide possible cached results, and temporarily failed cached sources remain available for manual retry.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
