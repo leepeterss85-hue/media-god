@@ -38,7 +38,6 @@ import {
   sourceHasPendingCacheSignal,
   sourceIsConfirmedCachedForPlayback,
 } from "@/components/mg/sourceCacheVisibility";
-import { mergeCompleteSourcePool } from "@/components/mg/sourcePoolCompleteness";
 import {
   readSourceSortMode,
   sortSourceEntries,
@@ -2444,9 +2443,10 @@ export function PlayerProvider({
          * several addon rows share the same torrent/file key.
          */
         const canonicalCompletePlaybackSources =
-          mergeCompleteSourcePool(
+          preservePublishedSourceOrder(
             completePlaybackSources,
-            completePlaybackSourcePool
+            completePlaybackSourcePool,
+            stableDiscoveredSourceKey
           );
 
         const diagnosticLabel =
@@ -2523,9 +2523,10 @@ export function PlayerProvider({
          * Rehydrate matching rows with final cache metadata and append every
          * missing source after the already-published choices.
          */
-        orderedSources = mergeCompleteSourcePool(
+        orderedSources = preservePublishedSourceOrder(
           orderedSources,
-          canonicalCompletePlaybackSources
+          canonicalCompletePlaybackSources,
+          stableDiscoveredSourceKey
         );
         publishedSourceSnapshot = orderedSources;
 
