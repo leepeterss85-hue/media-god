@@ -9141,7 +9141,7 @@ export default function VideoPlayer({
             </label>
           )}
 
-          {selectableSourceCount > 1 && (
+          {selectableSourceCount > 0 && (
             <label className="min-w-[12rem] flex-1 basis-[16rem]">
               <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.12em] text-white/40">
                 Source / quality
