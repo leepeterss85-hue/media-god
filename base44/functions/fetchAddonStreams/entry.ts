@@ -2179,10 +2179,13 @@ export default async function (req) {
         ? broadAlternateStreamIds.slice(0, 1)
         : broadAlternateStreamIds.slice(0, 5);
 
-    const selectedAddons =
-      fastMode
-        ? activeAddons.slice(0, 6)
-        : activeAddons;
+    /*
+     * Fast mode is allowed to use shorter timeouts and fewer alternate IDs,
+     * but it must never cap discovery to six addons. If the comprehensive pass
+     * is delayed or a provider times out, that old cap can become the user's
+     * entire visible source pool. Query every configured addon in both modes.
+     */
+    const selectedAddons = activeAddons;
 
     const settled =
       await Promise.allSettled(
