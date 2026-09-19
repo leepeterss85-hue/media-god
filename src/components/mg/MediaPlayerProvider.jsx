@@ -2405,9 +2405,9 @@ export function PlayerProvider({
          * or pre-cache playback subset: that is how a large cached result set
          * can collapse back to five/six visible sources.
          *
-         * Confirmed cached rows are always eligible for the manual chooser.
-         * Normal direct/magnet/live rows remain eligible too, while status and
-         * diagnostic rows stay out of playback.
+         * Manual source visibility has no readiness/cache eligibility gate.
+         * Every discovered source row is retained; only status/diagnostic
+         * placeholders stay out of the source chooser.
          */
         const confirmedCachedPlaybackSources =
           cacheAnnotatedCombined.filter(
@@ -2422,14 +2422,7 @@ export function PlayerProvider({
             (item) =>
               item &&
               !item?.diagnostic &&
-              item?.type !== "status" &&
-              (
-                sourceIsConfirmedCachedForPlayback(item) ||
-                isDirectSource(item) ||
-                isMagnetSource(item) ||
-                item?.type === "live" ||
-                item?.live
-              )
+              item?.type !== "status"
           );
 
         const completePlaybackSources = orderSources({
@@ -2467,10 +2460,10 @@ export function PlayerProvider({
 
         if (!request?.allowNonPlaybackFallback) {
           /*
-           * Trailers and provider links belong in the details/source UI, but
-           * they must never become an automatic movie/episode playback fallback.
-           * Keep the player source array strictly playable for normal Watch.
-           * Explicit Trailer/Provider buttons opt in with allowNonPlaybackFallback.
+           * Keep the full discovered source pool attached to normal playback so
+           * the manual chooser never loses uncached/pending/provider rows. The
+           * player still decides how each selected row is resolved or played;
+           * visibility itself is no longer an eligibility decision.
            */
           orderedSources =
             canonicalCompletePlaybackSources.length > 0

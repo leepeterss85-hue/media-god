@@ -1576,9 +1576,23 @@ test("final player source pool comes directly from the full cache-annotated resu
     providerSource,
     /const completePlaybackSourcePool\s*=\s*cacheAnnotatedCombined\.filter/
   );
-  assert.match(
-    providerSource,
-    /completePlaybackSourcePool[\s\S]{0,520}?sourceIsConfirmedCachedForPlayback\(item\)[\s\S]{0,520}?isDirectSource\(item\)[\s\S]{0,520}?isMagnetSource\(item\)/
+  const poolStart = providerSource.indexOf(
+    "const completePlaybackSourcePool"
+  );
+  const poolEnd = providerSource.indexOf(
+    "const completePlaybackSources",
+    poolStart
+  );
+  const poolBlock = providerSource.slice(poolStart, poolEnd);
+
+  assert.ok(poolStart >= 0);
+  assert.ok(poolEnd > poolStart);
+  assert.match(poolBlock, /cacheAnnotatedCombined\.filter/);
+  assert.match(poolBlock, /!item\?\.diagnostic/);
+  assert.match(poolBlock, /item\?\.type !== "status"/);
+  assert.doesNotMatch(
+    poolBlock,
+    /sourceIsConfirmedCachedForPlayback|sourceHasPendingCacheSignal|isDirectSource|isMagnetSource|cacheRequired|debridCached/
   );
   assert.match(
     providerSource,

@@ -2206,9 +2206,9 @@ export default function VideoPlayer({
    * READY-SOURCE FIRST
    *
    * If discovery ranks an uncached torrent first while another source is
-   * already ready, move straight to the ready source and let the uncached
-   * torrents remain hidden cache candidates. This restores the older Search
-   * behaviour where one slow torrent could not block every cached backup.
+   * already ready, move straight to the ready source automatically. Uncached
+   * torrents remain visible manual choices and background-cache candidates;
+   * one slow torrent must not block an already-ready backup.
    */
   useEffect(() => {
     if (
