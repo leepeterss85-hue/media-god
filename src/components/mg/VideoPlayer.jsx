@@ -68,6 +68,7 @@ import {
   SOURCE_SELECTOR_SORT_EVENT,
   writeSourceSortMode,
 } from "@/components/mg/sourceSelectorPreferences";
+import { mergeCompleteSourcePool } from "@/components/mg/sourcePoolCompleteness";
 import { runRealDebridCacheSession } from "@/components/mg/realDebridCacheEngine";
 import { buildAlternateEmbedFallback } from "@/components/mg/alternateEmbedFallback";
 import {
@@ -683,7 +684,7 @@ export default function VideoPlayer({
   source,
   onClose,
 }) {
-  const sources =
+  const publishedSources =
     source?.sources &&
     source.sources.length > 0
       ? source.sources
@@ -708,6 +709,17 @@ export default function VideoPlayer({
             live: source?.type === "live",
           },
         ];
+
+  /*
+   * source.sources is the fast-start/live player list and can be refreshed by
+   * asynchronous discovery. completeSources is the final cache-annotated pool.
+   * Reconcile both on every render so a late six-row fast-start snapshot can
+   * never hide the rest of the confirmed cached sources from either selector.
+   */
+  const sources = mergeCompleteSourcePool(
+    publishedSources,
+    source?.completeSources
+  );
 
   const [activeIdx, setActiveIdx] =
     useState(0);
