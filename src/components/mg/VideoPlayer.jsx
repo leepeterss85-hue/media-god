@@ -1029,6 +1029,18 @@ export default function VideoPlayer({
     sourceSelectorEntriesRef.current = [];
   };
 
+  /*
+   * Android WebView can dismiss a native <select> popup without firing blur.
+   * If the live chooser grows after this snapshot was pinned, the snapshot is
+   * stale and must stop controlling the rendered options immediately. Keep the
+   * ref-based pin (it protects the native picker from unrelated rerenders), but
+   * never allow a smaller pinned list to hide newly selectable cached sources.
+   */
+  const sourceSelectorSnapshotIsStale =
+    sourceSelectorPinnedRef.current &&
+    sourceSelectorEntriesRef.current.length > 0 &&
+    selectableSourceEntries.length > sourceSelectorEntriesRef.current.length;
+
   const selectorOpenKey = (event) =>
     [
       "Enter",
@@ -1041,13 +1053,16 @@ export default function VideoPlayer({
     ].includes(String(event?.key || event?.code || ""));
 
   const visibleSourceSelectorEntries =
-    sourceSelectorPinnedRef.current && sourceSelectorEntriesRef.current.length > 0
+    sourceSelectorPinnedRef.current &&
+    !sourceSelectorSnapshotIsStale &&
+    sourceSelectorEntriesRef.current.length > 0
       ? sourceSelectorEntriesRef.current
       : selectableSourceEntries;
 
-  const requestedSourceSelectorValue = sourceSelectorPinnedRef.current
-    ? sourceSelectorValueRef.current
-    : activeIdx;
+  const requestedSourceSelectorValue =
+    sourceSelectorPinnedRef.current && !sourceSelectorSnapshotIsStale
+      ? sourceSelectorValueRef.current
+      : activeIdx;
 
   const visibleSourceSelectorValue = visibleSourceSelectorEntries.some(
     (entry) => String(entry.index) === String(requestedSourceSelectorValue)

@@ -271,14 +271,28 @@ export default function MediaPlayerControls({
     setSourceChoicePinned(true);
   };
 
+  /*
+   * Native Android/Fire TV selectors do not reliably emit blur when dismissed.
+   * A pinned snapshot may therefore outlive the native popup. If the live list
+   * has grown, render the live list instead of allowing the older snapshot to
+   * hide newly cached/selectable sources.
+   */
+  const sourceChoiceSnapshotIsStale =
+    sourceChoicePinned &&
+    sourceChoiceEntriesRef.current.length > 0 &&
+    selectableSourceEntries.length > sourceChoiceEntriesRef.current.length;
+
   const visibleSourceChoices =
-    sourceChoicePinned && sourceChoiceEntriesRef.current.length > 0
+    sourceChoicePinned &&
+    !sourceChoiceSnapshotIsStale &&
+    sourceChoiceEntriesRef.current.length > 0
       ? sourceChoiceEntriesRef.current
       : selectableSourceEntries;
 
-  const requestedSourceChoiceValue = sourceChoicePinned
-    ? sourceChoiceValueRef.current
-    : activeIdx;
+  const requestedSourceChoiceValue =
+    sourceChoicePinned && !sourceChoiceSnapshotIsStale
+      ? sourceChoiceValueRef.current
+      : activeIdx;
 
   const visibleSourceChoiceValue = visibleSourceChoices.some(
     (entry) => String(entry.index) === String(requestedSourceChoiceValue)
