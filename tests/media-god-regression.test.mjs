@@ -1380,6 +1380,23 @@ test("exclusive playback retires the old surface and keeps only the active strea
   assert.equal(hasExclusivePlaybackOwner(), false);
 });
 
+test("Ready count is exactly the source chooser entry count", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(
+    playerSource,
+    /const selectableSourceCount\s*=\s*selectableSourceEntries\.length/
+  );
+  assert.doesNotMatch(
+    playerSource,
+    /const selectableSourceCount\s*=\s*selectableSourceEntries\.filter/
+  );
+  assert.match(playerSource, /visibleSourceSelectorEntries\.map/);
+});
+
 test("background caching runs multiple candidates and retries temporary slot blocks", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
