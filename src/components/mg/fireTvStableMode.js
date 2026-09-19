@@ -150,6 +150,17 @@ const cardTarget = (card) => {
     return null;
   }
 
+  const primary =
+    card.matches('[data-mg-card-primary="true"]') && visible(card)
+      ? card
+      : Array.from(
+          card.querySelectorAll('[data-mg-card-primary="true"]')
+        ).find(visible);
+
+  if (primary) {
+    return primary;
+  }
+
   if (card.matches('[role="button"]') && visible(card)) {
     return card;
   }
