@@ -1451,6 +1451,19 @@ test("background caching runs multiple candidates and retries temporary slot blo
   assert.match(playerSource, /state:\s*"waiting-slot"/);
 });
 
+test("background caching does not stop after five ready alternatives", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.doesNotMatch(playerSource, /entry\.cachedCount\s*<\s*5/);
+  assert.match(
+    playerSource,
+    /const candidates\s*=\s*sortedSourceEntries[\s\S]{0,1800}?sourceNeedsCaching\(entry\.original\)[\s\S]{0,1800}?const batch\s*=\s*candidates\.slice\(0, freeWorkerCount\)/
+  );
+});
+
 test("final player source pool includes every confirmed cached source", () => {
   const providerSource = readFileSync(
     new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
