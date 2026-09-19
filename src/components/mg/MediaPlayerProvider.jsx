@@ -2055,7 +2055,8 @@ export function PlayerProvider({
              */
             publishedSources = preservePublishedSourceOrder(
               existing,
-              publishedSources
+              publishedSources,
+              stableDiscoveredSourceKey
             );
             publishedSourceSnapshot = publishedSources;
 
@@ -2513,7 +2514,8 @@ export function PlayerProvider({
          */
         orderedSources = preservePublishedSourceOrder(
           publishedSourceSnapshot,
-          orderedSources
+          orderedSources,
+          stableDiscoveredSourceKey
         );
 
         /*
