@@ -2465,11 +2465,21 @@ export function PlayerProvider({
               item?.type !== "status"
           );
 
+        /*
+         * The cache-annotated rows must replace their earlier discovery
+         * versions by stable source identity. Running this pair through the
+         * addon deduper again is unsafe because mergeSameHashSource keeps
+         * stale cacheRequired/cometUncached metadata from the older row. That
+         * can turn a confirmed cache hit back into a hidden "uncached" source
+         * immediately before publishing the chooser.
+         */
+        const cacheAuthoritativePlaybackSources = preservePublishedSourceOrder(
+          playbackSources,
+          confirmedCachedPlaybackSources
+        );
+
         const completePlaybackSources = orderSources({
-          sources: dedupeSources([
-            ...playbackSources,
-            ...confirmedCachedPlaybackSources,
-          ]),
+          sources: cacheAuthoritativePlaybackSources,
           hasDebrid,
           preferRd: Boolean(request?.preferRd),
         });
