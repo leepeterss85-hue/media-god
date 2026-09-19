@@ -49,6 +49,7 @@ import {
   sourceHasPendingCacheSignal,
   sourceIsConfirmedCachedForPlayback,
 } from "../src/components/mg/sourceCacheVisibility.js";
+import { mergeCompleteSourcePool } from "../src/components/mg/sourcePoolCompleteness.js";
 import {
   classifyDebridCacheCheck,
   mergeDebridCacheCheckState,
@@ -1427,6 +1428,62 @@ test("Ready count is exactly the source chooser entry count", () => {
     /const selectableSourceCount\s*=\s*selectableSourceEntries\.filter/
   );
   assert.match(playerSource, /visibleSourceSelectorEntries\.map/);
+});
+
+test("a six-row fast-start snapshot cannot replace 117 cached sources", () => {
+  const ready = Array.from({ length: 117 }, (_, index) => {
+    const hash = (index + 1).toString(16).padStart(40, "0");
+
+    return {
+      id: `ready-${index}`,
+      label: `Cached source ${index + 1}`,
+      type: "rd",
+      src: `magnet:?xt=urn:btih:${hash}`,
+      magnet: `magnet:?xt=urn:btih:${hash}`,
+      infoHash: hash,
+      debridCached: true,
+      debridCacheChecked: true,
+    };
+  });
+  const waiting = Array.from({ length: 19 }, (_, index) => {
+    const hash = (index + 1000).toString(16).padStart(40, "0");
+
+    return {
+      id: `waiting-${index}`,
+      label: `Uncached source ${index + 1}`,
+      type: "rd",
+      src: `magnet:?xt=urn:btih:${hash}`,
+      magnet: `magnet:?xt=urn:btih:${hash}`,
+      infoHash: hash,
+      debridCached: false,
+      debridCacheChecked: true,
+      cacheRequired: true,
+    };
+  });
+  const staleFastStart = ready.slice(0, 6).map((item) => ({
+    ...item,
+    debridCached: false,
+    cacheRequired: true,
+  }));
+
+  const restored = mergeCompleteSourcePool(
+    staleFastStart,
+    [...ready, ...waiting]
+  );
+
+  assert.equal(restored.length, 136);
+  assert.equal(
+    restored.filter(sourceIsConfirmedCachedForPlayback).length,
+    117
+  );
+  assert.equal(
+    restored.slice(0, 6).every((item) => item.debridCached === true),
+    true
+  );
+  assert.deepEqual(
+    new Set(restored.map((item) => item.infoHash)),
+    new Set([...ready, ...waiting].map((item) => item.infoHash))
+  );
 });
 
 test("background caching runs multiple candidates and retries temporary slot blocks", () => {
