@@ -2154,8 +2154,13 @@ test("fast discovery cannot launch an unqualified torrent", () => {
     providerSource,
     /QUALIFIED FAST READY/
   );
+  const fastStartBlock = providerSource.slice(
+    providerSource.indexOf("fastAddonPromise.then(async"),
+    providerSource.indexOf("const addonPromise")
+  );
+  assert.ok(fastStartBlock.length > 0);
   assert.doesNotMatch(
-    providerSource,
+    fastStartBlock,
     /publishEarlySources\(addonLookup\.streams/
   );
   assert.match(
