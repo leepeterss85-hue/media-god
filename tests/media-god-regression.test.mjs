@@ -1550,7 +1550,7 @@ test("final player source pool comes directly from the full cache-annotated resu
   );
   assert.match(
     providerSource,
-    /orderedSources\s*=\s*completePlaybackSources\.length > 0[\s\S]{0,100}?\? completePlaybackSources/
+    /orderedSources\s*=\s*canonicalCompletePlaybackSources\.length > 0[\s\S]{0,100}?\? canonicalCompletePlaybackSources/
   );
   assert.match(
     providerSource,
