@@ -2445,6 +2445,39 @@ export function PlayerProvider({
               item?.live
           );
 
+        /*
+         * SOURCE SELECTOR COMPLETENESS
+         *
+         * Cache annotation runs against the full discovered pool. Never let a
+         * smaller fast-start/playback subset become the final chooser merely
+         * because it was published first. Every confirmed-cached torrent/direct
+         * row that is actually playable belongs in the final source array.
+         *
+         * This keeps autoplay ranking separate from manual choice: the first
+         * three remain prioritised automatically, but the selector receives the
+         * complete confirmed-cached set.
+         */
+        const confirmedCachedPlaybackSources =
+          cacheAnnotatedCombined.filter(
+            (item) =>
+              sourceIsConfirmedCachedForPlayback(item) &&
+              (
+                isDirectSource(item) ||
+                isMagnetSource(item) ||
+                item?.type === "live" ||
+                item?.live
+              )
+          );
+
+        const completePlaybackSources = orderSources({
+          sources: dedupeSources([
+            ...playbackSources,
+            ...confirmedCachedPlaybackSources,
+          ]),
+          hasDebrid,
+          preferRd: Boolean(request?.preferRd),
+        });
+
         const diagnosticLabel =
           buildDiagnosticLabel(
             {
@@ -2466,8 +2499,8 @@ export function PlayerProvider({
            * Explicit Trailer/Provider buttons opt in with allowNonPlaybackFallback.
            */
           orderedSources =
-            playbackSources.length > 0
-              ? playbackSources
+            completePlaybackSources.length > 0
+              ? completePlaybackSources
               : [
                   {
                     label: diagnosticLabel,
@@ -2544,6 +2577,9 @@ export function PlayerProvider({
           (item) => sourceHasPendingCacheSignal(item)
         ).length;
         const combinedSourceCount = cacheAnnotatedCombined.length;
+        const publishedSourceCount = orderedSources.filter(
+          (item) => item && !item?.diagnostic
+        ).length;
 
         const primary =
           orderedSources[0] ||
@@ -2681,6 +2717,8 @@ export function PlayerProvider({
             cachedSourceCount,
 
             pendingSourceCount,
+
+            publishedSourceCount,
 
             browserAttempted:
               Boolean(
