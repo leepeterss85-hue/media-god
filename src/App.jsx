@@ -14,6 +14,7 @@ import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
 import PlayerRemote from '@/pages/PlayerRemote';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import { PlayerProvider } from '@/components/mg/PlayerProvider.jsx';
 
 const AuthenticatedApp = () => {
   const isPlayerRemotePath =
@@ -73,7 +74,13 @@ const AuthenticatedApp = () => {
       <Route path="/register" element={publicOnly(<Register />)} />
       <Route path="/forgot-password" element={publicOnly(<ForgotPassword />)} />
       <Route path="/reset-password" element={publicOnly(<ResetPassword />)} />
-      <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
+      <Route
+        element={
+          <PlayerProvider>
+            <ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />
+          </PlayerProvider>
+        }
+      >
         <Route path="/" element={<Home />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />

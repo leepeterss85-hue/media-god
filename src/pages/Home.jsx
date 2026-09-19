@@ -20,9 +20,8 @@ import FireTvRemote from "@/components/mg/FireTvRemote";
 import MediaGodV2Assist from "@/components/mg/MediaGodV2Assist";
 import PlayerQrRemote from "@/components/mg/PlayerQrRemote";
 import {
-  PlayerProvider,
   usePlayer,
-} from "@/components/mg/PlayerProvider";
+} from "@/components/mg/PlayerProvider.jsx";
 import RdBanner from "@/components/mg/RdBanner";
 import PlaybackUpdateNotice from "@/components/mg/PlaybackUpdateNotice";
 import FireTvAppUpdateNotice from "@/components/mg/FireTvAppUpdateNotice";
@@ -1154,9 +1153,5 @@ function MediaGodApp() {
 }
 
 export default function Home() {
-  return (
-    <PlayerProvider>
-      <MediaGodApp />
-    </PlayerProvider>
-  );
+  return <MediaGodApp />;
 }

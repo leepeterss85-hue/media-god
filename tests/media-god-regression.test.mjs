@@ -409,6 +409,31 @@ test("torrent source merging preserves different file indexes from the same hash
   }
 });
 
+test("player context is owned by the protected route boundary", () => {
+  const appSource = readFileSync(
+    new URL("../src/App.jsx", import.meta.url),
+    "utf8"
+  );
+  const homeSource = readFileSync(
+    new URL("../src/pages/Home.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(
+    appSource,
+    /import \{ PlayerProvider \} from '@\/components\/mg\/PlayerProvider\.jsx';/
+  );
+  assert.match(
+    appSource,
+    /<PlayerProvider>[\s\S]{0,240}<ProtectedRoute/
+  );
+  assert.doesNotMatch(homeSource, /<PlayerProvider>/);
+  assert.match(
+    homeSource,
+    /from "@\/components\/mg\/PlayerProvider\.jsx";/
+  );
+});
+
 test("TV playback publishes the episode-list destination before closing", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
