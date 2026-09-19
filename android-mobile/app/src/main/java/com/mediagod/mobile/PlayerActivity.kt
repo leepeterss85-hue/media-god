@@ -65,6 +65,7 @@ class PlayerActivity : Activity() {
     private var resultSent = false
     private var genericHttpsMimeRetryIndex = 0
     private var compatibilityPlayerOpen = false
+    private var audioPresenceCheckGeneration = 0
     private var autoNext = true
     private var recapStartMs = -1L
     private var recapEndMs = -1L
@@ -428,6 +429,8 @@ class PlayerActivity : Activity() {
                         forceDisplayMode = false
                     )
                 }
+
+                scheduleMissingAudioCheck(exoPlayer, tracks)
             }
 
             override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -510,7 +513,8 @@ class PlayerActivity : Activity() {
 
     private fun launchCompatibilityPlayer(
         activePlayer: ExoPlayer,
-        error: PlaybackException
+        error: PlaybackException? = null,
+        compatibilityReason: String = ""
     ): Boolean {
         if (compatibilityPlayerOpen || resultSent) {
             return false
@@ -528,8 +532,11 @@ class PlayerActivity : Activity() {
             put("requestId", requestId)
             put("url", streamUrl)
             put("startPositionMs", positionMs)
-            put("compatibilityErrorCode", error.errorCode)
-            put("compatibilityError", error.message.orEmpty())
+            put("compatibilityErrorCode", error?.errorCode ?: 0)
+            put(
+                "compatibilityError",
+                error?.message.orEmpty().ifBlank { compatibilityReason }
+            )
         }
 
         compatibilityPlayerOpen = true
@@ -547,6 +554,62 @@ class PlayerActivity : Activity() {
             compatibilityPlayerOpen = false
             false
         }
+    }
+
+    private fun scheduleMissingAudioCheck(
+        activePlayer: ExoPlayer,
+        tracks: androidx.media3.common.Tracks
+    ) {
+        if (live || resultSent || compatibilityPlayerOpen) return
+
+        val hasVideo = tracks.groups.any { group ->
+            group.type == C.TRACK_TYPE_VIDEO && group.length > 0
+        }
+        val hasAudio = tracks.groups.any { group ->
+            group.type == C.TRACK_TYPE_AUDIO && group.length > 0
+        }
+
+        if (!hasVideo || hasAudio) {
+            audioPresenceCheckGeneration += 1
+            return
+        }
+
+        val generation = ++audioPresenceCheckGeneration
+
+        playerView.postDelayed({
+            if (
+                resultSent ||
+                compatibilityPlayerOpen ||
+                generation != audioPresenceCheckGeneration ||
+                player !== activePlayer ||
+                activePlayer.playbackState != Player.STATE_READY
+            ) {
+                return@postDelayed
+            }
+
+            val currentTracks = activePlayer.currentTracks
+            val stillHasVideo = currentTracks.groups.any { group ->
+                group.type == C.TRACK_TYPE_VIDEO && group.length > 0
+            }
+            val nowHasAudio = currentTracks.groups.any { group ->
+                group.type == C.TRACK_TYPE_AUDIO && group.length > 0
+            }
+
+            if (stillHasVideo && !nowHasAudio) {
+                val rescued = launchCompatibilityPlayer(
+                    activePlayer,
+                    null,
+                    "Media3 found video but no audio track. Trying the compatibility decoder."
+                )
+
+                if (!rescued) {
+                    finishWithResult(
+                        "error",
+                        "This source contains video but no usable audio track."
+                    )
+                }
+            }
+        }, 1800L)
     }
 
     private fun buildMediaItem(mimeTypeOverride: String? = null): MediaItem {
@@ -983,6 +1046,7 @@ class PlayerActivity : Activity() {
     }
 
     private fun releasePlayer() {
+        audioPresenceCheckGeneration += 1
         if (::playerView.isInitialized) {
             playerView.removeCallbacks(hideControllerRunnable)
         }

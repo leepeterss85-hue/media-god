@@ -69,9 +69,37 @@ class CompatibilityPlayerActivity : Activity() {
     private val audioRecoveryRunnable = object : Runnable {
         override fun run() {
             if (resultSent || !automaticNoSoundRecovery) return
+
             recoverAudioTrack()
             audioRecoveryPasses += 1
-            if (audioRecoveryPasses < 2 && ::root.isInitialized) root.postDelayed(this, 2400L)
+
+            val player = vlcPlayer
+            val tracks =
+                try {
+                    player?.audioTracks?.filter { it.id >= 0 }.orEmpty()
+                } catch (_: Throwable) {
+                    emptyList()
+                }
+
+            if (tracks.isNotEmpty()) {
+                return
+            }
+
+            if (audioRecoveryPasses < 2 && ::root.isInitialized) {
+                root.postDelayed(this, 2400L)
+                return
+            }
+
+            if (
+                player != null &&
+                player.isPlaying &&
+                !payload.optBoolean("live", false)
+            ) {
+                finishWithResult(
+                    "error",
+                    "The compatibility decoder confirmed this video has no usable audio track."
+                )
+            }
         }
     }
 

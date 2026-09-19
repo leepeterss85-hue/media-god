@@ -2136,6 +2136,43 @@ test("Real-Debrid zero-audio inspection tries transcode then rejects the silent 
   );
 });
 
+test("global VOD audio validation covers web, Media3 and LibVLC playback", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+  const nativeFiles = [
+    "../android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt",
+    "../firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt",
+  ];
+  const compatibilityFiles = [
+    "../android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt",
+    "../firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt",
+  ];
+
+  assert.match(playerSource, /browserConfirmedNoAudio/);
+  assert.match(playerSource, /exposedTracks\.length === 0/);
+
+  for (const file of nativeFiles) {
+    const source = readFileSync(new URL(file, import.meta.url), "utf8");
+    assert.match(source, /scheduleMissingAudioCheck/);
+    assert.match(source, /group\.type == C\.TRACK_TYPE_AUDIO/);
+    assert.match(
+      source,
+      /Media3 found video but no audio track\. Trying the compatibility decoder\./
+    );
+  }
+
+  for (const file of compatibilityFiles) {
+    const source = readFileSync(new URL(file, import.meta.url), "utf8");
+    assert.match(
+      source,
+      /compatibility decoder confirmed this video has no usable audio track/
+    );
+    assert.match(source, /audioRecoveryPasses < 2/);
+  }
+});
+
 test("audio tracks prefer English main audio while preserving explicit language memory", () => {
   const englishMain = {
     language: "eng",

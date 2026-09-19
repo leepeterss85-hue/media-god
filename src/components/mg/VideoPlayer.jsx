@@ -8198,17 +8198,35 @@ export default function VideoPlayer({
     const label = sourceDisplayLabel(candidate, activeIdx);
     const traits = detectStreamTraits(candidate, label);
     const rememberedSilent = hasRecentNoSoundHistory(label);
-    if (!rememberedSilent && !traits.audioRisk) return undefined;
 
+    /*
+     * Run the audio-presence check for every VOD source. Most Chromium builds
+     * do not expose HTMLMediaElement.audioTracks; in that case we keep using
+     * codec/history evidence only. Where the browser DOES expose the list,
+     * zero tracks after playback metadata is ready is authoritative enough to
+     * trigger the same rescue/failover path used by Real-Debrid and native
+     * Android playback.
+     */
     const timer = window.setTimeout(() => {
       const video = stageRef.current?.querySelector("video");
-      if (
-        video instanceof HTMLVideoElement &&
-        !video.paused && !video.ended && !video.error
-      ) {
-        handleNoSoundRef.current?.({ automatic: true });
+      if (!(video instanceof HTMLVideoElement) || video.paused || video.ended || video.error) {
+        return;
       }
-    }, rememberedSilent ? 2200 : 4200);
+
+      const exposedTracks = video.audioTracks;
+      const browserConfirmedNoAudio =
+        exposedTracks &&
+        typeof exposedTracks.length === "number" &&
+        exposedTracks.length === 0 &&
+        video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA;
+
+      if (browserConfirmedNoAudio || rememberedSilent || traits.audioRisk) {
+        handleNoSoundRef.current?.({
+          automatic: true,
+          confirmedNoAudio: browserConfirmedNoAudio,
+        });
+      }
+    }, rememberedSilent ? 2200 : traits.audioRisk ? 4200 : 5200);
 
     return () => window.clearTimeout(timer);
   }, [
