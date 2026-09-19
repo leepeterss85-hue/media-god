@@ -241,6 +241,14 @@ export const LIVE_TV_SOURCES = [
     country: "GB",
   },
   {
+    id: "rakuten-tv-gb-buddy",
+    name: "Rakuten TV UK",
+    url: "https://raw.githubusercontent.com/BuddyChewChew/RakutenTV/main/playlist.m3u",
+    priority: 118,
+    category: "United Kingdom",
+    country: "GB",
+  },
+  {
     id: "plex-gb-buddy",
     name: "Plex TV UK",
     url: "https://raw.githubusercontent.com/BuddyChewChew/app-m3u-generator/main/playlists/plex_gb.m3u",
@@ -260,6 +268,22 @@ export const LIVE_TV_SOURCES = [
     name: "LocalNow",
     url: "https://www.apsattv.com/localnow.m3u",
     priority: 89,
+    category: "United States",
+    country: "US",
+  },
+  {
+    id: "tcl-tv-plus-buddy",
+    name: "TCLtv+",
+    url: "https://raw.githubusercontent.com/BuddyChewChew/tcl-playlist-generator/main/tcl.m3u8",
+    priority: 96,
+    category: "United States",
+    country: "US",
+  },
+  {
+    id: "airy-tv-buddy",
+    name: "Airy TV",
+    url: "https://raw.githubusercontent.com/BuddyChewChew/airy-playlist-generator/main/airy_channels.m3u",
+    priority: 92,
     category: "United States",
     country: "US",
   },
@@ -1119,6 +1143,9 @@ const FAST_CHANNEL_CANONICAL_IDS = new Map([
 ]);
 
 const STALE_SOURCE_CHANNEL_NAMES = {
+  "airy-tv-buddy": new Set([
+    "test",
+  ]),
   "samsung-tv-plus-community": new Set([
     "acc digital network",
     "all reality we tv",
