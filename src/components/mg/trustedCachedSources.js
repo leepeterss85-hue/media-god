@@ -1,7 +1,5 @@
 import { detectMediaEdition } from "@/components/mg/mediaEdition";
 
-export const TRUSTED_CACHED_PER_EDITION = 5;
-
 const TRUSTED_HISTORY_KEY = "mg:trusted-cached-sources:v1";
 const TRUSTED_HISTORY_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const TRUSTED_HISTORY_LIMIT = 300;
@@ -129,7 +127,7 @@ const comparePoolEntries = (left, right, history) =>
   Number(right.reportedSeeders || 0) - Number(left.reportedSeeders || 0) ||
   Number(left.index || 0) - Number(right.index || 0);
 
-export const markTrustedCachedPools = (entries, perEdition = TRUSTED_CACHED_PER_EDITION) => {
+export const markTrustedCachedPools = (entries) => {
   const list = Array.isArray(entries) ? entries : [];
   const history = readHistory();
   const groups = new Map();
@@ -148,11 +146,14 @@ export const markTrustedCachedPools = (entries, perEdition = TRUSTED_CACHED_PER_
 
   const trusted = new Set();
 
+  /*
+   * There is deliberately no per-edition ceiling here. Every source already
+   * confirmed cached/ready remains trusted and eligible for the dropdown.
+   */
   groups.forEach((group) => {
     group
       .slice()
       .sort((a, b) => comparePoolEntries(a, b, history))
-      .slice(0, Math.max(1, Number(perEdition || TRUSTED_CACHED_PER_EDITION)))
       .forEach((entry) => trusted.add(entry.index));
   });
 

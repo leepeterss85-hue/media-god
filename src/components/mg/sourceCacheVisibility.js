@@ -37,9 +37,51 @@ const sourceCacheText = (item) =>
     .filter(Boolean)
     .join(" ");
 
-export const sourceHasAuthoritativeCachedSignal = (item) =>
-  item?.debridCached === true ||
-  item?.runtimeReadyCached === true;
+const CACHED_CACHE_STATES = new Set([
+  "cached",
+  "ready",
+  "downloaded",
+  "instant",
+  "instantly_available",
+]);
+
+export const sourceHasAuthoritativeCachedSignal = (item) => {
+  if (!item) return false;
+
+  if (
+    item?.debridCached === true ||
+    item?.runtimeReadyCached === true ||
+    item?.cached === true ||
+    item?.isCached === true ||
+    item?.instant === true
+  ) {
+    return true;
+  }
+
+  const states = [
+    item?.debridCacheCheckState,
+    item?.cacheStatus,
+    item?.cache_status,
+    item?.cacheState,
+    item?.cache_state,
+    item?.torrentStatus,
+    item?.torrent_status,
+    item?.rdStatus,
+    item?.rd_status,
+  ].map(normaliseState);
+
+  if (states.some((state) => CACHED_CACHE_STATES.has(state))) {
+    return true;
+  }
+
+  const text = sourceCacheText(item);
+  return (
+    /\[\s*RD\s*(?:\+|⚡|✅)\s*\]/i.test(text) ||
+    /\b(?:real[\s_-]*debrid|RD)\b[^\n]{0,40}\b(?:cached|instant(?:ly)?[\s_-]*available)\b/i.test(
+      text
+    )
+  );
+};
 
 export const sourceHasPendingCacheSignal = (item, strategy = "") => {
   if (!item || sourceHasAuthoritativeCachedSignal(item)) {

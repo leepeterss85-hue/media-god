@@ -60,6 +60,52 @@ const isCometUncachedDownloadStream = (stream, addonName = "") => {
   );
 };
 
+const addonDebridCacheSignal = (stream, addonName = "") => {
+  const rawUrl = clean(
+    stream?.url ||
+      stream?.link ||
+      stream?.src
+  );
+  const text = [
+    addonName,
+    stream?.name,
+    stream?.title,
+    stream?.description,
+  ]
+    .map(clean)
+    .filter(Boolean)
+    .join(" ");
+
+  const explicitlyUncached =
+    /\[\s*RD\s*⬇(?:\uFE0F)?\s*\]/i.test(text) ||
+    /\[\s*RD\s+(?:download|uncached)\s*\]/i.test(text) ||
+    /\b(?:real[\s_-]*debrid|RD)[\s_-]+(?:download|uncached|not[\s_-]+cached)\b/i.test(
+      text
+    );
+
+  if (explicitlyUncached) {
+    return {
+      cached: false,
+      resolvedUrl: "",
+    };
+  }
+
+  const resolvedUrl =
+    isHttp(rawUrl) && /\/resolve\/realdebrid(?:\/|$)/i.test(rawUrl)
+      ? rawUrl
+      : "";
+  const cachedMarker =
+    /\[\s*RD\s*(?:\+|⚡|✅)\s*\]/i.test(text) ||
+    /\b(?:real[\s_-]*debrid|RD)\b[^\n]{0,40}\b(?:cached|instant(?:ly)?[\s_-]*available)\b/i.test(
+      text
+    );
+
+  return {
+    cached: Boolean(resolvedUrl || cachedMarker),
+    resolvedUrl,
+  };
+};
+
 const PUBLIC_FALLBACK_TRACKERS = [
   "udp://tracker.publictracker.xyz:6969/announce",
   "udp://open.demonii.com:1337/announce",
@@ -649,6 +695,49 @@ const normaliseStream = (
     (cometUncachedDownload
       ? cometPlaybackHashFromValue(rawUrl)
       : "");
+  const cacheSignal = addonDebridCacheSignal(stream, addonName);
+
+  /*
+   * Real-Debrid retired its instant-availability endpoint. Modern addons such
+   * as Torrentio and Comet therefore carry the cache verdict themselves and,
+   * for cached rows, commonly return a ready /resolve/realdebrid URL. Keep that
+   * URL intact instead of converting the same row back into a magnet.
+   */
+  if (
+    cacheSignal.cached &&
+    cacheSignal.resolvedUrl &&
+    !hasRequiredRequestHeaders(stream)
+  ) {
+    return {
+      id: `${addonName}-${index}-${infoHash || "cached-rd"}-ready`,
+      label,
+      addon: addonName,
+      type: "url",
+      src: cacheSignal.resolvedUrl,
+      url: cacheSignal.resolvedUrl,
+      infoHash: infoHash || undefined,
+      fileIdx:
+        stream?.fileIdx ??
+        stream?.file_idx ??
+        undefined,
+      behaviorHints:
+        stream?.behaviorHints ||
+        stream?.behavior_hints ||
+        undefined,
+      description: clean(stream?.description),
+      reportedSeeders: streamReportedSeeders(stream),
+      debridProvider: "realdebrid",
+      viaRealDebrid: true,
+      debridCached: true,
+      runtimeReadyCached: true,
+      debridCacheChecked: true,
+      debridCacheCheckState: "cached",
+      cacheRequired: false,
+      cometUncached: false,
+      cacheLabel: "cached",
+      resolutionStrategy: "cached_debrid",
+    };
+  }
 
   if (cometUncachedDownload) {
     if (!infoHash) {
@@ -784,8 +873,29 @@ const normaliseStream = (
         stream?.behavior_hints ||
         undefined,
 
+      debridProvider:
+        cacheSignal.cached ? "realdebrid" : undefined,
+
+      viaRealDebrid:
+        cacheSignal.cached ? true : undefined,
+
+      debridCached:
+        cacheSignal.cached ? true : undefined,
+
+      debridCacheChecked:
+        cacheSignal.cached ? true : undefined,
+
+      debridCacheCheckState:
+        cacheSignal.cached ? "cached" : undefined,
+
+      cacheRequired:
+        cacheSignal.cached ? false : undefined,
+
+      cacheLabel:
+        cacheSignal.cached ? "cached" : undefined,
+
       resolutionStrategy:
-        "rd_magnet",
+        cacheSignal.cached ? "cached_debrid" : "rd_magnet",
 
       torrentTrackers:
         suppliedTrackers,
@@ -827,6 +937,24 @@ const normaliseStream = (
         stream?.behaviorHints ||
         stream?.behavior_hints ||
         undefined,
+      debridProvider:
+        cacheSignal.cached ? "realdebrid" : undefined,
+      viaRealDebrid:
+        cacheSignal.cached ? true : undefined,
+      debridCached:
+        cacheSignal.cached ? true : undefined,
+      runtimeReadyCached:
+        cacheSignal.cached ? true : undefined,
+      debridCacheChecked:
+        cacheSignal.cached ? true : undefined,
+      debridCacheCheckState:
+        cacheSignal.cached ? "cached" : undefined,
+      cacheRequired:
+        cacheSignal.cached ? false : undefined,
+      cacheLabel:
+        cacheSignal.cached ? "cached" : undefined,
+      resolutionStrategy:
+        cacheSignal.cached ? "cached_debrid" : undefined,
     };
   }
 
@@ -871,6 +999,19 @@ const mergeSameHashSource = (current, incoming, hash) => {
     current?.cometPlaybackUrl || incoming?.cometPlaybackUrl || "";
   const mergedCometUncached =
     current?.cometUncached === true || incoming?.cometUncached === true;
+  const mergedAuthoritativeCached = [current, incoming].some(
+    (item) =>
+      item?.debridCached === true ||
+      item?.runtimeReadyCached === true
+  );
+  const cachedResolvedSource = [current, incoming].find(
+    (item) =>
+      item?.runtimeReadyCached === true &&
+      isHttp(item?.src || item?.url)
+  );
+  const cachedResolvedUrl = clean(
+    cachedResolvedSource?.src || cachedResolvedSource?.url
+  );
   const fallbackMagnet = richestMagnet(
     current?.richMagnet,
     incoming?.richMagnet,
@@ -915,13 +1056,19 @@ const mergeSameHashSource = (current, incoming, hash) => {
       current?.fileIdx ??
       incoming?.fileIdx ??
       undefined,
-    ...(playbackMagnet
+    ...(cachedResolvedUrl
       ? {
-          src: playbackMagnet,
-          url: playbackMagnet,
-          magnet: playbackMagnet,
+          type: "url",
+          src: cachedResolvedUrl,
+          url: cachedResolvedUrl,
         }
-      : {}),
+      : playbackMagnet
+        ? {
+            src: playbackMagnet,
+            url: playbackMagnet,
+            magnet: playbackMagnet,
+          }
+        : {}),
     richMagnet:
       directTrackerMagnet ||
       fallbackMagnet ||
@@ -936,8 +1083,38 @@ const mergeSameHashSource = (current, incoming, hash) => {
     ),
     cometPlaybackUrl:
       mergedCometPlaybackUrl,
+    debridProvider:
+      mergedAuthoritativeCached
+        ? "realdebrid"
+        : current?.debridProvider || incoming?.debridProvider || undefined,
+    debridCached:
+      mergedAuthoritativeCached
+        ? true
+        : current?.debridCached ?? incoming?.debridCached,
+    runtimeReadyCached:
+      Boolean(
+        cachedResolvedUrl ||
+        current?.runtimeReadyCached === true ||
+        incoming?.runtimeReadyCached === true
+      ),
+    debridCacheChecked:
+      mergedAuthoritativeCached
+        ? true
+        : current?.debridCacheChecked ?? incoming?.debridCacheChecked,
+    debridCacheCheckState:
+      mergedAuthoritativeCached
+        ? "cached"
+        : current?.debridCacheCheckState || incoming?.debridCacheCheckState || undefined,
+    cacheRequired:
+      mergedAuthoritativeCached
+        ? false
+        : Boolean(current?.cacheRequired === true || incoming?.cacheRequired === true),
+    cacheLabel:
+      mergedAuthoritativeCached
+        ? "cached"
+        : current?.cacheLabel || incoming?.cacheLabel || undefined,
     cometUncached:
-      mergedCometUncached,
+      mergedAuthoritativeCached ? false : mergedCometUncached,
     torrentMetadataSource:
       hasAuthoritativeTorrentMetadata
         ? current?.torrentMetadataSource === "comet" ||
@@ -948,13 +1125,15 @@ const mergeSameHashSource = (current, incoming, hash) => {
           incoming?.torrentMetadataSource ||
           undefined,
     resolutionStrategy:
-      mergedCometUncached &&
-      !hasAuthoritativeTorrentMetadata &&
-      /^https?:\/\//i.test(mergedCometPlaybackUrl)
-        ? "comet_uncached"
-        : mergedTorrentTrackers.length > 0
-          ? "rd_magnet"
-          : current?.resolutionStrategy || incoming?.resolutionStrategy || undefined,
+      mergedAuthoritativeCached
+        ? "cached_debrid"
+        : mergedCometUncached &&
+            !hasAuthoritativeTorrentMetadata &&
+            /^https?:\/\//i.test(mergedCometPlaybackUrl)
+          ? "comet_uncached"
+          : mergedTorrentTrackers.length > 0
+            ? "rd_magnet"
+            : current?.resolutionStrategy || incoming?.resolutionStrategy || undefined,
     behaviorHints:
       current?.behaviorHints || incoming?.behaviorHints || undefined,
     description:

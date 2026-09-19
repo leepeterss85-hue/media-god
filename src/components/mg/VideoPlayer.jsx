@@ -76,6 +76,7 @@ import {
   sourceHasEdition,
 } from "@/components/mg/mediaEdition";
 import { recordTrustedCachedSource } from "@/components/mg/trustedCachedSources";
+import { sourceHasAuthoritativeCachedSignal } from "@/components/mg/sourceCacheVisibility";
 
 const isMagnet = (value) =>
   String(value || "")
@@ -8385,7 +8386,7 @@ export default function VideoPlayer({
       runtimeReady ||
       sortedSourceEntries.find((entry) => entry.index === index)?.trustedCached === true;
 
-    if (runtimeReady || item?.debridCached === true) {
+    if (runtimeReady || sourceHasAuthoritativeCachedSignal(item)) {
       return trustedCached
         ? `Trusted Cached • ${base}`
         : `Cached / Ready • ${base}`;

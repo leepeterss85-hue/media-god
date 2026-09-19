@@ -358,8 +358,6 @@ const parseTorBoxCache = (data, hashes) => {
   return output;
 };
 
-const REAL_DEBRID_CACHE_CONCURRENCY = 6;
-
 const checkCacheForProvider = async (providerKey, token, hashes) => {
   const output = {};
   hashes.forEach((hash) => {
@@ -369,60 +367,15 @@ const checkCacheForProvider = async (providerKey, token, hashes) => {
   if (!token || !hashes.length) return output;
 
   if (providerKey === "realdebrid") {
-    const realDebridOutput = {};
-    let nextIndex = 0;
-
     /*
-     * Real-Debrid's instantAvailability route is a single-hash endpoint.
-     * Checking a slash-joined batch can return only part of the requested
-     * hashes, which made Media God report roughly one cached result per batch.
-     *
-     * Use a small worker pool instead: every discovered hash gets its own
-     * availability request, successful results are kept independently, and a
-     * transient failure for one hash does not erase the rest of the batch.
+     * Real-Debrid removed /torrents/instantAvailability in November 2024.
+     * Calling the retired endpoint cannot authoritatively classify the user's
+     * discovered hashes and creates false/partial cache counts. Cached RD rows
+     * are now identified from modern addon cache markers ([RD+], [RD⚡]) and
+     * their ready resolve URLs. Return no booleans here so unmarked RD hashes
+     * remain unknown rather than being incorrectly hidden as uncached.
      */
-    const worker = async () => {
-      while (nextIndex < hashes.length) {
-        const index = nextIndex;
-        nextIndex += 1;
-        const hash = hashes[index];
-
-        try {
-          const data = await requestJson(
-            `${PROVIDERS.realdebrid.baseUrl}/torrents/instantAvailability/${encodeURIComponent(hash)}`,
-            { headers: authHeaders(token) }
-          );
-
-          const upper = hash.toUpperCase();
-          const hasLower = Object.prototype.hasOwnProperty.call(data || {}, hash);
-          const hasUpper = Object.prototype.hasOwnProperty.call(data || {}, upper);
-
-          /*
-           * Missing hashes are not confirmed misses. Leave them absent so the
-           * frontend classifies them as unknown and retries them later.
-           */
-          if (!hasLower && !hasUpper) continue;
-
-          const entry = hasLower ? data?.[hash] : data?.[upper];
-          realDebridOutput[hash] = Boolean(
-            entry?.rd && Object.keys(entry.rd).length > 0
-          );
-        } catch {
-          // Preserve this hash as unknown without discarding other successes.
-        }
-      }
-    };
-
-    const workerCount = Math.min(
-      REAL_DEBRID_CACHE_CONCURRENCY,
-      hashes.length
-    );
-
-    await Promise.all(
-      Array.from({ length: workerCount }, () => worker())
-    );
-
-    return realDebridOutput;
+    return {};
   }
   if (providerKey === "alldebrid") {
     const query = new URLSearchParams({ agent: "MediaGod" });

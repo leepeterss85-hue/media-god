@@ -270,7 +270,7 @@ test("positive cache hits survive partial provider errors", () => {
   );
 });
 
-test("player checks every Real-Debrid cache hash without slash-joined batch loss", () => {
+test("retired Real-Debrid availability endpoint is not used for cache truth", () => {
   const providerSource = readFileSync(
     new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
     "utf8"
@@ -281,30 +281,72 @@ test("player checks every Real-Debrid cache hash without slash-joined batch loss
   );
 
   assert.match(providerSource, /DEBRID_CACHE_BATCH_SIZE\s*=\s*100/);
-  assert.match(providerSource, /DEBRID_CACHE_MAX_PASSES\s*=\s*3/);
-  assert.match(providerSource, /let hashesToCheck = hashes/);
-  assert.match(
-    providerSource,
-    /pass < DEBRID_CACHE_MAX_PASSES[\s\S]{0,500}?await checkBatches\(hashesToCheck\)[\s\S]{0,500}?state === "unknown"/
-  );
   assert.match(providerSource, /debridCacheChecked:\s*false/);
   assert.match(providerSource, /debridCacheCheckState:\s*"unknown"/);
-
-  assert.match(backendSource, /REAL_DEBRID_CACHE_CONCURRENCY\s*=\s*6/);
-  assert.match(
-    backendSource,
-    /instantAvailability\/\$\{encodeURIComponent\(hash\)\}/
-  );
   assert.doesNotMatch(
     backendSource,
-    /instantAvailability\/\$\{batch\.join\("\/"\)\}/
+    /requestJson\([\s\S]{0,180}?torrents\/instantAvailability/
   );
   assert.match(
     backendSource,
-    /Preserve this hash as unknown without discarding other successes/
+    /Real-Debrid removed \/torrents\/instantAvailability/
   );
 });
 
+test("addon-confirmed cached RD sources keep every ready URL without a five-source ceiling", () => {
+  const serverSource = readFileSync(
+    new URL("../base44/functions/fetchAddonStreams/entry.ts", import.meta.url),
+    "utf8"
+  );
+  const browserSource = readFileSync(
+    new URL("../src/components/mg/addonBrowserFallback.js", import.meta.url),
+    "utf8"
+  );
+  const trustedSource = readFileSync(
+    new URL("../src/components/mg/trustedCachedSources.js", import.meta.url),
+    "utf8"
+  );
+
+  for (const source of [serverSource, browserSource]) {
+    assert.match(source, /addonDebridCacheSignal/);
+    assert.match(source, /cacheSignal\.resolvedUrl/);
+    assert.match(source, /runtimeReadyCached:\s*true/);
+    assert.match(source, /resolutionStrategy:\s*"cached_debrid"/);
+    assert.match(source, /cachedResolvedUrl/);
+  }
+
+  assert.doesNotMatch(trustedSource, /TRUSTED_CACHED_PER_EDITION/);
+  assert.doesNotMatch(trustedSource, /slice\(0,[^\n]*perEdition/);
+});
+
+test("modern RD cache markers are authoritative cached signals", () => {
+  assert.equal(
+    sourceHasAuthoritativeCachedSignal({ label: "[RD+] Torrentio 1080p" }),
+    true
+  );
+  assert.equal(
+    sourceHasAuthoritativeCachedSignal({ label: "[RD⚡] Comet 2160p" }),
+    true
+  );
+  assert.equal(
+    sourceHasAuthoritativeCachedSignal({
+      cacheStatus: "ready",
+      label: "Resolved Real-Debrid source",
+    }),
+    true
+  );
+  assert.equal(
+    sourceHasAuthoritativeCachedSignal({ label: "[RD⬇] Comet" }),
+    false
+  );
+  assert.equal(
+    sourceHasPendingCacheSignal({
+      label: "[RD⬇] Comet",
+      cacheRequired: true,
+    }),
+    true
+  );
+});
 test("full addon discovery merges year-qualified sources after a non-empty primary result", () => {
   const serverSource = readFileSync(
     new URL("../base44/functions/fetchAddonStreams/entry.ts", import.meta.url),
