@@ -1380,6 +1380,33 @@ test("exclusive playback retires the old surface and keeps only the active strea
   assert.equal(hasExclusivePlaybackOwner(), false);
 });
 
+test("source chooser drops a stale native snapshot when the live list grows", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+  const controlsSource = readFileSync(
+    new URL("../src/components/mg/MediaPlayerControls.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(playerSource, /const \[sourceSelectorPinned, setSourceSelectorPinned\] = useState\(false\)/);
+  assert.match(
+    playerSource,
+    /selectableSourceEntries\.length <= pinnedCount[\s\S]{0,220}?setSourceSelectorPinned\(false\)/
+  );
+  assert.match(
+    playerSource,
+    /const visibleSourceSelectorEntries\s*=\s*sourceSelectorPinned/
+  );
+
+  assert.match(
+    controlsSource,
+    /selectableSourceEntries\.length <= pinnedCount[\s\S]{0,180}?setSourceChoicePinned\(false\)/
+  );
+  assert.match(controlsSource, /const visibleSourceChoices\s*=\s*sourceChoicePinned/);
+});
+
 test("Ready count is exactly the source chooser entry count", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
