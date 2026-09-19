@@ -69,6 +69,7 @@ import {
   rememberedAudioTrackScore,
   trackLanguage,
 } from "../src/components/mg/mediaTrackPreferences.js";
+import { preservePublishedSourceOrder } from "../src/components/mg/sourcePublication.js";
 
 const memoryStorage = () => {
   const data = new Map();
@@ -1597,7 +1598,31 @@ test("source selector stays visible with a single ready source and expands as mo
   assert.doesNotMatch(controlsSource, /sourceChoiceReleaseTimerRef/);
 });
 
-test("stable source publishing never deduplicates the completed pool a second time", () => {
+test("stable source publishing keeps all 117 cached rows after a six-row fast start", () => {
+  const fastStart = Array.from({ length: 6 }, (_, index) => ({
+    id: `fast-${index}`,
+    sourceKey: `torrent-${index}`,
+    debridCached: true,
+  }));
+  const fullCachedPool = Array.from({ length: 117 }, (_, index) => ({
+    id: `cached-${index}`,
+    sourceKey: `torrent-${index % 6}`,
+    debridCached: true,
+  }));
+
+  const merged = preservePublishedSourceOrder(
+    fastStart,
+    fullCachedPool,
+    (item) => item.sourceKey
+  );
+
+  assert.equal(merged.length, 117);
+  assert.deepEqual(
+    merged.map((item) => item.id),
+    fullCachedPool.map((item) => item.id)
+  );
+  assert.equal(new Set(merged.map((item) => item.id)).size, 117);
+
   const providerSource = readFileSync(
     new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
     "utf8"
@@ -1605,10 +1630,8 @@ test("stable source publishing never deduplicates the completed pool a second ti
 
   assert.match(
     providerSource,
-    /collapse distinct file-index rows from the same torrent/
+    /preservePublishedSourceOrder\([\s\S]{0,180}?stableDiscoveredSourceKey/
   );
-  assert.match(providerSource, /return stable;/);
-  assert.doesNotMatch(providerSource, /return dedupeSources\(stable\);/);
 });
 
 test("the player stage pins one active video surface to the full frame", () => {
