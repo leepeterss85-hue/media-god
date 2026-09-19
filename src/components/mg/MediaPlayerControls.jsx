@@ -244,14 +244,8 @@ export default function MediaPlayerControls({
   const [sourceChoicePinned, setSourceChoicePinned] = useState(false);
   const sourceChoiceEntriesRef = useRef([]);
   const sourceChoiceValueRef = useRef(0);
-  const sourceChoiceReleaseTimerRef = useRef(null);
 
   const releaseSourceChoices = () => {
-    if (sourceChoiceReleaseTimerRef.current) {
-      window.clearTimeout(sourceChoiceReleaseTimerRef.current);
-      sourceChoiceReleaseTimerRef.current = null;
-    }
-
     setSourceChoicePinned(false);
     sourceChoiceEntriesRef.current = [];
   };
@@ -275,26 +269,7 @@ export default function MediaPlayerControls({
       ? activeIdx
       : "";
     setSourceChoicePinned(true);
-
-    if (sourceChoiceReleaseTimerRef.current) {
-      window.clearTimeout(sourceChoiceReleaseTimerRef.current);
-    }
-
-    sourceChoiceReleaseTimerRef.current = window.setTimeout(
-      releaseSourceChoices,
-      12000
-    );
   };
-
-  useEffect(
-    () => () => {
-      if (sourceChoiceReleaseTimerRef.current) {
-        window.clearTimeout(sourceChoiceReleaseTimerRef.current);
-        sourceChoiceReleaseTimerRef.current = null;
-      }
-    },
-    []
-  );
 
   const visibleSourceChoices =
     sourceChoicePinned && sourceChoiceEntriesRef.current.length > 0
