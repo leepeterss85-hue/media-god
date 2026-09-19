@@ -70,7 +70,6 @@ import {
   trackLanguage,
 } from "../src/components/mg/mediaTrackPreferences.js";
 import { preservePublishedSourceOrder } from "../src/components/mg/sourcePublication.js";
-import { sourceIsUserSelectable } from "../src/components/mg/sourceSelectorPreferences.js";
 
 const memoryStorage = () => {
   const data = new Map();
@@ -988,27 +987,36 @@ test("cache metadata still identifies uncached provider URLs without hiding them
 });
 
 test("source selector shows pending and uncached rows with no readiness gate", () => {
-  const pendingRows = Array.from({ length: 117 }, (_, index) => ({
-    id: `pending-${index}`,
-    type: "torrent",
-    infoHash: (index + 1).toString(16).padStart(40, "0"),
-    debridCacheChecked: true,
-    debridCached: index < 6,
-    cacheRequired: index >= 6,
-  }));
+  const selectorSource = readFileSync(
+    new URL("../src/components/mg/sourceSelectorPreferences.js", import.meta.url),
+    "utf8"
+  );
 
-  assert.equal(
-    pendingRows.filter(sourceIsUserSelectable).length,
-    117
+  const start = selectorSource.indexOf(
+    "export const sourceIsUserSelectable"
   );
-  assert.equal(
-    sourceIsUserSelectable({
-      type: "status",
-      diagnostic: true,
-      label: "Checking sources",
-    }),
-    false
+  const end = selectorSource.indexOf(
+    "const sourceReportedSeeders",
+    start
   );
+  const selectableBlock = selectorSource.slice(start, end);
+
+  assert.ok(start >= 0);
+  assert.ok(end > start);
+  assert.match(selectableBlock, /!item\?\.diagnostic/);
+  assert.match(selectableBlock, /type \|\| ""/);
+  assert.doesNotMatch(
+    selectableBlock,
+    /sourceHasPendingCacheSignal|sourceHasAuthoritativeCachedSignal|debridCached|cacheRequired/
+  );
+
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(playerSource, /Shown \{selectableSourceCount\}/);
+  assert.doesNotMatch(playerSource, /Ready \{selectableSourceCount\}/);
 });
 
 test("source selector recognises every uncached Real-Debrid payload shape", () => {
