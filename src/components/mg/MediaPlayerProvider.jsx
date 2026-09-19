@@ -2461,12 +2461,8 @@ export function PlayerProvider({
           cacheAnnotatedCombined.filter(
             (item) =>
               sourceIsConfirmedCachedForPlayback(item) &&
-              (
-                isDirectSource(item) ||
-                isMagnetSource(item) ||
-                item?.type === "live" ||
-                item?.live
-              )
+              !item?.diagnostic &&
+              item?.type !== "status"
           );
 
         const completePlaybackSources = orderSources({
@@ -2570,15 +2566,20 @@ export function PlayerProvider({
             .map((item) => sourceMagnetHash(item))
             .filter(Boolean)
         ).size;
-        const cachedSourceCount = cacheAnnotatedCombined.filter(
-          sourceIsConfirmedCachedForPlayback
-        ).length;
+        const cachedSourceCount = confirmedCachedPlaybackSources.length;
         const pendingSourceCount = cacheAnnotatedCombined.filter(
           (item) => sourceHasPendingCacheSignal(item)
         ).length;
         const combinedSourceCount = cacheAnnotatedCombined.length;
         const publishedSourceCount = orderedSources.filter(
           (item) => item && !item?.diagnostic
+        ).length;
+        const publishedCachedSourceCount = orderedSources.filter(
+          (item) =>
+            item &&
+            !item?.diagnostic &&
+            item?.type !== "status" &&
+            sourceIsConfirmedCachedForPlayback(item)
         ).length;
 
         const primary =
@@ -2719,6 +2720,8 @@ export function PlayerProvider({
             pendingSourceCount,
 
             publishedSourceCount,
+
+            publishedCachedSourceCount,
 
             browserAttempted:
               Boolean(
