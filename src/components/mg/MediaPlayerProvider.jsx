@@ -393,7 +393,13 @@ const preservePublishedSourceOrder = (published, incoming) => {
     stable.push(item);
   });
 
-  return dedupeSources(stable);
+  /*
+   * Both input pools were already deduplicated before this stable merge. Do not
+   * run the result through the add-on hash deduper again: that second pass can
+   * collapse distinct file-index rows from the same torrent and can shrink a
+   * completed Continue Watching discovery back to its fast-start source.
+   */
+  return stable;
 };
 
 const DEBRID_CACHE_BATCH_SIZE = 80;
