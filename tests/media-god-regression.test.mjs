@@ -70,6 +70,7 @@ import {
   trackLanguage,
 } from "../src/components/mg/mediaTrackPreferences.js";
 import { preservePublishedSourceOrder } from "../src/components/mg/sourcePublication.js";
+import { sourceIsUserSelectable } from "../src/components/mg/sourceSelectorPreferences.js";
 
 const memoryStorage = () => {
   const data = new Map();
@@ -962,7 +963,7 @@ test("opaque Comet uncached rows remain comet_uncached", () => {
   );
 });
 
-test("source selector hides uncached provider URLs until caching finishes", () => {
+test("cache metadata still identifies uncached provider URLs without hiding them", () => {
   const providerRow = {
     type: "provider",
     url: "https://comet.example.test/playback/hash/0",
@@ -983,6 +984,30 @@ test("source selector hides uncached provider URLs until caching finishes", () =
       runtimeReadyCached: true,
     }),
     true
+  );
+});
+
+test("source selector shows pending and uncached rows with no readiness gate", () => {
+  const pendingRows = Array.from({ length: 117 }, (_, index) => ({
+    id: `pending-${index}`,
+    type: "torrent",
+    infoHash: (index + 1).toString(16).padStart(40, "0"),
+    debridCacheChecked: true,
+    debridCached: index < 6,
+    cacheRequired: index >= 6,
+  }));
+
+  assert.equal(
+    pendingRows.filter(sourceIsUserSelectable).length,
+    117
+  );
+  assert.equal(
+    sourceIsUserSelectable({
+      type: "status",
+      diagnostic: true,
+      label: "Checking sources",
+    }),
+    false
   );
 });
 

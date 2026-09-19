@@ -233,9 +233,9 @@ export default function MediaPlayerControls({
     sourceSortMode
   );
   /*
-   * A transient playback failure must not delete a known cached source from
-   * the chooser. Keep it visible with the existing "Unavailable" label so the
-   * user can retry it manually; automatic recovery still avoids failed rows.
+   * The manual chooser shows the complete discovered source list, including
+   * uncached/pending rows. Automatic recovery can still avoid unsafe choices,
+   * but visibility is no longer controlled by readiness/cache checks.
    */
   const selectableSourceEntries = sortedSourceEntries.filter(
     ({ item }) => sourceIsUserSelectable(item)

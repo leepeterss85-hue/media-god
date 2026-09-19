@@ -979,9 +979,11 @@ export default function VideoPlayer({
     sourceSortMode
   );
 
-  /* Keep every genuinely ready/cached source visible even after a transient
-   * playback failure. Automatic recovery still skips failed indices via
-   * failedSourcesRef, but manual selection can retry an "Unavailable" row. */
+  /*
+   * Show every discovered source regardless of cache/readiness state.
+   * Automatic recovery still applies playback safety rules, but the manual
+   * chooser itself must never collapse to only the currently-ready rows.
+   */
   const selectableSourceEntries = sortedSourceEntries.filter(
     ({ item }) => sourceIsUserSelectable(item)
   );
@@ -9234,7 +9236,7 @@ export default function VideoPlayer({
               </span>
             )}
             <span>
-              Ready {selectableSourceCount}
+              Shown {selectableSourceCount}
             </span>
           </div>
 

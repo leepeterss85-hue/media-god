@@ -15,7 +15,6 @@ import {
   prioritiseTrustedCachedPools,
 } from "@/components/mg/trustedCachedSources";
 import {
-  sourceHasAuthoritativeCachedSignal,
   sourceHasPendingCacheSignal,
   sourceIsConfirmedCachedForPlayback,
 } from "@/components/mg/sourceCacheVisibility";
@@ -214,34 +213,22 @@ const sourceIsCached = (item) =>
     /\b(?:cached|instant|ready)\b/i.test(sourceText(item))
   );
 
-export const sourceIsUserSelectable = (item) => {
-  if (!item) return false;
-
-  // These states are authoritative: the background/foreground RD cache engine
-  // has already proved that this torrent is ready for immediate playback.
-  if (sourceHasAuthoritativeCachedSignal(item)) {
-    return true;
-  }
-
-  /*
-   * Check every cache-state shape before trusting a provider/direct URL. Some
-   * addons return their uncached RD action as an ordinary HTTP row and carry
-   * the waiting state only in the label, status, or resolution strategy. The
-   * row stays in the internal source pool for background caching, but it must
-   * not appear in a user-facing chooser until a ready signal is recorded.
-   */
-  if (sourceHasPendingCacheSignal(item)) {
-    return false;
-  }
-
-  /*
-   * Do not turn an incomplete or unknown cache lookup into an uncached verdict.
-   * Explicit uncached/downloading signals were rejected above; every remaining
-   * row stays visible so a transient provider timeout cannot remove a genuinely
-   * cached film or episode source from the chooser.
-   */
-  return true;
-};
+/*
+ * Source visibility is intentionally independent of cache/readiness state.
+ *
+ * The selector is the user's complete discovery list: cached, uncached,
+ * downloading, pending, unknown and failed rows all remain visible. Cache
+ * metadata is still used for labels, sorting, background caching and automatic
+ * playback decisions, but it must never hide a discovered source.
+ *
+ * Only non-source diagnostic/status placeholders are excluded.
+ */
+export const sourceIsUserSelectable = (item) =>
+  Boolean(
+    item &&
+      !item?.diagnostic &&
+      String(item?.type || "").toLowerCase() !== "status"
+  );
 
 const sourceReportedSeeders = (item) => {
   const explicit = Number(item?.reportedSeeders || 0);
