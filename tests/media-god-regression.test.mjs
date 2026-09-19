@@ -33,6 +33,8 @@ import {
   mapTorrentLinksByFileId,
   normaliseRequestedFileIndex,
   torrentSelectionMetadataPending,
+  torrentFileIdentityMismatchReason,
+  torrentFileMatchesRequestedIdentity,
 } from "../base44/functions/realDebrid/regressionHelpers.js";
 import {
   guideNameAliases,
@@ -1449,6 +1451,93 @@ test("manual Real-Debrid extras use an isolated exact-file job and player pollin
   assert.match(player, /action:\s*"select_torrent_file"/);
   assert.match(player, /rdManualFileSelection/);
   assert.match(player, /manual_file_selection:\s*true/);
+});
+
+test("Real-Debrid movie file selection rejects wrong franchise films before playback", () => {
+  const request = {
+    title: "Resident Evil",
+    year: "2026",
+  };
+
+  assert.equal(
+    torrentFileIdentityMismatchReason(
+      { path: "Resident.Evil.Apocalypse.2004.2160p.UHD.BluRay.mkv" },
+      request
+    ),
+    "conflicting_release_year"
+  );
+  assert.equal(
+    torrentFileIdentityMismatchReason(
+      { path: "Resident Evil 2 1080p WEB-DL.mkv" },
+      { title: "Resident Evil" }
+    ),
+    "conflicting_sequel_number"
+  );
+  assert.equal(
+    torrentFileIdentityMismatchReason(
+      { path: "Resident Evil Original Soundtrack OST.mkv" },
+      request
+    ),
+    "audio_only_file"
+  );
+
+  const files = [
+    {
+      id: 1,
+      path: "Resident.Evil.Apocalypse.2004.2160p.UHD.BluRay.mkv",
+      bytes: 35_000_000_000,
+    },
+    {
+      id: 2,
+      path: "Resident.Evil.2026.1080p.WEB-DL.mkv",
+      bytes: 8_000_000_000,
+    },
+    {
+      id: 3,
+      path: "Resident.Evil.2.Audio.2004.mkv",
+      bytes: 40_000_000_000,
+    },
+  ];
+
+  assert.equal(
+    chooseVideoFileForPlayback(files, request)?.id,
+    2
+  );
+
+  assert.equal(
+    chooseRequestedTorrentFileForPlayback(
+      files,
+      { ...request, file_idx: 0 }
+    )?.id,
+    2
+  );
+
+  assert.equal(
+    chooseVideoFileForPlayback(
+      [files[0], files[2]],
+      request
+    ),
+    null
+  );
+
+  assert.equal(
+    torrentFileMatchesRequestedIdentity(files[1], request),
+    true
+  );
+});
+
+test("player torrent-file selector hides mismatched franchise files", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(playerSource, /identitySafeRdFiles/);
+  assert.match(playerSource, /sourceMatchesRequestedIdentity/);
+  assert.match(
+    playerSource,
+    /visibleRdFileSelectorFiles[\s\S]{0,220}identitySafeRdFiles/
+  );
 });
 
 test("Real-Debrid movie selection penalises samples and prefers the titled main feature", () => {

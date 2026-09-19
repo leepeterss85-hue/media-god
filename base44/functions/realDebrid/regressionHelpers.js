@@ -21,6 +21,81 @@ const isLikelyExtraTorrentFile = (file) =>
     String(file?.path || "")
   );
 
+const AUDIO_ONLY_FILE_RE =
+  /\b(?:soundtrack|original[ ._-]*soundtrack|ost|audio[ ._-]*only|audiobook|audio[ ._-]*commentary|commentary[ ._-]*track|isolated[ ._-]*score|score[ ._-]*album)\b/i;
+
+const NUMBERED_SEQUEL_MARKERS = new Set([
+  "2", "3", "4", "5", "6", "7", "8", "9", "10",
+  "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x",
+]);
+
+const titleTokens = (value) =>
+  String(value || "")
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+
+const contiguousTokenIndex = (haystack, needle) => {
+  if (needle.length === 0 || haystack.length < needle.length) return -1;
+
+  for (let index = 0; index <= haystack.length - needle.length; index += 1) {
+    let matches = true;
+
+    for (let offset = 0; offset < needle.length; offset += 1) {
+      if (haystack[index + offset] !== needle[offset]) {
+        matches = false;
+        break;
+      }
+    }
+
+    if (matches) return index;
+  }
+
+  return -1;
+};
+
+export const torrentFileIdentityMismatchReason = (file, ep = {}) => {
+  const path = String(file?.path || file?.name || "").trim();
+  if (!path) return "missing_file_path";
+
+  if (AUDIO_ONLY_FILE_RE.test(path)) {
+    return "audio_only_file";
+  }
+
+  const requestedYear = String(ep?.year ?? ep?.rdYear ?? "").trim();
+  if (/^\d{4}$/.test(requestedYear)) {
+    const years = Array.from(
+      path.matchAll(/\b(?:19|20)\d{2}\b/g),
+      (match) => match[0]
+    );
+
+    if (years.length > 0 && !years.includes(requestedYear)) {
+      return "conflicting_release_year";
+    }
+  }
+
+  const requestedTitle = String(ep?.title ?? ep?.rdTitle ?? "").trim();
+  const wantedTokens = titleTokens(requestedTitle);
+  const fileTokens = titleTokens(path);
+  const titleIndex = contiguousTokenIndex(fileTokens, wantedTokens);
+
+  if (titleIndex >= 0 && wantedTokens.length > 0) {
+    const requestedEndsInNumber =
+      NUMBERED_SEQUEL_MARKERS.has(wantedTokens[wantedTokens.length - 1]);
+    const nextToken = fileTokens[titleIndex + wantedTokens.length] || "";
+
+    if (!requestedEndsInNumber && NUMBERED_SEQUEL_MARKERS.has(nextToken)) {
+      return "conflicting_sequel_number";
+    }
+  }
+
+  return "";
+};
+
+export const torrentFileMatchesRequestedIdentity = (file, ep = {}) =>
+  torrentFileIdentityMismatchReason(file, ep) === "";
+
 export const torrentSelectionMetadataPending = (info = {}) => {
   const status = String(info?.status || "").toLowerCase();
   const files = Array.isArray(info?.files) ? info.files : [];
@@ -58,14 +133,33 @@ export const chooseVideoFileForPlayback = (files, ep = {}) => {
     if (episodeMatch) return episodeMatch;
   }
 
-  const titleWords = String(ep?.title || "")
+  const identityMatters =
+    Boolean(String(ep?.title ?? ep?.rdTitle ?? "").trim()) ||
+    Boolean(String(ep?.year ?? ep?.rdYear ?? "").trim());
+
+  const identitySafeFiles = identityMatters
+    ? safeFiles.filter((file) =>
+        torrentFileMatchesRequestedIdentity(file, ep)
+      )
+    : safeFiles;
+
+  if (identityMatters && identitySafeFiles.length === 0) {
+    return null;
+  }
+
+  const candidateFiles =
+    identitySafeFiles.length > 0
+      ? identitySafeFiles
+      : safeFiles;
+
+  const titleWords = String(ep?.title || ep?.rdTitle || "")
     .toLowerCase()
     .split(/[^a-z0-9]+/)
     .filter(
       (word) =>
         word.length >= 3 && !["the", "and", "with"].includes(word)
     );
-  const year = String(ep?.year || "").trim();
+  const year = String(ep?.year ?? ep?.rdYear ?? "").trim();
 
   const scoreFile = (file) => {
     const path = String(file?.path || "");
@@ -102,7 +196,7 @@ export const chooseVideoFileForPlayback = (files, ep = {}) => {
     return score;
   };
 
-  return safeFiles.slice().sort((a, b) => scoreFile(b) - scoreFile(a))[0];
+  return candidateFiles.slice().sort((a, b) => scoreFile(b) - scoreFile(a))[0];
 };
 
 export const chooseRequestedTorrentFileForPlayback = (allFiles, ep = {}) => {
@@ -147,7 +241,13 @@ export const chooseRequestedTorrentFileForPlayback = (allFiles, ep = {}) => {
     const indexedVideo = candidates.find(
       (file) =>
         isVideoTorrentFile(file) &&
-        (manualSelection || !isLikelyExtraTorrentFile(file))
+        (
+          manualSelection ||
+          (
+            !isLikelyExtraTorrentFile(file) &&
+            torrentFileMatchesRequestedIdentity(file, ep)
+          )
+        )
     );
     if (indexedVideo) return indexedVideo;
   }

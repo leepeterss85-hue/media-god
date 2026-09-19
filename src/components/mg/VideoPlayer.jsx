@@ -77,6 +77,7 @@ import {
 } from "@/components/mg/mediaEdition";
 import { recordTrustedCachedSource } from "@/components/mg/trustedCachedSources";
 import { sourceHasAuthoritativeCachedSignal } from "@/components/mg/sourceCacheVisibility";
+import { sourceMatchesRequestedIdentity } from "@/components/mg/sourceIdentity";
 
 const isMagnet = (value) =>
   String(value || "")
@@ -1085,10 +1086,42 @@ export default function VideoPlayer({
     ? requestedSourceSelectorValue
     : "";
 
+  const rdFileIdentityRequest = {
+    title:
+      source?.rdTitle ||
+      source?.title ||
+      "",
+    year:
+      source?.rdYear ??
+      source?.year ??
+      "",
+    alternateYears:
+      Array.isArray(source?.rdAlternateYears || source?.alternateYears)
+        ? (source?.rdAlternateYears || source?.alternateYears)
+        : [],
+    mediaType:
+      source?.rdSeason != null ||
+      source?.season != null ||
+      source?.rdEpisode != null ||
+      source?.episode != null
+        ? "tv"
+        : "movie",
+  };
+
+  const identitySafeRdFiles = rdFiles.filter((file) =>
+    sourceMatchesRequestedIdentity(
+      {
+        label: file?.path || file?.name || "",
+        filename: file?.path || file?.name || "",
+      },
+      rdFileIdentityRequest
+    )
+  );
+
   const pinRdFileSelector = () => {
-    rdFileSelectorFilesRef.current = rdFiles;
+    rdFileSelectorFilesRef.current = identitySafeRdFiles;
     rdFileSelectorValueRef.current = String(
-      rdFiles.find(
+      identitySafeRdFiles.find(
         (file) =>
           file.path === rdOverride?.file ||
           file.name === rdOverride?.file
@@ -1107,13 +1140,13 @@ export default function VideoPlayer({
   const visibleRdFileSelectorFiles =
     rdFileSelectorPinnedRef.current && rdFileSelectorFilesRef.current.length > 0
       ? rdFileSelectorFilesRef.current
-      : rdFiles;
+      : identitySafeRdFiles;
 
   const visibleRdFileSelectorValue =
     rdFileSelectorPinnedRef.current
       ? rdFileSelectorValueRef.current
       : String(
-          rdFiles.find(
+          identitySafeRdFiles.find(
             (file) =>
               file.path === rdOverride?.file ||
               file.name === rdOverride?.file
