@@ -798,8 +798,10 @@ export default function VideoPlayer({
   const rdResolutionQueueRef = useRef(Promise.resolve());
   const rdCacheEngineAbortRef = useRef(null);
   const rdCacheEngineOwnsPollingRef = useRef(false);
-  const backgroundCacheControllerRef = useRef(null);
+  const backgroundCacheControllersRef = useRef(new Map());
+  const backgroundCacheScheduledHashesRef = useRef(new Set());
   const backgroundCacheAttemptedRef = useRef(new Set());
+  const backgroundCacheRetryTimerRef = useRef(null);
   const backgroundCacheTitleKeyRef = useRef("");
   const retryExistingTorrentIdRef = useRef("");
   const retryInactiveTorrentHashRef = useRef("");
@@ -830,6 +832,17 @@ export default function VideoPlayer({
         window.clearTimeout(liveRecoveryNoticeTimerRef.current);
         liveRecoveryNoticeTimerRef.current = null;
       }
+
+      if (backgroundCacheRetryTimerRef.current) {
+        window.clearTimeout(backgroundCacheRetryTimerRef.current);
+        backgroundCacheRetryTimerRef.current = null;
+      }
+
+      backgroundCacheControllersRef.current.forEach((controller) => {
+        controller?.abort?.();
+      });
+      backgroundCacheControllersRef.current.clear();
+      backgroundCacheScheduledHashesRef.current.clear();
     };
   }, []);
 
@@ -2205,21 +2218,40 @@ export default function VideoPlayer({
   /*
    * TRUSTED CACHED BACKGROUND BUILDER
    *
-   * The player used to make every uncached torrent a foreground problem. Build
-   * a small trusted shelf instead: while the user is already on a playable
-   * source, Media God may prepare ONE missing torrent at a time in the user's
-   * own Real-Debrid account. Each edition keeps up to five cached front-line
-   * choices; completed jobs become Trusted Cached immediately. Jobs still run
-   * strictly one at a time, but there is no title-wide five-job cap, so every
-   * discovered edition can gradually build its own ready shelf in the background.
+   * Keep several uncached candidates moving toward ready at the same time
+   * instead of serialising the entire title behind one slow torrent. The
+   * Real-Debrid cache engine performs an active-slot preflight for every job,
+   * so this scheduler can safely offer up to three background candidates while
+   * RD remains the authority on the account's actual concurrent-download limit.
+   *
+   * Each edition/quality shelf still stops starting new work after five cached
+   * front-line choices. Slot-blocked candidates are NOT poisoned as attempted:
+   * they are retried when capacity becomes available.
    */
   useEffect(() => {
     const titleKey = rdMediaContextKey;
+    const BACKGROUND_CACHE_CONCURRENCY = 3;
+    const BACKGROUND_CACHE_START_DELAY_MS = 1_200;
+    const BACKGROUND_CACHE_STAGGER_MS = 700;
+    const BACKGROUND_CACHE_SLOT_RETRY_MS = 5_000;
+
+    const abortAllBackgroundCacheJobs = () => {
+      backgroundCacheControllersRef.current.forEach((controller) => {
+        controller?.abort?.();
+      });
+      backgroundCacheControllersRef.current.clear();
+      backgroundCacheScheduledHashesRef.current.clear();
+    };
 
     if (backgroundCacheTitleKeyRef.current !== titleKey) {
-      backgroundCacheControllerRef.current?.abort?.();
-      backgroundCacheControllerRef.current = null;
+      abortAllBackgroundCacheJobs();
       backgroundCacheAttemptedRef.current = new Set();
+
+      if (backgroundCacheRetryTimerRef.current) {
+        window.clearTimeout(backgroundCacheRetryTimerRef.current);
+        backgroundCacheRetryTimerRef.current = null;
+      }
+
       backgroundCacheTitleKeyRef.current = titleKey;
     }
 
@@ -2260,13 +2292,15 @@ export default function VideoPlayer({
       cachedCounts.set(key, Number(cachedCounts.get(key) || 0) + 1);
     });
 
+    const activeHashes = new Set(backgroundCacheControllersRef.current.keys());
+    const scheduledHashes = backgroundCacheScheduledHashesRef.current;
+
     const candidates = sortedSourceEntries
       .map((entry) => {
         const original = sources[entry.index];
         const edition = entry.editionValue || detectMediaEdition(original).value;
         const hash = sourceTorrentHash(original);
         const magnet = richestSourceMagnet(original);
-
         const qualityBucket = qualityBucketFor(entry);
         const cacheBucketKey = `${edition}|${qualityBucket}`;
 
@@ -2288,6 +2322,8 @@ export default function VideoPlayer({
           sourceNeedsCaching(entry.original) &&
           /^[a-f0-9]{40}$/i.test(entry.hash) &&
           /^magnet:/i.test(entry.magnet) &&
+          !activeHashes.has(entry.hash) &&
+          !scheduledHashes.has(entry.hash) &&
           !backgroundCacheAttemptedRef.current.has(entry.hash) &&
           !failedTorrentHashesRef.current.has(entry.hash)
       )
@@ -2302,100 +2338,165 @@ export default function VideoPlayer({
           left.index - right.index
       );
 
-    const candidate = candidates[0];
-    if (!candidate) return undefined;
+    const freeWorkerCount = Math.max(
+      0,
+      BACKGROUND_CACHE_CONCURRENCY -
+        backgroundCacheControllersRef.current.size -
+        backgroundCacheScheduledHashesRef.current.size
+    );
+    const batch = candidates.slice(0, freeWorkerCount);
 
-    let cancelled = false;
-    let controller = null;
+    if (batch.length === 0) {
+      return undefined;
+    }
 
-    const timer = window.setTimeout(() => {
-      if (cancelled) return;
+    const timers = [];
+    const scheduleSlotRetry = () => {
+      if (backgroundCacheRetryTimerRef.current) return;
 
-      /* Never compete with the foreground cache engine. Once that selected
-       * source finishes or stalls, this effect reruns and the next hidden hash
-       * can be prepared in the background. */
-      if (rdCacheEngineOwnsPollingRef.current) return;
+      backgroundCacheRetryTimerRef.current = window.setTimeout(() => {
+        backgroundCacheRetryTimerRef.current = null;
 
-      backgroundCacheAttemptedRef.current.add(candidate.hash);
-      controller = new AbortController();
-      backgroundCacheControllerRef.current = controller;
-
-      window.dispatchEvent(
-        new CustomEvent("mg:background-cache-status", {
-          detail: {
-            state: "starting",
-            edition: candidate.edition,
-            hash: candidate.hash,
-          },
-        })
-      );
-
-      void runRealDebridCacheSession({
-        source: candidate.original,
-        context: {
-          title: source?.rdTitle || source?.title || "",
-          year: source?.rdYear ?? source?.year ?? null,
-          season: source?.rdSeason ?? source?.season ?? null,
-          episode: source?.rdEpisode ?? source?.episode ?? null,
-          fileIdx:
-            candidate.original?.fileIdx != null &&
-            Number.isFinite(Number(candidate.original.fileIdx))
-              ? Number(candidate.original.fileIdx)
-              : null,
-          preferBrowserTranscode: false,
-          preferredTorrentId: "",
-        },
-        signal: controller.signal,
-        onProgress: null,
-      })
-        .then((result) => {
-          if (cancelled || controller.signal.aborted || !result) return;
-
-          if (result.status === "ready" && result.streamUrl) {
-            recordTrustedCachedSource(candidate.original);
-            setRuntimeReadyTorrentHashes((current) => {
-              if (current.has(candidate.hash)) return current;
-              const next = new Set(current);
-              next.add(candidate.hash);
-              return next;
-            });
-
-            window.dispatchEvent(
-              new CustomEvent("mg:background-cache-status", {
-                detail: {
-                  state: "ready",
-                  edition: candidate.edition,
-                  hash: candidate.hash,
-                },
-              })
-            );
-          }
-
-          if (result.accountBlocked !== true) {
-            setBackgroundCacheNonce((value) => value + 1);
-          }
-        })
-        .catch((error) => {
-          if (cancelled || controller?.signal?.aborted || error?.name === "AbortError") {
-            return;
-          }
-
+        if (backgroundCacheTitleKeyRef.current === titleKey) {
           setBackgroundCacheNonce((value) => value + 1);
-        })
-        .finally(() => {
-          if (backgroundCacheControllerRef.current === controller) {
-            backgroundCacheControllerRef.current = null;
-          }
-        });
-    }, 1_500);
+        }
+      }, BACKGROUND_CACHE_SLOT_RETRY_MS);
+    };
 
+    batch.forEach((candidate, batchIndex) => {
+      backgroundCacheScheduledHashesRef.current.add(candidate.hash);
+
+      const timer = window.setTimeout(() => {
+        backgroundCacheScheduledHashesRef.current.delete(candidate.hash);
+
+        if (
+          backgroundCacheTitleKeyRef.current !== titleKey ||
+          backgroundCacheControllersRef.current.has(candidate.hash)
+        ) {
+          return;
+        }
+
+        /*
+         * A foreground uncached selection gets priority. Do not start new
+         * background work while it owns the cache engine; the normal player
+         * state change will rerun this scheduler when foreground preparation
+         * ends.
+         */
+        if (rdCacheEngineOwnsPollingRef.current) {
+          setBackgroundCacheNonce((value) => value + 1);
+          return;
+        }
+
+        backgroundCacheAttemptedRef.current.add(candidate.hash);
+        const controller = new AbortController();
+        backgroundCacheControllersRef.current.set(candidate.hash, controller);
+
+        window.dispatchEvent(
+          new CustomEvent("mg:background-cache-status", {
+            detail: {
+              state: "starting",
+              edition: candidate.edition,
+              hash: candidate.hash,
+              activeJobs: backgroundCacheControllersRef.current.size,
+            },
+          })
+        );
+
+        let accountBlocked = false;
+
+        void runRealDebridCacheSession({
+          source: candidate.original,
+          context: {
+            title: source?.rdTitle || source?.title || "",
+            year: source?.rdYear ?? source?.year ?? null,
+            season: source?.rdSeason ?? source?.season ?? null,
+            episode: source?.rdEpisode ?? source?.episode ?? null,
+            fileIdx:
+              candidate.original?.fileIdx != null &&
+              Number.isFinite(Number(candidate.original.fileIdx))
+                ? Number(candidate.original.fileIdx)
+                : null,
+            preferBrowserTranscode: false,
+            preferredTorrentId: "",
+          },
+          signal: controller.signal,
+          onProgress: null,
+        })
+          .then((result) => {
+            if (controller.signal.aborted || !result) return;
+
+            if (result.accountBlocked === true) {
+              accountBlocked = true;
+              backgroundCacheAttemptedRef.current.delete(candidate.hash);
+
+              window.dispatchEvent(
+                new CustomEvent("mg:background-cache-status", {
+                  detail: {
+                    state: "waiting-slot",
+                    edition: candidate.edition,
+                    hash: candidate.hash,
+                  },
+                })
+              );
+              scheduleSlotRetry();
+              return;
+            }
+
+            if (result.status === "ready" && result.streamUrl) {
+              recordTrustedCachedSource(candidate.original);
+              setRuntimeReadyTorrentHashes((current) => {
+                if (current.has(candidate.hash)) return current;
+                const next = new Set(current);
+                next.add(candidate.hash);
+                return next;
+              });
+
+              window.dispatchEvent(
+                new CustomEvent("mg:background-cache-status", {
+                  detail: {
+                    state: "ready",
+                    edition: candidate.edition,
+                    hash: candidate.hash,
+                  },
+                })
+              );
+            }
+          })
+          .catch((error) => {
+            if (controller.signal.aborted || error?.name === "AbortError") {
+              return;
+            }
+          })
+          .finally(() => {
+            if (
+              backgroundCacheControllersRef.current.get(candidate.hash) === controller
+            ) {
+              backgroundCacheControllersRef.current.delete(candidate.hash);
+            }
+
+            if (!accountBlocked) {
+              setBackgroundCacheNonce((value) => value + 1);
+            }
+          });
+      }, BACKGROUND_CACHE_START_DELAY_MS + batchIndex * BACKGROUND_CACHE_STAGGER_MS);
+
+      timers.push({
+        timer,
+        hash: candidate.hash,
+      });
+    });
+
+    /*
+     * Dependency changes may happen while discovery is still filling the pool.
+     * Cancel only jobs that have not started yet. Running background downloads
+     * are intentionally left alive; they are aborted only when the title
+     * changes or the player unmounts.
+     */
     return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-      controller?.abort?.();
-      if (backgroundCacheControllerRef.current === controller) {
-        backgroundCacheControllerRef.current = null;
-      }
+      timers.forEach(({ timer, hash }) => {
+        window.clearTimeout(timer);
+        backgroundCacheScheduledHashesRef.current.delete(hash);
+      });
     };
   }, [
     activeIdx,
