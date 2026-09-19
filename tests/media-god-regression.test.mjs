@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 
 import {
   dedupeMergedChannels,
+  LIVE_TV_SOURCES,
   normaliseCountryCode,
   parseFreeTvPlaylist,
   PUBLIC_DIRECT_CHANNELS,
@@ -513,6 +514,23 @@ test("country normalisation keeps UK/GB and USA/US consistent", () => {
   assert.equal(normaliseCountryCode("GB;IE"), "GB");
 });
 
+test("new FAST catalogues remain enabled with the intended regions", () => {
+  const expected = new Map([
+    ["rakuten-tv-gb-buddy", "GB"],
+    ["tcl-tv-plus-buddy", "US"],
+    ["airy-tv-buddy", "US"],
+  ]);
+
+  for (const [id, country] of expected) {
+    const source = LIVE_TV_SOURCES.find((item) => item.id === id);
+
+    assert.ok(source, `${id} should be configured`);
+    assert.notEqual(source.disabled, true, `${id} should be enabled`);
+    assert.equal(source.country, country);
+    assert.match(source.url, /^https:\/\/raw\.githubusercontent\.com\//);
+  }
+});
+
 test("M3U parser handles quoted commas and normalises UK metadata", () => {
   const playlist = `#EXTM3U\n#EXTINF:-1 tvg-id="BBC.One.Lon.HD.uk" tvg-name="BBC One, London" tvg-country="UK" group-title="United Kingdom",BBC One HD\nhttps://example.test/bbc-one.m3u8\n`;
   const [channel] = parseFreeTvPlaylist(playlist, {
@@ -541,6 +559,19 @@ test("M3U parser rejects placeholder and dummy stream URLs", () => {
   assert.equal(channels.length, 1);
   assert.equal(channels[0].name, "Valid channel");
   assert.equal(channels[0].url, "https://example.test/live.m3u8");
+});
+
+test("Airy TV test-only row stays out of the visible catalogue", () => {
+  const playlist = `#EXTM3U\n#EXTINF:-1 group-title="TV Shows",Test\nhttps://example.test/test.m3u8\n#EXTINF:-1 group-title="Movies",Cinema Star\nhttps://example.test/cinema-star.m3u8\n`;
+  const channels = parseFreeTvPlaylist(playlist, {
+    id: "airy-tv-buddy",
+    name: "Airy TV",
+    priority: 92,
+    category: "United States",
+    country: "US",
+  });
+
+  assert.deepEqual(channels.map((channel) => channel.name), ["Cinema Star"]);
 });
 
 test("BBC core channels keep curated direct video and official iPlayer fallbacks", () => {
