@@ -1484,7 +1484,15 @@ test("final player source pool includes every confirmed cached source", () => {
   );
   assert.match(
     providerSource,
-    /const completePlaybackSources\s*=\s*orderSources\(\{[\s\S]{0,280}?\.\.\.playbackSources,[\s\S]{0,120}?\.\.\.confirmedCachedPlaybackSources/
+    /const cacheAuthoritativePlaybackSources\s*=\s*preservePublishedSourceOrder\(\s*playbackSources,\s*confirmedCachedPlaybackSources\s*\)/
+  );
+  assert.match(
+    providerSource,
+    /const completePlaybackSources\s*=\s*orderSources\(\{[\s\S]{0,180}?sources:\s*cacheAuthoritativePlaybackSources/
+  );
+  assert.doesNotMatch(
+    providerSource,
+    /dedupeSources\(\[[\s\S]{0,180}?\.\.\.playbackSources,[\s\S]{0,180}?\.\.\.confirmedCachedPlaybackSources/
   );
   assert.match(
     providerSource,
@@ -1495,6 +1503,22 @@ test("final player source pool includes every confirmed cached source", () => {
     /cachedSourceCount\s*=\s*confirmedCachedPlaybackSources\.length/
   );
   assert.match(providerSource, /publishedCachedSourceCount/);
+});
+
+test("final cache merge lets authoritative cached metadata replace stale pending rows", () => {
+  const providerSource = readFileSync(
+    new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(
+    providerSource,
+    /cacheAuthoritativePlaybackSources\s*=\s*preservePublishedSourceOrder\(\s*playbackSources,\s*confirmedCachedPlaybackSources\s*\)/
+  );
+  assert.doesNotMatch(
+    providerSource,
+    /sources:\s*dedupeSources\(\[[\s\S]{0,220}?\.\.\.playbackSources,[\s\S]{0,220}?\.\.\.confirmedCachedPlaybackSources/
+  );
 });
 
 test("source selector stays visible with a single ready source and expands as more arrive", () => {
