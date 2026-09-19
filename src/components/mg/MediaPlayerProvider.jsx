@@ -361,7 +361,7 @@ const stableDiscoveredSourceKey = (item) => {
   return id ? `id:${id}` : "";
 };
 
-const DEBRID_CACHE_BATCH_SIZE = 20;
+const DEBRID_CACHE_BATCH_SIZE = 100;
 const DEBRID_CACHE_MAX_PASSES = 3;
 const DEBRID_CACHE_RETRY_DELAY_MS = 180;
 

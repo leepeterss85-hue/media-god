@@ -270,7 +270,7 @@ test("positive cache hits survive partial provider errors", () => {
   );
 });
 
-test("player retries every unresolved cache hash in small exhaustive batches", () => {
+test("player checks every Real-Debrid cache hash without slash-joined batch loss", () => {
   const providerSource = readFileSync(
     new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
     "utf8"
@@ -280,7 +280,7 @@ test("player retries every unresolved cache hash in small exhaustive batches", (
     "utf8"
   );
 
-  assert.match(providerSource, /DEBRID_CACHE_BATCH_SIZE\s*=\s*20/);
+  assert.match(providerSource, /DEBRID_CACHE_BATCH_SIZE\s*=\s*100/);
   assert.match(providerSource, /DEBRID_CACHE_MAX_PASSES\s*=\s*3/);
   assert.match(providerSource, /let hashesToCheck = hashes/);
   assert.match(
@@ -290,14 +290,18 @@ test("player retries every unresolved cache hash in small exhaustive batches", (
   assert.match(providerSource, /debridCacheChecked:\s*false/);
   assert.match(providerSource, /debridCacheCheckState:\s*"unknown"/);
 
-  assert.match(backendSource, /REAL_DEBRID_CACHE_BATCH_SIZE\s*=\s*20/);
+  assert.match(backendSource, /REAL_DEBRID_CACHE_CONCURRENCY\s*=\s*6/);
   assert.match(
+    backendSource,
+    /instantAvailability\/\$\{encodeURIComponent\(hash\)\}/
+  );
+  assert.doesNotMatch(
     backendSource,
     /instantAvailability\/\$\{batch\.join\("\/"\)\}/
   );
   assert.match(
     backendSource,
-    /if \(!hasLower && !hasUpper\) return;/
+    /Preserve this hash as unknown without discarding other successes/
   );
 });
 

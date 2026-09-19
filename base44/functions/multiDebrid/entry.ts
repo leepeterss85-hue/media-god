@@ -358,7 +358,7 @@ const parseTorBoxCache = (data, hashes) => {
   return output;
 };
 
-const REAL_DEBRID_CACHE_BATCH_SIZE = 20;
+const REAL_DEBRID_CACHE_CONCURRENCY = 6;
 
 const checkCacheForProvider = async (providerKey, token, hashes) => {
   const output = {};
@@ -370,35 +370,57 @@ const checkCacheForProvider = async (providerKey, token, hashes) => {
 
   if (providerKey === "realdebrid") {
     const realDebridOutput = {};
+    let nextIndex = 0;
 
-    for (
-      let index = 0;
-      index < hashes.length;
-      index += REAL_DEBRID_CACHE_BATCH_SIZE
-    ) {
-      const batch = hashes.slice(index, index + REAL_DEBRID_CACHE_BATCH_SIZE);
-      const data = await requestJson(
-        `${PROVIDERS.realdebrid.baseUrl}/torrents/instantAvailability/${batch.join("/")}`,
-        { headers: authHeaders(token) }
-      );
+    /*
+     * Real-Debrid's instantAvailability route is a single-hash endpoint.
+     * Checking a slash-joined batch can return only part of the requested
+     * hashes, which made Media God report roughly one cached result per batch.
+     *
+     * Use a small worker pool instead: every discovered hash gets its own
+     * availability request, successful results are kept independently, and a
+     * transient failure for one hash does not erase the rest of the batch.
+     */
+    const worker = async () => {
+      while (nextIndex < hashes.length) {
+        const index = nextIndex;
+        nextIndex += 1;
+        const hash = hashes[index];
 
-      batch.forEach((hash) => {
-        const upper = hash.toUpperCase();
-        const hasLower = Object.prototype.hasOwnProperty.call(data || {}, hash);
-        const hasUpper = Object.prototype.hasOwnProperty.call(data || {}, upper);
+        try {
+          const data = await requestJson(
+            `${PROVIDERS.realdebrid.baseUrl}/torrents/instantAvailability/${encodeURIComponent(hash)}`,
+            { headers: authHeaders(token) }
+          );
 
-        /*
-         * Missing hashes are not confirmed misses. Leave them absent so the
-         * frontend classifies them as unknown and retries them in a later pass.
-         */
-        if (!hasLower && !hasUpper) return;
+          const upper = hash.toUpperCase();
+          const hasLower = Object.prototype.hasOwnProperty.call(data || {}, hash);
+          const hasUpper = Object.prototype.hasOwnProperty.call(data || {}, upper);
 
-        const entry = hasLower ? data?.[hash] : data?.[upper];
-        realDebridOutput[hash] = Boolean(
-          entry?.rd && Object.keys(entry.rd).length > 0
-        );
-      });
-    }
+          /*
+           * Missing hashes are not confirmed misses. Leave them absent so the
+           * frontend classifies them as unknown and retries them later.
+           */
+          if (!hasLower && !hasUpper) continue;
+
+          const entry = hasLower ? data?.[hash] : data?.[upper];
+          realDebridOutput[hash] = Boolean(
+            entry?.rd && Object.keys(entry.rd).length > 0
+          );
+        } catch {
+          // Preserve this hash as unknown without discarding other successes.
+        }
+      }
+    };
+
+    const workerCount = Math.min(
+      REAL_DEBRID_CACHE_CONCURRENCY,
+      hashes.length
+    );
+
+    await Promise.all(
+      Array.from({ length: workerCount }, () => worker())
+    );
 
     return realDebridOutput;
   }
