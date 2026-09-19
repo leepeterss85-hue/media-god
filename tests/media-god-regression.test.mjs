@@ -1051,7 +1051,7 @@ test("source selector recognises every uncached Real-Debrid payload shape", () =
   );
 });
 
-test("unknown cache checks and failed cached rows remain in the source chooser", () => {
+test("cache state never controls manual source visibility", () => {
   const unknown = {
     type: "torrent",
     infoHash: "d".repeat(40),
@@ -1071,17 +1071,24 @@ test("unknown cache checks and failed cached rows remain in the source chooser",
     "utf8"
   );
 
-  assert.match(
-    selectorSource,
-    /Do not turn an incomplete or unknown cache lookup into an uncached verdict/
+  const start = selectorSource.indexOf(
+    "export const sourceIsUserSelectable"
   );
+  const end = selectorSource.indexOf(
+    "const sourceReportedSeeders",
+    start
+  );
+  const selectableBlock = selectorSource.slice(start, end);
+
+  assert.ok(start >= 0);
+  assert.ok(end > start);
   assert.doesNotMatch(
-    selectorSource,
-    /const strategy = chooseDebridResolutionStrategy/
+    selectableBlock,
+    /sourceHasPendingCacheSignal|sourceHasAuthoritativeCachedSignal|debridCached|cacheRequired|debridCacheChecked/
   );
   assert.match(
     controlsSource,
-    /transient playback failure must not delete a known cached source/
+    /complete discovered source list/
   );
   assert.doesNotMatch(
     controlsSource,

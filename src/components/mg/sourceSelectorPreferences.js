@@ -221,7 +221,7 @@ const sourceIsCached = (item) =>
  * metadata is still used for labels, sorting, background caching and automatic
  * playback decisions, but it must never hide a discovered source.
  *
- * Only non-source diagnostic/status placeholders are excluded.
+ * Only diagnostic/status placeholder rows are excluded; cache state never is.
  */
 export const sourceIsUserSelectable = (item) =>
   Boolean(
