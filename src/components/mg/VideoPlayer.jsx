@@ -980,13 +980,54 @@ export default function VideoPlayer({
   const sourceSelectorPinnedAtRef = useRef(0);
   const sourceSelectorEntriesRef = useRef([]);
   const sourceSelectorValueRef = useRef(0);
+  const sourceSelectorReleaseTimerRef = useRef(null);
+  const [, setSourceSelectorPinRevision] = useState(0);
 
   const rdFileSelectorPinnedRef = useRef(false);
   const rdFileSelectorPinnedAtRef = useRef(0);
   const rdFileSelectorFilesRef = useRef([]);
   const rdFileSelectorValueRef = useRef("");
 
+  const releaseSourceSelector = () => {
+    const hadPinnedSnapshot =
+      sourceSelectorPinnedRef.current ||
+      sourceSelectorEntriesRef.current.length > 0;
+
+    if (sourceSelectorReleaseTimerRef.current) {
+      window.clearTimeout(sourceSelectorReleaseTimerRef.current);
+      sourceSelectorReleaseTimerRef.current = null;
+    }
+
+    sourceSelectorPinnedRef.current = false;
+    sourceSelectorPinnedAtRef.current = 0;
+    sourceSelectorEntriesRef.current = [];
+
+    /*
+     * These values live in refs so pinning does not re-render and dismiss an
+     * Android native picker while it is opening. Re-render only when releasing
+     * a real snapshot so sources discovered in the meantime enter the DOM.
+     */
+    if (hadPinnedSnapshot) {
+      setSourceSelectorPinRevision((value) => value + 1);
+    }
+  };
+
   const pinSourceSelector = () => {
+    /*
+     * Continue Watching deliberately opens with one fast-start stream while
+     * addon/cache discovery runs. Freezing that single option lets Android keep
+     * it forever when its native picker closes without blur/change, hiding every
+     * cached source that arrives later. A one-option picker has nothing useful
+     * to preserve, so keep it live until at least two choices exist.
+     */
+    if (selectableSourceEntries.length <= 1) {
+      sourceSelectorPinnedRef.current = false;
+      sourceSelectorPinnedAtRef.current = 0;
+      sourceSelectorEntriesRef.current = [];
+      sourceSelectorValueRef.current = activeIdx;
+      return;
+    }
+
     sourceSelectorEntriesRef.current = selectableSourceEntries;
     sourceSelectorValueRef.current = selectableSourceEntries.some(
       (entry) => entry.index === activeIdx
@@ -995,13 +1036,26 @@ export default function VideoPlayer({
       : "";
     sourceSelectorPinnedRef.current = true;
     sourceSelectorPinnedAtRef.current = Date.now();
+
+    if (sourceSelectorReleaseTimerRef.current) {
+      window.clearTimeout(sourceSelectorReleaseTimerRef.current);
+    }
+
+    sourceSelectorReleaseTimerRef.current = window.setTimeout(
+      releaseSourceSelector,
+      12000
+    );
   };
 
-  const releaseSourceSelector = () => {
-    sourceSelectorPinnedRef.current = false;
-    sourceSelectorPinnedAtRef.current = 0;
-    sourceSelectorEntriesRef.current = [];
-  };
+  useEffect(
+    () => () => {
+      if (sourceSelectorReleaseTimerRef.current) {
+        window.clearTimeout(sourceSelectorReleaseTimerRef.current);
+        sourceSelectorReleaseTimerRef.current = null;
+      }
+    },
+    []
+  );
 
   const selectorOpenKey = (event) =>
     [
