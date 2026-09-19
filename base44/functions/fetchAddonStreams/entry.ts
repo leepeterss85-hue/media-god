@@ -4,30 +4,6 @@ const clean = (value) => String(value || "").trim();
 
 const isHttp = (value) => /^https?:\/\//i.test(clean(value));
 
-const streamHasPreferredEnglishAudio = (stream) => {
-  const text = [
-    stream?.name,
-    stream?.title,
-    stream?.description,
-    stream?.language,
-    stream?.languages,
-    stream?.audioLanguage,
-    stream?.audio_language,
-    stream?.audioLanguages,
-    stream?.audio_languages,
-  ]
-    .flatMap((value) => (Array.isArray(value) ? value : [value]))
-    .map(clean)
-    .filter(Boolean)
-    .join(" ");
-
-  return (
-    /(?:^|[\s._\-\[\](){}|+,])(?:eng|en|english)(?=$|[\s._\-\[\](){}|+,])/i.test(text) ||
-    /(?:⛿\s*)?(?:ᴇɴ|ᴇɴɢ|ᴇɴɢʟɪꜱʜ)(?=$|[\s._\-\[\](){}|+,])/i.test(text) ||
-    /\b(?:multi(?:[ ._-]?audio)?|dual(?:[ ._-]?audio)?|multi(?:[ ._-]?lang(?:uage)?)?)\b|(?:⛿\s*)?ᴍᴜʟᴛɪ/i.test(text)
-  );
-};
-
 const yearQualifiedSearchIds = (values) =>
   (Array.isArray(values) ? values : [])
     .filter((value) => /^search:.*:\d{4}(?::\d+:\d+)?$/i.test(clean(value)))
@@ -1003,9 +979,22 @@ const dedupe = (items) => {
         infoHashFromValue(raw)
     ).toLowerCase();
 
+    const fileIdx =
+      item?.fileIdx ??
+      item?.file_idx ??
+      "";
+    const fileKey =
+      fileIdx === "" || fileIdx == null
+        ? ""
+        : `:${String(fileIdx)}`;
+
+    /*
+     * Different files inside one torrent are different playable choices.
+     * Deduplicating by hash alone discarded every later file-index row.
+     */
     const key =
       hash
-        ? `hash:${hash}`
+        ? `hash:${hash}${fileKey}`
         : clean(
             item?.url ||
               item?.magnet ||
@@ -1449,17 +1438,16 @@ const lookupAddon = async ({
   }
 
   /*
-   * Newly released reboots/remakes can be indexed unevenly: an addon may
-   * return a few foreign-labelled rows for IMDb/TMDb while the English rows
-   * live under the title+year search id. During the full lookup, supplement a
-   * non-English primary result with up to two year-qualified aliases instead
-   * of treating the first non-empty response as complete.
+   * The comprehensive lookup must be exhaustive, not "first non-empty wins".
+   * IMDb/TMDb can legitimately return only one provider row while the same
+   * addon exposes the rest of the releases under its title+year namespace.
+   * Continue Watching commonly fast-starts that one Real-Debrid/library file,
+   * so always merge the safe year-qualified aliases during the full pass.
+   * This also recovers reboot/remake rows without mixing other years.
    */
   if (
-    mediaType === "movie" &&
     !skipManifest &&
-    rawStreams.length > 0 &&
-    !rawStreams.some(streamHasPreferredEnglishAudio)
+    rawStreams.length > 0
   ) {
     for (const alternateStreamId of yearQualifiedSearchIds(alternateStreamIds)) {
       if (
@@ -1496,11 +1484,7 @@ const lookupAddon = async ({
           ...rawStreams,
           ...alternateStreams,
         ]);
-
-        if (rawStreams.some(streamHasPreferredEnglishAudio)) {
-          alternateIdUsed = alternateStreamId;
-          break;
-        }
+        alternateIdUsed = alternateStreamId;
       }
     }
   }
