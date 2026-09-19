@@ -1380,7 +1380,7 @@ test("exclusive playback retires the old surface and keeps only the active strea
   assert.equal(hasExclusivePlaybackOwner(), false);
 });
 
-test("source chooser drops a stale native snapshot when the live list grows", () => {
+test("source chooser ignores a stale native snapshot when the live list grows", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
     "utf8"
@@ -1390,21 +1390,26 @@ test("source chooser drops a stale native snapshot when the live list grows", ()
     "utf8"
   );
 
-  assert.match(playerSource, /const \[sourceSelectorPinned, setSourceSelectorPinned\] = useState\(false\)/);
+  assert.match(playerSource, /const sourceSelectorSnapshotIsStale\s*=/);
   assert.match(
     playerSource,
-    /selectableSourceEntries\.length <= pinnedCount[\s\S]{0,220}?setSourceSelectorPinned\(false\)/
+    /selectableSourceEntries\.length > sourceSelectorEntriesRef\.current\.length/
   );
   assert.match(
     playerSource,
-    /const visibleSourceSelectorEntries\s*=\s*sourceSelectorPinned/
+    /sourceSelectorPinnedRef\.current[\s\S]{0,180}?!sourceSelectorSnapshotIsStale[\s\S]{0,180}?sourceSelectorEntriesRef\.current/
   );
+  assert.doesNotMatch(playerSource, /setSourceSelectorPinned\(/);
 
+  assert.match(controlsSource, /const sourceChoiceSnapshotIsStale\s*=/);
   assert.match(
     controlsSource,
-    /selectableSourceEntries\.length <= pinnedCount[\s\S]{0,180}?setSourceChoicePinned\(false\)/
+    /selectableSourceEntries\.length > sourceChoiceEntriesRef\.current\.length/
   );
-  assert.match(controlsSource, /const visibleSourceChoices\s*=\s*sourceChoicePinned/);
+  assert.match(
+    controlsSource,
+    /sourceChoicePinned[\s\S]{0,150}?!sourceChoiceSnapshotIsStale[\s\S]{0,150}?sourceChoiceEntriesRef\.current/
+  );
 });
 
 test("Ready count is exactly the source chooser entry count", () => {
