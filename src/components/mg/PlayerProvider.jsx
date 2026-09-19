@@ -782,6 +782,11 @@ function PlayerAutomationBridge({ children }) {
               ...next,
               imdbId: prepared?.imdbId || next?.imdbId || next?.imdb_id || "",
               sources: prepared.sources,
+              completeSources:
+                Array.isArray(prepared?.completeSources) &&
+                prepared.completeSources.length > 0
+                  ? prepared.completeSources
+                  : prepared.sources,
 
               /*
                * The prepare pass already completed the full addon/RD source
