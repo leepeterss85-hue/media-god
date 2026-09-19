@@ -4,30 +4,6 @@ const clean = (value) => String(value || "").trim();
 
 const isHttp = (value) => /^https?:\/\//i.test(clean(value));
 
-const streamHasPreferredEnglishAudio = (stream) => {
-  const text = [
-    stream?.name,
-    stream?.title,
-    stream?.description,
-    stream?.language,
-    stream?.languages,
-    stream?.audioLanguage,
-    stream?.audio_language,
-    stream?.audioLanguages,
-    stream?.audio_languages,
-  ]
-    .flatMap((value) => (Array.isArray(value) ? value : [value]))
-    .map(clean)
-    .filter(Boolean)
-    .join(" ");
-
-  return (
-    /(?:^|[\s._\-\[\](){}|+,])(?:eng|en|english)(?=$|[\s._\-\[\](){}|+,])/i.test(text) ||
-    /(?:⛿\s*)?(?:ᴇɴ|ᴇɴɢ|ᴇɴɢʟɪꜱʜ)(?=$|[\s._\-\[\](){}|+,])/i.test(text) ||
-    /\b(?:multi(?:[ ._-]?audio)?|dual(?:[ ._-]?audio)?|multi(?:[ ._-]?lang(?:uage)?)?)\b|(?:⛿\s*)?ᴍᴜʟᴛɪ/i.test(text)
-  );
-};
-
 const yearQualifiedSearchIds = (values) =>
   (Array.isArray(values) ? values : [])
     .filter((value) => /^search:.*:\d{4}(?::\d+:\d+)?$/i.test(clean(value)))
@@ -799,9 +775,22 @@ const dedupe = (items) => {
         infoHashFromValue(raw)
     ).toLowerCase();
 
+    const fileIdx =
+      item?.fileIdx ??
+      item?.file_idx ??
+      "";
+    const fileKey =
+      fileIdx === "" || fileIdx == null
+        ? ""
+        : `:${String(fileIdx)}`;
+
+    /*
+     * Preserve distinct playable files from the same torrent. Hash-only
+     * deduplication made Continue Watching appear to find just one file.
+     */
     const key =
       hash
-        ? `hash:${hash}`
+        ? `hash:${hash}${fileKey}`
         : clean(
             item?.url ||
               item?.src ||
@@ -1192,15 +1181,12 @@ const fetchOneAddon = async ({
   }
 
   /*
-   * Browser fallback mirrors the server-side completeness rule for new
-   * reboots/remakes. If the primary identifier only yields non-English rows,
-   * merge year-qualified title results before deciding the source set is done.
+   * Mirror the server-side exhaustive lookup in the device/browser path.
+   * A non-empty IMDb/TMDb response can still be only the fast-start source;
+   * year-qualified title results contain the remaining releases without
+   * crossing into another remake/reboot year.
    */
-  if (
-    mediaType === "movie" &&
-    rawStreams.length > 0 &&
-    !rawStreams.some(streamHasPreferredEnglishAudio)
-  ) {
+  if (rawStreams.length > 0) {
     for (const alternateStreamId of yearQualifiedSearchIds(alternateStreamIds)) {
       if (
         !alternateStreamId ||
@@ -1232,15 +1218,11 @@ const fetchOneAddon = async ({
           : [];
 
       if (alternateStreams.length > 0) {
-        rawStreams = [
+        rawStreams = dedupe([
           ...rawStreams,
           ...alternateStreams,
-        ];
-
-        if (rawStreams.some(streamHasPreferredEnglishAudio)) {
-          alternateIdUsed = alternateStreamId;
-          break;
-        }
+        ]);
+        alternateIdUsed = alternateStreamId;
       }
     }
   }
