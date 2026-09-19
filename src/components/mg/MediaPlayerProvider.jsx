@@ -43,6 +43,10 @@ import {
   sortSourceEntries,
 } from "@/components/mg/sourceSelectorPreferences";
 import { preservePublishedSourceOrder } from "@/components/mg/sourcePublication";
+import {
+  filterSourcesForRequestedIdentity,
+  sourceMatchesRequestedIdentity,
+} from "@/components/mg/sourceIdentity";
 
 const PlayerContext = createContext(null);
 
@@ -1022,14 +1026,31 @@ const fetchAddonSources = async (
       args
     );
 
+  const identityRequest = {
+    title: args?.title || "",
+    year: args?.year ?? "",
+    alternateYears: Array.isArray(args?.alternateYears)
+      ? args.alternateYears
+      : [],
+    mediaType: args?.mediaType || "movie",
+  };
+
+  const safeServer = {
+    ...server,
+    streams: filterSourcesForRequestedIdentity(
+      server?.streams,
+      identityRequest
+    ),
+  };
+
   if (
     args?.fastMode ||
     !shouldUseBrowserAddonFallback(
-      server
+      safeServer
     )
   ) {
     return {
-      ...server,
+      ...safeServer,
 
       browserAttempted:
         false,
@@ -1072,20 +1093,29 @@ const fetchAddonSources = async (
         args.episode,
     });
 
+  const safeBrowserStreams =
+    filterSourcesForRequestedIdentity(
+      browser?.streams,
+      identityRequest
+    );
+
   const streams =
-    mergeAddonStreams(
-      server.streams,
-      browser.streams
+    filterSourcesForRequestedIdentity(
+      mergeAddonStreams(
+        safeServer.streams,
+        safeBrowserStreams
+      ),
+      identityRequest
     );
 
   return {
-    ...server,
+    ...safeServer,
 
     streams,
 
     diagnostics: [
       ...(
-        server.diagnostics ||
+        safeServer.diagnostics ||
         []
       ),
 
@@ -1098,7 +1128,7 @@ const fetchAddonSources = async (
     addonsChecked:
       Math.max(
         Number(
-          server.addonsChecked ||
+          safeServer.addonsChecked ||
           0
         ),
 
@@ -1111,7 +1141,7 @@ const fetchAddonSources = async (
     status:
       streams.length > 0
         ? "OK"
-        : server.status,
+        : safeServer.status,
 
     reason:
       browser.streams
@@ -1122,7 +1152,7 @@ const fetchAddonSources = async (
               ? ""
               : "s"
           }.`
-        : server.reason ||
+        : safeServer.reason ||
           browser.error ||
           "",
 
@@ -1133,9 +1163,9 @@ const fetchAddonSources = async (
 
     browserRecovered:
       Array.isArray(
-        browser.streams
+        safeBrowserStreams
       )
-        ? browser.streams.length
+        ? safeBrowserStreams.length
         : 0,
 
     browserDiagnostics:
@@ -1209,6 +1239,36 @@ const findRdLibrarySource = async ({
         "ready" &&
       data?.stream_url
     ) {
+      const rdCandidate = {
+        label:
+          data?.filename ||
+          "Real-Debrid Library",
+        filename:
+          data?.filename ||
+          "",
+      };
+
+      if (
+        !sourceMatchesRequestedIdentity(
+          rdCandidate,
+          {
+            title,
+            year,
+            alternateYears,
+            mediaType:
+              season != null || episode != null
+                ? "tv"
+                : "movie",
+          }
+        )
+      ) {
+        return {
+          source: null,
+          status: "CONNECTED",
+          detail: "Real-Debrid library match rejected because it belongs to a different release.",
+        };
+      }
+
       return {
         source: {
           label:

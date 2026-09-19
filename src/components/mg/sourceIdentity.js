@@ -1,0 +1,159 @@
+const clean = (value) => String(value || "").trim();
+
+const AUDIO_FILE_RE = /\.(?:mp3|flac|wav|m4a|m4b|ogg|opus|wma|aac)(?:$|[?#])/i;
+const AUDIO_ONLY_RE =
+  /\b(?:soundtrack|original[\s._-]+soundtrack|ost|audio[\s._-]*only|audiobook|audio[\s._-]*commentary|commentary[\s._-]*track|isolated[\s._-]*score|score[\s._-]*album)\b/i;
+const VIDEO_EVIDENCE_RE =
+  /\b(?:2160p|1440p|1080p|720p|576p|480p|4k|uhd|bluray|blu[\s._-]*ray|bdrip|brrip|web[\s._-]*dl|webrip|remux|hdtv|x264|x265|h264|h265|hevc|av1|avc)\b|\.(?:mkv|mp4|avi|mov|webm|m4v|mpg|mpeg|ts|m2ts|mts|vob|wmv)(?:$|[?#])/i;
+
+const SEQUEL_MARKERS = new Set([
+  "2", "3", "4", "5", "6", "7", "8", "9", "10",
+  "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x",
+]);
+
+const identityText = (item) =>
+  [
+    item?.label,
+    item?.name,
+    item?.title,
+    item?.description,
+    item?.behaviorHints?.filename,
+    item?.behavior_hints?.filename,
+    item?.filename,
+    item?.path,
+  ]
+    .map(clean)
+    .filter(Boolean)
+    .join(" ");
+
+const releaseNameText = (item) =>
+  clean(
+    item?.behaviorHints?.filename ||
+      item?.behavior_hints?.filename ||
+      item?.filename ||
+      item?.name ||
+      item?.title ||
+      item?.label
+  );
+
+const tokens = (value) =>
+  clean(value)
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+
+const findContiguous = (haystack, needle) => {
+  if (needle.length === 0 || haystack.length < needle.length) return -1;
+
+  for (let index = 0; index <= haystack.length - needle.length; index += 1) {
+    let matches = true;
+
+    for (let offset = 0; offset < needle.length; offset += 1) {
+      if (haystack[index + offset] !== needle[offset]) {
+        matches = false;
+        break;
+      }
+    }
+
+    if (matches) return index;
+  }
+
+  return -1;
+};
+
+const explicitYears = (value) =>
+  Array.from(
+    clean(value).matchAll(/\b(?:19|20)\d{2}\b/g),
+    (match) => match[0]
+  );
+
+export const sourceIdentityMismatchReason = (
+  item,
+  {
+    title = "",
+    year = "",
+    alternateYears = [],
+    mediaType = "movie",
+  } = {}
+) => {
+  if (!item) return "missing_source";
+
+  const requestedTitle = clean(title);
+  if (!requestedTitle) return "";
+
+  const text = identityText(item);
+  const releaseName = releaseNameText(item);
+
+  /*
+   * Soundtracks/commentary/audio-only downloads are not playable movie
+   * alternatives. Keep normal movie releases that merely mention an audio
+   * codec, but reject a naked "Audio" release when it has no video evidence.
+   */
+  if (
+    AUDIO_FILE_RE.test(releaseName) ||
+    AUDIO_ONLY_RE.test(releaseName) ||
+    (/\baudio\b/i.test(releaseName) && !VIDEO_EVIDENCE_RE.test(releaseName))
+  ) {
+    return "audio_only_release";
+  }
+
+  const allowedYears = new Set(
+    [
+      clean(year),
+      ...(Array.isArray(alternateYears) ? alternateYears : []).map(clean),
+    ].filter((value) => /^\d{4}$/.test(value))
+  );
+
+  if (allowedYears.size > 0) {
+    const foundYears = explicitYears(text);
+
+    /*
+     * If the release names a year, it must be this title's requested year (or
+     * an explicitly supplied alternate release year). A 2002/2004 franchise
+     * torrent must never satisfy a 2026 request just because the title prefix
+     * happens to match.
+     */
+    if (
+      foundYears.length > 0 &&
+      !foundYears.some((candidate) => allowedYears.has(candidate))
+    ) {
+      return "conflicting_release_year";
+    }
+  }
+
+  if (String(mediaType || "movie").toLowerCase() !== "tv") {
+    const requestedTokens = tokens(requestedTitle);
+    const releaseTokens = tokens(releaseName);
+    const titleIndex = findContiguous(releaseTokens, requestedTokens);
+
+    if (titleIndex >= 0 && requestedTokens.length > 0) {
+      const requestedEndsInSequelMarker = SEQUEL_MARKERS.has(
+        requestedTokens[requestedTokens.length - 1]
+      );
+      const nextToken = releaseTokens[titleIndex + requestedTokens.length] || "";
+
+      /*
+       * "Resident Evil" must not match "Resident Evil 2". The same rule helps
+       * other numbered franchises while still allowing titles whose canonical
+       * name itself ends in the sequel number.
+       */
+      if (
+        !requestedEndsInSequelMarker &&
+        SEQUEL_MARKERS.has(nextToken)
+      ) {
+        return "conflicting_sequel_number";
+      }
+    }
+  }
+
+  return "";
+};
+
+export const sourceMatchesRequestedIdentity = (item, request = {}) =>
+  sourceIdentityMismatchReason(item, request) === "";
+
+export const filterSourcesForRequestedIdentity = (items, request = {}) =>
+  (Array.isArray(items) ? items : []).filter((item) =>
+    sourceMatchesRequestedIdentity(item, request)
+  );

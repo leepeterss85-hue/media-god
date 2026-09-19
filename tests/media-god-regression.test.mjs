@@ -70,6 +70,11 @@ import {
   trackLanguage,
 } from "../src/components/mg/mediaTrackPreferences.js";
 import { preservePublishedSourceOrder } from "../src/components/mg/sourcePublication.js";
+import {
+  filterSourcesForRequestedIdentity,
+  sourceIdentityMismatchReason,
+  sourceMatchesRequestedIdentity,
+} from "../src/components/mg/sourceIdentity.js";
 
 const memoryStorage = () => {
   const data = new Map();
@@ -407,6 +412,80 @@ test("torrent source merging preserves different file indexes from the same hash
     assert.match(source, /hash:\$\{hash\}\$\{fileKey\}/);
     assert.doesNotMatch(source, /hash:\$\{hash\}(?!\$\{fileKey\})/);
   }
+});
+
+test("movie source identity rejects wrong franchise years, sequel numbers and audio-only files", () => {
+  const request = {
+    title: "Resident Evil",
+    year: "2026",
+    mediaType: "movie",
+  };
+
+  assert.equal(
+    sourceIdentityMismatchReason(
+      { label: "Torrentio: Resident.Evil.2.2004.1080p.BluRay.x265.mkv" },
+      request
+    ),
+    "conflicting_release_year"
+  );
+
+  assert.equal(
+    sourceIdentityMismatchReason(
+      { label: "Comet: Resident Evil 2 Audio" },
+      request
+    ),
+    "audio_only_release"
+  );
+
+  assert.equal(
+    sourceIdentityMismatchReason(
+      { label: "Comet: Resident Evil 2 1080p WEB-DL" },
+      { title: "Resident Evil", mediaType: "movie" }
+    ),
+    "conflicting_sequel_number"
+  );
+
+  assert.equal(
+    sourceMatchesRequestedIdentity(
+      { label: "Torrentio: Resident.Evil.2026.2160p.WEB-DL.DDP5.1.H.265" },
+      request
+    ),
+    true
+  );
+
+  assert.equal(
+    sourceMatchesRequestedIdentity(
+      { label: "Torrentio: Resident Evil 2160p WEB-DL DDP5.1" },
+      request
+    ),
+    true
+  );
+
+  assert.deepEqual(
+    filterSourcesForRequestedIdentity(
+      [
+        { label: "Resident Evil 2026 1080p WEB-DL" },
+        { label: "Resident Evil 2 2004 1080p BluRay" },
+        { label: "Resident Evil OST FLAC" },
+      ],
+      request
+    ).map((item) => item.label),
+    ["Resident Evil 2026 1080p WEB-DL"]
+  );
+});
+
+test("addon and RD fast-start paths both enforce requested source identity", () => {
+  const providerSource = readFileSync(
+    new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(providerSource, /filterSourcesForRequestedIdentity/);
+  assert.match(providerSource, /sourceMatchesRequestedIdentity/);
+  assert.match(
+    providerSource,
+    /Real-Debrid library match rejected because it belongs to a different release/
+  );
 });
 
 test("player context is owned by the protected route boundary", () => {
