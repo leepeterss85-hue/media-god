@@ -8,6 +8,9 @@ const sourceIds = [
   "iptv-org-uk",
   "dearbulut-uk-healthchecked",
   "samsung-tv-plus-gb-buddy",
+  "rakuten-tv-gb-buddy",
+  "tcl-tv-plus-buddy",
+  "airy-tv-buddy",
 ];
 
 const all = [];
