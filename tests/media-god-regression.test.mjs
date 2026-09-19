@@ -56,6 +56,7 @@ import {
   COMPATIBLE_AUTOPLAY_LIMIT,
   prioritiseCompatibleAutoplayEntries,
 } from "../src/components/mg/automaticSourceOrder.js";
+import { mergeAddonStreams } from "../src/components/mg/addonBrowserFallback.js";
 import {
   claimExclusivePlayback,
   hasExclusivePlaybackOwner,
@@ -211,7 +212,7 @@ test("player retries only unknown cache hashes and never records them as a miss"
   assert.match(providerSource, /debridCacheCheckState:\s*"unknown"/);
 });
 
-test("new movie reboots supplement non-English primary addon results with title-year aliases", () => {
+test("full addon discovery merges year-qualified sources after a non-empty primary result", () => {
   const serverSource = readFileSync(
     new URL("../base44/functions/fetchAddonStreams/entry.ts", import.meta.url),
     "utf8"
@@ -222,21 +223,46 @@ test("new movie reboots supplement non-English primary addon results with title-
   );
 
   for (const source of [serverSource, browserSource]) {
-    assert.match(source, /streamHasPreferredEnglishAudio/);
     assert.match(source, /yearQualifiedSearchIds/);
+    assert.match(source, /rawStreams\.length > 0/);
+    assert.match(source, /alternateStreamId === alternateIdUsed/);
+    assert.doesNotMatch(
+      source,
+      /!rawStreams\.some\(streamHasPreferredEnglishAudio\)/
+    );
     assert.match(
       source,
-      /mediaType\s*===\s*"movie"[\s\S]{0,500}?!rawStreams\.some\(streamHasPreferredEnglishAudio\)/
+      /rawStreams\s*=\s*dedupe\(\[[\s\S]{0,220}?\.\.\.rawStreams,[\s\S]{0,220}?\.\.\.alternateStreams/
     );
   }
+});
 
-  assert.match(
-    serverSource,
-    /rawStreams\s*=\s*dedupe\(\[[\s\S]{0,220}?\.\.\.rawStreams,[\s\S]{0,220}?\.\.\.alternateStreams/
+test("torrent source merging preserves different file indexes from the same hash", () => {
+  const hash = "f".repeat(40);
+  const base = {
+    type: "rd",
+    infoHash: hash,
+    magnet: `magnet:?xt=urn:btih:${hash}`,
+  };
+
+  const merged = mergeAddonStreams(
+    [
+      { ...base, fileIdx: 1, label: "Episode file 1", addon: "First" },
+      { ...base, fileIdx: 2, label: "Episode file 2", addon: "First" },
+    ],
+    [
+      { ...base, fileIdx: 1, label: "Episode file 1 duplicate", addon: "Second" },
+    ]
   );
-  assert.match(
-    browserSource,
-    /rawStreams\s*=\s*\[[\s\S]{0,220}?\.\.\.rawStreams,[\s\S]{0,220}?\.\.\.alternateStreams/
+
+  assert.equal(merged.length, 2);
+  assert.deepEqual(
+    merged.map((item) => item.fileIdx).sort((a, b) => a - b),
+    [1, 2]
+  );
+  assert.deepEqual(
+    merged.find((item) => item.fileIdx === 1)?.sourceAddons?.sort(),
+    ["First", "Second"]
   );
 });
 
@@ -1343,8 +1369,22 @@ test("source selector stays visible with a single ready source and expands as mo
     controlsSource,
     /if \(selectableSourceEntries\.length <= 1\)[\s\S]{0,180}?releaseSourceChoices\(\)/
   );
-  assert.match(playerSource, /sourceSelectorReleaseTimerRef/);
-  assert.match(controlsSource, /sourceChoiceReleaseTimerRef/);
+  assert.doesNotMatch(playerSource, /sourceSelectorReleaseTimerRef/);
+  assert.doesNotMatch(controlsSource, /sourceChoiceReleaseTimerRef/);
+});
+
+test("stable source publishing never deduplicates the completed pool a second time", () => {
+  const providerSource = readFileSync(
+    new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(
+    providerSource,
+    /collapse distinct file-index rows from the same torrent/
+  );
+  assert.match(providerSource, /return stable;/);
+  assert.doesNotMatch(providerSource, /return dedupeSources\(stable\);/);
 });
 
 test("the player stage pins one active video surface to the full frame", () => {
