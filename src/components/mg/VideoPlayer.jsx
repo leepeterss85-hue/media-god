@@ -8364,14 +8364,17 @@ export default function VideoPlayer({
     ? liveSourcePosition(activeIdx)
     : { current: 0, total: 0 };
 
-  const selectableSourceCount = selectableSourceEntries.filter(
-    ({ item }) =>
-      item &&
-      !item?.diagnostic &&
-      item?.type !== "status" &&
-      item?.type !== "provider" &&
-      item?.type !== "youtube"
-  ).length;
+  /*
+   * READY MUST MATCH THE CHOOSER
+   *
+   * selectableSourceEntries is the exact list rendered into Source / quality.
+   * Do not apply a second type filter here. Cached torrent rows returned through
+   * an addon/provider wrapper can still be real selectable sources when they
+   * carry authoritative cache state and a usable torrent identity. Filtering
+   * provider-labelled rows only from the counter made the UI report "6 ready"
+   * while the chooser had a much larger cached/selectable set.
+   */
+  const selectableSourceCount = selectableSourceEntries.length;
 
   const failedSourceCount =
     Array.from(
