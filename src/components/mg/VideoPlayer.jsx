@@ -2196,8 +2196,16 @@ export default function VideoPlayer({
   const activeRuntimeReady = Boolean(
     activeTorrentHash && runtimeReadyTorrentHashes.has(activeTorrentHash)
   );
+  const launchQualifiedDirect = Boolean(
+    active?.launchQualified === true &&
+      /^https?:\/\//i.test(String(activeUrl || "").trim())
+  );
+
   const activeHasResolvedStream = Boolean(
-    rdOverride?.src || rdOverride?.url || activeRuntimeReady
+    rdOverride?.src ||
+      rdOverride?.url ||
+      activeRuntimeReady ||
+      launchQualifiedDirect
   );
   const activeNeedsCaching =
     !activeHasResolvedStream && sourceNeedsCaching(active);
@@ -2212,28 +2220,34 @@ export default function VideoPlayer({
    * file path merely because its URL/type looks streamable.
    */
   const isRdSource =
-    active?.type === "rd" ||
-    active?.type ===
-      "rd_torrent" ||
-    active?.type ===
-      "torrent" ||
-    active?.type ===
-      "magnet" ||
-    isMagnet(activeUrl) ||
-    Boolean(magnetHash(activeUrl)) ||
-    Boolean(activeTorrentHash) ||
-    activeNeedsCaching;
+    !launchQualifiedDirect &&
+    (
+      active?.type === "rd" ||
+      active?.type ===
+        "rd_torrent" ||
+      active?.type ===
+        "torrent" ||
+      active?.type ===
+        "magnet" ||
+      isMagnet(activeUrl) ||
+      Boolean(magnetHash(activeUrl)) ||
+      Boolean(activeTorrentHash) ||
+      activeNeedsCaching
+    );
 
   const isDirectFile =
-    !activeNeedsCaching &&
-    !isRdSource &&
+    launchQualifiedDirect ||
     (
-      activeType === "file" ||
-      activeType === "url" ||
-      activeType === "live" ||
-      activeType === "direct" ||
-      activeType === "stream" ||
-      isGenericHttpsStream
+      !activeNeedsCaching &&
+      !isRdSource &&
+      (
+        activeType === "file" ||
+        activeType === "url" ||
+        activeType === "live" ||
+        activeType === "direct" ||
+        activeType === "stream" ||
+        isGenericHttpsStream
+      )
     );
 
   /*

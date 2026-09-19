@@ -2136,6 +2136,58 @@ test("Real-Debrid zero-audio inspection tries transcode then rejects the silent 
   );
 });
 
+test("fast discovery cannot launch an unqualified torrent", () => {
+  const providerSource = readFileSync(
+    new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
+    "utf8"
+  );
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(
+    providerSource,
+    /qualifyCachedRealDebridLaunchSource/
+  );
+  assert.match(
+    providerSource,
+    /QUALIFIED FAST READY/
+  );
+  assert.doesNotMatch(
+    providerSource,
+    /publishEarlySources\(addonLookup\.streams/
+  );
+  assert.match(
+    providerSource,
+    /FAST DISCOVERED · QUALIFYING/
+  );
+  assert.match(
+    providerSource,
+    /restoreQualifiedLaunchRows/
+  );
+  assert.match(
+    playerSource,
+    /launchQualifiedDirect/
+  );
+  assert.match(
+    playerSource,
+    /!launchQualifiedDirect[\s\S]{0,120}active\?\.type === "rd"/
+  );
+});
+
+test("Real-Debrid library fast start is already media inspected", () => {
+  const providerSource = readFileSync(
+    new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(
+    providerSource,
+    /launchQualification:\s*"rd-library-media-inspected"/
+  );
+});
+
 test("global VOD audio validation covers web, Media3 and LibVLC playback", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),

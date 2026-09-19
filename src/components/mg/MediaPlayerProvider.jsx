@@ -1309,6 +1309,12 @@ const findRdLibrarySource = async ({
           mediaInfo:
             data?.media_info ||
             null,
+
+          launchQualified:
+            true,
+
+          launchQualification:
+            "rd-library-media-inspected",
         },
 
         status:
@@ -1588,6 +1594,266 @@ const compactAddonDiagnostics = (
     .join(
       " · "
     );
+};
+
+
+const sourceResolveMagnet = (item) => {
+  const directMagnet = [
+    item?.richMagnet,
+    item?.magnet,
+    item?.magnetLink,
+    getSourceUrl(item),
+  ]
+    .map((value) => String(value || "").trim())
+    .find((value) => /^magnet:/i.test(value));
+
+  if (directMagnet) return directMagnet;
+
+  const hash = sourceMagnetHash(item);
+  return hash
+    ? `magnet:?xt=urn:btih:${hash}`
+    : "";
+};
+
+const sourceTargetsRealDebrid = (item) => {
+  const provider = String(item?.debridProvider || "")
+    .toLowerCase()
+    .replace(/[^a-z]/g, "");
+
+  const cachedProviders = Array.isArray(item?.cachedProviders)
+    ? item.cachedProviders
+        .map((value) =>
+          String(value || "")
+            .toLowerCase()
+            .replace(/[^a-z]/g, "")
+        )
+    : [];
+
+  return (
+    item?.viaRealDebrid === true ||
+    provider === "realdebrid" ||
+    cachedProviders.includes("realdebrid")
+  );
+};
+
+/*
+ * PLAYBACK QUALIFICATION
+ *
+ * Discovery is not permission to launch. A fast addon row becomes the startup
+ * source only after Real-Debrid has resolved the exact torrent/file and run the
+ * same media/audio inspection used by normal RD playback. This keeps the speed
+ * of the fast addon pass without handing an unverified magnet to VideoPlayer.
+ */
+const qualifyCachedRealDebridLaunchSource = async ({
+  item,
+  title,
+  year,
+  alternateYears = [],
+  mediaType = "movie",
+  season = null,
+  episode = null,
+}) => {
+  if (
+    !item ||
+    !sourceIsConfirmedCachedForPlayback(item) ||
+    !sourceTargetsRealDebrid(item)
+  ) {
+    return null;
+  }
+
+  const magnet = sourceResolveMagnet(item);
+  if (!magnet) return null;
+
+  try {
+    const profile = getPlaybackDeviceProfile();
+    const response = await base44.functions.invoke(
+      "realDebrid",
+      {
+        action: "resolve_best",
+        magnet,
+        title: title || "",
+        ...(year != null && String(year).trim()
+          ? { year }
+          : {}),
+        ...(season != null
+          ? { season }
+          : {}),
+        ...(episode != null
+          ? { episode }
+          : {}),
+        ...(item?.fileIdx != null && Number.isFinite(Number(item.fileIdx))
+          ? { file_idx: Number(item.fileIdx) }
+          : item?.file_idx != null && Number.isFinite(Number(item.file_idx))
+            ? { file_idx: Number(item.file_idx) }
+            : {}),
+        prefer_browser_transcode:
+          profile?.nativePlayerAvailable !== true &&
+          profile?.mobileApp === true,
+      }
+    );
+
+    const data = unwrap(response);
+
+    if (
+      data?.status !== "ready" ||
+      !data?.stream_url
+    ) {
+      return null;
+    }
+
+    const resolvedIdentity = {
+      ...item,
+      label:
+        data?.filename ||
+        item?.label ||
+        item?.name ||
+        "Real-Debrid Stream",
+      filename:
+        data?.filename ||
+        item?.filename ||
+        "",
+    };
+
+    if (
+      !sourceMatchesRequestedIdentity(
+        resolvedIdentity,
+        {
+          title,
+          year,
+          alternateYears,
+          mediaType,
+        }
+      )
+    ) {
+      return null;
+    }
+
+    return {
+      ...item,
+      label:
+        data?.filename ||
+        item?.label ||
+        item?.name ||
+        "Real-Debrid Stream",
+      filename:
+        data?.filename ||
+        item?.filename ||
+        "",
+      type: "url",
+      src: data.stream_url,
+      url: data.stream_url,
+      viaRealDebrid: true,
+      debridProvider: "realdebrid",
+      debridCached: true,
+      runtimeReadyCached: true,
+      debridCacheChecked: true,
+      debridCacheCheckState: "cached",
+      cacheRequired: false,
+      cometUncached: false,
+      rdTorrentId:
+        data?.torrent_id ||
+        item?.rdTorrentId ||
+        "",
+      audioRescue:
+        data?.audio_rescue ||
+        null,
+      fallbackSrc:
+        data?.fallback_stream_url ||
+        "",
+      videoRescue:
+        data?.video_rescue ||
+        null,
+      mediaInfo:
+        data?.media_info ||
+        null,
+      resolvedFiles:
+        Array.isArray(data?.files)
+          ? data.files
+          : [],
+      launchQualified: true,
+      launchQualification: "rd-fast-media-inspected",
+    };
+  } catch {
+    return null;
+  }
+};
+
+const restoreQualifiedLaunchRows = (
+  published,
+  incoming
+) => {
+  const qualifiedByKey = new Map(
+    (Array.isArray(published) ? published : [])
+      .filter((item) => item?.launchQualified === true)
+      .map((item) => [
+        stableDiscoveredSourceKey(item),
+        item,
+      ])
+      .filter(([key]) => Boolean(key))
+  );
+
+  return (Array.isArray(incoming) ? incoming : []).map((item) => {
+    const qualified = qualifiedByKey.get(
+      stableDiscoveredSourceKey(item)
+    );
+
+    if (!qualified) return item;
+
+    return {
+      ...item,
+      label:
+        qualified?.label ||
+        item?.label,
+      filename:
+        qualified?.filename ||
+        item?.filename,
+      type:
+        qualified?.type ||
+        item?.type,
+      src:
+        qualified?.src ||
+        item?.src,
+      url:
+        qualified?.url ||
+        item?.url,
+      viaRealDebrid: true,
+      debridProvider: "realdebrid",
+      debridCached: true,
+      runtimeReadyCached: true,
+      debridCacheChecked: true,
+      debridCacheCheckState: "cached",
+      cacheRequired: false,
+      cometUncached: false,
+      rdTorrentId:
+        qualified?.rdTorrentId ||
+        item?.rdTorrentId ||
+        "",
+      audioRescue:
+        qualified?.audioRescue ||
+        item?.audioRescue ||
+        null,
+      fallbackSrc:
+        qualified?.fallbackSrc ||
+        item?.fallbackSrc ||
+        "",
+      videoRescue:
+        qualified?.videoRescue ||
+        item?.videoRescue ||
+        null,
+      mediaInfo:
+        qualified?.mediaInfo ||
+        item?.mediaInfo ||
+        null,
+      resolvedFiles:
+        qualified?.resolvedFiles ||
+        item?.resolvedFiles ||
+        [],
+      launchQualified: true,
+      launchQualification:
+        qualified?.launchQualification ||
+        "rd-media-inspected",
+    };
+  });
 };
 
 const buildDiagnosticLabel = ({
@@ -2274,19 +2540,101 @@ export function PlayerProvider({
               })
             : Promise.resolve(skippedAddonLookup);
 
-        fastAddonPromise.then((addonLookup) => {
+        fastAddonPromise.then(async (addonLookup) => {
           if (
-            Array.isArray(addonLookup?.streams) &&
-            addonLookup.streams.length > 0
+            !isCurrentPlay() ||
+            !Array.isArray(addonLookup?.streams) ||
+            addonLookup.streams.length === 0
           ) {
-            publishEarlySources(addonLookup.streams, {
+            return;
+          }
+
+          /*
+           * Do not publish an unverified addon row as index 0. Qualify up to
+           * three already-cached Real-Debrid candidates in ranked order and
+           * publish only the first one that resolves to an inspected playable
+           * rendition. The rest of discovery continues in the background and
+           * will still populate the complete manual source list.
+           */
+          const rankedFastCandidates = orderSources({
+            sources: addonLookup.streams,
+            hasDebrid,
+            preferRd: Boolean(request?.preferRd),
+          })
+            .filter((item) =>
+              sourceIsConfirmedCachedForPlayback(item)
+            )
+            .slice(0, 3);
+
+          let qualifiedPrimary = null;
+
+          if (hasRd) {
+            for (const candidate of rankedFastCandidates) {
+              qualifiedPrimary =
+                await qualifyCachedRealDebridLaunchSource({
+                  item: candidate,
+                  title: addonArgs.title,
+                  year: addonArgs.year,
+                  alternateYears: addonArgs.alternateYears,
+                  mediaType,
+                  season,
+                  episode,
+                });
+
+              if (
+                qualifiedPrimary ||
+                !isCurrentPlay()
+              ) {
+                break;
+              }
+            }
+          }
+
+          if (
+            qualifiedPrimary &&
+            isCurrentPlay()
+          ) {
+            publishEarlySources([qualifiedPrimary], {
               imdbId,
               imdbStatus: imdbInfo?.status || "UNKNOWN",
-              addonLookupStatus: "FAST READY",
+              addonLookupStatus: "QUALIFIED FAST READY",
               addonsChecked: Number(addonLookup?.addonsChecked || 0),
               discoveredCount: addonLookup.streams.length,
+              launchQualified: true,
+              launchQualification:
+                qualifiedPrimary.launchQualification ||
+                "rd-fast-media-inspected",
             });
+            return;
           }
+
+          /*
+           * Keep the fast discovery result hidden from playback when no row
+           * passed qualification. The comprehensive pass will still publish
+           * every source to the chooser, but the player will not guess at the
+           * first torrent merely because it arrived first.
+           */
+          setSource((current) => {
+            if (
+              !current ||
+              current.playRequestId !== playId ||
+              !isCurrentPlay()
+            ) {
+              return current;
+            }
+
+            return {
+              ...current,
+              sourceDiagnostics: {
+                ...(current.sourceDiagnostics || {}),
+                imdbId,
+                imdbStatus: imdbInfo?.status || "UNKNOWN",
+                addonLookupStatus: "FAST DISCOVERED · QUALIFYING",
+                addonsChecked: Number(addonLookup?.addonsChecked || 0),
+                discoveredCount: addonLookup.streams.length,
+              },
+            };
+          });
         });
 
         /*
@@ -2592,6 +2940,12 @@ export function PlayerProvider({
           canonicalCompletePlaybackSources,
           stableDiscoveredSourceKey
         );
+
+        orderedSources = restoreQualifiedLaunchRows(
+          publishedSourceSnapshot,
+          orderedSources
+        );
+
         publishedSourceSnapshot = orderedSources;
 
         if (fastStartPrimaryUrl) {
