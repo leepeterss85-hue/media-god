@@ -156,7 +156,7 @@ test("source health never counts uncached Real-Debrid preparation rows as cached
 
   assert.match(
     providerSource,
-    /cachedSourceCount\s*=\s*cacheAnnotatedCombined\.filter\(\s*sourceIsConfirmedCachedForPlayback/
+    /cachedSourceCount\s*=\s*confirmedCachedPlaybackSources\.length/
   );
   assert.doesNotMatch(
     providerSource,
