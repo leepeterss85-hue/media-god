@@ -2287,6 +2287,24 @@ export default function VideoPlayer({
       backgroundCacheTitleKeyRef.current = titleKey;
     }
 
+    const backgroundForegroundStatus = String(
+      rdPreparation?.status || ""
+    ).toLowerCase();
+    const backgroundForegroundBusy =
+      Boolean(rdPreparation) &&
+      ![
+        "ready",
+        "downloaded",
+        "cached",
+        "stalled",
+        "failed",
+        "error",
+        "dead",
+        "magnet_error",
+        "virus",
+        "comet_start_failed",
+      ].includes(backgroundForegroundStatus);
+
     if (
       !titleKey ||
       isLive ||
@@ -2295,12 +2313,7 @@ export default function VideoPlayer({
       rdResolving ||
       rdPolling ||
       rdTorrentId ||
-      (
-        rdPreparation &&
-        !["stalled", "failed", "error"].includes(
-          String(rdPreparation?.status || "").toLowerCase()
-        )
-      ) ||
+      backgroundForegroundBusy ||
       fileSwitching
     ) {
       return undefined;

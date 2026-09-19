@@ -361,7 +361,8 @@ const stableDiscoveredSourceKey = (item) => {
   return id ? `id:${id}` : "";
 };
 
-const DEBRID_CACHE_BATCH_SIZE = 80;
+const DEBRID_CACHE_BATCH_SIZE = 20;
+const DEBRID_CACHE_MAX_PASSES = 3;
 const DEBRID_CACHE_RETRY_DELAY_MS = 180;
 
 const waitForDebridCacheRetry = () =>
@@ -443,20 +444,27 @@ const annotateDebridCache = async (items, hasDebrid) => {
   };
 
   try {
-    await checkBatches(hashes);
-
-    const unknownHashes = hashes.filter(
-      (hash) => stateByHash?.[hash]?.state === "unknown"
-    );
+    let hashesToCheck = hashes;
 
     /*
-     * A failed/partial debrid response is not evidence that a torrent is
-     * uncached. Retry only the unknown hashes once so a transient RD/provider
-     * failure cannot remove genuinely cached torrents from the source chooser.
+     * Check the complete discovered hash set in small batches, then retry only
+     * unresolved hashes. Positive cache hits are merged into stateByHash and
+     * therefore remain sticky across later partial/provider failures.
      */
-    if (unknownHashes.length > 0) {
-      await waitForDebridCacheRetry();
-      await checkBatches(unknownHashes);
+    for (
+      let pass = 0;
+      pass < DEBRID_CACHE_MAX_PASSES && hashesToCheck.length > 0;
+      pass += 1
+    ) {
+      if (pass > 0) {
+        await waitForDebridCacheRetry();
+      }
+
+      await checkBatches(hashesToCheck);
+
+      hashesToCheck = hashes.filter(
+        (hash) => stateByHash?.[hash]?.state === "unknown"
+      );
     }
 
     return sources.map((item) => {

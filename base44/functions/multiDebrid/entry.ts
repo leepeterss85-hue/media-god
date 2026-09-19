@@ -358,6 +358,8 @@ const parseTorBoxCache = (data, hashes) => {
   return output;
 };
 
+const REAL_DEBRID_CACHE_BATCH_SIZE = 20;
+
 const checkCacheForProvider = async (providerKey, token, hashes) => {
   const output = {};
   hashes.forEach((hash) => {
@@ -367,19 +369,39 @@ const checkCacheForProvider = async (providerKey, token, hashes) => {
   if (!token || !hashes.length) return output;
 
   if (providerKey === "realdebrid") {
-    const data = await requestJson(
-      `${PROVIDERS.realdebrid.baseUrl}/torrents/instantAvailability/${hashes.join("/")}`,
-      { headers: authHeaders(token) }
-    );
+    const realDebridOutput = {};
 
-    hashes.forEach((hash) => {
-      const entry = data?.[hash] || data?.[hash.toUpperCase()];
-      output[hash] = Boolean(entry?.rd && Object.keys(entry.rd).length > 0);
-    });
+    for (
+      let index = 0;
+      index < hashes.length;
+      index += REAL_DEBRID_CACHE_BATCH_SIZE
+    ) {
+      const batch = hashes.slice(index, index + REAL_DEBRID_CACHE_BATCH_SIZE);
+      const data = await requestJson(
+        `${PROVIDERS.realdebrid.baseUrl}/torrents/instantAvailability/${batch.join("/")}`,
+        { headers: authHeaders(token) }
+      );
 
-    return output;
+      batch.forEach((hash) => {
+        const upper = hash.toUpperCase();
+        const hasLower = Object.prototype.hasOwnProperty.call(data || {}, hash);
+        const hasUpper = Object.prototype.hasOwnProperty.call(data || {}, upper);
+
+        /*
+         * Missing hashes are not confirmed misses. Leave them absent so the
+         * frontend classifies them as unknown and retries them in a later pass.
+         */
+        if (!hasLower && !hasUpper) return;
+
+        const entry = hasLower ? data?.[hash] : data?.[upper];
+        realDebridOutput[hash] = Boolean(
+          entry?.rd && Object.keys(entry.rd).length > 0
+        );
+      });
+    }
+
+    return realDebridOutput;
   }
-
   if (providerKey === "alldebrid") {
     const query = new URLSearchParams({ agent: "MediaGod" });
     hashes.forEach((hash) => query.append("magnets[]", hash));

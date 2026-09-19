@@ -191,6 +191,27 @@ test("partial debrid cache failures stay unknown instead of becoming uncached", 
   assert.equal(result[hash].state, "unknown");
 });
 
+test("missing successful-provider cache entries stay unknown for retry", () => {
+  const hash = "f".repeat(40);
+  const result = classifyDebridCacheCheck(
+    {
+      providersChecked: ["realdebrid"],
+      cached: {
+        realdebrid: {},
+      },
+      providerStats: {
+        realdebrid: {
+          latencyMs: 70,
+          error: "",
+        },
+      },
+    },
+    [hash]
+  );
+
+  assert.equal(result[hash].state, "unknown");
+});
+
 test("complete debrid cache misses are confirmed uncached", () => {
   const hash = "b".repeat(40);
   const result = classifyDebridCacheCheck(
@@ -249,16 +270,35 @@ test("positive cache hits survive partial provider errors", () => {
   );
 });
 
-test("player retries only unknown cache hashes and never records them as a miss", () => {
+test("player retries every unresolved cache hash in small exhaustive batches", () => {
   const providerSource = readFileSync(
     new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
     "utf8"
   );
+  const backendSource = readFileSync(
+    new URL("../base44/functions/multiDebrid/entry.ts", import.meta.url),
+    "utf8"
+  );
 
-  assert.match(providerSource, /const unknownHashes = hashes\.filter/);
-  assert.match(providerSource, /await checkBatches\(unknownHashes\)/);
+  assert.match(providerSource, /DEBRID_CACHE_BATCH_SIZE\s*=\s*20/);
+  assert.match(providerSource, /DEBRID_CACHE_MAX_PASSES\s*=\s*3/);
+  assert.match(providerSource, /let hashesToCheck = hashes/);
+  assert.match(
+    providerSource,
+    /pass < DEBRID_CACHE_MAX_PASSES[\s\S]{0,500}?await checkBatches\(hashesToCheck\)[\s\S]{0,500}?state === "unknown"/
+  );
   assert.match(providerSource, /debridCacheChecked:\s*false/);
   assert.match(providerSource, /debridCacheCheckState:\s*"unknown"/);
+
+  assert.match(backendSource, /REAL_DEBRID_CACHE_BATCH_SIZE\s*=\s*20/);
+  assert.match(
+    backendSource,
+    /instantAvailability\/\$\{batch\.join\("\/"\)\}/
+  );
+  assert.match(
+    backendSource,
+    /if \(!hasLower && !hasUpper\) return;/
+  );
 });
 
 test("full addon discovery merges year-qualified sources after a non-empty primary result", () => {
@@ -1547,6 +1587,21 @@ test("background caching runs multiple candidates and retries temporary slot blo
   );
   assert.match(playerSource, /BACKGROUND_CACHE_SLOT_RETRY_MS\s*=\s*5_000/);
   assert.match(playerSource, /state:\s*"waiting-slot"/);
+});
+
+test("background caching continues after foreground reaches ready", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(playerSource, /const backgroundForegroundStatus/);
+  assert.match(playerSource, /"ready",[\s\S]{0,220}?"cached"/);
+  assert.match(playerSource, /backgroundForegroundBusy/);
+  assert.doesNotMatch(
+    playerSource,
+    /rdPreparation\s*&&\s*!\["stalled", "failed", "error"\]/
+  );
 });
 
 test("background caching does not stop after five ready alternatives", () => {
