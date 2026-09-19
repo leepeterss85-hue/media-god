@@ -1724,7 +1724,7 @@ export default function MediaPlayerControls({
               </select>
             ) : null}
 
-            {selectableSourceEntries.length > 1 ? (
+            {selectableSourceEntries.length > 0 ? (
               <div className="relative min-w-[7.5rem] max-w-[42vw] sm:min-w-[13rem] sm:max-w-sm">
                 <select
                   value={visibleSourceChoiceValue}
