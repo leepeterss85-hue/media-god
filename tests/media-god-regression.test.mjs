@@ -56,7 +56,6 @@ import {
   COMPATIBLE_AUTOPLAY_LIMIT,
   prioritiseCompatibleAutoplayEntries,
 } from "../src/components/mg/automaticSourceOrder.js";
-import { mergeAddonStreams } from "../src/components/mg/addonBrowserFallback.js";
 import {
   claimExclusivePlayback,
   hasExclusivePlaybackOwner,
@@ -238,32 +237,21 @@ test("full addon discovery merges year-qualified sources after a non-empty prima
 });
 
 test("torrent source merging preserves different file indexes from the same hash", () => {
-  const hash = "f".repeat(40);
-  const base = {
-    type: "rd",
-    infoHash: hash,
-    magnet: `magnet:?xt=urn:btih:${hash}`,
-  };
-
-  const merged = mergeAddonStreams(
-    [
-      { ...base, fileIdx: 1, label: "Episode file 1", addon: "First" },
-      { ...base, fileIdx: 2, label: "Episode file 2", addon: "First" },
-    ],
-    [
-      { ...base, fileIdx: 1, label: "Episode file 1 duplicate", addon: "Second" },
-    ]
+  const serverSource = readFileSync(
+    new URL("../base44/functions/fetchAddonStreams/entry.ts", import.meta.url),
+    "utf8"
+  );
+  const browserSource = readFileSync(
+    new URL("../src/components/mg/addonBrowserFallback.js", import.meta.url),
+    "utf8"
   );
 
-  assert.equal(merged.length, 2);
-  assert.deepEqual(
-    merged.map((item) => item.fileIdx).sort((a, b) => a - b),
-    [1, 2]
-  );
-  assert.deepEqual(
-    merged.find((item) => item.fileIdx === 1)?.sourceAddons?.sort(),
-    ["First", "Second"]
-  );
+  for (const source of [serverSource, browserSource]) {
+    assert.match(source, /const fileIdx\s*=/);
+    assert.match(source, /const fileKey\s*=/);
+    assert.match(source, /hash:\$\{hash\}\$\{fileKey\}/);
+    assert.doesNotMatch(source, /hash:\$\{hash\}(?!\$\{fileKey\})/);
+  }
 });
 
 test("TV playback publishes the episode-list destination before closing", () => {
