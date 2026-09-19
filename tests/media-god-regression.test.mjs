@@ -1380,6 +1380,28 @@ test("exclusive playback retires the old surface and keeps only the active strea
   assert.equal(hasExclusivePlaybackOwner(), false);
 });
 
+test("background caching runs multiple candidates and retries temporary slot blocks", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(playerSource, /backgroundCacheControllersRef\s*=\s*useRef\(new Map\(\)\)/);
+  assert.match(playerSource, /BACKGROUND_CACHE_CONCURRENCY\s*=\s*3/);
+  assert.match(
+    playerSource,
+    /const freeWorkerCount\s*=\s*Math\.max\([\s\S]{0,260}?BACKGROUND_CACHE_CONCURRENCY[\s\S]{0,260}?backgroundCacheControllersRef\.current\.size/
+  );
+  assert.match(playerSource, /const batch\s*=\s*candidates\.slice\(0, freeWorkerCount\)/);
+  assert.match(playerSource, /batch\.forEach\(\(candidate, batchIndex\)/);
+  assert.match(
+    playerSource,
+    /result\.accountBlocked\s*===\s*true[\s\S]{0,260}?backgroundCacheAttemptedRef\.current\.delete\(candidate\.hash\)/
+  );
+  assert.match(playerSource, /BACKGROUND_CACHE_SLOT_RETRY_MS\s*=\s*5_000/);
+  assert.match(playerSource, /state:\s*"waiting-slot"/);
+});
+
 test("final player source pool includes every confirmed cached playback source", () => {
   const providerSource = readFileSync(
     new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
