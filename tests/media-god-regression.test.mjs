@@ -1419,6 +1419,31 @@ test("background caching runs multiple candidates and retries temporary slot blo
   assert.match(playerSource, /state:\s*"waiting-slot"/);
 });
 
+test("confirmed cached rows are not dropped by direct/magnet playback filtering", () => {
+  const providerSource = readFileSync(
+    new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(
+    providerSource,
+    /const confirmedCachedPlaybackSources\s*=\s*cacheAnnotatedCombined\.filter\([\s\S]{0,260}?sourceIsConfirmedCachedForPlayback\(item\)/
+  );
+  assert.match(
+    providerSource,
+    /confirmedCachedPlaybackSources[\s\S]{0,260}?item\?\.type !== "status"/
+  );
+  assert.doesNotMatch(
+    providerSource,
+    /confirmedCachedPlaybackSources[\s\S]{0,420}?isDirectSource\(item\)[\s\S]{0,220}?isMagnetSource\(item\)/
+  );
+  assert.match(
+    providerSource,
+    /cachedSourceCount\s*=\s*confirmedCachedPlaybackSources\.length/
+  );
+  assert.match(providerSource, /publishedCachedSourceCount/);
+});
+
 test("final player source pool includes every confirmed cached playback source", () => {
   const providerSource = readFileSync(
     new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
