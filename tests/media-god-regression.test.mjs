@@ -1287,6 +1287,22 @@ test("exclusive playback retires the old surface and keeps only the active strea
   assert.equal(hasExclusivePlaybackOwner(), false);
 });
 
+test("source selector stays visible with a single ready source and expands as more arrive", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+  const controlsSource = readFileSync(
+    new URL("../src/components/mg/MediaPlayerControls.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(playerSource, /selectableSourceCount > 0[\s\S]{0,220}?Source \/ quality/);
+  assert.match(playerSource, /visibleSourceSelectorEntries\.map/);
+  assert.match(controlsSource, /selectableSourceEntries\.length > 0/);
+  assert.match(controlsSource, /visibleSourceChoices\.map/);
+});
+
 test("the player stage pins one active video surface to the full frame", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
