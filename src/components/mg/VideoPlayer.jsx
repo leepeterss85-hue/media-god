@@ -993,6 +993,7 @@ export default function VideoPlayer({
   const sourceSelectorPinnedAtRef = useRef(0);
   const sourceSelectorEntriesRef = useRef([]);
   const sourceSelectorValueRef = useRef(0);
+  const [sourceSelectorPinned, setSourceSelectorPinned] = useState(false);
 
   const rdFileSelectorPinnedRef = useRef(false);
   const rdFileSelectorPinnedAtRef = useRef(0);
@@ -1010,6 +1011,7 @@ export default function VideoPlayer({
       sourceSelectorPinnedAtRef.current = 0;
       sourceSelectorEntriesRef.current = [];
       sourceSelectorValueRef.current = activeIdx;
+      setSourceSelectorPinned(false);
       return;
     }
 
@@ -1021,13 +1023,35 @@ export default function VideoPlayer({
       : "";
     sourceSelectorPinnedRef.current = true;
     sourceSelectorPinnedAtRef.current = Date.now();
+    setSourceSelectorPinned(true);
   };
 
   const releaseSourceSelector = () => {
     sourceSelectorPinnedRef.current = false;
     sourceSelectorPinnedAtRef.current = 0;
     sourceSelectorEntriesRef.current = [];
+    setSourceSelectorPinned(false);
   };
+
+  /*
+   * Android WebView can dismiss a native <select> popup without firing blur.
+   * If discovery/cache annotation grows the live chooser after we pinned the
+   * popup, the old snapshot must never remain authoritative. Drop the snapshot
+   * as soon as more selectable rows exist; Android may close the native picker,
+   * but reopening it will show the complete live source list instead of a stale
+   * six-row snapshot.
+   */
+  useEffect(() => {
+    if (!sourceSelectorPinned) return;
+
+    const pinnedCount = sourceSelectorEntriesRef.current.length;
+    if (selectableSourceEntries.length <= pinnedCount) return;
+
+    sourceSelectorPinnedRef.current = false;
+    sourceSelectorPinnedAtRef.current = 0;
+    sourceSelectorEntriesRef.current = [];
+    setSourceSelectorPinned(false);
+  }, [sourceSelectorPinned, selectableSourceEntries.length]);
 
   const selectorOpenKey = (event) =>
     [
@@ -1041,11 +1065,11 @@ export default function VideoPlayer({
     ].includes(String(event?.key || event?.code || ""));
 
   const visibleSourceSelectorEntries =
-    sourceSelectorPinnedRef.current && sourceSelectorEntriesRef.current.length > 0
+    sourceSelectorPinned && sourceSelectorEntriesRef.current.length > 0
       ? sourceSelectorEntriesRef.current
       : selectableSourceEntries;
 
-  const requestedSourceSelectorValue = sourceSelectorPinnedRef.current
+  const requestedSourceSelectorValue = sourceSelectorPinned
     ? sourceSelectorValueRef.current
     : activeIdx;
 
