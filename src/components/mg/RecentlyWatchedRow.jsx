@@ -17,6 +17,23 @@ import { Image } from "@/components/ui/image";
 const PosterImage = /** @type {any} */ (Image);
 
 const WATCHED_THRESHOLD = 0.92;
+const TMDB_RESOLVE_BUDGET_MS = 300;
+
+const isCardActivationKey = (event) => {
+  const key = String(event?.key || event?.code || "");
+  const code = Number(event?.keyCode || event?.which || 0);
+
+  return (
+    key === "Enter" ||
+    key === "NumpadEnter" ||
+    key === "Select" ||
+    key === "Accept" ||
+    key === " " ||
+    code === 13 ||
+    code === 23 ||
+    code === 66
+  );
+};
 
 const positiveInt = (value) => {
   const number = Number(value);
@@ -137,6 +154,27 @@ const resolveTmdbId = async (meta) => {
   }
 };
 
+const resolveTmdbIdQuickly = async (meta) => {
+  if (meta?.tmdbId) {
+    return String(meta.tmdbId);
+  }
+
+  let timer = 0;
+
+  try {
+    return await Promise.race([
+      resolveTmdbId(meta),
+      new Promise((resolve) => {
+        timer = window.setTimeout(() => resolve(""), TMDB_RESOLVE_BUDGET_MS);
+      }),
+    ]);
+  } finally {
+    if (timer) {
+      window.clearTimeout(timer);
+    }
+  }
+};
+
 export default function RecentlyWatchedRow() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -212,7 +250,7 @@ export default function RecentlyWatchedRow() {
   const replay = async (item) => {
     const meta = parseContentKey(item);
     const isTv = meta.mediaType === "tv";
-    const tmdbId = await resolveTmdbId(meta);
+    const tmdbId = await resolveTmdbIdQuickly(meta);
 
     const title =
       isTv && meta.season && meta.episode
@@ -279,13 +317,16 @@ export default function RecentlyWatchedRow() {
         {displayItems.map(({ item, meta }) => (
           <div
             key={item.id}
+            data-mg-card-primary="true"
+            data-mg-focus-key={`recent:${meta.mediaType}:${meta.tmdbId || normaliseTitle(meta.title)}:${meta.season || ""}:${meta.episode || ""}`}
             onClick={() => replay(item)}
             role="button"
             tabIndex={0}
             aria-label={`Replay ${meta.title}`}
             onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
+              if (isCardActivationKey(event)) {
                 event.preventDefault();
+                event.stopPropagation();
                 replay(item);
               }
             }}

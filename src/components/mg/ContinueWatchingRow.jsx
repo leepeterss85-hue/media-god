@@ -19,6 +19,23 @@ const PosterImage = /** @type {any} */ (Image);
 
 const WATCHED_THRESHOLD = 0.92;
 const MIN_PROGRESS_SECONDS = 5;
+const TMDB_RESOLVE_BUDGET_MS = 300;
+
+const isCardActivationKey = (event) => {
+  const key = String(event?.key || event?.code || "");
+  const code = Number(event?.keyCode || event?.which || 0);
+
+  return (
+    key === "Enter" ||
+    key === "NumpadEnter" ||
+    key === "Select" ||
+    key === "Accept" ||
+    key === " " ||
+    code === 13 ||
+    code === 23 ||
+    code === 66
+  );
+};
 
 const positiveInt = (value) => {
   const number = Number(value);
@@ -178,6 +195,27 @@ const resolveTmdbId = async (meta) => {
   }
 };
 
+const resolveTmdbIdQuickly = async (meta) => {
+  if (meta?.tmdbId) {
+    return String(meta.tmdbId);
+  }
+
+  let timer = 0;
+
+  try {
+    return await Promise.race([
+      resolveTmdbId(meta),
+      new Promise((resolve) => {
+        timer = window.setTimeout(() => resolve(""), TMDB_RESOLVE_BUDGET_MS);
+      }),
+    ]);
+  } finally {
+    if (timer) {
+      window.clearTimeout(timer);
+    }
+  }
+};
+
 export default function ContinueWatchingRow() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -288,7 +326,7 @@ export default function ContinueWatchingRow() {
   const resume = async (item) => {
     const meta = parseContentKey(item);
     const isTv = meta.mediaType === "tv";
-    const tmdbId = await resolveTmdbId(meta);
+    const tmdbId = await resolveTmdbIdQuickly(meta);
 
     const playbackTitle =
       isTv && meta.season && meta.episode
@@ -385,13 +423,16 @@ export default function ContinueWatchingRow() {
           return (
             <div
               key={item.id}
+              data-mg-card-primary="true"
+              data-mg-focus-key={`continue:${identityFor(meta)}`}
               onClick={() => resume(item)}
               role="button"
               tabIndex={0}
               aria-label={`Resume ${meta.title}${episodeLabel ? ` ${episodeLabel}` : ""}`}
               onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
+                if (isCardActivationKey(event)) {
                   event.preventDefault();
+                  event.stopPropagation();
                   resume(item);
                 }
               }}

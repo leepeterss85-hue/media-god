@@ -123,6 +123,7 @@ export default function HeroSlider({
           <div className="flex flex-wrap gap-2 sm:gap-3 3xl:gap-4">
             <button
               type="button"
+              data-mg-focus-key={`hero-watch:${mediaType}:${item?.id || item?.tmdb_id || title}`}
               onClick={() => onWatch(item)}
               className="min-h-11 3xl:min-h-12 flex items-center gap-2 bg-mg-green text-black font-semibold text-sm sm:text-base 3xl:text-lg px-4 sm:px-5 3xl:px-7 py-2.5 3xl:py-3 rounded-lg hover:bg-mg-green-dim focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-white focus-visible:ring-offset-3 focus-visible:ring-offset-black"
               aria-label={`Watch ${title}`}
@@ -133,6 +134,7 @@ export default function HeroSlider({
 
             <button
               type="button"
+              data-mg-focus-key={`hero-watchlist:${mediaType}:${item?.id || item?.tmdb_id || title}`}
               onClick={() => onWatchlist(item)}
               className="min-h-11 3xl:min-h-12 flex items-center gap-2 bg-white/15 hover:bg-white/25 text-white font-semibold text-sm sm:text-base 3xl:text-lg px-4 sm:px-5 3xl:px-7 py-2.5 3xl:py-3 rounded-lg focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-mg-green focus-visible:ring-offset-3 focus-visible:ring-offset-black"
               aria-label={`Add ${title} to Watchlist`}
@@ -143,6 +145,7 @@ export default function HeroSlider({
 
             <button
               type="button"
+              data-mg-focus-key={`hero-details:${mediaType}:${item?.id || item?.tmdb_id || title}`}
               onClick={() => onDetails(item)}
               className="min-h-11 3xl:min-h-12 flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-semibold text-sm sm:text-base 3xl:text-lg px-4 sm:px-5 3xl:px-7 py-2.5 3xl:py-3 rounded-lg border border-white/20 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-mg-green focus-visible:ring-offset-3 focus-visible:ring-offset-black"
               aria-label={`View details for ${title}`}

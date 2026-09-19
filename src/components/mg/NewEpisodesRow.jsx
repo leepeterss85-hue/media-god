@@ -345,6 +345,8 @@ export default function NewEpisodesRow({
             <button
               key={`${item.tmdbId}:${item.season}:${item.episode}`}
               type="button"
+              data-mg-card-primary="true"
+              data-mg-focus-key={`new-episode:${item.tmdbId}:${item.season}:${item.episode}`}
               onClick={() => playEpisode(item)}
               disabled={upcoming}
               className="mg-fire-tv-resume-card group w-44 shrink-0 snap-start rounded-xl text-left focus:outline-none focus:ring-2 focus:ring-mg-green focus:ring-offset-2 focus:ring-offset-mg-background disabled:cursor-default disabled:opacity-90 sm:w-52 md:w-56 xl:w-60 3xl:w-72 4xl:w-80"
