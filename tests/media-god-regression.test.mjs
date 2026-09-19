@@ -1464,7 +1464,7 @@ test("background caching does not stop after five ready alternatives", () => {
   );
 });
 
-test("final player source pool includes every confirmed cached source", () => {
+test("final player source pool comes directly from the full cache-annotated result", () => {
   const providerSource = readFileSync(
     new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
     "utf8"
@@ -1476,23 +1476,19 @@ test("final player source pool includes every confirmed cached source", () => {
   );
   assert.match(
     providerSource,
-    /confirmedCachedPlaybackSources[\s\S]{0,260}?item\?\.type !== "status"/
-  );
-  assert.doesNotMatch(
-    providerSource,
-    /confirmedCachedPlaybackSources[\s\S]{0,420}?isDirectSource\(item\)[\s\S]{0,220}?isMagnetSource\(item\)/
+    /const completePlaybackSourcePool\s*=\s*cacheAnnotatedCombined\.filter/
   );
   assert.match(
     providerSource,
-    /const cacheAuthoritativePlaybackSources\s*=\s*preservePublishedSourceOrder\(\s*playbackSources,\s*confirmedCachedPlaybackSources\s*\)/
+    /completePlaybackSourcePool[\s\S]{0,520}?sourceIsConfirmedCachedForPlayback\(item\)[\s\S]{0,520}?isDirectSource\(item\)[\s\S]{0,520}?isMagnetSource\(item\)/
   );
   assert.match(
     providerSource,
-    /const completePlaybackSources\s*=\s*orderSources\(\{[\s\S]{0,180}?sources:\s*cacheAuthoritativePlaybackSources/
+    /const completePlaybackSources\s*=\s*orderSources\(\{[\s\S]{0,180}?sources:\s*completePlaybackSourcePool/
   );
   assert.doesNotMatch(
     providerSource,
-    /dedupeSources\(\[[\s\S]{0,180}?\.\.\.playbackSources,[\s\S]{0,180}?\.\.\.confirmedCachedPlaybackSources/
+    /cacheAuthoritativePlaybackSources/
   );
   assert.match(
     providerSource,
@@ -1505,20 +1501,14 @@ test("final player source pool includes every confirmed cached source", () => {
   assert.match(providerSource, /publishedCachedSourceCount/);
 });
 
-test("final cache merge lets authoritative cached metadata replace stale pending rows", () => {
-  const providerSource = readFileSync(
-    new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
+test("fast addon discovery never limits the configured addon list to six", () => {
+  const addonSource = readFileSync(
+    new URL("../base44/functions/fetchAddonStreams/entry.ts", import.meta.url),
     "utf8"
   );
 
-  assert.match(
-    providerSource,
-    /cacheAuthoritativePlaybackSources\s*=\s*preservePublishedSourceOrder\(\s*playbackSources,\s*confirmedCachedPlaybackSources\s*\)/
-  );
-  assert.doesNotMatch(
-    providerSource,
-    /sources:\s*dedupeSources\(\[[\s\S]{0,220}?\.\.\.playbackSources,[\s\S]{0,220}?\.\.\.confirmedCachedPlaybackSources/
-  );
+  assert.match(addonSource, /const selectedAddons\s*=\s*activeAddons/);
+  assert.doesNotMatch(addonSource, /activeAddons\.slice\(0,\s*6\)/);
 });
 
 test("source selector stays visible with a single ready source and expands as more arrive", () => {

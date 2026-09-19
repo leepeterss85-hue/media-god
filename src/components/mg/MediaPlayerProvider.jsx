@@ -2431,31 +2431,17 @@ export function PlayerProvider({
               ),
           });
 
-        const playbackSources =
-          orderedSources.filter(
-            (item) =>
-              isDirectSource(
-                item
-              ) ||
-              isMagnetSource(
-                item
-              ) ||
-              item?.type ===
-                "live" ||
-              item?.live
-          );
-
         /*
          * SOURCE SELECTOR COMPLETENESS
          *
-         * Cache annotation runs against the full discovered pool. Never let a
-         * smaller fast-start/playback subset become the final chooser merely
-         * because it was published first. Every confirmed-cached torrent/direct
-         * row that is actually playable belongs in the final source array.
+         * Build the final player pool directly from the fully cache-annotated
+         * discovery result. Do not route it back through a smaller fast-start
+         * or pre-cache playback subset: that is how a large cached result set
+         * can collapse back to five/six visible sources.
          *
-         * This keeps autoplay ranking separate from manual choice: the first
-         * three remain prioritised automatically, but the selector receives the
-         * complete confirmed-cached set.
+         * Confirmed cached rows are always eligible for the manual chooser.
+         * Normal direct/magnet/live rows remain eligible too, while status and
+         * diagnostic rows stay out of playback.
          */
         const confirmedCachedPlaybackSources =
           cacheAnnotatedCombined.filter(
@@ -2465,21 +2451,23 @@ export function PlayerProvider({
               item?.type !== "status"
           );
 
-        /*
-         * The cache-annotated rows must replace their earlier discovery
-         * versions by stable source identity. Running this pair through the
-         * addon deduper again is unsafe because mergeSameHashSource keeps
-         * stale cacheRequired/cometUncached metadata from the older row. That
-         * can turn a confirmed cache hit back into a hidden "uncached" source
-         * immediately before publishing the chooser.
-         */
-        const cacheAuthoritativePlaybackSources = preservePublishedSourceOrder(
-          playbackSources,
-          confirmedCachedPlaybackSources
-        );
+        const completePlaybackSourcePool =
+          cacheAnnotatedCombined.filter(
+            (item) =>
+              item &&
+              !item?.diagnostic &&
+              item?.type !== "status" &&
+              (
+                sourceIsConfirmedCachedForPlayback(item) ||
+                isDirectSource(item) ||
+                isMagnetSource(item) ||
+                item?.type === "live" ||
+                item?.live
+              )
+          );
 
         const completePlaybackSources = orderSources({
-          sources: cacheAuthoritativePlaybackSources,
+          sources: completePlaybackSourcePool,
           hasDebrid,
           preferRd: Boolean(request?.preferRd),
         });
