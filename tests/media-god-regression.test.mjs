@@ -1380,6 +1380,28 @@ test("exclusive playback retires the old surface and keeps only the active strea
   assert.equal(hasExclusivePlaybackOwner(), false);
 });
 
+test("final player source pool includes every confirmed cached playback source", () => {
+  const providerSource = readFileSync(
+    new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(providerSource, /const confirmedCachedPlaybackSources\s*=\s*cacheAnnotatedCombined\.filter/);
+  assert.match(
+    providerSource,
+    /sourceIsConfirmedCachedForPlayback\(item\)[\s\S]{0,240}?isDirectSource\(item\)[\s\S]{0,240}?isMagnetSource\(item\)/
+  );
+  assert.match(
+    providerSource,
+    /const completePlaybackSources\s*=\s*orderSources\(\{[\s\S]{0,280}?\.\.\.playbackSources,[\s\S]{0,120}?\.\.\.confirmedCachedPlaybackSources/
+  );
+  assert.match(
+    providerSource,
+    /orderedSources\s*=\s*completePlaybackSources\.length > 0[\s\S]{0,100}?\? completePlaybackSources/
+  );
+  assert.match(providerSource, /publishedSourceCount/);
+});
+
 test("source selector stays visible with a single ready source and expands as more arrive", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
