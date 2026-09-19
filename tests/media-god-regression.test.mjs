@@ -1332,6 +1332,19 @@ test("source selector stays visible with a single ready source and expands as mo
   assert.match(playerSource, /visibleSourceSelectorEntries\.map/);
   assert.match(controlsSource, /selectableSourceEntries\.length > 0/);
   assert.match(controlsSource, /visibleSourceChoices\.map/);
+
+  // Continue Watching first publishes one fast-start source. That temporary
+  // list must remain live so later cached results populate both selectors.
+  assert.match(
+    playerSource,
+    /if \(selectableSourceEntries\.length <= 1\)[\s\S]{0,260}?sourceSelectorPinnedRef\.current = false/
+  );
+  assert.match(
+    controlsSource,
+    /if \(selectableSourceEntries\.length <= 1\)[\s\S]{0,180}?releaseSourceChoices\(\)/
+  );
+  assert.match(playerSource, /sourceSelectorReleaseTimerRef/);
+  assert.match(controlsSource, /sourceChoiceReleaseTimerRef/);
 });
 
 test("the player stage pins one active video surface to the full frame", () => {
