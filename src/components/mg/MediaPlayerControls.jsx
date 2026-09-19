@@ -271,6 +271,21 @@ export default function MediaPlayerControls({
     setSourceChoicePinned(true);
   };
 
+  /*
+   * Native Android/Fire TV selectors do not reliably emit blur when dismissed.
+   * Never let an old pinned snapshot hide sources that became selectable while
+   * the native popup was open.
+   */
+  useEffect(() => {
+    if (!sourceChoicePinned) return;
+
+    const pinnedCount = sourceChoiceEntriesRef.current.length;
+    if (selectableSourceEntries.length <= pinnedCount) return;
+
+    setSourceChoicePinned(false);
+    sourceChoiceEntriesRef.current = [];
+  }, [sourceChoicePinned, selectableSourceEntries.length]);
+
   const visibleSourceChoices =
     sourceChoicePinned && sourceChoiceEntriesRef.current.length > 0
       ? sourceChoiceEntriesRef.current
