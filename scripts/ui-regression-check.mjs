@@ -497,7 +497,8 @@ expect(
     addonStreamsBackend.includes('redirect: "manual"') &&
     realDebridBackend.includes("rdFailureDetails") &&
     realDebridBackend.includes("upstream_error_code") &&
-    coreMediaPlayerProvider.includes("Trailers and provider links belong in the details/source UI") &&
+    coreMediaPlayerProvider.includes("Manual source visibility has no readiness/cache eligibility gate") &&
+    coreMediaPlayerProvider.includes("const completePlaybackSourcePool") &&
     coreMediaPlayerProvider.includes("sources: publishedSources") &&
     videoPlayer.includes("const activeResolutionKey =") &&
     videoPlayer.includes("stablePlaybackSourceKey(active, activeIdx)") &&
