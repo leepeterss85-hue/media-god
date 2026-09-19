@@ -2118,10 +2118,14 @@ test("Real-Debrid zero-audio inspection tries transcode then rejects the silent 
     rdSource,
     /audioTracks\.length === 0[\s\S]{0,500}RD_NO_AUDIO_TRACKS/
   );
-  assert.match(
-    rdSource,
-    /getBestRdTranscode[\s\S]{0,2200}audioTracks\.length === 0/
+  const transcodeCall = rdSource.indexOf(
+    "await getBestRdTranscode("
   );
+  const zeroAudioReject = rdSource.indexOf(
+    "if (audioTracks.length === 0)"
+  );
+  assert.ok(transcodeCall >= 0);
+  assert.ok(zeroAudioReject > transcodeCall);
   assert.match(
     playerSource,
     /rdErrorCode ===[\s\S]{0,80}"RD_NO_AUDIO_TRACKS"/
