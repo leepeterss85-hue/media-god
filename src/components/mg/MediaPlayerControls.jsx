@@ -244,6 +244,57 @@ export default function MediaPlayerControls({
   const [sourceChoicePinned, setSourceChoicePinned] = useState(false);
   const sourceChoiceEntriesRef = useRef([]);
   const sourceChoiceValueRef = useRef(0);
+  const sourceChoiceReleaseTimerRef = useRef(null);
+
+  const releaseSourceChoices = () => {
+    if (sourceChoiceReleaseTimerRef.current) {
+      window.clearTimeout(sourceChoiceReleaseTimerRef.current);
+      sourceChoiceReleaseTimerRef.current = null;
+    }
+
+    setSourceChoicePinned(false);
+    sourceChoiceEntriesRef.current = [];
+  };
+
+  const pinSourceChoices = () => {
+    /*
+     * A Continue Watching launch starts with a single fast-start source. Do not
+     * freeze that temporary one-option list: cached alternatives discovered a
+     * moment later must flow straight into the fullscreen/native selector.
+     */
+    if (selectableSourceEntries.length <= 1) {
+      releaseSourceChoices();
+      sourceChoiceValueRef.current = activeIdx;
+      return;
+    }
+
+    sourceChoiceEntriesRef.current = selectableSourceEntries;
+    sourceChoiceValueRef.current = selectableSourceEntries.some(
+      (entry) => entry.index === activeIdx
+    )
+      ? activeIdx
+      : "";
+    setSourceChoicePinned(true);
+
+    if (sourceChoiceReleaseTimerRef.current) {
+      window.clearTimeout(sourceChoiceReleaseTimerRef.current);
+    }
+
+    sourceChoiceReleaseTimerRef.current = window.setTimeout(
+      releaseSourceChoices,
+      12000
+    );
+  };
+
+  useEffect(
+    () => () => {
+      if (sourceChoiceReleaseTimerRef.current) {
+        window.clearTimeout(sourceChoiceReleaseTimerRef.current);
+        sourceChoiceReleaseTimerRef.current = null;
+      }
+    },
+    []
+  );
 
   const visibleSourceChoices =
     sourceChoicePinned && sourceChoiceEntriesRef.current.length > 0
@@ -1728,39 +1779,23 @@ export default function MediaPlayerControls({
               <div className="relative min-w-[7.5rem] max-w-[42vw] sm:min-w-[13rem] sm:max-w-sm">
                 <select
                   value={visibleSourceChoiceValue}
-                  onPointerDown={() => {
-                    sourceChoiceEntriesRef.current = selectableSourceEntries;
-                    sourceChoiceValueRef.current = selectableSourceEntries.some(
-                      (entry) => entry.index === activeIdx
-                    )
-                      ? activeIdx
-                      : "";
-                    setSourceChoicePinned(true);
-                  }}
+                  onPointerDown={pinSourceChoices}
                   onChange={(event) => {
                     const value = event.target.value;
                     const selectedEntry = visibleSourceChoices.find(
                       (entry) => String(entry.index) === String(value)
                     );
-                    setSourceChoicePinned(false);
-                    sourceChoiceEntriesRef.current = [];
+                    releaseSourceChoices();
                     onSelectSource?.(value, selectedEntry?.item || null);
                   }}
                   onFocus={() => {
                     if (!sourceChoicePinned) {
-                      sourceChoiceEntriesRef.current = selectableSourceEntries;
-                      sourceChoiceValueRef.current = selectableSourceEntries.some(
-                        (entry) => entry.index === activeIdx
-                      )
-                        ? activeIdx
-                        : "";
-                      setSourceChoicePinned(true);
+                      pinSourceChoices();
                     }
                     focusSelectControl();
                   }}
                   onBlur={() => {
-                    setSourceChoicePinned(false);
-                    sourceChoiceEntriesRef.current = [];
+                    releaseSourceChoices();
                     blurSelectControl();
                   }}
                   className="min-h-10 w-full appearance-none rounded-lg border border-white/15 bg-black/60 py-2.5 pl-3 pr-8 text-xs font-medium text-white outline-none backdrop-blur transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/30 sm:text-sm"
