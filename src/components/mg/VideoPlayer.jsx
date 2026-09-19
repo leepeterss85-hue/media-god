@@ -9095,6 +9095,11 @@ export default function VideoPlayer({
             <span>
               Cached {Number(source?.sourceDiagnostics?.cachedSourceCount || 0)}
             </span>
+            {Number(source?.sourceDiagnostics?.pendingSourceCount || 0) > 0 && (
+              <span>
+                Waiting {Number(source?.sourceDiagnostics?.pendingSourceCount || 0)}
+              </span>
+            )}
             <span>
               Ready {selectableSourceCount}
             </span>

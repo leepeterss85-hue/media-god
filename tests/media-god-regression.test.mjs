@@ -47,6 +47,7 @@ import {
 import {
   sourceHasAuthoritativeCachedSignal,
   sourceHasPendingCacheSignal,
+  sourceIsConfirmedCachedForPlayback,
 } from "../src/components/mg/sourceCacheVisibility.js";
 import {
   classifyDebridCacheCheck,
@@ -116,6 +117,53 @@ test("Fire TV Home keeps a dedicated vertical scroll container", () => {
   assert.match(fireTvCss, /\[data-mg-home-dashboard="true"\][\s\S]{0,700}?height:\s*100vh\s*!important/);
   assert.match(fireTvCss, /\[data-mg-home-dashboard="true"\][\s\S]{0,900}?overflow-y:\s*auto\s*!important/);
   assert.match(fireTvCss, /\[data-mg-home-dashboard="true"\][\s\S]{0,1100}?scroll-padding-bottom:\s*40px\s*!important/);
+});
+
+test("source health never counts uncached Real-Debrid preparation rows as cached", () => {
+  const pendingRd = {
+    type: "rd",
+    viaRealDebrid: true,
+    cacheRequired: true,
+    cometUncached: true,
+    debridCacheChecked: true,
+    debridCached: false,
+  };
+  const readyLibrary = {
+    type: "url",
+    viaRealDebrid: true,
+    url: "https://example.test/ready.mkv",
+  };
+  const confirmedCached = {
+    type: "rd",
+    cacheRequired: true,
+    cometUncached: true,
+    debridCached: true,
+  };
+
+  assert.equal(sourceHasPendingCacheSignal(pendingRd), true);
+  assert.equal(sourceIsConfirmedCachedForPlayback(pendingRd), false);
+  assert.equal(sourceIsConfirmedCachedForPlayback(readyLibrary), true);
+  assert.equal(sourceIsConfirmedCachedForPlayback(confirmedCached), true);
+
+  const providerSource = readFileSync(
+    new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
+    "utf8"
+  );
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(
+    providerSource,
+    /cachedSourceCount\s*=\s*cacheAnnotatedCombined\.filter\(\s*sourceIsConfirmedCachedForPlayback/
+  );
+  assert.doesNotMatch(
+    providerSource,
+    /cachedSourceCount[\s\S]{0,180}?viaRealDebrid\s*===\s*true/
+  );
+  assert.match(providerSource, /pendingSourceCount/);
+  assert.match(playerSource, /Waiting \{Number\(source\?\.sourceDiagnostics\?\.pendingSourceCount/);
 });
 
 test("partial debrid cache failures stay unknown instead of becoming uncached", () => {

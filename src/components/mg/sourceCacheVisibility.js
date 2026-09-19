@@ -93,3 +93,23 @@ export const sourceHasPendingCacheSignal = (item, strategy = "") => {
     )
   );
 };
+
+/*
+ * A row is only counted as cached when Media God has a positive cache/ready
+ * signal, or when it is an already-resolved Real-Debrid library/direct row.
+ * Merely travelling through Real-Debrid is not enough: Comet uncached rows also
+ * carry viaRealDebrid=true while cacheRequired/cometUncached is still true.
+ */
+export const sourceIsConfirmedCachedForPlayback = (item) => {
+  if (!item) return false;
+
+  if (sourceHasAuthoritativeCachedSignal(item)) {
+    return true;
+  }
+
+  if (sourceHasPendingCacheSignal(item)) {
+    return false;
+  }
+
+  return item?.viaRealDebrid === true;
+};

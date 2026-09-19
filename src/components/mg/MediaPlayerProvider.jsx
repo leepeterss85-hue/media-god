@@ -35,6 +35,10 @@ import {
   mergeDebridCacheCheckState,
 } from "@/components/mg/debridCacheCheck";
 import {
+  sourceHasPendingCacheSignal,
+  sourceIsConfirmedCachedForPlayback,
+} from "@/components/mg/sourceCacheVisibility";
+import {
   readSourceSortMode,
   sortSourceEntries,
 } from "@/components/mg/sourceSelectorPreferences";
@@ -2528,11 +2532,16 @@ export function PlayerProvider({
           }
         }
 
-        const cacheCandidateCount = cacheAnnotatedCombined.filter((item) =>
-          Boolean(sourceMagnetHash(item))
-        ).length;
+        const cacheCandidateCount = new Set(
+          cacheAnnotatedCombined
+            .map((item) => sourceMagnetHash(item))
+            .filter(Boolean)
+        ).size;
         const cachedSourceCount = cacheAnnotatedCombined.filter(
-          (item) => item?.debridCached === true || item?.viaRealDebrid === true
+          sourceIsConfirmedCachedForPlayback
+        ).length;
+        const pendingSourceCount = cacheAnnotatedCombined.filter(
+          (item) => sourceHasPendingCacheSignal(item)
         ).length;
         const combinedSourceCount = cacheAnnotatedCombined.length;
 
@@ -2670,6 +2679,8 @@ export function PlayerProvider({
             cacheCandidateCount,
 
             cachedSourceCount,
+
+            pendingSourceCount,
 
             browserAttempted:
               Boolean(

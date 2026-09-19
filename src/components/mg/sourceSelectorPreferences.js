@@ -17,6 +17,7 @@ import {
 import {
   sourceHasAuthoritativeCachedSignal,
   sourceHasPendingCacheSignal,
+  sourceIsConfirmedCachedForPlayback,
 } from "@/components/mg/sourceCacheVisibility";
 
 export const SOURCE_SELECTOR_SORT_KEY = "mg:source-selector-sort-v1";
@@ -206,17 +207,12 @@ const sourceSize = (item) => {
   return amount * 1024 ** 2;
 };
 
-const sourceIsCached = (item) => {
-  if (sourceHasPendingCacheSignal(item)) {
-    return false;
-  }
-
-  return (
-    sourceHasAuthoritativeCachedSignal(item) ||
-    item?.viaRealDebrid === true ||
+const sourceIsCached = (item) =>
+  sourceIsConfirmedCachedForPlayback(item) ||
+  (
+    !sourceHasPendingCacheSignal(item) &&
     /\b(?:cached|instant|ready)\b/i.test(sourceText(item))
   );
-};
 
 export const sourceIsUserSelectable = (item) => {
   if (!item) return false;
