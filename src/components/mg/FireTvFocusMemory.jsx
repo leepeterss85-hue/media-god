@@ -445,6 +445,87 @@ const captureScroll =
     };
   };
 
+const rowContextFor = (element) => {
+  if (!(element instanceof HTMLElement)) {
+    return {
+      rowLabel: "",
+      rowCardIndex: -1,
+    };
+  }
+
+  const row = element.closest('[data-mg-tv-row="true"]');
+
+  if (!(row instanceof HTMLElement)) {
+    return {
+      rowLabel: "",
+      rowCardIndex: -1,
+    };
+  }
+
+  const card = element.closest(
+    ".mg-fire-tv-card, .mg-fire-tv-resume-card"
+  );
+  const cards = Array.from(
+    row.querySelectorAll(".mg-fire-tv-card, .mg-fire-tv-resume-card")
+  ).filter((item) => visible(item, row));
+
+  return {
+    rowLabel: normaliseText(row.getAttribute("aria-label")),
+    rowCardIndex:
+      card instanceof HTMLElement
+        ? cards.indexOf(card)
+        : -1,
+  };
+};
+
+const rowFallbackTarget = (snapshot, scope) => {
+  if (!snapshot?.rowLabel || !(scope instanceof HTMLElement)) {
+    return null;
+  }
+
+  const row = Array.from(
+    scope.querySelectorAll('[data-mg-tv-row="true"]')
+  ).find(
+    (item) =>
+      item instanceof HTMLElement &&
+      visible(item, scope) &&
+      normaliseText(item.getAttribute("aria-label")) === snapshot.rowLabel
+  );
+
+  if (!(row instanceof HTMLElement)) {
+    return null;
+  }
+
+  const cards = Array.from(
+    row.querySelectorAll(".mg-fire-tv-card, .mg-fire-tv-resume-card")
+  ).filter((item) => visible(item, row));
+
+  if (cards.length > 0) {
+    const requested = Number(snapshot.rowCardIndex);
+    const index = Number.isInteger(requested) && requested >= 0
+      ? Math.min(requested, cards.length - 1)
+      : 0;
+    const card = cards[index];
+    const primary =
+      card.matches?.('[data-mg-card-primary="true"]') && visible(card, row)
+        ? card
+        : Array.from(
+            card.querySelectorAll('[data-mg-card-primary="true"]')
+          ).find((item) => visible(item, row));
+
+    if (primary) {
+      return primary;
+    }
+
+    const fallback = focusables(card)[0];
+    if (fallback) {
+      return fallback;
+    }
+  }
+
+  return focusables(row)[0] || null;
+};
+
 const snapshotFocus =
   (
     element,
@@ -467,6 +548,7 @@ const snapshotFocus =
       focusables(
         scope
       );
+    const rowContext = rowContextFor(element);
 
     return {
       element,
@@ -510,6 +592,12 @@ const snapshotFocus =
         items.indexOf(
           element
         ),
+
+      rowLabel:
+        rowContext.rowLabel,
+
+      rowCardIndex:
+        rowContext.rowCardIndex,
 
       scroll:
         captureScroll(
@@ -632,6 +720,12 @@ const resolveSnapshot =
       if (byText) {
         return byText;
       }
+    }
+
+    const rowTarget = rowFallbackTarget(snapshot, scope);
+
+    if (rowTarget) {
+      return rowTarget;
     }
 
     if (
@@ -903,6 +997,25 @@ export default function FireTvFocusMemory() {
       true
     );
 
+    const onPlayerClosed = () => {
+      inspectScopeChange();
+    };
+
+    const onPlayerVisibility = (event) => {
+      if (event?.detail?.open === false) {
+        inspectScopeChange();
+      }
+    };
+
+    window.addEventListener(
+      "mg:core-player-closed",
+      onPlayerClosed
+    );
+    window.addEventListener(
+      "mg:player-visibility",
+      onPlayerVisibility
+    );
+
     const observer =
       new MutationObserver(
         inspectScopeChange
@@ -949,6 +1062,14 @@ export default function FireTvFocusMemory() {
         "focusin",
         onFocusIn,
         true
+      );
+      window.removeEventListener(
+        "mg:core-player-closed",
+        onPlayerClosed
+      );
+      window.removeEventListener(
+        "mg:player-visibility",
+        onPlayerVisibility
       );
 
       observer.disconnect();
