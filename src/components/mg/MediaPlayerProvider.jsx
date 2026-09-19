@@ -2055,7 +2055,10 @@ export function PlayerProvider({
             publishedSources = preservePublishedSourceOrder(
               existing,
               publishedSources,
-              stableDiscoveredSourceKey
+              stableDiscoveredSourceKey,
+              {
+                retainSurplusPublished: true,
+              }
             );
             publishedSourceSnapshot = publishedSources;
 

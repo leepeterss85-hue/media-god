@@ -1623,6 +1623,21 @@ test("stable source publishing keeps all 117 cached rows after a six-row fast st
   );
   assert.equal(new Set(merged.map((item) => item.id)).size, 117);
 
+  const lateFastStart = preservePublishedSourceOrder(
+    fullCachedPool,
+    fastStart,
+    (item) => item.sourceKey,
+    {
+      retainSurplusPublished: true,
+    }
+  );
+
+  assert.equal(lateFastStart.length, 117);
+  assert.equal(
+    lateFastStart.filter((item) => item.debridCached === true).length,
+    117
+  );
+
   const providerSource = readFileSync(
     new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
     "utf8"
@@ -1631,6 +1646,10 @@ test("stable source publishing keeps all 117 cached rows after a six-row fast st
   assert.match(
     providerSource,
     /preservePublishedSourceOrder\([\s\S]{0,180}?stableDiscoveredSourceKey/
+  );
+  assert.match(
+    providerSource,
+    /preservePublishedSourceOrder\([\s\S]{0,260}?retainSurplusPublished:\s*true/
   );
 });
 

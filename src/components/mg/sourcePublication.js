@@ -11,7 +11,8 @@
 export const preservePublishedSourceOrder = (
   published,
   incoming,
-  keyFor
+  keyFor,
+  options = {}
 ) => {
   const previous = Array.isArray(published)
     ? published.filter((item) => item && !item?.diagnostic)
@@ -27,6 +28,9 @@ export const preservePublishedSourceOrder = (
     typeof keyFor === "function"
       ? keyFor
       : () => "";
+
+  const retainSurplusPublished =
+    options?.retainSurplusPublished === true;
 
   const nextIndexesByKey = new Map();
 
@@ -65,7 +69,11 @@ export const preservePublishedSourceOrder = (
      * of an identity it contains. Drop only surplus stale published copies.
      * Rows whose identity vanished entirely remain available as safe fallbacks.
      */
-    if (key && nextIndexesByKey.has(key)) {
+    if (
+      key &&
+      nextIndexesByKey.has(key) &&
+      !retainSurplusPublished
+    ) {
       return;
     }
 
