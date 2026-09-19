@@ -2239,8 +2239,11 @@ export default function VideoPlayer({
    * so this scheduler can safely offer up to three background candidates while
    * RD remains the authority on the account's actual concurrent-download limit.
    *
-   * Each edition/quality shelf still stops starting new work after five cached
-   * front-line choices. Slot-blocked candidates are NOT poisoned as attempted:
+   * Continue through the entire eligible source pool. The old five-per-shelf
+   * stop produced exactly six visible choices once the active source was
+   * included, even when discovery had found many more torrents. Real-Debrid's
+   * active-slot preflight and the worker limit below remain the authority on
+   * safe concurrency. Slot-blocked candidates are NOT poisoned as attempted:
    * they are retried when capacity becomes available.
    */
   useEffect(() => {
@@ -2333,7 +2336,6 @@ export default function VideoPlayer({
         (entry) =>
           entry.index !== activeIdx &&
           !entry.cached &&
-          entry.cachedCount < 5 &&
           sourceNeedsCaching(entry.original) &&
           /^[a-f0-9]{40}$/i.test(entry.hash) &&
           /^magnet:/i.test(entry.magnet) &&
