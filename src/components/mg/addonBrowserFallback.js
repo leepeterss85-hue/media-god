@@ -1675,6 +1675,11 @@ export async function fetchBrowserAddonStreams({
       ? "series"
       : "movie";
 
+  /*
+   * Keep the requested year in the primary title lookup. Bare franchise-title
+   * searches can return every instalment before the year-qualified fallback is
+   * reached, which is especially visible with names such as Resident Evil.
+   */
   const streamId =
     hasValidImdb
       ? mediaType === "tv"
@@ -1684,9 +1689,11 @@ export async function fetchBrowserAddonStreams({
         ? mediaType === "tv"
           ? `tmdb:${suppliedTmdb}:${Number(season)}:${Number(episode)}`
           : `tmdb:${suppliedTmdb}`
-        : mediaType === "tv"
-          ? `search:${suppliedTitle}:${Number(season)}:${Number(episode)}`
-          : `search:${suppliedTitle}`;
+        : clean(year)
+          ? `search:${suppliedTitle}:${clean(year)}${mediaType === "tv" ? `:${Number(season)}:${Number(episode)}` : ""}`
+          : mediaType === "tv"
+            ? `search:${suppliedTitle}:${Number(season)}:${Number(episode)}`
+            : `search:${suppliedTitle}`;
 
   const episodeSuffix =
     mediaType === "tv"
@@ -1740,6 +1747,7 @@ export async function fetchBrowserAddonStreams({
       : "",
     ...yearSearchIds,
     suppliedTitle &&
+    !clean(year) &&
     !(
       ambiguousShortTitle &&
       (hasValidImdb || suppliedTmdb)

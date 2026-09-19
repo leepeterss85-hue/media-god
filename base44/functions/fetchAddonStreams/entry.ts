@@ -2283,6 +2283,11 @@ export default async function (req) {
         ? "series"
         : "movie";
 
+    /*
+     * A supplied year is part of the media identity, not an optional hint.
+     * Franchise names such as "Resident Evil" are too ambiguous to query as a
+     * bare title when the caller asked for a specific release year.
+     */
     const streamId =
       imdbId
         ? mediaType === "tv"
@@ -2292,9 +2297,11 @@ export default async function (req) {
           ? mediaType === "tv"
             ? `tmdb:${tmdbId}:${season}:${episode}`
             : `tmdb:${tmdbId}`
-          : mediaType === "tv"
-            ? `search:${title}:${season}:${episode}`
-            : `search:${title}`;
+          : year
+            ? `search:${title}:${year}${mediaType === "tv" ? `:${season}:${episode}` : ""}`
+            : mediaType === "tv"
+              ? `search:${title}:${season}:${episode}`
+              : `search:${title}`;
 
     const fastMode =
       body?.fast_mode === true ||
@@ -2339,6 +2346,7 @@ export default async function (req) {
         : "",
       ...yearSearchIds,
       title &&
+      !year &&
       !(
         ambiguousShortTitle &&
         (imdbId || tmdbId)

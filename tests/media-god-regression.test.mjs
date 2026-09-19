@@ -347,6 +347,25 @@ test("modern RD cache markers are authoritative cached signals", () => {
     true
   );
 });
+test("year-specific franchise lookups never fall back to a bare title", () => {
+  const serverSource = readFileSync(
+    new URL("../base44/functions/fetchAddonStreams/entry.ts", import.meta.url),
+    "utf8"
+  );
+  const browserSource = readFileSync(
+    new URL("../src/components/mg/addonBrowserFallback.js", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(serverSource, /: year\s*\?\s*`search:\$\{title\}:\$\{year\}/);
+  assert.match(
+    browserSource,
+    /: clean\(year\)\s*\?\s*`search:\$\{suppliedTitle\}:\$\{clean\(year\)\}/
+  );
+  assert.match(serverSource, /title &&\s*!year &&/);
+  assert.match(browserSource, /suppliedTitle &&\s*!clean\(year\) &&/);
+});
+
 test("full addon discovery merges year-qualified sources after a non-empty primary result", () => {
   const serverSource = readFileSync(
     new URL("../base44/functions/fetchAddonStreams/entry.ts", import.meta.url),
