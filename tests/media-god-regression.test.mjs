@@ -2100,6 +2100,38 @@ test("English audio rank stays ahead of compatibility in the autoplay top three"
   );
 });
 
+test("Real-Debrid zero-audio inspection tries transcode then rejects the silent source", () => {
+  const rdSource = readFileSync(
+    new URL("../base44/functions/realDebrid/entry.ts", import.meta.url),
+    "utf8"
+  );
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.doesNotMatch(
+    rdSource,
+    /state:\s*"no_audio_metadata_original_probe"/
+  );
+  assert.match(
+    rdSource,
+    /audioTracks\.length === 0[\s\S]{0,500}RD_NO_AUDIO_TRACKS/
+  );
+  assert.match(
+    rdSource,
+    /getBestRdTranscode[\s\S]{0,2200}audioTracks\.length === 0/
+  );
+  assert.match(
+    playerSource,
+    /rdErrorCode ===[\s\S]{0,80}"RD_NO_AUDIO_TRACKS"/
+  );
+  assert.match(
+    playerSource,
+    /confirmed this file has no usable audio track[\s\S]{0,220}immediate: true/
+  );
+});
+
 test("audio tracks prefer English main audio while preserving explicit language memory", () => {
   const englishMain = {
     language: "eng",

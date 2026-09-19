@@ -3848,29 +3848,12 @@ async function choosePlayableRdStream({
     videoContainerRescue || videoCodecRescue;
 
   /*
-   * MediaInfos can occasionally be incomplete for otherwise playable files.
-   * Keep the unrestricted stream available and let the player prove whether
-   * audio is really absent before discarding the source.
+   * A successful mediaInfos response with zero audio tracks is suspicious, but
+   * it can still be incomplete for a stream that Real-Debrid is able to
+   * remux/transcode correctly. Do not return the unrestricted file yet.
+   * Continue through Audio Rescue first; only reject the source if RD also
+   * cannot provide a compatibility transcode.
    */
-  if (
-    audioTracks.length ===
-      0 &&
-    !videoCompatibilityRescue &&
-    !preferBrowserTranscode
-  ) {
-    return {
-      stream_url: originalUrl,
-      filename: originalFilename,
-      audio_rescue: {
-        used: false,
-        state: "no_audio_metadata_original_probe",
-        reason:
-          "Real-Debrid media inspection exposed no audio tracks, so Media God is probing the original stream instead of rejecting it.",
-      },
-      media_info: mediaSummary,
-    };
-  }
-
   const firstTrack =
     audioTracks[0];
 
@@ -4123,6 +4106,25 @@ async function choosePlayableRdStream({
           null,
       },
       media_info: mediaSummary,
+    };
+  }
+
+  if (audioTracks.length === 0) {
+    return {
+      error:
+        "Real-Debrid inspected this video but found no audio tracks, and no compatible transcode with audio was available.",
+      error_code:
+        "RD_NO_AUDIO_TRACKS",
+      audio_rescue: {
+        used: false,
+        state:
+          "no_audio_tracks_try_next_source",
+        reason:
+          transcode?.error ||
+          "Real-Debrid media inspection returned zero audio tracks and Audio Rescue could not produce a compatibility stream.",
+      },
+      media_info:
+        mediaSummary,
     };
   }
 

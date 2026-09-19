@@ -5021,6 +5021,30 @@ export default function VideoPlayer({
                 return;
               }
 
+              if (
+                rdErrorCode ===
+                "RD_NO_AUDIO_TRACKS"
+              ) {
+                setRdPreparation(null);
+                markSourceFailed(activeIdx);
+
+                const moved = tryNextSource(
+                  "Real-Debrid confirmed this file has no usable audio track. Trying another source for the same title…",
+                  {
+                    blacklistTorrentHash: true,
+                    immediate: true,
+                  }
+                );
+
+                if (!moved) {
+                  setRdError(
+                    "Real-Debrid confirmed this file has no usable audio track and no different playable source is currently available."
+                  );
+                }
+
+                return;
+              }
+
               if (rdErrorCode === "RD_TORRENT_INFO_FAILED") {
                 setRdPreparation((current) => ({
                   ...(current || {}),
