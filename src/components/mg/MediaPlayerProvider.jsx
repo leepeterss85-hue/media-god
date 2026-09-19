@@ -38,6 +38,7 @@ import {
   sourceHasPendingCacheSignal,
   sourceIsConfirmedCachedForPlayback,
 } from "@/components/mg/sourceCacheVisibility";
+import { mergeCompleteSourcePool } from "@/components/mg/sourcePoolCompleteness";
 import {
   readSourceSortMode,
   sortSourceEntries,
@@ -1774,6 +1775,7 @@ export function PlayerProvider({
 
           return {
             sources: ordered,
+            completeSources: ordered,
             imdbId: String(request?.imdbId || request?.imdb_id || "").trim(),
             preparedAt: Date.now(),
           };
@@ -1860,6 +1862,7 @@ export function PlayerProvider({
 
         return {
           sources: ordered,
+          completeSources: ordered,
           imdbId,
           preparedAt: Date.now(),
         };
@@ -1996,6 +1999,11 @@ export function PlayerProvider({
           rdSeason: request?.rdSeason ?? season,
           rdEpisode: request?.rdEpisode ?? episode,
           sources: initialSources,
+          completeSources:
+            Array.isArray(request?.completeSources) &&
+            request.completeSources.length > 0
+              ? request.completeSources
+              : initialPlayableSources,
           src: getSourceUrl(initialPrimary),
           url: getSourceUrl(initialPrimary),
           hasRd,
@@ -2472,6 +2480,19 @@ export function PlayerProvider({
           preferRd: Boolean(request?.preferRd),
         });
 
+        /*
+         * Keep a second canonical pool that is independent of the fast-start
+         * player array. If a late discovery callback replaces source.sources,
+         * VideoPlayer can rebuild the chooser from this full annotated pool.
+         * The completeness merge is deliberately lossless, including when
+         * several addon rows share the same torrent/file key.
+         */
+        const canonicalCompletePlaybackSources =
+          mergeCompleteSourcePool(
+            completePlaybackSources,
+            completePlaybackSourcePool
+          );
+
         const diagnosticLabel =
           buildDiagnosticLabel(
             {
@@ -2493,8 +2514,8 @@ export function PlayerProvider({
            * Explicit Trailer/Provider buttons opt in with allowNonPlaybackFallback.
            */
           orderedSources =
-            completePlaybackSources.length > 0
-              ? completePlaybackSources
+            canonicalCompletePlaybackSources.length > 0
+              ? canonicalCompletePlaybackSources
               : [
                   {
                     label: diagnosticLabel,
@@ -2538,6 +2559,16 @@ export function PlayerProvider({
         orderedSources = preservePublishedSourceOrder(
           publishedSourceSnapshot,
           orderedSources
+        );
+
+        /*
+         * Stable ordering must never be allowed to reduce the canonical pool.
+         * Rehydrate matching rows with final cache metadata and append every
+         * missing source after the already-published choices.
+         */
+        orderedSources = mergeCompleteSourcePool(
+          orderedSources,
+          canonicalCompletePlaybackSources
         );
         publishedSourceSnapshot = orderedSources;
 
@@ -2645,6 +2676,9 @@ export function PlayerProvider({
           sources:
             orderedSources,
 
+          completeSources:
+            canonicalCompletePlaybackSources,
+
           src:
             activeUrl,
 
@@ -2720,6 +2754,9 @@ export function PlayerProvider({
             publishedSourceCount,
 
             publishedCachedSourceCount,
+
+            canonicalSourceCount:
+              canonicalCompletePlaybackSources.length,
 
             browserAttempted:
               Boolean(
