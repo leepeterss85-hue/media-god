@@ -1375,6 +1375,8 @@ export default async function (req) {
         {
           title: body.title,
           year: body.year,
+          alternateYears: alternateYearsFromBody(body),
+          alternateTitles: alternateTitlesFromBody(body),
           season: body.season,
           episode: body.episode,
           forceAudioRescue:
@@ -1475,6 +1477,10 @@ export default async function (req) {
               body.title,
             year:
               body.year,
+            alternateYears:
+              alternateYearsFromBody(body),
+            alternateTitles:
+              alternateTitlesFromBody(body),
             season:
               body.season,
             episode:
@@ -1624,6 +1630,8 @@ export default async function (req) {
       const manualContext = {
         title: body.title,
         year: body.year,
+        alternateYears: alternateYearsFromBody(body),
+        alternateTitles: alternateTitlesFromBody(body),
         season: body.season,
         episode: body.episode,
         file_id: Number(target.id),
@@ -2704,6 +2712,8 @@ export default async function (req) {
           {
             title,
             year,
+            alternateYears,
+            alternateTitles,
             season,
             episode,
             preferBrowserTranscode:
