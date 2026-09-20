@@ -2539,9 +2539,11 @@ test("global VOD audio validation covers web, Media3 and LibVLC playback", () =>
     const source = readFileSync(new URL(file, import.meta.url), "utf8");
     assert.match(
       source,
-      /compatibility decoder confirmed this video has no usable audio track/
+      /compatibility decoder could not find an active audio track after repeated checks/
     );
-    assert.match(source, /audioRecoveryPasses < 2/);
+    assert.match(source, /selectedAudioTrack >= 0/);
+    assert.match(source, /audioTrackCount > 0/);
+    assert.match(source, /audioRecoveryPasses < 4/);
   }
 });
 
