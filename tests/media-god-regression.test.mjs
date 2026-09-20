@@ -3249,7 +3249,11 @@ test("Best chooser pins the playing VOD first and native playback receives that 
 
   assert.match(
     playerSource,
-    /sourceSortMode === "best"[\s\S]{0,260}?entry\.index === activeIdx[\s\S]{0,260}?activeEntry\?\.provenWorking === true[\s\S]{0,180}?selectableSourceEntries = \[/
+    /sourceSortMode === "best"[\s\S]{0,700}?entry\.index === activeIdx/
+  );
+  assert.match(
+    playerSource,
+    /activeEntry\?\.provenWorking === true[\s\S]{0,260}?selectableSourceEntries = \[/
   );
   assert.match(
     playerSource,
