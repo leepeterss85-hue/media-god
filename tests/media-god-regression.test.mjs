@@ -2020,6 +2020,72 @@ test("stable source publishing keeps all 117 cached rows after a six-row fast st
   );
 });
 
+test("strict startup never autoplays request sources before qualification", () => {
+  const providerSource = readFileSync(
+    new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
+    "utf8"
+  );
+
+  const qualificationIndex = providerSource.indexOf(
+    "const qualificationMode ="
+  );
+  const initialPlayableIndex = providerSource.indexOf(
+    "const initialPlayableSources ="
+  );
+
+  assert.ok(qualificationIndex >= 0);
+  assert.ok(initialPlayableIndex > qualificationIndex);
+
+  const initialBlock = providerSource.slice(
+    initialPlayableIndex,
+    providerSource.indexOf(
+      "const initialPrimary",
+      initialPlayableIndex
+    )
+  );
+
+  assert.match(
+    initialBlock,
+    /!qualificationMode[\s\S]{0,120}launchQualified === true/
+  );
+  assert.match(
+    initialBlock,
+    /Finding a verified compatible source/
+  );
+});
+
+test("strict VOD chooser exposes verified sources while retaining raw discovery internally", () => {
+  const providerSource = readFileSync(
+    new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(
+    providerSource,
+    /completeSources:[\s\S]{0,160}qualificationMode[\s\S]{0,120}qualifiedLaunchSources/
+  );
+  assert.match(
+    providerSource,
+    /discoveredSources:[\s\S]{0,100}canonicalCompletePlaybackSources/
+  );
+  assert.match(
+    providerSource,
+    /targetCount:\s*5[\s\S]{0,60}scanLimit:\s*20/
+  );
+});
+
+test("TMDB and IMDb ids are validated against requested title and year", () => {
+  const resolverSource = readFileSync(
+    new URL("../base44/functions/resolveImdb/entry.ts", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(resolverSource, /tmdbRecordMatchesRequest/);
+  assert.match(resolverSource, /recordYear !== requestedYear/);
+  assert.match(resolverSource, /tmdb_id_corrected_supplied_imdb/);
+  assert.match(resolverSource, /title_search_corrected_supplied_imdb/);
+});
+
 test("strict launch barrier preserves verified playback and blocks unverified autoplay", () => {
   const hash = "a".repeat(40);
   const qualified = {

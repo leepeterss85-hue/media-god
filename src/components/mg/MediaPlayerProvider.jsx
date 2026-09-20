@@ -2518,6 +2518,11 @@ export function PlayerProvider({
           request?.id ??
           "";
 
+        const qualificationMode =
+          !isLive &&
+          hasRd &&
+          !request?.noRd;
+
         const initialOrderedSources =
           orderSources({
             sources: dedupeSources(originalSources),
@@ -2528,10 +2533,16 @@ export function PlayerProvider({
         const initialPlayableSources =
           initialOrderedSources.filter(
             (item) =>
-              isDirectSource(item) ||
-              isMagnetSource(item) ||
-              item?.type === "live" ||
-              item?.live
+              (
+                isDirectSource(item) ||
+                isMagnetSource(item) ||
+                item?.type === "live" ||
+                item?.live
+              ) &&
+              (
+                !qualificationMode ||
+                item?.launchQualified === true
+              )
           );
 
         const initialSources =
@@ -2539,7 +2550,10 @@ export function PlayerProvider({
             ? initialPlayableSources
             : [
                 {
-                  label: "Finding the fastest source…",
+                  label:
+                    qualificationMode
+                      ? "Finding a verified compatible source…"
+                      : "Finding the fastest source…",
                   type: "status",
                   src: "",
                   url: "",
@@ -2554,7 +2568,11 @@ export function PlayerProvider({
         let fastStartPrimaryUrl = getSourceUrl(initialPrimary);
         const preparedEpisodeHandoff =
           request?.preparedEpisodeHandoff === true &&
-          initialPlayableSources.length > 0;
+          initialPlayableSources.length > 0 &&
+          (
+            !qualificationMode ||
+            initialPlayableSources[0]?.launchQualified === true
+          );
         const suppliedImdbId = String(
           request?.imdbId || request?.imdb_id || ""
         ).trim();
@@ -2582,10 +2600,21 @@ export function PlayerProvider({
           rdEpisode: request?.rdEpisode ?? episode,
           sources: initialSources,
           completeSources:
+            qualificationMode
+              ? initialPlayableSources.filter(
+                  (item) => item?.launchQualified === true
+                )
+              : (
+                  Array.isArray(request?.completeSources) &&
+                  request.completeSources.length > 0
+                    ? request.completeSources
+                    : initialPlayableSources
+                ),
+          discoveredSources:
             Array.isArray(request?.completeSources) &&
             request.completeSources.length > 0
               ? request.completeSources
-              : initialPlayableSources,
+              : initialOrderedSources,
           src: getSourceUrl(initialPrimary),
           url: getSourceUrl(initialPrimary),
           hasRd,
@@ -3106,11 +3135,6 @@ export function PlayerProvider({
           return;
         }
 
-        const qualificationMode =
-          !isLive &&
-          hasRd &&
-          !request?.noRd;
-
         let qualifiedLaunchSources = [];
 
         if (qualificationMode) {
@@ -3135,8 +3159,8 @@ export function PlayerProvider({
               mediaType,
               season,
               episode,
-              targetCount: 3,
-              scanLimit: 12,
+              targetCount: 5,
+              scanLimit: 20,
             });
 
           if (!isCurrentPlay()) {
@@ -3418,6 +3442,11 @@ export function PlayerProvider({
             playerSources,
 
           completeSources:
+            qualificationMode
+              ? qualifiedLaunchSources
+              : canonicalCompletePlaybackSources,
+
+          discoveredSources:
             canonicalCompletePlaybackSources,
 
           qualifiedLaunchOnly:

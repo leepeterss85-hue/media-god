@@ -44,6 +44,70 @@ const externalIdForTmdb = async ({
 
   return validImdb(data?.imdb_id) ? data.imdb_id : "";
 };
+const normaliseTitle = (value) =>
+  clean(value)
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+const tmdbDetails = async ({
+  apiKey,
+  tmdbId,
+  mediaType,
+}) => {
+  if (!tmdbId) return null;
+
+  const type = mediaType === "tv" ? "tv" : "movie";
+
+  return fetchJson(
+    `${TMDB_BASE}/${type}/${encodeURIComponent(
+      String(tmdbId)
+    )}?api_key=${encodeURIComponent(apiKey)}&language=en-GB`
+  );
+};
+
+const tmdbRecordMatchesRequest = ({
+  record,
+  title,
+  year,
+  mediaType,
+}) => {
+  if (!record) return false;
+
+  const type = mediaType === "tv" ? "tv" : "movie";
+  const requestedTitle = normaliseTitle(title);
+  const recordTitle = normaliseTitle(
+    type === "tv"
+      ? record?.name || record?.original_name || record?.title
+      : record?.title || record?.original_title || record?.name
+  );
+
+  if (
+    requestedTitle &&
+    recordTitle &&
+    requestedTitle !== recordTitle
+  ) {
+    return false;
+  }
+
+  const requestedYear = clean(year);
+  if (/^\d{4}$/.test(requestedYear)) {
+    const date = clean(
+      type === "tv"
+        ? record?.first_air_date
+        : record?.release_date
+    );
+    const recordYear = date.match(/^(\d{4})/)?.[1] || "";
+
+    if (!recordYear || recordYear !== requestedYear) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
 
 const searchTmdb = async ({
   apiKey,
@@ -119,13 +183,6 @@ export default async function (req) {
         body?.imdbId
     );
 
-    if (validImdb(suppliedImdb)) {
-      return Response.json({
-        imdb_id: suppliedImdb,
-        source: "supplied",
-      });
-    }
-
     const tmdbId = clean(
       body?.tmdb_id ||
         body?.tmdbId ||
@@ -153,18 +210,43 @@ export default async function (req) {
     }
 
     if (tmdbId && /^\d+$/.test(tmdbId)) {
-      const imdbId = await externalIdForTmdb({
+      const record = await tmdbDetails({
         apiKey,
         tmdbId,
         mediaType,
       });
 
-      if (imdbId) {
-        return Response.json({
-          imdb_id: imdbId,
-          tmdb_id: tmdbId,
-          source: "tmdb_id",
+      const identityMatches =
+        tmdbRecordMatchesRequest({
+          record,
+          title,
+          year,
+          mediaType,
         });
+
+      if (
+        identityMatches ||
+        (!title && !year)
+      ) {
+        const imdbId = await externalIdForTmdb({
+          apiKey,
+          tmdbId,
+          mediaType,
+        });
+
+        if (imdbId) {
+          return Response.json({
+            imdb_id:
+              validImdb(suppliedImdb) && suppliedImdb === imdbId
+                ? suppliedImdb
+                : imdbId,
+            tmdb_id: tmdbId,
+            source:
+              validImdb(suppliedImdb) && suppliedImdb !== imdbId
+                ? "tmdb_id_corrected_supplied_imdb"
+                : "tmdb_id_validated",
+          });
+        }
       }
     }
 
@@ -187,7 +269,10 @@ export default async function (req) {
           return Response.json({
             imdb_id: imdbId,
             tmdb_id: String(match.id),
-            source: "title_search",
+            source:
+              validImdb(suppliedImdb) && suppliedImdb !== imdbId
+                ? "title_search_corrected_supplied_imdb"
+                : "title_search",
           });
         }
       }
