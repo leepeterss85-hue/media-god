@@ -2300,7 +2300,7 @@ test("Real-Debrid library fast start is already media inspected", () => {
 
   assert.match(
     providerSource,
-    /launchQualification:\s*"rd-library-media-inspected"/
+    /launchQualification:\s*"rd-library-strict-media-inspected"/
   );
 });
 
