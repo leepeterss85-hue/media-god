@@ -2520,6 +2520,80 @@ test("successful audio rescue cannot be abandoned by stale no-sound or torrent f
   });
 });
 
+test("English-first audio keeps manual choices locked and never enters an uncached rescue loop", () => {
+  const controlsSource = readFileSync(
+    new URL("../src/components/mg/MediaPlayerControls.jsx", import.meta.url),
+    "utf8"
+  );
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+  const rdSource = readFileSync(
+    new URL("../base44/functions/realDebrid/entry.ts", import.meta.url),
+    "utf8"
+  );
+  const compatibilityFiles = [
+    "../android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt",
+    "../firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt",
+  ];
+
+  assert.match(controlsSource, /manualAudioChoiceRef/);
+  assert.match(
+    controlsSource,
+    /remembered\.language === preferredLanguage/
+  );
+  assert.match(
+    controlsSource,
+    /manualChoice\s*\|\|\s*rememberedPreferred\s*\|\|\s*orderedAudio\[0\]/
+  );
+
+  const chooseStart = controlsSource.indexOf("const chooseAudio =");
+  const chooseEnd = controlsSource.indexOf("const toggleMenu =", chooseStart);
+  assert.ok(chooseStart >= 0);
+  assert.ok(chooseEnd > chooseStart);
+  const chooseAudioSource = controlsSource.slice(chooseStart, chooseEnd);
+  assert.match(chooseAudioSource, /manualAudioChoiceRef\.current =/);
+  assert.match(chooseAudioSource, /rememberAudioPreference/);
+  assert.doesNotMatch(chooseAudioSource, /writeTrackPreferences\(/);
+
+  const noSoundStart = playerSource.indexOf("const handleNoSound =");
+  const noSoundEnd = playerSource.indexOf(
+    "handleNoSoundRef.current = handleNoSound",
+    noSoundStart
+  );
+  assert.ok(noSoundStart >= 0);
+  assert.ok(noSoundEnd > noSoundStart);
+  assert.match(
+    playerSource.slice(noSoundStart, noSoundEnd),
+    /findNextPlayableSource\([\s\S]{0,120}allowCaching:\s*false/
+  );
+
+  assert.match(rdSource, /RD_NO_ENGLISH_AUDIO/);
+  assert.match(rdSource, /no_english_audio_try_next_source/);
+  assert.match(
+    rdSource,
+    /This cached release has no labelled English audio track/
+  );
+
+  compatibilityFiles.forEach((file) => {
+    const source = readFileSync(new URL(file, import.meta.url), "utf8");
+    assert.match(source, /manualAudioTrackLocked = false/);
+    assert.match(source, /manualAudioTrackId = -1/);
+    assert.match(
+      source,
+      /if \(manualAudioTrackLocked\)[\s\S]{0,500}player\.setAudioTrack\(locked\.id\)/
+    );
+    assert.match(
+      source,
+      /val englishMain = tracks\.firstOrNull[\s\S]{0,300}looksEnglish/
+    );
+    assert.match(source, /manualAudioTrackLocked = true/);
+    assert.match(source, /root\.removeCallbacks\(audioRecoveryRunnable\)/);
+    assert.match(source, /Audio locked/);
+  });
+});
+
 test("global VOD audio validation covers web, Media3 and LibVLC playback", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
