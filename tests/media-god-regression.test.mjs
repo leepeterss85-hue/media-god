@@ -900,7 +900,15 @@ test("catalogue screens only publish movies and TV episodes that have real addon
   );
   assert.match(
     episodeSource,
-    /filterItemsWithPlayableSources\([\s\S]{0,500}?mediaType:[\s\S]{0,40}?"tv"[\s\S]{0,260}?episode:[\s\S]{0,120}?episode_number/
+    /await filterItemsWithPlayableSources\(/
+  );
+  assert.match(
+    episodeSource,
+    /mediaType:[\s\S]{0,40}?"tv"/
+  );
+  assert.match(
+    episodeSource,
+    /episode:[\s\S]{0,180}?episodeData[\s\S]{0,120}?episode_number/
   );
   assert.match(
     newEpisodesSource,
