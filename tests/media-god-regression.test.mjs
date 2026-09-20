@@ -2472,7 +2472,12 @@ test("global VOD audio validation covers web, Media3 and LibVLC playback", () =>
   for (const file of nativeFiles) {
     const source = readFileSync(new URL(file, import.meta.url), "utf8");
     assert.match(source, /scheduleMissingAudioCheck/);
-    assert.match(source, /group\.type == C\.TRACK_TYPE_AUDIO/);
+    assert.match(source, /C\.TRACK_TYPE_AUDIO/);
+    assert.match(source, /group\.isTrackSupported\(index\)/);
+    assert.match(source, /group\.isTrackSelected\(index\)/);
+    assert.match(source, /audio\/vnd\.dts\.hd/);
+    assert.match(source, /audio\/true-hd/);
+    assert.match(source, /audio\/eac3-joc/);
     assert.match(
       source,
       /Media3 found video but no audio track\. Trying the compatibility decoder\./
