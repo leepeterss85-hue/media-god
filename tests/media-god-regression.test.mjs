@@ -2390,10 +2390,19 @@ test("Real-Debrid zero-audio inspection tries transcode then rejects the silent 
     playerSource,
     /rdErrorCode ===[\s\S]{0,80}"RD_NO_AUDIO_TRACKS"/
   );
-  assert.match(
-    playerSource,
-    /confirmed this file has no usable audio track[\s\S]{0,220}immediate: true/
+  const audioErrorStart = playerSource.indexOf(
+    'rdErrorCode === "RD_NO_AUDIO_TRACKS"'
   );
+  const audioErrorEnd = playerSource.indexOf(
+    'rdErrorCode === "RD_TORRENT_INFO_FAILED"',
+    audioErrorStart
+  );
+  assert.ok(audioErrorStart >= 0 && audioErrorEnd > audioErrorStart);
+  const audioErrorBlock = playerSource.slice(audioErrorStart, audioErrorEnd);
+  assert.match(audioErrorBlock, /kept this exact source selected/);
+  assert.doesNotMatch(audioErrorBlock, /tryNextSource\(/);
+  assert.doesNotMatch(audioErrorBlock, /immediate:\s*true/);
+  assert.doesNotMatch(audioErrorBlock, /markSourceFailed\(/);
 });
 
 test("fast discovery cannot launch an unqualified torrent", () => {
