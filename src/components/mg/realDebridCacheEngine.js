@@ -283,6 +283,7 @@ const monitorTorrent = async ({
         prefer_browser_transcode: context.preferBrowserTranscode === true,
         title: context.title || "",
         ...(context.year != null ? { year: context.year } : {}),
+        ...identityFields(context),
         ...(context.season != null ? { season: context.season } : {}),
         ...(context.episode != null ? { episode: context.episode } : {}),
         ...(context.fileIdx != null && Number.isFinite(Number(context.fileIdx))
@@ -804,6 +805,7 @@ export async function runRealDebridCacheSession({
         prefer_browser_transcode: context.preferBrowserTranscode === true,
         title: context.title || "",
         ...(context.year != null ? { year: context.year } : {}),
+        ...identityFields(context),
         ...(context.season != null ? { season: context.season } : {}),
         ...(context.episode != null ? { episode: context.episode } : {}),
         ...(context.fileIdx != null && Number.isFinite(Number(context.fileIdx))
