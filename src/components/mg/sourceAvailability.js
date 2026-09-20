@@ -166,22 +166,33 @@ export const hasPlayableCatalogSource = async (item, options = {}) => {
       const payload = unwrap(response);
       const streams = Array.isArray(payload?.streams) ? payload.streams : [];
       const available = streams.some(streamLooksUsable);
+      const diagnostics = Array.isArray(payload?.diagnostics)
+        ? payload.diagnostics
+        : [];
+      const successfulChecks = diagnostics.filter((item) => {
+        const status = clean(item?.status).toLowerCase();
+        return status && !["error", "timeout", "failed"].includes(status);
+      }).length;
+      const conclusive =
+        available ||
+        successfulChecks > 0 ||
+        Number(payload?.addons_checked || 0) === 0;
 
-      availabilityCache.set(key, {
-        available,
-        checkedAt: Date.now(),
-      });
+      /*
+       * Cache a positive result, or a genuine completed no-source result.
+       * A temporary addon outage/timeout is unknown availability rather than
+       * proof that the title has no sources, so it must be retried later.
+       */
+      if (conclusive) {
+        availabilityCache.set(key, {
+          available,
+          checkedAt: Date.now(),
+        });
+      }
 
       return available;
     })
-    .catch(() => {
-      availabilityCache.set(key, {
-        available: false,
-        checkedAt: Date.now(),
-      });
-
-      return false;
-    })
+    .catch(() => false)
     .finally(() => {
       inFlight.delete(key);
     });
