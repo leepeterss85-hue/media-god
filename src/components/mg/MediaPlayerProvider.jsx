@@ -2689,6 +2689,8 @@ export function PlayerProvider({
                       request?.alternateYears
                     )
                   : [],
+              alternateTitles:
+                identityAlternateTitles,
               mediaType,
               season,
               episode,
@@ -2717,6 +2719,10 @@ export function PlayerProvider({
               ? "strict"
               : request?.verifiedPlaybackPolicy || "runtime",
           imdbId,
+          alternateTitles:
+            identityAlternateTitles,
+          rdAlternateTitles:
+            identityAlternateTitles,
           preparedAt: Date.now(),
         };
       },
