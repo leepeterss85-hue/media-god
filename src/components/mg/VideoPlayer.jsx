@@ -845,6 +845,10 @@ export default function VideoPlayer({
     sourceKey: "",
     playRequestId: null,
   });
+  const startupAutoplayClaimRef = useRef({
+    playRequestId: source?.playRequestId ?? null,
+    claimed: false,
+  });
   const lastPlayRequestIdRef = useRef(
     source?.playRequestId ?? null
   );
@@ -864,6 +868,10 @@ export default function VideoPlayer({
     manualSourceLockRef.current = {
       sourceKey: "",
       playRequestId: nextPlayRequestId,
+    };
+    startupAutoplayClaimRef.current = {
+      playRequestId: nextPlayRequestId,
+      claimed: false,
     };
     setActiveIdx(0);
   }, [source?.playRequestId]);
@@ -1984,6 +1992,13 @@ export default function VideoPlayer({
           sources[nextIndex]?.playRequestId ??
           source?.playRequestId ??
           null,
+      };
+      startupAutoplayClaimRef.current = {
+        playRequestId:
+          sources[nextIndex]?.playRequestId ??
+          source?.playRequestId ??
+          null,
+        claimed: true,
       };
 
       /*
