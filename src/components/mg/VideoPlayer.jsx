@@ -2614,21 +2614,21 @@ export default function VideoPlayer({
       bestApprovedAutoplaySourceIndex >= 0 &&
       bestApprovedAutoplaySourceIndex !== activeIdx;
 
+    const activeStartupEntry = sortedSourceEntries.find(
+      (entry) => entry?.index === activeIdx
+    );
+    const activeStartupProven =
+      activeStartupEntry?.provenWorking === true ||
+      active?.launchQualified === true ||
+      active?.playbackVerified === true ||
+      active?.runtimePlaybackVerified === true;
+
     const bestEnglishCandidateShouldOwnStartup =
       startupSelectionAllowed &&
+      !activeStartupProven &&
       bestApprovedAutoplaySourceIndex < 0 &&
       bestEnglishAutoplayCandidateIndex >= 0 &&
-      bestEnglishAutoplayCandidateIndex !== activeIdx &&
-      (
-        isProvider ||
-        active?.type === "status" ||
-        active?.diagnostic === true ||
-        Number(
-          sortedSourceEntries.find(
-            (entry) => entry?.index === activeIdx
-          )?.languageRank ?? 3
-        ) !== 0
-      );
+      bestEnglishAutoplayCandidateIndex !== activeIdx;
 
     const nextAutomaticSourceIndex =
       bestSourceShouldOwnStartup
@@ -8266,9 +8266,6 @@ export default function VideoPlayer({
     const activeStartupEntry = sortedSourceEntries.find(
       (entry) => entry?.index === activeIdx
     );
-    const activeStartupLanguageRank = Number(
-      activeStartupEntry?.languageRank ?? 3
-    );
     const activeStartupProven =
       activeStartupEntry?.provenWorking === true ||
       active?.launchQualified === true ||
@@ -8295,7 +8292,6 @@ export default function VideoPlayer({
       playbackMediaType !== "live" &&
       !manualSourceLockActive() &&
       !activeStartupProven &&
-      activeStartupLanguageRank !== 0 &&
       bestEnglishAutoplayCandidateIndex >= 0 &&
       bestEnglishAutoplayCandidateIndex !== activeIdx;
 
