@@ -2148,6 +2148,39 @@ export default function VideoPlayer({
       releaseRdFileSelector();
     }
 
+    const rapidImmediateVodFailover =
+      !activeIsLive && immediate;
+
+    if (rapidImmediateVodFailover) {
+      const now = Date.now();
+      const state = autoRecoveryRef.current;
+      const RAPID_FAILOVER_WINDOW_MS = 8000;
+      const MAX_RAPID_IMMEDIATE_VOD_FAILOVERS = 2;
+
+      if (
+        !state.rapidImmediateWindowAt ||
+        now - Number(state.rapidImmediateWindowAt || 0) >
+          RAPID_FAILOVER_WINDOW_MS
+      ) {
+        state.rapidImmediateWindowAt = now;
+        state.rapidImmediateCount = 0;
+      }
+
+      if (
+        Number(state.rapidImmediateCount || 0) >=
+        MAX_RAPID_IMMEDIATE_VOD_FAILOVERS
+      ) {
+        setRdResolving(false);
+        setRdPolling(false);
+        setRdTorrentId(null);
+        setRdError(
+          String(message || "This source could not be played.").trim() +
+            " Automatic recovery paused after two rapid source failures so Media God will not flash through the whole list. The remaining sources are still available from Source or Retry."
+        );
+        return false;
+      }
+    }
+
     const hardFailureMessage =
       /(?:\b451\b|infringing[_ -]?file|copyright|wrong\s+ip|rate[-\s]?limit|not\s+cached|couldn['’]?t\s+start|could\s+not\s+start|comet\s+returned\s+its\s+error)/i.test(
         String(message || "")
