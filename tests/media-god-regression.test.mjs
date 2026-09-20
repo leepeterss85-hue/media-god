@@ -3498,13 +3498,21 @@ test("startup discovery cannot flash through unverified English candidates", () 
     startupBlock,
     /if \(switched && sourceSortMode === "best"\)[\s\S]{0,180}?claimed: true/
   );
-  assert.doesNotMatch(
+  assert.match(
     startupBlock,
     /bestEnglishCandidateShouldOwnStartup/
   );
-  assert.doesNotMatch(
+  assert.match(
+    startupBlock,
+    /bestEnglishCandidateShouldOwnStartup[\s\S]{0,260}?!startupAlreadyClaimed[\s\S]{0,260}?bestEnglishAutoplayCandidateIndex/
+  );
+  assert.match(
     startupBlock,
     /Preparing the best English source automatically/
+  );
+  assert.match(
+    startupBlock,
+    /const switched = switchToSource\(nextAutomaticSourceIndex[\s\S]{0,420}?if \(switched && sourceSortMode === "best"\)[\s\S]{0,180}?claimed: true/
   );
 
   assert.match(
