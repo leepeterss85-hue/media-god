@@ -171,12 +171,18 @@ const stablePlaybackSourceKey = (item, fallbackIndex = -1) => {
 
   const hash = sourceTorrentHash(item);
   if (hash) {
+    /*
+     * Torrent identity must survive source-label enrichment while Android's
+     * native <select> popup is open. Cache/language/status text can change from
+     * "English" to "Trusted Cached · English" without changing the torrent.
+     * Including that mutable label made a user's selection impossible to map
+     * back into the refreshed source array.
+     */
     return [
       "torrent",
       hash,
       String(item?.fileIdx ?? item?.file_idx ?? ""),
-      String(item?.addon || item?.debridProvider || ""),
-      sourceDisplayLabel(item, fallbackIndex),
+      String(item?.addon || item?.debridProvider || item?.sourceName || ""),
     ].join(":");
   }
 
@@ -903,6 +909,7 @@ export default function VideoPlayer({
     lastSwitchAt: 0,
     abandoned: new Set(),
   });
+  const vodStartupAttemptedRef = useRef(new Set());
 
   const sourcesForSelector = sources.map((item) => {
     const hash = sourceTorrentHash(item);
@@ -1974,6 +1981,23 @@ export default function VideoPlayer({
           source?.playRequestId ??
           null,
       };
+
+      /*
+       * A manual choice is absolute. A stale black-screen/native ownership flag
+       * from the previous source must never block the newly selected source.
+       */
+      if (typeof window !== "undefined") {
+        window.__MG_NATIVE_PLAYBACK_ACTIVE__ = false;
+      }
+
+      const selectedHash = sourceTorrentHash(sources[nextIndex]);
+      if (selectedHash) {
+        failedTorrentHashesRef.current.delete(selectedHash);
+        forgetPersistentFailedTorrentHash(selectedHash);
+      }
+
+      autoRecoveryRef.current.abandoned.delete(nextIndex);
+      vodStartupAttemptedRef.current.delete(nextIndex);
       releaseSourceSelector();
       releaseRdFileSelector();
     }
@@ -3024,6 +3048,7 @@ export default function VideoPlayer({
     autoRecoveryRef.current.lastProgressAt = Date.now();
     autoRecoveryRef.current.lastSwitchAt = 0;
     autoRecoveryRef.current.abandoned = new Set();
+    vodStartupAttemptedRef.current = new Set();
     setLiveRecoveryNotice(null);
     if (liveRecoveryNoticeTimerRef.current) {
       window.clearTimeout(liveRecoveryNoticeTimerRef.current);
