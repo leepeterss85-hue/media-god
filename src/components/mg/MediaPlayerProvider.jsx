@@ -692,6 +692,10 @@ const resolveImdbInfo = async ({
   mediaType,
   title,
   year,
+  alternateTitles,
+  rdAlternateTitles,
+  originalTitle,
+  original_title,
 }) => {
   const supplied =
     String(
@@ -700,14 +704,41 @@ const resolveImdbInfo = async ({
       ""
     ).trim();
 
+  const suppliedAlternateTitles = Array.from(
+    new Set(
+      [
+        ...(Array.isArray(rdAlternateTitles) ? rdAlternateTitles : []),
+        ...(Array.isArray(alternateTitles) ? alternateTitles : []),
+        originalTitle,
+        original_title,
+      ]
+        .map((value) => String(value || "").trim())
+        .filter(Boolean)
+    )
+  );
+
+  const numericTmdbId =
+    tmdbId ??
+    tmdb_id ??
+    (
+      id &&
+      /^\d+$/.test(String(id))
+        ? id
+        : ""
+    );
+
   if (
     /^tt\d+$/i.test(
       supplied
-    )
+    ) &&
+    !numericTmdbId
   ) {
     return {
       imdbId:
         supplied,
+
+      alternateTitles:
+        suppliedAlternateTitles,
 
       status:
         "OK",
@@ -724,11 +755,15 @@ const resolveImdbInfo = async ({
     id &&
     /^tt\d+$/i.test(
       String(id)
-    )
+    ) &&
+    !numericTmdbId
   ) {
     return {
       imdbId:
         String(id),
+
+      alternateTitles:
+        suppliedAlternateTitles,
 
       status:
         "OK",
@@ -750,9 +785,7 @@ const resolveImdbInfo = async ({
             supplied,
 
           tmdb_id:
-            tmdbId ??
-            tmdb_id ??
-            id ??
+            numericTmdbId ||
             "",
 
           title:
@@ -782,6 +815,20 @@ const resolveImdbInfo = async ({
         ""
       ).trim();
 
+    const resolvedAlternateTitles =
+      Array.from(
+        new Set(
+          [
+            ...suppliedAlternateTitles,
+            ...(Array.isArray(data?.alternate_titles)
+              ? data.alternate_titles
+              : []),
+          ]
+            .map((value) => String(value || "").trim())
+            .filter(Boolean)
+        )
+      );
+
     if (
       /^tt\d+$/i.test(
         resolved
@@ -790,6 +837,9 @@ const resolveImdbInfo = async ({
       return {
         imdbId:
           resolved,
+
+        alternateTitles:
+          resolvedAlternateTitles,
 
         status:
           "OK",
@@ -803,9 +853,35 @@ const resolveImdbInfo = async ({
       };
     }
 
+    if (
+      /^tt\d+$/i.test(
+        supplied
+      )
+    ) {
+      return {
+        imdbId:
+          supplied,
+
+        alternateTitles:
+          resolvedAlternateTitles,
+
+        status:
+          "OK",
+
+        method:
+          "supplied_fallback",
+
+        error:
+          "",
+      };
+    }
+
     return {
       imdbId:
         "",
+
+      alternateTitles:
+        resolvedAlternateTitles,
 
       status:
         "FAILED",
@@ -818,9 +894,35 @@ const resolveImdbInfo = async ({
         "IMDb id was not returned.",
     };
   } catch (error) {
+    if (
+      /^tt\d+$/i.test(
+        supplied
+      )
+    ) {
+      return {
+        imdbId:
+          supplied,
+
+        alternateTitles:
+          suppliedAlternateTitles,
+
+        status:
+          "OK",
+
+        method:
+          "supplied_fallback",
+
+        error:
+          "",
+      };
+    }
+
     return {
       imdbId:
         "",
+
+      alternateTitles:
+        suppliedAlternateTitles,
 
       status:
         "FAILED",
