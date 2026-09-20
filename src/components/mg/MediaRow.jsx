@@ -1,6 +1,7 @@
-import React, { useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import MediaCard from "@/components/mg/MediaCard";
+import { filterItemsWithPlayableSources } from "@/components/mg/sourceAvailability";
 
 export default function MediaRow({
   title,
@@ -11,8 +12,52 @@ export default function MediaRow({
   iconUrl = "",
   actionLabel = "",
   onAction,
+  sourceAvailableOnly = false,
 }) {
   const ref = useRef(null);
+  const [availableItems, setAvailableItems] = useState(() =>
+    sourceAvailableOnly ? [] : Array.isArray(items) ? items : []
+  );
+
+  const itemSignature = useMemo(
+    () =>
+      (Array.isArray(items) ? items : [])
+        .map((item) =>
+          [
+            item?.media_type || item?.mediaType || item?.type || "movie",
+            item?.tmdb_id || item?.tmdbId || item?.id || "",
+            item?.season || item?.season_number || "",
+            item?.episode || item?.episode_number || "",
+          ].join(":")
+        )
+        .join("|"),
+    [items]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!sourceAvailableOnly) {
+      setAvailableItems(Array.isArray(items) ? items : []);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setAvailableItems([]);
+
+    void filterItemsWithPlayableSources(items, {
+      concurrency: 4,
+    }).then((next) => {
+      if (!cancelled) {
+        setAvailableItems(next);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [itemSignature, items, sourceAvailableOnly]);
 
   const scroll = (direction) => {
     const element = ref.current;
@@ -24,7 +69,13 @@ export default function MediaRow({
     });
   };
 
-  if (!items || items.length === 0) return null;
+  const visibleItems = sourceAvailableOnly
+    ? availableItems
+    : Array.isArray(items)
+      ? items
+      : [];
+
+  if (visibleItems.length === 0) return null;
 
   return (
     <section className="px-3 min-[420px]:px-4 sm:px-6 md:px-8 3xl:px-10 4xl:px-14">
@@ -84,7 +135,7 @@ export default function MediaRow({
         data-mg-tv-row="true"
         className="flex gap-2.5 sm:gap-3 xl:gap-4 3xl:gap-5 4xl:gap-6 overflow-x-auto overscroll-x-contain pb-2 3xl:pb-3 scrollbar-hide snap-x snap-proximity"
       >
-        {items.map((item) => (
+        {visibleItems.map((item) => (
           <div key={`${item?.media_type || "movie"}:${item.id}`} className="snap-start">
             <MediaCard
               item={item}
