@@ -80,12 +80,35 @@ class CompatibilityPlayerActivity : Activity() {
                 } catch (_: Throwable) {
                     emptyList()
                 }
+            val selectedAudioTrack =
+                try {
+                    player?.audioTrack ?: -1
+                } catch (_: Throwable) {
+                    -1
+                }
+            val audioTrackCount =
+                try {
+                    player?.audioTracksCount ?: 0
+                } catch (_: Throwable) {
+                    0
+                }
 
-            if (tracks.isNotEmpty()) {
+            /*
+             * LibVLC can begin rendering audible audio before getAudioTracks()
+             * has finished populating its full description list. A selected
+             * audio-track id is authoritative evidence that an audio input is
+             * active, so never tear down working playback just because the
+             * descriptive list is momentarily empty.
+             */
+            if (
+                selectedAudioTrack >= 0 ||
+                audioTrackCount > 0 ||
+                tracks.isNotEmpty()
+            ) {
                 return
             }
 
-            if (audioRecoveryPasses < 2 && ::root.isInitialized) {
+            if (audioRecoveryPasses < 4 && ::root.isInitialized) {
                 root.postDelayed(this, 2400L)
                 return
             }
@@ -97,7 +120,7 @@ class CompatibilityPlayerActivity : Activity() {
             ) {
                 finishWithResult(
                     "error",
-                    "The compatibility decoder confirmed this video has no usable audio track."
+                    "The compatibility decoder could not find an active audio track after repeated checks."
                 )
             }
         }
