@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 51,
-  "versionName": "1.4.46",
+  "versionCode": 52,
+  "versionName": "1.4.47",
   "title": "Media God Fire TV",
-  "message": "Media God Fire TV 1.4.46 adds automatic Audio Rescue for difficult film soundtracks. DTS, DTS-HD, DTS:X, TrueHD, MLP and Atmos/JOC sources can switch to the compatibility decoder, and present-but-unsupported or unselected audio tracks are now detected instead of playing silently.",
+  "message": "Media God Fire TV 1.4.47 fixes VOD getting stuck on 'Finding a verified compatible source'. The full source chooser now remains visible, cached releases can fall back to runtime Audio Rescue when metadata inspection is incomplete, and English track labels are recognised even when Real-Debrid omits formal language metadata.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
