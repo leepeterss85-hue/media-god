@@ -211,6 +211,14 @@ export default function MediaPlayerControls({
   const [selectedAudio, setSelectedAudio] = useState(-1);
   const hlsAudioTracksRef = useRef([]);
   const hlsAudioActiveRef = useRef(-1);
+
+  /*
+   * A deliberate Audio-menu choice owns the current playback session.
+   * Automatic language ranking may choose the initial track, but it must not
+   * switch the viewer back a moment after they explicitly chose another one.
+   */
+  const manualAudioChoiceRef = useRef(null);
+
   const [trackPreferences, setTrackPreferences] = useState(
     () => readTrackPreferences()
   );
@@ -538,10 +546,26 @@ export default function MediaPlayerControls({
             }))
             .sort((a, b) => b.score - a.score || a.item.index - b.item.index)
         : [];
-      const rememberedPreferred =
+      const rememberedCandidate =
         rememberedRanked[0]?.score > 0
           ? rememberedRanked[0].item
           : null;
+
+      /*
+       * Per-title memory can refine codec/channel choice INSIDE the globally
+       * preferred language, but it must never override the user's Settings
+       * language. This prevents an old foreign-track choice from reopening the
+       * title in that language when the global preference is English.
+       */
+      const rememberedPreferred =
+        rememberedCandidate &&
+        (
+          !remembered?.language ||
+          remembered.language === preferredLanguage
+        )
+          ? rememberedCandidate
+          : null;
+
       const languageRanked = nextAudio
         .slice()
         .sort(
@@ -551,16 +575,38 @@ export default function MediaPlayerControls({
             a.index - b.index
         );
 
-      orderedAudio = rememberedPreferred
+      const manualChoice =
+        manualAudioChoiceRef.current?.sourceIndex === activeIdx
+          ? nextAudio.find(
+              (item) =>
+                item.index === manualAudioChoiceRef.current?.index &&
+                String(item.kind || "native") ===
+                  String(manualAudioChoiceRef.current?.kind || "native")
+            )
+          : null;
+
+      orderedAudio = manualChoice
         ? [
-            rememberedPreferred,
+            manualChoice,
             ...languageRanked.filter(
-              (item) => item.index !== rememberedPreferred.index
+              (item) =>
+                item.index !== manualChoice.index ||
+                item.kind !== manualChoice.kind
             ),
           ]
-        : languageRanked;
+        : rememberedPreferred
+          ? [
+              rememberedPreferred,
+              ...languageRanked.filter(
+                (item) => item.index !== rememberedPreferred.index
+              ),
+            ]
+          : languageRanked;
 
-      const preferred = rememberedPreferred || orderedAudio[0];
+      const preferred =
+        manualChoice ||
+        rememberedPreferred ||
+        orderedAudio[0];
 
       if (preferred && preferred.index !== activeAudio) {
         if (preferred.kind === "hls") {
@@ -592,6 +638,10 @@ export default function MediaPlayerControls({
       video.playbackRate || 1
     );
   };
+
+  useEffect(() => {
+    manualAudioChoiceRef.current = null;
+  }, [activeIdx]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -1466,22 +1516,24 @@ export default function MediaPlayerControls({
       setSelectedAudio(choice.index);
     }
 
+    manualAudioChoiceRef.current = {
+      sourceIndex: activeIdx,
+      kind: String(choice.kind || "native"),
+      index: choice.index,
+    };
+
     const chosenTrack = choice.raw || choice;
     const context =
       typeof window !== "undefined"
         ? window.__MG_PLAYER_CONTEXT__ || { title }
         : { title };
-    rememberAudioPreference(context, chosenTrack);
 
-    const nextPreferences = writeTrackPreferences({
-      ...trackPreferencesRef.current,
-      audioLanguage:
-        trackLanguage(chosenTrack) ||
-        trackPreferencesRef.current.audioLanguage ||
-        "en",
-    });
-    trackPreferencesRef.current = nextPreferences;
-    setTrackPreferences(nextPreferences);
+    /*
+     * Remembering a track helps this title, but choosing a track in the player
+     * must NOT rewrite the account/device-wide preferred language. That global
+     * setting belongs to Settings > Preferred audio language.
+     */
+    rememberAudioPreference(context, chosenTrack);
 
     setOpenMenu("");
     menuOpenRef.current = false;
