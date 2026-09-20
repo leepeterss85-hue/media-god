@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 40,
-  "versionName": "1.0.39",
+  "versionCode": 41,
+  "versionName": "1.0.40",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.39 keeps manually selected movie/TV sources locked and adds same-source software audio decoding for DTS/DTS-HD/TrueHD/MLP/Atmos-risk tracks on Android phones and tablets when Media3 exposes the track but the device produces silence.",
+  "message": "Media God Mobile 1.0.40 stops audio recovery from cycling through torrents, keeps the exact VOD source selected after native audio/codec failure, and lets Android AudioTrack choose the decoded PCM endpoint in Auto mode.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
