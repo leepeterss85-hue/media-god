@@ -2625,6 +2625,8 @@ export function PlayerProvider({
                         request?.alternateYears
                       )
                     : [],
+                alternateTitles:
+                  identityAlternateTitles,
                 season,
                 episode,
               })
