@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 41,
-  "versionName": "1.0.40",
+  "versionCode": 42,
+  "versionName": "1.0.41",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.40 stops audio recovery from cycling through torrents, keeps the exact VOD source selected after native audio/codec failure, and lets Android AudioTrack choose the decoded PCM endpoint in Auto mode.",
+  "message": "Media God Mobile 1.0.41 keeps sources with working audio playing instead of treating DTS, TrueHD, Atmos/JOC or other risky codecs as an automatic failure. Compatibility decoding now starts only for genuinely missing, unsupported or unselected audio.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
