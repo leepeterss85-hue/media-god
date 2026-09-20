@@ -2500,6 +2500,23 @@ test("successful audio rescue cannot be abandoned by stale no-sound or torrent f
     assert.match(source, /selectedAudioTrack >= 0/);
     assert.match(source, /audioTrackCount > 0/);
     assert.match(source, /audioRecoveryPasses < 4/);
+
+    const recoveryStart = source.indexOf("private fun recoverAudioTrack()");
+    const recoveryEnd = source.indexOf(
+      "private fun currentHeaders()",
+      recoveryStart
+    );
+    assert.ok(recoveryStart >= 0);
+    assert.ok(recoveryEnd > recoveryStart);
+    assert.doesNotMatch(
+      source.slice(recoveryStart, recoveryEnd),
+      /configureAudioOutput\(player\)/
+    );
+
+    assert.equal(
+      (source.match(/configureAudioOutput\(player\)/g) || []).length,
+      1
+    );
   });
 });
 
