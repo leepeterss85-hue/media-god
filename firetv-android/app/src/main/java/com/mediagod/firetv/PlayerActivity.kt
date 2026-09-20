@@ -1823,31 +1823,25 @@ class PlayerActivity : Activity() {
          * Compatibility fallback remains available for a genuinely missing,
          * unsupported or unselected audio renderer and through onPlayerError.
          */
-        val automaticCodecRecovery =
-            payload.optBoolean("automaticNoSoundRecovery", true)
-        val audioOutputMode =
-            payload.optString("audioOutputMode", "auto")
-                .trim()
-                .lowercase()
-        val riskyCodecNeedsSoftwareDecode =
-            initialAudio.softwareFallbackPreferred &&
-                automaticCodecRecovery &&
-                audioOutputMode != "passthrough"
-
         val needsRescue =
             !initialAudio.present ||
                 !initialAudio.supported ||
-                !initialAudio.selected ||
-                riskyCodecNeedsSoftwareDecode
+                !initialAudio.selected
 
         if (!needsRescue) {
+            /*
+             * Media3 has a real, supported, selected audio renderer. Do not
+             * replace a working source just because its codec is DTS, TrueHD,
+             * MLP, Atmos/JOC or another format that can be risky on some
+             * devices. If audio has started successfully, preserving it is
+             * always safer than an automatic decoder handoff.
+             */
             audioPresenceCheckGeneration += 1
             return
         }
 
         val generation = ++audioPresenceCheckGeneration
-        val rescueDelayMs =
-            if (riskyCodecNeedsSoftwareDecode) 250L else 1400L
+        val rescueDelayMs = 1400L
 
         playerView.postDelayed({
             if (
@@ -1878,10 +1872,6 @@ class PlayerActivity : Activity() {
                     "The audio track is present but this device does not expose a usable decoder. Trying the compatibility decoder."
                 !audio.selected ->
                     "The audio track is present but Media3 did not select a usable audio renderer. Trying the compatibility decoder."
-                audio.softwareFallbackPreferred &&
-                    automaticCodecRecovery &&
-                    audioOutputMode != "passthrough" ->
-                    "This Fire TV audio track can depend on HDMI passthrough. Keeping this source and software-decoding its audio with the compatibility decoder."
                 else -> ""
             }
 
