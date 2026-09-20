@@ -49,14 +49,25 @@ const normaliseLanguage = (value) =>
     .replace(/_/g, "-");
 
 const isEnglishTrack = (track) => {
+  /*
+   * Real-Debrid mediaInfos is inconsistent across containers: some files use
+   * lang_iso, some language_iso, some language, and others only lang/title.
+   * Treat every explicit English field as authoritative so a real English track
+   * is never downgraded to "unknown" and skipped by English-first playback.
+   */
   const iso = normaliseLanguage(
     track?.lang_iso ||
+      track?.language_iso ||
       track?.language ||
+      track?.lang ||
       ""
   );
 
   const label = normaliseLanguage(
     [
+      track?.lang_iso,
+      track?.language_iso,
+      track?.language,
       track?.lang,
       track?.name,
       track?.title,
@@ -70,6 +81,7 @@ const isEnglishTrack = (track) => {
   return (
     iso === "eng" ||
     iso === "en" ||
+    iso === "english" ||
     iso.startsWith("en-") ||
     /(?:^|[^a-z0-9])(?:eng|en|english)(?=$|[^a-z0-9])/i.test(label)
   );
@@ -78,12 +90,17 @@ const isEnglishTrack = (track) => {
 const hasKnownLanguage = (track) => {
   const iso = normaliseLanguage(
     track?.lang_iso ||
+      track?.language_iso ||
       track?.language ||
+      track?.lang ||
       ""
   );
 
   const label = normaliseLanguage(
     [
+      track?.lang_iso,
+      track?.language_iso,
+      track?.language,
       track?.lang,
       track?.name,
       track?.title,
