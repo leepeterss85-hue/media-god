@@ -2654,44 +2654,43 @@ export default function VideoPlayer({
       !webPlaybackStarted &&
       !nativePlaybackStarted;
 
+    const currentPlayRequestId =
+      source?.playRequestId ?? null;
+    const startupAlreadyClaimed =
+      startupAutoplayClaimRef.current.playRequestId === currentPlayRequestId &&
+      startupAutoplayClaimRef.current.claimed === true;
+
+    /*
+     * Discovery may improve the source list several times during the first few
+     * seconds. It may choose ONE verified/ready startup owner, but it must not
+     * keep stealing playback every time a newly discovered row sorts higher.
+     * Actual playback failure and the 12-second no-progress watchdog are the
+     * only paths allowed to move on after that first automatic handoff.
+     */
     const bestSourceShouldOwnStartup =
       startupSelectionAllowed &&
+      !startupAlreadyClaimed &&
       bestApprovedAutoplaySourceIndex >= 0 &&
       bestApprovedAutoplaySourceIndex !== activeIdx;
-
-    const activeStartupEntry = sortedSourceEntries.find(
-      (entry) => entry?.index === activeIdx
-    );
-    const activeStartupProven =
-      activeStartupEntry?.provenWorking === true ||
-      active?.launchQualified === true ||
-      active?.playbackVerified === true ||
-      active?.runtimePlaybackVerified === true;
-
-    const bestEnglishCandidateShouldOwnStartup =
-      startupSelectionAllowed &&
-      !activeStartupProven &&
-      bestApprovedAutoplaySourceIndex < 0 &&
-      bestEnglishAutoplayCandidateIndex >= 0 &&
-      bestEnglishAutoplayCandidateIndex !== activeIdx;
 
     const nextAutomaticSourceIndex =
       bestSourceShouldOwnStartup
         ? bestApprovedAutoplaySourceIndex
-        : bestEnglishCandidateShouldOwnStartup
-          ? bestEnglishAutoplayCandidateIndex
-          : activeIsWaitingForVerifiedSource
-            ? automaticApprovedAutoplaySourceIndex
-            : automaticReadySourceIndex;
+        : activeIsWaitingForVerifiedSource
+          ? automaticApprovedAutoplaySourceIndex
+          : automaticReadySourceIndex;
+
+    if (
+      sourceSortMode === "best" &&
+      startupAlreadyClaimed
+    ) {
+      return;
+    }
 
     if (
       isLive ||
       isYoutube ||
-      (
-        isProvider &&
-        !bestSourceShouldOwnStartup &&
-        !bestEnglishCandidateShouldOwnStartup
-      ) ||
+      (isProvider && !bestSourceShouldOwnStartup) ||
       nextAutomaticSourceIndex < 0 ||
       fileSwitching
     ) {
@@ -2700,7 +2699,6 @@ export default function VideoPlayer({
 
     if (
       !bestSourceShouldOwnStartup &&
-      !bestEnglishCandidateShouldOwnStartup &&
       (
         (!activeNeedsCaching && !activeIsWaitingForVerifiedSource) ||
         rdResolving ||
@@ -2711,17 +2709,22 @@ export default function VideoPlayer({
       return;
     }
 
-    switchToSource(nextAutomaticSourceIndex, {
+    const switched = switchToSource(nextAutomaticSourceIndex, {
       preservePosition: false,
       statusMessage:
         bestSourceShouldOwnStartup
           ? "Best cached English source ready — starting automatically…"
-          : bestEnglishCandidateShouldOwnStartup
-            ? "Preparing the best English source automatically…"
-            : activeIsWaitingForVerifiedSource
-              ? "Verified cached source ready — starting automatically…"
-              : "Opening a ready source while Media God prepares the other torrents in the background…",
+          : activeIsWaitingForVerifiedSource
+            ? "Verified cached source ready — starting automatically…"
+            : "Opening a ready source while Media God prepares the other torrents in the background…",
     });
+
+    if (switched && sourceSortMode === "best") {
+      startupAutoplayClaimRef.current = {
+        playRequestId: currentPlayRequestId,
+        claimed: true,
+      };
+    }
   }, [
     activeIdx,
     activeIsWaitingForVerifiedSource,
