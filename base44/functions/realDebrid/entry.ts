@@ -4123,12 +4123,12 @@ async function choosePlayableRdStream({
 
   /*
    * A known DTS / TrueHD style first track is exactly the case Audio
-   * Rescue exists to fix. If RD could not produce a safer stream, do
-   * NOT return the original and wait for silent playback. Reject this
-   * source now so VideoPlayer can immediately try the next source.
+   * Rescue exists to fix. Real-Debrid does not always expose an HLS/MP4
+   * transcode even though Android Media3 or LibVLC can decode the original
+   * MKV/remux perfectly well, including its English track.
    *
-   * Unknown/less-certain codecs still get the conservative original
-   * fallback because some Fire TV builds may decode them successfully.
+   * Runtime Audio Rescue must therefore stay on this exact file. A missing
+   * Real-Debrid transcode is not evidence that the source itself is bad.
    */
   const firstCodec =
     firstTrack?.codec ||
