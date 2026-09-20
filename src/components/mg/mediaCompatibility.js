@@ -1046,6 +1046,54 @@ const audioSupport = (
   return null;
 };
 
+const videoSupport = (
+  video,
+  deviceProfile = null
+) => {
+  if (!video) return null;
+
+  const nativeSupport =
+    nativeCodecSupportFor(
+      deviceProfile,
+      "video",
+      video
+    );
+
+  if (nativeSupport === true || nativeSupport === false) {
+    return nativeSupport;
+  }
+
+  if (video === "h264") return true;
+  if (video === "hevc") {
+    return browserCodecSupport.hevcAac || deviceProfile?.fireTv
+      ? true
+      : false;
+  }
+  if (video === "av1") {
+    return browserCodecSupport.av1Aac || deviceProfile?.nativeFireTv
+      ? true
+      : false;
+  }
+  if (video === "vp9") {
+    return browserCodecSupport.vp9Opus || deviceProfile?.fireTv
+      ? true
+      : false;
+  }
+  if (video === "vp8") {
+    return browserCodecSupport.vp8Vorbis || deviceProfile?.nativeFireTv
+      ? true
+      : false;
+  }
+  if (video === "mpeg2" || video === "mpeg4" || video === "h263") {
+    return deviceProfile?.nativePlayerAvailable || deviceProfile?.fireTv
+      ? true
+      : null;
+  }
+  if (video === "vc1" || video === "theora") return null;
+
+  return null;
+};
+
 const qualityPreferenceTarget = (
   preference
 ) => {
@@ -1234,6 +1282,42 @@ export const hasSevereVideoRisk = (
   }
 
   return false;
+};
+
+/*
+ * Coarse playback tier used for ordering, separate from the detailed score.
+ *
+ * 0 = audio and video are both positively compatible (or media inspection has
+ *     already qualified the source).
+ * 1 = no known incompatibility and at least one side is positively compatible.
+ * 2 = compatibility is mostly unknown.
+ * 3 = a known audio/video incompatibility exists.
+ *
+ * Nothing is hidden by this tier. It only controls ordering.
+ */
+export const sourcePlaybackCompatibilityTier = (
+  item,
+  extraText = "",
+  options = {}
+) => {
+  if (item?.launchQualified === true) return 0;
+
+  const deviceProfile =
+    options?.deviceProfile ||
+    getPlaybackDeviceProfile();
+  const traits = detectStreamTraits(item, extraText);
+
+  let video = videoSupport(traits.video, deviceProfile);
+  const audio = audioSupport(traits.audio, deviceProfile);
+
+  if (hasSevereVideoRisk(item, extraText, deviceProfile)) {
+    video = false;
+  }
+
+  if (video === true && audio === true) return 0;
+  if (video === false || audio === false) return 3;
+  if (video === true || audio === true) return 1;
+  return 2;
 };
 
 export const scoreSourceCompatibility = (

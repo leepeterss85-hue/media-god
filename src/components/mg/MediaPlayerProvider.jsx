@@ -24,6 +24,7 @@ import {
   detectLanguagePreference,
   getPlaybackDeviceProfile,
   scoreSourceCompatibility,
+  sourcePlaybackCompatibilityTier,
 } from "@/components/mg/mediaCompatibility";
 import { devicePlaybackReliabilityAdjustment } from "@/components/mg/playbackReliability";
 import { readPlaybackPreferences } from "@/components/mg/playbackPreferences";
@@ -670,12 +671,17 @@ const scoreSource = (item) => {
   );
 };
 
-const sortSources = (items) =>
-  [...items].sort(
+const sortSources = (items) => {
+  const deviceProfile = getPlaybackDeviceProfile();
+
+  return [...items].sort(
     (a, b) =>
+      sourcePlaybackCompatibilityTier(a, "", { deviceProfile }) -
+        sourcePlaybackCompatibilityTier(b, "", { deviceProfile }) ||
       scoreSource(b) -
-      scoreSource(a)
+        scoreSource(a)
   );
+};
 
 const resolveImdbInfo = async ({
   id,
@@ -3383,7 +3389,6 @@ export function PlayerProvider({
                 hasDebrid,
                 preferRd: Boolean(request?.preferRd),
               })
-                .slice(0, 5)
                 .map((item) => ({
                   ...item,
                   runtimeQualificationFallback: true,
@@ -3533,14 +3538,31 @@ export function PlayerProvider({
             true,
         };
 
-        const playerSources =
+        /*
+         * Qualification decides which source may autoplay first; it must never
+         * decide how many sources the user can see. Keep the verified/runtime
+         * lead rows first, then append the complete discovered pool losslessly.
+         */
+        const playbackLeadSources =
           qualificationMode
             ? qualifiedLaunchSources.length > 0
               ? qualifiedLaunchSources
-              : runtimeFallbackSources.length > 0
-                ? runtimeFallbackSources
-                : [waitingForVerifiedSource]
-            : orderedSources;
+              : runtimeFallbackSources
+            : [];
+
+        const playerSources =
+          !qualificationMode
+            ? orderedSources
+            : playbackLeadSources.length > 0
+              ? preservePublishedSourceOrder(
+                  playbackLeadSources,
+                  orderedSources,
+                  stableDiscoveredSourceKey
+                )
+              : [
+                  waitingForVerifiedSource,
+                  ...orderedSources,
+                ];
 
         const primary =
           playerSources[0] ||

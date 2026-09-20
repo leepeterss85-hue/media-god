@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 42,
-  "versionName": "1.0.41",
+  "versionCode": 43,
+  "versionName": "1.0.42",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.41 keeps sources with working audio playing instead of treating DTS, TrueHD, Atmos/JOC or other risky codecs as an automatic failure. Compatibility decoding now starts only for genuinely missing, unsupported or unselected audio.",
+  "message": "Media God Mobile 1.0.42 restores the complete source list and ranks sources with compatible video and audio first. Less compatible and uncached sources remain visible underneath instead of being hidden by the qualification pass.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"

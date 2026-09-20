@@ -3,6 +3,7 @@ import {
   detectLanguagePreference,
   getPlaybackDeviceProfile,
   scoreSourceCompatibility,
+  sourcePlaybackCompatibilityTier,
 } from "@/components/mg/mediaCompatibility";
 import { readTrackPreferences } from "@/components/mg/mediaTrackPreferences";
 import {
@@ -246,12 +247,6 @@ const sourceHasTrackerRichMagnet = (item) => {
   return /^magnet:/i.test(raw) && /(?:[?&])tr=/i.test(raw);
 };
 
-const compatibilityScore = (item) =>
-  scoreSourceCompatibility(item, sourceText(item), {
-    deviceProfile: getPlaybackDeviceProfile(),
-    qualityPreference: "Auto",
-  });
-
 const preferredSourceLanguageRank = (
   item,
   preferredAudioLanguage = "en"
@@ -278,6 +273,7 @@ const targetResolutionScore = (resolution, target) => {
 };
 
 export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
+  const deviceProfile = getPlaybackDeviceProfile();
   const preferredAudioLanguage = String(
     readTrackPreferences()?.audioLanguage || "en"
   ).toLowerCase();
@@ -288,7 +284,13 @@ export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
       cached: sourceIsCached(item),
       resolution: sourceResolution(item),
       size: sourceSize(item),
-      compatibility: compatibilityScore(item),
+      compatibility: scoreSourceCompatibility(item, sourceText(item), {
+        deviceProfile,
+        qualityPreference: "Auto",
+      }),
+      compatibilityTier: sourcePlaybackCompatibilityTier(item, sourceText(item), {
+        deviceProfile,
+      }),
       languageRank: preferredSourceLanguageRank(item, preferredAudioLanguage),
       reportedSeeders: sourceReportedSeeders(item),
       trackerRich: sourceHasTrackerRichMagnet(item),
@@ -301,7 +303,9 @@ export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
   if (mode === "best") {
     const trustedFirst = prioritiseTrustedCachedPools(list).map((entry) => ({
       ...entry,
-      autoplayReady: sourceIsUserSelectable(entry.item),
+      autoplayReady:
+        sourceIsUserSelectable(entry.item) &&
+        entry.compatibilityTier <= 1,
     }));
 
     return prioritiseCompatibleAutoplayEntries(trustedFirst);
@@ -347,6 +351,7 @@ export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
 
     if (mode === "compatible") {
       return (
+        a.compatibilityTier - b.compatibilityTier ||
         b.compatibility - a.compatibility ||
         Number(b.cached) - Number(a.cached) ||
         a.index - b.index

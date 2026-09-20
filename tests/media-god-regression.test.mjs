@@ -2322,42 +2322,101 @@ test("autoplay puts the three most compatible ready sources first", () => {
   );
 });
 
-test("English audio rank stays ahead of compatibility in the autoplay top three", () => {
+test("audio and video compatibility outrank language, then English wins within the same tier", () => {
   const ordered = prioritiseCompatibleAutoplayEntries([
     {
-      id: "foreign-most-compatible",
+      id: "english-incompatible",
       index: 0,
+      autoplayReady: false,
+      compatibilityTier: 3,
+      languageRank: 0,
+      compatibility: 5000,
+    },
+    {
+      id: "foreign-compatible",
+      index: 1,
       autoplayReady: true,
+      compatibilityTier: 0,
       languageRank: 3,
       compatibility: 1000,
     },
     {
-      id: "unknown",
-      index: 1,
-      autoplayReady: true,
-      languageRank: 2,
-      compatibility: 900,
-    },
-    {
-      id: "english",
+      id: "english-compatible",
       index: 2,
       autoplayReady: true,
+      compatibilityTier: 0,
       languageRank: 0,
       compatibility: 200,
     },
     {
-      id: "multi-audio",
+      id: "multi-likely",
       index: 3,
       autoplayReady: true,
+      compatibilityTier: 1,
       languageRank: 1,
-      compatibility: 500,
+      compatibility: 900,
     },
   ]);
 
   assert.deepEqual(
     ordered.slice(0, COMPATIBLE_AUTOPLAY_LIMIT).map((entry) => entry.id),
-    ["english", "multi-audio", "unknown"]
+    ["english-compatible", "foreign-compatible", "multi-likely"]
   );
+  assert.equal(ordered.at(-1).id, "english-incompatible");
+});
+
+test("qualification picks the lead source without truncating the full chooser to five", () => {
+  const providerSource = readFileSync(
+    new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
+    "utf8"
+  );
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  const runtimeStart = providerSource.indexOf("const runtimeFallbackSources");
+  const runtimeEnd = providerSource.indexOf("const diagnosticLabel", runtimeStart);
+  assert.ok(runtimeStart >= 0 && runtimeEnd > runtimeStart);
+  assert.doesNotMatch(
+    providerSource.slice(runtimeStart, runtimeEnd),
+    /\.slice\(0,\s*5\)/
+  );
+
+  const playerStart = providerSource.indexOf("const playbackLeadSources");
+  const playerEnd = providerSource.indexOf("const primary", playerStart);
+  assert.ok(playerStart >= 0 && playerEnd > playerStart);
+  const playerBlock = providerSource.slice(playerStart, playerEnd);
+  assert.match(playerBlock, /preservePublishedSourceOrder\([\s\S]*playbackLeadSources[\s\S]*orderedSources/);
+  assert.match(playerBlock, /waitingForVerifiedSource[\s\S]*\.\.\.orderedSources/);
+
+  assert.match(
+    playerSource,
+    /sources:\s*sortedSourceEntries[\s\S]{0,180}sourceIsUserSelectable/
+  );
+});
+
+test("compatibility tier explicitly puts proven audio+video before known incompatibility", () => {
+  const compatibilitySource = readFileSync(
+    new URL("../src/components/mg/mediaCompatibility.js", import.meta.url),
+    "utf8"
+  );
+
+  const start = compatibilitySource.indexOf(
+    "export const sourcePlaybackCompatibilityTier"
+  );
+  const end = compatibilitySource.indexOf(
+    "export const scoreSourceCompatibility",
+    start
+  );
+  assert.ok(start >= 0 && end > start);
+
+  const tierBlock = compatibilitySource.slice(start, end);
+  assert.match(tierBlock, /item\?\.launchQualified === true\) return 0/);
+  assert.match(tierBlock, /video === true && audio === true\) return 0/);
+  assert.match(tierBlock, /video === false \|\| audio === false\) return 3/);
+  assert.match(tierBlock, /video === true \|\| audio === true\) return 1/);
+  assert.match(tierBlock, /return 2/);
 });
 
 test("Real-Debrid zero-audio inspection tries transcode then rejects the silent source", () => {
@@ -3012,4 +3071,100 @@ test("one-second native decoder failures never become a torrent carousel", () =>
     assert.match(main, /playbackDecision\.reason\.startsWith\("audio"/);
     assert.match(diagnostics, /"compatibilityAudioRecovery"/);
   }
+});
+
+
+test("qualification can choose the lead source but can never truncate the chooser to five", () => {
+  const providerSource = readFileSync(
+    new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.doesNotMatch(
+    providerSource,
+    /runtimeFallbackSources[\s\S]{0,1400}?\.slice\(0,\s*5\)/
+  );
+  assert.match(providerSource, /const playbackLeadSources/);
+  assert.match(
+    providerSource,
+    /preservePublishedSourceOrder\([\s\S]{0,160}?playbackLeadSources,[\s\S]{0,160}?orderedSources/
+  );
+  assert.match(providerSource, /sources:\s*playerSources/);
+  assert.match(providerSource, /completeSources:\s*canonicalCompletePlaybackSources/);
+});
+
+test("native playback receives the full compatibility-sorted source list", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(
+    playerSource,
+    /sources:\s*sortedSourceEntries[\s\S]{0,220}?sourceIsUserSelectable/
+  );
+  assert.doesNotMatch(
+    playerSource,
+    /sources:\s*sourcesForSelector[\s\S]{0,120}?sourceIsUserSelectable/
+  );
+});
+
+test("audio and video compatibility tier drives source ordering without hiding rows", () => {
+  const compatibilitySource = readFileSync(
+    new URL("../src/components/mg/mediaCompatibility.js", import.meta.url),
+    "utf8"
+  );
+  const selectorSource = readFileSync(
+    new URL("../src/components/mg/sourceSelectorPreferences.js", import.meta.url),
+    "utf8"
+  );
+  const automaticOrderSource = readFileSync(
+    new URL("../src/components/mg/automaticSourceOrder.js", import.meta.url),
+    "utf8"
+  );
+  const providerSource = readFileSync(
+    new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
+    "utf8"
+  );
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(
+    compatibilitySource,
+    /export const sourcePlaybackCompatibilityTier/
+  );
+  assert.match(
+    compatibilitySource,
+    /if \(video === true && audio === true\) return 0/
+  );
+  assert.match(
+    compatibilitySource,
+    /if \(video === false \|\| audio === false\) return 3/
+  );
+  assert.match(
+    selectorSource,
+    /compatibilityTier:\s*sourcePlaybackCompatibilityTier/
+  );
+  assert.match(
+    automaticOrderSource,
+    /compatibilityTier[\s\S]{0,160}?compatibilityTier/
+  );
+  assert.match(
+    selectorSource,
+    /sourceIsUserSelectable\(entry\.item\)[\s\S]{0,100}?entry\.compatibilityTier <= 1/
+  );
+  assert.match(
+    selectorSource,
+    /mode === "compatible"[\s\S]{0,220}?a\.compatibilityTier - b\.compatibilityTier/
+  );
+  assert.match(
+    providerSource,
+    /sourcePlaybackCompatibilityTier\(a[\s\S]{0,160}?sourcePlaybackCompatibilityTier\(b/
+  );
+  assert.match(
+    playerSource,
+    /compatibilityTierPriority[\s\S]{0,120}?250000/
+  );
 });
