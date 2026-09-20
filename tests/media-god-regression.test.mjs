@@ -2020,6 +2020,109 @@ test("stable source publishing keeps all 117 cached rows after a six-row fast st
   );
 });
 
+test("strict launch barrier preserves verified playback and blocks unverified autoplay", () => {
+  const hash = "a".repeat(40);
+  const qualified = {
+    infoHash: hash,
+    fileIdx: 0,
+    type: "url",
+    src: "https://verified.example/resident-evil-2026.m3u8",
+    url: "https://verified.example/resident-evil-2026.m3u8",
+    label: "Resident Evil 2026",
+    launchQualified: true,
+    launchQualification: "rd-strict-media-inspected",
+    mediaInfo: {
+      audio_tracks: [{ language: "eng", codec: "aac" }],
+      video_tracks: [{ codec: "h264", height: 1080 }],
+    },
+  };
+  const unverified = {
+    infoHash: hash,
+    fileIdx: 0,
+    type: "rd",
+    src: `magnet:?xt=urn:btih:${hash}`,
+    label: "Cached addon row",
+    debridCached: true,
+  };
+
+  const mergedQualified = mergeCompleteSourcePool(
+    [qualified],
+    [unverified],
+    { preservePublishedStatus: true }
+  );
+
+  assert.equal(mergedQualified[0].launchQualified, true);
+  assert.equal(
+    mergedQualified[0].src,
+    "https://verified.example/resident-evil-2026.m3u8"
+  );
+  assert.equal(
+    mergedQualified[0].mediaInfo.audio_tracks.length,
+    1
+  );
+
+  const waiting = {
+    label: "Finding a verified compatible source…",
+    type: "status",
+    src: "",
+    url: "",
+    diagnostic: true,
+  };
+  const mergedWaiting = mergeCompleteSourcePool(
+    [waiting],
+    [unverified],
+    { preservePublishedStatus: true }
+  );
+
+  assert.equal(mergedWaiting[0].type, "status");
+  assert.equal(mergedWaiting[0].diagnostic, true);
+  assert.equal(mergedWaiting[1].infoHash, hash);
+});
+
+test("full discovery cannot bypass strict media and audio qualification", () => {
+  const providerSource = readFileSync(
+    new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
+    "utf8"
+  );
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(providerSource, /SAFE_RD_LAUNCH_AUDIO_STATES/);
+  assert.match(providerSource, /strictRdLaunchQualification/);
+  assert.match(providerSource, /requested_year_not_proven/);
+  assert.match(providerSource, /audioTracks\.length < 1/);
+  assert.match(providerSource, /videoTracks\.length < 1/);
+  assert.match(providerSource, /qualifyCachedRealDebridLaunchPool/);
+  assert.match(providerSource, /qualifiedLaunchOnly:\s*qualificationMode/);
+  assert.match(providerSource, /sources:\s*playerSources/);
+  assert.match(
+    providerSource,
+    /Finding a verified compatible source…/
+  );
+
+  const fullBegin = providerSource.indexOf(
+    "addonPromise.then((addonLookup) =>"
+  );
+  const fullEnd = providerSource.indexOf(
+    "const [",
+    fullBegin
+  );
+  assert.ok(fullBegin >= 0);
+  assert.ok(fullEnd > fullBegin);
+  const fullBlock = providerSource.slice(fullBegin, fullEnd);
+  assert.doesNotMatch(
+    fullBlock,
+    /publishEarlySources\(addonLookup\.streams/
+  );
+
+  assert.match(
+    playerSource,
+    /preservePublishedStatus:[\s\S]{0,100}qualifiedLaunchOnly/
+  );
+});
+
 test("the player stage pins one active video surface to the full frame", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),

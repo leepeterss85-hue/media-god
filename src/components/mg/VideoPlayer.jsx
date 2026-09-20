@@ -720,7 +720,11 @@ export default function VideoPlayer({
    */
   const sources = mergeCompleteSourcePool(
     publishedSources,
-    source?.completeSources
+    source?.completeSources,
+    {
+      preservePublishedStatus:
+        source?.qualifiedLaunchOnly === true,
+    }
   );
 
   const [activeIdx, setActiveIdx] =

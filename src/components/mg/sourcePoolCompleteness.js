@@ -62,21 +62,42 @@ const isRealSourceRow = (item) =>
       String(item?.type || "").toLowerCase() !== "status"
   );
 
+const keepQualifiedPlaybackFields = (published, complete) => {
+  if (published?.launchQualified !== true) {
+    return complete;
+  }
+
+  /*
+   * The complete discovery row contains richer cache/addon metadata, but it
+   * must never overwrite the already-qualified direct URL, media inspection,
+   * file identity or audio-rescue decision that made autoplay safe.
+   */
+  return {
+    ...complete,
+    ...published,
+    launchQualified: true,
+  };
+};
+
 /*
  * Keep the already-published order so an active player never jumps source,
- * while replacing matching fast-start rows with the richer cache-annotated
+ * while replacing matching fast-start rows with richer cache-annotated
  * versions and appending every canonical row that was not published yet.
  *
- * Buckets are arrays rather than a key -> item map. Several addons can expose
- * distinct rows with the same torrent/file identity; a map would silently
- * collapse those rows and can recreate the six-source selector regression.
+ * When strict launch qualification is active and no verified row exists yet,
+ * retain the diagnostic/status row at index zero. That creates a hard barrier:
+ * complete/unverified rows stay visible to the chooser but cannot silently
+ * become the automatic active source.
  */
 export const mergeCompleteSourcePool = (
   publishedSources,
-  completeSources
+  completeSources,
+  options = {}
 ) => {
   const published = (Array.isArray(publishedSources) ? publishedSources : [])
     .filter(Boolean);
+  const publishedReal = published.filter(isRealSourceRow);
+  const publishedStatus = published.filter((item) => !isRealSourceRow(item));
   const complete = (Array.isArray(completeSources) ? completeSources : [])
     .filter(isRealSourceRow);
 
@@ -98,20 +119,21 @@ export const mergeCompleteSourcePool = (
   });
 
   const usedCompleteIndexes = new Set();
-  const restored = published
-    .filter(isRealSourceRow)
-    .map((item) => {
-      const key = completeSourcePoolKey(item);
-      const bucket = key ? buckets.get(key) : null;
-      const replacement = bucket?.shift?.();
+  const restored = publishedReal.map((item) => {
+    const key = completeSourcePoolKey(item);
+    const bucket = key ? buckets.get(key) : null;
+    const replacement = bucket?.shift?.();
 
-      if (!replacement) {
-        return item;
-      }
+    if (!replacement) {
+      return item;
+    }
 
-      usedCompleteIndexes.add(replacement.index);
-      return replacement.item;
-    });
+    usedCompleteIndexes.add(replacement.index);
+    return keepQualifiedPlaybackFields(
+      item,
+      replacement.item
+    );
+  });
 
   complete.forEach((item, index) => {
     if (!usedCompleteIndexes.has(index)) {
@@ -119,5 +141,15 @@ export const mergeCompleteSourcePool = (
     }
   });
 
-  return restored;
+  const pinWaitingStatus =
+    options?.preservePublishedStatus === true &&
+    publishedReal.length === 0 &&
+    publishedStatus.length > 0;
+
+  return pinWaitingStatus
+    ? [
+        ...publishedStatus,
+        ...restored,
+      ]
+    : restored;
 };

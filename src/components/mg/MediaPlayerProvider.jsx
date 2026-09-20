@@ -1174,6 +1174,186 @@ const fetchAddonSources = async (
   };
 };
 
+const SAFE_RD_LAUNCH_AUDIO_STATES = new Set([
+  "original_compatible",
+  "transcoded",
+  "not_needed_video_compatibility",
+]);
+
+const normaliseLaunchLanguage = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, "-");
+
+const launchTrackIsEnglish = (track) => {
+  if (track?.english === true) return true;
+
+  const language = normaliseLaunchLanguage(
+    track?.language_iso ||
+      track?.language ||
+      track?.lang_iso ||
+      track?.lang ||
+      ""
+  );
+
+  return (
+    language === "en" ||
+    language === "eng" ||
+    language === "english" ||
+    language.startsWith("en-")
+  );
+};
+
+const strictRdLaunchQualification = ({
+  data,
+  title = "",
+  year = "",
+  mediaType = "movie",
+}) => {
+  const filename = String(
+    data?.filename ||
+      data?.media_info?.filename ||
+      ""
+  ).trim();
+  const mediaInfo =
+    data?.media_info &&
+    typeof data.media_info === "object"
+      ? data.media_info
+      : null;
+  const audioTracks = Array.isArray(mediaInfo?.audio_tracks)
+    ? mediaInfo.audio_tracks
+    : [];
+  const videoTracks = Array.isArray(mediaInfo?.video_tracks)
+    ? mediaInfo.video_tracks
+    : [];
+  const audioState = String(
+    data?.audio_rescue?.state || ""
+  ).trim();
+
+  if (!data?.stream_url) {
+    return { ok: false, reason: "missing_stream_url", score: -Infinity };
+  }
+
+  if (!mediaInfo) {
+    return { ok: false, reason: "media_inspection_unavailable", score: -Infinity };
+  }
+
+  if (audioTracks.length < 1) {
+    return { ok: false, reason: "no_audio_tracks", score: -Infinity };
+  }
+
+  if (videoTracks.length < 1) {
+    return { ok: false, reason: "no_video_tracks", score: -Infinity };
+  }
+
+  if (!SAFE_RD_LAUNCH_AUDIO_STATES.has(audioState)) {
+    return {
+      ok: false,
+      reason: audioState
+        ? `unverified_audio_state:${audioState}`
+        : "unverified_audio_state",
+      score: -Infinity,
+    };
+  }
+
+  const preferredAudio = String(
+    readTrackPreferences()?.audioLanguage || "en"
+  )
+    .trim()
+    .toLowerCase();
+  const labelledTracks = audioTracks.filter((track) =>
+    Boolean(
+      String(
+        track?.language_iso ||
+          track?.language ||
+          track?.lang_iso ||
+          track?.lang ||
+          ""
+      ).trim()
+    )
+  );
+  const hasEnglish = audioTracks.some(launchTrackIsEnglish);
+
+  if (
+    preferredAudio === "en" &&
+    labelledTracks.length === audioTracks.length &&
+    !hasEnglish
+  ) {
+    return { ok: false, reason: "no_english_audio", score: -Infinity };
+  }
+
+  const requestedYear = String(year || "").trim();
+  if (
+    String(mediaType || "movie").toLowerCase() !== "tv" &&
+    /^\d{4}$/.test(requestedYear)
+  ) {
+    const yearPattern = new RegExp(
+      `(?:^|[^0-9])${requestedYear}(?:[^0-9]|$)`
+    );
+
+    /*
+     * Autoplay is deliberately stricter than manual selection. A movie with a
+     * supplied year must prove that year in the resolved file name. This stops
+     * franchise packs such as Resident Evil Apocalypse/Extinction from being
+     * treated as the requested 2026 movie when an addon omits precise metadata.
+     */
+    if (!yearPattern.test(filename)) {
+      return { ok: false, reason: "requested_year_not_proven", score: -Infinity };
+    }
+  }
+
+  const primaryAudio =
+    audioTracks.find(launchTrackIsEnglish) ||
+    audioTracks[0] ||
+    {};
+  const primaryVideo =
+    [...videoTracks].sort(
+      (a, b) =>
+        Number(b?.height || 0) - Number(a?.height || 0)
+    )[0] ||
+    {};
+  const qualifiedShape = {
+    label: filename,
+    filename,
+    type: "url",
+    src: data.stream_url,
+    url: data.stream_url,
+    viaRealDebrid: true,
+    audioCodec: primaryAudio?.codec || "",
+    videoCodec: primaryVideo?.codec || "",
+    resolution: Number(primaryVideo?.height || 0) || undefined,
+  };
+  const deviceProfile = getPlaybackDeviceProfile();
+  const playbackPreferences = readPlaybackPreferences();
+  const audioStateBonus =
+    audioState === "original_compatible"
+      ? 50000
+      : audioState === "transcoded"
+        ? 48000
+        : 46000;
+  const englishBonus = hasEnglish ? 20000 : 5000;
+  const compatibilityScore = scoreSourceCompatibility(
+    qualifiedShape,
+    filename,
+    {
+      deviceProfile,
+      qualityPreference: playbackPreferences?.quality || "Auto",
+    }
+  );
+
+  return {
+    ok: true,
+    reason: "verified",
+    audioState,
+    score:
+      audioStateBonus +
+      englishBonus +
+      compatibilityScore,
+  };
+};
+
+
 const findRdLibrarySource = async ({
   title,
   year,
@@ -1269,6 +1449,26 @@ const findRdLibrarySource = async ({
         };
       }
 
+      const libraryQualification =
+        strictRdLaunchQualification({
+          data,
+          title,
+          year,
+          mediaType:
+            season != null || episode != null
+              ? "tv"
+              : "movie",
+        });
+
+      if (!libraryQualification.ok) {
+        return {
+          source: null,
+          status: "CONNECTED",
+          detail:
+            `Real-Debrid library match was not safe for autoplay: ${libraryQualification.reason}.`,
+        };
+      }
+
       return {
         source: {
           label:
@@ -1314,7 +1514,13 @@ const findRdLibrarySource = async ({
             true,
 
           launchQualification:
-            "rd-library-media-inspected",
+            "rd-library-strict-media-inspected",
+
+          launchCompatibilityScore:
+            libraryQualification.score,
+
+          launchVerifiedAudioState:
+            libraryQualification.audioState || "",
         },
 
         status:
@@ -1728,6 +1934,18 @@ const qualifyCachedRealDebridLaunchSource = async ({
       return null;
     }
 
+    const qualification =
+      strictRdLaunchQualification({
+        data,
+        title,
+        year,
+        mediaType,
+      });
+
+    if (!qualification.ok) {
+      return null;
+    }
+
     return {
       ...item,
       label:
@@ -1771,12 +1989,88 @@ const qualifyCachedRealDebridLaunchSource = async ({
           ? data.files
           : [],
       launchQualified: true,
-      launchQualification: "rd-fast-media-inspected",
+      launchQualification: "rd-strict-media-inspected",
+      launchCompatibilityScore:
+        qualification.score,
+      launchVerifiedAudioState:
+        qualification.audioState || "",
     };
   } catch {
     return null;
   }
 };
+
+const qualifyCachedRealDebridLaunchPool = async ({
+  items = [],
+  existing = [],
+  title = "",
+  year = "",
+  alternateYears = [],
+  mediaType = "movie",
+  season = null,
+  episode = null,
+  targetCount = 3,
+  scanLimit = 10,
+}) => {
+  const output = [];
+  const seen = new Set();
+
+  const add = (item) => {
+    if (!item?.launchQualified) return;
+    const key = stableDiscoveredSourceKey(item);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    output.push(item);
+  };
+
+  (Array.isArray(existing) ? existing : []).forEach(add);
+
+  const candidates = (Array.isArray(items) ? items : [])
+    .filter((item) =>
+      item &&
+      sourceIsConfirmedCachedForPlayback(item) &&
+      sourceTargetsRealDebrid(item)
+    )
+    .slice(0, Math.max(1, Number(scanLimit || 10)));
+
+  for (
+    let offset = 0;
+    offset < candidates.length && output.length < targetCount;
+    offset += 2
+  ) {
+    const batch = candidates
+      .slice(offset, offset + 2)
+      .filter((item) => {
+        const key = stableDiscoveredSourceKey(item);
+        return key && !seen.has(key);
+      });
+
+    const results = await Promise.all(
+      batch.map((item) =>
+        qualifyCachedRealDebridLaunchSource({
+          item,
+          title,
+          year,
+          alternateYears,
+          mediaType,
+          season,
+          episode,
+        })
+      )
+    );
+
+    results.forEach(add);
+  }
+
+  return output
+    .sort(
+      (a, b) =>
+        Number(b?.launchCompatibilityScore || 0) -
+        Number(a?.launchCompatibilityScore || 0)
+    )
+    .slice(0, Math.max(1, Number(targetCount || 3)));
+};
+
 
 const restoreQualifiedLaunchRows = (
   published,
@@ -2560,35 +2854,25 @@ export function PlayerProvider({
             sources: addonLookup.streams,
             hasDebrid,
             preferRd: Boolean(request?.preferRd),
-          })
-            .filter((item) =>
-              sourceIsConfirmedCachedForPlayback(item)
-            )
-            .slice(0, 3);
+          });
 
-          let qualifiedPrimary = null;
-
-          if (hasRd) {
-            for (const candidate of rankedFastCandidates) {
-              qualifiedPrimary =
-                await qualifyCachedRealDebridLaunchSource({
-                  item: candidate,
+          const qualifiedFastSources =
+            hasRd
+              ? await qualifyCachedRealDebridLaunchPool({
+                  items: rankedFastCandidates,
                   title: addonArgs.title,
                   year: addonArgs.year,
                   alternateYears: addonArgs.alternateYears,
                   mediaType,
                   season,
                   episode,
-                });
+                  targetCount: 1,
+                  scanLimit: 6,
+                })
+              : [];
 
-              if (
-                qualifiedPrimary ||
-                !isCurrentPlay()
-              ) {
-                break;
-              }
-            }
-          }
+          const qualifiedPrimary =
+            qualifiedFastSources[0] || null;
 
           if (
             qualifiedPrimary &&
@@ -2743,17 +3027,40 @@ export function PlayerProvider({
 
         addonPromise.then((addonLookup) => {
           if (
-            Array.isArray(addonLookup?.streams) &&
-            addonLookup.streams.length > 0
+            !isCurrentPlay() ||
+            !Array.isArray(addonLookup?.streams) ||
+            addonLookup.streams.length === 0
           ) {
-            publishEarlySources(addonLookup.streams, {
-              imdbId,
-              imdbStatus: imdbInfo?.status || "UNKNOWN",
-              addonLookupStatus: addonLookup?.status || "READY",
-              addonsChecked: Number(addonLookup?.addonsChecked || 0),
-              discoveredCount: addonLookup.streams.length,
-            });
+            return;
           }
+
+          /*
+           * The full pass enriches the eventual chooser only. Raw discovery is
+           * never promoted into active playback here; final autoplay selection
+           * happens after cache annotation + strict RD media/audio qualification.
+           */
+          setSource((current) => {
+            if (
+              !current ||
+              current.playRequestId !== playId ||
+              !isCurrentPlay()
+            ) {
+              return current;
+            }
+
+            return {
+              ...current,
+              sourceDiagnostics: {
+                ...(current.sourceDiagnostics || {}),
+                imdbId,
+                imdbStatus: imdbInfo?.status || "UNKNOWN",
+                addonLookupStatus:
+                  `${addonLookup?.status || "READY"} · VERIFYING`,
+                addonsChecked: Number(addonLookup?.addonsChecked || 0),
+                discoveredCount: addonLookup.streams.length,
+              },
+            };
+          });
         });
 
         const [
@@ -2797,6 +3104,44 @@ export function PlayerProvider({
 
         if (!isCurrentPlay()) {
           return;
+        }
+
+        const qualificationMode =
+          !isLive &&
+          hasRd &&
+          !request?.noRd;
+
+        let qualifiedLaunchSources = [];
+
+        if (qualificationMode) {
+          const existingQualified = [
+            ...publishedSourceSnapshot,
+            ...(rdLookup?.source ? [rdLookup.source] : []),
+          ].filter((item) => item?.launchQualified === true);
+
+          const rankedQualificationCandidates = orderSources({
+            sources: cacheAnnotatedCombined,
+            hasDebrid,
+            preferRd: Boolean(request?.preferRd),
+          });
+
+          qualifiedLaunchSources =
+            await qualifyCachedRealDebridLaunchPool({
+              items: rankedQualificationCandidates,
+              existing: existingQualified,
+              title: addonArgs.title,
+              year: addonArgs.year,
+              alternateYears: addonArgs.alternateYears,
+              mediaType,
+              season,
+              episode,
+              targetCount: 3,
+              scanLimit: 12,
+            });
+
+          if (!isCurrentPlay()) {
+            return;
+          }
         }
 
         let orderedSources =
@@ -2987,8 +3332,28 @@ export function PlayerProvider({
             sourceIsConfirmedCachedForPlayback(item)
         ).length;
 
+        const waitingForVerifiedSource = {
+          label:
+            "Finding a verified compatible source…",
+          type:
+            "status",
+          src:
+            "",
+          url:
+            "",
+          diagnostic:
+            true,
+        };
+
+        const playerSources =
+          qualificationMode
+            ? qualifiedLaunchSources.length > 0
+              ? qualifiedLaunchSources
+              : [waitingForVerifiedSource]
+            : orderedSources;
+
         const primary =
-          orderedSources[0] ||
+          playerSources[0] ||
           {};
 
         const activeUrl =
@@ -3050,10 +3415,13 @@ export function PlayerProvider({
             episode,
 
           sources:
-            orderedSources,
+            playerSources,
 
           completeSources:
             canonicalCompletePlaybackSources,
+
+          qualifiedLaunchOnly:
+            qualificationMode,
 
           src:
             activeUrl,
@@ -3130,6 +3498,9 @@ export function PlayerProvider({
             publishedSourceCount,
 
             publishedCachedSourceCount,
+
+            qualifiedLaunchCount:
+              qualifiedLaunchSources.length,
 
             canonicalSourceCount:
               canonicalCompletePlaybackSources.length,
