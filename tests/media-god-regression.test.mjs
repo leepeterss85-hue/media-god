@@ -3331,6 +3331,13 @@ test("unproven provider startup cannot block English torrent caching or autoplay
     playerSource,
     /Preparing the best English source automatically/
   );
+  assert.match(playerSource, /englishStartupTakeoverPending/);
+  const nativeGuardIndex = playerSource.indexOf(
+    "if (englishStartupTakeoverPending)"
+  );
+  const nativeLaunchIndex = playerSource.indexOf("playNativeFireTv({");
+  assert.ok(nativeGuardIndex >= 0);
+  assert.ok(nativeLaunchIndex > nativeGuardIndex);
 
   const builderStart = playerSource.indexOf("TRUSTED CACHED BACKGROUND BUILDER");
   const builderEnd = playerSource.indexOf("recoveryResumeRef.current = 0", builderStart);
