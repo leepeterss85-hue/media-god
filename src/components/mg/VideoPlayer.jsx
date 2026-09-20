@@ -1137,6 +1137,32 @@ export default function VideoPlayer({
         autoplayEntryApproved(entry)
     )?.index ?? -1;
 
+  /*
+   * If no English source is ready yet, do not leave an unproven provider row
+   * selected doing nothing. Pick the same explicit-English candidate that Best
+   * ordering prefers and let the foreground Real-Debrid cache engine prepare
+   * it immediately. This gives one-click playback a deterministic path:
+   * ready English -> play; otherwise best English torrent -> prepare -> play.
+   */
+  const bestEnglishAutoplayCandidateIndex =
+    sortedSourceEntries.find((entry) => {
+      const item = entry?.item;
+      const type = String(item?.type || "").toLowerCase();
+
+      return Boolean(
+        sourceIsUserSelectable(item) &&
+          !failedSourcesRef.current.has(entry?.index) &&
+          Number(entry?.languageRank ?? 3) === 0 &&
+          Number(entry?.hardSubtitleRank ?? 0) === 0 &&
+          type !== "provider" &&
+          type !== "youtube" &&
+          (
+            autoplayEntryApproved(entry) ||
+            sourceNeedsCaching(item)
+          )
+      );
+    })?.index ?? -1;
+
   const automaticApprovedAutoplaySourceIndex =
     sortedSourceEntries.find(
       (entry) =>
@@ -2576,26 +2602,51 @@ export default function VideoPlayer({
      * Once real playback begins, normal recovery owns the session and we do not
      * jump to a newly discovered release underneath the viewer.
      */
-    const bestSourceShouldOwnStartup =
+    const startupSelectionAllowed =
       sourceSortMode === "best" &&
       playbackMediaType !== "live" &&
       !manualSourceLockActive() &&
       !webPlaybackStarted &&
-      !nativePlaybackStarted &&
+      !nativePlaybackStarted;
+
+    const bestSourceShouldOwnStartup =
+      startupSelectionAllowed &&
       bestApprovedAutoplaySourceIndex >= 0 &&
       bestApprovedAutoplaySourceIndex !== activeIdx;
+
+    const bestEnglishCandidateShouldOwnStartup =
+      startupSelectionAllowed &&
+      bestApprovedAutoplaySourceIndex < 0 &&
+      bestEnglishAutoplayCandidateIndex >= 0 &&
+      bestEnglishAutoplayCandidateIndex !== activeIdx &&
+      (
+        isProvider ||
+        active?.type === "status" ||
+        active?.diagnostic === true ||
+        Number(
+          sortedSourceEntries.find(
+            (entry) => entry?.index === activeIdx
+          )?.languageRank ?? 3
+        ) !== 0
+      );
 
     const nextAutomaticSourceIndex =
       bestSourceShouldOwnStartup
         ? bestApprovedAutoplaySourceIndex
-        : activeIsWaitingForVerifiedSource
-          ? automaticApprovedAutoplaySourceIndex
-          : automaticReadySourceIndex;
+        : bestEnglishCandidateShouldOwnStartup
+          ? bestEnglishAutoplayCandidateIndex
+          : activeIsWaitingForVerifiedSource
+            ? automaticApprovedAutoplaySourceIndex
+            : automaticReadySourceIndex;
 
     if (
       isLive ||
       isYoutube ||
-      (isProvider && !bestSourceShouldOwnStartup) ||
+      (
+        isProvider &&
+        !bestSourceShouldOwnStartup &&
+        !bestEnglishCandidateShouldOwnStartup
+      ) ||
       nextAutomaticSourceIndex < 0 ||
       fileSwitching
     ) {
@@ -2604,6 +2655,7 @@ export default function VideoPlayer({
 
     if (
       !bestSourceShouldOwnStartup &&
+      !bestEnglishCandidateShouldOwnStartup &&
       (
         (!activeNeedsCaching && !activeIsWaitingForVerifiedSource) ||
         rdResolving ||
@@ -2619,9 +2671,11 @@ export default function VideoPlayer({
       statusMessage:
         bestSourceShouldOwnStartup
           ? "Best cached English source ready — starting automatically…"
-          : activeIsWaitingForVerifiedSource
-            ? "Verified cached source ready — starting automatically…"
-            : "Opening a ready source while Media God prepares the other torrents in the background…",
+          : bestEnglishCandidateShouldOwnStartup
+            ? "Preparing the best English source automatically…"
+            : activeIsWaitingForVerifiedSource
+              ? "Verified cached source ready — starting automatically…"
+              : "Opening a ready source while Media God prepares the other torrents in the background…",
     });
   }, [
     activeIdx,
@@ -2630,6 +2684,7 @@ export default function VideoPlayer({
     automaticApprovedAutoplaySourceIndex,
     automaticReadySourceIndex,
     bestApprovedAutoplaySourceIndex,
+    bestEnglishAutoplayCandidateIndex,
     fileSwitching,
     isLive,
     isProvider,
