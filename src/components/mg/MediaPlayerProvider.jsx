@@ -2633,6 +2633,12 @@ export function PlayerProvider({
           request?.original_title,
           imdbInfo?.alternateTitles
         );
+        const identityAlternateYears = mergeAlternateYears(
+          request?.rdYear ?? request?.year ?? "",
+          request?.rdAlternateYears,
+          request?.alternateYears,
+          imdbInfo?.alternateYears
+        );
 
         const addonPromise =
           request?.skipAddonLookup
