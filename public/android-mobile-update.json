@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 36,
-  "versionName": "1.0.35",
+  "versionCode": 37,
+  "versionName": "1.0.36",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.35 fixes foreign-language audio being restored after a manual track change. English remains the default, manual Audio choices stay locked for the current playback, explicitly foreign-only Real-Debrid releases are skipped for English-first autoplay, and the audio rescue button no longer enters uncached torrent jobs.",
+  "message": "Media God Mobile 1.0.36 explicitly locks Media3 to an available English main audio track once the real track list is known. The Audio control stays within English tracks when English exists, risky unselected DTS/TrueHD tracks no longer force rescue, and Real-Debrid English labels are recognised from language, name, title and label metadata.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
