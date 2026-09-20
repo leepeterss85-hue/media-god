@@ -1140,6 +1140,9 @@ const fetchAddonSources = async (
     alternateYears: Array.isArray(args?.alternateYears)
       ? args.alternateYears
       : [],
+    alternateTitles: Array.isArray(args?.alternateTitles)
+      ? args.alternateTitles
+      : [],
     mediaType: args?.mediaType || "movie",
   };
 
@@ -1989,6 +1992,7 @@ const qualifyCachedRealDebridLaunchSource = async ({
   title,
   year,
   alternateYears = [],
+  alternateTitles = [],
   mediaType = "movie",
   season = null,
   episode = null,
@@ -2061,6 +2065,7 @@ const qualifyCachedRealDebridLaunchSource = async ({
           title,
           year,
           alternateYears,
+          alternateTitles,
           mediaType,
         }
       )
@@ -2163,6 +2168,7 @@ const qualifyCachedRealDebridLaunchPool = async ({
   title = "",
   year = "",
   alternateYears = [],
+  alternateTitles = [],
   mediaType = "movie",
   season = null,
   episode = null,
@@ -2238,6 +2244,7 @@ const qualifyCachedRealDebridLaunchPool = async ({
             title,
             year,
             alternateYears,
+            alternateTitles,
             mediaType,
             season,
             episode,
