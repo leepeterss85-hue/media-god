@@ -2747,3 +2747,78 @@ test("audio tracks prefer English main audio while preserving explicit language 
     ) > 0
   );
 });
+
+
+test("movie identity rejects same-year franchise siblings and wrong resolved filenames", () => {
+  const request = {
+    title: "Resident Evil",
+    year: "2026",
+    mediaType: "movie",
+  };
+
+  assert.equal(
+    sourceIdentityMismatchReason(
+      {
+        filename:
+          "Resident.Evil.Apocalypse.2026.1080p.WEB-DL.DDP5.1.H264.mkv",
+      },
+      request
+    ),
+    "conflicting_title_suffix"
+  );
+
+  assert.equal(
+    sourceIdentityMismatchReason(
+      {
+        filename:
+          "Completely.Different.Movie.2026.1080p.WEB-DL.DDP5.1.H264.mkv",
+      },
+      request
+    ),
+    "conflicting_release_title"
+  );
+
+  assert.equal(
+    sourceIdentityMismatchReason(
+      {
+        filename:
+          "Resident.Evil.2026.1080p.WEB-DL.English.DDP5.1.H264.mkv",
+      },
+      request
+    ),
+    ""
+  );
+});
+
+test("authoritative IDs stay isolated and English autoplay never falls back blindly", () => {
+  const serverSource = readFileSync(
+    new URL("../base44/functions/fetchAddonStreams/entry.ts", import.meta.url),
+    "utf8"
+  );
+  const browserSource = readFileSync(
+    new URL("../src/components/mg/addonBrowserFallback.js", import.meta.url),
+    "utf8"
+  );
+  const providerSource = readFileSync(
+    new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
+    "utf8"
+  );
+
+  for (const source of [serverSource, browserSource]) {
+    assert.match(source, /const isAuthoritativeStreamId/);
+    assert.match(
+      source,
+      /rawStreams\.length > 0 &&\s*!isAuthoritativeStreamId\(alternateIdUsed \|\| streamId\)/
+    );
+  }
+
+  assert.match(providerSource, /requireExplicitEnglishRuntimeFallback/);
+  assert.match(
+    providerSource,
+    /detectLanguagePreference\(item\) === "english"/
+  );
+  assert.match(
+    providerSource,
+    /rd-runtime-explicit-english-hint/
+  );
+});
