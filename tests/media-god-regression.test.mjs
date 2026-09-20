@@ -2461,6 +2461,48 @@ test("Real-Debrid library fast start is already media inspected", () => {
   );
 });
 
+test("successful audio rescue cannot be abandoned by stale no-sound or torrent failover timers", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+  const mobileCompat = readFileSync(
+    new URL(
+      "../android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt",
+      import.meta.url
+    ),
+    "utf8"
+  );
+  const fireCompat = readFileSync(
+    new URL(
+      "../firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt",
+      import.meta.url
+    ),
+    "utf8"
+  );
+
+  assert.match(playerSource, /cancelPendingTorrentFailover/);
+  assert.match(playerSource, /confirmRecoveredSource/);
+  assert.match(
+    playerSource,
+    /streamActionGenerationRef\.current !== scheduledGeneration/
+  );
+  assert.match(
+    playerSource,
+    /!rescueAlreadyApplied[\s\S]{0,120}rememberedSilent \|\| traits\.audioRisk/
+  );
+  assert.match(
+    playerSource,
+    /currentTime > previousTime \+ 0\.15[\s\S]{0,120}confirmRecoveredSource\(video\)/
+  );
+
+  [mobileCompat, fireCompat].forEach((source) => {
+    assert.match(source, /selectedAudioTrack >= 0/);
+    assert.match(source, /audioTrackCount > 0/);
+    assert.match(source, /audioRecoveryPasses < 4/);
+  });
+});
+
 test("global VOD audio validation covers web, Media3 and LibVLC playback", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
