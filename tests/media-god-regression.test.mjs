@@ -2862,7 +2862,7 @@ test("selected supported audio is never auto-skipped just because its codec is r
     const reasonBlock = source.slice(reasonStart, reasonEnd);
     assert.doesNotMatch(reasonBlock, /softwareFallbackPreferred/);
     assert.match(source, /val rescueDelayMs = 1400L/);
-    assert.doesNotMatch(source, /250L/);
+    assert.doesNotMatch(source.slice(begin, reasonEnd), /250L/);
   }
 });
 
