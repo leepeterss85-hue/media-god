@@ -2718,6 +2718,9 @@ test("native players explicitly override a foreign default to English main audio
 
   assert.match(rdSource, /track\?\.title/);
   assert.match(rdSource, /track\?\.label/);
+  assert.match(rdSource, /track\?\.language_iso/);
+  assert.match(rdSource, /track\?\.language/);
+  assert.match(rdSource, /iso === "english"/);
   assert.match(
     rdSource,
     /\(\?:eng\|en\|english\)/
