@@ -2564,13 +2564,14 @@ test("English-first audio keeps manual choices locked and never enters an uncach
   );
   assert.ok(noSoundStart >= 0);
   assert.ok(noSoundEnd > noSoundStart);
-  assert.match(
-    playerSource.slice(noSoundStart, noSoundEnd),
-    /findNextPlayableSource\([\s\S]{0,120}allowCaching:\s*false/
-  );
+  const noSoundSource = playerSource.slice(noSoundStart, noSoundEnd);
+  assert.match(noSoundSource, /AUDIO FAILURE IS NOT SOURCE FAILURE/);
+  assert.match(noSoundSource, /lockCurrentVodSourceForAudioRecovery/);
+  assert.doesNotMatch(noSoundSource, /findNextPlayableSource\(/);
 
   assert.match(rdSource, /RD_NO_ENGLISH_AUDIO/);
-  assert.match(rdSource, /no_english_audio_try_next_source/);
+  assert.match(rdSource, /no_english_audio_keep_source/);
+  assert.doesNotMatch(rdSource, /no_english_audio_try_next_source/);
   assert.match(
     rdSource,
     /This cached release has no labelled English audio track/
@@ -2699,13 +2700,16 @@ test("manual Audio control stays in the current file and never starts torrent fa
   const manualGuard = playerSource.indexOf(
     "A manual Audio-button press must never become an uncontrolled source"
   );
-  const nextSource = playerSource.indexOf(
-    "findNextPlayableSource(",
+  const noSoundEnd = playerSource.indexOf(
+    "handleNoSoundRef.current = handleNoSound",
     manualGuard
   );
 
   assert.ok(manualGuard >= 0);
-  assert.ok(nextSource > manualGuard);
+  assert.ok(noSoundEnd > manualGuard);
+  const guardedAudioRecovery = playerSource.slice(manualGuard, noSoundEnd);
+  assert.doesNotMatch(guardedAudioRecovery, /findNextPlayableSource\(/);
+  assert.doesNotMatch(guardedAudioRecovery, /markSourceFailed\(/);
 });
 
 test("audio tracks prefer English main audio while preserving explicit language memory", () => {
@@ -2918,4 +2922,28 @@ test("LibVLC Auto PCM output does not force an explicit stereo device", () => {
     const autoBranch = block.slice(block.indexOf("else ->"));
     assert.doesNotMatch(autoBranch, /setAudioOutputDevice\("stereo"\)/);
   }
+});
+
+
+test("Real-Debrid audio metadata cannot trigger automatic VOD source failover", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  const pollStart = playerSource.indexOf('rdErrorCode === "RD_NO_AUDIO_TRACKS"');
+  const pollEnd = playerSource.indexOf('rdErrorCode === "RD_TORRENT_INFO_FAILED"', pollStart);
+  assert.ok(pollStart >= 0 && pollEnd > pollStart);
+  const pollBlock = playerSource.slice(pollStart, pollEnd);
+  assert.match(pollBlock, /lockCurrentVodSourceForAudioRecovery/);
+  assert.doesNotMatch(pollBlock, /tryNextSource\(/);
+  assert.doesNotMatch(pollBlock, /markSourceFailed\(/);
+
+  const resolveStart = playerSource.indexOf('error?.code === "RD_NO_AUDIO_TRACKS"');
+  const resolveEnd = playerSource.indexOf('error?.code === "RD_ACTIVE_SLOTS_FULL"', resolveStart);
+  assert.ok(resolveStart >= 0 && resolveEnd > resolveStart);
+  const resolveBlock = playerSource.slice(resolveStart, resolveEnd);
+  assert.match(resolveBlock, /RD_NO_ENGLISH_AUDIO/);
+  assert.match(resolveBlock, /lockCurrentVodSourceForAudioRecovery/);
+  assert.doesNotMatch(resolveBlock, /tryNextSource\(/);
 });
