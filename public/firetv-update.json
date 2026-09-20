@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 59,
-  "versionName": "1.4.54",
+  "versionCode": 60,
+  "versionName": "1.4.55",
   "title": "Media God Fire TV",
-  "message": "Media God Fire TV 1.4.54 stops audio recovery from cycling through torrents, keeps the exact VOD source selected after native audio/codec failure, and lets Android AudioTrack choose the decoded PCM endpoint in Auto mode.",
+  "message": "Media God Fire TV 1.4.55 keeps sources with working audio playing instead of treating DTS, TrueHD, Atmos/JOC or other risky codecs as an automatic failure. Compatibility decoding now starts only for genuinely missing, unsupported or unselected audio.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
