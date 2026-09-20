@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 38,
-  "versionName": "1.0.37",
+  "versionCode": 39,
+  "versionName": "1.0.38",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.37 keeps the Audio button inside the current file. It selects and locks English when exposed, cycles only same-file audio tracks when language metadata is missing, and never turns a manual audio change into automatic Real-Debrid torrent/source failover.",
+  "message": "Media God Mobile 1.0.38 tightens movie identity matching so similarly named films cannot be selected just because the year matches, keeps authoritative IMDb/TMDb results separate from broad title search fallbacks, requires English evidence for autoplay fallbacks, and no longer replaces a supported selected DTS/TrueHD/JOC audio track after playback has already started.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
