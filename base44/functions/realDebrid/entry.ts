@@ -3921,9 +3921,9 @@ async function choosePlayableRdStream({
      * Normal autoplay is English-first. A file whose inspected tracks are all
      * explicitly non-English is not a valid automatic fallback: returning its
      * original URL caused Media God to open the film in the wrong language and
-     * made the Audio button appear to fight the source chooser. Reject this
-     * candidate so the existing ready-source recovery can try an English or
-     * unlabelled/multi-audio copy instead.
+     * made the Audio button appear to fight the source chooser. Report this
+     * metadata clearly, but do not instruct playback to advance to another
+     * torrent automatically. The viewer/source-selection layer owns that choice.
      */
     return {
       error:
@@ -3933,9 +3933,9 @@ async function choosePlayableRdStream({
       audio_rescue: {
         used: false,
         state:
-          "no_english_audio_try_next_source",
+          "no_english_audio_keep_source",
         reason:
-          "Every labelled audio track is non-English. Media God will skip this source for English-first autoplay.",
+          "Every labelled audio track is non-English. Keep this release selected and require an explicit source choice before changing torrents.",
       },
       media_info:
         mediaSummary,
