@@ -119,6 +119,7 @@ export default function RdLibraryView() {
       hasDebrid: true,
       skipAddonLookup: true,
       skipRdLookup: true,
+      verifiedPlaybackPolicy: "manual",
       sources: [
         {
           label: torrent?.filename || "Real-Debrid Library",

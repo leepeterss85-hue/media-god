@@ -1205,6 +1205,24 @@ const launchTrackIsEnglish = (track) => {
   );
 };
 
+const launchTrackLooksCommentaryOrDescriptive = (track) =>
+  /\b(?:commentary|audio[ ._-]*description|descriptive|visually[ ._-]*impaired|director(?:'s)?[ ._-]*commentary|cast[ ._-]*commentary)\b/i.test(
+    [
+      track?.title,
+      track?.name,
+      track?.label,
+      track?.description,
+      track?.language,
+      track?.lang,
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
+
+const launchTrackIsEnglishMain = (track) =>
+  launchTrackIsEnglish(track) &&
+  !launchTrackLooksCommentaryOrDescriptive(track);
+
 const strictRdLaunchQualification = ({
   data,
   title = "",
@@ -1262,25 +1280,27 @@ const strictRdLaunchQualification = ({
   )
     .trim()
     .toLowerCase();
-  const labelledTracks = audioTracks.filter((track) =>
-    Boolean(
-      String(
-        track?.language_iso ||
-          track?.language ||
-          track?.lang_iso ||
-          track?.lang ||
-          ""
-      ).trim()
-    )
-  );
   const hasEnglish = audioTracks.some(launchTrackIsEnglish);
+  const hasEnglishMain = audioTracks.some(launchTrackIsEnglishMain);
 
+  /*
+   * Automatic playback must prove the requested language. Unknown/unlabelled
+   * audio is still available to diagnostics/manual workflows, but it is not a
+   * safe default when the viewer asked for English. This also prevents an
+   * English commentary/descriptive track from satisfying the main-audio gate.
+   */
   if (
     preferredAudio === "en" &&
-    labelledTracks.length === audioTracks.length &&
-    !hasEnglish
+    !hasEnglishMain
   ) {
-    return { ok: false, reason: "no_english_audio", score: -Infinity };
+    return {
+      ok: false,
+      reason:
+        hasEnglish
+          ? "english_main_audio_not_proven"
+          : "english_audio_not_proven",
+      score: -Infinity,
+    };
   }
 
   const requestedYear = String(year || "").trim();
@@ -1304,6 +1324,7 @@ const strictRdLaunchQualification = ({
   }
 
   const primaryAudio =
+    audioTracks.find(launchTrackIsEnglishMain) ||
     audioTracks.find(launchTrackIsEnglish) ||
     audioTracks[0] ||
     {};
@@ -2442,9 +2463,61 @@ export function PlayerProvider({
             item?.live
         );
 
+        const qualificationMode =
+          hasRd &&
+          !request?.noRd &&
+          request?.verifiedPlaybackPolicy !== "manual";
+
+        let verifiedSources = ordered;
+
+        if (qualificationMode) {
+          const existingQualified = [
+            ...(rdLookup?.source ? [rdLookup.source] : []),
+            ...ordered,
+          ].filter((item) => item?.launchQualified === true);
+
+          verifiedSources =
+            await qualifyCachedRealDebridLaunchPool({
+              items: ordered,
+              existing: existingQualified,
+              title: request?.rdTitle || request?.title || "",
+              year: request?.rdYear ?? request?.year ?? "",
+              alternateYears:
+                Array.isArray(
+                  request?.rdAlternateYears ||
+                  request?.alternateYears
+                )
+                  ? (
+                      request?.rdAlternateYears ||
+                      request?.alternateYears
+                    )
+                  : [],
+              mediaType,
+              season,
+              episode,
+              targetCount: 5,
+              scanLimit: 20,
+            });
+        }
+
         return {
-          sources: ordered,
-          completeSources: ordered,
+          sources:
+            qualificationMode
+              ? verifiedSources
+              : ordered,
+          completeSources:
+            qualificationMode
+              ? verifiedSources
+              : ordered,
+          discoveredSources: ordered,
+          verifiedPrepared:
+            qualificationMode
+              ? verifiedSources.length > 0
+              : true,
+          verifiedPlaybackPolicy:
+            qualificationMode
+              ? "strict"
+              : request?.verifiedPlaybackPolicy || "runtime",
           imdbId,
           preparedAt: Date.now(),
         };
@@ -2521,7 +2594,8 @@ export function PlayerProvider({
         const qualificationMode =
           !isLive &&
           hasRd &&
-          !request?.noRd;
+          !request?.noRd &&
+          request?.verifiedPlaybackPolicy !== "manual";
 
         const initialOrderedSources =
           orderSources({

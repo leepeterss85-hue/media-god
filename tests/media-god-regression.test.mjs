@@ -2020,6 +2020,88 @@ test("stable source publishing keeps all 117 cached rows after a six-row fast st
   );
 });
 
+test("all catalogue VOD entry points inherit the central strict playback policy", () => {
+  const wrapperSource = readFileSync(
+    new URL("../src/components/mg/PlayerProvider.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(wrapperSource, /applyReliableVodPolicy/);
+  assert.match(
+    wrapperSource,
+    /verifiedPlaybackPolicy:\s*"strict"/
+  );
+  assert.match(
+    wrapperSource,
+    /allowNonPlaybackFallback:\s*false/
+  );
+  assert.match(
+    wrapperSource,
+    /core\.play\(reliableRequest\)/
+  );
+  assert.match(
+    wrapperSource,
+    /core\.prepare\([\s\S]{0,120}applyReliableVodPolicy/
+  );
+});
+
+test("next episode preload only hands off verified prepared sources", () => {
+  const wrapperSource = readFileSync(
+    new URL("../src/components/mg/PlayerProvider.jsx", import.meta.url),
+    "utf8"
+  );
+  const providerSource = readFileSync(
+    new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(
+    wrapperSource,
+    /prepared\?\.verifiedPlaybackPolicy !== "strict"[\s\S]{0,100}prepared\?\.verifiedPrepared === true/
+  );
+  assert.match(
+    providerSource,
+    /verifiedPrepared:[\s\S]{0,100}verifiedSources\.length > 0/
+  );
+  assert.match(
+    providerSource,
+    /discoveredSources:\s*ordered/
+  );
+});
+
+test("automatic English playback requires a proven non-commentary English main track", () => {
+  const providerSource = readFileSync(
+    new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(providerSource, /launchTrackIsEnglishMain/);
+  assert.match(
+    providerSource,
+    /english_main_audio_not_proven/
+  );
+  assert.match(
+    providerSource,
+    /english_audio_not_proven/
+  );
+  assert.match(
+    providerSource,
+    /commentary\|audio\[ \._-\]\*description/
+  );
+});
+
+test("explicit Real-Debrid library playback remains a deliberate manual exception", () => {
+  const librarySource = readFileSync(
+    new URL("../src/components/mg/RdLibraryView.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(
+    librarySource,
+    /verifiedPlaybackPolicy:\s*"manual"/
+  );
+});
+
 test("strict startup never autoplays request sources before qualification", () => {
   const providerSource = readFileSync(
     new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),

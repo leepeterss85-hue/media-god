@@ -61,6 +61,47 @@ const isTvRequest = (request) =>
   request?.rdSeason != null ||
   request?.rdEpisode != null;
 
+const isLiveRequest = (request) =>
+  request?.mediaType === "live" ||
+  request?.type === "live" ||
+  (Array.isArray(request?.sources) &&
+    request.sources.some(
+      (item) => item?.live || item?.type === "live"
+    ));
+
+const isExplicitDirectPlayback = (request) =>
+  request?.verifiedPlaybackPolicy === "manual" ||
+  (
+    request?.noRd === true &&
+    request?.skipRdLookup === true &&
+    request?.skipAddonLookup === true
+  );
+
+const applyReliableVodPolicy = (request = {}) => {
+  if (
+    !request ||
+    isLiveRequest(request) ||
+    isExplicitDirectPlayback(request)
+  ) {
+    return request || {};
+  }
+
+  return {
+    ...request,
+    /*
+     * Catalogue VOD always enters the same strict pipeline regardless of which
+     * UI surface launched it. Individual cards/rows cannot silently opt back
+     * into the old "first discovered = playable" behaviour.
+     */
+    verifiedPlaybackPolicy: "strict",
+    allowNonPlaybackFallback: false,
+    preferRd:
+      request?.preferRd !== false
+        ? true
+        : request.preferRd,
+  };
+};
+
 const seriesTitleFromRequest = (request) => {
   const explicit = String(
     request?.rdTitle ||
@@ -592,7 +633,9 @@ function PlayerAutomationBridge({ children }) {
 
           const prepared =
             typeof core.prepare === "function"
-              ? await core.prepare(next)
+              ? await core.prepare(
+                  applyReliableVodPolicy(next)
+                )
               : null;
 
           if (
@@ -649,10 +692,14 @@ function PlayerAutomationBridge({ children }) {
 
   const play = useCallback(
     async (request = {}) => {
-      currentRequestRef.current = request;
-      publishContext(request);
+      const reliableRequest =
+        applyReliableVodPolicy(request);
 
-      const playbackPromise = core.play(request);
+      currentRequestRef.current = reliableRequest;
+      publishContext(reliableRequest);
+
+      const playbackPromise =
+        core.play(reliableRequest);
 
       /*
        * Prepare the following episode as soon as playback begins. This is
@@ -660,8 +707,8 @@ function PlayerAutomationBridge({ children }) {
        * it owns the screen, so waiting for browser timeupdate events meant the
        * next source was never actually ready when the native player finished.
        */
-      if (isTvRequest(request)) {
-        void preloadNextEpisode(request);
+      if (isTvRequest(reliableRequest)) {
+        void preloadNextEpisode(reliableRequest);
       }
 
       return playbackPromise;
@@ -775,7 +822,11 @@ function PlayerAutomationBridge({ children }) {
           prepared &&
           Number(prepared?.preparedAt || 0) > Date.now() - 2 * 60 * 60 * 1000 &&
           Array.isArray(prepared?.sources) &&
-          prepared.sources.length > 0;
+          prepared.sources.length > 0 &&
+          (
+            prepared?.verifiedPlaybackPolicy !== "strict" ||
+            prepared?.verifiedPrepared === true
+          );
 
         const nextRequest = preparedFresh
           ? {
@@ -796,6 +847,10 @@ function PlayerAutomationBridge({ children }) {
               skipAddonLookup: true,
               skipRdLookup: true,
               preparedEpisodeHandoff: true,
+              verifiedPlaybackPolicy:
+                prepared?.verifiedPlaybackPolicy ||
+                next?.verifiedPlaybackPolicy ||
+                "strict",
             }
           : next;
 
@@ -1210,7 +1265,9 @@ function PlayerAutomationBridge({ children }) {
 
           const prepared =
             typeof core.prepare === "function"
-              ? await core.prepare(next)
+              ? await core.prepare(
+                  applyReliableVodPolicy(next)
+                )
               : null;
 
           if (
@@ -1400,16 +1457,31 @@ function PlayerAutomationBridge({ children }) {
     publishStatus,
   ]);
 
+  const prepare = useCallback(
+    async (request = {}) => {
+      if (typeof core.prepare !== "function") {
+        return null;
+      }
+
+      return core.prepare(
+        applyReliableVodPolicy(request)
+      );
+    },
+    [core]
+  );
+
   const value = useMemo(
     () => ({
       ...core,
       play,
+      prepare,
       close,
       autoNext,
     }),
     [
       core,
       play,
+      prepare,
       close,
       autoNext,
     ]
