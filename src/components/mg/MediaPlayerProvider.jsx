@@ -2033,6 +2033,29 @@ const qualifyCachedRealDebridLaunchSource = async ({
   }
 };
 
+const autoplayLanguageHintRank = (item) => {
+  const language = detectLanguagePreference(item);
+
+  if (language === "english") return 0;
+  if (language === "multi") return 1;
+  if (language === "unknown") return 2;
+  return 3;
+};
+
+const prioritiseEnglishAutoplayCandidates = (items = []) =>
+  (Array.isArray(items) ? items : [])
+    .map((item, index) => ({
+      item,
+      index,
+      languageRank: autoplayLanguageHintRank(item),
+    }))
+    .sort(
+      (left, right) =>
+        left.languageRank - right.languageRank ||
+        left.index - right.index
+    )
+    .map(({ item }) => item);
+
 const qualifyCachedRealDebridLaunchPool = async ({
   items = [],
   existing = [],
@@ -2083,7 +2106,7 @@ const qualifyCachedRealDebridLaunchPool = async ({
 
   (Array.isArray(existing) ? existing : []).forEach(add);
 
-  const candidates = (Array.isArray(items) ? items : [])
+  const candidates = prioritiseEnglishAutoplayCandidates(items)
     .filter((item) =>
       item &&
       sourceIsConfirmedCachedForPlayback(item) &&
@@ -2094,13 +2117,13 @@ const qualifyCachedRealDebridLaunchPool = async ({
   for (
     let offset = 0;
     offset < candidates.length && output.length < targetCount;
-    offset += 2
+    offset += 4
   ) {
     const remainingMs = deadlineAt - Date.now();
     if (remainingMs <= 0) break;
 
     const batch = candidates
-      .slice(offset, offset + 2)
+      .slice(offset, offset + 4)
       .filter((item) => {
         const key = stableDiscoveredSourceKey(item);
         return key && !seen.has(key);
@@ -3010,8 +3033,8 @@ export function PlayerProvider({
                   season,
                   episode,
                   targetCount: 1,
-                  scanLimit: 6,
-                  timeBudgetMs: 3500,
+                  scanLimit: 12,
+                  timeBudgetMs: 5000,
                 })
               : [];
 
@@ -3274,8 +3297,9 @@ export function PlayerProvider({
               mediaType,
               season,
               episode,
-              targetCount: 5,
-              scanLimit: 20,
+              targetCount: 1,
+              scanLimit: 40,
+              timeBudgetMs: 10000,
             });
 
           if (!isCurrentPlay()) {
@@ -3383,7 +3407,9 @@ export function PlayerProvider({
                     ) &&
                     (
                       !requireExplicitEnglishRuntimeFallback ||
-                      detectLanguagePreference(item) === "english"
+                      ["english", "multi"].includes(
+                        detectLanguagePreference(item)
+                      )
                     )
                 ),
                 hasDebrid,
@@ -3394,7 +3420,7 @@ export function PlayerProvider({
                   runtimeQualificationFallback: true,
                   launchQualification:
                     requireExplicitEnglishRuntimeFallback
-                      ? "rd-runtime-explicit-english-hint"
+                      ? "rd-runtime-english-capable-hint"
                       : "rd-runtime-audio-rescue",
                 }))
             : [];
