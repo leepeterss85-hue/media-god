@@ -1,7 +1,7 @@
 {
   "channel": "fire-tv",
-  "versionCode": 62,
-  "versionName": "1.4.57",
+  "versionCode": 63,
+  "versionName": "1.4.58",
   "title": "Media God Fire TV",
   "message": "Media God Fire TV 1.4.57 puts the source that is actually playing at the top of Best, keeps cached qualified English-compatible sources ahead of uncached guesses, and pushes obvious hard-sub releases lower while keeping every source visible.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
