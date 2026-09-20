@@ -2088,6 +2088,11 @@ test("automatic English playback requires a proven non-commentary English main t
     providerSource,
     /commentary\|audio\[ \._-\]\*description/
   );
+  assert.match(providerSource, /const labelText = \[/);
+  assert.match(
+    providerSource,
+    /\(\?:eng\|en\|english\)/
+  );
 });
 
 test("explicit Real-Debrid library playback remains a deliberate manual exception", () => {
@@ -2136,7 +2141,7 @@ test("strict startup never autoplays request sources before qualification", () =
   );
 });
 
-test("strict VOD chooser exposes verified sources while retaining raw discovery internally", () => {
+test("strict VOD autoplay keeps the full chooser and falls back to cached runtime rescue", () => {
   const providerSource = readFileSync(
     new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
     "utf8"
@@ -2144,15 +2149,18 @@ test("strict VOD chooser exposes verified sources while retaining raw discovery 
 
   assert.match(
     providerSource,
-    /completeSources:[\s\S]{0,160}qualificationMode[\s\S]{0,120}qualifiedLaunchSources/
+    /completeSources:\s*canonicalCompletePlaybackSources/
   );
   assert.match(
     providerSource,
     /discoveredSources:[\s\S]{0,100}canonicalCompletePlaybackSources/
   );
+  assert.match(providerSource, /const runtimeFallbackSources/);
+  assert.match(providerSource, /runtimeQualificationFallback:\s*true/);
+  assert.match(providerSource, /rd-runtime-audio-rescue/);
   assert.match(
     providerSource,
-    /targetCount:\s*5[\s\S]{0,60}scanLimit:\s*20/
+    /targetCount:\s*5[\s\S]{0,80}scanLimit:\s*20[\s\S]{0,80}timeBudgetMs:\s*6500/
   );
 });
 
@@ -2239,7 +2247,8 @@ test("full discovery cannot bypass strict media and audio qualification", () => 
 
   assert.match(providerSource, /SAFE_RD_LAUNCH_AUDIO_STATES/);
   assert.match(providerSource, /strictRdLaunchQualification/);
-  assert.match(providerSource, /requested_year_not_proven/);
+  assert.match(providerSource, /sourceMatchesRequestedIdentity/);
+  assert.doesNotMatch(providerSource, /requested_year_not_proven/);
   assert.match(providerSource, /audioTracks\.length < 1/);
   assert.match(providerSource, /videoTracks\.length < 1/);
   assert.match(providerSource, /qualifyCachedRealDebridLaunchPool/);
