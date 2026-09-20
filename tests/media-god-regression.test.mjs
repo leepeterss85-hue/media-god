@@ -3101,7 +3101,7 @@ test("native playback receives the full compatibility-sorted source list", () =>
 
   assert.match(
     playerSource,
-    /sources:\s*sortedSourceEntries[\s\S]{0,220}?sourceIsUserSelectable/
+    /sources:\s*selectableSourceEntries[\s\S]{0,900}?webIndex:\s*index/
   );
   assert.doesNotMatch(
     playerSource,
@@ -3149,11 +3149,11 @@ test("audio and video compatibility tier drives source ordering without hiding r
   );
   assert.match(
     automaticOrderSource,
-    /compatibilityTier[\s\S]{0,160}?compatibilityTier/
+    /effectiveCompatibilityTier\(left\)[\s\S]{0,160}?effectiveCompatibilityTier\(right\)/
   );
   assert.match(
     selectorSource,
-    /sourceIsUserSelectable\(entry\.item\)[\s\S]{0,100}?entry\.compatibilityTier <= 1/
+    /sourceIsUserSelectable\(entry\.item\)[\s\S]{0,220}?entry\.cached === true[\s\S]{0,180}?entry\.compatibilityTier <= 1/
   );
   assert.match(
     selectorSource,
