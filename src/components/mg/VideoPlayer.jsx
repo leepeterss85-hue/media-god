@@ -43,6 +43,7 @@ import {
   getPlaybackDeviceProfile,
   hasSevereVideoRisk,
   scoreSourceCompatibility,
+  sourcePlaybackCompatibilityTier,
 } from "@/components/mg/mediaCompatibility";
 import {
   debridProviderScoreHints,
@@ -1435,6 +1436,15 @@ export default function VideoPlayer({
         qualityPreference: preferences.quality,
       }
     );
+    const compatibilityTier = sourcePlaybackCompatibilityTier(
+      item,
+      label,
+      { deviceProfile }
+    );
+    const compatibilityTierPriority =
+      item?.live || item?.type === "live"
+        ? 0
+        : (3 - compatibilityTier) * 250000;
 
     const learned = playbackReliabilityAdjustment(
       label,
@@ -1498,6 +1508,7 @@ export default function VideoPlayer({
         : 0;
 
     return (
+      compatibilityTierPriority +
       compatibility +
       languagePriority +
       learned +
