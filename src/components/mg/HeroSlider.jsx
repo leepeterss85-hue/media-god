@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Play,
   Info,
@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { Image } from "@/components/ui/image";
 import { cn } from "@/lib/utils";
+import { filterItemsWithPlayableSources } from "@/components/mg/sourceAvailability";
 
 const BackdropImage = /** @type {any} */ (Image);
 
@@ -30,9 +31,57 @@ export default function HeroSlider({
   onWatch,
   onDetails,
   onWatchlist,
+  sourceAvailableOnly = false,
 }) {
   const [idx, setIdx] = useState(0);
-  const count = items.length;
+  const [availableItems, setAvailableItems] = useState(() =>
+    sourceAvailableOnly ? [] : Array.isArray(items) ? items : []
+  );
+  const itemSignature = useMemo(
+    () =>
+      (Array.isArray(items) ? items : [])
+        .map((item) =>
+          [
+            item?.media_type || item?.mediaType || item?.type || "movie",
+            item?.tmdb_id || item?.tmdbId || item?.id || "",
+          ].join(":")
+        )
+        .join("|"),
+    [items]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!sourceAvailableOnly) {
+      setAvailableItems(Array.isArray(items) ? items : []);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setAvailableItems([]);
+
+    void filterItemsWithPlayableSources(items, {
+      concurrency: 4,
+      maxItems: 6,
+    }).then((next) => {
+      if (!cancelled) {
+        setAvailableItems(next);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [itemSignature, items, sourceAvailableOnly]);
+
+  const visibleItems = sourceAvailableOnly
+    ? availableItems
+    : Array.isArray(items)
+      ? items
+      : [];
+  const count = visibleItems.length;
   const fireTv = isFireTvRuntime();
 
   const next = useCallback(
@@ -65,7 +114,7 @@ export default function HeroSlider({
     );
   }
 
-  const item = items[idx];
+  const item = visibleItems[idx];
   const title = item.title;
   const mediaType = item.media_type || "movie";
   const gradient = GRADIENTS[(Number(item.id) || 0) % GRADIENTS.length];
@@ -178,7 +227,7 @@ export default function HeroSlider({
       </button>
 
       <div data-mg-hero-pagination="true" className="absolute bottom-3 sm:bottom-4 3xl:bottom-6 left-1/2 -translate-x-1/2 flex gap-2 3xl:gap-3">
-        {items.slice(0, 6).map((_, index) => (
+        {visibleItems.slice(0, 6).map((_, index) => (
           <button
             type="button"
             key={index}
