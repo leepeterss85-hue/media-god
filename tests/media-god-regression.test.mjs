@@ -3507,6 +3507,23 @@ test("startup discovery cannot flash through unverified English candidates", () 
     /Preparing the best English source automatically/
   );
 
+  assert.match(
+    playerSource,
+    /MAX_RAPID_IMMEDIATE_VOD_FAILOVERS = 2/
+  );
+  assert.match(
+    playerSource,
+    /RAPID_FAILOVER_WINDOW_MS = 8000/
+  );
+  assert.match(
+    playerSource,
+    /will not flash through the whole list/
+  );
+  assert.match(
+    playerSource,
+    /rapidImmediateCount = 0/
+  );
+
   /*
    * The candidate may still delay native launch while background caching proves
    * it, but it is not allowed to change activeIdx speculatively.
