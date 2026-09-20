@@ -3249,7 +3249,7 @@ test("Best chooser pins the playing VOD first and native playback receives that 
 
   assert.match(
     playerSource,
-    /sourceSortMode === "best"[\s\S]{0,260}?entry\.index === activeIdx[\s\S]{0,260}?selectableSourceEntries = \[/
+    /sourceSortMode === "best"[\s\S]{0,260}?entry\.index === activeIdx[\s\S]{0,260}?activeEntry\?\.provenWorking === true[\s\S]{0,180}?selectableSourceEntries = \[/
   );
   assert.match(
     playerSource,
@@ -3301,6 +3301,36 @@ test("best approved cached English row owns startup and strict waiting can still
   assert.match(
     poolSource,
     /runtimeQualificationFallback:\s*runtimeFallbackApproved/
+  );
+});
+
+test("unproven provider startup cannot block English torrent caching or autoplay handoff", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(
+    playerSource,
+    /\(isProvider && !bestSourceShouldOwnStartup\)/
+  );
+
+  const builderStart = playerSource.indexOf("TRUSTED CACHED BACKGROUND BUILDER");
+  const builderEnd = playerSource.indexOf("recoveryResumeRef.current = 0", builderStart);
+  assert.ok(builderStart >= 0 && builderEnd > builderStart);
+
+  const builderBlock = playerSource.slice(builderStart, builderEnd);
+  assert.doesNotMatch(
+    builderBlock,
+    /!titleKey[\s\S]{0,220}?isProvider\s*\|\|/
+  );
+  assert.match(
+    builderBlock,
+    /Number\(left\.languageRank \?\? 3\) - Number\(right\.languageRank \?\? 3\)/
+  );
+  assert.match(
+    builderBlock,
+    /Number\(left\.hardSubtitleRank \?\? 0\) - Number\(right\.hardSubtitleRank \?\? 0\)/
   );
 });
 
