@@ -88,6 +88,44 @@ const findContiguous = (haystack, needle) => {
   return -1;
 };
 
+const titleTokenSets = (title, alternateTitles = []) => {
+  const seen = new Set();
+
+  return [
+    title,
+    ...(Array.isArray(alternateTitles) ? alternateTitles : []),
+  ]
+    .map(clean)
+    .filter(Boolean)
+    .map((value) => ({
+      value,
+      tokens: tokens(value),
+    }))
+    .filter(({ tokens: valueTokens }) => valueTokens.length > 0)
+    .filter(({ tokens: valueTokens }) => {
+      const key = valueTokens.join(" ");
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((left, right) => right.tokens.length - left.tokens.length);
+};
+
+const bestTitleTokenMatch = (haystack, candidateTokenSets) => {
+  for (const candidate of candidateTokenSets) {
+    const index = findContiguous(haystack, candidate.tokens);
+
+    if (index >= 0) {
+      return {
+        ...candidate,
+        index,
+      };
+    }
+  }
+
+  return null;
+};
+
 const explicitYears = (value) =>
   Array.from(
     clean(value).matchAll(/\b(?:19|20)\d{2}\b/g),
@@ -100,6 +138,7 @@ export const sourceIdentityMismatchReason = (
     title = "",
     year = "",
     alternateYears = [],
+    alternateTitles = [],
     mediaType = "movie",
   } = {}
 ) => {
@@ -149,31 +188,43 @@ export const sourceIdentityMismatchReason = (
   }
 
   if (String(mediaType || "movie").toLowerCase() !== "tv") {
-    const requestedTokens = tokens(requestedTitle);
+    const acceptedTitleTokens = titleTokenSets(
+      requestedTitle,
+      alternateTitles
+    );
     const releaseTokens = tokens(releaseName);
-    const titleIndex = findContiguous(releaseTokens, requestedTokens);
+    const releaseTitleMatch = bestTitleTokenMatch(
+      releaseTokens,
+      acceptedTitleTokens
+    );
     const strictFilename = strictReleaseFilenameText(item);
 
     /*
      * A real torrent/file filename is stronger evidence than an addon display
      * label. Once we have that filename, it must actually contain the requested
-     * movie title. This is the final guard against a provider/search result that
-     * happened to carry the right year but resolved to a different film.
+     * movie title OR one of the title's verified alternate release names.
+     * Year/sequel/suffix checks still run below, so an alias is not a broad
+     * fuzzy-title bypass.
      */
-    if (strictFilename && requestedTokens.length > 0) {
+    if (strictFilename && acceptedTitleTokens.length > 0) {
       const strictTokens = tokens(strictFilename);
-      const strictTitleIndex = findContiguous(strictTokens, requestedTokens);
+      const strictTitleMatch = bestTitleTokenMatch(
+        strictTokens,
+        acceptedTitleTokens
+      );
 
-      if (strictTitleIndex < 0) {
+      if (!strictTitleMatch) {
         return "conflicting_release_title";
       }
     }
 
-    if (titleIndex >= 0 && requestedTokens.length > 0) {
+    if (releaseTitleMatch) {
+      const matchedTokens = releaseTitleMatch.tokens;
+      const titleIndex = releaseTitleMatch.index;
       const requestedEndsInSequelMarker = SEQUEL_MARKERS.has(
-        requestedTokens[requestedTokens.length - 1]
+        matchedTokens[matchedTokens.length - 1]
       );
-      const nextToken = releaseTokens[titleIndex + requestedTokens.length] || "";
+      const nextToken = releaseTokens[titleIndex + matchedTokens.length] || "";
 
       /*
        * "Resident Evil" must not match "Resident Evil 2". The same rule helps
