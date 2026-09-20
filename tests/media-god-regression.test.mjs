@@ -2644,6 +2644,27 @@ test("English-first audio keeps manual choices locked and never enters an uncach
     rdSource,
     /This cached release has no labelled English audio track/
   );
+  assert.match(rdSource, /forced_audio_rescue_original_probe/);
+  assert.doesNotMatch(
+    rdSource,
+    /forced_audio_rescue_unavailable_try_next_source/
+  );
+
+  const forcedRescueStart = rdSource.indexOf("if (forceAudioRescue) {");
+  const forcedRescueEnd = rdSource.indexOf(
+    "if (audioTracks.length === 0)",
+    forcedRescueStart
+  );
+  assert.ok(forcedRescueStart >= 0);
+  assert.ok(forcedRescueEnd > forcedRescueStart);
+  const forcedRescueBlock = rdSource.slice(
+    forcedRescueStart,
+    forcedRescueEnd
+  );
+  assert.match(forcedRescueBlock, /stream_url:\s*originalUrl/);
+  assert.match(forcedRescueBlock, /Same File Audio Probe/);
+  assert.doesNotMatch(forcedRescueBlock, /error_code/);
+  assert.doesNotMatch(forcedRescueBlock, /try another source/i);
 
   compatibilityFiles.forEach((file) => {
     const source = readFileSync(new URL(file, import.meta.url), "utf8");
