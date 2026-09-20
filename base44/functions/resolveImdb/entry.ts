@@ -320,7 +320,7 @@ export default async function (req) {
         identityMatches ||
         (!title && !year)
       ) {
-        const [imdbId, alternateTitles] = await Promise.all([
+        const [imdbId, alternateTitles, alternateYears] = await Promise.all([
           externalIdForTmdb({
             apiKey,
             tmdbId,
@@ -332,6 +332,13 @@ export default async function (req) {
             mediaType,
             record,
           }),
+          tmdbAdjacentReleaseYears({
+            apiKey,
+            tmdbId,
+            mediaType,
+            record,
+            requestedYear: year,
+          }),
         ]);
 
         if (imdbId) {
@@ -342,6 +349,7 @@ export default async function (req) {
                 : imdbId,
             tmdb_id: tmdbId,
             alternate_titles: alternateTitles,
+            alternate_years: alternateYears,
             source:
               validImdb(suppliedImdb) && suppliedImdb !== imdbId
                 ? "tmdb_id_corrected_supplied_imdb"
@@ -360,7 +368,7 @@ export default async function (req) {
       });
 
       if (match?.id) {
-        const [imdbId, alternateTitles] = await Promise.all([
+        const [imdbId, alternateTitles, alternateYears] = await Promise.all([
           externalIdForTmdb({
             apiKey,
             tmdbId: match.id,
@@ -372,6 +380,13 @@ export default async function (req) {
             mediaType,
             record: match,
           }),
+          tmdbAdjacentReleaseYears({
+            apiKey,
+            tmdbId: match.id,
+            mediaType,
+            record: match,
+            requestedYear: year,
+          }),
         ]);
 
         if (imdbId) {
@@ -379,6 +394,7 @@ export default async function (req) {
             imdb_id: imdbId,
             tmdb_id: String(match.id),
             alternate_titles: alternateTitles,
+            alternate_years: alternateYears,
             source:
               validImdb(suppliedImdb) && suppliedImdb !== imdbId
                 ? "title_search_corrected_supplied_imdb"
