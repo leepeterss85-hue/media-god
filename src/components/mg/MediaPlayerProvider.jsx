@@ -1197,11 +1197,32 @@ const launchTrackIsEnglish = (track) => {
       ""
   );
 
-  return (
+  if (
     language === "en" ||
     language === "eng" ||
     language === "english" ||
     language.startsWith("en-")
+  ) {
+    return true;
+  }
+
+  /*
+   * Real-Debrid mediaInfos is not consistent about filling language_iso.
+   * Some perfectly good tracks only expose "English" / "ENG" in the track
+   * title or label. Treat those explicit labels as real language evidence
+   * instead of rejecting the whole cached release and leaving Shown 0.
+   */
+  const labelText = [
+    track?.title,
+    track?.name,
+    track?.label,
+    track?.description,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return /(?:^|[\s._\-[\](){}|+,])(?:eng|en|english)(?=$|[\s._\-[\](){}|+,])/i.test(
+    labelText
   );
 };
 
@@ -1303,25 +1324,13 @@ const strictRdLaunchQualification = ({
     };
   }
 
-  const requestedYear = String(year || "").trim();
-  if (
-    String(mediaType || "movie").toLowerCase() !== "tv" &&
-    /^\d{4}$/.test(requestedYear)
-  ) {
-    const yearPattern = new RegExp(
-      `(?:^|[^0-9])${requestedYear}(?:[^0-9]|$)`
-    );
-
-    /*
-     * Autoplay is deliberately stricter than manual selection. A movie with a
-     * supplied year must prove that year in the resolved file name. This stops
-     * franchise packs such as Resident Evil Apocalypse/Extinction from being
-     * treated as the requested 2026 movie when an addon omits precise metadata.
-     */
-    if (!yearPattern.test(filename)) {
-      return { ok: false, reason: "requested_year_not_proven", score: -Infinity };
-    }
-  }
+  /*
+   * Release identity has already been checked with sourceMatchesRequestedIdentity
+   * before this function is called. That check rejects an explicitly conflicting
+   * year or sequel number, while allowing correct releases whose filename simply
+   * omits the year. Requiring the year twice caused valid cached movies to be
+   * discarded even after the addon identity was already proven.
+   */
 
   const primaryAudio =
     audioTracks.find(launchTrackIsEnglishMain) ||
@@ -2032,9 +2041,34 @@ const qualifyCachedRealDebridLaunchPool = async ({
   episode = null,
   targetCount = 3,
   scanLimit = 10,
+  timeBudgetMs = 6500,
 }) => {
   const output = [];
   const seen = new Set();
+  const deadlineAt =
+    Date.now() +
+    Math.max(1200, Number(timeBudgetMs || 6500));
+
+  const withDeadline = (promise, remainingMs) =>
+    new Promise((resolve) => {
+      let settled = false;
+
+      const finish = (value) => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timer);
+        resolve(value);
+      };
+
+      const timer = window.setTimeout(
+        () => finish(null),
+        Math.max(150, Number(remainingMs || 0))
+      );
+
+      Promise.resolve(promise)
+        .then(finish)
+        .catch(() => finish(null));
+    });
 
   const add = (item) => {
     if (!item?.launchQualified) return;
@@ -2059,6 +2093,9 @@ const qualifyCachedRealDebridLaunchPool = async ({
     offset < candidates.length && output.length < targetCount;
     offset += 2
   ) {
+    const remainingMs = deadlineAt - Date.now();
+    if (remainingMs <= 0) break;
+
     const batch = candidates
       .slice(offset, offset + 2)
       .filter((item) => {
@@ -2068,15 +2105,18 @@ const qualifyCachedRealDebridLaunchPool = async ({
 
     const results = await Promise.all(
       batch.map((item) =>
-        qualifyCachedRealDebridLaunchSource({
-          item,
-          title,
-          year,
-          alternateYears,
-          mediaType,
-          season,
-          episode,
-        })
+        withDeadline(
+          qualifyCachedRealDebridLaunchSource({
+            item,
+            title,
+            year,
+            alternateYears,
+            mediaType,
+            season,
+            episode,
+          }),
+          remainingMs
+        )
       )
     );
 
@@ -2497,6 +2537,7 @@ export function PlayerProvider({
               episode,
               targetCount: 5,
               scanLimit: 20,
+              timeBudgetMs: 6500,
             });
         }
 
@@ -2674,21 +2715,17 @@ export function PlayerProvider({
           rdEpisode: request?.rdEpisode ?? episode,
           sources: initialSources,
           completeSources:
-            qualificationMode
-              ? initialPlayableSources.filter(
-                  (item) => item?.launchQualified === true
-                )
-              : (
-                  Array.isArray(request?.completeSources) &&
-                  request.completeSources.length > 0
-                    ? request.completeSources
-                    : initialPlayableSources
-                ),
+            Array.isArray(request?.completeSources) &&
+            request.completeSources.length > 0
+              ? request.completeSources
+              : initialOrderedSources,
           discoveredSources:
             Array.isArray(request?.completeSources) &&
             request.completeSources.length > 0
               ? request.completeSources
               : initialOrderedSources,
+          qualifiedLaunchOnly:
+            qualificationMode,
           src: getSourceUrl(initialPrimary),
           url: getSourceUrl(initialPrimary),
           hasRd,
@@ -2971,6 +3008,7 @@ export function PlayerProvider({
                   episode,
                   targetCount: 1,
                   scanLimit: 6,
+                  timeBudgetMs: 3500,
                 })
               : [];
 
@@ -3304,6 +3342,44 @@ export function PlayerProvider({
             stableDiscoveredSourceKey
           );
 
+        /*
+         * Strict media inspection is still the first choice. If it cannot prove
+         * a launch within the short budget, do not leave the viewer on an
+         * infinite loading card. Use the best already-cached Real-Debrid rows
+         * that still match the requested title/year identity and let the native
+         * player perform its real track selection + LibVLC Audio Rescue.
+         *
+         * This is deliberately cached-only: uncached/pending rows remain visible
+         * in the chooser/background cache but are never guessed as autoplay.
+         */
+        const runtimeFallbackSources =
+          qualificationMode &&
+          qualifiedLaunchSources.length === 0
+            ? orderSources({
+                sources: confirmedCachedPlaybackSources.filter(
+                  (item) =>
+                    sourceTargetsRealDebrid(item) &&
+                    sourceMatchesRequestedIdentity(
+                      item,
+                      {
+                        title: addonArgs.title,
+                        year: addonArgs.year,
+                        alternateYears: addonArgs.alternateYears,
+                        mediaType,
+                      }
+                    )
+                ),
+                hasDebrid,
+                preferRd: Boolean(request?.preferRd),
+              })
+                .slice(0, 5)
+                .map((item) => ({
+                  ...item,
+                  runtimeQualificationFallback: true,
+                  launchQualification: "rd-runtime-audio-rescue",
+                }))
+            : [];
+
         const diagnosticLabel =
           buildDiagnosticLabel(
             {
@@ -3447,7 +3523,9 @@ export function PlayerProvider({
           qualificationMode
             ? qualifiedLaunchSources.length > 0
               ? qualifiedLaunchSources
-              : [waitingForVerifiedSource]
+              : runtimeFallbackSources.length > 0
+                ? runtimeFallbackSources
+                : [waitingForVerifiedSource]
             : orderedSources;
 
         const primary =
@@ -3516,9 +3594,7 @@ export function PlayerProvider({
             playerSources,
 
           completeSources:
-            qualificationMode
-              ? qualifiedLaunchSources
-              : canonicalCompletePlaybackSources,
+            canonicalCompletePlaybackSources,
 
           discoveredSources:
             canonicalCompletePlaybackSources,
@@ -3604,6 +3680,9 @@ export function PlayerProvider({
 
             qualifiedLaunchCount:
               qualifiedLaunchSources.length,
+
+            runtimeFallbackCount:
+              runtimeFallbackSources.length,
 
             canonicalSourceCount:
               canonicalCompletePlaybackSources.length,
