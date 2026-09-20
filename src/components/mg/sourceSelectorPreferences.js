@@ -323,8 +323,15 @@ export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
         sourceIsUserSelectable(entry.item) &&
         entry.cached === true &&
         (
-          entry.provenWorking === true ||
-          entry.compatibilityTier <= 1
+          entry.item?.launchQualified === true ||
+          entry.item?.runtimeQualificationFallback === true ||
+          (
+            entry.languageRank === 0 &&
+            (
+              entry.provenWorking === true ||
+              entry.compatibilityTier <= 1
+            )
+          )
         ),
     }));
 
