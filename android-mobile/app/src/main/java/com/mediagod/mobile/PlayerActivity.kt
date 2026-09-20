@@ -749,6 +749,47 @@ class PlayerActivity : Activity() {
         )
     }
 
+    private data class PreferredEnglishReadiness(
+        val present: Boolean,
+        val supported: Boolean,
+        val selected: Boolean
+    )
+
+    private fun inspectPreferredEnglishReadiness(
+        tracks: androidx.media3.common.Tracks
+    ): PreferredEnglishReadiness {
+        var present = false
+        var supported = false
+        var selected = false
+
+        tracks.groups.forEach { group ->
+            if (group.type != C.TRACK_TYPE_AUDIO) return@forEach
+
+            for (index in 0 until group.length) {
+                val format = group.getTrackFormat(index)
+                if (!formatLooksEnglish(format) || formatLooksCommentary(format)) {
+                    continue
+                }
+
+                present = true
+
+                if (group.isTrackSupported(index)) {
+                    supported = true
+                }
+
+                if (group.isTrackSelected(index)) {
+                    selected = true
+                }
+            }
+        }
+
+        return PreferredEnglishReadiness(
+            present = present,
+            supported = supported,
+            selected = selected
+        )
+    }
+
     private fun scheduleMissingAudioCheck(
         activePlayer: ExoPlayer,
         tracks: androidx.media3.common.Tracks
@@ -765,6 +806,14 @@ class PlayerActivity : Activity() {
         }
 
         val initialAudio = inspectAudioReadiness(tracks)
+        val preferredAudio = payload.optString("audioLanguage", "en")
+            .trim()
+            .lowercase()
+        val wantsEnglish =
+            preferredAudio in setOf("en", "eng", "english")
+        val initialEnglish =
+            inspectPreferredEnglishReadiness(tracks)
+
         /*
          * A risky codec is not itself a playback failure. If Media3 reports an
          * audio track as present, supported and selected, keep the working
@@ -774,11 +823,22 @@ class PlayerActivity : Activity() {
          *
          * Compatibility fallback remains available for a genuinely missing,
          * unsupported or unselected audio renderer and through onPlayerError.
+         *
+         * Crucially, "some audio is selected" is not enough when English is the
+         * preference. A remux can contain a supported foreign AAC/AC3 default
+         * plus an English DTS/TrueHD track that Media3 cannot select. In that
+         * case keep the exact same source and hand it to the compatibility
+         * decoder instead of accepting the foreign renderer as success.
          */
         val needsRescue =
             !initialAudio.present ||
                 !initialAudio.supported ||
-                !initialAudio.selected
+                !initialAudio.selected ||
+                (
+                    wantsEnglish &&
+                        initialEnglish.present &&
+                        !initialEnglish.selected
+                )
 
         if (!needsRescue) {
             /*
@@ -817,7 +877,12 @@ class PlayerActivity : Activity() {
             }
 
             val audio = inspectAudioReadiness(currentTracks)
+            val english = inspectPreferredEnglishReadiness(currentTracks)
             val reason = when {
+                wantsEnglish && english.present && !english.supported ->
+                    "An English audio track is present but this device cannot decode it in Media3. Trying the compatibility decoder on this same source."
+                wantsEnglish && english.present && !english.selected ->
+                    "An English audio track is present but Media3 did not select it. Trying the compatibility decoder on this same source."
                 !audio.present ->
                     "Media3 found video but no audio track. Trying the compatibility decoder."
                 !audio.supported ->

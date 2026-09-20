@@ -1101,14 +1101,26 @@ export default function VideoPlayer({
        * Metadata qualification remains the strongest signal, but it must not
        * block obvious cached playback. If the source is already confirmed
        * cached, the device compatibility tier says audio+video are suitable,
-       * English/multi is preferred, and there is no hard-sub marker, approve it
-       * for automatic start even when the asynchronous media-inspection flag
-       * has not been attached yet.
+       * explicit English is preferred, and there is no hard-sub marker, approve
+       * it for automatic start even when the asynchronous media-inspection flag
+       * has not been attached yet. Multi-audio is not proof that English is the
+       * usable/default track, so it still needs strict/runtime qualification.
        */
       const cachedCompatibleEnglishAutoplay = Boolean(
         entry?.cached === true &&
           Number(entry?.compatibilityTier ?? 3) <= 1 &&
-          Number(entry?.languageRank ?? 3) <= 1 &&
+          Number(entry?.languageRank ?? 3) === 0 &&
+          Number(entry?.hardSubtitleRank ?? 0) === 0
+      );
+
+      /*
+       * A torrent becoming cached only proves bytes are ready. It does not prove
+       * that a multi-audio/unknown release will expose usable English on this
+       * device. Keep runtime-ready rows behind the same explicit-English gate.
+       */
+      const runtimeReadyEnglishAutoplay = Boolean(
+        runtimeReady &&
+          Number(entry?.languageRank ?? 3) === 0 &&
           Number(entry?.hardSubtitleRank ?? 0) === 0
       );
 
@@ -1117,7 +1129,7 @@ export default function VideoPlayer({
           item?.runtimeQualificationFallback === true ||
           item?.playbackVerified === true ||
           item?.runtimePlaybackVerified === true ||
-          runtimeReady ||
+          runtimeReadyEnglishAutoplay ||
           cachedCompatibleEnglishAutoplay
       );
     })?.index ?? -1;

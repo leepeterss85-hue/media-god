@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 45,
-  "versionName": "1.0.44",
+  "versionCode": 46,
+  "versionName": "1.0.45",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.44 now automatically starts the best cached source when audio and video are compatible, English or multi-audio is preferred, and there is no obvious hard-sub marker. The full source list remains visible.",
+  "message": "Media God Mobile 1.0.45 keeps working audio playing, no longer treats multi-audio or cache readiness alone as proof of English, and sends the same mixed-language source to the compatibility decoder when its English track needs broader codec support.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
