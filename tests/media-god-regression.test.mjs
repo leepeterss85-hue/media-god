@@ -2824,37 +2824,31 @@ test("authoritative IDs stay isolated and English autoplay never falls back blin
 });
 
 
-test("Fire TV software-decodes passthrough-risk audio without changing sources", () => {
-  const mobileSource = readFileSync(
-    new URL("../android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt", import.meta.url),
-    "utf8"
-  );
-  const fireSource = readFileSync(
-    new URL("../firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt", import.meta.url),
-    "utf8"
-  );
+test("Android and Fire TV software-decode passthrough-risk audio without changing sources", () => {
+  const nativeFiles = [
+    "../android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt",
+    "../firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt",
+  ];
 
-  const mobileBegin = mobileSource.indexOf("val needsRescue =");
-  const mobileEnd = mobileSource.indexOf("if (!needsRescue)", mobileBegin);
-  assert.ok(mobileBegin >= 0 && mobileEnd > mobileBegin);
-  const mobileGate = mobileSource.slice(mobileBegin, mobileEnd);
-  assert.doesNotMatch(mobileGate, /softwareFallbackPreferred/);
+  for (const file of nativeFiles) {
+    const source = readFileSync(new URL(file, import.meta.url), "utf8");
+    const begin = source.indexOf("val needsRescue =");
+    const end = source.indexOf("if (!needsRescue)", begin);
+    assert.ok(begin >= 0 && end > begin);
 
-  const fireBegin = fireSource.indexOf("val needsRescue =");
-  const fireEnd = fireSource.indexOf("if (!needsRescue)", fireBegin);
-  assert.ok(fireBegin >= 0 && fireEnd > fireBegin);
-  const fireGate = fireSource.slice(fireBegin, fireEnd);
-  assert.match(fireGate, /!initialAudio\.present/);
-  assert.match(fireGate, /!initialAudio\.supported/);
-  assert.match(fireGate, /!initialAudio\.selected/);
-  assert.match(fireGate, /riskyCodecNeedsSoftwareDecode/);
-  assert.match(fireSource, /initialAudio\.softwareFallbackPreferred/);
-  assert.match(fireSource, /audioOutputMode != "passthrough"/);
-  assert.match(fireSource, /if \(riskyCodecNeedsSoftwareDecode\) 250L else 1400L/);
-  assert.match(
-    fireSource,
-    /Keeping this source and software-decoding its audio with the compatibility decoder/
-  );
+    const gate = source.slice(begin, end);
+    assert.match(gate, /!initialAudio\.present/);
+    assert.match(gate, /!initialAudio\.supported/);
+    assert.match(gate, /!initialAudio\.selected/);
+    assert.match(gate, /riskyCodecNeedsSoftwareDecode/);
+    assert.match(source, /initialAudio\.softwareFallbackPreferred/);
+    assert.match(source, /audioOutputMode != "passthrough"/);
+    assert.match(source, /if \(riskyCodecNeedsSoftwareDecode\) 250L else 1400L/);
+    assert.match(
+      source,
+      /software-decoding its audio with the compatibility decoder/
+    );
+  }
 });
 
 test("manual VOD source choices remain locked across native playback recovery", () => {
