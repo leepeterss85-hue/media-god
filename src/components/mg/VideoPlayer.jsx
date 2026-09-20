@@ -1543,6 +1543,60 @@ export default function VideoPlayer({
     );
   };
 
+  const cancelPendingTorrentFailover = () => {
+    if (!torrentFailoverTimerRef.current) {
+      return false;
+    }
+
+    window.clearTimeout(torrentFailoverTimerRef.current);
+    torrentFailoverTimerRef.current = null;
+    return true;
+  };
+
+  const confirmRecoveredSource = (video = null) => {
+    const cancelledFailover = cancelPendingTorrentFailover();
+    const sourceWasFailed = failedSourcesRef.current.has(activeIdx);
+    const sourceWasAbandoned =
+      autoRecoveryRef.current.abandoned.has(activeIdx);
+    const hash = sourceTorrentHash(active);
+    const hashWasFailed =
+      Boolean(hash) && failedTorrentHashesRef.current.has(hash);
+
+    if (sourceWasFailed) {
+      clearSourceFailed(activeIdx);
+    }
+
+    if (sourceWasAbandoned) {
+      autoRecoveryRef.current.abandoned.delete(activeIdx);
+    }
+
+    if (hashWasFailed) {
+      failedTorrentHashesRef.current.delete(hash);
+      forgetPersistentFailedTorrentHash(hash);
+    }
+
+    const currentTime = Math.max(
+      0,
+      Number(
+        video?.currentTime ||
+          lastPosRef.current?.t ||
+          0
+      )
+    );
+
+    autoRecoveryRef.current.lastTime = currentTime;
+    autoRecoveryRef.current.lastProgressAt = Date.now();
+
+    if (
+      cancelledFailover ||
+      sourceWasFailed ||
+      sourceWasAbandoned ||
+      hashWasFailed
+    ) {
+      setRdError("");
+    }
+  };
+
   const findNextPlayableSource = (
     fromIndex,
     { allowCaching = true } = {}
@@ -1990,8 +2044,34 @@ export default function VideoPlayer({
       setRdTorrentId(null);
       setRdError(`${message} Trying one backup torrent source…`);
 
+      const scheduledGeneration =
+        streamActionGenerationRef.current;
+
       torrentFailoverTimerRef.current = window.setTimeout(() => {
         torrentFailoverTimerRef.current = null;
+
+        if (
+          streamActionGenerationRef.current !== scheduledGeneration
+        ) {
+          return;
+        }
+
+        const currentVideo =
+          stageRef.current?.querySelector("video");
+        const recoveredPlayback =
+          currentVideo instanceof HTMLVideoElement &&
+          !currentVideo.paused &&
+          !currentVideo.ended &&
+          !currentVideo.error &&
+          currentVideo.networkState !== HTMLMediaElement.NETWORK_NO_SOURCE &&
+          currentVideo.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
+          Number(currentVideo.currentTime || 0) > 0.15;
+
+        if (recoveredPlayback) {
+          confirmRecoveredSource(currentVideo);
+          return;
+        }
+
         switchToSource(nextIndex, {
           preservePosition: true,
           statusMessage:
@@ -6317,12 +6397,27 @@ export default function VideoPlayer({
     ) => {
       const video =
         event.target;
+      const previousTime = Number(
+        lastPosRef.current?.t || 0
+      );
+      const currentTime = Number(
+        video.currentTime || 0
+      );
+
+      /*
+       * Real playback progress is stronger evidence than an old timeout/error
+       * from the source we just replaced. If a rescued stream is advancing,
+       * keep it. This prevents a stale 1.8-second torrent failover from
+       * abandoning a stream that has already started with working audio.
+       */
+      if (currentTime > previousTime + 0.15) {
+        confirmRecoveredSource(video);
+      }
 
       lastPosRef.current =
         {
           t:
-            video.currentTime ||
-            0,
+            currentTime,
 
           d:
             video.duration ||
@@ -6330,13 +6425,37 @@ export default function VideoPlayer({
         };
 
       saveProgress(
-        video.currentTime ||
-          0,
+        currentTime,
 
         video.duration ||
           0
       );
     };
+
+  useEffect(() => {
+    const overrideUrl = String(
+      rdOverride?.src || ""
+    ).trim();
+
+    if (!overrideUrl) {
+      return;
+    }
+
+    /*
+     * Any newly resolved Real-Debrid/compatibility URL starts a fresh playback
+     * attempt. Cancel delayed failure work from the source it replaced and
+     * allow the current source to prove itself instead of being switched out
+     * underneath the new stream.
+     */
+    cancelPendingTorrentFailover();
+
+    if (failedSourcesRef.current.has(activeIdx)) {
+      clearSourceFailed(activeIdx);
+    }
+
+    autoRecoveryRef.current.abandoned.delete(activeIdx);
+    autoRecoveryRef.current.lastProgressAt = Date.now();
+  }, [activeIdx, rdOverride?.src]);
 
   useEffect(() => {
     if (
@@ -7905,6 +8024,13 @@ export default function VideoPlayer({
       }
 
       const automatic = options?.automatic === true;
+
+      /*
+       * The user has explicitly started an audio-recovery attempt. Any delayed
+       * failover that belongs to the previous silent stream is now stale.
+       */
+      cancelPendingTorrentFailover();
+
       const actionGeneration = ++streamActionGenerationRef.current;
       const actionStillCurrent = () =>
         streamActionGenerationRef.current === actionGeneration;
@@ -7979,6 +8105,7 @@ export default function VideoPlayer({
 
               if (tracks[wantedAudio]?.enabled) {
                 video.play().catch(() => {});
+                confirmRecoveredSource(video);
                 setRdError("");
 
                 window.dispatchEvent(
@@ -8031,6 +8158,7 @@ export default function VideoPlayer({
         }
 
         if (hlsHandled) {
+          confirmRecoveredSource(video);
           setRdError("");
           return;
         }
@@ -8109,6 +8237,12 @@ export default function VideoPlayer({
               data?.stream_url &&
               data?.audio_rescue?.used
             ) {
+              /*
+               * The compatibility rendition has been successfully created.
+               * The old source's delayed failure timer must not survive into it.
+               */
+              confirmRecoveredSource(video);
+
               if (resumeAt > 5) {
                 recoveryResumeRef.current = resumeAt;
               }
@@ -8216,6 +8350,9 @@ export default function VideoPlayer({
     const label = sourceDisplayLabel(candidate, activeIdx);
     const traits = detectStreamTraits(candidate, label);
     const rememberedSilent = hasRecentNoSoundHistory(label);
+    const rescueAlreadyApplied =
+      rdOverride?.audioRescue?.used === true ||
+      active?.audioRescue?.used === true;
 
     /*
      * Run the audio-presence check for every VOD source. Most Chromium builds
@@ -8238,7 +8375,20 @@ export default function VideoPlayer({
         exposedTracks.length === 0 &&
         video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA;
 
-      if (browserConfirmedNoAudio || rememberedSilent || traits.audioRisk) {
+      /*
+       * Once Audio Rescue has produced a compatibility stream, do not use the
+       * ORIGINAL source's no-sound history or risky-codec label to rescue it a
+       * second time. That old evidence says why rescue was needed; it is not
+       * evidence that the new stream is silent. Only a current, authoritative
+       * zero-audio-track signal may override this lock.
+       */
+      if (
+        browserConfirmedNoAudio ||
+        (
+          !rescueAlreadyApplied &&
+          (rememberedSilent || traits.audioRisk)
+        )
+      ) {
         handleNoSoundRef.current?.({
           automatic: true,
           confirmedNoAudio: browserConfirmedNoAudio,
