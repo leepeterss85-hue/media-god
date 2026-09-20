@@ -3090,6 +3090,37 @@ export function PlayerProvider({
         const imdbId =
           imdbInfo.imdbId;
 
+        const identityAlternateTitles = mergeAlternateTitles(
+          request?.rdAlternateTitles,
+          request?.alternateTitles,
+          request?.originalTitle,
+          request?.original_title,
+          imdbInfo?.alternateTitles
+        );
+
+        if (
+          !isLive &&
+          identityAlternateTitles.length > 0
+        ) {
+          setSource((current) => {
+            if (
+              !current ||
+              current.playRequestId !== playId ||
+              !isCurrentPlay()
+            ) {
+              return current;
+            }
+
+            return {
+              ...current,
+              alternateTitles:
+                identityAlternateTitles,
+              rdAlternateTitles:
+                identityAlternateTitles,
+            };
+          });
+        }
+
         const addonArgs = {
           imdbId,
           tmdbId,
@@ -3111,6 +3142,8 @@ export function PlayerProvider({
                   request?.alternateYears
                 )
               : [],
+          alternateTitles:
+            identityAlternateTitles,
           mediaType,
           season,
           episode,
