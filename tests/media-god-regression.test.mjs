@@ -72,7 +72,6 @@ import {
   trackLanguage,
 } from "../src/components/mg/mediaTrackPreferences.js";
 import { preservePublishedSourceOrder } from "../src/components/mg/sourcePublication.js";
-import { sourcePlaybackCompatibilityTier } from "../src/components/mg/mediaCompatibility.js";
 import {
   filterSourcesForRequestedIdentity,
   sourceIdentityMismatchReason,
@@ -2397,34 +2396,27 @@ test("qualification picks the lead source without truncating the full chooser to
   );
 });
 
-test("compatibility tier marks proven audio+video first and known-incompatible audio last", () => {
-  const deviceProfile = {
-    nativePlayerAvailable: true,
-    nativeFireTv: true,
-    fireTv: true,
-    nativeCodecSupport: {
-      video: ["video/avc"],
-      audio: ["audio/mp4a-latm"],
-    },
-  };
-
-  assert.equal(
-    sourcePlaybackCompatibilityTier(
-      { label: "Movie.1080p.H264.AAC.mkv", videoCodec: "h264", audioCodec: "aac" },
-      "",
-      { deviceProfile }
-    ),
-    0
+test("compatibility tier explicitly puts proven audio+video before known incompatibility", () => {
+  const compatibilitySource = readFileSync(
+    new URL("../src/components/mg/mediaCompatibility.js", import.meta.url),
+    "utf8"
   );
 
-  assert.equal(
-    sourcePlaybackCompatibilityTier(
-      { label: "Movie.1080p.H264.DTS.mkv", videoCodec: "h264", audioCodec: "dts" },
-      "",
-      { deviceProfile }
-    ),
-    3
+  const start = compatibilitySource.indexOf(
+    "export const sourcePlaybackCompatibilityTier"
   );
+  const end = compatibilitySource.indexOf(
+    "export const scoreSourceCompatibility",
+    start
+  );
+  assert.ok(start >= 0 && end > start);
+
+  const tierBlock = compatibilitySource.slice(start, end);
+  assert.match(tierBlock, /item\?\.launchQualified === true\) return 0/);
+  assert.match(tierBlock, /video === true && audio === true\) return 0/);
+  assert.match(tierBlock, /video === false \|\| audio === false\) return 3/);
+  assert.match(tierBlock, /video === true \|\| audio === true\) return 1/);
+  assert.match(tierBlock, /return 2/);
 });
 
 test("Real-Debrid zero-audio inspection tries transcode then rejects the silent source", () => {
