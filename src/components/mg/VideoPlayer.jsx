@@ -839,6 +839,28 @@ export default function VideoPlayer({
     sourceKey: "",
     playRequestId: null,
   });
+  const lastPlayRequestIdRef = useRef(
+    source?.playRequestId ?? null
+  );
+
+  /*
+   * A new movie/episode owns a new source list. Never carry an old list index
+   * or manual source lock into the next playback request.
+   */
+  useEffect(() => {
+    const nextPlayRequestId = source?.playRequestId ?? null;
+
+    if (lastPlayRequestIdRef.current === nextPlayRequestId) {
+      return;
+    }
+
+    lastPlayRequestIdRef.current = nextPlayRequestId;
+    manualSourceLockRef.current = {
+      sourceKey: "",
+      playRequestId: nextPlayRequestId,
+    };
+    setActiveIdx(0);
+  }, [source?.playRequestId]);
 
   useEffect(() => {
     return () => {
@@ -1052,6 +1074,35 @@ export default function VideoPlayer({
         !failedSourcesRef.current.has(index) &&
         !sourceNeedsCaching(item)
     )?.index ?? -1;
+
+  /*
+   * A strict-start status row may be active while verified/cached results are
+   * arriving asynchronously. Only rows explicitly approved for automatic
+   * playback are allowed to replace that barrier automatically.
+   */
+  const automaticApprovedAutoplaySourceIndex =
+    selectableSourceEntries.find(({ item, index }) => {
+      if (
+        index === activeIdx ||
+        failedSourcesRef.current.has(index) ||
+        sourceNeedsCaching(item)
+      ) {
+        return false;
+      }
+
+      const hash = sourceTorrentHash(item);
+      const runtimeReady = Boolean(
+        hash && runtimeReadyTorrentHashes.has(hash)
+      );
+
+      return Boolean(
+        item?.launchQualified === true ||
+          item?.runtimeQualificationFallback === true ||
+          item?.playbackVerified === true ||
+          item?.runtimePlaybackVerified === true ||
+          runtimeReady
+      );
+    })?.index ?? -1;
 
   /*
    * Android/Fire TV native <select> popups close if React changes their
@@ -2390,6 +2441,11 @@ export default function VideoPlayer({
   );
   const activeNeedsCaching =
     !activeHasResolvedStream && sourceNeedsCaching(active);
+  const activeIsWaitingForVerifiedSource =
+    Boolean(
+      active?.diagnostic ||
+        String(active?.type || "").toLowerCase() === "status"
+    );
 
   /*
    * Torrent identity is authoritative. Addons can expose an uncached torrent
@@ -2440,12 +2496,17 @@ export default function VideoPlayer({
    * one slow torrent must not block an already-ready backup.
    */
   useEffect(() => {
+    const nextAutomaticSourceIndex =
+      activeIsWaitingForVerifiedSource
+        ? automaticApprovedAutoplaySourceIndex
+        : automaticReadySourceIndex;
+
     if (
       isLive ||
       isYoutube ||
       isProvider ||
-      !activeNeedsCaching ||
-      automaticReadySourceIndex < 0 ||
+      (!activeNeedsCaching && !activeIsWaitingForVerifiedSource) ||
+      nextAutomaticSourceIndex < 0 ||
       rdResolving ||
       rdPolling ||
       rdTorrentId ||
@@ -2454,14 +2515,18 @@ export default function VideoPlayer({
       return;
     }
 
-    switchToSource(automaticReadySourceIndex, {
+    switchToSource(nextAutomaticSourceIndex, {
       preservePosition: false,
       statusMessage:
-        "Opening a ready source while Media God prepares the other torrents in the background…",
+        activeIsWaitingForVerifiedSource
+          ? "Verified cached source ready — starting automatically…"
+          : "Opening a ready source while Media God prepares the other torrents in the background…",
     });
   }, [
     activeIdx,
+    activeIsWaitingForVerifiedSource,
     activeNeedsCaching,
+    automaticApprovedAutoplaySourceIndex,
     automaticReadySourceIndex,
     fileSwitching,
     isLive,

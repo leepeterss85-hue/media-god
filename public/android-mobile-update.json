@@ -1,7 +1,7 @@
 {
   "channel": "android-mobile",
-  "versionCode": 44,
-  "versionName": "1.0.43",
+  "versionCode": 45,
+  "versionName": "1.0.44",
   "title": "Media God Mobile",
   "message": "Media God Mobile 1.0.43 puts the source that is actually playing at the top of Best, keeps cached qualified English-compatible sources ahead of uncached guesses, and pushes obvious hard-sub releases lower while keeping every source visible.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",

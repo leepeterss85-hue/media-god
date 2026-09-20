@@ -3230,3 +3230,75 @@ test("Best chooser pins the playing VOD first and native playback receives that 
   assert.match(automaticSource, /effectiveCompatibilityTier/);
   assert.match(automaticSource, /hardSubtitleRank/);
 });
+
+
+test("strict waiting row automatically hands off to an approved cached source", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+  const poolSource = readFileSync(
+    new URL("../src/components/mg/sourcePoolCompleteness.js", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(playerSource, /automaticApprovedAutoplaySourceIndex/);
+  assert.match(playerSource, /activeIsWaitingForVerifiedSource/);
+  assert.match(
+    playerSource,
+    /activeIsWaitingForVerifiedSource[\s\S]{0,180}?automaticApprovedAutoplaySourceIndex/
+  );
+  assert.match(
+    playerSource,
+    /!activeNeedsCaching && !activeIsWaitingForVerifiedSource/
+  );
+  assert.match(
+    playerSource,
+    /Verified cached source ready — starting automatically/
+  );
+  assert.match(
+    poolSource,
+    /runtimeQualificationFallback:\s*runtimeFallbackApproved/
+  );
+});
+
+test("a new playback request resets the old source index and manual lock", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(playerSource, /lastPlayRequestIdRef/);
+  assert.match(
+    playerSource,
+    /lastPlayRequestIdRef\.current = nextPlayRequestId[\s\S]{0,220}?manualSourceLockRef\.current = \{[\s\S]{0,160}?setActiveIdx\(0\)/
+  );
+});
+
+test("full source-pool merge preserves runtime autoplay approval", () => {
+  const hash = "d".repeat(40);
+  const published = {
+    infoHash: hash,
+    label: "Approved cached fallback",
+    type: "rd",
+    runtimeQualificationFallback: true,
+    debridCached: true,
+    url: "magnet:?xt=urn:btih:" + hash,
+  };
+  const complete = {
+    infoHash: hash,
+    label: "Richer discovered row",
+    type: "rd",
+    debridCached: true,
+    url: "magnet:?xt=urn:btih:" + hash,
+    reportedSeeders: 100,
+  };
+
+  const merged = mergeCompleteSourcePool([published], [complete], {
+    preservePublishedStatus: true,
+  });
+
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].runtimeQualificationFallback, true);
+  assert.equal(merged[0].reportedSeeders, 100);
+});
