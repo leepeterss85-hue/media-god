@@ -3628,7 +3628,7 @@ test("a new playback request resets the old source index and manual lock", () =>
   assert.match(playerSource, /lastPlayRequestIdRef/);
   assert.match(
     playerSource,
-    /lastPlayRequestIdRef\.current = nextPlayRequestId[\s\S]{0,220}?manualSourceLockRef\.current = \{[\s\S]{0,160}?setActiveIdx\(0\)/
+    /lastPlayRequestIdRef\.current = nextPlayRequestId[\s\S]{0,260}?manualSourceLockRef\.current = \{[\s\S]{0,220}?startupAutoplayClaimRef\.current = \{[\s\S]{0,180}?claimed: false[\s\S]{0,120}?setActiveIdx\(0\)/
   );
 });
 
