@@ -3950,9 +3950,9 @@ async function choosePlayableRdStream({
       audio_rescue: {
         used: false,
         state:
-          "no_english_audio_keep_source",
+          "no_english_audio",
         reason:
-          "Every labelled audio track is non-English. Keep this release selected and require an explicit source choice before changing torrents.",
+          "Every labelled audio track is non-English. Automatic English-first playback should reject this candidate; a manually selected source may remain selected.",
       },
       media_info:
         mediaSummary,
