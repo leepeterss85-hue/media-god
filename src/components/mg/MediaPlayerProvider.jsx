@@ -771,6 +771,9 @@ const resolveImdbInfo = async ({
       alternateTitles:
         suppliedAlternateTitles,
 
+      alternateYears:
+        suppliedAlternateYears,
+
       status:
         "OK",
 
@@ -795,6 +798,9 @@ const resolveImdbInfo = async ({
 
       alternateTitles:
         suppliedAlternateTitles,
+
+      alternateYears:
+        suppliedAlternateYears,
 
       status:
         "OK",
@@ -860,6 +866,12 @@ const resolveImdbInfo = async ({
         )
       );
 
+    const resolvedAlternateYears = mergeAlternateYears(
+      year,
+      suppliedAlternateYears,
+      data?.alternate_years
+    );
+
     if (
       /^tt\d+$/i.test(
         resolved
@@ -871,6 +883,9 @@ const resolveImdbInfo = async ({
 
         alternateTitles:
           resolvedAlternateTitles,
+
+        alternateYears:
+          resolvedAlternateYears,
 
         status:
           "OK",
@@ -896,6 +911,9 @@ const resolveImdbInfo = async ({
         alternateTitles:
           resolvedAlternateTitles,
 
+        alternateYears:
+          resolvedAlternateYears,
+
         status:
           "OK",
 
@@ -913,6 +931,9 @@ const resolveImdbInfo = async ({
 
       alternateTitles:
         resolvedAlternateTitles,
+
+      alternateYears:
+        resolvedAlternateYears,
 
       status:
         "FAILED",
@@ -954,6 +975,9 @@ const resolveImdbInfo = async ({
 
       alternateTitles:
         suppliedAlternateTitles,
+
+      alternateYears:
+        suppliedAlternateYears,
 
       status:
         "FAILED",
