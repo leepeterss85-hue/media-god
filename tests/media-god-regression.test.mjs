@@ -2822,3 +2822,25 @@ test("authoritative IDs stay isolated and English autoplay never falls back blin
     /rd-runtime-explicit-english-hint/
   );
 });
+
+
+test("native audio rescue never replaces an already-supported selected track", () => {
+  const nativeFiles = [
+    "../android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt",
+    "../firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt",
+  ];
+
+  for (const file of nativeFiles) {
+    const source = readFileSync(new URL(file, import.meta.url), "utf8");
+    const begin = source.indexOf("val needsRescue =");
+    const end = source.indexOf("if (!needsRescue)", begin);
+    assert.ok(begin >= 0 && end > begin);
+
+    const rescueGate = source.slice(begin, end);
+    assert.match(rescueGate, /!initialAudio\.present/);
+    assert.match(rescueGate, /!initialAudio\.supported/);
+    assert.match(rescueGate, /!initialAudio\.selected/);
+    assert.doesNotMatch(rescueGate, /softwareFallbackPreferred/);
+    assert.doesNotMatch(source, /softwareFallbackPreferred\) 450L/);
+  }
+});
