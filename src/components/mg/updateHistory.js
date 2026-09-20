@@ -1,5 +1,19 @@
 export const UPDATE_HISTORY = [
   {
+    id: "english-audio-same-source-recovery-2026-09-20-v1",
+    date: "20 September 2026",
+    title: "English audio selection no longer abandons working files",
+    summary:
+      "Mixed-language releases now distinguish a working foreign track from the preferred English track, so Media God can keep the exact source and use its compatibility decoder when English needs broader codec support.",
+    changes: [
+      "Cached or background-ready multi-audio releases are no longer treated as automatically English before strict/runtime qualification.",
+      "Media3 now checks whether an English non-commentary track actually exists, is supported and is selected instead of accepting any working audio renderer as success.",
+      "When the file has English audio that Media3 cannot decode or select, the same source is handed to LibVLC rather than cycling to another torrent.",
+      "A genuinely working selected English track remains locked in place and is not replaced by the no-sound recovery path.",
+      "Android Mobile advances to 1.0.45 (versionCode 46) and Fire TV advances to 1.4.59 (versionCode 64).",
+    ],
+  },
+  {
     id: "cached-source-chooser-complete-2026-09-18-v1",
     date: "18 September 2026",
     title: "Cached film and episode sources restored",
