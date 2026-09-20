@@ -2602,6 +2602,8 @@ export function PlayerProvider({
                         request?.alternateYears
                       )
                     : [],
+                alternateTitles:
+                  identityAlternateTitles,
                 mediaType,
                 season,
                 episode,
