@@ -398,8 +398,14 @@ class CompatibilityPlayerActivity : Activity() {
                 "stereo" -> { player.setAudioDigitalOutputEnabled(false); player.setAudioOutputDevice("stereo") }
                 "surround" -> player.setAudioDigitalOutputEnabled(false)
                 else -> {
+                    /*
+                     * Auto means decoded PCM, not forced HDMI passthrough.
+                     * Do not select an explicit output-device id here. LibVLC
+                     * documents that setAudioOutputDevice() disables encoding
+                     * detection; simply disabling digital output lets Android
+                     * AudioTrack choose the actual phone/tablet/TV endpoint.
+                     */
                     player.setAudioDigitalOutputEnabled(false)
-                    if (riskyAudio()) player.setAudioOutputDevice("stereo")
                 }
             }
             player.setVolume(100)

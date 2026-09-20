@@ -2390,10 +2390,19 @@ test("Real-Debrid zero-audio inspection tries transcode then rejects the silent 
     playerSource,
     /rdErrorCode ===[\s\S]{0,80}"RD_NO_AUDIO_TRACKS"/
   );
-  assert.match(
-    playerSource,
-    /confirmed this file has no usable audio track[\s\S]{0,220}immediate: true/
+  const audioErrorStart = playerSource.indexOf(
+    'rdErrorCode === "RD_NO_AUDIO_TRACKS"'
   );
+  const audioErrorEnd = playerSource.indexOf(
+    'rdErrorCode === "RD_TORRENT_INFO_FAILED"',
+    audioErrorStart
+  );
+  assert.ok(audioErrorStart >= 0 && audioErrorEnd > audioErrorStart);
+  const audioErrorBlock = playerSource.slice(audioErrorStart, audioErrorEnd);
+  assert.match(audioErrorBlock, /kept this exact source selected/);
+  assert.doesNotMatch(audioErrorBlock, /tryNextSource\(/);
+  assert.doesNotMatch(audioErrorBlock, /immediate:\s*true/);
+  assert.doesNotMatch(audioErrorBlock, /markSourceFailed\(/);
 });
 
 test("fast discovery cannot launch an unqualified torrent", () => {
@@ -2564,13 +2573,14 @@ test("English-first audio keeps manual choices locked and never enters an uncach
   );
   assert.ok(noSoundStart >= 0);
   assert.ok(noSoundEnd > noSoundStart);
-  assert.match(
-    playerSource.slice(noSoundStart, noSoundEnd),
-    /findNextPlayableSource\([\s\S]{0,120}allowCaching:\s*false/
-  );
+  const noSoundSource = playerSource.slice(noSoundStart, noSoundEnd);
+  assert.match(noSoundSource, /AUDIO FAILURE IS NOT SOURCE FAILURE/);
+  assert.match(noSoundSource, /lockCurrentVodSourceForAudioRecovery/);
+  assert.doesNotMatch(noSoundSource, /findNextPlayableSource\(/);
 
   assert.match(rdSource, /RD_NO_ENGLISH_AUDIO/);
-  assert.match(rdSource, /no_english_audio_try_next_source/);
+  assert.match(rdSource, /no_english_audio_keep_source/);
+  assert.doesNotMatch(rdSource, /no_english_audio_try_next_source/);
   assert.match(
     rdSource,
     /This cached release has no labelled English audio track/
@@ -2699,13 +2709,16 @@ test("manual Audio control stays in the current file and never starts torrent fa
   const manualGuard = playerSource.indexOf(
     "A manual Audio-button press must never become an uncontrolled source"
   );
-  const nextSource = playerSource.indexOf(
-    "findNextPlayableSource(",
+  const noSoundEnd = playerSource.indexOf(
+    "handleNoSoundRef.current = handleNoSound",
     manualGuard
   );
 
   assert.ok(manualGuard >= 0);
-  assert.ok(nextSource > manualGuard);
+  assert.ok(noSoundEnd > manualGuard);
+  const guardedAudioRecovery = playerSource.slice(manualGuard, noSoundEnd);
+  assert.doesNotMatch(guardedAudioRecovery, /findNextPlayableSource\(/);
+  assert.doesNotMatch(guardedAudioRecovery, /markSourceFailed\(/);
 });
 
 test("audio tracks prefer English main audio while preserving explicit language memory", () => {
@@ -2875,4 +2888,71 @@ test("manual VOD source choices remain locked across native playback recovery", 
     playerSource.slice(nativeResultStart, nativeResultEnd),
     /manualSelection:\s*true/
   );
+});
+
+
+test("audio recovery never advances to another VOD torrent", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(playerSource, /AUDIO FAILURE IS NOT SOURCE FAILURE/);
+  assert.match(playerSource, /lockCurrentVodSourceForAudioRecovery/);
+  assert.match(playerSource, /__audio_recovery_hold__/);
+  assert.match(
+    playerSource,
+    /kept this exact source selected instead of cycling through other torrents/
+  );
+
+  const audioBlockStart = playerSource.indexOf("AUDIO FAILURE IS NOT SOURCE FAILURE");
+  const audioBlockEnd = playerSource.indexOf("handleNoSoundRef.current", audioBlockStart);
+  assert.ok(audioBlockStart >= 0 && audioBlockEnd > audioBlockStart);
+  const audioBlock = playerSource.slice(audioBlockStart, audioBlockEnd);
+  assert.doesNotMatch(audioBlock, /switchToSource\(/);
+  assert.doesNotMatch(audioBlock, /markSourceFailed\(/);
+});
+
+test("LibVLC Auto PCM output does not force an explicit stereo device", () => {
+  const nativeFiles = [
+    "../android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt",
+    "../firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt",
+  ];
+
+  for (const file of nativeFiles) {
+    const source = readFileSync(new URL(file, import.meta.url), "utf8");
+    const start = source.indexOf("private fun configureAudioOutput");
+    const end = source.indexOf("private fun recoverAudioTrack", start);
+    assert.ok(start >= 0 && end > start);
+    const block = source.slice(start, end);
+
+    assert.match(block, /player\.setAudioDigitalOutputEnabled\(false\)/);
+    assert.match(block, /"stereo" ->/);
+    const autoBranch = block.slice(block.indexOf("else ->"));
+    assert.doesNotMatch(autoBranch, /setAudioOutputDevice\("stereo"\)/);
+  }
+});
+
+
+test("Real-Debrid audio metadata cannot trigger automatic VOD source failover", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  const pollStart = playerSource.indexOf('rdErrorCode === "RD_NO_AUDIO_TRACKS"');
+  const pollEnd = playerSource.indexOf('rdErrorCode === "RD_TORRENT_INFO_FAILED"', pollStart);
+  assert.ok(pollStart >= 0 && pollEnd > pollStart);
+  const pollBlock = playerSource.slice(pollStart, pollEnd);
+  assert.match(pollBlock, /lockCurrentVodSourceForAudioRecovery/);
+  assert.doesNotMatch(pollBlock, /tryNextSource\(/);
+  assert.doesNotMatch(pollBlock, /markSourceFailed\(/);
+
+  const resolveStart = playerSource.indexOf('error?.code === "RD_NO_AUDIO_TRACKS"');
+  const resolveEnd = playerSource.indexOf('error?.code === "RD_ACTIVE_SLOTS_FULL"', resolveStart);
+  assert.ok(resolveStart >= 0 && resolveEnd > resolveStart);
+  const resolveBlock = playerSource.slice(resolveStart, resolveEnd);
+  assert.match(resolveBlock, /RD_NO_ENGLISH_AUDIO/);
+  assert.match(resolveBlock, /lockCurrentVodSourceForAudioRecovery/);
+  assert.doesNotMatch(resolveBlock, /tryNextSource\(/);
 });
