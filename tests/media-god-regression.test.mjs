@@ -3420,12 +3420,17 @@ test("black-screen VOD startup waits before trying at most three ready English s
     "utf8"
   );
 
+  const nativePlaybackDeclaration = playerSource.indexOf(
+    "const useNativePlayback ="
+  );
   const start = playerSource.indexOf("VOD STARTUP WATCHDOG");
   const end = playerSource.indexOf(
-    "Do not pre-resolve backup torrents in the background",
+    "if (!nativeFireTvPlayer)",
     start
   );
-  assert.ok(start >= 0 && end > start);
+  assert.ok(nativePlaybackDeclaration >= 0);
+  assert.ok(start > nativePlaybackDeclaration);
+  assert.ok(end > start);
   const block = playerSource.slice(start, end);
 
   assert.match(block, /STARTUP_GRACE_MS = 12000/);
