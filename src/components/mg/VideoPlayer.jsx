@@ -921,6 +921,15 @@ export default function VideoPlayer({
     );
   };
 
+  const lockCurrentVodSourceForAudioRecovery = () => {
+    if (playbackMediaType === "live") return;
+
+    manualSourceLockRef.current = {
+      sourceKey: stablePlaybackSourceKey(active, activeIdx),
+      playRequestId: source?.playRequestId ?? null,
+    };
+  };
+
   const returnFromPlayback = useCallback(() => {
     if (playbackMediaType !== "tv") {
       onClose?.();
@@ -7750,6 +7759,66 @@ export default function VideoPlayer({
       }
 
       if (reason === "error") {
+        const nativeDiagnostics =
+          detail?.diagnostics && typeof detail.diagnostics === "object"
+            ? detail.diagnostics
+            : {};
+
+        const nativeFailureText = [
+          detail?.message,
+          nativeDiagnostics?.message,
+          nativeDiagnostics?.audioCodec,
+          nativeDiagnostics?.compatibilityReason,
+          nativeDiagnostics?.compatibilityError,
+          nativeDiagnostics?.forceCompatibilityReason,
+        ]
+          .filter(Boolean)
+          .join(" ");
+
+        const nativeAudioFailure =
+          !isLive &&
+          /audio|dts|true[ ._-]?hd|mlp|atmos|e[ ._-]?ac[ ._-]?3|joc|no[- ]?sound|silent/i.test(
+            nativeFailureText
+          );
+
+        if (nativeAudioFailure) {
+          if (positionSeconds > 5) {
+            recoveryResumeRef.current = positionSeconds;
+          }
+
+          lockCurrentVodSourceForAudioRecovery();
+
+          /*
+           * Hold the current native request in a terminal audio-recovery state.
+           * Without this sentinel, the launch effect can immediately reopen the
+           * same native activity, receive another decoder error, and eventually
+           * trip ordinary source failover. A manual source choice clears this
+           * ref through switchToSource().
+           */
+          nativePlaybackRef.current = {
+            requestId: "__audio_recovery_hold__",
+            url: nativePlaybackUrl,
+            playRequestId: currentPlayRequestId,
+          };
+
+          setForceNativePlayback(false);
+          setNativeFallbackUrl("");
+          setRdError(
+            "The audio decoder stopped on this release. Media God kept this exact source selected instead of moving to another torrent. Use Audio or Source to make the next choice."
+          );
+
+          window.dispatchEvent(
+            new CustomEvent("mg:player-status", {
+              detail: {
+                message:
+                  "Audio decoder stopped — keeping this exact source selected.",
+              },
+            })
+          );
+
+          return;
+        }
+
         recordPlaybackReliability(
           sourceDisplayLabel(active, activeIdx),
           "failure"
@@ -7766,7 +7835,7 @@ export default function VideoPlayer({
             detail: {
               message:
                 detail.message ||
-                "Fire TV native player could not play this source — trying a backup…",
+                "Native player could not play this source — trying a backup…",
             },
           })
         );
@@ -8441,51 +8510,31 @@ export default function VideoPlayer({
         return;
       }
 
-      if (
-        sources.length <=
-        1
-      ) {
-        setRdError(
-          "No compatible alternate audio track or backup source is available."
-        );
-
-        return;
-      }
-
       /*
-       * Missing-audio recovery must never drag the viewer into a new uncached
-       * torrent job. Only switch to an already-ready/cached alternative here;
-       * background caching can continue independently while playback stays on
-       * a usable source.
+       * AUDIO FAILURE IS NOT SOURCE FAILURE.
+       *
+       * Never turn a missing/unsupported audio path into an automatic torrent
+       * carousel. The current release may be the exact English file the viewer
+       * wants, and switching releases destroys that choice. Lock this VOD row,
+       * leave background caching alone, and require an explicit source choice
+       * before another torrent can replace it.
        */
-      const nextIndex =
-        findNextPlayableSource(
-          activeIdx,
-          { allowCaching: false }
-        );
+      lockCurrentVodSourceForAudioRecovery();
 
-      if (nextIndex < 0) {
-        setRdError(
-          "No other ready source with compatible audio is available yet. Background caching will keep preparing alternatives."
-        );
-        return;
-      }
+      setRdError(
+        "Audio recovery could not produce sound from this release yet. Media God kept this exact source selected instead of cycling through other torrents. Use Audio or Source if you want to change it."
+      );
 
-      if (resumeAt > 5) {
-        recoveryResumeRef.current = resumeAt;
-      }
+      window.dispatchEvent(
+        new CustomEvent("mg:player-status", {
+          detail: {
+            message:
+              "Audio decoder recovery stopped here — keeping this exact source selected.",
+          },
+        })
+      );
 
-      if (!actionStillCurrent()) {
-        return;
-      }
-
-      markSourceFailed(activeIdx);
-
-      switchToSource(nextIndex, {
-        preservePosition: true,
-        statusMessage:
-          "Audio rescue could not recover this stream — trying the best backup source…",
-      });
+      return;
     };
 
   handleNoSoundRef.current = handleNoSound;
