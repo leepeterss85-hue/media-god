@@ -915,6 +915,8 @@ export default function VideoPlayer({
     lastTime: 0,
     lastProgressAt: Date.now(),
     lastSwitchAt: 0,
+    rapidImmediateWindowAt: 0,
+    rapidImmediateCount: 0,
     abandoned: new Set(),
   });
   const vodStartupAttemptedRef = useRef(new Set());
@@ -2267,6 +2269,12 @@ export default function VideoPlayer({
       return false;
     }
 
+    if (rapidImmediateVodFailover) {
+      autoRecoveryRef.current.rapidImmediateCount =
+        Number(autoRecoveryRef.current.rapidImmediateCount || 0) + 1;
+      autoRecoveryRef.current.lastSwitchAt = Date.now();
+    }
+
     const activeTorrentLike =
       active?.type === "rd" ||
       active?.type === "rd_torrent" ||
@@ -3078,6 +3086,8 @@ export default function VideoPlayer({
     autoRecoveryRef.current.lastTime = 0;
     autoRecoveryRef.current.lastProgressAt = Date.now();
     autoRecoveryRef.current.lastSwitchAt = 0;
+    autoRecoveryRef.current.rapidImmediateWindowAt = 0;
+    autoRecoveryRef.current.rapidImmediateCount = 0;
     autoRecoveryRef.current.abandoned = new Set();
     vodStartupAttemptedRef.current = new Set();
     setLiveRecoveryNotice(null);
