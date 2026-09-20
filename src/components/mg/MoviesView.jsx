@@ -18,6 +18,7 @@ import {
 } from "@/components/mg/streamingRegion";
 import { COUNTRY_OPTIONS } from "@/components/mg/countryOptions";
 import useDebouncedValue from "@/components/mg/useDebouncedValue";
+import { filterItemsWithPlayableSources } from "@/components/mg/sourceAvailability";
 
 const PosterImage = /** @type {any} */ (Image);
 
@@ -66,9 +67,22 @@ export default function MoviesView() {
         language,
         query: debouncedQuery.trim(),
       })
-      .then((res) => {
+      .then(async (res) => {
         if (requestId !== requestRef.current) return;
-        setMovies(res.data?.movies || []);
+
+        const candidates = Array.isArray(res.data?.movies)
+          ? res.data.movies
+          : [];
+
+        const sourcedMovies = await filterItemsWithPlayableSources(
+          candidates,
+          {
+            concurrency: 4,
+          }
+        );
+
+        if (requestId !== requestRef.current) return;
+        setMovies(sourcedMovies);
       })
       .catch(() => {
         if (requestId !== requestRef.current) return;
@@ -295,7 +309,7 @@ export default function MoviesView() {
 
       {!loading && movies.length === 0 && (
         <p className="text-white/40 text-sm 3xl:text-base">
-          No movies found for these filters.
+          No movies with available sources were found for these filters.
         </p>
       )}
 
