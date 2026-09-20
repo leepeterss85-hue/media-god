@@ -56,17 +56,22 @@ const isEnglishTrack = (track) => {
   );
 
   const label = normaliseLanguage(
-    track?.lang ||
-      track?.name ||
-      ""
+    [
+      track?.lang,
+      track?.name,
+      track?.title,
+      track?.label,
+      track?.description,
+    ]
+      .filter(Boolean)
+      .join(" ")
   );
 
   return (
     iso === "eng" ||
     iso === "en" ||
     iso.startsWith("en-") ||
-    label === "english" ||
-    /\benglish\b/i.test(label)
+    /(?:^|[^a-z0-9])(?:eng|en|english)(?=$|[^a-z0-9])/i.test(label)
   );
 };
 
@@ -78,9 +83,15 @@ const hasKnownLanguage = (track) => {
   );
 
   const label = normaliseLanguage(
-    track?.lang ||
-      track?.name ||
-      ""
+    [
+      track?.lang,
+      track?.name,
+      track?.title,
+      track?.label,
+      track?.description,
+    ]
+      .filter(Boolean)
+      .join(" ")
   );
 
   return ![
@@ -433,6 +444,16 @@ const summariseAudioTrack = (track, key = "") => ({
   language_iso:
     track?.lang_iso ||
     track?.language_iso ||
+    "",
+  name:
+    track?.name ||
+    track?.title ||
+    track?.label ||
+    "",
+  title:
+    track?.title ||
+    track?.name ||
+    track?.label ||
     "",
   codec: track?.codec || "",
   channels:
