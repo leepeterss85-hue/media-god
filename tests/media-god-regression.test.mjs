@@ -2824,23 +2824,61 @@ test("authoritative IDs stay isolated and English autoplay never falls back blin
 });
 
 
-test("native audio rescue never replaces an already-supported selected track", () => {
-  const nativeFiles = [
-    "../android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt",
-    "../firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt",
-  ];
+test("Fire TV software-decodes passthrough-risk audio without changing sources", () => {
+  const mobileSource = readFileSync(
+    new URL("../android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt", import.meta.url),
+    "utf8"
+  );
+  const fireSource = readFileSync(
+    new URL("../firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt", import.meta.url),
+    "utf8"
+  );
 
-  for (const file of nativeFiles) {
-    const source = readFileSync(new URL(file, import.meta.url), "utf8");
-    const begin = source.indexOf("val needsRescue =");
-    const end = source.indexOf("if (!needsRescue)", begin);
-    assert.ok(begin >= 0 && end > begin);
+  const mobileBegin = mobileSource.indexOf("val needsRescue =");
+  const mobileEnd = mobileSource.indexOf("if (!needsRescue)", mobileBegin);
+  assert.ok(mobileBegin >= 0 && mobileEnd > mobileBegin);
+  const mobileGate = mobileSource.slice(mobileBegin, mobileEnd);
+  assert.doesNotMatch(mobileGate, /softwareFallbackPreferred/);
 
-    const rescueGate = source.slice(begin, end);
-    assert.match(rescueGate, /!initialAudio\.present/);
-    assert.match(rescueGate, /!initialAudio\.supported/);
-    assert.match(rescueGate, /!initialAudio\.selected/);
-    assert.doesNotMatch(rescueGate, /softwareFallbackPreferred/);
-    assert.doesNotMatch(source, /softwareFallbackPreferred\) 450L/);
-  }
+  const fireBegin = fireSource.indexOf("val needsRescue =");
+  const fireEnd = fireSource.indexOf("if (!needsRescue)", fireBegin);
+  assert.ok(fireBegin >= 0 && fireEnd > fireBegin);
+  const fireGate = fireSource.slice(fireBegin, fireEnd);
+  assert.match(fireGate, /!initialAudio\.present/);
+  assert.match(fireGate, /!initialAudio\.supported/);
+  assert.match(fireGate, /!initialAudio\.selected/);
+  assert.match(fireGate, /riskyCodecNeedsSoftwareDecode/);
+  assert.match(fireSource, /initialAudio\.softwareFallbackPreferred/);
+  assert.match(fireSource, /audioOutputMode != "passthrough"/);
+  assert.match(fireSource, /if \(riskyCodecNeedsSoftwareDecode\) 250L else 1400L/);
+  assert.match(
+    fireSource,
+    /Keeping this source and software-decoding its audio with the compatibility decoder/
+  );
+});
+
+test("manual VOD source choices remain locked across native playback recovery", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(playerSource, /manualSourceLockRef/);
+  assert.match(playerSource, /const manualSourceLockActive =/);
+  assert.match(
+    playerSource,
+    /if \(!activeIsLive && manualSourceLockActive\(\)\)/
+  );
+  assert.match(
+    playerSource,
+    /This source was selected manually, so Media God kept it selected/
+  );
+
+  const nativeResultStart = playerSource.indexOf('reason === "source"');
+  const nativeResultEnd = playerSource.indexOf('reason === "error"', nativeResultStart);
+  assert.ok(nativeResultStart >= 0 && nativeResultEnd > nativeResultStart);
+  assert.match(
+    playerSource.slice(nativeResultStart, nativeResultEnd),
+    /manualSelection:\s*true/
+  );
 });
