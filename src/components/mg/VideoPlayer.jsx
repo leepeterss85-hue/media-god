@@ -29,6 +29,7 @@ import {
 import {
   preferredAudioTrackScore,
   readTrackPreferences,
+  trackLanguage,
 } from "@/components/mg/mediaTrackPreferences";
 import { readPlaybackPreferences } from "@/components/mg/playbackPreferences";
 import {
@@ -8073,31 +8074,99 @@ export default function VideoPlayer({
         if (
           tracks &&
           typeof tracks.length === "number" &&
-          tracks.length > 1
+          tracks.length > 0
         ) {
           let currentAudio = -1;
-
           const candidates = [];
 
           for (let index = 0; index < tracks.length; index += 1) {
-            if (tracks[index]?.enabled) {
+            const track = tracks[index];
+
+            if (track?.enabled) {
               currentAudio = index;
             }
 
+            const text = `${track?.label || ""} ${track?.language || ""}`;
+            const commentary =
+              /commentary|audio description|descriptive|visually impaired/i.test(
+                text
+              );
+
             candidates.push({
               index,
+              track,
+              language: trackLanguage(track),
+              commentary,
               score: audioTrackScore(
-                tracks[index],
+                track,
                 trackPreferences.audioLanguage
               ),
             });
           }
 
-          const wantedAudio = candidates
-            .filter((item) => item.index !== currentAudio)
-            .sort((a, b) => b.score - a.score || a.index - b.index)[0]?.index;
+          const englishMain = candidates
+            .filter(
+              (item) =>
+                item.language === "en" &&
+                !item.commentary
+            )
+            .sort(
+              (a, b) =>
+                b.score - a.score ||
+                a.index - b.index
+            );
 
-          if (wantedAudio != null) {
+          /*
+           * The Audio button is an audio-track control first. If this file
+           * exposes English, always pin English and never wrap back to the
+           * foreign default. If English is already selected, leave it alone.
+           */
+          if (englishMain.length > 0) {
+            const wanted = englishMain[0];
+
+            try {
+              if (currentAudio !== wanted.index) {
+                for (let index = 0; index < tracks.length; index += 1) {
+                  tracks[index].enabled = index === wanted.index;
+                }
+              }
+
+              if (tracks[wanted.index]?.enabled) {
+                video.play().catch(() => {});
+                confirmRecoveredSource(video);
+                setRdError("");
+
+                window.dispatchEvent(
+                  new CustomEvent("mg:player-status", {
+                    detail: {
+                      message:
+                        currentAudio === wanted.index
+                          ? "English audio is already selected and locked."
+                          : `English audio selected · ${tracks[wanted.index]?.label || tracks[wanted.index]?.language || `track ${wanted.index + 1}`}.`,
+                    },
+                  })
+                );
+
+                return;
+              }
+            } catch {
+              // Continue to the same-file fallback below.
+            }
+          }
+
+          /*
+           * Some containers expose several audio tracks without language
+           * labels. In that case allow a deliberate same-file track change,
+           * but NEVER fall through from this button into torrent/source
+           * failover. The viewer can stop on the audible English track and it
+           * remains selected.
+           */
+          if (tracks.length > 1) {
+            const wantedAudio =
+              currentAudio >= 0
+                ? (currentAudio + 1) % tracks.length
+                : 0;
+
             try {
               for (let index = 0; index < tracks.length; index += 1) {
                 tracks[index].enabled = index === wantedAudio;
@@ -8111,7 +8180,8 @@ export default function VideoPlayer({
                 window.dispatchEvent(
                   new CustomEvent("mg:player-status", {
                     detail: {
-                      message: `Audio switched to ${tracks[wantedAudio]?.label || tracks[wantedAudio]?.language || `track ${wantedAudio + 1}`}.`,
+                      message:
+                        `Audio track changed within this file · ${tracks[wantedAudio]?.label || tracks[wantedAudio]?.language || `track ${wantedAudio + 1}`}.`,
                     },
                   })
                 );
@@ -8119,8 +8189,16 @@ export default function VideoPlayer({
                 return;
               }
             } catch {
-              // Continue to HLS/RD audio rescue.
+              // Do not convert an audio-track request into source failover.
             }
+          }
+
+          if (!automatic) {
+            setRdError(
+              "This file does not expose another labelled English audio track. Choose another source manually if you want a different release."
+            );
+            video.play().catch(() => {});
+            return;
           }
         }
 
@@ -8289,6 +8367,21 @@ export default function VideoPlayer({
       }
 
       if (!actionStillCurrent()) {
+        return;
+      }
+
+      /*
+       * A manual Audio-button press must never become an uncontrolled source
+       * carousel. Audio Rescue above may replace the current rendition when it
+       * can prove a compatible English stream, but if that fails we leave the
+       * source selected and let the user choose a different release.
+       */
+      if (!automatic) {
+        setRdError(
+          rdOverride?.audioRescue?.used === true
+            ? "Audio Rescue is already active on this source. Use the player audio control to choose a track, or choose another source manually."
+            : "No compatible English audio could be selected automatically from this source. Choose another source manually if needed."
+        );
         return;
       }
 
