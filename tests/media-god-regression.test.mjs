@@ -2235,7 +2235,7 @@ test("strict launch barrier preserves verified playback and blocks unverified au
   assert.equal(mergedWaiting[1].infoHash, hash);
 });
 
-test("full discovery cannot bypass strict media and audio qualification", () => {
+test("full discovery requires identity and English-track qualification without requiring an RD transcode state", () => {
   const providerSource = readFileSync(
     new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
     "utf8"
@@ -2247,6 +2247,7 @@ test("full discovery cannot bypass strict media and audio qualification", () => 
 
   assert.match(providerSource, /SAFE_RD_LAUNCH_AUDIO_STATES/);
   assert.match(providerSource, /strictRdLaunchQualification/);
+  assert.doesNotMatch(providerSource, /unverified_audio_state/);
   assert.match(providerSource, /sourceMatchesRequestedIdentity/);
   assert.doesNotMatch(providerSource, /requested_year_not_proven/);
   assert.match(providerSource, /audioTracks\.length < 1/);
@@ -2458,10 +2459,10 @@ test("Real-Debrid zero-audio inspection tries transcode then rejects the silent 
   );
   assert.ok(audioErrorStart >= 0 && audioErrorEnd > audioErrorStart);
   const audioErrorBlock = playerSource.slice(audioErrorStart, audioErrorEnd);
-  assert.match(audioErrorBlock, /kept this exact source selected/);
-  assert.doesNotMatch(audioErrorBlock, /tryNextSource\(/);
-  assert.doesNotMatch(audioErrorBlock, /immediate:\s*true/);
-  assert.doesNotMatch(audioErrorBlock, /markSourceFailed\(/);
+  assert.match(audioErrorBlock, /tryNextSource\(/);
+  assert.match(audioErrorBlock, /immediate:\s*true/);
+  assert.match(audioErrorBlock, /allowCaching:\s*false/);
+  assert.match(audioErrorBlock, /authoritativeSourceRejection:\s*true/);
 });
 
 test("fast discovery cannot launch an unqualified torrent", () => {
@@ -2638,8 +2639,8 @@ test("English-first audio keeps manual choices locked and never enters an uncach
   assert.doesNotMatch(noSoundSource, /findNextPlayableSource\(/);
 
   assert.match(rdSource, /RD_NO_ENGLISH_AUDIO/);
-  assert.match(rdSource, /no_english_audio_keep_source/);
-  assert.doesNotMatch(rdSource, /no_english_audio_try_next_source/);
+  assert.match(rdSource, /state:\s*\n\s*"no_english_audio"/);
+  assert.doesNotMatch(rdSource, /no_english_audio_keep_source/);
   assert.match(
     rdSource,
     /This cached release has no labelled English audio track/
@@ -3024,7 +3025,7 @@ test("LibVLC Auto PCM output does not force an explicit stereo device", () => {
 });
 
 
-test("Real-Debrid audio metadata cannot trigger automatic VOD source failover", () => {
+test("authoritative Real-Debrid no-English or no-audio metadata skips only automatic sources", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
     "utf8"
@@ -3034,17 +3035,20 @@ test("Real-Debrid audio metadata cannot trigger automatic VOD source failover", 
   const pollEnd = playerSource.indexOf('rdErrorCode === "RD_TORRENT_INFO_FAILED"', pollStart);
   assert.ok(pollStart >= 0 && pollEnd > pollStart);
   const pollBlock = playerSource.slice(pollStart, pollEnd);
-  assert.match(pollBlock, /lockCurrentVodSourceForAudioRecovery/);
-  assert.doesNotMatch(pollBlock, /tryNextSource\(/);
-  assert.doesNotMatch(pollBlock, /markSourceFailed\(/);
+  assert.match(pollBlock, /tryNextSource\(/);
+  assert.match(pollBlock, /authoritativeSourceRejection:\s*true/);
+  assert.match(pollBlock, /allowCaching:\s*false/);
+  assert.match(pollBlock, /manualSourceLockActive\(\)/);
 
   const resolveStart = playerSource.indexOf('error?.code === "RD_NO_AUDIO_TRACKS"');
   const resolveEnd = playerSource.indexOf('error?.code === "RD_ACTIVE_SLOTS_FULL"', resolveStart);
   assert.ok(resolveStart >= 0 && resolveEnd > resolveStart);
   const resolveBlock = playerSource.slice(resolveStart, resolveEnd);
   assert.match(resolveBlock, /RD_NO_ENGLISH_AUDIO/);
-  assert.match(resolveBlock, /lockCurrentVodSourceForAudioRecovery/);
-  assert.doesNotMatch(resolveBlock, /tryNextSource\(/);
+  assert.match(resolveBlock, /tryNextSource\(/);
+  assert.match(resolveBlock, /authoritativeSourceRejection:\s*true/);
+  assert.match(resolveBlock, /allowCaching:\s*false/);
+  assert.match(resolveBlock, /manualSourceLockActive\(\)/);
 });
 
 
