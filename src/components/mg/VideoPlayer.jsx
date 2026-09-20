@@ -7209,6 +7209,118 @@ export default function VideoPlayer({
   ]);
 
   /*
+   * VOD STARTUP WATCHDOG
+   *
+   * A source can resolve successfully yet leave Android WebView on a black
+   * surface at 0:00 without ever emitting a terminal media error. The ordinary
+   * stall watchdog only runs after playback has begun, so that state used to
+   * remain selected forever.
+   *
+   * Give automatic startup a real grace period. If there is still no playback
+   * progress, try the next READY explicit-English source without marking the
+   * current source bad. Cap automatic startup attempts so a transient decoder
+   * issue can never become another rapid whole-list carousel. A manual source
+   * choice remains authoritative and is never auto-skipped.
+   */
+  useEffect(() => {
+    if (
+      isLive ||
+      isYoutube ||
+      isProvider ||
+      useNativePlayback ||
+      rdResolving ||
+      rdPolling ||
+      rdTorrentId ||
+      rdPreparation ||
+      (!rdOverride?.src && !isDirectFile)
+    ) {
+      return undefined;
+    }
+
+    const STARTUP_GRACE_MS = 12000;
+    const MAX_AUTOMATIC_STARTUP_ATTEMPTS = 3;
+
+    const timer = window.setTimeout(() => {
+      const video = stageRef.current?.querySelector("video");
+      const realProgress =
+        video instanceof HTMLVideoElement &&
+        !video.ended &&
+        !video.error &&
+        Number(video.currentTime || 0) > 0.25;
+
+      if (realProgress) {
+        vodStartupAttemptedRef.current.clear();
+        return;
+      }
+
+      if (manualSourceLockActive()) {
+        setRdError(
+          "This manually selected source has not started yet. Media God kept your choice selected; choose another source or Retry."
+        );
+        return;
+      }
+
+      vodStartupAttemptedRef.current.add(activeIdx);
+
+      if (
+        vodStartupAttemptedRef.current.size >=
+        MAX_AUTOMATIC_STARTUP_ATTEMPTS
+      ) {
+        setRdError(
+          "Media God tried three ready English sources without real playback starting. The sources were not marked bad; choose any source manually to retry it."
+        );
+        return;
+      }
+
+      const nextEnglish = sortedSourceEntries.find((entry) => {
+        if (
+          entry?.index === activeIdx ||
+          vodStartupAttemptedRef.current.has(entry?.index) ||
+          !sourceIsUserSelectable(entry?.item) ||
+          sourceNeedsCaching(entry?.item)
+        ) {
+          return false;
+        }
+
+        return Boolean(
+          Number(entry?.languageRank ?? 3) === 0 &&
+          autoplayEntryApproved(entry)
+        );
+      });
+
+      if (!nextEnglish) {
+        setRdError(
+          "This source did not begin playback, but no other ready English source is available yet. It was kept available and was not marked bad."
+        );
+        return;
+      }
+
+      switchToSource(nextEnglish.index, {
+        preservePosition: false,
+        statusMessage:
+          "That English source did not start after 12 seconds — trying the next ready English source without blacklisting it…",
+      });
+    }, STARTUP_GRACE_MS);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [
+    activeIdx,
+    activeUrl,
+    isDirectFile,
+    isLive,
+    isProvider,
+    isYoutube,
+    rdOverride?.src,
+    rdPolling,
+    rdPreparation,
+    rdResolving,
+    rdTorrentId,
+    useNativePlayback,
+  ]);
+
+  /*
    * Do not pre-resolve backup torrents in the background.
    *
    * A previous optimisation resolved another cached torrent a few seconds
