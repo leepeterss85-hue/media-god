@@ -2392,7 +2392,7 @@ test("qualification picks the lead source without truncating the full chooser to
 
   assert.match(
     playerSource,
-    /sources:\s*sortedSourceEntries[\s\S]{0,180}sourceIsUserSelectable/
+    /sources:\s*selectableSourceEntries[\s\S]{0,900}?webIndex:\s*index/
   );
 });
 
