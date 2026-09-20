@@ -3460,7 +3460,7 @@ test("best approved cached English row owns startup and strict waiting can still
   );
 });
 
-test("unproven provider startup cannot block English torrent caching or autoplay handoff", () => {
+test("startup discovery cannot flash through unverified English candidates", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
     "utf8"
@@ -3475,14 +3475,42 @@ test("unproven provider startup cannot block English torrent caching or autoplay
     playerSource,
     /type !== "provider"[\s\S]{0,220}?sourceNeedsCaching\(item\)/
   );
+
+  const startupStart = playerSource.indexOf("READY-SOURCE FIRST");
+  const startupEnd = playerSource.indexOf(
+    "TRUSTED CACHED BACKGROUND BUILDER",
+    startupStart
+  );
+  assert.ok(startupStart >= 0 && startupEnd > startupStart);
+  const startupBlock = playerSource.slice(startupStart, startupEnd);
+
+  assert.match(startupBlock, /startupAutoplayClaimRef/);
+  assert.match(startupBlock, /startupAlreadyClaimed/);
   assert.match(
-    playerSource,
+    startupBlock,
+    /bestSourceShouldOwnStartup[\s\S]{0,220}?!startupAlreadyClaimed/
+  );
+  assert.match(
+    startupBlock,
+    /const switched = switchToSource\(nextAutomaticSourceIndex/
+  );
+  assert.match(
+    startupBlock,
+    /if \(switched && sourceSortMode === "best"\)[\s\S]{0,180}?claimed: true/
+  );
+  assert.doesNotMatch(
+    startupBlock,
     /bestEnglishCandidateShouldOwnStartup/
   );
-  assert.match(
-    playerSource,
+  assert.doesNotMatch(
+    startupBlock,
     /Preparing the best English source automatically/
   );
+
+  /*
+   * The candidate may still delay native launch while background caching proves
+   * it, but it is not allowed to change activeIdx speculatively.
+   */
   assert.match(playerSource, /englishStartupTakeoverPending/);
   const nativeGuardIndex = playerSource.indexOf(
     "if (englishStartupTakeoverPending)"
