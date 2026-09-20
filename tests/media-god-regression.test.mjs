@@ -502,6 +502,28 @@ test("official alternate movie titles can satisfy strict source identity without
 
   assert.equal(
     sourceIdentityMismatchReason(
+      { filename: "Hardcore.2016.1080p.BluRay.x264.mkv" },
+      {
+        ...request,
+        alternateYears: ["2016"],
+      }
+    ),
+    ""
+  );
+
+  assert.equal(
+    sourceIdentityMismatchReason(
+      { filename: "Hardcore.2017.1080p.BluRay.x264.mkv" },
+      {
+        ...request,
+        alternateYears: ["2016"],
+      }
+    ),
+    "conflicting_release_year"
+  );
+
+  assert.equal(
+    sourceIdentityMismatchReason(
       { filename: "Hardcore.2015.1080p.BluRay.x264.mkv" },
       {
         title: "Hardcore Henry",
@@ -527,7 +549,10 @@ test("official alternate movie titles can satisfy strict source identity without
 
   assert.match(resolverSource, /alternative_titles/);
   assert.match(resolverSource, /alternate_titles:\s*alternateTitles/);
+  assert.match(resolverSource, /release_dates/);
+  assert.match(resolverSource, /alternate_years:\s*alternateYears/);
   assert.match(providerSource, /identityAlternateTitles/);
+  assert.match(providerSource, /identityAlternateYears/);
   assert.match(providerSource, /alternateTitles:\s*addonArgs\.alternateTitles/);
   assert.match(providerSource, /alternate_titles:[\s\S]{0,100}?alternateTitles/);
   assert.match(rdSource, /body\.alternate_titles/);
