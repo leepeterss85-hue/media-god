@@ -3349,6 +3349,16 @@ export function PlayerProvider({
          * This is deliberately cached-only: uncached/pending rows remain visible
          * in the chooser/background cache but are never guessed as autoplay.
          */
+        const preferredAutoplayAudio = String(
+          readTrackPreferences()?.audioLanguage || "en"
+        )
+          .trim()
+          .toLowerCase();
+        const requireExplicitEnglishRuntimeFallback =
+          preferredAutoplayAudio === "en" ||
+          preferredAutoplayAudio === "eng" ||
+          preferredAutoplayAudio === "english";
+
         const runtimeFallbackSources =
           qualificationMode &&
           qualifiedLaunchSources.length === 0
@@ -3364,6 +3374,10 @@ export function PlayerProvider({
                         alternateYears: addonArgs.alternateYears,
                         mediaType,
                       }
+                    ) &&
+                    (
+                      !requireExplicitEnglishRuntimeFallback ||
+                      detectLanguagePreference(item) === "english"
                     )
                 ),
                 hasDebrid,
@@ -3373,7 +3387,10 @@ export function PlayerProvider({
                 .map((item) => ({
                   ...item,
                   runtimeQualificationFallback: true,
-                  launchQualification: "rd-runtime-audio-rescue",
+                  launchQualification:
+                    requireExplicitEnglishRuntimeFallback
+                      ? "rd-runtime-explicit-english-hint"
+                      : "rd-runtime-audio-rescue",
                 }))
             : [];
 

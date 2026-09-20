@@ -752,11 +752,20 @@ class PlayerActivity : Activity() {
         }
 
         val initialAudio = inspectAudioReadiness(tracks)
+        /*
+         * A risky codec is not itself a playback failure. If Media3 reports an
+         * audio track as present, supported and selected, keep the working
+         * renderer in place. The old behaviour forced DTS/TrueHD/JOC sources
+         * into LibVLC after ~450 ms even when audible audio had already started,
+         * which looked exactly like a one-second play-then-switch failure.
+         *
+         * Compatibility fallback remains available for a genuinely missing,
+         * unsupported or unselected audio renderer and through onPlayerError.
+         */
         val needsRescue =
             !initialAudio.present ||
                 !initialAudio.supported ||
-                !initialAudio.selected ||
-                initialAudio.softwareFallbackPreferred
+                !initialAudio.selected
 
         if (!needsRescue) {
             audioPresenceCheckGeneration += 1
@@ -788,8 +797,6 @@ class PlayerActivity : Activity() {
 
             val audio = inspectAudioReadiness(currentTracks)
             val reason = when {
-                audio.softwareFallbackPreferred ->
-                    "This source uses DTS, DTS-HD, TrueHD, MLP or Atmos/JOC audio. Switching to Media God's software audio decoder."
                 !audio.present ->
                     "Media3 found video but no audio track. Trying the compatibility decoder."
                 !audio.supported ->
@@ -815,7 +822,7 @@ class PlayerActivity : Activity() {
                     "This source contains video but no usable audio track."
                 )
             }
-        }, if (initialAudio.softwareFallbackPreferred) 450L else 1400L)
+        }, 1400L)
     }
 
     private fun buildMediaItem(mimeTypeOverride: String? = null): MediaItem {

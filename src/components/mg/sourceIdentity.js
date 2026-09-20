@@ -31,10 +31,36 @@ const releaseNameText = (item) =>
     item?.behaviorHints?.filename ||
       item?.behavior_hints?.filename ||
       item?.filename ||
-      item?.name ||
+      item?.path ||
       item?.title ||
-      item?.label
+      item?.label ||
+      item?.name
   );
+
+const strictReleaseFilenameText = (item) =>
+  clean(
+    item?.behaviorHints?.filename ||
+      item?.behavior_hints?.filename ||
+      item?.filename ||
+      item?.path
+  );
+
+const RELEASE_BOUNDARY_MARKERS = new Set([
+  "proper", "repack", "rerip", "internal", "extended", "unrated",
+  "theatrical", "imax", "remastered", "remaster", "directors", "director",
+  "cut", "final", "complete", "hybrid", "multi", "dual", "dubbed",
+  "english", "eng", "en", "subbed", "subs", "bluray", "blu", "ray",
+  "bdrip", "brrip", "web", "webrip", "webdl", "hdtv", "remux",
+  "dvdrip", "hdrip", "uhd", "hdr", "hdr10", "dv", "dolby", "vision",
+  "atmos", "aac", "ac3", "eac3", "dd", "ddp", "dts", "truehd",
+  "flac", "opus", "x264", "x265", "h264", "h265", "hevc", "av1",
+  "avc", "2160p", "1440p", "1080p", "720p", "576p", "480p",
+]);
+
+const isReleaseBoundaryToken = (value) =>
+  !value ||
+  /^(?:19|20)\d{2}$/.test(value) ||
+  RELEASE_BOUNDARY_MARKERS.has(value);
 
 const tokens = (value) =>
   clean(value)
@@ -126,6 +152,22 @@ export const sourceIdentityMismatchReason = (
     const requestedTokens = tokens(requestedTitle);
     const releaseTokens = tokens(releaseName);
     const titleIndex = findContiguous(releaseTokens, requestedTokens);
+    const strictFilename = strictReleaseFilenameText(item);
+
+    /*
+     * A real torrent/file filename is stronger evidence than an addon display
+     * label. Once we have that filename, it must actually contain the requested
+     * movie title. This is the final guard against a provider/search result that
+     * happened to carry the right year but resolved to a different film.
+     */
+    if (strictFilename && requestedTokens.length > 0) {
+      const strictTokens = tokens(strictFilename);
+      const strictTitleIndex = findContiguous(strictTokens, requestedTokens);
+
+      if (strictTitleIndex < 0) {
+        return "conflicting_release_title";
+      }
+    }
 
     if (titleIndex >= 0 && requestedTokens.length > 0) {
       const requestedEndsInSequelMarker = SEQUEL_MARKERS.has(
@@ -143,6 +185,21 @@ export const sourceIdentityMismatchReason = (
         SEQUEL_MARKERS.has(nextToken)
       ) {
         return "conflicting_sequel_number";
+      }
+
+      /*
+       * Also reject named franchise siblings such as
+       * "Resident Evil Apocalypse" or "Resident Evil Welcome to Raccoon City".
+       * Normal release metadata begins with a year, edition, quality, source,
+       * language or codec marker; an unexpected lexical token immediately after
+       * the requested title is evidence that this is a different movie.
+       */
+      if (
+        !requestedEndsInSequelMarker &&
+        nextToken &&
+        !isReleaseBoundaryToken(nextToken)
+      ) {
+        return "conflicting_title_suffix";
       }
     }
   }
