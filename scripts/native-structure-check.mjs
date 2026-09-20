@@ -196,7 +196,12 @@ for (const app of apps) {
     [playerActivity.includes("video/x-matroska"), "Matroska MIME recognition"],
     [playerActivity.includes("video/x-msvideo"), "AVI MIME recognition"],
     [compatibilityActivity.includes("LibVLC("), "LibVLC engine"],
-    [compatibilityActivity.includes("setHWDecoderEnabled(true, false)"), "hardware-first VLC fallback"],
+    [
+      compatibilityActivity.includes("setHWDecoderEnabled(!forceSoftwareVideoDecode, false)") &&
+        compatibilityActivity.includes("private var forceSoftwareVideoDecode = false") &&
+        compatibilityActivity.includes("private var compatibilityRetryPass = 0"),
+      "same-source hardware-first VLC fallback with one software retry",
+    ],
     [compatibilityActivity.includes('setAudioOutput("android_audiotrack")'), "compatibility Android AudioTrack output"],
     [compatibilityActivity.includes("setAudioDigitalOutputEnabled(false)"), "compatibility digital passthrough disabled"],
     [compatibilityActivity.includes('setAudioOutputDevice("stereo")'), "compatibility stereo PCM downmix"],
@@ -211,7 +216,11 @@ for (const app of apps) {
     [compatibilityRouter.includes("bitrateRange"), "UHD bitrate capability check"],
     [compatibilityRouter.includes("dolby-vision"), "Dolby Vision profile routing"],
     [compatibilityRouter.includes('CodecSpec("hevc", listOf("video/hevc"))'), "Dolby Vision HEVC base-layer rescue"],
-    [compatibilityRouter.includes("provider:torrentio"), "Torrentio compatibility-player preflight"],
+    [
+      !compatibilityRouter.includes('return Decision(true, "provider:torrentio")') &&
+        compatibilityRouter.includes("Provider identity is not a decoder failure"),
+      "provider-independent compatibility routing",
+    ],
     [compatibilityRouter.includes("video:") && compatibilityRouter.includes("audio:"), "codec-class routing"],
     [compatibilityRouter.includes("prores") && compatibilityRouter.includes("vc1"), "extended video codec detection"],
     [compatibilityRouter.includes("dts-hd") && compatibilityRouter.includes("truehd"), "extended audio codec detection"],
