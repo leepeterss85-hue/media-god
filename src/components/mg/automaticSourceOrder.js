@@ -5,12 +5,19 @@ const entryIndex = (entry) =>
     ? Number(entry.index)
     : Number.MAX_SAFE_INTEGER;
 
+const effectiveCompatibilityTier = (entry) =>
+  entry?.provenWorking === true
+    ? 0
+    : Number(entry?.compatibilityTier ?? 2);
+
 const compareCompatibleReadyEntries = (left, right) =>
-  Number(left?.compatibilityTier ?? 2) - Number(right?.compatibilityTier ?? 2) ||
+  effectiveCompatibilityTier(left) - effectiveCompatibilityTier(right) ||
   Number(left?.languageRank ?? 0) - Number(right?.languageRank ?? 0) ||
-  Number(right?.compatibility || 0) - Number(left?.compatibility || 0) ||
+  Number(left?.hardSubtitleRank ?? 0) - Number(right?.hardSubtitleRank ?? 0) ||
+  Number(Boolean(right?.provenWorking)) - Number(Boolean(left?.provenWorking)) ||
   Number(Boolean(right?.trustedCached)) - Number(Boolean(left?.trustedCached)) ||
   Number(Boolean(right?.cached)) - Number(Boolean(left?.cached)) ||
+  Number(right?.compatibility || 0) - Number(left?.compatibility || 0) ||
   Number(right?.resolution || 0) - Number(left?.resolution || 0) ||
   entryIndex(left) - entryIndex(right);
 
@@ -36,11 +43,13 @@ export const prioritiseCompatibleAutoplayEntries = (
     .filter((entry) => !preferredIndexes.has(entryIndex(entry)))
     .sort(
       (left, right) =>
-        Number(left?.compatibilityTier ?? 2) - Number(right?.compatibilityTier ?? 2) ||
+        effectiveCompatibilityTier(left) - effectiveCompatibilityTier(right) ||
         Number(left?.languageRank ?? 0) - Number(right?.languageRank ?? 0) ||
-        Number(right?.compatibility || 0) - Number(left?.compatibility || 0) ||
+        Number(left?.hardSubtitleRank ?? 0) - Number(right?.hardSubtitleRank ?? 0) ||
+        Number(Boolean(right?.provenWorking)) - Number(Boolean(left?.provenWorking)) ||
         Number(Boolean(right?.trustedCached)) - Number(Boolean(left?.trustedCached)) ||
         Number(Boolean(right?.cached)) - Number(Boolean(left?.cached)) ||
+        Number(right?.compatibility || 0) - Number(left?.compatibility || 0) ||
         Number(right?.resolution || 0) - Number(left?.resolution || 0) ||
         entryIndex(left) - entryIndex(right)
     );
