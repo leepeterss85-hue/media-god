@@ -255,7 +255,7 @@ const sourceNeedsCaching = (item) => {
 };
 
 const FAILED_TORRENT_HASHES_KEY =
-  "mg:failed-uncached-torrent-hashes:v6";
+  "mg:failed-uncached-torrent-hashes:v7";
 const FAILED_TORRENT_HASH_TTL_MS =
   2 * 60 * 60 * 1000;
 const FAILED_TORRENT_HASH_LIMIT = 80;
@@ -4931,25 +4931,18 @@ export default function VideoPlayer({
                 setRdTorrentId(null);
                 setRdPreparation(null);
 
-                const authoritativeMessage =
+                /*
+                 * Legacy/backend-race safety: audio metadata is not sufficient
+                 * evidence to blacklist a torrent. A working file can expose
+                 * incomplete Real-Debrid language/audio metadata while Media3
+                 * or LibVLC still sees the real tracks. Keep this source
+                 * available instead of racing through and poisoning the list.
+                 */
+                setRdError(
                   error?.code === "RD_NO_ENGLISH_AUDIO"
-                    ? "This release has no English main audio track. Trying the next cached English-capable source…"
-                    : "Real-Debrid confirmed this release has no usable audio tracks. Trying the next cached source…";
-
-                const moved = tryNextSource(authoritativeMessage, {
-                  blacklistTorrentHash: true,
-                  immediate: true,
-                  allowCaching: false,
-                  authoritativeSourceRejection: true,
-                });
-
-                if (!moved && !manualSourceLockActive()) {
-                  setRdError(
-                    error?.code === "RD_NO_ENGLISH_AUDIO"
-                      ? "Media God checked this release and found no English main audio. No other ready cached source is available yet."
-                      : "Media God checked this release and found no usable audio track. No other ready cached source is available yet."
-                  );
-                }
+                    ? "Real-Debrid did not label an English track for this file. Media God kept the source available instead of marking it bad; Retry lets the player inspect the real audio tracks."
+                    : "Real-Debrid did not report audio tracks for this file. Media God kept the source available instead of marking it bad; Retry lets the player verify audio at runtime."
+                );
                 return;
               }
 
@@ -5478,25 +5471,16 @@ export default function VideoPlayer({
               ) {
                 setRdPreparation(null);
 
-                const authoritativeMessage =
+                /*
+                 * Do not convert imperfect Real-Debrid mediaInfos into a
+                 * blacklist. Keep the source selected so a retry/runtime
+                 * decoder probe can prove the actual audio instead.
+                 */
+                setRdError(
                   rdErrorCode === "RD_NO_ENGLISH_AUDIO"
-                    ? "This release has no English main audio track. Trying the next cached English-capable source…"
-                    : "Real-Debrid confirmed this release has no usable audio tracks. Trying the next cached source…";
-
-                const moved = tryNextSource(authoritativeMessage, {
-                  blacklistTorrentHash: true,
-                  immediate: true,
-                  allowCaching: false,
-                  authoritativeSourceRejection: true,
-                });
-
-                if (!moved && !manualSourceLockActive()) {
-                  setRdError(
-                    rdErrorCode === "RD_NO_ENGLISH_AUDIO"
-                      ? "Media God checked this release and found no English main audio. No other ready cached source is available yet."
-                      : "Media God checked this release and found no usable audio track. No other ready cached source is available yet."
-                  );
-                }
+                    ? "Real-Debrid did not label an English track for this file. The source was kept available instead of being marked bad."
+                    : "Real-Debrid did not report audio tracks for this file. The source was kept available instead of being marked bad."
+                );
                 return;
               }
 
