@@ -3896,17 +3896,25 @@ async function choosePlayableRdStream({
   if (
     explicitlyForeignOnly
   ) {
+    /*
+     * Normal autoplay is English-first. A file whose inspected tracks are all
+     * explicitly non-English is not a valid automatic fallback: returning its
+     * original URL caused Media God to open the film in the wrong language and
+     * made the Audio button appear to fight the source chooser. Reject this
+     * candidate so the existing ready-source recovery can try an English or
+     * unlabelled/multi-audio copy instead.
+     */
     return {
-      stream_url:
-        originalUrl,
-      filename:
-        originalFilename,
+      error:
+        "This cached release has no labelled English audio track.",
+      error_code:
+        "RD_NO_ENGLISH_AUDIO",
       audio_rescue: {
         used: false,
         state:
-          "no_english_audio",
+          "no_english_audio_try_next_source",
         reason:
-          "Every labelled audio track is non-English. The original stream is kept as a last-resort fallback.",
+          "Every labelled audio track is non-English. Media God will skip this source for English-first autoplay.",
       },
       media_info:
         mediaSummary,
