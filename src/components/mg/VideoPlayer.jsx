@@ -2090,6 +2090,8 @@ export default function VideoPlayer({
         })
       );
     }
+
+    return true;
   };
 
   const tryNextSource = (
