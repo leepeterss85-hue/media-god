@@ -61,6 +61,9 @@ import {
   prioritiseCompatibleAutoplayEntries,
 } from "../src/components/mg/automaticSourceOrder.js";
 import {
+  sourcePlaybackCompatibilityTier,
+} from "../src/components/mg/mediaCompatibility.js";
+import {
   claimExclusivePlayback,
   hasExclusivePlaybackOwner,
   releaseExclusivePlayback,
@@ -3071,4 +3074,81 @@ test("one-second native decoder failures never become a torrent carousel", () =>
     assert.match(main, /playbackDecision\.reason\.startsWith\("audio"/);
     assert.match(diagnostics, /"compatibilityAudioRecovery"/);
   }
+});
+
+
+test("qualification can choose the lead source but can never truncate the chooser to five", () => {
+  const providerSource = readFileSync(
+    new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.doesNotMatch(
+    providerSource,
+    /runtimeFallbackSources[\s\S]{0,1400}?\.slice\(0,\s*5\)/
+  );
+  assert.match(providerSource, /const playbackLeadSources/);
+  assert.match(
+    providerSource,
+    /preservePublishedSourceOrder\([\s\S]{0,160}?playbackLeadSources,[\s\S]{0,160}?orderedSources/
+  );
+  assert.match(providerSource, /sources:\s*playerSources/);
+  assert.match(providerSource, /completeSources:\s*canonicalCompletePlaybackSources/);
+});
+
+test("native playback receives the full compatibility-sorted source list", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(
+    playerSource,
+    /sources:\s*sortedSourceEntries[\s\S]{0,220}?sourceIsUserSelectable/
+  );
+  assert.doesNotMatch(
+    playerSource,
+    /sources:\s*sourcesForSelector[\s\S]{0,120}?sourceIsUserSelectable/
+  );
+});
+
+test("audio and video compatibility tier orders proven playable sources before incompatible ones", () => {
+  const proven = sourcePlaybackCompatibilityTier(
+    {
+      label: "Movie.1080p.H264.AAC.English.mp4",
+      videoCodec: "h264",
+      audioCodec: "aac",
+    },
+    "",
+    {
+      deviceProfile: {
+        nativePlayerAvailable: false,
+        fireTv: false,
+        nativeFireTv: false,
+        nativeAndroidMobile: false,
+        nativeCodecSupport: { video: [], audio: [] },
+      },
+    }
+  );
+
+  const incompatible = sourcePlaybackCompatibilityTier(
+    {
+      label: "Movie.1080p.HEVC.TrueHD.English.mkv",
+      videoCodec: "hevc",
+      audioCodec: "truehd",
+    },
+    "",
+    {
+      deviceProfile: {
+        nativePlayerAvailable: false,
+        fireTv: false,
+        nativeFireTv: false,
+        nativeAndroidMobile: false,
+        nativeCodecSupport: { video: [], audio: [] },
+      },
+    }
+  );
+
+  assert.equal(proven, 0);
+  assert.equal(incompatible, 3);
 });
