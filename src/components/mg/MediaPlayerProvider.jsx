@@ -3133,6 +3133,12 @@ export function PlayerProvider({
           request?.original_title,
           imdbInfo?.alternateTitles
         );
+        const identityAlternateYears = mergeAlternateYears(
+          request?.rdYear ?? request?.year ?? "",
+          request?.rdAlternateYears,
+          request?.alternateYears,
+          imdbInfo?.alternateYears
+        );
 
         const resolvedRdPromise =
           !isLive &&
@@ -3149,15 +3155,7 @@ export function PlayerProvider({
                   title: request?.rdTitle || request?.title || "",
                   year: request?.rdYear ?? request?.year ?? null,
                   alternateYears:
-                    Array.isArray(
-                      request?.rdAlternateYears ||
-                      request?.alternateYears
-                    )
-                      ? (
-                          request?.rdAlternateYears ||
-                          request?.alternateYears
-                        )
-                      : [],
+                    identityAlternateYears,
                   alternateTitles:
                     identityAlternateTitles,
                   season,
@@ -3190,6 +3188,10 @@ export function PlayerProvider({
 
             return {
               ...current,
+              alternateYears:
+                identityAlternateYears,
+              rdAlternateYears:
+                identityAlternateYears,
               alternateTitles:
                 identityAlternateTitles,
               rdAlternateTitles:
@@ -3210,15 +3212,7 @@ export function PlayerProvider({
             request?.year ??
             "",
           alternateYears:
-            Array.isArray(
-              request?.rdAlternateYears ||
-              request?.alternateYears
-            )
-              ? (
-                  request?.rdAlternateYears ||
-                  request?.alternateYears
-                )
-              : [],
+            identityAlternateYears,
           alternateTitles:
             identityAlternateTitles,
           mediaType,
