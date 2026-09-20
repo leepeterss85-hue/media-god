@@ -2576,6 +2576,13 @@ export function PlayerProvider({
           mediaType,
         });
         const imdbId = imdbInfo?.imdbId || "";
+        const identityAlternateTitles = mergeAlternateTitles(
+          request?.rdAlternateTitles,
+          request?.alternateTitles,
+          request?.originalTitle,
+          request?.original_title,
+          imdbInfo?.alternateTitles
+        );
 
         const addonPromise =
           request?.skipAddonLookup
