@@ -12,8 +12,8 @@ android {
         applicationId = "com.mediagod.firetv"
         minSdk = 21
         targetSdk = 35
-        versionCode = 60
-        versionName = "1.4.55"
+        versionCode = 61
+        versionName = "1.4.56"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
