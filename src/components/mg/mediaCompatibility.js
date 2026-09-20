@@ -1180,7 +1180,8 @@ export const hasSevereAudioRisk = (
       "dts" ||
     traits.audio ===
       "truehd" ||
-    traits.audioRisk
+    traits.audioRisk ||
+    traits.atmos
   );
 };
 
