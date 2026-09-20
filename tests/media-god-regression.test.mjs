@@ -2586,12 +2586,56 @@ test("English-first audio keeps manual choices locked and never enters an uncach
     );
     assert.match(
       source,
-      /val englishMain = tracks\.firstOrNull[\s\S]{0,300}looksEnglish/
+      /val englishMainTracks = tracks\.filter[\s\S]{0,350}looksEnglish/
+    );
+    assert.match(
+      source,
+      /englishMainTracks\.isNotEmpty\(\)[\s\S]{0,500}englishMainTracks\.first\(\)/
     );
     assert.match(source, /manualAudioTrackLocked = true/);
     assert.match(source, /root\.removeCallbacks\(audioRecoveryRunnable\)/);
     assert.match(source, /Audio locked/);
   });
+});
+
+test("native players explicitly override a foreign default to English main audio", () => {
+  const nativeFiles = [
+    "../android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt",
+    "../firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt",
+  ];
+  const rdSource = readFileSync(
+    new URL("../base44/functions/realDebrid/entry.ts", import.meta.url),
+    "utf8"
+  );
+
+  nativeFiles.forEach((file) => {
+    const source = readFileSync(new URL(file, import.meta.url), "utf8");
+
+    assert.match(source, /private fun enforcePreferredEnglishAudio/);
+    assert.match(source, /formatLooksEnglish/);
+    assert.match(source, /formatLooksCommentary/);
+    assert.match(source, /TrackSelectionOverride/);
+    assert.match(source, /setOverrideForType/);
+    assert.match(
+      source,
+      /val englishOverrideApplied[\s\S]{0,180}!englishOverrideApplied[\s\S]{0,120}scheduleMissingAudioCheck/
+    );
+    assert.match(
+      source,
+      /group\.isTrackSelected\(index\)[\s\S]{0,180}audio\/vnd\.dts/
+    );
+  });
+
+  assert.match(rdSource, /track\?\.title/);
+  assert.match(rdSource, /track\?\.label/);
+  assert.match(
+    rdSource,
+    /\(\?:eng\|en\|english\)/
+  );
+  assert.match(
+    rdSource,
+    /name:[\s\S]{0,120}track\?\.title/
+  );
 });
 
 test("global VOD audio validation covers web, Media3 and LibVLC playback", () => {
