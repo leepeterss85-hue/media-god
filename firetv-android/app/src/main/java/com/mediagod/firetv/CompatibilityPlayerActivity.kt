@@ -362,7 +362,7 @@ class CompatibilityPlayerActivity : Activity() {
     }
 
     private fun riskyAudio(): Boolean = Regex(
-        """(?:true[ ._-]?hd|mlp|dts(?:[ ._-]?hd)?|dts:x|dca)""", RegexOption.IGNORE_CASE
+        """(?:true[ ._-]?hd|mlp|dts(?:[ ._-]?(?:hd|ma|x))?|dca|e[ ._-]?ac[ ._-]?3[ ._-]?joc|eac3[ ._-]?joc|atmos)""", RegexOption.IGNORE_CASE
     ).containsMatchIn("${payload.optString("audioCodec")} ${payload.optString("hintText")}")
 
     private fun configureAudioOutput(player: MediaPlayer) {
