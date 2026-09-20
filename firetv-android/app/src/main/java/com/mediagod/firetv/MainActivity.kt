@@ -538,6 +538,10 @@ class MainActivity : Activity() {
             if (playbackDecision.useCompatibility) {
                 payload.put("compatibilityPreflight", true)
                 payload.put("compatibilityReason", playbackDecision.reason)
+                payload.put(
+                    "compatibilityAudioRecovery",
+                    playbackDecision.reason.startsWith("audio", ignoreCase = true)
+                )
             }
 
             val accepted = synchronized(nativePlayerLock) {
