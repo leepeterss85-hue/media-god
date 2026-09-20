@@ -110,6 +110,123 @@ class PlayerActivity : Activity() {
         return durationMs <= 15_000L || durationMs in 115_000L..125_000L
     }
 
+    private fun formatLooksEnglish(format: androidx.media3.common.Format): Boolean {
+        val language = format.language.orEmpty().trim().lowercase()
+        val label = format.label.orEmpty().trim().lowercase()
+
+        return language == "en" ||
+            language == "eng" ||
+            language.startsWith("en-") ||
+            Regex(
+                """(?:^|[^a-z0-9])(?:en|eng|english)(?=$|[^a-z0-9])""",
+                RegexOption.IGNORE_CASE
+            ).containsMatchIn(label)
+    }
+
+    private fun formatLooksCommentary(format: androidx.media3.common.Format): Boolean {
+        val label = format.label.orEmpty()
+
+        return (format.roleFlags and C.ROLE_FLAG_COMMENTARY) != 0 ||
+            Regex(
+                """commentary|audio description|descriptive|visually impaired""",
+                RegexOption.IGNORE_CASE
+            ).containsMatchIn(label)
+    }
+
+    /**
+     * Once Media3 knows the real track groups, explicitly pin the preferred
+     * English main track instead of relying only on the pre-prepare language
+     * preference. Some MKV/remux files advertise a foreign default track even
+     * though a clean English track is present.
+     *
+     * Returns true when a new override was applied. The caller should wait for
+     * the resulting onTracksChanged callback before running compatibility
+     * rescue, otherwise the old foreign selection can be mistaken for failure.
+     */
+    private fun enforcePreferredEnglishAudio(
+        activePlayer: ExoPlayer,
+        tracks: androidx.media3.common.Tracks
+    ): Boolean {
+        val preferred = payload.optString("audioLanguage", "en")
+            .trim()
+            .lowercase()
+
+        if (preferred !in setOf("en", "eng", "english")) {
+            return false
+        }
+
+        var selectedEnglishMain = false
+        var bestGroup: androidx.media3.common.Tracks.Group? = null
+        var bestIndex = -1
+        var bestScore = Int.MIN_VALUE
+
+        tracks.groups.forEach { group ->
+            if (group.type != C.TRACK_TYPE_AUDIO) return@forEach
+
+            for (index in 0 until group.length) {
+                if (!group.isTrackSupported(index)) continue
+
+                val format = group.getTrackFormat(index)
+                val english = formatLooksEnglish(format)
+                val commentary = formatLooksCommentary(format)
+
+                if (
+                    group.isTrackSelected(index) &&
+                    english &&
+                    !commentary
+                ) {
+                    selectedEnglishMain = true
+                }
+
+                if (!english) continue
+
+                var score = 1000
+                if (!commentary) score += 400
+                if ((format.roleFlags and C.ROLE_FLAG_MAIN) != 0) score += 100
+                if (group.isTrackSelected(index)) score += 25
+
+                val mime = format.sampleMimeType.orEmpty().lowercase()
+                if (
+                    mime.contains("aac") ||
+                    mime.contains("ac3") ||
+                    mime.contains("eac3") ||
+                    mime.contains("opus")
+                ) {
+                    score += 20
+                }
+
+                if (commentary) score -= 900
+
+                if (score > bestScore) {
+                    bestScore = score
+                    bestGroup = group
+                    bestIndex = index
+                }
+            }
+        }
+
+        if (selectedEnglishMain || bestGroup == null || bestIndex < 0) {
+            return false
+        }
+
+        return try {
+            activePlayer.trackSelectionParameters =
+                activePlayer.trackSelectionParameters
+                    .buildUpon()
+                    .setOverrideForType(
+                        androidx.media3.common.TrackSelectionOverride(
+                            bestGroup!!.mediaTrackGroup,
+                            bestIndex
+                        )
+                    )
+                    .build()
+            true
+        } catch (_: Throwable) {
+            false
+        }
+    }
+
+
     private val hideControllerRunnable = Runnable {
         if (!resultSent && ::playerView.isInitialized) {
             playerView.hideController()
@@ -430,7 +547,12 @@ class PlayerActivity : Activity() {
                     )
                 }
 
-                scheduleMissingAudioCheck(exoPlayer, tracks)
+                val englishOverrideApplied =
+                    enforcePreferredEnglishAudio(exoPlayer, tracks)
+
+                if (!englishOverrideApplied) {
+                    scheduleMissingAudioCheck(exoPlayer, tracks)
+                }
             }
 
             override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -592,6 +714,7 @@ class PlayerActivity : Activity() {
                     .lowercase()
 
                 if (
+                    group.isTrackSelected(index) &&
                     mime in setOf(
                         "audio/vnd.dts",
                         "audio/vnd.dts.hd",
