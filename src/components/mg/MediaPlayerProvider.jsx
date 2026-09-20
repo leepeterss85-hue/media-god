@@ -683,6 +683,16 @@ const sortSources = (items) => {
   );
 };
 
+const mergeAlternateTitles = (...values) =>
+  Array.from(
+    new Set(
+      values
+        .flatMap((value) => Array.isArray(value) ? value : [value])
+        .map((value) => String(value || "").trim())
+        .filter(Boolean)
+    )
+  );
+
 const resolveImdbInfo = async ({
   id,
   tmdbId,
@@ -1495,6 +1505,7 @@ const findRdLibrarySource = async ({
   title,
   year,
   alternateYears = [],
+  alternateTitles = [],
   season,
   episode,
 }) => {
@@ -1572,6 +1583,7 @@ const findRdLibrarySource = async ({
             title,
             year,
             alternateYears,
+            alternateTitles,
             mediaType:
               season != null || episode != null
                 ? "tv"
