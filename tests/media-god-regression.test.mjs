@@ -3502,17 +3502,36 @@ test("startup discovery cannot flash through unverified English candidates", () 
     startupBlock,
     /bestEnglishCandidateShouldOwnStartup/
   );
-  assert.match(
-    startupBlock,
-    /bestEnglishCandidateShouldOwnStartup[\s\S]{0,260}?!startupAlreadyClaimed[\s\S]{0,260}?bestEnglishAutoplayCandidateIndex/
+  const englishClaimStart = startupBlock.indexOf(
+    "const bestEnglishCandidateShouldOwnStartup"
   );
+  const englishClaimEnd = startupBlock.indexOf(
+    "const nextAutomaticSourceIndex",
+    englishClaimStart
+  );
+  assert.ok(englishClaimStart >= 0 && englishClaimEnd > englishClaimStart);
+  const englishClaimBlock = startupBlock.slice(
+    englishClaimStart,
+    englishClaimEnd
+  );
+  assert.match(englishClaimBlock, /!startupAlreadyClaimed/);
+  assert.match(englishClaimBlock, /bestApprovedAutoplaySourceIndex < 0/);
+  assert.match(englishClaimBlock, /bestEnglishAutoplayCandidateIndex >= 0/);
   assert.match(
     startupBlock,
     /Preparing the best English source automatically/
   );
+  const switchStart = startupBlock.indexOf(
+    "const switched = switchToSource(nextAutomaticSourceIndex"
+  );
+  const claimStart = startupBlock.indexOf(
+    'if (switched && sourceSortMode === "best")',
+    switchStart
+  );
+  assert.ok(switchStart >= 0 && claimStart > switchStart);
   assert.match(
-    startupBlock,
-    /const switched = switchToSource\(nextAutomaticSourceIndex[\s\S]{0,420}?if \(switched && sourceSortMode === "best"\)[\s\S]{0,180}?claimed: true/
+    startupBlock.slice(claimStart, claimStart + 260),
+    /claimed: true/
   );
 
   assert.match(
