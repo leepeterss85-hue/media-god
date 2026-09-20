@@ -8,6 +8,16 @@ const yearQualifiedSearchIds = (values) =>
   (Array.isArray(values) ? values : [])
     .filter((value) => /^search:.*:\d{4}(?::\d+:\d+)?$/i.test(clean(value)))
     .slice(0, 2);
+
+const isAuthoritativeStreamId = (value) => {
+  const id = clean(value);
+
+  return (
+    /^(?:imdb:)?tt\d+(?::\d+:\d+)?$/i.test(id) ||
+    /^tmdb:\d+(?::\d+:\d+)?$/i.test(id) ||
+    /^\d+(?::\d+:\d+)?$/.test(id)
+  );
+};
 const isMagnet = (value) =>
   clean(value).toLowerCase().startsWith("magnet:");
 
@@ -1365,7 +1375,8 @@ const fetchOneAddon = async ({
    * year-qualified title results contain the remaining releases without
    * crossing into another remake/reboot year.
    */
-  if (rawStreams.length > 0) {
+  if (rawStreams.length > 0 &&
+    !isAuthoritativeStreamId(alternateIdUsed || streamId)) {
     for (const alternateStreamId of yearQualifiedSearchIds(alternateStreamIds)) {
       if (
         !alternateStreamId ||
