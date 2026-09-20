@@ -958,6 +958,9 @@ const resolveImdbInfo = async ({
         alternateTitles:
           suppliedAlternateTitles,
 
+        alternateYears:
+          suppliedAlternateYears,
+
         status:
           "OK",
 
