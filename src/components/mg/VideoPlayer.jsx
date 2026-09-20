@@ -1080,59 +1080,65 @@ export default function VideoPlayer({
    * arriving asynchronously. Only rows explicitly approved for automatic
    * playback are allowed to replace that barrier automatically.
    */
+  const autoplayEntryApproved = (entry) => {
+    const { item, index } = entry || {};
+
+    if (
+      !item ||
+      failedSourcesRef.current.has(index) ||
+      sourceNeedsCaching(item)
+    ) {
+      return false;
+    }
+
+    const hash = sourceTorrentHash(item);
+    const runtimeReady = Boolean(
+      hash && runtimeReadyTorrentHashes.has(hash)
+    );
+
+    /*
+     * The source selector already owns Media God's canonical "Best available"
+     * order. Autoplay must use that exact same ordering instead of starting at
+     * raw source-array index 0 and making the menu/player disagree.
+     */
+    const cachedCompatibleEnglishAutoplay = Boolean(
+      entry?.cached === true &&
+        Number(entry?.compatibilityTier ?? 3) <= 1 &&
+        Number(entry?.languageRank ?? 3) === 0 &&
+        Number(entry?.hardSubtitleRank ?? 0) === 0
+    );
+
+    const runtimeReadyEnglishAutoplay = Boolean(
+      runtimeReady &&
+        Number(entry?.languageRank ?? 3) === 0 &&
+        Number(entry?.hardSubtitleRank ?? 0) === 0
+    );
+
+    return Boolean(
+      item?.launchQualified === true ||
+        item?.runtimeQualificationFallback === true ||
+        item?.playbackVerified === true ||
+        item?.runtimePlaybackVerified === true ||
+        entry?.autoplayReady === true ||
+        runtimeReadyEnglishAutoplay ||
+        cachedCompatibleEnglishAutoplay
+    );
+  };
+
+  const bestApprovedAutoplaySourceIndex =
+    sortedSourceEntries.find(
+      (entry) =>
+        sourceIsUserSelectable(entry?.item) &&
+        autoplayEntryApproved(entry)
+    )?.index ?? -1;
+
   const automaticApprovedAutoplaySourceIndex =
-    selectableSourceEntries.find((entry) => {
-      const { item, index } = entry;
-
-      if (
-        index === activeIdx ||
-        failedSourcesRef.current.has(index) ||
-        sourceNeedsCaching(item)
-      ) {
-        return false;
-      }
-
-      const hash = sourceTorrentHash(item);
-      const runtimeReady = Boolean(
-        hash && runtimeReadyTorrentHashes.has(hash)
-      );
-
-      /*
-       * Metadata qualification remains the strongest signal, but it must not
-       * block obvious cached playback. If the source is already confirmed
-       * cached, the device compatibility tier says audio+video are suitable,
-       * explicit English is preferred, and there is no hard-sub marker, approve
-       * it for automatic start even when the asynchronous media-inspection flag
-       * has not been attached yet. Multi-audio is not proof that English is the
-       * usable/default track, so it still needs strict/runtime qualification.
-       */
-      const cachedCompatibleEnglishAutoplay = Boolean(
-        entry?.cached === true &&
-          Number(entry?.compatibilityTier ?? 3) <= 1 &&
-          Number(entry?.languageRank ?? 3) === 0 &&
-          Number(entry?.hardSubtitleRank ?? 0) === 0
-      );
-
-      /*
-       * A torrent becoming cached only proves bytes are ready. It does not prove
-       * that a multi-audio/unknown release will expose usable English on this
-       * device. Keep runtime-ready rows behind the same explicit-English gate.
-       */
-      const runtimeReadyEnglishAutoplay = Boolean(
-        runtimeReady &&
-          Number(entry?.languageRank ?? 3) === 0 &&
-          Number(entry?.hardSubtitleRank ?? 0) === 0
-      );
-
-      return Boolean(
-        item?.launchQualified === true ||
-          item?.runtimeQualificationFallback === true ||
-          item?.playbackVerified === true ||
-          item?.runtimePlaybackVerified === true ||
-          runtimeReadyEnglishAutoplay ||
-          cachedCompatibleEnglishAutoplay
-      );
-    })?.index ?? -1;
+    sortedSourceEntries.find(
+      (entry) =>
+        entry?.index !== activeIdx &&
+        sourceIsUserSelectable(entry?.item) &&
+        autoplayEntryApproved(entry)
+    )?.index ?? -1;
 
   /*
    * Android/Fire TV native <select> popups close if React changes their
@@ -2544,21 +2550,61 @@ export default function VideoPlayer({
    * one slow torrent must not block an already-ready backup.
    */
   useEffect(() => {
+    const currentVideo = stageRef.current?.querySelector("video");
+    const webPlaybackStarted =
+      currentVideo instanceof HTMLVideoElement &&
+      !currentVideo.paused &&
+      !currentVideo.ended &&
+      !currentVideo.error &&
+      Number(currentVideo.currentTime || 0) > 0.15;
+    const nativePlaybackStarted =
+      typeof window !== "undefined" &&
+      window.__MG_NATIVE_PLAYBACK_ACTIVE__ === true;
+
+    /*
+     * STARTUP MUST FOLLOW "BEST AVAILABLE".
+     *
+     * The screenshot/source chooser can already identify the best cached
+     * English row. Before playback has actually started, make that exact row
+     * authoritative for the active source too. This intentionally overrides
+     * raw array index 0 and an in-flight resolve of a worse startup candidate.
+     * Once real playback begins, normal recovery owns the session and we do not
+     * jump to a newly discovered release underneath the viewer.
+     */
+    const bestSourceShouldOwnStartup =
+      sourceSortMode === "best" &&
+      playbackMediaType !== "live" &&
+      !manualSourceLockActive() &&
+      !webPlaybackStarted &&
+      !nativePlaybackStarted &&
+      bestApprovedAutoplaySourceIndex >= 0 &&
+      bestApprovedAutoplaySourceIndex !== activeIdx;
+
     const nextAutomaticSourceIndex =
-      activeIsWaitingForVerifiedSource
-        ? automaticApprovedAutoplaySourceIndex
-        : automaticReadySourceIndex;
+      bestSourceShouldOwnStartup
+        ? bestApprovedAutoplaySourceIndex
+        : activeIsWaitingForVerifiedSource
+          ? automaticApprovedAutoplaySourceIndex
+          : automaticReadySourceIndex;
 
     if (
       isLive ||
       isYoutube ||
       isProvider ||
-      (!activeNeedsCaching && !activeIsWaitingForVerifiedSource) ||
       nextAutomaticSourceIndex < 0 ||
-      rdResolving ||
-      rdPolling ||
-      rdTorrentId ||
       fileSwitching
+    ) {
+      return;
+    }
+
+    if (
+      !bestSourceShouldOwnStartup &&
+      (
+        (!activeNeedsCaching && !activeIsWaitingForVerifiedSource) ||
+        rdResolving ||
+        rdPolling ||
+        rdTorrentId
+      )
     ) {
       return;
     }
@@ -2566,9 +2612,11 @@ export default function VideoPlayer({
     switchToSource(nextAutomaticSourceIndex, {
       preservePosition: false,
       statusMessage:
-        activeIsWaitingForVerifiedSource
-          ? "Verified cached source ready — starting automatically…"
-          : "Opening a ready source while Media God prepares the other torrents in the background…",
+        bestSourceShouldOwnStartup
+          ? "Best cached English source ready — starting automatically…"
+          : activeIsWaitingForVerifiedSource
+            ? "Verified cached source ready — starting automatically…"
+            : "Opening a ready source while Media God prepares the other torrents in the background…",
     });
   }, [
     activeIdx,
@@ -2576,14 +2624,17 @@ export default function VideoPlayer({
     activeNeedsCaching,
     automaticApprovedAutoplaySourceIndex,
     automaticReadySourceIndex,
+    bestApprovedAutoplaySourceIndex,
     fileSwitching,
     isLive,
     isProvider,
     isYoutube,
+    playbackMediaType,
     rdMediaContextKey,
     rdPolling,
     rdResolving,
     rdTorrentId,
+    sourceSortMode,
   ]);
 
   /*
