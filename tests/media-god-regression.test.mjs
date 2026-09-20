@@ -2420,7 +2420,7 @@ test("compatibility tier explicitly puts proven audio+video before known incompa
   assert.match(tierBlock, /return 2/);
 });
 
-test("Real-Debrid zero-audio inspection tries transcode then rejects the silent source", () => {
+test("Real-Debrid zero-audio metadata tries transcode then preserves the original source for runtime verification", () => {
   const rdSource = readFileSync(
     new URL("../base44/functions/realDebrid/entry.ts", import.meta.url),
     "utf8"
@@ -2430,26 +2430,24 @@ test("Real-Debrid zero-audio inspection tries transcode then rejects the silent 
     "utf8"
   );
 
-  assert.doesNotMatch(
-    rdSource,
-    /state:\s*"no_audio_metadata_original_probe"/
-  );
-  assert.match(
-    rdSource,
-    /audioTracks\.length === 0[\s\S]{0,500}RD_NO_AUDIO_TRACKS/
-  );
   const transcodeCall = rdSource.indexOf(
     "await getBestRdTranscode("
   );
-  const zeroAudioReject = rdSource.indexOf(
+  const zeroAudioProbe = rdSource.indexOf(
     "if (audioTracks.length === 0)"
   );
   assert.ok(transcodeCall >= 0);
-  assert.ok(zeroAudioReject > transcodeCall);
-  assert.match(
-    playerSource,
-    /rdErrorCode ===[\s\S]{0,80}"RD_NO_AUDIO_TRACKS"/
+  assert.ok(zeroAudioProbe > transcodeCall);
+
+  const zeroAudioBlock = rdSource.slice(
+    zeroAudioProbe,
+    rdSource.indexOf("const hardRisk =", zeroAudioProbe)
   );
+  assert.match(zeroAudioBlock, /stream_url:\s*\n\s*originalUrl/);
+  assert.match(zeroAudioBlock, /rd_metadata_zero_audio_original_probe/);
+  assert.doesNotMatch(zeroAudioBlock, /RD_NO_AUDIO_TRACKS/);
+  assert.doesNotMatch(zeroAudioBlock, /error_code/);
+
   const audioErrorStart = playerSource.indexOf(
     'rdErrorCode === "RD_NO_AUDIO_TRACKS"'
   );
@@ -2459,10 +2457,9 @@ test("Real-Debrid zero-audio inspection tries transcode then rejects the silent 
   );
   assert.ok(audioErrorStart >= 0 && audioErrorEnd > audioErrorStart);
   const audioErrorBlock = playerSource.slice(audioErrorStart, audioErrorEnd);
-  assert.match(audioErrorBlock, /tryNextSource\(/);
-  assert.match(audioErrorBlock, /immediate:\s*true/);
-  assert.match(audioErrorBlock, /allowCaching:\s*false/);
-  assert.match(audioErrorBlock, /authoritativeSourceRejection:\s*true/);
+  assert.doesNotMatch(audioErrorBlock, /tryNextSource\(/);
+  assert.doesNotMatch(audioErrorBlock, /blacklistTorrentHash/);
+  assert.match(audioErrorBlock, /kept available instead of being marked bad/);
 });
 
 test("fast discovery cannot launch an unqualified torrent", () => {
@@ -2638,13 +2635,18 @@ test("English-first audio keeps manual choices locked and never enters an uncach
   assert.match(noSoundSource, /lockCurrentVodSourceForAudioRecovery/);
   assert.doesNotMatch(noSoundSource, /findNextPlayableSource\(/);
 
-  assert.match(rdSource, /RD_NO_ENGLISH_AUDIO/);
-  assert.match(rdSource, /state:\s*\n\s*"no_english_audio"/);
-  assert.doesNotMatch(rdSource, /no_english_audio_keep_source/);
+  assert.match(rdSource, /rd_metadata_foreign_original_probe/);
   assert.match(
     rdSource,
-    /This cached release has no labelled English audio track/
+    /Real-Debrid metadata did not label an English track/
   );
+  const foreignProbeStart = rdSource.indexOf("if (\n    explicitlyForeignOnly");
+  const foreignProbeEnd = rdSource.indexOf("const firstIsEnglish", foreignProbeStart);
+  assert.ok(foreignProbeStart >= 0 && foreignProbeEnd > foreignProbeStart);
+  const foreignProbeBlock = rdSource.slice(foreignProbeStart, foreignProbeEnd);
+  assert.match(foreignProbeBlock, /stream_url:\s*\n\s*originalUrl/);
+  assert.doesNotMatch(foreignProbeBlock, /RD_NO_ENGLISH_AUDIO/);
+  assert.doesNotMatch(foreignProbeBlock, /error_code/);
   assert.match(rdSource, /forced_audio_rescue_original_probe/);
   assert.doesNotMatch(
     rdSource,
@@ -3025,30 +3027,35 @@ test("LibVLC Auto PCM output does not force an explicit stereo device", () => {
 });
 
 
-test("authoritative Real-Debrid no-English or no-audio metadata skips only automatic sources", () => {
+test("Real-Debrid no-English or no-audio metadata never blacklists or races through VOD sources", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
     "utf8"
+  );
+
+  assert.match(
+    playerSource,
+    /mg:failed-uncached-torrent-hashes:v7/
   );
 
   const pollStart = playerSource.indexOf('rdErrorCode === "RD_NO_AUDIO_TRACKS"');
   const pollEnd = playerSource.indexOf('rdErrorCode === "RD_TORRENT_INFO_FAILED"', pollStart);
   assert.ok(pollStart >= 0 && pollEnd > pollStart);
   const pollBlock = playerSource.slice(pollStart, pollEnd);
-  assert.match(pollBlock, /tryNextSource\(/);
-  assert.match(pollBlock, /authoritativeSourceRejection:\s*true/);
-  assert.match(pollBlock, /allowCaching:\s*false/);
-  assert.match(pollBlock, /manualSourceLockActive\(\)/);
+  assert.doesNotMatch(pollBlock, /tryNextSource\(/);
+  assert.doesNotMatch(pollBlock, /blacklistTorrentHash/);
+  assert.doesNotMatch(pollBlock, /markSourceFailed\(/);
+  assert.match(pollBlock, /kept available instead of being marked bad/);
 
   const resolveStart = playerSource.indexOf('error?.code === "RD_NO_AUDIO_TRACKS"');
   const resolveEnd = playerSource.indexOf('error?.code === "RD_ACTIVE_SLOTS_FULL"', resolveStart);
   assert.ok(resolveStart >= 0 && resolveEnd > resolveStart);
   const resolveBlock = playerSource.slice(resolveStart, resolveEnd);
   assert.match(resolveBlock, /RD_NO_ENGLISH_AUDIO/);
-  assert.match(resolveBlock, /tryNextSource\(/);
-  assert.match(resolveBlock, /authoritativeSourceRejection:\s*true/);
-  assert.match(resolveBlock, /allowCaching:\s*false/);
-  assert.match(resolveBlock, /manualSourceLockActive\(\)/);
+  assert.doesNotMatch(resolveBlock, /tryNextSource\(/);
+  assert.doesNotMatch(resolveBlock, /blacklistTorrentHash/);
+  assert.doesNotMatch(resolveBlock, /markSourceFailed\(/);
+  assert.match(resolveBlock, /kept the source available instead of marking it bad/);
 });
 
 
