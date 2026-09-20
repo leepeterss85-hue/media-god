@@ -3,7 +3,7 @@
   "versionCode": 63,
   "versionName": "1.4.58",
   "title": "Media God Fire TV",
-  "message": "Media God Fire TV 1.4.57 puts the source that is actually playing at the top of Best, keeps cached qualified English-compatible sources ahead of uncached guesses, and pushes obvious hard-sub releases lower while keeping every source visible.",
+  "message": "Media God Fire TV 1.4.58 restores automatic VOD startup: a waiting verification row now hands off immediately to the first approved cached compatible source, runtime-approved rows keep their autoplay status through full-list merging, and new titles reset stale source selection state.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
