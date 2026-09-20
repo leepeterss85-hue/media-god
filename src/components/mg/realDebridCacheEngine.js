@@ -25,6 +25,17 @@ const invoke = async (payload) => {
   return response?.data || {};
 };
 
+const identityFields = (context = {}) => ({
+  alternate_years:
+    Array.isArray(context?.alternateYears)
+      ? context.alternateYears
+      : [],
+  alternate_titles:
+    Array.isArray(context?.alternateTitles)
+      ? context.alternateTitles
+      : [],
+});
+
 const invokeAddonStreams = async (payload) => {
   const response = await base44.functions.invoke("fetchAddonStreams", payload);
   return response?.data || {};
@@ -236,6 +247,7 @@ const restartExactTorrent = async ({
     prefer_browser_transcode: context.preferBrowserTranscode === true,
     title: context.title || "",
     ...(context.year != null ? { year: context.year } : {}),
+    ...identityFields(context),
     ...(context.season != null ? { season: context.season } : {}),
     ...(context.episode != null ? { episode: context.episode } : {}),
     ...(context.fileIdx != null && Number.isFinite(Number(context.fileIdx))
@@ -530,6 +542,7 @@ const adoptByHash = async ({ hash, context }) =>
     prefer_browser_transcode: context.preferBrowserTranscode === true,
     title: context.title || "",
     ...(context.year != null ? { year: context.year } : {}),
+    ...identityFields(context),
     ...(context.season != null ? { season: context.season } : {}),
     ...(context.episode != null ? { episode: context.episode } : {}),
   });
@@ -1008,6 +1021,7 @@ export async function runRealDebridCacheSession({
     prefer_browser_transcode: context.preferBrowserTranscode === true,
     title: context.title || "",
     ...(context.year != null ? { year: context.year } : {}),
+    ...identityFields(context),
     ...(context.season != null ? { season: context.season } : {}),
     ...(context.episode != null ? { episode: context.episode } : {}),
     ...(context.fileIdx != null && Number.isFinite(Number(context.fileIdx))
