@@ -24,6 +24,7 @@ import {
   detectLanguagePreference,
   getPlaybackDeviceProfile,
   scoreSourceCompatibility,
+  sourcePlaybackCompatibilityTier,
 } from "@/components/mg/mediaCompatibility";
 import { devicePlaybackReliabilityAdjustment } from "@/components/mg/playbackReliability";
 import { readPlaybackPreferences } from "@/components/mg/playbackPreferences";
@@ -670,12 +671,17 @@ const scoreSource = (item) => {
   );
 };
 
-const sortSources = (items) =>
-  [...items].sort(
+const sortSources = (items) => {
+  const deviceProfile = getPlaybackDeviceProfile();
+
+  return [...items].sort(
     (a, b) =>
+      sourcePlaybackCompatibilityTier(a, "", { deviceProfile }) -
+        sourcePlaybackCompatibilityTier(b, "", { deviceProfile }) ||
       scoreSource(b) -
-      scoreSource(a)
+        scoreSource(a)
   );
+};
 
 const resolveImdbInfo = async ({
   id,
