@@ -3302,3 +3302,24 @@ test("full source-pool merge preserves runtime autoplay approval", () => {
   assert.equal(merged[0].runtimeQualificationFallback, true);
   assert.equal(merged[0].reportedSeeders, 100);
 });
+
+
+test("cached compatible English source is automatically approved without waiting for launchQualified", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(
+    playerSource,
+    /cachedCompatibleEnglishAutoplay[\s\S]{0,420}?entry\?\.cached === true[\s\S]{0,220}?compatibilityTier[\s\S]{0,180}?languageRank[\s\S]{0,180}?hardSubtitleRank/
+  );
+  assert.match(
+    playerSource,
+    /runtimeReady \|\|[\s\S]{0,120}?cachedCompatibleEnglishAutoplay/
+  );
+  assert.match(
+    playerSource,
+    /Verified cached source ready — starting automatically/
+  );
+});
