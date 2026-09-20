@@ -693,6 +693,19 @@ const mergeAlternateTitles = (...values) =>
     )
   );
 
+const mergeAlternateYears = (primaryYear, ...values) => {
+  const primary = String(primaryYear || "").trim();
+
+  return Array.from(
+    new Set(
+      values
+        .flatMap((value) => Array.isArray(value) ? value : [value])
+        .map((value) => String(value || "").trim())
+        .filter((value) => /^\d{4}$/.test(value) && value !== primary)
+    )
+  );
+};
+
 const resolveImdbInfo = async ({
   id,
   tmdbId,
@@ -702,6 +715,8 @@ const resolveImdbInfo = async ({
   mediaType,
   title,
   year,
+  alternateYears,
+  rdAlternateYears,
   alternateTitles,
   rdAlternateTitles,
   originalTitle,
@@ -725,6 +740,12 @@ const resolveImdbInfo = async ({
         .map((value) => String(value || "").trim())
         .filter(Boolean)
     )
+  );
+
+  const suppliedAlternateYears = mergeAlternateYears(
+    year,
+    rdAlternateYears,
+    alternateYears
   );
 
   const numericTmdbId =
