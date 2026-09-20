@@ -4666,6 +4666,23 @@ export default function VideoPlayer({
                 );
 
               if (
+                error?.code === "RD_NO_AUDIO_TRACKS" ||
+                error?.code === "RD_NO_ENGLISH_AUDIO"
+              ) {
+                lockCurrentVodSourceForAudioRecovery();
+                setRdResolving(false);
+                setRdPolling(false);
+                setRdTorrentId(null);
+                setRdPreparation(null);
+                setRdError(
+                  error?.code === "RD_NO_ENGLISH_AUDIO"
+                    ? "This release does not expose a labelled English track. Media God kept this exact source selected; use Audio or Source if you want to change it."
+                    : "Real-Debrid could not expose a usable audio track from this release. Media God kept this exact source selected instead of moving to another torrent."
+                );
+                return;
+              }
+
+              if (
                 error?.code === "RD_ACTIVE_SLOTS_FULL" ||
                 terminalRdResolveFailure
               ) {
@@ -5185,26 +5202,16 @@ export default function VideoPlayer({
               }
 
               if (
-                rdErrorCode ===
-                "RD_NO_AUDIO_TRACKS"
+                rdErrorCode === "RD_NO_AUDIO_TRACKS" ||
+                rdErrorCode === "RD_NO_ENGLISH_AUDIO"
               ) {
                 setRdPreparation(null);
-                markSourceFailed(activeIdx);
-
-                const moved = tryNextSource(
-                  "Real-Debrid confirmed this file has no usable audio track. Trying another source for the same title…",
-                  {
-                    blacklistTorrentHash: true,
-                    immediate: true,
-                  }
+                lockCurrentVodSourceForAudioRecovery();
+                setRdError(
+                  rdErrorCode === "RD_NO_ENGLISH_AUDIO"
+                    ? "This release does not expose a labelled English track. Media God kept this exact source selected; use Audio or Source if you want to change it."
+                    : "Real-Debrid confirmed this file has no usable audio track. Media God kept this exact source selected instead of cycling through other torrents."
                 );
-
-                if (!moved) {
-                  setRdError(
-                    "Real-Debrid confirmed this file has no usable audio track and no different playable source is currently available."
-                  );
-                }
-
                 return;
               }
 
