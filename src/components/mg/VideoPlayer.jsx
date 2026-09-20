@@ -2714,12 +2714,27 @@ export default function VideoPlayer({
       bestApprovedAutoplaySourceIndex >= 0 &&
       bestApprovedAutoplaySourceIndex !== activeIdx;
 
+    /*
+     * If nothing is ready yet, claim ONE explicit-English candidate and let
+     * the foreground Real-Debrid engine prepare that exact source. The claim is
+     * written immediately after the switch below, so later discovery cannot
+     * bounce playback through newly arriving "better" candidates.
+     */
+    const bestEnglishCandidateShouldOwnStartup =
+      startupSelectionAllowed &&
+      !startupAlreadyClaimed &&
+      bestApprovedAutoplaySourceIndex < 0 &&
+      bestEnglishAutoplayCandidateIndex >= 0 &&
+      bestEnglishAutoplayCandidateIndex !== activeIdx;
+
     const nextAutomaticSourceIndex =
       bestSourceShouldOwnStartup
         ? bestApprovedAutoplaySourceIndex
-        : activeIsWaitingForVerifiedSource
-          ? automaticApprovedAutoplaySourceIndex
-          : automaticReadySourceIndex;
+        : bestEnglishCandidateShouldOwnStartup
+          ? bestEnglishAutoplayCandidateIndex
+          : activeIsWaitingForVerifiedSource
+            ? automaticApprovedAutoplaySourceIndex
+            : automaticReadySourceIndex;
 
     if (
       sourceSortMode === "best" &&
@@ -2731,7 +2746,11 @@ export default function VideoPlayer({
     if (
       isLive ||
       isYoutube ||
-      (isProvider && !bestSourceShouldOwnStartup) ||
+      (
+        isProvider &&
+        !bestSourceShouldOwnStartup &&
+        !bestEnglishCandidateShouldOwnStartup
+      ) ||
       nextAutomaticSourceIndex < 0 ||
       fileSwitching
     ) {
@@ -2740,6 +2759,7 @@ export default function VideoPlayer({
 
     if (
       !bestSourceShouldOwnStartup &&
+      !bestEnglishCandidateShouldOwnStartup &&
       (
         (!activeNeedsCaching && !activeIsWaitingForVerifiedSource) ||
         rdResolving ||
@@ -2755,9 +2775,11 @@ export default function VideoPlayer({
       statusMessage:
         bestSourceShouldOwnStartup
           ? "Best cached English source ready — starting automatically…"
-          : activeIsWaitingForVerifiedSource
-            ? "Verified cached source ready — starting automatically…"
-            : "Opening a ready source while Media God prepares the other torrents in the background…",
+          : bestEnglishCandidateShouldOwnStartup
+            ? "Preparing the best English source automatically…"
+            : activeIsWaitingForVerifiedSource
+              ? "Verified cached source ready — starting automatically…"
+              : "Opening a ready source while Media God prepares the other torrents in the background…",
     });
 
     if (switched && sourceSortMode === "best") {
@@ -2773,6 +2795,7 @@ export default function VideoPlayer({
     automaticApprovedAutoplaySourceIndex,
     automaticReadySourceIndex,
     bestApprovedAutoplaySourceIndex,
+    bestEnglishAutoplayCandidateIndex,
     fileSwitching,
     isLive,
     isProvider,
