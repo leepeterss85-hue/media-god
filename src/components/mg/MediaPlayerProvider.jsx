@@ -1289,16 +1289,13 @@ const strictRdLaunchQualification = ({
     return { ok: false, reason: "no_video_tracks", score: -Infinity };
   }
 
-  if (!SAFE_RD_LAUNCH_AUDIO_STATES.has(audioState)) {
-    return {
-      ok: false,
-      reason: audioState
-        ? `unverified_audio_state:${audioState}`
-        : "unverified_audio_state",
-      score: -Infinity,
-    };
-  }
-
+  /*
+   * Do not turn Real-Debrid's rendition/transcode state into a launch gate.
+   * The mature-player model is: prove the media identity + real English main
+   * track, resolve a playable URL, then let the native player choose/repair the
+   * audio decoder. DTS/TrueHD or a missing RD transcode must rank lower, not
+   * make a verified English file disappear from autoplay.
+   */
   const preferredAudio = String(
     readTrackPreferences()?.audioLanguage || "en"
   )
@@ -1364,7 +1361,9 @@ const strictRdLaunchQualification = ({
       ? 50000
       : audioState === "transcoded"
         ? 48000
-        : 46000;
+        : SAFE_RD_LAUNCH_AUDIO_STATES.has(audioState)
+          ? 46000
+          : 24000;
   const englishBonus = hasEnglish ? 20000 : 5000;
   const compatibilityScore = scoreSourceCompatibility(
     qualifiedShape,
