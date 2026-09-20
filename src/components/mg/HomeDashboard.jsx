@@ -957,6 +957,7 @@ export default function HomeDashboard({ onOpenTvService }) {
               onOpen={open}
               onWatchlist={onWatchlist}
               watched={watched}
+              sourceAvailableOnly
             />
           )}
         {/* HOME_LAYOUT_LOCK_END */}
@@ -969,6 +970,7 @@ export default function HomeDashboard({ onOpenTvService }) {
             onOpen={(item) => open(item, "tv")}
             onWatchlist={onWatchlist}
             watched={watched}
+            sourceAvailableOnly
           />
         )}
 
@@ -981,6 +983,7 @@ export default function HomeDashboard({ onOpenTvService }) {
             onOpen={open}
             onWatchlist={onWatchlist}
             watched={watched}
+            sourceAvailableOnly
           />
         )}
 
@@ -991,6 +994,7 @@ export default function HomeDashboard({ onOpenTvService }) {
             onOpen={open}
             onWatchlist={onWatchlist}
             watched={watched}
+            sourceAvailableOnly
           />
         )}
 
