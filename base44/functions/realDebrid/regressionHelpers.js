@@ -64,13 +64,33 @@ export const torrentFileIdentityMismatchReason = (file, ep = {}) => {
   }
 
   const requestedYear = String(ep?.year ?? ep?.rdYear ?? "").trim();
-  if (/^\d{4}$/.test(requestedYear)) {
+  const alternateYears = [
+    ...(Array.isArray(ep?.alternateYears) ? ep.alternateYears : []),
+    ...(Array.isArray(ep?.rdAlternateYears) ? ep.rdAlternateYears : []),
+    ...(Array.isArray(ep?.alternate_years) ? ep.alternate_years : []),
+  ]
+    .map((value) => String(value || "").trim())
+    .filter((value) => /^\d{4}$/.test(value));
+
+  const acceptedYears = Array.from(
+    new Set(
+      [
+        requestedYear,
+        ...alternateYears,
+      ].filter((value) => /^\d{4}$/.test(value))
+    )
+  );
+
+  if (acceptedYears.length > 0) {
     const years = Array.from(
       path.matchAll(/\b(?:19|20)\d{2}\b/g),
       (match) => match[0]
     );
 
-    if (years.length > 0 && !years.includes(requestedYear)) {
+    if (
+      years.length > 0 &&
+      !years.some((value) => acceptedYears.includes(value))
+    ) {
       return "conflicting_release_year";
     }
   }
