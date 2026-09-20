@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 33,
-  "versionName": "1.0.32",
+  "versionCode": 34,
+  "versionName": "1.0.33",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.32 adds automatic Audio Rescue for difficult film soundtracks. DTS, DTS-HD, DTS:X, TrueHD, MLP and Atmos/JOC sources can switch to the compatibility decoder, and present-but-unsupported or unselected audio tracks are now detected instead of playing silently.",
+  "message": "Media God Mobile 1.0.33 fixes VOD getting stuck on 'Finding a verified compatible source'. The full source chooser now remains visible, cached releases can fall back to runtime Audio Rescue when metadata inspection is incomplete, and English track labels are recognised even when Real-Debrid omits formal language metadata.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
