@@ -192,6 +192,7 @@ export default function MediaPlayerControls({
   onNoSound,
 }) {
   const [playing, setPlaying] = useState(false);
+  const [sourcePlaybackConfirmed, setSourcePlaybackConfirmed] = useState(false);
   const [muted, setMuted] = useState(false);
   const [volume, setVolume] = useState(1);
   const [current, setCurrent] = useState(0);
@@ -887,12 +888,23 @@ export default function MediaPlayerControls({
     };
 
     const onTime = () => {
+      const currentTime = Number(video.currentTime || 0);
+
       if (
         !seekingRef.current
       ) {
         setCurrent(
-          video.currentTime || 0
+          currentTime
         );
+      }
+
+      /*
+       * "Playing" in the source chooser must mean actual playback progress,
+       * not merely that video.play() resolved or a black surface emitted a
+       * playing event at 0:00.
+       */
+      if (currentTime > 0.25 && !video.ended && !video.error) {
+        setSourcePlaybackConfirmed(true);
       }
     };
 
@@ -985,6 +997,12 @@ export default function MediaPlayerControls({
 
     setPlaying(
       playingRef.current
+    );
+
+    setSourcePlaybackConfirmed(
+      Number(video.currentTime || 0) > 0.25 &&
+      !video.ended &&
+      !video.error
     );
 
     setMuted(
@@ -1082,6 +1100,10 @@ export default function MediaPlayerControls({
   }, [
     videoRef,
   ]);
+
+  useEffect(() => {
+    setSourcePlaybackConfirmed(false);
+  }, [activeIdx]);
 
   /*
    * Backup wake-up listeners.
@@ -1868,7 +1890,7 @@ export default function MediaPlayerControls({
                         )
                           ? "Unavailable • "
                           : index === activeIdx
-                            ? playing
+                            ? sourcePlaybackConfirmed
                               ? "Playing • "
                               : "Selected • "
                             : ""}
