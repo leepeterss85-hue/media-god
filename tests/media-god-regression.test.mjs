@@ -3153,7 +3153,7 @@ test("audio and video compatibility tier drives source ordering without hiding r
   );
   assert.match(
     selectorSource,
-    /sourceIsUserSelectable\(entry\.item\)[\s\S]{0,220}?entry\.cached === true[\s\S]{0,180}?entry\.compatibilityTier <= 1/
+    /sourceIsUserSelectable\(entry\.item\)[\s\S]{0,240}?entry\.cached === true[\s\S]{0,260}?entry\.languageRank === 0[\s\S]{0,180}?entry\.compatibilityTier <= 1/
   );
   assert.match(
     selectorSource,
@@ -3224,7 +3224,7 @@ test("Best chooser pins the playing VOD first and native playback receives that 
   );
   assert.match(
     selectorSource,
-    /entry\.cached === true[\s\S]{0,120}?entry\.provenWorking === true[\s\S]{0,120}?entry\.compatibilityTier <= 1/
+    /entry\.cached === true[\s\S]{0,260}?entry\.languageRank === 0[\s\S]{0,180}?entry\.provenWorking === true[\s\S]{0,120}?entry\.compatibilityTier <= 1/
   );
   assert.match(selectorSource, /hardSubtitleRank/);
   assert.match(automaticSource, /effectiveCompatibilityTier/);
@@ -3304,22 +3304,65 @@ test("full source-pool merge preserves runtime autoplay approval", () => {
 });
 
 
-test("cached compatible English source is automatically approved without waiting for launchQualified", () => {
+test("cached compatible autoplay requires explicit English unless the source was strictly qualified", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+  const selectorSource = readFileSync(
+    new URL("../src/components/mg/sourceSelectorPreferences.js", import.meta.url),
     "utf8"
   );
 
   assert.match(
     playerSource,
-    /cachedCompatibleEnglishAutoplay[\s\S]{0,420}?entry\?\.cached === true[\s\S]{0,220}?compatibilityTier[\s\S]{0,180}?languageRank[\s\S]{0,180}?hardSubtitleRank/
+    /cachedCompatibleEnglishAutoplay[\s\S]{0,420}?entry\?\.cached === true[\s\S]{0,220}?compatibilityTier[\s\S]{0,180}?languageRank \?\? 3\) === 0[\s\S]{0,180}?hardSubtitleRank/
   );
   assert.match(
     playerSource,
-    /runtimeReady \|\|[\s\S]{0,120}?cachedCompatibleEnglishAutoplay/
+    /runtimeReadyEnglishAutoplay[\s\S]{0,240}?runtimeReady[\s\S]{0,180}?languageRank \?\? 3\) === 0/
+  );
+  assert.doesNotMatch(
+    playerSource,
+    /languageRank \?\? 3\) <= 1/
+  );
+  assert.match(
+    selectorSource,
+    /launchQualified === true[\s\S]{0,140}?runtimeQualificationFallback === true[\s\S]{0,260}?entry\.languageRank === 0/
   );
   assert.match(
     playerSource,
     /Verified cached source ready — starting automatically/
   );
+});
+
+test("native player keeps working English audio and rescues the same source when only foreign audio is usable in Media3", () => {
+  for (const relativePath of [
+    "../android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt",
+    "../firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt",
+  ]) {
+    const source = readFileSync(
+      new URL(relativePath, import.meta.url),
+      "utf8"
+    );
+
+    assert.match(source, /private data class PreferredEnglishReadiness/);
+    assert.match(source, /inspectPreferredEnglishReadiness/);
+    assert.match(
+      source,
+      /wantsEnglish[\s\S]{0,360}?initialEnglish\.present[\s\S]{0,120}?!initialEnglish\.selected/
+    );
+    assert.match(
+      source,
+      /wantsEnglish && english\.present && !english\.supported[\s\S]{0,260}?compatibility decoder on this same source/
+    );
+    assert.match(
+      source,
+      /wantsEnglish && english\.present && !english\.selected[\s\S]{0,240}?compatibility decoder on this same source/
+    );
+    assert.match(
+      source,
+      /if \(!needsRescue\)[\s\S]{0,420}?audioPresenceCheckGeneration \+= 1[\s\S]{0,80}?return/
+    );
+  }
 });
