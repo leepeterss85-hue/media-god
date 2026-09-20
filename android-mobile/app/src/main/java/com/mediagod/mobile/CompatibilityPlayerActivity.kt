@@ -57,6 +57,8 @@ class CompatibilityPlayerActivity : Activity() {
     private var automaticNoSoundRecovery = true
     private var thermalProtection = true
     private var audioRecoveryPasses = 0
+    private var manualAudioTrackLocked = false
+    private var manualAudioTrackId = -1
 
     private val hideControlsRunnable = Runnable {
         if (!resultSent && ::controls.isInitialized) {
@@ -418,6 +420,26 @@ class CompatibilityPlayerActivity : Activity() {
              */
             val tracks = player.audioTracks?.filter { it.id >= 0 }.orEmpty()
             if (tracks.isEmpty()) return
+
+            /*
+             * A button press is an explicit viewer choice. Once a manual audio
+             * track has been selected, automatic English/audio recovery must
+             * not switch it back on the next metadata/recovery pass.
+             */
+            if (manualAudioTrackLocked) {
+                val locked = tracks.firstOrNull { it.id == manualAudioTrackId }
+                if (locked != null) {
+                    if (player.audioTrack != locked.id) {
+                        player.setAudioTrack(locked.id)
+                    }
+                    updateAudioButtonLabel()
+                    return
+                }
+
+                manualAudioTrackLocked = false
+                manualAudioTrackId = -1
+            }
+
             val preferred = payload.optString("audioLanguage", "en").trim().lowercase()
             val preferredAliases = when (preferred) {
                 "en", "eng", "english" -> "en|eng|english"
@@ -493,12 +515,68 @@ class CompatibilityPlayerActivity : Activity() {
 
     private fun cycleAudioTrack() {
         val player = vlcPlayer ?: return
-        val tracks = try { player.audioTracks?.filter { it.id >= 0 }.orEmpty() } catch (_: Throwable) { emptyList() }
-        if (tracks.isEmpty()) { showStatus("Audio · no selectable track"); return }
+        val tracks = try {
+            player.audioTracks?.filter { it.id >= 0 }.orEmpty()
+        } catch (_: Throwable) {
+            emptyList()
+        }
+
+        if (tracks.isEmpty()) {
+            showStatus("Audio · no selectable track")
+            return
+        }
+
+        fun looksEnglish(name: String): Boolean =
+            Regex(
+                """(?:^|[\s._\-\[\]()])(?:en|eng|english)(?=$|[\s._\-\[\]()])""",
+                RegexOption.IGNORE_CASE
+            ).containsMatchIn(name)
+
+        fun looksCommentary(name: String): Boolean =
+            Regex(
+                """commentary|audio description|descriptive|visually impaired""",
+                RegexOption.IGNORE_CASE
+            ).containsMatchIn(name)
+
         val currentIndex = tracks.indexOfFirst { it.id == player.audioTrack }
-        val next = tracks[(currentIndex + 1).mod(tracks.size)]
-        try { player.setAudioTrack(next.id); player.setVolume(100); showStatus("Audio · ${next.name?.trim().orEmpty().ifBlank { "Track ${next.id}" }}") }
-        catch (_: Throwable) { showStatus("Audio · could not switch track") }
+        val current = tracks.getOrNull(currentIndex)
+
+        /*
+         * The first press is useful rather than blind cycling: if playback is
+         * currently foreign and an English main track exists, jump straight to
+         * English. Further presses can still cycle every track deliberately.
+         */
+        val englishMain = tracks.firstOrNull {
+            looksEnglish(it.name.orEmpty()) &&
+                !looksCommentary(it.name.orEmpty())
+        }
+
+        val next =
+            if (
+                current == null ||
+                !looksEnglish(current.name.orEmpty())
+            ) {
+                englishMain ?: tracks[(currentIndex + 1).mod(tracks.size)]
+            } else {
+                tracks[(currentIndex + 1).mod(tracks.size)]
+            }
+
+        try {
+            if (player.setAudioTrack(next.id)) {
+                manualAudioTrackLocked = true
+                manualAudioTrackId = next.id
+                root.removeCallbacks(audioRecoveryRunnable)
+                player.setVolume(100)
+                showStatus(
+                    "Audio locked · ${next.name?.trim().orEmpty().ifBlank { "Track ${next.id}" }}"
+                )
+            } else {
+                showStatus("Audio · could not switch track")
+            }
+        } catch (_: Throwable) {
+            showStatus("Audio · could not switch track")
+        }
+
         updateAudioButtonLabel()
     }
 
