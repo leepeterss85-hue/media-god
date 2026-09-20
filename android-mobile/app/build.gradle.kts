@@ -12,8 +12,8 @@ android {
         applicationId = "com.mediagod.mobile"
         minSdk = 23
         targetSdk = 35
-        versionCode = 38
-        versionName = "1.0.37"
+        versionCode = 39
+        versionName = "1.0.38"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
