@@ -3376,12 +3376,13 @@ test("manual source selection survives label enrichment and clears stale black-s
   );
 
   const keyStart = playerSource.indexOf("const stablePlaybackSourceKey");
-  const keyEnd = playerSource.indexOf("const FAILED_TORRENT_HASHES_KEY", keyStart);
-  assert.ok(keyStart >= 0 && keyEnd > keyStart);
-  const keyBlock = playerSource.slice(keyStart, keyEnd);
-  assert.match(keyBlock, /String\(item\?\.addon \|\| item\?\.debridProvider \|\| item\?\.sourceName \|\| ""\)/);
+  const hashBranchStart = playerSource.indexOf("if (hash) {", keyStart);
+  const hashBranchEnd = playerSource.indexOf("const url =", hashBranchStart);
+  assert.ok(keyStart >= 0 && hashBranchStart >= keyStart && hashBranchEnd > hashBranchStart);
+  const hashBranch = playerSource.slice(hashBranchStart, hashBranchEnd);
+  assert.match(hashBranch, /String\(item\?\.addon \|\| item\?\.debridProvider \|\| item\?\.sourceName \|\| ""\)/);
   assert.doesNotMatch(
-    keyBlock,
+    hashBranch,
     /sourceDisplayLabel\(item, fallbackIndex\)/
   );
 
