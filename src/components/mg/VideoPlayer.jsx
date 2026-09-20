@@ -1020,9 +1020,30 @@ export default function VideoPlayer({
    * Automatic recovery still applies playback safety rules, but the manual
    * chooser itself must never collapse to only the currently-ready rows.
    */
-  const selectableSourceEntries = sortedSourceEntries.filter(
+  let selectableSourceEntries = sortedSourceEntries.filter(
     ({ item }) => sourceIsUserSelectable(item)
   );
+
+  /*
+   * "Best" is the live playback view, not a static catalogue sort. If a VOD
+   * source is already playing successfully, keep that exact source at the top
+   * of the chooser. Metadata guesses from uncached rows must never appear above
+   * the source the viewer is actually watching.
+   */
+  if (sourceSortMode === "best" && playbackMediaType !== "live") {
+    const activeEntry = selectableSourceEntries.find(
+      (entry) => entry.index === activeIdx
+    );
+
+    if (activeEntry) {
+      selectableSourceEntries = [
+        activeEntry,
+        ...selectableSourceEntries.filter(
+          (entry) => entry.index !== activeIdx
+        ),
+      ];
+    }
+  }
 
   const automaticReadySourceIndex =
     selectableSourceEntries.find(
@@ -8063,8 +8084,7 @@ export default function VideoPlayer({
       subtitles: Array.isArray(active?.subtitles)
         ? active.subtitles
         : [],
-      sources: sortedSourceEntries
-        .filter(({ item }) => sourceIsUserSelectable(item))
+      sources: selectableSourceEntries
         .map(({ item: candidate, index }) => {
           const baseLabel = sourceDisplayLabel(candidate, index);
           const provider = String(candidate?.sourceName || "").trim();
