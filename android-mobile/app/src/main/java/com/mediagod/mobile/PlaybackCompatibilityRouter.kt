@@ -223,12 +223,37 @@ object PlaybackCompatibilityRouter {
         }
 
         detectAudioCodec(audioCodec, hints)?.let { codec ->
+            if (requiresCompatibilityAudio(codec, hints)) {
+                return Decision(true, "audio-software:${codec.label}")
+            }
+
             if (!deviceHasDecoder(codec)) {
                 return Decision(true, "audio:${codec.label}")
             }
         }
 
         return Decision(false)
+    }
+
+    private fun requiresCompatibilityAudio(
+        codec: CodecSpec,
+        hints: String
+    ): Boolean {
+        if (
+            codec.label in setOf(
+                "dts",
+                "dts-hd",
+                "truehd",
+                "atmos"
+            )
+        ) {
+            return true
+        }
+
+        return matches(
+            hints,
+            "e[- .]?ac[- .]?3[- .]?joc|eac3[- .]?joc|dolby[ -]?atmos|atmos"
+        )
     }
 
     private fun selectedSource(payload: JSONObject): JSONObject? {
@@ -503,6 +528,10 @@ object PlaybackCompatibilityRouter {
             matches(text, "dts[- .]?(?:hd|ma)|dts:x") -> CodecSpec("dts-hd", listOf("audio/vnd.dts.hd"))
             matches(text, "true[- .]?hd|mlp") -> CodecSpec("truehd", listOf("audio/true-hd", "audio/vnd.dolby.mlp"))
             matches(text, "dts|dca") -> CodecSpec("dts", listOf("audio/vnd.dts"))
+            matches(text, "atmos") -> CodecSpec(
+                "atmos",
+                listOf("audio/eac3-joc", "audio/eac3", "audio/true-hd")
+            )
             matches(text, "mpeg[- .]?h|mhm1|mha1") -> CodecSpec("mpeg-h", listOf("audio/mhm1", "audio/mha1"))
             matches(text, "iamf") -> CodecSpec("iamf", listOf("audio/iamf"))
             matches(text, "ac[- .]?4|ac4") -> CodecSpec("ac4", listOf("audio/ac4"))
