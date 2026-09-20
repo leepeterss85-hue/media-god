@@ -2485,12 +2485,12 @@ export default async function (req) {
 
           if (
             !fn ||
-            !want
+            titleProfiles.length === 0
           ) {
             return -1;
           }
 
-          const words =
+          const filenameWords =
             new Set(
               filename
                 .toLowerCase()
@@ -2498,29 +2498,6 @@ export default async function (req) {
                   /[^a-z0-9]+/
                 )
             );
-
-          const contiguous =
-            fn.includes(
-              want
-            );
-
-          const allWords =
-            titleWords.length >
-              0 &&
-            titleWords.every(
-              (word) =>
-                words.has(
-                  word
-                )
-            );
-
-          const matchedWords =
-            titleWords.filter(
-              (word) =>
-                words.has(
-                  word
-                )
-            ).length;
 
           const yearMatches =
             acceptableYears.length > 0 &&
@@ -2531,51 +2508,90 @@ export default async function (req) {
                 )
             );
 
-          if (
-            ambiguousShortTitle &&
-            acceptableYears.length > 0 &&
-            !yearMatches
-          ) {
+          let bestTitleScore = -1;
+
+          for (const profile of titleProfiles) {
+            if (
+              profile.ambiguousShortTitle &&
+              acceptableYears.length > 0 &&
+              !yearMatches
+            ) {
+              continue;
+            }
+
+            const contiguous =
+              fn.includes(
+                profile.want
+              );
+
+            const allWords =
+              profile.words.length > 0 &&
+              profile.words.every(
+                (word) =>
+                  filenameWords.has(
+                    word
+                  )
+              );
+
+            const matchedWords =
+              profile.words.filter(
+                (word) =>
+                  filenameWords.has(
+                    word
+                  )
+              ).length;
+
+            /*
+             * Releases sometimes translate only the subtitle while keeping the
+             * identifying title prefix. Allow that only when the release year
+             * also matches, so loose word overlap cannot select an unrelated
+             * title from the Real-Debrid library.
+             */
+            const fuzzyYearMatch =
+              yearMatches &&
+              profile.words.length >= 2 &&
+              matchedWords >= 2 &&
+              matchedWords /
+                profile.words.length >=
+                0.45;
+
+            if (
+              !contiguous &&
+              !allWords &&
+              !fuzzyYearMatch
+            ) {
+              continue;
+            }
+
+            let titleScore = 0;
+
+            if (contiguous) {
+              titleScore += 100;
+            }
+
+            if (allWords) {
+              titleScore += 50;
+            }
+
+            if (fuzzyYearMatch) {
+              titleScore +=
+                30 +
+                matchedWords * 8;
+            }
+
+            bestTitleScore =
+              Math.max(
+                bestTitleScore,
+                titleScore
+              );
+          }
+
+          if (bestTitleScore < 0) {
             return -1;
           }
 
-          /*
-           * Releases sometimes translate only the subtitle while keeping the
-           * identifying title prefix. Allow that only when the release year
-           * also matches, so loose word overlap cannot select an unrelated
-           * title from the Real-Debrid library.
-           */
-          const fuzzyYearMatch =
-            yearMatches &&
-            titleWords.length >= 2 &&
-            matchedWords >= 2 &&
-            matchedWords /
-              titleWords.length >=
-              0.45;
-
-          if (
-            !contiguous &&
-            !allWords &&
-            !fuzzyYearMatch
-          ) {
-            return -1;
-          }
-
-          let score = 0;
-
-          if (contiguous) {
-            score += 100;
-          }
-
-          if (allWords) {
-            score += 50;
-          }
-
-          if (fuzzyYearMatch) {
-            score +=
-              30 +
-              matchedWords * 8;
-          }
+          let score =
+            bestTitleScore;
 
           if (yearMatches) {
             score += 15;
