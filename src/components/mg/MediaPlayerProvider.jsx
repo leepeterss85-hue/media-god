@@ -3098,6 +3098,47 @@ export function PlayerProvider({
           imdbInfo?.alternateTitles
         );
 
+        const resolvedRdPromise =
+          !isLive &&
+          hasRd &&
+          !request?.noRd &&
+          !request?.skipRdLookup &&
+          identityAlternateTitles.length > 0
+            ? rdPromise.then(async (initialRdLookup) => {
+                if (initialRdLookup?.source) {
+                  return initialRdLookup;
+                }
+
+                return findRdLibrarySource({
+                  title: request?.rdTitle || request?.title || "",
+                  year: request?.rdYear ?? request?.year ?? null,
+                  alternateYears:
+                    Array.isArray(
+                      request?.rdAlternateYears ||
+                      request?.alternateYears
+                    )
+                      ? (
+                          request?.rdAlternateYears ||
+                          request?.alternateYears
+                        )
+                      : [],
+                  alternateTitles:
+                    identityAlternateTitles,
+                  season,
+                  episode,
+                });
+              })
+            : rdPromise;
+
+        resolvedRdPromise.then((rdLookup) => {
+          if (rdLookup?.source) {
+            publishEarlySources([rdLookup.source], {
+              rdLookupStatus: rdLookup?.status || "READY",
+              rdLookupDetail: rdLookup?.detail || "",
+            });
+          }
+        });
+
         if (
           !isLive &&
           identityAlternateTitles.length > 0
@@ -3409,7 +3450,7 @@ export function PlayerProvider({
             [
               addonPromise,
 
-              rdPromise,
+              resolvedRdPromise,
             ]
           );
 
