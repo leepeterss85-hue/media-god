@@ -72,6 +72,7 @@ import {
   trackLanguage,
 } from "../src/components/mg/mediaTrackPreferences.js";
 import { preservePublishedSourceOrder } from "../src/components/mg/sourcePublication.js";
+import { sourcePlaybackCompatibilityTier } from "../src/components/mg/mediaCompatibility.js";
 import {
   filterSourcesForRequestedIdentity,
   sourceIdentityMismatchReason,
@@ -2322,41 +2323,107 @@ test("autoplay puts the three most compatible ready sources first", () => {
   );
 });
 
-test("English audio rank stays ahead of compatibility in the autoplay top three", () => {
+test("audio and video compatibility outrank language, then English wins within the same tier", () => {
   const ordered = prioritiseCompatibleAutoplayEntries([
     {
-      id: "foreign-most-compatible",
+      id: "english-incompatible",
       index: 0,
+      autoplayReady: false,
+      compatibilityTier: 3,
+      languageRank: 0,
+      compatibility: 5000,
+    },
+    {
+      id: "foreign-compatible",
+      index: 1,
       autoplayReady: true,
+      compatibilityTier: 0,
       languageRank: 3,
       compatibility: 1000,
     },
     {
-      id: "unknown",
-      index: 1,
-      autoplayReady: true,
-      languageRank: 2,
-      compatibility: 900,
-    },
-    {
-      id: "english",
+      id: "english-compatible",
       index: 2,
       autoplayReady: true,
+      compatibilityTier: 0,
       languageRank: 0,
       compatibility: 200,
     },
     {
-      id: "multi-audio",
+      id: "multi-likely",
       index: 3,
       autoplayReady: true,
+      compatibilityTier: 1,
       languageRank: 1,
-      compatibility: 500,
+      compatibility: 900,
     },
   ]);
 
   assert.deepEqual(
     ordered.slice(0, COMPATIBLE_AUTOPLAY_LIMIT).map((entry) => entry.id),
-    ["english", "multi-audio", "unknown"]
+    ["english-compatible", "foreign-compatible", "multi-likely"]
+  );
+  assert.equal(ordered.at(-1).id, "english-incompatible");
+});
+
+test("qualification picks the lead source without truncating the full chooser to five", () => {
+  const providerSource = readFileSync(
+    new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
+    "utf8"
+  );
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  const runtimeStart = providerSource.indexOf("const runtimeFallbackSources");
+  const runtimeEnd = providerSource.indexOf("const diagnosticLabel", runtimeStart);
+  assert.ok(runtimeStart >= 0 && runtimeEnd > runtimeStart);
+  assert.doesNotMatch(
+    providerSource.slice(runtimeStart, runtimeEnd),
+    /\.slice\(0,\s*5\)/
+  );
+
+  const playerStart = providerSource.indexOf("const playbackLeadSources");
+  const playerEnd = providerSource.indexOf("const primary", playerStart);
+  assert.ok(playerStart >= 0 && playerEnd > playerStart);
+  const playerBlock = providerSource.slice(playerStart, playerEnd);
+  assert.match(playerBlock, /preservePublishedSourceOrder\([\s\S]*playbackLeadSources[\s\S]*orderedSources/);
+  assert.match(playerBlock, /waitingForVerifiedSource[\s\S]*\.\.\.orderedSources/);
+
+  assert.match(
+    playerSource,
+    /sources:\s*sortedSourceEntries[\s\S]{0,180}sourceIsUserSelectable/
+  );
+});
+
+test("compatibility tier marks proven audio+video first and known-incompatible audio last", () => {
+  const deviceProfile = {
+    nativePlayerAvailable: true,
+    nativeFireTv: true,
+    fireTv: true,
+    nativeCodecSupport: {
+      video: ["video/avc"],
+      audio: ["audio/mp4a-latm"],
+    },
+  };
+
+  assert.equal(
+    sourcePlaybackCompatibilityTier(
+      { label: "Movie.1080p.H264.AAC.mkv", videoCodec: "h264", audioCodec: "aac" },
+      "",
+      { deviceProfile }
+    ),
+    0
+  );
+
+  assert.equal(
+    sourcePlaybackCompatibilityTier(
+      { label: "Movie.1080p.H264.DTS.mkv", videoCodec: "h264", audioCodec: "dts" },
+      "",
+      { deviceProfile }
+    ),
+    3
   );
 });
 
