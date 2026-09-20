@@ -67,6 +67,57 @@ const tmdbDetails = async ({
   );
 };
 
+const tmdbAlternateTitles = async ({
+  apiKey,
+  tmdbId,
+  mediaType,
+  record,
+}) => {
+  if (!tmdbId) return [];
+
+  const type = mediaType === "tv" ? "tv" : "movie";
+  const data = await fetchJson(
+    `${TMDB_BASE}/${type}/${encodeURIComponent(
+      String(tmdbId)
+    )}/alternative_titles?api_key=${encodeURIComponent(apiKey)}`
+  );
+  const rows = Array.isArray(data?.titles)
+    ? data.titles
+    : Array.isArray(data?.results)
+      ? data.results
+      : [];
+
+  const canonical = clean(
+    type === "tv"
+      ? record?.name || record?.title
+      : record?.title || record?.name
+  );
+  const original = clean(
+    type === "tv"
+      ? record?.original_name
+      : record?.original_title
+  );
+
+  const seen = new Set(
+    [canonical]
+      .map(normaliseTitle)
+      .filter(Boolean)
+  );
+
+  const values = [
+    original,
+    ...rows.map((item) => clean(item?.title || item?.name)),
+  ];
+
+  return values.filter((value) => {
+    if (!value) return false;
+    const key = normaliseTitle(value);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
 const tmdbRecordMatchesRequest = ({
   record,
   title,
@@ -228,11 +279,19 @@ export default async function (req) {
         identityMatches ||
         (!title && !year)
       ) {
-        const imdbId = await externalIdForTmdb({
-          apiKey,
-          tmdbId,
-          mediaType,
-        });
+        const [imdbId, alternateTitles] = await Promise.all([
+          externalIdForTmdb({
+            apiKey,
+            tmdbId,
+            mediaType,
+          }),
+          tmdbAlternateTitles({
+            apiKey,
+            tmdbId,
+            mediaType,
+            record,
+          }),
+        ]);
 
         if (imdbId) {
           return Response.json({
@@ -241,6 +300,7 @@ export default async function (req) {
                 ? suppliedImdb
                 : imdbId,
             tmdb_id: tmdbId,
+            alternate_titles: alternateTitles,
             source:
               validImdb(suppliedImdb) && suppliedImdb !== imdbId
                 ? "tmdb_id_corrected_supplied_imdb"
@@ -259,16 +319,25 @@ export default async function (req) {
       });
 
       if (match?.id) {
-        const imdbId = await externalIdForTmdb({
-          apiKey,
-          tmdbId: match.id,
-          mediaType,
-        });
+        const [imdbId, alternateTitles] = await Promise.all([
+          externalIdForTmdb({
+            apiKey,
+            tmdbId: match.id,
+            mediaType,
+          }),
+          tmdbAlternateTitles({
+            apiKey,
+            tmdbId: match.id,
+            mediaType,
+            record: match,
+          }),
+        ]);
 
         if (imdbId) {
           return Response.json({
             imdb_id: imdbId,
             tmdb_id: String(match.id),
+            alternate_titles: alternateTitles,
             source:
               validImdb(suppliedImdb) && suppliedImdb !== imdbId
                 ? "title_search_corrected_supplied_imdb"
