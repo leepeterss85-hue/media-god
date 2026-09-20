@@ -18,6 +18,24 @@ const normalise = (value) =>
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "");
 
+const alternateYearsFromBody = (body = {}) =>
+  (
+    Array.isArray(body?.alternate_years || body?.alternateYears)
+      ? (body.alternate_years || body.alternateYears)
+      : []
+  )
+    .map((value) => String(value || "").trim())
+    .filter((value) => /^\d{4}$/.test(value));
+
+const alternateTitlesFromBody = (body = {}) =>
+  (
+    Array.isArray(body?.alternate_titles || body?.alternateTitles)
+      ? (body.alternate_titles || body.alternateTitles)
+      : []
+  )
+    .map((value) => String(value || "").trim())
+    .filter(Boolean);
+
 const isVideoFile = (file) =>
   !!file?.path &&
   VIDEO_RE.test(file.path);
