@@ -1543,6 +1543,11 @@ const findRdLibrarySource = async ({
               ? alternateYears
               : [],
 
+          alternate_titles:
+            Array.isArray(alternateTitles)
+              ? alternateTitles
+              : [],
+
           ...(season != null
             ? {
                 season,
