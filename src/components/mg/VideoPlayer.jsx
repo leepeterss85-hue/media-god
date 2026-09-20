@@ -1081,7 +1081,9 @@ export default function VideoPlayer({
    * playback are allowed to replace that barrier automatically.
    */
   const automaticApprovedAutoplaySourceIndex =
-    selectableSourceEntries.find(({ item, index }) => {
+    selectableSourceEntries.find((entry) => {
+      const { item, index } = entry;
+
       if (
         index === activeIdx ||
         failedSourcesRef.current.has(index) ||
@@ -1095,12 +1097,28 @@ export default function VideoPlayer({
         hash && runtimeReadyTorrentHashes.has(hash)
       );
 
+      /*
+       * Metadata qualification remains the strongest signal, but it must not
+       * block obvious cached playback. If the source is already confirmed
+       * cached, the device compatibility tier says audio+video are suitable,
+       * English/multi is preferred, and there is no hard-sub marker, approve it
+       * for automatic start even when the asynchronous media-inspection flag
+       * has not been attached yet.
+       */
+      const cachedCompatibleEnglishAutoplay = Boolean(
+        entry?.cached === true &&
+          Number(entry?.compatibilityTier ?? 3) <= 1 &&
+          Number(entry?.languageRank ?? 3) <= 1 &&
+          Number(entry?.hardSubtitleRank ?? 0) === 0
+      );
+
       return Boolean(
         item?.launchQualified === true ||
           item?.runtimeQualificationFallback === true ||
           item?.playbackVerified === true ||
           item?.runtimePlaybackVerified === true ||
-          runtimeReady
+          runtimeReady ||
+          cachedCompatibleEnglishAutoplay
       );
     })?.index ?? -1;
 
