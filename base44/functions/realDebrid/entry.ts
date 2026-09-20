@@ -4118,16 +4118,27 @@ async function choosePlayableRdStream({
     "";
 
   if (forceAudioRescue) {
+    /*
+     * Runtime Audio Rescue is allowed to change the decoder/representation, but
+     * it must NOT turn the current torrent into source failover. Real-Debrid can
+     * fail to expose an HLS/MP4 transcode even though the original MKV/remux is
+     * perfectly playable by Media3 or LibVLC (including English DTS/TrueHD).
+     *
+     * Keep the exact original file and let the native player inspect/select its
+     * real audio tracks. This is especially important after the viewer has
+     * already heard audio: a missing RD transcode is not evidence that the file
+     * itself is bad.
+     */
     return {
-      error:
-        `Audio Rescue could not create a compatible stream for ${firstCodec || "this audio track"}. Media God will try another source.`,
-      error_code: "AUDIO_RESCUE_UNAVAILABLE",
+      stream_url: originalUrl,
+      filename:
+        `${originalFilename || mediaInfo?.filename || "Real-Debrid Stream"} [Same File Audio Probe]`,
       audio_rescue: {
         used: false,
-        state: "forced_audio_rescue_unavailable_try_next_source",
+        state: "forced_audio_rescue_original_probe",
         reason:
           transcode?.error ||
-          "Real-Debrid returned no compatible HLS/MP4/WebM transcode after runtime no-sound detection.",
+          "Real-Debrid returned no compatibility transcode, so Media God kept the exact original file for native English-track/audio decoding instead of switching torrents.",
         selected_audio:
           englishSafe ||
           englishTracks[0] ||
