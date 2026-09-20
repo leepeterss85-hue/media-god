@@ -14,7 +14,6 @@ import {
 import { base44 } from "@/api/base44Client";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 import { Image } from "@/components/ui/image";
-import { filterItemsWithPlayableSources } from "@/components/mg/sourceAvailability";
 
 const PosterImage = /** @type {any} */ (Image);
 
@@ -225,7 +224,7 @@ export default function ContinueWatchingRow() {
   const load = () => {
     base44.entities.ContinueWatching
       .list("-updated_date", 100)
-      .then(async (rows) => {
+      .then((rows) => {
         const entries = [...(rows || [])]
           .map((item) => ({
             item,
@@ -272,34 +271,13 @@ export default function ContinueWatchingRow() {
 
         const winners = Array.from(byIdentity.values());
 
-        const resumeItems =
+        setItems(
           winners
             .filter(({ ratio }) => ratio < WATCHED_THRESHOLD)
             .sort((a, b) => b.updatedAt - a.updatedAt)
             .slice(0, 20)
-            .map(({ item }) => item);
-
-        const sourcedResumeItems =
-          await filterItemsWithPlayableSources(
-            resumeItems,
-            {
-              concurrency: 4,
-              forItem: (resumeItem) => {
-                const meta = parseContentKey(resumeItem);
-
-                return {
-                  mediaType: meta.mediaType,
-                  tmdbId: meta.tmdbId,
-                  title: meta.title,
-                  year: meta.year,
-                  season: meta.season,
-                  episode: meta.episode,
-                };
-              },
-            }
-          );
-
-        setItems(sourcedResumeItems);
+            .map(({ item }) => item)
+        );
 
         if (duplicateIds.size > 0) {
           Promise.allSettled(

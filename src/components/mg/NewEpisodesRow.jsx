@@ -4,7 +4,6 @@ import { CalendarClock, Play, Tv2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 import { Image } from "@/components/ui/image";
-import { filterItemsWithPlayableSources } from "@/components/mg/sourceAvailability";
 
 const PosterImage = /** @type {any} */ (Image);
 const RECENT_DAYS = 21;
@@ -263,28 +262,18 @@ export default function NewEpisodesRow({
 
       const loaded = results
         .filter(Boolean)
-        .filter((item) => item.airDate <= todayKey)
-        .sort((a, b) => b.airDate.localeCompare(a.airDate));
+        .sort((a, b) => {
+          const aUpcoming = a.airDate > todayKey;
+          const bUpcoming = b.airDate > todayKey;
 
-      const sourced = await filterItemsWithPlayableSources(
-        loaded,
-        {
-          concurrency: 4,
-          maxItems: MAX_ITEMS,
-          forItem: (episodeItem) => ({
-            mediaType: "tv",
-            tmdbId: episodeItem.tmdbId,
-            title: episodeItem.showTitle,
-            year: episodeItem.year,
-            season: episodeItem.season,
-            episode: episodeItem.episode,
-          }),
-        }
-      );
+          if (aUpcoming !== bUpcoming) return aUpcoming ? 1 : -1;
+          return aUpcoming
+            ? a.airDate.localeCompare(b.airDate)
+            : b.airDate.localeCompare(a.airDate);
+        })
+        .slice(0, MAX_ITEMS);
 
-      if (cancelled) return;
-
-      setItems(sourced);
+      setItems(loaded);
       setLoading(false);
     };
 
@@ -336,7 +325,7 @@ export default function NewEpisodesRow({
             New & Upcoming Episodes from Your Shows
           </h2>
           <p className="mt-0.5 text-[10px] text-white/40 sm:text-xs 3xl:text-sm">
-            Fresh episodes from your shows that currently have playable sources.
+            Fresh episodes and the next scheduled episode from shows you have been watching.
           </p>
         </div>
       </div>

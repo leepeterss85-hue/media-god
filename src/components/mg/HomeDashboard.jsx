@@ -914,7 +914,6 @@ export default function HomeDashboard({ onOpenTvService }) {
           onWatch={open}
           onDetails={open}
           onWatchlist={onWatchlist}
-          sourceAvailableOnly
         />
 
 
@@ -928,7 +927,6 @@ export default function HomeDashboard({ onOpenTvService }) {
           onOpen={open}
           onWatchlist={onWatchlist}
           watched={watched}
-          sourceAvailableOnly
         />
 
         {/* HOME_LOCK_SLOT:new-tv */}
@@ -938,7 +936,6 @@ export default function HomeDashboard({ onOpenTvService }) {
           onOpen={(item) => open(item, "tv")}
           onWatchlist={onWatchlist}
           watched={watched}
-          sourceAvailableOnly
         />
 
         {/* HOME_LOCK_SLOT:new-episodes */}
@@ -957,7 +954,6 @@ export default function HomeDashboard({ onOpenTvService }) {
               onOpen={open}
               onWatchlist={onWatchlist}
               watched={watched}
-              sourceAvailableOnly
             />
           )}
         {/* HOME_LAYOUT_LOCK_END */}
@@ -970,7 +966,6 @@ export default function HomeDashboard({ onOpenTvService }) {
             onOpen={(item) => open(item, "tv")}
             onWatchlist={onWatchlist}
             watched={watched}
-            sourceAvailableOnly
           />
         )}
 
@@ -983,7 +978,6 @@ export default function HomeDashboard({ onOpenTvService }) {
             onOpen={open}
             onWatchlist={onWatchlist}
             watched={watched}
-            sourceAvailableOnly
           />
         )}
 
@@ -994,7 +988,6 @@ export default function HomeDashboard({ onOpenTvService }) {
             onOpen={open}
             onWatchlist={onWatchlist}
             watched={watched}
-            sourceAvailableOnly
           />
         )}
 
@@ -1004,7 +997,6 @@ export default function HomeDashboard({ onOpenTvService }) {
           onOpen={open}
           onWatchlist={onWatchlist}
           watched={watched}
-          sourceAvailableOnly
         />
 
         <StreamingServiceRows
@@ -1017,7 +1009,6 @@ export default function HomeDashboard({ onOpenTvService }) {
           onWatchlist={onWatchlist}
           watched={watched}
           onBrowseAll={onOpenTvService}
-          sourceAvailableOnly
         />
 
         <MediaRow
@@ -1026,7 +1017,6 @@ export default function HomeDashboard({ onOpenTvService }) {
           onOpen={open}
           onWatchlist={onWatchlist}
           watched={watched}
-          sourceAvailableOnly
         />
 
         <MediaRow
@@ -1035,7 +1025,6 @@ export default function HomeDashboard({ onOpenTvService }) {
           onOpen={open}
           onWatchlist={onWatchlist}
           watched={watched}
-          sourceAvailableOnly
         />
 
         <MediaRow
@@ -1044,7 +1033,6 @@ export default function HomeDashboard({ onOpenTvService }) {
           onOpen={open}
           onWatchlist={onWatchlist}
           watched={watched}
-          sourceAvailableOnly
         />
       </div>
 

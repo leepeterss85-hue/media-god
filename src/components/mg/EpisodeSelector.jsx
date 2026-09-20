@@ -16,7 +16,6 @@ import {
 
 import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
-import { filterItemsWithPlayableSources } from "@/components/mg/sourceAvailability";
 
 import {
   buildMediaSources,
@@ -638,59 +637,14 @@ export default function EpisodeSelector({
               ? first.data
               : first;
 
-          const candidates =
+          setEpisodes(
             Array.isArray(
               payload
                 ?.episodes
             )
               ? payload
                   .episodes
-              : [];
-
-          const sourcedEpisodes =
-            await filterItemsWithPlayableSources(
-              candidates,
-              {
-                concurrency:
-                  4,
-
-                forItem:
-                  (
-                    episodeData
-                  ) => ({
-                    mediaType:
-                      "tv",
-
-                    tmdbId,
-
-                    title:
-                      showTitle,
-
-                    year:
-                      item?.year,
-
-                    season:
-                      Number(
-                        season
-                      ),
-
-                    episode:
-                      Number(
-                        episodeData
-                          ?.episode_number
-                      ),
-                  }),
-              }
-            );
-
-          if (
-            !mounted
-          ) {
-            return;
-          }
-
-          setEpisodes(
-            sourcedEpisodes
+              : []
           );
         } catch {
           if (
@@ -722,9 +676,6 @@ export default function EpisodeSelector({
     item?.tmdb_id,
     item?.tmdbId,
     season,
-    showTitle,
-    tmdbId,
-    item?.year,
   ]);
 
   const currentSeasonIndex =
