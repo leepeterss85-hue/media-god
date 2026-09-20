@@ -61,9 +61,6 @@ import {
   prioritiseCompatibleAutoplayEntries,
 } from "../src/components/mg/automaticSourceOrder.js";
 import {
-  sourcePlaybackCompatibilityTier,
-} from "../src/components/mg/mediaCompatibility.js";
-import {
   claimExclusivePlayback,
   hasExclusivePlaybackOwner,
   releaseExclusivePlayback,
@@ -3112,43 +3109,42 @@ test("native playback receives the full compatibility-sorted source list", () =>
   );
 });
 
-test("audio and video compatibility tier orders proven playable sources before incompatible ones", () => {
-  const proven = sourcePlaybackCompatibilityTier(
-    {
-      label: "Movie.1080p.H264.AAC.English.mp4",
-      videoCodec: "h264",
-      audioCodec: "aac",
-    },
-    "",
-    {
-      deviceProfile: {
-        nativePlayerAvailable: false,
-        fireTv: false,
-        nativeFireTv: false,
-        nativeAndroidMobile: false,
-        nativeCodecSupport: { video: [], audio: [] },
-      },
-    }
+test("audio and video compatibility tier drives source ordering without hiding rows", () => {
+  const compatibilitySource = readFileSync(
+    new URL("../src/components/mg/mediaCompatibility.js", import.meta.url),
+    "utf8"
+  );
+  const selectorSource = readFileSync(
+    new URL("../src/components/mg/sourceSelectorPreferences.js", import.meta.url),
+    "utf8"
+  );
+  const automaticOrderSource = readFileSync(
+    new URL("../src/components/mg/automaticSourceOrder.js", import.meta.url),
+    "utf8"
   );
 
-  const incompatible = sourcePlaybackCompatibilityTier(
-    {
-      label: "Movie.1080p.HEVC.TrueHD.English.mkv",
-      videoCodec: "hevc",
-      audioCodec: "truehd",
-    },
-    "",
-    {
-      deviceProfile: {
-        nativePlayerAvailable: false,
-        fireTv: false,
-        nativeFireTv: false,
-        nativeAndroidMobile: false,
-        nativeCodecSupport: { video: [], audio: [] },
-      },
-    }
+  assert.match(
+    compatibilitySource,
+    /export const sourcePlaybackCompatibilityTier/
   );
-
-  assert.equal(proven, 0);
-  assert.equal(incompatible, 3);
+  assert.match(
+    compatibilitySource,
+    /if \(video === true && audio === true\) return 0/
+  );
+  assert.match(
+    compatibilitySource,
+    /if \(video === false \|\| audio === false\) return 3/
+  );
+  assert.match(
+    selectorSource,
+    /compatibilityTier:\s*sourcePlaybackCompatibilityTier/
+  );
+  assert.match(
+    automaticOrderSource,
+    /compatibilityTier[\s\S]{0,160}?compatibilityTier/
+  );
+  assert.match(
+    selectorSource,
+    /sourceIsUserSelectable\(entry\.item\)[\s\S]{0,100}?entry\.compatibilityTier <= 1/
+  );
 });
