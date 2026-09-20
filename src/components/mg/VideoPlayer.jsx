@@ -2019,6 +2019,8 @@ export default function VideoPlayer({
       blacklistTorrentHash = false,
       immediate = false,
       liveFailureClass = "",
+      allowCaching = true,
+      authoritativeSourceRejection = false,
     } = {}
   ) => {
     const activeIsLive =
@@ -2079,7 +2081,11 @@ export default function VideoPlayer({
      * the actual reason and let Retry/manual source selection decide what to do
      * next. Cached/direct playback can continue to use automatic failover.
      */
-    if (sourceNeedsCaching(active) && !permanentRdTorrentRejection) {
+    if (
+      sourceNeedsCaching(active) &&
+      !permanentRdTorrentRejection &&
+      !authoritativeSourceRejection
+    ) {
       if (torrentFailoverTimerRef.current) {
         window.clearTimeout(torrentFailoverTimerRef.current);
         torrentFailoverTimerRef.current = null;
@@ -2110,7 +2116,11 @@ export default function VideoPlayer({
       currentVideo.networkState !== HTMLMediaElement.NETWORK_NO_SOURCE &&
       currentVideo.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA;
 
-    if (currentVideoHealthy && !hardFailureMessage) {
+    if (
+      currentVideoHealthy &&
+      !hardFailureMessage &&
+      !authoritativeSourceRejection
+    ) {
       autoRecoveryRef.current.lastTime = Number(currentVideo.currentTime || 0);
       autoRecoveryRef.current.lastProgressAt = Date.now();
       return false;
@@ -2139,7 +2149,8 @@ export default function VideoPlayer({
 
     const nextIndex =
       findNextPlayableSource(
-        activeIdx
+        activeIdx,
+        { allowCaching }
       );
 
     if (
@@ -4796,16 +4807,30 @@ export default function VideoPlayer({
                 error?.code === "RD_NO_AUDIO_TRACKS" ||
                 error?.code === "RD_NO_ENGLISH_AUDIO"
               ) {
-                lockCurrentVodSourceForAudioRecovery();
                 setRdResolving(false);
                 setRdPolling(false);
                 setRdTorrentId(null);
                 setRdPreparation(null);
-                setRdError(
+
+                const authoritativeMessage =
                   error?.code === "RD_NO_ENGLISH_AUDIO"
-                    ? "This release does not expose a labelled English track. Media God kept this exact source selected; use Audio or Source if you want to change it."
-                    : "Real-Debrid could not expose a usable audio track from this release. Media God kept this exact source selected instead of moving to another torrent."
-                );
+                    ? "This release has no English main audio track. Trying the next cached English-capable source…"
+                    : "Real-Debrid confirmed this release has no usable audio tracks. Trying the next cached source…";
+
+                const moved = tryNextSource(authoritativeMessage, {
+                  blacklistTorrentHash: true,
+                  immediate: true,
+                  allowCaching: false,
+                  authoritativeSourceRejection: true,
+                });
+
+                if (!moved && !manualSourceLockActive()) {
+                  setRdError(
+                    error?.code === "RD_NO_ENGLISH_AUDIO"
+                      ? "Media God checked this release and found no English main audio. No other ready cached source is available yet."
+                      : "Media God checked this release and found no usable audio track. No other ready cached source is available yet."
+                  );
+                }
                 return;
               }
 
@@ -5333,12 +5358,26 @@ export default function VideoPlayer({
                 rdErrorCode === "RD_NO_ENGLISH_AUDIO"
               ) {
                 setRdPreparation(null);
-                lockCurrentVodSourceForAudioRecovery();
-                setRdError(
+
+                const authoritativeMessage =
                   rdErrorCode === "RD_NO_ENGLISH_AUDIO"
-                    ? "This release does not expose a labelled English track. Media God kept this exact source selected; use Audio or Source if you want to change it."
-                    : "Real-Debrid confirmed this file has no usable audio track. Media God kept this exact source selected instead of cycling through other torrents."
-                );
+                    ? "This release has no English main audio track. Trying the next cached English-capable source…"
+                    : "Real-Debrid confirmed this release has no usable audio tracks. Trying the next cached source…";
+
+                const moved = tryNextSource(authoritativeMessage, {
+                  blacklistTorrentHash: true,
+                  immediate: true,
+                  allowCaching: false,
+                  authoritativeSourceRejection: true,
+                });
+
+                if (!moved && !manualSourceLockActive()) {
+                  setRdError(
+                    rdErrorCode === "RD_NO_ENGLISH_AUDIO"
+                      ? "Media God checked this release and found no English main audio. No other ready cached source is available yet."
+                      : "Media God checked this release and found no usable audio track. No other ready cached source is available yet."
+                  );
+                }
                 return;
               }
 
