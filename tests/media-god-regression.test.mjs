@@ -2682,6 +2682,32 @@ test("global VOD audio validation covers web, Media3 and LibVLC playback", () =>
   }
 });
 
+test("manual Audio control stays in the current file and never starts torrent failover", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(playerSource, /trackLanguage\(track\)/);
+  assert.match(playerSource, /English audio is already selected and locked/);
+  assert.match(playerSource, /Audio track changed within this file/);
+  assert.match(
+    playerSource,
+    /if \(!automatic\) \{[\s\S]{0,650}Choose another source manually/
+  );
+
+  const manualGuard = playerSource.indexOf(
+    "A manual Audio-button press must never become an uncontrolled source"
+  );
+  const nextSource = playerSource.indexOf(
+    "findNextPlayableSource(",
+    manualGuard
+  );
+
+  assert.ok(manualGuard >= 0);
+  assert.ok(nextSource > manualGuard);
+});
+
 test("audio tracks prefer English main audio while preserving explicit language memory", () => {
   const englishMain = {
     language: "eng",
