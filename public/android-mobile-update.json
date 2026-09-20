@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 34,
-  "versionName": "1.0.33",
+  "versionCode": 35,
+  "versionName": "1.0.34",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.33 fixes VOD getting stuck on 'Finding a verified compatible source'. The full source chooser now remains visible, cached releases can fall back to runtime Audio Rescue when metadata inspection is incomplete, and English track labels are recognised even when Real-Debrid omits formal language metadata.",
+  "message": "Media God Mobile 1.0.34 fixes Audio Rescue streams being abandoned after they start with working sound. Stale 1.8-second torrent failover timers are cancelled, rescued streams are not re-flagged by old no-sound history, and LibVLC selected audio tracks are treated as valid while metadata settles.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
