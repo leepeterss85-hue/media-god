@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 52,
-  "versionName": "1.4.47",
+  "versionCode": 53,
+  "versionName": "1.4.48",
   "title": "Media God Fire TV",
-  "message": "Media God Fire TV 1.4.47 fixes VOD getting stuck on 'Finding a verified compatible source'. The full source chooser now remains visible, cached releases can fall back to runtime Audio Rescue when metadata inspection is incomplete, and English track labels are recognised even when Real-Debrid omits formal language metadata.",
+  "message": "Media God Fire TV 1.4.48 fixes Audio Rescue streams being abandoned after working sound begins. Delayed source failover is cancelled after recovery, rescued streams are not rechecked from old no-sound history, and LibVLC active audio tracks are accepted while metadata settles.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
