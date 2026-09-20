@@ -2334,6 +2334,31 @@ export default async function (req) {
               list.indexOf(value) === index
           );
 
+      const alternateTitles =
+        (
+          Array.isArray(
+            body.alternate_titles ||
+            body.alternateTitles
+          )
+            ? (
+                body.alternate_titles ||
+                body.alternateTitles
+              )
+            : []
+        )
+          .map((value) =>
+            String(value || "").trim()
+          )
+          .filter(Boolean)
+          .filter(
+            (value, index, list) =>
+              list.findIndex(
+                (candidate) =>
+                  normalise(candidate) === normalise(value)
+              ) === index &&
+              normalise(value) !== normalise(title)
+          );
+
       const res =
         await fetch(
           `${RD_BASE}/torrents?limit=1000`,
