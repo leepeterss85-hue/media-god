@@ -135,6 +135,7 @@ export default function StreamingServiceRows({
   heading = "Streaming Services",
   rowLimit = 18,
   maxServices,
+  sourceAvailableOnly = false,
 }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -213,6 +214,7 @@ export default function StreamingServiceRows({
           watched={watched}
           actionLabel={onBrowseAll ? "See all TV" : ""}
           onAction={onBrowseAll ? () => onBrowseAll(service) : undefined}
+          sourceAvailableOnly={sourceAvailableOnly}
         />
       ))}
 
