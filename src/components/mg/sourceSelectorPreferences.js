@@ -351,6 +351,7 @@ export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
 
     if (mode === "compatible") {
       return (
+        a.compatibilityTier - b.compatibilityTier ||
         b.compatibility - a.compatibility ||
         Number(b.cached) - Number(a.cached) ||
         a.index - b.index
