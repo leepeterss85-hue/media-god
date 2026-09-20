@@ -2956,3 +2956,58 @@ test("Real-Debrid audio metadata cannot trigger automatic VOD source failover", 
   assert.match(resolveBlock, /lockCurrentVodSourceForAudioRecovery/);
   assert.doesNotMatch(resolveBlock, /tryNextSource\(/);
 });
+
+
+test("one-second native decoder failures never become a torrent carousel", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(playerSource, /const lockedVodNativeFailure =\s*!isLive && manualSourceLockActive\(\)/);
+  assert.match(playerSource, /nativeDiagnostics\?\.compatibilityAudioRecovery === true/);
+  assert.match(
+    playerSource,
+    /if \(nativeAudioFailure \|\| lockedVodNativeFailure\)/
+  );
+
+  const nativeApps = [
+    {
+      router: "../android-mobile/app/src/main/java/com/mediagod/mobile/PlaybackCompatibilityRouter.kt",
+      compatibility: "../android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt",
+      player: "../android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt",
+      main: "../android-mobile/app/src/main/java/com/mediagod/mobile/MainActivity.kt",
+      diagnostics: "../android-mobile/app/src/main/java/com/mediagod/mobile/NativePlaybackDiagnostics.kt",
+    },
+    {
+      router: "../firetv-android/app/src/main/java/com/mediagod/firetv/PlaybackCompatibilityRouter.kt",
+      compatibility: "../firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt",
+      player: "../firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt",
+      main: "../firetv-android/app/src/main/java/com/mediagod/firetv/MainActivity.kt",
+      diagnostics: "../firetv-android/app/src/main/java/com/mediagod/firetv/NativePlaybackDiagnostics.kt",
+    },
+  ];
+
+  for (const app of nativeApps) {
+    const router = readFileSync(new URL(app.router, import.meta.url), "utf8");
+    const compatibility = readFileSync(new URL(app.compatibility, import.meta.url), "utf8");
+    const player = readFileSync(new URL(app.player, import.meta.url), "utf8");
+    const main = readFileSync(new URL(app.main, import.meta.url), "utf8");
+    const diagnostics = readFileSync(new URL(app.diagnostics, import.meta.url), "utf8");
+
+    assert.doesNotMatch(router, /return Decision\(true, "provider:torrentio"\)/);
+    assert.match(compatibility, /private var compatibilityRetryPass = 0/);
+    assert.match(compatibility, /private var forceSoftwareVideoDecode = false/);
+    assert.match(
+      compatibility,
+      /setHWDecoderEnabled\(!forceSoftwareVideoDecode, false\)/
+    );
+    assert.match(
+      compatibility,
+      /retrying this same source in software mode/
+    );
+    assert.match(player, /"compatibilityAudioRecovery"/);
+    assert.match(main, /playbackDecision\.reason\.startsWith\("audio"/);
+    assert.match(diagnostics, /"compatibilityAudioRecovery"/);
+  }
+});
