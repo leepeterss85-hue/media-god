@@ -2876,3 +2876,46 @@ test("manual VOD source choices remain locked across native playback recovery", 
     /manualSelection:\s*true/
   );
 });
+
+
+test("audio recovery never advances to another VOD torrent", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(playerSource, /AUDIO FAILURE IS NOT SOURCE FAILURE/);
+  assert.match(playerSource, /lockCurrentVodSourceForAudioRecovery/);
+  assert.match(playerSource, /__audio_recovery_hold__/);
+  assert.match(
+    playerSource,
+    /kept this exact source selected instead of cycling through other torrents/
+  );
+
+  const audioBlockStart = playerSource.indexOf("AUDIO FAILURE IS NOT SOURCE FAILURE");
+  const audioBlockEnd = playerSource.indexOf("handleNoSoundRef.current", audioBlockStart);
+  assert.ok(audioBlockStart >= 0 && audioBlockEnd > audioBlockStart);
+  const audioBlock = playerSource.slice(audioBlockStart, audioBlockEnd);
+  assert.doesNotMatch(audioBlock, /switchToSource\(/);
+  assert.doesNotMatch(audioBlock, /markSourceFailed\(/);
+});
+
+test("LibVLC Auto PCM output does not force an explicit stereo device", () => {
+  const nativeFiles = [
+    "../android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt",
+    "../firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt",
+  ];
+
+  for (const file of nativeFiles) {
+    const source = readFileSync(new URL(file, import.meta.url), "utf8");
+    const start = source.indexOf("private fun configureAudioOutput");
+    const end = source.indexOf("private fun recoverAudioTrack", start);
+    assert.ok(start >= 0 && end > start);
+    const block = source.slice(start, end);
+
+    assert.match(block, /player\.setAudioDigitalOutputEnabled\(false\)/);
+    assert.match(block, /"stereo" ->/);
+    const autoBranch = block.slice(block.indexOf("else ->"));
+    assert.doesNotMatch(autoBranch, /setAudioOutputDevice\("stereo"\)/);
+  }
+});
