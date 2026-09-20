@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 32,
-  "versionName": "1.0.31",
+  "versionCode": 33,
+  "versionName": "1.0.32",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.31 restores the complete cached-source chooser for films and TV. Unknown cache checks no longer hide possible cached results, and temporarily failed cached sources remain available for manual retry.",
+  "message": "Media God Mobile 1.0.32 adds automatic Audio Rescue for difficult film soundtracks. DTS, DTS-HD, DTS:X, TrueHD, MLP and Atmos/JOC sources can switch to the compatibility decoder, and present-but-unsupported or unselected audio tracks are now detected instead of playing silently.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
