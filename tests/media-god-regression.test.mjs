@@ -3365,6 +3365,81 @@ test("unproven provider startup cannot block English torrent caching or autoplay
   );
 });
 
+test("manual source selection survives label enrichment and clears stale black-screen ownership", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+  const controlsSource = readFileSync(
+    new URL("../src/components/mg/MediaPlayerControls.jsx", import.meta.url),
+    "utf8"
+  );
+
+  const keyStart = playerSource.indexOf("const stablePlaybackSourceKey");
+  const keyEnd = playerSource.indexOf("const FAILED_TORRENT_HASHES_KEY", keyStart);
+  assert.ok(keyStart >= 0 && keyEnd > keyStart);
+  const keyBlock = playerSource.slice(keyStart, keyEnd);
+  assert.match(keyBlock, /String\(item\?\.addon \|\| item\?\.debridProvider \|\| item\?\.sourceName \|\| ""\)/);
+  assert.doesNotMatch(
+    keyBlock,
+    /sourceDisplayLabel\(item, fallbackIndex\)/
+  );
+
+  const switchStart = playerSource.indexOf("const switchToSource =");
+  const switchEnd = playerSource.indexOf("const tryNextSource =", switchStart);
+  assert.ok(switchStart >= 0 && switchEnd > switchStart);
+  const switchBlock = playerSource.slice(switchStart, switchEnd);
+  assert.match(
+    switchBlock,
+    /window\.__MG_NATIVE_PLAYBACK_ACTIVE__ = false/
+  );
+  assert.match(
+    switchBlock,
+    /forgetPersistentFailedTorrentHash\(selectedHash\)/
+  );
+  assert.match(
+    switchBlock,
+    /vodStartupAttemptedRef\.current\.delete\(nextIndex\)/
+  );
+
+  assert.match(controlsSource, /sourcePlaybackConfirmed/);
+  assert.match(
+    controlsSource,
+    /currentTime > 0\.25[\s\S]{0,180}?setSourcePlaybackConfirmed\(true\)/
+  );
+  assert.match(
+    controlsSource,
+    /index === activeIdx[\s\S]{0,120}?sourcePlaybackConfirmed[\s\S]{0,100}?"Playing • "/
+  );
+});
+
+test("black-screen VOD startup waits before trying at most three ready English sources without blacklisting", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  const start = playerSource.indexOf("VOD STARTUP WATCHDOG");
+  const end = playerSource.indexOf(
+    "Do not pre-resolve backup torrents in the background",
+    start
+  );
+  assert.ok(start >= 0 && end > start);
+  const block = playerSource.slice(start, end);
+
+  assert.match(block, /STARTUP_GRACE_MS = 12000/);
+  assert.match(block, /MAX_AUTOMATIC_STARTUP_ATTEMPTS = 3/);
+  assert.match(block, /manualSourceLockActive\(\)/);
+  assert.match(block, /Number\(entry\?\.languageRank \?\? 3\) === 0/);
+  assert.match(block, /autoplayEntryApproved\(entry\)/);
+  assert.doesNotMatch(block, /markSourceFailed\(/);
+  assert.doesNotMatch(block, /markTorrentHashFailed\(/);
+  assert.match(
+    block,
+    /without blacklisting it/
+  );
+});
+
 test("a new playback request resets the old source index and manual lock", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
