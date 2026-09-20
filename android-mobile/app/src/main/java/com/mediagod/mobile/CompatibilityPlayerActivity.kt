@@ -408,7 +408,14 @@ class CompatibilityPlayerActivity : Activity() {
         val player = vlcPlayer ?: return
         try {
             player.setVolume(100)
-            configureAudioOutput(player)
+
+            /*
+             * Audio output/device selection is configured before playback starts
+             * (and again only when an intentional settings change restarts the
+             * player). Reapplying the output while LibVLC is already rendering
+             * can disrupt a stream that has just begun producing good audio.
+             * Recovery here should only choose/confirm the best audio track.
+             */
             val tracks = player.audioTracks?.filter { it.id >= 0 }.orEmpty()
             if (tracks.isEmpty()) return
             val preferred = payload.optString("audioLanguage", "en").trim().lowercase()
