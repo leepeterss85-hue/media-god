@@ -3265,7 +3265,7 @@ test("Best chooser pins the playing VOD first and native playback receives that 
 });
 
 
-test("strict waiting row automatically hands off to an approved cached source", () => {
+test("best approved cached English row owns startup and strict waiting can still hand off", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
     "utf8"
@@ -3275,15 +3275,24 @@ test("strict waiting row automatically hands off to an approved cached source", 
     "utf8"
   );
 
+  assert.match(playerSource, /bestApprovedAutoplaySourceIndex/);
   assert.match(playerSource, /automaticApprovedAutoplaySourceIndex/);
   assert.match(playerSource, /activeIsWaitingForVerifiedSource/);
   assert.match(
     playerSource,
-    /activeIsWaitingForVerifiedSource[\s\S]{0,180}?automaticApprovedAutoplaySourceIndex/
+    /sortedSourceEntries\.find\([\s\S]{0,420}?autoplayEntryApproved\(entry\)/
   );
   assert.match(
     playerSource,
-    /!activeNeedsCaching && !activeIsWaitingForVerifiedSource/
+    /bestSourceShouldOwnStartup[\s\S]{0,520}?bestApprovedAutoplaySourceIndex[\s\S]{0,260}?activeIsWaitingForVerifiedSource[\s\S]{0,160}?automaticApprovedAutoplaySourceIndex/
+  );
+  assert.match(
+    playerSource,
+    /!bestSourceShouldOwnStartup[\s\S]{0,260}?!activeNeedsCaching && !activeIsWaitingForVerifiedSource/
+  );
+  assert.match(
+    playerSource,
+    /Best cached English source ready — starting automatically/
   );
   assert.match(
     playerSource,
