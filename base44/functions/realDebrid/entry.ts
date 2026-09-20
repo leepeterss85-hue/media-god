@@ -3935,24 +3935,25 @@ async function choosePlayableRdStream({
     explicitlyForeignOnly
   ) {
     /*
-     * Normal autoplay is English-first. A file whose inspected tracks are all
-     * explicitly non-English is not a valid automatic fallback: returning its
-     * original URL caused Media God to open the film in the wrong language and
-     * made the Audio button appear to fight the source chooser. Report this
-     * metadata clearly, but do not instruct playback to advance to another
-     * torrent automatically. The viewer/source-selection layer owns that choice.
+     * Real-Debrid mediaInfos is useful for ranking, but it is not authoritative
+     * enough to blacklist a working release. Some containers expose incomplete
+     * or misleading language tags even though Media3/LibVLC can see and select
+     * the real English track. Keep the exact file available and let the native
+     * decoder make the final track decision instead of poisoning the torrent.
      */
     return {
-      error:
-        "This cached release has no labelled English audio track.",
-      error_code:
-        "RD_NO_ENGLISH_AUDIO",
+      stream_url:
+        originalUrl,
+      filename:
+        originalFilename,
       audio_rescue: {
         used: false,
         state:
-          "no_english_audio",
+          "rd_metadata_foreign_original_probe",
         reason:
-          "Every labelled audio track is non-English. Automatic English-first playback should reject this candidate; a manually selected source may remain selected.",
+          "Real-Debrid metadata did not label an English track. Media God kept the original file so the player can inspect the real audio tracks before deciding whether this release is usable.",
+        selected_audio:
+          firstTrack || null,
       },
       media_info:
         mediaSummary,
@@ -4167,18 +4168,26 @@ async function choosePlayableRdStream({
   }
 
   if (audioTracks.length === 0) {
+    /*
+     * Zero tracks from mediaInfos can also be an incomplete inspection rather
+     * than a silent file. Never blacklist a source from metadata alone. Hand
+     * the original stream to Media3/LibVLC/browser and let runtime playback
+     * evidence decide whether audio is genuinely absent.
+     */
     return {
-      error:
-        "Real-Debrid inspected this video but found no audio tracks, and no compatible transcode with audio was available.",
-      error_code:
-        "RD_NO_AUDIO_TRACKS",
+      stream_url:
+        originalUrl,
+      filename:
+        originalFilename,
       audio_rescue: {
         used: false,
         state:
-          "no_audio_tracks_try_next_source",
+          "rd_metadata_zero_audio_original_probe",
         reason:
           transcode?.error ||
-          "Real-Debrid media inspection returned zero audio tracks and Audio Rescue could not produce a compatibility stream.",
+          "Real-Debrid media inspection returned zero audio tracks, so Media God kept the original file for runtime audio verification instead of marking the torrent bad.",
+        selected_audio:
+          null,
       },
       media_info:
         mediaSummary,
