@@ -476,6 +476,64 @@ test("movie source identity rejects wrong franchise years, sequel numbers and au
   );
 });
 
+test("official alternate movie titles can satisfy strict source identity without weakening year checks", () => {
+  const request = {
+    title: "Hardcore Henry",
+    year: "2015",
+    mediaType: "movie",
+    alternateTitles: ["Hardcore"],
+  };
+
+  assert.equal(
+    sourceIdentityMismatchReason(
+      { filename: "Hardcore.2015.1080p.BluRay.x264.mkv" },
+      request
+    ),
+    ""
+  );
+
+  assert.equal(
+    sourceIdentityMismatchReason(
+      { filename: "Hardcore.2016.1080p.BluRay.x264.mkv" },
+      request
+    ),
+    "conflicting_release_year"
+  );
+
+  assert.equal(
+    sourceIdentityMismatchReason(
+      { filename: "Hardcore.2015.1080p.BluRay.x264.mkv" },
+      {
+        title: "Hardcore Henry",
+        year: "2015",
+        mediaType: "movie",
+      }
+    ),
+    "conflicting_release_title"
+  );
+
+  const providerSource = readFileSync(
+    new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
+    "utf8"
+  );
+  const resolverSource = readFileSync(
+    new URL("../base44/functions/resolveImdb/entry.ts", import.meta.url),
+    "utf8"
+  );
+  const rdSource = readFileSync(
+    new URL("../base44/functions/realDebrid/entry.ts", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(resolverSource, /alternative_titles/);
+  assert.match(resolverSource, /alternate_titles:\s*alternateTitles/);
+  assert.match(providerSource, /identityAlternateTitles/);
+  assert.match(providerSource, /alternateTitles:\s*addonArgs\.alternateTitles/);
+  assert.match(providerSource, /alternate_titles:[\s\S]{0,100}?alternateTitles/);
+  assert.match(rdSource, /body\.alternate_titles/);
+  assert.match(rdSource, /titleProfiles/);
+});
+
 test("addon and RD fast-start paths both enforce requested source identity", () => {
   const providerSource = readFileSync(
     new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
