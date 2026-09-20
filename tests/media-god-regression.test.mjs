@@ -2911,11 +2911,16 @@ test("authoritative IDs stay isolated and English autoplay never falls back blin
   assert.match(providerSource, /requireExplicitEnglishRuntimeFallback/);
   assert.match(
     providerSource,
-    /detectLanguagePreference\(item\) === "english"/
+    /\["english", "multi"\]\.includes\([\s\S]{0,120}?detectLanguagePreference\(item\)/
   );
   assert.match(
     providerSource,
-    /rd-runtime-explicit-english-hint/
+    /rd-runtime-english-capable-hint/
+  );
+  assert.match(providerSource, /prioritiseEnglishAutoplayCandidates/);
+  assert.match(
+    providerSource,
+    /targetCount:\s*1,[\s\S]{0,120}?scanLimit:\s*40,[\s\S]{0,120}?timeBudgetMs:\s*10000/
   );
 });
 
