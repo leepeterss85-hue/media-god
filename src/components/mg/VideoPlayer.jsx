@@ -2935,6 +2935,14 @@ export default function VideoPlayer({
           context: {
             title: source?.rdTitle || source?.title || "",
             year: source?.rdYear ?? source?.year ?? null,
+            alternateYears:
+              Array.isArray(source?.rdAlternateYears || source?.alternateYears)
+                ? (source?.rdAlternateYears || source?.alternateYears)
+                : [],
+            alternateTitles:
+              Array.isArray(source?.rdAlternateTitles || source?.alternateTitles)
+                ? (source?.rdAlternateTitles || source?.alternateTitles)
+                : [],
             season: source?.rdSeason ?? source?.season ?? null,
             episode: source?.rdEpisode ?? source?.episode ?? null,
             fileIdx:
@@ -3425,6 +3433,14 @@ export default function VideoPlayer({
     const context = {
       title: source?.rdTitle || source?.title || "",
       year: source?.rdYear ?? source?.year ?? null,
+      alternateYears:
+        Array.isArray(source?.rdAlternateYears || source?.alternateYears)
+          ? (source?.rdAlternateYears || source?.alternateYears)
+          : [],
+      alternateTitles:
+        Array.isArray(source?.rdAlternateTitles || source?.alternateTitles)
+          ? (source?.rdAlternateTitles || source?.alternateTitles)
+          : [],
       season: source?.rdSeason ?? source?.season ?? null,
       episode: source?.rdEpisode ?? source?.episode ?? null,
       fileIdx:
@@ -3848,6 +3864,14 @@ export default function VideoPlayer({
                     source?.title ||
                     "",
                   ...(source?.rdYear != null ? { year: source.rdYear } : {}),
+                  alternate_years:
+                    Array.isArray(source?.rdAlternateYears || source?.alternateYears)
+                      ? (source?.rdAlternateYears || source?.alternateYears)
+                      : [],
+                  alternate_titles:
+                    Array.isArray(source?.rdAlternateTitles || source?.alternateTitles)
+                      ? (source?.rdAlternateTitles || source?.alternateTitles)
+                      : [],
                   ...(source?.rdSeason != null ? { season: source.rdSeason } : {}),
                   ...(source?.rdEpisode != null ? { episode: source.rdEpisode } : {}),
                   ...(active?.fileIdx != null && Number.isFinite(Number(active.fileIdx))
@@ -7360,6 +7384,14 @@ export default function VideoPlayer({
               magnet: richestSourceMagnet(active),
               title: source?.rdTitle || source?.title || "",
               ...(source?.rdYear != null ? { year: source.rdYear } : {}),
+              alternate_years:
+                Array.isArray(source?.rdAlternateYears || source?.alternateYears)
+                  ? (source?.rdAlternateYears || source?.alternateYears)
+                  : [],
+              alternate_titles:
+                Array.isArray(source?.rdAlternateTitles || source?.alternateTitles)
+                  ? (source?.rdAlternateTitles || source?.alternateTitles)
+                  : [],
               ...(source?.rdSeason != null ? { season: source.rdSeason } : {}),
               ...(source?.rdEpisode != null ? { episode: source.rdEpisode } : {}),
               prefer_browser_transcode: prefersMobileBrowserRdCompatibility(),
@@ -7640,6 +7672,14 @@ export default function VideoPlayer({
                 source?.title ||
                 "",
               ...(source?.rdYear != null ? { year: source.rdYear } : {}),
+              alternate_years:
+                Array.isArray(source?.rdAlternateYears || source?.alternateYears)
+                  ? (source?.rdAlternateYears || source?.alternateYears)
+                  : [],
+              alternate_titles:
+                Array.isArray(source?.rdAlternateTitles || source?.alternateTitles)
+                  ? (source?.rdAlternateTitles || source?.alternateTitles)
+                  : [],
               ...(source?.rdSeason != null ? { season: source.rdSeason } : {}),
               ...(source?.rdEpisode != null ? { episode: source.rdEpisode } : {}),
               ...(active?.fileIdx != null && Number.isFinite(Number(active.fileIdx))
