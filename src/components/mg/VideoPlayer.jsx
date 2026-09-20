@@ -8263,6 +8263,46 @@ export default function VideoPlayer({
         String(source?.sourceDiagnostics?.phase || "")
       );
 
+    const activeStartupEntry = sortedSourceEntries.find(
+      (entry) => entry?.index === activeIdx
+    );
+    const activeStartupLanguageRank = Number(
+      activeStartupEntry?.languageRank ?? 3
+    );
+    const activeStartupProven =
+      activeStartupEntry?.provenWorking === true ||
+      active?.launchQualified === true ||
+      active?.playbackVerified === true ||
+      active?.runtimePlaybackVerified === true;
+
+    /*
+     * NATIVE STARTUP ARBITRATION
+     *
+     * playNativeFireTv() marks Android playback ownership as soon as the native
+     * activity ACCEPTS a request. That is earlier than actual playback. If an
+     * unproven AIOStreams/direct row reaches this effect in the same React
+     * commit where English-first autoplay has requested a source switch, the
+     * old row can otherwise seize native ownership and cancel that switch on
+     * the following render.
+     *
+     * Do not launch the current unproven/non-English VOD into Android while a
+     * better explicit-English startup candidate is waiting. Let the earlier
+     * source-selection effect change activeIdx first; the next render may then
+     * launch only the chosen English source.
+     */
+    const englishStartupTakeoverPending =
+      !isLive &&
+      playbackMediaType !== "live" &&
+      !manualSourceLockActive() &&
+      !activeStartupProven &&
+      activeStartupLanguageRank !== 0 &&
+      bestEnglishAutoplayCandidateIndex >= 0 &&
+      bestEnglishAutoplayCandidateIndex !== activeIdx;
+
+    if (englishStartupTakeoverPending) {
+      return;
+    }
+
     /*
      * On Fire TV, launching Media3 pauses the WebView. If we launch as soon as
      * the first RD/library hit arrives, the later addon results cannot update
@@ -8433,8 +8473,10 @@ export default function VideoPlayer({
   }, [
     active,
     activeIdx,
+    bestEnglishAutoplayCandidateIndex,
     isLive,
     nativePlaybackUrl,
+    playbackMediaType,
     rdOverride,
     source,
     useNativePlayback,
