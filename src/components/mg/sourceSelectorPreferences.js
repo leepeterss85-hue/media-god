@@ -247,6 +247,20 @@ const sourceHasTrackerRichMagnet = (item) => {
   return /^magnet:/i.test(raw) && /(?:[?&])tr=/i.test(raw);
 };
 
+const hardSubtitleRank = (item) =>
+  /\b(?:hardsubs?|hard[ ._-]?subbed|hardcoded[ ._-]?subs?|korsub|engsub|subbed)\b/i.test(
+    sourceText(item)
+  )
+    ? 1
+    : 0;
+
+const sourceHasPlaybackProof = (item) =>
+  Boolean(
+    item?.launchQualified === true ||
+      item?.playbackVerified === true ||
+      item?.runtimePlaybackVerified === true
+  );
+
 const preferredSourceLanguageRank = (
   item,
   preferredAudioLanguage = "en"
@@ -291,7 +305,9 @@ export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
       compatibilityTier: sourcePlaybackCompatibilityTier(item, sourceText(item), {
         deviceProfile,
       }),
+      provenWorking: sourceHasPlaybackProof(item),
       languageRank: preferredSourceLanguageRank(item, preferredAudioLanguage),
+      hardSubtitleRank: hardSubtitleRank(item),
       reportedSeeders: sourceReportedSeeders(item),
       trackerRich: sourceHasTrackerRichMagnet(item),
       editionScore: String(mode || "").startsWith("edition:")
@@ -305,7 +321,11 @@ export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
       ...entry,
       autoplayReady:
         sourceIsUserSelectable(entry.item) &&
-        entry.compatibilityTier <= 1,
+        entry.cached === true &&
+        (
+          entry.provenWorking === true ||
+          entry.compatibilityTier <= 1
+        ),
     }));
 
     return prioritiseCompatibleAutoplayEntries(trustedFirst);
@@ -351,9 +371,12 @@ export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
 
     if (mode === "compatible") {
       return (
+        Number(b.provenWorking) - Number(a.provenWorking) ||
         a.compatibilityTier - b.compatibilityTier ||
-        b.compatibility - a.compatibility ||
+        a.languageRank - b.languageRank ||
+        a.hardSubtitleRank - b.hardSubtitleRank ||
         Number(b.cached) - Number(a.cached) ||
+        b.compatibility - a.compatibility ||
         a.index - b.index
       );
     }

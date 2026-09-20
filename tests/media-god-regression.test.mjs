@@ -2392,7 +2392,7 @@ test("qualification picks the lead source without truncating the full chooser to
 
   assert.match(
     playerSource,
-    /sources:\s*sortedSourceEntries[\s\S]{0,180}sourceIsUserSelectable/
+    /sources:\s*selectableSourceEntries[\s\S]{0,900}?webIndex:\s*index/
   );
 });
 
@@ -3101,7 +3101,7 @@ test("native playback receives the full compatibility-sorted source list", () =>
 
   assert.match(
     playerSource,
-    /sources:\s*sortedSourceEntries[\s\S]{0,220}?sourceIsUserSelectable/
+    /sources:\s*selectableSourceEntries[\s\S]{0,900}?webIndex:\s*index/
   );
   assert.doesNotMatch(
     playerSource,
@@ -3149,11 +3149,11 @@ test("audio and video compatibility tier drives source ordering without hiding r
   );
   assert.match(
     automaticOrderSource,
-    /compatibilityTier[\s\S]{0,160}?compatibilityTier/
+    /effectiveCompatibilityTier\(left\)[\s\S]{0,160}?effectiveCompatibilityTier\(right\)/
   );
   assert.match(
     selectorSource,
-    /sourceIsUserSelectable\(entry\.item\)[\s\S]{0,100}?entry\.compatibilityTier <= 1/
+    /sourceIsUserSelectable\(entry\.item\)[\s\S]{0,220}?entry\.cached === true[\s\S]{0,180}?entry\.compatibilityTier <= 1/
   );
   assert.match(
     selectorSource,
@@ -3167,4 +3167,66 @@ test("audio and video compatibility tier drives source ordering without hiding r
     playerSource,
     /compatibilityTierPriority[\s\S]{0,120}?250000/
   );
+});
+
+
+test("Best source order never puts uncached guesses above a cached qualified source", () => {
+  const ordered = prioritiseCompatibleAutoplayEntries([
+    {
+      id: "uncached-comet",
+      index: 0,
+      autoplayReady: false,
+      compatibilityTier: 0,
+      languageRank: 0,
+      compatibility: 50000,
+      cached: false,
+      trustedCached: false,
+    },
+    {
+      id: "cached-qualified-torrentio",
+      index: 1,
+      autoplayReady: true,
+      compatibilityTier: 1,
+      provenWorking: true,
+      languageRank: 0,
+      hardSubtitleRank: 0,
+      compatibility: 1000,
+      cached: true,
+      trustedCached: true,
+    },
+  ]);
+
+  assert.equal(ordered[0].id, "cached-qualified-torrentio");
+  assert.equal(ordered[1].id, "uncached-comet");
+});
+
+test("Best chooser pins the playing VOD first and native playback receives that same list", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+  const selectorSource = readFileSync(
+    new URL("../src/components/mg/sourceSelectorPreferences.js", import.meta.url),
+    "utf8"
+  );
+  const automaticSource = readFileSync(
+    new URL("../src/components/mg/automaticSourceOrder.js", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(
+    playerSource,
+    /sourceSortMode === "best"[\s\S]{0,260}?entry\.index === activeIdx[\s\S]{0,260}?selectableSourceEntries = \[/
+  );
+  assert.match(
+    playerSource,
+    /sources:\s*selectableSourceEntries[\s\S]{0,900}?webIndex:\s*index/
+  );
+  assert.match(
+    selectorSource,
+    /entry\.cached === true[\s\S]{0,120}?entry\.provenWorking === true[\s\S]{0,120}?entry\.compatibilityTier <= 1/
+  );
+  assert.match(selectorSource, /hardSubtitleRank/);
+  assert.match(automaticSource, /effectiveCompatibilityTier/);
+  assert.match(automaticSource, /hardSubtitleRank/);
 });
