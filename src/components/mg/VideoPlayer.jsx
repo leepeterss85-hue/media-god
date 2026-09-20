@@ -7784,11 +7784,17 @@ export default function VideoPlayer({
 
         const nativeAudioFailure =
           !isLive &&
-          /audio|dts|true[ ._-]?hd|mlp|atmos|e[ ._-]?ac[ ._-]?3|joc|no[- ]?sound|silent/i.test(
-            nativeFailureText
+          (
+            nativeDiagnostics?.compatibilityAudioRecovery === true ||
+            /audio|dts|true[ ._-]?hd|mlp|atmos|e[ ._-]?ac[ ._-]?3|joc|no[- ]?sound|silent/i.test(
+              nativeFailureText
+            )
           );
 
-        if (nativeAudioFailure) {
+        const lockedVodNativeFailure =
+          !isLive && manualSourceLockActive();
+
+        if (nativeAudioFailure || lockedVodNativeFailure) {
           if (positionSeconds > 5) {
             recoveryResumeRef.current = positionSeconds;
           }
@@ -7811,14 +7817,18 @@ export default function VideoPlayer({
           setForceNativePlayback(false);
           setNativeFallbackUrl("");
           setRdError(
-            "The audio decoder stopped on this release. Media God kept this exact source selected instead of moving to another torrent. Use Audio or Source to make the next choice."
+            nativeAudioFailure
+              ? "The audio decoder stopped on this release. Media God kept this exact source selected instead of moving to another torrent. Use Audio or Source to make the next choice."
+              : "The native decoder stopped on this manually selected release. Media God kept this exact source selected instead of cycling to another torrent. Use Source only if you want to change it."
           );
 
           window.dispatchEvent(
             new CustomEvent("mg:player-status", {
               detail: {
                 message:
-                  "Audio decoder stopped — keeping this exact source selected.",
+                  nativeAudioFailure
+                    ? "Audio decoder stopped — keeping this exact source selected."
+                    : "Native decoder stopped — keeping your manually selected source.",
               },
             })
           );

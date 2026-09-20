@@ -37,6 +37,10 @@ object NativePlaybackDiagnostics {
             put("fps", firstNumber(source, payload, "fps"))
             put("bitrate", firstNumber(source, payload, "bitrate"))
             put("compatibilityReason", payload.optString("compatibilityReason"))
+            put(
+                "compatibilityAudioRecovery",
+                payload.optBoolean("compatibilityAudioRecovery", false)
+            )
             put("compatibilityErrorCode", payload.optInt("compatibilityErrorCode", 0))
             put("compatibilityError", payload.optString("compatibilityError").take(240))
             put("forceCompatibilityReason", payload.optString("forceCompatibilityReason"))

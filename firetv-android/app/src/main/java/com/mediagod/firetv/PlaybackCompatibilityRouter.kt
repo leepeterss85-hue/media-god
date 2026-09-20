@@ -165,14 +165,13 @@ object PlaybackCompatibilityRouter {
             payload.optString("hintText")
         ).filter { it.isNotBlank() }.joinToString(" ")
 
-        if (matches(sourceIdentity, "torrentio")) {
-            // Torrentio rows are usually debrid-backed torrent/remux files. Even
-            // when the device advertises the base video codec, the full file can
-            // still contain a container/audio/HDR combination that Media3 rejects.
-            // Route Torrentio directly to LibVLC instead of flashing Media3 first.
-            return Decision(true, "provider:torrentio")
-        }
-
+        /*
+         * Provider identity is not a decoder failure. Torrentio/Real-Debrid can
+         * deliver perfectly normal H.264/HEVC + AAC/AC3 files, so never force
+         * every Torrentio row through LibVLC. Route only when the actual
+         * container/codec/capability checks below say compatibility is needed.
+         * This avoids the one-second LibVLC error -> next-torrent carousel.
+         */
         val width = firstPositiveInt(
             jsonNumber(selected, "width"),
             jsonNumber(payload, "width"),

@@ -59,6 +59,8 @@ class CompatibilityPlayerActivity : Activity() {
     private var audioRecoveryPasses = 0
     private var manualAudioTrackLocked = false
     private var manualAudioTrackId = -1
+    private var compatibilityRetryPass = 0
+    private var forceSoftwareVideoDecode = false
 
     private val hideControlsRunnable = Runnable {
         if (!resultSent && ::controls.isInitialized) {
@@ -353,13 +355,56 @@ class CompatibilityPlayerActivity : Activity() {
                         }
                         MediaPlayer.Event.Paused -> { window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON); updatePlayPauseLabel(); showControlsTemporarily() }
                         MediaPlayer.Event.EndReached -> finishWithResult("ended")
-                        MediaPlayer.Event.EncounteredError -> finishWithResult("error", "The compatibility decoder could not play this source.")
+                        MediaPlayer.Event.EncounteredError -> {
+                            if (compatibilityRetryPass < 1) {
+                                compatibilityRetryPass += 1
+                                forceSoftwareVideoDecode = true
+                                val resumeAt =
+                                    max(
+                                        0L,
+                                        player.time.takeIf { it > 0L }
+                                            ?: startPositionMs
+                                    )
+                                pendingStartPositionMs = resumeAt
+                                startPositionMs = resumeAt
+                                root.removeCallbacks(audioRecoveryRunnable)
+                                root.removeCallbacks(thermalRunnable)
+                                releaseCompatibilityPlayer()
+                                showStatus(
+                                    "Compatibility decoder · retrying this same source in software mode"
+                                )
+                                root.postDelayed(
+                                    { startCompatibilityPlayback() },
+                                    150L
+                                )
+                            } else {
+                                val recoveryText =
+                                    payload.optString("compatibilityReason") + " " +
+                                        payload.optString("compatibilityError") + " " +
+                                        payload.optString("audioCodec") + " " +
+                                        payload.optString("hintText")
+                                val audioRecovery =
+                                    payload.optBoolean("compatibilityAudioRecovery", false) ||
+                                        Regex(
+                                            """audio|dts|true[ ._-]?hd|mlp|atmos|e[ ._-]?ac[ ._-]?3|joc|silent|no[- ]?sound""",
+                                            RegexOption.IGNORE_CASE
+                                        ).containsMatchIn(recoveryText)
+
+                                finishWithResult(
+                                    "error",
+                                    if (audioRecovery)
+                                        "The compatibility audio decoder could not recover this source."
+                                    else
+                                        "The compatibility decoder could not play this source."
+                                )
+                            }
+                        }
                     }
                 }
             }
 
             val media = Media(engine, Uri.parse(streamUrl)).apply {
-                setHWDecoderEnabled(true, false)
+                setHWDecoderEnabled(!forceSoftwareVideoDecode, false)
                 addOption(":network-caching=1800")
                 addOption(":file-caching=1200")
                 addOption(":live-caching=1800")
