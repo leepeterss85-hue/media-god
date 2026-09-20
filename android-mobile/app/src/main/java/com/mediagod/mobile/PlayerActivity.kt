@@ -762,10 +762,22 @@ class PlayerActivity : Activity() {
          * Compatibility fallback remains available for a genuinely missing,
          * unsupported or unselected audio renderer and through onPlayerError.
          */
+        val automaticCodecRecovery =
+            payload.optBoolean("automaticNoSoundRecovery", true)
+        val audioOutputMode =
+            payload.optString("audioOutputMode", "auto")
+                .trim()
+                .lowercase()
+        val riskyCodecNeedsSoftwareDecode =
+            initialAudio.softwareFallbackPreferred &&
+                automaticCodecRecovery &&
+                audioOutputMode != "passthrough"
+
         val needsRescue =
             !initialAudio.present ||
                 !initialAudio.supported ||
-                !initialAudio.selected
+                !initialAudio.selected ||
+                riskyCodecNeedsSoftwareDecode
 
         if (!needsRescue) {
             audioPresenceCheckGeneration += 1
@@ -773,6 +785,8 @@ class PlayerActivity : Activity() {
         }
 
         val generation = ++audioPresenceCheckGeneration
+        val rescueDelayMs =
+            if (riskyCodecNeedsSoftwareDecode) 250L else 1400L
 
         playerView.postDelayed({
             if (
@@ -803,6 +817,10 @@ class PlayerActivity : Activity() {
                     "The audio track is present but this device does not expose a usable decoder. Trying the compatibility decoder."
                 !audio.selected ->
                     "The audio track is present but Media3 did not select a usable audio renderer. Trying the compatibility decoder."
+                audio.softwareFallbackPreferred &&
+                    automaticCodecRecovery &&
+                    audioOutputMode != "passthrough" ->
+                    "This Android device may expose the audio track without producing sound. Keeping this source and software-decoding its audio with the compatibility decoder."
                 else -> ""
             }
 
@@ -822,7 +840,7 @@ class PlayerActivity : Activity() {
                     "This source contains video but no usable audio track."
                 )
             }
-        }, 1400L)
+        }, rescueDelayMs)
     }
 
     private fun buildMediaItem(mimeTypeOverride: String? = null): MediaItem {

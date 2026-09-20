@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 39,
-  "versionName": "1.0.38",
+  "versionCode": 40,
+  "versionName": "1.0.39",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.38 tightens movie identity matching so similarly named films cannot be selected just because the year matches, keeps authoritative IMDb/TMDb results separate from broad title search fallbacks, requires English evidence for autoplay fallbacks, and no longer replaces a supported selected DTS/TrueHD/JOC audio track after playback has already started.",
+  "message": "Media God Mobile 1.0.39 keeps manually selected movie/TV sources locked and adds same-source software audio decoding for DTS/DTS-HD/TrueHD/MLP/Atmos-risk tracks on Android phones and tablets when Media3 exposes the track but the device produces silence.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"

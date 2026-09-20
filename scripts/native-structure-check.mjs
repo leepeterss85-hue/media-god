@@ -18,7 +18,7 @@ const apps = [
     dir: "android-mobile",
     packagePath: "com/mediagod/mobile",
     namespace: "com.mediagod.mobile",
-    expectedVersion: "1.0.38",
+    expectedVersion: "1.0.39",
     expectedMedia3: "1.11.0",
     expectedOrientation: "sensor",
   },
