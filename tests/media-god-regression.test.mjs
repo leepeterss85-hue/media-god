@@ -2837,7 +2837,7 @@ test("authoritative IDs stay isolated and English autoplay never falls back blin
 });
 
 
-test("Android and Fire TV software-decode passthrough-risk audio without changing sources", () => {
+test("selected supported audio is never auto-skipped just because its codec is risky", () => {
   const nativeFiles = [
     "../android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt",
     "../firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt",
@@ -2853,14 +2853,16 @@ test("Android and Fire TV software-decode passthrough-risk audio without changin
     assert.match(gate, /!initialAudio\.present/);
     assert.match(gate, /!initialAudio\.supported/);
     assert.match(gate, /!initialAudio\.selected/);
-    assert.match(gate, /riskyCodecNeedsSoftwareDecode/);
-    assert.match(source, /initialAudio\.softwareFallbackPreferred/);
-    assert.match(source, /audioOutputMode != "passthrough"/);
-    assert.match(source, /if \(riskyCodecNeedsSoftwareDecode\) 250L else 1400L/);
-    assert.match(
-      source,
-      /software-decoding its audio with the compatibility decoder/
-    );
+    assert.doesNotMatch(gate, /softwareFallbackPreferred/);
+    assert.doesNotMatch(gate, /riskyCodecNeedsSoftwareDecode/);
+
+    const reasonStart = source.indexOf("val reason = when", end);
+    const reasonEnd = source.indexOf("if (reason.isBlank())", reasonStart);
+    assert.ok(reasonStart >= 0 && reasonEnd > reasonStart);
+    const reasonBlock = source.slice(reasonStart, reasonEnd);
+    assert.doesNotMatch(reasonBlock, /softwareFallbackPreferred/);
+    assert.match(source, /val rescueDelayMs = 1400L/);
+    assert.doesNotMatch(source, /250L/);
   }
 });
 
