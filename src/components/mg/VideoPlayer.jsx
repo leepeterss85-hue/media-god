@@ -8303,12 +8303,21 @@ export default function VideoPlayer({
         return;
       }
 
+      /*
+       * Missing-audio recovery must never drag the viewer into a new uncached
+       * torrent job. Only switch to an already-ready/cached alternative here;
+       * background caching can continue independently while playback stays on
+       * a usable source.
+       */
       const nextIndex =
-        findNextPlayableSource(activeIdx);
+        findNextPlayableSource(
+          activeIdx,
+          { allowCaching: false }
+        );
 
       if (nextIndex < 0) {
         setRdError(
-          "No compatible alternate audio track or backup source is available."
+          "No other ready source with compatible audio is available yet. Background caching will keep preparing alternatives."
         );
         return;
       }
