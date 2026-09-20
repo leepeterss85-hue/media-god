@@ -834,6 +834,10 @@ export default function VideoPlayer({
   const nativeLaunchTimerRef = useRef(null);
   const liveRecoveryNoticeTimerRef = useRef(null);
   const streamActionGenerationRef = useRef(0);
+  const manualSourceLockRef = useRef({
+    sourceKey: "",
+    playRequestId: null,
+  });
 
   useEffect(() => {
     return () => {
@@ -901,6 +905,21 @@ export default function VideoPlayer({
           source?.rdEpisode != null
         ? "tv"
         : "movie";
+
+  const manualSourceLockActive = () => {
+    if (playbackMediaType === "live") return false;
+
+    const lock = manualSourceLockRef.current;
+    if (!lock?.sourceKey) return false;
+
+    const currentPlayRequestId = source?.playRequestId ?? null;
+    const currentSourceKey = stablePlaybackSourceKey(active, activeIdx);
+
+    return (
+      lock.playRequestId === currentPlayRequestId &&
+      lock.sourceKey === currentSourceKey
+    );
+  };
 
   const returnFromPlayback = useCallback(() => {
     if (playbackMediaType !== "tv") {
@@ -1764,6 +1783,16 @@ export default function VideoPlayer({
     } = {}
   ) => {
     /*
+     * A manual movie/TV source choice is authoritative. Automatic recovery may
+     * repair that exact source (for example by opening LibVLC for DTS/TrueHD),
+     * but it must never fight the viewer by jumping back to source 1 or another
+     * release. Only another manual source choice can replace the lock.
+     */
+    if (!manualSelection && manualSourceLockActive()) {
+      return false;
+    }
+
+    /*
      * Never move the active source underneath an open native selector during
      * background recovery. A deliberate movie/TV source choice is allowed to
      * break the pin because that exact choice is the action the user requested.
@@ -1779,6 +1808,13 @@ export default function VideoPlayer({
     }
 
     if (manualSelection) {
+      manualSourceLockRef.current = {
+        sourceKey: stablePlaybackSourceKey(sources[nextIndex], nextIndex),
+        playRequestId:
+          sources[nextIndex]?.playRequestId ??
+          source?.playRequestId ??
+          null,
+      };
       releaseSourceSelector();
       releaseRdFileSelector();
     }
@@ -1867,6 +1903,25 @@ export default function VideoPlayer({
       source?.type === "live" || active?.live || active?.type === "live";
     const selectorPinned =
       sourceSelectorPinnedRef.current || rdFileSelectorPinnedRef.current;
+
+    if (!activeIsLive && manualSourceLockActive()) {
+      setRdResolving(false);
+      setRdPolling(false);
+      setRdError(
+        `${String(message || "This source could not be played.").trim()} This source was selected manually, so Media God kept it selected. Use Source to choose another release.`
+      );
+
+      window.dispatchEvent(
+        new CustomEvent("mg:player-status", {
+          detail: {
+            message:
+              "Keeping your manually selected source. Media God will not switch back to another release automatically.",
+          },
+        })
+      );
+
+      return false;
+    }
 
     /*
      * A native Android/Fire TV source chooser can remain focused after the
@@ -7684,6 +7739,7 @@ export default function VideoPlayer({
         if (selectedSourceIndex !== activeIdx) {
           switchToSource(selectedSourceIndex, {
             preservePosition: true,
+            manualSelection: true,
             statusMessage: "Switching source from the Fire TV player…",
           });
         } else {
