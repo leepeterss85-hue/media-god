@@ -2084,6 +2084,14 @@ const qualifyCachedRealDebridLaunchSource = async ({
         ...(year != null && String(year).trim()
           ? { year }
           : {}),
+        alternate_years:
+          Array.isArray(alternateYears)
+            ? alternateYears
+            : [],
+        alternate_titles:
+          Array.isArray(alternateTitles)
+            ? alternateTitles
+            : [],
         ...(season != null
           ? { season }
           : {}),
