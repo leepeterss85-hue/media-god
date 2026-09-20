@@ -2999,6 +2999,43 @@ async function addMagnet({
           )
         : "",
 
+    alternateYears:
+      (
+        Array.isArray(
+          body.alternate_years ||
+          body.alternateYears
+        )
+          ? (
+              body.alternate_years ||
+              body.alternateYears
+            )
+          : []
+      )
+        .map((value) =>
+          String(value || "").trim()
+        )
+        .filter(
+          (value) =>
+            /^\d{4}$/.test(value)
+        ),
+
+    alternateTitles:
+      (
+        Array.isArray(
+          body.alternate_titles ||
+          body.alternateTitles
+        )
+          ? (
+              body.alternate_titles ||
+              body.alternateTitles
+            )
+          : []
+      )
+        .map((value) =>
+          String(value || "").trim()
+        )
+        .filter(Boolean),
+
     season:
       body.season != null
         ? String(
