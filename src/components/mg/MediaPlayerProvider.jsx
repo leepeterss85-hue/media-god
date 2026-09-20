@@ -2649,15 +2649,7 @@ export function PlayerProvider({
                 title: request?.rdTitle || request?.title || "",
                 year: request?.rdYear ?? request?.year ?? "",
                 alternateYears:
-                  Array.isArray(
-                    request?.rdAlternateYears ||
-                    request?.alternateYears
-                  )
-                    ? (
-                        request?.rdAlternateYears ||
-                        request?.alternateYears
-                      )
-                    : [],
+                  identityAlternateYears,
                 alternateTitles:
                   identityAlternateTitles,
                 mediaType,
@@ -2672,15 +2664,7 @@ export function PlayerProvider({
                 title: request?.rdTitle || request?.title || "",
                 year: request?.rdYear ?? request?.year ?? null,
                 alternateYears:
-                  Array.isArray(
-                    request?.rdAlternateYears ||
-                    request?.alternateYears
-                  )
-                    ? (
-                        request?.rdAlternateYears ||
-                        request?.alternateYears
-                      )
-                    : [],
+                  identityAlternateYears,
                 alternateTitles:
                   identityAlternateTitles,
                 season,
@@ -2736,15 +2720,7 @@ export function PlayerProvider({
               title: request?.rdTitle || request?.title || "",
               year: request?.rdYear ?? request?.year ?? "",
               alternateYears:
-                Array.isArray(
-                  request?.rdAlternateYears ||
-                  request?.alternateYears
-                )
-                  ? (
-                      request?.rdAlternateYears ||
-                      request?.alternateYears
-                    )
-                  : [],
+                identityAlternateYears,
               alternateTitles:
                 identityAlternateTitles,
               mediaType,
@@ -2775,6 +2751,10 @@ export function PlayerProvider({
               ? "strict"
               : request?.verifiedPlaybackPolicy || "runtime",
           imdbId,
+          alternateYears:
+            identityAlternateYears,
+          rdAlternateYears:
+            identityAlternateYears,
           alternateTitles:
             identityAlternateTitles,
           rdAlternateTitles:
