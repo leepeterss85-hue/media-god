@@ -546,17 +546,29 @@ class CompatibilityPlayerActivity : Activity() {
          * currently foreign and an English main track exists, jump straight to
          * English. Further presses can still cycle every track deliberately.
          */
-        val englishMain = tracks.firstOrNull {
+        val englishMainTracks = tracks.filter {
             looksEnglish(it.name.orEmpty()) &&
                 !looksCommentary(it.name.orEmpty())
         }
 
+        /*
+         * "Audio" is an audio-track control, not a source-recovery control.
+         * If this file contains English main audio, keep the user inside the
+         * English tracks. This prevents repeated button presses from wrapping
+         * back to the foreign default and triggering another rescue/cache pass.
+         */
         val next =
-            if (
-                current == null ||
-                !looksEnglish(current.name.orEmpty())
-            ) {
-                englishMain ?: tracks[(currentIndex + 1).mod(tracks.size)]
+            if (englishMainTracks.isNotEmpty()) {
+                val englishCurrentIndex =
+                    englishMainTracks.indexOfFirst { it.id == player.audioTrack }
+
+                if (englishCurrentIndex < 0) {
+                    englishMainTracks.first()
+                } else {
+                    englishMainTracks[
+                        (englishCurrentIndex + 1).mod(englishMainTracks.size)
+                    ]
+                }
             } else {
                 tracks[(currentIndex + 1).mod(tracks.size)]
             }
