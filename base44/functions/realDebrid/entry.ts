@@ -2381,9 +2381,6 @@ export default async function (req) {
       const data =
         await res.json();
 
-      const want =
-        normalise(title);
-
       const acceptableYears =
         [
           year,
@@ -2409,23 +2406,40 @@ export default async function (req) {
           "with",
         ]);
 
-      const titleWords =
-        title
-          .toLowerCase()
-          .split(
-            /[^a-z0-9]+/
-          )
-          .filter(
-            (word) =>
-              word.length >= 2 &&
-              !titleStopWords.has(
-                word
-              )
-          );
+      const titleProfiles =
+        [
+          title,
+          ...alternateTitles,
+        ]
+          .map((candidateTitle) => {
+            const value =
+              String(candidateTitle || "").trim();
+            const want =
+              normalise(value);
+            const words =
+              value
+                .toLowerCase()
+                .split(
+                  /[^a-z0-9]+/
+                )
+                .filter(
+                  (word) =>
+                    word.length >= 2 &&
+                    !titleStopWords.has(
+                      word
+                    )
+                );
 
-      const ambiguousShortTitle =
-        titleWords.length === 1 &&
-        normalise(title).length <= 6;
+            return {
+              value,
+              want,
+              words,
+              ambiguousShortTitle:
+                words.length === 1 &&
+                want.length <= 6,
+            };
+          })
+          .filter((profile) => profile.want);
 
       let epRegex =
         null;
