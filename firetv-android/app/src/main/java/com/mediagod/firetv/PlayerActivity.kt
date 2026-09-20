@@ -1696,9 +1696,22 @@ class PlayerActivity : Activity() {
                     ?: payload.optInt("activeSourceIndex", activeSourceIndex)
             )
             put("compatibilityErrorCode", error?.errorCode ?: 0)
+            put("compatibilityReason", compatibilityReason)
             put(
                 "compatibilityError",
                 error?.message.orEmpty().ifBlank { compatibilityReason }
+            )
+            val compatibilityText =
+                compatibilityReason + " " +
+                    error?.message.orEmpty() + " " +
+                    payload.optString("audioCodec") + " " +
+                    payload.optString("hintText")
+            put(
+                "compatibilityAudioRecovery",
+                Regex(
+                    """audio|dts|true[ ._-]?hd|mlp|atmos|e[ ._-]?ac[ ._-]?3|joc|silent|no[- ]?sound""",
+                    RegexOption.IGNORE_CASE
+                ).containsMatchIn(compatibilityText)
             )
 
             val headerJson = JSONObject()
