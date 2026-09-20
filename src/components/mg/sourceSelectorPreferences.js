@@ -247,12 +247,6 @@ const sourceHasTrackerRichMagnet = (item) => {
   return /^magnet:/i.test(raw) && /(?:[?&])tr=/i.test(raw);
 };
 
-const compatibilityScore = (item) =>
-  scoreSourceCompatibility(item, sourceText(item), {
-    deviceProfile: getPlaybackDeviceProfile(),
-    qualityPreference: "Auto",
-  });
-
 const preferredSourceLanguageRank = (
   item,
   preferredAudioLanguage = "en"
