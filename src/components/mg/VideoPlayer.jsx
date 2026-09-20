@@ -8052,10 +8052,9 @@ export default function VideoPlayer({
       subtitles: Array.isArray(active?.subtitles)
         ? active.subtitles
         : [],
-      sources: sourcesForSelector
-        .map((candidate, index) => ({ candidate, index }))
-        .filter(({ candidate }) => sourceIsUserSelectable(candidate))
-        .map(({ candidate, index }) => {
+      sources: sortedSourceEntries
+        .filter(({ item }) => sourceIsUserSelectable(item))
+        .map(({ item: candidate, index }) => {
           const baseLabel = sourceDisplayLabel(candidate, index);
           const provider = String(candidate?.sourceName || "").trim();
           const visibleLabel =
