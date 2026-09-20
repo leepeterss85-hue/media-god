@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 55,
-  "versionName": "1.4.50",
+  "versionCode": 56,
+  "versionName": "1.4.51",
   "title": "Media God Fire TV",
-  "message": "Media God Fire TV 1.4.50 explicitly locks Media3 to an available English main audio track once the real track list is known. The Audio control stays within English tracks when English exists, risky unselected DTS/TrueHD tracks no longer force rescue, and Real-Debrid English labels are recognised from language, name, title and label metadata.",
+  "message": "Media God Fire TV 1.4.51 keeps the Audio button inside the current file. It selects and locks English when exposed, cycles only same-file audio tracks when language metadata is missing, and never turns a manual audio change into automatic Real-Debrid torrent/source failover.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
