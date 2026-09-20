@@ -727,13 +727,19 @@ expect(
 expect(
   playerAutomation.includes("nextEpisodePreloadRef") &&
     playerAutomation.includes("const preloadNextEpisode = useCallback(") &&
-    playerAutomation.includes("void preloadNextEpisode(request);") &&
+    (
+      playerAutomation.includes("void preloadNextEpisode(reliableRequest);") ||
+      playerAutomation.includes("void preloadNextEpisode(request);")
+    ) &&
     playerAutomation.includes('typeof core.prepare === "function"') &&
+    playerAutomation.includes("applyReliableVodPolicy") &&
     playerAutomation.includes("preparedFresh") &&
+    playerAutomation.includes("verifiedPrepared === true") &&
     playerAutomation.includes("preparedEpisodeHandoff: true") &&
+    coreMediaPlayerProvider.includes("verifiedPrepared:") &&
     coreMediaPlayerProvider.includes("phase: preparedEpisodeHandoff") &&
     coreMediaPlayerProvider.includes("prepared-handoff"),
-  "Immediate next-episode source pre-resolution or prepared-source handoff is no longer active"
+  "Verified next-episode source pre-resolution or prepared-source handoff is no longer active"
 );
 expect(
   mediaGodV2Assist.includes("createPortal(controls, portalTarget)") &&
