@@ -3122,6 +3122,14 @@ test("audio and video compatibility tier drives source ordering without hiding r
     new URL("../src/components/mg/automaticSourceOrder.js", import.meta.url),
     "utf8"
   );
+  const providerSource = readFileSync(
+    new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
+    "utf8"
+  );
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
 
   assert.match(
     compatibilitySource,
@@ -3146,5 +3154,17 @@ test("audio and video compatibility tier drives source ordering without hiding r
   assert.match(
     selectorSource,
     /sourceIsUserSelectable\(entry\.item\)[\s\S]{0,100}?entry\.compatibilityTier <= 1/
+  );
+  assert.match(
+    selectorSource,
+    /mode === "compatible"[\s\S]{0,220}?a\.compatibilityTier - b\.compatibilityTier/
+  );
+  assert.match(
+    providerSource,
+    /sourcePlaybackCompatibilityTier\(a[\s\S]{0,160}?sourcePlaybackCompatibilityTier\(b/
+  );
+  assert.match(
+    playerSource,
+    /compatibilityTierPriority[\s\S]{0,120}?250000/
   );
 });
