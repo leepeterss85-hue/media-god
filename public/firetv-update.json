@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 56,
-  "versionName": "1.4.51",
+  "versionCode": 57,
+  "versionName": "1.4.52",
   "title": "Media God Fire TV",
-  "message": "Media God Fire TV 1.4.51 keeps the Audio button inside the current file. It selects and locks English when exposed, cycles only same-file audio tracks when language metadata is missing, and never turns a manual audio change into automatic Real-Debrid torrent/source failover.",
+  "message": "Media God Fire TV 1.4.52 tightens movie identity matching so similarly named films cannot be selected just because the year matches, keeps authoritative IMDb/TMDb results separate from broad title search fallbacks, requires English evidence for autoplay fallbacks, and no longer replaces a supported selected DTS/TrueHD/JOC audio track after playback has already started.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
