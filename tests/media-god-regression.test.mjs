@@ -3314,9 +3314,22 @@ test("unproven provider startup cannot block English torrent caching or autoplay
     "utf8"
   );
 
+  assert.match(playerSource, /bestEnglishAutoplayCandidateIndex/);
   assert.match(
     playerSource,
-    /\(isProvider && !bestSourceShouldOwnStartup\)/
+    /Number\(entry\?\.languageRank \?\? 3\) === 0/
+  );
+  assert.match(
+    playerSource,
+    /type !== "provider"[\s\S]{0,220}?sourceNeedsCaching\(item\)/
+  );
+  assert.match(
+    playerSource,
+    /bestEnglishCandidateShouldOwnStartup/
+  );
+  assert.match(
+    playerSource,
+    /Preparing the best English source automatically/
   );
 
   const builderStart = playerSource.indexOf("TRUSTED CACHED BACKGROUND BUILDER");
