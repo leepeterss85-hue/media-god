@@ -2732,7 +2732,6 @@ export default function VideoPlayer({
     automaticApprovedAutoplaySourceIndex,
     automaticReadySourceIndex,
     bestApprovedAutoplaySourceIndex,
-    bestEnglishAutoplayCandidateIndex,
     fileSwitching,
     isLive,
     isProvider,
