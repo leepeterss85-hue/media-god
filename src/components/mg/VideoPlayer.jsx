@@ -10076,9 +10076,7 @@ export default function VideoPlayer({
                               {failed
                                 ? "Unavailable • "
                                 : index === activeIdx
-                                  ? busy
-                                    ? "Selected • "
-                                    : "Playing • "
+                                  ? "Selected • "
                                   : ""}
 
                               {
@@ -10266,9 +10264,7 @@ export default function VideoPlayer({
                           {failed
                             ? "Unavailable • "
                             : index === activeIdx
-                              ? busy
-                                ? "Selected • "
-                                : "Playing • "
+                              ? "Selected • "
                               : ""}
                           {label}
                         </option>
