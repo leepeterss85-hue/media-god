@@ -1604,6 +1604,63 @@ class PlayerActivity : Activity() {
         }
     }
 
+    private data class AudioReadiness(
+        val present: Boolean,
+        val supported: Boolean,
+        val selected: Boolean,
+        val softwareFallbackPreferred: Boolean
+    )
+
+    private fun inspectAudioReadiness(
+        tracks: androidx.media3.common.Tracks
+    ): AudioReadiness {
+        var present = false
+        var supported = false
+        var selected = false
+        var softwareFallbackPreferred = false
+
+        tracks.groups.forEach { group ->
+            if (group.type != C.TRACK_TYPE_AUDIO) return@forEach
+
+            for (index in 0 until group.length) {
+                present = true
+
+                if (group.isTrackSupported(index)) {
+                    supported = true
+                }
+
+                if (group.isTrackSelected(index)) {
+                    selected = true
+                }
+
+                val mime = group.getTrackFormat(index)
+                    .sampleMimeType
+                    .orEmpty()
+                    .trim()
+                    .lowercase()
+
+                if (
+                    mime in setOf(
+                        "audio/vnd.dts",
+                        "audio/vnd.dts.hd",
+                        "audio/true-hd",
+                        "audio/vnd.dolby.mlp",
+                        "audio/eac3-joc"
+                    )
+                ) {
+                    softwareFallbackPreferred = true
+                }
+            }
+        }
+
+        return AudioReadiness(
+            present = present,
+            supported = supported,
+            selected = selected,
+            softwareFallbackPreferred = softwareFallbackPreferred
+        )
+    }
+
     private fun scheduleMissingAudioCheck(
         activePlayer: ExoPlayer,
         tracks: androidx.media3.common.Tracks
@@ -1613,11 +1670,20 @@ class PlayerActivity : Activity() {
         val hasVideo = tracks.groups.any { group ->
             group.type == C.TRACK_TYPE_VIDEO && group.length > 0
         }
-        val hasAudio = tracks.groups.any { group ->
-            group.type == C.TRACK_TYPE_AUDIO && group.length > 0
+
+        if (!hasVideo) {
+            audioPresenceCheckGeneration += 1
+            return
         }
 
-        if (!hasVideo || hasAudio) {
+        val initialAudio = inspectAudioReadiness(tracks)
+        val needsRescue =
+            !initialAudio.present ||
+                !initialAudio.supported ||
+                !initialAudio.selected ||
+                initialAudio.softwareFallbackPreferred
+
+        if (!needsRescue) {
             audioPresenceCheckGeneration += 1
             return
         }
@@ -1630,7 +1696,8 @@ class PlayerActivity : Activity() {
                 compatibilityPlayerOpen ||
                 generation != audioPresenceCheckGeneration ||
                 player !== activePlayer ||
-                activePlayer.playbackState != Player.STATE_READY
+                activePlayer.playbackState == Player.STATE_IDLE ||
+                activePlayer.playbackState == Player.STATE_ENDED
             ) {
                 return@postDelayed
             }
@@ -1639,25 +1706,41 @@ class PlayerActivity : Activity() {
             val stillHasVideo = currentTracks.groups.any { group ->
                 group.type == C.TRACK_TYPE_VIDEO && group.length > 0
             }
-            val nowHasAudio = currentTracks.groups.any { group ->
-                group.type == C.TRACK_TYPE_AUDIO && group.length > 0
+
+            if (!stillHasVideo) {
+                return@postDelayed
             }
 
-            if (stillHasVideo && !nowHasAudio) {
-                val rescued = launchCompatibilityPlayer(
-                    activePlayer,
-                    null,
+            val audio = inspectAudioReadiness(currentTracks)
+            val reason = when {
+                audio.softwareFallbackPreferred ->
+                    "This source uses DTS, DTS-HD, TrueHD, MLP or Atmos/JOC audio. Switching to Media God's software audio decoder."
+                !audio.present ->
                     "Media3 found video but no audio track. Trying the compatibility decoder."
-                )
-
-                if (!rescued) {
-                    finishWithResult(
-                        "error",
-                        "This source contains video but no usable audio track."
-                    )
-                }
+                !audio.supported ->
+                    "The audio track is present but this device does not expose a usable decoder. Trying the compatibility decoder."
+                !audio.selected ->
+                    "The audio track is present but Media3 did not select a usable audio renderer. Trying the compatibility decoder."
+                else -> ""
             }
-        }, 1800L)
+
+            if (reason.isBlank()) {
+                return@postDelayed
+            }
+
+            val rescued = launchCompatibilityPlayer(
+                activePlayer,
+                null,
+                reason
+            )
+
+            if (!rescued) {
+                finishWithResult(
+                    "error",
+                    "This source contains video but no usable audio track."
+                )
+            }
+        }, if (initialAudio.softwareFallbackPreferred) 450L else 1400L)
     }
 
     private fun buildMediaItem(mimeTypeOverride: String? = null): MediaItem {
