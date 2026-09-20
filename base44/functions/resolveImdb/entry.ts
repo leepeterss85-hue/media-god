@@ -118,6 +118,47 @@ const tmdbAlternateTitles = async ({
   });
 };
 
+const tmdbAdjacentReleaseYears = async ({
+  apiKey,
+  tmdbId,
+  mediaType,
+  record,
+  requestedYear,
+}) => {
+  if (!tmdbId || mediaType === "tv") return [];
+
+  const primaryYear =
+    clean(requestedYear).match(/^\d{4}$/)?.[0] ||
+    clean(record?.release_date).match(/^(\d{4})/)?.[1] ||
+    "";
+
+  if (!primaryYear) return [];
+
+  const data = await fetchJson(
+    `${TMDB_BASE}/movie/${encodeURIComponent(
+      String(tmdbId)
+    )}/release_dates?api_key=${encodeURIComponent(apiKey)}`
+  );
+
+  const years = new Set();
+  for (const country of Array.isArray(data?.results) ? data.results : []) {
+    for (const release of Array.isArray(country?.release_dates)
+      ? country.release_dates
+      : []) {
+      const year = clean(release?.release_date).match(/^(\d{4})/)?.[1] || "";
+      if (
+        /^\d{4}$/.test(year) &&
+        year !== primaryYear &&
+        Math.abs(Number(year) - Number(primaryYear)) <= 1
+      ) {
+        years.add(year);
+      }
+    }
+  }
+
+  return Array.from(years).sort();
+};
+
 const tmdbRecordMatchesRequest = ({
   record,
   title,
