@@ -559,6 +559,68 @@ test("official alternate movie titles can satisfy strict source identity without
   assert.match(rdSource, /titleProfiles/);
 });
 
+test("Real-Debrid file selection accepts verified adjacent release years for renamed films", () => {
+  const files = [
+    {
+      id: 1,
+      path: "Hardcore.2015.1080p.BluRay.x264.mkv",
+      bytes: 5_000_000_000,
+    },
+  ];
+
+  assert.equal(
+    chooseRequestedTorrentFileForPlayback(files, {
+      title: "Hardcore Henry",
+      year: "2016",
+      alternateYears: ["2015"],
+    })?.id,
+    1
+  );
+
+  assert.equal(
+    chooseRequestedTorrentFileForPlayback(files, {
+      title: "Hardcore Henry",
+      year: "2016",
+    }),
+    null
+  );
+
+  const backend = readFileSync(
+    new URL("../base44/functions/realDebrid/entry.ts", import.meta.url),
+    "utf8"
+  );
+  const cacheEngine = readFileSync(
+    new URL("../src/components/mg/realDebridCacheEngine.js", import.meta.url),
+    "utf8"
+  );
+  const player = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+  const resolver = readFileSync(
+    new URL("../base44/functions/resolveImdb/entry.ts", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(
+    resolver,
+    /adjacentMovieReleaseYear[\s\S]{0,180}?Math\.abs\(Number\(recordYear\) - Number\(requestedYear\)\) === 1/
+  );
+  assert.match(
+    backend,
+    /alternateYears:\s*alternateYearsFromBody\(body\)/
+  );
+  assert.match(
+    backend,
+    /alternateTitles:\s*alternateTitlesFromBody\(body\)/
+  );
+  assert.match(cacheEngine, /const identityFields =/);
+  assert.match(cacheEngine, /alternate_years:/);
+  assert.match(cacheEngine, /alternate_titles:/);
+  assert.match(player, /alternateYears:/);
+  assert.match(player, /alternateTitles:/);
+});
+
 test("addon and RD fast-start paths both enforce requested source identity", () => {
   const providerSource = readFileSync(
     new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
