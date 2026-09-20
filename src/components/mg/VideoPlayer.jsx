@@ -1279,6 +1279,10 @@ export default function VideoPlayer({
       Array.isArray(source?.rdAlternateYears || source?.alternateYears)
         ? (source?.rdAlternateYears || source?.alternateYears)
         : [],
+    alternateTitles:
+      Array.isArray(source?.rdAlternateTitles || source?.alternateTitles)
+        ? (source?.rdAlternateTitles || source?.alternateTitles)
+        : [],
     mediaType:
       source?.rdSeason != null ||
       source?.season != null ||
