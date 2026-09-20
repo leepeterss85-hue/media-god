@@ -63,19 +63,25 @@ const isRealSourceRow = (item) =>
   );
 
 const keepQualifiedPlaybackFields = (published, complete) => {
-  if (published?.launchQualified !== true) {
+  const launchQualified = published?.launchQualified === true;
+  const runtimeFallbackApproved =
+    published?.runtimeQualificationFallback === true;
+
+  if (!launchQualified && !runtimeFallbackApproved) {
     return complete;
   }
 
   /*
    * The complete discovery row contains richer cache/addon metadata, but it
-   * must never overwrite the already-qualified direct URL, media inspection,
-   * file identity or audio-rescue decision that made autoplay safe.
+   * must never overwrite the playback-approved URL/identity. This applies both
+   * to strict media-inspected launches and to the cached runtime fallback that
+   * the provider explicitly approved for native track/audio validation.
    */
   return {
     ...complete,
     ...published,
-    launchQualified: true,
+    launchQualified,
+    runtimeQualificationFallback: runtimeFallbackApproved,
   };
 };
 
