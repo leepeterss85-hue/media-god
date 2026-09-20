@@ -192,8 +192,25 @@ const tmdbRecordMatchesRequest = ({
     );
     const recordYear = date.match(/^(\d{4})/)?.[1] || "";
 
-    if (!recordYear || recordYear !== requestedYear) {
+    if (!recordYear) {
       return false;
+    }
+
+    if (recordYear !== requestedYear) {
+      /*
+       * Movies can legitimately straddle adjacent years between festival,
+       * theatrical and regional releases. When the caller supplied a concrete
+       * TMDB id and the title matched this exact TMDB record above, allow a
+       * one-year movie difference so we can retrieve TMDB's official release
+       * years and alternate titles. TV identity remains exact-year only.
+       */
+      const adjacentMovieReleaseYear =
+        type === "movie" &&
+        Math.abs(Number(recordYear) - Number(requestedYear)) === 1;
+
+      if (!adjacentMovieReleaseYear) {
+        return false;
+      }
     }
   }
 
