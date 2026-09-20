@@ -13,6 +13,7 @@ import {
 import { base44 } from "@/api/base44Client";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 import { Image } from "@/components/ui/image";
+import { filterItemsWithPlayableSources } from "@/components/mg/sourceAvailability";
 
 const PosterImage = /** @type {any} */ (Image);
 
@@ -183,7 +184,7 @@ export default function RecentlyWatchedRow() {
   const load = () => {
     base44.entities.ContinueWatching
       .list("-updated_date", 100)
-      .then((rows) => {
+      .then(async (rows) => {
         const completed = [];
         const seen = new Set();
 
@@ -207,7 +208,29 @@ export default function RecentlyWatchedRow() {
           completed.push(item);
         }
 
-        setItems(completed.slice(0, 20));
+        const recentItems = completed.slice(0, 20);
+
+        const sourcedRecentItems =
+          await filterItemsWithPlayableSources(
+            recentItems,
+            {
+              concurrency: 4,
+              forItem: (recentItem) => {
+                const meta = parseContentKey(recentItem);
+
+                return {
+                  mediaType: meta.mediaType,
+                  tmdbId: meta.tmdbId,
+                  title: meta.title,
+                  year: meta.year,
+                  season: meta.season,
+                  episode: meta.episode,
+                };
+              },
+            }
+          );
+
+        setItems(sourcedRecentItems);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
