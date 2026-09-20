@@ -865,6 +865,14 @@ test("catalogue screens only publish movies and TV episodes that have real addon
     new URL("../src/components/mg/HeroSlider.jsx", import.meta.url),
     "utf8"
   );
+  const continueSource = readFileSync(
+    new URL("../src/components/mg/ContinueWatchingRow.jsx", import.meta.url),
+    "utf8"
+  );
+  const recentlyWatchedSource = readFileSync(
+    new URL("../src/components/mg/RecentlyWatchedRow.jsx", import.meta.url),
+    "utf8"
+  );
 
   assert.match(
     availabilitySource,
@@ -877,6 +885,14 @@ test("catalogue screens only publish movies and TV episodes that have real addon
   assert.match(
     availabilitySource,
     /const AVAILABILITY_TTL_MS = 15 \* 60 \* 1000/
+  );
+  assert.match(
+    availabilitySource,
+    /temporary addon outage\/timeout is unknown availability/
+  );
+  assert.doesNotMatch(
+    availabilitySource,
+    /\.catch\(\(\) => \{[\s\S]{0,180}?availabilityCache\.set/
   );
   assert.match(
     mediaRowSource,
@@ -913,6 +929,14 @@ test("catalogue screens only publish movies and TV episodes that have real addon
   assert.match(
     newEpisodesSource,
     /filter\(\(item\) => item\.airDate <= todayKey\)[\s\S]{0,500}?filterItemsWithPlayableSources/
+  );
+  assert.match(
+    continueSource,
+    /filterItemsWithPlayableSources\([\s\S]{0,500}?parseContentKey\(resumeItem\)/
+  );
+  assert.match(
+    recentlyWatchedSource,
+    /filterItemsWithPlayableSources\([\s\S]{0,500}?parseContentKey\(recentItem\)/
   );
 });
 
