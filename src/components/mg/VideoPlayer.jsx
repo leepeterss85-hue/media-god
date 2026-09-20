@@ -2075,6 +2075,13 @@ export default function VideoPlayer({
       );
 
     /*
+     * Language qualification is different from decoder recovery. A file that
+     * is proven to contain no English/audio can be rejected by automatic
+     * English-first selection, while decoder/no-sound recovery stays on the
+     * same chosen file.
+     */
+
+    /*
      * Uncached torrent caching is an explicit operation, not ordinary playback
      * failover. Never silently abandon the torrent the user chose just because
      * its first RD/Comet request failed. Keep the same source on screen, show
