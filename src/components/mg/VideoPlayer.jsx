@@ -1057,7 +1057,12 @@ export default function VideoPlayer({
       (entry) => entry.index === activeIdx
     );
 
-    if (activeEntry) {
+    /*
+     * Only pin a source after it has real playback/launch proof. An arbitrary
+     * startup provider row (for example AIOStreams) must not jump above the
+     * English-first Best ordering merely because raw source index 0 selected it.
+     */
+    if (activeEntry?.provenWorking === true) {
       selectableSourceEntries = [
         activeEntry,
         ...selectableSourceEntries.filter(
@@ -2590,7 +2595,7 @@ export default function VideoPlayer({
     if (
       isLive ||
       isYoutube ||
-      isProvider ||
+      (isProvider && !bestSourceShouldOwnStartup) ||
       nextAutomaticSourceIndex < 0 ||
       fileSwitching
     ) {
@@ -2702,7 +2707,6 @@ export default function VideoPlayer({
       !titleKey ||
       isLive ||
       isYoutube ||
-      isProvider ||
       rdResolving ||
       rdPolling ||
       rdTorrentId ||
@@ -2766,6 +2770,8 @@ export default function VideoPlayer({
       )
       .sort(
         (left, right) =>
+          Number(left.languageRank ?? 3) - Number(right.languageRank ?? 3) ||
+          Number(left.hardSubtitleRank ?? 0) - Number(right.hardSubtitleRank ?? 0) ||
           Number(right.qualityBucket === "4k") - Number(left.qualityBucket === "4k") ||
           Number(right.qualityBucket === "1080p") - Number(left.qualityBucket === "1080p") ||
           left.cachedCount - right.cachedCount ||
