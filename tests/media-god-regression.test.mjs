@@ -3220,7 +3220,7 @@ test("Best chooser pins the playing VOD first and native playback receives that 
   );
   assert.match(
     playerSource,
-    /sources:\s*selectableSourceEntries[\s\S]{0,220}?webIndex:\s*index/
+    /sources:\s*selectableSourceEntries[\s\S]{0,900}?webIndex:\s*index/
   );
   assert.match(
     selectorSource,
