@@ -1221,7 +1221,7 @@ const launchTrackIsEnglish = (track) => {
     .filter(Boolean)
     .join(" ");
 
-  return /(?:^|[\s._\-[\](){}|+,])(?:eng|en|english)(?=$|[\s._\-[\](){}|+,])/i.test(
+  return /(?:^|[^a-z0-9])(?:eng|en|english)(?=$|[^a-z0-9])/i.test(
     labelText
   );
 };
@@ -1246,9 +1246,6 @@ const launchTrackIsEnglishMain = (track) =>
 
 const strictRdLaunchQualification = ({
   data,
-  title = "",
-  year = "",
-  mediaType = "movie",
 }) => {
   const filename = String(
     data?.filename ||
