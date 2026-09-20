@@ -3199,6 +3199,7 @@ export function PlayerProvider({
                   title: addonArgs.title,
                   year: addonArgs.year,
                   alternateYears: addonArgs.alternateYears,
+                  alternateTitles: addonArgs.alternateTitles,
                   mediaType,
                   season,
                   episode,
@@ -3464,6 +3465,7 @@ export function PlayerProvider({
               title: addonArgs.title,
               year: addonArgs.year,
               alternateYears: addonArgs.alternateYears,
+              alternateTitles: addonArgs.alternateTitles,
               mediaType,
               season,
               episode,
@@ -3572,6 +3574,7 @@ export function PlayerProvider({
                         title: addonArgs.title,
                         year: addonArgs.year,
                         alternateYears: addonArgs.alternateYears,
+                        alternateTitles: addonArgs.alternateTitles,
                         mediaType,
                       }
                     ) &&
