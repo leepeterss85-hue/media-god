@@ -3167,7 +3167,7 @@ test("global VOD audio validation covers web, Media3 and LibVLC playback", () =>
   assert.match(bridgeSource, /preferredAudioTrackStream/);
 });
 
-test("strict native English startup never lets a foreign default become audible", () => {
+test("manual source-first rollback disables strict native English startup while preserving the recovery machinery", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
     "utf8"
@@ -3179,7 +3179,7 @@ test("strict native English startup never lets a foreign default become audible"
 
   assert.match(
     playerSource,
-    /strictEnglishPlayback:[\s\S]{0,260}?manualSourceLockActive\(\)/
+    /strictEnglishPlayback:\s*false/
   );
   assert.match(
     playerSource,
