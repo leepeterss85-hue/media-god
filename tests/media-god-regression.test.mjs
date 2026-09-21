@@ -619,6 +619,18 @@ test("Real-Debrid file selection accepts verified adjacent release years for ren
   assert.match(cacheEngine, /alternate_titles:/);
   assert.match(player, /alternateYears:/);
   assert.match(player, /alternateTitles:/);
+
+  const resolveBestStart = player.indexOf(
+    'action:\n                    "resolve_best"'
+  );
+  const resolveBestEnd = player.indexOf(
+    "if (\n              cancelled",
+    resolveBestStart
+  );
+  assert.ok(resolveBestStart >= 0 && resolveBestEnd > resolveBestStart);
+  const resolveBestBlock = player.slice(resolveBestStart, resolveBestEnd);
+  assert.match(resolveBestBlock, /alternate_years:/);
+  assert.match(resolveBestBlock, /alternate_titles:/);
 });
 
 test("addon and RD fast-start paths both enforce requested source identity", () => {
@@ -3594,16 +3606,18 @@ test("startup discovery cannot flash through unverified English candidates", () 
   );
 
   /*
-   * The candidate may still delay native launch while background caching proves
-   * it, but it is not allowed to change activeIdx speculatively.
+   * Native Android playback must wait for either the approved cached winner or
+   * the one-shot English candidate handoff. Otherwise an old AIO/provider row
+   * can seize native ownership before activeIdx changes.
    */
+  assert.match(playerSource, /approvedStartupTakeoverPending/);
   assert.match(playerSource, /englishStartupTakeoverPending/);
-  const nativeGuardIndex = playerSource.indexOf(
-    "if (englishStartupTakeoverPending)"
+  const approvedGuardIndex = playerSource.indexOf(
+    "approvedStartupTakeoverPending ||"
   );
   const nativeLaunchIndex = playerSource.indexOf("playNativeFireTv({");
-  assert.ok(nativeGuardIndex >= 0);
-  assert.ok(nativeLaunchIndex > nativeGuardIndex);
+  assert.ok(approvedGuardIndex >= 0);
+  assert.ok(nativeLaunchIndex > approvedGuardIndex);
 
   const builderStart = playerSource.indexOf("TRUSTED CACHED BACKGROUND BUILDER");
   const builderEnd = playerSource.indexOf("recoveryResumeRef.current = 0", builderStart);
