@@ -24,6 +24,8 @@ const TMDB_IMAGE_BASE =
   "https://image.tmdb.org/t/p/w500";
 
 const RECENT_SEARCHES_KEY = "mg:recent-searches:v1";
+const SEARCH_CACHE_TTL_MS = 5 * 60 * 1000;
+const searchCache = new Map();
 
 const readRecentSearches = () => {
   if (typeof window === "undefined") return [];
@@ -462,6 +464,16 @@ export default function SearchDialog({
           return;
         }
 
+        const cacheKey = cleanQuery.toLowerCase();
+        const cached = searchCache.get(cacheKey);
+
+        if (cached && cached.expiresAt > Date.now()) {
+          setResults(cached.results);
+          setLoading(false);
+          setError("");
+          return;
+        }
+
         setLoading(
           true
         );
@@ -491,10 +503,14 @@ export default function SearchDialog({
             return;
           }
 
+          const extracted = extractResults(response);
+          searchCache.set(cacheKey, {
+            results: extracted,
+            expiresAt: Date.now() + SEARCH_CACHE_TTL_MS,
+          });
+
           setResults(
-            extractResults(
-              response
-            )
+            extracted
           );
         } catch (
           searchError
