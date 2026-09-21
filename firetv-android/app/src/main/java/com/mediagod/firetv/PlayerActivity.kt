@@ -160,6 +160,78 @@ class PlayerActivity : Activity() {
             ).containsMatchIn(label)
     }
 
+    private fun activeSourceMetadata(): JSONObject? {
+        val sourceArray = payload.optJSONArray("sources") ?: return null
+        val activeWebIndex =
+            nativeSources.getOrNull(activeSourceIndex)?.webIndex
+                ?: payload.optInt("activeSourceIndex", 0)
+
+        for (index in 0 until sourceArray.length()) {
+            val item = sourceArray.optJSONObject(index) ?: continue
+            if (item.optInt("webIndex", index) == activeWebIndex) {
+                return item
+            }
+        }
+
+        return null
+    }
+
+    private fun currentVerifiedEnglishMain(): Boolean =
+        activeSourceMetadata()?.optBoolean(
+            "verifiedEnglishMain",
+            payload.optBoolean("verifiedEnglishMain", false)
+        ) ?: payload.optBoolean("verifiedEnglishMain", false)
+
+    private fun currentPreferredEnglishTrackName(): String =
+        activeSourceMetadata()?.optString("preferredAudioTrackName").orEmpty()
+            .ifBlank { payload.optString("preferredAudioTrackName").trim() }
+
+    private fun currentPreferredEnglishTrackLanguage(): String =
+        activeSourceMetadata()?.optString("preferredAudioTrackLanguage").orEmpty()
+            .ifBlank { payload.optString("preferredAudioTrackLanguage").trim() }
+
+    private fun currentPreferredEnglishTrackCodec(): String =
+        activeSourceMetadata()?.optString("preferredAudioTrackCodec").orEmpty()
+            .ifBlank { payload.optString("preferredAudioTrackCodec").trim() }
+
+    private fun currentPreferredEnglishTrackStream(): String =
+        activeSourceMetadata()?.optString("preferredAudioTrackStream").orEmpty()
+            .ifBlank { payload.optString("preferredAudioTrackStream").trim() }
+
+    private fun normaliseTrackIdentity(value: String): String =
+        value.lowercase().replace(Regex("""[^a-z0-9]+"""), " ").trim()
+
+    private fun formatMatchesVerifiedEnglishHint(
+        format: androidx.media3.common.Format
+    ): Boolean {
+        if (!currentVerifiedEnglishMain()) return false
+
+        val expectedStream = currentPreferredEnglishTrackStream().trim()
+        val formatId = format.id.orEmpty().trim()
+        if (
+            expectedStream.isNotBlank() &&
+            formatId.isNotBlank() &&
+            expectedStream == formatId
+        ) {
+            return true
+        }
+
+        val expectedName = normaliseTrackIdentity(
+            currentPreferredEnglishTrackName()
+        )
+        val actualLabel = normaliseTrackIdentity(
+            format.label.orEmpty()
+        )
+
+        return expectedName.length >= 3 &&
+            actualLabel.length >= 3 &&
+            (
+                expectedName == actualLabel ||
+                expectedName.contains(actualLabel) ||
+                actualLabel.contains(expectedName)
+            )
+    }
+
     /**
      * Once Media3 knows the real track groups, explicitly pin the preferred
      * English main track instead of relying only on the pre-prepare language
@@ -194,7 +266,9 @@ class PlayerActivity : Activity() {
                 if (!group.isTrackSupported(index)) continue
 
                 val format = group.getTrackFormat(index)
-                val english = formatLooksEnglish(format)
+                val english =
+                    formatLooksEnglish(format) ||
+                        formatMatchesVerifiedEnglishHint(format)
                 val commentary = formatLooksCommentary(format)
 
                 if (
@@ -1696,6 +1770,11 @@ class PlayerActivity : Activity() {
                     ?: payload.optInt("activeSourceIndex", activeSourceIndex)
             )
             put("compatibilityErrorCode", error?.errorCode ?: 0)
+            put("verifiedEnglishMain", currentVerifiedEnglishMain())
+            put("preferredAudioTrackName", currentPreferredEnglishTrackName())
+            put("preferredAudioTrackLanguage", currentPreferredEnglishTrackLanguage())
+            put("preferredAudioTrackCodec", currentPreferredEnglishTrackCodec())
+            put("preferredAudioTrackStream", currentPreferredEnglishTrackStream())
             put("compatibilityReason", compatibilityReason)
             put(
                 "compatibilityError",
@@ -1815,7 +1894,13 @@ class PlayerActivity : Activity() {
 
             for (index in 0 until group.length) {
                 val format = group.getTrackFormat(index)
-                if (!formatLooksEnglish(format) || formatLooksCommentary(format)) {
+                if (
+                    !(
+                        formatLooksEnglish(format) ||
+                            formatMatchesVerifiedEnglishHint(format)
+                    ) ||
+                    formatLooksCommentary(format)
+                ) {
                     continue
                 }
 
@@ -1861,6 +1946,8 @@ class PlayerActivity : Activity() {
             preferredAudio in setOf("en", "eng", "english")
         val initialEnglish =
             inspectPreferredEnglishReadiness(tracks)
+        val verifiedEnglishMain =
+            currentVerifiedEnglishMain()
 
         /*
          * A risky codec is not itself a playback failure. If Media3 reports an
@@ -1884,7 +1971,7 @@ class PlayerActivity : Activity() {
                 !initialAudio.selected ||
                 (
                     wantsEnglish &&
-                        initialEnglish.present &&
+                        verifiedEnglishMain &&
                         !initialEnglish.selected
                 )
 
@@ -1927,10 +2014,12 @@ class PlayerActivity : Activity() {
             val audio = inspectAudioReadiness(currentTracks)
             val english = inspectPreferredEnglishReadiness(currentTracks)
             val reason = when {
+                wantsEnglish && verifiedEnglishMain && !english.present ->
+                    "This file was verified to contain English main audio, but Media3 did not expose that track. Trying the compatibility decoder on this same source."
                 wantsEnglish && english.present && !english.supported ->
                     "An English audio track is present but this device cannot decode it in Media3. Trying the compatibility decoder on this same source."
-                wantsEnglish && english.present && !english.selected ->
-                    "An English audio track is present but Media3 did not select it. Trying the compatibility decoder on this same source."
+                wantsEnglish && verifiedEnglishMain && !english.selected ->
+                    "An English main track was verified but Media3 did not select it. Trying the compatibility decoder on this same source."
                 !audio.present ->
                     "Media3 found video but no audio track. Trying the compatibility decoder."
                 !audio.supported ->
