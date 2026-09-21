@@ -139,12 +139,25 @@ test("smart VOD language evidence trusts real audio metadata before release tags
     { label: "Movie.2026.FRENCH.1080p.WEB-DL" },
     "foreign"
   );
+  const misleadingEnglishFilename = smartSourceEvidence(
+    {
+      label: "Movie.2026.ENG.MULTI.1080p.WEB-DL",
+      mediaInfo: {
+        streams: [
+          { codec_type: "audio", language: "fra", codec_name: "eac3" },
+        ],
+      },
+    },
+    "english"
+  );
 
   assert.equal(verifiedEnglish.languageRank, 0);
   assert.equal(verifiedEnglish.languageVerified, true);
   assert.equal(taggedEnglish.languageRank, 1);
   assert.equal(multilingual.languageRank, 2);
   assert.equal(foreignOnly.languageRank, 4);
+  assert.equal(misleadingEnglishFilename.languageRank, 4);
+  assert.equal(misleadingEnglishFilename.languageVerified, true);
 });
 
 test("smart VOD quality tiers prefer remux and modern audio without hiding alternatives", () => {
@@ -2393,7 +2406,7 @@ test("Best available globally wires the AIOStreams fallback rank into central VO
 
   assert.match(
     providerSource,
-    /return sortSourceEntries\(languageOrdered, sortMode\)\.map\(\(entry\) => entry\.item\)/
+    /return sortSourceEntries\([\s\S]{0,180}?languageOrdered,[\s\S]{0,120}?sortMode,[\s\S]{0,180}?mediaType: onlyLiveSources \? "live" : "vod"[\s\S]{0,120}?\)\.map\(\(entry\) => entry\.item\)/
   );
   assert.match(
     selectorSource,
@@ -2842,7 +2855,7 @@ test("autoplay puts the three most compatible ready sources first", () => {
   );
 });
 
-test("audio and video compatibility outrank language, then English wins within the same tier", () => {
+test("smart VOD ordering keeps English ahead of foreign sources, then uses compatibility", () => {
   const ordered = prioritiseCompatibleAutoplayEntries([
     {
       id: "english-incompatible",
@@ -2880,7 +2893,7 @@ test("audio and video compatibility outrank language, then English wins within t
 
   assert.deepEqual(
     ordered.slice(0, COMPATIBLE_AUTOPLAY_LIMIT).map((entry) => entry.id),
-    ["english-compatible", "foreign-compatible", "multi-likely"]
+    ["english-compatible", "multi-likely", "foreign-compatible"]
   );
   assert.equal(ordered.at(-1).id, "english-incompatible");
 });
@@ -3874,7 +3887,7 @@ test("audio and video compatibility tier drives source ordering without hiding r
     selectorSource,
     /entry\.successfulPlayback === true[\s\S]{0,120}?successfulPlaybackLanguageRank/
   );
-  assert.match(selectorSource, /entry\.languageRank === 0/);
+  assert.match(selectorSource, /entry\.languageRank <= 2/);
   assert.match(selectorSource, /entry\.compatibilityTier <= 1/);
   assert.match(
     selectorSource,
@@ -3952,7 +3965,7 @@ test("Best chooser pins the playing VOD first and native playback receives that 
     selectorSource,
     /entry\.successfulPlayback === true[\s\S]{0,120}?successfulPlaybackLanguageRank/
   );
-  assert.match(selectorSource, /entry\.languageRank === 0/);
+  assert.match(selectorSource, /entry\.languageRank <= 2/);
   assert.match(selectorSource, /entry\.provenWorking === true/);
   assert.match(selectorSource, /entry\.compatibilityTier <= 1/);
   assert.match(selectorSource, /hardSubtitleRank/);
@@ -4409,7 +4422,7 @@ test("full source-pool merge preserves runtime autoplay approval", () => {
 });
 
 
-test("strict English autoplay requires track proof while Multi remains eligible for verification", () => {
+test("smart English autoplay rejects proven foreign audio while keeping English and Multi candidates eligible", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
     "utf8"
@@ -4436,7 +4449,11 @@ test("strict English autoplay requires track proof while Multi remains eligible 
   assert.doesNotMatch(approvalBlock, /cachedCompatibleTorrentCandidate/);
   assert.match(
     playerSource,
-    /strictEnglishAutoplayRequired[\s\S]{0,160}?languageRank \?\? 3\) <= 1[\s\S]{0,160}?languageRank \?\? 3\) === 0/
+    /englishState === "unknown"[\s\S]{0,120}?!strictEnglishAutoplayRequired/
+  );
+  assert.match(
+    playerSource,
+    /Number\(entry\?\.languageRank \?\? 3\) <= 2/
   );
   assert.match(
     playerSource,
