@@ -1288,18 +1288,15 @@ export default function VideoPlayer({
             : null;
       const englishProof =
         resolvedMediaEnglishMainState(mediaInfo);
-      const cachedCompatibleTorrentCandidate = Boolean(
-        entry?.cached === true &&
-          sourceIsTorrentPlaybackCandidate(item) &&
-          Number(entry?.compatibilityTier ?? 3) <= 1 &&
-          Number(entry?.languageRank ?? 3) <= 1 &&
-          Number(entry?.hardSubtitleRank ?? 0) === 0
-      );
-
+      /*
+       * "Cached + filename says English" is not enough. Mature players choose
+       * from the file's real audio streams after preparation; doing otherwise
+       * is exactly how a foreign/default or silent track slips through. Strict
+       * autoplay therefore requires file-level English-main proof.
+       */
       return Boolean(
         item?.launchQualified === true ||
-          englishProof === "proven" ||
-          cachedCompatibleTorrentCandidate
+          englishProof === "proven"
       );
     }
 
@@ -2341,7 +2338,12 @@ export default function VideoPlayer({
     const englishState =
       resolvedMediaEnglishMainState(mediaInfo);
 
-    if (englishState !== "foreign") {
+    /*
+     * Strict one-click playback is proof-positive: "unknown" is not permission
+     * to play. If Real-Debrid could not prove an English main track, keep the
+     * row available manually but automatically probe the next candidate.
+     */
+    if (englishState === "proven") {
       return false;
     }
 
@@ -2353,7 +2355,7 @@ export default function VideoPlayer({
     setRdPreparation(null);
     setRdOverride(null);
 
-    const MAX_AUTOMATIC_ENGLISH_PROBES = 4;
+    const MAX_AUTOMATIC_ENGLISH_PROBES = 8;
 
     if (
       englishAudioRejectedRef.current.size <
@@ -2384,7 +2386,7 @@ export default function VideoPlayer({
           preservePosition: false,
           statusMessage:
             label +
-            " did not contain a proven English main audio track — checking the next English source…",
+            " did not prove a usable English main audio track — checking the next source automatically…",
         });
 
         if (switched) {
