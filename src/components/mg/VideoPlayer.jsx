@@ -8900,6 +8900,14 @@ export default function VideoPlayer({
      * source-selection effect change activeIdx first; the next render may then
      * launch only the chosen English source.
      */
+    const approvedStartupTakeoverPending =
+      !isLive &&
+      playbackMediaType !== "live" &&
+      !manualSourceLockActive() &&
+      !activeStartupProven &&
+      bestApprovedAutoplaySourceIndex >= 0 &&
+      bestApprovedAutoplaySourceIndex !== activeIdx;
+
     const englishStartupTakeoverPending =
       !isLive &&
       playbackMediaType !== "live" &&
@@ -8908,7 +8916,10 @@ export default function VideoPlayer({
       bestEnglishAutoplayCandidateIndex >= 0 &&
       bestEnglishAutoplayCandidateIndex !== activeIdx;
 
-    if (englishStartupTakeoverPending) {
+    if (
+      approvedStartupTakeoverPending ||
+      englishStartupTakeoverPending
+    ) {
       return;
     }
 
@@ -9082,6 +9093,7 @@ export default function VideoPlayer({
   }, [
     active,
     activeIdx,
+    bestApprovedAutoplaySourceIndex,
     bestEnglishAutoplayCandidateIndex,
     isLive,
     nativePlaybackUrl,
