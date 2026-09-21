@@ -695,6 +695,13 @@ const normaliseStream = (
       resolutionStrategy:
         cacheSignal.cached ? "cached_debrid" : "rd_magnet",
 
+      providerPlaybackUrl:
+        cacheSignal.cached &&
+        isHttp(rawUrl) &&
+        !cachedNeedsHeaders
+          ? rawUrl
+          : undefined,
+
       torrentTrackers:
         suppliedTrackers,
     };
