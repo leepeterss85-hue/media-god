@@ -47,6 +47,7 @@ export const prioritiseCompatibleAutoplayEntries = (
         effectiveCompatibilityTier(left) - effectiveCompatibilityTier(right) ||
         Number(left?.languageRank ?? 0) - Number(right?.languageRank ?? 0) ||
         Number(left?.hardSubtitleRank ?? 0) - Number(right?.hardSubtitleRank ?? 0) ||
+        Number(Boolean(right?.successfulPlayback)) - Number(Boolean(left?.successfulPlayback)) ||
         Number(Boolean(right?.provenWorking)) - Number(Boolean(left?.provenWorking)) ||
         Number(Boolean(right?.trustedCached)) - Number(Boolean(left?.trustedCached)) ||
         Number(Boolean(right?.cached)) - Number(Boolean(left?.cached)) ||
