@@ -27,6 +27,8 @@ import PlaybackUpdateNotice from "@/components/mg/PlaybackUpdateNotice";
 import FireTvAppUpdateNotice from "@/components/mg/FireTvAppUpdateNotice";
 import AndroidMobileAppUpdateNotice from "@/components/mg/AndroidMobileAppUpdateNotice";
 import PageErrorBoundary from "@/components/mg/PageErrorBoundary";
+import OnboardingTour from "@/components/mg/OnboardingTour";
+import { installGlobalDiagnosticsCapture } from "@/components/mg/diagnostics";
 import {
   applyUxPreferences,
   readUxPreferences,
@@ -44,6 +46,8 @@ const SettingsView = lazy(() => import("@/components/mg/SettingsView"));
 const SettingsTools = lazy(() => import("@/components/mg/SettingsTools"));
 const WatchPartyView = lazy(() => import("@/components/mg/WatchPartyView"));
 const FavoritesView = lazy(() => import("@/components/mg/FavoritesView"));
+const DiagnosticsView = lazy(() => import("@/components/mg/DiagnosticsView"));
+const DataBackupView = lazy(() => import("@/components/mg/DataBackupView"));
 
 
 const ViewLoadingFallback = ({ label }) => (
@@ -71,6 +75,8 @@ const SETTINGS_TOOL_VIEWS = new Set([
   "addons",
   "sources",
   "updates",
+  "diagnostics",
+  "backup",
 ]);
 
 const normaliseMediaType = (
@@ -497,9 +503,12 @@ function MediaGodApp() {
       applyUxPreferences(event?.detail || readUxPreferences());
 
     window.addEventListener(UX_PREFERENCES_EVENT, onUxChanged);
+    const removeDiagnosticsCapture = installGlobalDiagnosticsCapture();
 
-    return () =>
+    return () => {
       window.removeEventListener(UX_PREFERENCES_EVENT, onUxChanged);
+      removeDiagnosticsCapture();
+    };
   }, []);
 
   const [
@@ -880,6 +889,8 @@ function MediaGodApp() {
 
   return (
     <>
+      <OnboardingTour />
+
       <FireTvRemote />
 
       <MediaGodV2Assist />
@@ -1113,6 +1124,20 @@ function MediaGodApp() {
             "updates" && (
             <SafeDeferredView resetKey={view} label="Updates" onHome={() => setView("home")}>
               <UpdatesView />
+            </SafeDeferredView>
+          )}
+
+          {view ===
+            "diagnostics" && (
+            <SafeDeferredView resetKey={view} label="Diagnostics" onHome={() => setView("home")}>
+              <DiagnosticsView />
+            </SafeDeferredView>
+          )}
+
+          {view ===
+            "backup" && (
+            <SafeDeferredView resetKey={view} label="Backup & Restore" onHome={() => setView("home")}>
+              <DataBackupView />
             </SafeDeferredView>
           )}
 
