@@ -260,6 +260,29 @@ const sourceNeedsCaching = (item) => {
   );
 };
 
+const sourceIsTorrentPlaybackCandidate = (item) => {
+  if (!item) return false;
+
+  const type = String(item?.type || "").toLowerCase();
+  const url = String(getSourceUrl(item) || "").trim();
+
+  if (
+    type === "provider" ||
+    type === "youtube" ||
+    type === "status"
+  ) {
+    return false;
+  }
+
+  return Boolean(
+    sourceTorrentHash(item) ||
+      isMagnet(url) ||
+      ["rd", "rd_torrent", "torrent", "magnet"].includes(type) ||
+      item?.debridCached === true ||
+      item?.cacheRequired === true
+  );
+};
+
 const FAILED_TORRENT_HASHES_KEY =
   "mg:failed-uncached-torrent-hashes:v7";
 const FAILED_TORRENT_HASH_TTL_MS =
@@ -1134,6 +1157,13 @@ export default function VideoPlayer({
     sourceSortMode
   );
 
+  const hasTorrentPlaybackCandidate =
+    playbackMediaType !== "live" &&
+    sourcesForSelector.some((item) =>
+      sourceIsUserSelectable(item) &&
+      sourceIsTorrentPlaybackCandidate(item)
+    );
+
   /*
    * Show every discovered source regardless of cache/readiness state.
    * Automatic recovery still applies playback safety rules, but the manual
@@ -1197,6 +1227,21 @@ export default function VideoPlayer({
     const runtimeReady = Boolean(
       hash && runtimeReadyTorrentHashes.has(hash)
     );
+    const type = String(item?.type || "").toLowerCase();
+
+    /*
+     * AIOStreams/provider rows remain visible as fallbacks, but they must not
+     * own movie/episode autoplay while a real torrent candidate exists. The
+     * screenshots that exposed this bug showed a working cached Torrentio row
+     * sitting underneath an AIOStreams row that never started.
+     */
+    if (
+      playbackMediaType !== "live" &&
+      hasTorrentPlaybackCandidate &&
+      (type === "provider" || type === "youtube")
+    ) {
+      return false;
+    }
 
     if (strictEnglishAutoplayRequired) {
       const mediaInfo =
@@ -1207,10 +1252,18 @@ export default function VideoPlayer({
             : null;
       const englishProof =
         resolvedMediaEnglishMainState(mediaInfo);
+      const cachedCompatibleTorrentCandidate = Boolean(
+        entry?.cached === true &&
+          sourceIsTorrentPlaybackCandidate(item) &&
+          Number(entry?.compatibilityTier ?? 3) <= 1 &&
+          Number(entry?.languageRank ?? 3) <= 1 &&
+          Number(entry?.hardSubtitleRank ?? 0) === 0
+      );
 
       return Boolean(
         item?.launchQualified === true ||
-          englishProof === "proven"
+          englishProof === "proven" ||
+          cachedCompatibleTorrentCandidate
       );
     }
 
