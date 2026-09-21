@@ -4370,7 +4370,7 @@ test("black-screen VOD startup waits before trying at most three ready English s
   assert.match(block, /STARTUP_GRACE_MS = 12000/);
   assert.match(block, /MAX_AUTOMATIC_STARTUP_ATTEMPTS = 3/);
   assert.match(block, /manualSourceLockActive\(\)/);
-  assert.match(block, /Number\(entry\?\.languageRank \?\? 3\) === 0/);
+  assert.match(block, /Number\(entry\?\.languageRank \?\? 3\) <= 2/);
   assert.match(block, /autoplayEntryApproved\(entry\)/);
   assert.doesNotMatch(block, /markSourceFailed\(/);
   assert.doesNotMatch(block, /markTorrentHashFailed\(/);
