@@ -1019,7 +1019,13 @@ function MediaGodApp() {
 
           {view ===
             "home" && (
-            <HomeDashboard onOpenTvService={openTvStreamingService} />
+            <PageErrorBoundary
+              resetKey="home"
+              label="Home"
+              onHome={() => setView("home")}
+            >
+              <HomeDashboard onOpenTvService={openTvStreamingService} />
+            </PageErrorBoundary>
           )}
 
           {view ===
