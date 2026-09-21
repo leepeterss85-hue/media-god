@@ -332,9 +332,33 @@ body :is(
   [data-mg-roadmap-view="true"],
   [data-mg-settings-view="true"],
   [data-mg-search-dialog="true"],
-  [data-mg-detail-dialog="true"]
+  [data-mg-detail-dialog="true"],
+  [data-mg-diagnostics-view="true"],
+  [data-mg-backup-view="true"]
 ) :is(button, a, input, select, textarea, [tabindex]):focus-visible {
   outline: 3px solid hsl(var(--mg-green));
   outline-offset: 3px;
   box-shadow: 0 0 0 5px rgba(0, 255, 0, 0.14);
+}
+
+@media (max-width: 420px) {
+  [data-mg-settings-view="true"],
+  [data-mg-diagnostics-view="true"],
+  [data-mg-backup-view="true"],
+  [data-mg-roadmap-view="true"] {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+
+  [data-mg-settings-tools="true"] button,
+  [data-mg-diagnostics-view="true"] button,
+  [data-mg-backup-view="true"] button {
+    max-width: 100%;
+  }
+
+  [data-mg-diagnostics-view="true"] p,
+  [data-mg-backup-view="true"] p,
+  [data-mg-settings-view="true"] p {
+    overflow-wrap: anywhere;
+  }
 }
