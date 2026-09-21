@@ -1265,7 +1265,11 @@ export default function VideoPlayer({
       return Boolean(
         sourceIsUserSelectable(item) &&
           !failedSourcesRef.current.has(entry?.index) &&
-          Number(entry?.languageRank ?? 3) === 0 &&
+          (
+            strictEnglishAutoplayRequired
+              ? Number(entry?.languageRank ?? 3) <= 1
+              : Number(entry?.languageRank ?? 3) === 0
+          ) &&
           Number(entry?.hardSubtitleRank ?? 0) === 0 &&
           type !== "provider" &&
           type !== "youtube" &&
@@ -2235,7 +2239,7 @@ export default function VideoPlayer({
             !englishAudioRejectedRef.current.has(entry?.index) &&
             !failedSourcesRef.current.has(entry?.index) &&
             sourceIsUserSelectable(item) &&
-            Number(entry?.languageRank ?? 3) === 0 &&
+            Number(entry?.languageRank ?? 3) <= 1 &&
             Number(entry?.hardSubtitleRank ?? 0) === 0 &&
             type !== "provider" &&
             type !== "youtube" &&
