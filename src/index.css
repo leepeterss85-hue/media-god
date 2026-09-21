@@ -277,3 +277,64 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Non-playback accessibility and catalogue UI preferences. */
+html[data-mg-text-scale="large"] {
+  font-size: 18px;
+}
+
+html[data-mg-text-scale="extra-large"] {
+  font-size: 20px;
+}
+
+html.mg-high-contrast {
+  --mg-muted: 0 0% 82%;
+  --mg-surface: 0 0% 7%;
+  --mg-card: 0 0% 9%;
+}
+
+html.mg-high-contrast body {
+  color: white;
+}
+
+html.mg-high-contrast :is(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline-width: 3px;
+  outline-offset: 4px;
+}
+
+html.mg-reduced-motion *,
+html.mg-reduced-motion *::before,
+html.mg-reduced-motion *::after {
+  scroll-behavior: auto !important;
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+html.mg-compact-cards [data-mg-home-dashboard="true"] .mg-fire-tv-card {
+  width: 7rem;
+}
+
+@media (min-width: 640px) {
+  html.mg-compact-cards [data-mg-home-dashboard="true"] .mg-fire-tv-card {
+    width: 8rem;
+  }
+}
+
+/*
+ * Strong, consistent catalogue focus without touching player controls.
+ * This is intentionally scoped away from data-mg-player-root.
+ */
+body :is(
+  .mg-fire-tv-nav,
+  [data-mg-home-dashboard="true"],
+  [data-mg-library-view="true"],
+  [data-mg-roadmap-view="true"],
+  [data-mg-settings-view="true"],
+  [data-mg-search-dialog="true"],
+  [data-mg-detail-dialog="true"]
+) :is(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 3px solid hsl(var(--mg-green));
+  outline-offset: 3px;
+  box-shadow: 0 0 0 5px rgba(0, 255, 0, 0.14);
+}
