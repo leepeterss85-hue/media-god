@@ -84,6 +84,13 @@ import {
 import { sourceHasAuthoritativeCachedSignal } from "@/components/mg/sourceCacheVisibility";
 import { sourceMatchesRequestedIdentity } from "@/components/mg/sourceIdentity";
 import { sourceIsAioStreamsCandidate } from "@/components/mg/sourceProviderIdentity";
+import {
+  bestSmartUpgradeEntry,
+  detectSmartSourceUpgrade,
+  recordSmartSourceBaseline,
+  smartEntryUpgradeScore,
+  smartSourceFingerprint,
+} from "@/components/mg/smartSourceSelection";
 
 const isMagnet = (value) =>
   String(value || "")
@@ -860,6 +867,9 @@ export default function VideoPlayer({
     () => readSourceSortMode()
   );
 
+  const [smartUpgradeNotice, setSmartUpgradeNotice] =
+    useState(null);
+
   const [
     isAppFullscreen,
     setIsAppFullscreen,
@@ -992,6 +1002,7 @@ export default function VideoPlayer({
       claimed: false,
     };
     englishAudioRejectedRef.current = new Set();
+    setSmartUpgradeNotice(null);
     setActiveIdx(0);
   }, [source?.playRequestId]);
 
@@ -1184,8 +1195,79 @@ export default function VideoPlayer({
 
   const sortedSourceEntries = sortSourceEntries(
     sourcesForSelector,
-    sourceSortMode
+    sourceSortMode,
+    { mediaType: playbackMediaType }
   );
+
+  const smartMediaContext = {
+    mediaType: playbackMediaType,
+    imdbId: source?.imdbId ?? source?.imdb_id ?? "",
+    tmdbId: source?.tmdbId ?? source?.tmdb_id ?? source?.id ?? "",
+    id: source?.id ?? "",
+    title: source?.rdTitle || source?.seriesTitle || source?.title || "",
+    year: source?.rdYear ?? source?.year ?? "",
+    season: source?.season ?? source?.rdSeason ?? null,
+    episode: source?.episode ?? source?.rdEpisode ?? null,
+  };
+
+  const smartUpgradeBestEntry =
+    playbackMediaType === "live"
+      ? null
+      : bestSmartUpgradeEntry(
+          sortedSourceEntries.filter(({ item }) =>
+            sourceIsUserSelectable(item)
+          )
+        );
+
+  const smartUpgradeBestFingerprint =
+    smartUpgradeBestEntry
+      ? smartSourceFingerprint(
+          smartUpgradeBestEntry.item,
+          smartUpgradeBestEntry.index
+        )
+      : "";
+
+  const smartUpgradeBestScore =
+    smartUpgradeBestEntry
+      ? smartEntryUpgradeScore(smartUpgradeBestEntry)
+      : Number.NEGATIVE_INFINITY;
+
+  const smartUpgradeDiscoveryComplete = Boolean(
+    source?.sourceDiagnostics?.combinedSourceCount != null ||
+      source?.sourceDiagnostics?.phase === "prepared-handoff"
+  );
+
+  useEffect(() => {
+    if (
+      playbackMediaType === "live" ||
+      !smartUpgradeDiscoveryComplete ||
+      !smartUpgradeBestEntry
+    ) {
+      return;
+    }
+
+    const upgrade = detectSmartSourceUpgrade(
+      smartMediaContext,
+      smartUpgradeBestEntry
+    );
+
+    setSmartUpgradeNotice(
+      upgrade?.available === true
+        ? upgrade
+        : null
+    );
+
+    recordSmartSourceBaseline(
+      smartMediaContext,
+      smartUpgradeBestEntry
+    );
+  }, [
+    playbackMediaType,
+    smartUpgradeBestFingerprint,
+    smartUpgradeBestScore,
+    smartUpgradeDiscoveryComplete,
+    source?.playRequestId,
+  ]);
 
   const hasTorrentPlaybackCandidate =
     playbackMediaType !== "live" &&
@@ -1246,9 +1328,14 @@ export default function VideoPlayer({
 
   const automaticReadySourceIndex =
     selectableSourceEntries.find(
-      ({ item, index }) =>
+      ({ item, index, languageRank }) =>
         index !== activeIdx &&
         !failedSourcesRef.current.has(index) &&
+        (
+          playbackMediaType === "live" ||
+          !["en", "eng", "english"].includes(preferredAudioLanguage) ||
+          Number(languageRank ?? 3) <= 2
+        ) &&
         (
           !hasNonAioTorrentPlaybackCandidate ||
           !sourceIsAioStreamsCandidate(item)
@@ -1343,13 +1430,13 @@ export default function VideoPlayer({
     const cachedCompatibleEnglishAutoplay = Boolean(
       entry?.cached === true &&
         Number(entry?.compatibilityTier ?? 3) <= 1 &&
-        Number(entry?.languageRank ?? 3) === 0 &&
+        Number(entry?.languageRank ?? 3) <= 2 &&
         Number(entry?.hardSubtitleRank ?? 0) === 0
     );
 
     const runtimeReadyEnglishAutoplay = Boolean(
       runtimeReady &&
-        Number(entry?.languageRank ?? 3) === 0 &&
+        Number(entry?.languageRank ?? 3) <= 2 &&
         Number(entry?.hardSubtitleRank ?? 0) === 0
     );
 
@@ -1386,11 +1473,7 @@ export default function VideoPlayer({
       return Boolean(
         sourceIsUserSelectable(item) &&
           !failedSourcesRef.current.has(entry?.index) &&
-          (
-            strictEnglishAutoplayRequired
-              ? Number(entry?.languageRank ?? 3) <= 1
-              : Number(entry?.languageRank ?? 3) === 0
-          ) &&
+          Number(entry?.languageRank ?? 3) <= 2 &&
           Number(entry?.hardSubtitleRank ?? 0) === 0 &&
           type !== "provider" &&
           type !== "youtube" &&
@@ -10981,6 +11064,18 @@ export default function VideoPlayer({
             <span>
               Shown {selectableSourceCount}
             </span>
+            {smartUpgradeNotice?.available === true && (
+              <span className="rounded-full bg-mg-green/10 px-2 py-0.5 font-bold text-mg-green">
+                New version available
+                {smartUpgradeNotice?.next?.releaseTierLabel &&
+                smartUpgradeNotice.next.releaseTierLabel !== "Unknown"
+                  ? ` • ${smartUpgradeNotice.next.releaseTierLabel}`
+                  : ""}
+                {Number(smartUpgradeNotice?.next?.resolution || 0) > 0
+                  ? ` • ${smartUpgradeNotice.next.resolution}p`
+                  : ""}
+              </span>
+            )}
           </div>
 
           {availableSortOptions.length > 1 && (
@@ -10998,7 +11093,11 @@ export default function VideoPlayer({
                   setSourceSortMode(next);
 
                   if (next === "4k" || next === "1080p") {
-                    const match = sortSourceEntries(sourcesForSelector, next).find(
+                    const match = sortSourceEntries(
+                      sourcesForSelector,
+                      next,
+                      { mediaType: playbackMediaType }
+                    ).find(
                       (entry) => {
                         if (!sourceIsUserSelectable(entry.item)) return false;
 
@@ -11014,7 +11113,11 @@ export default function VideoPlayer({
                     }
                   } else if (next.startsWith("edition:")) {
                     const edition = next.slice("edition:".length);
-                    const match = sortSourceEntries(sourcesForSelector, next).find(
+                    const match = sortSourceEntries(
+                      sourcesForSelector,
+                      next,
+                      { mediaType: playbackMediaType }
+                    ).find(
                       (entry) =>
                         sourceIsUserSelectable(entry.item) &&
                         sourceHasEdition(entry.item, edition)
@@ -11040,7 +11143,7 @@ export default function VideoPlayer({
           {selectableSourceCount > 0 && (
             <label className="min-w-[12rem] flex-1 basis-[16rem]">
               <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.12em] text-white/40">
-                Source / quality
+                All sources / quality
               </span>
 
               <div className="relative">
@@ -11060,7 +11163,7 @@ export default function VideoPlayer({
                     selectSource(value, selectedEntry?.item || null);
                   }}
                   className="min-h-11 w-full appearance-none rounded-lg border border-white/10 bg-mg-card py-2.5 pl-3 pr-9 text-xs font-medium text-white outline-none transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/30 sm:min-h-10 sm:text-sm"
-                  aria-label="Choose playback source"
+                  aria-label="Choose from all playback sources"
                 >
                   {visibleSourceSelectorValue === "" ? (
                     <option value="" disabled>
