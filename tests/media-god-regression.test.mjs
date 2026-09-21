@@ -3472,6 +3472,73 @@ test("best approved cached English row owns startup and strict waiting can still
   );
 });
 
+test("a genuinely successful cached source outranks an equally compatible cached guess", () => {
+  const ordered = prioritiseCompatibleAutoplayEntries([
+    {
+      index: 0,
+      autoplayReady: true,
+      compatibilityTier: 0,
+      languageRank: 0,
+      hardSubtitleRank: 0,
+      provenWorking: false,
+      successfulPlayback: false,
+      trustedCached: true,
+      cached: true,
+      compatibility: 100,
+      resolution: 1080,
+    },
+    {
+      index: 1,
+      autoplayReady: true,
+      compatibilityTier: 0,
+      languageRank: 0,
+      hardSubtitleRank: 0,
+      provenWorking: false,
+      successfulPlayback: true,
+      trustedCached: true,
+      cached: true,
+      compatibility: 100,
+      resolution: 1080,
+    },
+  ]);
+
+  assert.equal(ordered[0]?.index, 1);
+
+  const trustedSource = readFileSync(
+    new URL("../src/components/mg/trustedCachedSources.js", import.meta.url),
+    "utf8"
+  );
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+  const selectorSource = readFileSync(
+    new URL("../src/components/mg/sourceSelectorPreferences.js", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(
+    trustedSource,
+    /mg:successful-playback-sources:v1/
+  );
+  assert.match(
+    trustedSource,
+    /recordSuccessfulPlaybackSource/
+  );
+  assert.match(
+    selectorSource,
+    /entry\.successfulPlayback === true[\s\S]{0,120}?successfulPlaybackLanguageRank/
+  );
+  assert.match(
+    playerSource,
+    /currentTime > 0\.25[\s\S]{0,260}?recordSuccessfulPlaybackSource\(active/
+  );
+  assert.match(
+    playerSource,
+    /reason !== "error"[\s\S]{0,120}?positionSeconds > 5[\s\S]{0,260}?recordSuccessfulPlaybackSource\(active/
+  );
+});
+
 test("AIOStreams cannot own VOD autoplay while a cached Torrentio-style torrent candidate exists", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
