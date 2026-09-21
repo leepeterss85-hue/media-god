@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 46,
-  "versionName": "1.0.45",
+  "versionCode": 47,
+  "versionName": "1.0.46",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.45 keeps working audio playing, no longer treats multi-audio or cache readiness alone as proof of English, and sends the same mixed-language source to the compatibility decoder when its English track needs broader codec support.",
+  "message": "Media God Mobile 1.0.46 makes cached Torrentio/Real-Debrid movie and episode sources win autoplay over AIOStreams, preserves verified title/year aliases through final RD resolution, and waits for the selected web source before native playback starts.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
