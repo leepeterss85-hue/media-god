@@ -3705,35 +3705,43 @@ test("full source-pool merge preserves runtime autoplay approval", () => {
 });
 
 
-test("cached compatible autoplay requires explicit English unless the source was strictly qualified", () => {
+test("strict English autoplay requires track proof while Multi remains eligible for verification", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
     "utf8"
   );
-  const selectorSource = readFileSync(
-    new URL("../src/components/mg/sourceSelectorPreferences.js", import.meta.url),
+  const providerSource = readFileSync(
+    new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
     "utf8"
   );
 
+  assert.match(playerSource, /strictEnglishAutoplayRequired/);
+  assert.match(playerSource, /resolvedMediaEnglishMainState/);
   assert.match(
     playerSource,
-    /cachedCompatibleEnglishAutoplay[\s\S]{0,420}?entry\?\.cached === true[\s\S]{0,220}?compatibilityTier[\s\S]{0,180}?languageRank \?\? 3\) === 0[\s\S]{0,180}?hardSubtitleRank/
+    /if \(strictEnglishAutoplayRequired\)[\s\S]{0,420}?item\?\.launchQualified === true[\s\S]{0,160}?englishProof === "proven"/
   );
   assert.match(
     playerSource,
-    /runtimeReadyEnglishAutoplay[\s\S]{0,240}?runtimeReady[\s\S]{0,180}?languageRank \?\? 3\) === 0/
-  );
-  assert.doesNotMatch(
-    playerSource,
-    /languageRank \?\? 3\) <= 1/
-  );
-  assert.match(
-    selectorSource,
-    /launchQualified === true[\s\S]{0,140}?runtimeQualificationFallback === true[\s\S]{0,260}?entry\.languageRank === 0/
+    /strictEnglishAutoplayRequired[\s\S]{0,160}?languageRank \?\? 3\) <= 1[\s\S]{0,160}?languageRank \?\? 3\) === 0/
   );
   assert.match(
     playerSource,
-    /Verified cached source ready — starting automatically/
+    /MAX_AUTOMATIC_ENGLISH_PROBES = 4/
+  );
+  assert.match(
+    playerSource,
+    /rejectResolvedForeignAutoplay/
+  );
+  assert.match(
+    playerSource,
+    /did not contain a proven English main audio track/
+  );
+  assert.match(providerSource, /PROBE_BATCH_SIZE = 6/);
+  assert.match(providerSource, /PER_SOURCE_PROBE_MS = 2400/);
+  assert.match(
+    providerSource,
+    /requireExplicitEnglishRuntimeFallback[\s\S]{0,100}?\? \[\]/
   );
 });
 
