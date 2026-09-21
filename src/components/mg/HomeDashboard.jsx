@@ -17,6 +17,10 @@ import NewEpisodesRow from "@/components/mg/NewEpisodesRow";
 import RecentlyWatchedRow from "@/components/mg/RecentlyWatchedRow";
 import DetailModal from "@/components/mg/DetailModal";
 import { useToast } from "@/components/ui/use-toast";
+import {
+  readUxPreferences,
+  UX_PREFERENCES_EVENT,
+} from "@/components/mg/uxPreferences";
 
 const WATCHED_THRESHOLD = 0.92;
 
@@ -382,10 +386,19 @@ export default function HomeDashboard({ onOpenTvService }) {
   const [historyRows, setHistoryRows] = useState([]);
   const [recommendationSeed, setRecommendationSeed] = useState(null);
   const [todayKey, setTodayKey] = useState(() => localDateKey());
+  const [uxPreferences, setUxPreferences] = useState(readUxPreferences);
 
   const { toast } = useToast();
   const streamingRegion = useMemo(() => detectStreamingRegion(), []);
   const streamingTimezone = useMemo(() => detectStreamingTimezone(), []);
+
+  useEffect(() => {
+    const syncUx = (event) =>
+      setUxPreferences(event?.detail || readUxPreferences());
+
+    window.addEventListener(UX_PREFERENCES_EVENT, syncUx);
+    return () => window.removeEventListener(UX_PREFERENCES_EVENT, syncUx);
+  }, []);
 
   useEffect(() => {
     let timer = null;
@@ -881,6 +894,158 @@ export default function HomeDashboard({ onOpenTvService }) {
     }
   };
 
+  const hiddenHomeSections = useMemo(
+    () => new Set(uxPreferences.homeHidden || []),
+    [uxPreferences.homeHidden]
+  );
+
+  const renderHomeSection = (sectionId) => {
+    if (hiddenHomeSections.has(sectionId)) return null;
+
+    switch (sectionId) {
+      case "continue-watching":
+        return <ContinueWatchingRow key={sectionId} />;
+      case "new-films":
+        return (
+          <MediaRow
+            key={sectionId}
+            title="New Films"
+            items={rows.newMovies}
+            onOpen={open}
+            onWatchlist={onWatchlist}
+            watched={watched}
+          />
+        );
+      case "new-tv":
+        return (
+          <MediaRow
+            key={sectionId}
+            title="New TV Shows"
+            items={rows.newTV}
+            onOpen={(item) => open(item, "tv")}
+            onWatchlist={onWatchlist}
+            watched={watched}
+          />
+        );
+      case "new-episodes":
+        return (
+          <NewEpisodesRow
+            key={sectionId}
+            historyRows={historyRows}
+            region={streamingRegion}
+            todayKey={todayKey}
+          />
+        );
+      case "because-you-watched":
+        return becauseYouWatched.length > 0 && recommendationSeed?.title ? (
+          <MediaRow
+            key={sectionId}
+            title={`Because You Watched ${recommendationSeed.title}`}
+            items={becauseYouWatched}
+            onOpen={open}
+            onWatchlist={onWatchlist}
+            watched={watched}
+          />
+        ) : null;
+      case "more-tv-today":
+        return (rows.moreTVToday || []).length > 0 ? (
+          <MediaRow
+            key={sectionId}
+            title="More TV Airing Today"
+            items={rows.moreTVToday}
+            onOpen={(item) => open(item, "tv")}
+            onWatchlist={onWatchlist}
+            watched={watched}
+          />
+        ) : null;
+      case "recently-watched":
+        return <RecentlyWatchedRow key={sectionId} />;
+      case "watchlist":
+        return (rows.watchlist || []).length > 0 ? (
+          <MediaRow
+            key={sectionId}
+            title="My Watchlist"
+            items={rows.watchlist}
+            onOpen={open}
+            onWatchlist={onWatchlist}
+            watched={watched}
+          />
+        ) : null;
+      case "favorites":
+        return (rows.favorites || []).length > 0 ? (
+          <MediaRow
+            key={sectionId}
+            title="My Favorites"
+            items={rows.favorites}
+            onOpen={open}
+            onWatchlist={onWatchlist}
+            watched={watched}
+          />
+        ) : null;
+      case "trending":
+        return (
+          <MediaRow
+            key={sectionId}
+            title="Trending Now"
+            items={rows.trending}
+            onOpen={open}
+            onWatchlist={onWatchlist}
+            watched={watched}
+          />
+        );
+      case "streaming-services":
+        return (
+          <StreamingServiceRows
+            key={sectionId}
+            mediaType="mixed"
+            region={streamingRegion}
+            heading="Movies & TV by Streaming Service"
+            maxServices={12}
+            rowLimit={18}
+            onOpen={open}
+            onWatchlist={onWatchlist}
+            watched={watched}
+            onBrowseAll={onOpenTvService}
+          />
+        );
+      case "popular-movies":
+        return (
+          <MediaRow
+            key={sectionId}
+            title="Popular Movies"
+            items={rows.popularMovies}
+            onOpen={open}
+            onWatchlist={onWatchlist}
+            watched={watched}
+          />
+        );
+      case "popular-tv":
+        return (
+          <MediaRow
+            key={sectionId}
+            title="Popular TV Shows"
+            items={rows.popularTV}
+            onOpen={open}
+            onWatchlist={onWatchlist}
+            watched={watched}
+          />
+        );
+      case "top-rated":
+        return (
+          <MediaRow
+            key={sectionId}
+            title="Top Rated Movies"
+            items={rows.topRated}
+            onOpen={open}
+            onWatchlist={onWatchlist}
+            watched={watched}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-3 sm:p-5 md:p-6 3xl:p-8 4xl:p-10">
@@ -907,8 +1072,6 @@ export default function HomeDashboard({ onOpenTvService }) {
         data-mg-home-layout-lock={HOME_LAYOUT_LOCK_ID}
         className="flex flex-col gap-6 3xl:gap-8 4xl:gap-10 py-5 sm:py-6 3xl:py-8"
       >
-        {/* HOME_LAYOUT_LOCK_START */}
-        {/* HOME_LOCK_SLOT:featured */}
         <HeroSlider
           items={hero}
           onWatch={open}
@@ -916,124 +1079,7 @@ export default function HomeDashboard({ onOpenTvService }) {
           onWatchlist={onWatchlist}
         />
 
-
-        {/* HOME_LOCK_SLOT:continue-watching */}
-        <ContinueWatchingRow />
-
-        {/* HOME_LOCK_SLOT:new-films */}
-        <MediaRow
-          title="New Films"
-          items={rows.newMovies}
-          onOpen={open}
-          onWatchlist={onWatchlist}
-          watched={watched}
-        />
-
-        {/* HOME_LOCK_SLOT:new-tv */}
-        <MediaRow
-          title="New TV Shows"
-          items={rows.newTV}
-          onOpen={(item) => open(item, "tv")}
-          onWatchlist={onWatchlist}
-          watched={watched}
-        />
-
-        {/* HOME_LOCK_SLOT:new-episodes */}
-        <NewEpisodesRow
-          historyRows={historyRows}
-          region={streamingRegion}
-          todayKey={todayKey}
-        />
-
-        {/* HOME_LOCK_SLOT:because-you-watched */}
-        {becauseYouWatched.length > 0 &&
-          recommendationSeed?.title && (
-            <MediaRow
-              title={`Because You Watched ${recommendationSeed.title}`}
-              items={becauseYouWatched}
-              onOpen={open}
-              onWatchlist={onWatchlist}
-              watched={watched}
-            />
-          )}
-        {/* HOME_LAYOUT_LOCK_END */}
-
-        {/* Everything below this point is secondary discovery content. */}
-        {(rows.moreTVToday || []).length > 0 && (
-          <MediaRow
-            title="More TV Airing Today"
-            items={rows.moreTVToday}
-            onOpen={(item) => open(item, "tv")}
-            onWatchlist={onWatchlist}
-            watched={watched}
-          />
-        )}
-
-        <RecentlyWatchedRow />
-
-        {(rows.watchlist || []).length > 0 && (
-          <MediaRow
-            title="My Watchlist"
-            items={rows.watchlist}
-            onOpen={open}
-            onWatchlist={onWatchlist}
-            watched={watched}
-          />
-        )}
-
-        {(rows.favorites || []).length > 0 && (
-          <MediaRow
-            title="My Favorites"
-            items={rows.favorites}
-            onOpen={open}
-            onWatchlist={onWatchlist}
-            watched={watched}
-          />
-        )}
-
-        <MediaRow
-          title="Trending Now"
-          items={rows.trending}
-          onOpen={open}
-          onWatchlist={onWatchlist}
-          watched={watched}
-        />
-
-        <StreamingServiceRows
-          mediaType="mixed"
-          region={streamingRegion}
-          heading="Movies & TV by Streaming Service"
-          maxServices={12}
-          rowLimit={18}
-          onOpen={open}
-          onWatchlist={onWatchlist}
-          watched={watched}
-          onBrowseAll={onOpenTvService}
-        />
-
-        <MediaRow
-          title="Popular Movies"
-          items={rows.popularMovies}
-          onOpen={open}
-          onWatchlist={onWatchlist}
-          watched={watched}
-        />
-
-        <MediaRow
-          title="Popular TV Shows"
-          items={rows.popularTV}
-          onOpen={open}
-          onWatchlist={onWatchlist}
-          watched={watched}
-        />
-
-        <MediaRow
-          title="Top Rated Movies"
-          items={rows.topRated}
-          onOpen={open}
-          onWatchlist={onWatchlist}
-          watched={watched}
-        />
+        {(uxPreferences.homeOrder || []).map(renderHomeSection)}
       </div>
 
       <footer data-mg-home-footer="true" className="border-t border-white/5 py-6 3xl:py-8 mt-4 px-4 sm:px-6 3xl:px-10 text-center text-white/40 text-xs 3xl:text-sm">
