@@ -458,6 +458,33 @@ const normaliseDetailPayload = (
           0
       ),
 
+    release_date:
+      firstText(
+        rawDetails.release_date,
+        rawDetails.first_air_date,
+        payload.release_date,
+        payload.first_air_date,
+        fallback.release_date,
+        fallback.first_air_date
+      ),
+
+    certification:
+      firstText(
+        rawDetails.certification,
+        rawDetails.content_rating,
+        payload.certification,
+        payload.content_rating,
+        fallback.certification,
+        fallback.content_rating
+      ),
+
+    tagline:
+      firstText(
+        rawDetails.tagline,
+        payload.tagline,
+        fallback.tagline
+      ),
+
     imdb_id:
       firstText(
         rawDetails.imdb_id,
@@ -1338,6 +1365,18 @@ export default function DetailModal({
                     {runtime}m
                   </span>
                 )}
+
+                {details.certification && (
+                  <span className="rounded border border-white/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-white/70 3xl:text-xs">
+                    {details.certification}
+                  </span>
+                )}
+
+                {details.release_date && (
+                  <span className="text-white/45">
+                    {details.release_date}
+                  </span>
+                )}
               </div>
 
               {genres.length > 0 && (
@@ -1359,6 +1398,12 @@ export default function DetailModal({
               )}
             </div>
           </div>
+
+          {details.tagline && (
+            <p className="mt-4 text-sm italic text-white/55 3xl:text-lg">
+              “{details.tagline}”
+            </p>
+          )}
 
           {loadError && (
             <div className="mt-4 3xl:mt-6 rounded-lg border border-amber-400/20 bg-amber-400/5 px-3 3xl:px-4 py-2.5 3xl:py-3 text-xs 3xl:text-sm text-amber-200/80">
