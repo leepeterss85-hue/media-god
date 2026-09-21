@@ -3756,6 +3756,21 @@ export default function VideoPlayer({
 
         if (result.status === "ready" && result.streamUrl) {
           markTorrentHashReady(active);
+
+          if (
+            rejectResolvedForeignAutoplay(
+              result.mediaInfo,
+              {
+                label:
+                  result.filename ||
+                  active?.label ||
+                  "This release",
+              }
+            )
+          ) {
+            return;
+          }
+
           setRdOverride({
             src: result.streamUrl,
             label:
@@ -4151,6 +4166,20 @@ export default function VideoPlayer({
                   latencyMs: Date.now() - rdResolveStartedAt,
                 });
 
+                if (
+                  rejectResolvedForeignAutoplay(
+                    existingData.media_info,
+                    {
+                      label:
+                        existingData.filename ||
+                        active?.label ||
+                        "This release",
+                    }
+                  )
+                ) {
+                  return;
+                }
+
                 setRdOverride({
                   src: existingData.stream_url,
                   label:
@@ -4278,6 +4307,20 @@ export default function VideoPlayer({
               if (cancelled) return;
 
               if (adopted.status === "ready" && adopted.stream_url) {
+                if (
+                  rejectResolvedForeignAutoplay(
+                    adopted.media_info,
+                    {
+                      label:
+                        adopted.filename ||
+                        active?.label ||
+                        "This release",
+                    }
+                  )
+                ) {
+                  return;
+                }
+
                 setRdOverride({
                   src: adopted.stream_url,
                   label:
@@ -4631,6 +4674,21 @@ export default function VideoPlayer({
                   ) {
                     triggerController.abort();
                     window.clearTimeout(triggerTimer);
+
+                    if (
+                      rejectResolvedForeignAutoplay(
+                        adoptData.media_info,
+                        {
+                          label:
+                            adoptData.filename ||
+                            active?.label ||
+                            "This release",
+                        }
+                      )
+                    ) {
+                      return;
+                    }
+
                     setRdOverride({
                       src: adoptData.stream_url,
                       label:
@@ -4829,6 +4887,20 @@ export default function VideoPlayer({
                         }
 
                         if (restartData.status === "ready" && restartData.stream_url) {
+                          if (
+                            rejectResolvedForeignAutoplay(
+                              restartData.media_info,
+                              {
+                                label:
+                                  restartData.filename ||
+                                  active?.label ||
+                                  "This release",
+                              }
+                            )
+                          ) {
+                            return;
+                          }
+
                           setRdOverride({
                             src: restartData.stream_url,
                             label:
@@ -6066,6 +6138,20 @@ export default function VideoPlayer({
                     }
 
                     if (restartData.status === "ready" && restartData.stream_url) {
+                      if (
+                        rejectResolvedForeignAutoplay(
+                          restartData.media_info,
+                          {
+                            label:
+                              restartData.filename ||
+                              active?.label ||
+                              "This release",
+                          }
+                        )
+                      ) {
+                        return;
+                      }
+
                       setRdOverride({
                         src: restartData.stream_url,
                         label:
@@ -7990,6 +8076,20 @@ export default function VideoPlayer({
           }
 
           if (restartData.status === "ready" && restartData.stream_url) {
+            if (
+              rejectResolvedForeignAutoplay(
+                restartData.media_info,
+                {
+                  label:
+                    restartData.filename ||
+                    active?.label ||
+                    "This release",
+                }
+              )
+            ) {
+              return;
+            }
+
             setRdOverride({
               src: restartData.stream_url,
               label:
