@@ -2406,6 +2406,30 @@ test("strict startup never autoplays request sources before qualification", () =
   );
 });
 
+test("full addon discovery supplements a non-empty server result with browser addon sources", () => {
+  const providerSource = readFileSync(
+    new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
+    "utf8"
+  );
+
+  const fetchStart = providerSource.indexOf("const fetchAddonSources = async");
+  const fetchEnd = providerSource.indexOf("const SAFE_RD_LAUNCH_AUDIO_STATES", fetchStart);
+  assert.ok(fetchStart >= 0 && fetchEnd > fetchStart);
+
+  const block = providerSource.slice(fetchStart, fetchEnd);
+
+  assert.match(block, /if \(args\?\.fastMode\)/);
+  assert.doesNotMatch(block, /!shouldUseBrowserAddonFallback/);
+  assert.match(
+    block,
+    /await fetchBrowserAddonStreams\([\s\S]{0,700}?mergeAddonStreams\([\s\S]{0,220}?safeServer\.streams[\s\S]{0,220}?safeBrowserStreams/
+  );
+  assert.match(
+    block,
+    /Browser fallback recovered/
+  );
+});
+
 test("strict VOD autoplay keeps the full chooser and falls back to cached runtime rescue", () => {
   const providerSource = readFileSync(
     new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
