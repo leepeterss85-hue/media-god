@@ -62,6 +62,37 @@ class CompatibilityPlayerActivity : Activity() {
     private var compatibilityRetryPass = 0
     private var forceSoftwareVideoDecode = false
 
+    private fun wantsPreferredEnglishAudio(): Boolean =
+        payload.optString("audioLanguage", "en")
+            .trim()
+            .lowercase() in setOf("en", "eng", "english")
+
+    private fun hasVerifiedEnglishMainAudio(): Boolean =
+        payload.optBoolean("verifiedEnglishMain", false)
+
+    private fun normaliseAudioTrackName(value: String): String =
+        value.lowercase().replace(Regex("""[^a-z0-9]+"""), " ").trim()
+
+    private fun audioTrackNameLooksCommentary(value: String): Boolean =
+        Regex(
+            """commentary|audio description|descriptive|visually impaired|director(?:'s)? commentary|cast commentary""",
+            RegexOption.IGNORE_CASE
+        ).containsMatchIn(value)
+
+    private fun audioTrackNameLooksEnglish(value: String): Boolean =
+        !audioTrackNameLooksCommentary(value) &&
+            Regex(
+                """(?:^|[\s._\-\[\]()])(?:en|eng|english)(?=$|[\s._\-\[\]()])""",
+                RegexOption.IGNORE_CASE
+            ).containsMatchIn(value)
+
+    private fun namesMatchExpectedAudio(actual: String, expected: String): Boolean {
+        val left = normaliseAudioTrackName(actual)
+        val right = normaliseAudioTrackName(expected)
+        if (left.length < 3 || right.length < 3) return false
+        return left == right || left.contains(right) || right.contains(left)
+    }
+
     private val hideControlsRunnable = Runnable {
         if (!resultSent && ::controls.isInitialized) {
             if (controls.hasFocus() && ::videoLayout.isInitialized) videoLayout.requestFocus()
@@ -97,17 +128,52 @@ class CompatibilityPlayerActivity : Activity() {
                     0
                 }
 
+            if (manualAudioTrackLocked) {
+                return
+            }
+
+            val anyAudio =
+                selectedAudioTrack >= 0 ||
+                    audioTrackCount > 0 ||
+                    tracks.isNotEmpty()
+            val requiresVerifiedEnglish =
+                wantsPreferredEnglishAudio() &&
+                    hasVerifiedEnglishMainAudio()
+            val selectedTrack =
+                tracks.firstOrNull { it.id == selectedAudioTrack }
+            val expectedName =
+                payload.optString("preferredAudioTrackName").trim()
+            val expectedMatches =
+                if (expectedName.isBlank())
+                    emptyList()
+                else
+                    tracks.filter {
+                        namesMatchExpectedAudio(
+                            it.name.orEmpty(),
+                            expectedName
+                        )
+                    }
+            val selectedIsVerifiedEnglish =
+                selectedTrack != null &&
+                    (
+                        audioTrackNameLooksEnglish(
+                            selectedTrack.name.orEmpty()
+                        ) ||
+                        (
+                            expectedMatches.size == 1 &&
+                            expectedMatches.first().id == selectedTrack.id
+                        )
+                    )
+
             /*
-             * LibVLC can begin rendering audible audio before getAudioTracks()
-             * has finished populating its full description list. A selected
-             * audio-track id is authoritative evidence that an audio input is
-             * active, so never tear down working playback just because the
-             * descriptive list is momentarily empty.
+             * Do not equate "some audio is selected" with success when this
+             * source was already verified to contain English main audio. Keep
+             * checking until LibVLC has selected that English track; otherwise
+             * fail this source so Media God can automatically try the next one.
              */
             if (
-                selectedAudioTrack >= 0 ||
-                audioTrackCount > 0 ||
-                tracks.isNotEmpty()
+                anyAudio &&
+                (!requiresVerifiedEnglish || selectedIsVerifiedEnglish)
             ) {
                 return
             }
@@ -124,7 +190,10 @@ class CompatibilityPlayerActivity : Activity() {
             ) {
                 finishWithResult(
                     "error",
-                    "The compatibility decoder could not find an active audio track after repeated checks."
+                    if (requiresVerifiedEnglish)
+                        "The compatibility decoder could not confirm and select the verified English main audio track."
+                    else
+                        "The compatibility decoder could not find an active audio track after repeated checks."
                 )
             }
         }
@@ -500,8 +569,26 @@ class CompatibilityPlayerActivity : Activity() {
                 "it", "ita", "italian" -> "it|ita|italian"
                 else -> Regex.escape(preferred)
             }
-            fun score(name: String): Int {
-                val text = name.lowercase()
+            val expectedName =
+                payload.optString("preferredAudioTrackName").trim()
+            val expectedMatches =
+                if (expectedName.isBlank())
+                    emptyList()
+                else
+                    tracks.filter {
+                        namesMatchExpectedAudio(
+                            it.name.orEmpty(),
+                            expectedName
+                        )
+                    }
+            val uniqueExpectedTrackId =
+                if (expectedMatches.size == 1)
+                    expectedMatches.first().id
+                else
+                    -1
+
+            fun score(track: MediaPlayer.TrackDescription): Int {
+                val text = track.name.orEmpty().lowercase()
                 val preferredTrack =
                     preferredAliases.isNotBlank() &&
                         Regex(
@@ -509,6 +596,7 @@ class CompatibilityPlayerActivity : Activity() {
                             RegexOption.IGNORE_CASE
                         ).containsMatchIn(text)
                 var value = 0
+                if (track.id == uniqueExpectedTrackId) value += 1800
                 if (preferredTrack) value += 1000
                 else if (
                     Regex(
@@ -516,15 +604,15 @@ class CompatibilityPlayerActivity : Activity() {
                         RegexOption.IGNORE_CASE
                     ).containsMatchIn(text)
                 ) value += 450
-                if (Regex("""commentary|audio description|descriptive|visually impaired""").containsMatchIn(text)) value -= 250
+                if (audioTrackNameLooksCommentary(text)) value -= 900
                 if (Regex("""\b(?:main|original|primary)\b""").containsMatchIn(text)) value += 25
                 if (Regex("""aac|ac-?3|e-?ac-?3|opus|flac""").containsMatchIn(text)) value += 12
                 if (Regex("""truehd|dts|mlp""").containsMatchIn(text) && audioOutputMode == "auto") value -= 8
                 return value
             }
-            val best = tracks.maxByOrNull { score(it.name.orEmpty()) } ?: tracks.first()
+            val best = tracks.maxByOrNull { score(it) } ?: tracks.first()
             val current = tracks.firstOrNull { it.id == player.audioTrack }
-            if (current == null || score(best.name.orEmpty()) > score(current.name.orEmpty()) + 5) player.setAudioTrack(best.id)
+            if (current == null || score(best) > score(current) + 5) player.setAudioTrack(best.id)
             if (player.audioTrack < 0) player.setAudioTrack(best.id)
         } catch (_: Throwable) {}
         updateAudioButtonLabel()
