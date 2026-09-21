@@ -3913,7 +3913,7 @@ test("audio and video compatibility tier drives source ordering without hiding r
     selectorSource,
     /entry\.successfulPlayback === true[\s\S]{0,120}?successfulPlaybackLanguageRank/
   );
-  assert.match(selectorSource, /entry\.languageRank <= 2/);
+  assert.match(selectorSource, /entry\.languageRank <= 3/);
   assert.match(selectorSource, /entry\.compatibilityTier <= 1/);
   assert.match(
     selectorSource,
@@ -3991,7 +3991,7 @@ test("Best chooser pins the playing VOD first and native playback receives that 
     selectorSource,
     /entry\.successfulPlayback === true[\s\S]{0,120}?successfulPlaybackLanguageRank/
   );
-  assert.match(selectorSource, /entry\.languageRank <= 2/);
+  assert.match(selectorSource, /entry\.languageRank <= 3/);
   assert.match(selectorSource, /entry\.provenWorking === true/);
   assert.match(selectorSource, /entry\.compatibilityTier <= 1/);
   assert.match(selectorSource, /hardSubtitleRank/);
@@ -4179,7 +4179,7 @@ test("startup discovery cannot flash through unverified English candidates", () 
   assert.match(playerSource, /bestEnglishAutoplayCandidateIndex/);
   assert.match(
     playerSource,
-    /Number\(entry\?\.languageRank \?\? 3\) <= 2/
+    /Number\(entry\?\.languageRank \?\? 3\) <= 3/
   );
   assert.match(
     playerSource,
@@ -4396,7 +4396,7 @@ test("black-screen VOD startup waits before trying at most three ready English s
   assert.match(block, /STARTUP_GRACE_MS = 12000/);
   assert.match(block, /MAX_AUTOMATIC_STARTUP_ATTEMPTS = 3/);
   assert.match(block, /manualSourceLockActive\(\)/);
-  assert.match(block, /Number\(entry\?\.languageRank \?\? 3\) <= 2/);
+  assert.match(block, /Number\(entry\?\.languageRank \?\? 3\) <= 3/);
   assert.match(block, /autoplayEntryApproved\(entry\)/);
   assert.doesNotMatch(block, /markSourceFailed\(/);
   assert.doesNotMatch(block, /markTorrentHashFailed\(/);
@@ -4479,7 +4479,7 @@ test("smart English autoplay rejects proven foreign audio while keeping English 
   );
   assert.match(
     playerSource,
-    /Number\(entry\?\.languageRank \?\? 3\) <= 2/
+    /Number\(entry\?\.languageRank \?\? 3\) <= 3/
   );
   assert.match(
     playerSource,
