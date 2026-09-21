@@ -23,6 +23,67 @@ const PosterImage = /** @type {any} */ (Image);
 const TMDB_IMAGE_BASE =
   "https://image.tmdb.org/t/p/w500";
 
+const RECENT_SEARCHES_KEY = "mg:recent-searches:v1";
+
+const readRecentSearches = () => {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const parsed = JSON.parse(
+      window.localStorage.getItem(RECENT_SEARCHES_KEY) || "[]"
+    );
+
+    return Array.isArray(parsed)
+      ? parsed.map((value) => String(value || "").trim()).filter(Boolean).slice(0, 8)
+      : [];
+  } catch {
+    return [];
+  }
+};
+
+const rememberRecentSearch = (value) => {
+  const query = String(value || "").trim();
+  if (query.length < 2 || typeof window === "undefined") return readRecentSearches();
+
+  const next = [
+    query,
+    ...readRecentSearches().filter(
+      (entry) => entry.toLowerCase() !== query.toLowerCase()
+    ),
+  ].slice(0, 8);
+
+  try {
+    window.localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
+  } catch {
+    // Recent search history is best effort.
+  }
+
+  return next;
+};
+
+const normaliseSearchText = (value) =>
+  String(value || "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+const searchRelevance = (item, query) => {
+  const title = normaliseSearchText(item?.title || item?.name);
+  const wanted = normaliseSearchText(query);
+
+  if (!wanted || !title) return 0;
+  if (title === wanted) return 1000;
+  if (title.startsWith(wanted)) return 800;
+  if (title.includes(wanted)) return 600;
+
+  const words = wanted.split(" ").filter(Boolean);
+  return words.reduce(
+    (score, word) => score + (title.includes(word) ? 80 : 0),
+    Number(item?.popularity || 0) / 100
+  );
+};
+
 const normaliseMediaType = (
   value,
   item = {}
@@ -355,6 +416,10 @@ export default function SearchDialog({
     ""
   );
 
+  const [mediaFilter, setMediaFilter] = useState("all");
+  const [yearFilter, setYearFilter] = useState("");
+  const [recentSearches, setRecentSearches] = useState(readRecentSearches);
+
   const requestRef =
     useRef(
       0
@@ -629,6 +694,29 @@ export default function SearchDialog({
     ]
   );
 
+  const filteredMediaResults = useMemo(() => {
+    const cleanYear = String(yearFilter || "").trim();
+
+    return [...results]
+      .filter((item) => {
+        if (mediaFilter !== "all" && item?.media_type !== mediaFilter) {
+          return false;
+        }
+
+        if (cleanYear && String(item?.year || "") !== cleanYear) {
+          return false;
+        }
+
+        return true;
+      })
+      .sort(
+        (a, b) =>
+          searchRelevance(b, query) -
+            searchRelevance(a, query) ||
+          Number(b?.vote_average || 0) - Number(a?.vote_average || 0)
+      );
+  }, [mediaFilter, query, results, yearFilter]);
+
   const liveResults = useMemo(
     () => {
       const cleanQuery = String(query || "")
@@ -703,6 +791,10 @@ export default function SearchDialog({
       } catch {
         // Optional.
       }
+
+      setRecentSearches(
+        rememberRecentSearch(query)
+      );
 
       onOpenChange(
         false
@@ -802,6 +894,76 @@ export default function SearchDialog({
           </button>
         </div>
 
+        <div className="border-b border-white/10 px-4 py-3 sm:px-5">
+          <div className="flex flex-wrap items-center gap-2">
+            {[
+              ["all", "All"],
+              ["movie", "Movies"],
+              ["tv", "TV Shows"],
+            ].map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setMediaFilter(id)}
+                aria-pressed={mediaFilter === id}
+                className={`min-h-9 rounded-full px-3 text-xs font-bold transition ${
+                  mediaFilter === id
+                    ? "bg-mg-green text-black"
+                    : "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+
+            <input
+              inputMode="numeric"
+              maxLength={4}
+              value={yearFilter}
+              onChange={(event) =>
+                setYearFilter(event.target.value.replace(/\D/g, "").slice(0, 4))
+              }
+              placeholder="Year"
+              aria-label="Filter search by year"
+              className="min-h-9 w-20 rounded-full border border-white/10 bg-black/25 px-3 text-xs text-white outline-none placeholder:text-white/30 focus:border-mg-green/60"
+            />
+          </div>
+
+          {query.trim().length < 2 && recentSearches.length > 0 && (
+            <div className="mt-3">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-white/35">
+                Recent searches
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {recentSearches.map((recent) => (
+                  <button
+                    key={recent}
+                    type="button"
+                    onClick={() => setQuery(recent)}
+                    className="min-h-9 rounded-lg border border-white/10 bg-white/5 px-3 text-xs text-white/70 hover:bg-white/10 hover:text-white"
+                  >
+                    {recent}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    try {
+                      window.localStorage.removeItem(RECENT_SEARCHES_KEY);
+                    } catch {
+                      // Best effort.
+                    }
+                    setRecentSearches([]);
+                  }}
+                  className="min-h-9 rounded-lg px-3 text-xs text-white/35 hover:bg-white/5 hover:text-white/70"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="max-h-[75svh] sm:max-h-[68vh] overflow-y-auto overscroll-contain">
           {(loading || liveLoading) &&
             query.trim().length >= 2 && (
@@ -840,8 +1002,8 @@ export default function SearchDialog({
             !error &&
             !liveError &&
             query.trim().length >= 2 &&
-            results.length === 0 &&
-            liveResults.length === 0 && (
+            filteredMediaResults.length === 0 &&
+            (mediaFilter !== "all" || liveResults.length === 0) && (
               <div className="p-8 3xl:p-12 text-center text-white/40 text-sm 3xl:text-lg">
                 No movies, TV shows or live channels found for &quot;
                 {
@@ -851,9 +1013,13 @@ export default function SearchDialog({
               </div>
             )}
 
-          {(results.length > 0 || liveResults.length > 0) && (
+          {(filteredMediaResults.length > 0 ||
+            (mediaFilter === "all" && liveResults.length > 0)) && (
               <div className="divide-y divide-white/5">
-                {[...liveResults, ...results].slice(0, 80).map(
+                {[
+                  ...(mediaFilter === "all" ? liveResults : []),
+                  ...filteredMediaResults,
+                ].slice(0, 80).map(
                   (
                     result
                   ) => (
@@ -991,9 +1157,9 @@ export default function SearchDialog({
               </div>
             )}
 
-          {query.trim().length < 2 && (
+          {query.trim().length < 2 && recentSearches.length === 0 && (
               <div className="p-8 3xl:p-12 text-center text-white/40 text-sm 3xl:text-lg">
-                Type at least 2 characters to search movies, TV shows and live TV channels
+                Type at least 2 characters to search movies and TV shows. Recent searches will appear here.
               </div>
             )}
         </div>
