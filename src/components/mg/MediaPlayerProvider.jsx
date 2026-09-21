@@ -15,7 +15,6 @@ import { base44 } from "@/api/base44Client";
 import {
   fetchBrowserAddonStreams,
   mergeAddonStreams,
-  shouldUseBrowserAddonFallback,
 } from "@/components/mg/addonBrowserFallback";
 
 import VideoPlayer from "@/components/mg/VideoPlayer";
