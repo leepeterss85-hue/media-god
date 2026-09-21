@@ -113,6 +113,7 @@ export default function MediaCard({
           alt={item.title}
           className="w-full h-full object-cover"
           fittingType="fill"
+          loading="lazy"
         />
 
         <ReeznCardAction
