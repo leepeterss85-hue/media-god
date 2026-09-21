@@ -2251,6 +2251,8 @@ const qualifyCachedRealDebridLaunchPool = async ({
 }) => {
   const output = [];
   const seen = new Set();
+  const PROBE_BATCH_SIZE = 6;
+  const PER_SOURCE_PROBE_MS = 2400;
   const deadlineAt =
     Date.now() +
     Math.max(1200, Number(timeBudgetMs || 6500));
@@ -2297,13 +2299,13 @@ const qualifyCachedRealDebridLaunchPool = async ({
   for (
     let offset = 0;
     offset < candidates.length && output.length < targetCount;
-    offset += 4
+    offset += PROBE_BATCH_SIZE
   ) {
     const remainingMs = deadlineAt - Date.now();
     if (remainingMs <= 0) break;
 
     const batch = candidates
-      .slice(offset, offset + 4)
+      .slice(offset, offset + PROBE_BATCH_SIZE)
       .filter((item) => {
         const key = stableDiscoveredSourceKey(item);
         return key && !seen.has(key);
@@ -2322,7 +2324,10 @@ const qualifyCachedRealDebridLaunchPool = async ({
             season,
             episode,
           }),
-          remainingMs
+          Math.min(
+            remainingMs,
+            PER_SOURCE_PROBE_MS
+          )
         )
       )
     );
@@ -3828,7 +3833,9 @@ export function PlayerProvider({
           qualificationMode
             ? qualifiedLaunchSources.length > 0
               ? qualifiedLaunchSources
-              : runtimeFallbackSources
+              : requireExplicitEnglishRuntimeFallback
+                ? []
+                : runtimeFallbackSources
             : [];
 
         const playerSources =
