@@ -1702,23 +1702,38 @@ class PlayerActivity : Activity() {
                 val englishOverrideApplied =
                     enforcePreferredEnglishAudio(exoPlayer, tracks)
 
-                if (!englishOverrideApplied) {
-                    val englishReadiness =
-                        inspectPreferredEnglishReadiness(tracks)
+                val strictEnglishResumed =
+                    resumeStrictEnglishPlaybackIfReady(exoPlayer)
 
+                if (!strictEnglishResumed) {
                     if (
-                        strictEnglishStartupRequired() &&
-                        englishReadiness.present &&
-                        englishReadiness.supported &&
-                        englishReadiness.selected &&
-                        shouldPlayWhenReady &&
-                        !exoPlayer.playWhenReady
+                        englishOverrideApplied &&
+                        strictEnglishStartupRequired()
                     ) {
-                        exoPlayer.playWhenReady = true
-                        exoPlayer.play()
-                    }
+                        /*
+                         * Applying the English override does not start playback.
+                         * Re-check the post-override track selection even if
+                         * Media3 does not emit another onTracksChanged callback.
+                         */
+                        playerView.postDelayed({
+                            if (
+                                resultSent ||
+                                compatibilityPlayerOpen ||
+                                player !== exoPlayer
+                            ) {
+                                return@postDelayed
+                            }
 
-                    scheduleMissingAudioCheck(exoPlayer, tracks)
+                            if (!resumeStrictEnglishPlaybackIfReady(exoPlayer)) {
+                                scheduleMissingAudioCheck(
+                                    exoPlayer,
+                                    exoPlayer.currentTracks
+                                )
+                            }
+                        }, 250L)
+                    } else {
+                        scheduleMissingAudioCheck(exoPlayer, tracks)
+                    }
                 }
             }
 
@@ -1846,6 +1861,8 @@ class PlayerActivity : Activity() {
 
         if (shouldPlayWhenReady && !holdForEnglishStartup) {
             exoPlayer.play()
+        } else if (holdForEnglishStartup) {
+            armStrictEnglishStartupWatchdog()
         }
 
         if (live) {
@@ -2350,6 +2367,7 @@ class PlayerActivity : Activity() {
 
     private fun releasePlayer() {
         audioPresenceCheckGeneration += 1
+        clearStrictEnglishStartupWatchdog()
         clearLiveWatchdogs()
 
         if (::playerView.isInitialized) {
