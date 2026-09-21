@@ -4016,6 +4016,37 @@ test("manual source selection survives label enrichment and clears stale black-s
   );
 });
 
+test("Android Mobile resolved VOD is owned by the native Media3 player", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+  const mobileMainSource = readFileSync(
+    new URL(
+      "../android-mobile/app/src/main/java/com/mediagod/mobile/MainActivity.kt",
+      import.meta.url
+    ),
+    "utf8"
+  );
+
+  assert.match(playerSource, /const isAndroidMobileNativeRuntime = \(\) =>/);
+  assert.match(playerSource, /MediaGodMobile\|AndroidMobile/);
+  assert.match(playerSource, /mg-android-mobile/);
+  assert.match(playerSource, /mg-native-android-mobile/);
+  assert.match(
+    playerSource,
+    /const useNativePlayback =[\s\S]{0,420}?isFireTvRemoteRuntime\(\)[\s\S]{0,120}?isAndroidMobileNativeRuntime\(\)/
+  );
+  assert.match(
+    mobileMainSource,
+    /MediaGodMobile\/1\.0 AndroidMobile/
+  );
+  assert.match(
+    mobileMainSource,
+    /mg-android-mobile','mg-native-android-mobile/
+  );
+});
+
 test("black-screen VOD startup waits before trying at most three ready English sources without blacklisting", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
