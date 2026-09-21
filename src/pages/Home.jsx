@@ -28,7 +28,11 @@ import FireTvAppUpdateNotice from "@/components/mg/FireTvAppUpdateNotice";
 import AndroidMobileAppUpdateNotice from "@/components/mg/AndroidMobileAppUpdateNotice";
 import PageErrorBoundary from "@/components/mg/PageErrorBoundary";
 import OnboardingTour from "@/components/mg/OnboardingTour";
-import { installGlobalDiagnosticsCapture } from "@/components/mg/diagnostics";
+import {
+  installGlobalDiagnosticsCapture,
+  recordDiagnosticError,
+  sanitizeDiagnosticText,
+} from "@/components/mg/diagnostics";
 import {
   applyUxPreferences,
   readUxPreferences,
@@ -418,10 +422,12 @@ class DetailErrorBoundary
     error,
     info
   ) {
+    recordDiagnosticError(error, "details");
+
     console.error(
       "Media God detail screen error:",
-      error,
-      info
+      sanitizeDiagnosticText(error?.message || error),
+      sanitizeDiagnosticText(info?.componentStack || "")
     );
   }
 
@@ -772,7 +778,13 @@ function MediaGodApp() {
           if (!channelName) {
             console.error(
               "Media God received an invalid live TV search result:",
-              rawItem
+              sanitizeDiagnosticText(
+                JSON.stringify({
+                  media_type: rawItem?.media_type || rawItem?.mediaType || "",
+                  title: rawItem?.title || rawItem?.name || "",
+                  id: rawItem?.id || rawItem?.tvg_id || "",
+                })
+              )
             );
 
             return;
@@ -805,7 +817,13 @@ function MediaGodApp() {
         ) {
           console.error(
             "Media God received an invalid search result:",
-            rawItem
+            sanitizeDiagnosticText(
+              JSON.stringify({
+                media_type: rawItem?.media_type || rawItem?.mediaType || "",
+                title: rawItem?.title || rawItem?.name || "",
+                id: rawItem?.id || rawItem?.tmdb_id || rawItem?.tmdbId || "",
+              })
+            )
           );
 
           return;
