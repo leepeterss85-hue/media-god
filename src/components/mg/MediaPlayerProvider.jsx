@@ -1213,12 +1213,18 @@ const fetchAddonSources = async (
     ),
   };
 
-  if (
-    args?.fastMode ||
-    !shouldUseBrowserAddonFallback(
-      safeServer
-    )
-  ) {
+  /*
+   * Fast mode is deliberately server-only so the first paint stays quick.
+   *
+   * The full discovery pass must ALWAYS run the browser-side addon lookup and
+   * merge it with the server result. A single surviving server row (typically
+   * AIOStreams) used to suppress browser recovery completely, which meant
+   * working Comet/Torrentio rows disappeared from the user's source list.
+   *
+   * Browser lookup is therefore a supplement in the full pass, not merely a
+   * fallback when the server returns zero streams.
+   */
+  if (args?.fastMode) {
     return {
       ...safeServer,
 
