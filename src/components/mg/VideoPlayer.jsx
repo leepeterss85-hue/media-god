@@ -9160,6 +9160,15 @@ export default function VideoPlayer({
       subtitleLanguage: trackPreferences.subtitleLanguage,
       subtitlesEnabled: trackPreferences.subtitlesEnabled,
       preferForcedSubtitles: trackPreferences.preferForcedSubtitles,
+      strictEnglishPlayback:
+        !isLive &&
+        playbackMediaType !== "live" &&
+        !manualSourceLockActive() &&
+        ["en", "eng", "english"].includes(
+          String(trackPreferences.audioLanguage || "en")
+            .trim()
+            .toLowerCase()
+        ),
       subtitles: Array.isArray(active?.subtitles)
         ? active.subtitles
         : [],
