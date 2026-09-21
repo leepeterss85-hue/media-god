@@ -164,6 +164,15 @@ export const smartSourceEvidence = (item, languageHint = "unknown") => {
     languageRank = 0;
     languageLabel = "English verified";
     languageVerified = true;
+  } else if (allKnownTracksForeign) {
+    /*
+     * Real audio-track metadata outranks release-name guesses. A filename that
+     * says ENG/MULTI must never stay eligible for automatic playback after the
+     * inspected file proves that every known audio track is non-English.
+     */
+    languageRank = 4;
+    languageLabel = "Foreign";
+    languageVerified = true;
   } else if (ENGLISH_MARKER_RE.test(text) || languageHint === "english") {
     languageRank = 1;
     languageLabel = "English tagged";
@@ -171,7 +180,6 @@ export const smartSourceEvidence = (item, languageHint = "unknown") => {
     languageRank = 2;
     languageLabel = "Multi";
   } else if (
-    allKnownTracksForeign ||
     (
       FOREIGN_MARKER_RE.test(text) &&
       !ENGLISH_MARKER_RE.test(text) &&
