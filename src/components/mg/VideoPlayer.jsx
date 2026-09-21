@@ -1318,9 +1318,18 @@ export default function VideoPlayer({
        * is exactly how a foreign/default or silent track slips through. Strict
        * autoplay therefore requires file-level English-main proof.
        */
+      const nativeRuntimeEnglishFallback = Boolean(
+        item?.runtimeQualificationFallback === true &&
+          item?.runtimeNativeEnglishValidation === true &&
+          isNativeFireTvPlayerAvailable() &&
+          Number(entry?.languageRank ?? 3) <= 1 &&
+          Number(entry?.hardSubtitleRank ?? 0) === 0
+      );
+
       return Boolean(
         item?.launchQualified === true ||
-          englishProof === "proven"
+          englishProof === "proven" ||
+          nativeRuntimeEnglishFallback
       );
     }
 
@@ -2371,6 +2380,21 @@ export default function VideoPlayer({
       return false;
     }
 
+    /*
+     * A cached provider URL marked for native runtime validation deliberately
+     * bypasses incomplete server-side audio metadata. The installed app starts
+     * it paused/muted and Media3/LibVLC must prove/select English before any
+     * audio is released. Unknown metadata is therefore safe to hand to native;
+     * explicit foreign metadata is still rejected here.
+     */
+    if (
+      englishState === "unknown" &&
+      active?.runtimeNativeEnglishValidation === true &&
+      isNativeFireTvPlayerAvailable()
+    ) {
+      return false;
+    }
+
     englishAudioRejectedRef.current.add(activeIdx);
 
     setRdResolving(false);
@@ -2933,8 +2957,16 @@ export default function VideoPlayer({
   const activeRuntimeReady = Boolean(
     activeTorrentHash && runtimeReadyTorrentHashes.has(activeTorrentHash)
   );
+  const runtimeNativeDirect = Boolean(
+    active?.runtimeNativeDirect === true &&
+      active?.runtimeQualificationFallback === true &&
+      active?.runtimeNativeEnglishValidation === true &&
+      isNativeFireTvPlayerAvailable() &&
+      /^https?:\/\//i.test(String(activeUrl || "").trim())
+  );
+
   const launchQualifiedDirect = Boolean(
-    active?.launchQualified === true &&
+    (active?.launchQualified === true || runtimeNativeDirect) &&
       /^https?:\/\//i.test(String(activeUrl || "").trim())
   );
 
