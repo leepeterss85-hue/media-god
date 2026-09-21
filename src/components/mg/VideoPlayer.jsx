@@ -690,6 +690,73 @@ const isDesktopFullscreenBrowser = () => {
 const audioTrackScore = (track, preferredLanguage = "en") =>
   preferredAudioTrackScore(track, preferredLanguage);
 
+const resolvedMediaEnglishMainState = (mediaInfo) => {
+  const tracks = Array.isArray(mediaInfo?.audio_tracks)
+    ? mediaInfo.audio_tracks
+    : [];
+
+  if (tracks.length === 0) return "unknown";
+
+  let explicitlyKnownTracks = 0;
+
+  for (const track of tracks) {
+    const language = String(
+      track?.language_iso ||
+        track?.language ||
+        track?.lang_iso ||
+        track?.lang ||
+        ""
+    )
+      .trim()
+      .toLowerCase()
+      .replace(/_/g, "-");
+
+    const labelText = [
+      track?.title,
+      track?.name,
+      track?.label,
+      track?.description,
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    const english =
+      language === "en" ||
+      language === "eng" ||
+      language === "english" ||
+      language.startsWith("en-") ||
+      /(?:^|[^a-z0-9])(?:eng|en|english)(?=$|[^a-z0-9])/i.test(
+        labelText
+      );
+
+    const commentaryOrDescriptive =
+      /\b(?:commentary|audio[ ._-]*description|descriptive|visually[ ._-]*impaired|director(?:'s)?[ ._-]*commentary|cast[ ._-]*commentary)\b/i.test(
+        labelText
+      );
+
+    if (english && !commentaryOrDescriptive) {
+      return "proven";
+    }
+
+    const languageKnownFromCode =
+      Boolean(language) &&
+      !["und", "unknown", "zxx", "mul", "multi"].includes(language);
+
+    const languageKnownFromLabel =
+      /\b(?:english|eng|french|fra|fre|spanish|spa|german|deu|ger|italian|ita|portuguese|por|dutch|nld|dut|polish|pol|japanese|jpn|korean|kor|chinese|mandarin|cantonese|zho|chi|arabic|ara|hindi|hin|russian|rus|ukrainian|ukr|turkish|tur)\b/i.test(
+        labelText
+      );
+
+    if (languageKnownFromCode || languageKnownFromLabel) {
+      explicitlyKnownTracks += 1;
+    }
+  }
+
+  return explicitlyKnownTracks === tracks.length
+    ? "foreign"
+    : "unknown";
+};
+
 export default function VideoPlayer({
   source,
   onClose,
