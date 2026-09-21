@@ -81,6 +81,15 @@ import {
   sourceIsAioStreamsCandidate,
   sourceLooksTorrentLike,
 } from "../src/components/mg/sourceProviderIdentity.js";
+import {
+  bestSmartUpgradeEntry,
+  clearSmartSourceHistoryForTests,
+  detectSmartSourceUpgrade,
+  recordSmartSourceBaseline,
+  smartSourceEvidence,
+  sourceAudioTier,
+  sourceReleaseTier,
+} from "../src/components/mg/smartSourceSelection.js";
 
 const memoryStorage = () => {
   const data = new Map();
@@ -103,6 +112,144 @@ const memoryStorage = () => {
 globalThis.window = {
   localStorage: memoryStorage(),
 };
+
+test("smart VOD language evidence trusts real audio metadata before release tags", () => {
+  const verifiedEnglish = smartSourceEvidence(
+    {
+      label: "Movie.2026.FRENCH.1080p.WEB-DL",
+      mediaInfo: {
+        streams: [
+          { codec_type: "audio", language: "eng", codec_name: "eac3" },
+          { codec_type: "video", codec_name: "h264" },
+        ],
+      },
+    },
+    "foreign"
+  );
+
+  const taggedEnglish = smartSourceEvidence(
+    { label: "Movie.2026.ENG.1080p.WEB-DL" },
+    "english"
+  );
+  const multilingual = smartSourceEvidence(
+    { label: "Movie.2026.MULTI.1080p.WEB-DL" },
+    "multi"
+  );
+  const foreignOnly = smartSourceEvidence(
+    { label: "Movie.2026.FRENCH.1080p.WEB-DL" },
+    "foreign"
+  );
+
+  assert.equal(verifiedEnglish.languageRank, 0);
+  assert.equal(verifiedEnglish.languageVerified, true);
+  assert.equal(taggedEnglish.languageRank, 1);
+  assert.equal(multilingual.languageRank, 2);
+  assert.equal(foreignOnly.languageRank, 4);
+});
+
+test("smart VOD quality tiers prefer remux and modern audio without hiding alternatives", () => {
+  assert.equal(
+    sourceReleaseTier({ label: "Movie.2026.2160p.BluRay.REMUX" }).rank,
+    0
+  );
+  assert.ok(
+    sourceReleaseTier({ label: "Movie.2026.1080p.WEB-DL" }).rank <
+      sourceReleaseTier({ label: "Movie.2026.1080p.WEBRip" }).rank
+  );
+  assert.ok(
+    sourceAudioTier({ audioCodec: "TrueHD Atmos" }).rank <
+      sourceAudioTier({ audioCodec: "AAC 2.0" }).rank
+  );
+
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+  const selectorSource = readFileSync(
+    new URL("../src/components/mg/sourceSelectorPreferences.js", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(playerSource, /All sources \/ quality/);
+  assert.match(playerSource, /manualSourceLockActive\(\)/);
+  assert.match(selectorSource, /Source visibility is intentionally independent of cache\/readiness state/);
+});
+
+test("smart VOD history flags a materially better version on a later visit", () => {
+  clearSmartSourceHistoryForTests();
+
+  const context = {
+    mediaType: "movie",
+    imdbId: "tt-smart-upgrade-test",
+    title: "Upgrade Test",
+    year: 2026,
+  };
+
+  const oldEntry = {
+    index: 0,
+    languageRank: 1,
+    releaseTierRank: 3,
+    releaseTierLabel: "WEB-DL",
+    audioTierRank: 3,
+    audioTierLabel: "Modern compressed",
+    resolution: 1080,
+    compatibilityTier: 1,
+    cached: true,
+    item: {
+      infoHash: "a".repeat(40),
+      label: "Upgrade.Test.2026.1080p.WEB-DL.ENG.AAC",
+    },
+  };
+
+  const newEntry = {
+    index: 1,
+    languageRank: 0,
+    releaseTierRank: 0,
+    releaseTierLabel: "Remux",
+    audioTierRank: 0,
+    audioTierLabel: "Lossless",
+    resolution: 2160,
+    compatibilityTier: 1,
+    cached: true,
+    item: {
+      infoHash: "b".repeat(40),
+      label: "Upgrade.Test.2026.2160p.BluRay.REMUX.ENG.TrueHD",
+      mediaInfo: {
+        streams: [
+          { codec_type: "audio", language: "eng", codec_name: "truehd" },
+        ],
+      },
+    },
+  };
+
+  recordSmartSourceBaseline(context, oldEntry);
+  const upgrade = detectSmartSourceUpgrade(context, newEntry);
+
+  assert.equal(upgrade.available, true);
+  assert.equal(bestSmartUpgradeEntry([oldEntry, newEntry]), newEntry);
+});
+
+test("smart ranking is explicitly bypassed for Live TV", () => {
+  const selectorSource = readFileSync(
+    new URL("../src/components/mg/sourceSelectorPreferences.js", import.meta.url),
+    "utf8"
+  );
+  const orderSource = readFileSync(
+    new URL("../src/components/mg/automaticSourceOrder.js", import.meta.url),
+    "utf8"
+  );
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(
+    selectorSource,
+    /String\(options\?\.mediaType \|\| ""\)\.toLowerCase\(\) !== "live"/
+  );
+  assert.match(orderSource, /compareLegacyEntries/);
+  assert.match(playerSource, /\{ mediaType: playbackMediaType \}/);
+});
 
 test("Fire TV Home cards preserve movie vs TV identity", () => {
   const mediaCardSource = readFileSync(
