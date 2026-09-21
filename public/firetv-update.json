@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 65,
-  "versionName": "1.4.60",
+  "versionCode": 66,
+  "versionName": "1.4.61",
   "title": "Media God Fire TV",
-  "message": "Media God Fire TV 1.4.60 makes cached Torrentio/Real-Debrid movie and episode sources win autoplay over AIOStreams, preserves verified title/year aliases through final RD resolution, and waits for the selected web source before native playback starts.",
+  "message": "Media God Fire TV 1.4.61 makes one-click VOD playback proof-positive for English main audio, passes the verified Real-Debrid audio-track identity into Media3/LibVLC, and automatically rejects unknown, foreign, commentary or silent startup audio instead of treating any cached source as safe.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
