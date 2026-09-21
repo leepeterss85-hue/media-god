@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 50,
-  "versionName": "1.0.49",
+  "versionCode": 51,
+  "versionName": "1.0.50",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.49 fixes the strict-English startup spinner. After Media3 applies the English-track override it now explicitly releases the paused startup gate, re-checks the post-override selection, and falls back to the compatibility decoder after 10 seconds instead of spinning indefinitely.",
+  "message": "Media God Mobile 1.0.50 fixes the remaining Stuart-style spinner path. Cached Comet RD playback URLs can now be handed directly to the native player for real English-track validation when server metadata cannot prove audio quickly, and LibVLC opening/buffering now has a hard timeout with one software retry instead of spinning indefinitely.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
