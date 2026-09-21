@@ -1952,8 +1952,15 @@ const orderSources = ({
    */
   const languageOrdered = prioritisePreferredAudioSources(ordered);
   const sortMode = readSourceSortMode();
+  const onlyLiveSources =
+    usable.length > 0 &&
+    live.length === usable.length;
 
-  return sortSourceEntries(languageOrdered, sortMode).map((entry) => entry.item);
+  return sortSourceEntries(
+    languageOrdered,
+    sortMode,
+    { mediaType: onlyLiveSources ? "live" : "vod" }
+  ).map((entry) => entry.item);
 };
 
 const compactAddonDiagnostics = (
