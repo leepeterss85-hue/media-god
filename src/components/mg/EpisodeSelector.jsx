@@ -17,10 +17,7 @@ import {
 import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
 
-import {
-  buildMediaSources,
-  usePlayer,
-} from "@/components/mg/PlayerProvider";
+import { usePlayer } from "@/components/mg/PlayerProvider";
 
 const asPositiveInt = (
   value
@@ -177,8 +174,6 @@ const showTitleOf = (
 export default function EpisodeSelector({
   item,
   seasons,
-  trailerUrl,
-  providers,
 }) {
   const player =
     usePlayer();
@@ -850,24 +845,13 @@ export default function EpisodeSelector({
         preferRd:
           true,
 
+        /*
+         * Episodes must never inherit the parent show's trailer or "where to
+         * watch" provider links. Start with an empty source list so the central
+         * episode resolver can discover the exact SxxExx playback candidates.
+         */
         sources:
-          buildMediaSources({
-            title:
-              episodeTitle,
-
-            id:
-              item?.id ||
-              item
-                ?.tmdb_id ||
-              item
-                ?.tmdbId,
-
-            poster,
-
-            trailerUrl,
-
-            providers,
-          }),
+          [],
       });
     };
 
