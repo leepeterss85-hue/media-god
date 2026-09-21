@@ -2422,11 +2422,94 @@ test("strict VOD autoplay keeps the full chooser and falls back to cached runtim
   );
   assert.match(providerSource, /const runtimeFallbackSources/);
   assert.match(providerSource, /runtimeQualificationFallback:\s*true/);
-  assert.match(providerSource, /rd-runtime-audio-rescue/);
+  assert.match(providerSource, /native-runtime-audio-rescue/);
   assert.match(
     providerSource,
     /targetCount:\s*5[\s\S]{0,80}scanLimit:\s*20[\s\S]{0,80}timeBudgetMs:\s*6500/
   );
+});
+
+test("cached Comet RD playback URLs become native English-validation fallbacks instead of a waiting spinner", () => {
+  const serverSource = readFileSync(
+    new URL("../base44/functions/fetchAddonStreams/entry.ts", import.meta.url),
+    "utf8"
+  );
+  const browserSource = readFileSync(
+    new URL("../src/components/mg/addonBrowserFallback.js", import.meta.url),
+    "utf8"
+  );
+  const providerSource = readFileSync(
+    new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
+    "utf8"
+  );
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  for (const source of [serverSource, browserSource]) {
+    assert.match(source, /providerPlaybackUrl:/);
+    assert.match(
+      source,
+      /cacheSignal\.cached[\s\S]{0,140}?isHttp\(rawUrl\)/
+    );
+  }
+
+  assert.match(
+    providerSource,
+    /nativeRuntimeAudioValidationAvailable[\s\S]{0,700}?runtimeQualificationFallback: true[\s\S]{0,160}?runtimeNativeEnglishValidation: true/
+  );
+  assert.match(providerSource, /runtimeNativeDirect: true/);
+  assert.match(
+    providerSource,
+    /native-runtime-english-track-validation/
+  );
+  assert.match(
+    providerSource,
+    /qualifiedLaunchSources\.length > 0[\s\S]{0,260}?nativeRuntimeAudioValidationAvailable[\s\S]{0,120}?runtimeFallbackSources/
+  );
+
+  assert.match(playerSource, /nativeRuntimeEnglishFallback/);
+  assert.match(playerSource, /runtimeNativeDirect/);
+  assert.match(
+    playerSource,
+    /englishState === "unknown"[\s\S]{0,160}?runtimeNativeEnglishValidation[\s\S]{0,120}?isNativeFireTvPlayerAvailable/
+  );
+});
+
+test("LibVLC compatibility playback cannot spin forever during opening or buffering", () => {
+  for (const relativePath of [
+    "../android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt",
+    "../firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt",
+  ]) {
+    const source = readFileSync(
+      new URL(relativePath, import.meta.url),
+      "utf8"
+    );
+
+    assert.match(source, /STARTUP_TIMEOUT_MS = 10000L/);
+    assert.match(source, /private val startupTimeoutRunnable = Runnable/);
+    assert.match(
+      source,
+      /compatibilityRetryPass < 1[\s\S]{0,220}?forceSoftwareVideoDecode = true/
+    );
+    assert.match(
+      source,
+      /Strict English playback could not start this source in the compatibility decoder/
+    );
+    assert.match(
+      source,
+      /armStartupTimeout\(\)[\s\S]{0,100}?player\.play\(\)/
+    );
+    assert.match(
+      source,
+      /MediaPlayer\.Event\.Playing[\s\S]{0,160}?compatibilityPlaybackStarted = true[\s\S]{0,100}?clearStartupTimeout\(\)/
+    );
+    assert.match(
+      source,
+      /private fun releaseCompatibilityPlayer\(\)[\s\S]{0,140}?clearStartupTimeout\(\)/
+    );
+  }
 });
 
 test("TMDB and IMDb ids are validated against requested title and year", () => {
@@ -3302,7 +3385,7 @@ test("authoritative IDs stay isolated and English autoplay never falls back blin
   );
   assert.match(
     providerSource,
-    /rd-runtime-english-capable-hint/
+    /native-runtime-english-track-validation/
   );
   assert.match(providerSource, /prioritiseEnglishAutoplayCandidates/);
   assert.match(
@@ -4204,7 +4287,7 @@ test("strict English autoplay requires track proof while Multi remains eligible 
   assert.match(providerSource, /PER_SOURCE_PROBE_MS = 2400/);
   assert.match(
     providerSource,
-    /requireExplicitEnglishRuntimeFallback[\s\S]{0,100}?\? \[\]/
+    /nativeRuntimeAudioValidationAvailable[\s\S]{0,220}?runtimeFallbackSources/
   );
 });
 
