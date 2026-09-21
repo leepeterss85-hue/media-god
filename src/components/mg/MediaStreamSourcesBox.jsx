@@ -309,6 +309,12 @@ export default function StreamSourcesBox({
       player?.hasDebrid
     );
 
+  const isEpisodeRequest =
+    mediaType ===
+      "tv" &&
+    season != null &&
+    episode != null;
+
   const [
     liveMatches,
     setLiveMatches,
@@ -806,6 +812,22 @@ export default function StreamSourcesBox({
               return false;
             }
 
+            if (
+              isEpisodeRequest &&
+              [
+                "youtube",
+                "provider",
+                "external",
+              ].includes(
+                String(
+                  stream?.type ||
+                  ""
+                ).toLowerCase()
+              )
+            ) {
+              return false;
+            }
+
             return Boolean(
               stream?.src ||
               stream?.url ||
@@ -817,6 +839,8 @@ export default function StreamSourcesBox({
         addonStreams,
 
         hasDebrid,
+
+        isEpisodeRequest,
       ]
     );
 
@@ -1241,7 +1265,14 @@ export default function StreamSourcesBox({
         playCombinedDebrid,
     },
 
-    ...(providers || [])
+    ...(
+      isEpisodeRequest
+        ? []
+        : (
+            providers ||
+            []
+          )
+    )
       .filter(
         (provider) =>
           provider?.link
@@ -1338,7 +1369,9 @@ export default function StreamSourcesBox({
         pasteMagnet,
     },
 
-    ...(trailerUrl
+    ...(
+      trailerUrl &&
+      !isEpisodeRequest
       ? [
           {
             id:
