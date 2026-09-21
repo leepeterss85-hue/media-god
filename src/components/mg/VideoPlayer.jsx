@@ -987,6 +987,7 @@ export default function VideoPlayer({
     abandoned: new Set(),
   });
   const vodStartupAttemptedRef = useRef(new Set());
+  const englishAudioRejectedRef = useRef(new Set());
 
   const sourcesForSelector = sources.map((item) => {
     const hash = sourceTorrentHash(item);
@@ -1012,6 +1013,17 @@ export default function VideoPlayer({
           source?.rdEpisode != null
         ? "tv"
         : "movie";
+
+  const preferredAudioLanguage = String(
+    readTrackPreferences()?.audioLanguage || "en"
+  )
+    .trim()
+    .toLowerCase();
+
+  const strictEnglishAutoplayRequired =
+    source?.qualifiedLaunchOnly === true &&
+    playbackMediaType !== "live" &&
+    ["en", "eng", "english"].includes(preferredAudioLanguage);
 
   const manualSourceLockActive = () => {
     if (playbackMediaType === "live") return false;
@@ -1184,6 +1196,22 @@ export default function VideoPlayer({
     const runtimeReady = Boolean(
       hash && runtimeReadyTorrentHashes.has(hash)
     );
+
+    if (strictEnglishAutoplayRequired) {
+      const mediaInfo =
+        item?.mediaInfo && typeof item.mediaInfo === "object"
+          ? item.mediaInfo
+          : item?.media_info && typeof item.media_info === "object"
+            ? item.media_info
+            : null;
+      const englishProof =
+        resolvedMediaEnglishMainState(mediaInfo);
+
+      return Boolean(
+        item?.launchQualified === true ||
+          englishProof === "proven"
+      );
+    }
 
     /*
      * The source selector already owns Media God's canonical "Best available"
