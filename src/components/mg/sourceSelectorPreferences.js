@@ -365,7 +365,7 @@ export const sortSourceEntries = (
       sourceIsUserSelectable(entry.item) &&
       sourceLooksTorrentLike(entry.item) &&
       entry.aioStreamsFallback !== true &&
-      Number(entry.languageRank ?? 3) <= 2
+      Number(entry.languageRank ?? 3) <= 3
   );
 
   if (mode === "best") {
@@ -386,7 +386,7 @@ export const sortSourceEntries = (
           entry.item?.launchQualified === true ||
           entry.item?.runtimeQualificationFallback === true ||
           (
-            entry.languageRank <= 2 &&
+            entry.languageRank <= 3 &&
             (
               entry.provenWorking === true ||
               entry.compatibilityTier <= 1
