@@ -8941,6 +8941,9 @@ export default function VideoPlayer({
     /*
      * NATIVE STARTUP ARBITRATION
      *
+     * Release 1.0.46 / 1.4.60 keeps this arbitration in the hosted player so
+     * Android and Fire TV launch the same approved source the web UI selected.
+     *
      * playNativeFireTv() marks Android playback ownership as soon as the native
      * activity ACCEPTS a request. That is earlier than actual playback. If an
      * unproven AIOStreams/direct row reaches this effect in the same React
