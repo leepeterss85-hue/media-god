@@ -7,6 +7,7 @@ import {
   Loader2,
   Play,
   RefreshCw,
+  Search,
 } from "lucide-react";
 
 import { base44 } from "@/api/base44Client";
@@ -24,6 +25,8 @@ export default function RoadmapView({ onBack }) {
   const [error, setError] = useState("");
   const [tab, setTab] = useState("film");
   const [busyKey, setBusyKey] = useState("");
+  const [query, setQuery] = useState("");
+  const [dateWindow, setDateWindow] = useState("all");
   const player = usePlayer();
   const releaseRegion = detectStreamingRegion();
   const releaseRegionLabel = streamingRegionName(releaseRegion);
@@ -68,13 +71,62 @@ export default function RoadmapView({ onBack }) {
     load();
   }, [load]);
 
-  const filtered = useMemo(
-    () =>
+  const filtered = useMemo(() => {
+    const base =
       tab === "film"
         ? films
-        : broadcasts.filter((item) => item?.type === "broadcast"),
-    [films, broadcasts, tab]
-  );
+        : broadcasts.filter((item) => item?.type === "broadcast");
+
+    const wanted = query.trim().toLowerCase();
+    const now = new Date();
+    const today = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate()
+    ).getTime();
+    const windowDays =
+      dateWindow === "7"
+        ? 7
+        : dateWindow === "30"
+          ? 30
+          : null;
+
+    return base
+      .filter((item) => {
+        if (
+          wanted &&
+          !`${item?.title || ""} ${item?.description || item?.overview || item?.plot || ""}`
+            .toLowerCase()
+            .includes(wanted)
+        ) {
+          return false;
+        }
+
+        if (!windowDays) return true;
+
+        const rawDate =
+          item?.release_date ||
+          item?.air_date ||
+          item?.date ||
+          item?.created_date ||
+          "";
+        const time = Date.parse(rawDate);
+
+        if (!Number.isFinite(time)) return false;
+
+        const diffDays = (time - today) / 86400000;
+        return diffDays >= 0 && diffDays <= windowDays;
+      })
+      .sort((a, b) => {
+        const aDate = String(
+          a?.release_date || a?.air_date || a?.date || ""
+        );
+        const bDate = String(
+          b?.release_date || b?.air_date || b?.date || ""
+        );
+        return aDate.localeCompare(bDate);
+      });
+  }, [films, broadcasts, tab, query, dateWindow]);
 
   const fetchMedia = async (id) => {
     if (id && /^\d+$/.test(String(id))) {
@@ -220,6 +272,34 @@ export default function RoadmapView({ onBack }) {
         ))}
       </div>
 
+      <div className="mb-5 flex flex-col gap-2 rounded-xl border border-white/10 bg-mg-card/60 p-3 sm:flex-row sm:items-center">
+        <label className="relative flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search release dates…"
+            aria-label="Search release dates"
+            className="min-h-11 w-full rounded-lg border border-white/10 bg-black/25 pl-9 pr-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-mg-green/50"
+          />
+        </label>
+
+        <select
+          value={dateWindow}
+          onChange={(event) => setDateWindow(event.target.value)}
+          aria-label="Release date window"
+          className="min-h-11 rounded-lg border border-white/10 bg-[#151515] px-3 text-sm text-white/75 outline-none focus:border-mg-green/50"
+        >
+          <option value="all">All upcoming</option>
+          <option value="7">Next 7 days</option>
+          <option value="30">Next 30 days</option>
+        </select>
+
+        <span className="text-xs font-semibold text-white/40 sm:px-2">
+          {filtered.length} result{filtered.length === 1 ? "" : "s"}
+        </span>
+      </div>
+
       {error && (
         <div role="alert" className="mb-4 flex items-center gap-2 rounded-lg border border-amber-400/20 bg-amber-400/10 p-3 text-sm text-amber-100">
           <AlertCircle className="h-4 w-4 shrink-0" />
@@ -260,6 +340,7 @@ export default function RoadmapView({ onBack }) {
                       alt={item?.title || "Release date item"}
                       className="w-full h-full object-cover"
                       fittingType="fill"
+                      loading="lazy"
                     />
                   ) : (
                     <div className="h-full w-full flex items-center justify-center text-white/20">
