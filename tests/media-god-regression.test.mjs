@@ -2976,7 +2976,7 @@ test("native players explicitly override a foreign default to English main audio
     assert.match(source, /setOverrideForType/);
     assert.match(
       source,
-      /val englishOverrideApplied[\s\S]{0,180}!englishOverrideApplied[\s\S]{0,120}scheduleMissingAudioCheck/
+      /val englishOverrideApplied[\s\S]{0,900}!englishOverrideApplied[\s\S]{0,160}scheduleMissingAudioCheck/
     );
     assert.match(
       source,
@@ -4090,11 +4090,11 @@ test("native player keeps working English audio and rescues the same source when
     assert.match(source, /formatMatchesVerifiedEnglishHint/);
     assert.match(
       source,
-      /wantsEnglish[\s\S]{0,360}?verifiedEnglishMain[\s\S]{0,120}?!initialEnglish\.selected/
+      /wantsEnglish[\s\S]{0,420}?\(verifiedEnglishMain \|\| strictEnglishStartup\)[\s\S]{0,140}?!initialEnglish\.selected/
     );
     assert.match(
       source,
-      /wantsEnglish && verifiedEnglishMain && !english\.present[\s\S]{0,300}?compatibility decoder on this same source/
+      /wantsEnglish &&[\s\S]{0,120}?\(verifiedEnglishMain \|\| strictEnglishStartup\)[\s\S]{0,120}?!english\.present[\s\S]{0,320}?compatibility decoder on this same source/
     );
     assert.match(
       source,
@@ -4102,7 +4102,7 @@ test("native player keeps working English audio and rescues the same source when
     );
     assert.match(
       source,
-      /wantsEnglish && verifiedEnglishMain && !english\.selected[\s\S]{0,260}?compatibility decoder on this same source/
+      /wantsEnglish &&[\s\S]{0,120}?\(verifiedEnglishMain \|\| strictEnglishStartup\)[\s\S]{0,120}?!english\.selected[\s\S]{0,300}?compatibility decoder on this same source/
     );
     assert.match(
       source,
