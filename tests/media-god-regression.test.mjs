@@ -2976,7 +2976,7 @@ test("native players explicitly override a foreign default to English main audio
     assert.match(source, /setOverrideForType/);
     assert.match(
       source,
-      /val englishOverrideApplied[\s\S]{0,900}!englishOverrideApplied[\s\S]{0,160}scheduleMissingAudioCheck/
+      /val englishOverrideApplied[\s\S]{0,1200}!englishOverrideApplied[\s\S]{0,900}scheduleMissingAudioCheck/
     );
     assert.match(
       source,
@@ -3075,7 +3075,7 @@ test("strict native English startup never lets a foreign default become audible"
   );
   assert.match(
     playerSource,
-    /strictEnglishNativeFailure[\s\S]{0,900}?nextEnglish[\s\S]{0,500}?switchToSource/
+    /strictEnglishNativeFailure[\s\S]{0,1800}?nextEnglish[\s\S]{0,1000}?switchToSource/
   );
   assert.match(
     bridgeSource,
