@@ -1356,6 +1356,202 @@ export default function SettingsView() {
         </div>
       </div>
 
+      <div className="bg-mg-card border border-white/10 rounded-lg 3xl:rounded-xl overflow-hidden mb-6 3xl:mb-8">
+        <div className="p-4 3xl:p-5 border-b border-white/5">
+          <div className="flex items-center gap-2">
+            <Accessibility className="h-4 w-4 text-mg-green" />
+            <h2 className="text-sm 3xl:text-lg font-bold text-white">
+              Appearance & Accessibility
+            </h2>
+          </div>
+          <p className="mt-1 text-xs 3xl:text-sm text-white/40">
+            Change catalogue text, contrast, motion and card density without changing playback.
+          </p>
+        </div>
+
+        <div className="divide-y divide-white/5">
+          <div className="flex flex-col gap-3 p-4 3xl:p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="flex items-center gap-2 text-sm 3xl:text-base font-medium text-white">
+                <Type className="h-4 w-4 text-white/45" />
+                Text size
+              </p>
+              <p className="mt-1 text-xs 3xl:text-sm text-white/40">
+                Makes menus, search and catalogue screens easier to read.
+              </p>
+            </div>
+            <select
+              value={uxPreferences.textScale}
+              onChange={(event) => updateUx({ textScale: event.target.value })}
+              aria-label="Application text size"
+              className="min-h-11 rounded-md border border-white/10 bg-mg-surface px-3 text-sm text-white outline-none focus:border-mg-green"
+            >
+              <option value="standard">Standard</option>
+              <option value="large">Large</option>
+              <option value="extra-large">Extra large</option>
+            </select>
+          </div>
+
+          {[
+            {
+              key: "highContrast",
+              title: "High contrast",
+              description: "Raises contrast and strengthens focus outlines across non-player screens.",
+            },
+            {
+              key: "reducedMotion",
+              title: "Reduced motion",
+              description: "Minimises catalogue animations and transitions.",
+            },
+            {
+              key: "compactCards",
+              title: "Compact home cards",
+              description: "Fits more posters on the Home screen without changing playback.",
+            },
+          ].map((setting) => (
+            <div
+              key={setting.key}
+              className="flex items-center justify-between gap-4 p-4 3xl:p-5"
+            >
+              <div>
+                <p className="text-sm 3xl:text-base font-medium text-white">
+                  {setting.title}
+                </p>
+                <p className="mt-1 text-xs 3xl:text-sm text-white/40">
+                  {setting.description}
+                </p>
+              </div>
+              <Toggle
+                on={Boolean(uxPreferences[setting.key])}
+                onClick={() =>
+                  updateUx({ [setting.key]: !uxPreferences[setting.key] })
+                }
+                label={`Toggle ${setting.title.toLowerCase()}`}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-mg-card border border-white/10 rounded-lg 3xl:rounded-xl overflow-hidden mb-6 3xl:mb-8">
+        <div className="p-4 3xl:p-5 border-b border-white/5">
+          <div className="flex items-center gap-2">
+            <LayoutDashboard className="h-4 w-4 text-mg-green" />
+            <h2 className="text-sm 3xl:text-lg font-bold text-white">
+              Home screen
+            </h2>
+          </div>
+          <p className="mt-1 text-xs 3xl:text-sm text-white/40">
+            Hide rows you do not use and move the rows you care about higher or lower.
+            The featured banner stays at the top.
+          </p>
+        </div>
+
+        <div className="divide-y divide-white/5">
+          {(uxPreferences.homeOrder || []).map((sectionId, index) => {
+            const section =
+              HOME_SECONDARY_SECTIONS.find((item) => item.id === sectionId);
+            if (!section) return null;
+
+            const visible = !(uxPreferences.homeHidden || []).includes(sectionId);
+
+            return (
+              <div
+                key={sectionId}
+                className="flex items-center gap-3 p-3 3xl:p-4"
+              >
+                <button
+                  type="button"
+                  onClick={() => toggleHomeSection(sectionId)}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white"
+                  aria-label={visible ? `Hide ${section.label}` : `Show ${section.label}`}
+                  title={visible ? "Hide row" : "Show row"}
+                >
+                  {visible ? (
+                    <Eye className="h-4 w-4" />
+                  ) : (
+                    <EyeOff className="h-4 w-4" />
+                  )}
+                </button>
+
+                <div className="min-w-0 flex-1">
+                  <p className={cn(
+                    "truncate text-sm font-medium",
+                    visible ? "text-white" : "text-white/35"
+                  )}>
+                    {section.label}
+                  </p>
+                  <p className="text-[11px] text-white/30">
+                    {visible ? "Shown on Home" : "Hidden from Home"}
+                  </p>
+                </div>
+
+                <div className="flex shrink-0 gap-1">
+                  <button
+                    type="button"
+                    onClick={() => moveHome(sectionId, "up")}
+                    disabled={index === 0}
+                    className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white disabled:opacity-25"
+                    aria-label={`Move ${section.label} up`}
+                  >
+                    <ChevronUp className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveHome(sectionId, "down")}
+                    disabled={index === (uxPreferences.homeOrder || []).length - 1}
+                    className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white disabled:opacity-25"
+                    aria-label={`Move ${section.label} down`}
+                  >
+                    <ChevronDown className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="bg-mg-card border border-white/10 rounded-lg 3xl:rounded-xl p-4 3xl:p-5 mb-6 3xl:mb-8">
+        <div className="flex items-start gap-3">
+          <LifeBuoy className="mt-0.5 h-5 w-5 shrink-0 text-mg-green" />
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm 3xl:text-lg font-bold text-white">
+              Help & Report a Problem
+            </h2>
+            <p className="mt-1 text-xs 3xl:text-sm leading-5 text-white/40">
+              Copy a privacy-safe report containing the app version, device/browser
+              information and display preferences. It does not include passwords,
+              Real-Debrid tokens or private source URLs.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={copySupportReport}
+                className="min-h-11 inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/75 hover:bg-white/10 hover:text-white"
+              >
+                {supportCopied ? (
+                  <Check className="h-4 w-4 text-mg-green" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+                {supportCopied ? "Copied" : "Copy support report"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => checkAppVersion({ openPrompt: true })}
+                disabled={appVersionChecking || !appVersionInfo}
+                className="min-h-11 inline-flex items-center gap-2 rounded-lg border border-mg-green/25 bg-mg-green/10 px-4 py-2 text-sm font-semibold text-mg-green hover:bg-mg-green/15 disabled:opacity-40"
+              >
+                <RefreshCw className={cn("h-4 w-4", appVersionChecking && "animate-spin")} />
+                Check app update
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <SocialLoginSection />
 
       <PlaybackAdvancedSettings />
