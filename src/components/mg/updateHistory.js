@@ -1,5 +1,24 @@
 export const UPDATE_HISTORY = [
   {
+    id: "non-playback-ux-overhaul-2026-09-21-v1",
+    date: "21 September 2026",
+    title: "Search, Home, libraries and accessibility upgraded",
+    summary:
+      "Media God’s non-playback experience has been overhauled across Search, Home, Settings, libraries, Release Dates and app navigation while leaving playback and Live TV logic untouched.",
+    changes: [
+      "Search now keeps recent searches, caches repeated queries briefly, ranks closer title matches first and adds Movie, TV Show and year filters.",
+      "Home can now be personalised from Settings: every row below the featured banner can be hidden, shown and moved up or down.",
+      "New accessibility controls add larger text, high contrast, reduced motion and compact Home cards, with stronger focus visibility across catalogue screens.",
+      "Watchlist and Favorites now include an edit mode with multi-select and bulk removal, while poster images lazy-load to reduce unnecessary work.",
+      "Release Dates now supports title search, next-7-days and next-30-days filters, chronological sorting and a visible result count.",
+      "The Updates screen now shows the installed native app version, checks the latest release and can filter or search release notes.",
+      "Settings now includes a privacy-safe support report that copies app version, device/browser and display information without passwords, Real-Debrid tokens or private source URLs.",
+      "Detail screens now surface release date, certification/content rating and tagline when that metadata is available.",
+      "Navigation has more consistent focus identities and active-page semantics for keyboard, remote and accessibility use.",
+      "These changes are hosted UI/catalogue improvements only; no VideoPlayer, source-resolution, native-player or Live TV playback behaviour was changed by this update.",
+    ],
+  },
+  {
     id: "english-audio-same-source-recovery-2026-09-20-v1",
     date: "20 September 2026",
     title: "English audio selection no longer abandons working files",
