@@ -1,5 +1,24 @@
 export const UPDATE_HISTORY = [
   {
+    id: "resilience-diagnostics-backup-2026-09-21-v1",
+    date: "21 September 2026",
+    title: "Diagnostics, backup and regression protection added",
+    summary:
+      "Media God now has stronger safeguards around future changes, privacy-safe diagnostics, first-time guidance and a non-sensitive backup/restore path for saved catalogue data.",
+    changes: [
+      "A protected-media hash guard now blocks unrelated changes to playback, source-resolution, Live TV and native-player core files unless those files are deliberately reviewed and the baseline is explicitly updated.",
+      "The main regression gate now includes protected-media, privacy and non-playback smoke checks in addition to the existing tests, build, backend, UI and native checks.",
+      "A Diagnostics screen shows app version, platform, sign-in state, Real-Debrid connection state, addon counts, network state, viewport and recent sanitised application errors.",
+      "Diagnostics automatically redacts URLs, magnets, bearer values and credential-like text before storing or copying errors.",
+      "Backup & Restore exports only Watchlist, Favorites and display preferences, then merges missing items on restore without deleting existing data.",
+      "Backup files deliberately exclude passwords, account credentials, Real-Debrid tokens, private addon configuration, stream URLs and viewing history.",
+      "A one-time Getting Started tour explains Search, Watchlist, Favorites, library tools and Settings and can be reopened later from the Settings menu.",
+      "Home and deferred catalogue/settings pages now have contained recovery screens with Retry and Back to Home instead of allowing a single component error to blank the entire application.",
+      "AGENTS.md now tells Base44/other coding agents to treat protected playback and Live TV files as off-limits during unrelated UI/catalogue work.",
+      "No protected playback or Live TV file changed as part of this resilience update.",
+    ],
+  },
+  {
     id: "non-playback-ux-overhaul-2026-09-21-v1",
     date: "21 September 2026",
     title: "Search, Home, libraries and accessibility upgraded",
