@@ -3350,8 +3350,14 @@ test("audio and video compatibility tier drives source ordering without hiding r
   );
   assert.match(
     selectorSource,
-    /sourceIsUserSelectable\(entry\.item\)[\s\S]{0,240}?entry\.cached === true[\s\S]{0,260}?entry\.languageRank === 0[\s\S]{0,180}?entry\.compatibilityTier <= 1/
+    /sourceIsUserSelectable\(entry\.item\)[\s\S]{0,240}?entry\.cached === true/
   );
+  assert.match(
+    selectorSource,
+    /entry\.successfulPlayback === true[\s\S]{0,120}?successfulPlaybackLanguageRank/
+  );
+  assert.match(selectorSource, /entry\.languageRank === 0/);
+  assert.match(selectorSource, /entry\.compatibilityTier <= 1/);
   assert.match(
     selectorSource,
     /mode === "compatible"[\s\S]{0,220}?a\.compatibilityTier - b\.compatibilityTier/
@@ -3423,10 +3429,14 @@ test("Best chooser pins the playing VOD first and native playback receives that 
     playerSource,
     /sources:\s*selectableSourceEntries[\s\S]{0,900}?webIndex:\s*index/
   );
+  assert.match(selectorSource, /entry\.cached === true/);
   assert.match(
     selectorSource,
-    /entry\.cached === true[\s\S]{0,260}?entry\.languageRank === 0[\s\S]{0,180}?entry\.provenWorking === true[\s\S]{0,120}?entry\.compatibilityTier <= 1/
+    /entry\.successfulPlayback === true[\s\S]{0,120}?successfulPlaybackLanguageRank/
   );
+  assert.match(selectorSource, /entry\.languageRank === 0/);
+  assert.match(selectorSource, /entry\.provenWorking === true/);
+  assert.match(selectorSource, /entry\.compatibilityTier <= 1/);
   assert.match(selectorSource, /hardSubtitleRank/);
   assert.match(automaticSource, /effectiveCompatibilityTier/);
   assert.match(automaticSource, /hardSubtitleRank/);
