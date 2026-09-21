@@ -6,14 +6,22 @@ import React, {
 } from "react";
 
 import {
+  Accessibility,
   Check,
+  ChevronDown,
+  ChevronUp,
   Copy,
   ExternalLink,
+  Eye,
+  EyeOff,
   KeyRound,
+  LayoutDashboard,
+  LifeBuoy,
   Loader2,
   RefreshCw,
   ShieldCheck,
   Tv,
+  Type,
   Unlink,
   Zap,
 } from "lucide-react";
@@ -34,6 +42,13 @@ import {
   readPlaybackPreferences,
   writePlaybackPreferences,
 } from "@/components/mg/playbackPreferences";
+import {
+  HOME_SECONDARY_SECTIONS,
+  moveHomeSection,
+  readUxPreferences,
+  setHomeSectionVisible,
+  writeUxPreferences,
+} from "@/components/mg/uxPreferences";
 
 const DEFAULT_PREFERENCES = {
   autoplay: true,
@@ -327,6 +342,9 @@ export default function SettingsView() {
     appVersionChecking,
     setAppVersionChecking,
   ] = useState(false);
+
+  const [uxPreferences, setUxPreferences] = useState(readUxPreferences);
+  const [supportCopied, setSupportCopied] = useState(false);
 
   const pollTimerRef =
     useRef(null);
@@ -1194,6 +1212,59 @@ export default function SettingsView() {
       />
     </button>
   );
+
+  const updateUx = (patch) => {
+    const next = writeUxPreferences({
+      ...uxPreferences,
+      ...(typeof patch === "function" ? patch(uxPreferences) : patch),
+    });
+    setUxPreferences(next);
+    return next;
+  };
+
+  const moveHome = (sectionId, direction) => {
+    const next = moveHomeSection(uxPreferences, sectionId, direction);
+    setUxPreferences(writeUxPreferences(next));
+  };
+
+  const toggleHomeSection = (sectionId) => {
+    const visible = !(uxPreferences.homeHidden || []).includes(sectionId);
+    const next = setHomeSectionVisible(uxPreferences, sectionId, !visible);
+    setUxPreferences(writeUxPreferences(next));
+  };
+
+  const copySupportReport = async () => {
+    const info = nativeFireTvAppInfo();
+    const lines = [
+      "Media God support report",
+      `Generated: ${new Date().toISOString()}`,
+      `Platform: ${info?.platform || "web"}`,
+      `Version: ${info?.versionName || "hosted"}`,
+      `Version code: ${info?.versionCode || "n/a"}`,
+      `Browser: ${typeof navigator !== "undefined" ? navigator.userAgent : "unknown"}`,
+      `Viewport: ${typeof window !== "undefined" ? `${window.innerWidth}x${window.innerHeight}` : "unknown"}`,
+      `Text scale: ${uxPreferences.textScale}`,
+      `High contrast: ${uxPreferences.highContrast ? "on" : "off"}`,
+      `Reduced motion: ${uxPreferences.reducedMotion ? "on" : "off"}`,
+      `Compact cards: ${uxPreferences.compactCards ? "on" : "off"}`,
+    ].join("\n");
+
+    try {
+      await navigator.clipboard.writeText(lines);
+      setSupportCopied(true);
+      window.setTimeout(() => setSupportCopied(false), 1600);
+      toast({
+        title: "Support report copied",
+        description: "Paste it into your bug report or message.",
+      });
+    } catch {
+      toast({
+        title: "Could not copy support report",
+        description: lines,
+        variant: "destructive",
+      });
+    }
+  };
 
   const rdConnected =
     Boolean(
