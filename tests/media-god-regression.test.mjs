@@ -3059,6 +3059,75 @@ test("global VOD audio validation covers web, Media3 and LibVLC playback", () =>
   assert.match(bridgeSource, /preferredAudioTrackStream/);
 });
 
+test("strict native English startup never lets a foreign default become audible", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+  const bridgeSource = readFileSync(
+    new URL("../src/components/mg/nativeFireTvBridge.js", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(
+    playerSource,
+    /strictEnglishPlayback:[\s\S]{0,260}?manualSourceLockActive\(\)/
+  );
+  assert.match(
+    playerSource,
+    /strictEnglishNativeFailure[\s\S]{0,900}?nextEnglish[\s\S]{0,500}?switchToSource/
+  );
+  assert.match(
+    bridgeSource,
+    /strictEnglishPlayback = false/
+  );
+  assert.match(
+    bridgeSource,
+    /strictEnglishPlayback: Boolean\(strictEnglishPlayback\)/
+  );
+
+  for (const relativePath of [
+    "../android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt",
+    "../firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt",
+  ]) {
+    const source = readFileSync(
+      new URL(relativePath, import.meta.url),
+      "utf8"
+    );
+
+    assert.match(source, /private fun strictEnglishStartupRequired/);
+    assert.match(
+      source,
+      /holdForEnglishStartup[\s\S]{0,500}?playWhenReady =[\s\S]{0,160}?shouldPlayWhenReady && !holdForEnglishStartup[\s\S]{0,300}?setMediaItem\(mediaItem\)[\s\S]{0,100}?prepare\(\)/
+    );
+    assert.match(
+      source,
+      /englishReadiness\.present[\s\S]{0,160}?englishReadiness\.supported[\s\S]{0,160}?englishReadiness\.selected[\s\S]{0,260}?exoPlayer\.play\(\)/
+    );
+  }
+
+  for (const relativePath of [
+    "../android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt",
+    "../firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt",
+  ]) {
+    const source = readFileSync(
+      new URL(relativePath, import.meta.url),
+      "utf8"
+    );
+
+    assert.match(source, /private fun requiresStrictEnglishAudio/);
+    assert.match(source, /private fun selectedAudioIsVerifiedEnglish/);
+    assert.match(
+      source,
+      /requiresStrictEnglishAudio\(\)[\s\S]{0,140}?player\.setVolume\(0\)[\s\S]{0,180}?player\.play\(\)/
+    );
+    assert.match(
+      source,
+      /selectedIsVerifiedEnglish[\s\S]{0,500}?player\?\.setVolume\(100\)/
+    );
+  }
+});
+
 test("manual Audio control stays in the current file and never starts torrent failover", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
