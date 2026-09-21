@@ -284,6 +284,102 @@ const safeObjectHint = (value) => {
   }
 };
 
+const normaliseAudioLanguage = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, "-");
+
+const nativeAudioTrackLooksEnglish = (track) => {
+  if (track?.english === true) return true;
+
+  const language = normaliseAudioLanguage(
+    track?.language_iso ||
+      track?.language ||
+      track?.lang_iso ||
+      track?.lang ||
+      ""
+  );
+  const label = [
+    track?.title,
+    track?.name,
+    track?.label,
+    track?.description,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    language === "en" ||
+    language === "eng" ||
+    language === "english" ||
+    language.startsWith("en-") ||
+    /(?:^|[^a-z0-9])(?:en|eng|english)(?=$|[^a-z0-9])/i.test(label)
+  );
+};
+
+const nativeAudioTrackLooksCommentary = (track) =>
+  /\b(?:commentary|audio[ ._-]*description|descriptive|visually[ ._-]*impaired|director(?:'s)?[ ._-]*commentary|cast[ ._-]*commentary)\b/i.test(
+    [
+      track?.title,
+      track?.name,
+      track?.label,
+      track?.description,
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
+
+const nativePreferredEnglishAudio = (item, mediaInfo) => {
+  const tracks = Array.isArray(mediaInfo?.audio_tracks)
+    ? mediaInfo.audio_tracks
+    : [];
+  const rescueTrack =
+    item?.audioRescue?.selected_audio &&
+    typeof item.audioRescue.selected_audio === "object"
+      ? item.audioRescue.selected_audio
+      : item?.audio_rescue?.selected_audio &&
+          typeof item.audio_rescue.selected_audio === "object"
+        ? item.audio_rescue.selected_audio
+        : null;
+
+  const preferred =
+    (
+      rescueTrack &&
+      nativeAudioTrackLooksEnglish(rescueTrack) &&
+      !nativeAudioTrackLooksCommentary(rescueTrack)
+    )
+      ? rescueTrack
+      : tracks.find(
+          (track) =>
+            nativeAudioTrackLooksEnglish(track) &&
+            !nativeAudioTrackLooksCommentary(track)
+        ) || null;
+
+  return {
+    verifiedEnglishMain: Boolean(preferred),
+    preferredAudioTrackName: hintString(
+      preferred?.name ||
+        preferred?.title ||
+        preferred?.label ||
+        ""
+    ),
+    preferredAudioTrackLanguage: hintString(
+      preferred?.language_iso ||
+        preferred?.language ||
+        preferred?.lang_iso ||
+        preferred?.lang ||
+        ""
+    ),
+    preferredAudioTrackCodec: hintString(preferred?.codec || ""),
+    preferredAudioTrackStream: hintString(
+      preferred?.stream ||
+        preferred?.key ||
+        ""
+    ),
+  };
+};
+
 const nativeSourceHints = (item = {}) => {
   const mediaInfo =
     item?.mediaInfo && typeof item.mediaInfo === "object"
@@ -397,6 +493,9 @@ const nativeSourceHints = (item = {}) => {
       "color_transfer",
     ]);
 
+  const preferredEnglishAudio =
+    nativePreferredEnglishAudio(item, mediaInfo);
+
   const hintText = [
     item?.label,
     item?.name,
@@ -436,6 +535,7 @@ const nativeSourceHints = (item = {}) => {
     bitrate,
     hdrFormat,
     hintText,
+    ...preferredEnglishAudio,
   };
 };
 
@@ -580,6 +680,11 @@ export const playNativeFireTv = ({
           bitrate: hints.bitrate,
           hdrFormat: hints.hdrFormat,
           hintText: hints.hintText,
+          verifiedEnglishMain: hints.verifiedEnglishMain,
+          preferredAudioTrackName: hints.preferredAudioTrackName,
+          preferredAudioTrackLanguage: hints.preferredAudioTrackLanguage,
+          preferredAudioTrackCodec: hints.preferredAudioTrackCodec,
+          preferredAudioTrackStream: hints.preferredAudioTrackStream,
           drm:
             item?.drm && typeof item.drm === "object" && !Array.isArray(item.drm)
               ? {
@@ -628,6 +733,26 @@ export const playNativeFireTv = ({
     bitDepth: selectedHints?.bitDepth || contextHints.bitDepth || 0,
     bitrate: selectedHints?.bitrate || contextHints.bitrate || 0,
     hdrFormat: selectedHints?.hdrFormat || contextHints.hdrFormat || "",
+    verifiedEnglishMain: Boolean(
+      selectedHints?.verifiedEnglishMain ||
+        contextHints.verifiedEnglishMain
+    ),
+    preferredAudioTrackName:
+      selectedHints?.preferredAudioTrackName ||
+      contextHints.preferredAudioTrackName ||
+      "",
+    preferredAudioTrackLanguage:
+      selectedHints?.preferredAudioTrackLanguage ||
+      contextHints.preferredAudioTrackLanguage ||
+      "",
+    preferredAudioTrackCodec:
+      selectedHints?.preferredAudioTrackCodec ||
+      contextHints.preferredAudioTrackCodec ||
+      "",
+    preferredAudioTrackStream:
+      selectedHints?.preferredAudioTrackStream ||
+      contextHints.preferredAudioTrackStream ||
+      "",
   };
 
   const advancedPlayback = readPlaybackPreferences();
@@ -694,6 +819,11 @@ export const playNativeFireTv = ({
     bitDepth: resolvedHints.bitDepth,
     bitrate: resolvedHints.bitrate,
     hdrFormat: resolvedHints.hdrFormat,
+    verifiedEnglishMain: resolvedHints.verifiedEnglishMain,
+    preferredAudioTrackName: resolvedHints.preferredAudioTrackName,
+    preferredAudioTrackLanguage: resolvedHints.preferredAudioTrackLanguage,
+    preferredAudioTrackCodec: resolvedHints.preferredAudioTrackCodec,
+    preferredAudioTrackStream: resolvedHints.preferredAudioTrackStream,
     hintText: [
       selectedHints?.hintText,
       contextHints.hintText,
