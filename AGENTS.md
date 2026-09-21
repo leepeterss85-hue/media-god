@@ -32,3 +32,20 @@ npx skills add base44/skills
 - Prefer the existing Base44 CLI workflow over adding new npm scripts for Base44-specific tasks.
 - Reuse the existing SDK client and Vite plugin patterns before adding new Base44 integration paths.
 - Run the relevant checks from `package.json` before finishing code changes.
+
+## Playback / Live TV protection
+
+Playback, source resolution and Live TV are intentionally protected from unrelated work. Unless the user's request explicitly asks to change one of those areas, do **not** edit the protected media core files tracked by:
+
+- `scripts/protected-media-baseline.json`
+- `scripts/protected-media-guard.mjs`
+
+This includes the browser player/provider core, Real-Debrid/addon stream resolution, Live TV catalogue/backend files, and the Android/Fire TV native player activities.
+
+For ordinary catalogue, settings, navigation, accessibility, backup, diagnostics, account or visual work:
+
+1. keep all protected media-core hashes unchanged;
+2. run `npm run test:regression`;
+3. treat a `test:protected` failure as a stop condition, not something to bypass.
+
+If a playback or Live TV change is explicitly requested, make that change separately, review it as media-core work, and only then update the protected baseline to the newly reviewed hashes. Never refresh the baseline merely to make an unrelated build pass.
