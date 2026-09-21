@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 66,
-  "versionName": "1.4.61",
+  "versionCode": 67,
+  "versionName": "1.4.62",
   "title": "Media God Fire TV",
-  "message": "Media God Fire TV 1.4.61 makes one-click VOD playback proof-positive for English main audio, passes the verified Real-Debrid audio-track identity into Media3/LibVLC, and automatically rejects unknown, foreign, commentary or silent startup audio instead of treating any cached source as safe.",
+  "message": "Media God Fire TV 1.4.62 adds a strict native English startup gate: automatic VOD stays paused/muted until the prepared player confirms English main audio is actually selected, and a source that cannot produce English is rejected for the next English candidate instead of being kept on foreign audio.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
