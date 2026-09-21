@@ -10,7 +10,19 @@ const effectiveCompatibilityTier = (entry) =>
     ? 0
     : Number(entry?.compatibilityTier ?? 2);
 
-const compareCompatibleReadyEntries = (left, right) =>
+const compareLegacyEntries = (left, right) =>
+  effectiveCompatibilityTier(left) - effectiveCompatibilityTier(right) ||
+  Number(left?.languageRank ?? 0) - Number(right?.languageRank ?? 0) ||
+  Number(left?.hardSubtitleRank ?? 0) - Number(right?.hardSubtitleRank ?? 0) ||
+  Number(Boolean(right?.successfulPlayback)) - Number(Boolean(left?.successfulPlayback)) ||
+  Number(Boolean(right?.provenWorking)) - Number(Boolean(left?.provenWorking)) ||
+  Number(Boolean(right?.trustedCached)) - Number(Boolean(left?.trustedCached)) ||
+  Number(Boolean(right?.cached)) - Number(Boolean(left?.cached)) ||
+  Number(right?.compatibility || 0) - Number(left?.compatibility || 0) ||
+  Number(right?.resolution || 0) - Number(left?.resolution || 0) ||
+  entryIndex(left) - entryIndex(right);
+
+const compareSmartEntries = (left, right) =>
   Number(left?.languageRank ?? 3) - Number(right?.languageRank ?? 3) ||
   Number(left?.hardSubtitleRank ?? 0) - Number(right?.hardSubtitleRank ?? 0) ||
   Number(Boolean(right?.successfulPlayback)) - Number(Boolean(left?.successfulPlayback)) ||
@@ -23,6 +35,12 @@ const compareCompatibleReadyEntries = (left, right) =>
   Number(right?.compatibility || 0) - Number(left?.compatibility || 0) ||
   Number(right?.resolution || 0) - Number(left?.resolution || 0) ||
   entryIndex(left) - entryIndex(right);
+
+const compareCompatibleReadyEntries = (left, right) =>
+  left?.smartRankingEnabled === false &&
+  right?.smartRankingEnabled === false
+    ? compareLegacyEntries(left, right)
+    : compareSmartEntries(left, right);
 
 export const prioritiseCompatibleAutoplayEntries = (
   entries,
@@ -44,21 +62,7 @@ export const prioritiseCompatibleAutoplayEntries = (
 
   const remaining = list
     .filter((entry) => !preferredIndexes.has(entryIndex(entry)))
-    .sort(
-      (left, right) =>
-        Number(left?.languageRank ?? 3) - Number(right?.languageRank ?? 3) ||
-        Number(left?.hardSubtitleRank ?? 0) - Number(right?.hardSubtitleRank ?? 0) ||
-        Number(Boolean(right?.successfulPlayback)) - Number(Boolean(left?.successfulPlayback)) ||
-        Number(Boolean(right?.provenWorking)) - Number(Boolean(left?.provenWorking)) ||
-        effectiveCompatibilityTier(left) - effectiveCompatibilityTier(right) ||
-        Number(Boolean(right?.trustedCached)) - Number(Boolean(left?.trustedCached)) ||
-        Number(Boolean(right?.cached)) - Number(Boolean(left?.cached)) ||
-        Number(left?.releaseTierRank ?? 6) - Number(right?.releaseTierRank ?? 6) ||
-        Number(left?.audioTierRank ?? 4) - Number(right?.audioTierRank ?? 4) ||
-        Number(right?.compatibility || 0) - Number(left?.compatibility || 0) ||
-        Number(right?.resolution || 0) - Number(left?.resolution || 0) ||
-        entryIndex(left) - entryIndex(right)
-    );
+    .sort(compareCompatibleReadyEntries);
 
   return [
     ...preferred,
