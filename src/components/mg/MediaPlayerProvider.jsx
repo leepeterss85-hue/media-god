@@ -3704,9 +3704,15 @@ export function PlayerProvider({
           preferredAutoplayAudio === "eng" ||
           preferredAutoplayAudio === "english";
 
+        const runtimeFallbackProfile =
+          getPlaybackDeviceProfile();
+        const nativeRuntimeAudioValidationAvailable =
+          runtimeFallbackProfile?.nativePlayerAvailable === true;
+
         const runtimeFallbackSources =
           qualificationMode &&
-          qualifiedLaunchSources.length === 0
+          qualifiedLaunchSources.length === 0 &&
+          nativeRuntimeAudioValidationAvailable
             ? orderSources({
                 sources: automaticVodCandidatePool(
                   confirmedCachedPlaybackSources,
@@ -3734,14 +3740,30 @@ export function PlayerProvider({
                 hasDebrid,
                 preferRd: Boolean(request?.preferRd),
               })
-                .map((item) => ({
-                  ...item,
-                  runtimeQualificationFallback: true,
-                  launchQualification:
-                    requireExplicitEnglishRuntimeFallback
-                      ? "rd-runtime-english-capable-hint"
-                      : "rd-runtime-audio-rescue",
-                }))
+                .map((item) => {
+                  const readyProviderUrl =
+                    String(item?.providerPlaybackUrl || "").trim();
+                  const useReadyProviderUrl =
+                    /^https?:\/\//i.test(readyProviderUrl);
+
+                  return {
+                    ...item,
+                    ...(useReadyProviderUrl
+                      ? {
+                          type: "url",
+                          src: readyProviderUrl,
+                          url: readyProviderUrl,
+                          runtimeNativeDirect: true,
+                        }
+                      : {}),
+                    runtimeQualificationFallback: true,
+                    runtimeNativeEnglishValidation: true,
+                    launchQualification:
+                      requireExplicitEnglishRuntimeFallback
+                        ? "native-runtime-english-track-validation"
+                        : "native-runtime-audio-rescue",
+                  };
+                })
             : [];
 
         const diagnosticLabel =
@@ -3892,9 +3914,9 @@ export function PlayerProvider({
           qualificationMode
             ? qualifiedLaunchSources.length > 0
               ? qualifiedLaunchSources
-              : requireExplicitEnglishRuntimeFallback
-                ? []
-                : runtimeFallbackSources
+              : nativeRuntimeAudioValidationAvailable
+                ? runtimeFallbackSources
+                : []
             : [];
 
         const playerSources =
