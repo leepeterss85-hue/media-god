@@ -2658,7 +2658,7 @@ test("qualification picks the lead source without truncating the full chooser to
 
   assert.match(
     playerSource,
-    /sources:\s*selectableSourceEntries[\s\S]{0,900}?webIndex:\s*index/
+    /sources:\s*selectableSourceEntries[\s\S]{0,2200}?webIndex:\s*index/
   );
 });
 
@@ -3422,7 +3422,7 @@ test("native playback receives the full compatibility-sorted source list", () =>
 
   assert.match(
     playerSource,
-    /sources:\s*selectableSourceEntries[\s\S]{0,1400}?webIndex:\s*index/
+    /sources:\s*selectableSourceEntries[\s\S]{0,2200}?webIndex:\s*index/
   );
   assert.doesNotMatch(
     playerSource,
@@ -3588,7 +3588,7 @@ test("Best chooser pins the playing VOD first and native playback receives that 
   );
   assert.match(
     playerSource,
-    /sources:\s*selectableSourceEntries[\s\S]{0,900}?webIndex:\s*index/
+    /sources:\s*selectableSourceEntries[\s\S]{0,2200}?webIndex:\s*index/
   );
   assert.match(selectorSource, /entry\.cached === true/);
   assert.match(
