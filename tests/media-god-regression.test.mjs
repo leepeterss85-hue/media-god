@@ -3037,10 +3037,26 @@ test("global VOD audio validation covers web, Media3 and LibVLC playback", () =>
       source,
       /compatibility decoder could not find an active audio track after repeated checks/
     );
+    assert.match(
+      source,
+      /could not confirm and select the verified English main audio track/
+    );
+    assert.match(source, /hasVerifiedEnglishMainAudio/);
+    assert.match(source, /selectedIsVerifiedEnglish/);
+    assert.match(source, /preferredAudioTrackName/);
     assert.match(source, /selectedAudioTrack >= 0/);
     assert.match(source, /audioTrackCount > 0/);
     assert.match(source, /audioRecoveryPasses < 4/);
   }
+
+  const bridgeSource = readFileSync(
+    new URL("../src/components/mg/nativeFireTvBridge.js", import.meta.url),
+    "utf8"
+  );
+  assert.match(bridgeSource, /nativePreferredEnglishAudio/);
+  assert.match(bridgeSource, /verifiedEnglishMain/);
+  assert.match(bridgeSource, /preferredAudioTrackName/);
+  assert.match(bridgeSource, /preferredAudioTrackStream/);
 });
 
 test("manual Audio control stays in the current file and never starts torrent failover", () => {
@@ -3714,10 +3730,10 @@ test("AIOStreams stays fallback-only even when the addon row is typed as a torre
   assert.ok(approvalStart >= 0 && approvalEnd > approvalStart);
   const approvalBlock = playerSource.slice(approvalStart, approvalEnd);
 
-  assert.match(approvalBlock, /cachedCompatibleTorrentCandidate/);
+  assert.doesNotMatch(approvalBlock, /cachedCompatibleTorrentCandidate/);
   assert.match(
     approvalBlock,
-    /englishProof === "proven"[\s\S]{0,120}?cachedCompatibleTorrentCandidate/
+    /item\?\.launchQualified === true[\s\S]{0,100}?englishProof === "proven"/
   );
 });
 
@@ -3992,14 +4008,14 @@ test("strict English autoplay requires track proof while Multi remains eligible 
   assert.match(approvalBlock, /if \(strictEnglishAutoplayRequired\)/);
   assert.match(approvalBlock, /item\?\.launchQualified === true/);
   assert.match(approvalBlock, /englishProof === "proven"/);
-  assert.match(approvalBlock, /cachedCompatibleTorrentCandidate/);
+  assert.doesNotMatch(approvalBlock, /cachedCompatibleTorrentCandidate/);
   assert.match(
     playerSource,
     /strictEnglishAutoplayRequired[\s\S]{0,160}?languageRank \?\? 3\) <= 1[\s\S]{0,160}?languageRank \?\? 3\) === 0/
   );
   assert.match(
     playerSource,
-    /MAX_AUTOMATIC_ENGLISH_PROBES = 4/
+    /MAX_AUTOMATIC_ENGLISH_PROBES = 8/
   );
   assert.match(
     playerSource,
@@ -4007,7 +4023,11 @@ test("strict English autoplay requires track proof while Multi remains eligible 
   );
   assert.match(
     playerSource,
-    /did not contain a proven English main audio track/
+    /if \(englishState === "proven"\)/
+  );
+  assert.match(
+    playerSource,
+    /did not prove a usable English main audio track/
   );
   assert.match(providerSource, /PROBE_BATCH_SIZE = 6/);
   assert.match(providerSource, /PER_SOURCE_PROBE_MS = 2400/);
@@ -4029,9 +4049,15 @@ test("native player keeps working English audio and rescues the same source when
 
     assert.match(source, /private data class PreferredEnglishReadiness/);
     assert.match(source, /inspectPreferredEnglishReadiness/);
+    assert.match(source, /currentVerifiedEnglishMain/);
+    assert.match(source, /formatMatchesVerifiedEnglishHint/);
     assert.match(
       source,
-      /wantsEnglish[\s\S]{0,360}?initialEnglish\.present[\s\S]{0,120}?!initialEnglish\.selected/
+      /wantsEnglish[\s\S]{0,360}?verifiedEnglishMain[\s\S]{0,120}?!initialEnglish\.selected/
+    );
+    assert.match(
+      source,
+      /wantsEnglish && verifiedEnglishMain && !english\.present[\s\S]{0,300}?compatibility decoder on this same source/
     );
     assert.match(
       source,
@@ -4039,7 +4065,7 @@ test("native player keeps working English audio and rescues the same source when
     );
     assert.match(
       source,
-      /wantsEnglish && english\.present && !english\.selected[\s\S]{0,240}?compatibility decoder on this same source/
+      /wantsEnglish && verifiedEnglishMain && !english\.selected[\s\S]{0,260}?compatibility decoder on this same source/
     );
     assert.match(
       source,
