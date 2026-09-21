@@ -5226,6 +5226,16 @@ export default function VideoPlayer({
                       }
                     : {}),
 
+                  alternate_years:
+                    Array.isArray(source?.rdAlternateYears || source?.alternateYears)
+                      ? (source?.rdAlternateYears || source?.alternateYears)
+                      : [],
+
+                  alternate_titles:
+                    Array.isArray(source?.rdAlternateTitles || source?.alternateTitles)
+                      ? (source?.rdAlternateTitles || source?.alternateTitles)
+                      : [],
+
                   ...(source?.rdSeason !=
                   null
                     ? {
