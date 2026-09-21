@@ -182,6 +182,13 @@ class PlayerActivity : Activity() {
             payload.optBoolean("verifiedEnglishMain", false)
         ) ?: payload.optBoolean("verifiedEnglishMain", false)
 
+    private fun strictEnglishStartupRequired(): Boolean =
+        !live &&
+            payload.optBoolean("strictEnglishPlayback", false) &&
+            payload.optString("audioLanguage", "en")
+                .trim()
+                .lowercase() in setOf("en", "eng", "english")
+
     private fun currentPreferredEnglishTrackName(): String =
         activeSourceMetadata()?.optString("preferredAudioTrackName").orEmpty()
             .ifBlank { payload.optString("preferredAudioTrackName").trim() }
@@ -1603,6 +1610,21 @@ class PlayerActivity : Activity() {
                     enforcePreferredEnglishAudio(exoPlayer, tracks)
 
                 if (!englishOverrideApplied) {
+                    val englishReadiness =
+                        inspectPreferredEnglishReadiness(tracks)
+
+                    if (
+                        strictEnglishStartupRequired() &&
+                        englishReadiness.present &&
+                        englishReadiness.supported &&
+                        englishReadiness.selected &&
+                        shouldPlayWhenReady &&
+                        !exoPlayer.playWhenReady
+                    ) {
+                        exoPlayer.playWhenReady = true
+                        exoPlayer.play()
+                    }
+
                     scheduleMissingAudioCheck(exoPlayer, tracks)
                 }
             }
@@ -1717,8 +1739,18 @@ class PlayerActivity : Activity() {
             exoPlayer.seekTo(restorePositionMs)
         }
 
-        exoPlayer.playWhenReady = shouldPlayWhenReady
-        if (shouldPlayWhenReady) {
+        val holdForEnglishStartup =
+            strictEnglishStartupRequired()
+
+        /*
+         * Automatic English VOD is not allowed to become audible until the
+         * prepared file's real track groups confirm that English main audio is
+         * selected. This prevents a foreign/default track from ever becoming
+         * the audible startup track while Media3 is still discovering tracks.
+         */
+        exoPlayer.playWhenReady =
+            shouldPlayWhenReady && !holdForEnglishStartup
+        if (shouldPlayWhenReady && !holdForEnglishStartup) {
             exoPlayer.play()
         }
 
@@ -1948,6 +1980,8 @@ class PlayerActivity : Activity() {
             inspectPreferredEnglishReadiness(tracks)
         val verifiedEnglishMain =
             currentVerifiedEnglishMain()
+        val strictEnglishStartup =
+            strictEnglishStartupRequired()
 
         /*
          * A risky codec is not itself a playback failure. If Media3 reports an
@@ -1971,7 +2005,7 @@ class PlayerActivity : Activity() {
                 !initialAudio.selected ||
                 (
                     wantsEnglish &&
-                        verifiedEnglishMain &&
+                        (verifiedEnglishMain || strictEnglishStartup) &&
                         !initialEnglish.selected
                 )
 
@@ -2014,12 +2048,16 @@ class PlayerActivity : Activity() {
             val audio = inspectAudioReadiness(currentTracks)
             val english = inspectPreferredEnglishReadiness(currentTracks)
             val reason = when {
-                wantsEnglish && verifiedEnglishMain && !english.present ->
-                    "This file was verified to contain English main audio, but Media3 did not expose that track. Trying the compatibility decoder on this same source."
+                wantsEnglish &&
+                    (verifiedEnglishMain || strictEnglishStartup) &&
+                    !english.present ->
+                    "Strict English playback could not find an English main track in Media3. Trying the compatibility decoder on this same source."
                 wantsEnglish && english.present && !english.supported ->
                     "An English audio track is present but this device cannot decode it in Media3. Trying the compatibility decoder on this same source."
-                wantsEnglish && verifiedEnglishMain && !english.selected ->
-                    "An English main track was verified but Media3 did not select it. Trying the compatibility decoder on this same source."
+                wantsEnglish &&
+                    (verifiedEnglishMain || strictEnglishStartup) &&
+                    !english.selected ->
+                    "Strict English playback did not select the English main track. Trying the compatibility decoder on this same source."
                 !audio.present ->
                     "Media3 found video but no audio track. Trying the compatibility decoder."
                 !audio.supported ->
