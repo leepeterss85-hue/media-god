@@ -3759,10 +3759,19 @@ test("strict English autoplay requires track proof while Multi remains eligible 
 
   assert.match(playerSource, /strictEnglishAutoplayRequired/);
   assert.match(playerSource, /resolvedMediaEnglishMainState/);
-  assert.match(
-    playerSource,
-    /if \(strictEnglishAutoplayRequired\)[\s\S]{0,420}?item\?\.launchQualified === true[\s\S]{0,160}?englishProof === "proven"/
+
+  const approvalStart = playerSource.indexOf("const autoplayEntryApproved =");
+  const approvalEnd = playerSource.indexOf(
+    "const bestApprovedAutoplaySourceIndex",
+    approvalStart
   );
+  assert.ok(approvalStart >= 0 && approvalEnd > approvalStart);
+  const approvalBlock = playerSource.slice(approvalStart, approvalEnd);
+
+  assert.match(approvalBlock, /if \(strictEnglishAutoplayRequired\)/);
+  assert.match(approvalBlock, /item\?\.launchQualified === true/);
+  assert.match(approvalBlock, /englishProof === "proven"/);
+  assert.match(approvalBlock, /cachedCompatibleTorrentCandidate/);
   assert.match(
     playerSource,
     /strictEnglishAutoplayRequired[\s\S]{0,160}?languageRank \?\? 3\) <= 1[\s\S]{0,160}?languageRank \?\? 3\) === 0/
