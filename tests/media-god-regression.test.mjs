@@ -3001,7 +3001,7 @@ test("native players explicitly override a foreign default to English main audio
     assert.match(source, /setOverrideForType/);
     assert.match(
       source,
-      /val englishOverrideApplied[\s\S]{0,1200}!englishOverrideApplied[\s\S]{0,900}scheduleMissingAudioCheck/
+      /val englishOverrideApplied[\s\S]{0,300}?resumeStrictEnglishPlaybackIfReady\(exoPlayer\)[\s\S]{0,900}?postDelayed[\s\S]{0,700}?scheduleMissingAudioCheck/
     );
     assert.match(
       source,
@@ -3127,7 +3127,16 @@ test("strict native English startup never lets a foreign default become audible"
     );
     assert.match(
       source,
-      /englishReadiness\.present[\s\S]{0,160}?englishReadiness\.supported[\s\S]{0,160}?englishReadiness\.selected[\s\S]{0,260}?exoPlayer\.play\(\)/
+      /private fun resumeStrictEnglishPlaybackIfReady[\s\S]{0,700}?english\.present[\s\S]{0,180}?english\.supported[\s\S]{0,180}?english\.selected[\s\S]{0,320}?activePlayer\.playWhenReady = true[\s\S]{0,120}?activePlayer\.play\(\)/
+    );
+    assert.match(source, /STRICT_ENGLISH_STARTUP_TIMEOUT_MS = 10000L/);
+    assert.match(
+      source,
+      /strictEnglishStartupWatchdogRunnable[\s\S]{0,900}?launchCompatibilityPlayer[\s\S]{0,300}?could not start with a confirmed English main audio track/
+    );
+    assert.match(
+      source,
+      /holdForEnglishStartup[\s\S]{0,700}?armStrictEnglishStartupWatchdog\(\)/
     );
   }
 
