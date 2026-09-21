@@ -907,6 +907,21 @@ const normaliseStream = (
       resolutionStrategy:
         cacheSignal.cached ? "cached_debrid" : "rd_magnet",
 
+      /*
+       * Comet's [RD⚡] rows already carry a ready playback URL as well as the
+       * torrent hash. Keep that URL as a native-runtime fallback instead of
+       * throwing it away when we normalise the row into a magnet. Media God can
+       * still prefer strict Real-Debrid inspection first, but the installed app
+       * can hand this ready URL to Media3 and let the native English gate inspect
+       * the real tracks if metadata qualification times out.
+       */
+      providerPlaybackUrl:
+        cacheSignal.cached &&
+        isHttp(rawUrl) &&
+        !hasRequiredRequestHeaders(stream)
+          ? rawUrl
+          : undefined,
+
       torrentTrackers:
         suppliedTrackers,
     };
