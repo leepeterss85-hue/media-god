@@ -2446,10 +2446,14 @@ export default function VideoPlayer({
       label = "This release",
     } = {}
   ) => {
-    if (
-      !strictEnglishAutoplayRequired ||
-      manualSourceLockActive()
-    ) {
+    if (manualSourceLockActive()) {
+      return false;
+    }
+
+    const englishPreferred =
+      ["en", "eng", "english"].includes(preferredAudioLanguage);
+
+    if (!englishPreferred) {
       return false;
     }
 
@@ -2462,6 +2466,18 @@ export default function VideoPlayer({
      * row available manually but automatically probe the next candidate.
      */
     if (englishState === "proven") {
+      return false;
+    }
+
+    /*
+     * Smart Default does not stall on missing probe metadata. Filename/tag
+     * evidence may start a source when the probe is unknown, but once the real
+     * file explicitly proves foreign-only audio it is rejected automatically.
+     */
+    if (
+      englishState === "unknown" &&
+      !strictEnglishAutoplayRequired
+    ) {
       return false;
     }
 
@@ -2503,7 +2519,7 @@ export default function VideoPlayer({
             !englishAudioRejectedRef.current.has(entry?.index) &&
             !failedSourcesRef.current.has(entry?.index) &&
             sourceIsUserSelectable(item) &&
-            Number(entry?.languageRank ?? 3) <= 1 &&
+            Number(entry?.languageRank ?? 3) <= 2 &&
             Number(entry?.hardSubtitleRank ?? 0) === 0 &&
             type !== "provider" &&
             type !== "youtube" &&
@@ -8775,7 +8791,7 @@ export default function VideoPlayer({
         }
 
         return Boolean(
-          Number(entry?.languageRank ?? 3) === 0 &&
+          Number(entry?.languageRank ?? 3) <= 2 &&
           autoplayEntryApproved(entry)
         );
       });
@@ -9025,7 +9041,7 @@ export default function VideoPlayer({
                 !englishAudioRejectedRef.current.has(entry?.index) &&
                 !failedSourcesRef.current.has(entry?.index) &&
                 sourceIsUserSelectable(item) &&
-                Number(entry?.languageRank ?? 3) <= 1 &&
+                Number(entry?.languageRank ?? 3) <= 2 &&
                 Number(entry?.hardSubtitleRank ?? 0) === 0 &&
                 type !== "provider" &&
                 type !== "youtube" &&
