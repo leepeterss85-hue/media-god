@@ -4153,7 +4153,7 @@ test("startup discovery cannot flash through unverified English candidates", () 
   assert.match(playerSource, /bestEnglishAutoplayCandidateIndex/);
   assert.match(
     playerSource,
-    /Number\(entry\?\.languageRank \?\? 3\) === 0/
+    /Number\(entry\?\.languageRank \?\? 3\) <= 2/
   );
   assert.match(
     playerSource,
