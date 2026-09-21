@@ -2,6 +2,11 @@ const STORAGE_KEY = "mg:ux-preferences:v1";
 export const UX_PREFERENCES_EVENT = "mg:ux-preferences-changed";
 
 export const HOME_SECONDARY_SECTIONS = [
+  { id: "continue-watching", label: "Continue Watching" },
+  { id: "new-films", label: "New Films" },
+  { id: "new-tv", label: "New TV Shows" },
+  { id: "new-episodes", label: "New Episodes" },
+  { id: "because-you-watched", label: "Because You Watched" },
   { id: "more-tv-today", label: "More TV Airing Today" },
   { id: "recently-watched", label: "Recently Watched" },
   { id: "watchlist", label: "My Watchlist" },
