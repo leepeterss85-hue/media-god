@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 48,
-  "versionName": "1.0.47",
+  "versionCode": 49,
+  "versionName": "1.0.48",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.47 makes one-click VOD playback proof-positive for English main audio, passes the verified Real-Debrid audio-track identity into Media3/LibVLC, and automatically rejects unknown, foreign, commentary or silent startup audio instead of treating any cached source as safe.",
+  "message": "Media God Mobile 1.0.48 adds a strict native English startup gate: automatic VOD stays paused/muted until the prepared player confirms English main audio is actually selected, and a source that cannot produce English is rejected for the next English candidate instead of being kept on foreign audio.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
