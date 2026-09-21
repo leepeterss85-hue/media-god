@@ -3422,12 +3422,49 @@ test("native playback receives the full compatibility-sorted source list", () =>
 
   assert.match(
     playerSource,
-    /sources:\s*selectableSourceEntries[\s\S]{0,900}?webIndex:\s*index/
+    /sources:\s*selectableSourceEntries[\s\S]{0,1400}?webIndex:\s*index/
   );
   assert.doesNotMatch(
     playerSource,
     /sources:\s*sourcesForSelector[\s\S]{0,120}?sourceIsUserSelectable/
   );
+});
+
+test("resolved Real-Debrid audio inspection follows the active URL into native playback", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+  const bridgeSource = readFileSync(
+    new URL("../src/components/mg/nativeFireTvBridge.js", import.meta.url),
+    "utf8"
+  );
+
+  const nativeLaunchStart = playerSource.indexOf("const started = playNativeFireTv({");
+  const nativeLaunchEnd = playerSource.indexOf("if (!started)", nativeLaunchStart);
+  assert.ok(nativeLaunchStart >= 0 && nativeLaunchEnd > nativeLaunchStart);
+
+  const nativeLaunchBlock = playerSource.slice(nativeLaunchStart, nativeLaunchEnd);
+
+  assert.match(
+    nativeLaunchBlock,
+    /const effectiveCandidate =[\s\S]{0,260}?index === activeIdx && rdOverride/
+  );
+  assert.match(
+    nativeLaunchBlock,
+    /\.\.\.candidate,[\s\S]{0,100}?\.\.\.rdOverride,[\s\S]{0,100}?src: nativePlaybackUrl,[\s\S]{0,80}?url: nativePlaybackUrl/
+  );
+  assert.match(
+    nativeLaunchBlock,
+    /\.\.\.effectiveCandidate/
+  );
+
+  assert.match(bridgeSource, /const nativePreferredEnglishAudio =/);
+  assert.match(
+    bridgeSource,
+    /mediaInfo =\s*item\?\.mediaInfo/
+  );
+  assert.match(bridgeSource, /verifiedEnglishMain: Boolean\(preferred\)/);
 });
 
 test("audio and video compatibility tier drives source ordering without hiding rows", () => {
