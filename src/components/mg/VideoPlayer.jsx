@@ -77,7 +77,10 @@ import {
   detectMediaEdition,
   sourceHasEdition,
 } from "@/components/mg/mediaEdition";
-import { recordTrustedCachedSource } from "@/components/mg/trustedCachedSources";
+import {
+  recordSuccessfulPlaybackSource,
+  recordTrustedCachedSource,
+} from "@/components/mg/trustedCachedSources";
 import { sourceHasAuthoritativeCachedSignal } from "@/components/mg/sourceCacheVisibility";
 import { sourceMatchesRequestedIdentity } from "@/components/mg/sourceIdentity";
 
@@ -1939,6 +1942,16 @@ export default function VideoPlayer({
 
     autoRecoveryRef.current.lastTime = currentTime;
     autoRecoveryRef.current.lastProgressAt = Date.now();
+
+    if (!isLive && currentTime > 0.25) {
+      const activeEntry = sortedSourceEntries.find(
+        (entry) => entry?.index === activeIdx
+      );
+
+      recordSuccessfulPlaybackSource(active, {
+        languageRank: Number(activeEntry?.languageRank ?? 3),
+      });
+    }
 
     if (
       cancelledFailover ||
@@ -8640,6 +8653,20 @@ export default function VideoPlayer({
       const reason = String(detail.reason || "back").toLowerCase();
       const selectedSourceIndex = Number(detail.selectedSourceIndex);
       const currentPlayRequestId = source?.playRequestId ?? null;
+
+      if (
+        !isLive &&
+        reason !== "error" &&
+        positionSeconds > 5
+      ) {
+        const activeEntry = sortedSourceEntries.find(
+          (entry) => entry?.index === activeIdx
+        );
+
+        recordSuccessfulPlaybackSource(active, {
+          languageRank: Number(activeEntry?.languageRank ?? 3),
+        });
+      }
 
       /*
        * IMPORTANT: native Media3 returns to the WebView before the async
