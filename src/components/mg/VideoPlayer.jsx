@@ -1072,10 +1072,12 @@ export default function VideoPlayer({
     .trim()
     .toLowerCase();
 
-  const strictEnglishAutoplayRequired =
-    source?.qualifiedLaunchOnly === true &&
-    playbackMediaType !== "live" &&
-    ["en", "eng", "english"].includes(preferredAudioLanguage);
+  /*
+   * Manual source-first rollback: keep English as a sorting preference only.
+   * Do not block playback, probe/reject sources, or hold startup waiting for
+   * file-level English proof.
+   */
+  const strictEnglishAutoplayRequired = false;
 
   const manualSourceLockActive = () => {
     if (playbackMediaType === "live") return false;
@@ -9280,15 +9282,7 @@ export default function VideoPlayer({
       subtitleLanguage: trackPreferences.subtitleLanguage,
       subtitlesEnabled: trackPreferences.subtitlesEnabled,
       preferForcedSubtitles: trackPreferences.preferForcedSubtitles,
-      strictEnglishPlayback:
-        !isLive &&
-        playbackMediaType !== "live" &&
-        !manualSourceLockActive() &&
-        ["en", "eng", "english"].includes(
-          String(trackPreferences.audioLanguage || "en")
-            .trim()
-            .toLowerCase()
-        ),
+      strictEnglishPlayback: false,
       subtitles: Array.isArray(active?.subtitles)
         ? active.subtitles
         : [],
