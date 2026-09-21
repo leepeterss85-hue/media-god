@@ -940,6 +940,7 @@ export default function VideoPlayer({
       playRequestId: nextPlayRequestId,
       claimed: false,
     };
+    englishAudioRejectedRef.current = new Set();
     setActiveIdx(0);
   }, [source?.playRequestId]);
 
@@ -2191,6 +2192,85 @@ export default function VideoPlayer({
     return true;
   };
 
+  const rejectResolvedForeignAutoplay = (
+    mediaInfo,
+    {
+      label = "This release",
+    } = {}
+  ) => {
+    if (
+      !strictEnglishAutoplayRequired ||
+      manualSourceLockActive()
+    ) {
+      return false;
+    }
+
+    const englishState =
+      resolvedMediaEnglishMainState(mediaInfo);
+
+    if (englishState !== "foreign") {
+      return false;
+    }
+
+    englishAudioRejectedRef.current.add(activeIdx);
+
+    setRdResolving(false);
+    setRdPolling(false);
+    setRdTorrentId(null);
+    setRdPreparation(null);
+    setRdOverride(null);
+
+    const MAX_AUTOMATIC_ENGLISH_PROBES = 4;
+
+    if (
+      englishAudioRejectedRef.current.size <
+      MAX_AUTOMATIC_ENGLISH_PROBES
+    ) {
+      const nextEnglish = sortedSourceEntries.find((entry) => {
+        const item = entry?.item;
+        const type = String(item?.type || "").toLowerCase();
+
+        return Boolean(
+          entry?.index !== activeIdx &&
+            !englishAudioRejectedRef.current.has(entry?.index) &&
+            !failedSourcesRef.current.has(entry?.index) &&
+            sourceIsUserSelectable(item) &&
+            Number(entry?.languageRank ?? 3) === 0 &&
+            Number(entry?.hardSubtitleRank ?? 0) === 0 &&
+            type !== "provider" &&
+            type !== "youtube" &&
+            (
+              autoplayEntryApproved(entry) ||
+              sourceNeedsCaching(item)
+            )
+        );
+      });
+
+      if (nextEnglish) {
+        const switched = switchToSource(nextEnglish.index, {
+          preservePosition: false,
+          statusMessage:
+            label +
+            " did not contain a proven English main audio track — checking the next English source…",
+        });
+
+        if (switched) {
+          startupAutoplayClaimRef.current = {
+            playRequestId: source?.playRequestId ?? null,
+            claimed: true,
+          };
+          return true;
+        }
+      }
+    }
+
+    setRdError(
+      "Media God checked the available automatic choices but could not prove an English main audio track. The sources were kept available; choose Source to try one manually."
+    );
+
+    return true;
+  };
+
   const tryNextSource = (
     message =
       "This source could not be played.",
@@ -3241,6 +3321,7 @@ export default function VideoPlayer({
     autoRecoveryRef.current.rapidImmediateCount = 0;
     autoRecoveryRef.current.abandoned = new Set();
     vodStartupAttemptedRef.current = new Set();
+    englishAudioRejectedRef.current = new Set();
     setLiveRecoveryNotice(null);
     if (liveRecoveryNoticeTimerRef.current) {
       window.clearTimeout(liveRecoveryNoticeTimerRef.current);
