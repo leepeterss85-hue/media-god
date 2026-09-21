@@ -5201,6 +5201,21 @@ export default function VideoPlayer({
                   latencyMs: Date.now() - rdResolveStartedAt,
                 }
               );
+
+              if (
+                rejectResolvedForeignAutoplay(
+                  data.media_info,
+                  {
+                    label:
+                      data.filename ||
+                      active?.label ||
+                      "This release",
+                  }
+                )
+              ) {
+                return;
+              }
+
               setRdOverride({
                 src:
                   data.stream_url,
@@ -5733,6 +5748,21 @@ export default function VideoPlayer({
                 "ready" &&
               data.stream_url
             ) {
+              if (
+                !rdManualFileSelection &&
+                rejectResolvedForeignAutoplay(
+                  data.media_info,
+                  {
+                    label:
+                      data.filename ||
+                      active?.label ||
+                      "This release",
+                  }
+                )
+              ) {
+                return;
+              }
+
               setRdOverride({
                 src:
                   data.stream_url,
