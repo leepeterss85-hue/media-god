@@ -1334,7 +1334,7 @@ export default function VideoPlayer({
         (
           playbackMediaType === "live" ||
           !["en", "eng", "english"].includes(preferredAudioLanguage) ||
-          Number(languageRank ?? 3) <= 2
+          Number(languageRank ?? 3) <= 3
         ) &&
         (
           !hasNonAioTorrentPlaybackCandidate ||
@@ -1430,13 +1430,13 @@ export default function VideoPlayer({
     const cachedCompatibleEnglishAutoplay = Boolean(
       entry?.cached === true &&
         Number(entry?.compatibilityTier ?? 3) <= 1 &&
-        Number(entry?.languageRank ?? 3) <= 2 &&
+        Number(entry?.languageRank ?? 3) <= 3 &&
         Number(entry?.hardSubtitleRank ?? 0) === 0
     );
 
     const runtimeReadyEnglishAutoplay = Boolean(
       runtimeReady &&
-        Number(entry?.languageRank ?? 3) <= 2 &&
+        Number(entry?.languageRank ?? 3) <= 3 &&
         Number(entry?.hardSubtitleRank ?? 0) === 0
     );
 
@@ -1473,7 +1473,7 @@ export default function VideoPlayer({
       return Boolean(
         sourceIsUserSelectable(item) &&
           !failedSourcesRef.current.has(entry?.index) &&
-          Number(entry?.languageRank ?? 3) <= 2 &&
+          Number(entry?.languageRank ?? 3) <= 3 &&
           Number(entry?.hardSubtitleRank ?? 0) === 0 &&
           type !== "provider" &&
           type !== "youtube" &&
@@ -1504,7 +1504,7 @@ export default function VideoPlayer({
               !failedSourcesRef.current.has(entry?.index) &&
               sourceIsTorrentPlaybackCandidate(item) &&
               !sourceIsAioStreamsCandidate(item) &&
-              Number(entry?.languageRank ?? 3) <= 2 &&
+              Number(entry?.languageRank ?? 3) <= 3 &&
               Number(entry?.hardSubtitleRank ?? 0) === 0 &&
               (
                 autoplayEntryApproved(entry) ||
@@ -2519,7 +2519,7 @@ export default function VideoPlayer({
             !englishAudioRejectedRef.current.has(entry?.index) &&
             !failedSourcesRef.current.has(entry?.index) &&
             sourceIsUserSelectable(item) &&
-            Number(entry?.languageRank ?? 3) <= 2 &&
+            Number(entry?.languageRank ?? 3) <= 3 &&
             Number(entry?.hardSubtitleRank ?? 0) === 0 &&
             type !== "provider" &&
             type !== "youtube" &&
@@ -8791,7 +8791,7 @@ export default function VideoPlayer({
         }
 
         return Boolean(
-          Number(entry?.languageRank ?? 3) <= 2 &&
+          Number(entry?.languageRank ?? 3) <= 3 &&
           autoplayEntryApproved(entry)
         );
       });
@@ -9041,7 +9041,7 @@ export default function VideoPlayer({
                 !englishAudioRejectedRef.current.has(entry?.index) &&
                 !failedSourcesRef.current.has(entry?.index) &&
                 sourceIsUserSelectable(item) &&
-                Number(entry?.languageRank ?? 3) <= 2 &&
+                Number(entry?.languageRank ?? 3) <= 3 &&
                 Number(entry?.hardSubtitleRank ?? 0) === 0 &&
                 type !== "provider" &&
                 type !== "youtube" &&
