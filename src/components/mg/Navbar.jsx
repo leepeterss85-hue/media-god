@@ -299,6 +299,8 @@ export default function Navbar({
                   type="button"
                   onClick={() => onSelect(item.id)}
                   title={item.label}
+                  aria-current={active === item.id ? "page" : undefined}
+                  data-mg-focus-key={`nav:${item.id}`}
                   className={cn(
                     linkClass(item.id),
                     "justify-center px-2 py-2 md:justify-start md:px-3"
@@ -319,6 +321,7 @@ export default function Navbar({
               type="button"
               onClick={onSearch}
               title="Search"
+              data-mg-focus-key="nav:search"
               className="flex min-h-11 items-center justify-center gap-3 rounded-md px-2 py-2 text-sm font-medium text-white/70 hover:bg-white/5 hover:text-white focus:bg-white/5 focus:text-white md:justify-start md:px-3"
             >
               <Search className="h-5 w-5 shrink-0" />
@@ -348,6 +351,7 @@ export default function Navbar({
               type="button"
               onClick={() => base44.auth.logout()}
               title="Sign out"
+              data-mg-focus-key="nav:logout"
               className="flex min-h-11 items-center justify-center gap-3 rounded-md px-2 py-2 text-sm font-medium text-white/70 hover:bg-white/5 hover:text-white focus:bg-white/5 focus:text-white md:justify-start md:px-3"
             >
               <LogOut className="h-5 w-5 shrink-0" />
