@@ -538,6 +538,17 @@ class CompatibilityPlayerActivity : Activity() {
             }
             player.media = media
             media.release()
+
+            /*
+             * Strict English playback starts muted. LibVLC's Playing event can
+             * arrive after the decoder has already chosen the container default,
+             * so muting here closes the last gap where foreign audio could leak
+             * before recoverAudioTrack() pins English.
+             */
+            if (requiresStrictEnglishAudio()) {
+                try { player.setVolume(0) } catch (_: Throwable) {}
+            }
+
             player.play()
         } catch (error: Throwable) {
             finishWithResult("error", error.message ?: "Could not start the compatibility decoder.")
