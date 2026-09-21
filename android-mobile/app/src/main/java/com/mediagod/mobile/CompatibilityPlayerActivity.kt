@@ -26,7 +26,10 @@ import kotlin.math.max
 
 /** Broad-format fallback plus audio/subtitle/HDR recovery controls. */
 class CompatibilityPlayerActivity : Activity() {
-    companion object { private const val CONTROLS_HIDE_DELAY_MS = 3200L }
+    companion object {
+        private const val CONTROLS_HIDE_DELAY_MS = 3200L
+        private const val STARTUP_TIMEOUT_MS = 10000L
+    }
 
     private lateinit var root: FrameLayout
     private lateinit var videoLayout: VLCVideoLayout
@@ -61,6 +64,68 @@ class CompatibilityPlayerActivity : Activity() {
     private var manualAudioTrackId = -1
     private var compatibilityRetryPass = 0
     private var forceSoftwareVideoDecode = false
+    private var compatibilityPlaybackStarted = false
+
+    private val startupTimeoutRunnable = Runnable {
+        if (
+            resultSent ||
+            compatibilityPlaybackStarted
+        ) {
+            return@Runnable
+        }
+
+        val player = vlcPlayer
+
+        if (
+            compatibilityRetryPass < 1 &&
+            player != null
+        ) {
+            compatibilityRetryPass += 1
+            forceSoftwareVideoDecode = true
+            pendingStartPositionMs =
+                max(
+                    0L,
+                    player.time.takeIf { it > 0L }
+                        ?: startPositionMs
+                )
+            startPositionMs = pendingStartPositionMs
+            root.removeCallbacks(audioRecoveryRunnable)
+            root.removeCallbacks(thermalRunnable)
+            releaseCompatibilityPlayer()
+            showStatus(
+                "Compatibility decoder · retrying this same source in software mode"
+            )
+            root.postDelayed(
+                { startCompatibilityPlayback() },
+                150L
+            )
+            return@Runnable
+        }
+
+        finishWithResult(
+            "error",
+            if (requiresStrictEnglishAudio())
+                "Strict English playback could not start this source in the compatibility decoder."
+            else
+                "The compatibility decoder could not start this source."
+        )
+    }
+
+    private fun armStartupTimeout() {
+        if (!::root.isInitialized) return
+        compatibilityPlaybackStarted = false
+        root.removeCallbacks(startupTimeoutRunnable)
+        root.postDelayed(
+            startupTimeoutRunnable,
+            STARTUP_TIMEOUT_MS
+        )
+    }
+
+    private fun clearStartupTimeout() {
+        if (::root.isInitialized) {
+            root.removeCallbacks(startupTimeoutRunnable)
+        }
+    }
 
     private fun wantsPreferredEnglishAudio(): Boolean =
         payload.optString("audioLanguage", "en")
@@ -428,6 +493,8 @@ class CompatibilityPlayerActivity : Activity() {
                         MediaPlayer.Event.Opening -> showStatus("Compatibility decoder · opening")
                         MediaPlayer.Event.Buffering -> showStatus("Compatibility decoder · buffering")
                         MediaPlayer.Event.Playing -> {
+                            compatibilityPlaybackStarted = true
+                            clearStartupTimeout()
                             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                             showStatus("Compatibility decoder")
                             try {
@@ -549,6 +616,7 @@ class CompatibilityPlayerActivity : Activity() {
                 try { player.setVolume(0) } catch (_: Throwable) {}
             }
 
+            armStartupTimeout()
             player.play()
         } catch (error: Throwable) {
             finishWithResult("error", error.message ?: "Could not start the compatibility decoder.")
@@ -944,6 +1012,8 @@ class CompatibilityPlayerActivity : Activity() {
     }
 
     private fun releaseCompatibilityPlayer() {
+        clearStartupTimeout()
+        compatibilityPlaybackStarted = false
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         vlcPlayer?.let { player ->
             try { player.stop() } catch (_: Throwable) {}
