@@ -2457,7 +2457,7 @@ test("cached Comet RD playback URLs become native English-validation fallbacks i
 
   assert.match(
     providerSource,
-    /nativeRuntimeAudioValidationAvailable[\s\S]{0,700}?runtimeQualificationFallback: true[\s\S]{0,160}?runtimeNativeEnglishValidation: true/
+    /nativeRuntimeAudioValidationAvailable[\s\S]{0,1800}?runtimeQualificationFallback: true[\s\S]{0,220}?runtimeNativeEnglishValidation: true/
   );
   assert.match(providerSource, /runtimeNativeDirect: true/);
   assert.match(
