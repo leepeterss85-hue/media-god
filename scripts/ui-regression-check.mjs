@@ -70,6 +70,7 @@ const moviesView = await read("src/components/mg/MoviesView.jsx");
 const tvShowsView = await read("src/components/mg/TvShowsView.jsx");
 const reeznCardAction = await read("src/components/mg/ReeznCardAction.jsx");
 const settings = await read("src/components/mg/SettingsView.jsx");
+const uxPreferences = await read("src/components/mg/uxPreferences.js");
 const settingsTools = await read("src/components/mg/SettingsTools.jsx");
 const fireTvUpdateNotice = await read("src/components/mg/FireTvAppUpdateNotice.jsx");
 const androidUpdateNotice = await read("src/components/mg/AndroidMobileAppUpdateNotice.jsx");
@@ -203,40 +204,26 @@ expect(
   "Home streaming-service rows are missing"
 );
 
-const HOME_LAYOUT_LOCK_ID =
-  "featured>continue-watching>new-films>new-tv>new-episodes>because-you-watched";
-const homeLockStart = homeDashboard.indexOf("HOME_LAYOUT_LOCK_START");
-const homeLockEnd = homeDashboard.indexOf("HOME_LAYOUT_LOCK_END");
-const lockedHomeBlock =
-  homeLockStart >= 0 && homeLockEnd > homeLockStart
-    ? homeDashboard.slice(homeLockStart, homeLockEnd)
-    : "";
-const lockedHomeSlots = [
-  ...lockedHomeBlock.matchAll(/HOME_LOCK_SLOT:([a-z-]+)/g),
-].map((match) => match[1]);
-const lockedMediaRowCount =
-  (lockedHomeBlock.match(/<MediaRow\b/g) || []).length;
-
 expect(
-  homeDashboard.includes(`"${HOME_LAYOUT_LOCK_ID}"`) &&
-    homeDashboard.includes("data-mg-home-layout-lock={HOME_LAYOUT_LOCK_ID}") &&
-    homeLockStart >= 0 &&
-    homeLockEnd > homeLockStart &&
-    lockedHomeSlots.join(">") === HOME_LAYOUT_LOCK_ID &&
-    (lockedHomeBlock.match(/<HeroSlider\b/g) || []).length === 1 &&
-    (lockedHomeBlock.match(/<ContinueWatchingRow\b/g) || []).length === 1 &&
-    (lockedHomeBlock.match(/<NewEpisodesRow\b/g) || []).length === 1 &&
-    lockedMediaRowCount === 3 &&
-    lockedHomeBlock.includes('title="New Films"') &&
-    lockedHomeBlock.includes('title="New TV Shows"') &&
-    lockedHomeBlock.includes("Because You Watched") &&
-    !lockedHomeBlock.includes("<RecentlyWatchedRow") &&
-    !lockedHomeBlock.includes("<StreamingServiceRows") &&
-    !lockedHomeBlock.includes('title="Trending Now"') &&
-    !lockedHomeBlock.includes('title="Popular Movies"') &&
-    !lockedHomeBlock.includes('title="Popular TV Shows"') &&
-    !lockedHomeBlock.includes('title="Top Rated Movies"'),
-  "LOCKED Home layout changed. Required order is Featured/Playing Now, Continue Watching, New Films, New TV Shows, New & Upcoming Episodes, Because You Watched. Secondary discovery rows must remain below it."
+  homeDashboard.includes("<HeroSlider") &&
+    homeDashboard.includes("(uxPreferences.homeOrder || []).map(renderHomeSection)") &&
+    homeDashboard.includes('case "continue-watching"') &&
+    homeDashboard.includes('case "new-films"') &&
+    homeDashboard.includes('case "new-tv"') &&
+    homeDashboard.includes('case "new-episodes"') &&
+    homeDashboard.includes('case "because-you-watched"') &&
+    homeDashboard.includes('case "favorites"') &&
+    homeDashboard.includes('case "trending"') &&
+    homeDashboard.includes('case "popular-movies"') &&
+    homeDashboard.includes('case "popular-tv"') &&
+    homeDashboard.includes('case "top-rated"') &&
+    uxPreferences.includes("HOME_SECONDARY_SECTIONS") &&
+    uxPreferences.includes("homeHidden") &&
+    uxPreferences.includes("homeOrder") &&
+    settings.includes("Home screen") &&
+    settings.includes("moveHome") &&
+    settings.includes("toggleHomeSection"),
+  "Home customization no longer preserves the featured banner plus user-controlled row order/visibility."
 );
 expect(
   newEpisodesRow.includes('data-mg-new-episodes-row="true"') &&
