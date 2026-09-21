@@ -2792,6 +2792,31 @@ test("Real-Debrid library fast start is already media inspected", () => {
   );
 });
 
+test("Real-Debrid library lookup prefers the exact owned RdLink episode association", () => {
+  const rdSource = readFileSync(
+    new URL("../base44/functions/realDebrid/entry.ts", import.meta.url),
+    "utf8"
+  );
+
+  const findCachedStart = rdSource.indexOf('if (action === "find_cached")');
+  const findCachedEnd = rdSource.indexOf('return Response.json(\n      {\n        error:\n          "Unknown action"', findCachedStart);
+  assert.ok(findCachedStart >= 0 && findCachedEnd > findCachedStart);
+
+  const block = rdSource.slice(findCachedStart, findCachedEnd);
+
+  assert.match(block, /base44\.entities\.RdLink\.filter/);
+  assert.match(
+    block,
+    /title,[\s\S]{0,180}?year[\s\S]{0,180}?season[\s\S]{0,180}?episode/
+  );
+  assert.match(block, /String\(link\?\.torrent_id \|\| ""\)\.trim\(\)/);
+  assert.match(
+    block,
+    /resolveStreamable\([\s\S]{0,220}?linkedTorrentId[\s\S]{0,360}?season,[\s\S]{0,100}?episode/
+  );
+  assert.match(block, /association:[\s\S]{0,80}?"exact_rdlink"/);
+});
+
 test("successful audio rescue cannot be abandoned by stale no-sound or torrent failover timers", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
