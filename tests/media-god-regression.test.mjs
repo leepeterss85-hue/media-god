@@ -262,6 +262,32 @@ test("smart ranking is explicitly bypassed for Live TV", () => {
   );
   assert.match(orderSource, /compareLegacyEntries/);
   assert.match(playerSource, /\{ mediaType: playbackMediaType \}/);
+
+  const legacyLiveOrder = prioritiseCompatibleAutoplayEntries([
+    {
+      id: "english-but-incompatible-live",
+      index: 0,
+      smartRankingEnabled: false,
+      autoplayReady: true,
+      compatibilityTier: 3,
+      languageRank: 0,
+      compatibility: 5000,
+    },
+    {
+      id: "foreign-but-compatible-live",
+      index: 1,
+      smartRankingEnabled: false,
+      autoplayReady: true,
+      compatibilityTier: 0,
+      languageRank: 3,
+      compatibility: 1000,
+    },
+  ]);
+
+  assert.deepEqual(
+    legacyLiveOrder.map((entry) => entry.id),
+    ["foreign-but-compatible-live", "english-but-incompatible-live"]
+  );
 });
 
 test("Fire TV Home cards preserve movie vs TV identity", () => {
