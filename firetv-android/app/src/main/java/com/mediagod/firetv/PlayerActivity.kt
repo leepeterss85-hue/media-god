@@ -1732,6 +1732,18 @@ class PlayerActivity : Activity() {
         playerView.player = exoPlayer
         mediaSession = MediaSession.Builder(this, exoPlayer).build()
 
+        val holdForEnglishStartup =
+            strictEnglishStartupRequired()
+
+        /*
+         * Set the startup gate before prepare(). ExoPlayer may report tracks
+         * immediately during preparation on local/cached HTTP files; setting
+         * playWhenReady first guarantees a foreign container default can never
+         * become audible in that race window.
+         */
+        exoPlayer.playWhenReady =
+            shouldPlayWhenReady && !holdForEnglishStartup
+
         exoPlayer.setMediaItem(mediaItem)
         exoPlayer.prepare()
 
@@ -1739,17 +1751,6 @@ class PlayerActivity : Activity() {
             exoPlayer.seekTo(restorePositionMs)
         }
 
-        val holdForEnglishStartup =
-            strictEnglishStartupRequired()
-
-        /*
-         * Automatic English VOD is not allowed to become audible until the
-         * prepared file's real track groups confirm that English main audio is
-         * selected. This prevents a foreign/default track from ever becoming
-         * the audible startup track while Media3 is still discovering tracks.
-         */
-        exoPlayer.playWhenReady =
-            shouldPlayWhenReady && !holdForEnglishStartup
         if (shouldPlayWhenReady && !holdForEnglishStartup) {
             exoPlayer.play()
         }
