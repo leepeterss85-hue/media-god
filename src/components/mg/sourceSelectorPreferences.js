@@ -23,6 +23,7 @@ import {
   sourceIsAioStreamsCandidate,
   sourceLooksTorrentLike,
 } from "@/components/mg/sourceProviderIdentity";
+import { smartSourceEvidence } from "@/components/mg/smartSourceSelection";
 
 export const SOURCE_SELECTOR_SORT_KEY = "mg:source-selector-sort-v1";
 export const SOURCE_SELECTOR_SORT_EVENT = "mg:source-selector-sort-changed";
@@ -265,20 +266,22 @@ const sourceHasPlaybackProof = (item) =>
       item?.runtimePlaybackVerified === true
   );
 
-const preferredSourceLanguageRank = (
+const smartEvidenceForSource = (
   item,
   preferredAudioLanguage = "en"
 ) => {
-  if (String(preferredAudioLanguage || "en").toLowerCase() !== "en") {
-    return 0;
+  const preferred = String(preferredAudioLanguage || "en").toLowerCase();
+  const languageHint = detectLanguagePreference(item);
+  const evidence = smartSourceEvidence(item, languageHint);
+
+  if (!["en", "eng", "english"].includes(preferred)) {
+    return {
+      ...evidence,
+      languageRank: 0,
+    };
   }
 
-  const language = detectLanguagePreference(item);
-  if (language === "english") return 0;
-  if (language === "multi") return 1;
-  if (language === "unknown") return 2;
-  if (language === "foreign") return 3;
-  return 2;
+  return evidence;
 };
 
 const targetResolutionScore = (resolution, target) => {
@@ -296,29 +299,42 @@ export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
     readTrackPreferences()?.audioLanguage || "en"
   ).toLowerCase();
   const list = markTrustedCachedPools(
-    (Array.isArray(sources) ? sources : []).map((item, index) => ({
-      item,
-      index,
-      cached: sourceIsCached(item),
-      resolution: sourceResolution(item),
-      size: sourceSize(item),
-      compatibility: scoreSourceCompatibility(item, sourceText(item), {
-        deviceProfile,
-        qualityPreference: "Auto",
-      }),
-      compatibilityTier: sourcePlaybackCompatibilityTier(item, sourceText(item), {
-        deviceProfile,
-      }),
-      provenWorking: sourceHasPlaybackProof(item),
-      languageRank: preferredSourceLanguageRank(item, preferredAudioLanguage),
-      hardSubtitleRank: hardSubtitleRank(item),
-      reportedSeeders: sourceReportedSeeders(item),
-      trackerRich: sourceHasTrackerRichMagnet(item),
-      aioStreamsFallback: sourceIsAioStreamsCandidate(item),
-      editionScore: String(mode || "").startsWith("edition:")
-        ? mediaEditionSortScore(item, String(mode).slice("edition:".length))
-        : 0,
-    }))
+    (Array.isArray(sources) ? sources : []).map((item, index) => {
+      const smartEvidence = smartEvidenceForSource(
+        item,
+        preferredAudioLanguage
+      );
+
+      return {
+        item,
+        index,
+        cached: sourceIsCached(item),
+        resolution: sourceResolution(item),
+        size: sourceSize(item),
+        compatibility: scoreSourceCompatibility(item, sourceText(item), {
+          deviceProfile,
+          qualityPreference: "Auto",
+        }),
+        compatibilityTier: sourcePlaybackCompatibilityTier(item, sourceText(item), {
+          deviceProfile,
+        }),
+        provenWorking: sourceHasPlaybackProof(item),
+        languageRank: smartEvidence.languageRank,
+        englishEvidenceRank: smartEvidence.languageRank,
+        englishEvidenceVerified: smartEvidence.languageVerified,
+        releaseTierRank: smartEvidence.releaseTierRank,
+        releaseTierLabel: smartEvidence.releaseTierLabel,
+        audioTierRank: smartEvidence.audioTierRank,
+        audioTierLabel: smartEvidence.audioTierLabel,
+        hardSubtitleRank: hardSubtitleRank(item),
+        reportedSeeders: sourceReportedSeeders(item),
+        trackerRich: sourceHasTrackerRichMagnet(item),
+        aioStreamsFallback: sourceIsAioStreamsCandidate(item),
+        editionScore: String(mode || "").startsWith("edition:")
+          ? mediaEditionSortScore(item, String(mode).slice("edition:".length))
+          : 0,
+      };
+    })
   );
 
   const hasNonAioTorrentCandidate = list.some(
@@ -347,7 +363,7 @@ export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
           entry.item?.launchQualified === true ||
           entry.item?.runtimeQualificationFallback === true ||
           (
-            entry.languageRank === 0 &&
+            entry.languageRank <= 2 &&
             (
               entry.provenWorking === true ||
               entry.compatibilityTier <= 1
