@@ -348,6 +348,58 @@ const normaliseSource = (item) => {
   };
 };
 
+/*
+ * A TV episode must resolve to an actual episode video. YouTube rows and
+ * provider/external landing pages are useful on a show's detail screen, but
+ * they are not episode playback sources and must never become the player's
+ * fallback when SxxExx discovery is still loading or returns no torrents.
+ */
+const EPISODE_NON_PLAYBACK_SOURCE_TYPES =
+  new Set([
+    "youtube",
+    "provider",
+    "external",
+  ]);
+
+const filterEpisodePlaybackSources = (
+  items,
+  {
+    mediaType,
+    season,
+    episode,
+  } = {}
+) => {
+  const list =
+    Array.isArray(items)
+      ? items
+      : [];
+
+  const isEpisode =
+    String(
+      mediaType ||
+      ""
+    ).toLowerCase() ===
+      "tv" &&
+    season != null &&
+    episode != null;
+
+  if (!isEpisode) {
+    return list;
+  }
+
+  return list.filter(
+    (item) =>
+      !EPISODE_NON_PLAYBACK_SOURCE_TYPES.has(
+        String(
+          item?.type ||
+          ""
+        )
+          .trim()
+          .toLowerCase()
+      )
+  );
+};
+
 const dedupeSources = (items) =>
   mergeAddonStreams(items);
 
@@ -1206,9 +1258,12 @@ const fetchAddonSources = async (
 
   const safeServer = {
     ...server,
-    streams: filterSourcesForRequestedIdentity(
-      server?.streams,
-      identityRequest
+    streams: filterEpisodePlaybackSources(
+      filterSourcesForRequestedIdentity(
+        server?.streams,
+        identityRequest
+      ),
+      args
     ),
   };
 
@@ -1269,18 +1324,24 @@ const fetchAddonSources = async (
     });
 
   const safeBrowserStreams =
-    filterSourcesForRequestedIdentity(
-      browser?.streams,
-      identityRequest
+    filterEpisodePlaybackSources(
+      filterSourcesForRequestedIdentity(
+        browser?.streams,
+        identityRequest
+      ),
+      args
     );
 
   const streams =
-    filterSourcesForRequestedIdentity(
-      mergeAddonStreams(
-        safeServer.streams,
-        safeBrowserStreams
+    filterEpisodePlaybackSources(
+      filterSourcesForRequestedIdentity(
+        mergeAddonStreams(
+          safeServer.streams,
+          safeBrowserStreams
+        ),
+        identityRequest
       ),
-      identityRequest
+      args
     );
 
   return {
@@ -2640,7 +2701,7 @@ export function PlayerProvider({
       async (
         request = {}
       ) => {
-        const originalSources =
+        let originalSources =
           Array.isArray(request?.sources)
             ? request.sources.map(normaliseSource).filter(Boolean)
             : [];
@@ -2664,6 +2725,17 @@ export function PlayerProvider({
 
         const season = request?.season ?? request?.rdSeason ?? null;
         const episode = request?.episode ?? request?.rdEpisode ?? null;
+
+        originalSources =
+          filterEpisodePlaybackSources(
+            originalSources,
+            {
+              mediaType,
+              season,
+              episode,
+            }
+          );
+
         const tmdbId =
           request?.tmdbId ?? request?.tmdb_id ?? request?.id ?? "";
 
@@ -2847,7 +2919,7 @@ export function PlayerProvider({
         const isCurrentPlay = () =>
           playSequenceRef.current === playId;
 
-        const originalSources =
+        let originalSources =
           Array.isArray(
             request?.sources
           )
@@ -2895,6 +2967,16 @@ export function PlayerProvider({
           request?.episode ??
           request?.rdEpisode ??
           null;
+
+        originalSources =
+          filterEpisodePlaybackSources(
+            originalSources,
+            {
+              mediaType,
+              season,
+              episode,
+            }
+          );
 
         const tmdbId =
           request?.tmdbId ??
