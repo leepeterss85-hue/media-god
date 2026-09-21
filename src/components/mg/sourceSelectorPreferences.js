@@ -323,6 +323,10 @@ export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
         sourceIsUserSelectable(entry.item) &&
         entry.cached === true &&
         (
+          (
+            entry.successfulPlayback === true &&
+            Number(entry.successfulPlaybackLanguageRank ?? 3) <= 1
+          ) ||
           entry.item?.launchQualified === true ||
           entry.item?.runtimeQualificationFallback === true ||
           (
