@@ -587,6 +587,7 @@ export const playNativeFireTv = ({
   sources = [],
   activeSourceIndex = 0,
   preferForcedSubtitles = false,
+  strictEnglishPlayback = false,
 }) => {
   const native = bridge();
   const streamUrl = String(url || "").trim();
@@ -804,6 +805,7 @@ export const playNativeFireTv = ({
     forceCompatibility: Boolean(forceCompatibilityReason),
     forceCompatibilityReason,
     preferForcedSubtitles: Boolean(preferForcedSubtitles),
+    strictEnglishPlayback: Boolean(strictEnglishPlayback),
     headers:
       headers && typeof headers === "object" && !Array.isArray(headers)
         ? headers
