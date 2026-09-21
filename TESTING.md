@@ -21,6 +21,30 @@ This is the normal pre-publish gate. It runs:
 - ESLint
 - Vite production build
 - Base44 backend bundle checks for Real-Debrid, Live EPG and addon stream discovery
+- Protected playback/Live TV hash guard (`npm run test:protected`)
+- Privacy audit for diagnostics/backup output and sensitive console logging (`npm run test:privacy`)
+- Non-playback Home/Search/Details/Watchlist/Favorites/Release Dates/Settings/Updates smoke checks (`npm run test:smoke`)
+
+## Protected media-core guard
+
+Run:
+
+```bash
+npm run test:protected
+```
+
+The guard compares playback/source-resolution/Live-TV core files with the reviewed hashes in `scripts/protected-media-baseline.json`. Unrelated catalogue/UI work must leave those hashes unchanged. If an explicit playback or Live TV task intentionally changes one of those files, review that media-core change separately and then update the baseline to the reviewed hashes.
+
+## Privacy and non-playback smoke checks
+
+Run:
+
+```bash
+npm run test:privacy
+npm run test:smoke
+```
+
+The privacy audit prevents support/backup features from exposing credential or private-source fields and looks for obvious sensitive console logging. The smoke test verifies the built app still exposes the main catalogue flows plus Diagnostics, Backup & Restore and Getting Started.
 
 ## Public network smoke test
 
