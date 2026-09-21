@@ -27,6 +27,11 @@ import PlaybackUpdateNotice from "@/components/mg/PlaybackUpdateNotice";
 import FireTvAppUpdateNotice from "@/components/mg/FireTvAppUpdateNotice";
 import AndroidMobileAppUpdateNotice from "@/components/mg/AndroidMobileAppUpdateNotice";
 import PageErrorBoundary from "@/components/mg/PageErrorBoundary";
+import {
+  applyUxPreferences,
+  readUxPreferences,
+  UX_PREFERENCES_EVENT,
+} from "@/components/mg/uxPreferences";
 
 const WatchlistView = lazy(() => import("@/components/mg/WatchlistView"));
 const RdLibraryView = lazy(() => import("@/components/mg/RdLibraryView"));
@@ -484,6 +489,18 @@ function MediaGodApp() {
     isOpen:
       playerOpen,
   } = usePlayer();
+
+  useEffect(() => {
+    applyUxPreferences(readUxPreferences());
+
+    const onUxChanged = (event) =>
+      applyUxPreferences(event?.detail || readUxPreferences());
+
+    window.addEventListener(UX_PREFERENCES_EVENT, onUxChanged);
+
+    return () =>
+      window.removeEventListener(UX_PREFERENCES_EVENT, onUxChanged);
+  }, []);
 
   const [
     view,
