@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 64,
-  "versionName": "1.4.59",
+  "versionCode": 65,
+  "versionName": "1.4.60",
   "title": "Media God Fire TV",
-  "message": "Media God Fire TV 1.4.59 keeps working audio playing, no longer treats multi-audio or cache readiness alone as proof of English, and sends the same mixed-language source to the compatibility decoder when its English track needs broader codec support.",
+  "message": "Media God Fire TV 1.4.60 makes cached Torrentio/Real-Debrid movie and episode sources win autoplay over AIOStreams, preserves verified title/year aliases through final RD resolution, and waits for the selected web source before native playback starts.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
