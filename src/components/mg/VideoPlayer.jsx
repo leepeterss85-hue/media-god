@@ -9165,22 +9165,42 @@ export default function VideoPlayer({
         : [],
       sources: selectableSourceEntries
         .map(({ item: candidate, index }) => {
-          const baseLabel = sourceDisplayLabel(candidate, index);
-          const provider = String(candidate?.sourceName || "").trim();
+          /*
+           * The active torrent is often resolved to a Real-Debrid HTTP URL
+           * inside VideoPlayer after the source list was created. In that case
+           * rdOverride owns the real file inspection (mediaInfo/audioRescue)
+           * while candidate still contains only the original torrent metadata.
+           *
+           * Native playback must receive the resolved inspection metadata for
+           * the active URL, otherwise Media3/LibVLC cannot know which English
+           * track Real-Debrid actually proved and may accept the foreign default.
+           */
+          const effectiveCandidate =
+            index === activeIdx && rdOverride
+              ? {
+                  ...candidate,
+                  ...rdOverride,
+                  src: nativePlaybackUrl,
+                  url: nativePlaybackUrl,
+                }
+              : candidate;
+
+          const baseLabel = sourceDisplayLabel(effectiveCandidate, index);
+          const provider = String(effectiveCandidate?.sourceName || "").trim();
           const visibleLabel =
             provider && !baseLabel.toLowerCase().includes(provider.toLowerCase())
               ? `${baseLabel} • ${provider}`
               : baseLabel;
 
           return {
-            ...candidate,
+            ...effectiveCandidate,
             label: failedSources.has(index)
               ? `Unavailable • ${visibleLabel}`
               : visibleLabel,
             url:
               index === activeIdx && /^https?:\/\//i.test(nativePlaybackUrl)
                 ? nativePlaybackUrl
-                : getSourceUrl(candidate),
+                : getSourceUrl(effectiveCandidate),
             webIndex: index,
           };
         }),
