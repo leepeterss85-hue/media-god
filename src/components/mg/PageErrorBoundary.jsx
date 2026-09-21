@@ -1,4 +1,8 @@
 import React, { Component } from "react";
+import {
+  recordDiagnosticError,
+  sanitizeDiagnosticText,
+} from "@/components/mg/diagnostics";
 
 export default class PageErrorBoundary extends Component {
   constructor(props) {
@@ -17,7 +21,16 @@ export default class PageErrorBoundary extends Component {
   }
 
   componentDidCatch(error, info) {
-    console.error("Media God page error:", error, info);
+    recordDiagnosticError(
+      error,
+      `screen:${String(this.props.label || "unknown")}`
+    );
+
+    console.error(
+      "Media God page error:",
+      sanitizeDiagnosticText(error?.message || error),
+      sanitizeDiagnosticText(info?.componentStack || "")
+    );
   }
 
   componentDidUpdate(prevProps) {
@@ -57,7 +70,7 @@ export default class PageErrorBoundary extends Component {
             Media God contained the problem to this screen instead of letting it blank the whole app.
           </p>
           <p className="mt-3 break-words rounded-lg border border-white/10 bg-black/30 p-3 text-xs text-red-300">
-            {this.state.message}
+            {sanitizeDiagnosticText(this.state.message)}
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <button
