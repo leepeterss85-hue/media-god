@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 47,
-  "versionName": "1.0.46",
+  "versionCode": 48,
+  "versionName": "1.0.47",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.46 makes cached Torrentio/Real-Debrid movie and episode sources win autoplay over AIOStreams, preserves verified title/year aliases through final RD resolution, and waits for the selected web source before native playback starts.",
+  "message": "Media God Mobile 1.0.47 makes one-click VOD playback proof-positive for English main audio, passes the verified Real-Debrid audio-track identity into Media3/LibVLC, and automatically rejects unknown, foreign, commentary or silent startup audio instead of treating any cached source as safe.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
