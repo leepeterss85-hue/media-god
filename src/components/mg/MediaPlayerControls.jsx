@@ -239,7 +239,8 @@ export default function MediaPlayerControls({
 
   const sortedSourceEntries = sortSourceEntries(
     sources,
-    sourceSortMode
+    sourceSortMode,
+    { mediaType }
   );
   /*
    * The manual chooser shows the complete discovered source list, including
@@ -1813,7 +1814,11 @@ export default function MediaPlayerControls({
 
                   if (next.startsWith("edition:")) {
                     const edition = next.slice("edition:".length);
-                    const match = sortSourceEntries(sources, next).find(
+                    const match = sortSourceEntries(
+                      sources,
+                      next,
+                      { mediaType }
+                    ).find(
                       (entry) =>
                         sourceIsUserSelectable(entry.item) &&
                         sourceHasEdition(entry.item, edition)
