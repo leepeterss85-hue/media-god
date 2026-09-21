@@ -2890,11 +2890,16 @@ export function PlayerProvider({
           request?.id ??
           "";
 
-        const qualificationMode =
-          !isLive &&
-          hasRd &&
-          !request?.noRd &&
-          request?.verifiedPlaybackPolicy !== "manual";
+        /*
+         * MANUAL SOURCE-FIRST MODE
+         *
+         * Keep discovery/cache enrichment, but do not put normal VOD behind
+         * the strict verified-launch barrier. Every direct/magnet source stays
+         * available to the player and the user can choose any source again.
+         * English/compatibility metadata may still influence sorting, but it
+         * no longer decides whether a source is allowed to open.
+         */
+        const qualificationMode = false;
 
         const initialOrderedSources =
           orderSources({
