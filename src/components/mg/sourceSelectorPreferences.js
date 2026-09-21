@@ -293,21 +293,44 @@ const targetResolutionScore = (resolution, target) => {
   return 80000 - distance * 30 + belowBonus;
 };
 
-export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
+export const sortSourceEntries = (
+  sources,
+  mode = readSourceSortMode(),
+  options = {}
+) => {
   const deviceProfile = getPlaybackDeviceProfile();
+  const smartRankingEnabled =
+    String(options?.mediaType || "").toLowerCase() !== "live";
   const preferredAudioLanguage = String(
     readTrackPreferences()?.audioLanguage || "en"
   ).toLowerCase();
   const list = markTrustedCachedPools(
     (Array.isArray(sources) ? sources : []).map((item, index) => {
-      const smartEvidence = smartEvidenceForSource(
-        item,
-        preferredAudioLanguage
-      );
+      const smartEvidence = smartRankingEnabled
+        ? smartEvidenceForSource(
+            item,
+            preferredAudioLanguage
+          )
+        : {
+            languageRank: (() => {
+              const language = detectLanguagePreference(item);
+              if (language === "english") return 0;
+              if (language === "multi") return 1;
+              if (language === "unknown") return 2;
+              if (language === "foreign") return 3;
+              return 2;
+            })(),
+            languageVerified: false,
+            releaseTierRank: 6,
+            releaseTierLabel: "Unknown",
+            audioTierRank: 4,
+            audioTierLabel: "Unknown",
+          };
 
       return {
         item,
         index,
+        smartRankingEnabled,
         cached: sourceIsCached(item),
         resolution: sourceResolution(item),
         size: sourceSize(item),
