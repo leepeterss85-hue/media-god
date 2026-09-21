@@ -763,6 +763,54 @@ export default function SearchDialog({
     ]
   );
 
+  /*
+   * Mixed search used to prepend every matching Live TV channel before the
+   * movie/TV catalogue. Short title searches such as "24" could therefore
+   * bury an exact TV-show match beneath dozens of channel rows.
+   *
+   * Keep Live TV searchable, but rank the combined list by the same title
+   * relevance used for movies/TV. When relevance ties, prefer catalogue media
+   * so an exact movie/show title is not displaced by a channel with the same
+   * text.
+   */
+  const combinedSearchResults = useMemo(() => {
+    if (mediaFilter !== "all") {
+      return filteredMediaResults;
+    }
+
+    return [
+      ...filteredMediaResults,
+      ...liveResults,
+    ].sort((a, b) => {
+      const relevance =
+        searchRelevance(b, query) -
+        searchRelevance(a, query);
+
+      if (relevance !== 0) {
+        return relevance;
+      }
+
+      const mediaPriority =
+        Number(b?.media_type !== "live") -
+        Number(a?.media_type !== "live");
+
+      if (mediaPriority !== 0) {
+        return mediaPriority;
+      }
+
+      return (
+        Number(b?.vote_average || 0) -
+          Number(a?.vote_average || 0) ||
+        String(a?.title || "").localeCompare(String(b?.title || ""))
+      );
+    });
+  }, [
+    filteredMediaResults,
+    liveResults,
+    mediaFilter,
+    query,
+  ]);
+
   if (!open) {
     return null;
   }
@@ -1029,13 +1077,9 @@ export default function SearchDialog({
               </div>
             )}
 
-          {(filteredMediaResults.length > 0 ||
-            (mediaFilter === "all" && liveResults.length > 0)) && (
+          {combinedSearchResults.length > 0 && (
               <div className="divide-y divide-white/5">
-                {[
-                  ...(mediaFilter === "all" ? liveResults : []),
-                  ...filteredMediaResults,
-                ].slice(0, 80).map(
+                {combinedSearchResults.slice(0, 80).map(
                   (
                     result
                   ) => (
