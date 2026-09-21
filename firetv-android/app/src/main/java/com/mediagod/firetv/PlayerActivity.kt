@@ -49,6 +49,7 @@ class PlayerActivity : Activity() {
         private const val CONTROLLER_HIDE_DELAY_MS = 2500L
         private const val LIVE_STARTUP_TIMEOUT_MS = 15000L
         private const val LIVE_STALL_TIMEOUT_MS = 12000L
+        private const val STRICT_ENGLISH_STARTUP_TIMEOUT_MS = 10000L
         private const val NEXT_EPISODE_COUNTDOWN_MS = 10000L
     }
 
@@ -331,6 +332,98 @@ class PlayerActivity : Activity() {
             true
         } catch (_: Throwable) {
             false
+        }
+    }
+
+    /*
+     * The strict English gate deliberately starts VOD paused. Once Media3 has
+     * actually selected a supported English main track, this is the single path
+     * that releases that gate. Keeping it separate from the override request is
+     * important: applying TrackSelectionParameters does not itself start the
+     * player.
+     */
+    private fun resumeStrictEnglishPlaybackIfReady(
+        activePlayer: ExoPlayer
+    ): Boolean {
+        if (
+            !strictEnglishStartupRequired() ||
+            !shouldPlayWhenReady ||
+            resultSent ||
+            compatibilityPlayerOpen
+        ) {
+            return false
+        }
+
+        val english =
+            inspectPreferredEnglishReadiness(activePlayer.currentTracks)
+
+        if (
+            !english.present ||
+            !english.supported ||
+            !english.selected
+        ) {
+            return false
+        }
+
+        audioPresenceCheckGeneration += 1
+        activePlayer.playWhenReady = true
+        activePlayer.play()
+
+        if (::playerView.isInitialized) {
+            playerView.removeCallbacks(strictEnglishStartupWatchdogRunnable)
+        }
+
+        return true
+    }
+
+    private val strictEnglishStartupWatchdogRunnable = Runnable {
+        if (
+            resultSent ||
+            live ||
+            compatibilityPlayerOpen ||
+            !strictEnglishStartupRequired()
+        ) {
+            return@Runnable
+        }
+
+        val activePlayer = player ?: return@Runnable
+
+        if (resumeStrictEnglishPlaybackIfReady(activePlayer)) {
+            return@Runnable
+        }
+
+        val rescued = launchCompatibilityPlayer(
+            activePlayer,
+            null,
+            "Strict English startup did not become ready within 10 seconds. Trying the compatibility decoder on this same source."
+        )
+
+        if (!rescued) {
+            finishWithResult(
+                "error",
+                "This source could not start with a confirmed English main audio track."
+            )
+        }
+    }
+
+    private fun armStrictEnglishStartupWatchdog() {
+        if (
+            !strictEnglishStartupRequired() ||
+            !::playerView.isInitialized
+        ) {
+            return
+        }
+
+        playerView.removeCallbacks(strictEnglishStartupWatchdogRunnable)
+        playerView.postDelayed(
+            strictEnglishStartupWatchdogRunnable,
+            STRICT_ENGLISH_STARTUP_TIMEOUT_MS
+        )
+    }
+
+    private fun clearStrictEnglishStartupWatchdog() {
+        if (::playerView.isInitialized) {
+            playerView.removeCallbacks(strictEnglishStartupWatchdogRunnable)
         }
     }
 
