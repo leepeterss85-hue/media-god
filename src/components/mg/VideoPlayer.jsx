@@ -603,6 +603,30 @@ const isFireTvRemoteRuntime = () => {
   );
 };
 
+/*
+ * The phone/tablet wrapper exposes the exact same MediaGodNative playback
+ * bridge as Fire TV, but it deliberately uses a different UA/class marker.
+ * Previously VOD only entered Media3 automatically on Fire TV, so Android
+ * Mobile could keep a multi-audio AIOStreams file inside WebView and simply
+ * play the container's first (foreign) audio track. The strict native English
+ * gate therefore never got a chance to run.
+ */
+const isAndroidMobileNativeRuntime = () => {
+  if (typeof navigator === "undefined" || typeof document === "undefined") {
+    return false;
+  }
+
+  const ua = String(navigator.userAgent || "");
+
+  return (
+    /(?:MediaGodMobile|AndroidMobile)/i.test(ua) ||
+    document.documentElement.classList.contains("mg-android-mobile") ||
+    document.documentElement.classList.contains("mg-native-android-mobile") ||
+    document.body?.classList.contains("mg-android-mobile") ||
+    document.body?.classList.contains("mg-native-android-mobile")
+  );
+};
+
 const browserFullscreenElement = () => {
   if (typeof document === "undefined") {
     return null;
@@ -8508,11 +8532,11 @@ export default function VideoPlayer({
   };
 
   /*
-   * Dedicated Fire TV builds expose MediaGodNative.play(). Once Media God has
-   * resolved a real HTTP media URL, hand that URL to Android Media3 instead
-   * of creating another WebView <video> decoder. The generic web/mobile app
-   * does not expose the bridge and therefore keeps the existing LiveVideo
-   * path unchanged.
+   * The installed Android Mobile and Fire TV builds expose
+   * MediaGodNative.play(). Once Media God has resolved a real HTTP media URL,
+   * hand that URL to Android Media3 instead of creating another WebView
+   * <video> decoder. A normal web browser does not expose the bridge and
+   * therefore keeps the existing LiveVideo path unchanged.
    */
   const nativeFireTvPlayer =
     isNativeFireTvPlayerAvailable();
@@ -8544,7 +8568,12 @@ export default function VideoPlayer({
   const useNativePlayback =
     !alternateEmbedFallback?.url &&
     nativePlaybackAvailable &&
-    (isLive || forceNativePlayback || isFireTvRemoteRuntime());
+    (
+      isLive ||
+      forceNativePlayback ||
+      isFireTvRemoteRuntime() ||
+      isAndroidMobileNativeRuntime()
+    );
 
   const fireTvNativeSelectorMode =
     !alternateEmbedFallback?.url &&
