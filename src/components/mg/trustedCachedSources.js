@@ -1,6 +1,8 @@
 import { detectMediaEdition } from "@/components/mg/mediaEdition";
 
 const TRUSTED_HISTORY_KEY = "mg:trusted-cached-sources:v1";
+const SUCCESSFUL_PLAYBACK_HISTORY_KEY =
+  "mg:successful-playback-sources:v1";
 const TRUSTED_HISTORY_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const TRUSTED_HISTORY_LIMIT = 300;
 
@@ -57,11 +59,11 @@ export const trustedSourceFingerprint = (item) => {
   ].join(":");
 };
 
-const readHistory = () => {
+const readHistoryForKey = (key) => {
   if (typeof window === "undefined") return {};
 
   try {
-    const raw = JSON.parse(window.localStorage.getItem(TRUSTED_HISTORY_KEY) || "{}");
+    const raw = JSON.parse(window.localStorage.getItem(key) || "{}");
     const now = Date.now();
     const fresh = Object.entries(raw && typeof raw === "object" ? raw : {})
       .filter(([, value]) => {
@@ -72,12 +74,16 @@ const readHistory = () => {
       .slice(0, TRUSTED_HISTORY_LIMIT);
 
     const cleaned = Object.fromEntries(fresh);
-    window.localStorage.setItem(TRUSTED_HISTORY_KEY, JSON.stringify(cleaned));
+    window.localStorage.setItem(key, JSON.stringify(cleaned));
     return cleaned;
   } catch {
     return {};
   }
 };
+
+const readHistory = () => readHistoryForKey(TRUSTED_HISTORY_KEY);
+const readSuccessfulPlaybackHistory = () =>
+  readHistoryForKey(SUCCESSFUL_PLAYBACK_HISTORY_KEY);
 
 export const recordTrustedCachedSource = (item) => {
   if (typeof window === "undefined" || !item) return;
@@ -106,6 +112,40 @@ export const recordTrustedCachedSource = (item) => {
   }
 };
 
+export const recordSuccessfulPlaybackSource = (
+  item,
+  {
+    languageRank = 3,
+  } = {}
+) => {
+  if (typeof window === "undefined" || !item) return;
+
+  const fingerprint = trustedSourceFingerprint(item);
+  if (!fingerprint || fingerprint === "label::") return;
+
+  try {
+    const history = readSuccessfulPlaybackHistory();
+    history[fingerprint] = {
+      verifiedAt: Date.now(),
+      languageRank: Number(languageRank ?? 3),
+      label: clean(item?.label || item?.name || item?.title),
+    };
+
+    const trimmed = Object.fromEntries(
+      Object.entries(history)
+        .sort((a, b) => Number(b[1]?.verifiedAt || 0) - Number(a[1]?.verifiedAt || 0))
+        .slice(0, TRUSTED_HISTORY_LIMIT)
+    );
+
+    window.localStorage.setItem(
+      SUCCESSFUL_PLAYBACK_HISTORY_KEY,
+      JSON.stringify(trimmed)
+    );
+  } catch {
+    // Successful playback history is only an optional local optimisation.
+  }
+};
+
 const historyScore = (item, history) => {
   const record = history[trustedSourceFingerprint(item)];
   if (!record) return 0;
@@ -130,6 +170,8 @@ const comparePoolEntries = (left, right, history) =>
 export const markTrustedCachedPools = (entries) => {
   const list = Array.isArray(entries) ? entries : [];
   const history = readHistory();
+  const successfulPlaybackHistory =
+    readSuccessfulPlaybackHistory();
   const groups = new Map();
 
   list.forEach((entry) => {
@@ -157,10 +199,26 @@ export const markTrustedCachedPools = (entries) => {
       .forEach((entry) => trusted.add(entry.index));
   });
 
-  return list.map((entry) => ({
-    ...entry,
-    trustedCached: Boolean(entry?.cached && trusted.has(entry.index)),
-  }));
+  return list.map((entry) => {
+    const playbackRecord =
+      successfulPlaybackHistory[
+        trustedSourceFingerprint(entry?.item)
+      ] || null;
+
+    return {
+      ...entry,
+      trustedCached: Boolean(entry?.cached && trusted.has(entry.index)),
+      successfulPlayback: Boolean(playbackRecord),
+      successfulPlaybackLanguageRank:
+        playbackRecord
+          ? Number(playbackRecord?.languageRank ?? 3)
+          : 3,
+      successfulPlaybackAt:
+        playbackRecord
+          ? Number(playbackRecord?.verifiedAt || 0)
+          : 0,
+    };
+  });
 };
 
 export const prioritiseTrustedCachedPools = (entries) => {
@@ -174,6 +232,12 @@ export const prioritiseTrustedCachedPools = (entries) => {
 
     if (a.trustedCached && b.trustedCached) {
       return (
+        Number(Boolean(b.successfulPlayback)) -
+          Number(Boolean(a.successfulPlayback)) ||
+        Number(a.successfulPlaybackLanguageRank ?? 3) -
+          Number(b.successfulPlaybackLanguageRank ?? 3) ||
+        Number(b.successfulPlaybackAt || 0) -
+          Number(a.successfulPlaybackAt || 0) ||
         editionRank(a.editionValue) - editionRank(b.editionValue) ||
         comparePoolEntries(a, b, history)
       );
