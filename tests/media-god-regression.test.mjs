@@ -3460,6 +3460,48 @@ test("best approved cached English row owns startup and strict waiting can still
   );
 });
 
+test("AIOStreams cannot own VOD autoplay while a cached Torrentio-style torrent candidate exists", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(playerSource, /const sourceIsTorrentPlaybackCandidate =/);
+  assert.match(
+    playerSource,
+    /type === "provider"[\s\S]{0,80}?type === "youtube"[\s\S]{0,220}?return false/
+  );
+  assert.match(
+    playerSource,
+    /const hasTorrentPlaybackCandidate =[\s\S]{0,220}?sourceIsTorrentPlaybackCandidate\(item\)/
+  );
+
+  const approvalStart = playerSource.indexOf("const autoplayEntryApproved =");
+  const approvalEnd = playerSource.indexOf(
+    "const bestApprovedAutoplaySourceIndex",
+    approvalStart
+  );
+  assert.ok(approvalStart >= 0 && approvalEnd > approvalStart);
+  const approvalBlock = playerSource.slice(approvalStart, approvalEnd);
+
+  assert.match(
+    approvalBlock,
+    /hasTorrentPlaybackCandidate[\s\S]{0,140}?type === "provider"[\s\S]{0,80}?return false/
+  );
+  assert.match(
+    approvalBlock,
+    /cachedCompatibleTorrentCandidate/
+  );
+  assert.match(
+    approvalBlock,
+    /entry\?\.cached === true[\s\S]{0,180}?sourceIsTorrentPlaybackCandidate\(item\)[\s\S]{0,180}?compatibilityTier[\s\S]{0,180}?languageRank \?\? 3\) <= 1/
+  );
+  assert.match(
+    approvalBlock,
+    /englishProof === "proven"[\s\S]{0,120}?cachedCompatibleTorrentCandidate/
+  );
+});
+
 test("startup discovery cannot flash through unverified English candidates", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
