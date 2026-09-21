@@ -1,11 +1,14 @@
 import React from "react";
 import {
+  Activity,
   Download,
+  FileJson,
   HardDrive,
   Link,
   ListVideo,
   Puzzle,
   Smartphone,
+  Sparkles,
   Users,
 } from "lucide-react";
 
@@ -60,6 +63,24 @@ const TOOLS = [
     description: "See Media God update history and release information.",
     icon: ListVideo,
   },
+  {
+    id: "diagnostics",
+    label: "Diagnostics",
+    description: "Check app health and copy a privacy-safe support report.",
+    icon: Activity,
+  },
+  {
+    id: "backup",
+    label: "Backup & Restore",
+    description: "Back up Watchlist, Favorites and display preferences.",
+    icon: FileJson,
+  },
+  {
+    id: "getting-started",
+    label: "Getting Started",
+    description: "Reopen the quick guide to Media God’s catalogue and account tools.",
+    icon: Sparkles,
+  },
 ];
 
 export default function SettingsTools({ onSelect }) {
@@ -85,7 +106,14 @@ export default function SettingsTools({ onSelect }) {
             <button
               key={item.id}
               type="button"
-              onClick={() => onSelect?.(item.target || item.id)}
+              onClick={() => {
+                if (item.id === "getting-started") {
+                  window.dispatchEvent(new CustomEvent("mg:open-onboarding"));
+                  return;
+                }
+
+                onSelect?.(item.target || item.id);
+              }}
               className={`group min-h-20 rounded-lg border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mg-green 3xl:min-h-24 3xl:p-4 ${
                 item.featured
                   ? "border-mg-green/45 bg-mg-green/[0.10] hover:border-mg-green/70 hover:bg-mg-green/[0.14]"
