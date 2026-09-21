@@ -3596,9 +3596,10 @@ test("AIOStreams stays fallback-only even when the addon row is typed as a torre
     selectorSource,
     /hasNonAioTorrentCandidate[\s\S]{0,220}?aioStreamsFallback/
   );
+  assert.match(selectorSource, /AIOStreams remains a manual\/final fallback/);
   assert.match(
     selectorSource,
-    /fallback-only[\s\S]{0,420}?prioritiseCompatibleAutoplayEntries\(fallbackRanked\)/
+    /return prioritiseCompatibleAutoplayEntries\(fallbackRanked\)/
   );
 
   const approvalStart = playerSource.indexOf("const autoplayEntryApproved =");
