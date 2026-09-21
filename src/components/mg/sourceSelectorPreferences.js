@@ -19,6 +19,10 @@ import {
   sourceHasPendingCacheSignal,
   sourceIsConfirmedCachedForPlayback,
 } from "@/components/mg/sourceCacheVisibility";
+import {
+  sourceIsAioStreamsCandidate,
+  sourceLooksTorrentLike,
+} from "@/components/mg/sourceProviderIdentity";
 
 export const SOURCE_SELECTOR_SORT_KEY = "mg:source-selector-sort-v1";
 export const SOURCE_SELECTOR_SORT_EVENT = "mg:source-selector-sort-changed";
@@ -310,10 +314,19 @@ export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
       hardSubtitleRank: hardSubtitleRank(item),
       reportedSeeders: sourceReportedSeeders(item),
       trackerRich: sourceHasTrackerRichMagnet(item),
+      aioStreamsFallback: sourceIsAioStreamsCandidate(item),
       editionScore: String(mode || "").startsWith("edition:")
         ? mediaEditionSortScore(item, String(mode).slice("edition:".length))
         : 0,
     }))
+  );
+
+  const hasNonAioTorrentCandidate = list.some(
+    (entry) =>
+      sourceIsUserSelectable(entry.item) &&
+      sourceLooksTorrentLike(entry.item) &&
+      entry.aioStreamsFallback !== true &&
+      Number(entry.languageRank ?? 3) <= 2
   );
 
   if (mode === "best") {
@@ -321,6 +334,10 @@ export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
       ...entry,
       autoplayReady:
         sourceIsUserSelectable(entry.item) &&
+        !(
+          hasNonAioTorrentCandidate &&
+          entry.aioStreamsFallback === true
+        ) &&
         entry.cached === true &&
         (
           (
@@ -339,7 +356,30 @@ export const sortSourceEntries = (sources, mode = readSourceSortMode()) => {
         ),
     }));
 
-    return prioritiseCompatibleAutoplayEntries(trustedFirst);
+    /*
+     * AIOStreams remains a manual/final fallback, but it must never sit above a
+     * normal torrent candidate merely because it was the first addon response.
+     * This matters most while every source is still uncached: without this
+     * explicit fallback rank there may be no autoplayReady rows yet, so the
+     * original addon order would otherwise keep AIOStreams at the top.
+     */
+    const fallbackRanked = trustedFirst.slice().sort(
+      (left, right) =>
+        Number(
+          Boolean(
+            hasNonAioTorrentCandidate &&
+              left.aioStreamsFallback === true
+          )
+        ) -
+        Number(
+          Boolean(
+            hasNonAioTorrentCandidate &&
+              right.aioStreamsFallback === true
+          )
+        )
+    );
+
+    return prioritiseCompatibleAutoplayEntries(fallbackRanked);
   }
 
   return list.slice().sort((a, b) => {
