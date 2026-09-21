@@ -70,6 +70,11 @@ class CompatibilityPlayerActivity : Activity() {
     private fun hasVerifiedEnglishMainAudio(): Boolean =
         payload.optBoolean("verifiedEnglishMain", false)
 
+    private fun requiresStrictEnglishAudio(): Boolean =
+        !payload.optBoolean("live", false) &&
+            payload.optBoolean("strictEnglishPlayback", false) &&
+            wantsPreferredEnglishAudio()
+
     private fun normaliseAudioTrackName(value: String): String =
         value.lowercase().replace(Regex("""[^a-z0-9]+"""), " ").trim()
 
@@ -93,6 +98,33 @@ class CompatibilityPlayerActivity : Activity() {
         return left == right || left.contains(right) || right.contains(left)
     }
 
+    private fun selectedAudioIsVerifiedEnglish(
+        player: MediaPlayer,
+        tracks: List<MediaPlayer.TrackDescription>
+    ): Boolean {
+        val selected = tracks.firstOrNull { it.id == player.audioTrack }
+            ?: return false
+        val expectedName =
+            payload.optString("preferredAudioTrackName").trim()
+        val expectedMatches =
+            if (expectedName.isBlank()) {
+                emptyList()
+            } else {
+                tracks.filter {
+                    namesMatchExpectedAudio(
+                        it.name.orEmpty(),
+                        expectedName
+                    )
+                }
+            }
+
+        return audioTrackNameLooksEnglish(selected.name.orEmpty()) ||
+            (
+                expectedMatches.size == 1 &&
+                    expectedMatches.first().id == selected.id
+            )
+    }
+
     private val hideControlsRunnable = Runnable {
         if (!resultSent && ::controls.isInitialized) {
             if (controls.hasFocus() && ::videoLayout.isInitialized) videoLayout.requestFocus()
@@ -103,7 +135,10 @@ class CompatibilityPlayerActivity : Activity() {
 
     private val audioRecoveryRunnable = object : Runnable {
         override fun run() {
-            if (resultSent || !automaticNoSoundRecovery) return
+            if (
+                resultSent ||
+                (!automaticNoSoundRecovery && !requiresStrictEnglishAudio())
+            ) return
 
             recoverAudioTrack()
             audioRecoveryPasses += 1
@@ -138,32 +173,13 @@ class CompatibilityPlayerActivity : Activity() {
                     tracks.isNotEmpty()
             val requiresVerifiedEnglish =
                 wantsPreferredEnglishAudio() &&
-                    hasVerifiedEnglishMainAudio()
-            val selectedTrack =
-                tracks.firstOrNull { it.id == selectedAudioTrack }
-            val expectedName =
-                payload.optString("preferredAudioTrackName").trim()
-            val expectedMatches =
-                if (expectedName.isBlank())
-                    emptyList()
-                else
-                    tracks.filter {
-                        namesMatchExpectedAudio(
-                            it.name.orEmpty(),
-                            expectedName
-                        )
-                    }
-            val selectedIsVerifiedEnglish =
-                selectedTrack != null &&
                     (
-                        audioTrackNameLooksEnglish(
-                            selectedTrack.name.orEmpty()
-                        ) ||
-                        (
-                            expectedMatches.size == 1 &&
-                            expectedMatches.first().id == selectedTrack.id
-                        )
+                        hasVerifiedEnglishMainAudio() ||
+                            requiresStrictEnglishAudio()
                     )
+            val selectedIsVerifiedEnglish =
+                player != null &&
+                    selectedAudioIsVerifiedEnglish(player, tracks)
 
             /*
              * Do not equate "some audio is selected" with success when this
@@ -175,6 +191,11 @@ class CompatibilityPlayerActivity : Activity() {
                 anyAudio &&
                 (!requiresVerifiedEnglish || selectedIsVerifiedEnglish)
             ) {
+                if (requiresVerifiedEnglish && selectedIsVerifiedEnglish) {
+                    try {
+                        player?.setVolume(100)
+                    } catch (_: Throwable) {}
+                }
                 return
             }
 
@@ -409,15 +430,38 @@ class CompatibilityPlayerActivity : Activity() {
                         MediaPlayer.Event.Playing -> {
                             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                             showStatus("Compatibility decoder")
-                            try { player.setVolume(100); player.setAudioDelay(lipSyncMs.toLong() * 1000L) } catch (_: Throwable) {}
+                            try {
+                                player.setVolume(
+                                    if (requiresStrictEnglishAudio()) 0 else 100
+                                )
+                                player.setAudioDelay(lipSyncMs.toLong() * 1000L)
+                            } catch (_: Throwable) {}
                             applyPreferredSubtitle()
                             recoverAudioTrack()
+                            if (requiresStrictEnglishAudio()) {
+                                val tracks =
+                                    try {
+                                        player.audioTracks
+                                            ?.filter { it.id >= 0 }
+                                            .orEmpty()
+                                    } catch (_: Throwable) {
+                                        emptyList()
+                                    }
+                                if (selectedAudioIsVerifiedEnglish(player, tracks)) {
+                                    try { player.setVolume(100) } catch (_: Throwable) {}
+                                }
+                            }
                             if (pendingStartPositionMs > 0L) {
                                 val target = pendingStartPositionMs; pendingStartPositionMs = 0L; player.time = target
                             }
                             audioRecoveryPasses = 0
                             root.removeCallbacks(audioRecoveryRunnable)
-                            if (automaticNoSoundRecovery) root.postDelayed(audioRecoveryRunnable, 1000L)
+                            if (
+                                automaticNoSoundRecovery ||
+                                requiresStrictEnglishAudio()
+                            ) {
+                                root.postDelayed(audioRecoveryRunnable, 1000L)
+                            }
                             root.removeCallbacks(thermalRunnable)
                             if (thermalProtection) root.postDelayed(thermalRunnable, 9000L)
                             updateControlLabels(); updatePlayPauseLabel(); showControlsTemporarily()
