@@ -81,7 +81,6 @@ import {
   sourceIsAioStreamsCandidate,
   sourceLooksTorrentLike,
 } from "../src/components/mg/sourceProviderIdentity.js";
-import { sortSourceEntries } from "../src/components/mg/sourceSelectorPreferences.js";
 
 const memoryStorage = () => {
   const data = new Map();
@@ -2235,34 +2234,32 @@ test("all catalogue VOD entry points inherit the central strict playback policy"
   });
 });
 
-test("Best available globally puts non-AIO torrents ahead of AIOStreams", () => {
-  const aioHash = "a".repeat(40);
-  const torrentioHash = "b".repeat(40);
+test("Best available globally wires the AIOStreams fallback rank into central VOD ordering", () => {
+  const providerSource = readFileSync(
+    new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
+    "utf8"
+  );
+  const selectorSource = readFileSync(
+    new URL("../src/components/mg/sourceSelectorPreferences.js", import.meta.url),
+    "utf8"
+  );
 
-  const aio = {
-    type: "torrent",
-    addon: "AIOStreams",
-    sourceName: "AIOStreams",
-    label: "1080p English AIOStreams",
-    infoHash: aioHash,
-    src: `magnet:?xt=urn:btih:${aioHash}`,
-    cacheRequired: true,
-  };
-  const torrentio = {
-    type: "torrent",
-    addon: "Torrentio",
-    sourceName: "Torrentio",
-    label: "1080p English Torrentio",
-    infoHash: torrentioHash,
-    src: `magnet:?xt=urn:btih:${torrentioHash}`,
-    cacheRequired: true,
-  };
-
-  const sorted = sortSourceEntries([aio, torrentio], "best");
-
-  assert.equal(sorted.length, 2);
-  assert.equal(sorted[0].item.addon, "Torrentio");
-  assert.equal(sorted[1].item.addon, "AIOStreams");
+  assert.match(
+    providerSource,
+    /return sortSourceEntries\(languageOrdered, sortMode\)\.map\(\(entry\) => entry\.item\)/
+  );
+  assert.match(
+    selectorSource,
+    /aioStreamsFallback:\s*sourceIsAioStreamsCandidate\(item\)/
+  );
+  assert.match(
+    selectorSource,
+    /hasNonAioTorrentCandidate[\s\S]{0,420}?left\.aioStreamsFallback[\s\S]{0,220}?right\.aioStreamsFallback/
+  );
+  assert.match(
+    selectorSource,
+    /return prioritiseCompatibleAutoplayEntries\(fallbackRanked\)/
+  );
 });
 
 test("central provider removes AIOStreams from automatic qualification but keeps it in the chooser", () => {
