@@ -83,6 +83,7 @@ import {
 } from "@/components/mg/trustedCachedSources";
 import { sourceHasAuthoritativeCachedSignal } from "@/components/mg/sourceCacheVisibility";
 import { sourceMatchesRequestedIdentity } from "@/components/mg/sourceIdentity";
+import { sourceIsAioStreamsCandidate } from "@/components/mg/sourceProviderIdentity";
 
 const isMagnet = (value) =>
   String(value || "")
@@ -1168,6 +1169,21 @@ export default function VideoPlayer({
     );
 
   /*
+   * Addon identity matters more than the normalized row type here. AIOStreams
+   * can return a perfectly ordinary type:"torrent" row, so checking only for
+   * type:"provider" lets it bypass the old fallback guard.
+   */
+  const hasNonAioTorrentPlaybackCandidate =
+    playbackMediaType !== "live" &&
+    sourcesForSelector.some(
+      (item) =>
+        sourceIsUserSelectable(item) &&
+        sourceIsTorrentPlaybackCandidate(item) &&
+        !sourceIsAioStreamsCandidate(item) &&
+        detectLanguagePreference(item) !== "foreign"
+    );
+
+  /*
    * Show every discovered source regardless of cache/readiness state.
    * Automatic recovery still applies playback safety rules, but the manual
    * chooser itself must never collapse to only the currently-ready rows.
@@ -1207,6 +1223,10 @@ export default function VideoPlayer({
       ({ item, index }) =>
         index !== activeIdx &&
         !failedSourcesRef.current.has(index) &&
+        (
+          !hasNonAioTorrentPlaybackCandidate ||
+          !sourceIsAioStreamsCandidate(item)
+        ) &&
         !sourceNeedsCaching(item)
     )?.index ?? -1;
 
@@ -1242,6 +1262,19 @@ export default function VideoPlayer({
       playbackMediaType !== "live" &&
       hasTorrentPlaybackCandidate &&
       (type === "provider" || type === "youtube")
+    ) {
+      return false;
+    }
+
+    /*
+     * AIOStreams is fallback-only whenever Media God has another non-foreign
+     * torrent candidate. This is deliberately based on addon/source identity,
+     * not on item.type, because AIOStreams commonly arrives as type:"torrent".
+     */
+    if (
+      playbackMediaType !== "live" &&
+      hasNonAioTorrentPlaybackCandidate &&
+      sourceIsAioStreamsCandidate(item)
     ) {
       return false;
     }
@@ -1329,12 +1362,42 @@ export default function VideoPlayer({
           Number(entry?.hardSubtitleRank ?? 0) === 0 &&
           type !== "provider" &&
           type !== "youtube" &&
+          !(
+            hasNonAioTorrentPlaybackCandidate &&
+            sourceIsAioStreamsCandidate(item)
+          ) &&
           (
             autoplayEntryApproved(entry) ||
             sourceNeedsCaching(item)
           )
       );
     })?.index ?? -1;
+
+  /*
+   * Some valid Torrentio/Comet/etc. rows do not advertise an audio language
+   * until Real-Debrid resolves the exact file. They still need a chance to beat
+   * AIOStreams. Unknown language is allowed for qualification; known-foreign
+   * rows and hard-sub releases are not.
+   */
+  const bestNonAioTorrentAutoplayCandidateIndex =
+    hasNonAioTorrentPlaybackCandidate
+      ? sortedSourceEntries.find((entry) => {
+          const item = entry?.item;
+
+          return Boolean(
+            sourceIsUserSelectable(item) &&
+              !failedSourcesRef.current.has(entry?.index) &&
+              sourceIsTorrentPlaybackCandidate(item) &&
+              !sourceIsAioStreamsCandidate(item) &&
+              Number(entry?.languageRank ?? 3) <= 2 &&
+              Number(entry?.hardSubtitleRank ?? 0) === 0 &&
+              (
+                autoplayEntryApproved(entry) ||
+                sourceNeedsCaching(item)
+              )
+          );
+        })?.index ?? -1
+      : -1;
 
   const automaticApprovedAutoplaySourceIndex =
     sortedSourceEntries.find(
@@ -2857,6 +2920,13 @@ export default function VideoPlayer({
   );
   const activeNeedsCaching =
     !activeHasResolvedStream && sourceNeedsCaching(active);
+  const activeAioShouldYieldToAlternative = Boolean(
+    playbackMediaType !== "live" &&
+      !manualSourceLockActive() &&
+      sourceIsAioStreamsCandidate(active) &&
+      bestNonAioTorrentAutoplayCandidateIndex >= 0 &&
+      bestNonAioTorrentAutoplayCandidateIndex !== activeIdx
+  );
   const activeIsWaitingForVerifiedSource =
     Boolean(
       active?.diagnostic ||
@@ -2945,6 +3015,8 @@ export default function VideoPlayer({
     const startupAlreadyClaimed =
       startupAutoplayClaimRef.current.playRequestId === currentPlayRequestId &&
       startupAutoplayClaimRef.current.claimed === true;
+    const activeIsAioStreamsCandidate =
+      sourceIsAioStreamsCandidate(active);
 
     /*
      * Discovery may improve the source list several times during the first few
@@ -2972,14 +3044,28 @@ export default function VideoPlayer({
       bestEnglishAutoplayCandidateIndex >= 0 &&
       bestEnglishAutoplayCandidateIndex !== activeIdx;
 
+    /*
+     * If AIOStreams is the raw index-0 row, do not let it become the foreground
+     * cache owner just because other addons have not supplied language metadata
+     * yet. Hand startup to the best non-AIO torrent and qualify that exact file.
+     */
+    const aioFallbackShouldYieldStartup =
+      startupSelectionAllowed &&
+      !startupAlreadyClaimed &&
+      activeIsAioStreamsCandidate &&
+      bestNonAioTorrentAutoplayCandidateIndex >= 0 &&
+      bestNonAioTorrentAutoplayCandidateIndex !== activeIdx;
+
     const nextAutomaticSourceIndex =
       bestSourceShouldOwnStartup
         ? bestApprovedAutoplaySourceIndex
         : bestEnglishCandidateShouldOwnStartup
           ? bestEnglishAutoplayCandidateIndex
-          : activeIsWaitingForVerifiedSource
-            ? automaticApprovedAutoplaySourceIndex
-            : automaticReadySourceIndex;
+          : aioFallbackShouldYieldStartup
+            ? bestNonAioTorrentAutoplayCandidateIndex
+            : activeIsWaitingForVerifiedSource
+              ? automaticApprovedAutoplaySourceIndex
+              : automaticReadySourceIndex;
 
     if (
       sourceSortMode === "best" &&
@@ -2994,7 +3080,8 @@ export default function VideoPlayer({
       (
         isProvider &&
         !bestSourceShouldOwnStartup &&
-        !bestEnglishCandidateShouldOwnStartup
+        !bestEnglishCandidateShouldOwnStartup &&
+        !aioFallbackShouldYieldStartup
       ) ||
       nextAutomaticSourceIndex < 0 ||
       fileSwitching
@@ -3005,6 +3092,7 @@ export default function VideoPlayer({
     if (
       !bestSourceShouldOwnStartup &&
       !bestEnglishCandidateShouldOwnStartup &&
+      !aioFallbackShouldYieldStartup &&
       (
         (!activeNeedsCaching && !activeIsWaitingForVerifiedSource) ||
         rdResolving ||
@@ -3022,9 +3110,11 @@ export default function VideoPlayer({
           ? "Best cached English source ready — starting automatically…"
           : bestEnglishCandidateShouldOwnStartup
             ? "Preparing the best English source automatically…"
-            : activeIsWaitingForVerifiedSource
-              ? "Verified cached source ready — starting automatically…"
-              : "Opening a ready source while Media God prepares the other torrents in the background…",
+            : aioFallbackShouldYieldStartup
+              ? "AIOStreams is fallback-only — preparing the best non-AIO source…"
+              : activeIsWaitingForVerifiedSource
+                ? "Verified cached source ready — starting automatically…"
+                : "Opening a ready source while Media God prepares the other torrents in the background…",
     });
 
     if (switched && sourceSortMode === "best") {
@@ -3041,6 +3131,7 @@ export default function VideoPlayer({
     automaticReadySourceIndex,
     bestApprovedAutoplaySourceIndex,
     bestEnglishAutoplayCandidateIndex,
+    bestNonAioTorrentAutoplayCandidateIndex,
     fileSwitching,
     isLive,
     isProvider,
@@ -3171,6 +3262,10 @@ export default function VideoPlayer({
         (entry) =>
           entry.index !== activeIdx &&
           !entry.cached &&
+          (
+            !hasNonAioTorrentPlaybackCandidate ||
+            !sourceIsAioStreamsCandidate(entry.original)
+          ) &&
           sourceNeedsCaching(entry.original) &&
           /^[a-f0-9]{40}$/i.test(entry.hash) &&
           /^magnet:/i.test(entry.magnet) &&
@@ -3368,6 +3463,7 @@ export default function VideoPlayer({
     isLive,
     isProvider,
     isYoutube,
+    hasNonAioTorrentPlaybackCandidate,
     rdMediaContextKey,
     rdPolling,
     rdPreparation,
@@ -3721,6 +3817,7 @@ export default function VideoPlayer({
   useEffect(() => {
     if (
       !active ||
+      activeAioShouldYieldToAlternative ||
       isYoutube ||
       isProvider ||
       isDirectFile ||
@@ -4018,6 +4115,7 @@ export default function VideoPlayer({
     isDirectFile,
     isLive,
     isRdSource,
+    activeAioShouldYieldToAlternative,
   ]);
 
   /*
@@ -4026,7 +4124,8 @@ export default function VideoPlayer({
   useEffect(
     () => {
       if (
-        !active
+        !active ||
+        activeAioShouldYieldToAlternative
       ) {
         return;
       }
@@ -8972,9 +9071,18 @@ export default function VideoPlayer({
       bestEnglishAutoplayCandidateIndex >= 0 &&
       bestEnglishAutoplayCandidateIndex !== activeIdx;
 
+    const aioStreamsStartupTakeoverPending =
+      !isLive &&
+      playbackMediaType !== "live" &&
+      !manualSourceLockActive() &&
+      sourceIsAioStreamsCandidate(active) &&
+      bestNonAioTorrentAutoplayCandidateIndex >= 0 &&
+      bestNonAioTorrentAutoplayCandidateIndex !== activeIdx;
+
     if (
       approvedStartupTakeoverPending ||
-      englishStartupTakeoverPending
+      englishStartupTakeoverPending ||
+      aioStreamsStartupTakeoverPending
     ) {
       return;
     }
@@ -9151,6 +9259,7 @@ export default function VideoPlayer({
     activeIdx,
     bestApprovedAutoplaySourceIndex,
     bestEnglishAutoplayCandidateIndex,
+    bestNonAioTorrentAutoplayCandidateIndex,
     isLive,
     nativePlaybackUrl,
     playbackMediaType,
