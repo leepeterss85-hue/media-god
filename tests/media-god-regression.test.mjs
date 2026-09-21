@@ -81,6 +81,7 @@ import {
   sourceIsAioStreamsCandidate,
   sourceLooksTorrentLike,
 } from "../src/components/mg/sourceProviderIdentity.js";
+import { sortSourceEntries } from "../src/components/mg/sourceSelectorPreferences.js";
 
 const memoryStorage = () => {
   const data = new Map();
@@ -2203,6 +2204,112 @@ test("all catalogue VOD entry points inherit the central strict playback policy"
   assert.match(
     wrapperSource,
     /core\.prepare\([\s\S]{0,120}applyReliableVodPolicy/
+  );
+
+  const catalogueLaunchers = [
+    "../src/components/mg/MediaCard.jsx",
+    "../src/components/mg/DetailModal.jsx",
+    "../src/components/mg/EpisodeSelector.jsx",
+    "../src/components/mg/NewEpisodesRow.jsx",
+    "../src/components/mg/ContinueWatchingRow.jsx",
+    "../src/components/mg/RecentlyWatchedRow.jsx",
+    "../src/components/mg/WatchlistView.jsx",
+    "../src/components/mg/FavoritesView.jsx",
+    "../src/components/mg/RoadmapView.jsx",
+  ];
+
+  catalogueLaunchers.forEach((relativePath) => {
+    const launcherSource = readFileSync(
+      new URL(relativePath, import.meta.url),
+      "utf8"
+    );
+
+    assert.match(
+      launcherSource,
+      /@\/components\/mg\/PlayerProvider/
+    );
+    assert.doesNotMatch(
+      launcherSource,
+      /@\/components\/mg\/MediaPlayerProvider|\.\/MediaPlayerProvider\.jsx/
+    );
+  });
+});
+
+test("Best available globally puts non-AIO torrents ahead of AIOStreams", () => {
+  const aioHash = "a".repeat(40);
+  const torrentioHash = "b".repeat(40);
+
+  const aio = {
+    type: "torrent",
+    addon: "AIOStreams",
+    sourceName: "AIOStreams",
+    label: "1080p English AIOStreams",
+    infoHash: aioHash,
+    src: `magnet:?xt=urn:btih:${aioHash}`,
+    cacheRequired: true,
+  };
+  const torrentio = {
+    type: "torrent",
+    addon: "Torrentio",
+    sourceName: "Torrentio",
+    label: "1080p English Torrentio",
+    infoHash: torrentioHash,
+    src: `magnet:?xt=urn:btih:${torrentioHash}`,
+    cacheRequired: true,
+  };
+
+  const sorted = sortSourceEntries([aio, torrentio], "best");
+
+  assert.equal(sorted.length, 2);
+  assert.equal(sorted[0].item.addon, "Torrentio");
+  assert.equal(sorted[1].item.addon, "AIOStreams");
+});
+
+test("central provider removes AIOStreams from automatic qualification but keeps it in the chooser", () => {
+  const providerSource = readFileSync(
+    new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(providerSource, /const automaticVodCandidatePool =/);
+  assert.match(
+    providerSource,
+    /hasNonAioTorrentCandidate[\s\S]{0,260}?sourceIsAioStreamsCandidate/
+  );
+  assert.match(
+    providerSource,
+    /items:\s*automaticCandidates/
+  );
+  assert.match(
+    providerSource,
+    /items:\s*automaticFastCandidates/
+  );
+  assert.match(
+    providerSource,
+    /items:\s*automaticQualificationCandidates/
+  );
+  assert.match(
+    providerSource,
+    /automaticVodCandidatePool\([\s\S]{0,140}?confirmedCachedPlaybackSources/
+  );
+
+  const completePoolStart = providerSource.indexOf(
+    "const completePlaybackSourcePool"
+  );
+  const canonicalPoolStart = providerSource.indexOf(
+    "const canonicalCompletePlaybackSources",
+    completePoolStart
+  );
+  assert.ok(completePoolStart >= 0 && canonicalPoolStart > completePoolStart);
+
+  const chooserPoolBlock = providerSource.slice(
+    completePoolStart,
+    canonicalPoolStart + 500
+  );
+
+  assert.doesNotMatch(
+    chooserPoolBlock,
+    /sourceIsAioStreamsCandidate/
   );
 });
 
