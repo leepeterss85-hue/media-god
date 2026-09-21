@@ -60,7 +60,9 @@ const mediaInfoFor = (item) => {
 
 const trackLanguageText = (track) =>
   clean(
-    track?.language ||
+    track?.language_iso ||
+      track?.lang_iso ||
+      track?.language ||
       track?.lang ||
       track?.languageCode ||
       track?.language_code ||
