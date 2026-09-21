@@ -48,6 +48,7 @@ import {
   filterSourcesForRequestedIdentity,
   sourceMatchesRequestedIdentity,
 } from "@/components/mg/sourceIdentity";
+import { sourceIsAioStreamsCandidate } from "@/components/mg/sourceProviderIdentity";
 
 const PlayerContext = createContext(null);
 
@@ -1800,6 +1801,39 @@ const prioritisePreferredAudioSources = (items) =>
     )
     .map(({ item }) => item);
 
+/*
+ * GLOBAL VOD AUTOPLAY POLICY
+ *
+ * AIOStreams stays visible and manually selectable, but it is never allowed to
+ * win automatic qualification while another non-foreign torrent candidate
+ * exists. Keep this rule here in the central provider as well as in
+ * VideoPlayer so every launch surface (Home, Search, Watchlist, Continue
+ * Watching, Recently Watched, New Episodes and auto-next) follows the same
+ * behaviour before the native/web player even sees the source list.
+ */
+const automaticVodCandidatePool = (
+  items,
+  completePool = items
+) => {
+  const list = Array.isArray(items) ? items : [];
+  const pool = Array.isArray(completePool) ? completePool : list;
+
+  const hasNonAioTorrentCandidate = pool.some(
+    (item) =>
+      isMagnetSource(item) &&
+      !sourceIsAioStreamsCandidate(item) &&
+      detectLanguagePreference(item) !== "foreign"
+  );
+
+  if (!hasNonAioTorrentCandidate) {
+    return list;
+  }
+
+  return list.filter(
+    (item) => !sourceIsAioStreamsCandidate(item)
+  );
+};
+
 const orderSources = ({
   sources,
   hasDebrid,
@@ -2724,14 +2758,23 @@ export function PlayerProvider({
         let verifiedSources = ordered;
 
         if (qualificationMode) {
-          const existingQualified = [
-            ...(rdLookup?.source ? [rdLookup.source] : []),
-            ...ordered,
-          ].filter((item) => item?.launchQualified === true);
+          const automaticCandidates =
+            automaticVodCandidatePool(
+              ordered,
+              ordered
+            );
+          const existingQualified =
+            automaticVodCandidatePool(
+              [
+                ...(rdLookup?.source ? [rdLookup.source] : []),
+                ...ordered,
+              ].filter((item) => item?.launchQualified === true),
+              ordered
+            );
 
           verifiedSources =
             await qualifyCachedRealDebridLaunchPool({
-              items: ordered,
+              items: automaticCandidates,
               existing: existingQualified,
               title: request?.rdTitle || request?.title || "",
               year: request?.rdYear ?? request?.year ?? "",
@@ -3278,11 +3321,16 @@ export function PlayerProvider({
             hasDebrid,
             preferRd: Boolean(request?.preferRd),
           });
+          const automaticFastCandidates =
+            automaticVodCandidatePool(
+              rankedFastCandidates,
+              rankedFastCandidates
+            );
 
           const qualifiedFastSources =
             hasRd
               ? await qualifyCachedRealDebridLaunchPool({
-                  items: rankedFastCandidates,
+                  items: automaticFastCandidates,
                   title: addonArgs.title,
                   year: addonArgs.year,
                   alternateYears: addonArgs.alternateYears,
@@ -3534,20 +3582,28 @@ export function PlayerProvider({
         let qualifiedLaunchSources = [];
 
         if (qualificationMode) {
-          const existingQualified = [
-            ...publishedSourceSnapshot,
-            ...(rdLookup?.source ? [rdLookup.source] : []),
-          ].filter((item) => item?.launchQualified === true);
-
           const rankedQualificationCandidates = orderSources({
             sources: cacheAnnotatedCombined,
             hasDebrid,
             preferRd: Boolean(request?.preferRd),
           });
+          const automaticQualificationCandidates =
+            automaticVodCandidatePool(
+              rankedQualificationCandidates,
+              rankedQualificationCandidates
+            );
+          const existingQualified =
+            automaticVodCandidatePool(
+              [
+                ...publishedSourceSnapshot,
+                ...(rdLookup?.source ? [rdLookup.source] : []),
+              ].filter((item) => item?.launchQualified === true),
+              rankedQualificationCandidates
+            );
 
           qualifiedLaunchSources =
             await qualifyCachedRealDebridLaunchPool({
-              items: rankedQualificationCandidates,
+              items: automaticQualificationCandidates,
               existing: existingQualified,
               title: addonArgs.title,
               year: addonArgs.year,
@@ -3652,7 +3708,10 @@ export function PlayerProvider({
           qualificationMode &&
           qualifiedLaunchSources.length === 0
             ? orderSources({
-                sources: confirmedCachedPlaybackSources.filter(
+                sources: automaticVodCandidatePool(
+                  confirmedCachedPlaybackSources,
+                  cacheAnnotatedCombined
+                ).filter(
                   (item) =>
                     sourceTargetsRealDebrid(item) &&
                     sourceMatchesRequestedIdentity(
