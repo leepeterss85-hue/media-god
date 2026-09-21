@@ -77,6 +77,10 @@ import {
   sourceIdentityMismatchReason,
   sourceMatchesRequestedIdentity,
 } from "../src/components/mg/sourceIdentity.js";
+import {
+  sourceIsAioStreamsCandidate,
+  sourceLooksTorrentLike,
+} from "../src/components/mg/sourceProviderIdentity.js";
 
 const memoryStorage = () => {
   const data = new Map();
@@ -3549,20 +3553,52 @@ test("a genuinely successful cached source outranks an equally compatible cached
   );
 });
 
-test("AIOStreams cannot own VOD autoplay while a cached Torrentio-style torrent candidate exists", () => {
+test("AIOStreams stays fallback-only even when the addon row is typed as a torrent", () => {
+  const hash = "a".repeat(40);
+  const aioTorrent = {
+    type: "torrent",
+    addon: "AIOStreams",
+    infoHash: hash,
+    src: `magnet:?xt=urn:btih:${hash}`,
+  };
+  const torrentioTorrent = {
+    type: "torrent",
+    addon: "Torrentio",
+    infoHash: "b".repeat(40),
+    src: `magnet:?xt=urn:btih:${"b".repeat(40)}`,
+  };
+
+  assert.equal(sourceIsAioStreamsCandidate(aioTorrent), true);
+  assert.equal(sourceLooksTorrentLike(aioTorrent), true);
+  assert.equal(sourceIsAioStreamsCandidate(torrentioTorrent), false);
+  assert.equal(sourceLooksTorrentLike(torrentioTorrent), true);
+
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
     "utf8"
   );
+  const selectorSource = readFileSync(
+    new URL("../src/components/mg/sourceSelectorPreferences.js", import.meta.url),
+    "utf8"
+  );
 
   assert.match(playerSource, /const sourceIsTorrentPlaybackCandidate =/);
+  assert.match(playerSource, /const hasNonAioTorrentPlaybackCandidate =/);
   assert.match(
     playerSource,
-    /type === "provider"[\s\S]{0,80}?type === "youtube"[\s\S]{0,220}?return false/
+    /hasNonAioTorrentPlaybackCandidate[\s\S]{0,220}?sourceIsAioStreamsCandidate\(item\)[\s\S]{0,120}?return false/
+  );
+  assert.match(playerSource, /bestNonAioTorrentAutoplayCandidateIndex/);
+  assert.match(playerSource, /aioFallbackShouldYieldStartup/);
+  assert.match(playerSource, /activeAioShouldYieldToAlternative/);
+  assert.match(playerSource, /aioStreamsStartupTakeoverPending/);
+  assert.match(
+    selectorSource,
+    /hasNonAioTorrentCandidate[\s\S]{0,220}?aioStreamsFallback/
   );
   assert.match(
-    playerSource,
-    /const hasTorrentPlaybackCandidate =[\s\S]{0,220}?sourceIsTorrentPlaybackCandidate\(item\)/
+    selectorSource,
+    /fallback-only[\s\S]{0,420}?prioritiseCompatibleAutoplayEntries\(fallbackRanked\)/
   );
 
   const approvalStart = playerSource.indexOf("const autoplayEntryApproved =");
@@ -3573,18 +3609,7 @@ test("AIOStreams cannot own VOD autoplay while a cached Torrentio-style torrent 
   assert.ok(approvalStart >= 0 && approvalEnd > approvalStart);
   const approvalBlock = playerSource.slice(approvalStart, approvalEnd);
 
-  assert.match(
-    approvalBlock,
-    /hasTorrentPlaybackCandidate[\s\S]{0,140}?type === "provider"[\s\S]{0,80}?return false/
-  );
-  assert.match(
-    approvalBlock,
-    /cachedCompatibleTorrentCandidate/
-  );
-  assert.match(
-    approvalBlock,
-    /entry\?\.cached === true[\s\S]{0,180}?sourceIsTorrentPlaybackCandidate\(item\)[\s\S]{0,180}?compatibilityTier[\s\S]{0,180}?languageRank \?\? 3\) <= 1/
-  );
+  assert.match(approvalBlock, /cachedCompatibleTorrentCandidate/);
   assert.match(
     approvalBlock,
     /englishProof === "proven"[\s\S]{0,120}?cachedCompatibleTorrentCandidate/
