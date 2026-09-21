@@ -2385,6 +2385,87 @@ export default async function (req) {
               normalise(value) !== normalise(title)
           );
 
+      /*
+       * Prefer the exact per-user Media God torrent association before doing
+       * a fuzzy filename scan of the whole Real-Debrid library. This is
+       * especially important for TV episodes: an addon may previously have
+       * found the correct SxxExx torrent even when a later addon lookup returns
+       * only provider/AIO rows. RdLink is ownership-scoped, so the association
+       * belongs to this authenticated user and exact title/episode.
+       */
+      try {
+        const linkQuery = {
+          title,
+          ...(year ? { year } : {}),
+          ...(season ? { season } : {}),
+          ...(episode ? { episode } : {}),
+        };
+        const ownedLinks =
+          await base44.entities.RdLink.filter(
+            linkQuery
+          );
+
+        for (const link of Array.isArray(ownedLinks) ? ownedLinks : []) {
+          const linkedTorrentId =
+            String(link?.torrent_id || "").trim();
+
+          if (!linkedTorrentId) {
+            continue;
+          }
+
+          const linkedStream =
+            await resolveStreamable(
+              linkedTorrentId,
+              authHeaders,
+              formHeaders,
+              {
+                title,
+                year,
+                alternateYears,
+                alternateTitles,
+                season,
+                episode,
+                preferBrowserTranscode:
+                  body.prefer_browser_transcode === true,
+              }
+            );
+
+          if (
+            !linkedStream?.error &&
+            linkedStream?.ready &&
+            linkedStream?.stream_url
+          ) {
+            return Response.json({
+              status: "ready",
+              torrent_id: linkedTorrentId,
+              stream_url:
+                linkedStream.stream_url,
+              fallback_stream_url:
+                linkedStream.fallback_stream_url || "",
+              filename:
+                linkedStream.filename || "",
+              files:
+                linkedStream.files || [],
+              rd_status:
+                linkedStream.rd_status,
+              audio_rescue:
+                linkedStream.audio_rescue || null,
+              video_rescue:
+                linkedStream.video_rescue || null,
+              media_info:
+                linkedStream.media_info || null,
+              association:
+                "exact_rdlink",
+            });
+          }
+        }
+      } catch {
+        /*
+         * RdLink is an optimisation/recovery index. Failure to read or resolve
+         * it must never block the normal Real-Debrid library scan below.
+         */
+      }
+
       const res =
         await fetch(
           `${RD_BASE}/torrents?limit=1000`,
