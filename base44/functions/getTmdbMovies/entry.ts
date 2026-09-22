@@ -2128,6 +2128,16 @@ export default async function(req) {
         })
       );
 
+    const corrected =
+      query
+        ? await fetchSearchIdentityCorrections(
+            query,
+            mediaType,
+            apiKey,
+            region
+          )
+        : [];
+
     const overrides =
       query
         ? externalSearchOverrides(
@@ -2140,6 +2150,7 @@ export default async function(req) {
     const itemSeen = new Set();
 
     for (const item of [
+      ...corrected,
       ...overrides,
       ...mappedItems,
     ]) {
