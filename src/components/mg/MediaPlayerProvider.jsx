@@ -721,7 +721,7 @@ const resolveImdbInfo = async ({
   rdAlternateTitles,
   originalTitle,
   original_title,
-}) => {
+} = {}) => {
   const supplied =
     String(
       imdbId ||
@@ -1419,6 +1419,9 @@ const launchTrackIsEnglishMain = (track) =>
   launchTrackIsEnglish(track) &&
   !launchTrackLooksCommentaryOrDescriptive(track);
 
+/**
+ * @param {{ data?: any, [key: string]: any }} input
+ */
 const strictRdLaunchQualification = ({
   data,
 }) => {
@@ -4355,10 +4358,13 @@ usePlayer.displayName =
 export const DEMO_VIDEO =
   "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
 
+/**
+ * @param {{ trailerUrl?: any, providers?: any[], [key: string]: any }} input
+ */
 export function buildMediaSources({
   trailerUrl,
   providers,
-}) {
+} = {}) {
   const sources =
     [];
 
