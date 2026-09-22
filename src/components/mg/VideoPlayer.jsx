@@ -7525,10 +7525,6 @@ export default function VideoPlayer({
       const video =
         event.target;
 
-      const loadedDuration = Number(
-        video?.duration || 0
-      );
-
       /*
        * Some hosted Stremio providers can label an explicit provider-side
        * failure as a normal media row. Only reject those rows when the source
