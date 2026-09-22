@@ -88,7 +88,7 @@ const ResponsiveImage = React.forwardRef(
       ...props
     },
     parentRef
-  ) => {
+  ) {
     const wrapperRef = React.useRef(null)
     const imgRef = React.useRef(null)
     const size = useSize(wrapperRef)
@@ -199,7 +199,7 @@ const Image = React.forwardRef(
       ...props
     },
     ref
-  ) => {
+  ) {
     const fireTv = isFireTvRuntime()
     const effectiveQuality = fireTv ? Math.min(Number(quality || 90), 72) : quality
     const maxDpr = fireTv ? 2 : 3
