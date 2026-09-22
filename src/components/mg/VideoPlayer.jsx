@@ -78,6 +78,7 @@ import {
   sourceHasEdition,
 } from "@/components/mg/mediaEdition";
 import {
+  forgetSuccessfulPlaybackSource,
   recordSuccessfulPlaybackSource,
   recordTrustedCachedSource,
 } from "@/components/mg/trustedCachedSources";
@@ -91,6 +92,8 @@ import {
   smartEntryUpgradeScore,
   smartSourceFingerprint,
 } from "@/components/mg/smartSourceSelection";
+
+const SUCCESSFUL_VOD_PLAYBACK_SECONDS = 20;
 
 const isMagnet = (value) =>
   String(value || "")
@@ -2030,6 +2033,12 @@ export default function VideoPlayer({
   };
 
   const markSourceFailed = (index) => {
+    const failedItem = sources[index];
+
+    if (failedItem) {
+      forgetSuccessfulPlaybackSource(failedItem);
+    }
+
     failedSourcesRef.current.add(index);
 
     setFailedSources(
@@ -2131,7 +2140,10 @@ export default function VideoPlayer({
     autoRecoveryRef.current.lastTime = currentTime;
     autoRecoveryRef.current.lastProgressAt = Date.now();
 
-    if (!isLive && currentTime > 0.25) {
+    if (
+      !isLive &&
+      currentTime >= SUCCESSFUL_VOD_PLAYBACK_SECONDS
+    ) {
       const activeEntry = sortedSourceEntries.find(
         (entry) => entry?.index === activeIdx
       );
@@ -8941,7 +8953,7 @@ export default function VideoPlayer({
       if (
         !isLive &&
         reason !== "error" &&
-        positionSeconds > 5
+        positionSeconds >= SUCCESSFUL_VOD_PLAYBACK_SECONDS
       ) {
         const activeEntry = sortedSourceEntries.find(
           (entry) => entry?.index === activeIdx
