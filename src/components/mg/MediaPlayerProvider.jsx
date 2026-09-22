@@ -706,6 +706,7 @@ const mergeAlternateYears = (primaryYear, ...values) => {
   );
 };
 
+/** @param {any} input */
 const resolveImdbInfo = async ({
   id,
   tmdbId,
@@ -2399,6 +2400,7 @@ const restoreQualifiedLaunchRows = (
   incoming
 ) => {
   const qualifiedByKey = new Map(
+    /** @type {any} */ (
     (Array.isArray(published) ? published : [])
       .filter((item) => item?.launchQualified === true)
       .map((item) => [
@@ -2406,6 +2408,7 @@ const restoreQualifiedLaunchRows = (
         item,
       ])
       .filter(([key]) => Boolean(key))
+    )
   );
 
   return (Array.isArray(incoming) ? incoming : []).map((item) => {
