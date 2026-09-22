@@ -1894,13 +1894,28 @@ export default function LiveTVView({
           )
           .filter(Boolean)
       )
-    ).sort(groupSort);
+    );
+
+    const order = new Map(
+      manualGroupOrder.map((value, index) => [value, index])
+    );
+
+    values.sort((a, b) => {
+      const aOrder = order.has(a)
+        ? order.get(a)
+        : Number.MAX_SAFE_INTEGER;
+      const bOrder = order.has(b)
+        ? order.get(b)
+        : Number.MAX_SAFE_INTEGER;
+
+      return aOrder - bOrder || groupSort(a, b);
+    });
 
     return [
       "All",
       ...values,
     ];
-  }, [channels]);
+  }, [channels, manualGroupOrder]);
 
   const countries = useMemo(() => {
     const values = Array.from(
