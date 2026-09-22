@@ -10,7 +10,7 @@ export default function MediaRow({
   watched,
   iconUrl = "",
   actionLabel = "",
-  onAction,
+  onAction = null,
 }) {
   const ref = useRef(null);
 
