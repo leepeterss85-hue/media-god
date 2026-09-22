@@ -297,6 +297,26 @@ const MEDIA_URL_RE =
 const MEDIA_HINT_RE =
   /(?:\bhls\b|mpegurl|mpeg-url|\bdash\b|mpeg[- ]?dash|video\/|audio\/|application\/(?:vnd\.apple\.mpegurl|x-mpegurl|dash\+xml))/i;
 
+const stripVodTrailerSources = (
+  sources,
+  isLive = false
+) => {
+  const list = Array.isArray(sources)
+    ? sources
+    : [];
+
+  if (isLive) {
+    return list;
+  }
+
+  return list.filter(
+    (item) =>
+      String(item?.type || "")
+        .trim()
+        .toLowerCase() !== "youtube"
+  );
+};
+
 const isDirectSource = (item) => {
   const value = getSourceUrl(item);
   const type = String(item?.type || "").trim().toLowerCase();
@@ -2646,7 +2666,7 @@ export function PlayerProvider({
       async (
         request = {}
       ) => {
-        const originalSources =
+        const suppliedSources =
           Array.isArray(request?.sources)
             ? request.sources.map(normaliseSource).filter(Boolean)
             : [];
@@ -2654,8 +2674,14 @@ export function PlayerProvider({
         const isLive =
           request?.type === "live" ||
           request?.mediaType === "live" ||
-          originalSources.some(
+          suppliedSources.some(
             (item) => item?.live || item?.type === "live"
+          );
+
+        const originalSources =
+          stripVodTrailerSources(
+            suppliedSources,
+            isLive
           );
 
         const mediaType =
@@ -2853,7 +2879,7 @@ export function PlayerProvider({
         const isCurrentPlay = () =>
           playSequenceRef.current === playId;
 
-        const originalSources =
+        const suppliedSources =
           Array.isArray(
             request?.sources
           )
@@ -2869,11 +2895,17 @@ export function PlayerProvider({
         const isLive =
           request?.type ===
             "live" ||
-          originalSources.some(
+          suppliedSources.some(
             (item) =>
               item?.live ||
               item?.type ===
                 "live"
+          );
+
+        const originalSources =
+          stripVodTrailerSources(
+            suppliedSources,
+            isLive
           );
 
         const mediaType =
