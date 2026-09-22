@@ -464,7 +464,10 @@ const tvShowsRemoteTarget = (current, direction) => {
     return null;
   }
 
-  const filterIndex = filters.indexOf(current);
+  const filterIndex =
+    current instanceof HTMLSelectElement
+      ? filters.indexOf(current)
+      : -1;
 
   if (filterIndex >= 0) {
     if (direction === "left") {
@@ -975,7 +978,10 @@ export default function FireTvRemote() {
         return;
       }
 
-      const currentType = String(current?.type || "").toLowerCase();
+      const currentType =
+        current instanceof HTMLInputElement
+          ? String(current.type || "").toLowerCase()
+          : "";
       const textEditable =
         (currentTag === "input" &&
           !["range", "button", "submit", "reset", "checkbox", "radio"].includes(
