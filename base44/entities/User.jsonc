@@ -134,6 +134,18 @@
       "items": {
         "type": "string"
       }
+    },
+    "ssn_auth_token": {
+      "type": "string"
+    },
+    "ssn_refresh_token": {
+      "type": "string"
+    },
+    "ssn_token_expires_at": {
+      "type": "string"
+    },
+    "ssn_connected_at": {
+      "type": "string"
     }
   },
   "name": "User",
