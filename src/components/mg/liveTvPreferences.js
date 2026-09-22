@@ -4,7 +4,7 @@ export const DEFAULT_LIVE_TV_SETTINGS = {
   regionalLock: false,
 };
 
-export const normaliseLiveTvSettings = () => ({
+export const normaliseLiveTvSettings = (_settings = {}) => ({
   regionalLock: false,
 });
 
