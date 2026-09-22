@@ -1889,7 +1889,13 @@ export default function LiveTVView({
             !channelIsHidden(channel)
         )
         .sort((a, b) => smartChannelCompare(a, b, channelRankByKey)),
-    [channels, favouriteKeys, channelRankByKey]
+    [
+      channels,
+      favouriteKeys,
+      channelRankByKey,
+      hiddenChannelKeys,
+      hiddenGroups,
+    ]
   );
 
   const recentChannels = useMemo(() => {
@@ -1905,7 +1911,12 @@ export default function LiveTVView({
           !channelIsHidden(channel)
       )
       .slice(0, 18);
-  }, [channels, recentKeys]);
+  }, [
+    channels,
+    recentKeys,
+    hiddenChannelKeys,
+    hiddenGroups,
+  ]);
 
 
   const groups = useMemo(() => {
