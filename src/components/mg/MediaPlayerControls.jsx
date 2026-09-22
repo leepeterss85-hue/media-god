@@ -253,7 +253,9 @@ export default function MediaPlayerControls({
 
   const [sourceChoicePinned, setSourceChoicePinned] = useState(false);
   const sourceChoiceEntriesRef = useRef([]);
-  const sourceChoiceValueRef = useRef(0);
+  const sourceChoiceValueRef = useRef(
+    /** @type {number | ""} */ (0)
+  );
 
   const releaseSourceChoices = () => {
     setSourceChoicePinned(false);
