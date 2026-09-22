@@ -666,9 +666,15 @@ export const installFireTvStableMode = () => {
         return;
       }
 
-      const target = event.target;
+      const target =
+        event.target instanceof HTMLElement
+          ? event.target
+          : null;
       const tag = String(target?.tagName || "").toLowerCase();
-      const type = String(target?.type || "").toLowerCase();
+      const type =
+        target instanceof HTMLInputElement
+          ? String(target.type || "").toLowerCase()
+          : "";
 
       /* Keep left/right native inside editable controls and sliders. */
       if (
