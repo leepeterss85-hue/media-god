@@ -2913,6 +2913,16 @@ export function PlayerProvider({
             isLive
           );
 
+        const suppliedCompleteSources =
+          stripVodTrailerSources(
+            Array.isArray(request?.completeSources)
+              ? request.completeSources
+                  .map(normaliseSource)
+                  .filter(Boolean)
+              : [],
+            isLive
+          );
+
         const mediaType =
           request?.mediaType ===
             "tv" ||
