@@ -115,6 +115,7 @@ const requiredViews = [
   ["music", "Music"],
   ["watchlist", "Watchlist"],
   ["favorites", "Favorites"],
+  ["addons", "Addons"],
   ["settings", "Settings"],
 ];
 
@@ -135,7 +136,6 @@ for (const hiddenLabel of [
   "Downloads",
   "Phone Remote",
   "Watch Party",
-  "Addons",
   "Sources",
   "Roadmap",
   "Updates",
