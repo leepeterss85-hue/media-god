@@ -182,7 +182,11 @@ ResponsiveImage.displayName = "ResponsiveImage"
  * original swaps to the generic fallback image.
  */
 const Image = React.forwardRef(
-  (
+  /**
+   * @param {ImageProps} props
+   * @param {React.ForwardedRef<HTMLImageElement>} ref
+   */
+  function ImageImpl(
     {
       src,
       fittingType = "fill",
