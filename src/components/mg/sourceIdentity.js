@@ -163,6 +163,9 @@ export const sourceIdentityMismatchReason = (
     return "audio_only_release";
   }
 
+  const isTv =
+    String(mediaType || "movie").toLowerCase() === "tv";
+
   const allowedYears = new Set(
     [
       clean(year),
@@ -170,7 +173,15 @@ export const sourceIdentityMismatchReason = (
     ].filter((value) => /^\d{4}$/.test(value))
   );
 
-  if (allowedYears.size > 0) {
+  /*
+   * A TV request's year is normally the SERIES premiere year, not the episode
+   * release year. Long-running shows such as The Simpsons (1989-) legitimately
+   * have current-season files carrying 2025/2026 in their release names.
+   * Rejecting those years removes valid episode sources and can leave only the
+   * show-level trailer fallback. Movie identity still keeps the strict year
+   * protection because a movie's requested year identifies that exact title.
+   */
+  if (!isTv && allowedYears.size > 0) {
     const foundYears = explicitYears(text);
 
     /*
@@ -187,7 +198,7 @@ export const sourceIdentityMismatchReason = (
     }
   }
 
-  if (String(mediaType || "movie").toLowerCase() !== "tv") {
+  if (!isTv) {
     const acceptedTitleTokens = titleTokenSets(
       requestedTitle,
       alternateTitles
