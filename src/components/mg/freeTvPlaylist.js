@@ -1941,6 +1941,217 @@ export async function getFreeTvChannels(options = {}) {
     }
 
     /*
+     * Device-local custom direct channels are part of the real Live TV
+     * catalogue. Older builds only displayed them in Sources, which made the
+     * "Live source added" message misleading because the channel never reached
+     * Live TV.
+     */
+    for (const source of customDirectSources) {
+      const directSource = {
+        id: source.id,
+        name: source.name,
+        priority: healthAdjustedPriority(source),
+        category: source.category || "Custom",
+        country: "",
+      };
+
+      const playlist = [
+        "#EXTM3U",
+        `#EXTINF:-1 tvg-id="${source.tvgId || source.id}" tvg-logo="${source.logo || ""}" group-title="${source.category || "Custom"}",${source.name || "Custom channel"}`,
+        source.url,
+      ].join("\n");
+
+      const parsed = parseFreeTvPlaylist(
+        playlist,
+        directSource
+      );
+
+      rawCount += parsed.length;
+
+      for (const channel of parsed) {
+        if (channel?.browserPlayable === false) {
+          browserRejectedCount += 1;
+        }
+
+        rawChannels.push(channel);
+      }
+
+      sourceStatus.push({
+        id: source.id,
+        name: source.name,
+        category: source.category || "Custom",
+        priority: directSource.priority,
+        count: parsed.length,
+        latencyMs: 0,
+        bytes: 0,
+        direct: true,
+        custom: true,
+        error: parsed.length
+          ? null
+          : "Custom direct channel URL was not usable.",
+      });
+    }
+
+    /*
+     * Xtream credentials remain device-local. The signed-in Base44 helper uses
+     * them only for this request, validates the remote host, and returns normal
+     * Live TV rows. Credentials are never stored in a Base44 entity.
+     */
+    for (const source of customXtreamSources) {
+      const startedAt = Date.now();
+
+      try {
+        const response =
+          await base44.functions.invoke(
+            "xtreamPortal",
+            {
+              action: "channels",
+              server: source.server,
+              username: source.username,
+              password: source.password,
+            }
+          );
+
+        const data =
+          response?.data ??
+          response ??
+          {};
+
+        if (
+          data?.error
+        ) {
+          throw new Error(
+            String(data.error)
+          );
+        }
+
+        const rows =
+          Array.isArray(
+            data?.channels
+          )
+            ? data.channels
+            : [];
+
+        const sourcePriority =
+          healthAdjustedPriority(
+            source
+          );
+
+        const normalisedRows =
+          rows.map(
+            (
+              row
+            ) => {
+              const channel = {
+                ...row,
+                sourceId:
+                  source.id,
+                sourceName:
+                  source.name ||
+                  "Xtream",
+                sourcePriority,
+                sourceCategory:
+                  row?.group ||
+                  source.category ||
+                  "Xtream",
+                alternatives: [],
+              };
+
+              channel.tags =
+                inferTags({
+                  sourceCategory:
+                    channel.sourceCategory,
+                  group:
+                    channel.group,
+                  name:
+                    channel.name,
+                  country:
+                    channel.country,
+                });
+
+              const compatibility =
+                browserCompatibility(
+                  channel
+                );
+
+              channel.browserPlayable =
+                compatibility.browserPlayable;
+              channel.browserReason =
+                compatibility.browserReason;
+              channel.format =
+                channel.format ||
+                compatibility.format;
+              channel.score =
+                sourceScore(
+                  channel
+                );
+
+              return channel;
+            }
+          );
+
+        rawCount +=
+          normalisedRows.length;
+        rawChannels.push(
+          ...normalisedRows
+        );
+
+        sourceStatus.push({
+          id: source.id,
+          name:
+            source.name ||
+            "Xtream",
+          category:
+            source.category ||
+            "Xtream",
+          priority:
+            sourcePriority,
+          count:
+            normalisedRows.length,
+          latencyMs:
+            Math.max(
+              0,
+              Date.now() -
+                startedAt
+            ),
+          bytes: 0,
+          direct: false,
+          custom: true,
+          xtream: true,
+          error: null,
+        });
+      } catch (error) {
+        sourceStatus.push({
+          id: source.id,
+          name:
+            source.name ||
+            "Xtream",
+          category:
+            source.category ||
+            "Xtream",
+          priority:
+            healthAdjustedPriority(
+              source
+            ),
+          count: 0,
+          latencyMs:
+            Math.max(
+              0,
+              Date.now() -
+                startedAt
+            ),
+          bytes: 0,
+          direct: false,
+          custom: true,
+          xtream: true,
+          error:
+            error?.message ||
+            "Xtream channels could not be loaded.",
+        });
+      }
+    }
+
+    /*
      * Keep a small curated set of direct public streams alongside the remote
      * repositories. External broadcaster web pages remain available in the
      * Sources screen, but are not inserted as fake video streams here. Each
