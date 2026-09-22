@@ -112,6 +112,30 @@ export const recordTrustedCachedSource = (item) => {
   }
 };
 
+export const forgetSuccessfulPlaybackSource = (item) => {
+  if (typeof window === "undefined" || !item) return;
+
+  const fingerprint = trustedSourceFingerprint(item);
+  if (!fingerprint || fingerprint === "label::") return;
+
+  try {
+    const history = readSuccessfulPlaybackHistory();
+
+    if (!(fingerprint in history)) {
+      return;
+    }
+
+    delete history[fingerprint];
+
+    window.localStorage.setItem(
+      SUCCESSFUL_PLAYBACK_HISTORY_KEY,
+      JSON.stringify(history)
+    );
+  } catch {
+    // Playback-history cleanup is best effort.
+  }
+};
+
 export const recordSuccessfulPlaybackSource = (
   item,
   {
