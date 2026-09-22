@@ -1036,7 +1036,11 @@ export default function DetailModal({
         );
 
       window.setTimeout(
-        () => focusTarget?.focus?.(),
+        () => {
+          if (focusTarget instanceof HTMLElement) {
+            focusTarget.focus();
+          }
+        },
         250
       );
     }
