@@ -2936,6 +2936,26 @@ test("episode trailer fallbacks cannot replace the waiting row before a real epi
   assert.equal(readyPool[0].label, "NCIS S01E01");
 });
 
+test("finished episode discovery cannot promote trailer-only fallbacks to autoplay", () => {
+  const providerSource = readFileSync(
+    new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(
+    providerSource,
+    /const onlyEpisodeFallbacksRemain =[sS]{0,400}?episodeFallbackOnly === true/
+  );
+  assert.match(
+    providerSource,
+    /No playable episode stream found yet — trailer kept as a manual fallback/
+  );
+  assert.match(
+    providerSource,
+    /onlyEpisodeFallbacksRemain[sS]{0,180}??s*[[sS]{0,80}?episodeSourceMissingStatus/
+  );
+});
+
 test("full discovery requires identity and English-track qualification without requiring an RD transcode state", () => {
   const providerSource = readFileSync(
     new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
