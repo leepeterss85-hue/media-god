@@ -626,6 +626,32 @@ export default function SourcesView() {
     const startedAt = Date.now();
 
     try {
+      if (source.kind === "xtream") {
+        const response = await base44.functions.invoke("xtreamPortal", {
+          action: "channels",
+          server: source.server,
+          username: source.username,
+          password: source.password,
+        });
+        const data = response?.data ?? response ?? {};
+        const loaded = Array.isArray(data?.channels) ? data.channels.length : 0;
+
+        if (data?.error || loaded <= 0) {
+          throw new Error(data?.error || "No Live TV channels were returned");
+        }
+
+        recordSourceHealth(source.id, {
+          success: true,
+          loaded,
+          latencyMs: Date.now() - startedAt,
+        });
+
+        setMessage(
+          `${source.name} connected · ${loaded.toLocaleString()} Live TV channels available.`
+        );
+        return;
+      }
+
       if (source.kind === "magnet") {
         const hash = hashFromMagnetOrHash(source.url);
         if (!hash) throw new Error("Invalid torrent hash or magnet link");
