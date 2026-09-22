@@ -1012,6 +1012,7 @@ export default function SourcesView() {
                 className="min-h-11 rounded-lg border border-white/10 bg-black/35 px-3 text-sm text-white"
               >
                 <option value="playlist">M3U / M3U8 playlist</option>
+                <option value="xtream">Xtream Codes login</option>
                 <option value="direct">Direct channel URL</option>
                 <option value="magnet">Magnet / torrent hash</option>
               </select>
@@ -1041,18 +1042,64 @@ export default function SourcesView() {
               className="min-h-11 rounded-lg border border-white/10 bg-black/35 px-3 text-sm text-white placeholder:text-white/25"
             />
 
-            <input
-              value={sourceForm.url}
-              onChange={(event) =>
-                setSourceForm((current) => ({ ...current, url: event.target.value }))
-              }
-              placeholder={
-                sourceForm.kind === "magnet"
-                  ? "magnet:?xt=urn:btih:… or torrent hash"
-                  : "https://…/playlist.m3u or direct stream URL"
-              }
-              className="min-h-11 rounded-lg border border-white/10 bg-black/35 px-3 text-sm text-white placeholder:text-white/25"
-            />
+            {sourceForm.kind === "xtream" ? (
+              <>
+                <input
+                  value={sourceForm.server}
+                  onChange={(event) =>
+                    setSourceForm((current) => ({
+                      ...current,
+                      server: event.target.value,
+                    }))
+                  }
+                  placeholder="Xtream server · https://provider.example:port"
+                  className="min-h-11 rounded-lg border border-white/10 bg-black/35 px-3 text-sm text-white placeholder:text-white/25"
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    value={sourceForm.username}
+                    onChange={(event) =>
+                      setSourceForm((current) => ({
+                        ...current,
+                        username: event.target.value,
+                      }))
+                    }
+                    autoComplete="off"
+                    placeholder="Username"
+                    className="min-h-11 rounded-lg border border-white/10 bg-black/35 px-3 text-sm text-white placeholder:text-white/25"
+                  />
+                  <input
+                    type="password"
+                    value={sourceForm.password}
+                    onChange={(event) =>
+                      setSourceForm((current) => ({
+                        ...current,
+                        password: event.target.value,
+                      }))
+                    }
+                    autoComplete="new-password"
+                    placeholder="Password"
+                    className="min-h-11 rounded-lg border border-white/10 bg-black/35 px-3 text-sm text-white placeholder:text-white/25"
+                  />
+                </div>
+                <p className="text-[10px] leading-4 text-white/35">
+                  Xtream credentials stay on this device. Media God sends them only when loading or testing your own provider.
+                </p>
+              </>
+            ) : (
+              <input
+                value={sourceForm.url}
+                onChange={(event) =>
+                  setSourceForm((current) => ({ ...current, url: event.target.value }))
+                }
+                placeholder={
+                  sourceForm.kind === "magnet"
+                    ? "magnet:?xt=urn:btih:… or torrent hash"
+                    : "https://…/playlist.m3u or direct stream URL"
+                }
+                className="min-h-11 rounded-lg border border-white/10 bg-black/35 px-3 text-sm text-white placeholder:text-white/25"
+              />
+            )}
 
             <div className="flex gap-2">
               <input
@@ -1112,7 +1159,11 @@ export default function SourcesView() {
                             />
                           </label>
                         </div>
-                        <p className="mt-1 truncate text-xs text-white/35">{source.url}</p>
+                        <p className="mt-1 truncate text-xs text-white/35">
+                          {source.kind === "xtream"
+                            ? `${source.server} · ${source.username ? "credentials saved on device" : "credentials missing"}`
+                            : source.url}
+                        </p>
                         {itemHealth?.lastCheckedAt && (
                           <p className="mt-1 text-[10px] text-white/35">
                             {itemHealth.lastError
