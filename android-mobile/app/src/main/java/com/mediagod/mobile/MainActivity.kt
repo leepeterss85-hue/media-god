@@ -581,12 +581,17 @@ class MainActivity : Activity() {
         }
 
         @JavascriptInterface
-        fun startUpdate(_url: String, versionName: String): String =
-            if (::appUpdater.isInitialized) {
+        fun startUpdate(_url: String, versionName: String): String {
+            if (!nativeBridgeAllowed()) {
+                return "error"
+            }
+
+            return if (::appUpdater.isInitialized) {
                 appUpdater.startUpdate(versionName)
             } else {
                 "error"
             }
+        }
 
         @JavascriptInterface
         fun play(payloadJson: String): String {
