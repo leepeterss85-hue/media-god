@@ -1782,6 +1782,75 @@ export default function LiveTVView({
     });
   };
 
+  const channelIsHidden = (channel) => {
+    const key = channelMemoryKey(channel);
+    const channelGroup = String(channel?.group || "").trim();
+
+    return (
+      hiddenChannelKeys.has(key) ||
+      Boolean(channelGroup && hiddenGroups.has(channelGroup))
+    );
+  };
+
+  const setChannelHidden = (channel, hidden) => {
+    const key = channelMemoryKey(channel);
+
+    setHiddenChannelKeys((current) => {
+      const next = new Set(current);
+
+      if (hidden) {
+        next.add(key);
+      } else {
+        next.delete(key);
+      }
+
+      writeHiddenLiveTvChannels(Array.from(next));
+      return next;
+    });
+  };
+
+  const setCurrentGroupHidden = (hidden) => {
+    const channelGroup = String(group || "").trim();
+
+    if (!channelGroup || channelGroup === DEFAULT_FILTER) {
+      return;
+    }
+
+    setHiddenGroups((current) => {
+      const next = new Set(current);
+
+      if (hidden) {
+        next.add(channelGroup);
+      } else {
+        next.delete(channelGroup);
+      }
+
+      writeHiddenLiveTvGroups(Array.from(next));
+      return next;
+    });
+
+    if (hidden) {
+      setGroup(DEFAULT_FILTER);
+    }
+  };
+
+  const moveChannel = (channel, direction) => {
+    const key = channelMemoryKey(channel);
+    const visibleKeys = filtered.map(channelMemoryKey);
+
+    setManualChannelOrder((current) => {
+      const next = movedOrder(
+        current,
+        visibleKeys,
+        key,
+        direction
+      );
+
+      writeLiveTvChannelOrder(next);
+      return next;
+    });
+  };
+
   const favouriteChannels = useMemo(
     () =>
       channels
