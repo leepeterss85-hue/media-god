@@ -2,8 +2,25 @@ const MEDIA_GOD_APP_ID = '6a95b85c1b5a8657bf3906c8';
 const DEFAULT_BASE44_APP_BASE_URL = 'https://app.base44.com';
 
 const isNode = typeof window === 'undefined';
-const windowObj = isNode ? { localStorage: new Map() } : window;
-const storage = windowObj.localStorage;
+
+const createMemoryStorage = () => {
+	const values = new Map();
+
+	return {
+		getItem(key) {
+			return values.has(key) ? String(values.get(key)) : null;
+		},
+		setItem(key, value) {
+			values.set(key, String(value));
+		},
+		removeItem(key) {
+			values.delete(key);
+		},
+	};
+};
+
+/** @type {Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>} */
+const storage = isNode ? createMemoryStorage() : window.localStorage;
 
 const toSnakeCase = (str) => {
 	return str.replace(/([A-Z])/g, '_$1').toLowerCase();
