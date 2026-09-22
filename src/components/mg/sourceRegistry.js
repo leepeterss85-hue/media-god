@@ -49,7 +49,7 @@ export const sourceRegistryEvent = SOURCE_EVENT;
 
 export const normaliseLiveSource = (value = {}) => {
   const requestedKind = clean(value?.kind).toLowerCase();
-  const kind = ["playlist", "direct", "magnet"].includes(requestedKind)
+  const kind = ["playlist", "direct", "magnet", "xtream"].includes(requestedKind)
     ? requestedKind
     : "playlist";
 
@@ -58,15 +58,26 @@ export const normaliseLiveSource = (value = {}) => {
       ? "Custom channel"
       : kind === "magnet"
         ? "Debrid source"
-        : "Custom playlist";
+        : kind === "xtream"
+          ? "Xtream TV"
+          : "Custom playlist";
 
   return {
     id: clean(value?.id) || idFor(kind),
     kind,
     name: clean(value?.name) || defaultName,
     url: clean(value?.url),
-    category: clean(value?.category) || (kind === "magnet" ? "Debrid" : "Custom"),
-    priority: safePriority(value?.priority, 85),
+    server: clean(value?.server).replace(/\/+$/, ""),
+    username: clean(value?.username),
+    password: clean(value?.password),
+    category:
+      clean(value?.category) ||
+      (kind === "magnet"
+        ? "Debrid"
+        : kind === "xtream"
+          ? "Xtream"
+          : "Custom"),
+    priority: safePriority(value?.priority, kind === "xtream" ? 140 : 85),
     active: value?.active !== false,
     logo: clean(value?.logo),
     tvgId: clean(value?.tvgId),
@@ -78,13 +89,21 @@ export const readCustomLiveSources = () => {
 
   return (Array.isArray(rows) ? rows : [])
     .map(normaliseLiveSource)
-    .filter((item) => item.url);
+    .filter((item) =>
+      item.kind === "xtream"
+        ? Boolean(item.server && item.username && item.password)
+        : Boolean(item.url)
+    );
 };
 
 export const writeCustomLiveSources = (rows) => {
   const next = (Array.isArray(rows) ? rows : [])
     .map(normaliseLiveSource)
-    .filter((item) => item.url);
+    .filter((item) =>
+      item.kind === "xtream"
+        ? Boolean(item.server && item.username && item.password)
+        : Boolean(item.url)
+    );
 
   writeJson(LIVE_SOURCES_KEY, next);
   return next;
