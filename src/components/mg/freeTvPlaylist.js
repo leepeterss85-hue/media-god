@@ -1507,6 +1507,10 @@ const extInfNameSeparator = (line) => {
   return separator;
 };
 
+/**
+ * @param {string} text
+ * @param {any} source
+ */
 export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
   const lines = String(text || "").split(/\r?\n/);
   const channels = [];
@@ -1538,7 +1542,7 @@ export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
       const quality = qualityFromText(`${rawName} ${line}`);
       const geoRestricted = rawName.includes("Ⓖ") || /\bgeo[- ]?blocked\b/i.test(rawName) || /\bgeo[- ]?restricted\b/i.test(rawName) || source.id === "nimeyer-uk-list";
 
-      current = {
+      current = /** @type {any} */ ({
         id: tvgId || "",
         name,
         rawName,
@@ -1566,7 +1570,7 @@ export function parseFreeTvPlaylist(text, source = LIVE_TV_SOURCES[0]) {
         sourceCategory: source.category,
         tags: [],
         alternatives: [],
-      };
+      });
       continue;
     }
 
