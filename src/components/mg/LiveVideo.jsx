@@ -583,7 +583,32 @@ const srtToVtt = (text) => {
   return `WEBVTT\n\n${body}`;
 };
 
+/**
+ * @typedef {{
+ *   src?: string,
+ *   poster?: string,
+ *   className?: string,
+ *   sourceLabel?: string,
+ *   isLive?: boolean,
+ *   headers?: Record<string, any>,
+ *   drm?: any,
+ *   subtitles?: any[],
+ *   subtitlesEnabled?: boolean,
+ *   preferredSubtitleLanguage?: string,
+ *   preferredAudioLanguage?: string,
+ *   onLoadedMetadata?: React.ReactEventHandler<HTMLVideoElement>,
+ *   onTimeUpdate?: React.ReactEventHandler<HTMLVideoElement>,
+ *   onError?: ((eventOrOptions?: any) => void),
+ *   onEnded?: React.ReactEventHandler<HTMLVideoElement>,
+ *   controls?: boolean
+ * }} LiveVideoProps
+ */
+
 const LiveVideo = forwardRef(
+  /**
+   * @param {LiveVideoProps} props
+   * @param {React.ForwardedRef<HTMLVideoElement>} ref
+   */
   function LiveVideo(
     {
       src,
