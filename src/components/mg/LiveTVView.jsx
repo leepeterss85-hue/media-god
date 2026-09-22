@@ -3289,32 +3289,54 @@ export default function LiveTVView({
           ))}
         </select>
 
-        <button
-          type="button"
-          disabled={group === DEFAULT_FILTER}
-          onClick={() =>
-            setCurrentGroupHidden(
-              !hiddenGroups.has(group)
-            )
-          }
-          className={cn(
-            "h-11 rounded-lg border px-3 text-xs font-semibold transition-colors",
-            group === DEFAULT_FILTER
-              ? "cursor-not-allowed border-white/5 bg-white/[0.02] text-white/20"
-              : hiddenGroups.has(group)
-                ? "border-mg-green/30 bg-mg-green/10 text-mg-green"
-                : "border-white/10 bg-mg-card text-white/65 hover:text-white"
-          )}
-          title={
-            group === DEFAULT_FILTER
-              ? "Choose a group first"
-              : hiddenGroups.has(group)
-                ? "Restore this group"
-                : "Hide this group"
-          }
-        >
-          {hiddenGroups.has(group) ? "Restore group" : "Hide group"}
-        </button>
+        <div className="grid h-11 grid-cols-[minmax(0,1fr)_40px_40px] overflow-hidden rounded-lg border border-white/10 bg-mg-card">
+          <button
+            type="button"
+            disabled={group === DEFAULT_FILTER}
+            onClick={() =>
+              setCurrentGroupHidden(
+                !hiddenGroups.has(group)
+              )
+            }
+            className={cn(
+              "min-w-0 px-2 text-xs font-semibold transition-colors",
+              group === DEFAULT_FILTER
+                ? "cursor-not-allowed text-white/20"
+                : hiddenGroups.has(group)
+                  ? "bg-mg-green/10 text-mg-green"
+                  : "text-white/65 hover:text-white"
+            )}
+            title={
+              group === DEFAULT_FILTER
+                ? "Choose a group first"
+                : hiddenGroups.has(group)
+                  ? "Restore this group"
+                  : "Hide this group"
+            }
+          >
+            {hiddenGroups.has(group) ? "Restore" : "Hide group"}
+          </button>
+          <button
+            type="button"
+            disabled={group === DEFAULT_FILTER}
+            onClick={() => moveCurrentGroup("up")}
+            aria-label="Move selected group up"
+            title="Move group up"
+            className="border-l border-white/10 text-white/45 outline-none hover:text-white disabled:opacity-20 focus:ring-2 focus:ring-inset focus:ring-mg-green"
+          >
+            <ArrowUp className="mx-auto h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            disabled={group === DEFAULT_FILTER}
+            onClick={() => moveCurrentGroup("down")}
+            aria-label="Move selected group down"
+            title="Move group down"
+            className="border-l border-white/10 text-white/45 outline-none hover:text-white disabled:opacity-20 focus:ring-2 focus:ring-inset focus:ring-mg-green"
+          >
+            <ArrowDown className="mx-auto h-4 w-4" />
+          </button>
+        </div>
 
         <button
           type="button"
