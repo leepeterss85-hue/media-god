@@ -531,7 +531,7 @@ export default function SourcesView() {
     [servers]
   );
 
-  const addLive = (event) => {
+  const addLive = async (event) => {
     event.preventDefault();
     setError("");
     setMessage("");
@@ -539,6 +539,7 @@ export default function SourcesView() {
     const name = clean(sourceForm.name);
     const rawUrl = clean(sourceForm.url);
     const isDebridSource = sourceForm.kind === "magnet";
+    const isXtreamSource = sourceForm.kind === "xtream";
     const resolvedUrl = isDebridSource ? magnetFromValue(rawUrl) : rawUrl;
 
     if (!name) {
@@ -551,6 +552,36 @@ export default function SourcesView() {
         setError("Enter a valid magnet link or torrent hash.");
         return;
       }
+    } else if (isXtreamSource) {
+      if (
+        !clean(sourceForm.server) ||
+        !clean(sourceForm.username) ||
+        !clean(sourceForm.password)
+      ) {
+        setError("Enter the Xtream server, username and password.");
+        return;
+      }
+
+      try {
+        const response = await base44.functions.invoke("xtreamPortal", {
+          action: "test",
+          server: clean(sourceForm.server),
+          username: clean(sourceForm.username),
+          password: clean(sourceForm.password),
+        });
+        const data = response?.data ?? response ?? {};
+
+        if (data?.error || data?.ok !== true) {
+          throw new Error(data?.error || "Xtream login failed.");
+        }
+      } catch (xtreamError) {
+        setError(
+          xtreamError?.response?.data?.error ||
+            xtreamError?.message ||
+            "Xtream login failed."
+        );
+        return;
+      }
     } else if (!/^https?:\/\//i.test(resolvedUrl)) {
       setError("Enter a valid http/https URL.");
       return;
@@ -558,21 +589,33 @@ export default function SourcesView() {
 
     addCustomLiveSource({
       ...sourceForm,
-      url: resolvedUrl,
-      category: isDebridSource ? clean(sourceForm.category) || "Debrid" : sourceForm.category,
+      url: isXtreamSource ? "" : resolvedUrl,
+      server: isXtreamSource ? clean(sourceForm.server) : "",
+      username: isXtreamSource ? clean(sourceForm.username) : "",
+      password: isXtreamSource ? clean(sourceForm.password) : "",
+      category: isDebridSource
+        ? clean(sourceForm.category) || "Debrid"
+        : isXtreamSource
+          ? clean(sourceForm.category) || "Xtream"
+          : sourceForm.category,
     });
     clearFreeTvCache();
     setSourceForm({
       kind: "playlist",
       name: "",
       url: "",
+      server: "",
+      username: "",
+      password: "",
       category: "Custom",
       priority: 85,
     });
     setMessage(
       isDebridSource
         ? "Debrid source added. Media God will check it across every connected debrid service when you play or test it."
-        : "Live source added. It will be merged into Live TV."
+        : isXtreamSource
+          ? "Xtream source connected. Its Live TV channels will be merged into Media God."
+          : "Live source added. It will be merged into Live TV."
     );
   };
 
