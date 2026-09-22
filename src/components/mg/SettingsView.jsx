@@ -1278,22 +1278,6 @@ export default function SettingsView() {
         Settings
       </h1>
 
-      {me && (
-        <div className="bg-mg-card border border-white/10 rounded-lg 3xl:rounded-xl p-4 3xl:p-5 mb-6 3xl:mb-8">
-          <p className="text-sm 3xl:text-base text-white/50">
-            Signed in as
-          </p>
-
-          <p className="text-white 3xl:text-lg font-semibold break-all">
-            {me.email}
-          </p>
-
-          <p className="text-xs 3xl:text-sm text-white/35 mt-1">
-            Playback preferences and your Real-Debrid connection are saved to this Media God user.
-          </p>
-        </div>
-      )}
-
       <div className="bg-mg-card border border-white/10 rounded-lg 3xl:rounded-xl p-4 3xl:p-5 mb-6 3xl:mb-8" data-mg-app-version="true">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
@@ -1355,6 +1339,244 @@ export default function SettingsView() {
           </button>
         </div>
       </div>
+
+      <div className="mt-6 3xl:mt-8 bg-mg-card border border-white/10 rounded-lg 3xl:rounded-xl p-4 3xl:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
+          <div className="flex items-center gap-2 3xl:gap-3">
+            <KeyRound className="w-4 h-4 3xl:w-5 3xl:h-5 text-mg-green" />
+
+            <h2 className="text-sm 3xl:text-lg font-bold text-white">
+              Real-Debrid
+            </h2>
+          </div>
+
+          {rdChecking ? (
+            <span className="inline-flex items-center gap-1.5 text-xs 3xl:text-sm text-white/50">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+
+              Checking
+            </span>
+          ) : rdConnected ? (
+            <span className="inline-flex items-center gap-1.5 text-xs 3xl:text-sm font-semibold text-mg-green">
+              <ShieldCheck className="w-4 h-4" />
+
+              Connected
+            </span>
+          ) : (
+            <span className="text-xs 3xl:text-sm text-white/40">
+              Not connected
+            </span>
+          )}
+        </div>
+
+        <p className="text-xs 3xl:text-sm text-white/45 mb-4">
+          Connect your own Real-Debrid account with its device-code login. Media God saves the connection to the currently signed-in app user, so you do not need to paste a private API token.
+        </p>
+
+        {rdConnected && (
+          <div className="rounded-lg border border-mg-green/20 bg-mg-green/5 p-3 3xl:p-4 mb-4">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs 3xl:text-sm">
+              <span className="inline-flex items-center gap-1 text-mg-green font-semibold">
+                <Check className="w-3.5 h-3.5 3xl:w-4 3xl:h-4" />
+
+                Ready to play
+              </span>
+
+              {rdStatus
+                ?.username && (
+                <span className="text-white/60">
+                  {
+                    rdStatus.username
+                  }
+                </span>
+              )}
+
+              <span className="text-white/50">
+                {rdStatus
+                  ?.premium
+                  ? "Premium"
+                  : "Free"}
+
+                {rdStatus
+                  ?.expires
+                  ? ` · expires ${String(
+                      rdStatus.expires
+                    ).slice(
+                      0,
+                      10
+                    )}`
+                  : ""}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {rdStatus
+          ?.error &&
+          !rdConnected && (
+            <p className="mb-4 text-xs 3xl:text-sm text-red-400">
+              {
+                rdStatus.error
+              }
+            </p>
+          )}
+
+        {deviceFlow ? (
+          <div className="rounded-xl border border-mg-green/30 bg-black/20 p-4 3xl:p-6">
+            <p className="text-xs 3xl:text-sm font-semibold uppercase tracking-wide text-mg-green mb-2">
+              Your Real-Debrid login code
+            </p>
+
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+              <div className="flex-1 rounded-lg bg-black/50 border border-white/10 px-4 py-3 3xl:px-5 3xl:py-4 text-center sm:text-left">
+                <span className="font-mono text-2xl sm:text-3xl 3xl:text-4xl 4xl:text-5xl tracking-[0.16em] text-white font-bold break-all">
+                  {
+                    deviceFlow.user_code
+                  }
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={
+                  copyCode
+                }
+                className="min-h-11 3xl:min-h-12 inline-flex items-center justify-center gap-2 px-4 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm 3xl:text-base"
+              >
+                {copied ? (
+                  <Check className="w-4 h-4 text-mg-green" />
+                ) : (
+                  <Copy className="w-4 h-4" />
+                )}
+
+                {copied
+                  ? "Copied"
+                  : "Copy code"}
+              </button>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2">
+              <a
+                href={
+                  deviceFlow.verification_url ||
+                  "https://real-debrid.com/device"
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+                className="min-h-11 3xl:min-h-12 inline-flex items-center justify-center gap-2 bg-mg-green text-black font-semibold text-sm 3xl:text-base px-4 3xl:px-5 py-2.5 rounded-lg hover:bg-mg-green-dim"
+              >
+                <ExternalLink className="w-4 h-4" />
+
+                Open Real-Debrid
+              </a>
+
+              <button
+                type="button"
+                onClick={() =>
+                  pollDevice(
+                    true
+                  )
+                }
+                className="min-h-11 3xl:min-h-12 inline-flex items-center justify-center gap-2 border border-white/10 bg-white/5 hover:bg-white/10 text-white text-sm 3xl:text-base px-4 3xl:px-5 py-2.5 rounded-lg"
+              >
+                <RefreshCw className="w-4 h-4" />
+
+                I authorised it — check now
+              </button>
+            </div>
+
+            <p className="mt-3 text-[11px] 3xl:text-sm text-white/40">
+              Media God is also checking automatically. Keep this screen open until it says Connected.
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
+            {!rdConnected && (
+              <button
+                type="button"
+                onClick={
+                  startRdConnect
+                }
+                disabled={
+                  rdStarting ||
+                  rdChecking
+                }
+                className="min-h-11 3xl:min-h-12 inline-flex items-center justify-center gap-2 bg-mg-green text-black font-semibold text-sm 3xl:text-base px-4 3xl:px-5 py-2.5 rounded-lg hover:bg-mg-green-dim disabled:opacity-60"
+              >
+                {rdStarting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Zap className="w-4 h-4" />
+                )}
+
+                {rdStarting
+                  ? "Getting code…"
+                  : "Connect Real-Debrid"}
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() =>
+                checkRd(
+                  true
+                )
+              }
+              disabled={
+                rdChecking
+              }
+              className="min-h-11 3xl:min-h-12 inline-flex items-center justify-center gap-2 border border-white/10 bg-white/5 hover:bg-white/10 text-white/80 text-sm 3xl:text-base px-4 3xl:px-5 py-2.5 rounded-lg disabled:opacity-60"
+            >
+              {rdChecking ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4" />
+              )}
+
+              Re-check
+            </button>
+
+            {rdConnected && (
+              <button
+                type="button"
+                onClick={
+                  disconnectRd
+                }
+                disabled={
+                  rdDisconnecting
+                }
+                className="min-h-11 3xl:min-h-12 inline-flex items-center justify-center gap-2 border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-300 text-sm 3xl:text-base px-4 3xl:px-5 py-2.5 rounded-lg disabled:opacity-60"
+              >
+                {rdDisconnecting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Unlink className="w-4 h-4" />
+                )}
+
+                Disconnect
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      <MultiDebridSettings />
+
+      {me && (
+        <div className="bg-mg-card border border-white/10 rounded-lg 3xl:rounded-xl p-4 3xl:p-5 mb-6 3xl:mb-8">
+          <p className="text-sm 3xl:text-base text-white/50">
+            Signed in as
+          </p>
+
+          <p className="text-white 3xl:text-lg font-semibold break-all">
+            {me.email}
+          </p>
+
+          <p className="text-xs 3xl:text-sm text-white/35 mt-1">
+            Playback preferences and your Real-Debrid connection are saved to this Media God user.
+          </p>
+        </div>
+      )}
 
       <div className="bg-mg-card border border-white/10 rounded-lg 3xl:rounded-xl overflow-hidden mb-6 3xl:mb-8">
         <div className="p-4 3xl:p-5 border-b border-white/5">
@@ -2144,227 +2366,7 @@ export default function SettingsView() {
         </div>
       </div>
 
-      <div className="mt-6 3xl:mt-8 bg-mg-card border border-white/10 rounded-lg 3xl:rounded-xl p-4 3xl:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
-          <div className="flex items-center gap-2 3xl:gap-3">
-            <KeyRound className="w-4 h-4 3xl:w-5 3xl:h-5 text-mg-green" />
 
-            <h2 className="text-sm 3xl:text-lg font-bold text-white">
-              Real-Debrid
-            </h2>
-          </div>
-
-          {rdChecking ? (
-            <span className="inline-flex items-center gap-1.5 text-xs 3xl:text-sm text-white/50">
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-
-              Checking
-            </span>
-          ) : rdConnected ? (
-            <span className="inline-flex items-center gap-1.5 text-xs 3xl:text-sm font-semibold text-mg-green">
-              <ShieldCheck className="w-4 h-4" />
-
-              Connected
-            </span>
-          ) : (
-            <span className="text-xs 3xl:text-sm text-white/40">
-              Not connected
-            </span>
-          )}
-        </div>
-
-        <p className="text-xs 3xl:text-sm text-white/45 mb-4">
-          Connect your own Real-Debrid account with its device-code login. Media God saves the connection to the currently signed-in app user, so you do not need to paste a private API token.
-        </p>
-
-        {rdConnected && (
-          <div className="rounded-lg border border-mg-green/20 bg-mg-green/5 p-3 3xl:p-4 mb-4">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs 3xl:text-sm">
-              <span className="inline-flex items-center gap-1 text-mg-green font-semibold">
-                <Check className="w-3.5 h-3.5 3xl:w-4 3xl:h-4" />
-
-                Ready to play
-              </span>
-
-              {rdStatus
-                ?.username && (
-                <span className="text-white/60">
-                  {
-                    rdStatus.username
-                  }
-                </span>
-              )}
-
-              <span className="text-white/50">
-                {rdStatus
-                  ?.premium
-                  ? "Premium"
-                  : "Free"}
-
-                {rdStatus
-                  ?.expires
-                  ? ` · expires ${String(
-                      rdStatus.expires
-                    ).slice(
-                      0,
-                      10
-                    )}`
-                  : ""}
-              </span>
-            </div>
-          </div>
-        )}
-
-        {rdStatus
-          ?.error &&
-          !rdConnected && (
-            <p className="mb-4 text-xs 3xl:text-sm text-red-400">
-              {
-                rdStatus.error
-              }
-            </p>
-          )}
-
-        {deviceFlow ? (
-          <div className="rounded-xl border border-mg-green/30 bg-black/20 p-4 3xl:p-6">
-            <p className="text-xs 3xl:text-sm font-semibold uppercase tracking-wide text-mg-green mb-2">
-              Your Real-Debrid login code
-            </p>
-
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
-              <div className="flex-1 rounded-lg bg-black/50 border border-white/10 px-4 py-3 3xl:px-5 3xl:py-4 text-center sm:text-left">
-                <span className="font-mono text-2xl sm:text-3xl 3xl:text-4xl 4xl:text-5xl tracking-[0.16em] text-white font-bold break-all">
-                  {
-                    deviceFlow.user_code
-                  }
-                </span>
-              </div>
-
-              <button
-                type="button"
-                onClick={
-                  copyCode
-                }
-                className="min-h-11 3xl:min-h-12 inline-flex items-center justify-center gap-2 px-4 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm 3xl:text-base"
-              >
-                {copied ? (
-                  <Check className="w-4 h-4 text-mg-green" />
-                ) : (
-                  <Copy className="w-4 h-4" />
-                )}
-
-                {copied
-                  ? "Copied"
-                  : "Copy code"}
-              </button>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-2">
-              <a
-                href={
-                  deviceFlow.verification_url ||
-                  "https://real-debrid.com/device"
-                }
-                target="_blank"
-                rel="noopener noreferrer"
-                className="min-h-11 3xl:min-h-12 inline-flex items-center justify-center gap-2 bg-mg-green text-black font-semibold text-sm 3xl:text-base px-4 3xl:px-5 py-2.5 rounded-lg hover:bg-mg-green-dim"
-              >
-                <ExternalLink className="w-4 h-4" />
-
-                Open Real-Debrid
-              </a>
-
-              <button
-                type="button"
-                onClick={() =>
-                  pollDevice(
-                    true
-                  )
-                }
-                className="min-h-11 3xl:min-h-12 inline-flex items-center justify-center gap-2 border border-white/10 bg-white/5 hover:bg-white/10 text-white text-sm 3xl:text-base px-4 3xl:px-5 py-2.5 rounded-lg"
-              >
-                <RefreshCw className="w-4 h-4" />
-
-                I authorised it — check now
-              </button>
-            </div>
-
-            <p className="mt-3 text-[11px] 3xl:text-sm text-white/40">
-              Media God is also checking automatically. Keep this screen open until it says Connected.
-            </p>
-          </div>
-        ) : (
-          <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
-            {!rdConnected && (
-              <button
-                type="button"
-                onClick={
-                  startRdConnect
-                }
-                disabled={
-                  rdStarting ||
-                  rdChecking
-                }
-                className="min-h-11 3xl:min-h-12 inline-flex items-center justify-center gap-2 bg-mg-green text-black font-semibold text-sm 3xl:text-base px-4 3xl:px-5 py-2.5 rounded-lg hover:bg-mg-green-dim disabled:opacity-60"
-              >
-                {rdStarting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Zap className="w-4 h-4" />
-                )}
-
-                {rdStarting
-                  ? "Getting code…"
-                  : "Connect Real-Debrid"}
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={() =>
-                checkRd(
-                  true
-                )
-              }
-              disabled={
-                rdChecking
-              }
-              className="min-h-11 3xl:min-h-12 inline-flex items-center justify-center gap-2 border border-white/10 bg-white/5 hover:bg-white/10 text-white/80 text-sm 3xl:text-base px-4 3xl:px-5 py-2.5 rounded-lg disabled:opacity-60"
-            >
-              {rdChecking ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <RefreshCw className="w-4 h-4" />
-              )}
-
-              Re-check
-            </button>
-
-            {rdConnected && (
-              <button
-                type="button"
-                onClick={
-                  disconnectRd
-                }
-                disabled={
-                  rdDisconnecting
-                }
-                className="min-h-11 3xl:min-h-12 inline-flex items-center justify-center gap-2 border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-300 text-sm 3xl:text-base px-4 3xl:px-5 py-2.5 rounded-lg disabled:opacity-60"
-              >
-                {rdDisconnecting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Unlink className="w-4 h-4" />
-                )}
-
-                Disconnect
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-
-      <MultiDebridSettings />
 
       <button
         type="button"
