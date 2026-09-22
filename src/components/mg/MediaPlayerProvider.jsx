@@ -4420,30 +4420,20 @@ export const DEMO_VIDEO =
   "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
 
 /**
+ * Build non-content provider links that may be shown alongside VOD discovery.
+ * Trailer metadata is intentionally NOT converted into a playback source:
+ * films and episodes must never fall back to a trailer when the real title
+ * cannot be resolved. Explicit trailer buttons can still launch a trailer
+ * directly outside this source pool.
+ *
  * @param {{ trailerUrl?: any, providers?: any[], [key: string]: any }} input
  */
 export function buildMediaSources({
-  trailerUrl,
+  trailerUrl: _trailerUrl,
   providers,
 } = {}) {
   const sources =
     [];
-
-  if (trailerUrl) {
-    sources.push({
-      label:
-        "Trailer",
-
-      type:
-        "youtube",
-
-      src:
-        trailerUrl,
-
-      url:
-        trailerUrl,
-    });
-  }
 
   (
     providers ||
