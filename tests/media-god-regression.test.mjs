@@ -2885,55 +2885,39 @@ test("strict launch barrier preserves verified playback and blocks unverified au
   assert.equal(mergedWaiting[1].infoHash, hash);
 });
 
-test("episode trailer fallbacks cannot replace the waiting row before a real episode source arrives", () => {
-  const waiting = {
-    label: "Finding the fastest source…",
-    type: "status",
-    src: "",
-    url: "",
-    diagnostic: true,
-  };
-
-  const trailer = {
-    label: "Trailer",
-    type: "youtube",
-    src: "https://www.youtube.com/watch?v=episode-trailer",
-    url: "https://www.youtube.com/watch?v=episode-trailer",
-    episodeFallbackOnly: true,
-  };
-
-  const provider = {
-    label: "Provider",
-    type: "provider",
-    src: "https://example.com/watch",
-    url: "https://example.com/watch",
-    episodeFallbackOnly: true,
-  };
-
-  const waitingPool = mergeCompleteSourcePool(
-    [waiting],
-    [trailer, provider]
+test("film and episode playback source pools never include trailers", () => {
+  const providerSource = readFileSync(
+    new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
+    "utf8"
+  );
+  const episodeSource = readFileSync(
+    new URL("../src/components/mg/EpisodeSelector.jsx", import.meta.url),
+    "utf8"
   );
 
-  assert.equal(waitingPool[0].type, "status");
-  assert.equal(waitingPool[0].diagnostic, true);
-  assert.equal(waitingPool[1].type, "youtube");
-  assert.equal(waitingPool[2].type, "provider");
-
-  const episodeStream = {
-    label: "NCIS S01E01",
-    type: "url",
-    src: "https://stream.example/ncis-s01e01.m3u8",
-    url: "https://stream.example/ncis-s01e01.m3u8",
-  };
-
-  const readyPool = mergeCompleteSourcePool(
-    [episodeStream],
-    [trailer, provider]
+  const builderStart = providerSource.indexOf(
+    "export function buildMediaSources"
   );
+  const builderBlock = providerSource.slice(builderStart);
 
-  assert.equal(readyPool[0].type, "url");
-  assert.equal(readyPool[0].label, "NCIS S01E01");
+  assert.ok(builderStart >= 0);
+  assert.doesNotMatch(builderBlock, /type:\s*"youtube"/);
+  assert.doesNotMatch(builderBlock, /label:\s*"Trailer"/);
+  assert.match(
+    providerSource,
+    /const stripVodTrailerSources =[\s\S]{0,500}?toLowerCase\(\) !== "youtube"/
+  );
+  assert.match(
+    providerSource,
+    /const suppliedCompleteSources =[\s\S]{0,320}?stripVodTrailerSources/
+  );
+  assert.doesNotMatch(
+    episodeSource.slice(
+      episodeSource.indexOf("buildMediaSources({"),
+      episodeSource.indexOf("}).map(", episodeSource.indexOf("buildMediaSources({"))
+    ),
+    /trailerUrl/
+  );
 });
 
 test("finished episode discovery cannot promote trailer-only fallbacks to autoplay", () => {
