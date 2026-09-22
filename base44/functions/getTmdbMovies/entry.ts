@@ -589,6 +589,129 @@ const mapItem = (
   };
 };
 
+const fetchSearchIdentityCorrections = async (
+  query,
+  mediaType,
+  apiKey,
+  region
+) => {
+  const corrections =
+    matchingSearchIdentityCorrections(
+      query,
+      mediaType
+    );
+
+  if (
+    corrections.length ===
+    0
+  ) {
+    return [];
+  }
+
+  const corrected =
+    await Promise.all(
+      corrections.map(
+        async (
+          correction
+        ) => {
+          try {
+            const response =
+              await fetch(
+                `${TMDB_BASE}/${correction.media_type}/${correction.tmdb_id}?api_key=${apiKey}&language=en-GB`,
+                {
+                  headers: {
+                    Accept:
+                      'application/json',
+                  },
+                }
+              );
+
+            if (
+              !response.ok
+            ) {
+              return null;
+            }
+
+            const record =
+              await response.json();
+
+            const mapped =
+              mapItem(
+                {
+                  ...record,
+                  media_type:
+                    correction.media_type,
+                },
+                correction.media_type
+              );
+
+            const providers =
+              await fetchWatchProviders(
+                {
+                  ...record,
+                  id:
+                    correction.tmdb_id,
+                  media_type:
+                    correction.media_type,
+                },
+                apiKey,
+                region
+              );
+
+            return {
+              ...mapped,
+              ...providers,
+              id:
+                String(
+                  correction.tmdb_id
+                ),
+              tmdb_id:
+                correction.tmdb_id,
+              imdb_id:
+                correction.imdb_id,
+              title:
+                correction.title ||
+                mapped.title,
+              name:
+                correction.title ||
+                mapped.title,
+              media_type:
+                correction.media_type,
+              mediaType:
+                correction.media_type,
+              alternate_years:
+                (
+                  correction
+                    .accepted_years ||
+                  []
+                ).filter(
+                  (value) =>
+                    String(
+                      value
+                    ) !==
+                    String(
+                      mapped.year ||
+                      ''
+                    )
+                ),
+              search_aliases:
+                correction.aliases ||
+                [],
+              identity_corrected:
+                true,
+            };
+          } catch {
+            return null;
+          }
+        }
+      )
+    );
+
+  return corrected.filter(
+    Boolean
+  );
+};
+
 export default async function(req) {
   try {
     const base44 =
