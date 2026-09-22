@@ -2801,6 +2801,57 @@ test("strict launch barrier preserves verified playback and blocks unverified au
   assert.equal(mergedWaiting[1].infoHash, hash);
 });
 
+test("episode trailer fallbacks cannot replace the waiting row before a real episode source arrives", () => {
+  const waiting = {
+    label: "Finding the fastest source…",
+    type: "status",
+    src: "",
+    url: "",
+    diagnostic: true,
+  };
+
+  const trailer = {
+    label: "Trailer",
+    type: "youtube",
+    src: "https://www.youtube.com/watch?v=episode-trailer",
+    url: "https://www.youtube.com/watch?v=episode-trailer",
+    episodeFallbackOnly: true,
+  };
+
+  const provider = {
+    label: "Provider",
+    type: "provider",
+    src: "https://example.com/watch",
+    url: "https://example.com/watch",
+    episodeFallbackOnly: true,
+  };
+
+  const waitingPool = mergeCompleteSourcePool(
+    [waiting],
+    [trailer, provider]
+  );
+
+  assert.equal(waitingPool[0].type, "status");
+  assert.equal(waitingPool[0].diagnostic, true);
+  assert.equal(waitingPool[1].type, "youtube");
+  assert.equal(waitingPool[2].type, "provider");
+
+  const episodeStream = {
+    label: "NCIS S01E01",
+    type: "url",
+    src: "https://stream.example/ncis-s01e01.m3u8",
+    url: "https://stream.example/ncis-s01e01.m3u8",
+  };
+
+  const readyPool = mergeCompleteSourcePool(
+    [episodeStream],
+    [trailer, provider]
+  );
+
+  assert.equal(readyPool[0].type, "url");
+  assert.equal(readyPool[0].label, "NCIS S01E01");
+});
+
 test("full discovery requires identity and English-track qualification without requiring an RD transcode state", () => {
   const providerSource = readFileSync(
     new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
