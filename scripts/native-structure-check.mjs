@@ -203,10 +203,10 @@ for (const app of apps) {
       "native episode skip/next controls",
     ],
     [
-      playerActivity.includes("isHostedProviderErrorClip") &&
-        playerActivity.includes("115_000L..125_000L") &&
-        playerActivity.includes("AIOStreams / ElfHosted returned a short error clip"),
-      "AIOStreams/ElfHosted short error-clip failover",
+      !playerActivity.includes("isHostedProviderErrorClip") &&
+        !playerActivity.includes("115_000L..125_000L") &&
+        playerActivity.includes("Do not infer provider failure from duration while READY"),
+      "native VOD never rejects a healthy hosted stream from duration metadata alone",
     ],
     [playerActivity.includes("CompatibilityPlayerActivity::class.java"), "runtime compatibility decoder fallback"],
     [playerActivity.includes("MimeTypes.APPLICATION_M3U8"), "HLS MIME fallback"],
