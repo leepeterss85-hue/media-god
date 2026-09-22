@@ -311,7 +311,9 @@ const readPersistentFailedTorrentHashes = () => {
     );
     const now = Date.now();
     const fresh = Object.entries(
-      raw && typeof raw === "object" ? raw : {}
+      /** @type {Record<string, number>} */ (
+        raw && typeof raw === "object" ? raw : {}
+      )
     )
       .map(([hash, failedAt]) => [
         String(hash || "").toLowerCase(),
@@ -354,7 +356,9 @@ const rememberPersistentFailedTorrentHash = (hash) => {
       window.localStorage.getItem(FAILED_TORRENT_HASHES_KEY) || "{}"
     );
     const fresh = Object.entries(
-      raw && typeof raw === "object" ? raw : {}
+      /** @type {Record<string, number>} */ (
+        raw && typeof raw === "object" ? raw : {}
+      )
     )
       .map(([storedHash, failedAt]) => [
         String(storedHash || "").toLowerCase(),
