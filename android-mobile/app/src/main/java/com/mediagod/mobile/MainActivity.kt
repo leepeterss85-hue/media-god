@@ -585,6 +585,38 @@ class MainActivity : Activity() {
         }
 
         @JavascriptInterface
+        fun openExternalPlayer(url: String): Boolean {
+            if (!nativeBridgeAllowed()) {
+                return false
+            }
+
+            val target = url.trim()
+
+            if (!(target.startsWith("https://") || target.startsWith("http://"))) {
+                return false
+            }
+
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(Uri.parse(target), "video/*")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+
+            if (intent.resolveActivity(packageManager) == null) {
+                return false
+            }
+
+            runOnUiThread {
+                try {
+                    startActivity(intent)
+                } catch (_: Throwable) {
+                    // No compatible external player remained available.
+                }
+            }
+
+            return true
+        }
+
+        @JavascriptInterface
         fun startUpdate(_url: String, versionName: String): String {
             if (!nativeBridgeAllowed()) {
                 return "error"
