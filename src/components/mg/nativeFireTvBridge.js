@@ -143,6 +143,26 @@ export const openNativeFireTvExternalUrl = (url) => {
   }
 };
 
+export const openNativeFireTvExternalPlayer = (url) => {
+  const native = bridge();
+  const target = String(url || "").trim();
+
+  if (
+    !native ||
+    typeof native.openExternalPlayer !== "function" ||
+    !/^https?:\/\//i.test(target)
+  ) {
+    return false;
+  }
+
+  try {
+    const result = native.openExternalPlayer(target);
+    return result !== false && result !== "false" && result !== "error";
+  } catch {
+    return false;
+  }
+};
+
 const NATIVE_DIAGNOSTICS_KEY = "mg:native-playback-diagnostics:v1";
 
 const connectionDownlinkMbps = () => {
