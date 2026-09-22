@@ -73,8 +73,28 @@ const normaliseSearchText = (value) =>
 const searchRelevance = (item, query) => {
   const title = normaliseSearchText(item?.title || item?.name);
   const wanted = normaliseSearchText(query);
+  const aliases = (
+    Array.isArray(item?.search_aliases)
+      ? item.search_aliases
+      : []
+  )
+    .map(normaliseSearchText)
+    .filter(Boolean);
 
   if (!wanted || !title) return 0;
+
+  /*
+   * Verified identity corrections carry explicit aliases. Let an exact alias
+   * outrank a different movie/TV project whose literal title happens to match
+   * the typed text, while still keeping that separate project in the results.
+   */
+  if (
+    item?.identity_corrected === true &&
+    aliases.includes(wanted)
+  ) {
+    return 1200;
+  }
+
   if (title === wanted) return 1000;
   if (title.startsWith(wanted)) return 800;
   if (title.includes(wanted)) return 600;
