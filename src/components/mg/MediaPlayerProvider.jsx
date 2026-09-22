@@ -2771,11 +2771,16 @@ export function PlayerProvider({
           rdPromise,
         ]);
 
-        const combined = dedupeSources([
-          ...(rdLookup?.source ? [rdLookup.source] : []),
-          ...(addonLookup?.streams || []),
-          ...originalSources,
-        ]);
+        const combined = dedupeSources(
+          stripVodTrailerSources(
+            [
+              ...(rdLookup?.source ? [rdLookup.source] : []),
+              ...(addonLookup?.streams || []),
+              ...originalSources,
+            ],
+            isLive
+          )
+        );
 
         const cacheAnnotated = await annotateDebridCache(
           combined,
@@ -3074,9 +3079,12 @@ export function PlayerProvider({
             return;
           }
 
-          const incoming = Array.isArray(incomingSources)
-            ? incomingSources.filter(Boolean)
-            : [];
+          const incoming = stripVodTrailerSources(
+            Array.isArray(incomingSources)
+              ? incomingSources.filter(Boolean)
+              : [],
+            isLive
+          );
 
           if (incoming.length === 0) {
             return;
@@ -3605,23 +3613,26 @@ export function PlayerProvider({
 
         const combined =
           dedupeSources(
-            [
-              ...(rdLookup
-                ?.source
-                ? [
-                    rdLookup
-                      .source,
-                  ]
-                : []),
+            stripVodTrailerSources(
+              [
+                ...(rdLookup
+                  ?.source
+                  ? [
+                      rdLookup
+                        .source,
+                    ]
+                  : []),
 
-              ...(
-                addonLookup
-                  ?.streams ||
-                []
-              ),
+                ...(
+                  addonLookup
+                    ?.streams ||
+                  []
+                ),
 
-              ...originalSources,
-            ]
+                ...originalSources,
+              ],
+              isLive
+            )
           );
 
         const cacheAnnotatedCombined =
@@ -3985,7 +3996,7 @@ export function PlayerProvider({
 
         const episodeSourceMissingStatus = {
           label:
-            "No playable episode stream found yet — trailer kept as a manual fallback.",
+            "No playable episode stream found yet.",
           type:
             "status",
           src:
