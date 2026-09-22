@@ -738,6 +738,9 @@ const startViaComet = async ({
   );
 };
 
+/**
+ * @returns {Promise<any>}
+ */
 export async function runRealDebridCacheSession({
   source,
   context,
