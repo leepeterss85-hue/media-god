@@ -59,6 +59,31 @@ const EXTERNAL_SEARCH_OVERRIDES = [
   },
 ];
 
+/*
+ * Verified movie/TV identity conflicts.
+ *
+ * These are not fuzzy guesses. Each correction is keyed to a stable TMDB/IMDb
+ * identity and only activates for exact known aliases (plus an optional
+ * release year). The original TMDB movie/TV rows are still returned, so a
+ * genuinely separate TV project with a similar title remains selectable.
+ */
+const SEARCH_IDENTITY_CORRECTIONS = [
+  {
+    aliases: [
+      'bad apple',
+      'bad apples',
+    ],
+    media_type: 'movie',
+    tmdb_id: 1198654,
+    imdb_id: 'tt29714073',
+    title: 'Bad Apples',
+    accepted_years: [
+      '2025',
+      '2026',
+    ],
+  },
+];
+
 const MOVIE_ENDPOINTS = {
   now_playing: 'movie/now_playing',
   popular: 'movie/popular',
