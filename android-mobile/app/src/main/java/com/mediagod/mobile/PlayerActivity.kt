@@ -76,27 +76,6 @@ class PlayerActivity : Activity() {
     private var nextEpisodeCountdownStartedAtMs = -1L
     private var nextEpisodeCountdownCancelled = false
 
-    private fun hostedProviderDescriptor(): String {
-        val payloadLabel = payload.optString("sourceLabel").trim()
-        val payloadName = payload.optString("sourceName").trim()
-        val sourceArray = payload.optJSONArray("sources") ?: JSONArray()
-        val activeWebIndex = payload.optInt("activeSourceIndex", 0)
-        var sourceLabel = ""
-        var sourceName = ""
-
-        for (index in 0 until sourceArray.length()) {
-            val item = sourceArray.optJSONObject(index) ?: continue
-            if (item.optInt("webIndex", index) != activeWebIndex) continue
-            sourceLabel = item.optString("label").trim()
-            sourceName = item.optString("sourceName").trim()
-            break
-        }
-
-        return listOf(payloadLabel, payloadName, sourceLabel, sourceName)
-            .filter { it.isNotBlank() }
-            .joinToString(" ")
-    }
-
     private fun formatLooksEnglish(format: androidx.media3.common.Format): Boolean {
         val language = format.language.orEmpty().trim().lowercase()
         val label = format.label.orEmpty().trim().lowercase()
