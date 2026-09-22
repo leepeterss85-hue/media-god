@@ -7530,12 +7530,12 @@ export default function VideoPlayer({
       );
 
       /*
-       * Some hosted Stremio providers return a perfectly valid short MP4 when
-       * the requested release cannot be fetched. The player therefore sees a
-       * normal video instead of a media error. Comet has long used this pattern,
-       * and AIOStreams / ElfHosted can return the same ~2 minute error card
-       * (for example "Couldn't fetch this release"). Treat those known error
-       * clips as failed sources and move straight to the next usable source.
+       * Some hosted Stremio providers can label an explicit provider-side
+       * failure as a normal media row. Only reject those rows when the source
+       * metadata itself contains a recognised provider error marker. Never use
+       * reported duration as proof of failure: healthy progressive/HLS streams
+       * can temporarily expose short, sliding or otherwise inaccurate duration
+       * metadata while playback is already advancing normally.
        */
       const activeSourceText = [
         active?.addon,
@@ -7559,24 +7559,9 @@ export default function VideoPlayer({
           activeSourceText
         );
 
-      const hostedErrorDuration =
-        !isLive &&
-        Number.isFinite(loadedDuration) &&
-        (
-          loadedDuration <= 15 ||
-          (
-            loadedDuration >= 115 &&
-            loadedDuration <= 125
-          )
-        );
-
       const hostedErrorVideo =
         hostedErrorProvider &&
-        (
-          hostedNamedError ||
-          (!isLive && !Number.isFinite(loadedDuration)) ||
-          hostedErrorDuration
-        );
+        hostedNamedError;
 
       if (hostedErrorVideo) {
         try {
