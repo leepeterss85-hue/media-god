@@ -249,6 +249,71 @@ const externalSearchOverrides = (
   }));
 };
 
+const matchingSearchIdentityCorrections = (
+  query,
+  mediaType = ''
+) => {
+  const parsed =
+    parseSearchQuery(query);
+
+  const wantedTitle =
+    normaliseSearchTitle(
+      parsed.title
+    );
+
+  const wantedYear =
+    String(
+      parsed.year ||
+      ''
+    );
+
+  if (!wantedTitle) {
+    return [];
+  }
+
+  return SEARCH_IDENTITY_CORRECTIONS.filter(
+    (correction) => {
+      if (
+        mediaType &&
+        correction.media_type !==
+          mediaType
+      ) {
+        return false;
+      }
+
+      const aliasMatch =
+        (
+          correction.aliases ||
+          []
+        ).some(
+          (alias) =>
+            normaliseSearchTitle(
+              alias
+            ) ===
+            wantedTitle
+        );
+
+      if (!aliasMatch) {
+        return false;
+      }
+
+      if (!wantedYear) {
+        return true;
+      }
+
+      return (
+        correction
+          .accepted_years ||
+        []
+      )
+        .map(String)
+        .includes(
+          wantedYear
+        );
+    }
+  );
+};
+
 const searchResultScore = (item, titleQuery, requestedYear, originalIndex) => {
   const wantedTitle = normaliseSearchTitle(titleQuery);
   const titles = [
