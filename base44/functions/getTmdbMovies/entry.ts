@@ -1064,6 +1064,14 @@ export default async function(req) {
           )
         );
 
+      const corrected =
+        await fetchSearchIdentityCorrections(
+          body.multi_search,
+          '',
+          apiKey,
+          region
+        );
+
       const overrides =
         externalSearchOverrides(
           body.multi_search
@@ -1073,6 +1081,7 @@ export default async function(req) {
       const combinedSeen = new Set();
 
       for (const item of [
+        ...corrected,
         ...overrides,
         ...items,
       ]) {
