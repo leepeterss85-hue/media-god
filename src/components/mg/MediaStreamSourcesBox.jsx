@@ -1624,6 +1624,12 @@ export default function StreamSourcesBox({
                   </span>
                 </span>
 
+                {row.providerBadge && (
+                  <span className="shrink-0 rounded border border-cyan-400/30 bg-cyan-400/10 px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-cyan-300">
+                    {row.providerBadge}
+                  </span>
+                )}
+
                 {row.kind ===
                   "archive" ||
                 row.kind ===
