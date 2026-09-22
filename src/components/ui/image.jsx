@@ -18,6 +18,34 @@ const isFireTvRuntime = () =>
   typeof document !== "undefined" &&
   document.documentElement.classList.contains("mg-fire-tv")
 
+/** @typedef {{ baseUrl: string, filename: string }} WixParsedImage */
+/** @typedef {{ x: number, y: number }} ImageFocalPoint */
+/**
+ * @typedef {React.ComponentPropsWithoutRef<"span"> & {
+ *   aspectRatio?: string | number
+ * }} ImageWrapperProps
+ */
+/**
+ * @typedef {Omit<React.ComponentPropsWithoutRef<"img">, "src" | "srcSet"> & {
+ *   parsed: WixParsedImage,
+ *   fittingType?: string,
+ *   focalPoint?: ImageFocalPoint,
+ *   quality?: number,
+ *   maxDpr?: number,
+ *   aspectRatio?: string
+ * }} ResponsiveImageProps
+ */
+/**
+ * @typedef {React.ComponentPropsWithoutRef<"img"> & {
+ *   fittingType?: string,
+ *   originWidth?: number,
+ *   originHeight?: number,
+ *   focalPointX?: number,
+ *   focalPointY?: number,
+ *   quality?: number
+ * }} ImageProps
+ */
+
 const ImageWrapper = React.forwardRef(({ aspectRatio, className, style, children }, ref) => (
   <span
     ref={ref}
