@@ -186,6 +186,7 @@ const searchText = (value) => String(value || "").toLowerCase().trim();
 const normaliseStationName = (value) =>
   searchText(value).replace(/\s+/g, " ").replace(/\s+(uk|hd|fhd)$/i, "").trim();
 
+/** @type {Array<[RegExp, string, string]>} */
 const OFFICIAL_LIVE_FALLBACKS = [
   [/^bbc one\b/i, "https://www.bbc.co.uk/iplayer/live/bbcone", "Open BBC iPlayer"],
   [/^bbc two\b/i, "https://www.bbc.co.uk/iplayer/live/bbctwo", "Open BBC iPlayer"],
