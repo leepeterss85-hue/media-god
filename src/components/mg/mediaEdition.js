@@ -44,6 +44,7 @@ export const MEDIA_EXTRA_OPTIONS = [
   { value: "bonus", label: "Bonus / Extra" },
 ];
 
+/** @type {Array<[string, RegExp]>} */
 const EXTRA_RULES = [
   ["deleted_scene", /\bdeleted\s+scenes?\b/i],
   ["alternate_ending", /\b(?:alternate|alternative)\s+endings?\b/i],
@@ -60,6 +61,7 @@ const EXTRA_RULES = [
   ["bonus", /\b(?:bonus|extras?|special\s+features?)\b/i],
 ];
 
+/** @type {Array<[string, RegExp]>} */
 const EDITION_RULES = [
   ["directors_cut", /\b(?:director'?s?|directors)\s+(?:cut|edition|version)\b/i],
   ["extended", /\bextended(?:\s+(?:cut|edition|version))?\b|\bextended\s+episode\b/i],
