@@ -43,6 +43,10 @@ class MainActivity : Activity() {
                 javaScriptEnabled = true
                 domStorageEnabled = true
                 databaseEnabled = true
+                allowFileAccess = false
+                allowContentAccess = false
+                javaScriptCanOpenWindowsAutomatically = false
+                setSupportMultipleWindows(false)
                 mediaPlaybackRequiresUserGesture = false
                 /* Always ask the network for the current Base44 HTML/JS bundle.
                  * The app intentionally keeps cookies and DOM storage, so login
