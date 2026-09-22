@@ -837,7 +837,7 @@ test("addon and RD fast-start paths both enforce requested source identity", () 
   );
 });
 
-test("player context is owned by the protected route boundary", () => {
+test("player context is owned above the authenticated routes tree", () => {
   const appSource = readFileSync(
     new URL("../src/App.jsx", import.meta.url),
     "utf8"
@@ -852,6 +852,14 @@ test("player context is owned by the protected route boundary", () => {
     /import \{ PlayerProvider \} from '@\/components\/mg\/PlayerProvider\.jsx';/
   );
   assert.match(
+    appSource,
+    /const appRoutes = \([\s\S]{0,120}<Routes>/
+  );
+  assert.match(
+    appSource,
+    /return isAuthenticated[\s\S]{0,120}<PlayerProvider>\{appRoutes\}<\/PlayerProvider>/
+  );
+  assert.doesNotMatch(
     appSource,
     /<PlayerProvider>[\s\S]{0,240}<ProtectedRoute/
   );
