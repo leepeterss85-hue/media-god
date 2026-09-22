@@ -348,7 +348,11 @@ export default function SourcesView() {
   const [testingId, setTestingId] = useState("");
   const [serverTestingId, setServerTestingId] = useState("");
   const [refreshingLive, setRefreshingLive] = useState(false);
-  const [skyStatus, setSkyStatus] = useState({ loading: true, connected: false });
+  const [skyStatus, setSkyStatus] = useState({
+    loading: true,
+    connected: false,
+    verificationUrl: "https://www.skysportnow.co.nz/tv-login",
+  });
   const [skyDevice, setSkyDevice] = useState(null);
   const [skyBusy, setSkyBusy] = useState(false);
 
@@ -944,7 +948,10 @@ export default function SourcesView() {
                 max="150"
                 value={sourceForm.priority}
                 onChange={(event) =>
-                  setSourceForm((current) => ({ ...current, priority: event.target.value }))
+                  setSourceForm((current) => ({
+                    ...current,
+                    priority: Number(event.target.value || 85),
+                  }))
                 }
                 className="min-h-11 rounded-lg border border-white/10 bg-black/35 px-3 text-sm text-white"
                 placeholder="Priority"
