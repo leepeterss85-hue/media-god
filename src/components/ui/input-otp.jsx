@@ -4,13 +4,21 @@ import { Minus } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * @typedef {Omit<React.ComponentPropsWithoutRef<typeof OTPInput>, "children"> & {
+ *   children?: React.ReactNode
+ * }} InputOTPProps
+ */
+
+const RawOTPInput = /** @type {any} */ (OTPInput)
+
 const InputOTP = React.forwardRef(
   /**
-   * @param {React.ComponentPropsWithoutRef<typeof OTPInput>} props
+   * @param {InputOTPProps} props
    * @param {React.ForwardedRef<HTMLInputElement>} ref
    */
   ({ className, containerClassName, ...props }, ref) => (
-    <OTPInput
+    <RawOTPInput
       ref={ref}
       containerClassName={cn(
         "flex items-center gap-2 has-[:disabled]:opacity-50",
