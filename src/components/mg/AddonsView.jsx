@@ -610,6 +610,18 @@ export default function AddonsManager() {
       }
 
       if (
+        manifestHostIsPrivate(
+          url
+        )
+      ) {
+        setError(
+          "Addon manifest URLs must use a public HTTPS host. Local and private-network addresses are blocked."
+        );
+
+        return;
+      }
+
+      if (
         isElfHostedAioStreams(rawUrl) &&
         (/\/configure(?:[/?#]|$)/i.test(rawUrl) ||
           isBareAioStreamsManifest(url))
