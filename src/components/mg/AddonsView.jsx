@@ -75,6 +75,115 @@ const normaliseManifestUrl = (
   }
 };
 
+const manifestHostIsPrivate = (value) => {
+  try {
+    const parsed =
+      new URL(
+        normaliseManifestUrl(
+          value
+        )
+      );
+
+    const host =
+      String(
+        parsed.hostname ||
+        ""
+      )
+        .toLowerCase()
+        .replace(/^\[/, "")
+        .replace(/\]$/, "")
+        .replace(/\.$/, "");
+
+    if (
+      !host ||
+      host === "localhost" ||
+      host.endsWith(".localhost") ||
+      host.endsWith(".local") ||
+      host.endsWith(".lan") ||
+      host.endsWith(".internal")
+    ) {
+      return true;
+    }
+
+    const ipv4 =
+      host.match(
+        /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/
+      );
+
+    if (ipv4) {
+      const parts =
+        ipv4
+          .slice(1)
+          .map(Number);
+
+      if (
+        parts.some(
+          (part) =>
+            !Number.isInteger(
+              part
+            ) ||
+            part < 0 ||
+            part > 255
+        )
+      ) {
+        return true;
+      }
+
+      const [
+        a,
+        b,
+      ] = parts;
+
+      return (
+        a === 0 ||
+        a === 10 ||
+        a === 127 ||
+        (
+          a === 100 &&
+          b >= 64 &&
+          b <= 127
+        ) ||
+        (
+          a === 169 &&
+          b === 254
+        ) ||
+        (
+          a === 172 &&
+          b >= 16 &&
+          b <= 31
+        ) ||
+        (
+          a === 192 &&
+          b === 168
+        ) ||
+        a >= 224
+      );
+    }
+
+    if (
+      host.includes(":")
+    ) {
+      return (
+        host === "::" ||
+        host === "::1" ||
+        /^f[cd]/i.test(
+          host
+        ) ||
+        /^fe[89ab]/i.test(
+          host
+        ) ||
+        /^ff/i.test(
+          host
+        )
+      );
+    }
+
+    return false;
+  } catch {
+    return true;
+  }
+};
+
 const isElfHostedAioStreams = (value) => {
   try {
     const parsed = new URL(normaliseManifestUrl(value));
