@@ -542,6 +542,10 @@ class MainActivity : Activity() {
 
         @JavascriptInterface
         fun play(payloadJson: String): String {
+            if (!nativeBridgeAllowed()) {
+                return "error"
+            }
+
             val payload = try {
                 JSONObject(payloadJson)
             } catch (_: Throwable) {
