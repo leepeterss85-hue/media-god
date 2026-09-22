@@ -9188,6 +9188,16 @@ export default function VideoPlayer({
           return;
         }
 
+        if (
+          nativeAudioFailure &&
+          rejectAutomaticAioAudioFailure(
+            detail?.message ||
+              "AIOStreams audio failed in the native player."
+          )
+        ) {
+          return;
+        }
+
         if (nativeAudioFailure || lockedVodNativeFailure) {
           if (positionSeconds > 5) {
             recoveryResumeRef.current = positionSeconds;
