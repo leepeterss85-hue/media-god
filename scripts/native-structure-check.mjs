@@ -163,6 +163,19 @@ for (const app of apps) {
     [manifest.includes('android:name=".CompatibilityPlayerActivity"'), "compatibility player declaration"],
     [manifest.includes(`android:screenOrientation="${app.expectedOrientation}"`), "player orientation"],
     [mainActivity.includes("addJavascriptInterface"), "JavaScript bridge"],
+    [
+      mainActivity.includes("nativeBridgeAllowed()") &&
+        mainActivity.includes("currentTopLevelUrl") &&
+        mainActivity.includes("BuildConfig.MEDIA_GOD_URL") &&
+        mainActivity.includes("currentHost.equals(expectedHost, ignoreCase = true)"),
+      "JavaScript bridge restricted to the trusted hosted app origin",
+    ],
+    [
+      mainActivity.includes("allowFileAccess = false") &&
+        mainActivity.includes("allowContentAccess = false") &&
+        mainActivity.includes("javaScriptCanOpenWindowsAutomatically = false"),
+      "WebView local-file/content access disabled",
+    ],
     [mainActivity.includes("mg:native-player-result"), "native result event"],
     [mainActivity.includes("PlaybackCompatibilityRouter.decide(payload)"), "preflight routing decision"],
     [mainActivity.includes("CompatibilityPlayerActivity::class.java"), "direct compatibility player routing"],
