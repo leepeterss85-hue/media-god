@@ -70,7 +70,11 @@ const ImageWrapper = React.forwardRef(
 ImageWrapper.displayName = "ImageWrapper"
 
 const ResponsiveImage = React.forwardRef(
-  (
+  /**
+   * @param {ResponsiveImageProps} props
+   * @param {React.ForwardedRef<HTMLImageElement>} parentRef
+   */
+  function ResponsiveImageImpl(
     {
       parsed,
       fittingType,
