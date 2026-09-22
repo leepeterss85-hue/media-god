@@ -667,7 +667,15 @@ export const playNativeFireTv = ({
           )
             .replace(/\s+/g, " ")
             .trim(),
-          sourceName: String(item?.sourceName || "").replace(/\s+/g, " ").trim(),
+          sourceName: String(
+            item?.sourceName ||
+              item?.addon ||
+              item?.provider ||
+              item?.debridProvider ||
+              ""
+          )
+            .replace(/\s+/g, " ")
+            .trim(),
           url: String(item?.url || item?.src || item?.magnet || item?.magnetLink || "").trim(),
           mimeType: String(item?.mimeType || item?.mime_type || "").trim(),
           videoCodec: hints.videoCodec,
@@ -758,12 +766,41 @@ export const playNativeFireTv = ({
 
   const advancedPlayback = readPlaybackPreferences();
   const learnedReason = learnedCompatibilityReason(resolvedHints);
+
+  /*
+   * AIOStreams is an aggregator and its rows often arrive without dependable
+   * audio-codec metadata. Media3 can therefore report an audio track as
+   * selected/supported while some Android/Fire TV devices still produce
+   * silence, so the normal missing-track detector never fires.
+   *
+   * Route ONLY the selected AIOStreams / ElfHosted VOD row through Media God's
+   * LibVLC compatibility decoder from the start. This is deliberately provider
+   * scoped: movie/episode source ranking, normal Torrentio/Comet/RD playback,
+   * and Live TV are untouched.
+   */
+  const selectedSourceIdentity = [
+    selectedHints?.label,
+    selectedHints?.sourceName,
+    selectedHints?.hintText,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const selectedIsAioStreams =
+    !live &&
+    /(?:\baio\s*streams?\b|aiostreams(?:\.elfhosted\.com)?|\belf\s*hosted\b)/i.test(
+      selectedSourceIdentity
+    );
+
   const userForcesCompatibility =
     advancedPlayback.audioOutputMode !== "auto" ||
     Number(advancedPlayback.lipSyncMs || 0) !== 0 ||
     advancedPlayback.dialogueBoost !== "off" ||
     advancedPlayback.volumeNormalization === true;
-  const forceCompatibilityReason = learnedReason ||
+
+  const forceCompatibilityReason =
+    learnedReason ||
+    (selectedIsAioStreams ? "audio:aiostreams-compatibility" : "") ||
     (userForcesCompatibility ? "advanced-audio-processing" : "");
 
   const payload = {
