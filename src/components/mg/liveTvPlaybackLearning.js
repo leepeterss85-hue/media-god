@@ -194,7 +194,11 @@ const ensurePreconnect = (url) => {
 
     const existing = Array.from(
       document.querySelectorAll('link[data-mg-live-preconnect]')
-    ).some((link) => link?.dataset?.mgLivePreconnect === origin);
+    ).some(
+      (link) =>
+        link instanceof HTMLElement &&
+        link.dataset?.mgLivePreconnect === origin
+    );
 
     if (!existing) {
       const preconnect = document.createElement("link");
