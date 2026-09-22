@@ -315,10 +315,12 @@ const readPersistentFailedTorrentHashes = () => {
         raw && typeof raw === "object" ? raw : {}
       )
     )
-      .map(([hash, failedAt]) => [
-        String(hash || "").toLowerCase(),
-        Number(failedAt || 0),
-      ])
+      .map(([hash, failedAt]) =>
+        /** @type {[string, number]} */ ([
+          String(hash || "").toLowerCase(),
+          Number(failedAt || 0),
+        ])
+      )
       .filter(
         ([hash, failedAt]) =>
           /^[a-f0-9]{40,64}$/i.test(hash) &&
@@ -360,10 +362,12 @@ const rememberPersistentFailedTorrentHash = (hash) => {
         raw && typeof raw === "object" ? raw : {}
       )
     )
-      .map(([storedHash, failedAt]) => [
-        String(storedHash || "").toLowerCase(),
-        Number(failedAt || 0),
-      ])
+      .map(([storedHash, failedAt]) =>
+        /** @type {[string, number]} */ ([
+          String(storedHash || "").toLowerCase(),
+          Number(failedAt || 0),
+        ])
+      )
       .filter(
         ([storedHash, failedAt]) =>
           /^[a-f0-9]{40,64}$/i.test(storedHash) &&
