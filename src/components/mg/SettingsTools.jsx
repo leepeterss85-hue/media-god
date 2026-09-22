@@ -14,8 +14,13 @@ import {
 const TOOLS = [
   {
     id: "updates",
+<<<<<<< HEAD
     label: "Check for Updates",
     description: "Check for a new Media God version and view release information.",
+=======
+    label: "Updates",
+    description: "Check Media God updates and view release information.",
+>>>>>>> origin/main
     icon: ListVideo,
     featured: true,
   },
@@ -37,6 +42,7 @@ const TOOLS = [
     label: "Reezn",
     description: "Open Reezn and other external media providers.",
     icon: Link,
+<<<<<<< HEAD
   },
   {
     id: "sources",
@@ -57,6 +63,34 @@ const TOOLS = [
     icon: Users,
   },
   {
+=======
+  },
+  {
+    id: "addons",
+    label: "Addons",
+    description: "Manage installed playback and catalogue addons.",
+    icon: Puzzle,
+  },
+  {
+    id: "sources",
+    label: "Sources & Providers",
+    description: "Manage playback sources, Reezn and external providers.",
+    icon: Link,
+  },
+  {
+    id: "remote",
+    label: "Phone Remote",
+    description: "Open the phone / QR remote for controlling Media God.",
+    icon: Smartphone,
+  },
+  {
+    id: "watchparty",
+    label: "Watch Party",
+    description: "Create or join a synchronized watch session.",
+    icon: Users,
+  },
+  {
+>>>>>>> origin/main
     id: "diagnostics",
     label: "Diagnostics",
     description: "Check app health and copy a privacy-safe support report.",
@@ -74,7 +108,7 @@ const TOOLS = [
     description: "Reopen the quick guide to Media God’s catalogue and account tools.",
     icon: Sparkles,
   },
-];
+]
 
 export default function SettingsTools({ onSelect }) {
   return (

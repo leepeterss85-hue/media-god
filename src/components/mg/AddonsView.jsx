@@ -35,6 +35,9 @@ const AIOSTREAMS_CONFIGURE_URL =
 const COMET_CONFIGURE_URL =
   "https://comet.elfhosted.com/configure";
 
+const MEDIAFUSION_CONFIGURE_URL =
+  "https://mediafusion.elfhosted.com/configure";
+
 const normaliseManifestUrl = (
   value
 ) => {
@@ -132,6 +135,18 @@ const isBareCometManifest = (value) => {
   }
 };
 
+const isElfHostedMediaFusion = (value) => {
+  try {
+    const parsed = new URL(normaliseManifestUrl(value));
+
+    return /(^|\.)mediafusion\.elfhosted\.com$/i.test(
+      parsed.hostname
+    );
+  } catch {
+    return false;
+  }
+};
+
 const displayManifestUrl = (value) => {
   const raw = clean(value);
 
@@ -145,6 +160,15 @@ const displayManifestUrl = (value) => {
       return `${parsed.origin}/[configured]/manifest.json`;
     } catch {
       return "Configured Comet manifest";
+    }
+  }
+
+  if (isElfHostedMediaFusion(raw)) {
+    try {
+      const parsed = new URL(normaliseManifestUrl(raw));
+      return `${parsed.origin}/[encrypted-profile]/manifest.json`;
+    } catch {
+      return "Configured MediaFusion manifest";
     }
   }
 
@@ -245,6 +269,14 @@ export default function AddonsManager() {
     );
 
   const [
+    configuringMediaFusion,
+    setConfiguringMediaFusion,
+  ] =
+    useState(
+      false
+    );
+
+  const [
     health,
     setHealth,
   ] =
@@ -333,6 +365,88 @@ export default function AddonsManager() {
         health,
       ]
     );
+
+  const autoConfigureMediaFusion =
+    async () => {
+      if (
+        mutating ||
+        configuringMediaFusion
+      ) {
+        return;
+      }
+
+      setError(
+        ""
+      );
+
+      setMessage(
+        ""
+      );
+
+      setHealth(
+        []
+      );
+
+      setMutating(
+        true
+      );
+
+      setConfiguringMediaFusion(
+        true
+      );
+
+      try {
+        const response =
+          await base44.functions.invoke(
+            "configureMediaFusion",
+            {
+              action:
+                "configure",
+            }
+          );
+
+        const data =
+          unwrap(
+            response
+          );
+
+        if (
+          !data?.configured
+        ) {
+          throw new Error(
+            data?.error ||
+              "MediaFusion did not complete configuration."
+          );
+        }
+
+        await loadAddons();
+
+        setMessage(
+          data?.message ||
+            "MediaFusion is configured and active."
+        );
+      } catch (errorValue) {
+        const detail =
+          clean(
+            errorValue?.response?.data?.error ||
+            errorValue?.data?.error ||
+            errorValue?.message
+          );
+
+        setError(
+          detail ||
+            "Could not auto-configure MediaFusion. Make sure Real-Debrid is connected in Settings."
+        );
+      } finally {
+        setConfiguringMediaFusion(
+          false
+        );
+
+        setMutating(
+          false
+        );
+      }
+    };
 
   const handleAdd =
     async (
@@ -791,7 +905,7 @@ export default function AddonsManager() {
           {
             addons.length
           }
-          . Real-Debrid credentials are not inserted into addon URLs by Media God.
+          . Raw Real-Debrid credentials are never shown in addon URLs. MediaFusion receives the token only when you choose auto-configure and returns an encrypted profile URL.
         </p>
       </div>
 
@@ -850,6 +964,64 @@ export default function AddonsManager() {
 
         <p className="text-[11px] text-gray-500">
           Configured AIOStreams URLs can contain private profile information, so Media God hides those path values when displaying the saved addon.
+        </p>
+      </div>
+
+      <div className="rounded-xl border border-emerald-900/60 bg-emerald-950/20 p-4 space-y-3">
+        <div>
+          <h2 className="text-md font-semibold text-white">
+            MediaFusion (optional)
+          </h2>
+
+          <p className="text-xs text-gray-400 mt-1">
+            Media God can create a MediaFusion profile automatically from the Real-Debrid connection already saved to your account. Your raw token is handled server-side and is never shown in this screen.
+          </p>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-2">
+          <button
+            type="button"
+            onClick={
+              autoConfigureMediaFusion
+            }
+            disabled={
+              mutating ||
+              configuringMediaFusion
+            }
+            className="flex min-h-11 items-center justify-center gap-2 rounded-lg bg-emerald-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {
+              configuringMediaFusion
+                ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  )
+                : (
+                    <Plus className="w-4 h-4" />
+                  )
+            }
+
+            {
+              configuringMediaFusion
+                ? "Configuring MediaFusion…"
+                : "Auto-configure with Real-Debrid"
+            }
+          </button>
+
+          <a
+            href={
+              MEDIAFUSION_CONFIGURE_URL
+            }
+            target="_blank"
+            rel="noreferrer"
+            className="flex min-h-11 items-center justify-center gap-2 rounded-lg border border-emerald-800 bg-zinc-900 px-3 py-2 text-sm font-medium text-emerald-200 transition hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+          >
+            <ExternalLink className="w-4 h-4" />
+            Open MediaFusion manually
+          </a>
+        </div>
+
+        <p className="text-[11px] text-gray-500">
+          Auto-configure sends your existing Real-Debrid token to MediaFusion over HTTPS only after you press the button. MediaFusion returns an encrypted profile path; Media God stores that encrypted manifest and hides it on this screen.
         </p>
       </div>
 

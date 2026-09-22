@@ -68,7 +68,14 @@ const AuthenticatedApp = () => {
   // Render the main app. Auth screens are public-only: if Fire TV/WebView
   // browser history lands on /login after Google sign-in, immediately replace
   // it with Home instead of showing the login box again.
-  return (
+  //
+  // Keep the player context ABOVE the authenticated Routes tree. Home and a
+  // number of lazy-loaded Media God views call usePlayer() directly. Wrapping
+  // only the ProtectedRoute element makes their context depend on the router's
+  // Outlet boundary and can produce a transient "usePlayer must be used within
+  // a PlayerProvider" crash during route/lazy-tree replacement. One provider
+  // above Routes guarantees every authenticated render sees the same context.
+  const appRoutes = (
     <Routes>
       <Route path="/login" element={publicOnly(<Login />)} />
       <Route path="/register" element={publicOnly(<Register />)} />
@@ -76,9 +83,7 @@ const AuthenticatedApp = () => {
       <Route path="/reset-password" element={publicOnly(<ResetPassword />)} />
       <Route
         element={
-          <PlayerProvider>
-            <ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />
-          </PlayerProvider>
+          <ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />
         }
       >
         <Route path="/" element={<Home />} />
@@ -86,6 +91,10 @@ const AuthenticatedApp = () => {
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
+
+  return isAuthenticated
+    ? <PlayerProvider>{appRoutes}</PlayerProvider>
+    : appRoutes;
 };
 
 function App() {
