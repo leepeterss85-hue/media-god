@@ -492,11 +492,42 @@ const validateManifest = async (
       ? data.resources
       : [];
 
+  /*
+   * MediaFusion 6.x uses the richer Stremio manifest resource form:
+   * { name: "stream", types: [...] }
+   * Older builds can still expose the compact string form: "stream".
+   * Accept both so a valid encrypted MediaFusion profile is not rejected.
+   */
+  const hasStreamResource =
+    resources.some(
+      (resource) => {
+        if (
+          typeof resource ===
+            "string"
+        ) {
+          return (
+            clean(
+              resource
+            ).toLowerCase() ===
+            "stream"
+          );
+        }
+
+        return (
+          resource &&
+          typeof resource ===
+            "object" &&
+          clean(
+            resource?.name
+          ).toLowerCase() ===
+            "stream"
+        );
+      }
+    );
+
   if (
     !response.ok ||
-    !resources.includes(
-      "stream"
-    )
+    !hasStreamResource
   ) {
     throw new Error(
       "MediaFusion created a profile, but its manifest did not advertise playable streams."
