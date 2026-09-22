@@ -3837,6 +3837,47 @@ test("manual VOD source choices remain locked across native playback recovery", 
 });
 
 
+test("automatic AIOStreams audio failures are skipped and short playback is not remembered as proven", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+  const trustedSource = readFileSync(
+    new URL("../src/components/mg/trustedCachedSources.js", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(playerSource, /SUCCESSFUL_VOD_PLAYBACK_SECONDS = 20/);
+  assert.match(
+    playerSource,
+    /currentTime >= SUCCESSFUL_VOD_PLAYBACK_SECONDS/
+  );
+  assert.match(
+    playerSource,
+    /positionSeconds >= SUCCESSFUL_VOD_PLAYBACK_SECONDS/
+  );
+  assert.match(
+    playerSource,
+    /const rejectAutomaticAioAudioFailure =/
+  );
+  assert.match(
+    playerSource,
+    /AIOStreams audio failed — skipping that source and trying the best non-AIO backup/
+  );
+  assert.match(
+    playerSource,
+    /nativeAudioFailure[\s\S]{0,180}?rejectAutomaticAioAudioFailure/
+  );
+  assert.match(
+    playerSource,
+    /forgetSuccessfulPlaybackSource\(failedItem\)/
+  );
+  assert.match(
+    trustedSource,
+    /export const forgetSuccessfulPlaybackSource/
+  );
+});
+
 test("audio recovery never advances to another VOD torrent", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
