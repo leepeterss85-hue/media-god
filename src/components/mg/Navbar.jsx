@@ -12,6 +12,7 @@ import {
   LogOut,
   MonitorPlay,
   Power,
+  Puzzle,
   Radio,
   Search,
   Settings,
@@ -35,6 +36,7 @@ const NAV = [
   { id: "roadmap", label: "Release Dates", icon: CalendarDays },
   { id: "watchlist", label: "Watchlist", icon: Bookmark },
   { id: "favorites", label: "Favorites", icon: Heart },
+  { id: "addons", label: "Addons", icon: Puzzle },
   { id: "settings", label: "Settings", icon: Settings },
 ];
 

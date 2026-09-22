@@ -76,7 +76,6 @@ const SETTINGS_TOOL_VIEWS = new Set([
   "rdlib",
   "downloads",
   "remote",
-  "addons",
   "sources",
   "updates",
   "diagnostics",

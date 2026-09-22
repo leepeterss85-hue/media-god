@@ -6,7 +6,6 @@ import {
   HardDrive,
   Link,
   ListVideo,
-  Puzzle,
   Smartphone,
   Sparkles,
   Users,
@@ -38,12 +37,6 @@ const TOOLS = [
     label: "Reezn",
     description: "Open Reezn and other external media providers.",
     icon: Link,
-  },
-  {
-    id: "addons",
-    label: "Addons",
-    description: "Manage installed playback and catalogue addons.",
-    icon: Puzzle,
   },
   {
     id: "sources",
