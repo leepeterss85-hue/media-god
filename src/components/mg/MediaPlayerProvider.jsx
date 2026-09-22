@@ -3942,19 +3942,45 @@ export function PlayerProvider({
                 : []
             : [];
 
+        const onlyEpisodeFallbacksRemain =
+          mediaType === "tv" &&
+          season != null &&
+          episode != null &&
+          canonicalCompletePlaybackSources.length > 0 &&
+          canonicalCompletePlaybackSources.every(
+            (item) => item?.episodeFallbackOnly === true
+          );
+
+        const episodeSourceMissingStatus = {
+          label:
+            "No playable episode stream found yet — trailer kept as a manual fallback.",
+          type:
+            "status",
+          src:
+            "",
+          url:
+            "",
+          diagnostic:
+            true,
+        };
+
         const playerSources =
-          !qualificationMode
-            ? orderedSources
-            : playbackLeadSources.length > 0
-              ? preservePublishedSourceOrder(
-                  playbackLeadSources,
-                  orderedSources,
-                  stableDiscoveredSourceKey
-                )
-              : [
-                  waitingForVerifiedSource,
-                  ...orderedSources,
-                ];
+          onlyEpisodeFallbacksRemain
+            ? [
+                episodeSourceMissingStatus,
+              ]
+            : !qualificationMode
+              ? orderedSources
+              : playbackLeadSources.length > 0
+                ? preservePublishedSourceOrder(
+                    playbackLeadSources,
+                    orderedSources,
+                    stableDiscoveredSourceKey
+                  )
+                : [
+                    waitingForVerifiedSource,
+                    ...orderedSources,
+                  ];
 
         const primary =
           playerSources[0] ||
