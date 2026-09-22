@@ -9,6 +9,7 @@ import {
   setHomeSectionVisible,
 } from "../src/components/mg/uxPreferences.js";
 import { sanitizeDiagnosticText } from "../src/components/mg/diagnostics.js";
+import { movedOrder } from "../src/components/mg/liveTvPersonalisation.js";
 
 test("UX preferences normalise unknown values and preserve every known Home row", () => {
   const value = normaliseUxPreferences({
