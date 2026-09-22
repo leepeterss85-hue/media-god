@@ -61,12 +61,23 @@ class MainActivity : Activity() {
 
             webChromeClient = WebChromeClient()
             webViewClient = object : WebViewClient() {
+                override fun onPageStarted(
+                    view: WebView?,
+                    url: String?,
+                    favicon: Bitmap?
+                ) {
+                    currentTopLevelUrl = url.orEmpty()
+                    super.onPageStarted(view, url, favicon)
+                }
+
                 override fun onPageCommitVisible(view: WebView?, url: String?) {
+                    currentTopLevelUrl = url.orEmpty()
                     super.onPageCommitVisible(view, url)
                     injectMobileBootstrap()
                 }
 
                 override fun onPageFinished(view: WebView?, url: String?) {
+                    currentTopLevelUrl = url.orEmpty()
                     super.onPageFinished(view, url)
                     injectMobileBootstrap()
                     requestFocus()
