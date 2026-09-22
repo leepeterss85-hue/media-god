@@ -102,6 +102,13 @@ const normaliseMediaType = (
   }
 
   if (
+    type === "movie" ||
+    type === "film"
+  ) {
+    return "movie";
+  }
+
+  if (
     item?.first_air_date ||
     item?.firstAirDate ||
     (
