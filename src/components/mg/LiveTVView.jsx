@@ -914,6 +914,15 @@ export default function LiveTVView({
   const [recentKeys, setRecentKeys] = useState(
     () => readStoredList(LIVE_TV_RECENT_KEY)
   );
+  const [hiddenChannelKeys, setHiddenChannelKeys] = useState(
+    () => new Set(readHiddenLiveTvChannels())
+  );
+  const [hiddenGroups, setHiddenGroups] = useState(
+    () => new Set(readHiddenLiveTvGroups())
+  );
+  const [manualChannelOrder, setManualChannelOrder] = useState(
+    readLiveTvChannelOrder
+  );
   const [focusedChannelKey, setFocusedChannelKey] = useState(
     String(initialViewState?.focusedChannelKey || "")
   );
