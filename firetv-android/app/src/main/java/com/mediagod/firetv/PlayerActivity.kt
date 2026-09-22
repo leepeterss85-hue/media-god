@@ -103,41 +103,6 @@ class PlayerActivity : Activity() {
     private var livePlaybackStarted = false
     private var liveRecoveryPending = false
 
-    private fun hostedProviderDescriptor(): String {
-        val payloadLabel = payload.optString("sourceLabel").trim()
-        val payloadName = payload.optString("sourceName").trim()
-        val sourceArray = payload.optJSONArray("sources") ?: JSONArray()
-        val activeWebIndex = payload.optInt("activeSourceIndex", 0)
-        var sourceLabel = ""
-        var sourceName = ""
-
-        for (index in 0 until sourceArray.length()) {
-            val item = sourceArray.optJSONObject(index) ?: continue
-            if (item.optInt("webIndex", index) != activeWebIndex) continue
-            sourceLabel = item.optString("label").trim()
-            sourceName = item.optString("sourceName").trim()
-            break
-        }
-
-        return listOf(payloadLabel, payloadName, sourceLabel, sourceName)
-            .filter { it.isNotBlank() }
-            .joinToString(" ")
-    }
-
-    private fun isHostedProviderErrorClip(durationMs: Long): Boolean {
-        if (live || durationMs <= 0L) return false
-
-        val descriptor = hostedProviderDescriptor()
-        val hostedProvider = Regex(
-            "(?:\\bcomet\\b|\\baiostreams?\\b|\\belf\\s*hosted\\b)",
-            RegexOption.IGNORE_CASE
-        ).containsMatchIn(descriptor)
-
-        if (!hostedProvider) return false
-
-        return durationMs <= 15_000L || durationMs in 115_000L..125_000L
-    }
-
     private fun formatLooksEnglish(format: androidx.media3.common.Format): Boolean {
         val language = format.language.orEmpty().trim().lowercase()
         val label = format.label.orEmpty().trim().lowercase()
@@ -1785,17 +1750,13 @@ class PlayerActivity : Activity() {
                     return
                 }
 
-                if (playbackState == Player.STATE_READY) {
-                    val durationMs = exoPlayer.duration.takeIf { it > 0L } ?: 0L
-                    if (isHostedProviderErrorClip(durationMs)) {
-                        finishWithResult(
-                            "error",
-                            "AIOStreams / ElfHosted returned a short error clip instead of the requested release."
-                        )
-                        return
-                    }
-                }
-
+                /*
+                 * Do not infer provider failure from duration while READY.
+                 * Hosted/progressive streams can report a short or sliding
+                 * duration during startup even while playback is healthy.
+                 * Real player errors and genuine end-of-stream remain the
+                 * authoritative failure/end signals.
+                 */
                 if (playbackState == Player.STATE_ENDED) {
                     finishWithResult("ended")
                 }
