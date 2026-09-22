@@ -859,6 +859,7 @@ function PlayerAutomationBridge({ children }) {
           next: null,
           prepared: null,
           promise: null,
+          availability: "unknown",
         };
 
         await queueContinueWatching(nextRequest);
@@ -1281,6 +1282,7 @@ function PlayerAutomationBridge({ children }) {
             next,
             prepared,
             promise: null,
+            availability: "yes",
           };
 
           return prepared;
@@ -1291,6 +1293,7 @@ function PlayerAutomationBridge({ children }) {
               next: null,
               prepared: null,
               promise: null,
+              availability: "unknown",
             };
           }
           return null;
@@ -1302,6 +1305,7 @@ function PlayerAutomationBridge({ children }) {
         next: null,
         prepared: null,
         promise: preloadPromise,
+        availability: "unknown",
       };
     };
 
