@@ -666,6 +666,47 @@ test("movie source identity rejects wrong franchise years, sequel numbers and au
   );
 });
 
+test("long-running TV episode releases are not rejected by the series premiere year", () => {
+  const request = {
+    title: "The Simpsons",
+    year: "1989",
+    mediaType: "tv",
+  };
+
+  assert.equal(
+    sourceIdentityMismatchReason(
+      {
+        label:
+          "The.Simpsons.S36E01.2025.1080p.WEB-DL.DDP5.1.H.264",
+      },
+      request
+    ),
+    ""
+  );
+
+  assert.equal(
+    sourceMatchesRequestedIdentity(
+      {
+        filename:
+          "The.Simpsons.S37E03.2026.1080p.WEB-DL.mkv",
+      },
+      request
+    ),
+    true
+  );
+
+  assert.equal(
+    sourceIdentityMismatchReason(
+      {
+        label:
+          "The Simpsons S36E01 soundtrack FLAC",
+      },
+      request
+    ),
+    "audio_only_release"
+  );
+});
+
 test("official alternate movie titles can satisfy strict source identity without weakening year checks", () => {
   const request = {
     title: "Hardcore Henry",
