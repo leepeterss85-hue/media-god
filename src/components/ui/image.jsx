@@ -46,15 +46,27 @@ const isFireTvRuntime = () =>
  * }} ImageProps
  */
 
-const ImageWrapper = React.forwardRef(({ aspectRatio, className, style, children }, ref) => (
-  <span
-    ref={ref}
-    className={cn("inline-block relative", className)}
-    style={{ aspectRatio, ...style }}
-  >
-    {children}
-  </span>
-))
+const ImageWrapper = React.forwardRef(
+  /**
+   * @param {ImageWrapperProps} props
+   * @param {React.ForwardedRef<HTMLSpanElement>} ref
+   */
+  function ImageWrapperImpl(
+    { aspectRatio, className, style, children, ...props },
+    ref
+  ) {
+    return (
+      <span
+        ref={ref}
+        className={cn("inline-block relative", className)}
+        style={{ aspectRatio, ...style }}
+        {...props}
+      >
+        {children}
+      </span>
+    )
+  }
+)
 ImageWrapper.displayName = "ImageWrapper"
 
 const ResponsiveImage = React.forwardRef(
