@@ -1842,10 +1842,9 @@ const prioritisePreferredAudioSources = (items) =>
  */
 const automaticVodCandidatePool = (
   items,
-  completePool = items
+  _completePool = items
 ) => {
   const list = Array.isArray(items) ? items : [];
-  void completePool;
 
   /*
    * AIOStreams is fallback-only, not forbidden. Keep every automatic candidate
