@@ -1536,7 +1536,9 @@ export default function VideoPlayer({
   const sourceSelectorPinnedRef = useRef(false);
   const sourceSelectorPinnedAtRef = useRef(0);
   const sourceSelectorEntriesRef = useRef([]);
-  const sourceSelectorValueRef = useRef(0);
+  const sourceSelectorValueRef = useRef(
+    /** @type {number | ""} */ (0)
+  );
 
   const rdFileSelectorPinnedRef = useRef(false);
   const rdFileSelectorPinnedAtRef = useRef(0);
