@@ -14,11 +14,10 @@ import {
 
 const TOOLS = [
   {
-    id: "reezn",
-    target: "sources",
-    label: "Reezn",
-    description: "Open Reezn and other external media providers.",
-    icon: Link,
+    id: "updates",
+    label: "Updates",
+    description: "Check Media God updates and view release information.",
+    icon: ListVideo,
     featured: true,
   },
   {
@@ -34,16 +33,11 @@ const TOOLS = [
     icon: Download,
   },
   {
-    id: "remote",
-    label: "Phone Remote",
-    description: "Open the phone / QR remote for controlling Media God.",
-    icon: Smartphone,
-  },
-  {
-    id: "watchparty",
-    label: "Watch Party",
-    description: "Create or join a synchronized watch session.",
-    icon: Users,
+    id: "reezn",
+    target: "sources",
+    label: "Reezn",
+    description: "Open Reezn and other external media providers.",
+    icon: Link,
   },
   {
     id: "addons",
@@ -58,10 +52,16 @@ const TOOLS = [
     icon: Link,
   },
   {
-    id: "updates",
-    label: "Updates",
-    description: "See Media God update history and release information.",
-    icon: ListVideo,
+    id: "remote",
+    label: "Phone Remote",
+    description: "Open the phone / QR remote for controlling Media God.",
+    icon: Smartphone,
+  },
+  {
+    id: "watchparty",
+    label: "Watch Party",
+    description: "Create or join a synchronized watch session.",
+    icon: Users,
   },
   {
     id: "diagnostics",
@@ -81,7 +81,7 @@ const TOOLS = [
     description: "Reopen the quick guide to Media God’s catalogue and account tools.",
     icon: Sparkles,
   },
-];
+]
 
 export default function SettingsTools({ onSelect }) {
   return (
