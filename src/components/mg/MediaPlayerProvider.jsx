@@ -1847,14 +1847,25 @@ const automaticVodCandidatePool = (
   const list = Array.isArray(items) ? items : [];
   const pool = Array.isArray(completePool) ? completePool : list;
 
-  const hasNonAioTorrentCandidate = pool.some(
+  const hasReadyNonAioTorrentCandidate = pool.some(
     (item) =>
       isMagnetSource(item) &&
       !sourceIsAioStreamsCandidate(item) &&
-      detectLanguagePreference(item) !== "foreign"
+      detectLanguagePreference(item) !== "foreign" &&
+      (
+        item?.launchQualified === true ||
+        sourceIsConfirmedCachedForPlayback(item)
+      )
   );
 
-  if (!hasNonAioTorrentCandidate) {
+  /*
+   * AIOStreams is a last-resort provider, but "last resort" must mean there is
+   * a genuinely ready non-AIO alternative — not merely an uncached torrent row
+   * sitting in the chooser. Long-running TV episodes can otherwise end up with
+   * zero automatic candidates: the uncached/non-working torrent suppresses AIO,
+   * then fails qualification, leaving nothing that can launch.
+   */
+  if (!hasReadyNonAioTorrentCandidate) {
     return list;
   }
 
