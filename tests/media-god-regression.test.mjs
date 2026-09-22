@@ -2942,18 +2942,31 @@ test("finished episode discovery cannot promote trailer-only fallbacks to autopl
     "utf8"
   );
 
-  assert.match(
-    providerSource,
-    /const onlyEpisodeFallbacksRemain =[sS]{0,400}?episodeFallbackOnly === true/
+  const fallbackGuardIndex = providerSource.indexOf(
+    "const onlyEpisodeFallbacksRemain ="
   );
-  assert.match(
-    providerSource,
-    /No playable episode stream found yet — trailer kept as a manual fallback/
+  const fallbackFlagIndex = providerSource.indexOf(
+    "episodeFallbackOnly === true",
+    fallbackGuardIndex
   );
-  assert.match(
-    providerSource,
-    /onlyEpisodeFallbacksRemain[sS]{0,180}??s*[[sS]{0,80}?episodeSourceMissingStatus/
+  const statusIndex = providerSource.indexOf(
+    "No playable episode stream found yet — trailer kept as a manual fallback.",
+    fallbackGuardIndex
   );
+  const playerSourceIndex = providerSource.indexOf(
+    "const playerSources =",
+    fallbackGuardIndex
+  );
+  const guardedStatusIndex = providerSource.indexOf(
+    "episodeSourceMissingStatus",
+    playerSourceIndex
+  );
+
+  assert.ok(fallbackGuardIndex >= 0);
+  assert.ok(fallbackFlagIndex > fallbackGuardIndex);
+  assert.ok(statusIndex > fallbackGuardIndex);
+  assert.ok(playerSourceIndex > statusIndex);
+  assert.ok(guardedStatusIndex > playerSourceIndex);
 });
 
 test("full discovery requires identity and English-track qualification without requiring an RD transcode state", () => {
