@@ -291,9 +291,11 @@ const jellyfinAudioInfo = (result) => {
     : Array.isArray(result?.raw?.MediaStreams)
       ? result.raw.MediaStreams
       : [];
-  const audio = streams.find(
-    (stream) => String(stream?.Type || "").toLowerCase() === "audio"
-  ) || {};
+  const audio = /** @type {any} */ (
+    streams.find(
+      (stream) => String(stream?.Type || "").toLowerCase() === "audio"
+    ) || {}
+  );
 
   return {
     language: audio?.Language || "",
