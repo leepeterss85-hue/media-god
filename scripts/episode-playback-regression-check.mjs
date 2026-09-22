@@ -75,12 +75,11 @@ expect(
 
 expect(
   videoPlayer.includes("hostedErrorProvider") &&
-    videoPlayer.includes("hostedErrorDuration") &&
-    videoPlayer.includes("AIOStreams / ElfHosted") &&
-    videoPlayer.includes("loadedDuration >= 115") &&
-    videoPlayer.includes("loadedDuration <= 125") &&
+    videoPlayer.includes("hostedNamedError") &&
+    !videoPlayer.includes("hostedErrorDuration") &&
+    !videoPlayer.includes("loadedDuration >= 115") &&
     videoPlayer.includes("{ immediate: true }"),
-  "AIOStreams and ElfHosted short error clips fail over immediately instead of playing as the title"
+  "hosted-provider rows fail over only on explicit provider error markers, never duration metadata alone"
 );
 
 expect(
