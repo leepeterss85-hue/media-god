@@ -29,6 +29,7 @@ class MainActivity : Activity() {
     @Volatile private var activeNativeRequestId = ""
     private var pendingNativeResultScript: String? = null
     private lateinit var appUpdater: AppUpdater
+    @Volatile private var currentTopLevelUrl = ""
 
     @SuppressLint("SetJavaScriptEnabled", "JavascriptInterface")
     override fun onCreate(savedInstanceState: Bundle?) {
