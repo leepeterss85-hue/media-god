@@ -772,7 +772,7 @@ export default function SourcesView() {
     try {
       let directUrl = "";
       let transcodeUrl = "";
-      let audio = {};
+      let audio = /** @type {any} */ ({});
 
       if (result.server.type === "plex") {
         const info = await plexPlaybackInfo(result);
