@@ -47,3 +47,49 @@ test("diagnostic sanitizer removes URLs, magnets and credential-like values", ()
   assert.match(safe, /Bearer \[redacted\]/);
   assert.doesNotMatch(safe, /hunter2|example\.test|btih:abc|abc\.def/);
 });
+
+test("saved addon profiles are owner-scoped at the Base44 entity layer", () => {
+  const schema = readFileSync(
+    new URL("../base44/entities/Addon.jsonc", import.meta.url),
+    "utf8"
+  );
+
+  for (const operation of ["read", "create", "update", "delete"]) {
+    assert.match(
+      schema,
+      new RegExp(
+        `"${operation}"\\s*:\\s*\\{[\\s\\S]*?"created_by_id"\\s*:\\s*"\\{\\{user\\.id\\}\\}"`
+      )
+    );
+  }
+});
+
+test("addon backend blocks unsafe network targets, redirects and oversized JSON", () => {
+  const source = readFileSync(
+    new URL("../base44/functions/fetchAddonStreams/entry.ts", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(source, /Addon requests must use HTTPS/);
+  assert.match(source, /local or private network addresses are blocked/);
+  assert.match(source, /redirect:\s*"manual"/);
+  assert.match(source, /ADDON_REDIRECT_LIMIT/);
+  assert.match(source, /ADDON_RESPONSE_LIMIT_BYTES/);
+  assert.match(source, /response exceeded the safety size limit/i);
+});
+
+test("Sky Sport Now account fields are declared in the User schema", () => {
+  const schema = readFileSync(
+    new URL("../base44/entities/User.jsonc", import.meta.url),
+    "utf8"
+  );
+
+  for (const field of [
+    "ssn_auth_token",
+    "ssn_refresh_token",
+    "ssn_token_expires_at",
+    "ssn_connected_at",
+  ]) {
+    assert.match(schema, new RegExp(`"${field}"\\s*:`));
+  }
+});
