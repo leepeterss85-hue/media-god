@@ -288,21 +288,141 @@ const cometTorrentModeManifestUrl = (value, addonName = "") => {
   return "";
 };
 
-const parseAddonUrl = (value) => {
-  const input = clean(value);
+const ADDON_RESPONSE_LIMIT_BYTES =
+  8 * 1024 * 1024;
+const ADDON_REDIRECT_LIMIT = 4;
 
-  if (!input) {
+const addonIpv4Parts = (hostname) => {
+  const match = String(hostname || "")
+    .trim()
+    .match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+
+  if (!match) {
     return null;
   }
 
-  try {
-    const url = new URL(input);
+  const parts = match
+    .slice(1)
+    .map(Number);
 
-    if (url.protocol !== "https:" && url.protocol !== "http:") {
-      return null;
+  if (
+    parts.some(
+      (part) =>
+        !Number.isInteger(part) ||
+        part < 0 ||
+        part > 255
+    )
+  ) {
+    return null;
+  }
+
+  return parts;
+};
+
+const addonHostIsPrivate = (hostname) => {
+  const host = String(hostname || "")
+    .trim()
+    .toLowerCase()
+    .replace(/^\[/, "")
+    .replace(/\]$/, "")
+    .replace(/\.$/, "");
+
+  if (
+    !host ||
+    host === "localhost" ||
+    host.endsWith(".localhost") ||
+    host.endsWith(".local") ||
+    host.endsWith(".lan") ||
+    host.endsWith(".internal") ||
+    host === "metadata.google.internal"
+  ) {
+    return true;
+  }
+
+  const ipv4 = addonIpv4Parts(host);
+
+  if (ipv4) {
+    const [a, b] = ipv4;
+
+    return (
+      a === 0 ||
+      a === 10 ||
+      a === 127 ||
+      (a === 100 && b >= 64 && b <= 127) ||
+      (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168) ||
+      (a === 198 && (b === 18 || b === 19)) ||
+      a >= 224
+    );
+  }
+
+  if (host.includes(":")) {
+    if (
+      host === "::" ||
+      host === "::1" ||
+      /^f[cd]/i.test(host) ||
+      /^fe[89ab]/i.test(host) ||
+      /^ff/i.test(host)
+    ) {
+      return true;
     }
 
-    url.hash = "";
+    if (host.startsWith("::ffff:")) {
+      return addonHostIsPrivate(
+        host.slice("::ffff:".length)
+      );
+    }
+  }
+
+  return false;
+};
+
+const validatedAddonUrl = (value) => {
+  const input = clean(value);
+
+  if (!input) {
+    throw new Error(
+      "Addon URL is empty."
+    );
+  }
+
+  const url = new URL(input);
+
+  if (url.protocol !== "https:") {
+    throw new Error(
+      "Addon requests must use HTTPS."
+    );
+  }
+
+  if (
+    url.username ||
+    url.password
+  ) {
+    throw new Error(
+      "Addon URLs cannot contain URL credentials."
+    );
+  }
+
+  if (
+    addonHostIsPrivate(
+      url.hostname
+    )
+  ) {
+    throw new Error(
+      "Addon requests to local or private network addresses are blocked."
+    );
+  }
+
+  url.hash = "";
+
+  return url;
+};
+
+const parseAddonUrl = (value) => {
+  try {
+    const url =
+      validatedAddonUrl(value);
 
     let basePath = url.pathname.replace(/\/+$/, "");
 
