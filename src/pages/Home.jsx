@@ -289,7 +289,11 @@ const revealEpisodeSelector = () => {
     );
 
   window.setTimeout(
-    () => focusTarget?.focus?.(),
+    () => {
+      if (focusTarget instanceof HTMLElement) {
+        focusTarget.focus();
+      }
+    },
     80
   );
 
