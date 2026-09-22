@@ -10022,13 +10022,28 @@ export default function VideoPlayer({
       }
 
       /*
+       * AIOStreams is already a fallback-only provider. If an automatically
+       * chosen AIO row cannot produce usable audio, keeping that exact row
+       * pinned strands playback on a known-bad fallback. Reject it for this
+       * session and move to the best non-AIO source instead. Manual choices
+       * still keep ownership and never auto-cycle.
+       */
+      if (
+        rejectAutomaticAioAudioFailure(
+          "AIOStreams could not produce usable audio."
+        )
+      ) {
+        return;
+      }
+
+      /*
        * AUDIO FAILURE IS NOT SOURCE FAILURE.
        *
        * Never turn a missing/unsupported audio path into an automatic torrent
-       * carousel. The current release may be the exact English file the viewer
-       * wants, and switching releases destroys that choice. Lock this VOD row,
-       * leave background caching alone, and require an explicit source choice
-       * before another torrent can replace it.
+       * carousel for normal releases. The current release may be the exact
+       * English file the viewer wants, and switching releases destroys that
+       * choice. Lock this VOD row, leave background caching alone, and require
+       * an explicit source choice before another torrent can replace it.
        */
       lockCurrentVodSourceForAudioRecovery();
 
