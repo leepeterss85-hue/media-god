@@ -864,17 +864,16 @@ export default function EpisodeSelector({
 
             poster,
 
-            trailerUrl,
-
             providers,
           }).map(
             (fallbackSource) => ({
               ...fallbackSource,
 
               /*
-               * Show-level trailers / where-to-watch links may stay visible as
-               * manual fallbacks, but they are never allowed to become the
-               * automatic first source for a selected TV episode.
+               * Show-level where-to-watch links may stay visible as manual
+               * fallbacks, but they are never allowed to become the automatic
+               * first source for a selected TV episode. Trailers are excluded
+               * from the playback source pool entirely.
                */
               episodeFallbackOnly:
                 true,
