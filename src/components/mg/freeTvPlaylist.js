@@ -1873,6 +1873,15 @@ export const dedupeMergedChannels = (channels) => {
         (usableCandidates.some(looksLikeUkFeed) ? "GB" : ""),
       tags: [...tags],
       sourceNames: [...sources],
+      catchup: usableCandidates.some(
+        (candidate) => candidate?.catchup === true
+      ),
+      catchupDays: Math.max(
+        0,
+        ...usableCandidates.map((candidate) =>
+          Number(candidate?.catchupDays || 0)
+        )
+      ),
       alternatives,
     });
   }
