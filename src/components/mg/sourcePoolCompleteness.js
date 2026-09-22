@@ -147,8 +147,20 @@ export const mergeCompleteSourcePool = (
     }
   });
 
+  const episodeFallbackOnly =
+    complete.length > 0 &&
+    complete.every(
+      (item) =>
+        item?.episodeFallbackOnly ===
+        true
+    );
+
   const pinWaitingStatus =
-    options?.preservePublishedStatus === true &&
+    (
+      options?.preservePublishedStatus ===
+        true ||
+      episodeFallbackOnly
+    ) &&
     publishedReal.length === 0 &&
     publishedStatus.length > 0;
 
