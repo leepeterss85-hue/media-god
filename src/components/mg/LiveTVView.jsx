@@ -1854,8 +1854,10 @@ export default function LiveTVView({
   const favouriteChannels = useMemo(
     () =>
       channels
-        .filter((channel) =>
-          favouriteKeys.has(channelMemoryKey(channel))
+        .filter(
+          (channel) =>
+            favouriteKeys.has(channelMemoryKey(channel)) &&
+            !channelIsHidden(channel)
         )
         .sort((a, b) => smartChannelCompare(a, b, channelRankByKey)),
     [channels, favouriteKeys, channelRankByKey]
@@ -1868,7 +1870,11 @@ export default function LiveTVView({
 
     return recentKeys
       .map((key) => byKey.get(key))
-      .filter(Boolean)
+      .filter(
+        (channel) =>
+          Boolean(channel) &&
+          !channelIsHidden(channel)
+      )
       .slice(0, 18);
   }, [channels, recentKeys]);
 
@@ -1919,6 +1925,7 @@ export default function LiveTVView({
       Favourites: 0,
       Recent: 0,
       "Most Reliable": 0,
+      Hidden: 0,
     };
 
     for (const channel of channels) {
@@ -1926,6 +1933,10 @@ export default function LiveTVView({
         channel?.tags || []
       );
       const key = channelMemoryKey(channel);
+
+      if (channelIsHidden(channel)) {
+        counts.Hidden += 1;
+      }
 
       if (favouriteKeys.has(key)) {
         counts.Favourites += 1;
@@ -1973,7 +1984,13 @@ export default function LiveTVView({
     }
 
     return counts;
-  }, [channels, favouriteKeys, recentKeys]);
+  }, [
+    channels,
+    favouriteKeys,
+    recentKeys,
+    hiddenChannelKeys,
+    hiddenGroups,
+  ]);
 
   const filtered = useMemo(() => {
     const q = searchText(query);
