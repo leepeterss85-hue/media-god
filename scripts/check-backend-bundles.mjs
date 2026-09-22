@@ -29,7 +29,7 @@ try {
       platform: "node",
       format: "esm",
       outdir,
-      external: ["npm:*"],
+      external: ["npm:*", "base44:*"],
       logLevel: "silent",
     });
     console.log(`backend bundle ok: ${entry}`);
