@@ -164,6 +164,11 @@ for (const app of apps) {
     [manifest.includes(`android:screenOrientation="${app.expectedOrientation}"`), "player orientation"],
     [mainActivity.includes("addJavascriptInterface"), "JavaScript bridge"],
     [
+      mainActivity.includes("fun openExternalPlayer(url: String): Boolean") &&
+        mainActivity.includes('setDataAndType(Uri.parse(target), "video/*")'),
+      "external video-player handoff",
+    ],
+    [
       mainActivity.includes("nativeBridgeAllowed()") &&
         mainActivity.includes("currentTopLevelUrl") &&
         mainActivity.includes("BuildConfig.MEDIA_GOD_URL") &&
