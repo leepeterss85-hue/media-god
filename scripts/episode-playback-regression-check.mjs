@@ -116,7 +116,7 @@ expect(
     videoPlayer.includes('const automaticReadySourceIndex') &&
     videoPlayer.includes('Opening a ready source while Media God prepares the other torrents in the background') &&
     videoPlayer.includes('rdCacheEngineOwnsPollingRef.current = false') &&
-    videoPlayer.includes('}, 1_500);'),
+    videoPlayer.includes('}, BACKGROUND_CACHE_SLOT_RETRY_MS);'),
   "cached source search keeps the full ready list, retries failed rows manually and continues hidden background caching"
 );
 
@@ -162,7 +162,7 @@ expect(
     mediaPlayerProvider.includes('cachedSourceCount,') &&
     videoPlayer.includes('data-mg-source-health="true"') &&
     videoPlayer.includes('Cache checked') &&
-    videoPlayer.includes('Ready {selectableSourceCount}'),
+    videoPlayer.includes('Shown {selectableSourceCount}'),
   "player exposes source-health counts for discovery, cache checks, cached hits and ready sources"
 );
 
