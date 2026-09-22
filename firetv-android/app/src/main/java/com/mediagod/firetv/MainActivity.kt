@@ -525,6 +525,10 @@ class MainActivity : Activity() {
 
         @JavascriptInterface
         fun exitApp(): Boolean {
+            if (!nativeBridgeAllowed()) {
+                return false
+            }
+
             runOnUiThread {
                 try {
                     finishAndRemoveTask()
