@@ -837,6 +837,43 @@ test("addon and RD fast-start paths both enforce requested source identity", () 
   );
 });
 
+test("verified movie/TV title conflicts keep the canonical media identity", () => {
+  const catalogSource = readFileSync(
+    new URL("../base44/functions/getTmdbMovies/entry.ts", import.meta.url),
+    "utf8"
+  );
+  const searchSource = readFileSync(
+    new URL("../src/components/mg/SearchDialog.jsx", import.meta.url),
+    "utf8"
+  );
+  const homeSource = readFileSync(
+    new URL("../src/pages/Home.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(catalogSource, /SEARCH_IDENTITY_CORRECTIONS/);
+  assert.match(catalogSource, /tmdb_id:\s*1198654/);
+  assert.match(catalogSource, /imdb_id:\s*'tt29714073'/);
+  assert.match(catalogSource, /'bad apple'/);
+  assert.match(catalogSource, /'bad apples'/);
+  assert.match(catalogSource, /fetchSearchIdentityCorrections/);
+  assert.match(catalogSource, /identity_corrected:\s*true/);
+
+  const forcedMovieIndex = catalogSource.indexOf("forcedType === 'movie'");
+  const staleTmdbTypeIndex = catalogSource.indexOf("m?.media_type === 'tv'");
+  assert.ok(forcedMovieIndex >= 0);
+  assert.ok(staleTmdbTypeIndex > forcedMovieIndex);
+
+  assert.match(searchSource, /identity_corrected === true/);
+  assert.match(searchSource, /aliases\.includes\(wanted\)/);
+  assert.match(searchSource, /return 1200/);
+
+  const explicitMovieIndex = homeSource.indexOf('type === "movie"');
+  const firstAirIndex = homeSource.indexOf("item?.first_air_date");
+  assert.ok(explicitMovieIndex >= 0);
+  assert.ok(firstAirIndex > explicitMovieIndex);
+});
+
 test("player context is owned above the authenticated routes tree", () => {
   const appSource = readFileSync(
     new URL("../src/App.jsx", import.meta.url),
