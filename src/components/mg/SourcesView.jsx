@@ -362,6 +362,9 @@ export default function SourcesView() {
     kind: "playlist",
     name: "",
     url: "",
+    server: "",
+    username: "",
+    password: "",
     category: "Custom",
     priority: 85,
   });
