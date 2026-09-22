@@ -1845,7 +1845,7 @@ const automaticVodCandidatePool = (
   completePool = items
 ) => {
   const list = Array.isArray(items) ? items : [];
-  const pool = Array.isArray(completePool) ? completePool : list;
+  void completePool;
 
   /*
    * AIOStreams is fallback-only, not forbidden. Keep every automatic candidate
