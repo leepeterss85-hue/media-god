@@ -401,10 +401,17 @@ class MainActivity : Activity() {
 
     inner class NativeBridge {
         @JavascriptInterface
-        fun isAvailable(): Boolean = true
+        fun isAvailable(): Boolean =
+            nativeBridgeAllowed()
 
         @JavascriptInterface
         fun getDisplayInfo(): String {
+            if (!nativeBridgeAllowed()) {
+                return JSONObject()
+                    .put("native", false)
+                    .toString()
+            }
+
             val configuration = resources.configuration
 
             return JSONObject().apply {
@@ -418,8 +425,14 @@ class MainActivity : Activity() {
         }
 
         @JavascriptInterface
-        fun getAppInfo(): String =
-            JSONObject().apply {
+        fun getAppInfo(): String {
+            if (!nativeBridgeAllowed()) {
+                return JSONObject()
+                    .put("native", false)
+                    .toString()
+            }
+
+            return JSONObject().apply {
                 put("native", true)
                 put("platform", "fire-tv")
                 put("packageName", packageName)
@@ -431,9 +444,17 @@ class MainActivity : Activity() {
                     ::appUpdater.isInitialized && appUpdater.installPermissionGranted()
                 )
             }.toString()
+        }
 
         @JavascriptInterface
         fun getCodecInfo(): String {
+            if (!nativeBridgeAllowed()) {
+                return JSONObject().apply {
+                    put("video", JSONArray())
+                    put("audio", JSONArray())
+                }.toString()
+            }
+
             val videoTypes = sortedSetOf<String>()
             val audioTypes = sortedSetOf<String>()
 
