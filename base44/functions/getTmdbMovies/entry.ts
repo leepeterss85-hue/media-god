@@ -484,10 +484,26 @@ const mapItem = (
   m,
   forcedType = ''
 ) => {
-  const isTv =
+  const explicitType =
     forcedType === 'tv' ||
-    m.media_type === 'tv' ||
+    forcedType === 'movie'
+      ? forcedType
+      : (
+          m?.media_type === 'tv' ||
+          m?.media_type === 'movie'
+            ? m.media_type
+            : ''
+        );
+
+  /*
+   * A typed endpoint is authoritative. A movie returned by /movie/... must
+   * stay a movie even if stale/cross-fed metadata happens to contain TV-like
+   * fields, and the same applies in reverse for /tv/....
+   */
+  const isTv =
+    explicitType === 'tv' ||
     (
+      !explicitType &&
       !m.title &&
       Boolean(
         m.name
