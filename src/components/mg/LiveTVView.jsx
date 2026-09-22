@@ -2001,6 +2001,15 @@ export default function LiveTVView({
           channel?.tags || []
         );
         const key = channelMemoryKey(channel);
+        const hidden = channelIsHidden(channel);
+
+        if (quickFilter === "Hidden") {
+          if (!hidden) {
+            return false;
+          }
+        } else if (hidden) {
+          return false;
+        }
 
         if (
           quickFilter === "Favourites" &&
@@ -2037,6 +2046,7 @@ export default function LiveTVView({
             "Recent",
             "Most Reliable",
             "United Kingdom",
+            "Hidden",
           ].includes(quickFilter) &&
           !tags.has(quickFilter)
         ) {
@@ -2124,14 +2134,29 @@ export default function LiveTVView({
     }
 
     /*
-     * Default browsing is UK-first without hiding anything. Favourites stay at
-     * the very top, then British channels, then recent usage, learned playback
-     * health, repository trust and quality. International channels remain in
-     * the same result set immediately underneath the UK block.
+     * Manual order from the NetFly-style channel organiser wins first. Any
+     * channel the user has not moved still falls back to Media God's normal
+     * smart ordering.
      */
-    return [...result].sort((a, b) =>
-      smartChannelCompare(a, b, channelRankByKey)
+    const manualOrder = new Map(
+      manualChannelOrder.map((key, index) => [key, index])
     );
+
+    return [...result].sort((a, b) => {
+      const aKey = channelMemoryKey(a);
+      const bKey = channelMemoryKey(b);
+      const aManual = manualOrder.has(aKey)
+        ? manualOrder.get(aKey)
+        : Number.MAX_SAFE_INTEGER;
+      const bManual = manualOrder.has(bKey)
+        ? manualOrder.get(bKey)
+        : Number.MAX_SAFE_INTEGER;
+
+      return (
+        aManual - bManual ||
+        smartChannelCompare(a, b, channelRankByKey)
+      );
+    });
   }, [
     channels,
     group,
@@ -2142,6 +2167,9 @@ export default function LiveTVView({
     favouriteKeys,
     recentKeys,
     channelRankByKey,
+    hiddenChannelKeys,
+    hiddenGroups,
+    manualChannelOrder,
   ]);
 
   const visibleLimit =
