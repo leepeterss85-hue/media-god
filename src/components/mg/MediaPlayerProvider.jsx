@@ -1847,31 +1847,29 @@ const automaticVodCandidatePool = (
   const list = Array.isArray(items) ? items : [];
   const pool = Array.isArray(completePool) ? completePool : list;
 
-  const hasReadyNonAioTorrentCandidate = pool.some(
-    (item) =>
-      isMagnetSource(item) &&
-      !sourceIsAioStreamsCandidate(item) &&
-      detectLanguagePreference(item) !== "foreign" &&
-      (
-        item?.launchQualified === true ||
-        sourceIsConfirmedCachedForPlayback(item)
-      )
+  /*
+   * AIOStreams is fallback-only, not forbidden. Keep every automatic candidate
+   * but push AIO rows behind the non-AIO rows. Removing AIO completely when any
+   * other torrent merely existed caused a real regression: an uncached or
+   * broken non-AIO row could suppress the only source capable of starting the
+   * episode, leaving the player with zero launch candidates.
+   */
+  const nonAio = list.filter(
+    (item) => !sourceIsAioStreamsCandidate(item)
   );
 
-  /*
-   * AIOStreams is a last-resort provider, but "last resort" must mean there is
-   * a genuinely ready non-AIO alternative — not merely an uncached torrent row
-   * sitting in the chooser. Long-running TV episodes can otherwise end up with
-   * zero automatic candidates: the uncached/non-working torrent suppresses AIO,
-   * then fails qualification, leaving nothing that can launch.
-   */
-  if (!hasReadyNonAioTorrentCandidate) {
+  const aio = list.filter(
+    (item) => sourceIsAioStreamsCandidate(item)
+  );
+
+  if (aio.length === 0 || nonAio.length === 0) {
     return list;
   }
 
-  return list.filter(
-    (item) => !sourceIsAioStreamsCandidate(item)
-  );
+  return [
+    ...nonAio,
+    ...aio,
+  ];
 };
 
 const orderSources = ({
