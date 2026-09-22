@@ -1,3 +1,8 @@
+import { base44 } from "@/api/base44Client";
+import {
+  healthAdjustedPriority,
+  readCustomLiveSources,
+} from "./sourceRegistry.js";
 import { fetchAntSportsEvents } from "./antSportsScraper.js";
 import {
   EV_SPORTS_SOURCE_PRIORITY,
@@ -1818,9 +1823,35 @@ export async function getFreeTvChannels(options = {}) {
     let rawCount = 0;
     let browserRejectedCount = 0;
 
-    const sortedSources = LIVE_TV_SOURCES.filter(
-      (source) => source?.disabled !== true
-    ).sort((a, b) => b.priority - a.priority);
+    const customLiveSources = readCustomLiveSources().filter(
+      (source) =>
+        source?.active !== false &&
+        source?.kind !== "magnet"
+    );
+
+    const customPlaylistSources = customLiveSources
+      .filter((source) => source?.kind === "playlist")
+      .map((source) => ({
+        id: source.id,
+        name: source.name,
+        url: source.url,
+        priority: healthAdjustedPriority(source),
+        category: source.category || "Custom",
+        custom: true,
+      }));
+
+    const customDirectSources = customLiveSources
+      .filter((source) => source?.kind === "direct");
+
+    const customXtreamSources = customLiveSources
+      .filter((source) => source?.kind === "xtream");
+
+    const sortedSources = [
+      ...LIVE_TV_SOURCES.filter(
+        (source) => source?.disabled !== true
+      ),
+      ...customPlaylistSources,
+    ].sort((a, b) => b.priority - a.priority);
 
     const fetchPlaylistSource = async (source) => {
       const controller = new AbortController();
