@@ -2540,7 +2540,7 @@ test("Best available globally wires the AIOStreams fallback rank into central VO
   );
 });
 
-test("central provider removes AIOStreams from automatic qualification but keeps it in the chooser", () => {
+test("central provider keeps AIOStreams as an automatic last-resort instead of removing it", () => {
   const providerSource = readFileSync(
     new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
     "utf8"
@@ -2549,7 +2549,15 @@ test("central provider removes AIOStreams from automatic qualification but keeps
   assert.match(providerSource, /const automaticVodCandidatePool =/);
   assert.match(
     providerSource,
-    /hasNonAioTorrentCandidate[\s\S]{0,260}?sourceIsAioStreamsCandidate/
+    /const nonAio = list\.filter[\s\S]{0,180}?sourceIsAioStreamsCandidate/
+  );
+  assert.match(
+    providerSource,
+    /const aio = list\.filter[\s\S]{0,180}?sourceIsAioStreamsCandidate/
+  );
+  assert.match(
+    providerSource,
+    /return \[[\s\S]{0,80}?\.\.\.nonAio,[\s\S]{0,80}?\.\.\.aio/
   );
   assert.match(
     providerSource,
