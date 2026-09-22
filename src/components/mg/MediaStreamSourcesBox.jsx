@@ -1293,6 +1293,30 @@ export default function StreamSourcesBox({
           stream?.label ||
           `Source ${index + 1}`,
 
+        providerBadge:
+          /mediafusion/i.test(
+            String(
+              stream?.addon ||
+              ""
+            )
+          )
+            ? "MEDIAFUSION"
+            : /aiostreams?/i.test(
+                String(
+                  stream?.addon ||
+                  ""
+                )
+              )
+              ? "AIO"
+              : /comet/i.test(
+                  String(
+                    stream?.addon ||
+                    ""
+                  )
+                )
+                ? "COMET"
+                : "",
+
         note:
           stream?.type ===
           "rd"
