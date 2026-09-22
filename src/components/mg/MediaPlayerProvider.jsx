@@ -3043,14 +3043,12 @@ export function PlayerProvider({
           rdEpisode: request?.rdEpisode ?? episode,
           sources: initialSources,
           completeSources:
-            Array.isArray(request?.completeSources) &&
-            request.completeSources.length > 0
-              ? request.completeSources
+            suppliedCompleteSources.length > 0
+              ? suppliedCompleteSources
               : initialOrderedSources,
           discoveredSources:
-            Array.isArray(request?.completeSources) &&
-            request.completeSources.length > 0
-              ? request.completeSources
+            suppliedCompleteSources.length > 0
+              ? suppliedCompleteSources
               : initialOrderedSources,
           qualifiedLaunchOnly:
             qualificationMode,
