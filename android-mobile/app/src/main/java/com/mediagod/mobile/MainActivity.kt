@@ -3,6 +3,7 @@ package com.mediagod.mobile
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.Color
 import android.media.MediaCodecList
 import android.net.Uri
