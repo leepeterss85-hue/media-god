@@ -1856,6 +1856,30 @@ export default function LiveTVView({
     });
   };
 
+  const moveCurrentGroup = (direction) => {
+    const channelGroup = String(group || "").trim();
+
+    if (!channelGroup || channelGroup === DEFAULT_FILTER) {
+      return;
+    }
+
+    const visibleGroups = groups.filter(
+      (value) => value !== DEFAULT_FILTER
+    );
+
+    setManualGroupOrder((current) => {
+      const next = movedOrder(
+        current,
+        visibleGroups,
+        channelGroup,
+        direction
+      );
+
+      writeLiveTvGroupOrder(next);
+      return next;
+    });
+  };
+
   const favouriteChannels = useMemo(
     () =>
       channels
