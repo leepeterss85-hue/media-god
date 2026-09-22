@@ -560,6 +560,10 @@ const setNativePlaybackOwnership = (active) => {
   }
 
   document.querySelectorAll("video, audio").forEach((media) => {
+    if (!(media instanceof HTMLMediaElement)) {
+      return;
+    }
+
     try {
       media.pause();
       media.muted = true;
