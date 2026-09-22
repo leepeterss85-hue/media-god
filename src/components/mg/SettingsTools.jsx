@@ -94,7 +94,7 @@ export default function SettingsTools({ onSelect }) {
           Settings menu
         </h2>
         <p className="text-xs 3xl:text-sm text-white/40 mt-1">
-          Extra Media God tools stay here for users without cluttering the main navigation bar.
+          Updates and Debrid tools are kept first, followed by the rest of Media God’s settings.
         </p>
       </div>
 
