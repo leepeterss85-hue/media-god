@@ -3,7 +3,11 @@ import Hls from "hls.js";
 import {
   Activity,
   AlertTriangle,
+  ArrowDown,
+  ArrowUp,
   CheckCircle2,
+  Eye,
+  EyeOff,
   ExternalLink,
   Film,
   Globe2,
@@ -29,6 +33,15 @@ import { usePlayer } from "@/components/mg/PlayerProvider";
 import { base44 } from "@/api/base44Client";
 import { cn } from "@/lib/utils";
 import {
+  readHiddenLiveTvChannels,
+  readHiddenLiveTvGroups,
+  readLiveTvChannelOrder,
+  writeHiddenLiveTvChannels,
+  writeHiddenLiveTvGroups,
+  writeLiveTvChannelOrder,
+  movedOrder,
+} from "@/components/mg/liveTvPersonalisation";
+import {
   liveTvUrlQuarantined,
   liveTvUrlScore,
   prewarmLiveTvUrl,
@@ -36,6 +49,7 @@ import {
 } from "@/components/mg/liveTvPlaybackLearning";
 import {
   isNativeFireTvPlayerAvailable,
+  openNativeFireTvExternalPlayer,
   openNativeFireTvExternalUrl,
 } from "@/components/mg/nativeFireTvBridge";
 import { isAndroidMobileRuntime } from "@/components/mg/runtimePlatform";
