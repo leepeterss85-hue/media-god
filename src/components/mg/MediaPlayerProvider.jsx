@@ -1833,12 +1833,13 @@ const prioritisePreferredAudioSources = (items) =>
 /*
  * GLOBAL VOD AUTOPLAY POLICY
  *
- * AIOStreams stays visible and manually selectable, but it is never allowed to
- * win automatic qualification while another non-foreign torrent candidate
- * exists. Keep this rule here in the central provider as well as in
+ * AIOStreams stays visible and available to automatic recovery, but it ranks
+ * behind non-AIO candidates. It must remain in the pool as a genuine last
+ * resort so an uncached or broken preferred torrent cannot leave playback with
+ * zero candidates. Keep this rule here in the central provider as well as in
  * VideoPlayer so every launch surface (Home, Search, Watchlist, Continue
  * Watching, Recently Watched, New Episodes and auto-next) follows the same
- * behaviour before the native/web player even sees the source list.
+ * behaviour before the native/web player sees the source list.
  */
 const automaticVodCandidatePool = (
   items,
