@@ -2920,7 +2920,7 @@ test("film and episode playback source pools never include trailers", () => {
   );
 });
 
-test("finished episode discovery cannot promote trailer-only fallbacks to autoplay", () => {
+test("finished episode discovery cannot promote show-level fallback links to autoplay", () => {
   const providerSource = readFileSync(
     new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
     "utf8"
@@ -2934,7 +2934,7 @@ test("finished episode discovery cannot promote trailer-only fallbacks to autopl
     fallbackGuardIndex
   );
   const statusIndex = providerSource.indexOf(
-    "No playable episode stream found yet — trailer kept as a manual fallback.",
+    "No playable episode stream found yet.",
     fallbackGuardIndex
   );
   const playerSourceIndex = providerSource.indexOf(
