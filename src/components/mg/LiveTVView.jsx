@@ -3073,7 +3073,7 @@ export default function LiveTVView({
 
       <div
         data-mg-live-tv-category-row="true"
-        className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-11"
+        className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-12"
       >
         {[
           {
@@ -3131,6 +3131,11 @@ export default function LiveTVView({
             label: "Reliable",
             icon: CheckCircle2,
           },
+          {
+            id: "Hidden",
+            label: "Hidden",
+            icon: EyeOff,
+          },
         ].map((item) => {
           const Icon =
             item.icon;
@@ -3187,7 +3192,7 @@ export default function LiveTVView({
 
       <div
         data-mg-live-tv-controls="true"
-        className="mb-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_200px_220px_auto_auto]"
+        className="mb-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_200px_220px_auto_auto_auto]"
       >
         <label data-mg-live-tv-search="true" className="relative block">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
@@ -3239,6 +3244,33 @@ export default function LiveTVView({
             </option>
           ))}
         </select>
+
+        <button
+          type="button"
+          disabled={group === DEFAULT_FILTER}
+          onClick={() =>
+            setCurrentGroupHidden(
+              !hiddenGroups.has(group)
+            )
+          }
+          className={cn(
+            "h-11 rounded-lg border px-3 text-xs font-semibold transition-colors",
+            group === DEFAULT_FILTER
+              ? "cursor-not-allowed border-white/5 bg-white/[0.02] text-white/20"
+              : hiddenGroups.has(group)
+                ? "border-mg-green/30 bg-mg-green/10 text-mg-green"
+                : "border-white/10 bg-mg-card text-white/65 hover:text-white"
+          )}
+          title={
+            group === DEFAULT_FILTER
+              ? "Choose a group first"
+              : hiddenGroups.has(group)
+                ? "Restore this group"
+                : "Hide this group"
+          }
+        >
+          {hiddenGroups.has(group) ? "Restore group" : "Hide group"}
+        </button>
 
         <button
           type="button"
