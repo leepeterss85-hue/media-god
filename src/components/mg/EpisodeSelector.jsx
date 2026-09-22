@@ -867,7 +867,19 @@ export default function EpisodeSelector({
             trailerUrl,
 
             providers,
-          }),
+          }).map(
+            (fallbackSource) => ({
+              ...fallbackSource,
+
+              /*
+               * Show-level trailers / where-to-watch links may stay visible as
+               * manual fallbacks, but they are never allowed to become the
+               * automatic first source for a selected TV episode.
+               */
+              episodeFallbackOnly:
+                true,
+            })
+          ),
       });
     };
 
