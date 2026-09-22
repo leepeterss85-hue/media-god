@@ -483,6 +483,10 @@ class MainActivity : Activity() {
 
         @JavascriptInterface
         fun openExternalUrl(url: String): Boolean {
+            if (!nativeBridgeAllowed()) {
+                return false
+            }
+
             val target = url.trim()
 
             if (!(target.startsWith("https://") || target.startsWith("http://"))) {
