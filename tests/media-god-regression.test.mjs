@@ -4315,11 +4315,11 @@ test("a genuinely successful cached source outranks an equally compatible cached
   );
   assert.match(
     playerSource,
-    /currentTime > 0\.25[\s\S]{0,260}?recordSuccessfulPlaybackSource\(active/
+    /currentTime >= SUCCESSFUL_VOD_PLAYBACK_SECONDS[\s\S]{0,260}?recordSuccessfulPlaybackSource\(active/
   );
   assert.match(
     playerSource,
-    /reason !== "error"[\s\S]{0,120}?positionSeconds > 5[\s\S]{0,260}?recordSuccessfulPlaybackSource\(active/
+    /reason !== "error"[\s\S]{0,160}?positionSeconds >= SUCCESSFUL_VOD_PLAYBACK_SECONDS[\s\S]{0,260}?recordSuccessfulPlaybackSource\(active/
   );
 });
 
