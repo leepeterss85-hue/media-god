@@ -1,4 +1,3 @@
-import { base44 } from "../../api/base44Client.js";
 import {
   healthAdjustedPriority,
   readCustomLiveSources,
@@ -8,6 +7,12 @@ import {
   EV_SPORTS_SOURCE_PRIORITY,
   fetchEvSportsChannels,
 } from "./evSportsScraper.js";
+
+const invokeXtreamPortal = async (payload) => {
+  const { base44 } = await import("../../api/base44Client.js");
+
+  return base44.functions.invoke("xtreamPortal", payload);
+};
 
 export const LIVE_TV_SOURCES = [
   {
@@ -2067,15 +2072,12 @@ export async function getFreeTvChannels(options = {}) {
 
       try {
         const response =
-          await base44.functions.invoke(
-            "xtreamPortal",
-            {
-              action: "channels",
-              server: source.server,
-              username: source.username,
-              password: source.password,
-            }
-          );
+          await invokeXtreamPortal({
+            action: "channels",
+            server: source.server,
+            username: source.username,
+            password: source.password,
+          });
 
         const data =
           response?.data ??
