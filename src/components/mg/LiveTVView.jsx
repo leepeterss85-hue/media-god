@@ -36,9 +36,11 @@ import {
   readHiddenLiveTvChannels,
   readHiddenLiveTvGroups,
   readLiveTvChannelOrder,
+  readLiveTvGroupOrder,
   writeHiddenLiveTvChannels,
   writeHiddenLiveTvGroups,
   writeLiveTvChannelOrder,
+  writeLiveTvGroupOrder,
   movedOrder,
 } from "@/components/mg/liveTvPersonalisation";
 import {
@@ -922,6 +924,9 @@ export default function LiveTVView({
   );
   const [manualChannelOrder, setManualChannelOrder] = useState(
     readLiveTvChannelOrder
+  );
+  const [manualGroupOrder, setManualGroupOrder] = useState(
+    readLiveTvGroupOrder
   );
   const [focusedChannelKey, setFocusedChannelKey] = useState(
     String(initialViewState?.focusedChannelKey || "")
