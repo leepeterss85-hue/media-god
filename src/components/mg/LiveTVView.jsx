@@ -3913,6 +3913,16 @@ export default function LiveTVView({
                       )}
 
                       {!radio &&
+                        channel?.catchup === true && (
+                          <span className="rounded bg-violet-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase text-violet-200">
+                            Catch-up
+                            {Number(channel?.catchupDays || 0) > 0
+                              ? ` ${Number(channel.catchupDays)}d`
+                              : ""}
+                          </span>
+                        )}
+
+                      {!radio &&
                         quality && (
                           <span className="rounded bg-blue-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase text-blue-200">
                             {quality}
