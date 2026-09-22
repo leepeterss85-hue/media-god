@@ -5813,6 +5813,9 @@ export default function VideoPlayer({
       let latestSizeBytes =
         0;
 
+      let latestRdAdded =
+        "";
+
       let lastProgressValue =
         -1;
 
@@ -5979,6 +5982,14 @@ export default function VideoPlayer({
             const progressData =
               data.torrent_progress ||
               {};
+
+            latestRdAdded =
+              String(
+                progressData?.added ||
+                latestRdAdded ||
+                rdPreparation?.added ||
+                ""
+              );
 
             latestProgress = Math.max(
               0,
@@ -6394,7 +6405,7 @@ export default function VideoPlayer({
                   : 3 * 60 * 1000;
 
           const rdAddedAt = Date.parse(
-            String(progressData?.added || rdPreparation?.added || "")
+            String(latestRdAdded || rdPreparation?.added || "")
           );
           const rdJobAgeMs = Number.isFinite(rdAddedAt)
             ? Math.max(0, Date.now() - rdAddedAt)
