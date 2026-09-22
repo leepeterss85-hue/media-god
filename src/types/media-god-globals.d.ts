@@ -14,10 +14,24 @@ declare global {
     __MG_NATIVE_PLAYBACK_DIAGNOSTICS__?: any;
     __MG_FIRE_TV_STABLE_MODE__?: any;
     __MG_SINGLE_VIDEO_SURFACE_GUARD__?: any;
+    __MG_RD_REJECTION_FAILOVER_INSTALLED__?: any;
+    MediaGodNative?: any;
   }
 
   interface Navigator {
     connection?: any;
+    userLanguage?: string;
+  }
+
+  interface ImportMetaEnv {
+    VITE_BASE44_APP_ID?: string;
+    VITE_BASE44_APP_BASE_URL?: string;
+    VITE_BASE44_FUNCTIONS_VERSION?: string;
+    [key: string]: any;
+  }
+
+  interface ImportMeta {
+    readonly env: ImportMetaEnv;
   }
 
   interface Document {
