@@ -610,6 +610,172 @@ const addonSupportsType = (manifest, mediaType) => {
   return types.includes(wanted);
 };
 
+const readAddonResponseText = async (
+  response,
+  maxBytes =
+    ADDON_RESPONSE_LIMIT_BYTES
+) => {
+  const contentLength =
+    Number(
+      response.headers.get(
+        "content-length"
+      ) ||
+        0
+    );
+
+  if (
+    Number.isFinite(
+      contentLength
+    ) &&
+    contentLength >
+      maxBytes
+  ) {
+    throw new Error(
+      "Addon response exceeded the safety size limit."
+    );
+  }
+
+  if (!response.body) {
+    return "";
+  }
+
+  const reader =
+    response.body.getReader();
+  const decoder =
+    new TextDecoder();
+  let total = 0;
+  let text = "";
+
+  while (true) {
+    const {
+      done,
+      value,
+    } =
+      await reader.read();
+
+    if (done) {
+      break;
+    }
+
+    total +=
+      Number(
+        value?.byteLength ||
+          0
+      );
+
+    if (
+      total >
+      maxBytes
+    ) {
+      try {
+        await reader.cancel();
+      } catch {
+        // The response is already being discarded.
+      }
+
+      throw new Error(
+        "Addon response exceeded the safety size limit."
+      );
+    }
+
+    text +=
+      decoder.decode(
+        value,
+        {
+          stream: true,
+        }
+      );
+  }
+
+  text +=
+    decoder.decode();
+
+  return text;
+};
+
+const fetchAddonResponse = async (
+  value,
+  controller
+) => {
+  let current =
+    validatedAddonUrl(
+      value
+    );
+
+  for (
+    let redirectCount = 0;
+    redirectCount <=
+      ADDON_REDIRECT_LIMIT;
+    redirectCount += 1
+  ) {
+    const response =
+      await fetch(
+        current.toString(),
+        {
+          signal:
+            controller.signal,
+          redirect:
+            "manual",
+
+          headers: {
+            Accept:
+              "application/json, text/plain, */*",
+
+            "User-Agent":
+              "Media-God/1.0 Stremio-Compatible-Client",
+          },
+        }
+      );
+
+    if (
+      response.status >= 300 &&
+      response.status < 400
+    ) {
+      const location =
+        clean(
+          response.headers.get(
+            "location"
+          )
+        );
+
+      try {
+        await response.body?.cancel?.();
+      } catch {
+        // Headers are enough for redirect validation.
+      }
+
+      if (!location) {
+        return response;
+      }
+
+      if (
+        redirectCount >=
+        ADDON_REDIRECT_LIMIT
+      ) {
+        throw new Error(
+          "Addon redirected too many times."
+        );
+      }
+
+      current =
+        validatedAddonUrl(
+          new URL(
+            location,
+            current
+          ).toString()
+        );
+
+      continue;
+    }
+
+    return response;
+  }
+
+  throw new Error(
+    "Addon redirected too many times."
+  );
+};
+
 const fetchJsonWithTimeout = async (
   url,
   timeoutMs = 4500
@@ -622,18 +788,11 @@ const fetchJsonWithTimeout = async (
   );
 
   try {
-    const response = await fetch(url, {
-      signal: controller.signal,
-      redirect: "follow",
-
-      headers: {
-        Accept:
-          "application/json, text/plain, */*",
-
-        "User-Agent":
-          "Media-God/1.0 Stremio-Compatible-Client",
-      },
-    });
+    const response =
+      await fetchAddonResponse(
+        url,
+        controller
+      );
 
     if (!response.ok) {
       return {
@@ -644,7 +803,10 @@ const fetchJsonWithTimeout = async (
       };
     }
 
-    const text = await response.text();
+    const text =
+      await readAddonResponseText(
+        response
+      );
 
     try {
       return {
