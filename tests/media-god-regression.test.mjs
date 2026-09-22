@@ -859,8 +859,14 @@ test("verified movie/TV title conflicts keep the canonical media identity", () =
   assert.match(catalogSource, /fetchSearchIdentityCorrections/);
   assert.match(catalogSource, /identity_corrected:\s*true/);
 
-  const forcedMovieIndex = catalogSource.indexOf("forcedType === 'movie'");
-  const staleTmdbTypeIndex = catalogSource.indexOf("m?.media_type === 'tv'");
+  const mapItemStart = catalogSource.indexOf("const mapItem =");
+  const mapItemEnd = catalogSource.indexOf("const fetchSearchIdentityCorrections", mapItemStart);
+  assert.ok(mapItemStart >= 0);
+  assert.ok(mapItemEnd > mapItemStart);
+
+  const mapItemSource = catalogSource.slice(mapItemStart, mapItemEnd);
+  const forcedMovieIndex = mapItemSource.indexOf("forcedType === 'movie'");
+  const staleTmdbTypeIndex = mapItemSource.indexOf("m?.media_type === 'tv'");
   assert.ok(forcedMovieIndex >= 0);
   assert.ok(staleTmdbTypeIndex > forcedMovieIndex);
 
