@@ -67,7 +67,17 @@ class MainActivity : Activity() {
 
             webChromeClient = WebChromeClient()
             webViewClient = object : WebViewClient() {
+                override fun onPageStarted(
+                    view: WebView?,
+                    url: String?,
+                    favicon: Bitmap?
+                ) {
+                    currentTopLevelUrl = url.orEmpty()
+                    super.onPageStarted(view, url, favicon)
+                }
+
                 override fun onPageFinished(view: WebView?, url: String?) {
+                    currentTopLevelUrl = url.orEmpty()
                     super.onPageFinished(view, url)
                     injectFireTvBootstrap()
                     requestFocus()
