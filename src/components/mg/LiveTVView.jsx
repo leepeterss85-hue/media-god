@@ -3892,36 +3892,94 @@ export default function LiveTVView({
                     )}
                   </button>
 
-                  <button
-                    type="button"
-                    aria-label={
-                      favourite
-                        ? `Remove ${channel.name} from favourites`
-                        : `Add ${channel.name} to favourites`
-                    }
-                    title={favourite ? "Remove favourite" : "Add favourite"}
-                    onClick={() => toggleFavouriteChannel(channel)}
-                    onFocus={(event) => {
-                      setFocusedChannelKey(memoryKey);
-                      event.currentTarget.scrollIntoView({
-                        block: "nearest",
-                        inline: "nearest",
-                      });
-                    }}
-                    className={cn(
-                      "absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full border bg-black/70 outline-none transition-colors focus:ring-2 focus:ring-mg-green",
-                      favourite
-                        ? "border-mg-green/50 text-mg-green"
-                        : "border-white/10 text-white/45 hover:text-white"
-                    )}
-                  >
-                    <Star
+                  <div className="absolute right-2 top-2 grid gap-1">
+                    <button
+                      type="button"
+                      aria-label={
+                        favourite
+                          ? `Remove ${channel.name} from favourites`
+                          : `Add ${channel.name} to favourites`
+                      }
+                      title={favourite ? "Remove favourite" : "Add favourite"}
+                      onClick={() => toggleFavouriteChannel(channel)}
                       className={cn(
-                        "h-4 w-4",
-                        favourite && "fill-current"
+                        "flex h-8 w-8 items-center justify-center rounded-full border bg-black/70 outline-none transition-colors focus:ring-2 focus:ring-mg-green",
+                        favourite
+                          ? "border-mg-green/50 text-mg-green"
+                          : "border-white/10 text-white/45 hover:text-white"
                       )}
-                    />
-                  </button>
+                    >
+                      <Star
+                        className={cn(
+                          "h-4 w-4",
+                          favourite && "fill-current"
+                        )}
+                      />
+                    </button>
+
+                    <button
+                      type="button"
+                      aria-label={
+                        channelIsHidden(channel)
+                          ? `Restore ${channel.name}`
+                          : `Hide ${channel.name}`
+                      }
+                      title={channelIsHidden(channel) ? "Restore channel" : "Hide channel"}
+                      onClick={() =>
+                        setChannelHidden(
+                          channel,
+                          !channelIsHidden(channel)
+                        )
+                      }
+                      className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-black/70 text-white/45 outline-none transition-colors hover:text-white focus:ring-2 focus:ring-mg-green"
+                    >
+                      {channelIsHidden(channel) ? (
+                        <Eye className="h-4 w-4" />
+                      ) : (
+                        <EyeOff className="h-4 w-4" />
+                      )}
+                    </button>
+
+                    {quickFilter !== "Hidden" && (
+                      <>
+                        <button
+                          type="button"
+                          aria-label={`Move ${channel.name} up`}
+                          title="Move up"
+                          onClick={() => moveChannel(channel, "up")}
+                          className="flex h-7 w-8 items-center justify-center rounded-full border border-white/10 bg-black/70 text-white/40 outline-none hover:text-white focus:ring-2 focus:ring-mg-green"
+                        >
+                          <ArrowUp className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={`Move ${channel.name} down`}
+                          title="Move down"
+                          onClick={() => moveChannel(channel, "down")}
+                          className="flex h-7 w-8 items-center justify-center rounded-full border border-white/10 bg-black/70 text-white/40 outline-none hover:text-white focus:ring-2 focus:ring-mg-green"
+                        >
+                          <ArrowDown className="h-3.5 w-3.5" />
+                        </button>
+                      </>
+                    )}
+
+                    {isNativeFireTvPlayerAvailable() &&
+                      playableChannelCandidates(channel)[0]?.url && (
+                        <button
+                          type="button"
+                          aria-label={`Open ${channel.name} in an external player`}
+                          title="Open in external player"
+                          onClick={() =>
+                            openNativeFireTvExternalPlayer(
+                              playableChannelCandidates(channel)[0].url
+                            )
+                          }
+                          className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-black/70 text-white/45 outline-none hover:text-white focus:ring-2 focus:ring-mg-green"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </button>
+                      )}
+                  </div>
                 </div>
               );
             }
