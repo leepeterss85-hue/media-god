@@ -362,6 +362,31 @@ class MainActivity : Activity() {
         )
     }
 
+    private fun nativeBridgeAllowed(): Boolean {
+        if (!::webView.isInitialized) {
+            return false
+        }
+
+        val expected = runCatching {
+            Uri.parse(BuildConfig.MEDIA_GOD_URL)
+        }.getOrNull() ?: return false
+
+        val current = runCatching {
+            Uri.parse(currentTopLevelUrl)
+        }.getOrNull() ?: return false
+
+        val expectedHost = expected.host.orEmpty()
+        val currentHost = current.host.orEmpty()
+
+        return (
+            expected.scheme.equals("https", ignoreCase = true) &&
+                current.scheme.equals(expected.scheme, ignoreCase = true) &&
+                expectedHost.isNotBlank() &&
+                currentHost.equals(expectedHost, ignoreCase = true) &&
+                current.port == expected.port
+        )
+    }
+
     private fun dispatchJavascript(script: String) {
         if (!::webView.isInitialized) return
 
