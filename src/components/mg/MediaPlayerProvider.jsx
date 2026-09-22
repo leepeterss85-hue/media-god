@@ -4440,7 +4440,6 @@ export const DEMO_VIDEO =
  * @param {{ trailerUrl?: any, providers?: any[], [key: string]: any }} input
  */
 export function buildMediaSources({
-  trailerUrl: _trailerUrl,
   providers,
 } = {}) {
   const sources =
