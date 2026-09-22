@@ -15,6 +15,7 @@ const entries = [
   "base44/functions/resolveTvImdb/entry.ts",
   "base44/functions/getLiveEpg/entry.ts",
   "base44/functions/skySportNow/entry.ts",
+  "base44/functions/xtreamPortal/entry.ts",
   "base44/functions/antSportsLive/entry.ts",
   "base44/functions/evSportsLive/entry.ts",
 ];
