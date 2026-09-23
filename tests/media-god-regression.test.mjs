@@ -2893,7 +2893,7 @@ test("strict launch barrier preserves verified playback and blocks unverified au
   assert.equal(mergedWaiting[1].infoHash, hash);
 });
 
-test("film and episode playback source pools never include trailers", () => {
+test("film and episode playback source pools never include trailers or watch-provider pages", () => {
   const providerSource = readFileSync(
     new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url),
     "utf8"
@@ -2911,6 +2911,9 @@ test("film and episode playback source pools never include trailers", () => {
   assert.ok(builderStart >= 0);
   assert.doesNotMatch(builderBlock, /type:\s*"youtube"/);
   assert.doesNotMatch(builderBlock, /label:\s*"Trailer"/);
+  assert.doesNotMatch(builderBlock, /type:\s*"provider"/);
+  assert.match(builderBlock, /Watch-provider links/);
+  assert.match(builderBlock, /return \[\];/);
   assert.match(
     providerSource,
     /const stripVodTrailerSources =[\s\S]{0,500}?toLowerCase\(\) !== "youtube"/
