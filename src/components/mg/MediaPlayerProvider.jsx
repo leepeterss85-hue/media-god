@@ -309,12 +309,11 @@ const stripVodTrailerSources = (
     return list;
   }
 
-  return list.filter(
-    (item) =>
-      String(item?.type || "")
-        .trim()
-        .toLowerCase() !== "youtube"
-  );
+  return list.filter((item) => {
+    const type = String(item?.type || "").trim().toLowerCase();
+
+    return !["youtube", "provider", "external"].includes(type);
+  });
 };
 
 const isDirectSource = (item) => {
@@ -3406,6 +3405,28 @@ export function PlayerProvider({
               rankedFastCandidates,
               rankedFastCandidates
             );
+
+          /*
+           * Normal VOD playback is source-first. As soon as fast addon
+           * discovery returns real torrent/direct rows, publish them into the
+           * player immediately instead of leaving the browser on the loading
+           * status row while the old strict launch-qualification pass runs.
+           *
+           * publishEarlySources applies the VOD source filter, so Where-to-
+           * Watch/provider/external/YouTube pages still cannot enter playback.
+           * The comprehensive pass below continues in the background and
+           * enriches cache state plus the complete manual source list.
+           */
+          if (!qualificationMode) {
+            publishEarlySources(automaticFastCandidates, {
+              imdbId,
+              imdbStatus: imdbInfo?.status || "UNKNOWN",
+              addonLookupStatus: "FAST SOURCE-FIRST",
+              addonsChecked: Number(addonLookup?.addonsChecked || 0),
+              discoveredCount: addonLookup.streams.length,
+            });
+            return;
+          }
 
           const qualifiedFastSources =
             hasRd

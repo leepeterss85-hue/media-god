@@ -2916,11 +2916,29 @@ test("film and episode playback source pools never include trailers or watch-pro
   assert.match(builderBlock, /return \[\];/);
   assert.match(
     providerSource,
-    /const stripVodTrailerSources =[\s\S]{0,500}?toLowerCase\(\) !== "youtube"/
+    /const stripVodTrailerSources =[\s\S]{0,700}?!\["youtube", "provider", "external"\]\.includes\(type\)/
   );
   assert.match(
     providerSource,
     /const suppliedCompleteSources =[\s\S]{0,320}?stripVodTrailerSources/
+  );
+
+  const fastAddonStart = providerSource.indexOf("fastAddonPromise.then");
+  const fastAddonEnd = providerSource.indexOf(
+    "const addonPromise",
+    fastAddonStart
+  );
+  const fastAddonBlock = providerSource.slice(fastAddonStart, fastAddonEnd);
+
+  assert.ok(fastAddonStart >= 0);
+  assert.ok(fastAddonEnd > fastAddonStart);
+  assert.match(
+    fastAddonBlock,
+    /if\s*\(\s*!qualificationMode\s*\)[\s\S]{0,900}?publishEarlySources\(automaticFastCandidates/
+  );
+  assert.ok(
+    fastAddonBlock.indexOf("publishEarlySources(automaticFastCandidates") <
+      fastAddonBlock.indexOf("qualifyCachedRealDebridLaunchPool")
   );
   assert.doesNotMatch(
     episodeSource.slice(

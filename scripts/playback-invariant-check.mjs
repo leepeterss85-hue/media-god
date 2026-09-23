@@ -41,7 +41,9 @@ expect(
     !/type:\s*["']youtube["']/.test(buildSourcesBlock) &&
     !/label:\s*["']Trailer["']/.test(buildSourcesBlock) &&
     mediaProvider.includes("stripVodTrailerSources") &&
-    mediaProvider.includes('toLowerCase() !== "youtube"') &&
+    /!\["youtube",\s*"provider",\s*"external"\]\.includes\(type\)/.test(
+      mediaProvider
+    ) &&
     !episodeSelector
       .slice(
         episodeSelector.indexOf("buildMediaSources({"),
@@ -59,6 +61,22 @@ expect(
     buildSourcesBlock.includes("return [];") &&
     !/type:\s*["']provider["']/.test(buildSourcesBlock),
   "Netflix and other Where-to-Watch provider pages can never be injected into the VOD player source pool"
+);
+
+const fastAddonStart = mediaProvider.indexOf("fastAddonPromise.then");
+const fastAddonEnd = mediaProvider.indexOf("const addonPromise", fastAddonStart);
+const fastAddonBlock =
+  fastAddonStart >= 0 && fastAddonEnd > fastAddonStart
+    ? mediaProvider.slice(fastAddonStart, fastAddonEnd)
+    : "";
+
+expect(
+  /if\s*\(\s*!qualificationMode\s*\)[\s\S]{0,900}?publishEarlySources\(automaticFastCandidates/.test(
+    fastAddonBlock
+  ) &&
+    fastAddonBlock.indexOf("publishEarlySources(automaticFastCandidates") <
+      fastAddonBlock.indexOf("qualifyCachedRealDebridLaunchPool"),
+  "source-first web VOD must publish discovered torrent/direct rows before strict launch qualification can leave the player spinning"
 );
 
 const automaticReadyStart = videoPlayer.indexOf(
