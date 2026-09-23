@@ -5838,6 +5838,24 @@ export default function VideoPlayer({
                 return;
               }
 
+              if (error?.code === "RD_IP_NOT_ALLOWED") {
+                /*
+                 * This is an account/network condition, not evidence that the
+                 * selected torrent is bad. The backend already asks RD for a
+                 * remote-playback link; if RD still rejects the playback IP,
+                 * cycling through sources would only poison otherwise-good
+                 * files and repeat the same account-level failure.
+                 */
+                setRdResolving(false);
+                setRdPolling(false);
+                setRdTorrentId(null);
+                setRdPreparation(null);
+                setRdError(
+                  "Real-Debrid rejected the current playback network/IP even after Media God requested a remote-playback link. Reconnect Real-Debrid or try the connection again without changing source."
+                );
+                return;
+              }
+
               if (
                 error?.code === "RD_ACTIVE_SLOTS_FULL" ||
                 terminalRdResolveFailure
