@@ -21,12 +21,10 @@ import { cn } from "@/lib/utils";
 import {
   friendlyTrackLabel,
   preferredAudioTrackScore,
-  readRememberedAudioPreference,
   readRememberedSubtitlePreference,
   readTrackPreferences,
   rememberAudioPreference,
   rememberSubtitlePreference,
-  rememberedAudioTrackScore,
   rememberedSubtitleTrackScore,
   subtitleCueStyle,
   trackLanguage,
@@ -537,39 +535,6 @@ export default function MediaPlayerControls({
 
     if (nextAudio.length > 0) {
       const preferredLanguage = preferences.audioLanguage;
-      const context =
-        typeof window !== "undefined"
-          ? window.__MG_PLAYER_CONTEXT__ || { title }
-          : { title };
-      const remembered = readRememberedAudioPreference(context);
-      const rememberedRanked = remembered
-        ? nextAudio
-            .map((item) => ({
-              item,
-              score: rememberedAudioTrackScore(item.raw || item, remembered),
-            }))
-            .sort((a, b) => b.score - a.score || a.item.index - b.item.index)
-        : [];
-      const rememberedCandidate =
-        rememberedRanked[0]?.score > 0
-          ? rememberedRanked[0].item
-          : null;
-
-      /*
-       * Per-title memory can refine codec/channel choice INSIDE the globally
-       * preferred language, but it must never override the user's Settings
-       * language. This prevents an old foreign-track choice from reopening the
-       * title in that language when the global preference is English.
-       */
-      const rememberedPreferred =
-        rememberedCandidate &&
-        (
-          !remembered?.language ||
-          remembered.language === preferredLanguage
-        )
-          ? rememberedCandidate
-          : null;
-
       const languageRanked = nextAudio
         .slice()
         .sort(
@@ -589,6 +554,11 @@ export default function MediaPlayerControls({
             )
           : null;
 
+      /*
+       * Manual-only audio policy: ranking changes the order shown in the Audio
+       * menu, never the active decoder track. The current stream/track is left
+       * exactly as-is until chooseAudio() is called by a real user selection.
+       */
       orderedAudio = manualChoice
         ? [
             manualChoice,
@@ -598,39 +568,7 @@ export default function MediaPlayerControls({
                 item.kind !== manualChoice.kind
             ),
           ]
-        : rememberedPreferred
-          ? [
-              rememberedPreferred,
-              ...languageRanked.filter(
-                (item) => item.index !== rememberedPreferred.index
-              ),
-            ]
-          : languageRanked;
-
-      const preferred =
-        manualChoice ||
-        rememberedPreferred ||
-        orderedAudio[0];
-
-      if (preferred && preferred.index !== activeAudio) {
-        if (preferred.kind === "hls") {
-          window.dispatchEvent(
-            new CustomEvent("mg:hls-audio-track-selected", {
-              detail: { index: preferred.index },
-            })
-          );
-          activeAudio = preferred.index;
-        } else if (nativeAudioTracks) {
-          try {
-            for (let index = 0; index < nativeAudioTracks.length; index += 1) {
-              nativeAudioTracks[index].enabled = index === preferred.index;
-            }
-            activeAudio = preferred.index;
-          } catch {
-            // Some Android WebViews expose read-only audio track state.
-          }
-        }
-      }
+        : languageRanked;
     }
 
     setSubtitleTracks(nextSubtitles);
