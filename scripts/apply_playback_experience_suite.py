@@ -1667,46 +1667,8 @@ def patch_video_player():
             'VideoPlayer native forced subtitle preference'
         )
 
-    no_sound_anchor = '  handleNoSoundRef.current = handleNoSound;\n'
-    if 'automatic no-sound recovery' not in text.lower():
-        effect = r'''
-
-  /* Automatic no-sound recovery is proactive for codec combinations that are
-   * commonly silent on Android/Fire TV/browser decoders, and immediate for a
-   * source that this device has already remembered as silent. */
-  useEffect(() => {
-    if (
-      isLive || isYoutube || isProvider || rdResolving || rdPolling ||
-      rdTorrentId || rdPreparation || readPlaybackPreferences().automaticNoSoundRecovery === false
-    ) {
-      return undefined;
-    }
-
-    const candidate = rdOverride
-      ? { ...active, src: rdOverride.src || activeUrl, label: rdOverride.label || active?.label }
-      : active;
-    const label = sourceDisplayLabel(candidate, activeIdx);
-    const traits = detectStreamTraits(candidate, label);
-    const rememberedSilent = hasRecentNoSoundHistory(label);
-    if (!rememberedSilent && !traits.audioRisk) return undefined;
-
-    const timer = window.setTimeout(() => {
-      const video = stageRef.current?.querySelector("video");
-      if (
-        video instanceof HTMLVideoElement &&
-        !video.paused && !video.ended && !video.error
-      ) {
-        handleNoSoundRef.current?.({ automatic: true });
-      }
-    }, rememberedSilent ? 2200 : 4200);
-
-    return () => window.clearTimeout(timer);
-  }, [
-    active, activeIdx, activeUrl, isLive, isProvider, isYoutube,
-    rdOverride, rdPolling, rdResolving, rdTorrentId, rdPreparation,
-  ]);
-'''
-        text = replace_once(text, no_sound_anchor, no_sound_anchor + effect, 'VideoPlayer automatic no-sound effect')
+    # Automatic no-sound injection was removed. Audio recovery is
+    # intentionally manual-only and must require a real user action.
 
     write(path, text)
 
