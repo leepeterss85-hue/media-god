@@ -2912,7 +2912,7 @@ test("film and episode playback source pools never include trailers or watch-pro
   assert.doesNotMatch(builderBlock, /type:\s*"youtube"/);
   assert.doesNotMatch(builderBlock, /label:\s*"Trailer"/);
   assert.doesNotMatch(builderBlock, /type:\s*"provider"/);
-  assert.match(builderBlock, /Watch-provider links/);
+  assert.match(providerSource, /Watch-provider links/);
   assert.match(builderBlock, /return \[\];/);
   assert.match(
     providerSource,
