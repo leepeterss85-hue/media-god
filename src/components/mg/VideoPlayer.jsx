@@ -9145,13 +9145,6 @@ export default function VideoPlayer({
           .filter(Boolean)
           .join(" ");
 
-        const strictEnglishNativeFailure =
-          !isLive &&
-          !manualSourceLockActive() &&
-          /strict english|verified english main|could not confirm and select.*english|english main track/i.test(
-            nativeFailureText
-          );
-
         const nativeAudioFailure =
           !isLive &&
           (
@@ -9165,57 +9158,9 @@ export default function VideoPlayer({
           !isLive && manualSourceLockActive();
 
         /*
-         * A strict-English failure means this automatic candidate failed the
-         * language gate. It must never be pinned as a decoder problem; reject
-         * it and continue through the English candidate pool automatically.
+         * Do not auto-reject or advance sources for English/audio failures.
+         * Audio correction is now owned by the viewer through Audio / Source.
          */
-        if (strictEnglishNativeFailure) {
-          englishAudioRejectedRef.current.add(activeIdx);
-          markSourceFailed(activeIdx);
-
-          setForceNativePlayback(false);
-          setNativeFallbackUrl("");
-          setRdOverride(null);
-          setRdResolving(false);
-          setRdPolling(false);
-          setRdTorrentId(null);
-          setRdPreparation(null);
-
-          const nextEnglish = sortedSourceEntries.find((entry) => {
-            const item = entry?.item;
-            const type = String(item?.type || "").toLowerCase();
-
-            return Boolean(
-              entry?.index !== activeIdx &&
-                !englishAudioRejectedRef.current.has(entry?.index) &&
-                !failedSourcesRef.current.has(entry?.index) &&
-                sourceIsUserSelectable(item) &&
-                Number(entry?.languageRank ?? 3) <= 3 &&
-                Number(entry?.hardSubtitleRank ?? 0) === 0 &&
-                type !== "provider" &&
-                type !== "youtube" &&
-                (
-                  autoplayEntryApproved(entry) ||
-                  sourceNeedsCaching(item)
-                )
-            );
-          });
-
-          if (nextEnglish) {
-            switchToSource(nextEnglish.index, {
-              preservePosition: true,
-              statusMessage:
-                "That source did not produce English main audio — trying the next English source automatically…",
-            });
-          } else {
-            setRdError(
-              "Media God rejected the current source because the native player could not confirm English main audio, and no further automatic English candidate was available."
-            );
-          }
-
-          return;
-        }
-
         if (nativeAudioFailure || lockedVodNativeFailure) {
           if (positionSeconds > 5) {
             recoveryResumeRef.current = positionSeconds;
