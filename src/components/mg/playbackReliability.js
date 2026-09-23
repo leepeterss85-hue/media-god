@@ -166,9 +166,18 @@ const applyEvent = (record, kind, value) => {
       current.lastStartAt = now;
     }
   } else if (kind === "good") {
+    /*
+     * Proven playback rehabilitates the exact source immediately. Old failure,
+     * no-sound and buffering events are useful until the source proves itself
+     * again; after that they must not keep poisoning automatic ranking/recovery.
+     */
     current.lastGood = now;
-    current.failures = Math.max(0, Number(current.failures || 0) - 1);
-    current.buffers = Math.max(0, Number(current.buffers || 0) - 1);
+    current.failures = 0;
+    current.noSound = 0;
+    current.buffers = 0;
+    current.lastFailure = 0;
+    current.lastNoSound = 0;
+    current.lastBuffer = 0;
   }
 
   return current;
@@ -290,10 +299,15 @@ export const hasRecentNoSoundHistory = (
   if (!source) return false;
 
   const store = readStore();
+  /*
+   * Hard automatic no-sound recovery must be learned from this exact source,
+   * optionally on this device. Codec/provider traits may still influence
+   * ranking through playbackReliabilityAdjustment(), but one bad file must
+   * never make a different file auto-fail just because it looks similar.
+   */
   const keys = [
     source,
     sourceDeviceKey(label, profile),
-    ...traitKeysFor(label, profile),
   ].filter(Boolean);
 
   return keys.some((key) =>
