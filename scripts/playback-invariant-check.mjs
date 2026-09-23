@@ -365,9 +365,11 @@ for (const [name, compatibility] of [
       : "";
 
   expect(
-    audioRecoveryBlock.includes("player.isPlaying") &&
-      !audioRecoveryBlock.includes('finishWithResult(\n                    "error"'),
-    `${name} compatibility playback cannot be killed solely by uncertain audio-track metadata`
+    audioRecoveryBlock.includes("audioRecoveryRunnable = Runnable { }") &&
+      !audioRecoveryBlock.includes("recoverAudioTrack()") &&
+      !audioRecoveryBlock.includes("player.isPlaying") &&
+      !audioRecoveryBlock.includes("finishWithResult("),
+    `${name} compatibility audio recovery remains inert until the viewer uses Audio`
   );
 
   expect(
