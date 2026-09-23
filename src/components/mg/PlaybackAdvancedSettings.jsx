@@ -161,7 +161,6 @@ export default function PlaybackAdvancedSettings() {
 
         {[
           ["volumeNormalization", "Volume normalization", "Reduce large jumps between quiet dialogue and loud scenes."],
-          ["automaticNoSoundRecovery", "Automatic no-sound recovery", "Re-select the best audio track and safe output automatically for risky remux audio."],
           ["networkAware4K", "Network-aware 4K", "Pre-check 4K throughput and prefer another 4K/backup source when the measured connection cannot sustain its bitrate."],
           ["thermalProtection", "Thermal / performance protection", "On phones, tablets and Fire TV, leave a software-decoded 4K source when heat or memory pressure becomes severe."],
         ].map(([key, title, description]) => (
