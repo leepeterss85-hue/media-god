@@ -22,6 +22,7 @@ const mobilePlayer = read(
 const firePlayer = read(
   "firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt"
 );
+const reliability = read("src/components/mg/playbackReliability.js");
 
 const buildSourcesStart = mediaProvider.indexOf(
   "export function buildMediaSources"
@@ -129,6 +130,67 @@ expect(
       'AIOStreams / ElfHosted returned a short error clip instead of the requested release.'
     ),
   "native players rely on real player errors instead of provider-duration guesses"
+);
+
+const noSoundStart = reliability.indexOf(
+  "export const hasRecentNoSoundHistory"
+);
+const noSoundEnd = reliability.indexOf(
+  "export const clearPlaybackReliability",
+  noSoundStart
+);
+const noSoundBlock =
+  noSoundStart >= 0 && noSoundEnd > noSoundStart
+    ? reliability.slice(noSoundStart, noSoundEnd)
+    : "";
+
+expect(
+  noSoundBlock.includes("sourceDeviceKey(label, profile)") &&
+    !noSoundBlock.includes("traitKeysFor(label, profile)"),
+  "automatic no-sound recovery learns only the exact source/device, never a whole codec/provider trait"
+);
+
+const goodStart = reliability.indexOf('kind === "good"');
+const goodEnd = reliability.indexOf("return current;", goodStart);
+const goodBlock =
+  goodStart >= 0 && goodEnd > goodStart
+    ? reliability.slice(goodStart, goodEnd)
+    : "";
+
+expect(
+  goodBlock.includes("current.failures = 0") &&
+    goodBlock.includes("current.noSound = 0") &&
+    goodBlock.includes("current.buffers = 0") &&
+    goodBlock.includes("current.lastFailure = 0") &&
+    goodBlock.includes("current.lastNoSound = 0") &&
+    goodBlock.includes("current.lastBuffer = 0"),
+  "confirmed successful playback immediately rehabilitates stale failure/no-sound/buffer penalties"
+);
+
+expect(
+  videoPlayer.includes(
+    "currentTime >= SUCCESSFUL_VOD_PLAYBACK_SECONDS"
+  ) &&
+    videoPlayer.includes(
+      'sourceDisplayLabel(active, activeIdx),\n        "good"'
+    ) &&
+    videoPlayer.includes(
+      "positionSeconds >= SUCCESSFUL_VOD_PLAYBACK_SECONDS"
+    ),
+  "20-second proven playback records success for both web and native VOD"
+);
+
+const staleGuardMatches = [
+  "current.playRequestId !== playId",
+  "streamActionGenerationRef.current === actionGeneration",
+  "String(detail.requestId || \"\") !== activeRequest.requestId",
+];
+
+expect(
+  staleGuardMatches.every(
+    (token) => mediaProvider.includes(token) || videoPlayer.includes(token)
+  ),
+  "stale discovery/native/async results cannot overwrite a newer playback request"
 );
 
 if (process.exitCode) {
