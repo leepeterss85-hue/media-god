@@ -2,7 +2,7 @@
   "version": 1,
   "note": "Update these hashes only when playback or Live TV core changes are explicitly intended and reviewed.",
   "files": {
-    "src/components/mg/VideoPlayer.jsx": "dd323f494cffedbf077afb2ab1edb4a7955525c580ed5d31ca58326957da0464",
+    "src/components/mg/VideoPlayer.jsx": "df4c8cc5175fc8a3df2ca20a4143de02769e109c57374f2a7b97019e733be349",
     "src/components/mg/MediaPlayerProvider.jsx": "f7150285842b3f345d4617e8df1763f78b156019a3d2c4475d6ace5664957adf",
     "src/components/mg/PlayerProvider.jsx": "9777d6ac1c1d76e90c390183468436aab8fcc4acfb223b44ecc0780ab8421c72",
     "src/components/mg/MediaPlayerControls.jsx": "ca9f9271e16a85df35d2d7f86f2498d442854839dec171777b96147b10e04766",
@@ -13,9 +13,9 @@
     "base44/functions/getLiveEpg/entry.ts": "1caf894a1a60212947c8d5ef15061bbf8529e70a1d7e310b49bcddc546c48646",
     "base44/functions/antSportsLive/entry.ts": "c4d7a7e0e769cabfd10f5df896d78cbf8f85081b41d346f82c36cc62e209bf0a",
     "base44/functions/evSportsLive/entry.ts": "149d7c13a8e56e602e450919ade50b3b6d58ea115c746370863803fbe4c8ec4d",
-    "android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt": "5ceb03ca76d089b18bbd5a58650ed9e61518957eec62f206af27d60208b714e9",
+    "android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt": "709b30e66767621d53f5ceafc1e1e128e221c7e70bd5bd0e7515f068e6acd539",
     "android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt": "abba93f358c4588e89b3c0a7cda0dba0bd284767ae8252e7f161d76d46365b90",
-    "firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt": "543dab7f79b31fd471037c176e0eb4de9a44d36875fd65f848c2397cea45351f",
+    "firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt": "b396bc1a4ea1d9c68c093006f147263ebab21b2bbe80f06869716397f3e37e9d",
     "firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt": "1b54191ed16fd5abf8c3c29bc7175c07fa093e90e6cfee7cd94c3e951364a950"
   }
 }
