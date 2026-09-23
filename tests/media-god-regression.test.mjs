@@ -3519,20 +3519,24 @@ test("global VOD audio validation covers web, Media3 and LibVLC playback", () =>
 
   for (const file of compatibilityFiles) {
     const source = readFileSync(new URL(file, import.meta.url), "utf8");
-    assert.match(
-      source,
-      /compatibility decoder could not find an active audio track after repeated checks/
-    );
-    assert.match(
-      source,
-      /could not confirm and select the verified English main audio track/
-    );
     assert.match(source, /hasVerifiedEnglishMainAudio/);
     assert.match(source, /selectedIsVerifiedEnglish/);
     assert.match(source, /preferredAudioTrackName/);
     assert.match(source, /selectedAudioTrack >= 0/);
     assert.match(source, /audioTrackCount > 0/);
     assert.match(source, /audioRecoveryPasses < 4/);
+    assert.match(
+      source,
+      /A running decoder must not be killed merely because LibVLC/
+    );
+    assert.match(
+      source,
+      /MediaPlayer\.Event\.EncounteredError -> \{[\s\S]{0,120}?confirmCompatibilityError\(player\)/
+    );
+    assert.match(
+      source,
+      /currentTime > observedAt \+ 250L/
+    );
   }
 
   const bridgeSource = readFileSync(
