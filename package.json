@@ -17,7 +17,8 @@
     "test:privacy": "node scripts/privacy-audit.mjs",
     "test:smoke": "node scripts/non-playback-smoke.mjs",
     "test:network": "node scripts/live-tv-network-smoke.mjs && node scripts/live-tv-parser-stress.mjs",
-    "test:regression": "npm run test && npm run lint && npm run build && npm run test:protected && npm run test:privacy && npm run test:backend && npm run test:ui && npm run test:smoke && npm run test:native",
+    "test:playback": "node scripts/episode-playback-regression-check.mjs && node scripts/playback-invariant-check.mjs",
+    "test:regression": "npm run test && npm run lint && npm run build && npm run test:playback && npm run test:protected && npm run test:privacy && npm run test:backend && npm run test:ui && npm run test:smoke && npm run test:native",
     "test:full": "npm run test:regression && npm run typecheck",
     "preview": "vite preview"
   },
