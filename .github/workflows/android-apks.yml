@@ -204,12 +204,25 @@ jobs:
           set -euo pipefail
           ensure_release() {
             tag="$1"; title="$2"; notes="$3"; asset="$4"
+
+            # Stable "latest" releases are disposable pointers. Recreate them
+            # instead of using --clobber: GitHub can retain a stale asset ID
+            # briefly after a previous upload, causing gh release upload
+            # --clobber to fail with HTTP 404 while deleting that old asset.
+            # Recreating preserves the same public /releases/download/<tag>/
+            # URL while guaranteeing the tag and asset both belong to this SHA.
             if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-              gh api --method PATCH "/repos/$GITHUB_REPOSITORY/git/refs/tags/$tag" -f sha="$GITHUB_SHA" -F force=true >/dev/null
+              gh release delete "$tag" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
             else
-              gh release create "$tag" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "$title" --notes "$notes"
+              git push origin ":refs/tags/$tag" >/dev/null 2>&1 || true
             fi
-            gh release upload "$tag" "$asset" --repo "$GITHUB_REPOSITORY" --clobber
+
+            gh release create "$tag" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "$title" \
+              --notes "$notes" \
+              "$asset"
           }
           ensure_release "android-mobile-latest" "Media God Mobile - Android Phone and Tablet" "Latest tested Media God Android phone/tablet build. Released in lockstep with the Fire TV APK from commit $GITHUB_SHA." "Media-God-Android-Mobile.apk"
           ensure_release "firetv-latest" "Media God Fire TV" "Latest tested Media God Fire TV/Stick build. Released in lockstep with the phone/tablet APK from commit $GITHUB_SHA." "Media-God-Fire-TV.apk"
