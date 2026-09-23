@@ -22,8 +22,6 @@ import androidx.media3.common.Player
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.analytics.AnalyticsListener
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
 import androidx.media3.ui.PlayerView
@@ -31,7 +29,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.math.max
 
-@UnstableApi
 class PlayerActivity : Activity() {
     companion object {
         const val EXTRA_PAYLOAD = "mg_payload"
@@ -70,7 +67,6 @@ class PlayerActivity : Activity() {
     private var genericHttpsMimeRetryIndex = 0
     private var compatibilityPlayerOpen = false
     private var audioPresenceCheckGeneration = 0
-    private var audioOutputConfirmed = false
     private var autoNext = true
     private var recapStartMs = -1L
     private var recapEndMs = -1L
@@ -123,12 +119,12 @@ class PlayerActivity : Activity() {
             payload.optBoolean("verifiedEnglishMain", false)
         ) ?: payload.optBoolean("verifiedEnglishMain", false)
 
-    private fun strictEnglishStartupRequired(): Boolean =
-        !live &&
-            payload.optBoolean("strictEnglishPlayback", false) &&
-            payload.optString("audioLanguage", "en")
-                .trim()
-                .lowercase() in setOf("en", "eng", "english")
+    /*
+     * Audio correction is manual-only. Never hold VOD startup waiting for an
+     * English/audio validation gate; the viewer can use Audio if the selected
+     * track is wrong or silent.
+     */
+    private fun strictEnglishStartupRequired(): Boolean = false
 
     private fun currentPreferredEnglishTrackName(): String =
         activeSourceMetadata()?.optString("preferredAudioTrackName").orEmpty()
@@ -656,18 +652,6 @@ class PlayerActivity : Activity() {
                 .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !subtitlesEnabled)
                 .build()
 
-        exoPlayer.addAnalyticsListener(object : AnalyticsListener {
-            override fun onAudioPositionAdvancing(
-                eventTime: AnalyticsListener.EventTime,
-                playoutStartSystemTimeMs: Long
-            ) {
-                if (!live && player === exoPlayer) {
-                    audioOutputConfirmed = true
-                    audioPresenceCheckGeneration += 1
-                }
-            }
-        })
-
         exoPlayer.addListener(object : Player.Listener {
             override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
                 var selectedFrameRate = 0f
@@ -692,51 +676,17 @@ class PlayerActivity : Activity() {
                     )
                 }
 
-                val englishOverrideApplied =
-                    enforcePreferredEnglishAudio(exoPlayer, tracks)
-
-                val strictEnglishResumed =
-                    resumeStrictEnglishPlaybackIfReady(exoPlayer)
-
-                if (!strictEnglishResumed) {
-                    if (
-                        englishOverrideApplied &&
-                        strictEnglishStartupRequired()
-                    ) {
-                        /*
-                         * Applying the English override does not start playback.
-                         * Re-check the post-override track selection even if
-                         * Media3 does not emit another onTracksChanged callback.
-                         */
-                        playerView.postDelayed({
-                            if (
-                                resultSent ||
-                                compatibilityPlayerOpen ||
-                                player !== exoPlayer
-                            ) {
-                                return@postDelayed
-                            }
-
-                            if (!resumeStrictEnglishPlaybackIfReady(exoPlayer)) {
-                                scheduleMissingAudioCheck(
-                                    exoPlayer,
-                                    exoPlayer.currentTracks
-                                )
-                            }
-                        }, 250L)
-                    } else {
-                        scheduleMissingAudioCheck(exoPlayer, tracks)
-                    }
-                }
+                /*
+                 * Manual-only audio policy: do not override tracks, pause for
+                 * English validation, or launch compatibility recovery from a
+                 * track-change callback. Keep Media3's current track untouched.
+                 */
             }
 
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 if (isPlaying) {
                     window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-                    if (!live && !audioOutputConfirmed) {
-                        scheduleMissingAudioCheck(exoPlayer, exoPlayer.currentTracks)
-                    }
                 } else {
                     window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                 }
@@ -793,7 +743,6 @@ class PlayerActivity : Activity() {
         exoPlayer.playWhenReady =
             shouldPlayWhenReady && !holdForEnglishStartup
 
-        audioOutputConfirmed = false
         exoPlayer.setMediaItem(mediaItem)
         exoPlayer.prepare()
 
@@ -815,11 +764,27 @@ class PlayerActivity : Activity() {
             return false
         }
 
+        /*
+         * Audio fallback is manual-only. Real audio renderer/sink errors return
+         * to the web player so the viewer can choose Audio or Source instead of
+         * Media God automatically replacing the decoder underneath them.
+         */
+        val audioFailureText =
+            "${error.errorCodeName} ${error.message.orEmpty()}"
+        if (
+            error.errorCode in 5001..5004 ||
+            Regex(
+                """audio|dts|true[ ._-]?hd|mlp|atmos|e[ ._-]?ac[ ._-]?3|joc|silent|no[- ]?sound""",
+                RegexOption.IGNORE_CASE
+            ).containsMatchIn(audioFailureText)
+        ) {
+            return false
+        }
+
         val code = error.errorCode
 
         return code == 3003 ||
-            code in 4001..4005 ||
-            code in 5001..5004
+            code in 4001..4005
     }
 
     private fun launchCompatibilityPlayer(
@@ -989,179 +954,13 @@ class PlayerActivity : Activity() {
         activePlayer: ExoPlayer,
         tracks: androidx.media3.common.Tracks
     ) {
-        if (live || resultSent || compatibilityPlayerOpen) return
-
-        val hasVideo = tracks.groups.any { group ->
-            group.type == C.TRACK_TYPE_VIDEO && group.length > 0
-        }
-
-        if (!hasVideo) {
-            audioPresenceCheckGeneration += 1
-            return
-        }
-
-        val initialAudio = inspectAudioReadiness(tracks)
-        val preferredAudio = payload.optString("audioLanguage", "en")
-            .trim()
-            .lowercase()
-        val wantsEnglish =
-            preferredAudio in setOf("en", "eng", "english")
-        val initialEnglish =
-            inspectPreferredEnglishReadiness(tracks)
-        val verifiedEnglishMain =
-            currentVerifiedEnglishMain()
-        val strictEnglishStartup =
-            strictEnglishStartupRequired()
-
         /*
-         * A risky codec is not itself a playback failure. If Media3 reports an
-         * audio track as present, supported and selected, keep the working
-         * renderer in place. The old behaviour forced DTS/TrueHD/JOC sources
-         * into LibVLC after ~450 ms even when audible audio had already started,
-         * which looked exactly like a one-second play-then-switch failure.
-         *
-         * Compatibility fallback remains available for a genuinely missing,
-         * unsupported or unselected audio renderer and through onPlayerError.
-         *
-         * Crucially, "some audio is selected" is not enough when English is the
-         * preference. A remux can contain a supported foreign AAC/AC3 default
-         * plus an English DTS/TrueHD track that Media3 cannot select. In that
-         * case keep the exact same source and hand it to the compatibility
-         * decoder instead of accepting the foreign renderer as success.
+         * Intentionally disabled. Audio recovery is manual-only: neither track
+         * metadata nor silence heuristics may interrupt VOD playback. The
+         * viewer decides whether to use Audio or Source.
          */
-        val needsRescue =
-            !initialAudio.present ||
-                !initialAudio.supported ||
-                !initialAudio.selected ||
-                (
-                    wantsEnglish &&
-                        (verifiedEnglishMain || strictEnglishStartup) &&
-                        !initialEnglish.selected
-                )
-
-        if (!needsRescue) {
-            /*
-             * Track metadata only says an audio renderer was selected. It does
-             * not prove that decoded audio is actually advancing. Give Media3
-             * a short window to produce its runtime audio-position signal. If
-             * that signal arrives, it cancels this check and the working film
-             * or episode is never interrupted.
-             */
-            val generation = ++audioPresenceCheckGeneration
-
-            playerView.postDelayed({
-                if (
-                    resultSent ||
-                    compatibilityPlayerOpen ||
-                    generation != audioPresenceCheckGeneration ||
-                    audioOutputConfirmed ||
-                    player !== activePlayer ||
-                    !activePlayer.isPlaying ||
-                    activePlayer.playbackState == Player.STATE_IDLE ||
-                    activePlayer.playbackState == Player.STATE_ENDED ||
-                    activePlayer.currentPosition < 2500L
-                ) {
-                    return@postDelayed
-                }
-
-                val currentTracks = activePlayer.currentTracks
-                val stillHasVideo = currentTracks.groups.any { group ->
-                    group.type == C.TRACK_TYPE_VIDEO && group.length > 0
-                }
-
-                if (!stillHasVideo) {
-                    return@postDelayed
-                }
-
-                val audio = inspectAudioReadiness(currentTracks)
-
-                if (!audio.present || !audio.supported || !audio.selected) {
-                    scheduleMissingAudioCheck(activePlayer, currentTracks)
-                    return@postDelayed
-                }
-
-                val rescued = launchCompatibilityPlayer(
-                    activePlayer,
-                    null,
-                    "Media3 selected an audio track but no decoded audio output advanced. Trying the compatibility decoder on this same source."
-                )
-
-                if (!rescued) {
-                    finishWithResult(
-                        "error",
-                        "This source is playing video but produced no confirmed audio output."
-                    )
-                }
-            }, 5000L)
-
-            return
-        }
-
-        val generation = ++audioPresenceCheckGeneration
-        val rescueDelayMs = 1400L
-
-        playerView.postDelayed({
-            if (
-                resultSent ||
-                compatibilityPlayerOpen ||
-                generation != audioPresenceCheckGeneration ||
-                audioOutputConfirmed ||
-                player !== activePlayer ||
-                activePlayer.playbackState == Player.STATE_IDLE ||
-                activePlayer.playbackState == Player.STATE_ENDED
-            ) {
-                return@postDelayed
-            }
-
-            val currentTracks = activePlayer.currentTracks
-            val stillHasVideo = currentTracks.groups.any { group ->
-                group.type == C.TRACK_TYPE_VIDEO && group.length > 0
-            }
-
-            if (!stillHasVideo) {
-                return@postDelayed
-            }
-
-            val audio = inspectAudioReadiness(currentTracks)
-            val english = inspectPreferredEnglishReadiness(currentTracks)
-            val reason = when {
-                wantsEnglish &&
-                    (verifiedEnglishMain || strictEnglishStartup) &&
-                    !english.present ->
-                    "Strict English playback could not find an English main track in Media3. Trying the compatibility decoder on this same source."
-                wantsEnglish && english.present && !english.supported ->
-                    "An English audio track is present but this device cannot decode it in Media3. Trying the compatibility decoder on this same source."
-                wantsEnglish &&
-                    (verifiedEnglishMain || strictEnglishStartup) &&
-                    !english.selected ->
-                    "Strict English playback did not select the English main track. Trying the compatibility decoder on this same source."
-                !audio.present ->
-                    "Media3 found video but no audio track. Trying the compatibility decoder."
-                !audio.supported ->
-                    "The audio track is present but this device does not expose a usable decoder. Trying the compatibility decoder."
-                !audio.selected ->
-                    "The audio track is present but Media3 did not select a usable audio renderer. Trying the compatibility decoder."
-                else -> ""
-            }
-
-            if (reason.isBlank()) {
-                scheduleMissingAudioCheck(activePlayer, currentTracks)
-                return@postDelayed
-            }
-
-            val rescued = launchCompatibilityPlayer(
-                activePlayer,
-                null,
-                reason
-            )
-
-            if (!rescued) {
-                finishWithResult(
-                    "error",
-                    "This source contains video but no usable audio track."
-                )
-            }
-        }, rescueDelayMs)
+        @Suppress("UNUSED_VARIABLE")
+        val keepManualOnly = activePlayer to tracks
     }
 
     private fun buildMediaItem(mimeTypeOverride: String? = null): MediaItem {
@@ -1298,7 +1097,6 @@ class PlayerActivity : Activity() {
         return try {
             activePlayer.stop()
             activePlayer.clearMediaItems()
-            audioOutputConfirmed = false
             activePlayer.setMediaItem(buildMediaItem(retryMimeType))
             activePlayer.prepare()
 
