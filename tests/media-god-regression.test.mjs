@@ -3299,75 +3299,43 @@ test("Real-Debrid library lookup prefers the exact owned RdLink episode associat
   assert.match(block, /association:[\s\S]{0,80}?"exact_rdlink"/);
 });
 
-test("successful audio rescue cannot be abandoned by stale no-sound or torrent failover timers", () => {
+test("audio recovery is manual-only across browser and compatibility players", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
     "utf8"
   );
-  const mobileCompat = readFileSync(
-    new URL(
-      "../android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt",
-      import.meta.url
-    ),
-    "utf8"
-  );
-  const fireCompat = readFileSync(
-    new URL(
-      "../firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt",
-      import.meta.url
-    ),
-    "utf8"
-  );
+  const compatibilityFiles = [
+    "../android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt",
+    "../firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt",
+  ];
 
-  assert.match(playerSource, /cancelPendingTorrentFailover/);
-  assert.match(playerSource, /confirmRecoveredSource/);
-  assert.match(
-    playerSource,
-    /streamActionGenerationRef\.current !== scheduledGeneration/
-  );
-  assert.match(playerSource, /const browserConfirmedAudio =/);
-  assert.match(
-    playerSource,
-    /if \(browserConfirmedAudio\)[\s\S]{0,120}?confirmRecoveredSource\(video\)/
-  );
-  assert.match(
-    playerSource,
-    /browserConfirmedNoAudio &&[\s\S]{0,100}?!rescueAlreadyApplied/
-  );
-  assert.doesNotMatch(
-    playerSource,
-    /!rescueAlreadyApplied[\s\S]{0,120}rememberedSilent \|\| traits\.audioRisk/
-  );
-  assert.match(
-    playerSource,
-    /currentTime > previousTime \+ 0\.15[\s\S]{0,120}confirmRecoveredSource\(video\)/
-  );
+  assert.match(playerSource, /Audio recovery is deliberately MANUAL ONLY/);
+  assert.match(playerSource, /const handleNoSound =\s*\n\s*async \(\) =>/);
+  assert.match(playerSource, /mg:audio-rescue-request/);
+  assert.match(playerSource, /force_audio_rescue: true/);
+  assert.match(playerSource, /handleNoSound\(\);/);
+  assert.doesNotMatch(playerSource, /handleNoSoundRef/);
+  assert.doesNotMatch(playerSource, /browserConfirmedNoAudio/);
+  assert.doesNotMatch(playerSource, /rejectAutomaticAioAudioFailure/);
+  assert.doesNotMatch(playerSource, /automatic:\s*true/);
 
-  [mobileCompat, fireCompat].forEach((source) => {
-    assert.match(source, /selectedAudioTrack >= 0/);
-    assert.match(source, /audioTrackCount > 0/);
-    assert.match(source, /audioRecoveryPasses < 4/);
-
-    const recoveryStart = source.indexOf("private fun recoverAudioTrack()");
-    const recoveryEnd = source.indexOf(
-      "private fun currentHeaders()",
-      recoveryStart
+  for (const file of compatibilityFiles) {
+    const source = readFileSync(new URL(file, import.meta.url), "utf8");
+    assert.match(source, /automaticNoSoundRecovery = false/);
+    assert.match(source, /recoverAudioTrack\(\) = Unit/);
+    assert.match(
+      source,
+      /audioButton = controlButton\("Audio"\) \{ cycleAudioTrack\(\) \}/
     );
-    assert.ok(recoveryStart >= 0);
-    assert.ok(recoveryEnd > recoveryStart);
-    assert.doesNotMatch(
-      source.slice(recoveryStart, recoveryEnd),
-      /configureAudioOutput\(player\)/
-    );
-
+    assert.doesNotMatch(source, /postDelayed\(audioRecoveryRunnable, 1000L\)/);
     assert.equal(
-      (source.match(/configureAudioOutput\(player\)/g) || []).length,
+      (source.match(/player\.setAudioTrack\(/g) || []).length,
       1
     );
-  });
+  }
 });
 
-test("English-first audio keeps manual choices locked and never enters an uncached rescue loop", () => {
+test("audio menu ranks tracks but changes them only after a user choice", () => {
   const controlsSource = readFileSync(
     new URL("../src/components/mg/MediaPlayerControls.jsx", import.meta.url),
     "utf8"
@@ -3380,144 +3348,63 @@ test("English-first audio keeps manual choices locked and never enters an uncach
     new URL("../base44/functions/realDebrid/entry.ts", import.meta.url),
     "utf8"
   );
-  const compatibilityFiles = [
-    "../android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt",
-    "../firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt",
-  ];
 
+  assert.match(controlsSource, /Manual-only audio policy/);
   assert.match(controlsSource, /manualAudioChoiceRef/);
-  assert.match(
-    controlsSource,
-    /remembered\.language === preferredLanguage/
-  );
-  assert.match(
-    controlsSource,
-    /manualChoice\s*\|\|\s*rememberedPreferred\s*\|\|\s*orderedAudio\[0\]/
-  );
+  assert.doesNotMatch(controlsSource, /rememberedPreferred/);
 
   const chooseStart = controlsSource.indexOf("const chooseAudio =");
   const chooseEnd = controlsSource.indexOf("const toggleMenu =", chooseStart);
-  assert.ok(chooseStart >= 0);
-  assert.ok(chooseEnd > chooseStart);
+  assert.ok(chooseStart >= 0 && chooseEnd > chooseStart);
   const chooseAudioSource = controlsSource.slice(chooseStart, chooseEnd);
+  assert.match(chooseAudioSource, /mg:hls-audio-track-selected/);
+  assert.match(chooseAudioSource, /audioTracks\[index\]\.enabled/);
   assert.match(chooseAudioSource, /manualAudioChoiceRef\.current =/);
   assert.match(chooseAudioSource, /rememberAudioPreference/);
-  assert.doesNotMatch(chooseAudioSource, /writeTrackPreferences\(/);
 
   const noSoundStart = playerSource.indexOf("const handleNoSound =");
   const noSoundEnd = playerSource.indexOf(
-    "handleNoSoundRef.current = handleNoSound",
+    "Audio recovery is deliberately MANUAL ONLY",
     noSoundStart
   );
-  assert.ok(noSoundStart >= 0);
-  assert.ok(noSoundEnd > noSoundStart);
+  assert.ok(noSoundStart >= 0 && noSoundEnd > noSoundStart);
   const noSoundSource = playerSource.slice(noSoundStart, noSoundEnd);
-  assert.match(noSoundSource, /AUDIO FAILURE IS NOT SOURCE FAILURE/);
-  assert.match(noSoundSource, /lockCurrentVodSourceForAudioRecovery/);
+  assert.match(noSoundSource, /force_audio_rescue: true/);
   assert.doesNotMatch(noSoundSource, /findNextPlayableSource\(/);
+  assert.doesNotMatch(noSoundSource, /markSourceFailed\(/);
+  assert.doesNotMatch(noSoundSource, /switchToSource\(/);
 
-  assert.match(rdSource, /rd_metadata_foreign_original_probe/);
-  assert.match(
-    rdSource,
-    /Real-Debrid metadata did not label an English track/
-  );
-  const foreignProbeStart = rdSource.indexOf("if (\n    explicitlyForeignOnly");
-  const foreignProbeEnd = rdSource.indexOf("const firstIsEnglish", foreignProbeStart);
-  assert.ok(foreignProbeStart >= 0 && foreignProbeEnd > foreignProbeStart);
-  const foreignProbeBlock = rdSource.slice(foreignProbeStart, foreignProbeEnd);
-  assert.match(foreignProbeBlock, /stream_url:\s*\n\s*originalUrl/);
-  assert.doesNotMatch(foreignProbeBlock, /RD_NO_ENGLISH_AUDIO/);
-  assert.doesNotMatch(foreignProbeBlock, /error_code/);
   assert.match(rdSource, /forced_audio_rescue_original_probe/);
   assert.doesNotMatch(
     rdSource,
     /forced_audio_rescue_unavailable_try_next_source/
   );
-
-  const forcedRescueStart = rdSource.indexOf("if (forceAudioRescue) {");
-  const forcedRescueEnd = rdSource.indexOf(
-    "if (audioTracks.length === 0)",
-    forcedRescueStart
-  );
-  assert.ok(forcedRescueStart >= 0);
-  assert.ok(forcedRescueEnd > forcedRescueStart);
-  const forcedRescueBlock = rdSource.slice(
-    forcedRescueStart,
-    forcedRescueEnd
-  );
-  assert.match(forcedRescueBlock, /stream_url:\s*originalUrl/);
-  assert.match(forcedRescueBlock, /Same File Audio Probe/);
-  assert.doesNotMatch(forcedRescueBlock, /error_code/);
-  assert.doesNotMatch(forcedRescueBlock, /try another source/i);
-
-  compatibilityFiles.forEach((file) => {
-    const source = readFileSync(new URL(file, import.meta.url), "utf8");
-    assert.match(source, /manualAudioTrackLocked = false/);
-    assert.match(source, /manualAudioTrackId = -1/);
-    assert.match(
-      source,
-      /if \(manualAudioTrackLocked\)[\s\S]{0,500}player\.setAudioTrack\(locked\.id\)/
-    );
-    assert.match(
-      source,
-      /val englishMainTracks = tracks\.filter[\s\S]{0,350}looksEnglish/
-    );
-    assert.match(
-      source,
-      /englishMainTracks\.isNotEmpty\(\)[\s\S]{0,500}englishMainTracks\.first\(\)/
-    );
-    assert.match(source, /manualAudioTrackLocked = true/);
-    assert.match(source, /root\.removeCallbacks\(audioRecoveryRunnable\)/);
-    assert.match(source, /Audio locked/);
-  });
 });
 
-test("native players explicitly override a foreign default to English main audio", () => {
+test("native players leave post-start audio choice untouched", () => {
   const nativeFiles = [
     "../android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt",
     "../firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt",
   ];
-  const rdSource = readFileSync(
-    new URL("../base44/functions/realDebrid/entry.ts", import.meta.url),
-    "utf8"
-  );
 
-  nativeFiles.forEach((file) => {
+  for (const file of nativeFiles) {
     const source = readFileSync(new URL(file, import.meta.url), "utf8");
-
-    assert.match(source, /private fun enforcePreferredEnglishAudio/);
-    assert.match(source, /formatLooksEnglish/);
-    assert.match(source, /formatLooksCommentary/);
-    assert.match(source, /TrackSelectionOverride/);
-    assert.match(source, /setOverrideForType/);
-    assert.match(
-      source,
-      /val englishOverrideApplied[\s\S]{0,300}?resumeStrictEnglishPlaybackIfReady\(exoPlayer\)[\s\S]{0,900}?postDelayed[\s\S]{0,700}?scheduleMissingAudioCheck/
-    );
-    assert.match(
-      source,
-      /group\.isTrackSelected\(index\)[\s\S]{0,180}audio\/vnd\.dts/
-    );
-  });
-
-  assert.match(rdSource, /track\?\.title/);
-  assert.match(rdSource, /track\?\.label/);
-  assert.match(rdSource, /track\?\.language_iso/);
-  assert.match(rdSource, /track\?\.language/);
-  assert.match(rdSource, /iso === "english"/);
-  assert.match(
-    rdSource,
-    /\(\?:eng\|en\|english\)/
-  );
-  assert.match(
-    rdSource,
-    /name:[\s\S]{0,120}track\?\.title/
-  );
+    assert.match(source, /strictEnglishStartupRequired\(\): Boolean = false/);
+    assert.match(source, /Manual-only audio policy: do not override tracks/);
+    assert.match(source, /Intentionally disabled\. Audio recovery is manual-only/);
+    assert.doesNotMatch(source, /val englishOverrideApplied =/);
+    assert.doesNotMatch(source, /onAudioPositionAdvancing\(/);
+    assert.doesNotMatch(source, /audioOutputConfirmed/);
+  }
 });
 
-test("global VOD audio validation covers web, Media3 and LibVLC playback", () => {
+test("VOD audio correction is manual-only across web Media3 and LibVLC", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+  const controlsSource = readFileSync(
+    new URL("../src/components/mg/MediaPlayerControls.jsx", import.meta.url),
     "utf8"
   );
   const nativeFiles = [
@@ -3529,66 +3416,34 @@ test("global VOD audio validation covers web, Media3 and LibVLC playback", () =>
     "../firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt",
   ];
 
-  assert.match(playerSource, /browserConfirmedNoAudio/);
-  assert.match(playerSource, /browserConfirmedAudio/);
-  assert.match(playerSource, /webkitAudioDecodedByteCount/);
-  assert.match(playerSource, /mozHasAudio/);
-  assert.doesNotMatch(playerSource, /exposedTracks\.length === 0/);
+  assert.match(playerSource, /Audio recovery is deliberately MANUAL ONLY/);
+  assert.doesNotMatch(playerSource, /browserConfirmedNoAudio/);
+  assert.doesNotMatch(playerSource, /handleNoSoundRef/);
+  assert.match(controlsSource, /Manual-only audio policy/);
 
   for (const file of nativeFiles) {
     const source = readFileSync(new URL(file, import.meta.url), "utf8");
-    assert.match(source, /scheduleMissingAudioCheck/);
-    assert.match(source, /C\.TRACK_TYPE_AUDIO/);
-    assert.match(source, /group\.isTrackSupported\(index\)/);
-    assert.match(source, /group\.isTrackSelected\(index\)/);
-    assert.match(source, /audio\/vnd\.dts\.hd/);
-    assert.match(source, /audio\/true-hd/);
-    assert.match(source, /audio\/eac3-joc/);
-    assert.match(
-      source,
-      /Media3 found video but no audio track\. Trying the compatibility decoder\./
-    );
-    assert.match(source, /onAudioPositionAdvancing\(/);
-    assert.match(source, /audioOutputConfirmed = true/);
-    assert.match(
-      source,
-      /no decoded audio output advanced\. Trying the compatibility decoder on this same source\./
-    );
+    assert.match(source, /strictEnglishStartupRequired\(\): Boolean = false/);
+    assert.match(source, /Intentionally disabled\. Audio recovery is manual-only/);
+    assert.match(source, /error\.errorCode in 5001\.\.5004/);
+    assert.doesNotMatch(source, /onAudioPositionAdvancing\(/);
+    assert.doesNotMatch(source, /audioOutputConfirmed/);
   }
 
   for (const file of compatibilityFiles) {
     const source = readFileSync(new URL(file, import.meta.url), "utf8");
-    assert.match(source, /hasVerifiedEnglishMainAudio/);
-    assert.match(source, /selectedIsVerifiedEnglish/);
-    assert.match(source, /preferredAudioTrackName/);
-    assert.match(source, /selectedAudioTrack >= 0/);
-    assert.match(source, /audioTrackCount > 0/);
-    assert.match(source, /audioRecoveryPasses < 4/);
-    assert.match(
-      source,
-      /A running decoder must not be killed merely because LibVLC/
-    );
+    assert.match(source, /requiresStrictEnglishAudio\(\): Boolean = false/);
+    assert.match(source, /recoverAudioTrack\(\) = Unit/);
+    assert.match(source, /Audio button is the only track-change authority/);
+    assert.doesNotMatch(source, /postDelayed\(audioRecoveryRunnable, 1000L\)/);
     assert.match(
       source,
       /MediaPlayer\.Event\.EncounteredError -> \{[\s\S]{0,120}?confirmCompatibilityError\(player\)/
     );
-    assert.match(
-      source,
-      /currentTime > observedAt \+ 250L/
-    );
   }
-
-  const bridgeSource = readFileSync(
-    new URL("../src/components/mg/nativeFireTvBridge.js", import.meta.url),
-    "utf8"
-  );
-  assert.match(bridgeSource, /nativePreferredEnglishAudio/);
-  assert.match(bridgeSource, /verifiedEnglishMain/);
-  assert.match(bridgeSource, /preferredAudioTrackName/);
-  assert.match(bridgeSource, /preferredAudioTrackStream/);
 });
 
-test("manual source-first rollback disables strict native English startup while preserving the recovery machinery", () => {
+test("strict native English audio gates stay disabled under manual-only audio policy", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
     "utf8"
@@ -3598,71 +3453,29 @@ test("manual source-first rollback disables strict native English startup while 
     "utf8"
   );
 
-  assert.match(
-    playerSource,
-    /strictEnglishPlayback:\s*false/
-  );
-  assert.match(
-    playerSource,
-    /strictEnglishNativeFailure[\s\S]{0,1800}?nextEnglish[\s\S]{0,1000}?switchToSource/
-  );
-  assert.match(
-    bridgeSource,
-    /strictEnglishPlayback = false/
-  );
-  assert.match(
-    bridgeSource,
-    /strictEnglishPlayback: Boolean\(strictEnglishPlayback\)/
-  );
+  assert.match(playerSource, /strictEnglishPlayback:\s*false/);
+  assert.doesNotMatch(playerSource, /strictEnglishNativeFailure/);
+  assert.match(bridgeSource, /strictEnglishPlayback = false/);
 
   for (const relativePath of [
     "../android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt",
     "../firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt",
   ]) {
-    const source = readFileSync(
-      new URL(relativePath, import.meta.url),
-      "utf8"
-    );
-
-    assert.match(source, /private fun strictEnglishStartupRequired/);
-    assert.match(
-      source,
-      /holdForEnglishStartup[\s\S]{0,500}?playWhenReady =[\s\S]{0,160}?shouldPlayWhenReady && !holdForEnglishStartup[\s\S]{0,300}?setMediaItem\(mediaItem\)[\s\S]{0,100}?prepare\(\)/
-    );
-    assert.match(
-      source,
-      /private fun resumeStrictEnglishPlaybackIfReady[\s\S]{0,700}?english\.present[\s\S]{0,180}?english\.supported[\s\S]{0,180}?english\.selected[\s\S]{0,320}?activePlayer\.playWhenReady = true[\s\S]{0,120}?activePlayer\.play\(\)/
-    );
-    assert.match(source, /STRICT_ENGLISH_STARTUP_TIMEOUT_MS = 10000L/);
-    assert.match(
-      source,
-      /strictEnglishStartupWatchdogRunnable[\s\S]{0,900}?launchCompatibilityPlayer[\s\S]{0,300}?could not start with a confirmed English main audio track/
-    );
-    assert.match(
-      source,
-      /holdForEnglishStartup[\s\S]{0,700}?armStrictEnglishStartupWatchdog\(\)/
-    );
+    const source = readFileSync(new URL(relativePath, import.meta.url), "utf8");
+    assert.match(source, /strictEnglishStartupRequired\(\): Boolean = false/);
+    assert.match(source, /holdForEnglishStartup/);
+    assert.match(source, /shouldPlayWhenReady && !holdForEnglishStartup/);
+    assert.match(source, /Intentionally disabled\. Audio recovery is manual-only/);
   }
 
   for (const relativePath of [
     "../android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt",
     "../firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt",
   ]) {
-    const source = readFileSync(
-      new URL(relativePath, import.meta.url),
-      "utf8"
-    );
-
-    assert.match(source, /private fun requiresStrictEnglishAudio/);
-    assert.match(source, /private fun selectedAudioIsVerifiedEnglish/);
-    assert.match(
-      source,
-      /requiresStrictEnglishAudio\(\)[\s\S]{0,140}?player\.setVolume\(0\)[\s\S]{0,180}?player\.play\(\)/
-    );
-    assert.match(
-      source,
-      /selectedIsVerifiedEnglish[\s\S]{0,500}?player\?\.setVolume\(100\)/
-    );
+    const source = readFileSync(new URL(relativePath, import.meta.url), "utf8");
+    assert.match(source, /requiresStrictEnglishAudio\(\): Boolean = false/);
+    assert.doesNotMatch(source, /player\.setVolume\(0\)/);
+    assert.doesNotMatch(source, /postDelayed\(audioRecoveryRunnable, 1000L\)/);
   }
 });
 
@@ -3675,24 +3488,19 @@ test("manual Audio control stays in the current file and never starts torrent fa
   assert.match(playerSource, /trackLanguage\(track\)/);
   assert.match(playerSource, /English audio is already selected and locked/);
   assert.match(playerSource, /Audio track changed within this file/);
-  assert.match(
-    playerSource,
-    /if \(!automatic\) \{[\s\S]{0,650}Choose another source manually/
-  );
+  assert.match(playerSource, /No compatible English audio could be selected from this source/);
 
-  const manualGuard = playerSource.indexOf(
-    "A manual Audio-button press must never become an uncontrolled source"
+  const manualStart = playerSource.indexOf("const handleNoSound =");
+  const manualEnd = playerSource.indexOf(
+    "Audio recovery is deliberately MANUAL ONLY",
+    manualStart
   );
-  const noSoundEnd = playerSource.indexOf(
-    "handleNoSoundRef.current = handleNoSound",
-    manualGuard
-  );
-
-  assert.ok(manualGuard >= 0);
-  assert.ok(noSoundEnd > manualGuard);
-  const guardedAudioRecovery = playerSource.slice(manualGuard, noSoundEnd);
-  assert.doesNotMatch(guardedAudioRecovery, /findNextPlayableSource\(/);
-  assert.doesNotMatch(guardedAudioRecovery, /markSourceFailed\(/);
+  assert.ok(manualStart >= 0 && manualEnd > manualStart);
+  const manualBlock = playerSource.slice(manualStart, manualEnd);
+  assert.match(manualBlock, /force_audio_rescue: true/);
+  assert.doesNotMatch(manualBlock, /findNextPlayableSource\(/);
+  assert.doesNotMatch(manualBlock, /markSourceFailed\(/);
+  assert.doesNotMatch(manualBlock, /switchToSource\(/);
 });
 
 test("audio tracks prefer English main audio while preserving explicit language memory", () => {
@@ -3816,7 +3624,7 @@ test("authoritative IDs stay isolated and English autoplay never falls back blin
 });
 
 
-test("selected supported audio is never auto-skipped just because its codec is risky", () => {
+test("native VOD never schedules automatic audio rescue", () => {
   const nativeFiles = [
     "../android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt",
     "../firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt",
@@ -3824,24 +3632,16 @@ test("selected supported audio is never auto-skipped just because its codec is r
 
   for (const file of nativeFiles) {
     const source = readFileSync(new URL(file, import.meta.url), "utf8");
-    const begin = source.indexOf("val needsRescue =");
-    const end = source.indexOf("if (!needsRescue)", begin);
-    assert.ok(begin >= 0 && end > begin);
+    const start = source.indexOf("private fun scheduleMissingAudioCheck(");
+    const end = source.indexOf("private fun buildMediaItem", start);
+    assert.ok(start >= 0 && end > start);
+    const block = source.slice(start, end);
 
-    const gate = source.slice(begin, end);
-    assert.match(gate, /!initialAudio\.present/);
-    assert.match(gate, /!initialAudio\.supported/);
-    assert.match(gate, /!initialAudio\.selected/);
-    assert.doesNotMatch(gate, /softwareFallbackPreferred/);
-    assert.doesNotMatch(gate, /riskyCodecNeedsSoftwareDecode/);
-
-    const reasonStart = source.indexOf("val reason = when", end);
-    const reasonEnd = source.indexOf("if (reason.isBlank())", reasonStart);
-    assert.ok(reasonStart >= 0 && reasonEnd > reasonStart);
-    const reasonBlock = source.slice(reasonStart, reasonEnd);
-    assert.doesNotMatch(reasonBlock, /softwareFallbackPreferred/);
-    assert.match(source, /val rescueDelayMs = 1400L/);
-    assert.doesNotMatch(source.slice(begin, reasonEnd), /250L/);
+    assert.match(block, /Intentionally disabled\. Audio recovery is manual-only/);
+    assert.doesNotMatch(block, /launchCompatibilityPlayer\(/);
+    assert.doesNotMatch(block, /postDelayed\(/);
+    assert.match(source, /error\.errorCode in 5001\.\.5004/);
+    assert.match(source, /return code == 3003 \|\|\s*\n\s*code in 4001\.\.4005/);
   }
 });
 
@@ -3872,7 +3672,7 @@ test("manual VOD source choices remain locked across native playback recovery", 
 });
 
 
-test("automatic AIOStreams audio failures are skipped and short playback is not remembered as proven", () => {
+test("AIOStreams audio failures are never auto-skipped and short playback is not remembered as proven", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
     "utf8"
@@ -3883,56 +3683,36 @@ test("automatic AIOStreams audio failures are skipped and short playback is not 
   );
 
   assert.match(playerSource, /SUCCESSFUL_VOD_PLAYBACK_SECONDS = 20/);
-  assert.match(
+  assert.match(playerSource, /currentTime >= SUCCESSFUL_VOD_PLAYBACK_SECONDS/);
+  assert.match(playerSource, /positionSeconds >= SUCCESSFUL_VOD_PLAYBACK_SECONDS/);
+  assert.doesNotMatch(playerSource, /rejectAutomaticAioAudioFailure/);
+  assert.doesNotMatch(
     playerSource,
-    /currentTime >= SUCCESSFUL_VOD_PLAYBACK_SECONDS/
+    /AIOStreams audio failed — skipping that source/
   );
-  assert.match(
-    playerSource,
-    /positionSeconds >= SUCCESSFUL_VOD_PLAYBACK_SECONDS/
-  );
-  assert.match(
-    playerSource,
-    /const rejectAutomaticAioAudioFailure =/
-  );
-  assert.match(
-    playerSource,
-    /AIOStreams audio failed — skipping that source and trying the best non-AIO backup/
-  );
-  assert.match(
-    playerSource,
-    /nativeAudioFailure[\s\S]{0,180}?rejectAutomaticAioAudioFailure/
-  );
-  assert.match(
-    playerSource,
-    /forgetSuccessfulPlaybackSource\(failedItem\)/
-  );
-  assert.match(
-    trustedSource,
-    /export const forgetSuccessfulPlaybackSource/
-  );
+  assert.match(playerSource, /forgetSuccessfulPlaybackSource\(failedItem\)/);
+  assert.match(trustedSource, /export const forgetSuccessfulPlaybackSource/);
 });
 
-test("audio recovery never advances to another VOD torrent", () => {
+test("manual audio recovery never advances to another VOD torrent", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
     "utf8"
   );
 
-  assert.match(playerSource, /AUDIO FAILURE IS NOT SOURCE FAILURE/);
-  assert.match(playerSource, /lockCurrentVodSourceForAudioRecovery/);
-  assert.match(playerSource, /__audio_recovery_hold__/);
-  assert.match(
-    playerSource,
-    /kept this exact source selected instead of cycling through other torrents/
+  const audioBlockStart = playerSource.indexOf("const handleNoSound =");
+  const audioBlockEnd = playerSource.indexOf(
+    "Audio recovery is deliberately MANUAL ONLY",
+    audioBlockStart
   );
-
-  const audioBlockStart = playerSource.indexOf("AUDIO FAILURE IS NOT SOURCE FAILURE");
-  const audioBlockEnd = playerSource.indexOf("handleNoSoundRef.current", audioBlockStart);
   assert.ok(audioBlockStart >= 0 && audioBlockEnd > audioBlockStart);
   const audioBlock = playerSource.slice(audioBlockStart, audioBlockEnd);
+
+  assert.match(audioBlock, /force_audio_rescue: true/);
+  assert.match(audioBlock, /Choose another audio track or source manually/);
   assert.doesNotMatch(audioBlock, /switchToSource\(/);
   assert.doesNotMatch(audioBlock, /markSourceFailed\(/);
+  assert.doesNotMatch(audioBlock, /rejectAutomaticAioAudioFailure/);
 });
 
 test("LibVLC Auto PCM output does not force an explicit stereo device", () => {
@@ -4757,49 +4537,29 @@ test("smart English autoplay rejects proven foreign audio while keeping English 
   );
 });
 
-test("native player keeps working English audio and rescues the same source when only foreign audio is usable in Media3", () => {
+test("native player leaves audio recovery to the user", () => {
   for (const relativePath of [
     "../android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt",
     "../firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt",
   ]) {
-    const source = readFileSync(
-      new URL(relativePath, import.meta.url),
-      "utf8"
-    );
+    const source = readFileSync(new URL(relativePath, import.meta.url), "utf8");
 
-    assert.match(source, /private data class PreferredEnglishReadiness/);
-    assert.match(source, /inspectPreferredEnglishReadiness/);
-    assert.match(source, /currentVerifiedEnglishMain/);
-    assert.match(source, /formatMatchesVerifiedEnglishHint/);
-    assert.match(
-      source,
-      /wantsEnglish[\s\S]{0,420}?\(verifiedEnglishMain \|\| strictEnglishStartup\)[\s\S]{0,140}?!initialEnglish\.selected/
+    assert.match(source, /strictEnglishStartupRequired\(\): Boolean = false/);
+    assert.match(source, /Manual-only audio policy: do not override tracks/);
+    assert.match(source, /Intentionally disabled\. Audio recovery is manual-only/);
+    assert.equal(
+      (source.match(/enforcePreferredEnglishAudio\(/g) || []).length,
+      1
     );
-    assert.match(
-      source,
-      /wantsEnglish &&[\s\S]{0,120}?\(verifiedEnglishMain \|\| strictEnglishStartup\)[\s\S]{0,120}?!english\.present[\s\S]{0,320}?compatibility decoder on this same source/
+    assert.equal(
+      (source.match(/scheduleMissingAudioCheck\(/g) || []).length,
+      1
     );
-    assert.match(
+    assert.doesNotMatch(source, /onAudioPositionAdvancing\(/);
+    assert.doesNotMatch(source, /audioOutputConfirmed/);
+    assert.doesNotMatch(
       source,
-      /wantsEnglish && english\.present && !english\.supported[\s\S]{0,260}?compatibility decoder on this same source/
-    );
-    assert.match(
-      source,
-      /wantsEnglish &&[\s\S]{0,120}?\(verifiedEnglishMain \|\| strictEnglishStartup\)[\s\S]{0,120}?!english\.selected[\s\S]{0,300}?compatibility decoder on this same source/
-    );
-    assert.match(
-      source,
-      /if \(!needsRescue\)[\s\S]{0,900}?val generation = \+\+audioPresenceCheckGeneration/
-    );
-    assert.match(
-      source,
-      /audioOutputConfirmed \|\|[\s\S]{0,220}?!activePlayer\.isPlaying/
-    );
-    assert.match(source, /activePlayer\.currentPosition < 2500L/);
-    assert.match(source, /\}, 5000L\)/);
-    assert.match(
-      source,
-      /Media3 selected an audio track but no decoded audio output advanced\./
+      /Media3 selected an audio track but no decoded audio output advanced/
     );
   }
 });
