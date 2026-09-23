@@ -231,11 +231,27 @@ expect(
   "AIOStreams remains last-resort automatic recovery instead of being removed from the candidate pool"
 );
 
+const browserAudioCheckStart = videoPlayer.indexOf(
+  "const browserConfirmedAudio"
+);
+const browserAudioCheckEnd = videoPlayer.indexOf(
+  "return () => window.clearTimeout(timer);",
+  browserAudioCheckStart
+);
+const browserAudioCheckBlock =
+  browserAudioCheckStart >= 0 && browserAudioCheckEnd > browserAudioCheckStart
+    ? videoPlayer.slice(browserAudioCheckStart, browserAudioCheckEnd)
+    : "";
+
 expect(
-  videoPlayer.includes("const establishedPlayback =") &&
-    videoPlayer.includes("!establishedPlayback &&") &&
-    videoPlayer.includes("browserConfirmedNoAudio ||"),
-  "historical codec/no-sound risk cannot interrupt established browser playback"
+  browserAudioCheckBlock.includes("webkitAudioDecodedByteCount") &&
+    browserAudioCheckBlock.includes("mozHasAudio") &&
+    browserAudioCheckBlock.includes("if (browserConfirmedAudio)") &&
+    browserAudioCheckBlock.includes("confirmRecoveredSource(video)") &&
+    browserAudioCheckBlock.includes("browserConfirmedNoAudio &&") &&
+    !browserAudioCheckBlock.includes("rememberedSilent || traits.audioRisk") &&
+    !browserAudioCheckBlock.includes("exposedTracks.length === 0"),
+  "browser VOD keeps proven audible playback and only auto-recovers from present-run silence evidence"
 );
 
 expect(
@@ -243,6 +259,27 @@ expect(
     videoPlayer.includes("if (!hardFailure)") &&
     videoPlayer.includes("Video compatibility rescue · switching to a safer source"),
   "video compatibility rescue switches sources only after an actual media/source failure"
+);
+
+expect(
+  !videoPlayer.includes("nativeDiagnostics?.audioCodec,") &&
+    videoPlayer.includes(
+      "/audio (?:decoder|renderer|sink|track)|no usable audio|no[- ]?sound|silent"
+    ),
+  "a codec label containing the word audio cannot by itself turn a native player error into a false no-sound failure"
+);
+
+expect(
+  [mobilePlayer, firePlayer].every(
+    (nativePlayer) =>
+      nativePlayer.includes("onAudioPositionAdvancing(") &&
+      nativePlayer.includes("audioOutputConfirmed = true") &&
+      nativePlayer.includes("audioOutputConfirmed ||") &&
+      nativePlayer.includes(
+        "Media3 selected an audio track but no decoded audio output advanced."
+      )
+  ),
+  "Android mobile and Fire TV preserve rendered audio and rescue selected tracks that never produce audio output"
 );
 
 expect(
