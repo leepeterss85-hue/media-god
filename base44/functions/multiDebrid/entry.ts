@@ -511,7 +511,10 @@ const resolveRealDebrid = async ({ token, source, season, episode, selectedFile 
     {
       method: "POST",
       headers: formHeaders(token),
-      body: formBody([["link", chosen.url]]),
+      body: formBody([
+        ["link", chosen.url],
+        ["remote", "1"],
+      ]),
     }
   );
 
