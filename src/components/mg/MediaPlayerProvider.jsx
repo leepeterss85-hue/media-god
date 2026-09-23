@@ -4448,53 +4448,19 @@ export const DEMO_VIDEO =
   "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
 
 /**
- * Build non-content provider links that may be shown alongside VOD discovery.
- * Trailer metadata is intentionally NOT converted into a playback source:
- * films and episodes must never fall back to a trailer when the real title
- * cannot be resolved. Explicit trailer buttons can still launch a trailer
- * directly outside this source pool.
+ * Build explicit media sources supplied by catalogue/detail surfaces.
+ *
+ * Watch-provider links (Netflix, Prime Video, Disney+, etc.) are discovery
+ * metadata, not Media God playback sources. They already have their own
+ * "Where to Watch" UI and must never enter the player pool, because a normal
+ * HTTPS provider page can otherwise look "ready" to the browser while torrent
+ * sources are still being prepared. Trailers are likewise kept outside the
+ * film/episode playback pool and are launched only by explicit trailer UI.
  *
  * @param {{ trailerUrl?: any, providers?: any[], [key: string]: any }} input
  */
 export function buildMediaSources({
-  providers,
+  providers: _providers,
 } = {}) {
-  const sources =
-    [];
-
-  (
-    providers ||
-    []
-  ).forEach(
-    (provider) => {
-      if (
-        !provider?.link
-      ) {
-        return;
-      }
-
-      sources.push({
-        label:
-          provider?.name ||
-          "Provider",
-
-        type:
-          "provider",
-
-        src:
-          provider.link,
-
-        url:
-          provider.link,
-
-        logo:
-          provider.logo,
-
-        tier:
-          provider.tier,
-      });
-    }
-  );
-
-  return sources;
+  return [];
 }
