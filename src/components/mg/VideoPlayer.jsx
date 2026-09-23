@@ -896,6 +896,9 @@ export default function VideoPlayer({
   const [rdError, setRdError] =
     useState("");
 
+  const [vodStartupNotice, setVodStartupNotice] =
+    useState("");
+
   const [liveRecoveryNotice, setLiveRecoveryNotice] =
     useState(null);
 
@@ -7597,6 +7600,10 @@ export default function VideoPlayer({
         confirmRecoveredSource(video);
       }
 
+      if (currentTime > 0.25) {
+        setVodStartupNotice("");
+      }
+
       lastPosRef.current =
         {
           t:
@@ -8805,13 +8812,15 @@ export default function VideoPlayer({
    * stall watchdog only runs after playback has begun, so that state used to
    * remain selected forever.
    *
-   * Give automatic startup a real grace period. If there is still no playback
-   * progress, try the next READY explicit-English source without marking the
-   * current source bad. Cap automatic startup attempts so a transient decoder
-   * issue can never become another rapid whole-list carousel. A manual source
-   * choice remains authoritative and is never auto-skipped.
+   * Give automatic startup a grace period. If there is still no playback
+   * progress or buffered data, try the next READY explicit-English source
+   * without marking the current source bad. A timeout alone is not a media
+   * error: keep the video mounted when the viewer selected this source or
+   * automatic alternatives run out, so a slow stream can still start.
    */
   useEffect(() => {
+    setVodStartupNotice("");
+
     if (
       isLive ||
       isYoutube ||
@@ -8843,8 +8852,21 @@ export default function VideoPlayer({
       }
 
       if (manualSourceLockActive()) {
-        setRdError(
-          "This manually selected source has not started yet. Media God kept your choice selected; choose another source or Retry."
+        setVodStartupNotice(
+          "Still connecting to your selected source. You can press Play or choose another source while it continues loading."
+        );
+        return;
+      }
+
+      const hasBufferedData =
+        video instanceof HTMLVideoElement &&
+        !video.error &&
+        (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA ||
+          video.buffered.length > 0);
+
+      if (hasBufferedData) {
+        setVodStartupNotice(
+          "This source has loaded video but has not started playing. Press Play to start it."
         );
         return;
       }
@@ -8855,8 +8877,8 @@ export default function VideoPlayer({
         vodStartupAttemptedRef.current.size >=
         MAX_AUTOMATIC_STARTUP_ATTEMPTS
       ) {
-        setRdError(
-          "Media God tried three ready English sources without real playback starting. The sources were not marked bad; choose any source manually to retry it."
+        setVodStartupNotice(
+          "Still connecting after trying ready sources. Choose another source if playback does not start."
         );
         return;
       }
@@ -8878,8 +8900,8 @@ export default function VideoPlayer({
       });
 
       if (!nextEnglish) {
-        setRdError(
-          "This source did not begin playback, but no other ready English source is available yet. It was kept available and was not marked bad."
+        setVodStartupNotice(
+          "Still connecting to this source. No other ready source is available yet; you can choose another source manually."
         );
         return;
       }
@@ -10315,6 +10337,8 @@ export default function VideoPlayer({
             ? "Choose source"
             : useNativePlayback
               ? "Opening player"
+              : vodStartupNotice
+                ? "Connecting"
               : rdOverride || isDirectFile
                 ? "Ready"
                 : isLive
@@ -11001,14 +11025,14 @@ export default function VideoPlayer({
               Found {Math.max(Number(source?.sourceDiagnostics?.combinedSourceCount || 0), sources.length)}
             </span>
             <span>
-              Cache checked {Number(source?.sourceDiagnostics?.cacheCandidateCount || 0)}
+              Torrent candidates {Number(source?.sourceDiagnostics?.cacheCandidateCount || 0)}
             </span>
             <span>
-              Cached {Number(source?.sourceDiagnostics?.cachedSourceCount || 0)}
+              Verified cached {Number(source?.sourceDiagnostics?.cachedSourceCount || 0)}
             </span>
             {Number(source?.sourceDiagnostics?.pendingSourceCount || 0) > 0 && (
               <span>
-                Waiting {Number(source?.sourceDiagnostics?.pendingSourceCount || 0)}
+                Pending/uncached {Number(source?.sourceDiagnostics?.pendingSourceCount || 0)}
               </span>
             )}
             <span>
@@ -11287,6 +11311,17 @@ export default function VideoPlayer({
                   Retry
                 </button>
               )}
+            </div>
+          )}
+
+        {vodStartupNotice && !displayedError && !busy &&
+          (rdOverride || isDirectFile) && (
+            <div
+              data-mg-vod-startup-notice="true"
+              role="status"
+              className="mt-2 rounded-xl border border-amber-400/20 bg-amber-400/10 px-3 py-2.5 text-xs font-medium leading-relaxed text-amber-100/80 sm:text-sm"
+            >
+              {vodStartupNotice}
             </div>
           )}
       </div>

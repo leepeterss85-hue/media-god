@@ -362,7 +362,7 @@ test("source health never counts uncached Real-Debrid preparation rows as cached
     /cachedSourceCount[\s\S]{0,180}?viaRealDebrid\s*===\s*true/
   );
   assert.match(providerSource, /pendingSourceCount/);
-  assert.match(playerSource, /Waiting \{Number\(source\?\.sourceDiagnostics\?\.pendingSourceCount/);
+  assert.match(playerSource, /Pending\/uncached \{Number\(source\?\.sourceDiagnostics\?\.pendingSourceCount/);
 });
 
 test("partial debrid cache failures stay unknown instead of becoming uncached", () => {
@@ -4487,7 +4487,7 @@ test("Android Mobile resolved VOD is owned by the native Media3 player", () => {
   );
 });
 
-test("black-screen VOD startup waits before trying at most three ready English sources without blacklisting", () => {
+test("VOD startup keeps a slow manual source mounted and only tries ready automatic alternatives", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
     "utf8"
@@ -4509,6 +4509,9 @@ test("black-screen VOD startup waits before trying at most three ready English s
   assert.match(block, /STARTUP_GRACE_MS = 12000/);
   assert.match(block, /MAX_AUTOMATIC_STARTUP_ATTEMPTS = 3/);
   assert.match(block, /manualSourceLockActive\(\)/);
+  assert.match(block, /hasBufferedData/);
+  assert.match(block, /setVodStartupNotice\(/);
+  assert.doesNotMatch(block, /setRdError\(/);
   assert.match(block, /Number\(entry\?\.languageRank \?\? 3\) <= 3/);
   assert.match(block, /autoplayEntryApproved\(entry\)/);
   assert.doesNotMatch(block, /markSourceFailed\(/);
@@ -4517,6 +4520,8 @@ test("black-screen VOD startup waits before trying at most three ready English s
     block,
     /without blacklisting it/
   );
+  assert.match(playerSource, /data-mg-vod-startup-notice="true"/);
+  assert.match(playerSource, /Torrent candidates \{Number\(source\?\.sourceDiagnostics\?\.cacheCandidateCount/);
 });
 
 test("a new playback request resets the old source index and manual lock", () => {

@@ -216,8 +216,11 @@ const startupWatchdogBlock =
 expect(
   startupWatchdogBlock.includes("STARTUP_GRACE_MS = 12000") &&
     startupWatchdogBlock.includes("realProgress") &&
-    !startupWatchdogBlock.includes("markSourceFailed("),
-  "startup timeout may try another ready source but cannot blacklist the current source"
+    startupWatchdogBlock.includes("hasBufferedData") &&
+    startupWatchdogBlock.includes("setVodStartupNotice(") &&
+    !startupWatchdogBlock.includes("markSourceFailed(") &&
+    !startupWatchdogBlock.includes("setRdError("),
+  "startup timeout can show a nonblocking notice but cannot mark a source failed or unmount its video"
 );
 
 expect(

@@ -2,7 +2,7 @@
   "version": 1,
   "note": "Update these hashes only when playback or Live TV core changes are explicitly intended and reviewed.",
   "files": {
-    "src/components/mg/VideoPlayer.jsx": "416889222f811b9a55578a7466f1b199edd3fcc70f7cf2043daeba77f93ed61a",
+    "src/components/mg/VideoPlayer.jsx": "1855b13cc1bfa163fbd0947d41694cdf7efb7f8ac0143608b631e3c0c0ef3020",
     "src/components/mg/MediaPlayerProvider.jsx": "f7150285842b3f345d4617e8df1763f78b156019a3d2c4475d6ace5664957adf",
     "src/components/mg/PlayerProvider.jsx": "9777d6ac1c1d76e90c390183468436aab8fcc4acfb223b44ecc0780ab8421c72",
     "src/components/mg/MediaPlayerControls.jsx": "95c52905cd7c574249c75c809bc953b607b4723781fe51fc50629a90c530c8c7",

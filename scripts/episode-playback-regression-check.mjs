@@ -161,9 +161,9 @@ expect(
     mediaPlayerProvider.includes('cacheCandidateCount,') &&
     mediaPlayerProvider.includes('cachedSourceCount,') &&
     videoPlayer.includes('data-mg-source-health="true"') &&
-    videoPlayer.includes('Cache checked') &&
+    videoPlayer.includes('Torrent candidates') &&
     videoPlayer.includes('Shown {selectableSourceCount}'),
-  "player exposes source-health counts for discovery, cache checks, cached hits and ready sources"
+  "player exposes source-health counts for discovery, torrent candidates, cached hits and visible sources"
 );
 
 expect(
