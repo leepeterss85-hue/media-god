@@ -57,7 +57,7 @@ class CompatibilityPlayerActivity : Activity() {
     private var lipSyncMs = 0
     private var dialogueBoost = "off"
     private var volumeNormalization = false
-    private var automaticNoSoundRecovery = true
+    private var automaticNoSoundRecovery = false
     private var thermalProtection = true
     private var audioRecoveryPasses = 0
     private var manualAudioTrackLocked = false
@@ -234,10 +234,11 @@ class CompatibilityPlayerActivity : Activity() {
     private fun hasVerifiedEnglishMainAudio(): Boolean =
         payload.optBoolean("verifiedEnglishMain", false)
 
-    private fun requiresStrictEnglishAudio(): Boolean =
-        !payload.optBoolean("live", false) &&
-            payload.optBoolean("strictEnglishPlayback", false) &&
-            wantsPreferredEnglishAudio()
+    /*
+     * Compatibility playback also follows the manual-only audio policy.
+     * Never mute, gate, or switch tracks automatically for language/audio.
+     */
+    private fun requiresStrictEnglishAudio(): Boolean = false
 
     private fun normaliseAudioTrackName(value: String): String =
         value.lowercase().replace(Regex("""[^a-z0-9]+"""), " ").trim()
@@ -297,94 +298,11 @@ class CompatibilityPlayerActivity : Activity() {
         }
     }
 
-    private val audioRecoveryRunnable = object : Runnable {
-        override fun run() {
-            if (
-                resultSent ||
-                (!automaticNoSoundRecovery && !requiresStrictEnglishAudio())
-            ) return
-
-            recoverAudioTrack()
-            audioRecoveryPasses += 1
-
-            val player = vlcPlayer
-            val tracks =
-                try {
-                    player?.audioTracks?.filter { it.id >= 0 }.orEmpty()
-                } catch (_: Throwable) {
-                    emptyList()
-                }
-            val selectedAudioTrack =
-                try {
-                    player?.audioTrack ?: -1
-                } catch (_: Throwable) {
-                    -1
-                }
-            val audioTrackCount =
-                try {
-                    player?.audioTracksCount ?: 0
-                } catch (_: Throwable) {
-                    0
-                }
-
-            if (manualAudioTrackLocked) {
-                return
-            }
-
-            val anyAudio =
-                selectedAudioTrack >= 0 ||
-                    audioTrackCount > 0 ||
-                    tracks.isNotEmpty()
-            val requiresVerifiedEnglish =
-                wantsPreferredEnglishAudio() &&
-                    (
-                        hasVerifiedEnglishMainAudio() ||
-                            requiresStrictEnglishAudio()
-                    )
-            val selectedIsVerifiedEnglish =
-                player != null &&
-                    selectedAudioIsVerifiedEnglish(player, tracks)
-
-            /*
-             * Do not equate "some audio is selected" with success when this
-             * source was already verified to contain English main audio. Keep
-             * checking while metadata settles, but never turn missing/uncertain
-             * LibVLC track metadata into a fatal error after the video is already
-             * playing. Real playback progress wins over metadata guesses.
-             */
-            if (
-                anyAudio &&
-                (!requiresVerifiedEnglish || selectedIsVerifiedEnglish)
-            ) {
-                if (requiresVerifiedEnglish && selectedIsVerifiedEnglish) {
-                    try {
-                        player?.setVolume(100)
-                    } catch (_: Throwable) {}
-                }
-                return
-            }
-
-            if (audioRecoveryPasses < 4 && ::root.isInitialized) {
-                root.postDelayed(this, 2400L)
-                return
-            }
-
-            if (
-                player != null &&
-                player.isPlaying &&
-                !payload.optBoolean("live", false)
-            ) {
-                /*
-                 * A running decoder must not be killed merely because LibVLC
-                 * did not expose stable audio-track metadata. The user may have
-                 * perfectly audible audio even when audioTracks/audioTrack are
-                 * temporarily empty or incomplete. Explicit player errors and
-                 * manual Audio controls remain available for genuine failures.
-                 */
-                return
-            }
-        }
-    }
+    /*
+     * Deliberately inert. Compatibility playback must never run automatic
+     * audio recovery; the Audio button is the only track-change authority.
+     */
+    private val audioRecoveryRunnable = Runnable { }
 
     private val thermalRunnable = object : Runnable {
         override fun run() {
@@ -416,7 +334,7 @@ class CompatibilityPlayerActivity : Activity() {
             if (it in setOf("off", "low", "medium", "high")) it else "off"
         }
         volumeNormalization = payload.optBoolean("volumeNormalization", false)
-        automaticNoSoundRecovery = payload.optBoolean("automaticNoSoundRecovery", true)
+        automaticNoSoundRecovery = false
         thermalProtection = payload.optBoolean("thermalProtection", true)
 
         if (!isPlayableUrl(streamUrl)) {
@@ -599,36 +517,12 @@ class CompatibilityPlayerActivity : Activity() {
                             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                             showStatus("Compatibility decoder")
                             try {
-                                player.setVolume(
-                                    if (requiresStrictEnglishAudio()) 0 else 100
-                                )
+                                player.setVolume(100)
                                 player.setAudioDelay(lipSyncMs.toLong() * 1000L)
                             } catch (_: Throwable) {}
                             applyPreferredSubtitle()
-                            recoverAudioTrack()
-                            if (requiresStrictEnglishAudio()) {
-                                val tracks =
-                                    try {
-                                        player.audioTracks
-                                            ?.filter { it.id >= 0 }
-                                            .orEmpty()
-                                    } catch (_: Throwable) {
-                                        emptyList()
-                                    }
-                                if (selectedAudioIsVerifiedEnglish(player, tracks)) {
-                                    try { player.setVolume(100) } catch (_: Throwable) {}
-                                }
-                            }
                             if (pendingStartPositionMs > 0L) {
                                 val target = pendingStartPositionMs; pendingStartPositionMs = 0L; player.time = target
-                            }
-                            audioRecoveryPasses = 0
-                            root.removeCallbacks(audioRecoveryRunnable)
-                            if (
-                                automaticNoSoundRecovery ||
-                                requiresStrictEnglishAudio()
-                            ) {
-                                root.postDelayed(audioRecoveryRunnable, 1000L)
                             }
                             root.removeCallbacks(thermalRunnable)
                             if (thermalProtection) root.postDelayed(thermalRunnable, 9000L)
@@ -667,14 +561,9 @@ class CompatibilityPlayerActivity : Activity() {
             media.release()
 
             /*
-             * Strict English playback starts muted. LibVLC's Playing event can
-             * arrive after the decoder has already chosen the container default,
-             * so muting here closes the last gap where foreign audio could leak
-             * before recoverAudioTrack() pins English.
+             * Manual-only audio policy: start with the decoder's current audio
+             * untouched. Never mute or pre-emptively change the selected track.
              */
-            if (requiresStrictEnglishAudio()) {
-                try { player.setVolume(0) } catch (_: Throwable) {}
-            }
 
             armStartupTimeout()
             player.play()
