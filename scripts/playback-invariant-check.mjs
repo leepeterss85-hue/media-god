@@ -55,7 +55,7 @@ expect(
 );
 
 expect(
-  buildSourcesBlock.includes("Watch-provider links") &&
+  mediaProvider.includes("Watch-provider links") &&
     buildSourcesBlock.includes("return [];") &&
     !/type:\s*["']provider["']/.test(buildSourcesBlock),
   "Netflix and other Where-to-Watch provider pages can never be injected into the VOD player source pool"
