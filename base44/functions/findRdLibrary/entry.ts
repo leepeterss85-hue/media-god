@@ -512,7 +512,7 @@ export default async function (
             body:
               `link=${encodeURIComponent(
                 link
-              )}`,
+              )}&remote=1`,
           }
         );
 
