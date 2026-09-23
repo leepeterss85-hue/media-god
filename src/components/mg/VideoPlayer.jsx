@@ -10127,13 +10127,21 @@ export default function VideoPlayer({
       const hasAudioTrackList =
         exposedTracks &&
         typeof exposedTracks.length === "number";
+      const browserDecodedAudioBytes = Reflect.get(
+        video,
+        "webkitAudioDecodedByteCount"
+      );
+      const browserMozHasAudio = Reflect.get(
+        video,
+        "mozHasAudio"
+      );
       const decodedByteCount =
-        typeof video.webkitAudioDecodedByteCount === "number"
-          ? Number(video.webkitAudioDecodedByteCount)
+        typeof browserDecodedAudioBytes === "number"
+          ? Number(browserDecodedAudioBytes)
           : null;
       const firefoxHasAudio =
-        typeof video.mozHasAudio === "boolean"
-          ? video.mozHasAudio
+        typeof browserMozHasAudio === "boolean"
+          ? browserMozHasAudio
           : null;
 
       const browserConfirmedAudio =
