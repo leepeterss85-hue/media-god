@@ -9139,7 +9139,6 @@ export default function VideoPlayer({
         const nativeFailureText = [
           detail?.message,
           nativeDiagnostics?.message,
-          nativeDiagnostics?.audioCodec,
           nativeDiagnostics?.compatibilityReason,
           nativeDiagnostics?.compatibilityError,
           nativeDiagnostics?.forceCompatibilityReason,
@@ -9158,7 +9157,7 @@ export default function VideoPlayer({
           !isLive &&
           (
             nativeDiagnostics?.compatibilityAudioRecovery === true ||
-            /audio|dts|true[ ._-]?hd|mlp|atmos|e[ ._-]?ac[ ._-]?3|joc|no[- ]?sound|silent/i.test(
+            /audio (?:decoder|renderer|sink|track)|no usable audio|no[- ]?sound|silent|dts|true[ ._-]?hd|mlp|atmos|e[ ._-]?ac[ ._-]?3|joc/i.test(
               nativeFailureText
             )
           );
