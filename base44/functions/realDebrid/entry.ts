@@ -469,6 +469,14 @@ const rdFailureMessage = async (
 ) =>
   (await rdFailureDetails(response, label)).message;
 
+const rdPlaybackFailureCode = (
+  fallbackCode,
+  upstreamErrorCode
+) =>
+  Number(upstreamErrorCode) === 22
+    ? "RD_IP_NOT_ALLOWED"
+    : fallbackCode;
+
 const summariseAudioTrack = (track, key = "") => ({
   key,
   stream: track?.stream || "",
@@ -1873,7 +1881,7 @@ export default async function (req) {
             body:
               `link=${encodeURIComponent(
                 link
-              )}`,
+              )}&remote=1`,
           },
           {
             attempts: 3,
@@ -1881,15 +1889,21 @@ export default async function (req) {
         );
 
       if (!unRes.ok) {
+        const failure = await rdFailureDetails(
+          unRes,
+          "Real-Debrid could not unrestrict this file"
+        );
+
         return Response.json({
           status: "failed",
-          error:
-            await rdFailureMessage(
-              unRes,
-              "Real-Debrid could not unrestrict this file"
-            ),
-          error_code:
+          error: failure.message,
+          error_code: rdPlaybackFailureCode(
             `RD_UNRESTRICT_${unRes.status}`,
+            failure.upstream_error_code
+          ),
+          upstream_status: failure.upstream_status,
+          upstream_error_code: failure.upstream_error_code,
+          upstream_error: failure.upstream_error,
         });
       }
 
@@ -3812,7 +3826,7 @@ async function resolveStreamable(
         body:
           `link=${encodeURIComponent(
             targetLink
-          )}`,
+          )}&remote=1`,
       },
       {
         attempts: 3,
@@ -3827,8 +3841,10 @@ async function resolveStreamable(
 
     return {
       error: failure.message,
-      error_code:
+      error_code: rdPlaybackFailureCode(
         `RD_UNRESTRICT_${unRes.status}`,
+        failure.upstream_error_code
+      ),
       upstream_status: failure.upstream_status,
       upstream_error_code: failure.upstream_error_code,
       upstream_error: failure.upstream_error,
