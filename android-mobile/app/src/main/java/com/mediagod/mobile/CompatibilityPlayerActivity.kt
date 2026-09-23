@@ -65,6 +65,7 @@ class CompatibilityPlayerActivity : Activity() {
     private var compatibilityRetryPass = 0
     private var forceSoftwareVideoDecode = false
     private var compatibilityPlaybackStarted = false
+    private var compatibilityErrorProbePending = false
 
     private val startupTimeoutRunnable = Runnable {
         if (
@@ -125,6 +126,104 @@ class CompatibilityPlayerActivity : Activity() {
         if (::root.isInitialized) {
             root.removeCallbacks(startupTimeoutRunnable)
         }
+    }
+
+    private fun failOrRetryCompatibilityPlayer(player: MediaPlayer) {
+        if (resultSent || vlcPlayer !== player) {
+            return
+        }
+
+        if (compatibilityRetryPass < 1) {
+            compatibilityRetryPass += 1
+            forceSoftwareVideoDecode = true
+            val resumeAt =
+                max(
+                    0L,
+                    player.time.takeIf { it > 0L }
+                        ?: startPositionMs
+                )
+            pendingStartPositionMs = resumeAt
+            startPositionMs = resumeAt
+            root.removeCallbacks(audioRecoveryRunnable)
+            root.removeCallbacks(thermalRunnable)
+            releaseCompatibilityPlayer()
+            showStatus(
+                "Compatibility decoder · retrying this same source in software mode"
+            )
+            root.postDelayed(
+                { startCompatibilityPlayback() },
+                150L
+            )
+            return
+        }
+
+        val recoveryText =
+            payload.optString("compatibilityReason") + " " +
+                payload.optString("compatibilityError") + " " +
+                payload.optString("audioCodec") + " " +
+                payload.optString("hintText")
+        val audioRecovery =
+            payload.optBoolean("compatibilityAudioRecovery", false) ||
+                Regex(
+                    """audio|dts|true[ ._-]?hd|mlp|atmos|e[ ._-]?ac[ ._-]?3|joc|silent|no[- ]?sound""",
+                    RegexOption.IGNORE_CASE
+                ).containsMatchIn(recoveryText)
+
+        finishWithResult(
+            "error",
+            if (audioRecovery)
+                "The compatibility audio decoder could not recover this source."
+            else
+                "The compatibility decoder could not play this source."
+        )
+    }
+
+    private fun confirmCompatibilityError(player: MediaPlayer) {
+        if (
+            resultSent ||
+            vlcPlayer !== player ||
+            compatibilityErrorProbePending
+        ) {
+            return
+        }
+
+        /*
+         * LibVLC can emit EncounteredError transiently on progressive/hosted
+         * streams even while decoded playback keeps advancing. Once this source
+         * has actually started, progress is stronger evidence than that event.
+         * Give the same player a short confirmation window and only fail/retry
+         * if its timeline really stops.
+         */
+        if (!compatibilityPlaybackStarted) {
+            failOrRetryCompatibilityPlayer(player)
+            return
+        }
+
+        compatibilityErrorProbePending = true
+        val observedAt = max(0L, player.time)
+        showStatus("Compatibility decoder · checking stream")
+
+        root.postDelayed({
+            compatibilityErrorProbePending = false
+
+            if (
+                resultSent ||
+                vlcPlayer !== player
+            ) {
+                return@postDelayed
+            }
+
+            val currentTime = max(0L, player.time)
+            val stillProgressing =
+                currentTime > observedAt + 250L
+
+            if (stillProgressing) {
+                showStatus("Compatibility decoder")
+                return@postDelayed
+            }
+
+            failOrRetryCompatibilityPlayer(player)
+        }, 1400L)
     }
 
     private fun wantsPreferredEnglishAudio(): Boolean =
@@ -249,8 +348,9 @@ class CompatibilityPlayerActivity : Activity() {
             /*
              * Do not equate "some audio is selected" with success when this
              * source was already verified to contain English main audio. Keep
-             * checking until LibVLC has selected that English track; otherwise
-             * fail this source so Media God can automatically try the next one.
+             * checking while metadata settles, but never turn missing/uncertain
+             * LibVLC track metadata into a fatal error after the video is already
+             * playing. Real playback progress wins over metadata guesses.
              */
             if (
                 anyAudio &&
@@ -274,13 +374,14 @@ class CompatibilityPlayerActivity : Activity() {
                 player.isPlaying &&
                 !payload.optBoolean("live", false)
             ) {
-                finishWithResult(
-                    "error",
-                    if (requiresVerifiedEnglish)
-                        "The compatibility decoder could not confirm and select the verified English main audio track."
-                    else
-                        "The compatibility decoder could not find an active audio track after repeated checks."
-                )
+                /*
+                 * A running decoder must not be killed merely because LibVLC
+                 * did not expose stable audio-track metadata. The user may have
+                 * perfectly audible audio even when audioTracks/audioTrack are
+                 * temporarily empty or incomplete. Explicit player errors and
+                 * manual Audio controls remain available for genuine failures.
+                 */
+                return
             }
         }
     }
@@ -536,48 +637,7 @@ class CompatibilityPlayerActivity : Activity() {
                         MediaPlayer.Event.Paused -> { window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON); updatePlayPauseLabel(); showControlsTemporarily() }
                         MediaPlayer.Event.EndReached -> finishWithResult("ended")
                         MediaPlayer.Event.EncounteredError -> {
-                            if (compatibilityRetryPass < 1) {
-                                compatibilityRetryPass += 1
-                                forceSoftwareVideoDecode = true
-                                val resumeAt =
-                                    max(
-                                        0L,
-                                        player.time.takeIf { it > 0L }
-                                            ?: startPositionMs
-                                    )
-                                pendingStartPositionMs = resumeAt
-                                startPositionMs = resumeAt
-                                root.removeCallbacks(audioRecoveryRunnable)
-                                root.removeCallbacks(thermalRunnable)
-                                releaseCompatibilityPlayer()
-                                showStatus(
-                                    "Compatibility decoder · retrying this same source in software mode"
-                                )
-                                root.postDelayed(
-                                    { startCompatibilityPlayback() },
-                                    150L
-                                )
-                            } else {
-                                val recoveryText =
-                                    payload.optString("compatibilityReason") + " " +
-                                        payload.optString("compatibilityError") + " " +
-                                        payload.optString("audioCodec") + " " +
-                                        payload.optString("hintText")
-                                val audioRecovery =
-                                    payload.optBoolean("compatibilityAudioRecovery", false) ||
-                                        Regex(
-                                            """audio|dts|true[ ._-]?hd|mlp|atmos|e[ ._-]?ac[ ._-]?3|joc|silent|no[- ]?sound""",
-                                            RegexOption.IGNORE_CASE
-                                        ).containsMatchIn(recoveryText)
-
-                                finishWithResult(
-                                    "error",
-                                    if (audioRecovery)
-                                        "The compatibility audio decoder could not recover this source."
-                                    else
-                                        "The compatibility decoder could not play this source."
-                                )
-                            }
+                            confirmCompatibilityError(player)
                         }
                     }
                 }
@@ -1014,6 +1074,7 @@ class CompatibilityPlayerActivity : Activity() {
     private fun releaseCompatibilityPlayer() {
         clearStartupTimeout()
         compatibilityPlaybackStarted = false
+        compatibilityErrorProbePending = false
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         vlcPlayer?.let { player ->
             try { player.stop() } catch (_: Throwable) {}
