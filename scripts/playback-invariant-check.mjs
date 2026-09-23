@@ -14,6 +14,7 @@ const expect = (condition, message) => {
 };
 
 const videoPlayer = read("src/components/mg/VideoPlayer.jsx");
+const indexHtml = read("index.html");
 const mediaProvider = read("src/components/mg/MediaPlayerProvider.jsx");
 const episodeSelector = read("src/components/mg/EpisodeSelector.jsx");
 const mobilePlayer = read(
@@ -96,6 +97,61 @@ expect(
     '!["provider", "external", "youtube"].includes(type)'
   ),
   "desktop ready-source fallback cannot auto-open provider, external or YouTube pages"
+);
+
+const browserRdStart = videoPlayer.indexOf(
+  "const prefersBrowserRdCompatibility"
+);
+const browserRdEnd = videoPlayer.indexOf("const magnetHash", browserRdStart);
+const browserRdBlock =
+  browserRdStart >= 0 && browserRdEnd > browserRdStart
+    ? videoPlayer.slice(browserRdStart, browserRdEnd)
+    : "";
+
+expect(
+  browserRdBlock.includes("if (isNativeFireTvPlayerAvailable()) return false;") &&
+    browserRdBlock.includes("return true;") &&
+    !videoPlayer.includes("prefersMobileBrowserRdCompatibility") &&
+    videoPlayer.includes(
+      "preferBrowserTranscode: prefersBrowserRdCompatibility()"
+    ) &&
+    videoPlayer.includes(
+      "prefer_browser_transcode: prefersBrowserRdCompatibility()"
+    ),
+  "desktop browsers request Real-Debrid HLS/MP4 compatibility while native Android/Fire TV keeps original files"
+);
+
+const desktopFullscreenStart = videoPlayer.indexOf(
+  "const goFullscreen = async () =>"
+);
+const desktopFullscreenEnd = videoPlayer.indexOf(
+  "const syncFullscreenState",
+  desktopFullscreenStart
+);
+const desktopFullscreenBlock =
+  desktopFullscreenStart >= 0 && desktopFullscreenEnd > desktopFullscreenStart
+    ? videoPlayer.slice(desktopFullscreenStart, desktopFullscreenEnd)
+    : "";
+const cssExitGuard = desktopFullscreenBlock.indexOf(
+  'stage.dataset.mgFullscreen === "true"'
+);
+const browserFullscreenRequest = desktopFullscreenBlock.indexOf(
+  "requestBrowserFullscreen(document.documentElement)"
+);
+
+expect(
+  cssExitGuard >= 0 &&
+    browserFullscreenRequest > cssExitGuard &&
+    !indexHtml.includes(
+      "wantsFullscreenFromTarget(event.target) ||\n              cssFullscreenIsActive()"
+    ) &&
+    indexHtml.includes(
+      "if (fullscreenKey && !cssFullscreenIsActive())"
+    ) &&
+    indexHtml.includes(
+      "!cssFullscreenIsActive() &&\n              target instanceof Element"
+    ),
+  "desktop CSS fullscreen can exit cleanly without capture-phase handlers forcing browser fullscreen back on"
 );
 
 expect(
