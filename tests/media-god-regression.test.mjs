@@ -3479,6 +3479,35 @@ test("strict native English audio gates stay disabled under manual-only audio po
   }
 });
 
+test("No sound button stays available as an explicit user report and manual recovery action", () => {
+  const controlsSource = readFileSync(
+    new URL("../src/components/mg/MediaPlayerControls.jsx", import.meta.url),
+    "utf8"
+  );
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+  const reliabilitySource = readFileSync(
+    new URL("../src/components/mg/PlaybackReliabilityAssist.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(controlsSource, /aria-label="No sound"/);
+  assert.match(controlsSource, /title="No sound"/);
+  assert.match(controlsSource, /No sound\?/);
+  assert.match(controlsSource, /onClick=\{[\s\S]{0,80}?onNoSound/);
+  assert.match(playerSource, /new CustomEvent\("mg:playback-no-sound"/);
+  assert.match(playerSource, /handleNoSound\(\);/);
+  assert.match(reliabilitySource, /saveReliability\([\s\S]{0,80}?"no-sound"/);
+  assert.match(
+    reliabilitySource,
+    /No-sound report saved for this exact source · manual audio recovery started\./
+  );
+  assert.doesNotMatch(playerSource, /handleNoSoundRef/);
+  assert.doesNotMatch(playerSource, /automatic:\s*true/);
+});
+
 test("manual Audio control stays in the current file and never starts torrent failover", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
