@@ -1052,7 +1052,6 @@ export default function VideoPlayer({
     key: "",
     timer: null,
   });
-  const handleNoSoundRef = useRef(null);
   const autoRecoveryRef = useRef({
     lastTime: 0,
     lastProgressAt: Date.now(),
@@ -9217,16 +9216,6 @@ export default function VideoPlayer({
           return;
         }
 
-        if (
-          nativeAudioFailure &&
-          rejectAutomaticAioAudioFailure(
-            detail?.message ||
-              "AIOStreams audio failed in the native player."
-          )
-        ) {
-          return;
-        }
-
         if (nativeAudioFailure || lockedVodNativeFailure) {
           if (positionSeconds > 5) {
             recoveryResumeRef.current = positionSeconds;
@@ -10092,109 +10081,14 @@ export default function VideoPlayer({
       return;
     };
 
-  handleNoSoundRef.current = handleNoSound;
-
-
-  /* Automatic no-sound recovery is proactive for codec combinations that are
-   * commonly silent on Android/Fire TV/browser decoders, and immediate for a
-   * source that this device has already remembered as silent. */
-  useEffect(() => {
-    if (
-      isLive || isYoutube || isProvider || rdResolving || rdPolling ||
-      rdTorrentId || rdPreparation || readPlaybackPreferences().automaticNoSoundRecovery === false
-    ) {
-      return undefined;
-    }
-
-    const rescueAlreadyApplied =
-      rdOverride?.audioRescue?.used === true ||
-      active?.audioRescue?.used === true;
-
-    /*
-     * Run the audio-presence check for every VOD source, but only act on
-     * CURRENT runtime evidence. Browser audioTracks metadata is inconsistent:
-     * some browsers expose an empty list even while audio is genuinely audible.
-     * A stale no-sound history entry or risky codec label must therefore never
-     * interrupt a stream that is already producing decoded audio.
-     */
-    const timer = window.setTimeout(() => {
-      const video = stageRef.current?.querySelector("video");
-      if (!(video instanceof HTMLVideoElement) || video.paused || video.ended || video.error) {
-        return;
-      }
-
-      const exposedTracks = video.audioTracks;
-      const hasAudioTrackList =
-        exposedTracks &&
-        typeof exposedTracks.length === "number";
-      const browserDecodedAudioBytes = Reflect.get(
-        video,
-        "webkitAudioDecodedByteCount"
-      );
-      const browserMozHasAudio = Reflect.get(
-        video,
-        "mozHasAudio"
-      );
-      const decodedByteCount =
-        typeof browserDecodedAudioBytes === "number"
-          ? Number(browserDecodedAudioBytes)
-          : null;
-      const firefoxHasAudio =
-        typeof browserMozHasAudio === "boolean"
-          ? browserMozHasAudio
-          : null;
-
-      const browserConfirmedAudio =
-        (hasAudioTrackList && exposedTracks.length > 0) ||
-        (decodedByteCount !== null && decodedByteCount > 0) ||
-        firefoxHasAudio === true;
-
-      const establishedPlayback =
-        !video.error &&
-        !video.paused &&
-        !video.ended &&
-        video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA &&
-        Number(video.currentTime || 0) >= 2;
-
-      const browserConfirmedNoAudio =
-        establishedPlayback &&
-        Number(video.currentTime || 0) >= 3 &&
-        (
-          firefoxHasAudio === false ||
-          (decodedByteCount !== null && decodedByteCount === 0)
-        );
-
-      /*
-       * Positive runtime audio evidence wins immediately. Do not let source
-       * history, codec reputation, or an unreliable empty audioTracks list
-       * interrupt a film/episode that is actually producing audio.
-       */
-      if (browserConfirmedAudio) {
-        confirmRecoveredSource(video);
-        return;
-      }
-
-      /*
-       * Automatic no-sound recovery now requires present-run evidence of
-       * silence. Remembered history and codec risk may influence diagnostics,
-       * but they are no longer allowed to stop playback by themselves.
-       */
-      if (
-        browserConfirmedNoAudio &&
-        !rescueAlreadyApplied
-      ) {
-        handleNoSoundRef.current?.({
-          automatic: true,
-          confirmedNoAudio: true,
-        });
-      }
-    }, 5200);
-
-    return () => window.clearTimeout(timer);
-  }, [
-    active, activeIdx, activeUrl, isLive, isProvider, isYoutube,
-    rdOverride, rdPolling, rdResolving, rdTorrentId, rdPreparation,
-  ]);
+  /*
+   * Audio recovery is deliberately MANUAL ONLY.
+   *
+   * Do not inspect timers, codec reputation, browser audio metadata or old
+   * no-sound history and then call handleNoSound automatically. A film or
+   * episode keeps playing exactly as the decoder presents it until the viewer
+   * presses Audio / No sound and explicitly asks Media God to intervene.
+   */
 
   useEffect(() => {
     const state = autoVideoRescueRef.current;
