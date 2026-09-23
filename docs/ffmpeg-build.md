@@ -9,7 +9,8 @@ platform decoder and uses FFmpeg when the platform cannot decode the track.
 It does not choose a new stream or change tracks after playback begins.
 
 To build locally on Linux, install Android NDK r26b, CMake 3.22.1, Java 17,
-Gradle 8.11.1 and the Android platforms 35 and 36. Then run:
+Gradle 8.11.1 for Media3 1.8.0, Gradle 9.1 for Media3 1.11.0, and the Android
+platforms 35 and 36. Then run with the matching Gradle on `PATH`:
 
 ```bash
 scripts/build-media3-ffmpeg.sh 1.8.0 firetv-android/app/libs/decoder-ffmpeg.aar
