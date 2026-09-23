@@ -74,6 +74,10 @@ export const nativeFireTvCodecInfo = () => {
     nativeCodecInfoCache = {
       video: Array.isArray(parsed.video) ? parsed.video.map(String) : [],
       audio: Array.isArray(parsed.audio) ? parsed.audio.map(String) : [],
+      audioCapabilities: parsed.audioCapabilities || {},
+      outputEncodings: Array.isArray(parsed.outputEncodings)
+        ? parsed.outputEncodings.map(Number)
+        : [],
     };
 
     return nativeCodecInfoCache;

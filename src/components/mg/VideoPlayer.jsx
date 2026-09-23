@@ -8054,6 +8054,29 @@ export default function VideoPlayer({
       const actionStillCurrent = () =>
         streamActionGenerationRef.current === actionGeneration;
 
+      // The report is user initiated and contains only coarse compatibility
+      // categories. Never send the title, torrent hash, URL or account details.
+      try {
+        const traits = detectStreamTraits(active);
+        const profile = getPlaybackDeviceProfile();
+        base44.analytics.track({
+          eventName: "vod_no_sound_reported",
+          properties: {
+            media_type: playbackMediaType === "tv" ? "tv" : "movie",
+            device_family: profile.nativeFireTv ? "fire_tv" :
+              profile.nativeAndroidMobile ? "android_app" : "browser",
+            audio_codec: ["aac", "ac3", "eac3", "dts", "truehd", "opus", "flac", "mp3"]
+              .includes(traits.audio) ? traits.audio : "other_or_unknown",
+            container: ["mkv", "mp4", "hls", "webm", "ts"].includes(traits.container)
+              ? traits.container : "other_or_unknown",
+            audio_channels: traits.audioChannels > 2 ? "multichannel" :
+              traits.audioChannels > 0 ? "stereo_or_mono" : "unknown",
+          },
+        });
+      } catch {
+        // Reporting must never interrupt the user's manual recovery action.
+      }
+
       if (provider !== "realdebrid") {
         const sourceUrl = String(
           rdOverride?.sourceUrl || getSourceUrl(active) || ""
@@ -11216,7 +11239,7 @@ export default function VideoPlayer({
                 : "border-white/10 bg-mg-card text-white/75 hover:border-mg-green/35 hover:bg-white/10 hover:text-white"
             }`}
             aria-label="No sound"
-            title="Try another audio track or source"
+            title="Report no sound and try another audio track or source"
           >
             <VolumeX className="h-4 w-4" />
             <span className="hidden sm:inline">Fix audio</span>

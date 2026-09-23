@@ -12,8 +12,8 @@ android {
         applicationId = "com.mediagod.firetv"
         minSdk = 21
         targetSdk = 35
-        versionCode = 69
-        versionName = "1.4.64"
+        versionCode = 70
+        versionName = "1.4.65"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -72,6 +72,7 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer-rtsp:$media3Version")
     implementation("androidx.media3:media3-ui:$media3Version")
     implementation("androidx.media3:media3-session:$media3Version")
+    implementation(files("libs/decoder-ffmpeg.aar"))
 
     // Broad fallback for difficult 4K/HDR/remux containers and audio codecs.
     implementation("org.videolan.android:libvlc-all:3.6.5")

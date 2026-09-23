@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 69,
-  "versionName": "1.4.64",
+  "versionCode": 70,
+  "versionName": "1.4.65",
   "title": "Media God Fire TV",
-  "message": "Media God Fire TV 1.4.64 fixes the remaining Stuart-style spinner path. Cached Comet RD playback URLs can now be handed directly to the native player for real English-track validation when server metadata cannot prove audio quickly, and LibVLC opening/buffering now has a hard timeout with one software retry instead of spinning indefinitely.",
+  "message": "Media God Fire TV 1.4.65 improves initial audio compatibility ranking and adds a software FFmpeg decoder for supported audio formats. Audio changes remain user controlled.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",

@@ -1611,6 +1611,7 @@ class PlayerActivity : Activity() {
 
         val renderersFactory = DefaultRenderersFactory(this)
             .setEnableDecoderFallback(true)
+            .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
 
         val exoPlayer = ExoPlayer.Builder(this, renderersFactory)
             .setMediaSourceFactory(mediaSourceFactory)

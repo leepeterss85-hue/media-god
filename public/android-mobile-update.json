@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 51,
-  "versionName": "1.0.50",
+  "versionCode": 52,
+  "versionName": "1.0.51",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.50 fixes the remaining Stuart-style spinner path. Cached Comet RD playback URLs can now be handed directly to the native player for real English-track validation when server metadata cannot prove audio quickly, and LibVLC opening/buffering now has a hard timeout with one software retry instead of spinning indefinitely.",
+  "message": "Media God Mobile 1.0.51 improves initial audio compatibility ranking and adds a software FFmpeg decoder for supported audio formats. Audio changes remain user controlled.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"

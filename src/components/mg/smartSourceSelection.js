@@ -357,7 +357,7 @@ export const smartEntryUpgradeScore = (entry) => {
     Math.max(0, 10 - releaseTierRank) * 60_000 +
     Math.max(0, 7 - audioTierRank) * 18_000 +
     Math.min(4320, Math.max(0, resolution)) * 25 +
-    Math.max(0, 4 - compatibilityTier) * 8_000 +
+    Math.max(0, 4 - compatibilityTier) * 250_000 +
     Number(Boolean(entry?.provenWorking)) * 30_000 +
     Number(Boolean(entry?.cached)) * 12_000
   );
@@ -468,6 +468,7 @@ export const buildSmartSourceSnapshot = (context, entry) => {
     releaseTierRank: Number(entry?.releaseTierRank ?? 6),
     releaseTierLabel: clean(entry?.releaseTierLabel || "Unknown"),
     audioTierRank: Number(entry?.audioTierRank ?? 4),
+    compatibilityTier: Number(entry?.compatibilityTier ?? 2),
     audioTierLabel: clean(entry?.audioTierLabel || "Unknown"),
     resolution: sourceResolution(entry),
   };
@@ -491,6 +492,7 @@ export const detectSmartSourceUpgrade = (context, entry) => {
 
   const materiallyBetter =
     next.languageRank <= 2 &&
+    next.compatibilityTier <= Number(previous.compatibilityTier ?? 2) &&
     (
       next.releaseTierRank < Number(previous.releaseTierRank ?? 99) ||
       next.audioTierRank < Number(previous.audioTierRank ?? 99) ||
