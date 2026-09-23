@@ -232,7 +232,7 @@ expect(
 );
 
 const browserAudioCheckStart = videoPlayer.indexOf(
-  "const browserConfirmedAudio"
+  "const exposedTracks = video.audioTracks"
 );
 const browserAudioCheckEnd = videoPlayer.indexOf(
   "return () => window.clearTimeout(timer);",
