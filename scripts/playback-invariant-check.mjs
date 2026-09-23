@@ -231,27 +231,16 @@ expect(
   "AIOStreams remains last-resort automatic recovery instead of being removed from the candidate pool"
 );
 
-const browserAudioCheckStart = videoPlayer.indexOf(
-  "const exposedTracks = video.audioTracks"
-);
-const browserAudioCheckEnd = videoPlayer.indexOf(
-  "return () => window.clearTimeout(timer);",
-  browserAudioCheckStart
-);
-const browserAudioCheckBlock =
-  browserAudioCheckStart >= 0 && browserAudioCheckEnd > browserAudioCheckStart
-    ? videoPlayer.slice(browserAudioCheckStart, browserAudioCheckEnd)
-    : "";
-
 expect(
-  browserAudioCheckBlock.includes("webkitAudioDecodedByteCount") &&
-    browserAudioCheckBlock.includes("mozHasAudio") &&
-    browserAudioCheckBlock.includes("if (browserConfirmedAudio)") &&
-    browserAudioCheckBlock.includes("confirmRecoveredSource(video)") &&
-    browserAudioCheckBlock.includes("browserConfirmedNoAudio &&") &&
-    !browserAudioCheckBlock.includes("rememberedSilent || traits.audioRisk") &&
-    !browserAudioCheckBlock.includes("exposedTracks.length === 0"),
-  "browser VOD keeps proven audible playback and only auto-recovers from present-run silence evidence"
+  videoPlayer.includes("Audio recovery is deliberately MANUAL ONLY.") &&
+    videoPlayer.includes("const handleNoSound =") &&
+    videoPlayer.includes("async () =>") &&
+    videoPlayer.includes("handleNoSound();") &&
+    !videoPlayer.includes("handleNoSoundRef") &&
+    !videoPlayer.includes("browserConfirmedNoAudio") &&
+    !videoPlayer.includes("automatic: true") &&
+    !videoPlayer.includes("rejectAutomaticAioAudioFailure"),
+  "browser VOD audio recovery is manual-only and can never interrupt playback automatically"
 );
 
 expect(
@@ -272,14 +261,18 @@ expect(
 expect(
   [mobilePlayer, firePlayer].every(
     (nativePlayer) =>
-      nativePlayer.includes("onAudioPositionAdvancing(") &&
-      nativePlayer.includes("audioOutputConfirmed = true") &&
-      nativePlayer.includes("audioOutputConfirmed ||") &&
+      nativePlayer.includes("strictEnglishStartupRequired(): Boolean = false") &&
       nativePlayer.includes(
+        "Intentionally disabled. Audio recovery is manual-only"
+      ) &&
+      nativePlayer.includes("error.errorCode in 5001..5004") &&
+      !nativePlayer.includes("onAudioPositionAdvancing(") &&
+      !nativePlayer.includes("audioOutputConfirmed") &&
+      !nativePlayer.includes(
         "Media3 selected an audio track but no decoded audio output advanced."
       )
   ),
-  "Android mobile and Fire TV preserve rendered audio and rescue selected tracks that never produce audio output"
+  "Android mobile and Fire TV never launch automatic audio recovery"
 );
 
 expect(
