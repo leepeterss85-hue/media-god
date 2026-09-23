@@ -24,6 +24,9 @@ const firePlayer = read(
   "firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt"
 );
 const reliability = read("src/components/mg/playbackReliability.js");
+const realDebridBackend = read("base44/functions/realDebrid/entry.ts");
+const rdLibraryBackend = read("base44/functions/findRdLibrary/entry.ts");
+const multiDebridBackend = read("base44/functions/multiDebrid/entry.ts");
 const mobileCompatibility = read(
   "android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt"
 );
@@ -119,6 +122,22 @@ expect(
       "prefer_browser_transcode: prefersBrowserRdCompatibility()"
     ),
   "desktop browsers request Real-Debrid HLS/MP4 compatibility while native Android/Fire TV keeps original files"
+);
+
+const mainRdUnrestrictCount =
+  (realDebridBackend.match(/\/unrestrict\/link/g) || []).length;
+const mainRdRemoteCount =
+  (realDebridBackend.match(/&remote=1/g) || []).length;
+
+expect(
+  mainRdUnrestrictCount === 2 &&
+    mainRdRemoteCount >= mainRdUnrestrictCount &&
+    rdLibraryBackend.includes("&remote=1") &&
+    multiDebridBackend.includes('["remote", "1"]') &&
+    realDebridBackend.includes('"RD_IP_NOT_ALLOWED"') &&
+    realDebridBackend.includes("Number(upstreamErrorCode) === 22") &&
+    videoPlayer.includes('error?.code === "RD_IP_NOT_ALLOWED"'),
+  "Real-Debrid playback always requests remote-safe links and treats IP rejection as an account/network condition instead of poisoning sources"
 );
 
 const desktopFullscreenStart = videoPlayer.indexOf(
