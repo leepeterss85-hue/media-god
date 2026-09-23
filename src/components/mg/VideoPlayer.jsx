@@ -100,22 +100,23 @@ const isMagnet = (value) =>
     .toLowerCase()
     .startsWith("magnet:");
 
-const prefersMobileBrowserRdCompatibility = () => {
-  if (typeof navigator === "undefined") return false;
+const prefersBrowserRdCompatibility = () => {
+  if (typeof window === "undefined" || typeof navigator === "undefined") {
+    return false;
+  }
 
   /*
-   * The installed Android/Fire TV apps expose MediaGodNative and can hand the
-   * unrestricted Real-Debrid file to Media3/LibVLC. A normal phone browser
-   * cannot do that and Android Chrome in particular is unreliable with common
-   * torrent containers such as MKV even when the underlying codecs are valid.
-   * Ask Real-Debrid for its browser-safe HLS/MP4 stream only in that browser
-   * case. This keeps native-app playback on the original highest-quality file.
+   * Installed Android/Fire TV builds expose MediaGodNative and can hand the
+   * unrestricted Real-Debrid file to Media3/LibVLC. Normal web browsers and
+   * the Windows desktop shell use an HTML media pipeline instead, where common
+   * torrent-native containers such as MKV can fail even when the underlying
+   * codecs are otherwise valid. Ask Real-Debrid for its browser-safe HLS/MP4
+   * representation for every non-native browser runtime. Real-Debrid still
+   * returns the unrestricted file as a fallback when no transcode is available.
    */
   if (isNativeFireTvPlayerAvailable()) return false;
 
-  return /android|iphone|ipad|ipod|mobile/i.test(
-    String(navigator.userAgent || "")
-  );
+  return true;
 };
 
 const magnetHash = (value) => {
@@ -3950,6 +3951,20 @@ export default function VideoPlayer({
     if (isDesktopFullscreenBrowser()) {
       const nativeFullscreenElement = browserFullscreenElement();
 
+      /*
+       * If a browser rejected the real Fullscreen API and Media God fell back
+       * to its fixed-position CSS fullscreen, the next fullscreen/Back/Escape
+       * gesture must EXIT that fallback. Retrying requestFullscreen first can
+       * turn an exit gesture into a new browser-fullscreen request.
+       */
+      if (
+        stage.dataset.mgFullscreen === "true" &&
+        !nativeFullscreenElement
+      ) {
+        restoreInAppFullscreen(stage);
+        return;
+      }
+
       if (nativeFullscreenElement) {
         try {
           await exitBrowserFullscreen();
@@ -4156,7 +4171,7 @@ export default function VideoPlayer({
         active?.fileIdx != null && Number.isFinite(Number(active.fileIdx))
           ? Number(active.fileIdx)
           : null,
-      preferBrowserTranscode: prefersMobileBrowserRdCompatibility(),
+      preferBrowserTranscode: prefersBrowserRdCompatibility(),
       preferredTorrentId,
     };
 
@@ -4584,7 +4599,7 @@ export default function VideoPlayer({
                 {
                   action: "torrent_info",
                   torrent_id: existingRdTorrentId,
-                  prefer_browser_transcode: prefersMobileBrowserRdCompatibility(),
+                  prefer_browser_transcode: prefersBrowserRdCompatibility(),
                   title:
                     source?.rdTitle ||
                     source?.title ||
@@ -4732,7 +4747,7 @@ export default function VideoPlayer({
                   {
                     action: "adopt_hash",
                     info_hash: hash,
-                    prefer_browser_transcode: prefersMobileBrowserRdCompatibility(),
+                    prefer_browser_transcode: prefersBrowserRdCompatibility(),
                     title:
                       source?.rdTitle ||
                       source?.title ||
@@ -5070,7 +5085,7 @@ export default function VideoPlayer({
                     {
                       action: "adopt_hash",
                       info_hash: hash,
-                      prefer_browser_transcode: prefersMobileBrowserRdCompatibility(),
+                      prefer_browser_transcode: prefersBrowserRdCompatibility(),
                       title:
                         source?.rdTitle ||
                         source?.title ||
@@ -5288,7 +5303,7 @@ export default function VideoPlayer({
                             torrent_id: staleTorrentId,
                             info_hash: hash,
                             magnet: repairMagnet,
-                            prefer_browser_transcode: prefersMobileBrowserRdCompatibility(),
+                            prefer_browser_transcode: prefersBrowserRdCompatibility(),
                             title:
                               source?.rdTitle ||
                               source?.title ||
@@ -5604,7 +5619,7 @@ export default function VideoPlayer({
                     "resolve_best",
 
                   magnet,
-                  prefer_browser_transcode: prefersMobileBrowserRdCompatibility(),
+                  prefer_browser_transcode: prefersBrowserRdCompatibility(),
 
                   title:
                     source?.rdTitle ||
@@ -6041,7 +6056,7 @@ export default function VideoPlayer({
 
                   torrent_id:
                     rdTorrentId,
-                  prefer_browser_transcode: prefersMobileBrowserRdCompatibility(),
+                  prefer_browser_transcode: prefersBrowserRdCompatibility(),
 
                   title:
                     source?.rdTitle ||
@@ -6595,7 +6610,7 @@ export default function VideoPlayer({
                         torrent_id: currentTorrentId,
                         info_hash: activeHash,
                         magnet: repairMagnet,
-                        prefer_browser_transcode: prefersMobileBrowserRdCompatibility(),
+                        prefer_browser_transcode: prefersBrowserRdCompatibility(),
                         title:
                           source?.rdTitle ||
                           source?.title ||
@@ -8239,7 +8254,7 @@ export default function VideoPlayer({
                   : [],
               ...(source?.rdSeason != null ? { season: source.rdSeason } : {}),
               ...(source?.rdEpisode != null ? { episode: source.rdEpisode } : {}),
-              prefer_browser_transcode: prefersMobileBrowserRdCompatibility(),
+              prefer_browser_transcode: prefersBrowserRdCompatibility(),
             }
           );
 
@@ -8379,7 +8394,7 @@ export default function VideoPlayer({
 
               link:
                 file.link,
-              prefer_browser_transcode: prefersMobileBrowserRdCompatibility(),
+              prefer_browser_transcode: prefersBrowserRdCompatibility(),
             }
           );
 
@@ -8511,7 +8526,7 @@ export default function VideoPlayer({
               torrent_id: retryTorrentId,
               info_hash: retryHash,
               magnet: retryMagnet,
-              prefer_browser_transcode: prefersMobileBrowserRdCompatibility(),
+              prefer_browser_transcode: prefersBrowserRdCompatibility(),
               title:
                 source?.rdTitle ||
                 source?.title ||
