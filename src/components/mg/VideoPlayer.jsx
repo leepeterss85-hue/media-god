@@ -2151,6 +2151,10 @@ export default function VideoPlayer({
       recordSuccessfulPlaybackSource(active, {
         languageRank: Number(activeEntry?.languageRank ?? 3),
       });
+      recordPlaybackReliability(
+        sourceDisplayLabel(active, activeIdx),
+        "good"
+      );
     }
 
     if (
@@ -9031,6 +9035,10 @@ export default function VideoPlayer({
         recordSuccessfulPlaybackSource(active, {
           languageRank: Number(activeEntry?.languageRank ?? 3),
         });
+        recordPlaybackReliability(
+          sourceDisplayLabel(active, activeIdx),
+          "good"
+        );
       }
 
       /*
