@@ -1339,19 +1339,28 @@ export default function VideoPlayer({
 
   const automaticReadySourceIndex =
     selectableSourceEntries.find(
-      ({ item, index, languageRank }) =>
-        index !== activeIdx &&
-        !failedSourcesRef.current.has(index) &&
-        (
-          playbackMediaType === "live" ||
-          !["en", "eng", "english"].includes(preferredAudioLanguage) ||
-          Number(languageRank ?? 3) <= 3
-        ) &&
-        (
-          !hasNonAioTorrentPlaybackCandidate ||
-          !sourceIsAioStreamsCandidate(item)
-        ) &&
-        !sourceNeedsCaching(item)
+      ({ item, index, languageRank }) => {
+        const type = String(item?.type || "").trim().toLowerCase();
+
+        return Boolean(
+          index !== activeIdx &&
+            !failedSourcesRef.current.has(index) &&
+            (
+              playbackMediaType === "live" ||
+              !["provider", "external", "youtube"].includes(type)
+            ) &&
+            (
+              playbackMediaType === "live" ||
+              !["en", "eng", "english"].includes(preferredAudioLanguage) ||
+              Number(languageRank ?? 3) <= 3
+            ) &&
+            (
+              !hasNonAioTorrentPlaybackCandidate ||
+              !sourceIsAioStreamsCandidate(item)
+            ) &&
+            !sourceNeedsCaching(item)
+        );
+      }
     )?.index ?? -1;
 
   /*
@@ -1384,8 +1393,7 @@ export default function VideoPlayer({
      */
     if (
       playbackMediaType !== "live" &&
-      hasTorrentPlaybackCandidate &&
-      (type === "provider" || type === "youtube")
+      ["provider", "external", "youtube"].includes(type)
     ) {
       return false;
     }
