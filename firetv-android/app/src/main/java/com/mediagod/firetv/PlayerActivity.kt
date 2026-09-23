@@ -2104,13 +2104,59 @@ class PlayerActivity : Activity() {
 
         if (!needsRescue) {
             /*
-             * Media3 has a real, supported, selected audio renderer. Do not
-             * replace a working source just because its codec is DTS, TrueHD,
-             * MLP, Atmos/JOC or another format that can be risky on some
-             * devices. If audio has started successfully, preserving it is
-             * always safer than an automatic decoder handoff.
+             * Track metadata only says an audio renderer was selected. It does
+             * not prove that decoded audio is actually advancing. Give Media3
+             * a short window to produce its runtime audio-position signal. If
+             * that signal arrives, it cancels this check and the working film
+             * or episode is never interrupted.
              */
-            audioPresenceCheckGeneration += 1
+            val generation = ++audioPresenceCheckGeneration
+
+            playerView.postDelayed({
+                if (
+                    resultSent ||
+                    compatibilityPlayerOpen ||
+                    generation != audioPresenceCheckGeneration ||
+                    audioOutputConfirmed ||
+                    player !== activePlayer ||
+                    !activePlayer.isPlaying ||
+                    activePlayer.playbackState == Player.STATE_IDLE ||
+                    activePlayer.playbackState == Player.STATE_ENDED ||
+                    activePlayer.currentPosition < 2500L
+                ) {
+                    return@postDelayed
+                }
+
+                val currentTracks = activePlayer.currentTracks
+                val stillHasVideo = currentTracks.groups.any { group ->
+                    group.type == C.TRACK_TYPE_VIDEO && group.length > 0
+                }
+
+                if (!stillHasVideo) {
+                    return@postDelayed
+                }
+
+                val audio = inspectAudioReadiness(currentTracks)
+
+                if (!audio.present || !audio.supported || !audio.selected) {
+                    scheduleMissingAudioCheck(activePlayer, currentTracks)
+                    return@postDelayed
+                }
+
+                val rescued = launchCompatibilityPlayer(
+                    activePlayer,
+                    null,
+                    "Media3 selected an audio track but no decoded audio output advanced. Trying the compatibility decoder on this same source."
+                )
+
+                if (!rescued) {
+                    finishWithResult(
+                        "error",
+                        "This source is playing video but produced no confirmed audio output."
+                    )
+                }
+            }, 5000L)
+
             return
         }
 
@@ -2122,6 +2168,7 @@ class PlayerActivity : Activity() {
                 resultSent ||
                 compatibilityPlayerOpen ||
                 generation != audioPresenceCheckGeneration ||
+                audioOutputConfirmed ||
                 player !== activePlayer ||
                 activePlayer.playbackState == Player.STATE_IDLE ||
                 activePlayer.playbackState == Player.STATE_ENDED
@@ -2161,6 +2208,7 @@ class PlayerActivity : Activity() {
             }
 
             if (reason.isBlank()) {
+                scheduleMissingAudioCheck(activePlayer, currentTracks)
                 return@postDelayed
             }
 
