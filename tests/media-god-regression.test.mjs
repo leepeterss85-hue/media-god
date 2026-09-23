@@ -3325,7 +3325,16 @@ test("successful audio rescue cannot be abandoned by stale no-sound or torrent f
     playerSource,
     /streamActionGenerationRef\.current !== scheduledGeneration/
   );
+  assert.match(playerSource, /const browserConfirmedAudio =/);
   assert.match(
+    playerSource,
+    /if \(browserConfirmedAudio\)[\s\S]{0,120}?confirmRecoveredSource\(video\)/
+  );
+  assert.match(
+    playerSource,
+    /browserConfirmedNoAudio &&[\s\S]{0,100}?!rescueAlreadyApplied/
+  );
+  assert.doesNotMatch(
     playerSource,
     /!rescueAlreadyApplied[\s\S]{0,120}rememberedSilent \|\| traits\.audioRisk/
   );
@@ -3521,7 +3530,10 @@ test("global VOD audio validation covers web, Media3 and LibVLC playback", () =>
   ];
 
   assert.match(playerSource, /browserConfirmedNoAudio/);
-  assert.match(playerSource, /exposedTracks\.length === 0/);
+  assert.match(playerSource, /browserConfirmedAudio/);
+  assert.match(playerSource, /webkitAudioDecodedByteCount/);
+  assert.match(playerSource, /mozHasAudio/);
+  assert.doesNotMatch(playerSource, /exposedTracks\.length === 0/);
 
   for (const file of nativeFiles) {
     const source = readFileSync(new URL(file, import.meta.url), "utf8");
@@ -3535,6 +3547,12 @@ test("global VOD audio validation covers web, Media3 and LibVLC playback", () =>
     assert.match(
       source,
       /Media3 found video but no audio track\. Trying the compatibility decoder\./
+    );
+    assert.match(source, /onAudioPositionAdvancing\(/);
+    assert.match(source, /audioOutputConfirmed = true/);
+    assert.match(
+      source,
+      /no decoded audio output advanced\. Trying the compatibility decoder on this same source\./
     );
   }
 
@@ -4771,7 +4789,17 @@ test("native player keeps working English audio and rescues the same source when
     );
     assert.match(
       source,
-      /if \(!needsRescue\)[\s\S]{0,420}?audioPresenceCheckGeneration \+= 1[\s\S]{0,80}?return/
+      /if \(!needsRescue\)[\s\S]{0,900}?val generation = \+\+audioPresenceCheckGeneration/
+    );
+    assert.match(
+      source,
+      /audioOutputConfirmed \|\|[\s\S]{0,220}?!activePlayer\.isPlaying/
+    );
+    assert.match(source, /activePlayer\.currentPosition < 2500L/);
+    assert.match(source, /\}, 5000L\)/);
+    assert.match(
+      source,
+      /Media3 selected an audio track but no decoded audio output advanced\./
     );
   }
 });
