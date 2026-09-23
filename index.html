@@ -98,10 +98,7 @@
               return;
             }
 
-            if (
-              wantsFullscreenFromTarget(event.target) ||
-              cssFullscreenIsActive()
-            ) {
+            if (wantsFullscreenFromTarget(event.target)) {
               requestTrueFullscreen();
             }
           },
@@ -125,11 +122,11 @@
               return;
             }
 
-            if (
+            const fullscreenKey =
               event.key === "f" ||
-              event.key === "F" ||
-              cssFullscreenIsActive()
-            ) {
+              event.key === "F";
+
+            if (fullscreenKey && !cssFullscreenIsActive()) {
               requestTrueFullscreen();
             }
           },
@@ -145,6 +142,7 @@
 
             const target = event.target;
             if (
+              !cssFullscreenIsActive() &&
               target instanceof Element &&
               (target.closest('[data-mg-player-root="true"]') ||
                 target.closest('[data-mg-fullscreen="true"]'))
