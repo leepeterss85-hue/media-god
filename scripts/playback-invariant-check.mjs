@@ -55,6 +55,32 @@ expect(
 );
 
 expect(
+  buildSourcesBlock.includes("Watch-provider links") &&
+    buildSourcesBlock.includes("return [];") &&
+    !/type:\s*["']provider["']/.test(buildSourcesBlock),
+  "Netflix and other Where-to-Watch provider pages can never be injected into the VOD player source pool"
+);
+
+const automaticReadyStart = videoPlayer.indexOf(
+  "const automaticReadySourceIndex"
+);
+const automaticReadyEnd = videoPlayer.indexOf(
+  "const autoplayEntryApproved",
+  automaticReadyStart
+);
+const automaticReadyBlock =
+  automaticReadyStart >= 0 && automaticReadyEnd > automaticReadyStart
+    ? videoPlayer.slice(automaticReadyStart, automaticReadyEnd)
+    : "";
+
+expect(
+  automaticReadyBlock.includes(
+    '!["provider", "external", "youtube"].includes(type)'
+  ),
+  "desktop ready-source fallback cannot auto-open provider, external or YouTube pages"
+);
+
+expect(
   !mobilePlayer.includes("isHostedProviderErrorClip") &&
     !firePlayer.includes("isHostedProviderErrorClip") &&
     !mobilePlayer.includes("durationMs <= 15_000L") &&
