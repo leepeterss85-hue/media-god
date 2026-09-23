@@ -33,7 +33,7 @@ export const DEFAULT_PLAYBACK_PREFERENCES = {
   lipSyncMs: 0,
   dialogueBoost: "off",
   volumeNormalization: false,
-  automaticNoSoundRecovery: true,
+  automaticNoSoundRecovery: false,
   networkAware4K: true,
   thermalProtection: true,
 };
@@ -313,7 +313,6 @@ export default function PlaybackAdvancedSettings() {
 
         {[
           ["volumeNormalization", "Volume normalization", "Reduce large jumps between quiet dialogue and loud scenes."],
-          ["automaticNoSoundRecovery", "Automatic no-sound recovery", "Re-select the best audio track and safe output automatically for risky remux audio."],
           ["networkAware4K", "Network-aware 4K", "Pre-check 4K throughput and prefer another 4K/backup source when the measured connection cannot sustain its bitrate."],
           ["thermalProtection", "Thermal / performance protection", "On phones, tablets and Fire TV, leave a software-decoded 4K source when heat or memory pressure becomes severe."],
         ].map(([key, title, description]) => (
@@ -776,7 +775,7 @@ class CompatibilityPlayerActivity : Activity() {
     private var lipSyncMs = 0
     private var dialogueBoost = "off"
     private var volumeNormalization = false
-    private var automaticNoSoundRecovery = true
+    private var automaticNoSoundRecovery = false
     private var thermalProtection = true
     private var audioRecoveryPasses = 0
 
@@ -788,14 +787,10 @@ class CompatibilityPlayerActivity : Activity() {
         }
     }
 
-    private val audioRecoveryRunnable = object : Runnable {
-        override fun run() {
-            if (resultSent || !automaticNoSoundRecovery) return
-            recoverAudioTrack()
-            audioRecoveryPasses += 1
-            if (audioRecoveryPasses < 2 && ::root.isInitialized) root.postDelayed(this, 2400L)
-        }
-    }
+    /*
+     * Deliberately inert. Audio-track changes belong to the viewer.
+     */
+    private val audioRecoveryRunnable = Runnable { }
 
     private val thermalRunnable = object : Runnable {
         override fun run() {
@@ -827,7 +822,7 @@ class CompatibilityPlayerActivity : Activity() {
             if (it in setOf("off", "low", "medium", "high")) it else "off"
         }
         volumeNormalization = payload.optBoolean("volumeNormalization", false)
-        automaticNoSoundRecovery = payload.optBoolean("automaticNoSoundRecovery", true)
+        automaticNoSoundRecovery = false
         thermalProtection = payload.optBoolean("thermalProtection", true)
 
         if (!isPlayableUrl(streamUrl)) {
@@ -1009,13 +1004,9 @@ class CompatibilityPlayerActivity : Activity() {
                             showStatus("Compatibility decoder")
                             try { player.setVolume(100); player.setAudioDelay(lipSyncMs.toLong() * 1000L) } catch (_: Throwable) {}
                             applyPreferredSubtitle()
-                            recoverAudioTrack()
                             if (pendingStartPositionMs > 0L) {
                                 val target = pendingStartPositionMs; pendingStartPositionMs = 0L; player.time = target
                             }
-                            audioRecoveryPasses = 0
-                            root.removeCallbacks(audioRecoveryRunnable)
-                            if (automaticNoSoundRecovery) root.postDelayed(audioRecoveryRunnable, 1000L)
                             root.removeCallbacks(thermalRunnable)
                             if (thermalProtection) root.postDelayed(thermalRunnable, 9000L)
                             updateControlLabels(); updatePlayPauseLabel(); showControlsTemporarily()
@@ -1765,9 +1756,9 @@ def bump_versions_and_manifests():
 
     updates = [
         ('public/firetv-update.json', 29, '1.4.24',
-         'Fire TV 1.4.24 adds advanced playback controls: automatic no-sound recovery, Auto/Stereo/Surround/Passthrough audio modes, embedded/external subtitle selection, lip-sync adjustment, network-aware 4K preflight, learned decoder blacklisting, Dolby Vision/HDR rescue, thermal protection, dialogue boost, volume normalization, richer diagnostics and seamless position-preserving failover.'),
+         'Fire TV 1.4.24 adds advanced playback controls: manual audio controls, Auto/Stereo/Surround/Passthrough audio modes, embedded/external subtitle selection, lip-sync adjustment, network-aware 4K preflight, learned decoder blacklisting, Dolby Vision/HDR rescue, thermal protection, dialogue boost, volume normalization, richer diagnostics and seamless position-preserving failover.'),
         ('public/android-mobile-update.json', 14, '1.0.13',
-         'Media God Mobile 1.0.13 adds advanced playback controls for phones and tablets: automatic no-sound recovery, Auto/Stereo/Surround/Passthrough audio modes, subtitle selection, lip-sync adjustment, network-aware 4K preflight, learned decoder blacklisting, HDR rescue, thermal/memory protection, dialogue boost, volume normalization and richer diagnostics.'),
+         'Media God Mobile 1.0.13 adds advanced playback controls for phones and tablets: manual audio controls, Auto/Stereo/Surround/Passthrough audio modes, subtitle selection, lip-sync adjustment, network-aware 4K preflight, learned decoder blacklisting, HDR rescue, thermal/memory protection, dialogue boost, volume normalization and richer diagnostics.'),
     ]
     for path, code, name, message in updates:
         data = json.loads(read(path))
@@ -1807,7 +1798,7 @@ def patch_checks():
     [compatibilityActivity.includes("spuTracks") && compatibilityActivity.includes("setSpuTrack"), "LibVLC subtitle-track selector"],
     [compatibilityActivity.includes("setAudioDelay"), "lip-sync adjustment"],
     [compatibilityActivity.includes("audioOutputMode") && compatibilityActivity.includes("setAudioDigitalOutputEnabled"), "selectable audio output modes"],
-    [compatibilityActivity.includes("automaticNoSoundRecovery") && compatibilityActivity.includes("recoverAudioTrack"), "automatic no-sound recovery"],
+    [compatibilityActivity.includes("automaticNoSoundRecovery = false") && compatibilityActivity.includes("audioRecoveryRunnable = Runnable { }"), "manual-only audio handling"],
     [compatibilityActivity.includes("equalizer-bands") && compatibilityActivity.includes("dialogueBoost"), "dialogue boost"],
     [compatibilityActivity.includes("audio-replay-gain-mode") && compatibilityActivity.includes("volumeNormalization"), "volume normalization"],
     [compatibilityActivity.includes("showPlaybackInfo"), "native playback info screen"],
@@ -1829,7 +1820,6 @@ for (const marker of [
   "Lip sync",
   "Dialogue boost",
   "Volume normalization",
-  "Automatic no-sound recovery",
   "Network-aware 4K",
   "Thermal / performance protection",
   "Playback diagnostics",
@@ -1840,7 +1830,7 @@ for (const marker of [
 expect(
   playbackPreferences.includes('audioOutputMode: "auto"') &&
     playbackPreferences.includes("lipSyncMs: 0") &&
-    playbackPreferences.includes("automaticNoSoundRecovery: true") &&
+    playbackPreferences.includes("automaticNoSoundRecovery: false") &&
     playbackPreferences.includes("networkAware4K: true") &&
     playbackPreferences.includes("thermalProtection: true"),
   "Advanced playback preference defaults are incomplete"
