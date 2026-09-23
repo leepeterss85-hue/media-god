@@ -8,7 +8,7 @@ export const DEFAULT_PLAYBACK_PREFERENCES = {
   lipSyncMs: 0,
   dialogueBoost: "off",
   volumeNormalization: false,
-  automaticNoSoundRecovery: true,
+  automaticNoSoundRecovery: false,
   networkAware4K: true,
   thermalProtection: true,
 };
