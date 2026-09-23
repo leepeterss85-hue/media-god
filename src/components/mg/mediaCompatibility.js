@@ -484,6 +484,18 @@ export const detectStreamTraits = (
       "unknown",
   };
 
+  // RD's inspected track is stronger evidence than a release name with several
+  // codec tags. Use the English main track when it is known, otherwise leave
+  // the codec from the title as a hint below.
+  const mediaInfo = item?.mediaInfo || item?.media_info;
+  const inspectedTracks = mediaInfo?.audio_tracks || mediaInfo?.audioTracks;
+  const mainTrack = Array.isArray(inspectedTracks)
+    ? inspectedTracks.find((track) =>
+        /^(en|eng|english)$/i.test(String(track?.language_iso || track?.language || "")) &&
+        !/commentary|description|descriptive/i.test(String(track?.title || track?.name || ""))
+      ) || inspectedTracks[0]
+    : null;
+
   traits.language =
     detectLanguagePreference(
       item,
@@ -849,6 +861,25 @@ export const detectStreamTraits = (
       /\batmos\b/i
     );
 
+  if (mainTrack?.codec) {
+    const trackCodec = detectStreamTraits({ audioCodec: mainTrack.codec }).audio;
+    if (trackCodec) {
+      traits.audio = trackCodec;
+      traits.audioRisk = trackCodec === "dts" || trackCodec === "truehd";
+      traits.atmos = /joc|atmos/i.test(
+        [mainTrack.codec, mainTrack.profile, mainTrack.title].filter(Boolean).join(" ")
+      );
+    }
+  }
+  traits.audioChannels = Number(
+    mainTrack?.channels || mainTrack?.channel_count ||
+    item?.audioChannels || item?.audioChannelCount || 0
+  );
+  traits.audioSampleRate = Number(
+    mainTrack?.sample_rate || mainTrack?.sampleRate || item?.audioSampleRate || 0
+  );
+  traits.audioProfile = String(mainTrack?.profile || item?.audioProfile || "").toLowerCase();
+
   traits.dolbyVision =
     has(
       text,
@@ -930,8 +961,8 @@ const audioSupport = (
       audio
     );
 
-  if (nativeSupport === true) {
-    return true;
+  if (nativeSupport === true || nativeSupport === false) {
+    return nativeSupport;
   }
 
   if (
@@ -1044,6 +1075,29 @@ const audioSupport = (
   }
 
   return null;
+};
+
+const sourceAudioSupport = (traits, deviceProfile) => {
+  const support = audioSupport(traits.audio, deviceProfile);
+  if (support !== true || !deviceProfile?.nativePlayerAvailable) return support;
+
+  const mimeTypes = NATIVE_AUDIO_MIME[traits.audio] || [];
+  const capabilities = deviceProfile.nativeCodecSupport?.audioCapabilities || {};
+  const matching = mimeTypes.map((mime) => capabilities[mime]).filter(Boolean);
+  const channels = Number(traits.audioChannels || 0);
+  const sampleRate = Number(traits.audioSampleRate || 0);
+  if (matching.length && (channels > 0 || sampleRate > 0) &&
+      !matching.some((cap) =>
+        (channels <= 0 || channels <= Number(cap.maxChannels || 0)) &&
+        (sampleRate <= 0 || !Array.isArray(cap.sampleRates) ||
+          cap.sampleRates.length === 0 || cap.sampleRates.includes(sampleRate))
+      )) return false;
+
+  // Advertised MIME support alone does not prove that a receiver can output a
+  // compressed home-theatre track. Leave these uncertain for manual choice.
+  if (traits.audio === "truehd" || traits.audio === "dts" ||
+      /joc|atmos/.test(traits.audioProfile) || traits.atmos) return null;
+  return true;
 };
 
 const videoSupport = (
@@ -1287,8 +1341,7 @@ export const hasSevereVideoRisk = (
 /*
  * Coarse playback tier used for ordering, separate from the detailed score.
  *
- * 0 = audio and video are both positively compatible (or media inspection has
- *     already qualified the source).
+ * 0 = audio and video are both positively compatible.
  * 1 = no known incompatibility and at least one side is positively compatible.
  * 2 = compatibility is mostly unknown.
  * 3 = a known audio/video incompatibility exists.
@@ -1300,15 +1353,13 @@ export const sourcePlaybackCompatibilityTier = (
   extraText = "",
   options = {}
 ) => {
-  if (item?.launchQualified === true) return 0;
-
   const deviceProfile =
     options?.deviceProfile ||
     getPlaybackDeviceProfile();
   const traits = detectStreamTraits(item, extraText);
 
   let video = videoSupport(traits.video, deviceProfile);
-  const audio = audioSupport(traits.audio, deviceProfile);
+  const audio = sourceAudioSupport(traits, deviceProfile);
 
   if (hasSevereVideoRisk(item, extraText, deviceProfile)) {
     video = false;

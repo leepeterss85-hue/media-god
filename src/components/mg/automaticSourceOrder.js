@@ -6,7 +6,7 @@ const entryIndex = (entry) =>
     : Number.MAX_SAFE_INTEGER;
 
 const effectiveCompatibilityTier = (entry) =>
-  entry?.provenWorking === true
+  entry?.provenWorking === true && Number(entry?.compatibilityTier ?? 2) <= 1
     ? 0
     : Number(entry?.compatibilityTier ?? 2);
 
@@ -25,11 +25,12 @@ const compareLegacyEntries = (left, right) =>
 const compareSmartEntries = (left, right) =>
   Number(left?.languageRank ?? 3) - Number(right?.languageRank ?? 3) ||
   Number(left?.hardSubtitleRank ?? 0) - Number(right?.hardSubtitleRank ?? 0) ||
+  effectiveCompatibilityTier(left) - effectiveCompatibilityTier(right) ||
   Number(Boolean(right?.successfulPlayback)) - Number(Boolean(left?.successfulPlayback)) ||
   Number(Boolean(right?.provenWorking)) - Number(Boolean(left?.provenWorking)) ||
-  effectiveCompatibilityTier(left) - effectiveCompatibilityTier(right) ||
   Number(Boolean(right?.trustedCached)) - Number(Boolean(left?.trustedCached)) ||
   Number(Boolean(right?.cached)) - Number(Boolean(left?.cached)) ||
+  // Codec playability is decided above; audio quality only breaks ties after it.
   Number(left?.releaseTierRank ?? 6) - Number(right?.releaseTierRank ?? 6) ||
   Number(left?.audioTierRank ?? 4) - Number(right?.audioTierRank ?? 4) ||
   Number(right?.compatibility || 0) - Number(left?.compatibility || 0) ||

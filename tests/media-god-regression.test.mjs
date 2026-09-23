@@ -3160,11 +3160,63 @@ test("compatibility tier explicitly puts proven audio+video before known incompa
   assert.ok(start >= 0 && end > start);
 
   const tierBlock = compatibilitySource.slice(start, end);
-  assert.match(tierBlock, /item\?\.launchQualified === true\) return 0/);
+  assert.doesNotMatch(tierBlock, /launchQualified === true\) return 0/);
+  assert.match(tierBlock, /sourceAudioSupport\(traits, deviceProfile\)/);
   assert.match(tierBlock, /video === true && audio === true\) return 0/);
   assert.match(tierBlock, /video === false \|\| audio === false\) return 3/);
   assert.match(tierBlock, /video === true \|\| audio === true\) return 1/);
   assert.match(tierBlock, /return 2/);
+});
+
+test("safe English audio beats a qualified lossless remux for automatic playback", () => {
+  const ordered = prioritiseCompatibleAutoplayEntries([
+    {
+      id: "lossless-remux", index: 0, smartRankingEnabled: true,
+      autoplayReady: true, languageRank: 0, compatibilityTier: 3,
+      provenWorking: true, successfulPlayback: true,
+      releaseTierRank: 0, audioTierRank: 0, cached: true,
+    },
+    {
+      id: "aac-web", index: 1, smartRankingEnabled: true,
+      autoplayReady: true, languageRank: 0, compatibilityTier: 0,
+      releaseTierRank: 3, audioTierRank: 3, cached: true,
+    },
+  ]);
+  assert.deepEqual(ordered.map((row) => row.id), ["aac-web", "lossless-remux"]);
+
+  const compatibility = readFileSync(
+    new URL("../src/components/mg/mediaCompatibility.js", import.meta.url), "utf8"
+  );
+  const audioCheck = compatibility.slice(
+    compatibility.indexOf("const audioSupport ="),
+    compatibility.indexOf("const sourceAudioSupport =")
+  );
+  assert.match(audioCheck, /nativeSupport === true \|\| nativeSupport === false/);
+  assert.match(compatibility, /audioCapabilities/);
+  assert.match(compatibility, /audioChannels/);
+  const selector = readFileSync(
+    new URL("../src/components/mg/sourceSelectorPreferences.js", import.meta.url), "utf8"
+  );
+  assert.match(selector, /entry\.item\?\.launchQualified === true &&\s*entry\.compatibilityTier < 3/);
+});
+
+test("phone and Fire TV package matching FFmpeg audio extensions without automatic recovery", () => {
+  const workflow = readFileSync(new URL("../.github/workflows/android-apks.yml", import.meta.url), "utf8");
+  const script = readFileSync(new URL("../scripts/build-media3-ffmpeg.sh", import.meta.url), "utf8");
+  assert.match(workflow, /ffmpeg-extension:/);
+  assert.match(workflow, /name: ffmpeg-android-mobile/);
+  assert.match(workflow, /name: ffmpeg-firetv-android/);
+  assert.match(script, /aac ac3 eac3 truehd dca vorbis opus flac alac mp3/);
+  for (const app of ["android-mobile", "firetv-android"]) {
+    const gradle = readFileSync(new URL(`../${app}/app/build.gradle.kts`, import.meta.url), "utf8");
+    const player = readFileSync(new URL(
+      `../${app}/app/src/main/java/com/mediagod/${app === "android-mobile" ? "mobile" : "firetv"}/PlayerActivity.kt`,
+      import.meta.url
+    ), "utf8");
+    assert.match(gradle, /implementation\(files\("libs\/decoder-ffmpeg\.aar"\)\)/);
+    assert.match(player, /EXTENSION_RENDERER_MODE_ON/);
+    assert.match(player, /Audio recovery is manual-only/);
+  }
 });
 
 test("Real-Debrid zero-audio metadata tries transcode then preserves the original source for runtime verification", () => {

@@ -6,6 +6,9 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.media.MediaCodecList
+import android.media.AudioManager
+import android.os.Build
+import android.content.Context
 import android.net.Uri
 import android.os.Bundle
 import android.view.KeyEvent
@@ -522,6 +525,7 @@ class MainActivity : Activity() {
 
             val videoTypes = sortedSetOf<String>()
             val audioTypes = sortedSetOf<String>()
+            val audioLimits = JSONObject()
 
             try {
                 MediaCodecList(MediaCodecList.ALL_CODECS).codecInfos
@@ -532,7 +536,28 @@ class MainActivity : Activity() {
 
                             when {
                                 type.startsWith("video/") -> videoTypes.add(type)
-                                type.startsWith("audio/") -> audioTypes.add(type)
+                                type.startsWith("audio/") -> {
+                                    audioTypes.add(type)
+                                    try {
+                                        val caps = info.getCapabilitiesForType(rawType).audioCapabilities
+                                        if (caps != null) {
+                                            val previous = audioLimits.optJSONObject(type)
+                                            val maxChannels = maxOf(
+                                                caps.maxInputChannelCount,
+                                                previous?.optInt("maxChannels") ?: 0
+                                            )
+                                            val rates = sortedSetOf<Int>()
+                                            caps.supportedSampleRates.forEach { rates.add(it) }
+                                            previous?.optJSONArray("sampleRates")?.let { old ->
+                                                for (i in 0 until old.length()) rates.add(old.optInt(i))
+                                            }
+                                            audioLimits.put(type, JSONObject().apply {
+                                                put("maxChannels", maxChannels)
+                                                put("sampleRates", JSONArray(rates.toList()))
+                                            })
+                                        }
+                                    } catch (_: Throwable) { /* MIME still reported. */ }
+                                }
                             }
                         }
                     }
@@ -543,6 +568,17 @@ class MainActivity : Activity() {
             return JSONObject().apply {
                 put("video", JSONArray(videoTypes.toList()))
                 put("audio", JSONArray(audioTypes.toList()))
+                put("audioCapabilities", audioLimits)
+                val outputs = sortedSetOf<Int>()
+                if (Build.VERSION.SDK_INT >= 23) {
+                    try {
+                        val manager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                        manager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).forEach { device ->
+                            device.encodings.forEach { outputs.add(it) }
+                        }
+                    } catch (_: Throwable) { /* Unknown output capabilities. */ }
+                }
+                put("outputEncodings", JSONArray(outputs.toList()))
             }.toString()
         }
 

@@ -12,8 +12,8 @@ android {
         applicationId = "com.mediagod.mobile"
         minSdk = 23
         targetSdk = 35
-        versionCode = 51
-        versionName = "1.0.50"
+        versionCode = 52
+        versionName = "1.0.51"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -73,6 +73,8 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer-rtsp:$media3Version")
     implementation("androidx.media3:media3-ui:$media3Version")
     implementation("androidx.media3:media3-session:$media3Version")
+    // Built from the matching Media3 source tag in the APK workflow.
+    implementation(files("libs/decoder-ffmpeg.aar"))
 
     implementation("org.videolan.android:libvlc-all:3.6.5")
 

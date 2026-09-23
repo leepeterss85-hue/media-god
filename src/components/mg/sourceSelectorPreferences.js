@@ -383,7 +383,8 @@ export const sortSourceEntries = (
             entry.successfulPlayback === true &&
             Number(entry.successfulPlaybackLanguageRank ?? 3) <= 1
           ) ||
-          entry.item?.launchQualified === true ||
+          (entry.item?.launchQualified === true &&
+            entry.compatibilityTier < 3) ||
           entry.item?.runtimeQualificationFallback === true ||
           (
             entry.languageRank <= 3 &&
