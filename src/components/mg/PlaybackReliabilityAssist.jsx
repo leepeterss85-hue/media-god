@@ -910,8 +910,8 @@ export default function PlaybackReliabilityAssist() {
         );
 
         showMessage(
-          "Audio issue remembered · player recovery is handling it…",
-          2400
+          "No-sound report saved for this exact source · manual audio recovery started.",
+          2600
         );
       };
 
