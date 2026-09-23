@@ -9607,15 +9607,13 @@ export default function VideoPlayer({
   ]);
 
   const handleNoSound =
-    async (options = {}) => {
+    async () => {
       if (
         typeof window !== "undefined" &&
         window.__MG_NATIVE_PLAYBACK_ACTIVE__ === true
       ) {
         return;
       }
-
-      const automatic = options?.automatic === true;
 
       /*
        * The user has explicitly started an audio-recovery attempt. Any delayed
@@ -9627,7 +9625,7 @@ export default function VideoPlayer({
       const actionStillCurrent = () =>
         streamActionGenerationRef.current === actionGeneration;
 
-      if (!automatic && typeof window !== "undefined") {
+      if (typeof window !== "undefined") {
         window.dispatchEvent(
           new CustomEvent("mg:playback-no-sound", {
             detail: {
@@ -9784,13 +9782,11 @@ export default function VideoPlayer({
             }
           }
 
-          if (!automatic) {
-            setRdError(
-              "This file does not expose another labelled English audio track. Choose another source manually if you want a different release."
-            );
-            video.play().catch(() => {});
-            return;
-          }
+          setRdError(
+            "This file does not expose another labelled English audio track. Choose another source manually if you want a different release."
+          );
+          video.play().catch(() => {});
+          return;
         }
 
         video.play().catch(() => {});
@@ -9975,54 +9971,11 @@ export default function VideoPlayer({
        * can prove a compatible English stream, but if that fails we leave the
        * source selected and let the user choose a different release.
        */
-      if (!automatic) {
-        setRdError(
-          rdOverride?.audioRescue?.used === true
-            ? "Audio Rescue is already active on this source. Use the player audio control to choose a track, or choose another source manually."
-            : "No compatible English audio could be selected automatically from this source. Choose another source manually if needed."
-        );
-        return;
-      }
-
-      /*
-       * AIOStreams is already a fallback-only provider. If an automatically
-       * chosen AIO row cannot produce usable audio, keeping that exact row
-       * pinned strands playback on a known-bad fallback. Reject it for this
-       * session and move to the best non-AIO source instead. Manual choices
-       * still keep ownership and never auto-cycle.
-       */
-      if (
-        rejectAutomaticAioAudioFailure(
-          "AIOStreams could not produce usable audio."
-        )
-      ) {
-        return;
-      }
-
-      /*
-       * AUDIO FAILURE IS NOT SOURCE FAILURE.
-       *
-       * Never turn a missing/unsupported audio path into an automatic torrent
-       * carousel for normal releases. The current release may be the exact
-       * English file the viewer wants, and switching releases destroys that
-       * choice. Lock this VOD row, leave background caching alone, and require
-       * an explicit source choice before another torrent can replace it.
-       */
-      lockCurrentVodSourceForAudioRecovery();
-
       setRdError(
-        "Audio recovery could not produce sound from this release yet. Media God kept this exact source selected instead of cycling through other torrents. Use Audio or Source if you want to change it."
+        rdOverride?.audioRescue?.used === true
+          ? "Audio Rescue is already active on this source. Use the player audio control to choose a track, or choose another source manually."
+          : "No compatible English audio could be selected from this source. Choose another audio track or source manually if needed."
       );
-
-      window.dispatchEvent(
-        new CustomEvent("mg:player-status", {
-          detail: {
-            message:
-              "Audio decoder recovery stopped here — keeping this exact source selected.",
-          },
-        })
-      );
-
       return;
     };
 
