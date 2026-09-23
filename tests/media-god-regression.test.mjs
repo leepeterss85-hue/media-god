@@ -3358,7 +3358,7 @@ test("audio menu ranks tracks but changes them only after a user choice", () => 
   assert.ok(chooseStart >= 0 && chooseEnd > chooseStart);
   const chooseAudioSource = controlsSource.slice(chooseStart, chooseEnd);
   assert.match(chooseAudioSource, /mg:hls-audio-track-selected/);
-  assert.match(chooseAudioSource, /audioTracks\[index\]\.enabled/);
+  assert.match(chooseAudioSource, /tracks\[trackIndex\]\.enabled = trackIndex === choice\.index/);
   assert.match(chooseAudioSource, /manualAudioChoiceRef\.current =/);
   assert.match(chooseAudioSource, /rememberAudioPreference/);
 
