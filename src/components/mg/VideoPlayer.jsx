@@ -10089,16 +10089,27 @@ export default function VideoPlayer({
         exposedTracks.length === 0 &&
         video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA;
 
+      const establishedPlayback =
+        !video.error &&
+        !video.paused &&
+        !video.ended &&
+        video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA &&
+        Number(video.currentTime || 0) >= 2;
+
       /*
-       * Once Audio Rescue has produced a compatibility stream, do not use the
-       * ORIGINAL source's no-sound history or risky-codec label to rescue it a
-       * second time. That old evidence says why rescue was needed; it is not
-       * evidence that the new stream is silent. Only a current, authoritative
-       * zero-audio-track signal may override this lock.
+       * Once playback is genuinely progressing, historical no-sound memory or
+       * a risky codec label is not allowed to interrupt it. Those are startup
+       * hints, not proof that the current run is broken. Only an authoritative
+       * current zero-audio-track signal may override established playback.
+       *
+       * Once Audio Rescue has produced a compatibility stream, also do not use
+       * the ORIGINAL source's no-sound history or risky-codec label to rescue it
+       * a second time.
        */
       if (
         browserConfirmedNoAudio ||
         (
+          !establishedPlayback &&
           !rescueAlreadyApplied &&
           (rememberedSilent || traits.audioRisk)
         )
