@@ -598,97 +598,11 @@ class CompatibilityPlayerActivity : Activity() {
         } catch (_: Throwable) {}
     }
 
-    private fun recoverAudioTrack() {
-        val player = vlcPlayer ?: return
-        try {
-            player.setVolume(100)
-
-            /*
-             * Audio output/device selection is configured before playback starts
-             * (and again only when an intentional settings change restarts the
-             * player). Reapplying the output while LibVLC is already rendering
-             * can disrupt a stream that has just begun producing good audio.
-             * Recovery here should only choose/confirm the best audio track.
-             */
-            val tracks = player.audioTracks?.filter { it.id >= 0 }.orEmpty()
-            if (tracks.isEmpty()) return
-
-            /*
-             * A button press is an explicit viewer choice. Once a manual audio
-             * track has been selected, automatic English/audio recovery must
-             * not switch it back on the next metadata/recovery pass.
-             */
-            if (manualAudioTrackLocked) {
-                val locked = tracks.firstOrNull { it.id == manualAudioTrackId }
-                if (locked != null) {
-                    if (player.audioTrack != locked.id) {
-                        player.setAudioTrack(locked.id)
-                    }
-                    updateAudioButtonLabel()
-                    return
-                }
-
-                manualAudioTrackLocked = false
-                manualAudioTrackId = -1
-            }
-
-            val preferred = payload.optString("audioLanguage", "en").trim().lowercase()
-            val preferredAliases = when (preferred) {
-                "en", "eng", "english" -> "en|eng|english"
-                "fr", "fre", "fra", "french" -> "fr|fre|fra|french"
-                "es", "spa", "spanish" -> "es|spa|spanish"
-                "de", "ger", "deu", "german" -> "de|ger|deu|german"
-                "it", "ita", "italian" -> "it|ita|italian"
-                else -> Regex.escape(preferred)
-            }
-            val expectedName =
-                payload.optString("preferredAudioTrackName").trim()
-            val expectedMatches =
-                if (expectedName.isBlank())
-                    emptyList()
-                else
-                    tracks.filter {
-                        namesMatchExpectedAudio(
-                            it.name.orEmpty(),
-                            expectedName
-                        )
-                    }
-            val uniqueExpectedTrackId =
-                if (expectedMatches.size == 1)
-                    expectedMatches.first().id
-                else
-                    -1
-
-            fun score(track: MediaPlayer.TrackDescription): Int {
-                val text = track.name.orEmpty().lowercase()
-                val preferredTrack =
-                    preferredAliases.isNotBlank() &&
-                        Regex(
-                            """(?:^|[\s._\-\[\]()])(?:$preferredAliases)(?=$|[\s._\-\[\]()])""",
-                            RegexOption.IGNORE_CASE
-                        ).containsMatchIn(text)
-                var value = 0
-                if (track.id == uniqueExpectedTrackId) value += 1800
-                if (preferredTrack) value += 1000
-                else if (
-                    Regex(
-                        """\b(?:mul|multi(?:[ ._-]?audio)?|dual(?:[ ._-]?audio)?)\b""",
-                        RegexOption.IGNORE_CASE
-                    ).containsMatchIn(text)
-                ) value += 450
-                if (audioTrackNameLooksCommentary(text)) value -= 900
-                if (Regex("""\b(?:main|original|primary)\b""").containsMatchIn(text)) value += 25
-                if (Regex("""aac|ac-?3|e-?ac-?3|opus|flac""").containsMatchIn(text)) value += 12
-                if (Regex("""truehd|dts|mlp""").containsMatchIn(text) && audioOutputMode == "auto") value -= 8
-                return value
-            }
-            val best = tracks.maxByOrNull { score(it) } ?: tracks.first()
-            val current = tracks.firstOrNull { it.id == player.audioTrack }
-            if (current == null || score(best) > score(current) + 5) player.setAudioTrack(best.id)
-            if (player.audioTrack < 0) player.setAudioTrack(best.id)
-        } catch (_: Throwable) {}
-        updateAudioButtonLabel()
-    }
+    /*
+     * Automatic audio-track recovery was intentionally removed. The only code
+     * allowed to call setAudioTrack() is the user-driven Audio button.
+     */
+    private fun recoverAudioTrack() = Unit
 
     private fun currentHeaders(): Map<String, String> {
         val result = linkedMapOf<String, String>()
