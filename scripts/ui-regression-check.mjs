@@ -691,7 +691,6 @@ for (const marker of [
   "Lip sync",
   "Dialogue boost",
   "Volume normalization",
-  "Automatic no-sound recovery",
   "Network-aware 4K",
   "Thermal / performance protection",
   "Playback diagnostics",
@@ -702,10 +701,15 @@ for (const marker of [
 expect(
   playbackPreferences.includes('audioOutputMode: "auto"') &&
     playbackPreferences.includes("lipSyncMs: 0") &&
-    playbackPreferences.includes("automaticNoSoundRecovery: true") &&
+    playbackPreferences.includes("automaticNoSoundRecovery: false") &&
     playbackPreferences.includes("networkAware4K: true") &&
     playbackPreferences.includes("thermalProtection: true"),
   "Advanced playback preference defaults are incomplete"
+);
+expect(
+  !playbackAdvancedSettings.includes("Automatic no-sound recovery") &&
+    playbackPreferences.includes("automaticNoSoundRecovery: false"),
+  "Automatic no-sound recovery must stay removed from Settings and disabled by default"
 );
 expect(
   settings.includes("<PlaybackAdvancedSettings />"),
