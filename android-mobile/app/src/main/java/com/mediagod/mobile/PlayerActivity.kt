@@ -22,6 +22,8 @@ import androidx.media3.common.Player
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.analytics.AnalyticsListener
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
 import androidx.media3.ui.PlayerView
@@ -29,6 +31,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.math.max
 
+@UnstableApi
 class PlayerActivity : Activity() {
     companion object {
         const val EXTRA_PAYLOAD = "mg_payload"
@@ -67,6 +70,7 @@ class PlayerActivity : Activity() {
     private var genericHttpsMimeRetryIndex = 0
     private var compatibilityPlayerOpen = false
     private var audioPresenceCheckGeneration = 0
+    private var audioOutputConfirmed = false
     private var autoNext = true
     private var recapStartMs = -1L
     private var recapEndMs = -1L
@@ -652,6 +656,18 @@ class PlayerActivity : Activity() {
                 .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !subtitlesEnabled)
                 .build()
 
+        exoPlayer.addAnalyticsListener(object : AnalyticsListener {
+            override fun onAudioPositionAdvancing(
+                eventTime: AnalyticsListener.EventTime,
+                playoutStartSystemTimeMs: Long
+            ) {
+                if (!live && player === exoPlayer) {
+                    audioOutputConfirmed = true
+                    audioPresenceCheckGeneration += 1
+                }
+            }
+        })
+
         exoPlayer.addListener(object : Player.Listener {
             override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
                 var selectedFrameRate = 0f
@@ -717,6 +733,10 @@ class PlayerActivity : Activity() {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 if (isPlaying) {
                     window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
+                    if (!live && !audioOutputConfirmed) {
+                        scheduleMissingAudioCheck(exoPlayer, exoPlayer.currentTracks)
+                    }
                 } else {
                     window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                 }
@@ -773,6 +793,7 @@ class PlayerActivity : Activity() {
         exoPlayer.playWhenReady =
             shouldPlayWhenReady && !holdForEnglishStartup
 
+        audioOutputConfirmed = false
         exoPlayer.setMediaItem(mediaItem)
         exoPlayer.prepare()
 
@@ -1229,6 +1250,7 @@ class PlayerActivity : Activity() {
         return try {
             activePlayer.stop()
             activePlayer.clearMediaItems()
+            audioOutputConfirmed = false
             activePlayer.setMediaItem(buildMediaItem(retryMimeType))
             activePlayer.prepare()
 
