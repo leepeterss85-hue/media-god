@@ -10107,23 +10107,16 @@ export default function VideoPlayer({
       return undefined;
     }
 
-    const candidate = rdOverride
-      ? { ...active, src: rdOverride.src || activeUrl, label: rdOverride.label || active?.label }
-      : active;
-    const label = sourceDisplayLabel(candidate, activeIdx);
-    const traits = detectStreamTraits(candidate, label);
-    const rememberedSilent = hasRecentNoSoundHistory(label);
     const rescueAlreadyApplied =
       rdOverride?.audioRescue?.used === true ||
       active?.audioRescue?.used === true;
 
     /*
-     * Run the audio-presence check for every VOD source. Most Chromium builds
-     * do not expose HTMLMediaElement.audioTracks; in that case we keep using
-     * codec/history evidence only. Where the browser DOES expose the list,
-     * zero tracks after playback metadata is ready is authoritative enough to
-     * trigger the same rescue/failover path used by Real-Debrid and native
-     * Android playback.
+     * Run the audio-presence check for every VOD source, but only act on
+     * CURRENT runtime evidence. Browser audioTracks metadata is inconsistent:
+     * some browsers expose an empty list even while audio is genuinely audible.
+     * A stale no-sound history entry or risky codec label must therefore never
+     * interrupt a stream that is already producing decoded audio.
      */
     const timer = window.setTimeout(() => {
       const video = stageRef.current?.querySelector("video");
@@ -10132,11 +10125,22 @@ export default function VideoPlayer({
       }
 
       const exposedTracks = video.audioTracks;
-      const browserConfirmedNoAudio =
+      const hasAudioTrackList =
         exposedTracks &&
-        typeof exposedTracks.length === "number" &&
-        exposedTracks.length === 0 &&
-        video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA;
+        typeof exposedTracks.length === "number";
+      const decodedByteCount =
+        typeof video.webkitAudioDecodedByteCount === "number"
+          ? Number(video.webkitAudioDecodedByteCount)
+          : null;
+      const firefoxHasAudio =
+        typeof video.mozHasAudio === "boolean"
+          ? video.mozHasAudio
+          : null;
+
+      const browserConfirmedAudio =
+        (hasAudioTrackList && exposedTracks.length > 0) ||
+        (decodedByteCount !== null && decodedByteCount > 0) ||
+        firefoxHasAudio === true;
 
       const establishedPlayback =
         !video.error &&
@@ -10145,30 +10149,39 @@ export default function VideoPlayer({
         video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA &&
         Number(video.currentTime || 0) >= 2;
 
+      const browserConfirmedNoAudio =
+        establishedPlayback &&
+        Number(video.currentTime || 0) >= 3 &&
+        (
+          firefoxHasAudio === false ||
+          (decodedByteCount !== null && decodedByteCount === 0)
+        );
+
       /*
-       * Once playback is genuinely progressing, historical no-sound memory or
-       * a risky codec label is not allowed to interrupt it. Those are startup
-       * hints, not proof that the current run is broken. Only an authoritative
-       * current zero-audio-track signal may override established playback.
-       *
-       * Once Audio Rescue has produced a compatibility stream, also do not use
-       * the ORIGINAL source's no-sound history or risky-codec label to rescue it
-       * a second time.
+       * Positive runtime audio evidence wins immediately. Do not let source
+       * history, codec reputation, or an unreliable empty audioTracks list
+       * interrupt a film/episode that is actually producing audio.
+       */
+      if (browserConfirmedAudio) {
+        confirmRecoveredSource(video);
+        return;
+      }
+
+      /*
+       * Automatic no-sound recovery now requires present-run evidence of
+       * silence. Remembered history and codec risk may influence diagnostics,
+       * but they are no longer allowed to stop playback by themselves.
        */
       if (
-        browserConfirmedNoAudio ||
-        (
-          !establishedPlayback &&
-          !rescueAlreadyApplied &&
-          (rememberedSilent || traits.audioRisk)
-        )
+        browserConfirmedNoAudio &&
+        !rescueAlreadyApplied
       ) {
         handleNoSoundRef.current?.({
           automatic: true,
-          confirmedNoAudio: browserConfirmedNoAudio,
+          confirmedNoAudio: true,
         });
       }
-    }, rememberedSilent ? 2200 : traits.audioRisk ? 4200 : 5200);
+    }, 5200);
 
     return () => window.clearTimeout(timer);
   }, [
