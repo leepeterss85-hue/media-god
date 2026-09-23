@@ -23,6 +23,12 @@ const firePlayer = read(
   "firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt"
 );
 const reliability = read("src/components/mg/playbackReliability.js");
+const mobileCompatibility = read(
+  "android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt"
+);
+const fireCompatibility = read(
+  "firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt"
+);
 
 const buildSourcesStart = mediaProvider.indexOf(
   "export function buildMediaSources"
@@ -192,6 +198,42 @@ expect(
   ),
   "stale discovery/native/async results cannot overwrite a newer playback request"
 );
+
+for (const [name, compatibility] of [
+  ["Android mobile", mobileCompatibility],
+  ["Fire TV", fireCompatibility],
+]) {
+  const audioRecoveryStart = compatibility.indexOf(
+    "private val audioRecoveryRunnable"
+  );
+  const thermalStart = compatibility.indexOf(
+    "private val thermalRunnable",
+    audioRecoveryStart
+  );
+  const audioRecoveryBlock =
+    audioRecoveryStart >= 0 && thermalStart > audioRecoveryStart
+      ? compatibility.slice(audioRecoveryStart, thermalStart)
+      : "";
+
+  expect(
+    audioRecoveryBlock.includes("player.isPlaying") &&
+      !audioRecoveryBlock.includes('finishWithResult(\n                    "error"'),
+    `${name} compatibility playback cannot be killed solely by uncertain audio-track metadata`
+  );
+
+  expect(
+    compatibility.includes(
+      "MediaPlayer.Event.EncounteredError -> {\n                            confirmCompatibilityError(player)"
+    ) &&
+      compatibility.includes(
+        "val stillProgressing =\n                currentTime > observedAt + 250L"
+      ) &&
+      compatibility.includes(
+        "if (stillProgressing) {\n                showStatus(\"Compatibility decoder\")"
+      ),
+    `${name} confirms stopped progress before treating a LibVLC error event as fatal`
+  );
+}
 
 if (process.exitCode) {
   process.exit(process.exitCode);
