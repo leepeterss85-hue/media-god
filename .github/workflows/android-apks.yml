@@ -11,7 +11,7 @@ on:
       - "scripts/**"
       - ".github/workflows/android-apks.yml"
   push:
-    branches: [main, codex/audio-compat]
+    branches: [main]
     paths:
       - "android-mobile/**"
       - "firetv-android/**"
