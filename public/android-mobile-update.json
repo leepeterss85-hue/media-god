@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 53,
-  "versionName": "1.0.52",
+  "versionCode": 54,
+  "versionName": "1.0.53",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.52 improves native audio track recovery while preserving a selected working track.",
+  "message": "Media God Mobile 1.0.53 keeps working streams playing and moves on when both decoders confirm missing audio.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"

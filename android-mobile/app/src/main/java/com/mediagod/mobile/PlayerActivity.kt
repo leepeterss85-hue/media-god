@@ -806,13 +806,11 @@ class PlayerActivity : Activity() {
             )
             val compatibilityText =
                 compatibilityReason + " " +
-                    error?.message.orEmpty() + " " +
-                    payload.optString("audioCodec") + " " +
-                    payload.optString("hintText")
+                    error?.message.orEmpty()
             put(
                 "compatibilityAudioRecovery",
-                Regex(
-                    """audio|dts|true[ ._-]?hd|mlp|atmos|e[ ._-]?ac[ ._-]?3|joc|silent|no[- ]?sound""",
+                (error?.errorCode?.let { it in 5001..5004 } == true) || Regex(
+                    """audio (?:decoder|renderer|sink|track)|no usable audio|no[- ]?sound|silent""",
                     RegexOption.IGNORE_CASE
                 ).containsMatchIn(compatibilityText)
             )

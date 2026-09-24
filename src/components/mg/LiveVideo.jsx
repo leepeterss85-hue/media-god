@@ -217,13 +217,14 @@ const audioTrackPreferenceScore = (
 const choosePreferredHlsAudioTrack = (
   tracks,
   preferredLanguage = "en",
-  excludeIndex = -1
+  excludeIndex = -1,
+  skipIndices = []
 ) => {
   let bestIndex = -1;
   let bestScore = -Infinity;
 
   (tracks || []).forEach((track, index) => {
-    if (index === excludeIndex) return;
+    if (index === excludeIndex || skipIndices.includes(index)) return;
 
     const score = audioTrackPreferenceScore(
       track,
@@ -1165,7 +1166,10 @@ const LiveVideo = forwardRef(
           choosePreferredHlsAudioTrack(
             hls.audioTracks,
             preferredAudioLanguageRef.current,
-            currentIndex
+            currentIndex,
+            Array.isArray(event?.detail?.skipIndices)
+              ? event.detail.skipIndices
+              : []
           );
 
         if (targetIndex < 0) {
@@ -1181,6 +1185,7 @@ const LiveVideo = forwardRef(
 
           finish(true, {
             index: targetIndex,
+            previousIndex: currentIndex,
             label:
               hlsTrackText(
                 hls.audioTracks[targetIndex]

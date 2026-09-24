@@ -160,13 +160,11 @@ class CompatibilityPlayerActivity : Activity() {
 
         val recoveryText =
             payload.optString("compatibilityReason") + " " +
-                payload.optString("compatibilityError") + " " +
-                payload.optString("audioCodec") + " " +
-                payload.optString("hintText")
+                payload.optString("compatibilityError")
         val audioRecovery =
             payload.optBoolean("compatibilityAudioRecovery", false) ||
                 Regex(
-                    """audio|dts|true[ ._-]?hd|mlp|atmos|e[ ._-]?ac[ ._-]?3|joc|silent|no[- ]?sound""",
+                    """audio (?:decoder|renderer|sink|track)|no usable audio|no[- ]?sound|silent""",
                     RegexOption.IGNORE_CASE
                 ).containsMatchIn(recoveryText)
 

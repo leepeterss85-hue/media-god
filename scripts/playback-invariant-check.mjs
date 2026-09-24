@@ -256,9 +256,9 @@ expect(
 expect(
   !videoPlayer.includes("nativeDiagnostics?.audioCodec,") &&
     videoPlayer.includes(
-      "/audio (?:decoder|renderer|sink|track)|no usable audio|no[- ]?sound|silent"
+      "/no usable audio track|audio decoder could not recover|audio (?:decoder|renderer|sink) (?:failed|stopped)"
     ),
-  "a codec label containing the word audio cannot by itself turn a native player error into a false no-sound failure"
+  "only an explicit terminal native audio error can reject a source for missing audio"
 );
 
 expect(
@@ -317,12 +317,12 @@ const goodBlock =
 
 expect(
   goodBlock.includes("current.failures = 0") &&
-    goodBlock.includes("current.noSound = 0") &&
     goodBlock.includes("current.buffers = 0") &&
     goodBlock.includes("current.lastFailure = 0") &&
-    goodBlock.includes("current.lastNoSound = 0") &&
-    goodBlock.includes("current.lastBuffer = 0"),
-  "confirmed successful playback immediately rehabilitates stale failure/no-sound/buffer penalties"
+    goodBlock.includes("current.lastBuffer = 0") &&
+    !goodBlock.includes("current.noSound = 0") &&
+    !goodBlock.includes("current.lastNoSound = 0"),
+  "video progress clears failures and stalls without erasing a reported audio problem"
 );
 
 expect(
@@ -336,6 +336,15 @@ expect(
       "positionSeconds >= SUCCESSFUL_VOD_PLAYBACK_SECONDS"
     ),
   "20-second proven playback records success for both web and native VOD"
+);
+
+const nativeResultStart = videoPlayer.indexOf("const onNativeResult =");
+const nativeResultBlock = videoPlayer.slice(nativeResultStart, nativeResultStart + 2500);
+expect(
+  nativeResultStart >= 0 &&
+    nativeResultBlock.indexOf('String(detail.requestId || "") !== activeRequest.requestId') <
+      nativeResultBlock.indexOf("if (detail?.diagnostics)"),
+  "stale native callbacks cannot penalise the currently selected source"
 );
 
 const staleGuardMatches = [

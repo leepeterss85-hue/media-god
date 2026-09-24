@@ -167,16 +167,15 @@ const applyEvent = (record, kind, value) => {
     }
   } else if (kind === "good") {
     /*
-     * Proven playback rehabilitates the exact source immediately. Old failure,
-     * no-sound and buffering events are useful until the source proves itself
-     * again; after that they must not keep poisoning automatic ranking/recovery.
+     * Video progress can clear failures and buffering penalties, but cannot
+     * prove that audio is audible. Preserve a reported no-sound penalty until
+     * it expires; otherwise a silent stream becomes a preferred source again
+     * after twenty seconds of video playback.
      */
     current.lastGood = now;
     current.failures = 0;
-    current.noSound = 0;
     current.buffers = 0;
     current.lastFailure = 0;
-    current.lastNoSound = 0;
     current.lastBuffer = 0;
   }
 
