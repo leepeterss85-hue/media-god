@@ -278,10 +278,17 @@ const fetchRdUser = async (
 const getStatus = async ({
   base44,
   user,
+  guestRecord,
+  guestDeviceHash,
 }) => {
+  const owner =
+    user ||
+    guestRecord ||
+    {};
+
   let token =
     clean(
-      user?.rd_token
+      owner?.rd_token
     );
 
   let refreshed = false;
@@ -295,7 +302,7 @@ const getStatus = async ({
 
   if (
     storedTokenNeedsRefresh(
-      user
+      owner
     )
   ) {
     try {
@@ -303,6 +310,8 @@ const getStatus = async ({
         await refreshStoredToken({
           base44,
           user,
+          guestRecord,
+          guestDeviceHash,
         });
 
       token =
@@ -331,6 +340,8 @@ const getStatus = async ({
         await refreshStoredToken({
           base44,
           user,
+          guestRecord,
+          guestDeviceHash,
         });
 
       if (
@@ -408,21 +419,6 @@ export default async function (
         req
       );
 
-    const user =
-      await base44.auth.me();
-
-    if (!user) {
-      return Response.json(
-        {
-          error:
-            "Unauthorized",
-        },
-        {
-          status: 401,
-        }
-      );
-    }
-
     let body = {};
 
     try {
@@ -430,6 +426,47 @@ export default async function (
         await req.json();
     } catch {
       body = {};
+    }
+
+    const user =
+      await base44.auth
+        .me()
+        .catch(
+          () => null
+        );
+
+    const guestContext =
+      user
+        ? {
+            deviceHash:
+              "",
+            record:
+              null,
+          }
+        : await loadGuestDebridCredential(
+            base44,
+            body?.guest_device_key
+          );
+
+    const guestRecord =
+      guestContext.record;
+
+    const guestDeviceHash =
+      guestContext.deviceHash;
+
+    if (
+      !user &&
+      !guestDeviceHash
+    ) {
+      return Response.json(
+        {
+          error:
+            "A Media God account or this device's Real-Debrid guest key is required.",
+        },
+        {
+          status: 401,
+        }
+      );
     }
 
     const action =
@@ -635,24 +672,40 @@ export default async function (
       await saveTokenSet({
         base44,
         user,
+        guestRecord,
+        guestDeviceHash,
         credentials,
         tokenData,
       });
 
       const freshUser =
-        await base44.auth
-          .me()
-          .catch(
-            () => user
-          );
+        user
+          ? await base44.auth
+              .me()
+              .catch(
+                () => user
+              )
+          : null;
+
+      const freshGuest =
+        user
+          ? guestRecord
+          : (
+              await loadGuestDebridCredential(
+                base44,
+                body?.guest_device_key
+              )
+            ).record;
 
       const status =
         await getStatus({
           base44,
-
           user:
             freshUser ||
             user,
+          guestRecord:
+            freshGuest,
+          guestDeviceHash,
         });
 
       return Response.json({
@@ -674,6 +727,8 @@ export default async function (
         await refreshStoredToken({
           base44,
           user,
+          guestRecord,
+          guestDeviceHash,
         });
 
       if (
@@ -691,19 +746,33 @@ export default async function (
       }
 
       const freshUser =
-        await base44.auth
-          .me()
-          .catch(
-            () => user
-          );
+        user
+          ? await base44.auth
+              .me()
+              .catch(
+                () => user
+              )
+          : null;
+
+      const freshGuest =
+        user
+          ? guestRecord
+          : (
+              await loadGuestDebridCredential(
+                base44,
+                body?.guest_device_key
+              )
+            ).record;
 
       return Response.json(
         await getStatus({
           base44,
-
           user:
             freshUser ||
             user,
+          guestRecord:
+            freshGuest,
+          guestDeviceHash,
         })
       );
     }
@@ -717,9 +786,14 @@ export default async function (
       action ===
       "disconnect"
     ) {
+      const owner =
+        user ||
+        guestRecord ||
+        {};
+
       const token =
         clean(
-          user?.rd_token
+          owner?.rd_token
         );
 
       if (token) {
@@ -742,10 +816,12 @@ export default async function (
         }
       }
 
-      await updateCurrentUser(
+      await updateCredentialOwner({
         base44,
         user,
-        {
+        guestRecord,
+        guestDeviceHash,
+        patch: {
           rd_token: "",
 
           rd_refresh_token:
@@ -761,8 +837,8 @@ export default async function (
 
           rd_connected_at:
             "",
-        }
-      );
+        },
+      });
 
       return Response.json({
         connected: false,
@@ -783,6 +859,8 @@ export default async function (
         await getStatus({
           base44,
           user,
+          guestRecord,
+          guestDeviceHash,
         })
       );
     }
