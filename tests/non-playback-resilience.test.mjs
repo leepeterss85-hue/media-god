@@ -144,6 +144,49 @@ test("related movie and TV cards use exact TMDB recommendation links and open de
   assert.match(home, /Because You Watched \$\{recommendationSeed\.title\}/);
 });
 
+test("Real-Debrid 8-digit device linking is visible in Addons and Settings", () => {
+  const addons = readFileSync(
+    new URL("../src/components/mg/AddonsView.jsx", import.meta.url),
+    "utf8"
+  );
+  const settings = readFileSync(
+    new URL("../src/components/mg/SettingsView.jsx", import.meta.url),
+    "utf8"
+  );
+  const settingsTools = readFileSync(
+    new URL("../src/components/mg/SettingsTools.jsx", import.meta.url),
+    "utf8"
+  );
+  const connector = readFileSync(
+    new URL("../src/components/mg/RealDebridDeviceConnect.jsx", import.meta.url),
+    "utf8"
+  );
+  const backend = readFileSync(
+    new URL("../base44/functions/realDebridAuth/entry.ts", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(addons, /<RealDebridDeviceConnect compact \/>/);
+  assert.match(settingsTools, /id: "real-debrid"/);
+  assert.match(settingsTools, /Link Real-Debrid with the 8-digit device code/);
+  assert.match(settingsTools, /mg-real-debrid-device-login/);
+  assert.match(settings, /id="mg-real-debrid-device-login"/);
+  assert.match(settings, /Get 8-digit Real-Debrid code/);
+
+  assert.match(connector, /Real-Debrid 8-digit device login/);
+  assert.match(connector, /action:\s*"start_device"/);
+  assert.match(connector, /action:\s*"poll_device"/);
+  assert.match(connector, /deviceFlow\.user_code/);
+  assert.match(connector, /https:\/\/real-debrid\.com\/device/);
+  assert.match(connector, /Media God checks automatically/);
+  assert.match(connector, /Sign in to connect Real-Debrid/);
+
+  assert.match(backend, /action ===\s*"start_device"/);
+  assert.match(backend, /action ===\s*"poll_device"/);
+  assert.match(backend, /user_code:/);
+  assert.match(backend, /rd_token:/);
+});
+
 test("UX preferences normalise unknown values and preserve every known Home row", () => {
   const value = normaliseUxPreferences({
     textScale: "huge",
