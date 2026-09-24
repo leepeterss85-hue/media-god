@@ -19,6 +19,7 @@ import {
 
 import { base44 } from "@/api/base44Client";
 import EpisodeSelector from "@/components/mg/EpisodeSelector";
+import MediaReviews from "@/components/mg/MediaReviews";
 import { detectStreamingRegion } from "@/components/mg/streamingRegion";
 import {
   usePlayer,
@@ -1536,6 +1537,14 @@ export default function DetailModal({
               {overview}
             </p>
           </div>
+
+          {resolvedMediaType === "movie" && (
+            <MediaReviews
+              tmdbId={itemId}
+              mediaType="movie"
+              title={displayTitle}
+            />
+          )}
 
           {resolvedMediaType ===
             "tv" &&
