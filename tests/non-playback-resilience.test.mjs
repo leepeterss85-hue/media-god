@@ -60,6 +60,49 @@ test("remembered guest mode can skip account creation without weakening account-
   assert.match(xtreamSource, /base44\.auth\.me\(\)/);
 });
 
+test("movie and episode reviews use a public 1-to-6 star auto-publish model", () => {
+  const schema = readFileSync(
+    new URL("../base44/entities/MediaReview.jsonc", import.meta.url),
+    "utf8"
+  );
+  const reviews = readFileSync(
+    new URL("../src/components/mg/MediaReviews.jsx", import.meta.url),
+    "utf8"
+  );
+  const details = readFileSync(
+    new URL("../src/components/mg/DetailModal.jsx", import.meta.url),
+    "utf8"
+  );
+  const episodes = readFileSync(
+    new URL("../src/components/mg/EpisodeSelector.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(schema, /"read"\s*:\s*\{\s*\}/);
+  assert.match(schema, /"enum"\s*:\s*\[\s*1\s*,\s*2\s*,\s*3\s*,\s*4\s*,\s*5\s*,\s*6\s*\]/);
+  for (const operation of ["create", "update", "delete"]) {
+    assert.match(
+      schema,
+      new RegExp(
+        `"${operation}"\\s*:\\s*\\{[\\s\\S]*?"created_by_id"\\s*:\\s*"\\{\\{user\\.id\\}\\}"`
+      )
+    );
+  }
+
+  assert.match(reviews, /STAR_VALUES = \[1, 2, 3, 4, 5, 6\]/);
+  assert.match(reviews, /MAX_REVIEW_LENGTH = 1500/);
+  assert.match(reviews, /published:\s*true/);
+  assert.match(reviews, /Reviews publish immediately\./);
+  assert.match(reviews, /displayNameFor\(user\)/);
+  assert.doesNotMatch(
+    reviews,
+    /user\?\.email\s*\|\|\s*"Media God user"/
+  );
+  assert.match(details, /<MediaReviews[\s\S]{0,180}?mediaType="movie"/);
+  assert.match(episodes, /<MediaReviews[\s\S]{0,260}?mediaType="episode"/);
+  assert.match(episodes, />\s*Review\s*<\/button>/);
+});
+
 test("UX preferences normalise unknown values and preserve every known Home row", () => {
   const value = normaliseUxPreferences({
     textScale: "huge",
