@@ -569,11 +569,11 @@ const friendlyPlaybackError = (value) => {
   }
 
   if (/\b451\b|infringing[_ -]?file|copyright|infringing/i.test(message)) {
-    return "This torrent was rejected by Real-Debrid — trying another source.";
+    return "Real-Debrid rejected this torrent. Choose another release.";
   }
 
   if (/\b502\b|bad gateway|temporarily unavailable/i.test(message)) {
-    return "The source service is temporarily unavailable — trying another source.";
+    return "The source service is temporarily unavailable. Try again later or choose another source.";
   }
 
   if (/no other playable source/i.test(message)) {
@@ -4264,27 +4264,27 @@ export default function VideoPlayer({
           allowCaching: false,
         });
 
-        if (nextReadySource !== -1) {
-          setRdPreparation(null);
-          setRdError("");
+        if (
+          nextReadySource !== -1 &&
           switchToSource(nextReadySource, {
             preservePosition: true,
             statusMessage:
               `${result.message || "This uncached torrent could not be prepared."} Trying an already-playable backup…`,
-          });
+          })
+        ) {
           return;
         }
 
         if (!preserveUncachedSource) {
           const nextSource = findNextPlayableSource(activeIdx);
-          if (nextSource !== -1) {
-            setRdPreparation(null);
-            setRdError("");
+          if (
+            nextSource !== -1 &&
             switchToSource(nextSource, {
               preservePosition: true,
               statusMessage:
                 `${result.message || "This uncached torrent could not be prepared."} Trying a different torrent…`,
-            });
+            })
+          ) {
             return;
           }
         }
