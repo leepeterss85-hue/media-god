@@ -10,9 +10,36 @@ import { mediaGodAuthReturnUrl } from '@/lib/mediaGodAuth';
 
 const AuthContext = createContext();
 
+const GUEST_MODE_KEY = 'mg_guest_mode';
+
+const readGuestMode = () => {
+  if (typeof window === 'undefined') return false;
+
+  try {
+    return window.localStorage.getItem(GUEST_MODE_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
+
+const writeGuestMode = (enabled) => {
+  if (typeof window === 'undefined') return;
+
+  try {
+    if (enabled) {
+      window.localStorage.setItem(GUEST_MODE_KEY, '1');
+    } else {
+      window.localStorage.removeItem(GUEST_MODE_KEY);
+    }
+  } catch {
+    // Storage may be unavailable in private/restricted browser modes.
+  }
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isGuest, setIsGuest] = useState(() => readGuestMode());
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(true);
   const [authError, setAuthError] = useState(null);
@@ -31,6 +58,8 @@ export const AuthProvider = ({ children }) => {
 
       setUser(currentUser);
       setIsAuthenticated(true);
+      setIsGuest(false);
+      writeGuestMode(false);
       setAuthError(null);
       setAuthChecked(true);
 
@@ -141,9 +170,21 @@ export const AuthProvider = ({ children }) => {
     return installAccountPreferenceSync();
   }, [isAuthenticated]);
 
+  const continueAsGuest = () => {
+    setUser(null);
+    setIsAuthenticated(false);
+    setIsGuest(true);
+    setAuthError(null);
+    setAuthChecked(true);
+    setIsLoadingAuth(false);
+    writeGuestMode(true);
+  };
+
   const logout = (shouldRedirect = true) => {
     setUser(null);
     setIsAuthenticated(false);
+    setIsGuest(false);
+    writeGuestMode(false);
 
     if (shouldRedirect) {
       base44.auth.logout(mediaGodAuthReturnUrl('/login'));
@@ -162,12 +203,14 @@ export const AuthProvider = ({ children }) => {
     <AuthContext.Provider value={{
       user,
       isAuthenticated,
+      isGuest,
       isLoadingAuth,
       isLoadingPublicSettings,
       authError,
       appPublicSettings,
       authChecked,
       logout,
+      continueAsGuest,
       navigateToLogin,
       checkUserAuth,
       checkAppState,
