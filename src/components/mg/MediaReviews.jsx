@@ -32,8 +32,11 @@ const safeRating = (value) => {
 
   return Number.isInteger(number) &&
     number >= 1 &&
-    number <= 5
-    ? number
+    number <= 6
+    ? Math.min(
+        5,
+        number
+      )
     : 0;
 };
 
