@@ -18,7 +18,7 @@ import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
 
-const STAR_VALUES = [1, 2, 3, 4, 5, 6];
+const STAR_VALUES = [1, 2, 3, 4, 5];
 const MAX_REVIEW_LENGTH = 1500;
 
 const clean = (value) =>
@@ -32,7 +32,7 @@ const safeRating = (value) => {
 
   return Number.isInteger(number) &&
     number >= 1 &&
-    number <= 6
+    number <= 5
     ? number
     : 0;
 };
@@ -268,7 +268,7 @@ export default function MediaReviews({
 
     if (!rating) {
       toast({
-        title: "Choose 1 to 6 stars",
+        title: "Choose 1 to 5 stars",
         description:
           "Select a star rating before publishing your review.",
         variant: "destructive",
@@ -404,7 +404,7 @@ export default function MediaReviews({
 
           <p className="mt-1 text-xs 3xl:text-sm text-white/45">
             {reviews.length > 0
-              ? `${averageRating.toFixed(1)}/6 · ${reviews.length} ${reviews.length === 1 ? "review" : "reviews"}`
+              ? `${averageRating.toFixed(1)}/5 · ${reviews.length} ${reviews.length === 1 ? "review" : "reviews"}`
               : "No reviews yet"}
           </p>
         </div>
@@ -426,7 +426,7 @@ export default function MediaReviews({
             <div
               className="mt-2 flex flex-wrap gap-1"
               role="group"
-              aria-label="Choose a rating from 1 to 6 stars"
+              aria-label="Choose a rating from 1 to 5 stars"
             >
               {STAR_VALUES.map(
                 (value) => (
@@ -530,7 +530,7 @@ export default function MediaReviews({
         ) : (
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs leading-5 text-white/50">
-              Sign in to give this a 1–6 star rating and publish a written review.
+              Sign in to give this a 1–5 star rating and publish a written review.
             </p>
 
             <button
@@ -588,7 +588,7 @@ export default function MediaReviews({
 
                 <div
                   className="flex items-center gap-0.5"
-                  aria-label={`${stars} out of 6 stars`}
+                  aria-label={`${stars} out of 5 stars`}
                 >
                   {STAR_VALUES.map(
                     (value) => (
