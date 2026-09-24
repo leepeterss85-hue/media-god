@@ -80,7 +80,6 @@ import {
 } from "@/components/mg/sourceSelectorPreferences";
 import { mergeCompleteSourcePool } from "@/components/mg/sourcePoolCompleteness";
 import { runRealDebridCacheSession } from "@/components/mg/realDebridCacheEngine";
-import { buildAlternateEmbedFallback } from "@/components/mg/alternateEmbedFallback";
 import {
   detectMediaEdition,
   sourceHasEdition,
@@ -981,9 +980,6 @@ export default function VideoPlayer({
   const [nativeFallbackUrl, setNativeFallbackUrl] =
     useState("");
 
-  const [alternateEmbedFallback, setAlternateEmbedFallback] =
-    useState(null);
-
   const [forceNativePlayback, setForceNativePlayback] =
     useState(false);
 
@@ -1003,10 +999,6 @@ export default function VideoPlayer({
    */
   const failedTorrentHashesRef =
     useRef(readPersistentFailedTorrentHashes());
-
-  useEffect(() => {
-    setAlternateEmbedFallback(null);
-  }, [activeIdx, source?.playRequestId]);
 
   useEffect(() => {
     setAudioUnlockUrl("");
@@ -3033,7 +3025,7 @@ export default function VideoPlayer({
     "provider";
 
   useEffect(() => {
-    if (!isProvider || !isFireTvRemoteRuntime()) {
+    if (!isLive || !isProvider || !isFireTvRemoteRuntime()) {
       return undefined;
     }
 
@@ -3086,7 +3078,7 @@ export default function VideoPlayer({
         delete root.dataset.mgControlsVisible;
       }
     };
-  }, [isProvider, activeUrl]);
+  }, [isLive, isProvider, activeUrl]);
 
   const activeType = String(active?.type || "").trim().toLowerCase();
   const activeMediaHint = [
@@ -4209,17 +4201,10 @@ export default function VideoPlayer({
         setRdTorrentId(null);
 
         /*
-         * EV/SX Movies keeps an IMDb iframe fallback ready instead of forcing
-         * the viewer through one uncached source after another. Mirror that
-         * behaviour here after the cache engine reaches a terminal result:
-         * first prefer a source that is already playable/cached, then use the
-         * alternate IMDb player, and only try another uncached torrent when no
-         * instant fallback exists for this title.
-         *
-         * Active-slot exhaustion is different: it is an account-wide RD state,
-         * not evidence that this source/hash is bad. Preserve the current source
-         * so Retry works after a slot becomes available, and never churn through
-         * every other uncached hash for the same account-wide failure.
+         * A failed cache job must stay in the media-source pool. Embedded web
+         * pages can show adverts or APK prompts instead of a playable video.
+         * Active-slot exhaustion is account-wide, so keep the selected source
+         * available for Retry rather than cycling through other torrents.
          */
         const preserveUncachedSource =
           result.accountBlocked === true ||
@@ -4270,18 +4255,6 @@ export default function VideoPlayer({
           return;
         }
 
-        const alternate = buildAlternateEmbedFallback(source, {
-          resumeAt: recoveryResumeRef.current,
-        });
-
-        if (alternate?.url) {
-          setRdPreparation(null);
-          setRdError("");
-          setAlternateEmbedFallback(alternate);
-          setForceNativePlayback(false);
-          return;
-        }
-
         if (!preserveUncachedSource) {
           const nextSource = findNextPlayableSource(activeIdx);
           if (nextSource !== -1) {
@@ -4290,7 +4263,7 @@ export default function VideoPlayer({
             switchToSource(nextSource, {
               preservePosition: true,
               statusMessage:
-                `${result.message || "This uncached torrent could not be prepared."} No instant backup was available, so Media God is trying a different torrent…`,
+                `${result.message || "This uncached torrent could not be prepared."} Trying a different torrent…`,
             });
             return;
           }
@@ -7339,7 +7312,6 @@ export default function VideoPlayer({
       }
 
       const url =
-        alternateEmbedFallback?.url ||
         rdOverride?.src ||
         active?.src ||
         active?.url;
@@ -7405,11 +7377,7 @@ export default function VideoPlayer({
           "",
 
         source_type:
-          alternateEmbedFallback?.url
-            ? "provider"
-            : rdOverride
-              ? "rd"
-              : "file",
+          rdOverride ? "rd" : "file",
       };
 
       const id =
@@ -7482,31 +7450,6 @@ export default function VideoPlayer({
 
   saveProgressRef.current =
     saveProgress;
-
-  useEffect(() => {
-    if (!alternateEmbedFallback?.url) return undefined;
-
-    const onAlternatePlayerEvent = (event) => {
-      if (event?.origin !== "https://vaplayer.ru") return;
-      if (event?.data?.type !== "PLAYER_EVENT") return;
-
-      const payload = event?.data?.data || {};
-      const time = Math.max(0, Number(payload?.player_progress || 0));
-      const duration = Math.max(0, Number(payload?.player_duration || 0));
-
-      if (time > 0) {
-        lastPosRef.current = { t: time, d: duration };
-        saveProgressRef.current?.(
-          time,
-          duration,
-          payload?.player_status === "completed"
-        );
-      }
-    };
-
-    window.addEventListener("message", onAlternatePlayerEvent);
-    return () => window.removeEventListener("message", onAlternatePlayerEvent);
-  }, [alternateEmbedFallback?.url]);
 
   useEffect(
     () => {
@@ -8812,7 +8755,6 @@ export default function VideoPlayer({
    * URL in WebView again.
    */
   const useNativePlayback =
-    !alternateEmbedFallback?.url &&
     nativePlaybackAvailable &&
     (
       isLive ||
@@ -8822,7 +8764,6 @@ export default function VideoPlayer({
     );
 
   const fireTvNativeSelectorMode =
-    !alternateEmbedFallback?.url &&
     nativeFireTvPlayer &&
     !isLive &&
     !forceNativePlayback &&
@@ -10623,16 +10564,6 @@ export default function VideoPlayer({
                 </button>
               )}
             </div>
-          ) : alternateEmbedFallback?.url ? (
-            <iframe
-              data-mg-alternate-embed-fallback="true"
-              src={alternateEmbedFallback.url}
-              title={`${source?.title || "Video"} alternate stream`}
-              className="w-full h-full bg-black"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-              allowFullScreen
-              referrerPolicy="strict-origin-when-cross-origin"
-            />
           ) : fireTvNativeSelectorMode ? (
             <div
               data-mg-native-fire-tv-selector="true"
@@ -10777,6 +10708,15 @@ export default function VideoPlayer({
                 }
               />
             </>
+          ) : !isLive && (isYoutube || isProvider || active?.type === "external") ? (
+            <div className="flex max-w-lg flex-col items-center gap-3 p-6 text-center">
+              <p className="text-sm font-semibold text-white/85 sm:text-base">
+                This link opens a website instead of a video
+              </p>
+              <p className="max-w-md text-xs leading-relaxed text-white/50 sm:text-sm">
+                Choose another movie or episode source above to keep playback in Media God.
+              </p>
+            </div>
           ) : isYoutube ? (
             <iframe
               src={
