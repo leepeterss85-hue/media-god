@@ -49,6 +49,11 @@ import {
   sourceMatchesRequestedIdentity,
 } from "@/components/mg/sourceIdentity";
 import { sourceIsAioStreamsCandidate } from "@/components/mg/sourceProviderIdentity";
+import {
+  canonicalImdbLookupFields,
+  sourceAddonFailure,
+  sourceLookupFailed,
+} from "@/components/mg/sourceDiscoveryFeedback";
 
 const PlayerContext = createContext(null);
 
@@ -1172,10 +1177,12 @@ const fetchServerAddonSources = async ({
       reason:
         data?.reason ||
         data?.error ||
-        "",
+        (sourceLookupFailed(data) && sourceAddonFailure(data?.diagnostics)
+          ? "A source addon refused or could not complete the search."
+          : ""),
 
       status:
-        data?.error
+        sourceLookupFailed(data)
           ? "FAILED"
           : "OK",
 
@@ -2750,6 +2757,7 @@ export function PlayerProvider({
 
         const imdbInfo = await resolveImdbInfo({
           ...request,
+          ...canonicalImdbLookupFields(request),
           tmdbId,
           mediaType,
         });
@@ -3280,6 +3288,8 @@ export function PlayerProvider({
             : await resolveImdbInfo(
                 {
                   ...request,
+
+                  ...canonicalImdbLookupFields(request),
 
                   tmdbId,
 
