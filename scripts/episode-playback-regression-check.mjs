@@ -74,12 +74,12 @@ expect(
 );
 
 expect(
-  videoPlayer.includes("hostedErrorProvider") &&
-    videoPlayer.includes("hostedNamedError") &&
+  !videoPlayer.includes("hostedErrorProvider") &&
+    !videoPlayer.includes("hostedNamedError") &&
     !videoPlayer.includes("hostedErrorDuration") &&
     !videoPlayer.includes("loadedDuration >= 115") &&
-    videoPlayer.includes("{ immediate: true }"),
-  "hosted-provider rows fail over only on explicit provider error markers, never duration metadata alone"
+    videoPlayer.includes("vodPlaybackIsAdvancing("),
+  "hosted-provider labels and duration cannot override real video progress"
 );
 
 expect(

@@ -265,9 +265,9 @@ expect(
   [mobilePlayer, firePlayer].every(
     (nativePlayer) =>
       nativePlayer.includes("strictEnglishStartupRequired(): Boolean = false") &&
-      nativePlayer.includes(
-        "Intentionally disabled. Audio recovery is manual-only"
-      ) &&
+      nativePlayer.includes("group.isTrackSelected(index) && group.isTrackSupported(index)") &&
+      nativePlayer.includes("activePlayer.currentPosition < 5000L") &&
+      nativePlayer.includes("launchCompatibilityPlayer(activePlayer, null, reason)") &&
       nativePlayer.includes("error.errorCode in 5001..5004") &&
       !nativePlayer.includes("onAudioPositionAdvancing(") &&
       !nativePlayer.includes("audioOutputConfirmed") &&
@@ -275,7 +275,7 @@ expect(
         "Media3 selected an audio track but no decoded audio output advanced."
       )
   ),
-  "Android mobile and Fire TV never launch automatic audio recovery"
+  "Android mobile and Fire TV only repair objectively missing audio on the same file"
 );
 
 expect(

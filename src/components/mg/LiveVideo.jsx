@@ -599,6 +599,8 @@ const srtToVtt = (text) => {
  *   onLoadedMetadata?: React.ReactEventHandler<HTMLVideoElement>,
  *   onTimeUpdate?: React.ReactEventHandler<HTMLVideoElement>,
  *   onError?: ((eventOrOptions?: any) => void),
+ *   onAutoplayBlocked?: (() => void),
+ *   allowMutedAutoplay?: boolean,
  *   onEnded?: React.ReactEventHandler<HTMLVideoElement>,
  *   controls?: boolean
  * }} LiveVideoProps
@@ -625,6 +627,8 @@ const LiveVideo = forwardRef(
       onLoadedMetadata,
       onTimeUpdate,
       onError,
+      onAutoplayBlocked,
+      allowMutedAutoplay = true,
       onEnded,
       controls = true,
     },
@@ -642,6 +646,8 @@ const LiveVideo = forwardRef(
      * recreate the decoder underneath a playing video.
      */
     const onErrorRef = useRef(onError);
+    const onAutoplayBlockedRef = useRef(onAutoplayBlocked);
+    const allowMutedAutoplayRef = useRef(allowMutedAutoplay);
     const sourceLabelRef = useRef(sourceLabel);
     const headersRef = useRef(headers);
     const drmRef = useRef(drm);
@@ -651,6 +657,8 @@ const LiveVideo = forwardRef(
     const externalSubtitleCountRef = useRef(0);
 
     onErrorRef.current = onError;
+    onAutoplayBlockedRef.current = onAutoplayBlocked;
+    allowMutedAutoplayRef.current = allowMutedAutoplay;
     sourceLabelRef.current = sourceLabel;
     headersRef.current = headers;
     drmRef.current = drm;
@@ -1339,7 +1347,20 @@ const LiveVideo = forwardRef(
               .mgAutoplayMuted;
 
             await video.play();
-          } catch {
+          } catch (error) {
+            if (cancelled || error?.name === "AbortError") return;
+
+            if (!allowMutedAutoplayRef.current) {
+              video.muted = false;
+              delete video.dataset.mgAutoplayMuted;
+              if (error?.name === "NotAllowedError") {
+                onAutoplayBlockedRef.current?.();
+              } else {
+                reportError(error);
+              }
+              return;
+            }
+
             /*
              * On Fire TV, do not "succeed" by silently starting muted.
              */

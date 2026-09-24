@@ -32,6 +32,7 @@ import {
   trackLanguage,
 } from "@/components/mg/mediaTrackPreferences";
 import { readPlaybackPreferences } from "@/components/mg/playbackPreferences";
+import { isAdvancingVodPlayback, updateVodProgress } from "@/components/mg/playbackHealth";
 import {
   hasRecentNoSoundHistory,
   playbackReliabilityAdjustment,
@@ -893,10 +894,13 @@ export default function VideoPlayer({
   const [rdPolling, setRdPolling] =
     useState(false);
 
-  const [rdError, setRdError] =
+  const [rdError, setRdErrorState] =
     useState("");
 
   const [vodStartupNotice, setVodStartupNotice] =
+    useState("");
+
+  const [audioUnlockUrl, setAudioUnlockUrl] =
     useState("");
 
   const [liveRecoveryNotice, setLiveRecoveryNotice] =
@@ -959,9 +963,14 @@ export default function VideoPlayer({
     setAlternateEmbedFallback(null);
   }, [activeIdx, source?.playRequestId]);
 
+  useEffect(() => {
+    setAudioUnlockUrl("");
+  }, [activeIdx, source?.playRequestId, rdOverride?.src]);
+
   const videoRef = useRef(null);
   const liveVideoRef = useRef(null);
   const stageRef = useRef(null);
+  const vodProgressRef = useRef({ video: null, time: 0, advancedAt: 0 });
   const pollRef = useRef(null);
   const recoveryResumeRef = useRef(0);
   const rdResolutionQueueRef = useRef(Promise.resolve());
@@ -2117,6 +2126,23 @@ export default function VideoPlayer({
     return true;
   };
 
+  const vodPlaybackIsAdvancing = (video) => {
+    return video instanceof HTMLVideoElement &&
+      isAdvancingVodPlayback(video, vodProgressRef.current);
+  };
+
+  const setRdError = (message) => {
+    if (
+      message &&
+      playbackMediaType !== "live" &&
+      vodPlaybackIsAdvancing(stageRef.current?.querySelector("video"))
+    ) {
+      return;
+    }
+
+    setRdErrorState(message);
+  };
+
   const confirmRecoveredSource = (video = null) => {
     const cancelledFailover = cancelPendingTorrentFailover();
     const sourceWasFailed = failedSourcesRef.current.has(activeIdx);
@@ -2459,6 +2485,8 @@ export default function VideoPlayer({
     setRdFiles([]);
     setForceNativePlayback(false);
     setNativeFallbackUrl("");
+    setAudioUnlockUrl("");
+    vodProgressRef.current = { video: null, time: 0, advancedAt: 0 };
     setActiveIdx(nextIndex);
 
     if (statusMessage) {
@@ -2607,6 +2635,15 @@ export default function VideoPlayer({
       source?.type === "live" || active?.live || active?.type === "live";
     const selectorPinned =
       sourceSelectorPinnedRef.current || rdFileSelectorPinnedRef.current;
+
+    /* A late provider or decoder error cannot overrule video advancing now,
+     * including a manually chosen source. Wait for a real stop. */
+    if (
+      !activeIsLive &&
+      vodPlaybackIsAdvancing(stageRef.current?.querySelector("video"))
+    ) {
+      return false;
+    }
 
     if (!activeIsLive && manualSourceLockActive()) {
       setRdResolving(false);
@@ -7165,14 +7202,14 @@ export default function VideoPlayer({
   useEffect(
     () => {
       const video =
-        rdOverride
+        rdOverride?.src
           ? videoRef.current
           : liveVideoRef.current ||
             videoRef.current;
 
       const url =
         rdOverride?.src ||
-        getSourceUrl(active);
+        activeUrl;
 
       if (
         !video ||
@@ -7182,7 +7219,7 @@ export default function VideoPlayer({
       }
 
       if (
-        !rdOverride &&
+        !rdOverride?.src &&
         active?.type !==
           "file" &&
         active?.type !==
@@ -7210,8 +7247,19 @@ export default function VideoPlayer({
       const startPlayback = () => {
         video
           .play()
+          .then(() => setAudioUnlockUrl((current) => current === url ? "" : current))
           .catch(
-            () => {
+            (error) => {
+              if (!isLive) {
+                if (
+                  error?.name === "NotAllowedError" &&
+                  video === stageRef.current?.querySelector("video")
+                ) {
+                  setAudioUnlockUrl(String(url));
+                }
+                return;
+              }
+
               video.muted =
                 true;
 
@@ -7246,8 +7294,10 @@ export default function VideoPlayer({
       }
     },
     [
-      active,
-      rdOverride,
+      active?.type,
+      activeUrl,
+      rdOverride?.src,
+      isLive,
     ]
   );
 
@@ -7484,68 +7534,9 @@ export default function VideoPlayer({
       const video =
         event.target;
 
-      /*
-       * Some hosted Stremio providers can label an explicit provider-side
-       * failure as a normal media row. Only reject those rows when the source
-       * metadata itself contains a recognised provider error marker. Never use
-       * reported duration as proof of failure: healthy progressive/HLS streams
-       * can temporarily expose short, sliding or otherwise inaccurate duration
-       * metadata while playback is already advancing normally.
-       */
-      const activeSourceText = [
-        active?.addon,
-        active?.sourceName,
-        active?.provider,
-        active?.label,
-        active?.name,
-        active?.title,
-        getSourceUrl(active),
-      ]
-        .filter(Boolean)
-        .join(" ");
-
-      const hostedErrorProvider =
-        /\bcomet\b|\baiostreams?\b|\belf\s*hosted\b|aiostreams\.elfhosted\.com|comet\.elfhosted\.com/i.test(
-          activeSourceText
-        );
-
-      const hostedNamedError =
-        /\b(?:public\s+)?rate[-\s]?limit(?:ed)?\s+exceeded\b|couldn['’]?t\s+start\s+this\s+stream|could\s+not\s+start\s+this\s+stream|couldn['’]?t\s+fetch\s+this\s+release|could\s+not\s+fetch\s+this\s+release|debrid\s+service\s+wasn['’]?t\s+able\s+to\s+download|dead\s+or\s+have\s+no\s+seeders|not\s+cached[^\n]{0,80}(?:debrid|server|yet|wait)|\bwrong\s+ip\b|infringing[_\s-]?file|\bcopyright\b/i.test(
-          activeSourceText
-        );
-
-      const hostedErrorVideo =
-        hostedErrorProvider &&
-        hostedNamedError;
-
-      if (hostedErrorVideo) {
-        try {
-          video.pause?.();
-          video.currentTime = 0;
-        } catch {
-          // The source is already being abandoned; failover remains safe.
-        }
-
-        recoveryResumeRef.current = 0;
-        lastPosRef.current = { t: 0, d: 0 };
-
-        recordPlaybackReliability(
-          sourceDisplayLabel(active, activeIdx),
-          "failure"
-        );
-
-        const providerName =
-          /\baiostreams?\b|\belf\s*hosted\b/i.test(activeSourceText)
-            ? "AIOStreams / ElfHosted"
-            : "Comet";
-
-        tryNextSource(
-          `${providerName} returned an error clip instead of the requested release.`,
-          { immediate: true }
-        );
-
-        return;
-      }
+      /* A media element that loaded real metadata must not be discarded because
+       * its provider or file label happens to contain error-like words. Only
+       * an actual playback error or stopped progress can reject this URL. */
 
       const recoveryTime = Number(
         recoveryResumeRef.current || 0
@@ -7590,6 +7581,12 @@ export default function VideoPlayer({
         video.currentTime || 0
       );
 
+      vodProgressRef.current = updateVodProgress(
+        vodProgressRef.current,
+        video,
+        currentTime
+      );
+
       /*
        * Real playback progress is stronger evidence than an old timeout/error
        * from the source we just replaced. If a rescued stream is advancing,
@@ -7602,6 +7599,9 @@ export default function VideoPlayer({
 
       if (currentTime > 0.25) {
         setVodStartupNotice("");
+        if (!video.muted) {
+          setAudioUnlockUrl("");
+        }
       }
 
       lastPosRef.current =
@@ -7825,6 +7825,12 @@ export default function VideoPlayer({
     state.lastProgressAt = Date.now();
 
     const recover = (video) => {
+      if (vodPlaybackIsAdvancing(video)) {
+        state.lastTime = Number(video.currentTime || 0);
+        state.lastProgressAt = Date.now();
+        return false;
+      }
+
       const preferences = readPlaybackPreferences();
 
       if (!preferences.autoRecovery) {
@@ -8640,6 +8646,10 @@ export default function VideoPlayer({
     };
 
   const handleRdPlaybackError = () => {
+    if (vodPlaybackIsAdvancing(stageRef.current?.querySelector("video"))) {
+      return;
+    }
+
     const fallback = String(rdOverride?.fallbackSrc || "").trim();
 
     if (
@@ -8688,6 +8698,13 @@ export default function VideoPlayer({
   };
 
   const handleDirectPlaybackError = (eventOrOptions = null) => {
+    if (
+      !isLive &&
+      vodPlaybackIsAdvancing(stageRef.current?.querySelector("video"))
+    ) {
+      return;
+    }
+
     const reportedLiveErrorMessage =
       eventOrOptions instanceof Error
         ? String(eventOrOptions.message || "")
@@ -10345,6 +10362,11 @@ export default function VideoPlayer({
                   ? "Live"
                   : "Loading";
 
+  const audioUnlockRequired =
+    !isLive &&
+    Boolean(audioUnlockUrl) &&
+    audioUnlockUrl === String(rdOverride?.src || activeUrl || "");
+
   return (
     <div
       data-mg-player-root="true"
@@ -10630,6 +10652,8 @@ export default function VideoPlayer({
                   "Real-Debrid Stream"
                 }
                 isLive={isLive}
+                allowMutedAutoplay={isLive}
+                onAutoplayBlocked={() => setAudioUnlockUrl(String(rdOverride?.src || activeUrl))}
                 headers={
                   rdOverride?.headers ||
                   active?.headers ||
@@ -10760,6 +10784,8 @@ export default function VideoPlayer({
                   "Direct Stream"
                 }
                 isLive={isLive}
+                allowMutedAutoplay={isLive}
+                onAutoplayBlocked={() => setAudioUnlockUrl(String(activeUrl))}
                 headers={active?.headers || active?.requestHeaders || {}}
                 drm={active?.drm || null}
                 poster={
@@ -10872,6 +10898,34 @@ export default function VideoPlayer({
               {liveRecoveryNotice.message}
             </div>
           )}
+
+          {audioUnlockRequired && !busy && !displayedError &&
+            (rdOverride || isDirectFile) && (
+              <div
+                data-mg-audio-unlock="true"
+                className="absolute inset-0 z-50 flex items-center justify-center bg-black/65 p-4 text-center"
+              >
+                <div className="rounded-xl border border-white/20 bg-black/85 p-4 text-white shadow-xl">
+                  <p className="mb-3 text-sm">Your browser needs a tap to play this video with sound.</p>
+                  <button
+                    type="button"
+                    className="min-h-11 rounded-lg bg-mg-green px-4 font-semibold text-black"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      const video = stageRef.current?.querySelector("video");
+                      if (!(video instanceof HTMLVideoElement)) return;
+                      video.muted = false;
+                      video.volume = 1;
+                      delete video.dataset.mgAutoplayMuted;
+                      video.play().then(() => setAudioUnlockUrl("")).catch(() => {});
+                    }}
+                  >
+                    Play with sound
+                  </button>
+                </div>
+              </div>
+            )}
 
           {isAppFullscreen &&
             !rdOverride &&
