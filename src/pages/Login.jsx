@@ -9,6 +9,7 @@ import AuthLayout from "@/components/AuthLayout";
 import { SOCIAL_LOGIN_PROVIDERS } from "@/components/mg/SocialLoginSection";
 import { safeReturnTo } from "@/lib/authReturnTo";
 import { mediaGodAuthReturnUrl } from "@/lib/mediaGodAuth";
+import { useAuth } from "@/lib/AuthContext";
 
 const FIRE_TV_RE = /(?:AFT[A-Z0-9]*|Fire TV|AmazonWebAppPlatform|Silk)/i;
 
@@ -32,6 +33,7 @@ const isSelectKey = (event) => {
 };
 
 export default function Login() {
+  const { continueAsGuest } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -92,6 +94,11 @@ export default function Login() {
       setSocialLoading(null);
       setError(err?.message || `Could not start ${provider} sign-in`);
     }
+  };
+
+  const handleSkip = () => {
+    continueAsGuest();
+    window.location.replace("/");
   };
 
   const handleGoogleRemoteKey = (event) => {
@@ -207,6 +214,20 @@ export default function Login() {
           )}
         </Button>
       </form>
+
+      <div className="mt-4 border-t border-border pt-4">
+        <Button
+          type="button"
+          variant="ghost"
+          className="w-full h-11 font-medium"
+          onClick={handleSkip}
+        >
+          Skip for now
+        </Button>
+        <p className="mt-1 text-center text-xs text-muted-foreground">
+          We'll remember this on this device. You can sign in later from Settings.
+        </p>
+      </div>
     </AuthLayout>
   );
 }
