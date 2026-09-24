@@ -451,6 +451,7 @@ export default function FavoritesView() {
           item={selected}
           mediaType="tv"
           onClose={() => setSelected(null)}
+          onSelectRelated={(nextItem) => setSelected(nextItem)}
         />
       )}
     </div>
