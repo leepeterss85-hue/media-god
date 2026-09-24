@@ -163,6 +163,12 @@ export default function RealDebridDeviceConnect({
               "mg:real-debrid-connected"
             )
           );
+
+          window.dispatchEvent(
+            new CustomEvent(
+              "mg:debrid-providers-changed"
+            )
+          );
         }
       },
       [
@@ -460,6 +466,17 @@ export default function RealDebridDeviceConnect({
         setMessage(
           "Real-Debrid disconnected."
         );
+
+        if (
+          typeof window !==
+          "undefined"
+        ) {
+          window.dispatchEvent(
+            new CustomEvent(
+              "mg:debrid-providers-changed"
+            )
+          );
+        }
       } catch (disconnectError) {
         setError(
           errorText(
