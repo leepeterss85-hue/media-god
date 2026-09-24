@@ -990,7 +990,7 @@ test("player context is owned above the authenticated routes tree", () => {
   );
   assert.match(
     appSource,
-    /return isAuthenticated[\s\S]{0,120}<PlayerProvider>\{appRoutes\}<\/PlayerProvider>/
+    /return isAuthenticated \|\| isGuest[\s\S]{0,120}<PlayerProvider>\{appRoutes\}<\/PlayerProvider>/
   );
   assert.doesNotMatch(
     appSource,
