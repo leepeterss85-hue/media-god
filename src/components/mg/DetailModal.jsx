@@ -20,6 +20,7 @@ import {
 import { base44 } from "@/api/base44Client";
 import EpisodeSelector from "@/components/mg/EpisodeSelector";
 import MediaReviews from "@/components/mg/MediaReviews";
+import MediaRow from "@/components/mg/MediaRow";
 import { detectStreamingRegion } from "@/components/mg/streamingRegion";
 import {
   usePlayer,
@@ -526,6 +527,96 @@ const normaliseDetailPayload = (
           rawDetails.cast
       ),
 
+    related:
+      asArray(
+        payload.related
+      )
+        .map(
+          (relatedItem) => {
+            const relatedSource =
+              asObject(
+                relatedItem
+              );
+
+            const relatedType =
+              normaliseMediaType(
+                relatedSource.media_type ||
+                  relatedSource.mediaType,
+                relatedSource
+              );
+
+            const relatedDate =
+              firstText(
+                relatedSource.release_date,
+                relatedSource.first_air_date
+              );
+
+            const relatedId =
+              relatedSource.id ??
+              relatedSource.tmdb_id ??
+              relatedSource.tmdbId ??
+              null;
+
+            if (
+              relatedId == null ||
+              relatedId === ""
+            ) {
+              return null;
+            }
+
+            return {
+              ...relatedSource,
+              id:
+                relatedId,
+              tmdb_id:
+                relatedSource.tmdb_id ??
+                relatedId,
+              tmdbId:
+                relatedSource.tmdbId ??
+                relatedId,
+              title:
+                firstText(
+                  relatedSource.title,
+                  relatedSource.name,
+                  "Untitled"
+                ),
+              year:
+                firstText(
+                  relatedSource.year,
+                  /^\d{4}/.test(
+                    relatedDate
+                  )
+                    ? relatedDate.slice(
+                        0,
+                        4
+                      )
+                    : ""
+                ),
+              poster_url:
+                imageUrl(
+                  firstText(
+                    relatedSource.poster_url,
+                    relatedSource.posterUrl,
+                    relatedSource.poster_path
+                  ),
+                  "https://image.tmdb.org/t/p/w500"
+                ),
+              description:
+                firstText(
+                  relatedSource.description,
+                  relatedSource.overview
+                ),
+              media_type:
+                relatedType,
+              mediaType:
+                relatedType,
+            };
+          }
+        )
+        .filter(
+          Boolean
+        ),
+
     details,
   };
 };
@@ -563,6 +654,7 @@ export default function DetailModal({
   item,
   mediaType,
   onClose,
+  onSelectRelated,
 }) {
   const safeItem = useMemo(() => {
     const source =
@@ -829,6 +921,11 @@ export default function DetailModal({
   const cast =
     asArray(
       data?.cast
+    );
+
+  const related =
+    asArray(
+      data?.related
     );
 
   const details =
@@ -1582,6 +1679,31 @@ export default function DetailModal({
               0 && (
               <div className="mt-5 3xl:mt-8 rounded-lg border border-white/10 bg-mg-card p-4 3xl:p-5 text-sm 3xl:text-base text-white/45">
                 Season information is not available for this title yet.
+              </div>
+            )}
+
+          {!loading &&
+            related.length >
+              0 && (
+              <div
+                className="mt-5 3xl:mt-8"
+                data-mg-related-titles="true"
+              >
+                <MediaRow
+                  embedded
+                  title={
+                    resolvedMediaType ===
+                    "tv"
+                      ? `Related to ${displayTitle}`
+                      : `Related to ${displayTitle}`
+                  }
+                  items={
+                    related
+                  }
+                  onOpen={
+                    onSelectRelated
+                  }
+                />
               </div>
             )}
 
