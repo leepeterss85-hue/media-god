@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 54,
-  "versionName": "1.0.53",
+  "versionCode": 55,
+  "versionName": "1.0.54",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.53 keeps working streams playing and moves on when both decoders confirm missing audio.",
+  "message": "Media God Mobile 1.0.54 includes the movie and episode audio reliability improvements and restores updates for installations on code 54.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
