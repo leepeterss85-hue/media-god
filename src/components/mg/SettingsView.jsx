@@ -873,8 +873,19 @@ export default function SettingsView() {
             "Real-Debrid connected",
 
           description:
-            "This account is now saved to your Media God user.",
+            "The Real-Debrid connection is now saved for this Media God account or device.",
         });
+
+        if (
+          typeof window !==
+          "undefined"
+        ) {
+          window.dispatchEvent(
+            new CustomEvent(
+              "mg:debrid-providers-changed"
+            )
+          );
+        }
       },
       [
         loadMe,
@@ -1152,8 +1163,19 @@ export default function SettingsView() {
             "Real-Debrid disconnected",
 
           description:
-            "The saved Real-Debrid connection was removed from this Media God user.",
+            "The saved Real-Debrid connection was removed from this Media God account or device.",
         });
+
+        if (
+          typeof window !==
+          "undefined"
+        ) {
+          window.dispatchEvent(
+            new CustomEvent(
+              "mg:debrid-providers-changed"
+            )
+          );
+        }
       } catch (
         error
       ) {
@@ -1374,7 +1396,7 @@ export default function SettingsView() {
         </div>
 
         <p className="text-xs 3xl:text-sm text-white/45 mb-4">
-          Connect your own Real-Debrid account with its 8-digit device-code login. Choose Connect Real-Debrid, enter the code at real-debrid.com/device, and Media God saves the approved connection to the currently signed-in app user without exposing a private API token.
+          Connect your own Real-Debrid account with its 8-digit device-code login. No Media God sign-in is required: enter the code at real-debrid.com/device and Media God remembers the approved connection for this device. If you are signed in, the connection is saved to your account instead.
         </p>
 
         {rdConnected && (
@@ -1586,7 +1608,7 @@ export default function SettingsView() {
             Using Media God without an account
           </p>
           <p className="mt-1 text-xs 3xl:text-sm text-white/40">
-            Your skip choice is remembered on this device. Sign in whenever you want account syncing and account-only features.
+            Your skip choice and any Real-Debrid connection can be remembered on this device. Sign in only if you want account syncing and other account-only features.
           </p>
           <button
             type="button"
