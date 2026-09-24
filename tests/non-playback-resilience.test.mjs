@@ -103,6 +103,47 @@ test("movie and episode reviews use a public 1-to-5 star auto-publish model", ()
   assert.match(episodes, />\s*Review\s*<\/button>/);
 });
 
+test("related movie and TV cards use exact TMDB recommendation links and open details", () => {
+  const backend = readFileSync(
+    new URL("../base44/functions/getTmdbMovies/entry.ts", import.meta.url),
+    "utf8"
+  );
+  const detail = readFileSync(
+    new URL("../src/components/mg/DetailModal.jsx", import.meta.url),
+    "utf8"
+  );
+  const row = readFileSync(
+    new URL("../src/components/mg/MediaRow.jsx", import.meta.url),
+    "utf8"
+  );
+  const card = readFileSync(
+    new URL("../src/components/mg/MediaCard.jsx", import.meta.url),
+    "utf8"
+  );
+  const home = readFileSync(
+    new URL("../src/components/mg/HomeDashboard.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(backend, /\/recommendations\?/);
+  assert.match(backend, /\/similar\?/);
+  assert.match(backend, /mapItem\([\s\S]{0,120}?mediaType/);
+  assert.match(backend, /related,[\s\S]{0,80}?\}\);/);
+
+  assert.match(detail, /data-mg-related-titles="true"/);
+  assert.match(detail, /Related to \$\{displayTitle\}/);
+  assert.match(detail, /<MediaRow[\s\S]{0,120}?embedded[\s\S]{0,120}?detailsOnly/);
+  assert.match(detail, /onOpen=\{[\s\S]{0,80}?onSelectRelated/);
+
+  assert.match(row, /detailsOnly=\{detailsOnly\}/);
+  assert.match(card, /detailsOnly \|\| isFireTvRuntime\(\) \|\| mediaType === "tv"/);
+
+  assert.match(home, /linkedRecommendations/);
+  assert.match(home, /payload\?\.related/);
+  assert.match(home, /\.\.\.linked,[\s\S]{0,120}?\.\.\.rankedFallback/);
+  assert.match(home, /Because You Watched \$\{recommendationSeed\.title\}/);
+});
+
 test("UX preferences normalise unknown values and preserve every known Home row", () => {
   const value = normaliseUxPreferences({
     textScale: "huge",
