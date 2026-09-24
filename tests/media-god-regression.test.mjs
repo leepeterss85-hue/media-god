@@ -490,6 +490,28 @@ test("retired Real-Debrid availability endpoint is not used for cache truth", ()
   );
 });
 
+test("VOD discovery keeps a credential-free fallback when user addon rows are unavailable", () => {
+  const serverSource = readFileSync(
+    new URL("../base44/functions/fetchAddonStreams/entry.ts", import.meta.url),
+    "utf8"
+  );
+  const browserSource = readFileSync(
+    new URL("../src/components/mg/addonBrowserFallback.js", import.meta.url),
+    "utf8"
+  );
+
+  for (const source of [serverSource, browserSource]) {
+    assert.match(source, /BUILTIN_PUBLIC_PLAYBACK_ADDONS/);
+    assert.match(source, /https:\/\/torrentio\.strem\.fun\/manifest\.json/);
+    assert.match(source, /withBuiltinPlaybackAddons\(addons\)/);
+  }
+
+  assert.match(
+    browserSource,
+    /catch \{[\s\S]{0,420}?addons\s*=\s*\[\];/
+  );
+});
+
 test("addon-confirmed cached RD sources keep every ready URL without a five-source ceiling", () => {
   const serverSource = readFileSync(
     new URL("../base44/functions/fetchAddonStreams/entry.ts", import.meta.url),
