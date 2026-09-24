@@ -2,7 +2,7 @@ import { createClientFromRequest } from "npm:@base44/sdk@0.8.44";
 import {
   loadGuestDebridCredential,
   saveGuestDebridCredential,
-} from "../_shared/guestDebrid.ts";
+} from "./guestDebrid.ts";
 
 const OAUTH_BASE = "https://api.real-debrid.com/oauth/v2";
 const API_BASE = "https://api.real-debrid.com/rest/1.0";
