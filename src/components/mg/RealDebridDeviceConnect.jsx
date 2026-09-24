@@ -216,12 +216,12 @@ export default function RealDebridDeviceConnect({
           const response =
             await base44.functions.invoke(
               "realDebridAuth",
-              {
+              withGuestDebridPayload({
                 action:
                   "poll_device",
                 device_code:
                   deviceCode,
-              }
+              })
             );
 
           const data =
@@ -270,8 +270,7 @@ export default function RealDebridDeviceConnect({
     clearTimer();
 
     if (
-      !deviceFlow?.device_code ||
-      !isAuthenticated
+      !deviceFlow?.device_code
     ) {
       return undefined;
     }
@@ -325,7 +324,6 @@ export default function RealDebridDeviceConnect({
   }, [
     clearTimer,
     deviceFlow,
-    isAuthenticated,
     pollDevice,
   ]);
 
@@ -339,11 +337,6 @@ export default function RealDebridDeviceConnect({
 
   const startConnect =
     async () => {
-      if (!isAuthenticated) {
-        navigateToLogin();
-        return;
-      }
-
       clearTimer();
       setStarting(true);
       setDeviceFlow(null);
@@ -355,10 +348,10 @@ export default function RealDebridDeviceConnect({
         const response =
           await base44.functions.invoke(
             "realDebridAuth",
-            {
+            withGuestDebridPayload({
               action:
                 "start_device",
-            }
+            })
           );
 
         const data =
@@ -434,7 +427,6 @@ export default function RealDebridDeviceConnect({
   const disconnect =
     async () => {
       if (
-        !isAuthenticated ||
         disconnecting
       ) {
         return;
@@ -449,10 +441,10 @@ export default function RealDebridDeviceConnect({
       try {
         await base44.functions.invoke(
           "realDebridAuth",
-          {
+          withGuestDebridPayload({
             action:
               "disconnect",
-          }
+          })
         );
 
         clearTimer();
@@ -499,7 +491,7 @@ export default function RealDebridDeviceConnect({
           </h2>
 
           <p className="mt-1 max-w-2xl text-xs leading-5 text-white/50 3xl:text-sm">
-            Link your own Real-Debrid account without pasting an API token. Get the code here, enter it at Real-Debrid, and Media God will save the approved connection to your signed-in Media God user.
+            Link your own Real-Debrid account without signing in to Media God or pasting an API token. Get the code here, enter it at Real-Debrid, and Media God remembers the approved connection for this device.
           </p>
         </div>
 
@@ -520,22 +512,7 @@ export default function RealDebridDeviceConnect({
         )}
       </div>
 
-      {!isAuthenticated ? (
-        <div className="mt-4 rounded-lg border border-amber-400/20 bg-amber-400/[0.06] p-3">
-          <p className="text-xs leading-5 text-amber-100/80">
-            Sign in to Media God first so the Real-Debrid link can be stored securely to your account.
-          </p>
-          <button
-            type="button"
-            onClick={
-              navigateToLogin
-            }
-            className="mt-3 min-h-11 rounded-lg bg-mg-green px-4 py-2 text-sm font-bold text-black hover:bg-mg-green-dim focus:outline-none focus:ring-2 focus:ring-white"
-          >
-            Sign in to connect Real-Debrid
-          </button>
-        </div>
-      ) : deviceFlow ? (
+      {deviceFlow ? (
         <div className="mt-4 rounded-xl border border-mg-green/30 bg-black/25 p-4">
           <p className="text-xs font-bold uppercase tracking-wide text-mg-green">
             Your 8-digit Real-Debrid code
