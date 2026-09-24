@@ -1,4 +1,5 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.44";
+import { loadGuestDebridCredential } from "./guestDebrid.ts";
 import {
   chooseRequestedTorrentFileForPlayback,
   chooseVideoFileForPlayback,
@@ -527,29 +528,6 @@ export default async function (req) {
     const base44 =
       createClientFromRequest(req);
 
-    const user =
-      await base44.auth.me();
-
-    if (!user) {
-      return Response.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
-    const token =
-      user.rd_token;
-
-    if (!token) {
-      return Response.json(
-        {
-          error:
-            "Real-Debrid token not set. Add it in Settings.",
-        },
-        { status: 400 }
-      );
-    }
-
     let body = {};
 
     try {
@@ -557,6 +535,87 @@ export default async function (req) {
     } catch {
       body = {};
     }
+
+    const user =
+      await base44.auth
+        .me()
+        .catch(() => null);
+
+    const guestContext =
+      user
+        ? { deviceHash: "", record: null }
+        : await loadGuestDebridCredential(
+            base44,
+            body?.guest_device_key
+          );
+
+    const guestRecord =
+      guestContext.record;
+
+    const guestDeviceHash =
+      guestContext.deviceHash;
+
+    if (
+      !user &&
+      !guestDeviceHash
+    ) {
+      return Response.json(
+        {
+          error:
+            "Real-Debrid is not connected on this device.",
+        },
+        { status: 401 }
+      );
+    }
+
+    const credentialOwner =
+      user ||
+      guestRecord ||
+      {};
+
+    const token =
+      credentialOwner.rd_token;
+
+    if (!token) {
+      return Response.json(
+        {
+          error:
+            "Real-Debrid token not set. Connect Real-Debrid in Settings or Addons.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const rdLinks =
+      user
+        ? rdLinks
+        : {
+            filter: async (query = {}) =>
+              await base44.asServiceRole.entities.GuestRdLink.filter({
+                ...query,
+                device_key_hash:
+                  guestDeviceHash,
+              }),
+            create: async (data = {}) =>
+              await base44.asServiceRole.entities.GuestRdLink.create({
+                ...data,
+                device_key_hash:
+                  guestDeviceHash,
+              }),
+            update: async (id, data = {}) =>
+              await base44.asServiceRole.entities.GuestRdLink.update(
+                id,
+                {
+                  ...data,
+                  device_key_hash:
+                    guestDeviceHash,
+                }
+              ),
+            delete: async (id) =>
+              await base44.asServiceRole.entities.GuestRdLink.delete(
+                id
+              ),
+          };
 
     const action =
       body.action || "status";
@@ -646,7 +705,7 @@ export default async function (req) {
       let cleared = 0;
 
       try {
-        const links = await base44.entities.RdLink.filter({});
+        const links = await rdLinks.filter({});
         const ownedById = new Map(
           (Array.isArray(links) ? links : [])
             .filter((link) => link?.torrent_id)
@@ -692,7 +751,7 @@ export default async function (req) {
               if (deleteRes.ok || deleteRes.status === 404) {
                 cleared += 1;
                 try {
-                  await base44.entities.RdLink.update(link.id, {
+                  await rdLinks.update(link.id, {
                     torrent_id: "",
                   });
                 } catch {
@@ -907,12 +966,12 @@ export default async function (req) {
       }
 
       try {
-        const links = await base44.entities.RdLink.filter({
+        const links = await rdLinks.filter({
           torrent_id: torrentId,
         });
         for (const link of Array.isArray(links) ? links : []) {
           if (link?.id) {
-            await base44.entities.RdLink.update(link.id, { torrent_id: "" });
+            await rdLinks.update(link.id, { torrent_id: "" });
           }
         }
       } catch {
@@ -1018,12 +1077,12 @@ export default async function (req) {
           }
 
           try {
-            const links = await base44.entities.RdLink.filter({
+            const links = await rdLinks.filter({
               torrent_id: freshTorrentId,
             });
             for (const link of Array.isArray(links) ? links : []) {
               if (link?.id) {
-                await base44.entities.RdLink.update(link.id, { torrent_id: "" });
+                await rdLinks.update(link.id, { torrent_id: "" });
               }
             }
           } catch {
@@ -1158,7 +1217,7 @@ export default async function (req) {
       let ownedLink = null;
 
       try {
-        const links = await base44.entities.RdLink.filter({
+        const links = await rdLinks.filter({
           torrent_id: String(match.id),
         });
 
@@ -1229,7 +1288,7 @@ export default async function (req) {
 
       if (ownedLink?.id) {
         try {
-          await base44.entities.RdLink.update(
+          await rdLinks.update(
             ownedLink.id,
             { torrent_id: "" }
           );
@@ -1349,7 +1408,7 @@ export default async function (req) {
           const season = body.season != null ? String(body.season) : "";
           const episode = body.episode != null ? String(body.episode) : "";
           const magnet = `magnet:?xt=urn:btih:${hash}`;
-          const existing = await base44.entities.RdLink.filter({
+          const existing = await rdLinks.filter({
             title,
             year,
             season,
@@ -1357,12 +1416,12 @@ export default async function (req) {
           });
 
           if (Array.isArray(existing) && existing.length > 0) {
-            await base44.entities.RdLink.update(existing[0].id, {
+            await rdLinks.update(existing[0].id, {
               magnet,
               torrent_id: String(match.id),
             });
           } else {
-            await base44.entities.RdLink.create({
+            await rdLinks.create({
               title,
               year,
               season,
@@ -2415,7 +2474,7 @@ export default async function (req) {
           ...(episode ? { episode } : {}),
         };
         const ownedLinks =
-          await base44.entities.RdLink.filter(
+          await rdLinks.filter(
             linkQuery
           );
 
@@ -2910,7 +2969,7 @@ const rememberRdTorrentAssociation = async ({
 
   try {
     const title = String(body.title).trim();
-    const existing = await base44.entities.RdLink.filter({
+    const existing = await rdLinks.filter({
       title,
       year: metadata.year,
       season: metadata.season,
@@ -2918,12 +2977,12 @@ const rememberRdTorrentAssociation = async ({
     });
 
     if (Array.isArray(existing) && existing.length > 0) {
-      await base44.entities.RdLink.update(existing[0].id, {
+      await rdLinks.update(existing[0].id, {
         magnet,
         torrent_id: String(torrentId),
       });
     } else {
-      await base44.entities.RdLink.create({
+      await rdLinks.create({
         title,
         year: metadata.year,
         season: metadata.season,
@@ -2956,12 +3015,12 @@ const deleteNewTorrentBestEffort = async (
 
     if ((deleteRes.ok || deleteRes.status === 404) && base44) {
       try {
-        const links = await base44.entities.RdLink.filter({
+        const links = await rdLinks.filter({
           torrent_id: String(torrentId),
         });
         for (const link of Array.isArray(links) ? links : []) {
           if (link?.id) {
-            await base44.entities.RdLink.update(link.id, { torrent_id: "" });
+            await rdLinks.update(link.id, { torrent_id: "" });
           }
         }
       } catch {
