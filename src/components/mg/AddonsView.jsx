@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { base44 } from "@/api/base44Client";
+import RealDebridDeviceConnect from "@/components/mg/RealDebridDeviceConnect";
 
 const unwrap = (response) =>
   response?.data ??
@@ -1011,6 +1012,8 @@ export default function AddonsManager() {
           </button>
         </div>
       </div>
+
+      <RealDebridDeviceConnect compact />
 
       <div className="rounded-xl border border-white/10 bg-zinc-900/60 p-4 text-sm text-gray-300">
         <p>
