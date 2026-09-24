@@ -3967,7 +3967,7 @@ test("native results only update the matching source and silent video is not lea
   assert.ok(nativeHandler.indexOf('String(detail.requestId || "") !== activeRequest.requestId') <
     nativeHandler.indexOf("if (detail?.diagnostics)"));
   assert.match(nativeHandler, /diagnosticFailure && String\(detail.reason \|\| ""\).toLowerCase\(\) === "error"/);
-  assert.match(playerSource, /!hasRecentNoSoundHistory\(exactPlaybackSourceLabel\(active, rdOverride\?\.file\)\)/);
+  assert.match(playerSource, /!hasRecentNoSoundHistory\(activeExactReliabilityLabel\(\)\)/);
   assert.match(playerSource, /forgetSuccessfulPlaybackSource\(active\);/);
 
   const good = reliabilitySource.slice(

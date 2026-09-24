@@ -51,6 +51,7 @@ test("no-sound stays with the exact torrent file and device, even when labels ma
   const fireTv = { fireTv: true };
   const android = { nativeAndroidMobile: true };
   assert.notEqual(a, b);
+  assert.equal(a, reliability.exactPlaybackSourceLabel(source("a"), "2"));
   assert.notEqual(a, otherFile);
   reliability.recordPlaybackReliability(a, "no-sound", null, fireTv);
   assert.equal(reliability.hasRecentNoSoundHistory(a, fireTv), true);
@@ -73,7 +74,7 @@ test("20 seconds of video with confirmed decoded audio clears stale exact penalt
   assert.equal(reliability.hasRecentNoSoundHistory(exact, fireTv), false);
   assert.ok(reliability.devicePlaybackReliabilityAdjustment(exact, fireTv) > 0);
   assert.match(player, /positionSeconds >= SUCCESSFUL_VOD_PLAYBACK_SECONDS/);
-  assert.match(player, /exactPlaybackSourceLabel\(active, rdOverride\?\.file\),\s*"good",\s*\{ audioConfirmed: true \}/);
+  assert.match(player, /activeExactReliabilityLabel\(\),\s*"good",\s*\{ audioConfirmed: true \}/);
 });
 
 test("unknown and late audio metadata never establish no-sound or automatic rejection", () => {

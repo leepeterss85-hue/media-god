@@ -1729,6 +1729,17 @@ export default function VideoPlayer({
     sources[0] ||
     {};
 
+  const activeExactReliabilityLabel = () => {
+    const resolvedFile = rdFiles.find((file) =>
+      rdOverride?.file &&
+      (file?.path === rdOverride.file || file?.name === rdOverride.file)
+    );
+    return exactPlaybackSourceLabel(
+      active,
+      resolvedFile?.id != null ? String(resolvedFile.id) : rdOverride?.file || ""
+    );
+  };
+
   useEffect(() => {
     if (playbackMediaType === "live") return;
     writePlaybackAudioDiagnostic(buildPlaybackAudioDiagnostic({
@@ -2230,7 +2241,7 @@ export default function VideoPlayer({
     if (
       !isLive &&
       currentTime >= SUCCESSFUL_VOD_PLAYBACK_SECONDS &&
-      !hasRecentNoSoundHistory(exactPlaybackSourceLabel(active, rdOverride?.file))
+      !hasRecentNoSoundHistory(activeExactReliabilityLabel())
     ) {
       const activeEntry = sortedSourceEntries.find(
         (entry) => entry?.index === activeIdx
@@ -9008,7 +9019,7 @@ export default function VideoPlayer({
         positionSeconds >= SUCCESSFUL_VOD_PLAYBACK_SECONDS &&
         (
           decodedAudioAdvanced ||
-          !hasRecentNoSoundHistory(exactPlaybackSourceLabel(active, rdOverride?.file))
+          !hasRecentNoSoundHistory(activeExactReliabilityLabel())
         )
       ) {
         const activeEntry = sortedSourceEntries.find(
@@ -9025,7 +9036,7 @@ export default function VideoPlayer({
         );
         if (decodedAudioAdvanced) {
           recordPlaybackReliability(
-            exactPlaybackSourceLabel(active, rdOverride?.file),
+            activeExactReliabilityLabel(),
             "good",
             { audioConfirmed: true }
           );
@@ -9134,7 +9145,7 @@ export default function VideoPlayer({
         }
 
         if (nativeAudioFailure) {
-          recordPlaybackReliability(exactPlaybackSourceLabel(active, rdOverride?.file), "no-sound");
+          recordPlaybackReliability(activeExactReliabilityLabel(), "no-sound");
           if (positionSeconds > 5) {
             recoveryResumeRef.current = positionSeconds;
           }
@@ -9930,7 +9941,7 @@ export default function VideoPlayer({
       /* The viewer confirmed silence and same-file repair was exhausted. */
       forgetSuccessfulPlaybackSource(active);
       window.dispatchEvent(new CustomEvent("mg:playback-no-sound", {
-        detail: { label: exactPlaybackSourceLabel(active, rdOverride?.file) },
+        detail: { label: activeExactReliabilityLabel() },
       }));
       if (manualSourceLockActive()) {
         window.dispatchEvent(new CustomEvent("mg:player-status", {
@@ -10230,7 +10241,7 @@ export default function VideoPlayer({
 
   const audioNeedsAttention =
     hasRecentNoSoundHistory(
-      exactPlaybackSourceLabel(active, rdOverride?.file)
+      activeExactReliabilityLabel()
     );
 
   const cacheProgress = Math.max(
