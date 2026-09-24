@@ -144,7 +144,14 @@ const audioCodecText = (item) => {
 export const smartSourceEvidence = (item, languageHint = "unknown") => {
   const text = sourceText(item);
   const tracks = audioTracksFor(item);
-  const trackLanguages = tracks.map(trackLanguageText).filter(Boolean);
+  // An English commentary or descriptive track is not an English main track.
+  const mainTracks = tracks.filter((track) =>
+    !/commentary|audio[ ._-]*description|descriptive|visually[ ._-]*impaired/i.test(
+      [track?.title, track?.name, track?.label, track?.description]
+        .filter(Boolean).join(" ")
+    ) && track?.commentary !== true && track?.descriptive !== true
+  );
+  const trackLanguages = mainTracks.map(trackLanguageText).filter(Boolean);
   const hasVerifiedEnglishTrack = trackLanguages.some(englishToken);
   const knownTrackLanguages = trackLanguages.filter(knownLanguageToken);
   const hasKnownAudioLanguages = knownTrackLanguages.length > 0;

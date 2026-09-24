@@ -1484,6 +1484,9 @@ export default function MediaPlayerControls({
       kind: String(choice.kind || "native"),
       index: choice.index,
     };
+    if (!isLive) {
+      window.dispatchEvent(new CustomEvent("mg:manual-audio-track-selected"));
+    }
 
     const chosenTrack = choice.raw || choice;
     const context =

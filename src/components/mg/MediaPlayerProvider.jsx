@@ -25,7 +25,7 @@ import {
   scoreSourceCompatibility,
   sourcePlaybackCompatibilityTier,
 } from "@/components/mg/mediaCompatibility";
-import { devicePlaybackReliabilityAdjustment } from "@/components/mg/playbackReliability";
+import { devicePlaybackReliabilityAdjustment, exactPlaybackSourceLabel } from "@/components/mg/playbackReliability";
 import { readPlaybackPreferences } from "@/components/mg/playbackPreferences";
 import { readTrackPreferences } from "@/components/mg/mediaTrackPreferences";
 import { debridProviderScoreHints } from "@/components/mg/debridProviderReliability";
@@ -658,6 +658,9 @@ const scoreSource = (item) => {
   );
   const deviceLearning = devicePlaybackReliabilityAdjustment(
     label,
+    deviceProfile
+  ) + devicePlaybackReliabilityAdjustment(
+    exactPlaybackSourceLabel(item),
     deviceProfile
   );
   const explicitPriority =

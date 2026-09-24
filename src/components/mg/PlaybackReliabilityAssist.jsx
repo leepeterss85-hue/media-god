@@ -370,24 +370,6 @@ const reliabilityAdjustment = (
 
   if (
     fresh(
-      record.lastNoSound,
-      NO_SOUND_TTL
-    )
-  ) {
-    score -=
-      500000 +
-      Math.min(
-        200000,
-        Number(
-          record.noSound ||
-            0
-        ) *
-          25000
-      );
-  }
-
-  if (
-    fresh(
       record.lastFailure,
       FAILURE_TTL
     )
@@ -896,8 +878,9 @@ export default function PlaybackReliabilityAssist() {
       ) => {
         const label =
           normaliseLabel(
-            event?.detail?.label ||
-              activeSourceLabel()
+            event?.detail && "label" in event.detail
+              ? event.detail.label
+              : activeSourceLabel()
           );
 
         if (!label) {

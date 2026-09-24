@@ -32,8 +32,15 @@ import {
   trackLanguage,
 } from "@/components/mg/mediaTrackPreferences";
 import { readPlaybackPreferences } from "@/components/mg/playbackPreferences";
+import {
+  buildPlaybackAudioDiagnostic,
+  sanitizeNativePlaybackDiagnostic,
+  writePlaybackAudioDiagnostic,
+} from "@/components/mg/audioDiagnostics";
 import { isAdvancingVodPlayback, updateVodProgress } from "@/components/mg/playbackHealth";
 import {
+  devicePlaybackReliabilityAdjustment,
+  exactPlaybackSourceLabel,
   hasRecentNoSoundHistory,
   playbackReliabilityAdjustment,
   recordPlaybackReliability,
@@ -1722,6 +1729,54 @@ export default function VideoPlayer({
     sources[0] ||
     {};
 
+  const activeExactReliabilityLabel = () => {
+    const resolvedFile = rdFiles.find((file) =>
+      rdOverride?.file &&
+      (file?.path === rdOverride.file || file?.name === rdOverride.file)
+    );
+    return exactPlaybackSourceLabel(
+      active,
+      resolvedFile?.id != null ? String(resolvedFile.id) : rdOverride?.file || ""
+    );
+  };
+
+  useEffect(() => {
+    if (playbackMediaType === "live") return;
+    writePlaybackAudioDiagnostic(buildPlaybackAudioDiagnostic({
+      source: active,
+      resolved: rdOverride,
+      player: rdOverride?.src?.includes(".m3u8") ? "browser HLS" : "browser media",
+    }));
+  }, [active, rdOverride, playbackMediaType]);
+
+  useEffect(() => {
+    if (playbackMediaType === "live") return undefined;
+    const onHlsTracks = (event) => {
+      const tracks = event?.detail?.tracks;
+      if (!Array.isArray(tracks) || tracks.length === 0) return;
+      const activeIndex = Number(event.detail.activeIndex);
+      writePlaybackAudioDiagnostic(buildPlaybackAudioDiagnostic({
+        source: active,
+        resolved: {
+          ...rdOverride,
+          mediaInfo: {
+            ...(rdOverride?.mediaInfo || {}),
+            audio_tracks: tracks.map((track, index) => ({
+              index,
+              language: track?.language || track?.lang || "",
+              codec: track?.audioCodec || "",
+              name: track?.name || track?.label || "",
+              selected: index === activeIndex,
+            })),
+          },
+        },
+        player: "browser HLS",
+      }));
+    };
+    window.addEventListener("mg:hls-audio-tracks", onHlsTracks);
+    return () => window.removeEventListener("mg:hls-audio-tracks", onHlsTracks);
+  }, [active, rdOverride, playbackMediaType]);
+
   const activeUrl =
     getSourceUrl(active);
 
@@ -1979,6 +2034,9 @@ export default function VideoPlayer({
     const learned = playbackReliabilityAdjustment(
       label,
       deviceProfile
+    ) + devicePlaybackReliabilityAdjustment(
+      exactPlaybackSourceLabel(item),
+      deviceProfile
     );
 
     const languagePreference = detectLanguagePreference(item, label);
@@ -2183,7 +2241,7 @@ export default function VideoPlayer({
     if (
       !isLive &&
       currentTime >= SUCCESSFUL_VOD_PLAYBACK_SECONDS &&
-      !hasRecentNoSoundHistory(sourceDisplayLabel(active, activeIdx))
+      !hasRecentNoSoundHistory(activeExactReliabilityLabel())
     ) {
       const activeEntry = sortedSourceEntries.find(
         (entry) => entry?.index === activeIdx
@@ -2510,118 +2568,13 @@ export default function VideoPlayer({
   };
 
   const rejectResolvedForeignAutoplay = (
-    mediaInfo,
-    {
-      label = "This release",
-    } = {}
+    _mediaInfo,
+    _options = {}
   ) => {
-    if (manualSourceLockActive()) {
-      return false;
-    }
-
-    const englishPreferred =
-      ["en", "eng", "english"].includes(preferredAudioLanguage);
-
-    if (!englishPreferred) {
-      return false;
-    }
-
-    const englishState =
-      resolvedMediaEnglishMainState(mediaInfo);
-
-    /*
-     * Strict one-click playback is proof-positive: "unknown" is not permission
-     * to play. If Real-Debrid could not prove an English main track, keep the
-     * row available manually but automatically probe the next candidate.
-     */
-    if (englishState === "proven") {
-      return false;
-    }
-
-    /*
-     * Smart Default does not stall on missing probe metadata. Filename/tag
-     * evidence may start a source when the probe is unknown, but once the real
-     * file explicitly proves foreign-only audio it is rejected automatically.
-     */
-    if (
-      englishState === "unknown" &&
-      !strictEnglishAutoplayRequired
-    ) {
-      return false;
-    }
-
-    /*
-     * A cached provider URL marked for native runtime validation deliberately
-     * bypasses incomplete server-side audio metadata. The installed app starts
-     * it paused/muted and Media3/LibVLC must prove/select English before any
-     * audio is released. Unknown metadata is therefore safe to hand to native;
-     * explicit foreign metadata is still rejected here.
-     */
-    if (
-      englishState === "unknown" &&
-      active?.runtimeNativeEnglishValidation === true &&
-      isNativeFireTvPlayerAvailable()
-    ) {
-      return false;
-    }
-
-    englishAudioRejectedRef.current.add(activeIdx);
-
-    setRdResolving(false);
-    setRdPolling(false);
-    setRdTorrentId(null);
-    setRdPreparation(null);
-    setRdOverride(null);
-
-    const MAX_AUTOMATIC_ENGLISH_PROBES = 8;
-
-    if (
-      englishAudioRejectedRef.current.size <
-      MAX_AUTOMATIC_ENGLISH_PROBES
-    ) {
-      const nextEnglish = sortedSourceEntries.find((entry) => {
-        const item = entry?.item;
-        const type = String(item?.type || "").toLowerCase();
-
-        return Boolean(
-          entry?.index !== activeIdx &&
-            !englishAudioRejectedRef.current.has(entry?.index) &&
-            !failedSourcesRef.current.has(entry?.index) &&
-            sourceIsUserSelectable(item) &&
-            Number(entry?.languageRank ?? 3) <= 3 &&
-            Number(entry?.hardSubtitleRank ?? 0) === 0 &&
-            type !== "provider" &&
-            type !== "youtube" &&
-            (
-              autoplayEntryApproved(entry) ||
-              sourceNeedsCaching(item)
-            )
-        );
-      });
-
-      if (nextEnglish) {
-        const switched = switchToSource(nextEnglish.index, {
-          preservePosition: false,
-          statusMessage:
-            label +
-            " did not prove a usable English main audio track — checking the next source automatically…",
-        });
-
-        if (switched) {
-          startupAutoplayClaimRef.current = {
-            playRequestId: source?.playRequestId ?? null,
-            claimed: true,
-          };
-          return true;
-        }
-      }
-    }
-
-    setRdError(
-      "Media God checked the available automatic choices but could not prove an English main audio track. The sources were kept available; choose Source to try one manually."
-    );
-
-    return true;
+    // RD mediaInfos may omit or mislabel tracks. Its result influences source
+    // order, but only the active decoder can determine whether playback fails.
+    // The call sites keep this advisory hook for all RD resolution paths.
+    return false;
   };
 
   const tryNextSource = (
@@ -4614,6 +4567,7 @@ export default function VideoPlayer({
                   fallbackSrc: existingData.fallback_stream_url || "",
                   videoRescue: existingData.video_rescue || null,
                   mediaInfo: existingData.media_info || null,
+                  torrentId: existingData.torrent_id || rdTorrentId || active?.rdTorrentId || "",
                 });
                 setRdFiles(existingData.files || []);
                 setRdTorrentId(existingRdTorrentId);
@@ -4763,6 +4717,7 @@ export default function VideoPlayer({
                   fallbackSrc: adopted.fallback_stream_url || "",
                   videoRescue: adopted.video_rescue || null,
                   mediaInfo: adopted.media_info || null,
+                  torrentId: adopted.torrent_id || rdTorrentId || active?.rdTorrentId || "",
                 });
                 setRdFiles(adopted.files || []);
                 setRdResolving(false);
@@ -5140,6 +5095,7 @@ export default function VideoPlayer({
                         adoptData.fallback_stream_url || "",
                       videoRescue: adoptData.video_rescue || null,
                       mediaInfo: adoptData.media_info || null,
+                      torrentId: adoptData.torrent_id || rdTorrentId || active?.rdTorrentId || "",
                     });
                     setRdFiles(adoptData.files || []);
                     setRdResolving(false);
@@ -5351,6 +5307,7 @@ export default function VideoPlayer({
                             fallbackSrc: restartData.fallback_stream_url || "",
                             videoRescue: restartData.video_rescue || null,
                             mediaInfo: restartData.media_info || null,
+                            torrentId: restartData.torrent_id || rdTorrentId || active?.rdTorrentId || "",
                           });
                           setRdFiles(restartData.files || []);
                           setRdResolving(false);
@@ -5694,6 +5651,7 @@ export default function VideoPlayer({
                 mediaInfo:
                   data.media_info ||
                   null,
+                torrentId: data.torrent_id || rdTorrentId || active?.rdTorrentId || "",
               });
 
               setRdFiles(
@@ -6269,6 +6227,7 @@ export default function VideoPlayer({
                 mediaInfo:
                   data.media_info ||
                   null,
+                torrentId: data.torrent_id || rdTorrentId || active?.rdTorrentId || "",
               });
 
               setRdFiles((current) => {
@@ -6671,6 +6630,7 @@ export default function VideoPlayer({
                         fallbackSrc: restartData.fallback_stream_url || "",
                         videoRescue: restartData.video_rescue || null,
                         mediaInfo: restartData.media_info || null,
+                        torrentId: restartData.torrent_id || rdTorrentId || active?.rdTorrentId || "",
                       });
                       setRdFiles(restartData.files || []);
                       setRdPolling(false);
@@ -8255,6 +8215,7 @@ export default function VideoPlayer({
               fallbackSrc: data.fallback_stream_url || "",
               videoRescue: data.video_rescue || null,
               mediaInfo: data.media_info || null,
+              torrentId: data.torrent_id || rdTorrentId || active?.rdTorrentId || "",
             });
 
             if (Array.isArray(data.files) && data.files.length > 0) {
@@ -8409,6 +8370,7 @@ export default function VideoPlayer({
             mediaInfo:
               data.media_info ||
               null,
+            torrentId: data.torrent_id || rdTorrentId || active?.rdTorrentId || "",
           });
         } else {
           setRdError(
@@ -8586,6 +8548,7 @@ export default function VideoPlayer({
               fallbackSrc: restartData.fallback_stream_url || "",
               videoRescue: restartData.video_rescue || null,
               mediaInfo: restartData.media_info || null,
+              torrentId: restartData.torrent_id || rdTorrentId || active?.rdTorrentId || "",
             });
             setRdFiles(restartData.files || []);
             setRdTorrentId(null);
@@ -8977,11 +8940,16 @@ export default function VideoPlayer({
           const history = Array.isArray(window.__MG_NATIVE_PLAYBACK_DIAGNOSTICS__)
             ? window.__MG_NATIVE_PLAYBACK_DIAGNOSTICS__
             : [];
+          /** @type {Record<string, any>} */
           const entry = {
-            ...detail.diagnostics,
-            requestId: String(detail.requestId || ""),
+            ...sanitizeNativePlaybackDiagnostic(detail.diagnostics),
             reason: String(detail.reason || ""),
           };
+          if (!isLive) {
+            writePlaybackAudioDiagnostic(buildPlaybackAudioDiagnostic({
+              source: active, resolved: rdOverride, native: entry,
+            }));
+          }
           const nextHistory = [...history.slice(-49), entry];
           window.__MG_NATIVE_PLAYBACK_DIAGNOSTICS__ = nextHistory;
           window.localStorage.setItem(
@@ -9041,6 +9009,7 @@ export default function VideoPlayer({
       }
 
       const reason = String(detail.reason || "back").toLowerCase();
+      const decodedAudioAdvanced = detail?.diagnostics?.audioOutputConfirmed === true;
       const selectedSourceIndex = Number(detail.selectedSourceIndex);
       const currentPlayRequestId = source?.playRequestId ?? null;
 
@@ -9048,7 +9017,10 @@ export default function VideoPlayer({
         !isLive &&
         reason !== "error" &&
         positionSeconds >= SUCCESSFUL_VOD_PLAYBACK_SECONDS &&
-        !hasRecentNoSoundHistory(sourceDisplayLabel(active, activeIdx))
+        (
+          decodedAudioAdvanced ||
+          !hasRecentNoSoundHistory(activeExactReliabilityLabel())
+        )
       ) {
         const activeEntry = sortedSourceEntries.find(
           (entry) => entry?.index === activeIdx
@@ -9059,8 +9031,16 @@ export default function VideoPlayer({
         });
         recordPlaybackReliability(
           sourceDisplayLabel(active, activeIdx),
-          "good"
+          "good",
+          { audioConfirmed: decodedAudioAdvanced }
         );
+        if (decodedAudioAdvanced) {
+          recordPlaybackReliability(
+            activeExactReliabilityLabel(),
+            "good",
+            { audioConfirmed: true }
+          );
+        }
       }
 
       /*
@@ -9165,7 +9145,7 @@ export default function VideoPlayer({
         }
 
         if (nativeAudioFailure) {
-          recordPlaybackReliability(sourceDisplayLabel(active, activeIdx), "no-sound");
+          recordPlaybackReliability(activeExactReliabilityLabel(), "no-sound");
           if (positionSeconds > 5) {
             recoveryResumeRef.current = positionSeconds;
           }
@@ -9595,21 +9575,11 @@ export default function VideoPlayer({
        * failover that belongs to the previous silent stream is now stale.
        */
       cancelPendingTorrentFailover();
-      forgetSuccessfulPlaybackSource(active);
 
       const actionGeneration = ++streamActionGenerationRef.current;
       const actionStillCurrent = () =>
         streamActionGenerationRef.current === actionGeneration;
 
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(
-          new CustomEvent("mg:playback-no-sound", {
-            detail: {
-              label: sourceDisplayLabel(active, activeIdx),
-            },
-          })
-        );
-      }
 
       const video =
         stageRef.current
@@ -9815,11 +9785,16 @@ export default function VideoPlayer({
       }
 
       if (
-        source?.hasRd &&
-        !rdOverride?.audioRescue?.used
+        source?.hasRd
       ) {
+        const selectedRdFile = rdFiles.find(
+          (file) =>
+            Boolean(rdOverride?.file) &&
+            String(file?.path || "") === String(rdOverride.file)
+        ) || rdFiles.find((file) => file?.selected === true);
         const activeTorrentId = String(
-          active?.rdTorrentId ||
+          rdOverride?.torrentId ||
+            active?.rdTorrentId ||
             rdTorrentId ||
             (active?.type === "rd_torrent" && !isMagnet(activeUrl)
               ? activeUrl
@@ -9832,16 +9807,30 @@ export default function VideoPlayer({
           (isMagnet(activeUrl) ? activeUrl : "");
 
         const rescueRequest =
-          activeTorrentId
+          selectedRdFile?.link
+            ? {
+                action: "unrestrict_file",
+                link: selectedRdFile.link,
+              }
+            : activeTorrentId && selectedRdFile?.path
+              ? {
+                  action: "select_torrent_file",
+                  torrent_id: activeTorrentId,
+                  file_path: selectedRdFile.path,
+                }
+            : activeTorrentId
             ? {
                 action: "torrent_info",
                 torrent_id: activeTorrentId,
               }
             : activeMagnet
               ? {
-                  action: "resolve_best",
-                  magnet: activeMagnet,
-                }
+                action: "resolve_best",
+                magnet: activeMagnet,
+                ...(selectedRdFile?.id != null
+                  ? { file_idx: selectedRdFile.id }
+                  : {}),
+              }
               : null;
 
         if (rescueRequest) {
@@ -9877,6 +9866,7 @@ export default function VideoPlayer({
                 force_audio_rescue: true,
                 allow_transcode: true,
                 prefer_english: true,
+                prefer_browser_transcode: prefersBrowserRdCompatibility(),
               }
             );
 
@@ -9887,9 +9877,10 @@ export default function VideoPlayer({
             }
 
             if (
-              data?.status === "ready" &&
+              (data?.status === "ready" || rescueRequest.action === "unrestrict_file") &&
               data?.stream_url &&
-              data?.audio_rescue?.used
+              data?.audio_rescue?.used &&
+              String(data.stream_url) !== String(rdOverride?.src || activeUrl)
             ) {
               /*
                * The compatibility rendition has been successfully created.
@@ -9906,7 +9897,8 @@ export default function VideoPlayer({
                 label:
                   data.filename ||
                   `${sourceDisplayLabel(active, activeIdx)} [Audio Rescue]`,
-                file: currentFilePath(data.files),
+                file: currentFilePath(data.files) || selectedRdFile?.path || rdOverride?.file || "",
+                torrentId: data.torrent_id || activeTorrentId,
                 audioRescue: data.audio_rescue,
                 fallbackSrc: data.fallback_stream_url || "",
                 fallbackTried: rdOverride?.fallbackTried === true,
@@ -9914,7 +9906,7 @@ export default function VideoPlayer({
                 mediaInfo: data.media_info || null,
               });
 
-              setRdFiles(data.files || []);
+              setRdFiles(data.files || rdFiles);
               setRdTorrentId(null);
               setRdPolling(false);
               setRdResolving(false);
@@ -9947,6 +9939,16 @@ export default function VideoPlayer({
       }
 
       /* The viewer confirmed silence and same-file repair was exhausted. */
+      forgetSuccessfulPlaybackSource(active);
+      window.dispatchEvent(new CustomEvent("mg:playback-no-sound", {
+        detail: { label: activeExactReliabilityLabel() },
+      }));
+      if (manualSourceLockActive()) {
+        window.dispatchEvent(new CustomEvent("mg:player-status", {
+          detail: { message: "Same-file audio repair was unavailable. Your selected source remains playing; Source lists the other ready files." },
+        }));
+        return;
+      }
       video?.pause?.();
       tryNextSource("No usable audio could be recovered from this source.", {
         immediate: true,
@@ -10239,10 +10241,7 @@ export default function VideoPlayer({
 
   const audioNeedsAttention =
     hasRecentNoSoundHistory(
-      sourceDisplayLabel(
-        active,
-        activeIdx
-      )
+      activeExactReliabilityLabel()
     );
 
   const cacheProgress = Math.max(

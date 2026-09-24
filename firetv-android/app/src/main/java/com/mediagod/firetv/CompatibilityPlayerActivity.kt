@@ -289,6 +289,21 @@ class CompatibilityPlayerActivity : Activity() {
             )
     }
 
+    private fun preferEnglishMainAudio(player: MediaPlayer) {
+        if (manualAudioTrackLocked || payload.optBoolean("live", false)) return
+        val tracks = try {
+            player.audioTracks?.filter { it.id >= 0 }.orEmpty()
+        } catch (_: Throwable) { emptyList() }
+        val english = tracks.filter { audioTrackNameLooksEnglish(it.name.orEmpty()) }
+        val expected = payload.optString("preferredAudioTrackName").trim()
+        val matchingHint = if (payload.optBoolean("verifiedEnglishMain", false) && expected.isNotBlank()) {
+            tracks.filter { namesMatchExpectedAudio(it.name.orEmpty(), expected) &&
+                !audioTrackNameLooksCommentary(it.name.orEmpty()) }
+        } else emptyList()
+        val wanted = english.firstOrNull() ?: matchingHint.singleOrNull() ?: return
+        if (player.audioTrack != wanted.id) player.setAudioTrack(wanted.id)
+    }
+
     private val hideControlsRunnable = Runnable {
         if (!resultSent && ::controls.isInitialized) {
             if (controls.hasFocus() && ::videoLayout.isInitialized) videoLayout.requestFocus()
@@ -512,6 +527,7 @@ class CompatibilityPlayerActivity : Activity() {
                         MediaPlayer.Event.Buffering -> showStatus("Compatibility decoder · buffering")
                         MediaPlayer.Event.Playing -> {
                             compatibilityPlaybackStarted = true
+                            preferEnglishMainAudio(player)
                             clearStartupTimeout()
                             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                             showStatus("Compatibility decoder")
@@ -538,9 +554,12 @@ class CompatibilityPlayerActivity : Activity() {
                                     } catch (_: Throwable) { emptyList() }
 
                                     if (tracks.isNotEmpty() && player.audioTrack < 0 && !manualAudioTrackLocked) {
-                                        if (player.setAudioTrack(tracks.first().id)) return@postDelayed
+                                        val wanted = tracks.firstOrNull {
+                                            audioTrackNameLooksEnglish(it.name.orEmpty())
+                                        } ?: tracks.first()
+                                        if (player.setAudioTrack(wanted.id)) return@postDelayed
                                     }
-                                    if (player.audioTrack < 0) {
+                                    if (tracks.isNotEmpty() && player.audioTrack < 0 && !manualAudioTrackLocked) {
                                         finishWithResult("error", "This release has no usable audio track in the compatibility decoder.")
                                     }
                                 }, 10000L)
@@ -922,6 +941,23 @@ class CompatibilityPlayerActivity : Activity() {
                 val audioId = player?.audioTrack ?: -1
                 put("selectedAudioTrack", audioId)
                 put("selectedAudioName", player?.audioTracks?.firstOrNull { it.id == audioId }?.name?.trim().orEmpty())
+                if (!payload.optBoolean("live", false)) {
+                    put("audioTracks", JSONArray().apply {
+                        player?.audioTracks?.filter { it.id >= 0 }?.take(16)?.forEach { track ->
+                            put(JSONObject().apply {
+                                put("index", track.id)
+                                put("name", track.name.orEmpty())
+                                put("language", if (audioTrackNameLooksEnglish(track.name.orEmpty())) "en" else "unknown")
+                                put("selected", track.id == audioId)
+                                put("commentary", audioTrackNameLooksCommentary(track.name.orEmpty()))
+                            })
+                        }
+                    })
+                    put("audioFailureEvidence", if (reason == "error" &&
+                        Regex("""audio decoder|no usable audio track""", RegexOption.IGNORE_CASE).containsMatchIn(message))
+                        "decoder-error" else "unknown")
+                    put("audioOutputConfirmed", false)
+                }
                 put("selectedSubtitleTrack", player?.spuTrack ?: -1)
                 put("selectedSubtitleName", player?.spuTracks?.firstOrNull { it.id == (player?.spuTrack ?: -1) }?.name?.trim().orEmpty())
             } catch (_: Throwable) {}

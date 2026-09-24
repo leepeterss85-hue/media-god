@@ -4149,7 +4149,8 @@ async function choosePlayableRdStream({
       0;
 
   if (
-    explicitlyForeignOnly
+    explicitlyForeignOnly &&
+    !preferBrowserTranscode
   ) {
     /*
      * Real-Debrid mediaInfos is useful for ranking, but it is not authoritative
