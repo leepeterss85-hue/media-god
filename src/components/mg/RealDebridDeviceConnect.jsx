@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 
 import { base44 } from "@/api/base44Client";
-import { useAuth } from "@/lib/AuthContext";
+import { withGuestDebridPayload } from "@/components/mg/guestDebridDevice";
 
 const clean = (value) =>
   String(value ?? "").trim();
@@ -39,11 +39,6 @@ const RD_DEVICE_URL =
 export default function RealDebridDeviceConnect({
   compact = false,
 }) {
-  const {
-    isAuthenticated,
-    navigateToLogin,
-  } = useAuth();
-
   const [status, setStatus] =
     useState(null);
   const [deviceFlow, setDeviceFlow] =
@@ -87,21 +82,16 @@ export default function RealDebridDeviceConnect({
     async ({
       quiet = true,
     } = {}) => {
-      if (!isAuthenticated) {
-        setStatus(null);
-        return null;
-      }
-
       setChecking(true);
 
       try {
         const response =
           await base44.functions.invoke(
             "realDebridAuth",
-            {
+            withGuestDebridPayload({
               action:
                 "status",
-            }
+            })
           );
 
         const next =
@@ -142,22 +132,12 @@ export default function RealDebridDeviceConnect({
         setChecking(false);
       }
     },
-    [
-      isAuthenticated,
-    ]
+    []
   );
 
   useEffect(() => {
-    if (isAuthenticated) {
-      void loadStatus();
-    } else {
-      setStatus(null);
-      setDeviceFlow(null);
-      clearTimer();
-    }
+    void loadStatus();
   }, [
-    clearTimer,
-    isAuthenticated,
     loadStatus,
   ]);
 
