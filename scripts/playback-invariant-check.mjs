@@ -216,8 +216,11 @@ const startupWatchdogBlock =
 expect(
   startupWatchdogBlock.includes("STARTUP_GRACE_MS = 12000") &&
     startupWatchdogBlock.includes("realProgress") &&
-    !startupWatchdogBlock.includes("markSourceFailed("),
-  "startup timeout may try another ready source but cannot blacklist the current source"
+    startupWatchdogBlock.includes("hasBufferedData") &&
+    startupWatchdogBlock.includes("setVodStartupNotice(") &&
+    !startupWatchdogBlock.includes("markSourceFailed(") &&
+    !startupWatchdogBlock.includes("setRdError("),
+  "startup timeout can show a nonblocking notice but cannot mark a source failed or unmount its video"
 );
 
 expect(
@@ -262,9 +265,9 @@ expect(
   [mobilePlayer, firePlayer].every(
     (nativePlayer) =>
       nativePlayer.includes("strictEnglishStartupRequired(): Boolean = false") &&
-      nativePlayer.includes(
-        "Intentionally disabled. Audio recovery is manual-only"
-      ) &&
+      nativePlayer.includes("group.isTrackSelected(index) && group.isTrackSupported(index)") &&
+      nativePlayer.includes("activePlayer.currentPosition < 5000L") &&
+      nativePlayer.includes("launchCompatibilityPlayer(activePlayer, null, reason)") &&
       nativePlayer.includes("error.errorCode in 5001..5004") &&
       !nativePlayer.includes("onAudioPositionAdvancing(") &&
       !nativePlayer.includes("audioOutputConfirmed") &&
@@ -272,7 +275,7 @@ expect(
         "Media3 selected an audio track but no decoded audio output advanced."
       )
   ),
-  "Android mobile and Fire TV never launch automatic audio recovery"
+  "Android mobile and Fire TV only repair objectively missing audio on the same file"
 );
 
 expect(

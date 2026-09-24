@@ -678,10 +678,11 @@ class PlayerActivity : Activity() {
                 }
 
                 /*
-                 * Manual-only audio policy: do not override tracks, pause for
-                 * English validation, or launch compatibility recovery from a
-                 * track-change callback. Keep Media3's current track untouched.
+                 * Leave a working audio track untouched. If VOD is advancing
+                 * without any usable audio track, try the same file in the
+                 * compatibility decoder after a second delayed inspection.
                  */
+                if (!live) scheduleMissingAudioCheck(exoPlayer, tracks)
             }
 
             override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -765,21 +766,9 @@ class PlayerActivity : Activity() {
             return false
         }
 
-        /*
-         * Audio fallback is manual-only. Real audio renderer/sink errors return
-         * to the web player so the viewer can choose Audio or Source instead of
-         * Media God automatically replacing the decoder underneath them.
-         */
-        val audioFailureText =
-            "${error.errorCodeName} ${error.message.orEmpty()}"
-        if (
-            error.errorCode in 5001..5004 ||
-            Regex(
-                """audio|dts|true[ ._-]?hd|mlp|atmos|e[ ._-]?ac[ ._-]?3|joc|silent|no[- ]?sound""",
-                RegexOption.IGNORE_CASE
-            ).containsMatchIn(audioFailureText)
-        ) {
-            return false
+        /* A real audio renderer failure should try this same file in LibVLC. */
+        if (error.errorCode in 5001..5004) {
+            return true
         }
 
         val code = error.errorCode
@@ -871,7 +860,7 @@ class PlayerActivity : Activity() {
                     supported = true
                 }
 
-                if (group.isTrackSelected(index)) {
+                if (group.isTrackSelected(index) && group.isTrackSupported(index)) {
                     selected = true
                 }
 
@@ -955,13 +944,34 @@ class PlayerActivity : Activity() {
         activePlayer: ExoPlayer,
         tracks: androidx.media3.common.Tracks
     ) {
-        /*
-         * Intentionally disabled. Audio recovery is manual-only: neither track
-         * metadata nor silence heuristics may interrupt VOD playback. The
-         * viewer decides whether to use Audio or Source.
-         */
-        @Suppress("UNUSED_VARIABLE")
-        val keepManualOnly = activePlayer to tracks
+        if (resultSent || compatibilityPlayerOpen ||
+            payload.optJSONObject("drm") != null || !::playerView.isInitialized
+        ) return
+
+        val generation = ++audioPresenceCheckGeneration
+        val initial = inspectAudioReadiness(tracks)
+        if (initial.present && initial.supported && initial.selected) {
+            return
+        }
+
+        if (tracks.groups.none { it.type == C.TRACK_TYPE_VIDEO }) return
+
+        playerView.postDelayed({
+            if (generation != audioPresenceCheckGeneration || resultSent ||
+                compatibilityPlayerOpen || player !== activePlayer ||
+                !activePlayer.isPlaying || activePlayer.currentPosition < 5000L
+            ) return@postDelayed
+
+            val latest = inspectAudioReadiness(activePlayer.currentTracks)
+            if (latest.present && latest.supported && latest.selected) {
+                return@postDelayed
+            }
+
+            val reason = "This release has no usable audio track in the native decoder. Trying the same file with the compatibility decoder."
+            if (!launchCompatibilityPlayer(activePlayer, null, reason)) {
+                finishWithResult("error", reason)
+            }
+        }, 10000L)
     }
 
     private fun buildMediaItem(mimeTypeOverride: String? = null): MediaItem {

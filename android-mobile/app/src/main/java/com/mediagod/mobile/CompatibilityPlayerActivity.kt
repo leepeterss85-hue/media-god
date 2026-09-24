@@ -61,6 +61,7 @@ class CompatibilityPlayerActivity : Activity() {
     private var thermalProtection = true
     private var audioRecoveryPasses = 0
     private var manualAudioTrackLocked = false
+    private var noAudioCheckGeneration = 0
     private var manualAudioTrackId = -1
     private var compatibilityRetryPass = 0
     private var forceSoftwareVideoDecode = false
@@ -235,8 +236,8 @@ class CompatibilityPlayerActivity : Activity() {
         payload.optBoolean("verifiedEnglishMain", false)
 
     /*
-     * Compatibility playback also follows the manual-only audio policy.
-     * Never mute, gate, or switch tracks automatically for language/audio.
+     * Never mute, gate, or change an already selected track automatically for
+     * a language preference. A missing selection is repaired after a delay.
      */
     private fun requiresStrictEnglishAudio(): Boolean = false
 
@@ -527,6 +528,25 @@ class CompatibilityPlayerActivity : Activity() {
                             root.removeCallbacks(thermalRunnable)
                             if (thermalProtection) root.postDelayed(thermalRunnable, 9000L)
                             updateControlLabels(); updatePlayPauseLabel(); showControlsTemporarily()
+                            if (!payload.optBoolean("live", false)) {
+                                val generation = ++noAudioCheckGeneration
+                                root.postDelayed({
+                                    if (generation != noAudioCheckGeneration || resultSent ||
+                                        vlcPlayer !== player || !player.isPlaying || player.time < 5000L
+                                    ) return@postDelayed
+
+                                    val tracks = try {
+                                        player.audioTracks?.filter { it.id >= 0 }.orEmpty()
+                                    } catch (_: Throwable) { emptyList() }
+
+                                    if (tracks.isNotEmpty() && player.audioTrack < 0 && !manualAudioTrackLocked) {
+                                        if (player.setAudioTrack(tracks.first().id)) return@postDelayed
+                                    }
+                                    if (player.audioTrack < 0) {
+                                        finishWithResult("error", "This release has no usable audio track in the compatibility decoder.")
+                                    }
+                                }, 10000L)
+                            }
                         }
                         MediaPlayer.Event.Paused -> { window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON); updatePlayPauseLabel(); showControlsTemporarily() }
                         MediaPlayer.Event.EndReached -> finishWithResult("ended")
@@ -599,8 +619,8 @@ class CompatibilityPlayerActivity : Activity() {
     }
 
     /*
-     * Automatic audio-track recovery was intentionally removed. The only code
-     * allowed to call setAudioTrack() is the user-driven Audio button.
+     * Automatic cycling across selected audio tracks remains disabled. A
+     * missing selection can be initialized once; later choices belong to Audio.
      */
     private fun recoverAudioTrack() = Unit
 
@@ -875,6 +895,7 @@ class CompatibilityPlayerActivity : Activity() {
     }
 
     private fun releaseCompatibilityPlayer() {
+        noAudioCheckGeneration += 1
         clearStartupTimeout()
         compatibilityPlaybackStarted = false
         compatibilityErrorProbePending = false

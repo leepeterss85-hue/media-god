@@ -362,7 +362,7 @@ test("source health never counts uncached Real-Debrid preparation rows as cached
     /cachedSourceCount[\s\S]{0,180}?viaRealDebrid\s*===\s*true/
   );
   assert.match(providerSource, /pendingSourceCount/);
-  assert.match(playerSource, /Waiting \{Number\(source\?\.sourceDiagnostics\?\.pendingSourceCount/);
+  assert.match(playerSource, /Pending\/uncached \{Number\(source\?\.sourceDiagnostics\?\.pendingSourceCount/);
 });
 
 test("partial debrid cache failures stay unknown instead of becoming uncached", () => {
@@ -3215,7 +3215,7 @@ test("phone and Fire TV package matching FFmpeg audio extensions without automat
     ), "utf8");
     assert.match(gradle, /implementation\(files\("libs\/decoder-ffmpeg\.aar"\)\)/);
     assert.match(player, /EXTENSION_RENDERER_MODE_ON/);
-    assert.match(player, /Audio recovery is manual-only/);
+    assert.match(player, /scheduleMissingAudioCheck/);
   }
 });
 
@@ -3351,7 +3351,7 @@ test("Real-Debrid library lookup prefers the exact owned RdLink episode associat
   assert.match(block, /association:[\s\S]{0,80}?"exact_rdlink"/);
 });
 
-test("audio recovery is manual-only across browser and compatibility players", () => {
+test("browser audio track choice stays manual while native decoders may repair missing audio", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
     "utf8"
@@ -3380,10 +3380,9 @@ test("audio recovery is manual-only across browser and compatibility players", (
       /audioButton = controlButton\("Audio"\) \{ cycleAudioTrack\(\) \}/
     );
     assert.doesNotMatch(source, /postDelayed\(audioRecoveryRunnable, 1000L\)/);
-    assert.equal(
-      (source.match(/player\.setAudioTrack\(/g) || []).length,
-      1
-    );
+    assert.equal((source.match(/player\.setAudioTrack\(/g) || []).length, 2);
+    assert.match(source, /player\.audioTrack < 0 && !manualAudioTrackLocked/);
+    assert.match(source, /player\.time < 5000L/);
   }
 });
 
@@ -3433,7 +3432,7 @@ test("audio menu ranks tracks but changes them only after a user choice", () => 
   );
 });
 
-test("native players leave post-start audio choice untouched", () => {
+test("native players leave a selected supported audio track untouched", () => {
   const nativeFiles = [
     "../android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt",
     "../firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt",
@@ -3442,15 +3441,16 @@ test("native players leave post-start audio choice untouched", () => {
   for (const file of nativeFiles) {
     const source = readFileSync(new URL(file, import.meta.url), "utf8");
     assert.match(source, /strictEnglishStartupRequired\(\): Boolean = false/);
-    assert.match(source, /Manual-only audio policy: do not override tracks/);
-    assert.match(source, /Intentionally disabled\. Audio recovery is manual-only/);
+    assert.match(source, /group\.isTrackSelected\(index\) && group\.isTrackSupported\(index\)/);
+    assert.match(source, /initial\.present && initial\.supported && initial\.selected/);
+    assert.match(source, /latest\.present && latest\.supported && latest\.selected/);
     assert.doesNotMatch(source, /val englishOverrideApplied =/);
     assert.doesNotMatch(source, /onAudioPositionAdvancing\(/);
     assert.doesNotMatch(source, /audioOutputConfirmed/);
   }
 });
 
-test("VOD audio correction is manual-only across web Media3 and LibVLC", () => {
+test("VOD keeps manual audio choice but repairs verified missing native audio", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
     "utf8"
@@ -3476,7 +3476,8 @@ test("VOD audio correction is manual-only across web Media3 and LibVLC", () => {
   for (const file of nativeFiles) {
     const source = readFileSync(new URL(file, import.meta.url), "utf8");
     assert.match(source, /strictEnglishStartupRequired\(\): Boolean = false/);
-    assert.match(source, /Intentionally disabled\. Audio recovery is manual-only/);
+    assert.match(source, /activePlayer\.currentPosition < 5000L/);
+    assert.match(source, /launchCompatibilityPlayer\(activePlayer, null, reason\)/);
     assert.match(source, /error\.errorCode in 5001\.\.5004/);
     assert.doesNotMatch(source, /onAudioPositionAdvancing\(/);
     assert.doesNotMatch(source, /audioOutputConfirmed/);
@@ -3486,8 +3487,9 @@ test("VOD audio correction is manual-only across web Media3 and LibVLC", () => {
     const source = readFileSync(new URL(file, import.meta.url), "utf8");
     assert.match(source, /requiresStrictEnglishAudio\(\): Boolean = false/);
     assert.match(source, /recoverAudioTrack\(\) = Unit/);
-    assert.match(source, /Audio button is the only track-change authority/);
+    assert.match(source, /later choices belong to Audio/);
     assert.doesNotMatch(source, /postDelayed\(audioRecoveryRunnable, 1000L\)/);
+    assert.match(source, /noAudioCheckGeneration/);
     assert.match(
       source,
       /MediaPlayer\.Event\.EncounteredError -> \{[\s\S]{0,120}?confirmCompatibilityError\(player\)/
@@ -3517,7 +3519,7 @@ test("strict native English audio gates stay disabled under manual-only audio po
     assert.match(source, /strictEnglishStartupRequired\(\): Boolean = false/);
     assert.match(source, /holdForEnglishStartup/);
     assert.match(source, /shouldPlayWhenReady && !holdForEnglishStartup/);
-    assert.match(source, /Intentionally disabled\. Audio recovery is manual-only/);
+    assert.match(source, /scheduleMissingAudioCheck/);
   }
 
   for (const relativePath of [
@@ -3705,7 +3707,7 @@ test("authoritative IDs stay isolated and English autoplay never falls back blin
 });
 
 
-test("native VOD never schedules automatic audio rescue", () => {
+test("native VOD checks for missing audio only after playback advances", () => {
   const nativeFiles = [
     "../android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt",
     "../firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt",
@@ -3718,9 +3720,11 @@ test("native VOD never schedules automatic audio rescue", () => {
     assert.ok(start >= 0 && end > start);
     const block = source.slice(start, end);
 
-    assert.match(block, /Intentionally disabled\. Audio recovery is manual-only/);
-    assert.doesNotMatch(block, /launchCompatibilityPlayer\(/);
-    assert.doesNotMatch(block, /postDelayed\(/);
+    assert.match(block, /initial\.present && initial\.supported && initial\.selected/);
+    assert.match(block, /latest\.present && latest\.supported && latest\.selected/);
+    assert.match(block, /activePlayer\.currentPosition < 5000L/);
+    assert.match(block, /launchCompatibilityPlayer\(activePlayer, null, reason\)/);
+    assert.match(block, /10000L/);
     assert.match(source, /error\.errorCode in 5001\.\.5004/);
     assert.match(source, /return code == 3003 \|\|\s*\n\s*code in 4001\.\.4005/);
   }
@@ -4487,7 +4491,7 @@ test("Android Mobile resolved VOD is owned by the native Media3 player", () => {
   );
 });
 
-test("black-screen VOD startup waits before trying at most three ready English sources without blacklisting", () => {
+test("VOD startup keeps a slow manual source mounted and only tries ready automatic alternatives", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
     "utf8"
@@ -4509,6 +4513,9 @@ test("black-screen VOD startup waits before trying at most three ready English s
   assert.match(block, /STARTUP_GRACE_MS = 12000/);
   assert.match(block, /MAX_AUTOMATIC_STARTUP_ATTEMPTS = 3/);
   assert.match(block, /manualSourceLockActive\(\)/);
+  assert.match(block, /hasBufferedData/);
+  assert.match(block, /setVodStartupNotice\(/);
+  assert.doesNotMatch(block, /setRdError\(/);
   assert.match(block, /Number\(entry\?\.languageRank \?\? 3\) <= 3/);
   assert.match(block, /autoplayEntryApproved\(entry\)/);
   assert.doesNotMatch(block, /markSourceFailed\(/);
@@ -4517,6 +4524,8 @@ test("black-screen VOD startup waits before trying at most three ready English s
     block,
     /without blacklisting it/
   );
+  assert.match(playerSource, /data-mg-vod-startup-notice="true"/);
+  assert.match(playerSource, /Torrent candidates \{Number\(source\?\.sourceDiagnostics\?\.cacheCandidateCount/);
 });
 
 test("a new playback request resets the old source index and manual lock", () => {
@@ -4618,7 +4627,7 @@ test("smart English autoplay rejects proven foreign audio while keeping English 
   );
 });
 
-test("native player leaves audio recovery to the user", () => {
+test("native audio repair never cycles to another source on uncertain sound", () => {
   for (const relativePath of [
     "../android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt",
     "../firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt",
@@ -4626,15 +4635,15 @@ test("native player leaves audio recovery to the user", () => {
     const source = readFileSync(new URL(relativePath, import.meta.url), "utf8");
 
     assert.match(source, /strictEnglishStartupRequired\(\): Boolean = false/);
-    assert.match(source, /Manual-only audio policy: do not override tracks/);
-    assert.match(source, /Intentionally disabled\. Audio recovery is manual-only/);
+    assert.match(source, /group\.isTrackSelected\(index\) && group\.isTrackSupported\(index\)/);
+    assert.match(source, /player !== activePlayer/);
     assert.equal(
       (source.match(/enforcePreferredEnglishAudio\(/g) || []).length,
       1
     );
     assert.equal(
       (source.match(/scheduleMissingAudioCheck\(/g) || []).length,
-      1
+      2
     );
     assert.doesNotMatch(source, /onAudioPositionAdvancing\(/);
     assert.doesNotMatch(source, /audioOutputConfirmed/);

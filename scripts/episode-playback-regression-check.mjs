@@ -74,12 +74,12 @@ expect(
 );
 
 expect(
-  videoPlayer.includes("hostedErrorProvider") &&
-    videoPlayer.includes("hostedNamedError") &&
+  !videoPlayer.includes("hostedErrorProvider") &&
+    !videoPlayer.includes("hostedNamedError") &&
     !videoPlayer.includes("hostedErrorDuration") &&
     !videoPlayer.includes("loadedDuration >= 115") &&
-    videoPlayer.includes("{ immediate: true }"),
-  "hosted-provider rows fail over only on explicit provider error markers, never duration metadata alone"
+    videoPlayer.includes("vodPlaybackIsAdvancing("),
+  "hosted-provider labels and duration cannot override real video progress"
 );
 
 expect(
@@ -161,9 +161,9 @@ expect(
     mediaPlayerProvider.includes('cacheCandidateCount,') &&
     mediaPlayerProvider.includes('cachedSourceCount,') &&
     videoPlayer.includes('data-mg-source-health="true"') &&
-    videoPlayer.includes('Cache checked') &&
+    videoPlayer.includes('Torrent candidates') &&
     videoPlayer.includes('Shown {selectableSourceCount}'),
-  "player exposes source-health counts for discovery, cache checks, cached hits and ready sources"
+  "player exposes source-health counts for discovery, torrent candidates, cached hits and visible sources"
 );
 
 expect(
