@@ -1221,6 +1221,9 @@ function MediaGodApp() {
             onClose={
               closeDetails
             }
+            onSelectRelated={
+              handleSearchSelect
+            }
           />
         </DetailErrorBoundary>
       )}
