@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 70,
-  "versionName": "1.4.65",
+  "versionCode": 71,
+  "versionName": "1.4.66",
   "title": "Media God Fire TV",
-  "message": "Media God Fire TV 1.4.65 improves initial audio compatibility ranking and adds a software FFmpeg decoder for supported audio formats. Audio changes remain user controlled.",
+  "message": "Media God Fire TV 1.4.66 improves native audio track recovery while preserving a selected working track.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",

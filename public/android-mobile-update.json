@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 52,
-  "versionName": "1.0.51",
+  "versionCode": 53,
+  "versionName": "1.0.52",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.51 improves initial audio compatibility ranking and adds a software FFmpeg decoder for supported audio formats. Audio changes remain user controlled.",
+  "message": "Media God Mobile 1.0.52 improves native audio track recovery while preserving a selected working track.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
