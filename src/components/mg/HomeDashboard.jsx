@@ -385,6 +385,7 @@ export default function HomeDashboard({ onOpenTvService }) {
   const [watched, setWatched] = useState({});
   const [historyRows, setHistoryRows] = useState([]);
   const [recommendationSeed, setRecommendationSeed] = useState(null);
+  const [linkedRecommendations, setLinkedRecommendations] = useState([]);
   const [todayKey, setTodayKey] = useState(() => localDateKey());
   const [uxPreferences, setUxPreferences] = useState(readUxPreferences);
 
@@ -697,6 +698,100 @@ export default function HomeDashboard({ onOpenTvService }) {
     };
   }, [todayKey, streamingRegion, streamingTimezone]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const seedId =
+      mediaId(
+        recommendationSeed
+      );
+
+    if (!seedId) {
+      setLinkedRecommendations(
+        []
+      );
+
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const loadLinkedRecommendations =
+      async () => {
+        try {
+          const response =
+            await base44.functions.invoke(
+              "getTmdbMovies",
+              {
+                media_type:
+                  mediaTypeOf(
+                    recommendationSeed
+                  ),
+                movie_id:
+                  seedId,
+                region:
+                  streamingRegion,
+              }
+            );
+
+          const first =
+            response?.data ??
+            response ??
+            {};
+
+          const payload =
+            first &&
+            typeof first ===
+              "object" &&
+            !Array.isArray(
+              first
+            ) &&
+            first.data &&
+            typeof first.data ===
+              "object" &&
+            !Array.isArray(
+              first.data
+            )
+              ? first.data
+              : first;
+
+          const linked =
+            Array.isArray(
+              payload?.related
+            )
+              ? payload.related
+              : [];
+
+          if (
+            !cancelled
+          ) {
+            setLinkedRecommendations(
+              dedupeMedia(
+                linked
+              )
+            );
+          }
+        } catch {
+          if (
+            !cancelled
+          ) {
+            setLinkedRecommendations(
+              []
+            );
+          }
+        }
+      };
+
+    loadLinkedRecommendations();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    recommendationSeed,
+    streamingRegion,
+  ]);
+
   const completedHistoryTitles = useMemo(() => {
     const titles = new Set();
 
@@ -740,43 +835,87 @@ export default function HomeDashboard({ onOpenTvService }) {
     const seedId = mediaId(recommendationSeed);
     const seedType = mediaTypeOf(recommendationSeed);
 
-    const pool = dedupeMedia([
-      ...(rows.todayMovies || []),
-      ...(rows.tvPremieresToday || []),
-      ...(rows.newMovies || []),
-      ...(rows.newTV || []),
-      ...(rows.trending || []),
-      ...(rows.popularMovies || []),
-      ...(rows.popularTV || []),
-      ...(rows.topRated || []),
-    ]).filter((item) => {
-      const sameSeed =
-        mediaId(item) === seedId &&
-        mediaTypeOf(item) === seedType;
+    const keepCandidate =
+      (item) => {
+        const sameSeed =
+          mediaId(item) ===
+            seedId &&
+          mediaTypeOf(item) ===
+            seedType;
 
-      if (sameSeed) {
-        return false;
-      }
+        if (sameSeed) {
+          return false;
+        }
 
-      const title = normaliseTitle(item?.title || item?.name);
+        const title =
+          normaliseTitle(
+            item?.title ||
+              item?.name
+          );
 
-      if (title && completedHistoryTitles.has(title)) {
-        return false;
-      }
+        if (
+          title &&
+          completedHistoryTitles.has(
+            title
+          )
+        ) {
+          return false;
+        }
 
-      return true;
-    });
+        return true;
+      };
 
-    return pool
-      .map((item) => ({
-        item,
-        score: recommendationScore(item, recommendationSeed),
-      }))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 20)
-      .map(({ item }) => item);
+    const linked =
+      dedupeMedia(
+        linkedRecommendations
+      ).filter(
+        keepCandidate
+      );
+
+    const fallbackPool =
+      dedupeMedia([
+        ...(rows.todayMovies || []),
+        ...(rows.tvPremieresToday || []),
+        ...(rows.newMovies || []),
+        ...(rows.newTV || []),
+        ...(rows.trending || []),
+        ...(rows.popularMovies || []),
+        ...(rows.popularTV || []),
+        ...(rows.topRated || []),
+      ]).filter(
+        keepCandidate
+      );
+
+    const rankedFallback =
+      fallbackPool
+        .map((item) => ({
+          item,
+          score:
+            recommendationScore(
+              item,
+              recommendationSeed
+            ),
+        }))
+        .sort(
+          (a, b) =>
+            b.score -
+            a.score
+        )
+        .map(
+          ({ item }) =>
+            item
+        );
+
+    return dedupeMedia([
+      ...linked,
+      ...rankedFallback,
+    ]).slice(
+      0,
+      20
+    );
   }, [
     recommendationSeed,
+    linkedRecommendations,
     completedHistoryTitles,
     rows.todayMovies,
     rows.tvPremieresToday,
@@ -1095,6 +1234,7 @@ export default function HomeDashboard({ onOpenTvService }) {
             item={selected}
             mediaType={selected?.media_type || mediaTypeOf(selected)}
             onClose={() => setSelected(null)}
+            onSelectRelated={open}
           />
         </HomeDetailErrorBoundary>
       )}
