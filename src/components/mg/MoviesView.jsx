@@ -304,6 +304,7 @@ export default function MoviesView() {
           item={selected}
           mediaType="movie"
           onClose={() => setSelected(null)}
+          onSelectRelated={(nextItem) => setSelected(nextItem)}
         />
       )}
     </div>
