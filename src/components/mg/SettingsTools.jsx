@@ -4,6 +4,7 @@ import {
   Download,
   FileJson,
   HardDrive,
+  KeyRound,
   Link,
   ListVideo,
   Smartphone,
@@ -17,6 +18,13 @@ const TOOLS = [
     label: "Check for Updates",
     description: "Check for a new Media God version and view release information.",
     icon: ListVideo,
+    featured: true,
+  },
+  {
+    id: "real-debrid",
+    label: "Connect Real-Debrid",
+    description: "Link Real-Debrid with the 8-digit device code.",
+    icon: KeyRound,
     featured: true,
   },
   {
@@ -102,6 +110,25 @@ export default function SettingsTools({ onSelect }) {
               onClick={() => {
                 if (item.id === "getting-started") {
                   window.dispatchEvent(new CustomEvent("mg:open-onboarding"));
+                  return;
+                }
+
+                if (item.id === "real-debrid") {
+                  const target = document.getElementById(
+                    "mg-real-debrid-device-login"
+                  );
+
+                  target?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                  });
+
+                  window.setTimeout(() => {
+                    target
+                      ?.querySelector("button")
+                      ?.focus?.();
+                  }, 250);
+
                   return;
                 }
 
