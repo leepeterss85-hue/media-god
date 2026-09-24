@@ -1930,7 +1930,7 @@ export default async function (req) {
         );
       }
 
-      const unRes =
+      let unRes =
         await rdFetch(
           `${RD_BASE}/unrestrict/link`,
           {
@@ -1940,12 +1940,49 @@ export default async function (req) {
             body:
               `link=${encodeURIComponent(
                 link
-              )}&remote=1`,
+              )}`,
           },
           {
             attempts: 3,
           }
         );
+
+      /*
+       * Do not force Real-Debrid's remote-traffic mode for normal torrent
+       * playback. remote=1 consumes the account's remote traffic allowance
+       * and can make every otherwise-playable cached source fail with
+       * 403 traffic_exhausted. Only retry in remote mode when RD explicitly
+       * reports error_code 22 (IP not allowed), which is the case this
+       * fallback was originally meant to rescue.
+       */
+      if (!unRes.ok) {
+        const firstFailure =
+          await rdFailureDetails(
+            unRes.clone(),
+            "Real-Debrid could not unrestrict this file"
+          );
+
+        if (
+          Number(firstFailure.upstream_error_code) === 22
+        ) {
+          unRes =
+            await rdFetch(
+              `${RD_BASE}/unrestrict/link`,
+              {
+                method: "POST",
+                headers:
+                  formHeaders,
+                body:
+                  `link=${encodeURIComponent(
+                    link
+                  )}&remote=1`,
+              },
+              {
+                attempts: 3,
+              }
+            );
+        }
+      }
 
       if (!unRes.ok) {
         const failure = await rdFailureDetails(
@@ -3872,7 +3909,7 @@ async function resolveStreamable(
   /*
    * Turn the RD file link into a direct download/stream URL.
    */
-  const unRes =
+  let unRes =
     await rdFetch(
       `${RD_BASE}/unrestrict/link`,
       {
@@ -3885,12 +3922,44 @@ async function resolveStreamable(
         body:
           `link=${encodeURIComponent(
             targetLink
-          )}&remote=1`,
+          )}`,
       },
       {
         attempts: 3,
       }
     );
+
+  if (!unRes.ok) {
+    const firstFailure =
+      await rdFailureDetails(
+        unRes.clone(),
+        "Real-Debrid could not unrestrict this file"
+      );
+
+    if (
+      Number(firstFailure.upstream_error_code) === 22
+    ) {
+      unRes =
+        await rdFetch(
+          `${RD_BASE}/unrestrict/link`,
+          {
+            method:
+              "POST",
+
+            headers:
+              formHeaders,
+
+            body:
+              `link=${encodeURIComponent(
+                targetLink
+              )}&remote=1`,
+          },
+          {
+            attempts: 3,
+          }
+        );
+    }
+  }
 
   if (!unRes.ok) {
     const failure = await rdFailureDetails(
