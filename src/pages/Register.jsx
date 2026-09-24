@@ -11,8 +11,10 @@ import { SOCIAL_LOGIN_PROVIDERS } from "@/components/mg/SocialLoginSection";
 import { mediaGodAuthReturnUrl } from "@/lib/mediaGodAuth";
 import { toast } from "@/components/ui/use-toast";
 import { safeReturnTo } from "@/lib/authReturnTo";
+import { useAuth } from "@/lib/AuthContext";
 
 export default function Register() {
+  const { continueAsGuest } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -67,6 +69,11 @@ export default function Register() {
     } catch (err) {
       setError(err.message || "Failed to resend code");
     }
+  };
+
+  const handleSkip = () => {
+    continueAsGuest();
+    window.location.replace("/");
   };
 
   const handleSocial = (provider) => {
@@ -133,6 +140,17 @@ export default function Register() {
           <button onClick={handleResend} className="text-primary font-medium hover:underline">
             Resend
           </button>
+        </p>
+        <Button
+          type="button"
+          variant="ghost"
+          className="mt-3 w-full h-11 font-medium"
+          onClick={handleSkip}
+        >
+          Skip for now
+        </Button>
+        <p className="mt-1 text-center text-xs text-muted-foreground">
+          We'll remember this on this device. You can sign in later from Settings.
         </p>
       </AuthLayout>
     );
@@ -250,6 +268,20 @@ export default function Register() {
           )}
         </Button>
       </form>
+
+      <div className="mt-4 border-t border-border pt-4">
+        <Button
+          type="button"
+          variant="ghost"
+          className="w-full h-11 font-medium"
+          onClick={handleSkip}
+        >
+          Skip for now
+        </Button>
+        <p className="mt-1 text-center text-xs text-muted-foreground">
+          We'll remember this on this device. You can sign in later from Settings.
+        </p>
+      </div>
     </AuthLayout>
   );
 }
