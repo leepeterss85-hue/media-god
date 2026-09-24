@@ -1014,7 +1014,7 @@ export default function AddonsManager() {
 
       <div className="rounded-xl border border-white/10 bg-zinc-900/60 p-4 text-sm text-gray-300">
         <p>
-          Media God now uses only addons actually saved here. It no longer creates hidden/default addon records automatically.
+          Media God uses your saved addons plus one built-in credential-free public discovery fallback, so movies and TV episodes can still find source candidates when this account has no saved addon records. The fallback is not stored in your account and contains no debrid credentials.
         </p>
 
         <p className="text-xs text-gray-500 mt-1">
