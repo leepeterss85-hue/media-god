@@ -8,7 +8,7 @@ import {
 } from '@/lib/accountPreferenceSync';
 import { mediaGodAuthReturnUrl } from '@/lib/mediaGodAuth';
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
 
 const GUEST_MODE_KEY = 'mg_guest_mode';
 
