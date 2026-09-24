@@ -60,7 +60,7 @@ test("remembered guest mode can skip account creation without weakening account-
   assert.match(xtreamSource, /base44\.auth\.me\(\)/);
 });
 
-test("movie and episode reviews use a public 1-to-6 star auto-publish model", () => {
+test("movie and episode reviews use a public 1-to-5 star auto-publish model", () => {
   const schema = readFileSync(
     new URL("../base44/entities/MediaReview.jsonc", import.meta.url),
     "utf8"
@@ -79,7 +79,7 @@ test("movie and episode reviews use a public 1-to-6 star auto-publish model", ()
   );
 
   assert.match(schema, /"read"\s*:\s*\{\s*\}/);
-  assert.match(schema, /"enum"\s*:\s*\[\s*1\s*,\s*2\s*,\s*3\s*,\s*4\s*,\s*5\s*,\s*6\s*\]/);
+  assert.match(schema, /"enum"\s*:\s*\[\s*1\s*,\s*2\s*,\s*3\s*,\s*4\s*,\s*5\s*\]/);
   for (const operation of ["create", "update", "delete"]) {
     assert.match(
       schema,
@@ -89,7 +89,7 @@ test("movie and episode reviews use a public 1-to-6 star auto-publish model", ()
     );
   }
 
-  assert.match(reviews, /STAR_VALUES = \[1, 2, 3, 4, 5, 6\]/);
+  assert.match(reviews, /STAR_VALUES = \[1, 2, 3, 4, 5\]/);
   assert.match(reviews, /MAX_REVIEW_LENGTH = 1500/);
   assert.match(reviews, /published:\s*true/);
   assert.match(reviews, /Reviews publish immediately\./);
