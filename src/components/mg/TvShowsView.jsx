@@ -485,6 +485,7 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
             item={selected}
             mediaType="tv"
             onClose={() => setSelected(null)}
+            onSelectRelated={(nextItem) => setSelected(nextItem)}
           />
         </TvDetailErrorBoundary>
       )}
