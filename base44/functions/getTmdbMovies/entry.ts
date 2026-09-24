@@ -1,4 +1,3 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { secrets } from 'base44:runtime';
 
 const TMDB_BASE = 'https://api.themoviedb.org/3';
@@ -714,26 +713,11 @@ const fetchSearchIdentityCorrections = async (
 
 export default async function(req) {
   try {
-    const base44 =
-      createClientFromRequest(
-        req
-      );
-
-    const user =
-      await base44.auth.me();
-
-    if (!user) {
-      return Response.json(
-        {
-          error:
-            'Unauthorized',
-        },
-        {
-          status:
-            401,
-        }
-      );
-    }
+    /*
+     * Catalogue metadata is public app content. Keep it available when a viewer
+     * chooses the remembered guest/skip path; account-only features remain
+     * protected by their own user-scoped endpoints.
+     */
 
     let body = {};
 
