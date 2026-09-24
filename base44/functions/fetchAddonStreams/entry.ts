@@ -2,6 +2,44 @@ import { createClientFromRequest } from "npm:@base44/sdk@0.8.44";
 
 const clean = (value) => String(value || "").trim();
 
+/*
+ * Always keep one credential-free discovery path available. Addon records are
+ * intentionally user-scoped, so a fresh/anonymous Base44 session can have no
+ * rows even though the player itself is available. Without this fallback TV
+ * episodes collapse to the show-level placeholder (`Stream`) and the chooser
+ * has literally nothing else to select.
+ *
+ * Keep this list restricted to public manifests that do not contain account or
+ * debrid credentials. User-configured addons are still queried first and are
+ * never copied or exposed to another account.
+ */
+const BUILTIN_PUBLIC_PLAYBACK_ADDONS = [
+  {
+    name: "Torrentio",
+    url: "https://torrentio.strem.fun/manifest.json",
+    installed: true,
+    active: true,
+    builtIn: true,
+  },
+];
+
+const addonUrlKey = (addon) =>
+  clean(addon?.url)
+    .toLowerCase()
+    .replace(/\/+$/, "");
+
+const withBuiltinPlaybackAddons = (items) => {
+  const configured = Array.isArray(items) ? items.filter(Boolean) : [];
+  const seenUrls = new Set(configured.map(addonUrlKey).filter(Boolean));
+
+  return [
+    ...configured,
+    ...BUILTIN_PUBLIC_PLAYBACK_ADDONS.filter(
+      (addon) => !seenUrls.has(addonUrlKey(addon))
+    ),
+  ];
+};
+
 const isHttp = (value) => /^https?:\/\//i.test(clean(value));
 
 const yearQualifiedSearchIds = (values) =>
@@ -2237,7 +2275,7 @@ export default async function (req) {
       );
 
     const allActiveAddons =
-      (addons || []).filter(
+      withBuiltinPlaybackAddons(addons).filter(
         (addon) =>
           addon?.installed !== false &&
           addon?.active !== false &&
@@ -2269,7 +2307,7 @@ export default async function (req) {
           0,
 
         reason:
-          "No server-side playback addons are configured. Only Addon records saved in Base44 are searched.",
+          "No playback addon is currently available.",
       });
     }
 
