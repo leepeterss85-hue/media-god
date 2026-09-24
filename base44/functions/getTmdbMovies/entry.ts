@@ -1364,6 +1364,9 @@ export default async function(req) {
       let cast =
         [];
 
+      let related =
+        [];
+
       try {
         const dRes =
           await fetch(
@@ -1517,6 +1520,138 @@ export default async function(req) {
           [];
       }
 
+      /*
+       * Keep recommendation cards tied to the exact TMDB title. The
+       * recommendations endpoint gives the strongest relationship signal;
+       * similar titles fill any gaps. Both stay on the same media type so a
+       * movie card cannot silently turn into a TV result (or vice versa).
+       */
+      try {
+        const relatedParams =
+          new URLSearchParams({
+            api_key:
+              apiKey,
+            language:
+              'en-GB',
+            page:
+              '1',
+          });
+
+        const [
+          recommendationsResponse,
+          similarResponse,
+        ] =
+          await Promise.all([
+            fetch(
+              `${TMDB_BASE}/${mediaType}/${movieId}/recommendations?${relatedParams.toString()}`,
+              {
+                headers: {
+                  Accept:
+                    'application/json',
+                },
+              }
+            ).catch(
+              () =>
+                null
+            ),
+            fetch(
+              `${TMDB_BASE}/${mediaType}/${movieId}/similar?${relatedParams.toString()}`,
+              {
+                headers: {
+                  Accept:
+                    'application/json',
+                },
+              }
+            ).catch(
+              () =>
+                null
+            ),
+          ]);
+
+        const relatedLists =
+          await Promise.all(
+            [
+              recommendationsResponse,
+              similarResponse,
+            ].map(
+              async (
+                response
+              ) => {
+                if (
+                  !response?.ok
+                ) {
+                  return [];
+                }
+
+                try {
+                  const data =
+                    await response.json();
+
+                  return Array.isArray(
+                    data?.results
+                  )
+                    ? data.results
+                    : [];
+                } catch {
+                  return [];
+                }
+              }
+            )
+          );
+
+        const seenRelated =
+          new Set([
+            String(
+              movieId
+            ),
+          ]);
+
+        related =
+          relatedLists
+            .flat()
+            .map(
+              (candidate) =>
+                mapItem(
+                  candidate,
+                  mediaType
+                )
+            )
+            .filter(
+              (candidate) => {
+                const id =
+                  String(
+                    candidate?.tmdb_id ||
+                      candidate?.id ||
+                      ''
+                  );
+
+                if (
+                  !id ||
+                  seenRelated.has(
+                    id
+                  )
+                ) {
+                  return false;
+                }
+
+                seenRelated.add(
+                  id
+                );
+
+                return Boolean(
+                  candidate?.title
+                );
+              }
+            )
+            .slice(
+              0,
+              24
+            );
+      } catch {
+        related =
+          [];
+      }
+
       return Response.json({
         trailer_key:
           key,
@@ -1532,6 +1667,8 @@ export default async function(req) {
         details,
 
         cast,
+
+        related,
       });
     }
 
