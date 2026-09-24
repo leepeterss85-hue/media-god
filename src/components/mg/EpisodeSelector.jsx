@@ -10,12 +10,14 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
+  MessageSquare,
   Play,
   RotateCcw,
 } from "lucide-react";
 
 import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
+import MediaReviews from "@/components/mg/MediaReviews";
 
 import {
   buildMediaSources,
@@ -256,6 +258,14 @@ export default function EpisodeSelector({
   ] =
     useState(
       true
+    );
+
+  const [
+    reviewEpisode,
+    setReviewEpisode,
+  ] =
+    useState(
+      null
     );
 
   const showTitle =
@@ -675,6 +685,14 @@ export default function EpisodeSelector({
     item?.id,
     item?.tmdb_id,
     item?.tmdbId,
+    season,
+  ]);
+
+  useEffect(() => {
+    setReviewEpisode(
+      null
+    );
+  }, [
     season,
   ]);
 
@@ -1307,32 +1325,80 @@ export default function EpisodeSelector({
                         </p>
                       </div>
 
-                      <button
-                        type="button"
-                        data-mg-focus-key={`episode:${tmdbId || showTitle}:${seasonNumber}:${episodeNumber}:action`}
-                        onClick={() =>
-                          playEpisode(
-                            episodeData
-                          )
-                        }
-                        className="shrink-0 min-h-10 inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/5 px-2.5 text-[11px] font-semibold text-white/70 hover:text-white hover:border-mg-green/30 focus:outline-none focus:ring-2 focus:ring-mg-green"
-                      >
-                        {hasResume ? (
-                          <RotateCcw className="w-3.5 h-3.5" />
-                        ) : (
-                          <Play className="w-3.5 h-3.5" />
-                        )}
+                      <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
+                        <button
+                          type="button"
+                          data-mg-focus-key={`episode:${tmdbId || showTitle}:${seasonNumber}:${episodeNumber}:review`}
+                          onClick={() =>
+                            setReviewEpisode(
+                              (current) =>
+                                current ===
+                                episodeNumber
+                                  ? null
+                                  : episodeNumber
+                            )
+                          }
+                          className="min-h-10 inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/5 px-2.5 text-[11px] font-semibold text-white/70 hover:text-white hover:border-mg-green/30 focus:outline-none focus:ring-2 focus:ring-mg-green"
+                          aria-expanded={
+                            reviewEpisode ===
+                            episodeNumber
+                          }
+                        >
+                          <MessageSquare className="w-3.5 h-3.5" />
+                          Review
+                        </button>
 
-                        {hasResume
-                          ? "Resume"
-                          : "Play"}
-                      </button>
+                        <button
+                          type="button"
+                          data-mg-focus-key={`episode:${tmdbId || showTitle}:${seasonNumber}:${episodeNumber}:action`}
+                          onClick={() =>
+                            playEpisode(
+                              episodeData
+                            )
+                          }
+                          className="min-h-10 inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/5 px-2.5 text-[11px] font-semibold text-white/70 hover:text-white hover:border-mg-green/30 focus:outline-none focus:ring-2 focus:ring-mg-green"
+                        >
+                          {hasResume ? (
+                            <RotateCcw className="w-3.5 h-3.5" />
+                          ) : (
+                            <Play className="w-3.5 h-3.5" />
+                          )}
+
+                          {hasResume
+                            ? "Resume"
+                            : "Play"}
+                        </button>
+                      </div>
                     </div>
 
                     <p className="text-white/50 text-xs mt-1 line-clamp-2 leading-relaxed">
                       {episodeData.overview ||
                         "No description available."}
                     </p>
+
+                    {reviewEpisode ===
+                      episodeNumber && (
+                      <MediaReviews
+                        tmdbId={
+                          tmdbId
+                        }
+                        mediaType="episode"
+                        title={
+                          showTitle
+                        }
+                        season={
+                          seasonNumber
+                        }
+                        episode={
+                          episodeNumber
+                        }
+                        episodeTitle={
+                          episodeData.name ||
+                          `Episode ${episodeNumber}`
+                        }
+                        compact
+                      />
+                    )}
                   </div>
                 </div>
               );
