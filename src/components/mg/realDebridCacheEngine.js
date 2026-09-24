@@ -1,4 +1,5 @@
 import { base44 } from "@/api/base44Client";
+import { withGuestDebridPayload } from "@/components/mg/guestDebridDevice";
 
 const sleep = (ms, signal) =>
   new Promise((resolve, reject) => {
@@ -21,7 +22,10 @@ const sleep = (ms, signal) =>
   });
 
 const invoke = async (payload) => {
-  const response = await base44.functions.invoke("realDebrid", payload);
+  const response = await base44.functions.invoke(
+    "realDebrid",
+    withGuestDebridPayload(payload)
+  );
   return response?.data || {};
 };
 
