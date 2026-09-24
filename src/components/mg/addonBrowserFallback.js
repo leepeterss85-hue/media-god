@@ -2,6 +2,38 @@ import { base44 } from "@/api/base44Client";
 
 const clean = (value) => String(value || "").trim();
 
+/*
+ * Mirror the backend's credential-free fallback so browser recovery does not
+ * disappear for a fresh/anonymous session whose user-scoped Addon collection
+ * is empty or unreadable. Never place configured/debrid manifest URLs here.
+ */
+const BUILTIN_PUBLIC_PLAYBACK_ADDONS = [
+  {
+    name: "Torrentio",
+    url: "https://torrentio.strem.fun/manifest.json",
+    installed: true,
+    active: true,
+    builtIn: true,
+  },
+];
+
+const addonUrlKey = (addon) =>
+  clean(addon?.url)
+    .toLowerCase()
+    .replace(/\/+$/, "");
+
+const withBuiltinPlaybackAddons = (items) => {
+  const configured = Array.isArray(items) ? items.filter(Boolean) : [];
+  const seenUrls = new Set(configured.map(addonUrlKey).filter(Boolean));
+
+  return [
+    ...configured,
+    ...BUILTIN_PUBLIC_PLAYBACK_ADDONS.filter(
+      (addon) => !seenUrls.has(addonUrlKey(addon))
+    ),
+  ];
+};
+
 const isHttp = (value) => /^https?:\/\//i.test(clean(value));
 
 const yearQualifiedSearchIds = (values) =>
@@ -1599,44 +1631,13 @@ export async function fetchBrowserAddonStreams({
         "-created_date",
         100
       );
-  } catch (error) {
-    return {
-      streams:
-        [],
-
-      diagnostics: [
-        {
-          name:
-            "Browser fallback",
-
-          status:
-            "browser_addon_list_failed",
-
-          playable_count:
-            0,
-
-          stream_count:
-            0,
-
-          message:
-            error?.message ||
-            "Could not read configured addons in the browser.",
-
-          browser:
-            true,
-        },
-      ],
-
-      addonsChecked:
-        0,
-
-      attempted:
-        true,
-
-      error:
-        error?.message ||
-        "Could not load configured addons.",
-    };
+  } catch {
+    /*
+     * Addon records are user-scoped. A session without readable records must
+     * still be able to discover episode/movie candidates through the public
+     * fallback below instead of returning an empty source list immediately.
+     */
+    addons = [];
   }
 
   const excludedAddonNames =
@@ -1656,7 +1657,7 @@ export async function fetchBrowserAddonStreams({
     );
 
   const activeAddons =
-    (addons || []).filter(
+    withBuiltinPlaybackAddons(addons).filter(
       (addon) =>
         addon?.installed !== false &&
         addon?.active !== false &&
@@ -1684,7 +1685,7 @@ export async function fetchBrowserAddonStreams({
         true,
 
       error:
-        "No active configured addons are available for browser fallback.",
+        "No active playback addon is available for browser fallback.",
     };
   }
 
