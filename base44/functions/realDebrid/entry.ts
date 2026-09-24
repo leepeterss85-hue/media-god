@@ -588,7 +588,7 @@ export default async function (req) {
 
     const rdLinks =
       user
-        ? rdLinks
+        ? base44.entities.RdLink
         : {
             filter: async (query = {}) =>
               await base44.asServiceRole.entities.GuestRdLink.filter({
