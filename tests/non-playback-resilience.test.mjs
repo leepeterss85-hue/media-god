@@ -144,7 +144,7 @@ test("related movie and TV cards use exact TMDB recommendation links and open de
   assert.match(home, /Because You Watched \$\{recommendationSeed\.title\}/);
 });
 
-test("Real-Debrid 8-digit device linking is visible in Addons and Settings", () => {
+test("Real-Debrid 8-digit device linking works for guests in Addons and Settings", () => {
   const addons = readFileSync(
     new URL("../src/components/mg/AddonsView.jsx", import.meta.url),
     "utf8"
@@ -161,8 +161,28 @@ test("Real-Debrid 8-digit device linking is visible in Addons and Settings", () 
     new URL("../src/components/mg/RealDebridDeviceConnect.jsx", import.meta.url),
     "utf8"
   );
+  const client = readFileSync(
+    new URL("../src/api/base44Client.js", import.meta.url),
+    "utf8"
+  );
+  const deviceHelper = readFileSync(
+    new URL("../src/components/mg/guestDebridDevice.js", import.meta.url),
+    "utf8"
+  );
   const backend = readFileSync(
     new URL("../base44/functions/realDebridAuth/entry.ts", import.meta.url),
+    "utf8"
+  );
+  const realDebrid = readFileSync(
+    new URL("../base44/functions/realDebrid/entry.ts", import.meta.url),
+    "utf8"
+  );
+  const multiDebrid = readFileSync(
+    new URL("../base44/functions/multiDebrid/entry.ts", import.meta.url),
+    "utf8"
+  );
+  const guestSchema = readFileSync(
+    new URL("../base44/entities/GuestDebridCredential.jsonc", import.meta.url),
     "utf8"
   );
 
@@ -172,6 +192,7 @@ test("Real-Debrid 8-digit device linking is visible in Addons and Settings", () 
   assert.match(settingsTools, /mg-real-debrid-device-login/);
   assert.match(settings, /id="mg-real-debrid-device-login"/);
   assert.match(settings, /Get 8-digit Real-Debrid code/);
+  assert.match(settings, /No Media God sign-in is required/);
 
   assert.match(connector, /Real-Debrid 8-digit device login/);
   assert.match(connector, /action:\s*"start_device"/);
@@ -179,12 +200,26 @@ test("Real-Debrid 8-digit device linking is visible in Addons and Settings", () 
   assert.match(connector, /deviceFlow\.user_code/);
   assert.match(connector, /https:\/\/real-debrid\.com\/device/);
   assert.match(connector, /Media God checks automatically/);
-  assert.match(connector, /Sign in to connect Real-Debrid/);
+  assert.match(connector, /without signing in to Media God/);
+  assert.doesNotMatch(connector, /Sign in to connect Real-Debrid/);
 
+  assert.match(deviceHelper, /mg:guest-real-debrid-device-key:v1/);
+  assert.match(deviceHelper, /crypto\.getRandomValues/);
+  assert.match(client, /DEVICE_SCOPED_DEBRID_FUNCTIONS/);
+  assert.match(client, /withGuestDebridPayload\(payload\)/);
+
+  assert.match(guestSchema, /"device_key_hash"/);
+  assert.match(guestSchema, /"role": "__disabled__"/);
+  assert.match(backend, /loadGuestDebridCredential/);
+  assert.match(backend, /guest_device_key/);
   assert.match(backend, /action ===\s*"start_device"/);
   assert.match(backend, /action ===\s*"poll_device"/);
+  assert.match(backend, /saveGuestDebridCredential/);
   assert.match(backend, /user_code:/);
   assert.match(backend, /rd_token:/);
+  assert.match(realDebrid, /GuestRdLink/);
+  assert.match(realDebrid, /guest_device_key/);
+  assert.match(multiDebrid, /guest_device_key/);
 });
 
 test("UX preferences normalise unknown values and preserve every known Home row", () => {
