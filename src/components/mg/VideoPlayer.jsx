@@ -92,6 +92,7 @@ import {
 import { sourceHasAuthoritativeCachedSignal } from "@/components/mg/sourceCacheVisibility";
 import { sourceMatchesRequestedIdentity } from "@/components/mg/sourceIdentity";
 import { sourceIsAioStreamsCandidate } from "@/components/mg/sourceProviderIdentity";
+import { canAutoHandoffStartup } from "@/components/mg/startupSourceHandoff";
 import {
   bestSmartUpgradeEntry,
   detectSmartSourceUpgrade,
@@ -3143,9 +3144,27 @@ export default function VideoPlayer({
   );
   const activeNeedsCaching =
     !activeHasResolvedStream && sourceNeedsCaching(active);
+  /*
+   * AIOStreams yields only while the startup selector can actually hand off
+   * to another torrent. After that one handoff, or with another quality sort,
+   * suppressing resolution leaves a bare spinner and Try Again forever.
+   */
+  const startupHandoffAvailable = canAutoHandoffStartup({
+    sortMode: sourceSortMode,
+    mediaType: playbackMediaType,
+    manuallySelected: manualSourceLockActive(),
+    alreadyClaimed:
+      startupAutoplayClaimRef.current.playRequestId === (source?.playRequestId ?? null) &&
+      startupAutoplayClaimRef.current.claimed === true,
+    selectorPinned: sourceSelectorPinnedRef.current,
+    fileSelectorPinned: rdFileSelectorPinnedRef.current,
+    fileSwitching,
+    nativePlaying:
+      typeof window !== "undefined" &&
+      window.__MG_NATIVE_PLAYBACK_ACTIVE__ === true,
+  });
   const activeAioShouldYieldToAlternative = Boolean(
-    playbackMediaType !== "live" &&
-      !manualSourceLockActive() &&
+    startupHandoffAvailable &&
       sourceIsAioStreamsCandidate(active) &&
       bestNonAioTorrentAutoplayCandidateIndex >= 0 &&
       bestNonAioTorrentAutoplayCandidateIndex !== activeIdx
@@ -9307,25 +9326,19 @@ export default function VideoPlayer({
      * launch only the chosen English source.
      */
     const approvedStartupTakeoverPending =
-      !isLive &&
-      playbackMediaType !== "live" &&
-      !manualSourceLockActive() &&
+      startupHandoffAvailable &&
       !activeStartupProven &&
       bestApprovedAutoplaySourceIndex >= 0 &&
       bestApprovedAutoplaySourceIndex !== activeIdx;
 
     const englishStartupTakeoverPending =
-      !isLive &&
-      playbackMediaType !== "live" &&
-      !manualSourceLockActive() &&
+      startupHandoffAvailable &&
       !activeStartupProven &&
       bestEnglishAutoplayCandidateIndex >= 0 &&
       bestEnglishAutoplayCandidateIndex !== activeIdx;
 
     const aioStreamsStartupTakeoverPending =
-      !isLive &&
-      playbackMediaType !== "live" &&
-      !manualSourceLockActive() &&
+      startupHandoffAvailable &&
       sourceIsAioStreamsCandidate(active) &&
       bestNonAioTorrentAutoplayCandidateIndex >= 0 &&
       bestNonAioTorrentAutoplayCandidateIndex !== activeIdx;
@@ -9537,6 +9550,7 @@ export default function VideoPlayer({
     playbackMediaType,
     rdOverride,
     source,
+    startupHandoffAvailable,
     useNativePlayback,
   ]);
 
