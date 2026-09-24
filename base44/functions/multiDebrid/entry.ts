@@ -1,4 +1,5 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.44";
+import { loadGuestDebridCredential } from "./guestDebrid.ts";
 
 const PROVIDERS = {
   realdebrid: {
@@ -797,11 +798,6 @@ const providerStatus = async (providerKey, token) => {
 export default async function (req) {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-
-    if (!user) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
     let body = {};
     try {
@@ -810,9 +806,54 @@ export default async function (req) {
       body = {};
     }
 
+    const user =
+      await base44.auth
+        .me()
+        .catch(() => null);
+
+    const guestContext =
+      user
+        ? { record: null }
+        : await loadGuestDebridCredential(
+            base44,
+            body?.guest_device_key
+          );
+
+    const guestRecord =
+      guestContext.record;
+
+    if (
+      !user &&
+      !guestRecord?.rd_token
+    ) {
+      return Response.json(
+        { error: "No debrid account is connected on this device." },
+        { status: 401 }
+      );
+    }
+
+    const credentialOwner =
+      user ||
+      {
+        rd_token:
+          clean(guestRecord?.rd_token),
+        debrid_provider_priority:
+          ["realdebrid"],
+      };
+
     const action = clean(body?.action || "status").toLowerCase();
 
     if (action === "save_tokens") {
+      if (!user) {
+        return Response.json(
+          {
+            error:
+              "Saving additional debrid providers still requires a Media God account.",
+          },
+          { status: 401 }
+        );
+      }
+
       const patch = {};
       const tokens = body?.tokens && typeof body.tokens === "object" ? body.tokens : {};
 
@@ -827,7 +868,7 @@ export default async function (req) {
         if (Object.prototype.hasOwnProperty.call(patch, tokenField)) {
           return clean(patch[tokenField]);
         }
-        return tokenFor(user, key);
+        return tokenFor(credentialOwner, key);
       };
 
       /*
@@ -853,9 +894,9 @@ export default async function (req) {
     }
 
     if (action === "status") {
-      const enabled = enabledProvidersFor(user);
+      const enabled = enabledProvidersFor(credentialOwner);
       const statuses = await Promise.all(
-        providerKeys().map((key) => providerStatus(key, tokenFor(user, key)))
+        providerKeys().map((key) => providerStatus(key, tokenFor(credentialOwner, key)))
       );
 
       return Response.json({
@@ -863,7 +904,7 @@ export default async function (req) {
           ...status,
           enabled: enabled.includes(status.key),
         })),
-        priority: priorityFor(user),
+        priority: priorityFor(credentialOwner),
       });
     }
 
@@ -880,16 +921,16 @@ export default async function (req) {
 
       const requested = Array.isArray(body?.providers)
         ? body.providers.map(normaliseProvider).filter(Boolean)
-        : enabledProvidersFor(user);
+        : enabledProvidersFor(credentialOwner);
 
-      const priority = priorityFor(user).filter((key) => requested.includes(key));
+      const priority = priorityFor(credentialOwner).filter((key) => requested.includes(key));
       const cached = {};
       const providerStats = {};
       const hints = providerScoreHints(body);
 
       await Promise.all(
         priority.map(async (key) => {
-          const token = tokenFor(user, key);
+          const token = tokenFor(credentialOwner, key);
           if (!token) return;
           const startedAt = Date.now();
 
@@ -953,8 +994,8 @@ export default async function (req) {
 
       let providerKey = normaliseProvider(body?.provider);
       const hash = normaliseHash(source);
-      const enabled = enabledProvidersFor(user);
-      const priority = priorityFor(user).filter((key) => enabled.includes(key));
+      const enabled = enabledProvidersFor(credentialOwner);
+      const priority = priorityFor(credentialOwner).filter((key) => enabled.includes(key));
 
       if (!providerKey && hash) {
         const cacheResult = {};
@@ -963,7 +1004,7 @@ export default async function (req) {
 
         await Promise.all(
           priority.map(async (key) => {
-            const token = tokenFor(user, key);
+            const token = tokenFor(credentialOwner, key);
             if (!token) return;
             const startedAt = Date.now();
 
@@ -998,7 +1039,7 @@ export default async function (req) {
       }
 
       providerKey = providerKey || priority[0] || "";
-      const token = tokenFor(user, providerKey);
+      const token = tokenFor(credentialOwner, providerKey);
 
       if (!providerKey || !token) {
         return Response.json(
