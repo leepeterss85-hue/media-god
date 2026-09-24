@@ -11,6 +11,7 @@ export default function MediaRow({
   iconUrl = "",
   actionLabel = "",
   onAction = null,
+  embedded = false,
 }) {
   const ref = useRef(null);
 
@@ -27,7 +28,18 @@ export default function MediaRow({
   if (!items || items.length === 0) return null;
 
   return (
-    <section className="px-3 min-[420px]:px-4 sm:px-6 md:px-8 3xl:px-10 4xl:px-14">
+    <section
+      className={
+        embedded
+          ? "min-w-0"
+          : "px-3 min-[420px]:px-4 sm:px-6 md:px-8 3xl:px-10 4xl:px-14"
+      }
+      data-mg-media-row-embedded={
+        embedded
+          ? "true"
+          : undefined
+      }
+    >
       <div className="flex items-center justify-between gap-3 mb-2 3xl:mb-3">
         <div className="flex min-w-0 items-center gap-2.5 3xl:gap-3">
           {iconUrl && (
