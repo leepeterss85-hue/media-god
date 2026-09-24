@@ -23,6 +23,7 @@ const AuthenticatedApp = () => {
 
   const {
     isAuthenticated,
+    isGuest,
     isLoadingAuth,
     isLoadingPublicSettings,
     authError,
@@ -92,7 +93,7 @@ const AuthenticatedApp = () => {
     </Routes>
   );
 
-  return isAuthenticated
+  return isAuthenticated || isGuest
     ? <PlayerProvider>{appRoutes}</PlayerProvider>
     : appRoutes;
 };
