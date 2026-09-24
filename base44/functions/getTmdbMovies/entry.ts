@@ -4,6 +4,10 @@ const TMDB_BASE = 'https://api.themoviedb.org/3';
 const IMG_BASE = 'https://image.tmdb.org/t/p/w500';
 const BACKDROP_BASE = 'https://image.tmdb.org/t/p/w780';
 const PROVIDER_LOGO_BASE = 'https://image.tmdb.org/t/p/w92';
+const validImdbId = (value) => {
+  const id = String(value || '').trim();
+  return /^tt\d+$/i.test(id) ? id : '';
+};
 
 /*
  * A very small escape hatch for legitimate titles that exist on TMDB but are
@@ -1386,6 +1390,9 @@ export default async function(req) {
             await dRes.json();
 
           details = {
+            imdb_id:
+              validImdbId(d.imdb_id),
+
             overview:
               d.overview ||
               '',
@@ -1471,6 +1478,24 @@ export default async function(req) {
       } catch {
         details =
           {};
+      }
+
+      /* TV details omit IMDb ids; fetch the exact show's external id before
+       * the episode chooser builds its playback request. Movie details already
+       * contain imdb_id and do not need this extra lookup. */
+      if (mediaType === 'tv') {
+        try {
+          const idRes = await fetch(
+            `${TMDB_BASE}/tv/${movieId}/external_ids?api_key=${apiKey}`,
+            { headers: { Accept: 'application/json' } }
+          );
+          if (idRes.ok) {
+            const idData = await idRes.json();
+            details.imdb_id = validImdbId(idData?.imdb_id);
+          }
+        } catch {
+          // Details remain usable if external ids are temporarily unavailable.
+        }
       }
 
       try {

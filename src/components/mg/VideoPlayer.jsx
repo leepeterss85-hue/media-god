@@ -93,6 +93,7 @@ import { sourceHasAuthoritativeCachedSignal } from "@/components/mg/sourceCacheV
 import { sourceMatchesRequestedIdentity } from "@/components/mg/sourceIdentity";
 import { sourceIsAioStreamsCandidate } from "@/components/mg/sourceProviderIdentity";
 import { canAutoHandoffStartup } from "@/components/mg/startupSourceHandoff";
+import { emptyPlaybackSourceMessage } from "@/components/mg/sourceDiscoveryFeedback";
 import {
   bestSmartUpgradeEntry,
   detectSmartSourceUpgrade,
@@ -10221,6 +10222,11 @@ export default function VideoPlayer({
    * while the chooser had a much larger cached/selectable set.
    */
   const selectableSourceCount = selectableSourceEntries.length;
+  const noPlayableVodSources =
+    !isLive &&
+    Boolean(source?.sourceDiagnostics?.diagnosticLabel) &&
+    selectableSourceCount === 0 &&
+    !rdOverride;
 
   const failedSourceCount =
     Array.from(
@@ -10337,6 +10343,8 @@ export default function VideoPlayer({
   const playerUiStatus =
     displayedError && !busy
       ? "Source issue"
+      : noPlayableVodSources && !busy
+        ? "No sources"
       : rdResolving
         ? "Resolving"
         : rdPolling || rdTorrentId
@@ -10420,7 +10428,7 @@ export default function VideoPlayer({
               <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[10px] text-white/45 sm:text-[11px]">
                 <span
                   className={`inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 font-semibold ${
-                    playerUiStatus === "Source issue"
+                    playerUiStatus === "Source issue" || playerUiStatus === "No sources"
                       ? "bg-red-500/15 text-red-300"
                       : playerUiStatus === "Ready" || playerUiStatus === "Live"
                         ? "bg-mg-green/15 text-mg-green"
@@ -10428,7 +10436,7 @@ export default function VideoPlayer({
                   }`}
                 >
                   <span className={`h-1.5 w-1.5 rounded-full ${
-                    playerUiStatus === "Source issue"
+                    playerUiStatus === "Source issue" || playerUiStatus === "No sources"
                       ? "bg-red-400"
                       : playerUiStatus === "Ready" || playerUiStatus === "Live"
                         ? "bg-mg-green"
@@ -10577,6 +10585,19 @@ export default function VideoPlayer({
                   Retry this source
                 </button>
               )}
+            </div>
+          ) : noPlayableVodSources ? (
+            <div
+              role="alert"
+              data-mg-no-playback-sources="true"
+              className="flex max-w-lg flex-col items-center gap-3 p-6 text-center"
+            >
+              <p className="text-sm font-semibold text-white/85 sm:text-base">
+                No video sources found
+              </p>
+              <p className="max-w-md text-xs leading-relaxed text-white/50 sm:text-sm">
+                {emptyPlaybackSourceMessage(source?.sourceDiagnostics)}
+              </p>
             </div>
           ) : fireTvNativeSelectorMode ? (
             <div
