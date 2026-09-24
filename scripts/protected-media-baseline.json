@@ -9,7 +9,7 @@
     "src/components/mg/LiveTVView.jsx": "a07e8d6e96481992c71b88d6b24a8e5fec4510191153d793def30d2ea43ae3a6",
     "src/components/mg/freeTvPlaylist.js": "95dff78fbda2f7d0f1a259ac9cff1df529eb4ffe42739a9789090f07ed9fcc21",
     "base44/functions/realDebrid/entry.ts": "2e1d73038d36c6ba0133a6ece75b3487a0a035edefdda7dfb82be64be8a860af",
-    "base44/functions/fetchAddonStreams/entry.ts": "8e3f99b2bd95cfb5b0ad8dec8c669a79db2596f346744d77bb898acc71711e3f",
+    "base44/functions/fetchAddonStreams/entry.ts": "26922f3a3b823bb1d980ecbe409fde60166b57f1588517ea0421e0f7b13a0818",
     "base44/functions/getLiveEpg/entry.ts": "1caf894a1a60212947c8d5ef15061bbf8529e70a1d7e310b49bcddc546c48646",
     "base44/functions/antSportsLive/entry.ts": "c4d7a7e0e769cabfd10f5df896d78cbf8f85081b41d346f82c36cc62e209bf0a",
     "base44/functions/evSportsLive/entry.ts": "149d7c13a8e56e602e450919ade50b3b6d58ea115c746370863803fbe4c8ec4d",
