@@ -506,9 +506,36 @@ test("VOD discovery keeps a credential-free fallback when user addon rows are un
     assert.match(source, /withBuiltinPlaybackAddons\(addons\)/);
   }
 
+  assert.match(serverSource, /let\s+user\s*=\s*null/);
+  assert.match(serverSource, /user\s*=\s*await base44\.auth\.me\(\)/);
+  assert.doesNotMatch(
+    serverSource,
+    /if\s*\(\s*!user\s*\)[\s\S]{0,260}?Unauthorized/
+  );
+  assert.match(
+    serverSource,
+    /if\s*\(\s*user\s*\)[\s\S]{0,320}?base44\.entities\.Addon\.list/
+  );
+
   assert.match(
     browserSource,
     /catch \{[\s\S]{0,420}?addons\s*=\s*\[\];/
+  );
+});
+
+test("empty VOD discovery never fabricates a selectable generic Stream row", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(playerSource, /const fallbackSourceUrl\s*=\s*getSourceUrl\(source\)/);
+  assert.match(playerSource, /"Finding playback sources…"/);
+  assert.match(playerSource, /type:\s*"status"/);
+  assert.match(playerSource, /diagnostic:\s*true/);
+  assert.doesNotMatch(
+    playerSource,
+    /:\s*\[\s*\{[\s\S]{0,220}?type:\s*source\?\.type\s*\|\|\s*"rd"/
   );
 });
 

@@ -2217,20 +2217,24 @@ export default async function (req) {
     const base44 =
       createClientFromRequest(req);
 
-    const user =
-      await base44.auth.me();
+    /*
+     * Playback discovery must not depend on optional Media God sign-in.
+     *
+     * Authenticated sessions may add their private, user-scoped addon rows
+     * below. Signed-out/guest sessions deliberately continue with only the
+     * credential-free built-in discovery addons. This keeps movie/episode
+     * source discovery available everywhere without exposing another user's
+     * addon configuration.
+     */
+    let user =
+      null;
 
-    if (!user) {
-      return Response.json(
-        {
-          error:
-            "Unauthorized",
-        },
-        {
-          status:
-            401,
-        }
-      );
+    try {
+      user =
+        await base44.auth.me();
+    } catch {
+      user =
+        null;
     }
 
     let body =
@@ -2247,15 +2251,17 @@ export default async function (req) {
     let addons =
       [];
 
-    try {
-      addons =
-        await base44.entities.Addon.list(
-          "-created_date",
-          100
-        );
-    } catch {
-      addons =
-        [];
+    if (user) {
+      try {
+        addons =
+          await base44.entities.Addon.list(
+            "-created_date",
+            100
+          );
+      } catch {
+        addons =
+          [];
+      }
     }
 
     const excludedAddonNames =
