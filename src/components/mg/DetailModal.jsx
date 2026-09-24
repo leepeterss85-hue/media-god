@@ -1691,12 +1691,8 @@ export default function DetailModal({
               >
                 <MediaRow
                   embedded
-                  title={
-                    resolvedMediaType ===
-                    "tv"
-                      ? `Related to ${displayTitle}`
-                      : `Related to ${displayTitle}`
-                  }
+                  detailsOnly
+                  title={`Related to ${displayTitle}`}
                   items={
                     related
                   }
