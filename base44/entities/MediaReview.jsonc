@@ -1,0 +1,71 @@
+{
+  "name": "MediaReview",
+  "type": "object",
+  "properties": {
+    "content_key": {
+      "type": "string"
+    },
+    "tmdb_id": {
+      "type": "string"
+    },
+    "media_type": {
+      "type": "string",
+      "enum": [
+        "movie",
+        "episode"
+      ]
+    },
+    "season": {
+      "type": "number"
+    },
+    "episode": {
+      "type": "number"
+    },
+    "title": {
+      "type": "string"
+    },
+    "episode_title": {
+      "type": "string"
+    },
+    "rating": {
+      "type": "number",
+      "enum": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ]
+    },
+    "review_text": {
+      "type": "string"
+    },
+    "reviewer_name": {
+      "type": "string"
+    },
+    "published": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "content_key",
+    "tmdb_id",
+    "media_type",
+    "title",
+    "rating"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}
