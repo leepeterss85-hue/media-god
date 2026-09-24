@@ -11,6 +11,55 @@ import {
 import { sanitizeDiagnosticText } from "../src/components/mg/diagnostics.js";
 import { movedOrder } from "../src/components/mg/liveTvPersonalisation.js";
 
+test("remembered guest mode can skip account creation without weakening account-only endpoints", () => {
+  const authSource = readFileSync(
+    new URL("../src/lib/AuthContext.jsx", import.meta.url),
+    "utf8"
+  );
+  const routeSource = readFileSync(
+    new URL("../src/components/ProtectedRoute.jsx", import.meta.url),
+    "utf8"
+  );
+  const registerSource = readFileSync(
+    new URL("../src/pages/Register.jsx", import.meta.url),
+    "utf8"
+  );
+  const loginSource = readFileSync(
+    new URL("../src/pages/Login.jsx", import.meta.url),
+    "utf8"
+  );
+  const settingsSource = readFileSync(
+    new URL("../src/components/mg/SettingsView.jsx", import.meta.url),
+    "utf8"
+  );
+  const catalogSource = readFileSync(
+    new URL("../base44/functions/getTmdbMovies/entry.ts", import.meta.url),
+    "utf8"
+  );
+  const imdbSource = readFileSync(
+    new URL("../base44/functions/resolveImdb/entry.ts", import.meta.url),
+    "utf8"
+  );
+  const xtreamSource = readFileSync(
+    new URL("../base44/functions/xtreamPortal/entry.ts", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(authSource, /GUEST_MODE_KEY = 'mg_guest_mode'/);
+  assert.match(authSource, /window\.localStorage\.setItem\(GUEST_MODE_KEY, '1'\)/);
+  assert.match(authSource, /const continueAsGuest = \(\) =>/);
+  assert.match(routeSource, /!isAuthenticated && !isGuest/);
+  assert.match(registerSource, /Skip for now/);
+  assert.match(loginSource, /Skip for now/);
+  assert.match(settingsSource, /Using Media God without an account/);
+  assert.doesNotMatch(catalogSource, /base44\.auth\.me\(\)/);
+  assert.doesNotMatch(imdbSource, /base44\.auth\.me\(\)/);
+
+  // Private-account integrations stay authenticated; guest mode is not a
+  // blanket bypass around credentials or user-scoped services.
+  assert.match(xtreamSource, /base44\.auth\.me\(\)/);
+});
+
 test("UX preferences normalise unknown values and preserve every known Home row", () => {
   const value = normaliseUxPreferences({
     textScale: "huge",
