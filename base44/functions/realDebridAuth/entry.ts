@@ -1,4 +1,8 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.44";
+import {
+  loadGuestDebridCredential,
+  saveGuestDebridCredential,
+} from "../_shared/guestDebrid.ts";
 
 const OAUTH_BASE = "https://api.real-debrid.com/oauth/v2";
 const API_BASE = "https://api.real-debrid.com/rest/1.0";
@@ -23,21 +27,30 @@ const errorText = (data, fallback) =>
       fallback
   );
 
-const updateCurrentUser = async (
+const updateCredentialOwner = async ({
   base44,
   user,
-  patch
-) => {
-  try {
-    return await base44.auth.updateMe(patch);
-  } catch (error) {
-    if (!user?.id) throw error;
-
-    return await base44.asServiceRole.entities.User.update(
-      user.id,
-      patch
-    );
+  guestRecord,
+  guestDeviceHash,
+  patch,
+}) => {
+  if (user?.id) {
+    try {
+      return await base44.auth.updateMe(patch);
+    } catch (error) {
+      return await base44.asServiceRole.entities.User.update(
+        user.id,
+        patch
+      );
+    }
   }
+
+  return await saveGuestDebridCredential(
+    base44,
+    guestDeviceHash,
+    guestRecord,
+    patch
+  );
 };
 
 const tokenExpiryIso = (expiresIn) => {
@@ -54,6 +67,8 @@ const tokenExpiryIso = (expiresIn) => {
 const saveTokenSet = async ({
   base44,
   user,
+  guestRecord,
+  guestDeviceHash,
   credentials,
   tokenData,
 }) => {
@@ -63,10 +78,12 @@ const saveTokenSet = async ({
     );
   }
 
-  await updateCurrentUser(
+  await updateCredentialOwner({
     base44,
     user,
-    {
+    guestRecord,
+    guestDeviceHash,
+    patch: {
       rd_token: clean(
         tokenData.access_token
       ),
@@ -90,8 +107,8 @@ const saveTokenSet = async ({
 
       rd_connected_at:
         new Date().toISOString(),
-    }
-  );
+    },
+  });
 };
 
 const requestToken = async ({
@@ -144,20 +161,27 @@ const requestToken = async ({
 const refreshStoredToken = async ({
   base44,
   user,
+  guestRecord,
+  guestDeviceHash,
 }) => {
+  const owner =
+    user ||
+    guestRecord ||
+    {};
+
   const refreshToken =
     clean(
-      user?.rd_refresh_token
+      owner?.rd_refresh_token
     );
 
   const clientId =
     clean(
-      user?.rd_client_id
+      owner?.rd_client_id
     );
 
   const clientSecret =
     clean(
-      user?.rd_client_secret
+      owner?.rd_client_secret
     );
 
   if (
@@ -168,7 +192,7 @@ const refreshStoredToken = async ({
     return {
       refreshed: false,
       token: clean(
-        user?.rd_token
+        owner?.rd_token
       ),
     };
   }
@@ -183,6 +207,8 @@ const refreshStoredToken = async ({
   await saveTokenSet({
     base44,
     user,
+    guestRecord,
+    guestDeviceHash,
 
     credentials: {
       client_id: clientId,
@@ -202,12 +228,12 @@ const refreshStoredToken = async ({
 };
 
 const storedTokenNeedsRefresh = (
-  user
+  owner
 ) => {
   const expiresAt =
     Date.parse(
       clean(
-        user?.rd_token_expires_at
+        owner?.rd_token_expires_at
       )
     );
 
