@@ -1,0 +1,54 @@
+{
+  "name": "GuestRdLink",
+  "type": "object",
+  "properties": {
+    "device_key_hash": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "year": {
+      "type": "string"
+    },
+    "season": {
+      "type": "string"
+    },
+    "episode": {
+      "type": "string"
+    },
+    "magnet": {
+      "type": "string"
+    },
+    "torrent_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "device_key_hash",
+    "title",
+    "magnet"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "__disabled__"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "__disabled__"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "__disabled__"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "__disabled__"
+      }
+    }
+  }
+}
