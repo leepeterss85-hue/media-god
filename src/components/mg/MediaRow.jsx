@@ -12,6 +12,7 @@ export default function MediaRow({
   actionLabel = "",
   onAction = null,
   embedded = false,
+  detailsOnly = false,
 }) {
   const ref = useRef(null);
 
@@ -103,6 +104,7 @@ export default function MediaRow({
               onOpen={onOpen}
               onWatchlist={onWatchlist}
               watched={watched?.[item.id]}
+              detailsOnly={detailsOnly}
             />
           </div>
         ))}
