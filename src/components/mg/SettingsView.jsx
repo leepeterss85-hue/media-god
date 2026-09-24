@@ -1562,7 +1562,7 @@ export default function SettingsView() {
 
       <MultiDebridSettings />
 
-      {me && (
+      {me ? (
         <div className="bg-mg-card border border-white/10 rounded-lg 3xl:rounded-xl p-4 3xl:p-5 mb-6 3xl:mb-8">
           <p className="text-sm 3xl:text-base text-white/50">
             Signed in as
@@ -1575,6 +1575,23 @@ export default function SettingsView() {
           <p className="text-xs 3xl:text-sm text-white/35 mt-1">
             Playback preferences and your Real-Debrid connection are saved to this Media God user.
           </p>
+        </div>
+      ) : (
+        <div className="bg-mg-card border border-white/10 rounded-lg 3xl:rounded-xl p-4 3xl:p-5 mb-6 3xl:mb-8">
+          <p className="text-sm 3xl:text-base font-semibold text-white">
+            Using Media God without an account
+          </p>
+          <p className="mt-1 text-xs 3xl:text-sm text-white/40">
+            Your skip choice is remembered on this device. Sign in whenever you want account syncing and account-only features.
+          </p>
+          <button
+            type="button"
+            onClick={() => window.location.assign("/login")}
+            className="mt-3 min-h-11 inline-flex items-center justify-center gap-2 rounded-lg border border-mg-green/25 bg-mg-green/10 px-4 py-2 text-sm font-semibold text-mg-green hover:bg-mg-green/15"
+          >
+            <KeyRound className="h-4 w-4" />
+            Sign in
+          </button>
         </div>
       )}
 
