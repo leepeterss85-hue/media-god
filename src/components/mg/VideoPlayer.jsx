@@ -839,31 +839,69 @@ export default function VideoPlayer({
   source,
   onClose,
 }) {
+  const fallbackSourceUrl =
+    getSourceUrl(source);
+
   const publishedSources =
     source?.sources &&
     source.sources.length > 0
       ? source.sources
-      : [
-          {
-            label:
-              source?.label ||
-              (source?.type === "live"
-                ? "LIVE"
-                : "Stream"),
+      : fallbackSourceUrl
+        ? [
+            {
+              label:
+                source?.label ||
+                (source?.type === "live"
+                  ? "LIVE"
+                  : "Stream"),
 
-            type: source?.type || "rd",
+              type:
+                source?.type ||
+                (source?.type === "live"
+                  ? "live"
+                  : "url"),
 
-            src: getSourceUrl(source),
+              src:
+                fallbackSourceUrl,
 
-            magnet:
-              source?.magnet ||
-              source?.magnetLink ||
-              source?.src ||
-              source?.url,
+              url:
+                fallbackSourceUrl,
 
-            live: source?.type === "live",
-          },
-        ];
+              magnet:
+                source?.magnet ||
+                source?.magnetLink ||
+                source?.src ||
+                source?.url,
+
+              live:
+                source?.type === "live",
+            },
+          ]
+        : [
+            {
+              /*
+               * Never invent a selectable RD "Stream" when discovery returned
+               * no media URL. That fake row made an empty source pool look like
+               * "Found 1 / Shown 1" and left every surface spinning forever.
+               * Keep the state diagnostic-only until real discovery arrives.
+               */
+              label:
+                source?.sourceDiagnostics?.diagnosticLabel ||
+                "Finding playback sources…",
+
+              type:
+                "status",
+
+              src:
+                "",
+
+              url:
+                "",
+
+              diagnostic:
+                true,
+            },
+          ];
 
   /*
    * source.sources is the fast-start/live player list and can be refreshed by
