@@ -1047,8 +1047,11 @@ export default function PlaybackReliabilityAssist() {
               if (
                 video.isConnected &&
                 !video.paused &&
+                !video.muted &&
+                video.volume > 0 &&
                 activeSourceLabel() ===
-                  label
+                  label &&
+                !fresh(readStore()[sourceKey(label)]?.lastNoSound, NO_SOUND_TTL)
               ) {
                 saveReliability(
                   label,

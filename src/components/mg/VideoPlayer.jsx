@@ -993,6 +993,9 @@ export default function VideoPlayer({
   const nativeLaunchTimerRef = useRef(null);
   const liveRecoveryNoticeTimerRef = useRef(null);
   const streamActionGenerationRef = useRef(0);
+  const reportedNoSoundTracksRef = useRef({
+    key: "", tried: new Set(), hlsTried: new Set(),
+  });
   const manualSourceLockRef = useRef({
     sourceKey: "",
     playRequestId: null,
@@ -2179,7 +2182,8 @@ export default function VideoPlayer({
 
     if (
       !isLive &&
-      currentTime >= SUCCESSFUL_VOD_PLAYBACK_SECONDS
+      currentTime >= SUCCESSFUL_VOD_PLAYBACK_SECONDS &&
+      !hasRecentNoSoundHistory(sourceDisplayLabel(active, activeIdx))
     ) {
       const activeEntry = sortedSourceEntries.find(
         (entry) => entry?.index === activeIdx
@@ -2629,6 +2633,7 @@ export default function VideoPlayer({
       liveFailureClass = "",
       allowCaching = true,
       authoritativeSourceRejection = false,
+      userReportedNoSound = false,
     } = {}
   ) => {
     const activeIsLive =
@@ -2640,12 +2645,13 @@ export default function VideoPlayer({
      * including a manually chosen source. Wait for a real stop. */
     if (
       !activeIsLive &&
+      !userReportedNoSound &&
       vodPlaybackIsAdvancing(stageRef.current?.querySelector("video"))
     ) {
       return false;
     }
 
-    if (!activeIsLive && manualSourceLockActive()) {
+    if (!activeIsLive && manualSourceLockActive() && !userReportedNoSound) {
       setRdResolving(false);
       setRdPolling(false);
       setRdError(
@@ -2776,7 +2782,8 @@ export default function VideoPlayer({
     if (
       currentVideoHealthy &&
       !hardFailureMessage &&
-      !authoritativeSourceRejection
+      !authoritativeSourceRejection &&
+      !userReportedNoSound
     ) {
       autoRecoveryRef.current.lastTime = Number(currentVideo.currentTime || 0);
       autoRecoveryRef.current.lastProgressAt = Date.now();
@@ -8956,6 +8963,15 @@ export default function VideoPlayer({
     const onNativeResult = (event) => {
       const detail = event?.detail || {};
 
+      const activeRequest = nativePlaybackRef.current;
+
+      if (
+        !activeRequest.requestId ||
+        String(detail.requestId || "") !== activeRequest.requestId
+      ) {
+        return;
+      }
+
       if (detail?.diagnostics) {
         try {
           const history = Array.isArray(window.__MG_NATIVE_PLAYBACK_DIAGNOSTICS__)
@@ -8982,7 +8998,7 @@ export default function VideoPlayer({
             /decoder|codec|format|profile|unsupported/i.test(
               `${entry.compatibilityError || ""} ${entry.compatibilityReason || ""} ${entry.message || ""}`
             );
-          if (diagnosticFailure) {
+          if (diagnosticFailure && String(detail.reason || "").toLowerCase() === "error") {
             recordPlaybackReliability(
               sourceDisplayLabel(active, activeIdx),
               "failure"
@@ -8991,15 +9007,6 @@ export default function VideoPlayer({
         } catch {
           // Diagnostics must never interrupt playback.
         }
-      }
-
-      const activeRequest = nativePlaybackRef.current;
-
-      if (
-        !activeRequest.requestId ||
-        String(detail.requestId || "") !== activeRequest.requestId
-      ) {
-        return;
       }
 
       window.__MG_NATIVE_PLAYBACK_ACTIVE__ = false;
@@ -9040,7 +9047,8 @@ export default function VideoPlayer({
       if (
         !isLive &&
         reason !== "error" &&
-        positionSeconds >= SUCCESSFUL_VOD_PLAYBACK_SECONDS
+        positionSeconds >= SUCCESSFUL_VOD_PLAYBACK_SECONDS &&
+        !hasRecentNoSoundHistory(sourceDisplayLabel(active, activeIdx))
       ) {
         const activeEntry = sortedSourceEntries.find(
           (entry) => entry?.index === activeIdx
@@ -9104,38 +9112,17 @@ export default function VideoPlayer({
       }
 
       if (reason === "error") {
-        const nativeDiagnostics =
-          detail?.diagnostics && typeof detail.diagnostics === "object"
-            ? detail.diagnostics
-            : {};
-
-        const nativeFailureText = [
-          detail?.message,
-          nativeDiagnostics?.message,
-          nativeDiagnostics?.compatibilityReason,
-          nativeDiagnostics?.compatibilityError,
-          nativeDiagnostics?.forceCompatibilityReason,
-        ]
-          .filter(Boolean)
-          .join(" ");
-
         const nativeAudioFailure =
           !isLive &&
-          (
-            nativeDiagnostics?.compatibilityAudioRecovery === true ||
-            /audio (?:decoder|renderer|sink|track)|no usable audio|no[- ]?sound|silent|dts|true[ ._-]?hd|mlp|atmos|e[ ._-]?ac[ ._-]?3|joc/i.test(
-              nativeFailureText
-            )
+          /no usable audio track|audio decoder could not recover|audio (?:decoder|renderer|sink) (?:failed|stopped)/i.test(
+            String(detail?.message || "")
           );
 
         const lockedVodNativeFailure =
           !isLive && manualSourceLockActive();
 
-        /*
-         * Do not auto-reject or advance sources for English/audio failures.
-         * Audio correction is now owned by the viewer through Audio / Source.
-         */
-        if (nativeAudioFailure || lockedVodNativeFailure) {
+        /* Keep a manual source choice pinned even when the native decoder fails. */
+        if (lockedVodNativeFailure) {
           if (positionSeconds > 5) {
             recoveryResumeRef.current = positionSeconds;
           }
@@ -9174,6 +9161,20 @@ export default function VideoPlayer({
             })
           );
 
+          return;
+        }
+
+        if (nativeAudioFailure) {
+          recordPlaybackReliability(sourceDisplayLabel(active, activeIdx), "no-sound");
+          if (positionSeconds > 5) {
+            recoveryResumeRef.current = positionSeconds;
+          }
+          setForceNativePlayback(false);
+          setNativeFallbackUrl("");
+          tryNextSource(
+            "The native and compatibility decoders found no usable audio on this source. Trying another source.",
+            { authoritativeSourceRejection: true, immediate: true }
+          );
           return;
         }
 
@@ -9594,6 +9595,7 @@ export default function VideoPlayer({
        * failover that belongs to the previous silent stream is now stale.
        */
       cancelPendingTorrentFailover();
+      forgetSuccessfulPlaybackSource(active);
 
       const actionGeneration = ++streamActionGenerationRef.current;
       const actionStillCurrent = () =>
@@ -9623,6 +9625,20 @@ export default function VideoPlayer({
             0
         )
       );
+
+      const trackAttemptKey = [
+        source?.playRequestId || "",
+        activeIdx,
+        rdOverride?.src || activeUrl,
+      ].join("|");
+      if (reportedNoSoundTracksRef.current.key !== trackAttemptKey) {
+        reportedNoSoundTracksRef.current = {
+          key: trackAttemptKey,
+          tried: new Set(),
+          hlsTried: new Set(),
+        };
+      }
+      const triedTracks = reportedNoSoundTracksRef.current.tried;
 
       if (video) {
         video.muted = false;
@@ -9679,125 +9695,116 @@ export default function VideoPlayer({
                 a.index - b.index
             );
 
-          /*
-           * The Audio button is an audio-track control first. If this file
-           * exposes English, always pin English and never wrap back to the
-           * foreign default. If English is already selected, leave it alone.
-           */
-          if (englishMain.length > 0) {
-            const wanted = englishMain[0];
+          if (currentAudio >= 0) triedTracks.add(currentAudio);
 
-            try {
-              if (currentAudio !== wanted.index) {
+          /* A no-sound report cannot be resolved by reselecting the same track. */
+          if (englishMain.length > 0) {
+            const wanted = englishMain.find((item) => !triedTracks.has(item.index));
+
+            if (wanted) {
+              try {
                 for (let index = 0; index < tracks.length; index += 1) {
                   tracks[index].enabled = index === wanted.index;
                 }
+
+                if (tracks[wanted.index]?.enabled) {
+                  video.play().catch(() => {});
+                  setRdError("");
+
+                  window.dispatchEvent(
+                    new CustomEvent("mg:player-status", {
+                      detail: {
+                        message: `Trying another English track · ${tracks[wanted.index]?.label || tracks[wanted.index]?.language || `track ${wanted.index + 1}`}.`,
+                      },
+                    })
+                  );
+
+                  return;
+                }
+              } catch {
+                // Continue to the same-file fallback below.
               }
-
-              if (tracks[wanted.index]?.enabled) {
-                video.play().catch(() => {});
-                confirmRecoveredSource(video);
-                setRdError("");
-
-                window.dispatchEvent(
-                  new CustomEvent("mg:player-status", {
-                    detail: {
-                      message:
-                        currentAudio === wanted.index
-                          ? "English audio is already selected and locked."
-                          : `English audio selected · ${tracks[wanted.index]?.label || tracks[wanted.index]?.language || `track ${wanted.index + 1}`}.`,
-                    },
-                  })
-                );
-
-                return;
-              }
-            } catch {
-              // Continue to the same-file fallback below.
             }
           }
 
-          /*
-           * Some containers expose several audio tracks without language
-           * labels. In that case allow a deliberate same-file track change,
-           * but NEVER fall through from this button into torrent/source
-           * failover. The viewer can stop on the audible English track and it
-           * remains selected.
-           */
-          if (tracks.length > 1) {
-            const wantedAudio =
-              currentAudio >= 0
-                ? (currentAudio + 1) % tracks.length
-                : 0;
+          /* Unlabelled audio may still be usable; try another track once. */
+          if (englishMain.length === 0 && tracks.length > 1) {
+            const wantedAudio = candidates.find(
+              (item) => !item.commentary && !triedTracks.has(item.index)
+            )?.index;
 
-            try {
-              for (let index = 0; index < tracks.length; index += 1) {
-                tracks[index].enabled = index === wantedAudio;
+            if (wantedAudio !== undefined) {
+              try {
+                for (let index = 0; index < tracks.length; index += 1) {
+                  tracks[index].enabled = index === wantedAudio;
+                }
+
+                if (tracks[wantedAudio]?.enabled) {
+                  video.play().catch(() => {});
+                  setRdError("");
+
+                  window.dispatchEvent(
+                    new CustomEvent("mg:player-status", {
+                      detail: {
+                        message:
+                          `Audio track changed within this file · ${tracks[wantedAudio]?.label || tracks[wantedAudio]?.language || `track ${wantedAudio + 1}`}.`,
+                      },
+                    })
+                  );
+
+                  return;
+                }
+              } catch {
+                // Continue to same-file rendition recovery.
               }
-
-              if (tracks[wantedAudio]?.enabled) {
-                video.play().catch(() => {});
-                confirmRecoveredSource(video);
-                setRdError("");
-
-                window.dispatchEvent(
-                  new CustomEvent("mg:player-status", {
-                    detail: {
-                      message:
-                        `Audio track changed within this file · ${tracks[wantedAudio]?.label || tracks[wantedAudio]?.language || `track ${wantedAudio + 1}`}.`,
-                    },
-                  })
-                );
-
-                return;
-              }
-            } catch {
-              // Do not convert an audio-track request into source failover.
             }
           }
 
-          setRdError(
-            "This file does not expose another labelled English audio track. Choose another source manually if you want a different release."
-          );
-          video.play().catch(() => {});
-          return;
+          // No different usable track: try the rendition and source fallback.
         }
 
         video.play().catch(() => {});
       }
 
       if (typeof window !== "undefined") {
-        const hlsHandled = await new Promise((resolve) => {
+        const hlsResult = await new Promise((resolve) => {
           const requestId = `audio-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
           let timer = null;
 
-          const finish = (handled) => {
+          const finish = (detail = {}) => {
             if (timer) window.clearTimeout(timer);
             window.removeEventListener("mg:audio-rescue-result", onResult);
-            resolve(Boolean(handled));
+            resolve(detail);
           };
 
           const onResult = (event) => {
             if (String(event?.detail?.requestId || "") !== requestId) return;
-            finish(event?.detail?.handled === true);
+            finish(event?.detail);
           };
 
           window.addEventListener("mg:audio-rescue-result", onResult);
           window.dispatchEvent(
             new CustomEvent("mg:audio-rescue-request", {
-              detail: { requestId },
+              detail: {
+                requestId,
+                skipIndices: [...reportedNoSoundTracksRef.current.hlsTried],
+              },
             })
           );
 
-          timer = window.setTimeout(() => finish(false), 350);
+          timer = window.setTimeout(() => finish(), 350);
         });
 
         if (!actionStillCurrent()) {
           return;
         }
 
-        if (hlsHandled) {
-          confirmRecoveredSource(video);
+        if (hlsResult?.handled === true) {
+          for (const index of [hlsResult.previousIndex, hlsResult.index]) {
+            if (Number.isInteger(index) && index >= 0) {
+              reportedNoSoundTracksRef.current.hlsTried.add(index);
+            }
+          }
           setRdError("");
           return;
         }
@@ -9939,18 +9946,14 @@ export default function VideoPlayer({
         return;
       }
 
-      /*
-       * A manual Audio-button press must never become an uncontrolled source
-       * carousel. Audio Rescue above may replace the current rendition when it
-       * can prove a compatible English stream, but if that fails we leave the
-       * source selected and let the user choose a different release.
-       */
-      setRdError(
-        rdOverride?.audioRescue?.used === true
-          ? "Audio Rescue is already active on this source. Use the player audio control to choose a track, or choose another source manually."
-          : "No compatible English audio could be selected from this source. Choose another audio track or source manually if needed."
-      );
-      return;
+      /* The viewer confirmed silence and same-file repair was exhausted. */
+      video?.pause?.();
+      tryNextSource("No usable audio could be recovered from this source.", {
+        immediate: true,
+        allowCaching: false,
+        authoritativeSourceRejection: true,
+        userReportedNoSound: true,
+      });
     };
 
   /*

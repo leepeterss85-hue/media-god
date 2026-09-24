@@ -3421,6 +3421,7 @@ test("audio menu ranks tracks but changes them only after a user choice", () => 
   assert.ok(noSoundStart >= 0 && noSoundEnd > noSoundStart);
   const noSoundSource = playerSource.slice(noSoundStart, noSoundEnd);
   assert.match(noSoundSource, /force_audio_rescue: true/);
+  assert.match(noSoundSource, /userReportedNoSound: true/);
   assert.doesNotMatch(noSoundSource, /findNextPlayableSource\(/);
   assert.doesNotMatch(noSoundSource, /markSourceFailed\(/);
   assert.doesNotMatch(noSoundSource, /switchToSource\(/);
@@ -3562,16 +3563,16 @@ test("No sound button stays available as an explicit user report and manual reco
   assert.doesNotMatch(playerSource, /automatic:\s*true/);
 });
 
-test("manual Audio control stays in the current file and never starts torrent failover", () => {
+test("a no-sound report tries another English track before a ready backup", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
     "utf8"
   );
 
   assert.match(playerSource, /trackLanguage\(track\)/);
-  assert.match(playerSource, /English audio is already selected and locked/);
+  assert.match(playerSource, /englishMain\.find\(\(item\) => !triedTracks\.has\(item\.index\)\)/);
   assert.match(playerSource, /Audio track changed within this file/);
-  assert.match(playerSource, /No compatible English audio could be selected from this source/);
+  assert.match(playerSource, /No usable audio could be recovered from this source/);
 
   const manualStart = playerSource.indexOf("const handleNoSound =");
   const manualEnd = playerSource.indexOf(
@@ -3581,6 +3582,8 @@ test("manual Audio control stays in the current file and never starts torrent fa
   assert.ok(manualStart >= 0 && manualEnd > manualStart);
   const manualBlock = playerSource.slice(manualStart, manualEnd);
   assert.match(manualBlock, /force_audio_rescue: true/);
+  assert.match(manualBlock, /userReportedNoSound: true/);
+  assert.match(manualBlock, /allowCaching: false/);
   assert.doesNotMatch(manualBlock, /findNextPlayableSource\(/);
   assert.doesNotMatch(manualBlock, /markSourceFailed\(/);
   assert.doesNotMatch(manualBlock, /switchToSource\(/);
@@ -3740,7 +3743,7 @@ test("manual VOD source choices remain locked across native playback recovery", 
   assert.match(playerSource, /const manualSourceLockActive =/);
   assert.match(
     playerSource,
-    /if \(!activeIsLive && manualSourceLockActive\(\)\)/
+    /if \(!activeIsLive && manualSourceLockActive\(\) && !userReportedNoSound\)/
   );
   assert.match(
     playerSource,
@@ -3779,7 +3782,7 @@ test("AIOStreams audio failures are never auto-skipped and short playback is not
   assert.match(trustedSource, /export const forgetSuccessfulPlaybackSource/);
 });
 
-test("manual audio recovery never advances to another VOD torrent", () => {
+test("only a confirmed no-sound report can advance after same-file recovery fails", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
     "utf8"
@@ -3794,10 +3797,18 @@ test("manual audio recovery never advances to another VOD torrent", () => {
   const audioBlock = playerSource.slice(audioBlockStart, audioBlockEnd);
 
   assert.match(audioBlock, /force_audio_rescue: true/);
-  assert.match(audioBlock, /Choose another audio track or source manually/);
+  assert.match(audioBlock, /video\?\.pause\?\.\(\)/);
+  assert.match(audioBlock, /tryNextSource\("No usable audio could be recovered from this source\."/);
+  assert.match(audioBlock, /userReportedNoSound: true/);
+  assert.match(audioBlock, /allowCaching: false/);
+  assert.match(audioBlock, /triedTracks\.add\(currentAudio\)/);
+  assert.match(audioBlock, /skipIndices: \[\.\.\.reportedNoSoundTracksRef\.current\.hlsTried\]/);
+  assert.match(audioBlock, /reportedNoSoundTracksRef\.current\.hlsTried\.add\(index\)/);
   assert.doesNotMatch(audioBlock, /switchToSource\(/);
   assert.doesNotMatch(audioBlock, /markSourceFailed\(/);
   assert.doesNotMatch(audioBlock, /rejectAutomaticAioAudioFailure/);
+  assert.match(playerSource, /manualSourceLockActive\(\) && !userReportedNoSound/);
+  assert.match(playerSource, /currentVideoHealthy &&[\s\S]{0,100}!userReportedNoSound/);
 });
 
 test("LibVLC Auto PCM output does not force an explicit stereo device", () => {
@@ -3860,11 +3871,12 @@ test("one-second native decoder failures never become a torrent carousel", () =>
   );
 
   assert.match(playerSource, /const lockedVodNativeFailure =\s*!isLive && manualSourceLockActive\(\)/);
-  assert.match(playerSource, /nativeDiagnostics\?\.compatibilityAudioRecovery === true/);
+  assert.match(playerSource, /if \(lockedVodNativeFailure\)/);
   assert.match(
     playerSource,
-    /if \(nativeAudioFailure \|\| lockedVodNativeFailure\)/
+    /if \(nativeAudioFailure\) \{[\s\S]{0,450}?authoritativeSourceRejection: true, immediate: true/
   );
+  assert.match(playerSource, /no usable audio track\|audio decoder could not recover/);
 
   const nativeApps = [
     {
@@ -3905,6 +3917,56 @@ test("one-second native decoder failures never become a torrent carousel", () =>
     assert.match(main, /playbackDecision\.reason\.startsWith\("audio"/);
     assert.match(diagnostics, /"compatibilityAudioRecovery"/);
   }
+});
+
+test("native results only update the matching source and silent video is not learned as a success", () => {
+  const playerSource = readFileSync(
+    new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
+    "utf8"
+  );
+  const reliabilitySource = readFileSync(
+    new URL("../src/components/mg/playbackReliability.js", import.meta.url),
+    "utf8"
+  );
+  const assistSource = readFileSync(
+    new URL("../src/components/mg/PlaybackReliabilityAssist.jsx", import.meta.url),
+    "utf8"
+  );
+  const nativeApps = ["android-mobile", "firetv-android"];
+  const nativePackages = ["mobile", "firetv"];
+  const nativeHandler = playerSource.slice(
+    playerSource.indexOf("const onNativeResult ="),
+    playerSource.indexOf("const selectedSourceIndex", playerSource.indexOf("const onNativeResult ="))
+  );
+  assert.ok(nativeHandler.indexOf('String(detail.requestId || "") !== activeRequest.requestId') <
+    nativeHandler.indexOf("if (detail?.diagnostics)"));
+  assert.match(nativeHandler, /diagnosticFailure && String\(detail.reason \|\| ""\).toLowerCase\(\) === "error"/);
+  assert.match(playerSource, /!hasRecentNoSoundHistory\(sourceDisplayLabel\(active, activeIdx\)\)/);
+  assert.match(playerSource, /forgetSuccessfulPlaybackSource\(active\);/);
+
+  const good = reliabilitySource.slice(
+    reliabilitySource.indexOf('kind === "good"'),
+    reliabilitySource.indexOf("return current;", reliabilitySource.indexOf('kind === "good"'))
+  );
+  assert.doesNotMatch(good, /current\.(?:noSound|lastNoSound)\s*=/);
+  assert.match(assistSource, /!fresh\(readStore\(\)\[sourceKey\(label\)\]\?\.lastNoSound, NO_SOUND_TTL\)/);
+
+  nativeApps.forEach((app, index) => {
+    const base = `../${app}/app/src/main/java/com/mediagod/${nativePackages[index]}`;
+    const native = readFileSync(new URL(`${base}/PlayerActivity.kt`, import.meta.url), "utf8");
+    const compatibility = readFileSync(new URL(`${base}/CompatibilityPlayerActivity.kt`, import.meta.url), "utf8");
+    const launch = native.slice(
+      native.indexOf("val compatibilityText ="),
+      native.indexOf("compatibilityPlayerOpen = true", native.indexOf("val compatibilityText ="))
+    );
+    const retry = compatibility.slice(
+      compatibility.indexOf("val recoveryText ="),
+      compatibility.indexOf("finishWithResult(", compatibility.indexOf("val recoveryText ="))
+    );
+    assert.doesNotMatch(launch, /payload\.optString\("(?:audioCodec|hintText)"\)/);
+    assert.doesNotMatch(retry, /payload\.optString\("(?:audioCodec|hintText)"\)/);
+    assert.match(launch, /error\?\.errorCode\?\.let \{ it in 5001\.\.5004 \}/);
+  });
 });
 
 
