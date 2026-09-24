@@ -1340,7 +1340,11 @@ export default function SettingsView() {
         </div>
       </div>
 
-      <div className="mt-6 3xl:mt-8 bg-mg-card border border-white/10 rounded-lg 3xl:rounded-xl p-4 3xl:p-6">
+      <div
+        id="mg-real-debrid-device-login"
+        data-mg-real-debrid-device-login="true"
+        className="mt-6 3xl:mt-8 bg-mg-card border border-white/10 rounded-lg 3xl:rounded-xl p-4 3xl:p-6"
+      >
         <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
           <div className="flex items-center gap-2 3xl:gap-3">
             <KeyRound className="w-4 h-4 3xl:w-5 3xl:h-5 text-mg-green" />
@@ -1370,7 +1374,7 @@ export default function SettingsView() {
         </div>
 
         <p className="text-xs 3xl:text-sm text-white/45 mb-4">
-          Connect your own Real-Debrid account with its device-code login. Media God saves the connection to the currently signed-in app user, so you do not need to paste a private API token.
+          Connect your own Real-Debrid account with its 8-digit device-code login. Choose Connect Real-Debrid, enter the code at real-debrid.com/device, and Media God saves the approved connection to the currently signed-in app user without exposing a private API token.
         </p>
 
         {rdConnected && (
@@ -1424,7 +1428,7 @@ export default function SettingsView() {
         {deviceFlow ? (
           <div className="rounded-xl border border-mg-green/30 bg-black/20 p-4 3xl:p-6">
             <p className="text-xs 3xl:text-sm font-semibold uppercase tracking-wide text-mg-green mb-2">
-              Your Real-Debrid login code
+              Your 8-digit Real-Debrid login code
             </p>
 
             <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
@@ -1511,7 +1515,7 @@ export default function SettingsView() {
 
                 {rdStarting
                   ? "Getting code…"
-                  : "Connect Real-Debrid"}
+                  : "Get 8-digit Real-Debrid code"}
               </button>
             )}
 
