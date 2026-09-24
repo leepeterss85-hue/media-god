@@ -3389,7 +3389,11 @@ test("Real-Debrid library lookup prefers the exact owned RdLink episode associat
 
   const block = rdSource.slice(findCachedStart, findCachedEnd);
 
-  assert.match(block, /base44\.entities\.RdLink\.filter/);
+  assert.match(block, /rdLinks\.filter/);
+  assert.match(
+    rdSource,
+    /user[\s\S]{0,120}?base44\.entities\.RdLink[\s\S]{0,220}?GuestRdLink/
+  );
   assert.match(
     block,
     /title,[\s\S]{0,180}?year[\s\S]{0,180}?season[\s\S]{0,180}?episode/
