@@ -11,6 +11,7 @@ import React, {
 import { createPortal } from "react-dom";
 
 import { base44 } from "@/api/base44Client";
+import { withGuestDebridPayload } from "@/components/mg/guestDebridDevice";
 
 import {
   fetchBrowserAddonStreams,
@@ -435,11 +436,11 @@ const annotateDebridCache = async (items, hasDebrid) => {
       batches.map(async (batch) => {
         const response = await base44.functions.invoke(
           "multiDebrid",
-          {
+          withGuestDebridPayload({
             action: "check_cache",
             hashes: batch,
             provider_scores: debridProviderScoreHints(),
-          }
+          })
         );
 
         return {
@@ -1606,7 +1607,7 @@ const findRdLibrarySource = async ({
     const response =
       await base44.functions.invoke(
         "realDebrid",
-        {
+        withGuestDebridPayload({
           action:
             "find_cached",
 
@@ -1639,7 +1640,7 @@ const findRdLibrarySource = async ({
                 episode,
               }
             : {}),
-        }
+        })
       );
 
     const data =
@@ -2158,7 +2159,7 @@ const qualifyCachedRealDebridLaunchSource = async ({
     const profile = getPlaybackDeviceProfile();
     const response = await base44.functions.invoke(
       "realDebrid",
-      {
+      withGuestDebridPayload({
         action: "resolve_best",
         magnet,
         title: title || "",
@@ -2187,7 +2188,7 @@ const qualifyCachedRealDebridLaunchSource = async ({
         prefer_browser_transcode:
           profile?.nativePlayerAvailable !== true &&
           profile?.mobileApp === true,
-      }
+      })
     );
 
     const data = unwrap(response);
@@ -2631,30 +2632,52 @@ export function PlayerProvider({
   useEffect(() => {
     let mounted = true;
 
-    const syncDebridConnections = () => {
-      base44.auth
-        .me()
-        .then((user) => {
-          if (!mounted) return;
+    const syncDebridConnections = async () => {
+      let user = null;
 
-          const realDebridConnected = Boolean(user?.rd_token);
-          const configuredByKey = {
-            realdebrid: realDebridConnected,
-            alldebrid: Boolean(user?.alldebrid_token),
-            torbox: Boolean(user?.torbox_token),
-            premiumize: Boolean(user?.premiumize_token),
-            debridlink: Boolean(user?.debridlink_token),
-          };
-          const anyDebridConnected = Object.values(configuredByKey).some(Boolean);
+      try {
+        user =
+          await base44.auth.me();
+      } catch {
+        user = null;
+      }
 
-          setHasRd(realDebridConnected);
-          setHasDebrid(anyDebridConnected);
-        })
-        .catch(() => {
-          if (!mounted) return;
-          setHasRd(false);
-          setHasDebrid(false);
-        });
+      let realDebridConnected =
+        Boolean(user?.rd_token);
+
+      try {
+        const response =
+          await base44.functions.invoke(
+            "realDebridAuth",
+            withGuestDebridPayload({
+              action: "status",
+            })
+          );
+
+        realDebridConnected =
+          Boolean(
+            response?.data?.connected ||
+              response?.data?.valid
+          );
+      } catch {
+        // Keep the signed-in token result above when the status probe fails.
+      }
+
+      if (!mounted) return;
+
+      const configuredByKey = {
+        realdebrid: realDebridConnected,
+        alldebrid: Boolean(user?.alldebrid_token),
+        torbox: Boolean(user?.torbox_token),
+        premiumize: Boolean(user?.premiumize_token),
+        debridlink: Boolean(user?.debridlink_token),
+      };
+
+      const anyDebridConnected =
+        Object.values(configuredByKey).some(Boolean);
+
+      setHasRd(realDebridConnected);
+      setHasDebrid(anyDebridConnected);
     };
 
     syncDebridConnections();
