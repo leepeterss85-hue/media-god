@@ -33,7 +33,6 @@ const addonStreamsBackend = await read("base44/functions/fetchAddonStreams/entry
 const addonBrowserFallback = await read("src/components/mg/addonBrowserFallback.js");
 const videoPlayer = await read("src/components/mg/VideoPlayer.jsx");
 const realDebridCacheEngine = await read("src/components/mg/realDebridCacheEngine.js");
-const alternateEmbedFallback = await read("src/components/mg/alternateEmbedFallback.js");
 const mediaCompatibility = await read("src/components/mg/mediaCompatibility.js");
 const playbackReliabilityCore = await read("src/components/mg/playbackReliability.js");
 const playerProvider = await read("src/components/mg/PlayerProvider.jsx");
@@ -473,12 +472,9 @@ expect(
     realDebridCacheEngine.includes("isPermanentRdHashFailure") &&
     realDebridCacheEngine.includes("upstreamCode === 35") &&
     realDebridCacheEngine.includes("upstreamCode === 28") &&
-    alternateEmbedFallback.includes("https://vaplayer.ru") &&
-    alternateEmbedFallback.includes("/embed/movie/") &&
-    alternateEmbedFallback.includes("/embed/tv/") &&
-    videoPlayer.includes("buildAlternateEmbedFallback") &&
-    videoPlayer.includes('data-mg-alternate-embed-fallback="true"') &&
-    videoPlayer.includes('event?.origin !== "https://vaplayer.ru"') &&
+    !videoPlayer.includes("buildAlternateEmbedFallback") &&
+    !videoPlayer.includes('data-mg-alternate-embed-fallback="true"') &&
+    videoPlayer.includes('!isLive && (isYoutube || isProvider || active?.type === "external")') &&
     addonStreamsBackend.includes('action === "trigger_comet_playback"') &&
     addonStreamsBackend.includes("configuredCometPlaybackTarget") &&
     addonStreamsBackend.includes('redirect: "manual"') &&
