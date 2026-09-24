@@ -22,6 +22,7 @@ import androidx.media3.common.Player
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
 import androidx.media3.ui.PlayerView
@@ -67,6 +68,7 @@ class PlayerActivity : Activity() {
     private var genericHttpsMimeRetryIndex = 0
     private var compatibilityPlayerOpen = false
     private var audioPresenceCheckGeneration = 0
+    private var audioOutputConfirmed = false
     private var autoNext = true
     private var recapStartMs = -1L
     private var recapEndMs = -1L
@@ -92,7 +94,7 @@ class PlayerActivity : Activity() {
     private fun formatLooksCommentary(format: androidx.media3.common.Format): Boolean {
         val label = format.label.orEmpty()
 
-        return (format.roleFlags and C.ROLE_FLAG_COMMENTARY) != 0 ||
+        return (format.roleFlags and (C.ROLE_FLAG_COMMENTARY or C.ROLE_FLAG_DESCRIBES_VIDEO)) != 0 ||
             Regex(
                 """commentary|audio description|descriptive|visually impaired""",
                 RegexOption.IGNORE_CASE
@@ -189,6 +191,12 @@ class PlayerActivity : Activity() {
         if (preferred !in setOf("en", "eng", "english")) {
             return false
         }
+
+        // PlayerView's Audio menu writes an explicit override. Never replace
+        // that user choice when track lists arrive or change later.
+        if (activePlayer.trackSelectionParameters.overrides.values.any {
+                it.mediaTrackGroup.type == C.TRACK_TYPE_AUDIO
+            }) return false
 
         var selectedEnglishMain = false
         var bestGroup: androidx.media3.common.Tracks.Group? = null
@@ -632,6 +640,16 @@ class PlayerActivity : Activity() {
             )
             .build()
 
+        audioOutputConfirmed = false
+        exoPlayer.addAnalyticsListener(object : AnalyticsListener {
+            override fun onAudioPositionAdvancing(
+                eventTime: AnalyticsListener.EventTime,
+                playoutStartSystemTimeMs: Long
+            ) {
+                if (player === exoPlayer) audioOutputConfirmed = true
+            }
+        })
+
         val audioAttributes = AudioAttributes.Builder()
             .setUsage(C.USAGE_MEDIA)
             .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
@@ -682,7 +700,10 @@ class PlayerActivity : Activity() {
                  * without any usable audio track, try the same file in the
                  * compatibility decoder after a second delayed inspection.
                  */
-                if (!live) scheduleMissingAudioCheck(exoPlayer, tracks)
+                if (!live) {
+                    enforcePreferredEnglishAudio(exoPlayer, tracks)
+                    scheduleMissingAudioCheck(exoPlayer, tracks)
+                }
             }
 
             override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -948,7 +969,7 @@ class PlayerActivity : Activity() {
 
         val generation = ++audioPresenceCheckGeneration
         val initial = inspectAudioReadiness(tracks)
-        if (initial.present && initial.supported && initial.selected) {
+        if (!initial.present || initial.supported) {
             return
         }
 
@@ -961,7 +982,9 @@ class PlayerActivity : Activity() {
             ) return@postDelayed
 
             val latest = inspectAudioReadiness(activePlayer.currentTracks)
-            if (latest.present && latest.supported && latest.selected) {
+            // An empty or late track list is unknown, not evidence of silence.
+            // Only an actual unsupported audio track warrants same-file rescue.
+            if (!latest.present || latest.supported || audioOutputConfirmed) {
                 return@postDelayed
             }
 
@@ -1445,12 +1468,44 @@ class PlayerActivity : Activity() {
             activePlayer?.duration?.takeIf { it > 0L } ?: 0L
         )
 
+        val audioDetails = JSONObject()
+        if (!live) {
+            val detected = JSONArray()
+            activePlayer?.currentTracks?.groups?.forEach { group ->
+                if (group.type == C.TRACK_TYPE_AUDIO) {
+                    for (index in 0 until group.length) {
+                        val format = group.getTrackFormat(index)
+                        detected.put(JSONObject().apply {
+                            put("index", index)
+                            put("language", format.language.orEmpty())
+                            put("codec", format.sampleMimeType.orEmpty())
+                            put("name", format.label.orEmpty())
+                            put("selected", group.isTrackSelected(index))
+                            put("supported", group.isTrackSupported(index))
+                            put("commentary", (format.roleFlags and C.ROLE_FLAG_COMMENTARY) != 0)
+                            put("descriptive", (format.roleFlags and C.ROLE_FLAG_DESCRIBES_VIDEO) != 0)
+                        })
+                        if (group.isTrackSelected(index)) {
+                            audioDetails.put("selectedAudioTrack", index)
+                            audioDetails.put("selectedAudioLanguage", format.language.orEmpty())
+                            audioDetails.put("selectedAudioCodec", format.sampleMimeType.orEmpty())
+                            audioDetails.put("selectedAudioName", format.label.orEmpty())
+                        }
+                    }
+                }
+            }
+            audioDetails.put("audioTracks", detected)
+            audioDetails.put("audioOutputConfirmed", audioOutputConfirmed)
+            audioDetails.put("audioFailureEvidence", "unknown")
+        }
+
         val diagnostics = NativePlaybackDiagnostics.snapshot(
             payload = payload,
             url = streamUrl,
             engine = "media3",
             event = reason,
             message = message,
+            extra = audioDetails,
             context = this
         ).toString()
 

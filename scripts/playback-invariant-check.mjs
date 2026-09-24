@@ -269,8 +269,9 @@ expect(
       nativePlayer.includes("activePlayer.currentPosition < 5000L") &&
       nativePlayer.includes("launchCompatibilityPlayer(activePlayer, null, reason)") &&
       nativePlayer.includes("error.errorCode in 5001..5004") &&
-      !nativePlayer.includes("onAudioPositionAdvancing(") &&
-      !nativePlayer.includes("audioOutputConfirmed") &&
+      nativePlayer.includes("onAudioPositionAdvancing(") &&
+      nativePlayer.includes("if (!initial.present || initial.supported)") &&
+      nativePlayer.includes("if (!latest.present || latest.supported || audioOutputConfirmed)") &&
       !nativePlayer.includes(
         "Media3 selected an audio track but no decoded audio output advanced."
       )
@@ -320,9 +321,10 @@ expect(
     goodBlock.includes("current.buffers = 0") &&
     goodBlock.includes("current.lastFailure = 0") &&
     goodBlock.includes("current.lastBuffer = 0") &&
-    !goodBlock.includes("current.noSound = 0") &&
-    !goodBlock.includes("current.lastNoSound = 0"),
-  "video progress clears failures and stalls without erasing a reported audio problem"
+    goodBlock.includes("if (value?.audioConfirmed === true)") &&
+    goodBlock.indexOf("current.noSound = 0") > goodBlock.indexOf("if (value?.audioConfirmed === true)") &&
+    goodBlock.indexOf("current.lastNoSound = 0") > goodBlock.indexOf("if (value?.audioConfirmed === true)"),
+  "video progress clears failures and stalls; confirmed decoded audio can also clear exact no-sound history"
 );
 
 expect(

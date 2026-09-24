@@ -930,6 +930,12 @@ const LiveVideo = forwardRef(
 
       let nativeAudioTimer =
         null;
+      let manualVodAudioChoice = false;
+
+      const onManualAudioChoice = () => {
+        if (!isLive) manualVodAudioChoice = true;
+      };
+      window.addEventListener("mg:manual-audio-track-selected", onManualAudioChoice);
 
       const source =
         String(
@@ -1263,6 +1269,7 @@ const LiveVideo = forwardRef(
 
         try {
           hls.audioTrack = index;
+          if (!isLive) manualVodAudioChoice = true;
           video.muted = false;
           video.volume = Math.max(0.01, Number(video.volume || 1));
           video.play().catch(() => {});
@@ -1279,6 +1286,9 @@ const LiveVideo = forwardRef(
 
       const preferEnglishNativeAudio =
         () => {
+          // Browser HTMLMediaElement.audioTracks is not a reliable automatic
+          // selector. Keep VOD's active track until the user chooses Audio.
+          if (!isLive || manualVodAudioChoice) return;
           selectPreferredNativeAudioTrack(
             video,
             preferredAudioLanguageRef.current
@@ -1732,6 +1742,7 @@ const LiveVideo = forwardRef(
 
             const preferEnglishHlsAudio =
               () => {
+                if (!isLive && manualVodAudioChoice) return;
                 const tracks =
                   hls?.audioTracks ||
                   [];
@@ -2280,6 +2291,7 @@ const LiveVideo = forwardRef(
             "mg:hls-audio-track-selected",
             onHlsAudioSelection
           );
+          window.removeEventListener("mg:manual-audio-track-selected", onManualAudioChoice);
 
           window.dispatchEvent(
             new CustomEvent("mg:hls-audio-tracks", {

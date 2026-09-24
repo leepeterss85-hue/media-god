@@ -17,6 +17,24 @@ export const normaliseReliabilityLabel = (value) =>
     .replace(/\s+/g, " ")
     .trim();
 
+// A display label can describe several different torrents or files. Keep
+// audio history keyed to a stable source identity without storing signed URLs.
+export const exactPlaybackSourceLabel = (source, selectedFile = "") => {
+  const hash = String(source?.infoHash || source?.info_hash || "").trim() ||
+    String(source?.magnet || source?.magnetLink || "").match(/btih:([a-f0-9]{40}|[a-f0-9]{64})/i)?.[1] || "";
+  const identity = hash || String(source?.id || source?.src || source?.url || "").trim();
+  if (!identity) return "";
+  const file = String(selectedFile || source?.fileIdx || source?.file_idx || "");
+  const raw = [source?.addon || source?.debridProvider || source?.sourceName || "", identity, file].join("|");
+  let digest = 2166136261;
+  let second = 0x811c9dc7 ^ 0x9e3779b9;
+  for (let index = 0; index < raw.length; index += 1) {
+    digest = Math.imul(digest ^ raw.charCodeAt(index), 16777619);
+    second = Math.imul(second ^ raw.charCodeAt(index), 16777619);
+  }
+  return `exact:${(digest >>> 0).toString(36)}:${(second >>> 0).toString(36)}`;
+};
+
 const baseSourceKey = (value) =>
   normaliseReliabilityLabel(value).toLowerCase().slice(0, 260);
 
@@ -177,6 +195,10 @@ const applyEvent = (record, kind, value) => {
     current.buffers = 0;
     current.lastFailure = 0;
     current.lastBuffer = 0;
+    if (value?.audioConfirmed === true) {
+      current.noSound = 0;
+      current.lastNoSound = 0;
+    }
   }
 
   return current;
@@ -188,11 +210,15 @@ const recordKeys = (label, kind, value, profile, includeGeneric) => {
 
   const store = cleanStore(readStore());
   const deviceKey = sourceDeviceKey(label, profile);
-  const keys = [
-    ...(includeGeneric ? [source] : []),
-    deviceKey,
-    ...traitKeysFor(label, profile),
-  ].filter(Boolean);
+  // Missing audio is evidence about this file on this device, never a codec,
+  // provider, release family or a generic cross-device source label.
+  const keys = kind === "no-sound"
+    ? [deviceKey]
+    : [
+        ...(includeGeneric ? [source] : []),
+        deviceKey,
+        ...traitKeysFor(label, profile),
+      ].filter(Boolean);
 
   keys.forEach((key) => {
     store[key] = applyEvent(store[key], kind, value);
@@ -219,12 +245,12 @@ export const recordDevicePlaybackReliability = (
   recordKeys(label, kind, value, profile, false);
 };
 
-const scoreRecord = (record) => {
+const scoreRecord = (record, includeNoSound = false) => {
   if (!record || typeof record !== "object") return 0;
 
   let score = 0;
 
-  if (fresh(record.lastNoSound, NO_SOUND_TTL)) {
+  if (includeNoSound && fresh(record.lastNoSound, NO_SOUND_TTL)) {
     score -= 18000 + Math.min(12000, Number(record.noSound || 0) * 3000);
   }
 
@@ -256,7 +282,7 @@ const deviceAndTraitAdjustment = (label, profile) => {
   if (!source) return 0;
 
   const store = readStore();
-  const deviceSpecific = scoreRecord(store[sourceDeviceKey(label, profile)]);
+  const deviceSpecific = scoreRecord(store[sourceDeviceKey(label, profile)], true);
   const traitScores = traitKeysFor(label, profile)
     .map((key) => scoreRecord(store[key]))
     .filter(Number.isFinite);
@@ -304,10 +330,7 @@ export const hasRecentNoSoundHistory = (
    * ranking through playbackReliabilityAdjustment(), but one bad file must
    * never make a different file auto-fail just because it looks similar.
    */
-  const keys = [
-    source,
-    sourceDeviceKey(label, profile),
-  ].filter(Boolean);
+  const keys = [sourceDeviceKey(label, profile)].filter(Boolean);
 
   return keys.some((key) =>
     fresh(store?.[key]?.lastNoSound, NO_SOUND_TTL)

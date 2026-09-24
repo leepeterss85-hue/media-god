@@ -12,6 +12,7 @@ import {
 
 import { base44 } from "@/api/base44Client";
 import { nativeFireTvAppInfo } from "@/components/mg/nativeFireTvBridge";
+import { readPlaybackAudioDiagnostic } from "@/components/mg/audioDiagnostics";
 import {
   clearDiagnosticErrors,
   readDiagnosticErrors,
@@ -37,6 +38,7 @@ export default function DiagnosticsView() {
   const [rdStatus, setRdStatus] = useState(null);
   const [signedIn, setSignedIn] = useState(null);
   const [errors, setErrors] = useState(readDiagnosticErrors);
+  const [playbackAudio, setPlaybackAudio] = useState(readPlaybackAudioDiagnostic);
   const [checkedAt, setCheckedAt] = useState("");
 
   const appInfo = useMemo(() => nativeFireTvAppInfo(), []);
@@ -72,6 +74,7 @@ export default function DiagnosticsView() {
 
     setSignedIn(meResult.status === "fulfilled" && Boolean(meResult.value));
     setErrors(readDiagnosticErrors());
+    setPlaybackAudio(readPlaybackAudioDiagnostic());
     setCheckedAt(new Date().toISOString());
     setLoading(false);
   }, []);
@@ -122,6 +125,20 @@ export default function DiagnosticsView() {
     ["Reduced motion", yesNo(ux.reducedMotion)],
     ["Compact cards", yesNo(ux.compactCards)],
   ];
+
+  if (playbackAudio) {
+    rows.push(
+      ["Playback source", `${playbackAudio.provider} · ${playbackAudio.source}`],
+      ["Container / video / audio", `${playbackAudio.container} · ${playbackAudio.videoCodec} · ${playbackAudio.audioCodec}`],
+      ["Player / path", `${playbackAudio.player} · ${playbackAudio.playbackPath}`],
+      ["Selected audio", `${playbackAudio.selectedAudioTrack} · ${playbackAudio.audioLanguage} · ${playbackAudio.audioRole}`],
+      ["Audio tracks", playbackAudio.tracks?.length
+        ? playbackAudio.tracks.map((track) => `${track.selected ? "selected " : ""}${track.index + 1}: ${track.language} ${track.codec} ${track.role} ${track.name}`).join("; ")
+        : "Unknown (track list unavailable)"],
+      ["Audio fallback", playbackAudio.audioFallbackReason],
+      ["Audio failure / output", `${playbackAudio.audioFailureEvidence} · ${playbackAudio.audioOutput}`],
+    );
+  }
 
   const report = [
     "Media God diagnostics",

@@ -2803,10 +2803,12 @@ test("cached Comet RD playback URLs become native English-validation fallbacks i
 
   assert.match(playerSource, /nativeRuntimeEnglishFallback/);
   assert.match(playerSource, /runtimeNativeDirect/);
-  assert.match(
-    playerSource,
-    /englishState === "unknown"[\s\S]{0,160}?runtimeNativeEnglishValidation[\s\S]{0,120}?isNativeFireTvPlayerAvailable/
+  const resolvedAudioGuard = playerSource.slice(
+    playerSource.indexOf("const rejectResolvedForeignAutoplay ="),
+    playerSource.indexOf("const tryNextSource =")
   );
+  assert.match(resolvedAudioGuard, /RD mediaInfos may omit or mislabel tracks/);
+  assert.doesNotMatch(resolvedAudioGuard, /switchToSource\(|markSourceFailed\(/);
 });
 
 test("LibVLC compatibility playback cannot spin forever during opening or buffering", () => {
@@ -3402,7 +3404,8 @@ test("browser audio track choice stays manual while native decoders may repair m
       /audioButton = controlButton\("Audio"\) \{ cycleAudioTrack\(\) \}/
     );
     assert.doesNotMatch(source, /postDelayed\(audioRecoveryRunnable, 1000L\)/);
-    assert.equal((source.match(/player\.setAudioTrack\(/g) || []).length, 2);
+    assert.match(source, /private fun preferEnglishMainAudio\(player: MediaPlayer\)/);
+    assert.match(source, /if \(manualAudioTrackLocked \|\| payload\.optBoolean\("live", false\)\) return/);
     assert.match(source, /player\.audioTrack < 0 && !manualAudioTrackLocked/);
     assert.match(source, /player\.time < 5000L/);
   }
@@ -3455,7 +3458,7 @@ test("audio menu ranks tracks but changes them only after a user choice", () => 
   );
 });
 
-test("native players leave a selected supported audio track untouched", () => {
+test("native players prefer English main audio without replacing a manual audio override", () => {
   const nativeFiles = [
     "../android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt",
     "../firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt",
@@ -3465,11 +3468,12 @@ test("native players leave a selected supported audio track untouched", () => {
     const source = readFileSync(new URL(file, import.meta.url), "utf8");
     assert.match(source, /strictEnglishStartupRequired\(\): Boolean = false/);
     assert.match(source, /group\.isTrackSelected\(index\) && group\.isTrackSupported\(index\)/);
-    assert.match(source, /initial\.present && initial\.supported && initial\.selected/);
-    assert.match(source, /latest\.present && latest\.supported && latest\.selected/);
+    assert.match(source, /trackSelectionParameters\.overrides\.values\.any/);
+    assert.match(source, /enforcePreferredEnglishAudio\(exoPlayer, tracks\)/);
+    assert.match(source, /if \(!initial\.present \|\| initial\.supported\)/);
+    assert.match(source, /if \(!latest\.present \|\| latest\.supported \|\| audioOutputConfirmed\)/);
     assert.doesNotMatch(source, /val englishOverrideApplied =/);
-    assert.doesNotMatch(source, /onAudioPositionAdvancing\(/);
-    assert.doesNotMatch(source, /audioOutputConfirmed/);
+    assert.match(source, /onAudioPositionAdvancing\(/);
   }
 });
 
@@ -3502,8 +3506,8 @@ test("VOD keeps manual audio choice but repairs verified missing native audio", 
     assert.match(source, /activePlayer\.currentPosition < 5000L/);
     assert.match(source, /launchCompatibilityPlayer\(activePlayer, null, reason\)/);
     assert.match(source, /error\.errorCode in 5001\.\.5004/);
-    assert.doesNotMatch(source, /onAudioPositionAdvancing\(/);
-    assert.doesNotMatch(source, /audioOutputConfirmed/);
+    assert.match(source, /onAudioPositionAdvancing\(/);
+    assert.match(source, /audioOutputConfirmed/);
   }
 
   for (const file of compatibilityFiles) {
@@ -3745,8 +3749,8 @@ test("native VOD checks for missing audio only after playback advances", () => {
     assert.ok(start >= 0 && end > start);
     const block = source.slice(start, end);
 
-    assert.match(block, /initial\.present && initial\.supported && initial\.selected/);
-    assert.match(block, /latest\.present && latest\.supported && latest\.selected/);
+    assert.match(block, /!initial\.present \|\| initial\.supported/);
+    assert.match(block, /!latest\.present \|\| latest\.supported \|\| audioOutputConfirmed/);
     assert.match(block, /activePlayer\.currentPosition < 5000L/);
     assert.match(block, /launchCompatibilityPlayer\(activePlayer, null, reason\)/);
     assert.match(block, /10000L/);
@@ -3963,14 +3967,14 @@ test("native results only update the matching source and silent video is not lea
   assert.ok(nativeHandler.indexOf('String(detail.requestId || "") !== activeRequest.requestId') <
     nativeHandler.indexOf("if (detail?.diagnostics)"));
   assert.match(nativeHandler, /diagnosticFailure && String\(detail.reason \|\| ""\).toLowerCase\(\) === "error"/);
-  assert.match(playerSource, /!hasRecentNoSoundHistory\(sourceDisplayLabel\(active, activeIdx\)\)/);
+  assert.match(playerSource, /!hasRecentNoSoundHistory\(exactPlaybackSourceLabel\(active, rdOverride\?\.file\)\)/);
   assert.match(playerSource, /forgetSuccessfulPlaybackSource\(active\);/);
 
   const good = reliabilitySource.slice(
     reliabilitySource.indexOf('kind === "good"'),
     reliabilitySource.indexOf("return current;", reliabilitySource.indexOf('kind === "good"'))
   );
-  assert.doesNotMatch(good, /current\.(?:noSound|lastNoSound)\s*=/);
+  assert.match(good, /value\?\.audioConfirmed === true[\s\S]{0,95}?current\.lastNoSound = 0/);
   assert.match(assistSource, /!fresh\(readStore\(\)\[sourceKey\(label\)\]\?\.lastNoSound, NO_SOUND_TTL\)/);
 
   nativeApps.forEach((app, index) => {
@@ -4303,7 +4307,7 @@ test("a genuinely successful cached source outranks an equally compatible cached
   );
   assert.match(
     playerSource,
-    /reason !== "error"[\s\S]{0,160}?positionSeconds >= SUCCESSFUL_VOD_PLAYBACK_SECONDS[\s\S]{0,260}?recordSuccessfulPlaybackSource\(active/
+    /reason !== "error"[\s\S]{0,160}?positionSeconds >= SUCCESSFUL_VOD_PLAYBACK_SECONDS[\s\S]{0,420}?recordSuccessfulPlaybackSource\(active/
   );
 });
 
@@ -4384,7 +4388,7 @@ test("startup discovery cannot flash through unverified English candidates", () 
   );
   assert.match(
     playerSource,
-    /type !== "provider"[\s\S]{0,220}?sourceNeedsCaching\(item\)/
+    /type !== "provider"[\s\S]{0,350}?sourceNeedsCaching\(item\)/
   );
 
   const startupStart = playerSource.indexOf("READY-SOURCE FIRST");
@@ -4654,7 +4658,7 @@ test("full source-pool merge preserves runtime autoplay approval", () => {
 });
 
 
-test("smart English autoplay rejects proven foreign audio while keeping English and Multi candidates eligible", () => {
+test("smart English autoplay ranks language without rejecting a resolved playing source", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
     "utf8"
@@ -4681,28 +4685,12 @@ test("smart English autoplay rejects proven foreign audio while keeping English 
   assert.doesNotMatch(approvalBlock, /cachedCompatibleTorrentCandidate/);
   assert.match(
     playerSource,
-    /englishState === "unknown"[\s\S]{0,120}?!strictEnglishAutoplayRequired/
-  );
-  assert.match(
-    playerSource,
     /Number\(entry\?\.languageRank \?\? 3\) <= 3/
   );
-  assert.match(
-    playerSource,
-    /MAX_AUTOMATIC_ENGLISH_PROBES = 8/
-  );
-  assert.match(
-    playerSource,
-    /rejectResolvedForeignAutoplay/
-  );
-  assert.match(
-    playerSource,
-    /if \(englishState === "proven"\)/
-  );
-  assert.match(
-    playerSource,
-    /did not prove a usable English main audio track/
-  );
+  const metadataGuard = playerSource.slice(playerSource.indexOf("const rejectResolvedForeignAutoplay ="),
+    playerSource.indexOf("const tryNextSource ="));
+  assert.match(metadataGuard, /return false/);
+  assert.doesNotMatch(metadataGuard, /switchToSource\(|markSourceFailed\(/);
   assert.match(providerSource, /PROBE_BATCH_SIZE = 6/);
   assert.match(providerSource, /PER_SOURCE_PROBE_MS = 2400/);
   assert.match(
@@ -4721,16 +4709,13 @@ test("native audio repair never cycles to another source on uncertain sound", ()
     assert.match(source, /strictEnglishStartupRequired\(\): Boolean = false/);
     assert.match(source, /group\.isTrackSelected\(index\) && group\.isTrackSupported\(index\)/);
     assert.match(source, /player !== activePlayer/);
-    assert.equal(
-      (source.match(/enforcePreferredEnglishAudio\(/g) || []).length,
-      1
-    );
+    assert.equal((source.match(/enforcePreferredEnglishAudio\(/g) || []).length, 2);
     assert.equal(
       (source.match(/scheduleMissingAudioCheck\(/g) || []).length,
       2
     );
-    assert.doesNotMatch(source, /onAudioPositionAdvancing\(/);
-    assert.doesNotMatch(source, /audioOutputConfirmed/);
+    assert.match(source, /onAudioPositionAdvancing\(/);
+    assert.match(source, /!latest\.present \|\| latest\.supported \|\| audioOutputConfirmed/);
     assert.doesNotMatch(
       source,
       /Media3 selected an audio track but no decoded audio output advanced/
