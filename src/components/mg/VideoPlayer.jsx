@@ -9791,10 +9791,14 @@ export default function VideoPlayer({
               : "")
         ).trim();
 
+        const activeTorrentHash = sourceTorrentHash(active);
         const activeMagnet =
           active?.magnet ||
           active?.magnetLink ||
-          (isMagnet(activeUrl) ? activeUrl : "");
+          (isMagnet(activeUrl) ? activeUrl : "") ||
+          (activeTorrentHash
+            ? `magnet:?xt=urn:btih:${activeTorrentHash}`
+            : "");
 
         const rescueRequest =
           selectedRdFile?.link
@@ -9819,7 +9823,13 @@ export default function VideoPlayer({
                 magnet: activeMagnet,
                 ...(selectedRdFile?.id != null
                   ? { file_idx: selectedRdFile.id }
-                  : {}),
+                  : active?.fileIdx != null &&
+                      Number.isFinite(Number(active.fileIdx))
+                    ? { file_idx: Number(active.fileIdx) }
+                    : active?.file_idx != null &&
+                        Number.isFinite(Number(active.file_idx))
+                      ? { file_idx: Number(active.file_idx) }
+                      : {}),
               }
               : null;
 
