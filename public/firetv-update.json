@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 76,
-  "versionName": "1.4.71",
+  "versionCode": 77,
+  "versionName": "1.4.72",
   "title": "Media God Fire TV",
-  "message": "Media God Fire TV 1.4.71 isolates compatibility-decoder crashes, chooses the final playback engine after stream preflight so only one player normally opens, removes visible fallback transitions, and gives compatibility playback a cleaner remote-friendly Media God layout.",
+  "message": "Media God Fire TV 1.4.72 gives the normal movie and episode player the same professional Media God chrome as compatibility playback, with a clean title/back bar tied to remote-friendly auto-hide behaviour while Live TV remains unchanged.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
