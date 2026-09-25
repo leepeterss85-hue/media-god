@@ -225,7 +225,7 @@ for (const app of apps) {
     [compatibilityActivity.includes('setAudioOutputDevice("stereo")') &&
       compatibilityActivity.includes('setAudioOutputDevice("pcm")') &&
       compatibilityActivity.includes('payload.optBoolean("live", false)'), "compatibility VOD uses documented Android AudioTrack PCM/stereo endpoints"],
-    [compatibilityActivity.includes("cycleAudioTrack"), "compatibility audio track selector"],
+    [compatibilityActivity.includes("showAudioTrackMenu") && compatibilityActivity.includes('setTitle("Audio")'), "compatibility audio track selector"],
     [compatibilityActivity.includes("audioTracks"), "compatibility audio track discovery"],
     [compatibilityActivity.includes("DisplayRateMatcher.apply"), "compatibility refresh-rate matching"],
     [compatibilityActivity.includes("NativePlaybackDiagnostics.snapshot"), "compatibility diagnostics snapshot"],
@@ -252,7 +252,8 @@ for (const app of apps) {
     [compatibilityActivity.includes("setAudioDelay"), "lip-sync adjustment"],
     [compatibilityActivity.includes("audioOutputMode") && compatibilityActivity.includes("setAudioDigitalOutputEnabled"), "selectable audio output modes"],
     [
-      compatibilityActivity.includes("audioButton = controlButton(\"Audio\") { cycleAudioTrack() }") &&
+      compatibilityActivity.includes("audioButton = controlButton(\"Audio\") { showAudioTrackMenu() }") &&
+        compatibilityActivity.includes("showAudioTrackMenu") &&
         compatibilityActivity.includes("recoverAudioTrack() = Unit") &&
         compatibilityActivity.includes("automaticNoSoundRecovery = false") &&
         !compatibilityActivity.includes("postDelayed(audioRecoveryRunnable, 1000L)"),
