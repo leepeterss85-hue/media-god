@@ -222,6 +222,13 @@ object PlaybackCompatibilityRouter {
         }
 
         detectAudioCodec(audioCodec, hints)?.let { codec ->
+            if (
+                !payload.optBoolean("live", false) &&
+                requiresVodCompatibilityAudio(codec, hints)
+            ) {
+                return Decision(true, "audio-vod-pcm:${codec.label}")
+            }
+
             if (requiresCompatibilityAudio(codec, hints)) {
                 return Decision(true, "audio-software:${codec.label}")
             }
@@ -232,6 +239,27 @@ object PlaybackCompatibilityRouter {
         }
 
         return Decision(false)
+    }
+
+    private fun requiresVodCompatibilityAudio(
+        codec: CodecSpec,
+        hints: String
+    ): Boolean {
+        /*
+         * These are the formats that repeatedly reached real Android/Fire TV
+         * devices with video but no audible output. Route VOD through LibVLC's
+         * explicit PCM/stereo path before Media3/device passthrough can claim a
+         * false success. AAC stays on Media3 unless the release is explicitly
+         * multichannel.
+         */
+        if (codec.label in setOf("ac3", "eac3", "ac4")) {
+            return true
+        }
+
+        return matches(
+            hints,
+            "5[ ._-]?1|7[ ._-]?1|6[ ._-]?ch|8[ ._-]?ch|multi[ -]?channel"
+        )
     }
 
     private fun requiresCompatibilityAudio(
