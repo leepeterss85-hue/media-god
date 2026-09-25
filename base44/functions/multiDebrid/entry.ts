@@ -174,7 +174,10 @@ const requestJson = async (url, options = {}, timeoutMs = 12000) => {
         clean(data?.message) ||
         clean(data?.detail) ||
         `HTTP ${response.status}`;
-      throw new Error(message);
+      const error = new Error(message);
+      error.status = Number(response.status || 0);
+      error.providerCode = Number(data?.error_code);
+      throw error;
     }
 
     return data;
