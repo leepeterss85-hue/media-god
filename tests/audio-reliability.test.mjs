@@ -92,7 +92,8 @@ test("unknown and late audio metadata never reject a source before real silent p
   assert.match(player, /const rejectResolvedForeignAutoplay = \([\s\S]*?\) => \{[\s\S]*?return false;\s*\}/);
   for (const native of [phone, fire]) {
     assert.match(native, /activePlayer\.currentPosition < 5000L/);
-    assert.match(native, /if \(audioOutputConfirmed\) return@postDelayed/);
+    assert.match(native, /selectedAudioRequiresPcmRescue/);
+    assert.match(native, /audioOutputConfirmed &&[\s\S]{0,120}!selectedAudioRequiresPcmRescue/);
     assert.match(native, /Video is playing but no audio track became available/);
     assert.match(native, /native audio output never started/);
   }
