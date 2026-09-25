@@ -3473,6 +3473,28 @@ test("compatibility decoder crashes are isolated from the main Media God process
   }
 });
 
+test("native preflight chooses the final engine before any player surface opens", () => {
+  const mainFiles = [
+    "../android-mobile/app/src/main/java/com/mediagod/mobile/MainActivity.kt",
+    "../firetv-android/app/src/main/java/com/mediagod/firetv/MainActivity.kt",
+  ];
+
+  for (const file of mainFiles) {
+    const source = readFileSync(new URL(file, import.meta.url), "utf8");
+    const preflightAt = source.indexOf("NativeStreamPreflight.checkPayload(payload)");
+    const mimeAt = source.indexOf('payload.put(\n                        "mimeType"', preflightAt);
+    const finalDecisionAt = source.indexOf("val finalPlaybackDecision =", preflightAt);
+    const launchAt = source.indexOf("startActivityForResult(intent, REQUEST_NATIVE_PLAYER)", finalDecisionAt);
+
+    assert.ok(preflightAt >= 0);
+    assert.ok(mimeAt > preflightAt);
+    assert.ok(finalDecisionAt > mimeAt);
+    assert.ok(launchAt > finalDecisionAt);
+    assert.match(source, /if \(finalPlaybackDecision\.useCompatibility\)[\s\S]{0,700}?CompatibilityPlayerActivity::class\.java/);
+    assert.match(source, /overridePendingTransition\(0, 0\)/);
+  }
+});
+
 test("compatibility player keeps technical decoder details off the normal playback surface", () => {
   const compatibilityFiles = [
     "../android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt",
