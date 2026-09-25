@@ -1546,7 +1546,7 @@ export default function DetailModal({
             </div>
           )}
 
-          <div className="flex flex-wrap gap-2 3xl:gap-3 mt-4 3xl:mt-6">
+          <div className="mt-4 3xl:mt-6 flex flex-wrap items-center gap-2 3xl:gap-3 rounded-xl border border-white/10 bg-mg-card/40 p-2 3xl:p-3" data-mg-detail-controls="true">
             <button
               type="button"
               onClick={primaryAction}
@@ -1555,7 +1555,7 @@ export default function DetailModal({
                 loading
               }
               data-mg-detail-primary="true"
-              className="flex-1 min-w-[140px] flex items-center justify-center gap-2 bg-mg-green text-black font-semibold text-sm 3xl:text-lg py-2.5 3xl:py-3.5 rounded-lg 3xl:rounded-xl hover:bg-mg-green-dim disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black"
+              className="shrink-0 min-w-[110px] flex items-center justify-center gap-2 bg-mg-green text-black font-semibold text-sm 3xl:text-lg px-3 py-2.5 3xl:py-3.5 rounded-lg 3xl:rounded-xl hover:bg-mg-green-dim disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black"
               aria-label={
                 resolvedMediaType === "tv"
                   ? `Choose an episode of ${displayTitle}`
@@ -1583,7 +1583,7 @@ export default function DetailModal({
               disabled={
                 added
               }
-              className="flex items-center justify-center gap-1.5 bg-mg-card border border-white/10 text-white text-sm 3xl:text-lg font-semibold px-4 3xl:px-6 py-2.5 3xl:py-3.5 rounded-lg 3xl:rounded-xl hover:bg-white/10 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-mg-green focus:ring-offset-2 focus:ring-offset-black"
+              className="shrink-0 flex items-center justify-center gap-1.5 bg-mg-card border border-white/10 text-white text-sm 3xl:text-lg font-semibold px-3 3xl:px-6 py-2.5 3xl:py-3.5 rounded-lg 3xl:rounded-xl hover:bg-white/10 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-mg-green focus:ring-offset-2 focus:ring-offset-black"
               aria-label={added ? `${displayTitle} is in Watchlist` : `Add ${displayTitle} to Watchlist`}
             >
               {added ? (
@@ -1602,7 +1602,7 @@ export default function DetailModal({
               onClick={
                 toggleFavorite
               }
-              className="flex items-center justify-center gap-1.5 bg-mg-card border border-white/10 text-white text-sm 3xl:text-lg font-semibold px-4 3xl:px-6 py-2.5 3xl:py-3.5 rounded-lg 3xl:rounded-xl hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-mg-green focus:ring-offset-2 focus:ring-offset-black"
+              className="shrink-0 flex items-center justify-center gap-1.5 bg-mg-card border border-white/10 text-white text-sm 3xl:text-lg font-semibold px-3 3xl:px-6 py-2.5 3xl:py-3.5 rounded-lg 3xl:rounded-xl hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-mg-green focus:ring-offset-2 focus:ring-offset-black"
               aria-label={favorited ? `Remove ${displayTitle} from Favorites` : `Add ${displayTitle} to Favorites`}
             >
               <Heart
@@ -1617,10 +1617,8 @@ export default function DetailModal({
                 ? "Favorited"
                 : "Favorite"}
             </button>
-          </div>
-
-          <div role="tablist" aria-label={`${displayTitle} sections`} className="mt-5 flex gap-2 overflow-x-auto border-b border-white/10 pb-2" data-mg-detail-tabs="true">
-            {detailTabs.map((tab) => (
+            <div role="tablist" aria-label={`${displayTitle} sections`} className="flex min-w-full flex-1 items-center gap-2 overflow-x-auto md:min-w-[260px]" data-mg-detail-tabs="true">
+              {detailTabs.map((tab) => (
               <button
                 key={tab.id}
                 id={`mg-detail-tab-${tab.id}`}
@@ -1641,7 +1639,8 @@ export default function DetailModal({
               >
                 {tab.label}
               </button>
-            ))}
+              ))}
+            </div>
           </div>
 
           <div id="mg-detail-tab-panel" role="tabpanel" aria-labelledby={`mg-detail-tab-${activeTab}`} className="pb-6 3xl:pb-10">
