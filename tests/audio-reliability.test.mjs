@@ -83,7 +83,7 @@ test("only an explicit audible confirmation clears a reported no-sound penalty",
   assert.doesNotMatch(nativeResult, /audioConfirmed: true/);
 });
 
-test("unknown and late audio metadata never establish no-sound or automatic rejection", () => {
+test("unknown and late audio metadata never reject a source before real silent playback is observed", () => {
   const unknown = smartSourceEvidence({ label: "The Simpsons S01E01", mediaInfo: { audio_tracks: [] } });
   assert.equal(unknown.languageRank, 3);
   assert.equal(unknown.languageVerified, false);
@@ -91,8 +91,10 @@ test("unknown and late audio metadata never establish no-sound or automatic reje
   assert.equal(reliability.hasRecentNoSoundHistory(""), false);
   assert.match(player, /const rejectResolvedForeignAutoplay = \([\s\S]*?\) => \{[\s\S]*?return false;\s*\}/);
   for (const native of [phone, fire]) {
-    assert.match(native, /if \(!initial\.present \|\| \(initial\.supported && initial\.selected\)\) \{\s*return/);
-    assert.match(native, /if \(!latest\.present \|\| \(latest\.supported && latest\.selected\) \|\| audioOutputConfirmed\)/);
+    assert.match(native, /activePlayer\.currentPosition < 5000L/);
+    assert.match(native, /if \(audioOutputConfirmed\) return@postDelayed/);
+    assert.match(native, /Video is playing but no audio track became available/);
+    assert.match(native, /native audio output never started/);
   }
 });
 
