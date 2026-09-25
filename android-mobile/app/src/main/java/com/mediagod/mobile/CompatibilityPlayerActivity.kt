@@ -487,12 +487,24 @@ class CompatibilityPlayerActivity : Activity() {
         }
 
         val backButton = controlButton("← Back") { finishWithResult("back") }
-        val rewindButton = controlButton("−10") { seekBy(-10_000L) }
+        val rewindButton = controlButton("−10s") { seekBy(-10_000L) }
         playPauseButton = controlButton("Pause") { togglePlayback() }
-        val forwardButton = controlButton("+10") { seekBy(10_000L) }
+        val forwardButton = controlButton("+10s") { seekBy(10_000L) }
         audioButton = controlButton("Audio") { showAudioTrackMenu() }
         subtitleButton = controlButton("CC") { showSubtitleTrackMenu() }
-        val moreButton = controlButton("More") { showAdvancedControlsMenu() }
+        val moreButton = controlButton("Options") { showAdvancedControlsMenu() }
+
+        val titleText = TextView(this).apply {
+            text =
+                payload.optString("title").trim()
+                    .ifBlank { "Media God" }
+            setTextColor(Color.WHITE)
+            textSize = 17f
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(10), 0, dp(8), 0)
+        }
 
         progressBar = SeekBar(this).apply {
             max = 1000
