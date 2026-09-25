@@ -75,6 +75,12 @@ export default function PlaybackAdvancedSettings() {
       ["Video", [resolution, latest.videoCodec, latest.videoProfile].filter(Boolean).join(" · ") || "—"],
       ["HDR", nice(latest.hdrFormat)],
       ["Audio", nice(latest.audioCodec || latest.selectedAudioName)],
+      ["Selected track", [latest.selectedAudioName, latest.selectedAudioLanguage, latest.selectedAudioCodec].filter(Boolean).join(" · ") || "—"],
+      ["Audio clock", latest.audioOutputConfirmed ? "Advanced; sound not verified" : "Not reported"],
+      ["Audio output", nice(latest.audioOutputMode)],
+      ["Available tracks", Array.isArray(latest.audioTracks) && latest.audioTracks.length > 0
+        ? latest.audioTracks.map((track) => [track.selected ? "Selected:" : "", track.language || track.name || `Track ${track.index + 1}`, track.codec, track.supported === false ? "unsupported" : ""].filter(Boolean).join(" ")).join("; ")
+        : "—"],
       ["Container", nice(latest.container || latest.mimeType)],
       ["Reason", nice(latest.compatibilityReason || latest.forceCompatibilityReason || latest.message)],
       ["Network", Number(latest?.preflight?.estimatedMbps || 0) > 0
@@ -111,7 +117,7 @@ export default function PlaybackAdvancedSettings() {
         <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between 3xl:p-5">
           <div>
             <p className="text-sm font-medium text-white">Audio output</p>
-            <p className="text-xs text-white/40">Auto is safest. Stereo PCM fixes silent remuxes; Surround decodes multichannel; Passthrough sends encoded audio to a capable TV/AVR.</p>
+            <p className="text-xs text-white/40">Auto uses the normal player. Compatibility PCM uses the alternate decoder without forcing an audio device; Surround decodes multichannel; Passthrough needs a capable TV/AVR.</p>
           </div>
           <select
             value={preferences.audioOutputMode}
@@ -120,7 +126,7 @@ export default function PlaybackAdvancedSettings() {
             className="min-h-11 w-full rounded-md border border-white/10 bg-mg-surface px-3 py-2 text-sm text-white sm:w-48"
           >
             <option value="auto">Auto</option>
-            <option value="stereo">Stereo PCM</option>
+            <option value="stereo">Compatibility PCM</option>
             <option value="surround">Surround PCM</option>
             <option value="passthrough">Passthrough</option>
           </select>

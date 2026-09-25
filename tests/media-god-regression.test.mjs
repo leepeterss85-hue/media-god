@@ -3501,8 +3501,8 @@ test("native players prefer English main audio without replacing a manual audio 
     assert.match(source, /group\.isTrackSelected\(index\) && group\.isTrackSupported\(index\)/);
     assert.match(source, /trackSelectionParameters\.overrides\.values\.any/);
     assert.match(source, /enforcePreferredEnglishAudio\(exoPlayer, tracks\)/);
-    assert.match(source, /if \(!initial\.present \|\| initial\.supported\)/);
-    assert.match(source, /if \(!latest\.present \|\| latest\.supported \|\| audioOutputConfirmed\)/);
+    assert.match(source, /if \(!initial\.present \|\| \(initial\.supported && initial\.selected\)\)/);
+    assert.match(source, /if \(!latest\.present \|\| \(latest\.supported && latest\.selected\) \|\| audioOutputConfirmed\)/);
     assert.doesNotMatch(source, /val englishOverrideApplied =/);
     assert.match(source, /onAudioPositionAdvancing\(/);
   }
@@ -3780,8 +3780,8 @@ test("native VOD checks for missing audio only after playback advances", () => {
     assert.ok(start >= 0 && end > start);
     const block = source.slice(start, end);
 
-    assert.match(block, /!initial\.present \|\| initial\.supported/);
-    assert.match(block, /!latest\.present \|\| latest\.supported \|\| audioOutputConfirmed/);
+    assert.match(block, /!initial\.present \|\| \(initial\.supported && initial\.selected\)/);
+    assert.match(block, /!latest\.present \|\| \(latest\.supported && latest\.selected\) \|\| audioOutputConfirmed/);
     assert.match(block, /activePlayer\.currentPosition < 5000L/);
     assert.match(block, /launchCompatibilityPlayer\(activePlayer, null, reason\)/);
     assert.match(block, /10000L/);
@@ -3868,7 +3868,7 @@ test("only a confirmed no-sound report can advance after same-file recovery fail
   assert.match(playerSource, /currentVideoHealthy &&[\s\S]{0,100}!userReportedNoSound/);
 });
 
-test("LibVLC Auto PCM output does not force an explicit stereo device", () => {
+test("LibVLC PCM modes never route to a fabricated stereo output device", () => {
   const nativeFiles = [
     "../android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt",
     "../firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt",
@@ -3882,9 +3882,8 @@ test("LibVLC Auto PCM output does not force an explicit stereo device", () => {
     const block = source.slice(start, end);
 
     assert.match(block, /player\.setAudioDigitalOutputEnabled\(false\)/);
-    assert.match(block, /"stereo" ->/);
-    const autoBranch = block.slice(block.indexOf("else ->"));
-    assert.doesNotMatch(autoBranch, /setAudioOutputDevice\("stereo"\)/);
+    assert.match(block, /"stereo" -> player\.setAudioDigitalOutputEnabled\(false\)/);
+    assert.doesNotMatch(block, /setAudioOutputDevice\("stereo"\)/);
   }
 });
 
@@ -4746,7 +4745,7 @@ test("native audio repair never cycles to another source on uncertain sound", ()
       2
     );
     assert.match(source, /onAudioPositionAdvancing\(/);
-    assert.match(source, /!latest\.present \|\| latest\.supported \|\| audioOutputConfirmed/);
+    assert.match(source, /!latest\.present \|\| \(latest\.supported && latest\.selected\) \|\| audioOutputConfirmed/);
     assert.doesNotMatch(
       source,
       /Media3 selected an audio track but no decoded audio output advanced/

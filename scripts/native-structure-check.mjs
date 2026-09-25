@@ -222,7 +222,8 @@ for (const app of apps) {
     ],
     [compatibilityActivity.includes('setAudioOutput("android_audiotrack")'), "compatibility Android AudioTrack output"],
     [compatibilityActivity.includes("setAudioDigitalOutputEnabled(false)"), "compatibility digital passthrough disabled"],
-    [compatibilityActivity.includes('setAudioOutputDevice("stereo")'), "compatibility stereo PCM downmix"],
+    [compatibilityActivity.includes('"stereo" -> player.setAudioDigitalOutputEnabled(false)') &&
+      !compatibilityActivity.includes('setAudioOutputDevice("stereo")'), "compatibility PCM uses the real Android audio device"],
     [compatibilityActivity.includes("cycleAudioTrack"), "compatibility audio track selector"],
     [compatibilityActivity.includes("audioTracks"), "compatibility audio track discovery"],
     [compatibilityActivity.includes("DisplayRateMatcher.apply"), "compatibility refresh-rate matching"],

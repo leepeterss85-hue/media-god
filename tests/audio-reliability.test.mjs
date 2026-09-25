@@ -63,7 +63,7 @@ test("no-sound stays with the exact torrent file and device, even when labels ma
   assert.equal(reliability.devicePlaybackReliabilityAdjustment(b, fireTv), 0);
 });
 
-test("20 seconds of video with confirmed decoded audio clears stale exact penalties", () => {
+test("only an explicit audible confirmation clears a reported no-sound penalty", () => {
   const fireTv = { fireTv: true };
   const exact = reliability.exactPlaybackSourceLabel(source("a"));
   reliability.recordPlaybackReliability(exact, "failure", null, fireTv);
@@ -74,7 +74,9 @@ test("20 seconds of video with confirmed decoded audio clears stale exact penalt
   assert.equal(reliability.hasRecentNoSoundHistory(exact, fireTv), false);
   assert.ok(reliability.devicePlaybackReliabilityAdjustment(exact, fireTv) > 0);
   assert.match(player, /positionSeconds >= SUCCESSFUL_VOD_PLAYBACK_SECONDS/);
-  assert.match(player, /activeExactReliabilityLabel\(\),\s*"good",\s*\{ audioConfirmed: true \}/);
+  const nativeResult = player.slice(player.indexOf('const reason = String(detail.reason || "back")'), player.indexOf("/*\n       * IMPORTANT: native Media3", player.indexOf('const reason = String(detail.reason || "back")')));
+  assert.match(nativeResult, /!hasRecentNoSoundHistory\(activeExactReliabilityLabel\(\)\)/);
+  assert.doesNotMatch(nativeResult, /audioConfirmed: true/);
 });
 
 test("unknown and late audio metadata never establish no-sound or automatic rejection", () => {
@@ -85,8 +87,8 @@ test("unknown and late audio metadata never establish no-sound or automatic reje
   assert.equal(reliability.hasRecentNoSoundHistory(""), false);
   assert.match(player, /const rejectResolvedForeignAutoplay = \([\s\S]*?\) => \{[\s\S]*?return false;\s*\}/);
   for (const native of [phone, fire]) {
-    assert.match(native, /if \(!initial\.present \|\| initial\.supported\) \{\s*return/);
-    assert.match(native, /if \(!latest\.present \|\| latest\.supported \|\| audioOutputConfirmed\)/);
+    assert.match(native, /if \(!initial\.present \|\| \(initial\.supported && initial\.selected\)\) \{\s*return/);
+    assert.match(native, /if \(!latest\.present \|\| \(latest\.supported && latest\.selected\) \|\| audioOutputConfirmed\)/);
   }
 });
 
@@ -128,14 +130,17 @@ test("manual source and audio locks remain respected; same-file recovery precede
 test("audio diagnostics keep track and decoder evidence without private links", () => {
   const native = sanitizeNativePlaybackDiagnostic({
     engine: "media3", sourceName: "Torrentio", videoCodec: "video/avc",
-    audioTracks: [{ index: 1, language: "en", name: "Main", codec: "audio/eac3", selected: true }],
+    audioOutputMode: "stereo",
+    audioTracks: [{ index: 1, language: "en", name: "Main", codec: "audio/eac3", selected: true, supported: true }],
     audioOutputConfirmed: true, streamUrl: "https://private.example/token=secret",
   });
   const diagnostic = buildPlaybackAudioDiagnostic({ source: source("f"), native });
   assert.equal(diagnostic.audioCodec, "audio/eac3");
   assert.equal(diagnostic.audioLanguage, "en");
   assert.equal(diagnostic.playbackPath, "native");
-  assert.equal(diagnostic.audioOutput, "decoded output advanced");
+  assert.equal(diagnostic.audioOutput, "audio timeline advanced; sound unverified");
+  assert.equal(native.audioTracks[0].supported, true);
+  assert.equal(native.audioOutputMode, "stereo");
   assert.doesNotMatch(JSON.stringify({ native, diagnostic }), /private\.example|token=secret/);
   const browser = buildPlaybackAudioDiagnostic({
     source: source("a"), player: "browser HLS",

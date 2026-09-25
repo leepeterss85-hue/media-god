@@ -2,7 +2,7 @@
   "version": 1,
   "note": "Update these hashes only when playback or Live TV core changes are explicitly intended and reviewed.",
   "files": {
-    "src/components/mg/VideoPlayer.jsx": "78056c26b877fed44ed23eaf0389c9a42f86958157e76547be4f8c3c316ebc64",
+    "src/components/mg/VideoPlayer.jsx": "7f60498097e5644d19a8fe86014971065775bd8ef339bbe7d7c686c49caca2df",
     "src/components/mg/MediaPlayerProvider.jsx": "09080d2a2ec249ab760630a3ee4c40ce089e38ec13ebc0fef1de24c7f9017f86",
     "src/components/mg/PlayerProvider.jsx": "9777d6ac1c1d76e90c390183468436aab8fcc4acfb223b44ecc0780ab8421c72",
     "src/components/mg/MediaPlayerControls.jsx": "dd4d38471436dc827484aada9113c3da507fa799d505a6445effec70efeb2fe8",
@@ -13,9 +13,9 @@
     "base44/functions/getLiveEpg/entry.ts": "1caf894a1a60212947c8d5ef15061bbf8529e70a1d7e310b49bcddc546c48646",
     "base44/functions/antSportsLive/entry.ts": "c4d7a7e0e769cabfd10f5df896d78cbf8f85081b41d346f82c36cc62e209bf0a",
     "base44/functions/evSportsLive/entry.ts": "149d7c13a8e56e602e450919ade50b3b6d58ea115c746370863803fbe4c8ec4d",
-    "android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt": "7cc7ad220a8107f81a007be550ea5449fdab334db5bbf13ee130199cbb7c1bda",
-    "android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt": "d45ea968e34eeb1f0cd391c7edc6aa893d3b49605d9f0649ddd1b55758743e37",
-    "firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt": "3b98e1460a11f0354abe1d63fc6ea765211b67545e6459b7d018dba2b8cca209",
-    "firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt": "438aa0dbc9f06332b791bc5c5bf74d4c9457b2c399162ba9e14e0f9597fc80d8"
+    "android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt": "85be304d23e986eec58e0a91f6be7b97110c789dc8861c985421d444f248a1ba",
+    "android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt": "dafa0c4c0f24511674eb5797906d6312c74cd776a3dbbf495219eda304508e3f",
+    "firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt": "38f876af6035e9fdd3887c21fe94410392a11bb6e54673e8d25088ad16f1277b",
+    "firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt": "ecead1a6419d1b4d4b55cd3bb766fad123d001ead9a8ba6f03b4c84f91e19a76"
   }
 }

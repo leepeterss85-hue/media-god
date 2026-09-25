@@ -9008,7 +9008,8 @@ export default function VideoPlayer({
       }
 
       const reason = String(detail.reason || "back").toLowerCase();
-      const decodedAudioAdvanced = detail?.diagnostics?.audioOutputConfirmed === true;
+      // An advancing Media3 audio clock does not prove audible device output.
+      const audioTimelineAdvanced = detail?.diagnostics?.audioOutputConfirmed === true;
       const selectedSourceIndex = Number(detail.selectedSourceIndex);
       const currentPlayRequestId = source?.playRequestId ?? null;
 
@@ -9016,10 +9017,7 @@ export default function VideoPlayer({
         !isLive &&
         reason !== "error" &&
         positionSeconds >= SUCCESSFUL_VOD_PLAYBACK_SECONDS &&
-        (
-          decodedAudioAdvanced ||
-          !hasRecentNoSoundHistory(activeExactReliabilityLabel())
-        )
+        !hasRecentNoSoundHistory(activeExactReliabilityLabel())
       ) {
         const activeEntry = sortedSourceEntries.find(
           (entry) => entry?.index === activeIdx
@@ -9030,14 +9028,12 @@ export default function VideoPlayer({
         });
         recordPlaybackReliability(
           sourceDisplayLabel(active, activeIdx),
-          "good",
-          { audioConfirmed: decodedAudioAdvanced }
+          "good"
         );
-        if (decodedAudioAdvanced) {
+        if (audioTimelineAdvanced) {
           recordPlaybackReliability(
             activeExactReliabilityLabel(),
-            "good",
-            { audioConfirmed: true }
+            "good"
           );
         }
       }

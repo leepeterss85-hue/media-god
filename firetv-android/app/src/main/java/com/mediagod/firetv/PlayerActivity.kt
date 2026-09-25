@@ -2031,7 +2031,7 @@ class PlayerActivity : Activity() {
 
         val generation = ++audioPresenceCheckGeneration
         val initial = inspectAudioReadiness(tracks)
-        if (!initial.present || initial.supported) {
+        if (!initial.present || (initial.supported && initial.selected)) {
             return
         }
 
@@ -2045,8 +2045,9 @@ class PlayerActivity : Activity() {
 
             val latest = inspectAudioReadiness(activePlayer.currentTracks)
             // An empty or late track list is unknown, not evidence of silence.
-            // Only an actual unsupported audio track warrants same-file rescue.
-            if (!latest.present || latest.supported || audioOutputConfirmed) {
+            // A present track without a selected supported rendition warrants
+            // same-file rescue; an unknown or late track list does not.
+            if (!latest.present || (latest.supported && latest.selected) || audioOutputConfirmed) {
                 return@postDelayed
             }
 
