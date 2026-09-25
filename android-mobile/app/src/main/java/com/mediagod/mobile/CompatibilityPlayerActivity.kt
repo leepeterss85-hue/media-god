@@ -1473,6 +1473,8 @@ class CompatibilityPlayerActivity : Activity() {
         setResult(RESULT_OK, result)
         releaseCompatibilityPlayer()
         finish()
+        @Suppress("DEPRECATION")
+        overridePendingTransition(0, 0)
     }
 
     private fun isPlayableUrl(url: String): Boolean {
