@@ -112,7 +112,7 @@ export default function MediaReviews({
       return `episode:${id}:s${seasonNumber}:e${episodeNumber}`;
     }
 
-    return `movie:${id}`;
+    return `${mediaType === "tv" ? "tv" : "movie"}:${id}`;
   }, [
     episode,
     mediaType,
@@ -292,7 +292,9 @@ export default function MediaReviews({
       media_type:
         mediaType === "episode"
           ? "episode"
-          : "movie",
+          : mediaType === "tv"
+            ? "tv"
+            : "movie",
       season:
         mediaType === "episode"
           ? Number(season)

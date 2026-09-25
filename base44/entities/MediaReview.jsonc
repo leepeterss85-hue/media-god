@@ -12,6 +12,7 @@
       "type": "string",
       "enum": [
         "movie",
+        "tv",
         "episode"
       ]
     },

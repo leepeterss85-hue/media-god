@@ -830,6 +830,38 @@ export default async function(req) {
       );
     }
 
+    if (body.person_id != null) {
+      const personId = String(body.person_id).trim();
+      if (!/^[1-9]\d{0,8}$/.test(personId)) {
+        return Response.json({ error: 'Invalid cast member id' }, { status: 400 });
+      }
+
+      const params = new URLSearchParams({ api_key: apiKey, language: 'en-GB' });
+      const creditsResponse = await fetch(
+        `${TMDB_BASE}/person/${personId}/combined_credits?${params.toString()}`,
+        { headers: { Accept: 'application/json' } }
+      );
+      if (!creditsResponse.ok) {
+        return Response.json({ error: 'Cast titles are unavailable right now.' }, { status: 502 });
+      }
+
+      const creditsData = await creditsResponse.json();
+      const seen = new Set();
+      const credits = (Array.isArray(creditsData?.cast) ? creditsData.cast : [])
+        .filter((credit) => credit?.media_type === 'movie' || credit?.media_type === 'tv')
+        .sort((a, b) => Number(b?.popularity || 0) - Number(a?.popularity || 0))
+        .map((credit) => mapItem(credit, credit.media_type))
+        .filter((credit) => {
+          const key = `${credit?.media_type}:${credit?.tmdb_id || credit?.id}`;
+          if (!credit?.title || seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        })
+        .slice(0, 24);
+
+      return Response.json({ credits });
+    }
+
     if (
       body.provider_catalog
     ) {
@@ -1527,6 +1559,7 @@ export default async function(req) {
               )
               .map(
                 (c) => ({
+                  id: c.id,
                   name:
                     c.name,
 
