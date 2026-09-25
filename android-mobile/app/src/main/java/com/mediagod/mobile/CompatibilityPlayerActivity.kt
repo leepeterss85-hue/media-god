@@ -1042,6 +1042,170 @@ class CompatibilityPlayerActivity : Activity() {
         startCompatibilityPlayback()
     }
 
+    private fun formatPlaybackTime(valueMs: Long): String {
+        val totalSeconds = max(0L, valueMs) / 1000L
+        val hours = totalSeconds / 3600L
+        val minutes = (totalSeconds % 3600L) / 60L
+        val seconds = totalSeconds % 60L
+
+        return if (hours > 0L)
+            String.format("%d:%02d:%02d", hours, minutes, seconds)
+        else
+            String.format("%d:%02d", minutes, seconds)
+    }
+
+    private fun updateProgressUi() {
+        if (!::progressBar.isInitialized || !::timeText.isInitialized || userSeeking) {
+            return
+        }
+
+        val player = vlcPlayer
+        val position = max(0L, player?.time ?: 0L)
+        val duration = max(0L, player?.length ?: 0L)
+
+        progressBar.isEnabled = duration > 0L
+        progressBar.progress =
+            if (duration > 0L)
+                ((position.coerceAtMost(duration) * 1000L) / duration)
+                    .toInt()
+                    .coerceIn(0, 1000)
+            else
+                0
+
+        timeText.text =
+            "${formatPlaybackTime(position)} / ${formatPlaybackTime(duration)}"
+    }
+
+    private fun showAudioTrackMenu() {
+        val player = vlcPlayer ?: return
+        val tracks =
+            try {
+                player.audioTracks?.filter { it.id >= 0 }.orEmpty()
+            } catch (_: Throwable) {
+                emptyList()
+            }
+
+        if (tracks.isEmpty()) {
+            showStatus("No selectable audio tracks")
+            return
+        }
+
+        val labels =
+            tracks.mapIndexed { index, track ->
+                track.name?.trim().orEmpty().ifBlank { "Track ${index + 1}" }
+            }.toTypedArray()
+        val checked =
+            tracks.indexOfFirst { it.id == player.audioTrack }
+                .coerceAtLeast(0)
+
+        root.removeCallbacks(hideControlsRunnable)
+
+        AlertDialog.Builder(this)
+            .setTitle("Audio")
+            .setSingleChoiceItems(labels, checked) { dialog, which ->
+                val selected = tracks.getOrNull(which) ?: return@setSingleChoiceItems
+
+                if (player.setAudioTrack(selected.id)) {
+                    manualAudioTrackLocked = true
+                    manualAudioTrackId = selected.id
+                    root.removeCallbacks(audioRecoveryRunnable)
+                    updateAudioButtonLabel()
+                    showStatus(
+                        "Audio: " +
+                            selected.name?.trim().orEmpty()
+                                .ifBlank { "Track ${which + 1}" }
+                    )
+                } else {
+                    showStatus("Could not switch audio track")
+                }
+
+                dialog.dismiss()
+                showControlsTemporarily()
+            }
+            .setNegativeButton("Cancel", null)
+            .setOnDismissListener { showControlsTemporarily() }
+            .show()
+    }
+
+    private fun showSubtitleTrackMenu() {
+        val player = vlcPlayer ?: return
+        val tracks =
+            try {
+                player.spuTracks?.filter { it.id >= 0 }.orEmpty()
+            } catch (_: Throwable) {
+                emptyList()
+            }
+
+        val labels =
+            listOf("Off") +
+                tracks.mapIndexed { index, track ->
+                    track.name?.trim().orEmpty().ifBlank { "Subtitle ${index + 1}" }
+                }
+        val selectedTrack =
+            tracks.indexOfFirst { it.id == player.spuTrack }
+        val checked =
+            if (selectedTrack >= 0) selectedTrack + 1 else 0
+
+        root.removeCallbacks(hideControlsRunnable)
+
+        AlertDialog.Builder(this)
+            .setTitle("Subtitles")
+            .setSingleChoiceItems(labels.toTypedArray(), checked) { dialog, which ->
+                try {
+                    if (which == 0) {
+                        player.setSpuTrack(-1)
+                        showStatus("Subtitles off")
+                    } else {
+                        val selected = tracks[which - 1]
+                        player.setSpuTrack(selected.id)
+                        showStatus(
+                            "Subtitles: " +
+                                selected.name?.trim().orEmpty()
+                                    .ifBlank { "On" }
+                        )
+                    }
+                } catch (_: Throwable) {
+                    showStatus("Could not change subtitles")
+                }
+
+                updateSubtitleButtonLabel()
+                dialog.dismiss()
+                showControlsTemporarily()
+            }
+            .setNegativeButton("Cancel", null)
+            .setOnDismissListener { showControlsTemporarily() }
+            .show()
+    }
+
+    private fun showAdvancedControlsMenu() {
+        val items =
+            arrayOf(
+                "Audio output · ${outputLabel()}",
+                "Lip sync · ${if (lipSyncMs > 0) "+" else ""}${lipSyncMs}ms",
+                "Dialogue · ${dialogueBoost.replaceFirstChar { it.uppercase() }}",
+                "Playback info"
+            )
+
+        root.removeCallbacks(hideControlsRunnable)
+
+        AlertDialog.Builder(this)
+            .setTitle("More")
+            .setItems(items) { dialog, which ->
+                when (which) {
+                    0 -> cycleAudioOutputMode()
+                    1 -> cycleLipSync()
+                    2 -> cycleDialogueBoost()
+                    3 -> showPlaybackInfo()
+                }
+
+                dialog.dismiss()
+                showControlsTemporarily()
+            }
+            .setNegativeButton("Cancel", null)
+            .setOnDismissListener { showControlsTemporarily() }
+            .show()
+    }
+
     private fun outputLabel(): String = when (audioOutputMode) {
         "stereo" -> "Compatibility PCM"; "surround" -> "Surround PCM"; "passthrough" -> "Passthrough"; else -> "Auto"
     }
