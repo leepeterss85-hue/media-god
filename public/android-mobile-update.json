@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 59,
-  "versionName": "1.0.58",
+  "versionCode": 60,
+  "versionName": "1.0.59",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.58 isolates compatibility-decoder crashes, chooses the final playback engine after stream preflight so only one player normally opens, removes visible fallback transitions, and gives compatibility playback a cleaner Media God title, progress and transport layout.",
+  "message": "Media God Mobile 1.0.59 gives the normal movie and episode player the same professional Media God chrome as compatibility playback, with a clean title/back bar that auto-hides with the native controller while Live TV remains unchanged.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
