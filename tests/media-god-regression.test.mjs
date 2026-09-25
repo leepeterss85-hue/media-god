@@ -3485,11 +3485,11 @@ test("compatibility player keeps technical decoder details off the normal playba
     assert.match(source, /progressBar = SeekBar\(this\)/);
     assert.match(source, /timeText\.text =[\s\S]{0,80}?formatPlaybackTime/);
     assert.match(source, /controlButton\("← Back"\)/);
-    assert.match(source, /controlButton\("−10"\)/);
-    assert.match(source, /controlButton\("\+10"\)/);
+    assert.match(source, /controlButton\("−10s"\)/);
+    assert.match(source, /controlButton\("\+10s"\)/);
     assert.match(source, /audioButton = controlButton\("Audio"\) \{ showAudioTrackMenu\(\) \}/);
     assert.match(source, /subtitleButton = controlButton\("CC"\) \{ showSubtitleTrackMenu\(\) \}/);
-    assert.match(source, /controlButton\("More"\) \{ showAdvancedControlsMenu\(\) \}/);
+    assert.match(source, /controlButton\("Options"\) \{ showAdvancedControlsMenu\(\) \}/);
     assert.match(source, /message\.startsWith\([\s\S]{0,90}?"Compatibility decoder · buffering"[\s\S]{0,90}?\) -> "Buffering…"/);
     assert.match(source, /message\.equals\([\s\S]{0,80}?"Compatibility decoder"[\s\S]{0,80}?\) -> ""/);
     assert.match(source, /private fun showControlsTemporarily\([\s\S]{0,260}?controls\.visibility = View\.VISIBLE[\s\S]{0,120}?updateProgressUi\(\)/);
@@ -4050,7 +4050,7 @@ test("one-second native decoder failures never become a torrent carousel", () =>
       /retrying this same source in software mode/
     );
     assert.match(player, /"compatibilityAudioRecovery"/);
-    assert.match(main, /playbackDecision\.reason\.startsWith\("audio"/);
+    assert.match(main, /(?:initialPlaybackDecision|finalPlaybackDecision)\.reason\.startsWith\([\s\S]{0,60}?"audio"/);
     assert.match(diagnostics, /"compatibilityAudioRecovery"/);
   }
 });
