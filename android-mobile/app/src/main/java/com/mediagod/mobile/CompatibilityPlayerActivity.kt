@@ -522,8 +522,10 @@ class CompatibilityPlayerActivity : Activity() {
                         val player = vlcPlayer
                         val length = player?.length?.takeIf { it > 0L }
                         if (player != null && length != null) {
+                            val selectedProgress =
+                                seekBar?.progress ?: progressBar.progress
                             player.time =
-                                (length * progress.toLong()) / 1000L
+                                (length * selectedProgress.toLong()) / 1000L
                         }
                         userSeeking = false
                         updateProgressUi()
