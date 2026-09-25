@@ -270,8 +270,8 @@ expect(
       nativePlayer.includes("launchCompatibilityPlayer(activePlayer, null, reason)") &&
       nativePlayer.includes("error.errorCode in 5001..5004") &&
       nativePlayer.includes("onAudioPositionAdvancing(") &&
-      nativePlayer.includes("if (!initial.present || initial.supported)") &&
-      nativePlayer.includes("if (!latest.present || latest.supported || audioOutputConfirmed)") &&
+      nativePlayer.includes("if (!initial.present || (initial.supported && initial.selected))") &&
+      nativePlayer.includes("if (!latest.present || (latest.supported && latest.selected) || audioOutputConfirmed)") &&
       !nativePlayer.includes(
         "Media3 selected an audio track but no decoded audio output advanced."
       )

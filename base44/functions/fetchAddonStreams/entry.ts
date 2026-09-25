@@ -1203,6 +1203,9 @@ const normaliseStream = (
         stream?.behavior_hints ||
         undefined,
 
+      // Preserve addon codec/language evidence (MediaFusion commonly puts it here).
+      description: clean(stream?.description),
+
       debridProvider:
         cacheSignal.cached ? "realdebrid" : undefined,
 
@@ -1282,6 +1285,8 @@ const normaliseStream = (
         stream?.behaviorHints ||
         stream?.behavior_hints ||
         undefined,
+      // Direct MediaFusion/Torrentio rows often carry audio metadata only here.
+      description: clean(stream?.description),
       debridProvider:
         cacheSignal.cached ? "realdebrid" : undefined,
       viaRealDebrid:

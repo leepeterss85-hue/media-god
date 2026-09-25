@@ -9008,7 +9008,8 @@ export default function VideoPlayer({
       }
 
       const reason = String(detail.reason || "back").toLowerCase();
-      const decodedAudioAdvanced = detail?.diagnostics?.audioOutputConfirmed === true;
+      // An advancing Media3 audio clock does not prove audible device output.
+      const audioTimelineAdvanced = detail?.diagnostics?.audioOutputConfirmed === true;
       const selectedSourceIndex = Number(detail.selectedSourceIndex);
       const currentPlayRequestId = source?.playRequestId ?? null;
 
@@ -9016,10 +9017,7 @@ export default function VideoPlayer({
         !isLive &&
         reason !== "error" &&
         positionSeconds >= SUCCESSFUL_VOD_PLAYBACK_SECONDS &&
-        (
-          decodedAudioAdvanced ||
-          !hasRecentNoSoundHistory(activeExactReliabilityLabel())
-        )
+        !hasRecentNoSoundHistory(activeExactReliabilityLabel())
       ) {
         const activeEntry = sortedSourceEntries.find(
           (entry) => entry?.index === activeIdx
@@ -9030,14 +9028,12 @@ export default function VideoPlayer({
         });
         recordPlaybackReliability(
           sourceDisplayLabel(active, activeIdx),
-          "good",
-          { audioConfirmed: decodedAudioAdvanced }
+          "good"
         );
-        if (decodedAudioAdvanced) {
+        if (audioTimelineAdvanced) {
           recordPlaybackReliability(
             activeExactReliabilityLabel(),
-            "good",
-            { audioConfirmed: true }
+            "good"
           );
         }
       }
@@ -9795,10 +9791,14 @@ export default function VideoPlayer({
               : "")
         ).trim();
 
+        const activeTorrentHash = sourceTorrentHash(active);
         const activeMagnet =
           active?.magnet ||
           active?.magnetLink ||
-          (isMagnet(activeUrl) ? activeUrl : "");
+          (isMagnet(activeUrl) ? activeUrl : "") ||
+          (activeTorrentHash
+            ? `magnet:?xt=urn:btih:${activeTorrentHash}`
+            : "");
 
         const rescueRequest =
           selectedRdFile?.link
@@ -9823,7 +9823,13 @@ export default function VideoPlayer({
                 magnet: activeMagnet,
                 ...(selectedRdFile?.id != null
                   ? { file_idx: selectedRdFile.id }
-                  : {}),
+                  : active?.fileIdx != null &&
+                      Number.isFinite(Number(active.fileIdx))
+                    ? { file_idx: Number(active.fileIdx) }
+                    : active?.file_idx != null &&
+                        Number.isFinite(Number(active.file_idx))
+                      ? { file_idx: Number(active.file_idx) }
+                      : {}),
               }
               : null;
 

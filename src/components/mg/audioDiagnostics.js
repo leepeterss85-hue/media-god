@@ -11,7 +11,7 @@ const role = (track) => {
 
 /** @returns {Record<string, any>} */
 export const sanitizeNativePlaybackDiagnostic = (raw = {}) => {
-  const strings = ["engine", "event", "message", "sourceName", "label", "container",
+  const strings = ["engine", "event", "message", "sourceName", "label", "container", "audioOutputMode",
     "mimeType", "videoCodec", "audioCodec", "selectedAudioCodec", "selectedAudioLanguage",
     "selectedAudioName", "compatibilityReason", "compatibilityError", "forceCompatibilityReason"];
   /** @type {Record<string, any>} */
@@ -27,6 +27,7 @@ export const sanitizeNativePlaybackDiagnostic = (raw = {}) => {
         index: Number.isInteger(Number(track?.index)) ? Number(track.index) : index,
         language: safe(track?.language), codec: safe(track?.codec),
         name: safe(track?.name), selected: track?.selected === true,
+        supported: track?.supported === true ? true : track?.supported === false ? false : null,
         commentary: track?.commentary === true,
         descriptive: track?.descriptive === true,
       }))
@@ -66,7 +67,7 @@ export const buildPlaybackAudioDiagnostic = ({ source, resolved, native = null, 
     playbackPath: native?.engine === "libvlc" ? "compatibility" : native?.engine === "media3" ? "native" : "browser",
     audioFallbackReason: safe(fallbackReason || "none"),
     audioFailureEvidence: native?.audioFailureEvidence === "decoder-error" ? "confirmed decoder error" : "unknown",
-    audioOutput: native?.audioOutputConfirmed === true ? "decoded output advanced" : "unknown",
+    audioOutput: native?.audioOutputConfirmed === true ? "audio timeline advanced; sound unverified" : "unknown",
   };
 };
 

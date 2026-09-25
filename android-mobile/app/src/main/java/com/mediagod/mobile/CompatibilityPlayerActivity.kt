@@ -618,7 +618,9 @@ class CompatibilityPlayerActivity : Activity() {
             player.setAudioOutput("android_audiotrack")
             when (audioOutputMode) {
                 "passthrough" -> player.setAudioDigitalOutputEnabled(true)
-                "stereo" -> { player.setAudioDigitalOutputEnabled(false); player.setAudioOutputDevice("stereo") }
+                // "stereo" is a preference, not a LibVLC output device ID.
+                // Android AudioTrack must choose the actual speaker/HDMI route.
+                "stereo" -> player.setAudioDigitalOutputEnabled(false)
                 "surround" -> player.setAudioDigitalOutputEnabled(false)
                 else -> {
                     /*
@@ -832,7 +834,7 @@ class CompatibilityPlayerActivity : Activity() {
     }
 
     private fun outputLabel(): String = when (audioOutputMode) {
-        "stereo" -> "Stereo PCM"; "surround" -> "Surround PCM"; "passthrough" -> "Passthrough"; else -> "Auto"
+        "stereo" -> "Compatibility PCM"; "surround" -> "Surround PCM"; "passthrough" -> "Passthrough"; else -> "Auto"
     }
 
     private fun updateControlLabels() {

@@ -10,6 +10,11 @@ const effectiveCompatibilityTier = (entry) =>
     ? 0
     : Number(entry?.compatibilityTier ?? 2);
 
+const effectiveAudioSafetyRank = (entry) =>
+  entry?.successfulPlayback === true || entry?.provenWorking === true
+    ? 0
+    : Number(entry?.audioSafetyRank ?? 1);
+
 const compareLegacyEntries = (left, right) =>
   effectiveCompatibilityTier(left) - effectiveCompatibilityTier(right) ||
   Number(left?.languageRank ?? 0) - Number(right?.languageRank ?? 0) ||
@@ -30,7 +35,8 @@ const compareSmartEntries = (left, right) =>
   Number(Boolean(right?.provenWorking)) - Number(Boolean(left?.provenWorking)) ||
   Number(Boolean(right?.trustedCached)) - Number(Boolean(left?.trustedCached)) ||
   Number(Boolean(right?.cached)) - Number(Boolean(left?.cached)) ||
-  // Codec playability is decided above; audio quality only breaks ties after it.
+  effectiveAudioSafetyRank(left) - effectiveAudioSafetyRank(right) ||
+  // Codec playability is decided above; audio quality only breaks ties after reliability.
   Number(left?.releaseTierRank ?? 6) - Number(right?.releaseTierRank ?? 6) ||
   Number(left?.audioTierRank ?? 4) - Number(right?.audioTierRank ?? 4) ||
   Number(right?.compatibility || 0) - Number(left?.compatibility || 0) ||
