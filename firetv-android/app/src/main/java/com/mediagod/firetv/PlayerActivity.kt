@@ -678,6 +678,13 @@ class PlayerActivity : Activity() {
         }
     }
 
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        if (event.action == MotionEvent.ACTION_DOWN && !live) {
+            showControllerTemporarily()
+        }
+        return super.dispatchTouchEvent(event)
+    }
+
     @Deprecated("Deprecated in Android; retained for Fire OS compatibility")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
