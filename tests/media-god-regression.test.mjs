@@ -4456,9 +4456,18 @@ test("startup discovery cannot flash through unverified English candidates", () 
 
   assert.match(startupBlock, /startupAutoplayClaimRef/);
   assert.match(startupBlock, /startupAlreadyClaimed/);
+  assert.match(startupBlock, /claimedUncachedCanUpgradeToReady/);
   assert.match(
     startupBlock,
-    /bestSourceShouldOwnStartup[\s\S]{0,220}?!startupAlreadyClaimed/
+    /bestSourceShouldOwnStartup[\s\S]{0,300}?\(!startupAlreadyClaimed \|\| claimedUncachedCanUpgradeToReady\)/
+  );
+  assert.match(
+    startupBlock,
+    /startupAlreadyClaimed &&[\s\S]{0,140}?activeNeedsCaching[\s\S]{0,220}?automaticReadySourceIndex/
+  );
+  assert.match(
+    startupBlock,
+    /Verified cached source is ready — leaving the uncached torrent/
   );
   assert.match(
     startupBlock,
