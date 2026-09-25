@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 55,
-  "versionName": "1.0.54",
+  "versionCode": 56,
+  "versionName": "1.0.55",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.54 includes the movie and episode audio reliability improvements and restores updates for installations on code 54.",
+  "message": "Media God Mobile 1.0.55 corrects silent Dolby and multichannel movie and episode playback by routing VOD compatibility audio through decoded stereo PCM while keeping English preferred.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
