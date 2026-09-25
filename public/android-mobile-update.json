@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 57,
-  "versionName": "1.0.56",
+  "versionCode": 58,
+  "versionName": "1.0.57",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.56 stops forced Real-Debrid remote traffic, falls back to remote mode only for IP rejection, and automatically leaves uncached startup torrents when verified cached sources are ready.",
+  "message": "Media God Mobile 1.0.57 cleans up compatibility playback with a proper seek bar, compact transport controls, Audio and subtitle menus, auto-hiding controls, and no persistent decoder/debug text.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
