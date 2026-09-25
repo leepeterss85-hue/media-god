@@ -316,7 +316,20 @@ class CompatibilityPlayerActivity : Activity() {
         if (!resultSent && ::controls.isInitialized) {
             if (controls.hasFocus() && ::videoLayout.isInitialized) videoLayout.requestFocus()
             controls.visibility = View.GONE
+        }
+    }
+
+    private val hideStatusRunnable = Runnable {
+        if (!resultSent && ::statusText.isInitialized) {
             statusText.visibility = View.GONE
+        }
+    }
+
+    private val progressRunnable = object : Runnable {
+        override fun run() {
+            if (resultSent || !::root.isInitialized) return
+            updateProgressUi()
+            root.postDelayed(this, PROGRESS_UPDATE_MS)
         }
     }
 
