@@ -174,10 +174,13 @@ const requestJson = async (url, options = {}, timeoutMs = 12000) => {
         clean(data?.message) ||
         clean(data?.detail) ||
         `HTTP ${response.status}`;
-      const error = new Error(message);
-      error.status = Number(response.status || 0);
-      error.providerCode = Number(data?.error_code);
-      throw error;
+      throw Object.assign(
+        new Error(message),
+        {
+          status: Number(response.status || 0),
+          providerCode: Number(data?.error_code),
+        }
+      );
     }
 
     return data;
@@ -528,7 +531,7 @@ const resolveRealDebrid = async ({ token, source, season, episode, selectedFile 
   try {
     unrestricted = await unrestrictRequest(false);
   } catch (error) {
-    if (Number(error?.providerCode) !== 22) {
+    if (Number((error as any)?.providerCode) !== 22) {
       throw error;
     }
 
