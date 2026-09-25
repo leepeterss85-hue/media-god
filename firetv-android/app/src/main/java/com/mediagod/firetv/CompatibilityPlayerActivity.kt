@@ -593,12 +593,33 @@ class CompatibilityPlayerActivity : Activity() {
             )
         }
 
+        val titleRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            addView(
+                backButton,
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    marginEnd = dp(4)
+                }
+            )
+            addView(
+                titleText,
+                LinearLayout.LayoutParams(
+                    0,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    1f
+                )
+            )
+        }
+
         val transportRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            addWeighted(this, backButton, 1.1f)
             addWeighted(this, rewindButton)
-            addWeighted(this, playPauseButton, 1.2f)
+            addWeighted(this, playPauseButton, 1.25f)
             addWeighted(this, forwardButton)
         }
 
@@ -613,8 +634,9 @@ class CompatibilityPlayerActivity : Activity() {
         controls = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(dp(10), dp(8), dp(10), dp(9))
-            background = roundedBackground(Color.argb(205, 8, 8, 8), 16)
+            setPadding(dp(10), dp(9), dp(10), dp(10))
+            background = roundedBackground(Color.argb(210, 7, 7, 7), 18)
+            addView(titleRow)
             addView(progressRow)
             addView(transportRow)
             addView(optionsRow)
