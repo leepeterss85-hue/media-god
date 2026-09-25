@@ -1617,9 +1617,21 @@ class PlayerActivity : Activity() {
         val mediaSourceFactory = DefaultMediaSourceFactory(this)
             .setDataSourceFactory(dataSourceFactory)
 
+        /*
+         * Preserve the existing Live TV decoder order. For movies and episodes,
+         * prefer Media God's bundled FFmpeg audio renderer so compressed Dolby/
+         * DTS tracks do not get trapped on a device decoder that reports support
+         * but produces silent output.
+         */
+        val extensionRendererMode =
+            if (live) {
+                DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
+            } else {
+                DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
+            }
         val renderersFactory = DefaultRenderersFactory(this)
             .setEnableDecoderFallback(true)
-            .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
+            .setExtensionRendererMode(extensionRendererMode)
 
         val exoPlayer = ExoPlayer.Builder(this, renderersFactory)
             .setMediaSourceFactory(mediaSourceFactory)
@@ -1697,6 +1709,10 @@ class PlayerActivity : Activity() {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 if (isPlaying) {
                     window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
+                    if (!live && !audioOutputConfirmed) {
+                        scheduleMissingAudioCheck(exoPlayer, exoPlayer.currentTracks)
+                    }
 
                     if (live) {
                         livePlaybackStarted = true
@@ -2030,12 +2046,8 @@ class PlayerActivity : Activity() {
         ) return
 
         val generation = ++audioPresenceCheckGeneration
-        val initial = inspectAudioReadiness(tracks)
-        if (!initial.present || (initial.supported && initial.selected)) {
-            return
-        }
-
         if (tracks.groups.none { it.type == C.TRACK_TYPE_VIDEO }) return
+        if (audioOutputConfirmed) return
 
         playerView.postDelayed({
             if (generation != audioPresenceCheckGeneration || resultSent ||
@@ -2043,15 +2055,19 @@ class PlayerActivity : Activity() {
                 !activePlayer.isPlaying || activePlayer.currentPosition < 5000L
             ) return@postDelayed
 
-            val latest = inspectAudioReadiness(activePlayer.currentTracks)
-            // An empty or late track list is unknown, not evidence of silence.
-            // A present track without a selected supported rendition warrants
-            // same-file rescue; an unknown or late track list does not.
-            if (!latest.present || (latest.supported && latest.selected) || audioOutputConfirmed) {
-                return@postDelayed
-            }
+            if (audioOutputConfirmed) return@postDelayed
 
-            val reason = "This release has no usable audio track in the native decoder. Trying the same file with the compatibility decoder."
+            val latest = inspectAudioReadiness(activePlayer.currentTracks)
+            val reason = when {
+                !latest.present ->
+                    "Video is playing but no audio track became available. Trying the same file with the compatibility decoder."
+                !latest.supported ->
+                    "Video is playing but the native decoder cannot support its audio. Trying the same file with the compatibility decoder."
+                !latest.selected ->
+                    "Video is playing but no usable audio track was selected. Trying the same file with the compatibility decoder."
+                else ->
+                    "Video is playing but native audio output never started. Trying the same file with the compatibility decoder."
+            }
             if (!launchCompatibilityPlayer(activePlayer, null, reason)) {
                 finishWithResult("error", reason)
             }
