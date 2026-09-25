@@ -1646,6 +1646,12 @@ class PlayerActivity : Activity() {
                 eventTime: AnalyticsListener.EventTime,
                 playoutStartSystemTimeMs: Long
             ) {
+                /*
+                 * Media3 documents this as audio-sink position progress. It is
+                 * useful evidence for ordinary stereo codecs, but it is not
+                 * proof that a Dolby/multichannel route is actually audible on
+                 * the physical phone/TV/HDMI output.
+                 */
                 if (player === exoPlayer) audioOutputConfirmed = true
             }
         })
@@ -1990,6 +1996,43 @@ class PlayerActivity : Activity() {
         )
     }
 
+    private fun selectedAudioRequiresPcmRescue(
+        tracks: androidx.media3.common.Tracks
+    ): Boolean {
+        tracks.groups.forEach { group ->
+            if (group.type != C.TRACK_TYPE_AUDIO) return@forEach
+
+            for (index in 0 until group.length) {
+                if (!group.isTrackSelected(index)) continue
+
+                val format = group.getTrackFormat(index)
+                val mime = format.sampleMimeType
+                    .orEmpty()
+                    .trim()
+                    .lowercase()
+                val channels = format.channelCount
+
+                if (
+                    channels > 2 ||
+                    mime in setOf(
+                        "audio/ac3",
+                        "audio/eac3",
+                        "audio/eac3-joc",
+                        "audio/ac4",
+                        "audio/vnd.dts",
+                        "audio/vnd.dts.hd",
+                        "audio/true-hd",
+                        "audio/vnd.dolby.mlp"
+                    )
+                ) {
+                    return true
+                }
+            }
+        }
+
+        return false
+    }
+
     private data class PreferredEnglishReadiness(
         val present: Boolean,
         val supported: Boolean,
@@ -2047,7 +2090,6 @@ class PlayerActivity : Activity() {
 
         val generation = ++audioPresenceCheckGeneration
         if (tracks.groups.none { it.type == C.TRACK_TYPE_VIDEO }) return
-        if (audioOutputConfirmed) return
 
         playerView.postDelayed({
             if (generation != audioPresenceCheckGeneration || resultSent ||
@@ -2055,9 +2097,15 @@ class PlayerActivity : Activity() {
                 !activePlayer.isPlaying || activePlayer.currentPosition < 5000L
             ) return@postDelayed
 
-            if (audioOutputConfirmed) return@postDelayed
+            val latestTracks = activePlayer.currentTracks
+            if (
+                audioOutputConfirmed &&
+                !selectedAudioRequiresPcmRescue(latestTracks)
+            ) {
+                return@postDelayed
+            }
 
-            val latest = inspectAudioReadiness(activePlayer.currentTracks)
+            val latest = inspectAudioReadiness(latestTracks)
             val reason = when {
                 !latest.present ->
                     "Video is playing but no audio track became available. Trying the same file with the compatibility decoder."
