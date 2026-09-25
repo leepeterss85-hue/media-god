@@ -300,7 +300,7 @@ class CompatibilityPlayerActivity : Activity() {
             tracks.filter { namesMatchExpectedAudio(it.name.orEmpty(), expected) &&
                 !audioTrackNameLooksCommentary(it.name.orEmpty()) }
         } else emptyList()
-        val wanted = english.firstOrNull() ?: matchingHint.singleOrNull() ?: return
+        val wanted = matchingHint.singleOrNull() ?: english.firstOrNull() ?: return
         if (player.audioTrack != wanted.id) player.setAudioTrack(wanted.id)
     }
 
@@ -528,6 +528,11 @@ class CompatibilityPlayerActivity : Activity() {
                         MediaPlayer.Event.Playing -> {
                             compatibilityPlaybackStarted = true
                             preferEnglishMainAudio(player)
+                            root.postDelayed({
+                                if (!resultSent && vlcPlayer === player && player.isPlaying) {
+                                    preferEnglishMainAudio(player)
+                                }
+                            }, 900L)
                             clearStartupTimeout()
                             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                             showStatus("Compatibility decoder")
@@ -549,6 +554,7 @@ class CompatibilityPlayerActivity : Activity() {
                                         vlcPlayer !== player || !player.isPlaying || player.time < 5000L
                                     ) return@postDelayed
 
+                                    preferEnglishMainAudio(player)
                                     val tracks = try {
                                         player.audioTracks?.filter { it.id >= 0 }.orEmpty()
                                     } catch (_: Throwable) { emptyList() }
