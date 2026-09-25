@@ -1316,6 +1316,9 @@ class PlayerActivity : Activity() {
 
         playerView.removeCallbacks(hideControllerRunnable)
         playerView.hideController()
+        if (!live && ::playerChrome.isInitialized) {
+            playerChrome.visibility = View.GONE
+        }
     }
 
     private fun showSourceSelector() {
