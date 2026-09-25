@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 58,
-  "versionName": "1.0.57",
+  "versionCode": 59,
+  "versionName": "1.0.58",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.57 cleans up compatibility playback with a proper seek bar, compact transport controls, Audio and subtitle menus, auto-hiding controls, and no persistent decoder/debug text.",
+  "message": "Media God Mobile 1.0.58 isolates the LibVLC compatibility decoder in its own process so a malformed source cannot close Media God; unexpected decoder exits now return as playback errors so another source can be tried.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
