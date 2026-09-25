@@ -3891,7 +3891,7 @@ test("only a confirmed no-sound report can advance after same-file recovery fail
   assert.match(playerSource, /currentVideoHealthy &&[\s\S]{0,100}!userReportedNoSound/);
 });
 
-test("LibVLC PCM modes never route to a fabricated stereo output device", () => {
+test("LibVLC VOD PCM explicitly uses the documented stereo compatibility endpoint", () => {
   const nativeFiles = [
     "../android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt",
     "../firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt",
@@ -3904,9 +3904,11 @@ test("LibVLC PCM modes never route to a fabricated stereo output device", () => 
     assert.ok(start >= 0 && end > start);
     const block = source.slice(start, end);
 
+    assert.match(block, /payload\.optBoolean\("live", false\)/);
     assert.match(block, /player\.setAudioDigitalOutputEnabled\(false\)/);
-    assert.match(block, /"stereo" -> player\.setAudioDigitalOutputEnabled\(false\)/);
-    assert.doesNotMatch(block, /setAudioOutputDevice\("stereo"\)/);
+    assert.match(block, /setAudioOutputDevice\("stereo"\)/);
+    assert.match(block, /setAudioOutputDevice\("pcm"\)/);
+    assert.match(source, /--audio-language=eng,en/);
   }
 });
 
