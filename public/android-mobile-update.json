@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 56,
-  "versionName": "1.0.55",
+  "versionCode": 57,
+  "versionName": "1.0.56",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.55 corrects silent Dolby and multichannel movie and episode playback by routing VOD compatibility audio through decoded stereo PCM while keeping English preferred.",
+  "message": "Media God Mobile 1.0.56 stops forced Real-Debrid remote traffic, falls back to remote mode only for IP rejection, and automatically leaves uncached startup torrents when verified cached sources are ready.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
