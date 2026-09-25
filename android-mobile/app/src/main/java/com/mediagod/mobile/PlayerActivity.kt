@@ -500,6 +500,20 @@ class PlayerActivity : Activity() {
                     ViewGroup.LayoutParams.MATCH_PARENT
                 )
             )
+            if (!live) {
+                addView(
+                    playerChrome,
+                    FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT
+                    ).apply {
+                        gravity = Gravity.TOP
+                        leftMargin = dp(10)
+                        rightMargin = dp(10)
+                        topMargin = dp(10)
+                    }
+                )
+            }
             addView(
                 assistControls,
                 FrameLayout.LayoutParams(
