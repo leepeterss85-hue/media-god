@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.Gravity
 import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -47,6 +48,7 @@ class PlayerActivity : Activity() {
     }
 
     private lateinit var playerView: PlayerView
+    private lateinit var playerChrome: LinearLayout
     private lateinit var assistControls: LinearLayout
     private lateinit var skipRecapButton: Button
     private lateinit var skipIntroButton: Button
