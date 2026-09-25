@@ -572,6 +572,10 @@ const friendlyPlaybackError = (value) => {
     return "Real-Debrid rejected this torrent. Choose another release.";
   }
 
+  if (/traffic[_ -]?exhausted|\btraffic exhausted\b/i.test(message)) {
+    return "Real-Debrid reports that its traffic allowance is exhausted. Media God has kept this source available and will not mark the torrent bad.";
+  }
+
   if (/\b502\b|bad gateway|temporarily unavailable/i.test(message)) {
     return "The source service is temporarily unavailable. Try again later or choose another source.";
   }
@@ -5811,17 +5815,30 @@ export default function VideoPlayer({
               if (error?.code === "RD_IP_NOT_ALLOWED") {
                 /*
                  * This is an account/network condition, not evidence that the
-                 * selected torrent is bad. The backend already asks RD for a
-                 * remote-playback link; if RD still rejects the playback IP,
-                 * cycling through sources would only poison otherwise-good
-                 * files and repeat the same account-level failure.
+                 * selected torrent is bad. Normal unrestrict is attempted first;
+                 * remote traffic is only used when RD explicitly requires it.
                  */
                 setRdResolving(false);
                 setRdPolling(false);
                 setRdTorrentId(null);
                 setRdPreparation(null);
                 setRdError(
-                  "Real-Debrid rejected the current playback network/IP even after Media God requested a remote-playback link. Reconnect Real-Debrid or try the connection again without changing source."
+                  "Real-Debrid rejected the current playback network/IP. Media God did not mark this torrent bad; reconnect Real-Debrid or retry the connection."
+                );
+                return;
+              }
+
+              if (error?.code === "RD_REMOTE_TRAFFIC_EXHAUSTED") {
+                /*
+                 * Error 23 is account/traffic state, not a bad movie/episode
+                 * hash. Do not burn through the source list or blacklist files.
+                 */
+                setRdResolving(false);
+                setRdPolling(false);
+                setRdTorrentId(null);
+                setRdPreparation(null);
+                setRdError(
+                  "Real-Debrid reports traffic exhausted. Media God now tries normal playback before remote mode, and this torrent has not been marked bad. Retry after the Real-Debrid traffic allowance is available."
                 );
                 return;
               }
