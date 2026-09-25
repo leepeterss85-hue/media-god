@@ -488,6 +488,7 @@ class PlayerActivity : Activity() {
             contentDescription = if (title.isBlank()) "Media God player" else title
         }
 
+        playerChrome = buildPlayerChrome()
         assistControls = buildAssistControls()
 
         val root = FrameLayout(this).apply {
