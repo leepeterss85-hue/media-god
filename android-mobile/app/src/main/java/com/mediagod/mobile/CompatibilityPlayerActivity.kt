@@ -506,8 +506,14 @@ class CompatibilityPlayerActivity : Activity() {
     private fun startCompatibilityPlayback() {
         try {
             val options = arrayListOf(
-                "--network-caching=1800", "--file-caching=1200", "--live-caching=1800", "--clock-jitter=0"
+                "--network-caching=1800",
+                "--file-caching=1200",
+                "--live-caching=1800",
+                "--clock-jitter=0"
             )
+            if (!payload.optBoolean("live", false) && wantsPreferredEnglishAudio()) {
+                options.add("--audio-language=eng,en")
+            }
             if (volumeNormalization) {
                 options.add("--audio-replay-gain-mode=track")
                 options.add("--audio-replay-gain-preamp=0.0")
@@ -623,20 +629,27 @@ class CompatibilityPlayerActivity : Activity() {
         try {
             player.setAudioOutput("android_audiotrack")
             when (audioOutputMode) {
-                "passthrough" -> player.setAudioDigitalOutputEnabled(true)
-                // "stereo" is a preference, not a LibVLC output device ID.
-                // Android AudioTrack must choose the actual speaker/HDMI route.
-                "stereo" -> player.setAudioDigitalOutputEnabled(false)
-                "surround" -> player.setAudioDigitalOutputEnabled(false)
+                "passthrough" -> {
+                    player.setAudioOutputDevice("encoded")
+                }
+                "surround" -> {
+                    player.setAudioDigitalOutputEnabled(false)
+                    player.setAudioOutputDevice("pcm")
+                }
+                "stereo" -> {
+                    player.setAudioDigitalOutputEnabled(false)
+                    player.setAudioOutputDevice("stereo")
+                }
                 else -> {
                     /*
-                     * Auto means decoded PCM, not forced HDMI passthrough.
-                     * Do not select an explicit output-device id here. LibVLC
-                     * documents that setAudioOutputDevice() disables encoding
-                     * detection; simply disabling digital output lets Android
-                     * AudioTrack choose the actual phone/tablet/TV endpoint.
+                     * Reliability default for VOD: force LibVLC's documented
+                     * stereo AudioTrack endpoint. This makes LibVLC decode and
+                     * downmix Dolby/multichannel audio to ordinary PCM instead
+                     * of relying on a device HDMI/passthrough route that may
+                     * advertise support while producing silence.
                      */
                     player.setAudioDigitalOutputEnabled(false)
+                    player.setAudioOutputDevice("stereo")
                 }
             }
             player.setVolume(100)
