@@ -60,7 +60,7 @@ test("remembered guest mode can skip account creation without weakening account-
   assert.match(xtreamSource, /base44\.auth\.me\(\)/);
 });
 
-test("movie and episode reviews use a public 1-to-5 star auto-publish model", () => {
+test("movie, show and episode reviews use a public 1-to-5 star auto-publish model", () => {
   const schema = readFileSync(
     new URL("../base44/entities/MediaReview.jsonc", import.meta.url),
     "utf8"
@@ -79,6 +79,7 @@ test("movie and episode reviews use a public 1-to-5 star auto-publish model", ()
   );
 
   assert.match(schema, /"read"\s*:\s*\{\s*\}/);
+  assert.deepEqual(JSON.parse(schema).properties.media_type.enum, ["movie", "tv", "episode"]);
   assert.match(schema, /"enum"\s*:\s*\[\s*1\s*,\s*2\s*,\s*3\s*,\s*4\s*,\s*5\s*\]/);
   for (const operation of ["create", "update", "delete"]) {
     assert.match(
@@ -98,7 +99,10 @@ test("movie and episode reviews use a public 1-to-5 star auto-publish model", ()
     reviews,
     /user\?\.email\s*\|\|\s*"Media God user"/
   );
-  assert.match(details, /<MediaReviews[\s\S]{0,180}?mediaType="movie"/);
+  assert.match(reviews, /mediaType === "tv" \? "tv" : "movie"/);
+  assert.match(details, /<MediaReviews[\s\S]{0,180}?mediaType=\{resolvedMediaType\}/);
+  assert.match(details, /hidden=\{activeTab !== "reviews"\}/);
+  assert.match(details, /hidden=\{activeTab !== "episodes"\}/);
   assert.match(episodes, /<MediaReviews[\s\S]{0,260}?mediaType="episode"/);
   assert.match(episodes, />\s*Review\s*<\/button>/);
 });
@@ -131,9 +135,16 @@ test("related movie and TV cards use exact TMDB recommendation links and open de
   assert.match(backend, /related,[\s\S]{0,80}?\}\);/);
 
   assert.match(detail, /data-mg-related-titles="true"/);
+  assert.match(detail, /data-mg-detail-tabs="true"/);
+  for (const tab of ["overview", "reviews", "related", "cast", "watch"]) {
+    assert.match(detail, new RegExp(`id: "${tab}"`));
+  }
   assert.match(detail, /Related to \$\{displayTitle\}/);
   assert.match(detail, /<MediaRow[\s\S]{0,120}?embedded[\s\S]{0,120}?detailsOnly/);
   assert.match(detail, /onOpen=\{[\s\S]{0,80}?onSelectRelated/);
+  assert.match(backend, /\/person\/\$\{personId\}\/combined_credits\?/);
+  assert.match(detail, /data-mg-actor-credits="true"/);
+  assert.match(detail, /person_id: selectedActor\.id/);
 
   assert.match(row, /detailsOnly=\{detailsOnly\}/);
   assert.match(card, /detailsOnly \|\| isFireTvRuntime\(\) \|\| mediaType === "tv"/);

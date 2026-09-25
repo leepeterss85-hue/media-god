@@ -780,6 +780,41 @@ export default function DetailModal({
     setFavoriteRowId,
   ] = useState(null);
 
+  const [activeTab, setActiveTab] = useState("overview");
+  const [selectedActor, setSelectedActor] = useState(null);
+  const [actorCredits, setActorCredits] = useState([]);
+  const [actorLoading, setActorLoading] = useState(false);
+  const [actorError, setActorError] = useState("");
+
+  useEffect(() => {
+    setActiveTab("overview");
+    setSelectedActor(null);
+    setActorCredits([]);
+  }, [itemId, resolvedMediaType]);
+
+  useEffect(() => {
+    if (!selectedActor?.id) return undefined;
+    let cancelled = false;
+    setActorCredits([]);
+    setActorLoading(true);
+    setActorError("");
+
+    base44.functions.invoke("getTmdbMovies", { person_id: selectedActor.id })
+      .then((response) => {
+        if (!cancelled) {
+          setActorCredits(asArray(response?.data?.credits ?? response?.credits));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setActorError("This actor's titles could not be loaded.");
+      })
+      .finally(() => {
+        if (!cancelled) setActorLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [selectedActor?.id]);
+
   const { toast } =
     useToast();
 
@@ -1117,31 +1152,20 @@ export default function DetailModal({
   };
 
   const goToEpisodes = () => {
-    const target =
-      document.getElementById(
-        "mg-episode-selector"
-      );
+    setActiveTab("episodes");
 
-    if (target) {
-      target.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-
-      const focusTarget =
-        target.querySelector(
+    window.setTimeout(() => {
+      const target = document.getElementById("mg-episode-selector");
+      if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+        const focusTarget = target.querySelector(
           'select[aria-label="Choose season"], button'
         );
-
-      window.setTimeout(
-        () => {
-          if (focusTarget instanceof HTMLElement) {
-            focusTarget.focus();
-          }
-        },
-        250
-      );
-    }
+        window.setTimeout(() => {
+          if (focusTarget instanceof HTMLElement) focusTarget.focus();
+        }, 250);
+      }
+    }, 0);
   };
 
   const primaryAction = () => {
@@ -1363,6 +1387,15 @@ export default function DetailModal({
       (group) =>
         group.items.length > 0
     );
+
+  const detailTabs = [
+    { id: "overview", label: "Overview" },
+    ...(resolvedMediaType === "tv" ? [{ id: "episodes", label: "Episodes" }] : []),
+    { id: "reviews", label: "Reviews" },
+    { id: "related", label: "Related" },
+    { id: "cast", label: "Cast" },
+    { id: "watch", label: "Where to Watch" },
+  ];
 
   return (
     <div
@@ -1586,6 +1619,33 @@ export default function DetailModal({
             </button>
           </div>
 
+          <div role="tablist" aria-label={`${displayTitle} sections`} className="mt-5 flex gap-2 overflow-x-auto border-b border-white/10 pb-2" data-mg-detail-tabs="true">
+            {detailTabs.map((tab) => (
+              <button
+                key={tab.id}
+                id={`mg-detail-tab-${tab.id}`}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === tab.id}
+                aria-controls="mg-detail-tab-panel"
+                onClick={() => setActiveTab(tab.id)}
+                onKeyDown={(event) => {
+                  if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+                  event.preventDefault();
+                  const current = detailTabs.findIndex((entry) => entry.id === tab.id);
+                  const next = (current + (event.key === "ArrowRight" ? 1 : -1) + detailTabs.length) % detailTabs.length;
+                  setActiveTab(detailTabs[next].id);
+                  document.getElementById(`mg-detail-tab-${detailTabs[next].id}`)?.focus();
+                }}
+                className={`shrink-0 min-h-11 rounded-lg px-3 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-mg-green 3xl:text-base ${activeTab === tab.id ? "bg-mg-green text-black" : "bg-mg-card text-white/70 hover:text-white"}`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <div id="mg-detail-tab-panel" role="tabpanel" aria-labelledby={`mg-detail-tab-${activeTab}`} className="pb-6 3xl:pb-10">
+          {activeTab === "overview" && (<>
           {resolvedMediaType === "movie" && (
             <StreamSourcesBox
               title={
@@ -1634,19 +1694,22 @@ export default function DetailModal({
               {overview}
             </p>
           </div>
+          </>)}
 
-          {resolvedMediaType === "movie" && (
+          <div hidden={activeTab !== "reviews"}>
             <MediaReviews
+              key={`${resolvedMediaType}:${itemId}`}
               tmdbId={itemId}
-              mediaType="movie"
+              mediaType={resolvedMediaType}
               title={displayTitle}
             />
-          )}
+          </div>
 
           {resolvedMediaType ===
             "tv" &&
             !loading &&
             seasons.length > 0 && (
+              <div hidden={activeTab !== "episodes"}>
               <EpisodeSelector
                 item={{
                   ...safeItem,
@@ -1670,9 +1733,10 @@ export default function DetailModal({
                   providers
                 }
               />
+              </div>
             )}
 
-          {resolvedMediaType ===
+          {activeTab === "episodes" && resolvedMediaType ===
             "tv" &&
             !loading &&
             seasons.length ===
@@ -1682,7 +1746,7 @@ export default function DetailModal({
               </div>
             )}
 
-          {!loading &&
+          {activeTab === "related" && !loading &&
             related.length >
               0 && (
               <div
@@ -1703,7 +1767,11 @@ export default function DetailModal({
               </div>
             )}
 
-          <div className="mt-5 3xl:mt-8">
+          {activeTab === "related" && !loading && related.length === 0 && (
+            <p className="mt-5 text-sm text-white/45">No related titles are available yet.</p>
+          )}
+
+          {activeTab === "watch" && <div className="mt-5 3xl:mt-8">
             <h3 className="text-white/80 text-xs 3xl:text-base font-bold uppercase tracking-wider mb-2 3xl:mb-3 flex items-center gap-1.5">
               <Tv className="w-3.5 h-3.5 3xl:w-5 3xl:h-5 text-mg-green" />
               Where to Watch
@@ -1822,9 +1890,9 @@ export default function DetailModal({
                 No provider information is available for this title in your region.
               </p>
             )}
-          </div>
+          </div>}
 
-          <div className="mt-5 3xl:mt-8 pb-6 3xl:pb-10">
+          {activeTab === "cast" && <div className="mt-5 3xl:mt-8">
             <h3 className="text-white/80 text-xs 3xl:text-base font-bold uppercase tracking-wider mb-2 3xl:mb-3">
               Cast
             </h3>
@@ -1856,9 +1924,13 @@ export default function DetailModal({
                     person,
                     index
                   ) => (
-                    <div
+                    <button
+                      type="button"
                       key={`${person.name}-${person.character}-${index}`}
-                      className="shrink-0 w-16 3xl:w-24 text-center"
+                      onClick={() => setSelectedActor(person)}
+                      disabled={!person.id}
+                      aria-label={`See films and shows featuring ${person.name}`}
+                      className="shrink-0 w-16 3xl:w-24 text-center rounded-lg focus:outline-none focus:ring-2 focus:ring-mg-green disabled:cursor-default"
                     >
                       <div className="w-16 h-16 3xl:w-24 3xl:h-24 rounded-full overflow-hidden border border-white/10 bg-mg-card">
                         {person.profile_url ? (
@@ -1888,7 +1960,7 @@ export default function DetailModal({
                       <p className="text-white/40 text-[10px] 3xl:text-xs truncate">
                         {person.character}
                       </p>
-                    </div>
+                    </button>
                   )
                 )}
               </div>
@@ -1897,6 +1969,26 @@ export default function DetailModal({
                 No cast information available.
               </p>
             )}
+            {selectedActor && (
+              <div className="mt-5" data-mg-actor-credits="true">
+                <h4 className="text-sm font-bold text-white">Featuring {selectedActor.name}</h4>
+                {actorLoading && <p className="mt-2 text-sm text-white/45">Loading films and shows…</p>}
+                {actorError && <p className="mt-2 text-sm text-amber-200">{actorError}</p>}
+                {!actorLoading && !actorError && actorCredits.length > 0 && (
+                  <MediaRow
+                    embedded
+                    detailsOnly
+                    title={`Films and shows with ${selectedActor.name}`}
+                    items={actorCredits}
+                    onOpen={onSelectRelated}
+                  />
+                )}
+                {!actorLoading && !actorError && actorCredits.length === 0 && (
+                  <p className="mt-2 text-sm text-white/45">No linked titles are available for this cast member.</p>
+                )}
+              </div>
+            )}
+          </div>}
           </div>
         </div>
       </div>
