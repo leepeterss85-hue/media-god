@@ -3503,8 +3503,8 @@ test("native players prefer English main audio without replacing a manual audio 
     assert.match(source, /group\.isTrackSelected\(index\) && group\.isTrackSupported\(index\)/);
     assert.match(source, /trackSelectionParameters\.overrides\.values\.any/);
     assert.match(source, /enforcePreferredEnglishAudio\(exoPlayer, tracks\)/);
-    assert.match(source, /if \(audioOutputConfirmed\) return/);
-    assert.match(source, /if \(audioOutputConfirmed\) return@postDelayed/);
+    assert.match(source, /selectedAudioRequiresPcmRescue/);
+    assert.match(source, /audioOutputConfirmed &&[\s\S]{0,120}!selectedAudioRequiresPcmRescue/);
     assert.match(source, /native audio output never started/);
     assert.doesNotMatch(source, /val englishOverrideApplied =/);
     assert.match(source, /onAudioPositionAdvancing\(/);
@@ -3784,7 +3784,7 @@ test("native VOD proves audio output after playback advances and rescues silent 
     const block = source.slice(start, end);
 
     assert.doesNotMatch(block, /!initial\.present \|\| \(initial\.supported && initial\.selected\)/);
-    assert.match(block, /if \(audioOutputConfirmed\) return/);
+    assert.match(block, /selectedAudioRequiresPcmRescue\(latestTracks\)/);
     assert.match(block, /activePlayer\.currentPosition < 5000L/);
     assert.match(block, /native audio output never started/);
     assert.match(block, /launchCompatibilityPlayer\(activePlayer, null, reason\)/);
@@ -4770,7 +4770,8 @@ test("native audio repair never cycles to another source on uncertain sound", ()
       3
     );
     assert.match(source, /onAudioPositionAdvancing\(/);
-    assert.match(source, /if \(audioOutputConfirmed\) return@postDelayed/);
+    assert.match(source, /selectedAudioRequiresPcmRescue/);
+    assert.match(source, /audioOutputConfirmed &&[\s\S]{0,120}!selectedAudioRequiresPcmRescue/);
     assert.match(source, /native audio output never started/);
     assert.doesNotMatch(
       source,
