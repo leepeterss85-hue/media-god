@@ -1220,19 +1220,45 @@ class CompatibilityPlayerActivity : Activity() {
     private fun updateAudioButtonLabel() {
         if (!::audioButton.isInitialized) return
         val player = vlcPlayer
-        val tracks = try { player?.audioTracks?.filter { it.id >= 0 }.orEmpty() } catch (_: Throwable) { emptyList() }
-        if (tracks.isEmpty()) { audioButton.text = "Audio"; return }
-        val current = tracks.firstOrNull { it.id == player?.audioTrack } ?: tracks.first()
-        val name = current.name?.trim().orEmpty()
-        audioButton.text = if (tracks.size > 1 && name.isNotBlank()) "Audio · $name" else if (tracks.size > 1) "Audio · ${tracks.indexOf(current)+1}/${tracks.size}" else "Audio"
+        val tracks =
+            try {
+                player?.audioTracks?.filter { it.id >= 0 }.orEmpty()
+            } catch (_: Throwable) {
+                emptyList()
+            }
+        val current =
+            tracks.firstOrNull { it.id == player?.audioTrack }
+        val name =
+            current?.name?.trim().orEmpty()
+
+        audioButton.text = "Audio"
+        audioButton.contentDescription =
+            if (name.isNotBlank())
+                "Audio, $name"
+            else
+                "Audio"
     }
 
     private fun updateSubtitleButtonLabel() {
         if (!::subtitleButton.isInitialized) return
         val player = vlcPlayer
-        val tracks = try { player?.spuTracks?.filter { it.id >= 0 }.orEmpty() } catch (_: Throwable) { emptyList() }
-        val current = tracks.firstOrNull { it.id == player?.spuTrack }
-        subtitleButton.text = if (current != null) "Subs · ${current.name?.trim().orEmpty().ifBlank { "On" }}" else "Subs · Off"
+        val tracks =
+            try {
+                player?.spuTracks?.filter { it.id >= 0 }.orEmpty()
+            } catch (_: Throwable) {
+                emptyList()
+            }
+        val current =
+            tracks.firstOrNull { it.id == player?.spuTrack }
+
+        subtitleButton.text =
+            if (current != null) "CC On" else "CC"
+        subtitleButton.contentDescription =
+            if (current != null)
+                "Subtitles on, " +
+                    current.name?.trim().orEmpty().ifBlank { "selected track" }
+            else
+                "Subtitles off"
     }
 
     private fun showPlaybackInfo() {
