@@ -31,6 +31,8 @@ import kotlin.math.max
 class CompatibilityPlayerActivity : Activity() {
     companion object {
         private const val CONTROLS_HIDE_DELAY_MS = 3200L
+        private const val STATUS_HIDE_DELAY_MS = 1800L
+        private const val PROGRESS_UPDATE_MS = 500L
         private const val STARTUP_TIMEOUT_MS = 10000L
     }
 
@@ -41,6 +43,8 @@ class CompatibilityPlayerActivity : Activity() {
     private lateinit var playPauseButton: Button
     private lateinit var audioButton: Button
     private lateinit var subtitleButton: Button
+    private lateinit var progressBar: SeekBar
+    private lateinit var timeText: TextView
     private lateinit var outputButton: Button
     private lateinit var syncButton: Button
     private lateinit var dialogueButton: Button
@@ -70,6 +74,7 @@ class CompatibilityPlayerActivity : Activity() {
     private var forceSoftwareVideoDecode = false
     private var compatibilityPlaybackStarted = false
     private var compatibilityErrorProbePending = false
+    private var userSeeking = false
 
     private val startupTimeoutRunnable = Runnable {
         if (
