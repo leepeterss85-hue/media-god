@@ -2004,28 +2004,25 @@ export default async function (req) {
         );
       }
 
+      const unrestrictResult =
+        await unrestrictPlaybackLink({
+          link,
+          formHeaders,
+          label:
+            "Real-Debrid could not unrestrict this file",
+          attempts: 3,
+        });
+
       const unRes =
-        await rdFetch(
-          `${RD_BASE}/unrestrict/link`,
-          {
-            method: "POST",
-            headers:
-              formHeaders,
-            body:
-              `link=${encodeURIComponent(
-                link
-              )}&remote=1`,
-          },
-          {
-            attempts: 3,
-          }
-        );
+        unrestrictResult.response;
 
       if (!unRes.ok) {
-        const failure = await rdFailureDetails(
-          unRes,
-          "Real-Debrid could not unrestrict this file"
-        );
+        const failure =
+          unrestrictResult.failure ||
+          await rdFailureDetails(
+            unRes,
+            "Real-Debrid could not unrestrict this file"
+          );
 
         return Response.json({
           status: "failed",
@@ -3946,31 +3943,25 @@ async function resolveStreamable(
   /*
    * Turn the RD file link into a direct download/stream URL.
    */
+  const unrestrictResult =
+    await unrestrictPlaybackLink({
+      link: targetLink,
+      formHeaders,
+      label:
+        "Real-Debrid could not unrestrict this file",
+      attempts: 3,
+    });
+
   const unRes =
-    await rdFetch(
-      `${RD_BASE}/unrestrict/link`,
-      {
-        method:
-          "POST",
-
-        headers:
-          formHeaders,
-
-        body:
-          `link=${encodeURIComponent(
-            targetLink
-          )}&remote=1`,
-      },
-      {
-        attempts: 3,
-      }
-    );
+    unrestrictResult.response;
 
   if (!unRes.ok) {
-    const failure = await rdFailureDetails(
-      unRes,
-      "Real-Debrid could not unrestrict this file"
-    );
+    const failure =
+      unrestrictResult.failure ||
+      await rdFailureDetails(
+        unRes,
+        "Real-Debrid could not unrestrict this file"
+      );
 
     return {
       error: failure.message,
