@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 import { smartSourceEvidence } from "../src/components/mg/smartSourceSelection.js";
+import { prioritiseCompatibleAutoplayEntries } from "../src/components/mg/automaticSourceOrder.js";
 import { isAdvancingVodPlayback, updateVodProgress } from "../src/components/mg/playbackHealth.js";
 import {
   buildPlaybackAudioDiagnostic,
@@ -13,6 +14,9 @@ const player = readFileSync(new URL("../src/components/mg/VideoPlayer.jsx", impo
 const provider = readFileSync(new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url), "utf8");
 const phone = readFileSync(new URL("../android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt", import.meta.url), "utf8");
 const fire = readFileSync(new URL("../firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt", import.meta.url), "utf8");
+const addonBackend = readFileSync(new URL("../base44/functions/fetchAddonStreams/entry.ts", import.meta.url), "utf8");
+const addonBrowser = readFileSync(new URL("../src/components/mg/addonBrowserFallback.js", import.meta.url), "utf8");
+const sourceSelector = readFileSync(new URL("../src/components/mg/sourceSelectorPreferences.js", import.meta.url), "utf8");
 
 // Load the real reliability implementation with a controlled device profile.
 // Its compatibility dependency is mocked; persistence and scoring are real.
@@ -118,6 +122,9 @@ test("manual source and audio locks remain respected; same-file recovery precede
   const end = player.indexOf("Audio recovery is deliberately MANUAL ONLY", start);
   const recovery = player.slice(start, end);
   assert.ok(recovery.indexOf("selectedRdFile?.link") < recovery.indexOf('action: "resolve_best"'));
+  assert.match(recovery, /const activeTorrentHash = sourceTorrentHash\(active\)/);
+  assert.match(recovery, /magnet:\?xt=urn:btih:\$\{activeTorrentHash\}/);
+  assert.match(recovery, /active\?\.fileIdx/);
   assert.ok(recovery.indexOf("force_audio_rescue: true") < recovery.indexOf('tryNextSource("No usable audio'));
   assert.ok(recovery.indexOf("manualSourceLockActive()") < recovery.indexOf('tryNextSource("No usable audio'));
   assert.ok(recovery.indexOf("forgetSuccessfulPlaybackSource(active)") > recovery.indexOf("force_audio_rescue: true"));
@@ -125,6 +132,53 @@ test("manual source and audio locks remain respected; same-file recovery precede
   for (const native of [phone, fire]) {
     assert.match(native, /releasePlayer\(\)[\s\S]*?startActivityForResult\(/);
   }
+});
+
+test("addon descriptions survive discovery and unproven AAC outranks generic EAC3", () => {
+  for (const sourceText of [addonBackend, addonBrowser]) {
+    const preservedDescriptions =
+      sourceText.match(/description:\s*clean\(stream\?\.description\)/g) || [];
+    assert.ok(
+      preservedDescriptions.length >= 4,
+      "all cached, magnet and direct addon rows should preserve description metadata"
+    );
+  }
+
+  assert.match(sourceSelector, /audioSafetyRank:\s*sourceAutoplayAudioSafetyRank\(item\)/);
+  assert.match(sourceSelector, /if \(audio === "aac"/);
+  assert.match(sourceSelector, /if \(audio === "eac3" \|\| audio === "ac4"\)/);
+
+  const ordered = prioritiseCompatibleAutoplayEntries([
+    {
+      id: "generic-eac3",
+      index: 0,
+      smartRankingEnabled: true,
+      autoplayReady: true,
+      languageRank: 0,
+      compatibilityTier: 0,
+      cached: true,
+      releaseTierRank: 3,
+      audioTierRank: 1,
+      audioSafetyRank: 2,
+    },
+    {
+      id: "english-aac",
+      index: 1,
+      smartRankingEnabled: true,
+      autoplayReady: true,
+      languageRank: 0,
+      compatibilityTier: 0,
+      cached: true,
+      releaseTierRank: 3,
+      audioTierRank: 3,
+      audioSafetyRank: 0,
+    },
+  ]);
+
+  assert.deepEqual(ordered.map((entry) => entry.id), [
+    "english-aac",
+    "generic-eac3",
+  ]);
 });
 
 test("audio diagnostics keep track and decoder evidence without private links", () => {
