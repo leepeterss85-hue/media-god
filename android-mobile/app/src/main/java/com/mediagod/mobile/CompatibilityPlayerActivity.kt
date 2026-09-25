@@ -1282,9 +1282,60 @@ class CompatibilityPlayerActivity : Activity() {
     }
 
     private fun showStatus(message: String) {
-        if (!::statusText.isInitialized) return
-        statusText.text = message
+        if (!::statusText.isInitialized || !::root.isInitialized) return
+
+        val visibleMessage =
+            when {
+                message.startsWith(
+                    "Compatibility decoder · opening",
+                    ignoreCase = true
+                ) -> "Loading…"
+                message.startsWith(
+                    "Compatibility decoder · buffering",
+                    ignoreCase = true
+                ) -> "Buffering…"
+                message.startsWith(
+                    "Compatibility decoder · checking stream",
+                    ignoreCase = true
+                ) -> "Checking stream…"
+                message.startsWith(
+                    "Compatibility decoder · retrying",
+                    ignoreCase = true
+                ) -> "Optimising playback…"
+                message.equals(
+                    "Compatibility decoder",
+                    ignoreCase = true
+                ) -> ""
+                else ->
+                    message
+                        .replace(
+                            "Compatibility decoder · ",
+                            "",
+                            ignoreCase = true
+                        )
+                        .replace(
+                            "Compatibility decoder",
+                            "",
+                            ignoreCase = true
+                        )
+                        .trim()
+            }
+
+        root.removeCallbacks(hideStatusRunnable)
+
+        if (visibleMessage.isBlank()) {
+            statusText.text = ""
+            statusText.visibility = View.GONE
+            return
+        }
+
+        statusText.text = visibleMessage
         statusText.visibility = View.VISIBLE
+        root.postDelayed(
+            hideStatusRunnable,
+            if (visibleMessage.startsWith("Playback info")) 5000L
+            else STATUS_HIDE_DELAY_MS
+        )
     }
 
     private fun togglePlayback() {
@@ -1308,7 +1359,7 @@ class CompatibilityPlayerActivity : Activity() {
         if (!::controls.isInitialized || !::root.isInitialized || resultSent) return
         root.removeCallbacks(hideControlsRunnable)
         controls.visibility = View.VISIBLE
-        statusText.visibility = View.VISIBLE
+        updateProgressUi()
         root.postDelayed(hideControlsRunnable, CONTROLS_HIDE_DELAY_MS)
     }
 
