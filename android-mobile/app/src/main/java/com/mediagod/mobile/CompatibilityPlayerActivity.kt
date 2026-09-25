@@ -443,6 +443,8 @@ class CompatibilityPlayerActivity : Activity() {
     override fun onDestroy() {
         if (::root.isInitialized) {
             root.removeCallbacks(hideControlsRunnable)
+            root.removeCallbacks(hideStatusRunnable)
+            root.removeCallbacks(progressRunnable)
             root.removeCallbacks(audioRecoveryRunnable)
             root.removeCallbacks(thermalRunnable)
         }
@@ -727,7 +729,11 @@ class CompatibilityPlayerActivity : Activity() {
                             }
                             root.removeCallbacks(thermalRunnable)
                             if (thermalProtection) root.postDelayed(thermalRunnable, 9000L)
-                            updateControlLabels(); updatePlayPauseLabel(); showControlsTemporarily()
+                            updateControlLabels()
+                            updatePlayPauseLabel()
+                            root.removeCallbacks(progressRunnable)
+                            root.post(progressRunnable)
+                            showControlsTemporarily()
                             if (!payload.optBoolean("live", false)) {
                                 val generation = ++noAudioCheckGeneration
                                 root.postDelayed({
@@ -1369,6 +1375,9 @@ class CompatibilityPlayerActivity : Activity() {
         compatibilityPlaybackStarted = false
         compatibilityErrorProbePending = false
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        if (::root.isInitialized) {
+            root.removeCallbacks(progressRunnable)
+        }
         vlcPlayer?.let { player ->
             try { player.stop() } catch (_: Throwable) {}
             try { player.detachViews() } catch (_: Throwable) {}
