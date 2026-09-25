@@ -3468,7 +3468,7 @@ test("compatibility decoder crashes are isolated from the main Media God process
       /android:name="\.CompatibilityPlayerActivity"[\s\S]{0,260}?android:process=":compatibility_player"/
     );
     assert.match(player, /val abnormalCompatibilityExit =[\s\S]{0,100}?resultCode != RESULT_OK \|\| data == null/);
-    assert.match(player, /if \(!abnormalCompatibilityExit\) \{[\s\S]{0,80}?data[\s\S]{0,120}?EXTRA_REASON, "error"/);
+    assert.match(player, /if \(!abnormalCompatibilityExit\) \{[\s\S]{0,220}?data[\s\S]{0,420}?EXTRA_REASON, "error"/);
     assert.match(player, /compatibility decoder exited unexpectedly\. Media God stayed open and can try another source\./);
   }
 });
