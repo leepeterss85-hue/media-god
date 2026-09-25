@@ -3,7 +3,7 @@
   "versionCode": 76,
   "versionName": "1.4.71",
   "title": "Media God Fire TV",
-  "message": "Media God Fire TV 1.4.71 isolates the LibVLC compatibility decoder in its own process so a malformed source cannot close Media God; unexpected decoder exits now return as playback errors so another source can be tried.",
+  "message": "Media God Fire TV 1.4.71 isolates compatibility-decoder crashes, chooses the final playback engine after stream preflight so only one player normally opens, removes visible fallback transitions, and gives compatibility playback a cleaner remote-friendly Media God layout.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
