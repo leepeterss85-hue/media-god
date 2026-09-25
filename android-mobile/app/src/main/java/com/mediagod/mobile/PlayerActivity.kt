@@ -389,6 +389,52 @@ class PlayerActivity : Activity() {
         }
     }
 
+    private fun buildPlayerChrome(): LinearLayout {
+        val backButton = Button(this).apply {
+            text = "← Back"
+            isAllCaps = false
+            textSize = 14f
+            setTextColor(Color.WHITE)
+            setBackgroundColor(Color.argb(205, 28, 28, 28))
+            minimumHeight = dp(42)
+            minHeight = dp(42)
+            setPadding(dp(12), dp(4), dp(12), dp(4))
+            setOnClickListener { finishWithResult("back") }
+        }
+
+        val titleView = TextView(this).apply {
+            text = title.trim().ifBlank { "Media God" }
+            setTextColor(Color.WHITE)
+            textSize = 17f
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(12), 0, dp(10), 0)
+        }
+
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(10), dp(8), dp(10), dp(8))
+            setBackgroundColor(Color.argb(205, 6, 6, 6))
+            addView(
+                backButton,
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+            )
+            addView(
+                titleView,
+                LinearLayout.LayoutParams(
+                    0,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    1f
+                )
+            )
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
