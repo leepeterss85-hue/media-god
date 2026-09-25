@@ -628,6 +628,21 @@ class CompatibilityPlayerActivity : Activity() {
     private fun configureAudioOutput(player: MediaPlayer) {
         try {
             player.setAudioOutput("android_audiotrack")
+
+            /*
+             * Live TV is deliberately left on its existing device-first audio
+             * behavior. The explicit PCM/stereo routing below is VOD-only.
+             */
+            if (payload.optBoolean("live", false)) {
+                when (audioOutputMode) {
+                    "passthrough" -> player.setAudioDigitalOutputEnabled(true)
+                    "stereo", "surround" -> player.setAudioDigitalOutputEnabled(false)
+                    else -> player.setAudioDigitalOutputEnabled(false)
+                }
+                player.setVolume(100)
+                return
+            }
+
             when (audioOutputMode) {
                 "passthrough" -> {
                     player.setAudioOutputDevice("encoded")
