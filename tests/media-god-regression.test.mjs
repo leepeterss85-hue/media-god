@@ -3251,7 +3251,7 @@ test("safe English audio beats a qualified lossless remux for automatic playback
   assert.match(selector, /entry\.item\?\.launchQualified === true &&\s*entry\.compatibilityTier < 3/);
 });
 
-test("phone and Fire TV package matching FFmpeg audio extensions without automatic recovery", () => {
+test("phone and Fire TV package matching FFmpeg audio extensions and prefer them for VOD only", () => {
   const workflow = readFileSync(new URL("../.github/workflows/android-apks.yml", import.meta.url), "utf8");
   const script = readFileSync(new URL("../scripts/build-media3-ffmpeg.sh", import.meta.url), "utf8");
   assert.match(workflow, /ffmpeg-extension:/);
@@ -3266,6 +3266,8 @@ test("phone and Fire TV package matching FFmpeg audio extensions without automat
     ), "utf8");
     assert.match(gradle, /implementation\(files\("libs\/decoder-ffmpeg\.aar"\)\)/);
     assert.match(player, /EXTENSION_RENDERER_MODE_ON/);
+    assert.match(player, /EXTENSION_RENDERER_MODE_PREFER/);
+    assert.match(player, /if \(live\)[\s\S]{0,180}?EXTENSION_RENDERER_MODE_ON[\s\S]{0,180}?EXTENSION_RENDERER_MODE_PREFER/);
     assert.match(player, /scheduleMissingAudioCheck/);
   }
 });
@@ -3767,7 +3769,7 @@ test("authoritative IDs stay isolated and English autoplay never falls back blin
 });
 
 
-test("native VOD checks for missing audio only after playback advances", () => {
+test("native VOD proves audio output after playback advances and rescues silent video", () => {
   const nativeFiles = [
     "../android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt",
     "../firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt",
@@ -3780,13 +3782,33 @@ test("native VOD checks for missing audio only after playback advances", () => {
     assert.ok(start >= 0 && end > start);
     const block = source.slice(start, end);
 
-    assert.match(block, /!initial\.present \|\| \(initial\.supported && initial\.selected\)/);
-    assert.match(block, /!latest\.present \|\| \(latest\.supported && latest\.selected\) \|\| audioOutputConfirmed/);
+    assert.doesNotMatch(block, /!initial\.present \|\| \(initial\.supported && initial\.selected\)/);
+    assert.match(block, /if \(audioOutputConfirmed\) return/);
     assert.match(block, /activePlayer\.currentPosition < 5000L/);
+    assert.match(block, /native audio output never started/);
     assert.match(block, /launchCompatibilityPlayer\(activePlayer, null, reason\)/);
     assert.match(block, /10000L/);
     assert.match(source, /error\.errorCode in 5001\.\.5004/);
     assert.match(source, /return code == 3003 \|\|\s*\n\s*code in 4001\.\.4005/);
+  }
+
+  const mobile = readFileSync(
+    new URL("../android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt", import.meta.url),
+    "utf8"
+  );
+  assert.match(mobile, /put\("verifiedEnglishMain", currentVerifiedEnglishMain\(\)\)/);
+  assert.match(mobile, /put\("preferredAudioTrackName", currentPreferredEnglishTrackName\(\)\)/);
+  assert.match(mobile, /put\("preferredAudioTrackLanguage", currentPreferredEnglishTrackLanguage\(\)\)/);
+  assert.match(mobile, /put\("preferredAudioTrackCodec", currentPreferredEnglishTrackCodec\(\)\)/);
+  assert.match(mobile, /put\("preferredAudioTrackStream", currentPreferredEnglishTrackStream\(\)\)/);
+
+  for (const file of [
+    "../android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt",
+    "../firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt",
+  ]) {
+    const source = readFileSync(new URL(file, import.meta.url), "utf8");
+    assert.match(source, /matchingHint\.singleOrNull\(\) \?: english\.firstOrNull\(\)/);
+    assert.match(source, /900L/);
   }
 });
 
