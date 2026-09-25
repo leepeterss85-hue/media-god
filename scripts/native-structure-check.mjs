@@ -161,6 +161,7 @@ for (const app of apps) {
     [manifest.includes('android:name=".MainActivity"'), "MainActivity declaration"],
     [manifest.includes('android:name=".PlayerActivity"'), "PlayerActivity declaration"],
     [manifest.includes('android:name=".CompatibilityPlayerActivity"'), "compatibility player declaration"],
+    [manifest.includes('android:process=":compatibility_player"'), "compatibility decoder isolated from the main app process"],
     [manifest.includes(`android:screenOrientation="${app.expectedOrientation}"`), "player orientation"],
     [mainActivity.includes("addJavascriptInterface"), "JavaScript bridge"],
     [
