@@ -124,20 +124,19 @@ expect(
   "desktop browsers request Real-Debrid HLS/MP4 compatibility while native Android/Fire TV keeps original files"
 );
 
-const mainRdUnrestrictCount =
-  (realDebridBackend.match(/\/unrestrict\/link/g) || []).length;
-const mainRdRemoteCount =
-  (realDebridBackend.match(/&remote=1/g) || []).length;
-
 expect(
-  mainRdUnrestrictCount === 2 &&
-    mainRdRemoteCount >= mainRdUnrestrictCount &&
-    rdLibraryBackend.includes("&remote=1") &&
-    multiDebridBackend.includes('["remote", "1"]') &&
+  realDebridBackend.includes("const unrestrictPlaybackLink") &&
+    realDebridBackend.includes('(remote ? "&remote=1" : "")') &&
+    realDebridBackend.includes("Number(failure?.upstream_error_code) !== 22") &&
     realDebridBackend.includes('"RD_IP_NOT_ALLOWED"') &&
-    realDebridBackend.includes("Number(upstreamErrorCode) === 22") &&
-    videoPlayer.includes('error?.code === "RD_IP_NOT_ALLOWED"'),
-  "Real-Debrid playback always requests remote-safe links and treats IP rejection as an account/network condition instead of poisoning sources"
+    realDebridBackend.includes('"RD_REMOTE_TRAFFIC_EXHAUSTED"') &&
+    rdLibraryBackend.includes("const unrestrictLibraryLink") &&
+    rdLibraryBackend.includes('(remote ? "&remote=1" : "")') &&
+    multiDebridBackend.includes("Number(error?.providerCode) !== 22") &&
+    multiDebridBackend.includes('...(remote ? [["remote", "1"]] : [])') &&
+    videoPlayer.includes('error?.code === "RD_IP_NOT_ALLOWED"') &&
+    videoPlayer.includes('error?.code === "RD_REMOTE_TRAFFIC_EXHAUSTED"'),
+  "Real-Debrid playback uses normal traffic first, falls back to remote traffic only for IP rejection, and never poisons sources for account traffic exhaustion"
 );
 
 const desktopFullscreenStart = videoPlayer.indexOf(
