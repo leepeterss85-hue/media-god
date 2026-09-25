@@ -684,6 +684,9 @@ class PlayerActivity : Activity() {
 
         playerView.removeCallbacks(hideControllerRunnable)
         playerView.showController()
+        if (!live && ::playerChrome.isInitialized) {
+            playerChrome.visibility = View.VISIBLE
+        }
         playerView.postDelayed(
             hideControllerRunnable,
             CONTROLLER_HIDE_DELAY_MS
