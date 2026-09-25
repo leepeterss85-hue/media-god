@@ -3262,15 +3262,34 @@ export default function VideoPlayer({
       sourceIsAioStreamsCandidate(active);
 
     /*
+     * An early uncached torrent is only a temporary startup owner. If cache
+     * discovery later proves that a source is already playable, upgrade to that
+     * ready source before video has actually started. This is intentionally the
+     * one exception to the single-startup-claim rule: an uncached row must never
+     * strand the viewer while verified cached rows are sitting ready.
+     */
+    const claimedUncachedCanUpgradeToReady =
+      startupAlreadyClaimed &&
+      activeNeedsCaching &&
+      (
+        bestApprovedAutoplaySourceIndex >= 0 ||
+        automaticReadySourceIndex >= 0
+      ) &&
+      (
+        bestApprovedAutoplaySourceIndex >= 0
+          ? bestApprovedAutoplaySourceIndex
+          : automaticReadySourceIndex
+      ) !== activeIdx;
+
+    /*
      * Discovery may improve the source list several times during the first few
      * seconds. It may choose ONE verified/ready startup owner, but it must not
      * keep stealing playback every time a newly discovered row sorts higher.
-     * Actual playback failure and the 12-second no-progress watchdog are the
-     * only paths allowed to move on after that first automatic handoff.
+     * The only allowed upgrade after an initial claim is uncached -> ready.
      */
     const bestSourceShouldOwnStartup =
       startupSelectionAllowed &&
-      !startupAlreadyClaimed &&
+      (!startupAlreadyClaimed || claimedUncachedCanUpgradeToReady) &&
       bestApprovedAutoplaySourceIndex >= 0 &&
       bestApprovedAutoplaySourceIndex !== activeIdx;
 
