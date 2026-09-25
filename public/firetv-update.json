@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 74,
-  "versionName": "1.4.69",
+  "versionCode": 75,
+  "versionName": "1.4.70",
   "title": "Media God Fire TV",
-  "message": "Media God Fire TV 1.4.69 stops forced Real-Debrid remote traffic, falls back to remote mode only for IP rejection, and automatically leaves uncached startup torrents when verified cached sources are ready.",
+  "message": "Media God Fire TV 1.4.70 cleans up compatibility playback with a proper seek bar, compact remote-friendly transport controls, Audio and subtitle menus, auto-hiding controls, and no persistent decoder/debug text.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
