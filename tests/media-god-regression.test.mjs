@@ -3447,6 +3447,32 @@ test("browser audio track choice stays manual while native decoders may repair m
   }
 });
 
+test("compatibility player keeps technical decoder details off the normal playback surface", () => {
+  const compatibilityFiles = [
+    "../android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt",
+    "../firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt",
+  ];
+
+  for (const file of compatibilityFiles) {
+    const source = readFileSync(new URL(file, import.meta.url), "utf8");
+    assert.match(source, /statusText = TextView\(this\)[\s\S]{0,180}?visibility = View\.GONE/);
+    assert.match(source, /progressBar = SeekBar\(this\)/);
+    assert.match(source, /timeText\.text =[\s\S]{0,80}?formatPlaybackTime/);
+    assert.match(source, /controlButton\("← Back"\)/);
+    assert.match(source, /controlButton\("−10"\)/);
+    assert.match(source, /controlButton\("\+10"\)/);
+    assert.match(source, /audioButton = controlButton\("Audio"\) \{ showAudioTrackMenu\(\) \}/);
+    assert.match(source, /subtitleButton = controlButton\("CC"\) \{ showSubtitleTrackMenu\(\) \}/);
+    assert.match(source, /controlButton\("More"\) \{ showAdvancedControlsMenu\(\) \}/);
+    assert.match(source, /message\.startsWith\([\s\S]{0,90}?"Compatibility decoder · buffering"[\s\S]{0,90}?\) -> "Buffering…"/);
+    assert.match(source, /message\.equals\([\s\S]{0,80}?"Compatibility decoder"[\s\S]{0,80}?\) -> ""/);
+    assert.match(source, /private fun showControlsTemporarily\([\s\S]{0,260}?controls\.visibility = View\.VISIBLE[\s\S]{0,120}?updateProgressUi\(\)/);
+    assert.doesNotMatch(source, /showControlsTemporarily\([\s\S]{0,260}?statusText\.visibility = View\.VISIBLE/);
+    assert.match(source, /audioButton\.text = "Audio"/);
+    assert.match(source, /if \(current != null\) "CC On" else "CC"/);
+  }
+});
+
 test("audio menu ranks tracks but changes them only after a user choice", () => {
   const controlsSource = readFileSync(
     new URL("../src/components/mg/MediaPlayerControls.jsx", import.meta.url),
