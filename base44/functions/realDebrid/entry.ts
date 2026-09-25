@@ -473,10 +473,84 @@ const rdFailureMessage = async (
 const rdPlaybackFailureCode = (
   fallbackCode,
   upstreamErrorCode
-) =>
-  Number(upstreamErrorCode) === 22
-    ? "RD_IP_NOT_ALLOWED"
-    : fallbackCode;
+) => {
+  const code = Number(upstreamErrorCode);
+
+  if (code === 22) {
+    return "RD_IP_NOT_ALLOWED";
+  }
+
+  if (code === 23) {
+    return "RD_REMOTE_TRAFFIC_EXHAUSTED";
+  }
+
+  return fallbackCode;
+};
+
+/*
+ * Do not spend the user's Real-Debrid Remote Traffic for ordinary playback.
+ * The API documents remote=1 as a special mode for dedicated servers/account
+ * sharing that consumes Remote Traffic. Try a normal unrestricted link first.
+ * Only retry with remote=1 when Real-Debrid explicitly returns error 22
+ * (IP address not allowed).
+ */
+const unrestrictPlaybackLink = async ({
+  link,
+  formHeaders,
+  label = "Real-Debrid could not unrestrict this file",
+  attempts = 3,
+}) => {
+  const request = (remote = false) =>
+    rdFetch(
+      `${RD_BASE}/unrestrict/link`,
+      {
+        method: "POST",
+        headers: formHeaders,
+        body:
+          `link=${encodeURIComponent(link)}` +
+          (remote ? "&remote=1" : ""),
+      },
+      { attempts }
+    );
+
+  let response = await request(false);
+
+  if (response.ok) {
+    return {
+      response,
+      failure: null,
+      usedRemoteTraffic: false,
+    };
+  }
+
+  let failure = await rdFailureDetails(response, label);
+
+  if (Number(failure?.upstream_error_code) !== 22) {
+    return {
+      response,
+      failure,
+      usedRemoteTraffic: false,
+    };
+  }
+
+  response = await request(true);
+
+  if (response.ok) {
+    return {
+      response,
+      failure: null,
+      usedRemoteTraffic: true,
+    };
+  }
+
+  failure = await rdFailureDetails(response, label);
+
+  return {
+    response,
+    failure,
+    usedRemoteTraffic: true,
+  };
+};
 
 const summariseAudioTrack = (track, key = "") => ({
   key,
