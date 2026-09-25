@@ -1955,6 +1955,8 @@ class PlayerActivity : Activity() {
 
             @Suppress("DEPRECATION")
             startActivityForResult(intent, REQUEST_COMPATIBILITY_PLAYER)
+            @Suppress("DEPRECATION")
+            overridePendingTransition(0, 0)
             true
         } catch (_: Throwable) {
             compatibilityPlayerOpen = false
