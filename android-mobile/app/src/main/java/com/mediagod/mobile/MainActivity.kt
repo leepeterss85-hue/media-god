@@ -687,13 +687,20 @@ class MainActivity : Activity() {
             }
             payload.put("requestId", requestId)
 
-            val playbackDecision = PlaybackCompatibilityRouter.decide(payload)
-            if (playbackDecision.useCompatibility) {
+            /*
+             * This first decision uses the metadata already supplied by the web
+             * player. NativeStreamPreflight may discover a better MIME/container
+             * identity, so the launch decision is recomputed after preflight
+             * before any player Activity is shown.
+             */
+            val initialPlaybackDecision =
+                PlaybackCompatibilityRouter.decide(payload)
+            if (initialPlaybackDecision.useCompatibility) {
                 payload.put("compatibilityPreflight", true)
-                payload.put("compatibilityReason", playbackDecision.reason)
+                payload.put("compatibilityReason", initialPlaybackDecision.reason)
                 payload.put(
                     "compatibilityAudioRecovery",
-                    playbackDecision.reason.startsWith("audio", ignoreCase = true)
+                    initialPlaybackDecision.reason.startsWith("audio", ignoreCase = true)
                 )
             }
 
