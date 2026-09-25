@@ -3434,8 +3434,11 @@ test("browser audio track choice stays manual while native decoders may repair m
     assert.match(source, /recoverAudioTrack\(\) = Unit/);
     assert.match(
       source,
-      /audioButton = controlButton\("Audio"\) \{ cycleAudioTrack\(\) \}/
+      /audioButton = controlButton\("Audio"\) \{ showAudioTrackMenu\(\) \}/
     );
+    assert.match(source, /AlertDialog\.Builder\(this\)[\s\S]{0,500}?setTitle\("Audio"\)/);
+    assert.match(source, /audioButton\.text = "Audio"/);
+    assert.match(source, /subtitleButton\.text =[\s\S]{0,80}?"CC On"[\s\S]{0,40}?"CC"/);
     assert.doesNotMatch(source, /postDelayed\(audioRecoveryRunnable, 1000L\)/);
     assert.match(source, /private fun preferEnglishMainAudio\(player: MediaPlayer\)/);
     assert.match(source, /if \(manualAudioTrackLocked \|\| payload\.optBoolean\("live", false\)\) return/);
