@@ -545,20 +545,9 @@ export default async function (
       }
 
       const unrestrictedResponse =
-        await fetch(
-          `${RD_BASE}/unrestrict/link`,
-          {
-            method:
-              "POST",
-
-            headers:
-              formHeaders,
-
-            body:
-              `link=${encodeURIComponent(
-                link
-              )}&remote=1`,
-          }
+        await unrestrictLibraryLink(
+          link,
+          formHeaders
         );
 
       if (
