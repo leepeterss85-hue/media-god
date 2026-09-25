@@ -453,76 +453,230 @@ class CompatibilityPlayerActivity : Activity() {
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
+    private fun roundedBackground(
+        color: Int,
+        radiusDp: Int = 12
+    ): GradientDrawable =
+        GradientDrawable().apply {
+            setColor(color)
+            cornerRadius = dp(radiusDp).toFloat()
+        }
+
     private fun buildUi() {
         videoLayout = VLCVideoLayout(this).apply {
             setBackgroundColor(Color.BLACK)
             isFocusable = true
             isFocusableInTouchMode = true
         }
+
+        /*
+         * User-facing status only. Decoder names, codec details and track
+         * diagnostics stay out of the normal player surface.
+         */
         statusText = TextView(this).apply {
-            text = "Compatibility decoder"
+            text = ""
+            visibility = View.GONE
             setTextColor(Color.WHITE)
             textSize = 13f
-            setBackgroundColor(Color.argb(190, 0, 0, 0))
-            setPadding(dp(12), dp(7), dp(12), dp(7))
-            maxWidth = dp(760)
+            gravity = Gravity.CENTER
+            background = roundedBackground(Color.argb(190, 0, 0, 0), 14)
+            setPadding(dp(14), dp(8), dp(14), dp(8))
+            maxWidth = dp(520)
         }
 
-        val backButton = controlButton("Back") { finishWithResult("back") }
-        val rewindButton = controlButton("−10s") { seekBy(-10_000L) }
+        val backButton = controlButton("← Back") { finishWithResult("back") }
+        val rewindButton = controlButton("−10") { seekBy(-10_000L) }
         playPauseButton = controlButton("Pause") { togglePlayback() }
-        val forwardButton = controlButton("+10s") { seekBy(10_000L) }
-        audioButton = controlButton("Audio") { cycleAudioTrack() }
-        subtitleButton = controlButton("Subs") { cycleSubtitleTrack() }
-        outputButton = controlButton("Output") { cycleAudioOutputMode() }
-        syncButton = controlButton("Sync") { cycleLipSync() }
-        dialogueButton = controlButton("Dialogue") { cycleDialogueBoost() }
-        val infoButton = controlButton("Info") { showPlaybackInfo() }
+        val forwardButton = controlButton("+10") { seekBy(10_000L) }
+        audioButton = controlButton("Audio") { showAudioTrackMenu() }
+        subtitleButton = controlButton("CC") { showSubtitleTrackMenu() }
+        val moreButton = controlButton("More") { showAdvancedControlsMenu() }
 
-        val firstRow = LinearLayout(this).apply {
+        progressBar = SeekBar(this).apply {
+            max = 1000
+            progress = 0
+            isFocusable = true
+            setPadding(dp(6), 0, dp(6), 0)
+            setOnSeekBarChangeListener(
+                object : SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(
+                        seekBar: SeekBar?,
+                        progress: Int,
+                        fromUser: Boolean
+                    ) {
+                        if (!fromUser) return
+                        val length = vlcPlayer?.length?.takeIf { it > 0L } ?: return
+                        val target = (length * progress.toLong()) / 1000L
+                        timeText.text =
+                            "${formatPlaybackTime(target)} / ${formatPlaybackTime(length)}"
+                    }
+
+                    override fun onStartTrackingTouch(seekBar: SeekBar?) {
+                        userSeeking = true
+                        root.removeCallbacks(hideControlsRunnable)
+                    }
+
+                    override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                        val player = vlcPlayer
+                        val length = player?.length?.takeIf { it > 0L }
+                        if (player != null && length != null) {
+                            player.time =
+                                (length * progress.toLong()) / 1000L
+                        }
+                        userSeeking = false
+                        updateProgressUi()
+                        showControlsTemporarily()
+                    }
+                }
+            )
+        }
+
+        timeText = TextView(this).apply {
+            text = "0:00 / 0:00"
+            setTextColor(Color.argb(220, 255, 255, 255))
+            textSize = 12f
+            gravity = Gravity.CENTER_VERTICAL or Gravity.END
+            setPadding(dp(8), 0, dp(2), 0)
+        }
+
+        fun addWeighted(
+            row: LinearLayout,
+            view: View,
+            weight: Float = 1f
+        ) {
+            row.addView(
+                view,
+                LinearLayout.LayoutParams(
+                    0,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    weight
+                ).apply {
+                    marginStart = dp(3)
+                    marginEnd = dp(3)
+                }
+            )
+        }
+
+        val progressRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            addView(
+                progressBar,
+                LinearLayout.LayoutParams(
+                    0,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    1f
+                )
+            )
+            addView(
+                timeText,
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+            )
+        }
+
+        val transportRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            addView(backButton); addView(rewindButton); addView(playPauseButton); addView(forwardButton)
+            addWeighted(this, backButton, 1.1f)
+            addWeighted(this, rewindButton)
+            addWeighted(this, playPauseButton, 1.2f)
+            addWeighted(this, forwardButton)
         }
-        val secondRow = LinearLayout(this).apply {
+
+        val optionsRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            addView(audioButton); addView(subtitleButton); addView(outputButton); addView(syncButton); addView(dialogueButton); addView(infoButton)
+            addWeighted(this, audioButton)
+            addWeighted(this, subtitleButton)
+            addWeighted(this, moreButton)
         }
+
         controls = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(dp(8), dp(7), dp(8), dp(7))
-            setBackgroundColor(Color.argb(210, 8, 8, 8))
-            addView(firstRow); addView(secondRow)
+            setPadding(dp(10), dp(8), dp(10), dp(9))
+            background = roundedBackground(Color.argb(205, 8, 8, 8), 16)
+            addView(progressRow)
+            addView(transportRow)
+            addView(optionsRow)
         }
 
         root = FrameLayout(this).apply {
             setBackgroundColor(Color.BLACK)
-            addView(videoLayout, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
-            addView(statusText, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-                gravity = Gravity.TOP or Gravity.START; topMargin = dp(18); marginStart = dp(18)
-            })
-            addView(controls, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-                gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL; bottomMargin = dp(18)
-            })
+            addView(
+                videoLayout,
+                FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
+            )
+            addView(
+                statusText,
+                FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+                    topMargin = dp(18)
+                }
+            )
+            addView(
+                controls,
+                FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    gravity = Gravity.BOTTOM
+                    leftMargin = dp(10)
+                    rightMargin = dp(10)
+                    bottomMargin = dp(12)
+                }
+            )
         }
+
         setContentView(root)
         videoLayout.requestFocus()
         updateControlLabels()
+        updateProgressUi()
         showControlsTemporarily()
     }
 
-    private fun controlButton(label: String, action: () -> Unit): Button = Button(this).apply {
-        text = label
-        setTextColor(Color.WHITE)
-        setBackgroundColor(Color.argb(215, 35, 35, 35))
-        isFocusable = true
-        minWidth = dp(76)
-        minHeight = dp(44)
-        setPadding(dp(10), dp(6), dp(10), dp(6))
-        setOnClickListener { action(); showControlsTemporarily() }
-    }
+    private fun controlButton(
+        label: String,
+        action: () -> Unit
+    ): Button =
+        Button(this).apply {
+            text = label
+            isAllCaps = false
+            textSize = 14f
+            setTextColor(Color.WHITE)
+            isFocusable = true
+            isFocusableInTouchMode = true
+            minimumWidth = 0
+            minWidth = 0
+            minimumHeight = dp(42)
+            minHeight = dp(42)
+            stateListAnimator = null
+            setPadding(dp(7), dp(4), dp(7), dp(4))
+            background = roundedBackground(Color.argb(220, 34, 34, 34), 10)
+            setOnFocusChangeListener { _, focused ->
+                background =
+                    roundedBackground(
+                        if (focused)
+                            Color.argb(255, 48, 145, 74)
+                        else
+                            Color.argb(220, 34, 34, 34),
+                        10
+                    )
+            }
+            setOnClickListener {
+                action()
+                showControlsTemporarily()
+            }
+        }
 
     private fun startCompatibilityPlayback() {
         try {
