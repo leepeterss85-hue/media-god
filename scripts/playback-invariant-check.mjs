@@ -270,13 +270,13 @@ expect(
       nativePlayer.includes("launchCompatibilityPlayer(activePlayer, null, reason)") &&
       nativePlayer.includes("error.errorCode in 5001..5004") &&
       nativePlayer.includes("onAudioPositionAdvancing(") &&
-      nativePlayer.includes("if (!initial.present || (initial.supported && initial.selected))") &&
-      nativePlayer.includes("if (!latest.present || (latest.supported && latest.selected) || audioOutputConfirmed)") &&
-      !nativePlayer.includes(
-        "Media3 selected an audio track but no decoded audio output advanced."
-      )
+      nativePlayer.includes("EXTENSION_RENDERER_MODE_ON") &&
+      nativePlayer.includes("EXTENSION_RENDERER_MODE_PREFER") &&
+      nativePlayer.includes("if (audioOutputConfirmed) return@postDelayed") &&
+      nativePlayer.includes("native audio output never started") &&
+      !nativePlayer.includes("if (!initial.present || (initial.supported && initial.selected))")
   ),
-  "Android mobile and Fire TV only repair objectively missing audio on the same file"
+  "Android mobile and Fire TV keep Live TV device-first while repairing silent VOD on the same file"
 );
 
 expect(
