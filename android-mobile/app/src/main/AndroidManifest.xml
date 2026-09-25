@@ -33,6 +33,7 @@
         <activity
             android:name=".CompatibilityPlayerActivity"
             android:configChanges="keyboardHidden|orientation|screenSize|smallestScreenSize|uiMode"
+            android:process=":compatibility_player"
             android:excludeFromRecents="true"
             android:exported="false"
             android:screenOrientation="sensor"
