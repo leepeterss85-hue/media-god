@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 73,
-  "versionName": "1.4.68",
+  "versionCode": 74,
+  "versionName": "1.4.69",
   "title": "Media God Fire TV",
-  "message": "Media God Fire TV 1.4.68 corrects silent Dolby and multichannel movie and episode playback by routing VOD compatibility audio through decoded stereo PCM while keeping English preferred.",
+  "message": "Media God Fire TV 1.4.69 stops forced Real-Debrid remote traffic, falls back to remote mode only for IP rejection, and automatically leaves uncached startup torrents when verified cached sources are ready.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
