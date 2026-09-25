@@ -272,7 +272,8 @@ expect(
       nativePlayer.includes("onAudioPositionAdvancing(") &&
       nativePlayer.includes("EXTENSION_RENDERER_MODE_ON") &&
       nativePlayer.includes("EXTENSION_RENDERER_MODE_PREFER") &&
-      nativePlayer.includes("if (audioOutputConfirmed) return@postDelayed") &&
+      nativePlayer.includes("selectedAudioRequiresPcmRescue") &&
+      nativePlayer.includes("!selectedAudioRequiresPcmRescue(latestTracks)") &&
       nativePlayer.includes("native audio output never started") &&
       !nativePlayer.includes("if (!initial.present || (initial.supported && initial.selected))")
   ),
