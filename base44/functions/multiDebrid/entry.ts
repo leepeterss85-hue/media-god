@@ -510,17 +510,30 @@ const resolveRealDebrid = async ({ token, source, season, episode, selectedFile 
   const chosen = chooseVideo(files, season, episode, selectedFile) || files.find((file) => file.url);
   if (!chosen?.url) throw new Error("Real-Debrid produced no playable file link.");
 
-  const unrestricted = await requestJson(
-    `${PROVIDERS.realdebrid.baseUrl}/unrestrict/link`,
-    {
-      method: "POST",
-      headers: formHeaders(token),
-      body: formBody([
-        ["link", chosen.url],
-        ["remote", "1"],
-      ]),
+  const unrestrictRequest = (remote = false) =>
+    requestJson(
+      `${PROVIDERS.realdebrid.baseUrl}/unrestrict/link`,
+      {
+        method: "POST",
+        headers: formHeaders(token),
+        body: formBody([
+          ["link", chosen.url],
+          ...(remote ? [["remote", "1"]] : []),
+        ]),
+      }
+    );
+
+  let unrestricted;
+
+  try {
+    unrestricted = await unrestrictRequest(false);
+  } catch (error) {
+    if (Number(error?.providerCode) !== 22) {
+      throw error;
     }
-  );
+
+    unrestricted = await unrestrictRequest(true);
+  }
 
   const url = clean(unrestricted?.download);
   if (!url) throw new Error("Real-Debrid did not return a direct download URL.");
