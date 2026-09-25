@@ -3,7 +3,7 @@
   "versionCode": 59,
   "versionName": "1.0.58",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.58 isolates the LibVLC compatibility decoder in its own process so a malformed source cannot close Media God; unexpected decoder exits now return as playback errors so another source can be tried.",
+  "message": "Media God Mobile 1.0.58 isolates compatibility-decoder crashes, chooses the final playback engine after stream preflight so only one player normally opens, removes visible fallback transitions, and gives compatibility playback a cleaner Media God title, progress and transport layout.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
