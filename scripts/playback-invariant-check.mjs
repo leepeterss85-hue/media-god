@@ -132,7 +132,7 @@ expect(
     realDebridBackend.includes('"RD_REMOTE_TRAFFIC_EXHAUSTED"') &&
     rdLibraryBackend.includes("const unrestrictLibraryLink") &&
     rdLibraryBackend.includes('(remote ? "&remote=1" : "")') &&
-    multiDebridBackend.includes("Number(error?.providerCode) !== 22") &&
+    multiDebridBackend.includes("Number((error as any)?.providerCode) !== 22") &&
     multiDebridBackend.includes('...(remote ? [["remote", "1"]] : [])') &&
     videoPlayer.includes('error?.code === "RD_IP_NOT_ALLOWED"') &&
     videoPlayer.includes('error?.code === "RD_REMOTE_TRAFFIC_EXHAUSTED"'),
