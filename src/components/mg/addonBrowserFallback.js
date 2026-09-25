@@ -700,6 +700,9 @@ const normaliseStream = (
         stream?.behavior_hints ||
         undefined,
 
+      // Preserve codec/language evidence that some addons only expose in description.
+      description: clean(stream?.description),
+
       browserFallback:
         true,
 
@@ -779,6 +782,9 @@ const normaliseStream = (
         stream?.behaviorHints ||
         stream?.behavior_hints ||
         undefined,
+
+      // MediaFusion direct links commonly put audio codec/language details here.
+      description: clean(stream?.description),
 
       browserFallback:
         true,
