@@ -9,6 +9,51 @@ const VIDEO_RE =
 const clean = (value) =>
   String(value || "").trim();
 
+/*
+ * Normal playback must not consume Real-Debrid Remote Traffic by default.
+ * Only retry with remote=1 when RD explicitly says the backend IP is not
+ * allowed (error 22).
+ */
+const unrestrictLibraryLink = async (
+  link,
+  formHeaders
+) => {
+  const request = (remote = false) =>
+    fetch(
+      `${RD_BASE}/unrestrict/link`,
+      {
+        method: "POST",
+        headers: formHeaders,
+        body:
+          `link=${encodeURIComponent(link)}` +
+          (remote ? "&remote=1" : ""),
+      }
+    );
+
+  let response = await request(false);
+
+  if (response.ok) {
+    return response;
+  }
+
+  let errorCode = null;
+
+  try {
+    const payload = await response.clone().json();
+    const parsed = Number(payload?.error_code);
+    errorCode = Number.isFinite(parsed) ? parsed : null;
+  } catch {
+    errorCode = null;
+  }
+
+  if (errorCode !== 22) {
+    return response;
+  }
+
+  response = await request(true);
+  return response;
+};
+
 const normalise = (value) =>
   clean(value)
     .toLowerCase()
