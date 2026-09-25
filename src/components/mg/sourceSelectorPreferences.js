@@ -1,6 +1,7 @@
 import { prioritiseCompatibleAutoplayEntries } from "@/components/mg/automaticSourceOrder";
 import {
   detectLanguagePreference,
+  detectStreamTraits,
   getPlaybackDeviceProfile,
   scoreSourceCompatibility,
   sourcePlaybackCompatibilityTier,
@@ -174,6 +175,43 @@ const sourceText = (item) =>
   ]
     .filter(Boolean)
     .join(" ");
+
+const sourceAutoplayAudioSafetyRank = (item) => {
+  const audio = String(
+    detectStreamTraits(item, sourceText(item))?.audio || ""
+  ).toLowerCase();
+
+  /*
+   * This is reliability ordering, not an audio-quality score.
+   * Generic/unproven AAC is the safest automatic default. E-AC-3 can be
+   * perfectly valid, but it has been the common silent-output path on some
+   * Android/Fire TV/browser combinations, so it should not beat an otherwise
+   * equivalent English AAC source until that exact source proves itself.
+   */
+  if (audio === "aac" || audio === "mp3" || audio === "opus" || audio === "vorbis") {
+    return 0;
+  }
+
+  if (audio === "ac3" || audio === "xheaac") {
+    return 1;
+  }
+
+  if (audio === "eac3" || audio === "ac4") {
+    return 2;
+  }
+
+  if (
+    audio === "dts" ||
+    audio === "truehd" ||
+    audio === "flac" ||
+    audio === "pcm" ||
+    audio === "alac"
+  ) {
+    return 3;
+  }
+
+  return 1;
+};
 
 const sourceResolution = (item) => {
   const explicit = Number(item?.resolution || item?.height || 0);
@@ -349,6 +387,7 @@ export const sortSourceEntries = (
         releaseTierLabel: smartEvidence.releaseTierLabel,
         audioTierRank: smartEvidence.audioTierRank,
         audioTierLabel: smartEvidence.audioTierLabel,
+        audioSafetyRank: sourceAutoplayAudioSafetyRank(item),
         hardSubtitleRank: hardSubtitleRank(item),
         reportedSeeders: sourceReportedSeeders(item),
         trackerRich: sourceHasTrackerRichMagnet(item),
