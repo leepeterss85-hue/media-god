@@ -779,9 +779,33 @@ class MainActivity : Activity() {
                         "window.dispatchEvent(new CustomEvent('mg:native-player-result',{detail:JSON.parse(${JSONObject.quote(result.toString())})}));"
                     )
                 } else {
+                    /*
+                     * Preflight can reveal the real MIME/container after the
+                     * initial web payload was accepted. Recompute now so the
+                     * correct engine opens first and the viewer does not see a
+                     * Media3 player followed by a second compatibility player.
+                     */
+                    val finalPlaybackDecision =
+                        PlaybackCompatibilityRouter.decide(payload)
+
+                    if (finalPlaybackDecision.useCompatibility) {
+                        payload.put("compatibilityPreflight", true)
+                        payload.put(
+                            "compatibilityReason",
+                            finalPlaybackDecision.reason
+                        )
+                        payload.put(
+                            "compatibilityAudioRecovery",
+                            finalPlaybackDecision.reason.startsWith(
+                                "audio",
+                                ignoreCase = true
+                            )
+                        )
+                    }
+
                     runOnUiThread {
                 val activityClass =
-                    if (playbackDecision.useCompatibility) {
+                    if (finalPlaybackDecision.useCompatibility) {
                         CompatibilityPlayerActivity::class.java
                     } else {
                         PlayerActivity::class.java
