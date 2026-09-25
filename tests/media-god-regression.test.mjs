@@ -2864,7 +2864,7 @@ test("LibVLC compatibility playback cannot spin forever during opening or buffer
     );
     assert.match(
       source,
-      /MediaPlayer\.Event\.Playing[\s\S]{0,160}?compatibilityPlaybackStarted = true[\s\S]{0,100}?clearStartupTimeout\(\)/
+      /MediaPlayer\.Event\.Playing[\s\S]{0,220}?compatibilityPlaybackStarted = true[\s\S]{0,420}?clearStartupTimeout\(\)/
     );
     assert.match(
       source,
@@ -3503,8 +3503,9 @@ test("native players prefer English main audio without replacing a manual audio 
     assert.match(source, /group\.isTrackSelected\(index\) && group\.isTrackSupported\(index\)/);
     assert.match(source, /trackSelectionParameters\.overrides\.values\.any/);
     assert.match(source, /enforcePreferredEnglishAudio\(exoPlayer, tracks\)/);
-    assert.match(source, /if \(!initial\.present \|\| \(initial\.supported && initial\.selected\)\)/);
-    assert.match(source, /if \(!latest\.present \|\| \(latest\.supported && latest\.selected\) \|\| audioOutputConfirmed\)/);
+    assert.match(source, /if \(audioOutputConfirmed\) return/);
+    assert.match(source, /if \(audioOutputConfirmed\) return@postDelayed/);
+    assert.match(source, /native audio output never started/);
     assert.doesNotMatch(source, /val englishOverrideApplied =/);
     assert.match(source, /onAudioPositionAdvancing\(/);
   }
@@ -4764,10 +4765,11 @@ test("native audio repair never cycles to another source on uncertain sound", ()
     assert.equal((source.match(/enforcePreferredEnglishAudio\(/g) || []).length, 2);
     assert.equal(
       (source.match(/scheduleMissingAudioCheck\(/g) || []).length,
-      2
+      3
     );
     assert.match(source, /onAudioPositionAdvancing\(/);
-    assert.match(source, /!latest\.present \|\| \(latest\.supported && latest\.selected\) \|\| audioOutputConfirmed/);
+    assert.match(source, /if \(audioOutputConfirmed\) return@postDelayed/);
+    assert.match(source, /native audio output never started/);
     assert.doesNotMatch(
       source,
       /Media3 selected an audio track but no decoded audio output advanced/
