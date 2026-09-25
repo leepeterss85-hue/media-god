@@ -406,6 +406,9 @@ class PlayerActivity : Activity() {
     private val hideControllerRunnable = Runnable {
         if (!resultSent && ::playerView.isInitialized) {
             playerView.hideController()
+            if (!live && ::playerChrome.isInitialized) {
+                playerChrome.visibility = View.GONE
+            }
         }
     }
 
