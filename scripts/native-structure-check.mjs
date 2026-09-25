@@ -9,7 +9,7 @@ const apps = [
     dir: "firetv-android",
     packagePath: "com/mediagod/firetv",
     namespace: "com.mediagod.firetv",
-    expectedVersion: "1.4.67",
+    expectedVersion: "1.4.68",
     expectedMedia3: "1.8.0",
     expectedOrientation: "landscape",
   },
@@ -18,7 +18,7 @@ const apps = [
     dir: "android-mobile",
     packagePath: "com/mediagod/mobile",
     namespace: "com.mediagod.mobile",
-    expectedVersion: "1.0.54",
+    expectedVersion: "1.0.55",
     expectedMedia3: "1.11.0",
     expectedOrientation: "sensor",
   },
@@ -222,8 +222,9 @@ for (const app of apps) {
     ],
     [compatibilityActivity.includes('setAudioOutput("android_audiotrack")'), "compatibility Android AudioTrack output"],
     [compatibilityActivity.includes("setAudioDigitalOutputEnabled(false)"), "compatibility digital passthrough disabled"],
-    [compatibilityActivity.includes('"stereo" -> player.setAudioDigitalOutputEnabled(false)') &&
-      !compatibilityActivity.includes('setAudioOutputDevice("stereo")'), "compatibility PCM uses the real Android audio device"],
+    [compatibilityActivity.includes('setAudioOutputDevice("stereo")') &&
+      compatibilityActivity.includes('setAudioOutputDevice("pcm")') &&
+      compatibilityActivity.includes('payload.optBoolean("live", false)'), "compatibility VOD uses documented Android AudioTrack PCM/stereo endpoints"],
     [compatibilityActivity.includes("cycleAudioTrack"), "compatibility audio track selector"],
     [compatibilityActivity.includes("audioTracks"), "compatibility audio track discovery"],
     [compatibilityActivity.includes("DisplayRateMatcher.apply"), "compatibility refresh-rate matching"],
