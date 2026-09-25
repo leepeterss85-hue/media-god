@@ -557,6 +557,7 @@ class PlayerActivity : Activity() {
         }
 
         sourceSpinner = buildSourceSpinner()
+        playerChrome = buildPlayerChrome()
         assistControls = buildAssistControls()
         playerView.nextFocusUpId = sourceSpinner.id
         sourceSpinner.nextFocusDownId = playerView.id
