@@ -824,6 +824,8 @@ class MainActivity : Activity() {
                 try {
                     @Suppress("DEPRECATION")
                     startActivityForResult(intent, REQUEST_NATIVE_PLAYER)
+                    @Suppress("DEPRECATION")
+                    overridePendingTransition(0, 0)
                 } catch (error: Throwable) {
                     synchronized(nativePlayerLock) {
                         playerOpen = false
