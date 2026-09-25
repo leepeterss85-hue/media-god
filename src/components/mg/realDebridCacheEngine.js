@@ -324,6 +324,18 @@ const monitorTorrent = async ({
         return permanentRdFailureResult(data, "RD_CACHE_HASH_REJECTED");
       }
 
+      if (
+        String(data?.error_code || "").toUpperCase() ===
+        "RD_REMOTE_TRAFFIC_EXHAUSTED"
+      ) {
+        return failureResult(data.error, {
+          retryable: true,
+          retrySameSource: true,
+          accountBlocked: true,
+          errorCode: "RD_REMOTE_TRAFFIC_EXHAUSTED",
+        });
+      }
+
       const upstreamStatus = Number(data?.upstream_status || 0);
       const retryableFinalLinkFailure =
         [408, 425, 429, 500, 502, 503, 504].includes(upstreamStatus) ||
