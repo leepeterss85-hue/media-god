@@ -3473,6 +3473,25 @@ test("compatibility decoder crashes are isolated from the main Media God process
   }
 });
 
+test("normal VOD native player uses Media God chrome without changing Live TV", () => {
+  const playerFiles = [
+    "../android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt",
+    "../firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt",
+  ];
+
+  for (const file of playerFiles) {
+    const source = readFileSync(new URL(file, import.meta.url), "utf8");
+    assert.match(source, /private lateinit var playerChrome: LinearLayout/);
+    assert.match(source, /private fun buildPlayerChrome\(\): LinearLayout/);
+    assert.match(source, /text = "← Back"/);
+    assert.match(source, /title\.trim\(\)\.ifBlank \{ "Media God" \}/);
+    assert.match(source, /if \(!live\) \{[\s\S]{0,220}?addView\([\s\S]{0,80}?playerChrome/);
+    assert.match(source, /showControllerTemporarily\([\s\S]{0,360}?playerChrome\.visibility = View\.VISIBLE/);
+    assert.match(source, /hideControllerRunnable[\s\S]{0,260}?playerChrome\.visibility = View\.GONE/);
+    assert.match(source, /dispatchTouchEvent\(event: MotionEvent\)[\s\S]{0,160}?!live[\s\S]{0,120}?showControllerTemporarily\(\)/);
+  }
+});
+
 test("native preflight chooses the final engine before any player surface opens", () => {
   const mainFiles = [
     "../android-mobile/app/src/main/java/com/mediagod/mobile/MainActivity.kt",
