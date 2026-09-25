@@ -623,17 +623,41 @@ class PlayerActivity : Activity() {
         compatibilityPlayerOpen = false
         resultSent = true
 
-        val forwarded = data ?: Intent().apply {
-            putExtra(EXTRA_REQUEST_ID, requestId)
-            putExtra(EXTRA_REASON, "back")
-            putExtra(EXTRA_POSITION_MS, restorePositionMs)
-            putExtra(EXTRA_DURATION_MS, 0L)
-            putExtra(EXTRA_MESSAGE, "")
-            putExtra(
-                EXTRA_SELECTED_SOURCE_INDEX,
-                nativeSources.getOrNull(activeSourceIndex)?.webIndex ?: -1
-            )
-        }
+        val abnormalCompatibilityExit =
+            resultCode != RESULT_OK || data == null
+
+        val forwarded =
+            if (!abnormalCompatibilityExit) {
+                data
+            } else {
+                Intent().apply {
+                    putExtra(EXTRA_REQUEST_ID, requestId)
+                    putExtra(EXTRA_REASON, "error")
+                    putExtra(EXTRA_POSITION_MS, restorePositionMs)
+                    putExtra(EXTRA_DURATION_MS, 0L)
+                    putExtra(
+                        EXTRA_MESSAGE,
+                        "The compatibility decoder exited unexpectedly. Media God stayed open and can try another source."
+                    )
+                    putExtra(
+                        EXTRA_SELECTED_SOURCE_INDEX,
+                        nativeSources.getOrNull(activeSourceIndex)?.webIndex ?: -1
+                    )
+                }
+            } ?: Intent().apply {
+                putExtra(EXTRA_REQUEST_ID, requestId)
+                putExtra(EXTRA_REASON, "error")
+                putExtra(EXTRA_POSITION_MS, restorePositionMs)
+                putExtra(EXTRA_DURATION_MS, 0L)
+                putExtra(
+                    EXTRA_MESSAGE,
+                    "The compatibility decoder returned no playback result."
+                )
+                putExtra(
+                    EXTRA_SELECTED_SOURCE_INDEX,
+                    nativeSources.getOrNull(activeSourceIndex)?.webIndex ?: -1
+                )
+            }
 
         setResult(RESULT_OK, forwarded)
         finish()
