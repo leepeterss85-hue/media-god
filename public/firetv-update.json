@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 72,
-  "versionName": "1.4.67",
+  "versionCode": 73,
+  "versionName": "1.4.68",
   "title": "Media God Fire TV",
-  "message": "Media God Fire TV 1.4.67 keeps working streams playing and moves on when both decoders confirm missing audio.",
+  "message": "Media God Fire TV 1.4.68 corrects silent Dolby and multichannel movie and episode playback by routing VOD compatibility audio through decoded stereo PCM while keeping English preferred.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
