@@ -3447,6 +3447,32 @@ test("browser audio track choice stays manual while native decoders may repair m
   }
 });
 
+test("compatibility decoder crashes are isolated from the main Media God process", () => {
+  const targets = [
+    {
+      manifest: "../android-mobile/app/src/main/AndroidManifest.xml",
+      player: "../android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt",
+    },
+    {
+      manifest: "../firetv-android/app/src/main/AndroidManifest.xml",
+      player: "../firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt",
+    },
+  ];
+
+  for (const target of targets) {
+    const manifest = readFileSync(new URL(target.manifest, import.meta.url), "utf8");
+    const player = readFileSync(new URL(target.player, import.meta.url), "utf8");
+
+    assert.match(
+      manifest,
+      /android:name="\.CompatibilityPlayerActivity"[\s\S]{0,260}?android:process=":compatibility_player"/
+    );
+    assert.match(player, /val abnormalCompatibilityExit =[\s\S]{0,100}?resultCode != RESULT_OK \|\| data == null/);
+    assert.match(player, /if \(!abnormalCompatibilityExit\) \{[\s\S]{0,80}?data[\s\S]{0,120}?EXTRA_REASON, "error"/);
+    assert.match(player, /compatibility decoder exited unexpectedly\. Media God stayed open and can try another source\./);
+  }
+});
+
 test("compatibility player keeps technical decoder details off the normal playback surface", () => {
   const compatibilityFiles = [
     "../android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt",
