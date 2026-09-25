@@ -3331,7 +3331,8 @@ export default function VideoPlayer({
 
     if (
       sourceSortMode === "best" &&
-      startupAlreadyClaimed
+      startupAlreadyClaimed &&
+      !claimedUncachedCanUpgradeToReady
     ) {
       return;
     }
@@ -3355,6 +3356,7 @@ export default function VideoPlayer({
       !bestSourceShouldOwnStartup &&
       !bestEnglishCandidateShouldOwnStartup &&
       !aioFallbackShouldYieldStartup &&
+      !claimedUncachedCanUpgradeToReady &&
       (
         (!activeNeedsCaching && !activeIsWaitingForVerifiedSource) ||
         rdResolving ||
@@ -3370,13 +3372,15 @@ export default function VideoPlayer({
       statusMessage:
         bestSourceShouldOwnStartup
           ? "Best cached English source ready — starting automatically…"
-          : bestEnglishCandidateShouldOwnStartup
-            ? "Preparing the best English source automatically…"
-            : aioFallbackShouldYieldStartup
-              ? "AIOStreams is fallback-only — preparing the best non-AIO source…"
-              : activeIsWaitingForVerifiedSource
-                ? "Verified cached source ready — starting automatically…"
-                : "Opening a ready source while Media God prepares the other torrents in the background…",
+          : claimedUncachedCanUpgradeToReady
+            ? "Verified cached source is ready — leaving the uncached torrent and starting it now…"
+            : bestEnglishCandidateShouldOwnStartup
+              ? "Preparing the best English source automatically…"
+              : aioFallbackShouldYieldStartup
+                ? "AIOStreams is fallback-only — preparing the best non-AIO source…"
+                : activeIsWaitingForVerifiedSource
+                  ? "Verified cached source ready — starting automatically…"
+                  : "Opening a ready source while Media God prepares the other torrents in the background…",
     });
 
     if (switched && sourceSortMode === "best") {
