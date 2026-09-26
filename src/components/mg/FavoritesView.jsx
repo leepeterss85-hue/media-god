@@ -15,6 +15,7 @@ import { Image } from "@/components/ui/image";
 import { useToast } from "@/components/ui/use-toast";
 import { buildMediaSources, usePlayer } from "@/components/mg/PlayerProvider";
 import DetailModal from "@/components/mg/DetailModal";
+import { resolveCatalogMediaType } from "@/components/mg/catalogMediaIdentity";
 
 const PosterImage = /** @type {any} */ (Image);
 
@@ -70,7 +71,7 @@ export default function FavoritesView() {
   const visible = useMemo(() => {
     const wanted = query.trim().toLowerCase();
     const filtered = items.filter((item) => {
-      const itemType = item?.media_type === "tv" ? "tv" : "movie";
+      const itemType = resolveCatalogMediaType(item);
       if (mediaFilter !== "all" && itemType !== mediaFilter) return false;
       if (!wanted) return true;
 
@@ -175,7 +176,7 @@ export default function FavoritesView() {
   };
 
   const play = async (item) => {
-    const mediaType = item?.media_type === "tv" ? "tv" : "movie";
+    const mediaType = resolveCatalogMediaType(item);
 
     if (mediaType === "tv") {
       setSelected({
@@ -418,8 +419,8 @@ export default function FavoritesView() {
                       type="button"
                       onClick={() => play(item)}
                       className="mg-hover-action absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100"
-                      aria-label={item?.media_type === "tv" ? `Open ${item.title}` : `Play ${item.title}`}
-                      title={item?.media_type === "tv" ? "Open show" : "Play"}
+                      aria-label={resolveCatalogMediaType(item) === "tv" ? `Open ${item.title}` : `Play ${item.title}`}
+                      title={resolveCatalogMediaType(item) === "tv" ? "Open show" : "Play"}
                     >
                       <span className="flex h-10 w-10 items-center justify-center rounded-full bg-mg-green text-black">
                         <Play className="h-5 w-5 fill-black" />
