@@ -787,6 +787,32 @@ const resolveImdbInfo = async ({
         : ""
     );
 
+  const resolveFromTmdbDetails = async () => {
+    if (!numericTmdbId) {
+      return "";
+    }
+
+    try {
+      const fallbackResponse = await base44.functions.invoke(
+        "getTmdbMovies",
+        {
+          movie_id: numericTmdbId,
+          media_type: mediaType === "tv" ? "tv" : "movie",
+        }
+      );
+      const fallbackData = unwrap(fallbackResponse);
+      const fallbackImdbId = String(
+        fallbackData?.details?.imdb_id || ""
+      ).trim();
+
+      return /^tt\d+$/i.test(fallbackImdbId)
+        ? fallbackImdbId
+        : "";
+    } catch {
+      return "";
+    }
+  };
+
   if (
     /^tt\d+$/i.test(
       supplied
@@ -954,6 +980,18 @@ const resolveImdbInfo = async ({
       };
     }
 
+    const detailsFallbackImdb = await resolveFromTmdbDetails();
+    if (detailsFallbackImdb) {
+      return {
+        imdbId: detailsFallbackImdb,
+        alternateTitles: resolvedAlternateTitles,
+        alternateYears: resolvedAlternateYears,
+        status: "OK",
+        method: "tmdb_details_fallback",
+        error: "",
+      };
+    }
+
     return {
       imdbId:
         "",
@@ -998,6 +1036,18 @@ const resolveImdbInfo = async ({
 
         error:
           "",
+      };
+    }
+
+    const detailsFallbackImdb = await resolveFromTmdbDetails();
+    if (detailsFallbackImdb) {
+      return {
+        imdbId: detailsFallbackImdb,
+        alternateTitles: suppliedAlternateTitles,
+        alternateYears: suppliedAlternateYears,
+        status: "OK",
+        method: "tmdb_details_fallback",
+        error: "",
       };
     }
 
