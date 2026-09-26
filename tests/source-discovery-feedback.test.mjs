@@ -52,7 +52,20 @@ test("both playback entry points use canonical show identity and the player ends
   );
 
   assert.equal((provider.match(/\.\.\.canonicalImdbLookupFields\(request\)/g) || []).length, 2);
-  assert.match(tmdbDetails, /details\.imdb_id = validImdbId\(idData\?\.imdb_id\)/);
+  assert.match(tmdbDetails, /\$\{TMDB_BASE\}\/\$\{mediaType\}\/\$\{movieId\}\/external_ids/);
+  assert.match(tmdbDetails, /details\.imdb_id = externalImdbId/);
+  assert.doesNotMatch(tmdbDetails, /if \(mediaType === 'tv'\) \{[\s\S]*?external_ids/);
   assert.match(player, /Boolean\(source\?\.sourceDiagnostics\?\.diagnosticLabel\)/);
   assert.match(player, /noPlayableVodSources \? \([\s\S]*?No video sources found/);
+});
+
+test("movie playback has a second TMDB-details IMDb resolver when the primary resolver fails", () => {
+  const provider = readFileSync(
+    new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url), "utf8"
+  );
+
+  assert.match(provider, /const resolveFromTmdbDetails = async \(\) =>/);
+  assert.match(provider, /base44\.functions\.invoke\(\s*"getTmdbMovies"/);
+  assert.match(provider, /movie_id: numericTmdbId/);
+  assert.match(provider, /method: "tmdb_details_fallback"/);
 });
