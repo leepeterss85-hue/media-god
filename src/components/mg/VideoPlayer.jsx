@@ -2325,6 +2325,13 @@ export default function VideoPlayer({
           entry?.trustedCached === true,
         ])
       );
+    const trustedCachedByIndex =
+      new Map(
+        sortedSourceEntries.map((entry) => [
+          entry.index,
+          entry?.trustedCached === true,
+        ])
+      );
 
     const liveFailover =
       isLive || sources.some((item) => item?.live || item?.type === "live");
