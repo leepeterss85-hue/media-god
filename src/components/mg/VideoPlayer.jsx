@@ -2318,6 +2318,13 @@ export default function VideoPlayer({
           ]
         )
       );
+    const trustedCachedByIndex =
+      new Map(
+        sortedSourceEntries.map((entry) => [
+          entry.index,
+          entry?.trustedCached === true,
+        ])
+      );
 
     const liveFailover =
       isLive || sources.some((item) => item?.live || item?.type === "live");
@@ -2398,6 +2405,7 @@ export default function VideoPlayer({
 
         return {
           index,
+          trustedCached: trustedCachedByIndex.get(index) === true,
           qualityRank: qualityRecoveryRank(candidateTraits),
           hdrRescueRank: hdrRecoveryRank(candidateTraits),
           selectorRank:
@@ -2426,6 +2434,17 @@ export default function VideoPlayer({
           // controls the visible list, but automatic failover should never jump
           // to a known-bad mirror merely because it appears earlier in that list.
           return b.score - a.score || a.index - b.index;
+        }
+
+        /*
+         * VOD recovery must use a verified cached/ready source before an
+         * uncached/direct guess whenever one exists. This prevents a terminal
+         * Android decoder failure or an RD rejection from jumping onto an
+         * uncached torrent while dozens of trusted cached releases are ready.
+         * Live TV deliberately bypasses this rule.
+         */
+        if (a.trustedCached !== b.trustedCached) {
+          return Number(b.trustedCached) - Number(a.trustedCached);
         }
 
         if (compatibilityFirstRecovery) {
