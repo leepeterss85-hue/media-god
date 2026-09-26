@@ -2504,11 +2504,12 @@ export default function VideoPlayer({
         claimed: true,
       };
 
-      /*
-       * A manual choice is absolute. A stale black-screen/native ownership flag
-       * from the previous source must never block the newly selected source.
-       */
-      if (typeof window !== "undefined") {
+      /* Keep the phone's current native activity as owner until Android
+       * reports its result. The new source waits for the native slot to free. */
+      if (
+        typeof window !== "undefined" &&
+        !isAndroidMobileNativeRuntime()
+      ) {
         window.__MG_NATIVE_PLAYBACK_ACTIVE__ = false;
       }
 
