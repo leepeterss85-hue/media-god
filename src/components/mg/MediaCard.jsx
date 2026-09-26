@@ -3,6 +3,7 @@ import { Play, Plus, Check } from "lucide-react";
 import { Image } from "@/components/ui/image";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 import ReeznCardAction from "@/components/mg/ReeznCardAction";
+import { resolveCatalogMediaType } from "@/components/mg/catalogMediaIdentity";
 
 const PosterImage = /** @type {any} */ (Image);
 
@@ -17,18 +18,7 @@ const isFireTvRuntime = () =>
     document.body?.classList.contains("mg-fire-tv-stable")
   );
 
-const getMediaType = (item) => {
-  const value = String(
-    item?.media_type ||
-      item?.mediaType ||
-      item?.type ||
-      "movie"
-  ).toLowerCase();
-
-  return value === "tv" || value === "series"
-    ? "tv"
-    : "movie";
-};
+const getMediaType = (item) => resolveCatalogMediaType(item);
 
 export default function MediaCard({
   item,
