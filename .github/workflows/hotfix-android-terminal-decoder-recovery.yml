@@ -1,0 +1,197 @@
+name: One-time Android terminal decoder recovery hotfix
+
+on:
+  push:
+    paths:
+      - ".github/workflows/hotfix-android-terminal-decoder-recovery.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apply-hotfix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Patch terminal Android VOD recovery
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+
+          player_path = Path("src/components/mg/VideoPlayer.jsx")
+          player = player_path.read_text()
+
+          old_startup = '''      if (reason === "startup_timeout" && !isLive) {
+            // A slow native launch is not evidence that the file is broken.
+            setForceNativePlayback(false);
+            const nextIndex = manualSourceLockActive()
+              ? -1
+              : findNextPlayableSource(activeIdx, { allowCaching: false });
+          '''
+          new_startup = '''      if (reason === "startup_timeout" && !isLive) {
+            /*
+             * A terminal Android no-frame result means this source cannot keep
+             * ownership of the current playback request. Manual selection is
+             * authoritative while the source is healthy, but it must not trap
+             * the viewer on a native surface Android has already rejected.
+             * Clear only this failed manual lock; the torrent itself is NOT
+             * blacklisted and remains available for Retry/manual selection.
+             */
+            setForceNativePlayback(false);
+            const manuallySelectedTimedOut = manualSourceLockActive();
+            if (manuallySelectedTimedOut) {
+              manualSourceLockRef.current = {
+                sourceKey: "",
+                playRequestId: currentPlayRequestId,
+              };
+            }
+            const nextIndex = findNextPlayableSource(activeIdx, { allowCaching: false });
+          '''
+          if player.count(old_startup) != 1:
+              raise SystemExit(f"startup timeout patch anchor count was {player.count(old_startup)}, expected 1")
+          player = player.replace(old_startup, new_startup, 1)
+
+          old_locked = '''        /* Keep a manual source choice pinned even when the native decoder fails. */
+            if (lockedVodNativeFailure) {
+              if (positionSeconds > 5) {
+                recoveryResumeRef.current = positionSeconds;
+              }
+
+              lockCurrentVodSourceForAudioRecovery();
+
+              /*
+               * Hold the current native request in a terminal audio-recovery state.
+               * Without this sentinel, the launch effect can immediately reopen the
+               * same native activity, receive another decoder error, and eventually
+               * trip ordinary source failover. A manual source choice clears this
+               * ref through switchToSource().
+               */
+              nativePlaybackRef.current = {
+                requestId: "__audio_recovery_hold__",
+                url: nativePlaybackUrl,
+                playRequestId: currentPlayRequestId,
+              };
+
+              setForceNativePlayback(false);
+              setNativeFallbackUrl("");
+              setRdError(
+                nativeAudioFailure
+                  ? "The audio decoder stopped on this release. Media God kept this exact source selected instead of moving to another torrent. Use Audio or Source to make the next choice."
+                  : "The native decoder stopped on this manually selected release. Media God kept this exact source selected instead of cycling to another torrent. Use Source only if you want to change it."
+              );
+
+              window.dispatchEvent(
+                new CustomEvent("mg:player-status", {
+                  detail: {
+                    message:
+                      nativeAudioFailure
+                        ? "Audio decoder stopped — keeping this exact source selected."
+                        : "Native decoder stopped — keeping your manually selected source.",
+                  },
+                })
+              );
+
+              return;
+            }
+          '''
+          new_locked = '''        /*
+             * A manual source choice prevents speculative/background switching,
+             * but an actual terminal Android decoder error is different: Android
+             * has proved that this source cannot continue. Release only the lock
+             * for this failed request and let the existing recovery path choose
+             * the next ready source. Do not blacklist the torrent/hash here.
+             */
+            if (lockedVodNativeFailure) {
+              if (positionSeconds > 5) {
+                recoveryResumeRef.current = positionSeconds;
+              }
+
+              manualSourceLockRef.current = {
+                sourceKey: "",
+                playRequestId: currentPlayRequestId,
+              };
+              setForceNativePlayback(false);
+              setNativeFallbackUrl("");
+
+              window.dispatchEvent(
+                new CustomEvent("mg:player-status", {
+                  detail: {
+                    message:
+                      nativeAudioFailure
+                        ? "Selected source lost usable audio in Android — trying another ready source…"
+                        : "Selected source failed in Android — trying another ready source…",
+                  },
+                })
+              );
+            }
+          '''
+          if player.count(old_locked) != 1:
+              raise SystemExit(f"locked decoder patch anchor count was {player.count(old_locked)}, expected 1")
+          player = player.replace(old_locked, new_locked, 1)
+          player_path.write_text(player)
+
+          # Phone release version: this fix changes native playback behaviour and
+          # needs a new APK so users cannot remain on the broken 1.0.61 wrapper.
+          gradle_path = Path("android-mobile/app/build.gradle.kts")
+          gradle = gradle_path.read_text()
+          gradle = gradle.replace('versionCode = 62\n        versionName = "1.0.61"', 'versionCode = 63\n        versionName = "1.0.62"', 1)
+          gradle_path.write_text(gradle)
+
+          structure_path = Path("scripts/native-structure-check.mjs")
+          structure = structure_path.read_text().replace('expectedVersion: "1.0.61"', 'expectedVersion: "1.0.62"', 1)
+          structure_path.write_text(structure)
+
+          update_path = Path("public/android-mobile-update.json")
+          update = json.loads(update_path.read_text())
+          update["versionCode"] = 63
+          update["versionName"] = "1.0.62"
+          update["message"] = (
+              "Media God Mobile 1.0.62 fixes Android movie and episode recovery after a terminal native decoder failure. "
+              "A manually selected source stays selected while it is healthy, but if Android proves it cannot play that source, "
+              "Media God now moves to another ready source without blacklisting the original torrent. Live TV is unchanged."
+          )
+          update_path.write_text(json.dumps(update, indent=2) + "\n")
+
+          first_frame_path = Path("tests/android-first-frame.test.mjs")
+          first_frame = first_frame_path.read_text()
+          first_frame = first_frame.replace(
+              'assert.match(build, /versionCode = 62\\s*versionName = "1\\.0\\.61"/);\n  assert.equal(update.versionCode, 62);\n  assert.equal(update.versionName, "1.0.61");',
+              'assert.match(build, /versionCode = 63\\s*versionName = "1\\.0\\.62"/);\n  assert.equal(update.versionCode, 63);\n  assert.equal(update.versionName, "1.0.62");',
+              1,
+          )
+          first_frame_path.write_text(first_frame)
+
+          recovery_test = Path("tests/android-terminal-decoder-recovery.test.mjs")
+          recovery_test.write_text('''import test from "node:test";\nimport assert from "node:assert/strict";\nimport { readFileSync } from "node:fs";\n\nconst read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");\n\ntest("terminal Android VOD failures release only the failed manual source lock", () => {\n  const player = read("src/components/mg/VideoPlayer.jsx");\n\n  assert.match(player, /const manuallySelectedTimedOut = manualSourceLockActive\\(\\);/);\n  assert.match(player, /manualSourceLockRef\\.current = \\{\\s*sourceKey: "",\\s*playRequestId: currentPlayRequestId,/s);\n  assert.match(player, /Selected source failed in Android — trying another ready source/);\n  assert.doesNotMatch(player, /__audio_recovery_hold__/);\n\n  // Ordinary background/Real-Debrid recovery still respects a deliberate\n  // manual choice. Only a terminal native result is allowed to release it.\n  assert.match(\n    player,\n    /if \\(!activeIsLive && manualSourceLockActive\\(\\) && !userReportedNoSound\\)/\n  );\n});\n''')
+
+          # This workflow is deliberately one-shot. Remove it from the hotfix
+          # commit so it cannot become part of the permanent release machinery.
+          Path(".github/workflows/hotfix-android-terminal-decoder-recovery.yml").unlink()
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run playback regression tests
+        run: npm run test:regression
+
+      - name: Verify patch and commit
+        shell: bash
+        run: |
+          git diff --check
+          git status --short
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Recover Android VOD after terminal decoder failures"
+          git push origin HEAD:main
