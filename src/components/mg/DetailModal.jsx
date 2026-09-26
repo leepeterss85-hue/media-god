@@ -21,6 +21,7 @@ import { base44 } from "@/api/base44Client";
 import EpisodeSelector from "@/components/mg/EpisodeSelector";
 import MediaReviews from "@/components/mg/MediaReviews";
 import MediaRow from "@/components/mg/MediaRow";
+import { resolveCatalogMediaType } from "@/components/mg/catalogMediaIdentity";
 import { detectStreamingRegion } from "@/components/mg/streamingRegion";
 import {
   usePlayer,
@@ -94,38 +95,6 @@ const imageUrl = (
       ? text
       : `/${text}`
   }`;
-};
-
-const normaliseMediaType = (
-  value,
-  source = {}
-) => {
-  const type =
-    asText(value).toLowerCase();
-
-  if (
-    type === "tv" ||
-    type === "series" ||
-    type === "show"
-  ) {
-    return "tv";
-  }
-
-  if (
-    type === "movie" ||
-    type === "film"
-  ) {
-    return "movie";
-  }
-
-  if (
-    source?.first_air_date ||
-    source?.firstAirDate
-  ) {
-    return "tv";
-  }
-
-  return "movie";
 };
 
 const normaliseGenres = (value) => {
@@ -539,11 +508,7 @@ const normaliseDetailPayload = (
               );
 
             const relatedType =
-              normaliseMediaType(
-                relatedSource.media_type ||
-                  relatedSource.mediaType,
-                relatedSource
-              );
+              resolveCatalogMediaType(relatedSource);
 
             const relatedDate =
               firstText(
@@ -661,13 +626,7 @@ export default function DetailModal({
       asObject(item);
 
     const type =
-      normaliseMediaType(
-        mediaType ||
-          source.media_type ||
-          source.mediaType ||
-          source.type,
-        source
-      );
+      resolveCatalogMediaType(source, mediaType);
 
     const date =
       firstText(
