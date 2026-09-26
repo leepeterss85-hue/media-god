@@ -9133,11 +9133,22 @@ export default function VideoPlayer({
       }
 
       if (reason === "startup_timeout" && !isLive) {
-        // A slow native launch is not evidence that the file is broken.
+        /*
+         * Android has already proved that this request never produced a video
+         * frame. A manual source choice stays authoritative while it is healthy,
+         * but it must not trap the viewer on a source the native player has
+         * rejected. Release only this failed manual lock; do not blacklist the
+         * torrent/hash, so Retry and manual selection still remain available.
+         */
         setForceNativePlayback(false);
-        const nextIndex = manualSourceLockActive()
-          ? -1
-          : findNextPlayableSource(activeIdx, { allowCaching: false });
+        if (manualSourceLockActive()) {
+          manualSourceLockRef.current = {
+            sourceKey: "",
+            playRequestId: currentPlayRequestId,
+          };
+        }
+
+        const nextIndex = findNextPlayableSource(activeIdx, { allowCaching: false });
 
         if (
           nextIndex >= 0 &&
@@ -9166,47 +9177,33 @@ export default function VideoPlayer({
         const lockedVodNativeFailure =
           !isLive && manualSourceLockActive();
 
-        /* Keep a manual source choice pinned even when the native decoder fails. */
+        /*
+         * A deliberate manual source choice still prevents speculative or
+         * background source switching. A terminal Android decoder error is
+         * different: the device has proved that this source cannot continue.
+         * Release only this failed request's manual lock and let the existing
+         * recovery path try another ready source. The torrent/hash itself is
+         * not permanently blacklisted here.
+         */
         if (lockedVodNativeFailure) {
           if (positionSeconds > 5) {
             recoveryResumeRef.current = positionSeconds;
           }
 
-          lockCurrentVodSourceForAudioRecovery();
-
-          /*
-           * Hold the current native request in a terminal audio-recovery state.
-           * Without this sentinel, the launch effect can immediately reopen the
-           * same native activity, receive another decoder error, and eventually
-           * trip ordinary source failover. A manual source choice clears this
-           * ref through switchToSource().
-           */
-          nativePlaybackRef.current = {
-            requestId: "__audio_recovery_hold__",
-            url: nativePlaybackUrl,
+          manualSourceLockRef.current = {
+            sourceKey: "",
             playRequestId: currentPlayRequestId,
           };
-
-          setForceNativePlayback(false);
-          setNativeFallbackUrl("");
-          setRdError(
-            nativeAudioFailure
-              ? "The audio decoder stopped on this release. Media God kept this exact source selected instead of moving to another torrent. Use Audio or Source to make the next choice."
-              : "The native decoder stopped on this manually selected release. Media God kept this exact source selected instead of cycling to another torrent. Use Source only if you want to change it."
-          );
 
           window.dispatchEvent(
             new CustomEvent("mg:player-status", {
               detail: {
-                message:
-                  nativeAudioFailure
-                    ? "Audio decoder stopped — keeping this exact source selected."
-                    : "Native decoder stopped — keeping your manually selected source.",
+                message: nativeAudioFailure
+                  ? "Selected source lost usable audio in Android — trying another ready source…"
+                  : "Selected source failed in Android — trying another ready source…",
               },
             })
           );
-
-          return;
         }
 
         if (nativeAudioFailure) {
