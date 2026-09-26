@@ -988,6 +988,7 @@ export default function VideoPlayer({
 
   const [forceNativePlayback, setForceNativePlayback] =
     useState(false);
+  const [nativeBusyRetryTick, setNativeBusyRetryTick] = useState(0);
 
   const [
     failedSources,
@@ -1033,7 +1034,7 @@ export default function VideoPlayer({
     url: "",
     playRequestId: null,
   });
-  const nativeLaunchTimerRef = useRef(null);
+  const nativeBusyRequestRef = useRef(null);
   const liveRecoveryNoticeTimerRef = useRef(null);
   const streamActionGenerationRef = useRef(0);
   const reportedNoSoundTracksRef = useRef({
@@ -1081,11 +1082,6 @@ export default function VideoPlayer({
       if (torrentFailoverTimerRef.current) {
         window.clearTimeout(torrentFailoverTimerRef.current);
         torrentFailoverTimerRef.current = null;
-      }
-
-      if (nativeLaunchTimerRef.current) {
-        window.clearTimeout(nativeLaunchTimerRef.current);
-        nativeLaunchTimerRef.current = null;
       }
 
       if (liveRecoveryNoticeTimerRef.current) {
@@ -2530,11 +2526,7 @@ export default function VideoPlayer({
 
     streamActionGenerationRef.current += 1;
 
-    if (nativeLaunchTimerRef.current) {
-      window.clearTimeout(nativeLaunchTimerRef.current);
-      nativeLaunchTimerRef.current = null;
-    }
-
+    nativeBusyRequestRef.current = null;
     nativePlaybackRef.current = {
       requestId: "",
       url: "",
@@ -8966,11 +8958,29 @@ export default function VideoPlayer({
       const detail = event?.detail || {};
 
       const activeRequest = nativePlaybackRef.current;
+      const busyRequest = nativeBusyRequestRef.current;
+      const returnedRequestId = String(detail.requestId || "");
 
       if (
-        !activeRequest.requestId ||
-        String(detail.requestId || "") !== activeRequest.requestId
+        busyRequest &&
+        !isLive &&
+        returnedRequestId &&
+        (!busyRequest.requestId || returnedRequestId === busyRequest.requestId)
       ) {
+        // A previous Android activity has finished. Retry the new selection
+        // now that its native slot is free; never start WebView video underneath.
+        nativeBusyRequestRef.current = null;
+        nativePlaybackRef.current = {
+          requestId: "",
+          url: "",
+          playRequestId: null,
+        };
+        window.__MG_NATIVE_PLAYBACK_ACTIVE__ = false;
+        setNativeBusyRetryTick((value) => value + 1);
+        return;
+      }
+
+      if (!activeRequest.requestId || returnedRequestId !== activeRequest.requestId) {
         return;
       }
 
@@ -9017,11 +9027,6 @@ export default function VideoPlayer({
       }
 
       window.__MG_NATIVE_PLAYBACK_ACTIVE__ = false;
-
-      if (nativeLaunchTimerRef.current) {
-        window.clearTimeout(nativeLaunchTimerRef.current);
-        nativeLaunchTimerRef.current = null;
-      }
 
       const positionSeconds = Math.max(
         0,
@@ -9279,15 +9284,14 @@ export default function VideoPlayer({
         reason === "back" &&
         !isLive
       ) {
-        if (playbackMediaType === "tv") {
+        if (playbackMediaType === "tv" || isAndroidMobileNativeRuntime()) {
+          // Back from phone VOD leaves the single native player. A fresh Play
+          // action can start another request without mounting WebView video.
           returnFromPlayback();
           return;
         }
 
-        /*
-         * Movies keep the existing safe native-to-WebView handoff. Only TV
-         * episodes use Back as an explicit return to the episode selector.
-         */
+        /* Fire TV retains its existing native source selector on Back. */
         setForceNativePlayback(false);
         setNativeFallbackUrl(String(activeRequest.url || "").trim());
 
@@ -9423,11 +9427,6 @@ export default function VideoPlayer({
     const requestId =
       `mg-${Date.now()}-${activeIdx}-${Math.random().toString(36).slice(2, 8)}`;
 
-    if (nativeLaunchTimerRef.current) {
-      window.clearTimeout(nativeLaunchTimerRef.current);
-      nativeLaunchTimerRef.current = null;
-    }
-
     nativePlaybackRef.current = {
       requestId,
       url: nativePlaybackUrl,
@@ -9508,16 +9507,30 @@ export default function VideoPlayer({
     });
 
     if (!started) {
-      window.__MG_NATIVE_PLAYBACK_ACTIVE__ = false;
+      if (!isLive && window.__MG_NATIVE_PLAYBACK_ACTIVE__ === true) {
+        nativePlaybackRef.current = current;
+        nativeBusyRequestRef.current = {
+          requestId: current.requestId || "",
+          url: nativePlaybackUrl,
+        };
+        window.dispatchEvent(
+          new CustomEvent("mg:player-status", {
+            detail: { message: "Android player is still open. Waiting to switch sources…" },
+          })
+        );
+        return;
+      }
 
+      window.__MG_NATIVE_PLAYBACK_ACTIVE__ = false;
+      nativeBusyRequestRef.current = null;
       nativePlaybackRef.current = {
         requestId: "",
         url: "",
         playRequestId: null,
       };
 
-      /* If an unexpected old/custom wrapper exposes a broken/busy bridge,
-       * fall back instead of leaving the player on an endless handoff spinner. */
+      /* A bridge that rejects the request without an active native owner can
+       * fall back safely because there is no Android player on screen. */
       setForceNativePlayback(false);
       setNativeFallbackUrl(nativePlaybackUrl);
 
@@ -9525,56 +9538,20 @@ export default function VideoPlayer({
         new CustomEvent("mg:player-status", {
           detail: {
             message:
-              "Fire TV player was busy or could not open — using the fallback player.",
+              "Android player could not open — using the fallback player.",
           },
         })
       );
-
       return;
     }
+    nativeBusyRequestRef.current = null;
 
     /*
-     * MainActivity pauses WebView timers while PlayerActivity owns the screen,
-     * so this timeout only meaningfully expires when the native activity did
-     * not actually take over, or when Fire OS returns without delivering the
-     * expected result event. Either way, never leave Live TV spinning forever.
-     */
-    if (!isLive) {
-      nativeLaunchTimerRef.current = window.setTimeout(() => {
-        const pending = nativePlaybackRef.current;
-
-        if (pending.requestId !== requestId) {
-          return;
-        }
-
-        window.__MG_NATIVE_PLAYBACK_ACTIVE__ = false;
-
-        nativePlaybackRef.current = {
-          requestId: "",
-          url: "",
-          playRequestId: null,
-        };
-        nativeLaunchTimerRef.current = null;
-        setForceNativePlayback(false);
-        setNativeFallbackUrl(nativePlaybackUrl);
-
-        window.dispatchEvent(
-          new CustomEvent("mg:player-status", {
-            detail: {
-              message:
-                "Fire TV player did not open correctly — switched to the fallback player.",
-            },
-          })
-        );
-      }, 5500);
-    }
-
-    /*
-     * Live TV is different: once Media3 accepts the handoff it is the only
-     * playback owner. A WebView timeout must never decide that native playback
-     * failed and start a second player/source behind an already-running stream.
-     * PlayerActivity reports real native errors back through
-     * mg:native-player-result, which remains the single failover authority.
+     * An accepted native request may still be running its network preflight.
+     * WebView timers continue during that check, so a web timeout cannot
+     * release native ownership or start an HTML video underneath Android.
+     * Android reports a preflight rejection or launch failure with requestId.
+     * Live TV already follows this same native-result ownership rule.
      */
   }, [
     active,
@@ -9584,6 +9561,7 @@ export default function VideoPlayer({
     bestNonAioTorrentAutoplayCandidateIndex,
     isLive,
     nativePlaybackUrl,
+    nativeBusyRetryTick,
     playbackMediaType,
     rdOverride,
     source,
