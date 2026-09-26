@@ -7,6 +7,7 @@ import React, {
 import { base44 } from "@/api/base44Client";
 import HeroSlider from "@/components/mg/HeroSlider";
 import MediaRow from "@/components/mg/MediaRow";
+import { resolveCatalogMediaType } from "@/components/mg/catalogMediaIdentity";
 import StreamingServiceRows from "@/components/mg/StreamingServiceRows";
 import {
   detectStreamingRegion,
@@ -65,27 +66,13 @@ const normaliseLibraryItem = (item, fallbackType = "movie") => ({
   title: item?.title || item?.name || "Untitled",
   poster_url: item?.poster_url || item?.poster || "",
   description: item?.description || item?.overview || "",
-  media_type:
-    item?.media_type ||
-    item?.mediaType ||
-    fallbackType,
+  media_type: resolveCatalogMediaType(item, fallbackType),
 });
 
 const mediaId = (item) =>
   String(item?.id || item?.tmdb_id || item?.tmdbId || "");
 
-const mediaTypeOf = (item) => {
-  const type = String(
-    item?.media_type ||
-      item?.mediaType ||
-      item?.type ||
-      ""
-  ).toLowerCase();
-
-  return type === "tv" || type === "series" || type === "show"
-    ? "tv"
-    : "movie";
-};
+const mediaTypeOf = (item) => resolveCatalogMediaType(item);
 
 const dedupeMedia = (items) => {
   const seen = new Set();
