@@ -10,6 +10,10 @@ const playerSource = readFileSync(
   new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
   "utf8"
 );
+const sourceHandoffHelper = readFileSync(
+  new URL("../src/components/mg/nativePlaybackSourceHandoff.js", import.meta.url),
+  "utf8"
+).replace("export const sourcesForNativeHandoff", "const sourcesForNativeHandoff");
 
 let moduleText = bridgeSource
   .replace(
@@ -19,6 +23,10 @@ let moduleText = bridgeSource
   .replace(
     'import { readPlaybackPreferences } from "@/components/mg/playbackPreferences";',
     'const readPlaybackPreferences = () => ({ audioOutputMode: "auto", lipSyncMs: 0, dialogueBoost: "off", volumeNormalization: false });'
+  )
+  .replace(
+    'import { sourcesForNativeHandoff } from "@/components/mg/nativePlaybackSourceHandoff";',
+    sourceHandoffHelper
   );
 assert.ok(!moduleText.includes('from "@/components/mg/'));
 const { playNativeFireTv } = await import(`data:text/javascript,${encodeURIComponent(moduleText)}`);
@@ -59,6 +67,29 @@ test("accepted and rejected phone handoffs update ownership explicitly", () => {
   window.MediaGodNative.play = () => "error";
   assert.equal(playNativeFireTv(request()), false);
   assert.equal(window.__MG_NATIVE_PLAYBACK_ACTIVE__, false);
+});
+
+test("phone native bridge sends one selected source without losing audio metadata", () => {
+  let payload;
+  window.MediaGodNative.play = (json) => {
+    payload = JSON.parse(json);
+    return "true";
+  };
+  const sources = Array.from({ length: 500 }, (_, index) => ({
+    webIndex: index,
+    url: `https://media.example.test/${index}.mp4`,
+    mediaInfo: { audio_tracks: [{ codec: "aac", language: index === 417 ? "en" : "und" }] },
+  }));
+  assert.equal(playNativeFireTv({
+    ...request(), url: sources[417].url, activeSourceIndex: 417,
+    sources, selectedSourceOnly: true,
+  }), true);
+  assert.equal(payload.sources.length, 1);
+  assert.equal(payload.sources[0].webIndex, 417);
+  assert.equal(payload.sources[0].preferredAudioTrackLanguage, "en");
+
+  playNativeFireTv({ ...request(), sources, selectedSourceOnly: false });
+  assert.equal(payload.sources.length, 500);
 });
 
 test("an accepted VOD handoff has no WebView fallback timer", () => {

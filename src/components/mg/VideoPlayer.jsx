@@ -9505,6 +9505,7 @@ export default function VideoPlayer({
           };
         }),
       activeSourceIndex: activeIdx,
+      selectedSourceOnly: isAndroidMobileNativeRuntime(),
     });
 
     if (!started) {

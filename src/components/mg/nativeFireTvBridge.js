@@ -1,5 +1,6 @@
 import { stopExclusivePlayback } from "@/components/mg/exclusivePlayback";
 import { readPlaybackPreferences } from "@/components/mg/playbackPreferences";
+import { sourcesForNativeHandoff } from "@/components/mg/nativePlaybackSourceHandoff";
 
 let nativeCodecInfoCache = null;
 
@@ -614,6 +615,7 @@ export const playNativeFireTv = ({
   subtitles = [],
   sources = [],
   activeSourceIndex = 0,
+  selectedSourceOnly = false,
   preferForcedSubtitles = false,
   strictEnglishPlayback = false,
 }) => {
@@ -685,8 +687,11 @@ export const playNativeFireTv = ({
 
   const contextHints = nativeSourceHints(playerContext);
 
-  const nativeSources = Array.isArray(sources)
-    ? sources.map((item, index) => {
+  const sourceEntries = sourcesForNativeHandoff(
+    sources, activeSourceIndex, streamUrl, selectedSourceOnly && !live
+  );
+  const nativeSources = Array.isArray(sourceEntries)
+    ? sourceEntries.map((item, index) => {
         const hints = nativeSourceHints(item);
 
         return {
