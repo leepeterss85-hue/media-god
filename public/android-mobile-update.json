@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 61,
-  "versionName": "1.0.60",
+  "versionCode": 63,
+  "versionName": "1.0.62",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.60 keeps one player in charge while checking and opening a film or episode. It no longer starts a WebView video under the Android player or automatically opens a second decoder screen. Live TV stays as before.",
+  "message": "Media God Mobile 1.0.62 fixes Android movie and episode recovery after a terminal native decoder failure. A manually selected source stays selected while it is healthy, but if Android proves it cannot play that source, Media God now moves to another ready source without permanently blacklisting the original torrent. Live TV is unchanged.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"

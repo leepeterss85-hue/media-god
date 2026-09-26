@@ -2440,7 +2440,7 @@ export default function VideoPlayer({
          * VOD recovery must use a verified cached/ready source before an
          * uncached/direct guess whenever one exists. This prevents a terminal
          * Android decoder failure or an RD rejection from jumping onto an
-         * uncached torrent while dozens of trusted cached releases are ready.
+         * uncached torrent while trusted cached releases are ready.
          * Live TV deliberately bypasses this rule.
          */
         if (a.trustedCached !== b.trustedCached) {
@@ -9167,16 +9167,13 @@ export default function VideoPlayer({
           };
         }
 
-        const nextIndex = findNextPlayableSource(activeIdx, {
-          allowCaching: false,
-        });
+        const nextIndex = findNextPlayableSource(activeIdx, { allowCaching: false });
 
         if (
           nextIndex >= 0 &&
           switchToSource(nextIndex, {
             preservePosition: false,
-            statusMessage:
-              "Android video did not start — trying another ready source…",
+            statusMessage: "Android video did not start — trying another ready source…",
           })
         ) {
           return;
