@@ -740,6 +740,7 @@ export default function DetailModal({
   ] = useState(null);
 
   const [activeTab, setActiveTab] = useState("overview");
+  const [reviewsVisited, setReviewsVisited] = useState(false);
   const [selectedActor, setSelectedActor] = useState(null);
   const [actorCredits, setActorCredits] = useState([]);
   const [actorLoading, setActorLoading] = useState(false);
@@ -747,9 +748,14 @@ export default function DetailModal({
 
   useEffect(() => {
     setActiveTab("overview");
+    setReviewsVisited(false);
     setSelectedActor(null);
     setActorCredits([]);
   }, [itemId, resolvedMediaType]);
+
+  useEffect(() => {
+    if (activeTab === "reviews") setReviewsVisited(true);
+  }, [activeTab]);
 
   useEffect(() => {
     if (!selectedActor?.id) return undefined;
@@ -1654,7 +1660,7 @@ export default function DetailModal({
           </div>
           </>)}
 
-          {activeTab === "reviews" && <div>
+          {reviewsVisited && <div hidden={activeTab !== "reviews"}>
             <MediaReviews
               key={`${resolvedMediaType}:${itemId}`}
               tmdbId={itemId}
