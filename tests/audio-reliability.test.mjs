@@ -92,11 +92,12 @@ test("unknown and late audio metadata never reject a source before real silent p
   assert.match(player, /const rejectResolvedForeignAutoplay = \([\s\S]*?\) => \{[\s\S]*?return false;\s*\}/);
   for (const native of [phone, fire]) {
     assert.match(native, /activePlayer\.currentPosition < 5000L/);
-    assert.match(native, /selectedAudioRequiresPcmRescue/);
-    assert.match(native, /audioOutputConfirmed &&[\s\S]{0,120}!selectedAudioRequiresPcmRescue/);
     assert.match(native, /Video is playing but no audio track became available/);
-    assert.match(native, /native audio output never started/);
   }
+  assert.match(phone, /latest.present && latest.supported && latest.selected/);
+  assert.match(phone, /finishWithResult\("error", reason\)/);
+  assert.match(fire, /selectedAudioRequiresPcmRescue/);
+  assert.match(fire, /native audio output never started/);
 });
 
 test("English main wins over commentary and descriptive tracks", () => {
@@ -131,10 +132,9 @@ test("manual source and audio locks remain respected; same-file recovery precede
   assert.ok(recovery.indexOf("force_audio_rescue: true") < recovery.indexOf('tryNextSource("No usable audio'));
   assert.ok(recovery.indexOf("manualSourceLockActive()") < recovery.indexOf('tryNextSource("No usable audio'));
   assert.ok(recovery.indexOf("forgetSuccessfulPlaybackSource(active)") > recovery.indexOf("force_audio_rescue: true"));
-  assert.match(player, /String\(detail.requestId \|\| ""\) !== activeRequest.requestId/);
-  for (const native of [phone, fire]) {
-    assert.match(native, /releasePlayer\(\)[\s\S]*?startActivityForResult\(/);
-  }
+  assert.match(player, /returnedRequestId !== activeRequest.requestId/);
+  assert.match(phone, /if \(live && launchCompatibilityPlayer\(exoPlayer, error\)\)/);
+  assert.match(fire, /releasePlayer\(\)[\s\S]*?startActivityForResult\(/);
 });
 
 test("addon descriptions survive discovery and unproven AAC outranks generic EAC3", () => {

@@ -935,6 +935,13 @@ export const playNativeFireTv = ({
     const result = native.play(JSON.stringify(payload));
     const status = String(result ?? "").trim().toLowerCase();
 
+    if (!live && status === "busy") {
+      // Android already has an active player or a preflight in progress.
+      // Keep it as the sole owner until its request-specific result arrives.
+      setNativePlaybackOwnership(true);
+      return false;
+    }
+
     const accepted =
       result !== false &&
       status !== "" &&

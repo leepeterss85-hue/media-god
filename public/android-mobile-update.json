@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 60,
-  "versionName": "1.0.59",
+  "versionCode": 61,
+  "versionName": "1.0.60",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.59 gives the normal movie and episode player the same professional Media God chrome as compatibility playback, with a clean title/back bar that auto-hides with the native controller while Live TV remains unchanged.",
+  "message": "Media God Mobile 1.0.60 keeps one player in charge while checking and opening a film or episode. It no longer starts a WebView video under the Android player or automatically opens a second decoder screen. Live TV stays as before.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"

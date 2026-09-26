@@ -11,6 +11,8 @@ import android.os.Build
 import android.content.Context
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.KeyEvent
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
@@ -28,8 +30,10 @@ class MainActivity : Activity() {
 
     private lateinit var webView: WebView
     private val nativePlayerLock = Any()
+    private val nativeHandoffHandler = Handler(Looper.getMainLooper())
     @Volatile private var playerOpen = false
     @Volatile private var activeNativeRequestId = ""
+    @Volatile private var pendingNativePreflightRequestId = ""
     private var pendingNativeResultScript: String? = null
     private lateinit var appUpdater: AppUpdater
     @Volatile private var currentTopLevelUrl = ""
@@ -222,6 +226,7 @@ class MainActivity : Activity() {
             val value = activeNativeRequestId
             playerOpen = false
             activeNativeRequestId = ""
+            pendingNativePreflightRequestId = ""
             value
         }
 
@@ -710,6 +715,7 @@ class MainActivity : Activity() {
                 } else {
                     playerOpen = true
                     activeNativeRequestId = requestId
+                    pendingNativePreflightRequestId = requestId
                     true
                 }
             }
@@ -723,6 +729,39 @@ class MainActivity : Activity() {
              */
             if (!accepted) {
                 return "busy"
+            }
+
+            if (!payload.optBoolean("live", false)) {
+                /*
+                 * WebView keeps its timers running while native preflight is
+                 * pending. The accepted request owns playback until Android
+                 * sends an explicit result; a slow/redirecting server must not
+                 * leave a permanent spinner or invite a second WebView player.
+                 */
+                nativeHandoffHandler.postDelayed({
+                    val timedOut = synchronized(nativePlayerLock) {
+                        if (playerOpen && pendingNativePreflightRequestId == requestId) {
+                            playerOpen = false
+                            activeNativeRequestId = ""
+                            pendingNativePreflightRequestId = ""
+                            true
+                        } else {
+                            false
+                        }
+                    }
+                    if (timedOut) {
+                        val result = JSONObject().apply {
+                            put("requestId", requestId)
+                            put("reason", "error")
+                            put("message", "Android stream check timed out. Select another source or retry.")
+                            put("positionMs", 0)
+                            put("durationMs", 0)
+                        }
+                        dispatchJavascript(
+                            "window.dispatchEvent(new CustomEvent('mg:native-player-result',{detail:JSON.parse(${JSONObject.quote(result.toString())})}));"
+                        )
+                    }
+                }, 15_000L)
             }
 
             Thread {
@@ -744,12 +783,17 @@ class MainActivity : Activity() {
                         preflight.networkRisk
 
                 if (preflight.shouldSkip || networkRisk) {
-                    synchronized(nativePlayerLock) {
-                        playerOpen = false
-                        if (activeNativeRequestId == requestId) {
+                    val stillCurrent = synchronized(nativePlayerLock) {
+                        if (!playerOpen || pendingNativePreflightRequestId != requestId) {
+                            false
+                        } else {
+                            playerOpen = false
                             activeNativeRequestId = ""
+                            pendingNativePreflightRequestId = ""
+                            true
                         }
                     }
+                    if (!stillCurrent) return@Thread
 
                     val message =
                         when {
@@ -810,6 +854,16 @@ class MainActivity : Activity() {
                     }
 
                     runOnUiThread {
+                val stillCurrent = synchronized(nativePlayerLock) {
+                    if (playerOpen && pendingNativePreflightRequestId == requestId) {
+                        pendingNativePreflightRequestId = ""
+                        true
+                    } else {
+                        false
+                    }
+                }
+                if (!stillCurrent || isFinishing || isDestroyed) return@runOnUiThread
+
                 val activityClass =
                     if (finalPlaybackDecision.useCompatibility) {
                         CompatibilityPlayerActivity::class.java
@@ -832,6 +886,7 @@ class MainActivity : Activity() {
                         if (activeNativeRequestId == requestId) {
                             activeNativeRequestId = ""
                         }
+                        pendingNativePreflightRequestId = ""
                     }
 
                     val result = JSONObject().apply {
