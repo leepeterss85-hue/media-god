@@ -22,6 +22,13 @@ const PosterImage = /** @type {any} */ (Image);
 
 const TMDB_IMAGE_BASE =
   "https://image.tmdb.org/t/p/w500";
+const SEARCH_RESULT_PAGE_SIZE = 24;
+
+const searchThumbnailUrl = (url) =>
+  String(url || "").replace(
+    /^(https?:\/\/image\.tmdb\.org\/t\/p\/)w\d+(\/.*)$/i,
+    "$1w185$2"
+  );
 
 const RECENT_SEARCHES_KEY = "mg:recent-searches:v1";
 const SEARCH_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -440,7 +447,12 @@ export default function SearchDialog({
 
   const [mediaFilter, setMediaFilter] = useState("all");
   const [yearFilter, setYearFilter] = useState("");
+  const [visibleResultCount, setVisibleResultCount] = useState(SEARCH_RESULT_PAGE_SIZE);
   const [recentSearches, setRecentSearches] = useState(readRecentSearches);
+
+  useEffect(() => {
+    setVisibleResultCount(SEARCH_RESULT_PAGE_SIZE);
+  }, [query, mediaFilter, yearFilter, open]);
 
   const requestRef =
     useRef(
@@ -1099,7 +1111,7 @@ export default function SearchDialog({
 
           {combinedSearchResults.length > 0 && (
               <div className="divide-y divide-white/5">
-                {combinedSearchResults.slice(0, 80).map(
+                {combinedSearchResults.slice(0, visibleResultCount).map(
                   (
                     result
                   ) => (
@@ -1118,7 +1130,7 @@ export default function SearchDialog({
                         {result.poster_url ? (
                           <PosterImage
                             src={
-                              result.poster_url
+                              searchThumbnailUrl(result.poster_url)
                             }
                             alt={
                               result.title
@@ -1233,6 +1245,15 @@ export default function SearchDialog({
                       </div>
                     </button>
                   )
+                )}
+                {combinedSearchResults.length > visibleResultCount && (
+                  <button
+                    type="button"
+                    onClick={() => setVisibleResultCount((count) => count + SEARCH_RESULT_PAGE_SIZE)}
+                    className="w-full min-h-12 px-4 text-sm font-semibold text-mg-green hover:bg-white/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-mg-green"
+                  >
+                    Show more results ({combinedSearchResults.length - visibleResultCount} remaining)
+                  </button>
                 )}
               </div>
             )}
