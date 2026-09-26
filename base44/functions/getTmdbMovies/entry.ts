@@ -1512,22 +1512,28 @@ export default async function(req) {
           {};
       }
 
-      /* TV details omit IMDb ids; fetch the exact show's external id before
-       * the episode chooser builds its playback request. Movie details already
-       * contain imdb_id and do not need this extra lookup. */
-      if (mediaType === 'tv') {
-        try {
-          const idRes = await fetch(
-            `${TMDB_BASE}/tv/${movieId}/external_ids?api_key=${apiKey}`,
-            { headers: { Accept: 'application/json' } }
-          );
-          if (idRes.ok) {
-            const idData = await idRes.json();
-            details.imdb_id = validImdbId(idData?.imdb_id);
+      /*
+       * TMDB's normal movie/TV details payload does not reliably include an
+       * IMDb id. Search playback must therefore fetch /external_ids for BOTH
+       * movies and TV before DetailModal builds its playback request. This
+       * gives the player a canonical IMDb id even when the separate resolver
+       * is temporarily unavailable, while still leaving the TMDB id/title as
+       * fallback identity.
+       */
+      try {
+        const idRes = await fetch(
+          `${TMDB_BASE}/${mediaType}/${movieId}/external_ids?api_key=${apiKey}`,
+          { headers: { Accept: 'application/json' } }
+        );
+        if (idRes.ok) {
+          const idData = await idRes.json();
+          const externalImdbId = validImdbId(idData?.imdb_id);
+          if (externalImdbId) {
+            details.imdb_id = externalImdbId;
           }
-        } catch {
-          // Details remain usable if external ids are temporarily unavailable.
         }
+      } catch {
+        // Details remain usable if external ids are temporarily unavailable.
       }
 
       try {
