@@ -339,18 +339,10 @@ class PlayerActivity : Activity() {
             return@Runnable
         }
 
-        val rescued = launchCompatibilityPlayer(
-            activePlayer,
-            null,
-            "Strict English startup did not become ready within 10 seconds. Trying the compatibility decoder on this same source."
+        finishWithResult(
+            "error",
+            "This source could not start with a confirmed English main audio track."
         )
-
-        if (!rescued) {
-            finishWithResult(
-                "error",
-                "This source could not start with a confirmed English main audio track."
-            )
-        }
     }
 
     private fun armStrictEnglishStartupWatchdog() {
@@ -814,9 +806,9 @@ class PlayerActivity : Activity() {
                 }
 
                 /*
-                 * Leave a working audio track untouched. If VOD is advancing
-                 * without any usable audio track, try the same file in the
-                 * compatibility decoder after a second delayed inspection.
+                 * Leave a working audio track untouched. A second delayed
+                 * inspection can reject a genuinely missing/unsupported track,
+                 * but never opens a different player over this VOD screen.
                  */
                 if (!live) {
                     enforcePreferredEnglishAudio(exoPlayer, tracks)
@@ -853,11 +845,17 @@ class PlayerActivity : Activity() {
                     return
                 }
 
-                if (
-                    shouldUseCompatibilityFallback(error) &&
-                    launchCompatibilityPlayer(exoPlayer, error)
-                ) {
-                    return
+                if (shouldUseCompatibilityFallback(error)) {
+                    if (live && launchCompatibilityPlayer(exoPlayer, error)) {
+                        return
+                    }
+                    if (!live) {
+                        // The next explicit attempt can route this format to
+                        // compatibility before opening a player screen.
+                        payload.put("compatibilityErrorCode", error.errorCode)
+                        payload.put("compatibilityError", error.message.orEmpty())
+                        payload.put("compatibilityReason", "media3-runtime-error")
+                    }
                 }
 
                 finishWithResult(
@@ -985,8 +983,7 @@ class PlayerActivity : Activity() {
     private data class AudioReadiness(
         val present: Boolean,
         val supported: Boolean,
-        val selected: Boolean,
-        val softwareFallbackPreferred: Boolean
+        val selected: Boolean
     )
 
     private fun inspectAudioReadiness(
@@ -995,7 +992,6 @@ class PlayerActivity : Activity() {
         var present = false
         var supported = false
         var selected = false
-        var softwareFallbackPreferred = false
 
         tracks.groups.forEach { group ->
             if (group.type != C.TRACK_TYPE_AUDIO) return@forEach
@@ -1010,71 +1006,14 @@ class PlayerActivity : Activity() {
                 if (group.isTrackSelected(index) && group.isTrackSupported(index)) {
                     selected = true
                 }
-
-                val mime = group.getTrackFormat(index)
-                    .sampleMimeType
-                    .orEmpty()
-                    .trim()
-                    .lowercase()
-
-                if (
-                    group.isTrackSelected(index) &&
-                    mime in setOf(
-                        "audio/vnd.dts",
-                        "audio/vnd.dts.hd",
-                        "audio/true-hd",
-                        "audio/vnd.dolby.mlp",
-                        "audio/eac3-joc"
-                    )
-                ) {
-                    softwareFallbackPreferred = true
-                }
             }
         }
 
         return AudioReadiness(
             present = present,
             supported = supported,
-            selected = selected,
-            softwareFallbackPreferred = softwareFallbackPreferred
+            selected = selected
         )
-    }
-
-    private fun selectedAudioRequiresPcmRescue(
-        tracks: androidx.media3.common.Tracks
-    ): Boolean {
-        tracks.groups.forEach { group ->
-            if (group.type != C.TRACK_TYPE_AUDIO) return@forEach
-
-            for (index in 0 until group.length) {
-                if (!group.isTrackSelected(index)) continue
-
-                val format = group.getTrackFormat(index)
-                val mime = format.sampleMimeType
-                    .orEmpty()
-                    .trim()
-                    .lowercase()
-                val channels = format.channelCount
-
-                if (
-                    channels > 2 ||
-                    mime in setOf(
-                        "audio/ac3",
-                        "audio/eac3",
-                        "audio/eac3-joc",
-                        "audio/ac4",
-                        "audio/vnd.dts",
-                        "audio/vnd.dts.hd",
-                        "audio/true-hd",
-                        "audio/vnd.dolby.mlp"
-                    )
-                ) {
-                    return true
-                }
-            }
-        }
-
-        return false
     }
 
     private data class PreferredEnglishReadiness(
@@ -1141,28 +1080,26 @@ class PlayerActivity : Activity() {
                 !activePlayer.isPlaying || activePlayer.currentPosition < 5000L
             ) return@postDelayed
 
-            val latestTracks = activePlayer.currentTracks
-            if (
-                audioOutputConfirmed &&
-                !selectedAudioRequiresPcmRescue(latestTracks)
-            ) {
+            val latest = inspectAudioReadiness(activePlayer.currentTracks)
+            if (latest.present && latest.supported && latest.selected) {
+                // Audio-sink callbacks can arrive late or be absent on a
+                // device. A selected supported track is not proof of silence;
+                // keep the working video and let the viewer use Audio.
                 return@postDelayed
             }
 
-            val latest = inspectAudioReadiness(latestTracks)
             val reason = when {
                 !latest.present ->
-                    "Video is playing but no audio track became available. Trying the same file with the compatibility decoder."
+                    "Video is playing but no audio track became available. Choose another source."
                 !latest.supported ->
-                    "Video is playing but the native decoder cannot support its audio. Trying the same file with the compatibility decoder."
-                !latest.selected ->
-                    "Video is playing but no usable audio track was selected. Trying the same file with the compatibility decoder."
+                    "The phone cannot decode this source's audio. Choose another source."
                 else ->
-                    "Video is playing but native audio output never started. Trying the same file with the compatibility decoder."
+                    "No usable audio track was selected. Choose another source."
             }
-            if (!launchCompatibilityPlayer(activePlayer, null, reason)) {
-                finishWithResult("error", reason)
-            }
+            payload.put("compatibilityErrorCode", 5001)
+            payload.put("compatibilityError", reason)
+            payload.put("compatibilityReason", "audio-track-unavailable")
+            finishWithResult("error", reason)
         }, 10000L)
     }
 
