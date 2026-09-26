@@ -261,22 +261,22 @@ expect(
 );
 
 expect(
-  [mobilePlayer, firePlayer].every(
-    (nativePlayer) =>
-      nativePlayer.includes("strictEnglishStartupRequired(): Boolean = false") &&
-      nativePlayer.includes("group.isTrackSelected(index) && group.isTrackSupported(index)") &&
-      nativePlayer.includes("activePlayer.currentPosition < 5000L") &&
-      nativePlayer.includes("launchCompatibilityPlayer(activePlayer, null, reason)") &&
-      nativePlayer.includes("error.errorCode in 5001..5004") &&
-      nativePlayer.includes("onAudioPositionAdvancing(") &&
-      nativePlayer.includes("EXTENSION_RENDERER_MODE_ON") &&
-      nativePlayer.includes("EXTENSION_RENDERER_MODE_PREFER") &&
-      nativePlayer.includes("selectedAudioRequiresPcmRescue") &&
-      nativePlayer.includes("!selectedAudioRequiresPcmRescue(latestTracks)") &&
-      nativePlayer.includes("native audio output never started") &&
-      !nativePlayer.includes("if (!initial.present || (initial.supported && initial.selected))")
-  ),
-  "Android mobile and Fire TV keep Live TV device-first while repairing silent VOD on the same file"
+  mobilePlayer.includes("strictEnglishStartupRequired(): Boolean = false") &&
+    mobilePlayer.includes("group.isTrackSelected(index) && group.isTrackSupported(index)") &&
+    mobilePlayer.includes("activePlayer.currentPosition < 5000L") &&
+    mobilePlayer.includes("latest.present && latest.supported && latest.selected") &&
+    mobilePlayer.includes('if (live && launchCompatibilityPlayer(exoPlayer, error))') &&
+    mobilePlayer.includes('finishWithResult("error", reason)') &&
+    !mobilePlayer.slice(
+      mobilePlayer.indexOf("private fun scheduleMissingAudioCheck("),
+      mobilePlayer.indexOf("private fun buildMediaItem(")
+    ).includes("launchCompatibilityPlayer(") &&
+    firePlayer.includes("strictEnglishStartupRequired(): Boolean = false") &&
+    firePlayer.includes("launchCompatibilityPlayer(activePlayer, null, reason)") &&
+    firePlayer.includes("selectedAudioRequiresPcmRescue") &&
+    firePlayer.includes("EXTENSION_RENDERER_MODE_ON") &&
+    firePlayer.includes("EXTENSION_RENDERER_MODE_PREFER"),
+  "phone VOD keeps one visible player while Fire TV retains its existing rescue path"
 );
 
 expect(
@@ -344,7 +344,7 @@ const nativeResultStart = videoPlayer.indexOf("const onNativeResult =");
 const nativeResultBlock = videoPlayer.slice(nativeResultStart, nativeResultStart + 2500);
 expect(
   nativeResultStart >= 0 &&
-    nativeResultBlock.indexOf('String(detail.requestId || "") !== activeRequest.requestId') <
+    nativeResultBlock.indexOf('returnedRequestId !== activeRequest.requestId') <
       nativeResultBlock.indexOf("if (detail?.diagnostics)"),
   "stale native callbacks cannot penalise the currently selected source"
 );
@@ -352,7 +352,7 @@ expect(
 const staleGuardMatches = [
   "current.playRequestId !== playId",
   "streamActionGenerationRef.current === actionGeneration",
-  "String(detail.requestId || \"\") !== activeRequest.requestId",
+  "returnedRequestId !== activeRequest.requestId",
 ];
 
 expect(
