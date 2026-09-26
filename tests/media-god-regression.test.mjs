@@ -3599,9 +3599,14 @@ test("native players prefer English main audio without replacing a manual audio 
     assert.match(source, /group\.isTrackSelected\(index\) && group\.isTrackSupported\(index\)/);
     assert.match(source, /trackSelectionParameters\.overrides\.values\.any/);
     assert.match(source, /enforcePreferredEnglishAudio\(exoPlayer, tracks\)/);
-    assert.match(source, /selectedAudioRequiresPcmRescue/);
-    assert.match(source, /audioOutputConfirmed &&[\s\S]{0,120}!selectedAudioRequiresPcmRescue/);
-    assert.match(source, /native audio output never started/);
+    if (file.includes("android-mobile")) {
+      assert.match(source, /latest.present && latest.supported && latest.selected/);
+      assert.doesNotMatch(source, /native audio output never started/);
+    } else {
+      assert.match(source, /selectedAudioRequiresPcmRescue/);
+      assert.match(source, /audioOutputConfirmed &&[\s\S]{0,120}!selectedAudioRequiresPcmRescue/);
+      assert.match(source, /native audio output never started/);
+    }
     assert.doesNotMatch(source, /val englishOverrideApplied =/);
     assert.match(source, /onAudioPositionAdvancing\(/);
   }
@@ -3634,7 +3639,12 @@ test("VOD keeps manual audio choice but repairs verified missing native audio", 
     const source = readFileSync(new URL(file, import.meta.url), "utf8");
     assert.match(source, /strictEnglishStartupRequired\(\): Boolean = false/);
     assert.match(source, /activePlayer\.currentPosition < 5000L/);
-    assert.match(source, /launchCompatibilityPlayer\(activePlayer, null, reason\)/);
+    if (file.includes("android-mobile")) {
+      assert.match(source, /finishWithResult\("error", reason\)/);
+      assert.match(source, /if \(live && launchCompatibilityPlayer\(exoPlayer, error\)\)/);
+    } else {
+      assert.match(source, /launchCompatibilityPlayer\(activePlayer, null, reason\)/);
+    }
     assert.match(source, /error\.errorCode in 5001\.\.5004/);
     assert.match(source, /onAudioPositionAdvancing\(/);
     assert.match(source, /audioOutputConfirmed/);
@@ -3880,11 +3890,17 @@ test("native VOD proves audio output after playback advances and rescues silent 
     const block = source.slice(start, end);
 
     assert.doesNotMatch(block, /!initial\.present \|\| \(initial\.supported && initial\.selected\)/);
-    assert.match(block, /selectedAudioRequiresPcmRescue\(latestTracks\)/);
     assert.match(block, /activePlayer\.currentPosition < 5000L/);
-    assert.match(block, /native audio output never started/);
-    assert.match(block, /launchCompatibilityPlayer\(activePlayer, null, reason\)/);
     assert.match(block, /10000L/);
+    if (file.includes("android-mobile")) {
+      assert.match(block, /latest.present && latest.supported && latest.selected/);
+      assert.match(block, /finishWithResult\("error", reason\)/);
+      assert.doesNotMatch(block, /launchCompatibilityPlayer\(/);
+    } else {
+      assert.match(block, /selectedAudioRequiresPcmRescue\(latestTracks\)/);
+      assert.match(block, /native audio output never started/);
+      assert.match(block, /launchCompatibilityPlayer\(activePlayer, null, reason\)/);
+    }
     assert.match(source, /error\.errorCode in 5001\.\.5004/);
     assert.match(source, /return code == 3003 \|\|\s*\n\s*code in 4001\.\.4005/);
   }
@@ -4115,7 +4131,7 @@ test("native results only update the matching source and silent video is not lea
     playerSource.indexOf("const onNativeResult ="),
     playerSource.indexOf("const selectedSourceIndex", playerSource.indexOf("const onNativeResult ="))
   );
-  assert.ok(nativeHandler.indexOf('String(detail.requestId || "") !== activeRequest.requestId') <
+  assert.ok(nativeHandler.indexOf('returnedRequestId !== activeRequest.requestId') <
     nativeHandler.indexOf("if (detail?.diagnostics)"));
   assert.match(nativeHandler, /diagnosticFailure && String\(detail.reason \|\| ""\).toLowerCase\(\) === "error"/);
   assert.match(playerSource, /!hasRecentNoSoundHistory\(activeExactReliabilityLabel\(\)\)/);
@@ -4875,9 +4891,14 @@ test("native audio repair never cycles to another source on uncertain sound", ()
       3
     );
     assert.match(source, /onAudioPositionAdvancing\(/);
-    assert.match(source, /selectedAudioRequiresPcmRescue/);
-    assert.match(source, /audioOutputConfirmed &&[\s\S]{0,120}!selectedAudioRequiresPcmRescue/);
-    assert.match(source, /native audio output never started/);
+    if (relativePath.includes("android-mobile")) {
+      assert.match(source, /latest.present && latest.supported && latest.selected/);
+      assert.doesNotMatch(source, /native audio output never started/);
+    } else {
+      assert.match(source, /selectedAudioRequiresPcmRescue/);
+      assert.match(source, /audioOutputConfirmed &&[\s\S]{0,120}!selectedAudioRequiresPcmRescue/);
+      assert.match(source, /native audio output never started/);
+    }
     assert.doesNotMatch(
       source,
       /Media3 selected an audio track but no decoded audio output advanced/
