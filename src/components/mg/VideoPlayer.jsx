@@ -9132,6 +9132,30 @@ export default function VideoPlayer({
         return;
       }
 
+      if (reason === "startup_timeout" && !isLive) {
+        // A slow native launch is not evidence that the file is broken.
+        setForceNativePlayback(false);
+        const nextIndex = manualSourceLockActive()
+          ? -1
+          : findNextPlayableSource(activeIdx, { allowCaching: false });
+
+        if (
+          nextIndex >= 0 &&
+          switchToSource(nextIndex, {
+            preservePosition: false,
+            statusMessage: "Android video did not start — trying another ready source…",
+          })
+        ) {
+          return;
+        }
+
+        setNativeFallbackUrl(nativePlaybackUrl);
+        setRdError(
+          "Android video did not start. This source remains available; choose another source or retry it."
+        );
+        return;
+      }
+
       if (reason === "error") {
         const nativeAudioFailure =
           !isLive &&

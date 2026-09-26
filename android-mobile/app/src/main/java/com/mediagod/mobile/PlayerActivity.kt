@@ -44,6 +44,7 @@ class PlayerActivity : Activity() {
 
         private const val REQUEST_COMPATIBILITY_PLAYER = 8402
         private const val CONTROLLER_HIDE_DELAY_MS = 2500L
+        private const val VOD_FIRST_FRAME_TIMEOUT_MS = 25_000L
         private const val STRICT_ENGLISH_STARTUP_TIMEOUT_MS = 10000L
         private const val NEXT_EPISODE_COUNTDOWN_MS = 10000L
     }
@@ -72,6 +73,7 @@ class PlayerActivity : Activity() {
     private var compatibilityPlayerOpen = false
     private var audioPresenceCheckGeneration = 0
     private var audioOutputConfirmed = false
+    private var firstVideoFrameRendered = false
     private var autoNext = true
     private var recapStartMs = -1L
     private var recapEndMs = -1L
@@ -369,10 +371,23 @@ class PlayerActivity : Activity() {
 
     private val hideControllerRunnable = Runnable {
         if (!resultSent && ::playerView.isInitialized) {
+            if (!live && !firstVideoFrameRendered) return@Runnable
             playerView.hideController()
             if (!live && ::playerChrome.isInitialized) {
                 playerChrome.visibility = View.GONE
             }
+        }
+    }
+
+    private val firstFrameWatchdogRunnable = Runnable {
+        if (!resultSent && !live && !compatibilityPlayerOpen &&
+            !firstVideoFrameRendered && shouldPlayWhenReady && player != null
+        ) {
+            // Startup delay is device evidence, not proof this torrent is bad.
+            finishWithResult(
+                "startup_timeout",
+                "Android video did not show a frame in 25 seconds. Choose another source or retry."
+            )
         }
     }
 
@@ -745,6 +760,7 @@ class PlayerActivity : Activity() {
             .build()
 
         audioOutputConfirmed = false
+        firstVideoFrameRendered = false
         exoPlayer.addAnalyticsListener(object : AnalyticsListener {
             override fun onAudioPositionAdvancing(
                 eventTime: AnalyticsListener.EventTime,
@@ -782,6 +798,12 @@ class PlayerActivity : Activity() {
                 .build()
 
         exoPlayer.addListener(object : Player.Listener {
+            override fun onRenderedFirstFrame() {
+                firstVideoFrameRendered = true
+                playerView.removeCallbacks(firstFrameWatchdogRunnable)
+                showControllerTemporarily()
+            }
+
             override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
                 var selectedFrameRate = 0f
 
@@ -886,6 +908,11 @@ class PlayerActivity : Activity() {
 
         exoPlayer.setMediaItem(mediaItem)
         exoPlayer.prepare()
+
+        if (!live && shouldPlayWhenReady) {
+            playerView.removeCallbacks(firstFrameWatchdogRunnable)
+            playerView.postDelayed(firstFrameWatchdogRunnable, VOD_FIRST_FRAME_TIMEOUT_MS)
+        }
 
         if (!live && restorePositionMs > 0L) {
             exoPlayer.seekTo(restorePositionMs)
@@ -1541,6 +1568,7 @@ class PlayerActivity : Activity() {
         clearStrictEnglishStartupWatchdog()
         if (::playerView.isInitialized) {
             playerView.removeCallbacks(hideControllerRunnable)
+            playerView.removeCallbacks(firstFrameWatchdogRunnable)
         }
 
         val activePlayer = player ?: return
