@@ -16,6 +16,7 @@ import {
 
 import { base44 } from "@/api/base44Client";
 import { getFreeTvChannels } from "@/components/mg/freeTvPlaylist";
+import { searchTmdbId } from "@/components/mg/searchMediaIdentity";
 import { Image } from "@/components/ui/image";
 
 const PosterImage = /** @type {any} */ (Image);
@@ -193,9 +194,11 @@ const posterUrl = (
 const normaliseSearchResult = (
   item
 ) => {
+  const id = searchTmdbId(item);
   if (
     !item ||
-    item?.id == null
+    id == null ||
+    id === ""
   ) {
     return null;
   }
@@ -249,8 +252,11 @@ const normaliseSearchResult = (
   return {
     ...item,
 
-    id:
-      item.id,
+    id,
+
+    tmdb_id: id,
+
+    tmdbId: id,
 
     title,
 
@@ -851,17 +857,14 @@ export default function SearchDialog({
     (
       rawResult
     ) => {
-      const result =
-        rawResult?.media_type === "live"
-          ? normaliseLiveChannelResult(
-              rawResult?.live_channel || rawResult
-            )
-          : normaliseSearchResult(
-              rawResult
-            );
+      // Both catalogue and live results are already normalised when added
+      // to the results list. Preserve that exact identity for selection.
+      const result = rawResult;
 
       if (
-        !result
+        !result ||
+        result.id == null ||
+        result.id === ""
       ) {
         setError(
           "That search result could not be opened."
@@ -896,13 +899,11 @@ export default function SearchDialog({
         false
       );
 
-      window.requestAnimationFrame(
-        () => {
-          onSelect?.(
-            result
-          );
-        }
-      );
+      if (result.media_type === "live") {
+        window.requestAnimationFrame(() => onSelect?.(result));
+      } else {
+        onSelect?.(result);
+      }
     };
 
   const close =

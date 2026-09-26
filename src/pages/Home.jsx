@@ -15,6 +15,7 @@ import MoviesView from "@/components/mg/MoviesView";
 import TvShowsView from "@/components/mg/TvShowsView";
 import LiveTVView from "@/components/mg/LiveTVView";
 import SearchDialog from "@/components/mg/SearchDialog";
+import { searchTmdbId } from "@/components/mg/searchMediaIdentity";
 import DetailModal from "@/components/mg/DetailModal";
 import FireTvRemote from "@/components/mg/FireTvRemote";
 import MediaGodV2Assist from "@/components/mg/MediaGodV2Assist";
@@ -134,11 +135,7 @@ const normaliseSearchSelection =
       return null;
     }
 
-    const id =
-      value.id ??
-      value.tmdb_id ??
-      value.tmdbId ??
-      null;
+    const id = searchTmdbId(value);
 
     if (
       id == null ||
@@ -188,13 +185,9 @@ const normaliseSearchSelection =
 
       id,
 
-      tmdb_id:
-        value.tmdb_id ??
-        id,
+      tmdb_id: id,
 
-      tmdbId:
-        value.tmdbId ??
-        id,
+      tmdbId: id,
 
       title,
 
@@ -564,6 +557,17 @@ function MediaGodApp() {
     key: 0,
   });
 
+  const [pendingSearchSelection, setPendingSearchSelection] = useState(null);
+
+  useEffect(() => {
+    if (!searchOpen && pendingSearchSelection) {
+      // The Search dialog has unmounted in the preceding React commit.
+      // Mount details only now so Android never owns both overlays at once.
+      setSearchResult(pendingSearchSelection);
+      setPendingSearchSelection(null);
+    }
+  }, [searchOpen, pendingSearchSelection]);
+
   useEffect(() => {
     const onReturnToEpisodeSelector = (
       event
@@ -685,6 +689,11 @@ function MediaGodApp() {
           return true;
         }
 
+        if (pendingSearchSelection) {
+          setPendingSearchSelection(null);
+          return true;
+        }
+
         /*
          * Search.
          */
@@ -751,6 +760,7 @@ function MediaGodApp() {
       [
         searchOpen,
         searchResult,
+        pendingSearchSelection,
         tvProviderRequest,
         view,
       ]
@@ -759,6 +769,7 @@ function MediaGodApp() {
   const openSearch =
     useCallback(
       () => {
+        setPendingSearchSelection(null);
         setSearchResult(
           null
         );
@@ -773,7 +784,8 @@ function MediaGodApp() {
   const handleSearchSelect =
     useCallback(
       (
-        rawItem
+        rawItem,
+        fromSearch = false
       ) => {
         if (
           rawItem?.media_type === "live" ||
@@ -842,15 +854,11 @@ function MediaGodApp() {
         setSearchOpen(
           false
         );
-
-        window.setTimeout(
-          () => {
-            setSearchResult(
-              item
-            );
-          },
-          0
-        );
+        if (fromSearch) {
+          setPendingSearchSelection(item);
+        } else {
+          setSearchResult(item);
+        }
       },
       []
     );
@@ -889,6 +897,7 @@ function MediaGodApp() {
 
   const openSettingsTool = useCallback((nextView) => {
     setSearchOpen(false);
+    setPendingSearchSelection(null);
     setSearchResult(null);
     setLiveSearchRequest((current) => ({
       query: "",
@@ -900,6 +909,7 @@ function MediaGodApp() {
   const openTvStreamingService = useCallback((service) => {
     if (!service?.providerIds?.length) return;
     setSearchOpen(false);
+    setPendingSearchSelection(null);
     setSearchResult(null);
     setTvProviderRequest((current) => ({
       service,
@@ -998,6 +1008,8 @@ function MediaGodApp() {
                 false
               );
 
+              setPendingSearchSelection(null);
+
               setSearchResult(
                 null
               );
@@ -1030,6 +1042,8 @@ function MediaGodApp() {
               setSearchOpen(
                 false
               );
+
+              setPendingSearchSelection(null);
 
               setSearchResult(
                 null
@@ -1196,9 +1210,7 @@ function MediaGodApp() {
         onOpenChange={
           setSearchOpen
         }
-        onSelect={
-          handleSearchSelect
-        }
+        onSelect={(item) => handleSearchSelect(item, true)}
       />
 
       {searchResult && (
