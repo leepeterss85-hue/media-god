@@ -1654,14 +1654,14 @@ export default function DetailModal({
           </div>
           </>)}
 
-          <div hidden={activeTab !== "reviews"}>
+          {activeTab === "reviews" && <div>
             <MediaReviews
               key={`${resolvedMediaType}:${itemId}`}
               tmdbId={itemId}
               mediaType={resolvedMediaType}
               title={displayTitle}
             />
-          </div>
+          </div>}
 
           {resolvedMediaType ===
             "tv" &&

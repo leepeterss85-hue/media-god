@@ -101,7 +101,7 @@ test("movie, show and episode reviews use a public 1-to-5 star auto-publish mode
   );
   assert.match(reviews, /mediaType === "tv" \? "tv" : "movie"/);
   assert.match(details, /<MediaReviews[\s\S]{0,180}?mediaType=\{resolvedMediaType\}/);
-  assert.match(details, /hidden=\{activeTab !== "reviews"\}/);
+  assert.match(details, /activeTab === "reviews" && <div>[\s\S]{0,80}?<MediaReviews/);
   assert.match(details, /hidden=\{activeTab !== "episodes"\}/);
   assert.match(episodes, /<MediaReviews[\s\S]{0,260}?mediaType="episode"/);
   assert.match(episodes, />\s*Review\s*<\/button>/);

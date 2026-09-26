@@ -325,6 +325,12 @@ export default function StreamSourcesBox({
       []
     );
 
+  const [visibleSourceCount, setVisibleSourceCount] = useState(24);
+
+  useEffect(() => {
+    setVisibleSourceCount(24);
+  }, [tmdbId, title, season, episode]);
+
   const [
     addonLoading,
     setAddonLoading,
@@ -1277,7 +1283,7 @@ export default function StreamSourcesBox({
         })
       ),
 
-    ...visibleAddonStreams.map(
+    ...visibleAddonStreams.slice(0, visibleSourceCount).map(
       (
         stream,
         index
@@ -1640,6 +1646,16 @@ export default function StreamSourcesBox({
                 )}
               </button>
             )
+          )}
+
+          {visibleAddonStreams.length > visibleSourceCount && (
+            <button
+              type="button"
+              onClick={() => setVisibleSourceCount((count) => count + 24)}
+              className="w-full min-h-11 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-mg-green hover:bg-white/10"
+            >
+              Show more sources ({visibleAddonStreams.length - visibleSourceCount} remaining)
+            </button>
           )}
 
           {!addonLoading && (
