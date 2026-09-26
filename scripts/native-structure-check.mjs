@@ -18,7 +18,7 @@ const apps = [
     dir: "android-mobile",
     packagePath: "com/mediagod/mobile",
     namespace: "com.mediagod.mobile",
-    expectedVersion: "1.0.59",
+    expectedVersion: "1.0.60",
     expectedMedia3: "1.11.0",
     expectedOrientation: "sensor",
   },
@@ -63,10 +63,9 @@ const nativeCoordinationChecks = [
     "native Live TV watchdog guard",
   ],
   [
-    /if\s*\(\s*!isLive\s*\)\s*\{\s*nativeLaunchTimerRef\.current\s*=\s*window\.setTimeout/m.test(
-      videoPlayer
-    ),
-    "native Live TV duplicate fallback-timer guard",
+    !videoPlayer.includes("nativeLaunchTimerRef") &&
+      videoPlayer.includes("An accepted native request may still be running its network preflight"),
+    "accepted VOD requests cannot time out into a second WebView player",
   ],
   [
     nativeBridge.includes("videoCodec") &&
