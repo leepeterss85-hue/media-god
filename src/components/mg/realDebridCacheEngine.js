@@ -274,6 +274,7 @@ const monitorTorrent = async ({
   let lastMoveAt = Date.now();
   let sameProgressChecks = 0;
   let consecutiveStatusFailures = 0;
+  let finalizingSince = 0;
 
   for (let attempt = 0; attempt < 2400; attempt += 1) {
     if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
@@ -316,6 +317,25 @@ const monitorTorrent = async ({
     if (data?.status === "ready" && data?.stream_url) {
       consecutiveStatusFailures = 0;
       return readyResult(data);
+    }
+
+    const latestSnapshot = progressFrom(data);
+    if (latestSnapshot.progress >= 100 || latestSnapshot.status === "downloaded") {
+      if (!finalizingSince) finalizingSince = Date.now();
+    } else if (!data?.error) {
+      finalizingSince = 0;
+    }
+
+    if (finalizingSince && Date.now() - finalizingSince >= 120000) {
+      return failureResult(
+        "The download finished, but Real-Debrid did not provide a playable link within two minutes. The torrent was kept. Tap Retry to check it again, or choose another source.",
+        {
+          retryable: true,
+          retrySameSource: true,
+          errorCode: "RD_CACHE_FINAL_LINK_TIMEOUT",
+          progress: 100,
+        }
+      );
     }
 
     if (data?.error) {
@@ -385,7 +405,7 @@ const monitorTorrent = async ({
     }
 
     consecutiveStatusFailures = 0;
-    const snapshot = progressFrom(data);
+    const snapshot = latestSnapshot;
     onProgress?.({
       ...snapshot,
       torrent_id: String(torrentId),

@@ -5993,6 +5993,8 @@ export default function VideoPlayer({
       let consecutivePollFailures =
         0;
 
+      let finalizingSince = 0;
+
       const scheduleTransientPollRetry =
         (message) => {
           consecutivePollFailures += 1;
@@ -6213,6 +6215,12 @@ export default function VideoPlayer({
               data.rd_status ||
               ""
             ).toLowerCase();
+
+            if (latestProgress >= 100 || currentRdStatus === "downloaded") {
+              if (!finalizingSince) finalizingSince = Date.now();
+            } else {
+              finalizingSince = 0;
+            }
 
             if (
               /^(?:dead|error|magnet_error|virus)$/.test(
@@ -6452,6 +6460,23 @@ export default function VideoPlayer({
                   : data.error
               );
 
+              return;
+            }
+
+            if (finalizingSince && Date.now() - finalizingSince >= 120000) {
+              setRdPolling(false);
+              setRdTorrentId(null);
+              setRdPreparation((current) => ({
+                ...(current || {}),
+                status: "stalled",
+                stallReason: "playable_link_timeout",
+                progress: latestProgress,
+                updatedAt: Date.now(),
+                torrent_id: String(rdTorrentId || current?.torrent_id || ""),
+              }));
+              setRdError(
+                "The download finished, but Real-Debrid did not provide a playable link within two minutes. The torrent was kept. Tap Retry to check it again, or choose another source."
+              );
               return;
             }
           } catch (
@@ -10439,6 +10464,31 @@ export default function VideoPlayer({
           ? "Download is paused right now. Media God will keep checking automatically."
           : "Playback will start automatically as soon as Real-Debrid reports the file ready.";
 
+  const copyPreparationReport = async () => {
+    const safe = (value) => String(value || "")
+      .replace(/(?:https?:\/\/|magnet:)\S+/gi, "[redacted]")
+      .replace(/(?:bearer|token|api[_-]?key|password)\s*[:= ]\s*\S+/gi, "[redacted]")
+      .replace(/[\r\n]+/g, " ").slice(0, 120);
+    const report = [
+      "Media God preparation report",
+      `Title: ${safe(source?.title || source?.rdTitle)}`,
+      `Source: ${safe(activeSourceLabel)}`,
+      `Stage: ${safe(cacheStatusLabel)}`,
+      `RD status: ${safe(rdPreparation?.status)}`,
+      `Progress: ${cacheProgress}%`,
+      `Elapsed: ${Math.round(cacheElapsedSeconds)} seconds`,
+      `Seeders: ${cacheSeeders}; speed: ${cacheSpeedBps} B/s`,
+      `Failure: ${safe(rdPreparation?.stallReason || rdError || rdPreparation?.lastPollError)}`,
+      `Device: ${getPlaybackDeviceProfile().nativeFireTv ? "Fire TV" : getPlaybackDeviceProfile().nativeAndroidMobile ? "Android app" : "browser"}`,
+    ].join("\n");
+    try {
+      await navigator.clipboard.writeText(report);
+      window.alert("Preparation report copied. Paste it into your message.");
+    } catch {
+      window.prompt("Copy this preparation report:", report);
+    }
+  };
+
   const playerUiStatus =
     displayedError && !busy
       ? "Source issue"
@@ -10654,6 +10704,10 @@ export default function VideoPlayer({
                     <p className="mt-2 text-[10px] leading-relaxed text-white/40 sm:text-xs">
                       {cacheHint}
                     </p>
+                    <button type="button" onClick={copyPreparationReport}
+                      className="mt-3 rounded-lg border border-white/20 px-3 py-2 text-xs font-medium text-white">
+                      Copy preparation report
+                    </button>
                   </div>
                 )}
               </div>
@@ -10682,6 +10736,12 @@ export default function VideoPlayer({
                 >
                   <RefreshCw className="h-3.5 w-3.5" />
                   Retry this source
+                </button>
+              )}
+              {rdPreparation?.stallReason === "playable_link_timeout" && (
+                <button type="button" onClick={copyPreparationReport}
+                  className="rounded-lg border border-white/20 px-3 py-2 text-xs font-medium text-white">
+                  Copy preparation report
                 </button>
               )}
             </div>
