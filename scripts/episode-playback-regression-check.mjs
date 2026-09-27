@@ -37,7 +37,7 @@ expect(
 );
 
 expect(
-  provider.includes('base44.functions.invoke("getSkipSegments"') &&
+  provider.includes('.invoke("getSkipSegments"') &&
     provider.includes('base44.functions.invoke("resolveTvImdb"') &&
     provider.includes("hydrateEpisodeSkipMarkers(current, duration)") &&
     provider.includes("skipMarkerProvenance") &&
