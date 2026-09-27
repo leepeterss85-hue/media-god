@@ -45,3 +45,30 @@ export const resolveCatalogMediaType = (item = {}, fallbackType = "") => {
   if (item?.name && !item?.title) return "tv";
   return "movie";
 };
+
+// Saved cards and search results can disagree on the film's release year.
+// Keep both verified years through source discovery, including entry points
+// that do not fetch full TMDB details before opening the player.
+export const canonicalizeCatalogPlaybackRequest = (request = {}) => {
+  if (!isBadApplesFilm(request)) return request;
+
+  const years = [
+    ...(Array.isArray(request.alternateYears) ? request.alternateYears : []),
+    ...(Array.isArray(request.rdAlternateYears) ? request.rdAlternateYears : []),
+    "2025",
+    "2026",
+  ];
+  const alternateYears = [...new Set(years.map(String))];
+
+  return {
+    ...request,
+    id: 1198654,
+    tmdbId: 1198654,
+    tmdb_id: 1198654,
+    imdbId: "tt29714073",
+    mediaType: "movie",
+    type: "movie",
+    alternateYears,
+    rdAlternateYears: alternateYears,
+  };
+};

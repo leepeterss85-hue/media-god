@@ -9,6 +9,7 @@ import React, {
 } from "react";
 
 import { base44 } from "@/api/base44Client";
+import { canonicalizeCatalogPlaybackRequest } from "./catalogMediaIdentity";
 
 import {
   PlayerProvider as CorePlayerProvider,
@@ -78,6 +79,7 @@ const isExplicitDirectPlayback = (request) =>
   );
 
 const applyReliableVodPolicy = (request = {}) => {
+  request = canonicalizeCatalogPlaybackRequest(request);
   if (
     !request ||
     isLiveRequest(request) ||

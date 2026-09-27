@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 66,
-  "versionName": "1.0.65",
+  "versionCode": 67,
+  "versionName": "1.0.66",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.65 fixes a mobile-only native handoff failure that could occur on titles with hundreds of Real-Debrid/torrent sources. The Android player now receives only the active source metadata, and the APK defensively compacts any oversized hosted payload before crossing the Activity/Binder boundary. This targets the Base44-works/mobile-fails pattern and Saw/Saw X crashes. Live TV is unchanged.",
+  "message": "Media God Mobile 1.0.66 keeps Bad Apples identified as a film and temporarily hides episode skip and early-next prompts. Episodes still advance automatically when playback ends. Live TV is unchanged.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"

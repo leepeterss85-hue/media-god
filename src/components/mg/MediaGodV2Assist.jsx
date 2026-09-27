@@ -96,6 +96,9 @@ const seekVisibleVideo = (seconds) => {
 };
 
 export default function MediaGodV2Assist() {
+  // Temporary episode UI pause: natural `ended` events in PlayerProvider still
+  // advance to the next episode. Movie credit controls remain available.
+  const suppressEpisodeControls = true;
   const [context, setContext] = useState(() => {
     if (typeof window === "undefined") return null;
     return window.__MG_PLAYER_CONTEXT__ || null;
@@ -358,6 +361,7 @@ export default function MediaGodV2Assist() {
 
   useEffect(() => {
     if (
+      suppressEpisodeControls ||
       !isTv ||
       !context?.autoNext ||
       !autoNextCountdownWindow ||
@@ -417,7 +421,8 @@ export default function MediaGodV2Assist() {
     playing,
   ]);
 
-  if (!context || !isPlayableVod || !portalTarget) return null;
+  if (!context || !isPlayableVod || !portalTarget ||
+      (isTv && suppressEpisodeControls)) return null;
 
   const runAction = (event, action) => {
     event?.preventDefault?.();

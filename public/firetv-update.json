@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 78,
-  "versionName": "1.4.73",
+  "versionCode": 79,
+  "versionName": "1.4.74",
   "title": "Media God Fire TV",
-  "message": "Media God Fire TV 1.4.73 applies the same bounded native VOD handoff now proven on Android mobile: movies and episodes send only the active source across the Android Activity/Binder boundary, with a second native size guard preventing oversized source catalogues from crashing playback. Live TV remains unchanged and keeps its complete native failover list.",
+  "message": "Media God Fire TV 1.4.74 keeps Bad Apples identified as a film and temporarily hides episode skip and early-next prompts. Episodes still advance automatically when playback ends. Live TV is unchanged.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",

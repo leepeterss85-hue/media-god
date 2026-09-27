@@ -1408,6 +1408,13 @@ class PlayerActivity : Activity() {
     }
 
     private fun updateAssistControls() {
+        // Episode skip and early-next controls are paused. STATE_ENDED still
+        // reports "ended" to the shared next-episode handoff.
+        if (isTvEpisode()) {
+            nextEpisodeCountdownStartedAtMs = -1L
+            if (::assistControls.isInitialized) assistControls.visibility = View.GONE
+            return
+        }
         if (resultSent || !::assistControls.isInitialized || live) {
             if (::assistControls.isInitialized) assistControls.visibility = View.GONE
             return
