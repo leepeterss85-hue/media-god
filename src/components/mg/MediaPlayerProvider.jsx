@@ -3906,11 +3906,14 @@ export function PlayerProvider({
           getPlaybackDeviceProfile();
         const nativeRuntimeAudioValidationAvailable =
           runtimeFallbackProfile?.nativePlayerAvailable === true;
+        const androidMobileRequiresQualifiedRdHandoff =
+          runtimeFallbackProfile?.nativeAndroidMobile === true;
 
         const runtimeFallbackSources =
           qualificationMode &&
           qualifiedLaunchSources.length === 0 &&
-          nativeRuntimeAudioValidationAvailable
+          nativeRuntimeAudioValidationAvailable &&
+          !androidMobileRequiresQualifiedRdHandoff
             ? orderSources({
                 sources: automaticVodCandidatePool(
                   confirmedCachedPlaybackSources,
