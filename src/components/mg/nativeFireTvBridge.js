@@ -685,8 +685,36 @@ export const playNativeFireTv = ({
 
   const contextHints = nativeSourceHints(playerContext);
 
-  const nativeSources = Array.isArray(sources)
-    ? sources.map((item, index) => {
+  const sourceRows = Array.isArray(sources) ? sources : [];
+  let selectedSourceIndex = sourceRows.findIndex((item, index) => {
+    const webIndex = Number.isFinite(Number(item?.webIndex))
+      ? Number(item.webIndex)
+      : index;
+    return webIndex === Number(activeSourceIndex);
+  });
+
+  if (selectedSourceIndex < 0) {
+    selectedSourceIndex = sourceRows.findIndex(
+      (item) =>
+        String(item?.url || item?.src || item?.magnet || item?.magnetLink || "").trim() ===
+        streamUrl
+    );
+  }
+
+  const selectedSource =
+    selectedSourceIndex >= 0 ? sourceRows[selectedSourceIndex] : null;
+
+  /*
+   * Native Android opens one resolved URL at a time. Building codec/audio
+   * metadata for every discovered torrent duplicates the entire chooser in
+   * WebView memory and can make large-result titles much heavier on mobile
+   * than in Base44. Resolve metadata only for the source actually being handed
+   * to Android; Media God's full chooser remains in the web player.
+   */
+  const selectedHints = selectedSource
+    ? (() => {
+        const item = selectedSource;
+        const index = selectedSourceIndex;
         const hints = nativeSourceHints(item);
 
         return {
@@ -749,15 +777,8 @@ export const playNativeFireTv = ({
                 ? item.requestHeaders
                 : {},
         };
-      })
-    : [];
-
-  const selectedHints =
-    nativeSources.find(
-      (item) => Number(item.webIndex) === Number(activeSourceIndex)
-    ) ||
-    nativeSources.find((item) => item.url === streamUrl) ||
-    null;
+      })()
+    : null;
 
   const resolvedHints = {
     videoCodec: selectedHints?.videoCodec || contextHints.videoCodec || "",
