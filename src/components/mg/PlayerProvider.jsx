@@ -584,6 +584,7 @@ function PlayerAutomationBridge({ children }) {
     availability: "unknown",
   });
   const lastPreloadCheckRef = useRef(0);
+  const skipMarkerLookupKeysRef = useRef(new Set());
 
   const [autoNext, setAutoNext] = useState(
     readAutoNext
@@ -698,6 +699,40 @@ function PlayerAutomationBridge({ children }) {
     []
   );
 
+  const hydrateEpisodeSkipMarkers = useCallback(
+    async (request, durationSeconds = null) => {
+      const episodeKey = episodeIdentityForRequest(request);
+      if (!episodeKey) return;
+
+      const duration = Number(durationSeconds);
+      const safeDuration =
+        Number.isFinite(duration) && duration >= 60
+          ? Math.round(duration)
+          : null;
+      const lookupKey = `${episodeKey}:d${safeDuration || "any"}`;
+
+      if (skipMarkerLookupKeysRef.current.has(lookupKey)) {
+        return;
+      }
+      skipMarkerLookupKeysRef.current.add(lookupKey);
+
+      const enriched = await loadEpisodeSkipMarkers(request, safeDuration);
+
+      if (
+        episodeIdentityForRequest(currentRequestRef.current) !== episodeKey
+      ) {
+        return;
+      }
+
+      currentRequestRef.current = {
+        ...currentRequestRef.current,
+        ...enriched,
+      };
+      publishContext(currentRequestRef.current);
+    },
+    [publishContext]
+  );
+
   const preloadNextEpisode = useCallback(
     (request) => {
       if (!isTvRequest(request)) {
@@ -808,6 +843,10 @@ function PlayerAutomationBridge({ children }) {
       currentRequestRef.current = reliableRequest;
       publishContext(reliableRequest);
 
+      if (isTvRequest(reliableRequest)) {
+        void hydrateEpisodeSkipMarkers(reliableRequest);
+      }
+
       const playbackPromise =
         core.play(reliableRequest);
 
@@ -823,7 +862,7 @@ function PlayerAutomationBridge({ children }) {
 
       return playbackPromise;
     },
-    [core, preloadNextEpisode, publishContext]
+    [core, hydrateEpisodeSkipMarkers, preloadNextEpisode, publishContext]
   );
 
   const resetEnhancedPlayerState = useCallback(() => {
@@ -1321,11 +1360,15 @@ function PlayerAutomationBridge({ children }) {
         );
       }
 
+      const current = currentRequestRef.current;
+      if (isTvRequest(current) && duration >= 60) {
+        void hydrateEpisodeSkipMarkers(current, duration);
+      }
+
       if (!autoNext || advancingRef.current) {
         return;
       }
 
-      const current = currentRequestRef.current;
       if (!isTvRequest(current)) {
         return;
       }
@@ -1566,6 +1609,7 @@ function PlayerAutomationBridge({ children }) {
     advanceToNext,
     autoNext,
     close,
+    hydrateEpisodeSkipMarkers,
     play,
     publishContext,
     publishStatus,
