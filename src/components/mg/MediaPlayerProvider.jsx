@@ -3048,15 +3048,23 @@ export function PlayerProvider({
           "";
 
         /*
-         * MANUAL SOURCE-FIRST MODE
+         * NORMAL VOD OWNERSHIP CONTRACT
          *
-         * Keep discovery/cache enrichment, but do not put normal VOD behind
-         * the strict verified-launch barrier. Every direct/magnet source stays
-         * available to the player and the user can choose any source again.
-         * English/compatibility metadata may still influence sorting, but it
-         * no longer decides whether a source is allowed to open.
+         * With Real-Debrid connected, catalogue playback must resolve and
+         * qualify a cached torrent into a real HTTP media URL before Android
+         * Media3 takes ownership. Publishing the first raw addon magnet here
+         * makes VideoPlayer perform a second RD add/select/unrestrict cycle and
+         * can lock playback onto an uncached torrent even when verified cached
+         * releases are already available.
+         *
+         * Explicit RD-library/manual requests remain the deliberate exception.
+         * Live TV is outside this VOD qualification path.
          */
-        const qualificationMode = false;
+        const qualificationMode =
+          !isLive &&
+          hasRd &&
+          !request?.noRd &&
+          request?.verifiedPlaybackPolicy !== "manual";
 
         const initialOrderedSources =
           orderSources({
