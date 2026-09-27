@@ -927,7 +927,15 @@ export const playNativeFireTv = ({
           .filter((track) => /^https?:\/\//i.test(track.url))
           .slice(0, 20)
       : [],
-    sources: nativeSources,
+    /*
+     * Never ship the complete VOD catalogue across Android's JS -> Activity
+     * handoff. Large titles can expose hundreds of sources; serialising all of
+     * them into an Intent extra can exceed Android's Binder transaction budget
+     * and either fail the player launch or terminate the app process. Native
+     * playback only needs metadata for the source it is actually opening; the
+     * complete chooser remains owned by the web player.
+     */
+    sources: selectedHints ? [selectedHints] : [],
     activeSourceIndex: Math.max(0, Number(activeSourceIndex || 0)),
   };
 
