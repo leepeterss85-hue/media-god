@@ -30,7 +30,10 @@ const { playNativeFireTv } = await import(`data:text/javascript,${encodeURICompo
 globalThis.__testExclusiveStops = 0;
 globalThis.document = { querySelectorAll: () => [] };
 globalThis.window = {
-  MediaGodNative: { play: () => "true" },
+  MediaGodNative: {
+    play: () => "true",
+    getAppInfo: () => JSON.stringify({ platform: "android-mobile" }),
+  },
   __MG_NATIVE_PLAYBACK_ACTIVE__: false,
   __MG_PLAYER_CONTEXT__: { mediaType: "movie" },
   localStorage: { getItem: () => "[]", setItem: () => {} },
@@ -113,4 +116,42 @@ test("Android native handoff never serialises a hundreds-source catalogue into t
   assert.match(mobileMainSource, /compactNativeActivityPayload\(payload\)/);
   assert.match(mobileMainSource, /putExtra\(PlayerActivity\.EXTRA_PAYLOAD, compactPlayerPayload\)/);
   assert.match(mobileMainSource, /encoded\.toByteArray\(Charsets\.UTF_8\)\.size > 256 \* 1024/);
+  assert.match(mobileMainSource, /if \(payload\.optBoolean\("live", false\)\) \{\s*return payload\.toString\(\)/);
+});
+
+test("Fire TV and Live TV keep the complete native source payload", () => {
+  const sources = Array.from({ length: 12 }, (_, index) => ({
+    label: `Source ${index}`,
+    url: `https://media.example.test/source-${index}.m3u8`,
+    webIndex: index,
+  }));
+
+  let captured = null;
+  window.MediaGodNative.play = (value) => {
+    captured = JSON.parse(value);
+    return "true";
+  };
+
+  window.MediaGodNative.getAppInfo = () => JSON.stringify({ platform: "fire-tv" });
+  assert.equal(
+    playNativeFireTv({
+      ...request(),
+      sources,
+      activeSourceIndex: 3,
+    }),
+    true
+  );
+  assert.equal(captured.sources.length, sources.length);
+
+  window.MediaGodNative.getAppInfo = () => JSON.stringify({ platform: "android-mobile" });
+  assert.equal(
+    playNativeFireTv({
+      ...request(),
+      live: true,
+      sources,
+      activeSourceIndex: 3,
+    }),
+    true
+  );
+  assert.equal(captured.sources.length, sources.length);
 });
