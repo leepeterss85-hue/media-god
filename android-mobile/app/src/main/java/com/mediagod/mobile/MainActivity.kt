@@ -501,6 +501,10 @@ class MainActivity : Activity() {
      * accidentally regressed hosted bundle.
      */
     private fun compactNativeActivityPayload(payload: JSONObject): String {
+        if (payload.optBoolean("live", false)) {
+            return payload.toString()
+        }
+
         val compact = try {
             JSONObject(payload.toString())
         } catch (_: Throwable) {
