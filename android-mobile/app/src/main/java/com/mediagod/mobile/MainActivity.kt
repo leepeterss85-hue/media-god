@@ -498,7 +498,8 @@ class MainActivity : Activity() {
      *
      * Keep this native-side compactor even though the current web bridge also
      * sends only the active source. It protects installed APKs from an older or
-     * accidentally regressed hosted bundle.
+     * accidentally regressed hosted bundle. The regression suite exercises a
+     * 355-source VOD handoff so this Activity/Binder boundary stays bounded.
      */
     private fun compactNativeActivityPayload(payload: JSONObject): String {
         if (payload.optBoolean("live", false)) {
