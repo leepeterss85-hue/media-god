@@ -238,6 +238,114 @@ const episodeIdentityForRequest = (request) => {
     : "";
 };
 
+const skipMarkerImdbCache = new Map();
+const skipMarkerResultCache = new Map();
+
+const validImdbId = (value) => {
+  const id = String(value || "").trim();
+  return /^tt\d+$/i.test(id) ? id.toLowerCase() : "";
+};
+
+const resolveSkipMarkerImdbId = async (request) => {
+  const episodeKey = episodeIdentityForRequest(request);
+  if (!episodeKey) return "";
+
+  if (skipMarkerImdbCache.has(episodeKey)) {
+    return skipMarkerImdbCache.get(episodeKey);
+  }
+
+  const lookup = (async () => {
+    const supplied = validImdbId(request?.imdbId ?? request?.imdb_id);
+    const tmdbId =
+      request?.tmdbId ?? request?.tmdb_id ?? request?.id ?? null;
+
+    if (tmdbId) {
+      try {
+        const response = await base44.functions.invoke("resolveTvImdb", {
+          tmdb_id: tmdbId,
+          title: seriesTitleFromRequest(request),
+          year: request?.rdYear ?? request?.year ?? "",
+        });
+        const resolved = validImdbId(unwrap(response)?.imdb_id);
+        if (resolved) return resolved;
+      } catch {
+        // Marker lookup is optional and must never interrupt playback.
+      }
+    }
+
+    return supplied;
+  })();
+
+  skipMarkerImdbCache.set(episodeKey, lookup);
+  return lookup;
+};
+
+const mergeEpisodeSkipMarkers = (request, lookup) => {
+  const databaseMarkers = lookup?.markers || {};
+  const existingMarkers = request?.skipMarkers || request?.skip_markers || {};
+
+  const mergeType = (type) => ({
+    ...(databaseMarkers?.[type] || {}),
+    ...(existingMarkers?.[type] || {}),
+  });
+
+  return {
+    ...request,
+    imdbId: validImdbId(lookup?.imdb_id) || request?.imdbId || request?.imdb_id || "",
+    skipMarkers: {
+      ...databaseMarkers,
+      ...existingMarkers,
+      recap: mergeType("recap"),
+      intro: mergeType("intro"),
+      credits: mergeType("credits"),
+    },
+    skipMarkerProvenance: lookup?.provenance || request?.skipMarkerProvenance || {},
+    skipMarkerProviders: lookup?.providers || request?.skipMarkerProviders || [],
+  };
+};
+
+const loadEpisodeSkipMarkers = async (request, durationSeconds = null) => {
+  if (!isTvRequest(request)) return request;
+
+  const season = positiveInt(request?.season ?? request?.rdSeason);
+  const episode = positiveInt(request?.episode ?? request?.rdEpisode);
+  if (!season || !episode) return request;
+
+  const imdbId = await resolveSkipMarkerImdbId(request);
+  if (!imdbId) return request;
+
+  const duration = Number(durationSeconds);
+  const safeDuration =
+    Number.isFinite(duration) && duration >= 60
+      ? Math.round(duration)
+      : null;
+  const cacheKey = `${imdbId}:s${season}:e${episode}:d${safeDuration || "any"}`;
+
+  let lookupPromise = skipMarkerResultCache.get(cacheKey);
+  if (!lookupPromise) {
+    lookupPromise = base44.functions
+      .invoke("getSkipSegments", {
+        imdb_id: imdbId,
+        season,
+        episode,
+        ...(safeDuration ? { duration: safeDuration } : {}),
+      })
+      .then((response) => unwrap(response))
+      .catch(() => null);
+    skipMarkerResultCache.set(cacheKey, lookupPromise);
+  }
+
+  const lookup = await lookupPromise;
+  if (!lookup || typeof lookup !== "object") {
+    return {
+      ...request,
+      imdbId: imdbId || request?.imdbId || "",
+    };
+  }
+
+  return mergeEpisodeSkipMarkers(request, lookup);
+};
+
 const continueWatchingKeyForRequest = (request) => {
   if (!request) return "";
 
