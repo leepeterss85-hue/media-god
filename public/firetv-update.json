@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 79,
-  "versionName": "1.4.74",
+  "versionCode": 80,
+  "versionName": "1.4.75",
   "title": "Media God Fire TV",
-  "message": "Media God Fire TV 1.4.74 keeps Bad Apples identified as a film and temporarily hides episode skip and early-next prompts. Episodes still advance automatically when playback ends. Live TV is unchanged.",
+  "message": "Media God Fire TV 1.4.75 restores episode assist controls safely: Skip recap and Skip intro only appear from explicit episode markers, Next episode appears only at verified credits or the final 45 seconds, and automatic next waits for the episode to actually end. Live TV is unchanged.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
