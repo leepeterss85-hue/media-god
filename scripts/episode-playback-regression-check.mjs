@@ -36,13 +36,17 @@ expect(
 );
 
 expect(
-  assist.includes("const suppressEpisodeControls = true") &&
-    assist.includes("suppressEpisodeControls ||") &&
-    assist.includes("(isTv && suppressEpisodeControls)") &&
+  assist.includes("const suppressEpisodeControls = false") &&
+    assist.includes("const canSkipRecap = exactRecapWindow;") &&
+    assist.includes("const canSkipIntro = !canSkipRecap && exactIntroWindow;") &&
+    !assist.includes("fallbackRecapWindow") &&
+    !assist.includes("fallbackIntroWindow") &&
+    assist.includes("const autoNextCountdownWindow = false;") &&
+    assist.includes("remaining <= 45") &&
     assist.includes("creditsWindow && !isTv") &&
     provider.includes('"mg:native-playback-ended"') &&
     provider.includes('document.addEventListener(\n      "ended"'),
-  "episode prompts are hidden while browser/native natural endings still auto-advance"
+  "episode assist only trusts explicit recap/intro markers and natural endings own auto-next"
 );
 
 expect(
@@ -88,10 +92,16 @@ expect(
 );
 
 expect(
-  native.includes('if (isTvEpisode()) {\n            nextEpisodeCountdownStartedAtMs = -1L') &&
-    native.includes('finishWithResult("ended")') &&
-    native.includes("private fun updateAssistControls()"),
-  "Fire TV hides episode prompts and reports natural completion for auto-next"
+  native.includes("private fun updateAssistControls()") &&
+    native.includes("val recapVisible = exactRecap") &&
+    native.includes("val introVisible = !recapVisible && exactIntro") &&
+    native.includes("val countdownWindow = false") &&
+    native.includes("remaining <= 45_000L") &&
+    native.includes("!tvEpisode &&") &&
+    !native.includes("val fallbackRecap =") &&
+    !native.includes("val fallbackIntro =") &&
+    native.includes('finishWithResult("ended")'),
+  "Fire TV only shows marker-backed episode skips and waits for natural completion to auto-next"
 );
 
 
@@ -200,10 +210,16 @@ expect(
 );
 
 expect(
-  mobileNative.includes('if (isTvEpisode()) {\n            nextEpisodeCountdownStartedAtMs = -1L') &&
-    mobileNative.includes('finishWithResult("ended")') &&
-    mobileNative.includes("private fun updateAssistControls()"),
-  "Android mobile hides episode prompts and reports natural completion for auto-next"
+  mobileNative.includes("private fun updateAssistControls()") &&
+    mobileNative.includes("val recapVisible = exactRecap") &&
+    mobileNative.includes("val introVisible = !recapVisible && exactIntro") &&
+    mobileNative.includes("val countdownWindow = false") &&
+    mobileNative.includes("remaining <= 45_000L") &&
+    mobileNative.includes("!tvEpisode &&") &&
+    !mobileNative.includes("val fallbackRecap =") &&
+    !mobileNative.includes("val fallbackIntro =") &&
+    mobileNative.includes('finishWithResult("ended")'),
+  "Android mobile only shows marker-backed episode skips and waits for natural completion to auto-next"
 );
 
 expect(
