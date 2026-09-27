@@ -406,6 +406,123 @@ class MainActivity : Activity() {
         }
     }
 
+    /*
+     * Fire TV launches its decoder Activity through the same Android Binder
+     * boundary as phone/tablet. VOD can legitimately discover hundreds of
+     * torrents, but the native decoder only needs the source it is opening.
+     * Keep Live TV unchanged because its native failover intentionally owns the
+     * full channel-source list. This second native guard also protects Fire TV
+     * if an older or regressed hosted bundle ever sends a huge VOD catalogue.
+     */
+    private fun compactNativeActivityPayload(payload: JSONObject): String {
+        if (payload.optBoolean("live", false)) {
+            return payload.toString()
+        }
+
+        val compact = try {
+            JSONObject(payload.toString())
+        } catch (_: Throwable) {
+            JSONObject()
+        }
+
+        val sources = payload.optJSONArray("sources")
+        val activeWebIndex = payload.optInt("activeSourceIndex", -1)
+        val targetUrl = payload.optString("url").trim()
+        var selectedSource: JSONObject? = null
+
+        if (sources != null) {
+            for (index in 0 until sources.length()) {
+                val item = sources.optJSONObject(index) ?: continue
+                val webIndex = if (item.has("webIndex")) item.optInt("webIndex", index) else index
+                if (webIndex == activeWebIndex) {
+                    selectedSource = item
+                    break
+                }
+            }
+
+            if (selectedSource == null && targetUrl.isNotBlank()) {
+                for (index in 0 until sources.length()) {
+                    val item = sources.optJSONObject(index) ?: continue
+                    if (item.optString("url").trim() == targetUrl) {
+                        selectedSource = item
+                        break
+                    }
+                }
+            }
+        }
+
+        val compactSources = JSONArray()
+        selectedSource?.let { item ->
+            val copy = JSONObject()
+            val allowedKeys = arrayOf(
+                "label",
+                "sourceName",
+                "url",
+                "mimeType",
+                "videoCodec",
+                "audioCodec",
+                "container",
+                "videoProfile",
+                "width",
+                "height",
+                "fps",
+                "bitDepth",
+                "bitrate",
+                "hdrFormat",
+                "verifiedEnglishMain",
+                "preferredAudioTrackName",
+                "preferredAudioTrackLanguage",
+                "preferredAudioTrackCodec",
+                "preferredAudioTrackStream",
+                "webIndex",
+                "headers",
+                "drm",
+                "hintText"
+            )
+            allowedKeys.forEach { key ->
+                if (item.has(key)) {
+                    copy.put(key, item.opt(key))
+                }
+            }
+            if (copy.has("hintText")) {
+                copy.put("hintText", copy.optString("hintText").take(2048))
+            }
+            compactSources.put(copy)
+        }
+        compact.put("sources", compactSources)
+        compact.put("hintText", compact.optString("hintText").take(2048))
+
+        var encoded = compact.toString()
+        if (encoded.toByteArray(Charsets.UTF_8).size > 256 * 1024) {
+            val subtitles = compact.optJSONArray("subtitles")
+            val trimmedSubtitles = JSONArray()
+            if (subtitles != null) {
+                for (index in 0 until minOf(subtitles.length(), 8)) {
+                    val item = subtitles.optJSONObject(index) ?: continue
+                    trimmedSubtitles.put(
+                        JSONObject().apply {
+                            put("url", item.optString("url").take(4096))
+                            put("language", item.optString("language").take(32))
+                            put("label", item.optString("label").take(256))
+                            put("mimeType", item.optString("mimeType").take(128))
+                        }
+                    )
+                }
+            }
+            compact.put("subtitles", trimmedSubtitles)
+            encoded = compact.toString()
+        }
+
+        if (encoded.toByteArray(Charsets.UTF_8).size > 384 * 1024) {
+            compact.put("sources", JSONArray())
+            compact.put("subtitles", JSONArray())
+            compact.put("hintText", compact.optString("hintText").take(512))
+            encoded = compact.toString()
+        }
+
+        return encoded
+    }
+
     inner class NativeBridge {
         @JavascriptInterface
         fun isAvailable(): Boolean =
@@ -811,8 +928,9 @@ class MainActivity : Activity() {
                         PlayerActivity::class.java
                     }
 
+                val compactPlayerPayload = compactNativeActivityPayload(payload)
                 val intent = Intent(this@MainActivity, activityClass).apply {
-                    putExtra(PlayerActivity.EXTRA_PAYLOAD, payload.toString())
+                    putExtra(PlayerActivity.EXTRA_PAYLOAD, compactPlayerPayload)
                 }
 
                 try {
