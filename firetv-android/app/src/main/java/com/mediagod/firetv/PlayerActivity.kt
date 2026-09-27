@@ -2,6 +2,7 @@ package com.mediagod.firetv
 
 import android.app.Activity
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.StateListDrawable
@@ -17,6 +18,7 @@ import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.FrameLayout
+import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.Spinner
 import android.widget.TextView
@@ -33,6 +35,7 @@ import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
 import androidx.media3.ui.PlayerView
+import androidx.media3.ui.DefaultTimeBar
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.math.max
@@ -489,6 +492,73 @@ class PlayerActivity : Activity() {
         }
     }
 
+    /** Style Media3's existing controls, leaving every player action attached. */
+    private fun styleNativeVodController() {
+        fun control(idName: String): View? {
+            val id = resources.getIdentifier(idName, "id", packageName)
+            return if (id == 0) null else playerView.findViewById(id)
+        }
+
+        val focusColors = ColorStateList(
+            arrayOf(intArrayOf(android.R.attr.state_focused), intArrayOf()),
+            intArrayOf(Color.WHITE, Color.WHITE)
+        )
+        val playColors = ColorStateList(
+            arrayOf(intArrayOf(android.R.attr.state_focused), intArrayOf()),
+            intArrayOf(Color.WHITE, Color.rgb(16, 16, 16))
+        )
+
+        fun background(primary: Boolean): StateListDrawable {
+            fun pill(fill: Int, border: Int): GradientDrawable = GradientDrawable().apply {
+                cornerRadius = dp(30).toFloat()
+                setColor(fill)
+                setStroke(dp(1), border)
+            }
+            return StateListDrawable().apply {
+                addState(intArrayOf(android.R.attr.state_focused), pill(Color.rgb(190, 18, 29), Color.WHITE))
+                addState(intArrayOf(android.R.attr.state_pressed), pill(Color.rgb(190, 18, 29), Color.WHITE))
+                addState(intArrayOf(), if (primary) pill(Color.WHITE, Color.WHITE)
+                    else pill(Color.argb(155, 18, 18, 18), Color.argb(100, 255, 255, 255)))
+            }
+        }
+
+        control("exo_controls_background")?.setBackgroundColor(Color.argb(70, 0, 0, 0))
+        control("exo_bottom_bar")?.background = GradientDrawable(
+            GradientDrawable.Orientation.BOTTOM_TOP,
+            intArrayOf(Color.argb(225, 0, 0, 0), Color.TRANSPARENT)
+        )
+
+        (control("exo_center_controls") as? LinearLayout)?.let { row ->
+            (row.layoutParams as? FrameLayout.LayoutParams)?.let { params ->
+                params.gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+                params.bottomMargin = dp(98)
+                row.layoutParams = params
+            }
+            row.setPadding(dp(10), dp(5), dp(10), dp(5))
+            row.background = GradientDrawable().apply {
+                cornerRadius = dp(38).toFloat()
+                setColor(Color.argb(125, 0, 0, 0))
+            }
+        }
+
+        listOf("exo_rew_with_amount", "exo_rew", "exo_play_pause", "exo_ffwd_with_amount", "exo_ffwd",
+            "exo_subtitle", "exo_settings").forEach { name ->
+            val view = control(name) ?: return@forEach
+            val primary = name == "exo_play_pause"
+            view.background = background(primary)
+            view.backgroundTintList = null
+            (view as? ImageButton)?.imageTintList = if (primary) playColors else focusColors
+            (view as? Button)?.setTextColor(if (primary) playColors else focusColors)
+        }
+
+        (control("exo_progress") as? DefaultTimeBar)?.apply {
+            setPlayedColor(Color.rgb(229, 9, 20))
+            setScrubberColor(Color.WHITE)
+            setBufferedColor(Color.argb(170, 255, 255, 255))
+            setUnplayedColor(Color.argb(100, 255, 255, 255))
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -615,6 +685,7 @@ class PlayerActivity : Activity() {
         }
 
         setContentView(root)
+        if (!live) playerView.post { styleNativeVodController() }
         playerView.requestFocus()
         playerView.post(updateAssistControlsRunnable)
         hideControllerNow()

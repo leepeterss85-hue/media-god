@@ -1,4 +1,4 @@
-// VOD player controls release 1.4.76 verification.
+// Native transport controls release 1.4.77 verification.
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.mediagod.firetv"
         minSdk = 21
         targetSdk = 35
-        versionCode = 81
-        versionName = "1.4.76"
+        versionCode = 82
+        versionName = "1.4.77"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
