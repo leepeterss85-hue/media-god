@@ -41,12 +41,17 @@ expect(
     provider.includes('base44.functions.invoke("resolveTvImdb"') &&
     provider.includes("hydrateEpisodeSkipMarkers(current, duration)") &&
     provider.includes("skipMarkerProvenance") &&
+    provider.includes("skipMarkersPending: true") &&
+    provider.includes("skipMarkersPending: false") &&
+    videoPlayer.includes('window.addEventListener("mg:player-context", onPlayerContext)') &&
+    videoPlayer.includes("nativeEpisodeContext?.skipMarkersPending === true") &&
+    videoPlayer.includes("if (episodeMarkerLookupPending)") &&
     skipSegments.includes("https://api.skipdb.tv/api/segments") &&
     skipSegments.includes("https://api.introdb.app/segments") &&
     skipSegments.includes('skipUrl.searchParams.set("adjust", "conservative")') &&
     skipSegments.includes('if (match === "out-of-range") return null;') &&
     !skipSegments.includes("intro_length_estimate_ms"),
-  "episode marker lookup is non-guessing, duration-aware and rejects uncertain SkipDB release matches"
+  "episode marker lookup settles before native TV launch and rejects uncertain release matches"
 );
 
 expect(
