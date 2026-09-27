@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 67,
-  "versionName": "1.0.66",
+  "versionCode": 68,
+  "versionName": "1.0.67",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.66 keeps Bad Apples identified as a film and temporarily hides episode skip and early-next prompts. Episodes still advance automatically when playback ends. Live TV is unchanged.",
+  "message": "Media God Mobile 1.0.67 restores episode assist controls safely: Skip recap and Skip intro only appear from explicit episode markers, Next episode appears only at verified credits or the final 45 seconds, and automatic next waits for the episode to actually end. Live TV is unchanged.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
