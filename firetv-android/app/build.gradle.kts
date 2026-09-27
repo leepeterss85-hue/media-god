@@ -1,4 +1,4 @@
-// Complete cached-source chooser release verification.
+// Episode assist release 1.4.75 verification.
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
