@@ -669,6 +669,10 @@ function PlayerAutomationBridge({ children }) {
         introStart: playbackMarker(request, "intro", "start"),
         introEnd: playbackMarker(request, "intro", "end"),
         creditsStart: playbackMarker(request, "credits", "start"),
+        skipMarkersPending: Boolean(request?.skipMarkersPending),
+        skipMarkerProviders: Array.isArray(request?.skipMarkerProviders)
+          ? request.skipMarkerProviders
+          : [],
       };
 
       window.__MG_PLAYER_CONTEXT__ = detail;
@@ -727,6 +731,7 @@ function PlayerAutomationBridge({ children }) {
       currentRequestRef.current = {
         ...currentRequestRef.current,
         ...enriched,
+        skipMarkersPending: false,
       };
       publishContext(currentRequestRef.current);
     },
@@ -839,12 +844,19 @@ function PlayerAutomationBridge({ children }) {
     async (request = {}) => {
       const reliableRequest =
         applyReliableVodPolicy(request);
+      const contextRequest =
+        isTvRequest(reliableRequest)
+          ? {
+              ...reliableRequest,
+              skipMarkersPending: true,
+            }
+          : reliableRequest;
 
-      currentRequestRef.current = reliableRequest;
-      publishContext(reliableRequest);
+      currentRequestRef.current = contextRequest;
+      publishContext(contextRequest);
 
-      if (isTvRequest(reliableRequest)) {
-        void hydrateEpisodeSkipMarkers(reliableRequest);
+      if (isTvRequest(contextRequest)) {
+        void hydrateEpisodeSkipMarkers(contextRequest);
       }
 
       const playbackPromise =
