@@ -614,3 +614,35 @@ body.mg-fire-tv-stable [data-mg-player-root="true"] input[type="range"]:focus-vi
 body.mg-fire-tv-mode [data-mg-player-root="true"] input[type="range"]:focus-visible {
   accent-color: #7ee787 !important;
 }
+
+/* VOD presentation sits above the legacy generic Fire TV transport rules. */
+body.mg-fire-tv [data-mg-player-vod="true"] [data-mg-player-controls-bottom="true"],
+body.mg-fire-tv-stable [data-mg-player-vod="true"] [data-mg-player-controls-bottom="true"],
+body.mg-fire-tv-mode [data-mg-player-vod="true"] [data-mg-player-controls-bottom="true"] {
+  padding: 56px 5vw 5vh !important;
+  background: linear-gradient(to top, #000f, #000b 48%, transparent) !important;
+}
+
+body.mg-fire-tv [data-mg-player-vod="true"] [data-mg-player-seek-row="true"],
+body.mg-fire-tv-stable [data-mg-player-vod="true"] [data-mg-player-seek-row="true"],
+body.mg-fire-tv-mode [data-mg-player-vod="true"] [data-mg-player-seek-row="true"],
+body.mg-fire-tv [data-mg-player-vod="true"] [data-mg-player-button-row="true"],
+body.mg-fire-tv-stable [data-mg-player-vod="true"] [data-mg-player-button-row="true"],
+body.mg-fire-tv-mode [data-mg-player-vod="true"] [data-mg-player-button-row="true"] {
+  width: min(1040px, 90vw) !important;
+}
+
+body.mg-fire-tv [data-mg-player-vod="true"] [data-mg-player-button-row="true"] button:focus-visible,
+body.mg-fire-tv-stable [data-mg-player-vod="true"] [data-mg-player-button-row="true"] button:focus-visible,
+body.mg-fire-tv-mode [data-mg-player-vod="true"] [data-mg-player-button-row="true"] button:focus-visible {
+  outline: 2px solid white !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 7px #be121d66 !important;
+  transform: scale(1.07) !important;
+}
+
+body.mg-fire-tv [data-mg-player-vod="true"] .mg-player-ten,
+body.mg-fire-tv-stable [data-mg-player-vod="true"] .mg-player-ten,
+body.mg-fire-tv-mode [data-mg-player-vod="true"] .mg-player-ten {
+  font-size: 9px !important;
+}

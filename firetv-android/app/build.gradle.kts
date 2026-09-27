@@ -1,4 +1,4 @@
-// Episode assist release 1.4.75 verification.
+// VOD player controls release 1.4.76 verification.
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.mediagod.firetv"
         minSdk = 21
         targetSdk = 35
-        versionCode = 80
-        versionName = "1.4.75"
+        versionCode = 81
+        versionName = "1.4.76"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

@@ -1,4 +1,4 @@
-// Episode assist release 1.0.67 verification.
+// VOD player controls release 1.0.68 verification.
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.mediagod.mobile"
         minSdk = 23
         targetSdk = 35
-        versionCode = 68
-        versionName = "1.0.67"
+        versionCode = 69
+        versionName = "1.0.68"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 68,
-  "versionName": "1.0.67",
+  "versionCode": 69,
+  "versionName": "1.0.68",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.67 restores episode assist controls safely: Skip recap and Skip intro only appear from explicit episode markers, Next episode appears only at verified credits or the final 45 seconds, and automatic next waits for the episode to actually end. Live TV is unchanged.",
+  "message": "Media God Mobile 1.0.68 refreshes movie and episode player controls with clearer transport and seek styling. Episode prompts have a cleaner look and keep their marker-based timing. Live TV is unchanged.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"

@@ -744,7 +744,8 @@ expect(
     fireTvPlayerActivity.includes("configureAssistFocus") &&
     fireTvPlayerActivity.includes("moveAssistFocus") &&
     fireTvPlayerActivity.includes("focused.performClick()") &&
-    fireTvPlayerActivity.includes("ColorStateList") &&
+    (fireTvPlayerActivity.includes("ColorStateList") ||
+      fireTvPlayerActivity.includes("StateListDrawable")) &&
     seamlessNextCss.includes('content: "Loading next episode…";') &&
     seamlessNextCss.includes("z-index: 2147483647"),
   "Fire TV episode prompts can lose remote focus or expose the episode list during native handoff"

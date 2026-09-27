@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import "@/components/mg/media-player-controls.css";
 import {
   friendlyTrackLabel,
   preferredAudioTrackScore,
@@ -1646,6 +1647,7 @@ export default function MediaPlayerControls({
   return (
     <div
       data-mg-player-controls="true"
+      data-mg-player-vod={isLive ? "false" : "true"}
       className="absolute inset-0 z-[60] pointer-events-none"
     >
       <style>{`
@@ -1922,6 +1924,7 @@ export default function MediaPlayerControls({
                 value={
                   progress
                 }
+                style={{ background: `linear-gradient(to right, #e50914 ${progress}%, rgba(255, 255, 255, .38) ${progress}%)` }}
                 onChange={
                   seekTo
                 }
@@ -1943,7 +1946,7 @@ export default function MediaPlayerControls({
                 onBlur={
                   blurControl
                 }
-                className="h-1.5 min-w-0 flex-1 cursor-pointer accent-mg-green sm:h-2"
+                className="mg-player-seek h-1.5 min-w-0 flex-1 cursor-pointer sm:h-2"
                 aria-label="Seek through video"
               />
 
@@ -1956,36 +1959,6 @@ export default function MediaPlayerControls({
           ) : null}
 
           <div data-mg-player-button-row="true" className="flex items-center gap-2 sm:gap-3">
-            <button
-              type="button"
-              onClick={
-                togglePlay
-              }
-              onFocus={
-                focusControl
-              }
-              onBlur={
-                blurControl
-              }
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-black transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-mg-green focus:ring-offset-2 focus:ring-offset-black sm:h-11 sm:w-11"
-              aria-label={
-                playing
-                  ? "Pause"
-                  : "Play"
-              }
-              title={
-                playing
-                  ? "Pause"
-                  : "Play"
-              }
-            >
-              {playing ? (
-                <Pause className="h-5 w-5 fill-current" />
-              ) : (
-                <Play className="ml-0.5 h-5 w-5 fill-current" />
-              )}
-            </button>
-
             {!isLive ? (
               <>
                 <button
@@ -2003,27 +1976,42 @@ export default function MediaPlayerControls({
                   aria-label="Back 10 seconds"
                   title="Back 10 seconds"
                 >
-                  <RotateCcw className="h-4 w-4" />
+                  <RotateCcw className="h-5 w-5" strokeWidth={2.3} />
+                  <span aria-hidden="true" className="mg-player-ten">10</span>
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    skip(10);
-                  }}
-                  onFocus={
-                    focusControl
-                  }
-                  onBlur={
-                    blurControl
-                  }
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/45 text-white transition hover:bg-white/15 focus:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green sm:h-10 sm:w-10"
-                  aria-label="Forward 10 seconds"
-                  title="Forward 10 seconds"
-                >
-                  <RotateCw className="h-4 w-4" />
-                </button>
               </>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={togglePlay}
+              onFocus={focusControl}
+              onBlur={blurControl}
+              className="mg-player-primary flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-black transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-mg-green focus:ring-offset-2 focus:ring-offset-black sm:h-11 sm:w-11"
+              aria-label={playing ? "Pause" : "Play"}
+              title={playing ? "Pause" : "Play"}
+            >
+              {playing ? (
+                <Pause className="h-5 w-5 fill-current" />
+              ) : (
+                <Play className="ml-0.5 h-5 w-5 fill-current" />
+              )}
+            </button>
+
+            {!isLive ? (
+              <button
+                type="button"
+                onClick={() => skip(10)}
+                onFocus={focusControl}
+                onBlur={blurControl}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/45 text-white transition hover:bg-white/15 focus:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green sm:h-10 sm:w-10"
+                aria-label="Forward 10 seconds"
+                title="Forward 10 seconds"
+              >
+                <RotateCw className="h-5 w-5" strokeWidth={2.3} />
+                <span aria-hidden="true" className="mg-player-ten">10</span>
+              </button>
             ) : null}
 
             <div className="group flex items-center gap-1.5">

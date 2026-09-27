@@ -1,0 +1,140 @@
+/* Playback chrome only. The Live TV controls retain their existing layout. */
+[data-mg-player-vod="true"] [data-mg-player-controls-bottom="true"] {
+  padding-top: 4.25rem;
+  background: linear-gradient(0deg, rgba(0, 0, 0, .96), rgba(0, 0, 0, .74) 45%, transparent) !important;
+}
+
+[data-mg-player-vod="true"] [data-mg-player-seek-row="true"],
+[data-mg-player-vod="true"] [data-mg-player-button-row="true"] {
+  max-width: 1100px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+[data-mg-player-vod="true"] [data-mg-player-seek-row="true"] {
+  gap: .85rem;
+  margin-bottom: .75rem;
+}
+
+[data-mg-player-vod="true"] [data-mg-player-seek-row="true"] > span {
+  color: rgba(255, 255, 255, .78);
+  font-variant-numeric: tabular-nums;
+}
+
+[data-mg-player-vod="true"] .mg-player-seek {
+  height: 6px;
+  border-radius: 999px;
+  appearance: none;
+  -webkit-appearance: none;
+  outline-offset: 7px;
+  touch-action: none;
+}
+
+[data-mg-player-vod="true"] .mg-player-seek::-webkit-slider-thumb {
+  width: 15px;
+  height: 15px;
+  border: 2px solid white;
+  border-radius: 50%;
+  background: #e50914;
+  -webkit-appearance: none;
+  box-shadow: 0 2px 10px #000a;
+}
+
+[data-mg-player-vod="true"] .mg-player-seek::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border: 2px solid white;
+  border-radius: 50%;
+  background: #e50914;
+  box-shadow: 0 2px 10px #000a;
+}
+
+[data-mg-player-vod="true"] [data-mg-player-button-row="true"] {
+  gap: .7rem;
+}
+
+[data-mg-player-vod="true"] [data-mg-player-button-row="true"] button {
+  position: relative;
+  border-color: transparent;
+  background: transparent;
+  color: white;
+  transition: transform 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+}
+
+[data-mg-player-vod="true"] [data-mg-player-button-row="true"] button:hover,
+[data-mg-player-vod="true"] [data-mg-player-button-row="true"] button:focus-visible {
+  background: rgba(255, 255, 255, .17);
+}
+
+[data-mg-player-vod="true"] [data-mg-player-button-row="true"] .mg-player-primary {
+  width: 50px;
+  height: 50px;
+  background: white;
+  color: #101010;
+}
+
+[data-mg-player-vod="true"] [data-mg-player-button-row="true"] .mg-player-primary:hover,
+[data-mg-player-vod="true"] [data-mg-player-button-row="true"] .mg-player-primary:focus-visible {
+  background: #f0f0f0;
+}
+
+[data-mg-player-vod="true"] .mg-player-ten {
+  position: absolute;
+  left: 50%;
+  top: 54%;
+  transform: translate(-50%, -50%);
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  pointer-events: none;
+}
+
+[data-mg-player-vod="true"] [data-mg-player-button-row="true"] button[aria-label="Subtitles"],
+[data-mg-player-vod="true"] [data-mg-player-button-row="true"] button[aria-label="Audio track"],
+[data-mg-player-vod="true"] [data-mg-player-button-row="true"] select[aria-label="Playback speed"] {
+  border: 1px solid rgba(255, 255, 255, .23);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, .38);
+  color: white;
+  font-size: 11px;
+  letter-spacing: .02em;
+}
+
+[data-mg-player-vod="true"] [data-mg-player-button-row="true"] button:focus-visible,
+[data-mg-player-vod="true"] [data-mg-player-button-row="true"] select:focus-visible,
+[data-mg-player-vod="true"] .mg-player-seek:focus-visible {
+  outline: 2px solid white;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 6px rgba(229, 9, 20, .38);
+}
+
+[data-mg-player-vod="true"] [data-mg-player-button-row="true"] button:focus-visible {
+  transform: scale(1.07);
+}
+
+@media (max-width: 640px) {
+  [data-mg-player-vod="true"] [data-mg-player-button-row="true"] {
+    flex-wrap: wrap;
+    gap: .25rem .5rem;
+  }
+
+  [data-mg-player-vod="true"] [data-mg-player-controls-spacer="true"] {
+    flex: 0 0 100%;
+    height: 0;
+  }
+
+  [data-mg-player-vod="true"] [data-mg-player-button-row="true"] .group input[aria-label="Volume"] {
+    display: none;
+  }
+
+  [data-mg-player-vod="true"] [data-mg-player-button-row="true"] .mg-player-primary {
+    width: 46px;
+    height: 46px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-mg-player-vod="true"] [data-mg-player-button-row="true"] button {
+    transition: none;
+  }
+}

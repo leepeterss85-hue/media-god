@@ -3,6 +3,8 @@ package com.mediagod.mobile
 import android.app.Activity
 import android.content.Intent
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.StateListDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.view.Gravity
@@ -405,7 +407,8 @@ class PlayerActivity : Activity() {
             isAllCaps = false
             textSize = 14f
             setTextColor(Color.WHITE)
-            setBackgroundColor(Color.argb(205, 28, 28, 28))
+            background = episodeActionBackground()
+            backgroundTintList = null
             minimumHeight = dp(42)
             minHeight = dp(42)
             setPadding(dp(12), dp(4), dp(12), dp(4))
@@ -426,7 +429,10 @@ class PlayerActivity : Activity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(10), dp(8), dp(10), dp(8))
-            setBackgroundColor(Color.argb(205, 6, 6, 6))
+            background = GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                intArrayOf(Color.argb(210, 0, 0, 0), Color.argb(145, 0, 0, 0))
+            ).apply { cornerRadius = dp(14).toFloat() }
             addView(
                 backButton,
                 LinearLayout.LayoutParams(
@@ -1315,16 +1321,34 @@ class PlayerActivity : Activity() {
                     payload.optInt("episode", 0) > 0
             )
 
+    private fun episodeActionBackground(): StateListDrawable {
+        fun pill(fill: Int, border: Int): GradientDrawable = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = dp(24).toFloat()
+            setColor(fill)
+            setStroke(dp(1), border)
+        }
+
+        return StateListDrawable().apply {
+            addState(intArrayOf(android.R.attr.state_focused), pill(Color.rgb(190, 18, 29), Color.WHITE))
+            addState(intArrayOf(android.R.attr.state_pressed), pill(Color.rgb(190, 18, 29), Color.WHITE))
+            addState(intArrayOf(), pill(Color.argb(215, 18, 18, 18), Color.argb(170, 255, 255, 255)))
+        }
+    }
+
     private fun buildAssistButton(label: String, onClick: () -> Unit): Button =
         Button(this).apply {
             text = label
             isAllCaps = false
             textSize = 13f
-            minHeight = dp(48)
+            letterSpacing = 0.02f
+            minHeight = dp(44)
             minWidth = dp(108)
-            setPadding(dp(10), 0, dp(10), 0)
+            setPadding(dp(16), 0, dp(16), 0)
             setTextColor(Color.WHITE)
-            setBackgroundColor(Color.argb(220, 20, 20, 20))
+            background = episodeActionBackground()
+            backgroundTintList = null
+            stateListAnimator = null
             visibility = View.GONE
             isFocusable = true
             isFocusableInTouchMode = true
@@ -1384,7 +1408,10 @@ class PlayerActivity : Activity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(4), dp(3), dp(4), dp(3))
-            setBackgroundColor(Color.argb(170, 0, 0, 0))
+            background = GradientDrawable().apply {
+                cornerRadius = dp(28).toFloat()
+                setColor(Color.argb(125, 0, 0, 0))
+            }
             visibility = View.GONE
             addView(skipRecapButton)
             addView(skipIntroButton)
