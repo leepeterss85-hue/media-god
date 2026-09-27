@@ -1066,6 +1066,7 @@ export default function VideoPlayer({
     playRequestId: source?.playRequestId ?? null,
     attempted: false,
   });
+  const sourceChooserRef = useRef(null);
   const lastPlayRequestIdRef = useRef(
     source?.playRequestId ?? null
   );
@@ -10387,6 +10388,10 @@ export default function VideoPlayer({
    * while the chooser had a much larger cached/selectable set.
    */
   const selectableSourceCount = selectableSourceEntries.length;
+  const showSourceChooser = () => {
+    sourceChooserRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    sourceChooserRef.current?.focus({ preventScroll: true });
+  };
   const noPlayableVodSources =
     !isLive &&
     Boolean(source?.sourceDiagnostics?.diagnosticLabel) &&
@@ -10749,6 +10754,12 @@ export default function VideoPlayer({
                       className="mt-3 rounded-lg border border-white/20 px-3 py-2 text-xs font-medium text-white">
                       Copy preparation report
                     </button>
+                    {selectableSourceCount > 1 && (
+                      <button type="button" onClick={showSourceChooser}
+                        className="ml-2 mt-3 rounded-lg border border-mg-green/60 px-3 py-2 text-xs font-bold text-mg-green">
+                        Choose another source
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -10768,6 +10779,13 @@ export default function VideoPlayer({
               <p className="max-w-md text-xs leading-relaxed text-white/50 sm:text-sm">
                 {friendlyError || "Media God rejected an error/status stream instead of playing it as video."}
               </p>
+
+              {selectableSourceCount > 1 && (
+                <button type="button" onClick={showSourceChooser}
+                  className="min-h-11 rounded-lg bg-mg-green px-4 text-sm font-bold text-black focus:outline-none focus:ring-2 focus:ring-white/70">
+                  Choose another source ({selectableSourceCount})
+                </button>
+              )}
 
               {isRdSource && (
                 <button
@@ -11391,6 +11409,7 @@ export default function VideoPlayer({
 
               <div className="relative">
                 <select
+                  ref={sourceChooserRef}
                   value={visibleSourceSelectorValue}
                   onPointerDown={pinSourceSelector}
                   onKeyDown={(event) => {
