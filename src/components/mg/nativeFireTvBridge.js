@@ -704,81 +704,92 @@ export const playNativeFireTv = ({
   const selectedSource =
     selectedSourceIndex >= 0 ? sourceRows[selectedSourceIndex] : null;
 
-  /*
-   * Native Android opens one resolved URL at a time. Building codec/audio
-   * metadata for every discovered torrent duplicates the entire chooser in
-   * WebView memory and can make large-result titles much heavier on mobile
-   * than in Base44. Resolve metadata only for the source actually being handed
-   * to Android; Media God's full chooser remains in the web player.
-   */
-  const selectedHints = selectedSource
-    ? (() => {
-        const item = selectedSource;
-        const index = selectedSourceIndex;
-        const hints = nativeSourceHints(item);
+  const toNativeSource = (item, index) => {
+    const hints = nativeSourceHints(item);
 
-        return {
-          label: String(
-            item?.label || item?.name || item?.sourceName || `Source ${index + 1}`
-          )
-            .replace(/\s+/g, " ")
-            .trim(),
-          sourceName: String(
-            item?.sourceName ||
-              item?.addon ||
-              item?.provider ||
-              item?.debridProvider ||
-              ""
-          )
-            .replace(/\s+/g, " ")
-            .trim(),
-          url: String(item?.url || item?.src || item?.magnet || item?.magnetLink || "").trim(),
-          mimeType: String(item?.mimeType || item?.mime_type || "").trim(),
-          videoCodec: hints.videoCodec,
-          audioCodec: hints.audioCodec,
-          container: hints.container,
-          videoProfile: hints.videoProfile,
-          width: hints.width,
-          height: hints.height,
-          fps: hints.fps,
-          bitDepth: hints.bitDepth,
-          bitrate: hints.bitrate,
-          hdrFormat: hints.hdrFormat,
-          hintText: hints.hintText,
-          verifiedEnglishMain: hints.verifiedEnglishMain,
-          preferredAudioTrackName: hints.preferredAudioTrackName,
-          preferredAudioTrackLanguage: hints.preferredAudioTrackLanguage,
-          preferredAudioTrackCodec: hints.preferredAudioTrackCodec,
-          preferredAudioTrackStream: hints.preferredAudioTrackStream,
-          drm:
-            item?.drm && typeof item.drm === "object" && !Array.isArray(item.drm)
-              ? {
-                  scheme: String(item.drm?.scheme || "widevine").trim(),
-                  licenseUrl: String(item.drm?.licenseUrl || item.drm?.license_url || "").trim(),
-                  headers:
-                    item.drm?.headers &&
-                    typeof item.drm.headers === "object" &&
-                    !Array.isArray(item.drm.headers)
-                      ? item.drm.headers
-                      : {},
-                }
-              : null,
-          webIndex: Number.isFinite(Number(item?.webIndex))
-            ? Number(item.webIndex)
-            : index,
-          headers:
-            item?.headers &&
-            typeof item.headers === "object" &&
-            !Array.isArray(item.headers)
-              ? item.headers
-              : item?.requestHeaders &&
-                  typeof item.requestHeaders === "object" &&
-                  !Array.isArray(item.requestHeaders)
-                ? item.requestHeaders
-                : {},
-        };
-      })()
+    return {
+      label: String(
+        item?.label || item?.name || item?.sourceName || `Source ${index + 1}`
+      )
+        .replace(/\s+/g, " ")
+        .trim(),
+      sourceName: String(
+        item?.sourceName ||
+          item?.addon ||
+          item?.provider ||
+          item?.debridProvider ||
+          ""
+      )
+        .replace(/\s+/g, " ")
+        .trim(),
+      url: String(item?.url || item?.src || item?.magnet || item?.magnetLink || "").trim(),
+      mimeType: String(item?.mimeType || item?.mime_type || "").trim(),
+      videoCodec: hints.videoCodec,
+      audioCodec: hints.audioCodec,
+      container: hints.container,
+      videoProfile: hints.videoProfile,
+      width: hints.width,
+      height: hints.height,
+      fps: hints.fps,
+      bitDepth: hints.bitDepth,
+      bitrate: hints.bitrate,
+      hdrFormat: hints.hdrFormat,
+      hintText: hints.hintText,
+      verifiedEnglishMain: hints.verifiedEnglishMain,
+      preferredAudioTrackName: hints.preferredAudioTrackName,
+      preferredAudioTrackLanguage: hints.preferredAudioTrackLanguage,
+      preferredAudioTrackCodec: hints.preferredAudioTrackCodec,
+      preferredAudioTrackStream: hints.preferredAudioTrackStream,
+      drm:
+        item?.drm && typeof item.drm === "object" && !Array.isArray(item.drm)
+          ? {
+              scheme: String(item.drm?.scheme || "widevine").trim(),
+              licenseUrl: String(item.drm?.licenseUrl || item.drm?.license_url || "").trim(),
+              headers:
+                item.drm?.headers &&
+                typeof item.drm.headers === "object" &&
+                !Array.isArray(item.drm.headers)
+                  ? item.drm.headers
+                  : {},
+            }
+          : null,
+      webIndex: Number.isFinite(Number(item?.webIndex))
+        ? Number(item.webIndex)
+        : index,
+      headers:
+        item?.headers &&
+        typeof item.headers === "object" &&
+        !Array.isArray(item.headers)
+          ? item.headers
+          : item?.requestHeaders &&
+              typeof item.requestHeaders === "object" &&
+              !Array.isArray(item.requestHeaders)
+            ? item.requestHeaders
+            : {},
+    };
+  };
+
+  const selectedHints = selectedSource
+    ? toNativeSource(selectedSource, selectedSourceIndex)
     : null;
+
+  const nativePlatform = String(nativeFireTvAppInfo()?.platform || "")
+    .trim()
+    .toLowerCase();
+  const compactAndroidVodHandoff =
+    !live && nativePlatform === "android-mobile";
+
+  /*
+   * Android phone/tablet VOD opens one resolved URL at a time. Building and
+   * serialising codec/audio metadata for hundreds of discovered torrents can
+   * exceed the Android Activity/Binder transaction budget. Fire TV and Live TV
+   * keep their existing complete native source payload unchanged.
+   */
+  const nativePayloadSources = compactAndroidVodHandoff
+    ? selectedHints
+      ? [selectedHints]
+      : []
+    : sourceRows.map(toNativeSource);
 
   const resolvedHints = {
     videoCodec: selectedHints?.videoCodec || contextHints.videoCodec || "",
