@@ -15,7 +15,7 @@
     "base44/functions/evSportsLive/entry.ts": "149d7c13a8e56e602e450919ade50b3b6d58ea115c746370863803fbe4c8ec4d",
     "android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt": "8455d4d280e8718394d108de94702cf91ddbf6d1c9583dd1938fb5c97ad4dfe7",
     "android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt": "0cbaf81ba918d1d5fd765bafa5d547c34da36b61bff997aa39c70538c9678337",
-    "firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt": "221941eb4f22f50e82c1ccd3606890f89c583a5e6ad0ae47784afa6097eb7a29",
+    "firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt": "e507a0d143e17020fae892b66cc3f1d0907af607ccd305f0d9f6f6828245edd3",
     "firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt": "01462aec72dba919d3f6d091a79c8a9f51a8d4032475ad8d7d40d31c008b0827"
   }
 }
