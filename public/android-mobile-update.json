@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 70,
-  "versionName": "1.0.69",
+  "versionCode": 71,
+  "versionName": "1.0.70",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.69 brings the cleaner transport controls and progress bar into the native movie and episode player. All playback and episode actions remain available. Live TV is unchanged.",
+  "message": "Media God Mobile 1.0.70 adds an in-player playback report with selected audio, codec and decoder details to diagnose silent or failing movies and episodes. Live TV playback is unchanged.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"

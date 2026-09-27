@@ -1,6 +1,9 @@
 package com.mediagod.mobile
 
 import android.app.Activity
+import android.app.AlertDialog
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
@@ -19,6 +22,7 @@ import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -79,6 +83,9 @@ class PlayerActivity : Activity() {
     private var audioPresenceCheckGeneration = 0
     private var audioOutputConfirmed = false
     private var firstVideoFrameRendered = false
+    private var audioDecoderName = "unknown"
+    private var videoDecoderName = "unknown"
+    private var lastPlayerErrorCode = "none"
     private var autoNext = true
     private var recapStartMs = -1L
     private var recapEndMs = -1L
@@ -418,6 +425,19 @@ class PlayerActivity : Activity() {
             setOnClickListener { finishWithResult("back") }
         }
 
+        val reportButton = Button(this).apply {
+            text = "Report"
+            contentDescription = "Show playback report"
+            isAllCaps = false
+            textSize = 13f
+            setTextColor(Color.WHITE)
+            background = episodeActionBackground()
+            backgroundTintList = null
+            minHeight = dp(42)
+            setPadding(dp(12), 0, dp(12), 0)
+            setOnClickListener { showPlaybackReport() }
+        }
+
         val titleView = TextView(this).apply {
             text = title.trim().ifBlank { "Media God" }
             setTextColor(Color.WHITE)
@@ -443,6 +463,9 @@ class PlayerActivity : Activity() {
                     ViewGroup.LayoutParams.WRAP_CONTENT
                 )
             )
+            addView(reportButton, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { marginStart = dp(8) })
             addView(
                 titleView,
                 LinearLayout.LayoutParams(
@@ -452,6 +475,66 @@ class PlayerActivity : Activity() {
                 )
             )
         }
+    }
+
+    private fun safeReportField(value: String): String = value
+        .replace(Regex("""(?i)(?:https?://|magnet:)\S+"""), "[redacted]")
+        .replace(Regex("""(?i)(?:bearer|token|api[_-]?key|password)\s*[:= ]\s*\S+"""), "[redacted]")
+        .replace(Regex("""[\r\n]+"""), " ")
+        .take(100)
+
+    private fun buildPlaybackReport(): String {
+        val activePlayer = player
+        val tracks = activePlayer?.currentTracks?.groups.orEmpty()
+        val selectedAudio = mutableListOf<String>()
+        val selectedVideo = mutableListOf<String>()
+        val availableAudio = mutableListOf<String>()
+        tracks.forEach { group ->
+            for (index in 0 until group.length) {
+                val format = group.getTrackFormat(index)
+                val codec = format.sampleMimeType.orEmpty().ifBlank { "unknown" }
+                if (group.type == C.TRACK_TYPE_AUDIO) {
+                    if (availableAudio.size < 12) availableAudio.add(
+                        "${format.language.orEmpty().ifBlank { "und" }} $codec${if (group.isTrackSupported(index)) "" else " (unsupported)"}"
+                    )
+                    if (group.isTrackSelected(index)) selectedAudio.add(
+                        "${format.language.orEmpty().ifBlank { "und" }} $codec ${safeReportField(format.label.orEmpty())}"
+                    )
+                } else if (group.type == C.TRACK_TYPE_VIDEO && group.isTrackSelected(index)) {
+                    selectedVideo.add("$codec ${format.width}x${format.height}")
+                }
+            }
+        }
+        return buildString {
+            appendLine("Media God playback report")
+            appendLine("App: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
+            appendLine("Device: ${safeReportField(android.os.Build.MANUFACTURER)} ${safeReportField(android.os.Build.MODEL)}")
+            appendLine("Title: ${safeReportField(title)}")
+            appendLine("Source: ${safeReportField(activeSourceMetadata()?.optString("label").orEmpty())}")
+            appendLine("Player: Media3")
+            appendLine("Video: ${selectedVideo.joinToString().ifBlank { "unknown" }}")
+            appendLine("Video decoder: ${safeReportField(videoDecoderName)}")
+            appendLine("Audio: ${selectedAudio.joinToString().ifBlank { "unknown" }}")
+            appendLine("Audio decoder: ${safeReportField(audioDecoderName)}")
+            appendLine("Available audio: ${availableAudio.joinToString("; ").ifBlank { "unknown" }}")
+            appendLine("Audio clock advanced: $audioOutputConfirmed (does not prove sound is audible)")
+            appendLine("Error: ${safeReportField(lastPlayerErrorCode)}")
+            appendLine("Position: ${activePlayer?.currentPosition ?: restorePositionMs} ms")
+        }
+    }
+
+    private fun showPlaybackReport() {
+        val report = buildPlaybackReport()
+        AlertDialog.Builder(this)
+            .setTitle("Playback report")
+            .setMessage(report)
+            .setPositiveButton("Copy") { _, _ ->
+                val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(ClipData.newPlainText("Media God playback report", report))
+                Toast.makeText(this, "Playback report copied", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Close", null)
+            .show()
     }
 
     /** Style Media3's existing controls, leaving every player action attached. */
@@ -838,7 +921,19 @@ class PlayerActivity : Activity() {
 
         audioOutputConfirmed = false
         firstVideoFrameRendered = false
+        audioDecoderName = "unknown"
+        videoDecoderName = "unknown"
+        lastPlayerErrorCode = "none"
         exoPlayer.addAnalyticsListener(object : AnalyticsListener {
+            override fun onAudioDecoderInitialized(eventTime: AnalyticsListener.EventTime,
+                decoderName: String, initializedTimestampMs: Long, initializationDurationMs: Long) {
+                if (player === exoPlayer) audioDecoderName = decoderName
+            }
+
+            override fun onVideoDecoderInitialized(eventTime: AnalyticsListener.EventTime,
+                decoderName: String, initializedTimestampMs: Long, initializationDurationMs: Long) {
+                if (player === exoPlayer) videoDecoderName = decoderName
+            }
             override fun onAudioPositionAdvancing(
                 eventTime: AnalyticsListener.EventTime,
                 playoutStartSystemTimeMs: Long
@@ -940,6 +1035,7 @@ class PlayerActivity : Activity() {
             }
 
             override fun onPlayerError(error: PlaybackException) {
+                lastPlayerErrorCode = "${error.errorCodeName} ${error.cause?.javaClass?.simpleName.orEmpty()}".trim()
                 if (retryUnknownHttpsSourceType(exoPlayer)) {
                     return
                 }
@@ -1697,6 +1793,9 @@ class PlayerActivity : Activity() {
                 }
             }
             audioDetails.put("audioTracks", detected)
+            audioDetails.put("audioDecoder", audioDecoderName)
+            audioDetails.put("videoDecoder", videoDecoderName)
+            audioDetails.put("playerErrorCode", lastPlayerErrorCode)
             audioDetails.put("audioOutputConfirmed", audioOutputConfirmed)
             audioDetails.put("audioFailureEvidence", "unknown")
         }

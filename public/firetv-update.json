@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 82,
-  "versionName": "1.4.77",
+  "versionCode": 83,
+  "versionName": "1.4.78",
   "title": "Media God Fire TV",
-  "message": "Media God Fire TV 1.4.77 brings the cleaner transport controls and progress bar into the native movie and episode player, with clear remote focus. All episode actions remain available. Live TV is unchanged.",
+  "message": "Media God Fire TV 1.4.78 adds an in-player playback report with selected audio, codec and decoder details to diagnose silent or failing movies and episodes. Live TV playback is unchanged.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",

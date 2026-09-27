@@ -2,6 +2,8 @@ package com.mediagod.mobile
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
@@ -18,6 +20,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.TextView
+import android.widget.Toast
 import org.json.JSONArray
 import org.json.JSONObject
 import org.videolan.libvlc.LibVLC
@@ -487,6 +490,7 @@ class CompatibilityPlayerActivity : Activity() {
         }
 
         val backButton = controlButton("← Back") { finishWithResult("back") }
+        val reportButton = controlButton("Report") { showPlaybackReport() }
         val rewindButton = controlButton("−10s") { seekBy(-10_000L) }
         playPauseButton = controlButton("Pause") { togglePlayback() }
         val forwardButton = controlButton("+10s") { seekBy(10_000L) }
@@ -605,6 +609,9 @@ class CompatibilityPlayerActivity : Activity() {
                     marginEnd = dp(4)
                 }
             )
+            addView(reportButton, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { marginEnd = dp(6) })
             addView(
                 titleText,
                 LinearLayout.LayoutParams(
@@ -1321,6 +1328,37 @@ class CompatibilityPlayerActivity : Activity() {
                 "Audio: ${source.optString("audioCodec").ifBlank { "unknown" }} · ${outputLabel()} · sync ${lipSyncMs}ms\n" +
                 "Container: ${source.optString("container").ifBlank { source.optString("mimeType") }} · ${source.optJSONObject("devicePerformance")?.optString("thermalStatusName") ?: "normal"}"
         )
+    }
+
+    private fun showPlaybackReport() {
+        fun safe(value: String): String = value
+            .replace(Regex("""(?i)(?:https?://|magnet:)\S+"""), "[redacted]")
+            .replace(Regex("""(?i)(?:bearer|token|api[_-]?key|password)\s*[:= ]\s*\S+"""), "[redacted]")
+            .replace(Regex("""[\r\n]+"""), " ").take(100)
+        val current = vlcPlayer
+        val hint = NativePlaybackDiagnostics.snapshot(payload, streamUrl, "libvlc", "report", context = this)
+        val tracks = try { current?.audioTracks?.filter { it.id >= 0 }.orEmpty() } catch (_: Throwable) { emptyList() }
+        val selected = tracks.firstOrNull { it.id == current?.audioTrack }
+        val report = buildString {
+            appendLine("Media God playback report")
+            appendLine("App: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
+            appendLine("Device: ${safe(android.os.Build.MANUFACTURER)} ${safe(android.os.Build.MODEL)}")
+            appendLine("Title: ${safe(payload.optString("title"))}")
+            appendLine("Source: ${safe(hint.optString("label"))}")
+            appendLine("Player: LibVLC compatibility (decoder name unavailable)")
+            appendLine("Video codec hint: ${safe(hint.optString("videoCodec"))}")
+            appendLine("Audio codec hint: ${safe(hint.optString("audioCodec"))}")
+            appendLine("Selected audio: ${safe(selected?.name.orEmpty().ifBlank { "unknown" })} (id ${current?.audioTrack ?: -1})")
+            appendLine("Available audio: ${tracks.take(12).joinToString("; ") { safe(it.name.orEmpty()) }.ifBlank { "unknown" }}")
+            appendLine("Output: $audioOutputMode; software video: $forceSoftwareVideoDecode")
+            appendLine("Position: ${current?.time ?: startPositionMs} ms")
+        }
+        AlertDialog.Builder(this).setTitle("Playback report").setMessage(report)
+            .setPositiveButton("Copy") { _, _ ->
+                val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(ClipData.newPlainText("Media God playback report", report))
+                Toast.makeText(this, "Playback report copied", Toast.LENGTH_SHORT).show()
+            }.setNegativeButton("Close", null).show()
     }
 
     private fun showStatus(message: String) {
