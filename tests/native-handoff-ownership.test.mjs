@@ -14,6 +14,10 @@ const mobileMainSource = readFileSync(
   new URL("../android-mobile/app/src/main/java/com/mediagod/mobile/MainActivity.kt", import.meta.url),
   "utf8"
 );
+const fireTvMainSource = readFileSync(
+  new URL("../firetv-android/app/src/main/java/com/mediagod/firetv/MainActivity.kt", import.meta.url),
+  "utf8"
+);
 
 let moduleText = bridgeSource
   .replace(
@@ -74,7 +78,7 @@ test("an accepted VOD handoff has no WebView fallback timer", () => {
   assert.match(playerSource, /An accepted native request may still be running its network preflight/);
 });
 
-test("Android native handoff never serialises a hundreds-source catalogue into the player Intent", () => {
+test("Android phone and Fire TV VOD never serialise a hundreds-source catalogue into the player Intent", () => {
   let captured = null;
   window.MediaGodNative.play = (value) => {
     captured = JSON.parse(value);
@@ -113,13 +117,32 @@ test("Android native handoff never serialises a hundreds-source catalogue into t
   assert.equal(captured.sources[0].url, selectedUrl);
   assert.ok(JSON.stringify(captured).length < 100_000);
 
-  assert.match(mobileMainSource, /compactNativeActivityPayload\(payload\)/);
-  assert.match(mobileMainSource, /putExtra\(PlayerActivity\.EXTRA_PAYLOAD, compactPlayerPayload\)/);
-  assert.match(mobileMainSource, /encoded\.toByteArray\(Charsets\.UTF_8\)\.size > 256 \* 1024/);
-  assert.match(mobileMainSource, /if \(payload\.optBoolean\("live", false\)\) \{\s*return payload\.toString\(\)/);
+  window.MediaGodNative.getAppInfo = () => JSON.stringify({ platform: "fire-tv" });
+  captured = null;
+  assert.equal(
+    playNativeFireTv({
+      ...request(),
+      url: selectedUrl,
+      sources,
+      activeSourceIndex: selectedIndex,
+    }),
+    true
+  );
+  assert.ok(captured);
+  assert.equal(captured.sources.length, 1);
+  assert.equal(captured.sources[0].webIndex, selectedIndex);
+  assert.equal(captured.sources[0].url, selectedUrl);
+  assert.ok(JSON.stringify(captured).length < 100_000);
+
+  for (const nativeMainSource of [mobileMainSource, fireTvMainSource]) {
+    assert.match(nativeMainSource, /compactNativeActivityPayload\(payload\)/);
+    assert.match(nativeMainSource, /putExtra\(PlayerActivity\.EXTRA_PAYLOAD, compactPlayerPayload\)/);
+    assert.match(nativeMainSource, /encoded\.toByteArray\(Charsets\.UTF_8\)\.size > 256 \* 1024/);
+    assert.match(nativeMainSource, /if \(payload\.optBoolean\("live", false\)\) \{\s*return payload\.toString\(\)/);
+  }
 });
 
-test("Fire TV and Live TV keep the complete native source payload", () => {
+test("Live TV keeps the complete native source payload on phone and Fire TV", () => {
   const sources = Array.from({ length: 12 }, (_, index) => ({
     label: `Source ${index}`,
     url: `https://media.example.test/source-${index}.m3u8`,
@@ -132,26 +155,18 @@ test("Fire TV and Live TV keep the complete native source payload", () => {
     return "true";
   };
 
-  window.MediaGodNative.getAppInfo = () => JSON.stringify({ platform: "fire-tv" });
-  assert.equal(
-    playNativeFireTv({
-      ...request(),
-      sources,
-      activeSourceIndex: 3,
-    }),
-    true
-  );
-  assert.equal(captured.sources.length, sources.length);
-
-  window.MediaGodNative.getAppInfo = () => JSON.stringify({ platform: "android-mobile" });
-  assert.equal(
-    playNativeFireTv({
-      ...request(),
-      live: true,
-      sources,
-      activeSourceIndex: 3,
-    }),
-    true
-  );
-  assert.equal(captured.sources.length, sources.length);
+  for (const platform of ["fire-tv", "android-mobile"]) {
+    window.MediaGodNative.getAppInfo = () => JSON.stringify({ platform });
+    captured = null;
+    assert.equal(
+      playNativeFireTv({
+        ...request(),
+        live: true,
+        sources,
+        activeSourceIndex: 3,
+      }),
+      true
+    );
+    assert.equal(captured.sources.length, sources.length);
+  }
 });
