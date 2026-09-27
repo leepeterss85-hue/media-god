@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 85,
-  "versionName": "1.4.80",
+  "versionCode": 86,
+  "versionName": "1.4.81",
   "title": "Media God Fire TV",
-  "message": "Media God Fire TV 1.4.80 adds a visible Sources control to the native movie and episode players. Live TV playback is unchanged.",
+  "message": "Media God Fire TV 1.4.81 shows the complete movie and episode source list in the native player while keeping the video handoff compact. Live TV playback is unchanged.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",

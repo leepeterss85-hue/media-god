@@ -916,7 +916,8 @@ class CompatibilityPlayerActivity : Activity() {
             }
         }
         collect(payload.optJSONObject("headers"))
-        val sources = payload.optJSONArray("sources") ?: JSONArray()
+        val sources = payload.optJSONArray("sourceChoices")?.takeIf { it.length() > 0 }
+            ?: payload.optJSONArray("sources") ?: JSONArray()
         for (index in 0 until sources.length()) {
             val item = sources.optJSONObject(index) ?: continue
             if (item.optString("url").trim() == streamUrl) {

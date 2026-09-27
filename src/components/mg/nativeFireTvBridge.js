@@ -793,6 +793,19 @@ export const playNativeFireTv = ({
       : []
     : sourceRows.map(toNativeSource);
 
+  // The decoder needs only one URL, but its Sources control needs the full
+  // chooser. Send labels and web indices separately without torrent URLs,
+  // headers, or bulky media metadata across the Android Activity boundary.
+  const sourceChoices = !live
+    ? sourceRows.slice(0, 500).map((item, index) => ({
+        webIndex: Number.isInteger(Number(item?.webIndex))
+          ? Number(item.webIndex) : index,
+        label: String(item?.label || item?.name || item?.sourceName || `Source ${index + 1}`)
+          .replace(/(?:https?:\/\/|magnet:)\S+/gi, "[source]")
+          .replace(/\s+/g, " ").trim().slice(0, 110),
+      }))
+    : [];
+
   const resolvedHints = {
     videoCodec: selectedHints?.videoCodec || contextHints.videoCodec || "",
     audioCodec: selectedHints?.audioCodec || contextHints.audioCodec || "",
@@ -964,6 +977,7 @@ export const playNativeFireTv = ({
     /* Phone/tablet VOD is compacted; Fire TV and Live TV retain their existing
        complete native source payload. */
     sources: nativePayloadSources,
+    sourceChoices,
     activeSourceIndex: Math.max(0, Number(activeSourceIndex || 0)),
   };
 

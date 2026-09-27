@@ -391,6 +391,25 @@ class PlayerActivity : Activity() {
                 "This source could not start with a confirmed English main audio track."
             )
         }
+
+        // VOD sends one playable URL plus lightweight chooser rows. A selected
+        // row returns its web index for Real-Debrid resolution in the WebView.
+        if (!live) {
+            val choices = payload.optJSONArray("sourceChoices") ?: JSONArray()
+            for (index in 0 until choices.length()) {
+                val item = choices.optJSONObject(index) ?: continue
+                val webIndex = item.optInt("webIndex", index)
+                if (webIndex < 0 || result.any { it.webIndex == webIndex }) continue
+                result.add(NativeSource(
+                    label = item.optString("label").trim().ifBlank { "Source ${index + 1}" },
+                    url = "",
+                    headers = emptyMap(),
+                    mimeType = "",
+                    drm = null,
+                    webIndex = webIndex
+                ))
+            }
+        }
     }
 
     private fun armStrictEnglishStartupWatchdog() {

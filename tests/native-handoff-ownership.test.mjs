@@ -115,6 +115,10 @@ test("Android phone and Fire TV VOD never serialise a hundreds-source catalogue 
   assert.equal(captured.sources.length, 1);
   assert.equal(captured.sources[0].webIndex, selectedIndex);
   assert.equal(captured.sources[0].url, selectedUrl);
+  assert.equal(captured.sourceChoices.length, sources.length);
+  assert.equal(captured.sourceChoices[selectedIndex].webIndex, selectedIndex);
+  assert.equal(captured.sourceChoices[0].url, undefined);
+  assert.equal(captured.sourceChoices[0].headers, undefined);
   assert.ok(JSON.stringify(captured).length < 100_000);
 
   window.MediaGodNative.getAppInfo = () => JSON.stringify({ platform: "fire-tv" });
@@ -132,6 +136,8 @@ test("Android phone and Fire TV VOD never serialise a hundreds-source catalogue 
   assert.equal(captured.sources.length, 1);
   assert.equal(captured.sources[0].webIndex, selectedIndex);
   assert.equal(captured.sources[0].url, selectedUrl);
+  assert.equal(captured.sourceChoices.length, sources.length);
+  assert.equal(captured.sourceChoices[0].url, undefined);
   assert.ok(JSON.stringify(captured).length < 100_000);
 
   for (const nativeMainSource of [mobileMainSource, fireTvMainSource]) {

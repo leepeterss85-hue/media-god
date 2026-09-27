@@ -495,7 +495,8 @@ class PlayerActivity : Activity() {
     }
 
     private fun showSourceMenu() {
-        val choices = payload.optJSONArray("sources") ?: JSONArray()
+        val choices = payload.optJSONArray("sourceChoices")?.takeIf { it.length() > 0 }
+            ?: payload.optJSONArray("sources") ?: JSONArray()
         val entries = (0 until choices.length()).mapNotNull { position ->
             val item = choices.optJSONObject(position) ?: return@mapNotNull null
             val webIndex = item.optInt("webIndex", position)

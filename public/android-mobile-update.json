@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 73,
-  "versionName": "1.0.72",
+  "versionCode": 74,
+  "versionName": "1.0.73",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.72 adds a visible Sources control to the native movie and episode players. Live TV playback is unchanged.",
+  "message": "Media God Mobile 1.0.73 shows the complete movie and episode source list in the native player while keeping the video handoff compact. Live TV playback is unchanged.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"

@@ -515,6 +515,7 @@ class MainActivity : Activity() {
 
         if (encoded.toByteArray(Charsets.UTF_8).size > 384 * 1024) {
             compact.put("sources", JSONArray())
+            compact.put("sourceChoices", JSONArray())
             compact.put("subtitles", JSONArray())
             compact.put("hintText", compact.optString("hintText").take(512))
             encoded = compact.toString()

@@ -610,6 +610,7 @@ class MainActivity : Activity() {
             /* Final safety valve: all active-source essentials already live at
              * the payload top level, so drop optional nested arrays entirely. */
             compact.put("sources", JSONArray())
+            compact.put("sourceChoices", JSONArray())
             compact.put("subtitles", JSONArray())
             compact.put("hintText", compact.optString("hintText").take(512))
             encoded = compact.toString()
