@@ -13,6 +13,7 @@ const entries = [
   "base44/functions/getTmdbMovies/entry.ts",
   "base44/functions/resolveImdb/entry.ts",
   "base44/functions/resolveTvImdb/entry.ts",
+  "base44/functions/getSkipSegments/entry.ts",
   "base44/functions/getLiveEpg/entry.ts",
   "base44/functions/skySportNow/entry.ts",
   "base44/functions/xtreamPortal/entry.ts",
