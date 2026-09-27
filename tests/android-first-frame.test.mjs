@@ -29,6 +29,6 @@ test("a phone startup timeout offers another ready source without marking the fi
   const build = read("android-mobile/app/build.gradle.kts");
   const update = JSON.parse(read("public/android-mobile-update.json"));
   assert.match(build, /versionCode = 68\s*versionName = "1\.0\.67"/);
-  assert.equal(update.versionCode, 67);
+  assert.equal(update.versionCode, 68);
   assert.equal(update.versionName, "1.0.67");
 });
