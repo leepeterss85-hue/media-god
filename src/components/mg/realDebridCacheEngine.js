@@ -480,6 +480,28 @@ const monitorTorrent = async ({
     const flatForMs = Date.now() - lastMoveAt;
     const stallMs = staleWindowMs(snapshot);
 
+    // A selected torrent that has never moved and has no RD peers or transfer
+    // cannot start playback. Leave it in the account and let the viewer choose
+    // a verified cached source without waiting for the long repair watchdog.
+    if (
+      progress === 0 &&
+      snapshot.status === "downloading" &&
+      Number(snapshot.seeders || 0) === 0 &&
+      Number(snapshot.speed_bps || 0) === 0 &&
+      sameProgressChecks >= 3 &&
+      flatForMs >= 120000
+    ) {
+      return failureResult(
+        "Real-Debrid has reported 0% with no active seeders or download speed for two minutes. This torrent was kept. Choose a verified cached source, or tap Retry to check this one again.",
+        {
+          retryable: true,
+          retrySameSource: true,
+          errorCode: "RD_CACHE_NO_PEERS",
+          progress: 0,
+        }
+      );
+    }
+
     if (
       progress < 100 &&
       sameProgressChecks >= 3 &&
