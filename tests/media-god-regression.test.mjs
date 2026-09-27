@@ -2827,6 +2827,14 @@ test("cached Comet RD playback URLs become native English-validation fallbacks i
   assert.match(providerSource, /runtimeNativeDirect: true/);
   assert.match(
     providerSource,
+    /const androidMobileRequiresQualifiedRdHandoff =\s*runtimeFallbackProfile\?\.nativeAndroidMobile === true;/
+  );
+  assert.match(
+    providerSource,
+    /nativeRuntimeAudioValidationAvailable &&\s*!androidMobileRequiresQualifiedRdHandoff/
+  );
+  assert.match(
+    providerSource,
     /native-runtime-english-track-validation/
   );
   assert.match(
