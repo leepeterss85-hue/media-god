@@ -776,16 +776,18 @@ export const playNativeFireTv = ({
   const nativePlatform = String(nativeFireTvAppInfo()?.platform || "")
     .trim()
     .toLowerCase();
-  const compactAndroidVodHandoff =
-    !live && nativePlatform === "android-mobile";
+  const compactNativeVodHandoff =
+    !live &&
+    (nativePlatform === "android-mobile" || nativePlatform === "fire-tv");
 
   /*
-   * Android phone/tablet VOD opens one resolved URL at a time. Building and
-   * serialising codec/audio metadata for hundreds of discovered torrents can
-   * exceed the Android Activity/Binder transaction budget. Fire TV and Live TV
-   * keep their existing complete native source payload unchanged.
+   * Android phone/tablet and Fire TV VOD open one resolved URL at a time.
+   * Building and serialising codec/audio metadata for hundreds of discovered
+   * torrents can exceed Android's Activity/Binder transaction budget. Keep the
+   * complete chooser in Media God's WebView, but hand only the active VOD
+   * source to the native decoder. Live TV keeps its existing full source list.
    */
-  const nativePayloadSources = compactAndroidVodHandoff
+  const nativePayloadSources = compactNativeVodHandoff
     ? selectedHints
       ? [selectedHints]
       : []
