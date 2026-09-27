@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 63,
-  "versionName": "1.0.62",
+  "versionCode": 64,
+  "versionName": "1.0.63",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.62 fixes Android movie and episode recovery after a terminal native decoder failure. A manually selected source stays selected while it is healthy, but if Android proves it cannot play that source, Media God now moves to another ready source without permanently blacklisting the original torrent. Live TV is unchanged.",
+  "message": "Media God Mobile 1.0.63 makes phone and tablet VOD use the same qualified Real-Debrid handoff as the working Base44 player. Android no longer bypasses that result with an addon/provider runtime shortcut; cached sources are resolved to the final Real-Debrid media URL before Media3 opens. Live TV is unchanged.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
