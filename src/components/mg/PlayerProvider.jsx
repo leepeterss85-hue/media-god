@@ -773,7 +773,7 @@ function PlayerAutomationBridge({ children }) {
                 availability: "no",
               };
               if (episodeIdentityForRequest(currentRequestRef.current) === currentKey) {
-                publishContext(request);
+                publishContext(currentRequestRef.current || request);
               }
             }
             return null;
@@ -801,7 +801,7 @@ function PlayerAutomationBridge({ children }) {
             promise: null,
             availability: "yes",
           };
-          publishContext(request);
+          publishContext(currentRequestRef.current || request);
 
           return prepared || next;
         } catch (error) {
@@ -819,7 +819,7 @@ function PlayerAutomationBridge({ children }) {
               availability: "unknown",
             };
             if (episodeIdentityForRequest(currentRequestRef.current) === currentKey) {
-              publishContext(request);
+              publishContext(currentRequestRef.current || request);
             }
           }
 
