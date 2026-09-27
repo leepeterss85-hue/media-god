@@ -96,9 +96,9 @@ const seekVisibleVideo = (seconds) => {
 };
 
 export default function MediaGodV2Assist() {
-  // Temporary episode UI pause: natural `ended` events in PlayerProvider still
-  // advance to the next episode. Movie credit controls remain available.
-  const suppressEpisodeControls = true;
+  // Episode controls are enabled again, but only marker-backed recap/intro
+  // actions are trusted. Natural `ended` events still own automatic next.
+  const suppressEpisodeControls = false;
   const [context, setContext] = useState(() => {
     if (typeof window === "undefined") return null;
     return window.__MG_PLAYER_CONTEXT__ || null;
@@ -232,16 +232,15 @@ export default function MediaGodV2Assist() {
       ? Math.max(0, duration - position)
       : Number.POSITIVE_INFINITY;
 
-  const episodeNumber = Math.max(0, Number(context?.episode || 0));
   const hasNextEpisode = context?.nextEpisodeAvailable !== false;
   const hasRecapMarker = recapEnd != null && recapEnd > 0;
   const hasIntroMarker = introEnd != null && introEnd > 0;
   const hasCreditsMarker = creditsStart != null && creditsStart > 0;
 
   /*
-   * Episode assist is phase-based. Exact chapter metadata always wins. When a
-   * source has no markers we use deliberately short, non-overlapping fallback
-   * windows instead of leaving recap/intro actions on screen for minutes.
+   * Never invent recap/intro timing from the episode clock. A wrong skip is
+   * worse than no button, so these controls only appear when the playback
+   * request carries an explicit marker for the current episode.
    */
   const exactRecapWindow =
     isTv &&
@@ -249,16 +248,7 @@ export default function MediaGodV2Assist() {
     position >= Math.max(0, recapStart ?? 0) &&
     position < recapEnd;
 
-  const fallbackRecapWindow =
-    isTv &&
-    !hasRecapMarker &&
-    episodeNumber > 1 &&
-    playing &&
-    position >= 4 &&
-    position <= 65 &&
-    (!duration || remaining > 180);
-
-  const canSkipRecap = exactRecapWindow || fallbackRecapWindow;
+  const canSkipRecap = exactRecapWindow;
 
   const exactIntroWindow =
     isTv &&
@@ -266,23 +256,7 @@ export default function MediaGodV2Assist() {
     position >= Math.max(0, introStart ?? 0) &&
     position < introEnd;
 
-  const fallbackIntroStart = hasRecapMarker
-    ? Math.max(15, Math.min(180, Number(recapEnd || 0) + 2))
-    : episodeNumber > 1
-      ? 65
-      : 15;
-
-  const fallbackIntroWindow =
-    isTv &&
-    !hasIntroMarker &&
-    playing &&
-    !canSkipRecap &&
-    position >= fallbackIntroStart &&
-    position <= 210 &&
-    (!duration || remaining > 120);
-
-  const canSkipIntro =
-    !canSkipRecap && (exactIntroWindow || fallbackIntroWindow);
+  const canSkipIntro = !canSkipRecap && exactIntroWindow;
 
   const exactCreditsWindow =
     isPlayableVod &&
@@ -294,11 +268,12 @@ export default function MediaGodV2Assist() {
   const creditsWindow = useMemo(() => {
     if (!isPlayableVod || !duration || duration < 300) return false;
     if (exactCreditsWindow) return true;
-    if (hasCreditsMarker) return false;
+    if (hasCreditsMarker || isTv) return false;
 
-    const fallbackWindow = isTv
-      ? Math.min(90, Math.max(45, duration * 0.04))
-      : Math.min(180, Math.max(90, duration * 0.05));
+    const fallbackWindow = Math.min(
+      180,
+      Math.max(90, duration * 0.05)
+    );
 
     return (
       position > duration * 0.7 &&
@@ -315,9 +290,10 @@ export default function MediaGodV2Assist() {
   ]);
 
   /*
-   * "Next episode" is an end-of-episode action. Exact credits metadata may
-   * reveal the phase earlier; without it we wait until the final minute.
-   * A confirmed series finale suppresses the action entirely.
+   * "Next episode" can be offered once verified credits begin, or very near
+   * the natural end when no credits marker exists. Automatic advancement is
+   * deliberately left to the media `ended` event so post-credit scenes are
+   * never cut short by a guessed countdown.
    */
   const nextEpisodeWindow =
     isTv &&
@@ -326,32 +302,11 @@ export default function MediaGodV2Assist() {
     position >= 60 &&
     (
       exactCreditsWindow ||
-      remaining <= 60
+      remaining <= 45
     );
 
-  /*
-   * Automatic next is intentionally later than the manual next action. Even
-   * with an exact credits marker, do not start a countdown through several
-   * minutes of credits or a possible post-credit scene.
-   */
-  const exactCreditsCountdownWindow =
-    isTv &&
-    hasNextEpisode &&
-    exactCreditsWindow &&
-    remaining <= 75;
-
-  const autoNextCountdownWindow =
-    isTv &&
-    hasNextEpisode &&
-    duration >= 180 &&
-    position >= 60 &&
-    (
-      exactCreditsCountdownWindow ||
-      remaining <= 20
-    );
-
-  const showNextAction =
-    nextEpisodeWindow || autoNextCountdownWindow;
+  const autoNextCountdownWindow = false;
+  const showNextAction = nextEpisodeWindow;
 
   useEffect(() => {
     setNextCountdownDeadline(0);
