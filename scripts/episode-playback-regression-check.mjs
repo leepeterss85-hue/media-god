@@ -26,6 +26,7 @@ const trackPreferences = read("src/components/mg/mediaTrackPreferences.js");
 const nativeBridge = read("src/components/mg/nativeFireTvBridge.js");
 const fireCompatibility = read("firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt");
 const mobileCompatibility = read("android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt");
+const skipSegments = read("base44/functions/getSkipSegments/entry.ts");
 
 expect(
   provider.includes("currentTime < 60") &&
@@ -33,6 +34,19 @@ expect(
     provider.includes("2 * 60 * 60 * 1000") &&
     !provider.includes("const preloadWindow = Math.min(150"),
   "next episode starts preparing after one minute and remains reusable for long episodes"
+);
+
+expect(
+  provider.includes('base44.functions.invoke("getSkipSegments"') &&
+    provider.includes('base44.functions.invoke("resolveTvImdb"') &&
+    provider.includes("hydrateEpisodeSkipMarkers(current, duration)") &&
+    provider.includes("skipMarkerProvenance") &&
+    skipSegments.includes("https://api.skipdb.tv/api/segments") &&
+    skipSegments.includes("https://api.introdb.app/segments") &&
+    skipSegments.includes('skipUrl.searchParams.set("adjust", "conservative")') &&
+    skipSegments.includes('if (match === "out-of-range") return null;') &&
+    !skipSegments.includes("intro_length_estimate_ms"),
+  "episode marker lookup is non-guessing, duration-aware and rejects uncertain SkipDB release matches"
 );
 
 expect(
