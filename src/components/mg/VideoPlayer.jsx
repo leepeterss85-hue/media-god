@@ -989,6 +989,20 @@ export default function VideoPlayer({
   const [forceNativePlayback, setForceNativePlayback] =
     useState(false);
   const [nativeBusyRetryTick, setNativeBusyRetryTick] = useState(0);
+  const [playerContextRevision, setPlayerContextRevision] = useState(0);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const onPlayerContext = () => {
+      setPlayerContextRevision((value) => value + 1);
+    };
+
+    window.addEventListener("mg:player-context", onPlayerContext);
+    return () => {
+      window.removeEventListener("mg:player-context", onPlayerContext);
+    };
+  }, []);
 
   const [
     failedSources,
@@ -9443,6 +9457,25 @@ export default function VideoPlayer({
       return;
     }
 
+    const nativeEpisodeContext =
+      typeof window !== "undefined"
+        ? window.__MG_PLAYER_CONTEXT__ || {}
+        : {};
+    const episodeMarkerLookupPending =
+      !isLive &&
+      playbackMediaType === "tv" &&
+      nativeEpisodeContext?.skipMarkersPending === true;
+
+    /*
+     * The native Activity receives skip markers only in its launch payload.
+     * Do not race that launch against the asynchronous IntroDB/SkipDB lookup;
+     * wait until the lookup has either supplied markers or explicitly settled
+     * with none. Movies and Live TV never enter this gate.
+     */
+    if (episodeMarkerLookupPending) {
+      return;
+    }
+
     const current = nativePlaybackRef.current;
 
     const currentPlayRequestId = source?.playRequestId ?? null;
@@ -9604,6 +9637,7 @@ export default function VideoPlayer({
     nativePlaybackUrl,
     nativeBusyRetryTick,
     playbackMediaType,
+    playerContextRevision,
     rdOverride,
     source,
     startupHandoffAvailable,
