@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 77,
-  "versionName": "1.4.72",
+  "versionCode": 78,
+  "versionName": "1.4.73",
   "title": "Media God Fire TV",
-  "message": "Media God Fire TV 1.4.72 gives the normal movie and episode player the same professional Media God chrome as compatibility playback, with a clean title/back bar tied to remote-friendly auto-hide behaviour while Live TV remains unchanged.",
+  "message": "Media God Fire TV 1.4.73 applies the same bounded native VOD handoff now proven on Android mobile: movies and episodes send only the active source across the Android Activity/Binder boundary, with a second native size guard preventing oversized source catalogues from crashing playback. Live TV remains unchanged and keeps its complete native failover list.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
