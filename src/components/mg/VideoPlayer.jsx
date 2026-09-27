@@ -10391,6 +10391,11 @@ export default function VideoPlayer({
   const showSourceChooser = () => {
     sourceChooserRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     sourceChooserRef.current?.focus({ preventScroll: true });
+    try {
+      sourceChooserRef.current?.showPicker?.();
+    } catch {
+      // Some Android WebViews only open the native list after a direct tap.
+    }
   };
   const noPlayableVodSources =
     !isLive &&
