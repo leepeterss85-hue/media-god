@@ -46,6 +46,7 @@ class PlayerActivity : Activity() {
         const val EXTRA_PAYLOAD = "mg_payload"
         const val EXTRA_REQUEST_ID = "mg_request_id"
         const val EXTRA_REASON = "mg_reason"
+        const val EXTRA_SELECTED_SOURCE_INDEX = "mg_selected_source_index"
         const val EXTRA_POSITION_MS = "mg_position_ms"
         const val EXTRA_DURATION_MS = "mg_duration_ms"
         const val EXTRA_MESSAGE = "mg_message"
@@ -438,6 +439,19 @@ class PlayerActivity : Activity() {
             setOnClickListener { showPlaybackReport() }
         }
 
+        val sourcesButton = Button(this).apply {
+            text = "Sources"
+            contentDescription = "Choose playback source"
+            isAllCaps = false
+            textSize = 13f
+            setTextColor(Color.WHITE)
+            background = episodeActionBackground()
+            backgroundTintList = null
+            minHeight = dp(42)
+            setPadding(dp(12), 0, dp(12), 0)
+            setOnClickListener { showSourceMenu() }
+        }
+
         val titleView = TextView(this).apply {
             text = title.trim().ifBlank { "Media God" }
             setTextColor(Color.WHITE)
@@ -466,6 +480,9 @@ class PlayerActivity : Activity() {
             addView(reportButton, LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
             ).apply { marginStart = dp(8) })
+            if (!live) addView(sourcesButton, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { marginStart = dp(8) })
             addView(
                 titleView,
                 LinearLayout.LayoutParams(
@@ -475,6 +492,29 @@ class PlayerActivity : Activity() {
                 )
             )
         }
+    }
+
+    private fun showSourceMenu() {
+        val choices = payload.optJSONArray("sources") ?: JSONArray()
+        val entries = (0 until choices.length()).mapNotNull { position ->
+            val item = choices.optJSONObject(position) ?: return@mapNotNull null
+            val webIndex = item.optInt("webIndex", position)
+            if (webIndex < 0) return@mapNotNull null
+            val label = item.optString("label").trim().ifBlank { "Source ${position + 1}" }
+            webIndex to label
+        }.distinctBy { it.first }
+        if (entries.isEmpty()) {
+            Toast.makeText(this, "No other sources available yet", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val activeIndex = payload.optInt("activeSourceIndex", -1)
+        AlertDialog.Builder(this).setTitle("Choose source")
+            .setItems(entries.map { (index, label) ->
+                if (index == activeIndex) "Current • $label" else label
+            }.toTypedArray()) { _, choice ->
+                val selected = entries[choice].first
+                if (selected != activeIndex) finishWithResult("source", selectedSourceIndex = selected)
+            }.setNegativeButton("Close", null).show()
     }
 
     private fun safeReportField(value: String): String = value
@@ -1749,7 +1789,7 @@ class PlayerActivity : Activity() {
         PlaybackInstanceRegistry.onPlayerReleased()
     }
 
-    private fun finishWithResult(reason: String, message: String = "") {
+    private fun finishWithResult(reason: String, message: String = "", selectedSourceIndex: Int = -1) {
         if (resultSent) {
             return
         }
@@ -1813,6 +1853,7 @@ class PlayerActivity : Activity() {
         val result = Intent().apply {
             putExtra(EXTRA_REQUEST_ID, requestId)
             putExtra(EXTRA_REASON, reason)
+            putExtra(EXTRA_SELECTED_SOURCE_INDEX, selectedSourceIndex)
             putExtra(EXTRA_POSITION_MS, positionMs)
             putExtra(EXTRA_DURATION_MS, durationMs)
             putExtra(EXTRA_MESSAGE, message)

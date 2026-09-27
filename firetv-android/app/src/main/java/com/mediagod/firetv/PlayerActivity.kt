@@ -479,6 +479,21 @@ class PlayerActivity : Activity() {
             setOnClickListener { showPlaybackReport() }
         }
 
+        val sourcesButton = Button(this).apply {
+            id = View.generateViewId()
+            text = "Sources"
+            contentDescription = "Choose playback source"
+            isAllCaps = false
+            textSize = 14f
+            setTextColor(Color.WHITE)
+            background = episodeActionBackground()
+            backgroundTintList = null
+            minHeight = dp(46)
+            isFocusable = true
+            setPadding(dp(14), 0, dp(14), 0)
+            setOnClickListener { showSourceSelector() }
+        }
+
         val titleView = TextView(this).apply {
             text = title.trim().ifBlank { "Media God" }
             setTextColor(Color.WHITE)
@@ -505,6 +520,9 @@ class PlayerActivity : Activity() {
                 )
             )
             addView(reportButton, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { marginStart = dp(10) })
+            if (!live) addView(sourcesButton, LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
             ).apply { marginStart = dp(10) })
             addView(
@@ -1611,7 +1629,7 @@ class PlayerActivity : Activity() {
             val url = item.optString("url").trim()
             val webIndex = item.optInt("webIndex", index)
 
-            if (url.isBlank() || !seenKeys.add("$webIndex|$url")) {
+            if ((url.isBlank() && live) || !seenKeys.add("$webIndex|$url")) {
                 continue
             }
 

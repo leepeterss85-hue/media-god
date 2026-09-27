@@ -250,6 +250,7 @@ class MainActivity : Activity() {
             )
             put("positionMs", data?.getLongExtra(PlayerActivity.EXTRA_POSITION_MS, 0L) ?: 0L)
             put("durationMs", data?.getLongExtra(PlayerActivity.EXTRA_DURATION_MS, 0L) ?: 0L)
+            put("selectedSourceIndex", data?.getIntExtra(PlayerActivity.EXTRA_SELECTED_SOURCE_INDEX, -1) ?: -1)
             put(
                 "message",
                 if (abnormalNativeExit) {

@@ -1,4 +1,4 @@
-// Native transport controls release 1.4.79 verification.
+// Native transport controls release 1.4.80 verification.
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.mediagod.firetv"
         minSdk = 21
         targetSdk = 35
-        versionCode = 84
-        versionName = "1.4.79"
+        versionCode = 85
+        versionName = "1.4.80"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

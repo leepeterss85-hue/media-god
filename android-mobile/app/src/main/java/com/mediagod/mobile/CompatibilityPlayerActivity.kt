@@ -491,6 +491,7 @@ class CompatibilityPlayerActivity : Activity() {
 
         val backButton = controlButton("← Back") { finishWithResult("back") }
         val reportButton = controlButton("Report") { showPlaybackReport() }
+        val sourcesButton = controlButton("Sources") { showSourceMenu() }
         val rewindButton = controlButton("−10s") { seekBy(-10_000L) }
         playPauseButton = controlButton("Pause") { togglePlayback() }
         val forwardButton = controlButton("+10s") { seekBy(10_000L) }
@@ -610,6 +611,9 @@ class CompatibilityPlayerActivity : Activity() {
                 }
             )
             addView(reportButton, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { marginEnd = dp(6) })
+            addView(sourcesButton, LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
             ).apply { marginEnd = dp(6) })
             addView(
@@ -1361,6 +1365,28 @@ class CompatibilityPlayerActivity : Activity() {
             }.setNegativeButton("Close", null).show()
     }
 
+    private fun showSourceMenu() {
+        val sources = payload.optJSONArray("sources") ?: JSONArray()
+        val entries = (0 until sources.length()).mapNotNull { position ->
+            val item = sources.optJSONObject(position) ?: return@mapNotNull null
+            val index = item.optInt("webIndex", position)
+            if (index < 0) return@mapNotNull null
+            index to item.optString("label").trim().ifBlank { "Source ${position + 1}" }
+        }.distinctBy { it.first }
+        if (entries.isEmpty()) {
+            Toast.makeText(this, "No other sources available yet", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val activeIndex = payload.optInt("activeSourceIndex", -1)
+        AlertDialog.Builder(this).setTitle("Choose source")
+            .setItems(entries.map { (index, label) ->
+                if (index == activeIndex) "Current • $label" else label
+            }.toTypedArray()) { _, position ->
+                val selected = entries[position].first
+                if (selected != activeIndex) finishWithResult("source", selectedSourceIndex = selected)
+            }.setNegativeButton("Close", null).show()
+    }
+
     private fun showStatus(message: String) {
         if (!::statusText.isInitialized || !::root.isInitialized) return
 
@@ -1462,7 +1488,7 @@ class CompatibilityPlayerActivity : Activity() {
         libVLC = null
     }
 
-    private fun finishWithResult(reason: String, message: String = "") {
+    private fun finishWithResult(reason: String, message: String = "", selectedSourceIndex: Int = -1) {
         if (resultSent) return
         resultSent = true
         if (::root.isInitialized) {
@@ -1502,6 +1528,7 @@ class CompatibilityPlayerActivity : Activity() {
         val result = Intent().apply {
             putExtra(PlayerActivity.EXTRA_REQUEST_ID, requestId)
             putExtra(PlayerActivity.EXTRA_REASON, reason)
+            putExtra(PlayerActivity.EXTRA_SELECTED_SOURCE_INDEX, selectedSourceIndex)
             putExtra(PlayerActivity.EXTRA_POSITION_MS, positionMs)
             putExtra(PlayerActivity.EXTRA_DURATION_MS, durationMs)
             putExtra(PlayerActivity.EXTRA_MESSAGE, message)

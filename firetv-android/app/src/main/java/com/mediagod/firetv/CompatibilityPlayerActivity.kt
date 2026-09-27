@@ -491,6 +491,7 @@ class CompatibilityPlayerActivity : Activity() {
 
         val backButton = controlButton("← Back") { finishWithResult("back") }
         val reportButton = controlButton("Report") { showPlaybackReport() }
+        val sourcesButton = controlButton("Sources") { showSourceMenu() }
         val rewindButton = controlButton("−10s") { seekBy(-10_000L) }
         playPauseButton = controlButton("Pause") { togglePlayback() }
         val forwardButton = controlButton("+10s") { seekBy(10_000L) }
@@ -610,6 +611,9 @@ class CompatibilityPlayerActivity : Activity() {
                 }
             )
             addView(reportButton, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { marginEnd = dp(6) })
+            addView(sourcesButton, LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
             ).apply { marginEnd = dp(6) })
             addView(
@@ -1358,6 +1362,28 @@ class CompatibilityPlayerActivity : Activity() {
                 val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
                 clipboard.setPrimaryClip(ClipData.newPlainText("Media God playback report", report))
                 Toast.makeText(this, "Playback report copied", Toast.LENGTH_SHORT).show()
+            }.setNegativeButton("Close", null).show()
+    }
+
+    private fun showSourceMenu() {
+        val sources = payload.optJSONArray("sources") ?: JSONArray()
+        val entries = (0 until sources.length()).mapNotNull { position ->
+            val item = sources.optJSONObject(position) ?: return@mapNotNull null
+            val index = item.optInt("webIndex", position)
+            if (index < 0) return@mapNotNull null
+            index to item.optString("label").trim().ifBlank { "Source ${position + 1}" }
+        }.distinctBy { it.first }
+        if (entries.isEmpty()) {
+            Toast.makeText(this, "No other sources available yet", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val activeIndex = payload.optInt("activeSourceIndex", -1)
+        AlertDialog.Builder(this).setTitle("Choose source")
+            .setItems(entries.map { (index, label) ->
+                if (index == activeIndex) "Current • $label" else label
+            }.toTypedArray()) { _, position ->
+                selectedSourceIndex = entries[position].first
+                if (selectedSourceIndex != activeIndex) finishWithResult("source")
             }.setNegativeButton("Close", null).show()
     }
 
