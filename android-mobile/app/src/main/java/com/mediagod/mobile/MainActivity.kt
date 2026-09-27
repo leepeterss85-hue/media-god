@@ -235,12 +235,29 @@ class MainActivity : Activity() {
                 expectedRequestId
             }
 
+        val abnormalNativeExit =
+            resultCode != RESULT_OK || data == null
+
         val result = JSONObject().apply {
             put("requestId", returnedRequestId)
-            put("reason", data?.getStringExtra(PlayerActivity.EXTRA_REASON) ?: "back")
+            put(
+                "reason",
+                if (abnormalNativeExit) {
+                    "error"
+                } else {
+                    data?.getStringExtra(PlayerActivity.EXTRA_REASON) ?: "back"
+                }
+            )
             put("positionMs", data?.getLongExtra(PlayerActivity.EXTRA_POSITION_MS, 0L) ?: 0L)
             put("durationMs", data?.getLongExtra(PlayerActivity.EXTRA_DURATION_MS, 0L) ?: 0L)
-            put("message", data?.getStringExtra(PlayerActivity.EXTRA_MESSAGE).orEmpty())
+            put(
+                "message",
+                if (abnormalNativeExit) {
+                    "The Android video process exited unexpectedly. Media God stayed open and can try another ready source."
+                } else {
+                    data?.getStringExtra(PlayerActivity.EXTRA_MESSAGE).orEmpty()
+                }
+            )
             val diagnosticsText =
                 data?.getStringExtra(PlayerActivity.EXTRA_DIAGNOSTICS).orEmpty()
             if (diagnosticsText.isNotBlank()) {
