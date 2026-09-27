@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 83,
-  "versionName": "1.4.78",
+  "versionCode": 84,
+  "versionName": "1.4.79",
   "title": "Media God Fire TV",
-  "message": "Media God Fire TV 1.4.78 adds an in-player playback report with selected audio, codec and decoder details to diagnose silent or failing movies and episodes. Live TV playback is unchanged.",
+  "message": "Media God Fire TV 1.4.79 makes stuck Real-Debrid finalisation reportable and retryable. Live TV playback is unchanged.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",

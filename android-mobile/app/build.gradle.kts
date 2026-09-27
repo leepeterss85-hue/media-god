@@ -1,4 +1,4 @@
-// Native transport controls release 1.0.70 verification.
+// Native transport controls release 1.0.71 verification.
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.mediagod.mobile"
         minSdk = 23
         targetSdk = 35
-        versionCode = 71
-        versionName = "1.0.70"
+        versionCode = 72
+        versionName = "1.0.71"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 71,
-  "versionName": "1.0.70",
+  "versionCode": 72,
+  "versionName": "1.0.71",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.70 adds an in-player playback report with selected audio, codec and decoder details to diagnose silent or failing movies and episodes. Live TV playback is unchanged.",
+  "message": "Media God Mobile 1.0.71 makes stuck Real-Debrid finalisation reportable and retryable. Live TV playback is unchanged.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
