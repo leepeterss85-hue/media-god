@@ -1094,13 +1094,8 @@ class PlayerActivity : Activity() {
     }
 
     private fun updateAssistControls() {
-        // Episode skip and early-next controls are paused. STATE_ENDED still
-        // reports "ended" to the shared next-episode handoff.
-        if (isTvEpisode()) {
-            nextEpisodeCountdownStartedAtMs = -1L
-            if (::assistControls.isInitialized) assistControls.visibility = View.GONE
-            return
-        }
+        // Marker-backed episode actions are safe to show again. Automatic next
+        // remains owned by the natural ended handoff, not a guessed countdown.
         if (
             resultSent ||
             !::assistControls.isInitialized ||
@@ -1124,7 +1119,6 @@ class PlayerActivity : Activity() {
         val remaining = if (duration > 0L) maxOf(0L, duration - position) else Long.MAX_VALUE
         val tvEpisode = isTvEpisode()
         val playingNow = activePlayer.isPlaying
-        val episodeNumber = payload.optInt("episode", 0).coerceAtLeast(0)
         val nextEpisodeKnown =
             payload.has("nextEpisodeAvailable") &&
                 !payload.isNull("nextEpisodeAvailable")
@@ -1145,47 +1139,19 @@ class PlayerActivity : Activity() {
                 recapEndMs > 0L &&
                 position >= maxOf(0L, recapStartMs) &&
                 position < recapEndMs
-        val fallbackRecap =
-            tvEpisode &&
-                recapEndMs <= 0L &&
-                episodeNumber > 1 &&
-                playingNow &&
-                position in 4_000L..65_000L &&
-                (duration <= 0L || remaining > 180_000L)
-        val recapVisible = exactRecap || fallbackRecap
+        val recapVisible = exactRecap
 
         val exactIntro =
             tvEpisode &&
                 introEndMs > 0L &&
                 position >= maxOf(0L, introStartMs) &&
                 position < introEndMs
-        val fallbackIntroStartMs =
-            if (recapEndMs > 0L) {
-                maxOf(15_000L, minOf(180_000L, recapEndMs + 2_000L))
-            } else if (episodeNumber > 1) {
-                65_000L
-            } else {
-                15_000L
-            }
-        val fallbackIntro =
-            tvEpisode &&
-                introEndMs <= 0L &&
-                playingNow &&
-                !recapVisible &&
-                position in fallbackIntroStartMs..210_000L &&
-                (duration <= 0L || remaining > 120_000L)
-        val introVisible = !recapVisible && (exactIntro || fallbackIntro)
+        val introVisible = !recapVisible && exactIntro
 
         val creditsFallbackWindow =
-            if (tvEpisode) {
-                if (duration > 0L) {
-                    minOf(90_000L, maxOf(45_000L, (duration * 0.04).toLong()))
-                } else 0L
-            } else {
-                if (duration > 0L) {
-                    minOf(180_000L, maxOf(90_000L, (duration * 0.05).toLong()))
-                } else 0L
-            }
+            if (!tvEpisode && duration > 0L) {
+                minOf(180_000L, maxOf(90_000L, (duration * 0.05).toLong()))
+            } else 0L
 
         val exactCredits =
             duration >= 300_000L &&
@@ -1193,7 +1159,8 @@ class PlayerActivity : Activity() {
                 position >= creditsStartMs &&
                 position < duration - 500L
         val fallbackCredits =
-            duration >= 300_000L &&
+            !tvEpisode &&
+                duration >= 300_000L &&
                 creditsStartMs <= 0L &&
                 position > (duration * 0.70).toLong() &&
                 remaining <= creditsFallbackWindow
@@ -1211,18 +1178,12 @@ class PlayerActivity : Activity() {
                 hasNextEpisode &&
                 duration >= 180_000L &&
                 position >= 60_000L &&
-                (exactCredits || remaining <= 60_000L)
+                (exactCredits || remaining <= 45_000L)
         setAssistVisible(playNextButton, nextEpisodeWindow)
 
-        val countdownWindow =
-            tvEpisode &&
-                hasNextEpisode &&
-                duration >= 180_000L &&
-                position >= 60_000L &&
-                (
-                    (exactCredits && remaining <= 75_000L) ||
-                        remaining <= 20_000L
-                )
+        // Do not auto-jump before the stream actually ends; this avoids
+        // cutting off post-credit scenes. STATE_ENDED still advances naturally.
+        val countdownWindow = false
 
         if (
             autoNext &&
