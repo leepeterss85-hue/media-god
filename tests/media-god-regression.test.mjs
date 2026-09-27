@@ -2713,6 +2713,12 @@ test("strict startup never autoplays request sources before qualification", () =
     "utf8"
   );
 
+  assert.doesNotMatch(providerSource, /const qualificationMode = false/);
+  assert.match(
+    providerSource,
+    /const qualificationMode =\s*!isLive &&\s*hasRd &&\s*!request\?\.noRd &&\s*request\?\.verifiedPlaybackPolicy !== "manual"/
+  );
+
   const qualificationIndex = providerSource.indexOf(
     "const qualificationMode ="
   );
