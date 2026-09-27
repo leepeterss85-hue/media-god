@@ -3487,6 +3487,34 @@ test("compatibility decoder crashes are isolated from the main Media God process
   }
 });
 
+test("Android Media3 crashes are isolated from the main Media God process", () => {
+  const manifest = readFileSync(
+    new URL("../android-mobile/app/src/main/AndroidManifest.xml", import.meta.url),
+    "utf8"
+  );
+  const main = readFileSync(
+    new URL("../android-mobile/app/src/main/java/com/mediagod/mobile/MainActivity.kt", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(
+    manifest,
+    /android:name="\.PlayerActivity"[\s\S]{0,260}?android:process=":media3_player"/
+  );
+  assert.match(
+    main,
+    /val abnormalNativeExit =\s*resultCode != RESULT_OK \|\| data == null/
+  );
+  assert.match(
+    main,
+    /if \(abnormalNativeExit\) \{\s*"error"/
+  );
+  assert.match(
+    main,
+    /Android video process exited unexpectedly\. Media God stayed open and can try another ready source\./
+  );
+});
+
 test("normal VOD native player uses Media God chrome without changing Live TV", () => {
   const playerFiles = [
     "../android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt",
