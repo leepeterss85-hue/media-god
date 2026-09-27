@@ -1062,6 +1062,10 @@ export default function VideoPlayer({
     playRequestId: source?.playRequestId ?? null,
     claimed: false,
   });
+  const preparationBackupRef = useRef({
+    playRequestId: source?.playRequestId ?? null,
+    attempted: false,
+  });
   const lastPlayRequestIdRef = useRef(
     source?.playRequestId ?? null
   );
@@ -1089,6 +1093,10 @@ export default function VideoPlayer({
     englishAudioRejectedRef.current = new Set();
     setSmartUpgradeNotice(null);
     setActiveIdx(0);
+    preparationBackupRef.current = {
+      playRequestId: nextPlayRequestId,
+      attempted: false,
+    };
   }, [source?.playRequestId]);
 
   useEffect(() => {
@@ -4284,6 +4292,39 @@ export default function VideoPlayer({
           result.retrySameSource === true ||
           result.errorCode === "RD_ACTIVE_SLOTS_FULL" ||
           result.errorCode === "RD_CACHE_STATUS_UNAVAILABLE";
+
+        // A completed download with no playable link, or a zero-peer torrent,
+        // cannot start the video. Give automatic startup one verified-ready
+        // backup attempt. A viewer's manual choice remains authoritative.
+        const preparationFailure = [
+          "RD_CACHE_FINAL_LINK_TIMEOUT",
+          "RD_CACHE_NO_PEERS",
+        ].includes(result.errorCode);
+        const backupState = preparationBackupRef.current;
+        const currentPlayRequestId = source?.playRequestId ?? null;
+        if (backupState.playRequestId !== currentPlayRequestId) {
+          backupState.playRequestId = currentPlayRequestId;
+          backupState.attempted = false;
+        }
+        if (
+          preparationFailure &&
+          !manualSourceLockActive() &&
+          !backupState.attempted &&
+          !sourceSelectorPinnedRef.current &&
+          !rdFileSelectorPinnedRef.current
+        ) {
+          const readyBackup = bestApprovedAutoplaySourceIndex >= 0 &&
+            bestApprovedAutoplaySourceIndex !== activeIdx
+              ? bestApprovedAutoplaySourceIndex
+              : automaticReadySourceIndex;
+          if (readyBackup >= 0 && readyBackup !== activeIdx) {
+            backupState.attempted = true;
+            if (switchToSource(readyBackup, {
+              preservePosition: true,
+              statusMessage: "That torrent cannot start. Opening a ready source instead…",
+            })) return;
+          }
+        }
 
         if (!preserveUncachedSource) {
           markSourceFailed(activeIdx);
