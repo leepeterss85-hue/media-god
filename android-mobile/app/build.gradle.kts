@@ -1,4 +1,4 @@
-// Native transport controls release 1.0.73 verification.
+// Native source chooser and player controls release 1.0.74 verification.
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.mediagod.mobile"
         minSdk = 23
         targetSdk = 35
-        versionCode = 74
-        versionName = "1.0.73"
+        versionCode = 75
+        versionName = "1.0.74"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

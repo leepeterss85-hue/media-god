@@ -9232,6 +9232,18 @@ export default function VideoPlayer({
         return;
       }
 
+      if (reason === "browse_sources" && !isLive) {
+        // Discovery can finish after native playback starts. Return to the
+        // live WebView chooser so the viewer sees its newest complete pool.
+        setForceNativePlayback(false);
+        setNativeFallbackUrl(nativePlaybackUrl);
+        window.setTimeout(() => {
+          sourceChooserRef.current?.scrollIntoView({ block: "center" });
+          sourceChooserRef.current?.focus({ preventScroll: true });
+        }, 0);
+        return;
+      }
+
       if (reason === "startup_timeout" && !isLive) {
         /*
          * Android has already proved that this request never produced a video

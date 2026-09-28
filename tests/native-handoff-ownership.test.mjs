@@ -18,6 +18,15 @@ const fireTvMainSource = readFileSync(
   new URL("../firetv-android/app/src/main/java/com/mediagod/firetv/MainActivity.kt", import.meta.url),
   "utf8"
 );
+const nativePlayerFiles = ["android-mobile", "firetv-android"].flatMap((platform) => {
+  const packageName = platform === "android-mobile" ? "mobile" : "firetv";
+  return ["PlayerActivity", "CompatibilityPlayerActivity"].map((player) =>
+    readFileSync(
+      new URL(`../${platform}/app/src/main/java/com/mediagod/${packageName}/${player}.kt`, import.meta.url),
+      "utf8"
+    )
+  );
+});
 
 let moduleText = bridgeSource
   .replace(
@@ -146,6 +155,17 @@ test("Android phone and Fire TV VOD never serialise a hundreds-source catalogue 
     assert.match(nativeMainSource, /encoded\.toByteArray\(Charsets\.UTF_8\)\.size > 256 \* 1024/);
     assert.match(nativeMainSource, /if \(payload\.optBoolean\("live", false\)\) \{\s*return payload\.toString\(\)/);
   }
+});
+
+test("both native engines expose the compact chooser and a path to sources discovered later", () => {
+  for (const nativePlayer of nativePlayerFiles) {
+    assert.match(nativePlayer, /sourceChoices/);
+    assert.match(nativePlayer, /Browse all sources in Media God/);
+    assert.match(nativePlayer, /browse_sources/);
+  }
+  assert.match(playerSource, /reason === "browse_sources" && !isLive/);
+  assert.match(playerSource, /setNativeFallbackUrl\(nativePlaybackUrl\)/);
+  assert.match(playerSource, /sourceChooserRef\.current\?\.focus/);
 });
 
 test("Live TV keeps the complete native source payload on phone and Fire TV", () => {

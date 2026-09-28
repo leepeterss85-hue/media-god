@@ -430,7 +430,7 @@ class PlayerActivity : Activity() {
             text = "Report"
             contentDescription = "Show playback report"
             isAllCaps = false
-            textSize = 13f
+            textSize = 12f
             setTextColor(Color.WHITE)
             background = episodeActionBackground()
             backgroundTintList = null
@@ -443,7 +443,7 @@ class PlayerActivity : Activity() {
             text = "Sources"
             contentDescription = "Choose playback source"
             isAllCaps = false
-            textSize = 13f
+            textSize = 12f
             setTextColor(Color.WHITE)
             background = episodeActionBackground()
             backgroundTintList = null
@@ -455,17 +455,17 @@ class PlayerActivity : Activity() {
         val titleView = TextView(this).apply {
             text = title.trim().ifBlank { "Media God" }
             setTextColor(Color.WHITE)
-            textSize = 17f
+            textSize = 15f
             maxLines = 1
             ellipsize = android.text.TextUtils.TruncateAt.END
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(12), 0, dp(10), 0)
+            setPadding(dp(8), 0, dp(4), 0)
         }
 
         return LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(10), dp(8), dp(10), dp(8))
+            setPadding(dp(6), dp(6), dp(6), dp(6))
             background = GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
                 intArrayOf(Color.argb(210, 0, 0, 0), Color.argb(145, 0, 0, 0))
@@ -477,12 +477,6 @@ class PlayerActivity : Activity() {
                     ViewGroup.LayoutParams.WRAP_CONTENT
                 )
             )
-            addView(reportButton, LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { marginStart = dp(8) })
-            if (!live) addView(sourcesButton, LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { marginStart = dp(8) })
             addView(
                 titleView,
                 LinearLayout.LayoutParams(
@@ -491,6 +485,12 @@ class PlayerActivity : Activity() {
                     1f
                 )
             )
+            if (!live) addView(sourcesButton, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { marginStart = dp(4) })
+            addView(reportButton, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { marginStart = dp(4) })
         }
     }
 
@@ -509,12 +509,17 @@ class PlayerActivity : Activity() {
             return
         }
         val activeIndex = payload.optInt("activeSourceIndex", -1)
-        AlertDialog.Builder(this).setTitle("Choose source")
-            .setItems(entries.map { (index, label) ->
+        val labels = entries.map { (index, label) ->
                 if (index == activeIndex) "Current • $label" else label
-            }.toTypedArray()) { _, choice ->
-                val selected = entries[choice].first
-                if (selected != activeIndex) finishWithResult("source", selectedSourceIndex = selected)
+            } + "Browse all sources in Media God"
+        AlertDialog.Builder(this).setTitle("Choose source")
+            .setItems(labels.toTypedArray()) { _, choice ->
+                if (choice == entries.size) {
+                    finishWithResult("browse_sources")
+                } else {
+                    val selected = entries[choice].first
+                    if (selected != activeIndex) finishWithResult("source", selectedSourceIndex = selected)
+                }
             }.setNegativeButton("Close", null).show()
     }
 

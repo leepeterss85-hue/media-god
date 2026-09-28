@@ -1711,6 +1711,7 @@ class PlayerActivity : Activity() {
                 "${index + 1}. ${item.label}"
             }
         )
+        if (!live) labels.add("Browse all sources in Media God")
 
         val sourceAdapter = object : ArrayAdapter<String>(
             this,
@@ -1780,6 +1781,10 @@ class PlayerActivity : Activity() {
                     }
 
                     val sourcePosition = position - sourceSelectorOffset()
+                    if (!live && sourcePosition == nativeSources.size) {
+                        finishWithResult(reason = "browse_sources")
+                        return
+                    }
                     if (
                         sourcePosition !in nativeSources.indices ||
                         sourcePosition == activeSourceIndex

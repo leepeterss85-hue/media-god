@@ -1,4 +1,4 @@
-// Native transport controls release 1.4.81 verification.
+// Native source chooser and player controls release 1.4.82 verification.
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.mediagod.firetv"
         minSdk = 21
         targetSdk = 35
-        versionCode = 86
-        versionName = "1.4.81"
+        versionCode = 87
+        versionName = "1.4.82"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
