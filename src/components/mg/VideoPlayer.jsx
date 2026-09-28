@@ -9232,6 +9232,18 @@ export default function VideoPlayer({
         return;
       }
 
+      if (reason === "browse_sources" && !isLive) {
+        // An older APK can still return this action. Keep the player mounted
+        // and reveal the current source chooser instead of exiting to Home.
+        setForceNativePlayback(false);
+        setNativeFallbackUrl(nativePlaybackUrl);
+        window.setTimeout(() => {
+          sourceChooserRef.current?.scrollIntoView({ block: "center" });
+          sourceChooserRef.current?.focus({ preventScroll: true });
+        }, 0);
+        return;
+      }
+
       if (reason === "startup_timeout" && !isLive) {
         /*
          * Android has already proved that this request never produced a video
