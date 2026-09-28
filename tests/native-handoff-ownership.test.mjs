@@ -157,15 +157,20 @@ test("Android phone and Fire TV VOD never serialise a hundreds-source catalogue 
   }
 });
 
-test("both native engines expose the compact chooser and a path to sources discovered later", () => {
+test("Sources stays in the native player and reads the latest visible chooser rows", () => {
   for (const nativePlayer of nativePlayerFiles) {
     assert.match(nativePlayer, /sourceChoices/);
-    assert.match(nativePlayer, /Browse all sources in Media God/);
-    assert.match(nativePlayer, /browse_sources/);
+    assert.match(nativePlayer, /MainActivity\.fetchCurrentSourceChoices\(requestId\)/);
+    assert.doesNotMatch(nativePlayer, /Browse all sources in Media God|browse_sources/);
   }
+  for (const mainSource of [mobileMainSource, fireTvMainSource]) {
+    assert.match(mainSource, /select\[aria-label="Choose from all playback sources"\]/);
+    assert.match(mainSource, /activeNativeRequestId != requestId/);
+    assert.match(mainSource, /webView\.evaluateJavascript/);
+    assert.match(mainSource, /postDelayed\(\{ deliver\(null\) \}, 900L\)/);
+  }
+  // Older APKs can still return this reason; the new native menu does not.
   assert.match(playerSource, /reason === "browse_sources" && !isLive/);
-  assert.match(playerSource, /setNativeFallbackUrl\(nativePlaybackUrl\)/);
-  assert.match(playerSource, /sourceChooserRef\.current\?\.focus/);
 });
 
 test("Live TV keeps the complete native source payload on phone and Fire TV", () => {

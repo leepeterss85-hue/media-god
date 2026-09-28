@@ -22,10 +22,64 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import org.json.JSONArray
 import org.json.JSONObject
+import org.json.JSONTokener
+import java.lang.ref.WeakReference
 
 class MainActivity : Activity() {
     companion object {
         private const val REQUEST_NATIVE_PLAYER = 8401
+        private var activeActivity: WeakReference<MainActivity>? = null
+
+        /**
+         * Read the actual source dropdown when the native player is opened.
+         * Discovery may add torrents after the initial one-URL handoff; the
+         * WebView retains that complete list while Media3/LibVLC owns video.
+         */
+        fun fetchCurrentSourceChoices(requestId: String, onResult: (JSONArray?) -> Unit) {
+            val activity = activeActivity?.get()
+            if (activity == null) {
+                onResult(null)
+                return
+            }
+            activity.runOnUiThread {
+                if (activity.activeNativeRequestId != requestId || !activity.playerOpen) {
+                    onResult(null)
+                    return@runOnUiThread
+                }
+                var delivered = false
+                fun deliver(choices: JSONArray?) {
+                    if (delivered) return
+                    delivered = true
+                    onResult(choices?.takeIf { it.length() > 0 })
+                }
+                // A paused WebView can be slow to answer. Keep Sources usable
+                // with the launch-time snapshot if JavaScript does not reply.
+                activity.webView.postDelayed({ deliver(null) }, 900L)
+                try {
+                activity.webView.evaluateJavascript(
+                    """(function(){
+                      var select=document.querySelector('select[aria-label="Choose from all playback sources"]');
+                      if(!select)return [];
+                      return Array.from(select.options).filter(function(option){
+                        return /^\d+$/.test(option.value) && !option.disabled;
+                      }).slice(0,500).map(function(option){
+                        return {webIndex:Number(option.value),label:String(option.textContent||"").trim().slice(0,110)};
+                      });
+                    })()""".trimIndent()
+                ) { raw ->
+                    val parsed = runCatching { JSONTokener(raw).nextValue() }.getOrNull()
+                    val choices = when (parsed) {
+                        is JSONArray -> parsed
+                        is String -> runCatching { JSONArray(parsed) }.getOrNull()
+                        else -> null
+                    }
+                    deliver(choices)
+                }
+                } catch (_: Throwable) {
+                    deliver(null)
+                }
+            }
+        }
     }
 
     private lateinit var webView: WebView
@@ -104,6 +158,7 @@ class MainActivity : Activity() {
         }
 
         setContentView(webView)
+        activeActivity = WeakReference(this)
 
         appUpdater = AppUpdater(this) { detail ->
             dispatchJavascript(
@@ -173,6 +228,7 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        if (activeActivity?.get() === this) activeActivity = null
         try {
             webView.apply {
                 loadUrl("about:blank")

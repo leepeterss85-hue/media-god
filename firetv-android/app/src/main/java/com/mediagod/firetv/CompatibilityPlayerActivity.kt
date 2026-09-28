@@ -1380,31 +1380,30 @@ class CompatibilityPlayerActivity : Activity() {
     }
 
     private fun showSourceMenu() {
-        val sources = payload.optJSONArray("sourceChoices")?.takeIf { it.length() > 0 }
-            ?: payload.optJSONArray("sources") ?: JSONArray()
-        val entries = (0 until sources.length()).mapNotNull { position ->
-            val item = sources.optJSONObject(position) ?: return@mapNotNull null
-            val index = item.optInt("webIndex", position)
-            if (index < 0) return@mapNotNull null
-            index to item.optString("label").trim().ifBlank { "Source ${position + 1}" }
-        }.distinctBy { it.first }
-        if (entries.isEmpty()) {
-            Toast.makeText(this, "No other sources available yet", Toast.LENGTH_SHORT).show()
-            return
-        }
-        val activeIndex = payload.optInt("activeSourceIndex", -1)
-        val labels = entries.map { (index, label) ->
-                if (index == activeIndex) "Current • $label" else label
-            } + "Browse all sources in Media God"
-        AlertDialog.Builder(this).setTitle("Choose source")
-            .setItems(labels.toTypedArray()) { _, position ->
-                if (position == entries.size) {
-                    finishWithResult("browse_sources")
-                } else {
+        MainActivity.fetchCurrentSourceChoices(requestId) { currentChoices ->
+            if (resultSent || isFinishing) return@fetchCurrentSourceChoices
+            val snapshot = payload.optJSONArray("sourceChoices")?.takeIf { it.length() > 0 }
+                ?: payload.optJSONArray("sources") ?: JSONArray()
+            val sources = currentChoices?.takeIf { it.length() >= snapshot.length() } ?: snapshot
+            val entries = (0 until sources.length()).mapNotNull { position ->
+                val item = sources.optJSONObject(position) ?: return@mapNotNull null
+                val index = item.optInt("webIndex", position)
+                if (index < 0) return@mapNotNull null
+                index to item.optString("label").trim().ifBlank { "Source ${position + 1}" }
+            }.distinctBy { it.first }
+            if (entries.isEmpty()) {
+                Toast.makeText(this, "Sources are still loading", Toast.LENGTH_SHORT).show()
+                return@fetchCurrentSourceChoices
+            }
+            val activeIndex = payload.optInt("activeSourceIndex", -1)
+            AlertDialog.Builder(this).setTitle("Sources • ${entries.size}")
+                .setItems(entries.map { (index, label) ->
+                    if (index == activeIndex) "Current • $label" else label
+                }.toTypedArray()) { _, position ->
                     selectedSourceIndex = entries[position].first
                     if (selectedSourceIndex != activeIndex) finishWithResult("source")
-                }
-            }.setNegativeButton("Close", null).show()
+                }.setNegativeButton("Close", null).show()
+        }
     }
 
     private fun showStatus(message: String) {

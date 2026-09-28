@@ -13,9 +13,9 @@
     "base44/functions/getLiveEpg/entry.ts": "1caf894a1a60212947c8d5ef15061bbf8529e70a1d7e310b49bcddc546c48646",
     "base44/functions/antSportsLive/entry.ts": "c4d7a7e0e769cabfd10f5df896d78cbf8f85081b41d346f82c36cc62e209bf0a",
     "base44/functions/evSportsLive/entry.ts": "149d7c13a8e56e602e450919ade50b3b6d58ea115c746370863803fbe4c8ec4d",
-    "android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt": "618f694f9ede207585d3f45b1dc557df8da5eeb767e2e5d7a8eefa6cc61787a1",
-    "android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt": "6a15de7f8056d390c7da56761590e5d698c57820d0948f7491857463a37ec5ee",
-    "firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt": "e75b150044d238ef24639047253d853e36b619d3091fac62a1fe2cbe6df598a6",
-    "firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt": "73cbe9cec2f7bf28db12e5861e4aad56fcb88f6c5bf13b5ac5bd2ac5c9f348e5"
+    "android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt": "fc93c0bc36e6258071ec582946ad584d383edce13f76084f2281cd170187e9f4",
+    "android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt": "b14b1d305f7b413a39644dffffe4ff10a5611dcba7b91e82c40a56f82ecde7d6",
+    "firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt": "7ca9f466e8421ee6cf2f32ebd61daaf3dc07d5a81619316d709e8fc1dd2a5261",
+    "firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt": "661ec90acb607676955e89df4cdd998f0b7d906f139b0257fb69cb652c950cb7"
   }
 }

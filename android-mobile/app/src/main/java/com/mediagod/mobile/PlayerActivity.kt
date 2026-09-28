@@ -495,32 +495,32 @@ class PlayerActivity : Activity() {
     }
 
     private fun showSourceMenu() {
-        val choices = payload.optJSONArray("sourceChoices")?.takeIf { it.length() > 0 }
-            ?: payload.optJSONArray("sources") ?: JSONArray()
-        val entries = (0 until choices.length()).mapNotNull { position ->
-            val item = choices.optJSONObject(position) ?: return@mapNotNull null
-            val webIndex = item.optInt("webIndex", position)
-            if (webIndex < 0) return@mapNotNull null
-            val label = item.optString("label").trim().ifBlank { "Source ${position + 1}" }
-            webIndex to label
-        }.distinctBy { it.first }
-        if (entries.isEmpty()) {
-            Toast.makeText(this, "No other sources available yet", Toast.LENGTH_SHORT).show()
-            return
+        MainActivity.fetchCurrentSourceChoices(requestId) { currentChoices ->
+            if (resultSent || isFinishing) return@fetchCurrentSourceChoices
+            val snapshot = payload.optJSONArray("sourceChoices")?.takeIf { it.length() > 0 }
+                ?: payload.optJSONArray("sources") ?: JSONArray()
+            val choices = currentChoices?.takeIf { it.length() >= snapshot.length() } ?: snapshot
+            val entries = (0 until choices.length()).mapNotNull { position ->
+                val item = choices.optJSONObject(position) ?: return@mapNotNull null
+                val index = item.optInt("webIndex", position)
+                if (index < 0) return@mapNotNull null
+                index to item.optString("label").trim().ifBlank { "Source ${position + 1}" }
+            }.distinctBy { it.first }
+            if (entries.isEmpty()) {
+                Toast.makeText(this, "Sources are still loading", Toast.LENGTH_SHORT).show()
+                return@fetchCurrentSourceChoices
+            }
+            val activeIndex = payload.optInt("activeSourceIndex", -1)
+            AlertDialog.Builder(this).setTitle("Sources • ${entries.size}")
+                .setItems(entries.map { (index, label) ->
+                    if (index == activeIndex) "Current • $label" else label
+                }.toTypedArray()) { _, position ->
+                    val selected = entries[position].first
+                    if (selected != activeIndex) {
+                        finishWithResult("source", selectedSourceIndex = selected)
+                    }
+                }.setNegativeButton("Close", null).show()
         }
-        val activeIndex = payload.optInt("activeSourceIndex", -1)
-        val labels = entries.map { (index, label) ->
-                if (index == activeIndex) "Current • $label" else label
-            } + "Browse all sources in Media God"
-        AlertDialog.Builder(this).setTitle("Choose source")
-            .setItems(labels.toTypedArray()) { _, choice ->
-                if (choice == entries.size) {
-                    finishWithResult("browse_sources")
-                } else {
-                    val selected = entries[choice].first
-                    if (selected != activeIndex) finishWithResult("source", selectedSourceIndex = selected)
-                }
-            }.setNegativeButton("Close", null).show()
     }
 
     private fun safeReportField(value: String): String = value

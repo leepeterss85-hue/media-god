@@ -1,4 +1,4 @@
-// Native source chooser and player controls release 1.4.82 verification.
+// Live native source dropdown release 1.4.83 verification.
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.mediagod.firetv"
         minSdk = 21
         targetSdk = 35
-        versionCode = 87
-        versionName = "1.4.82"
+        versionCode = 88
+        versionName = "1.4.83"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

@@ -1444,7 +1444,7 @@ class PlayerActivity : Activity() {
         !live && payload.optBoolean("canChooseEpisode", false)
 
     private fun sourceSelectorAvailable(): Boolean =
-        nativeSources.size > 1 || canChooseEpisode()
+        !live || nativeSources.size > 1 || canChooseEpisode()
 
     private fun sourceSelectorOffset(): Int =
         if (canChooseEpisode()) 2 else 0
@@ -1479,6 +1479,47 @@ class PlayerActivity : Activity() {
 
     private fun showSourceSelector() {
         if (!sourceSelectorAvailable() || resultSent) return
+
+        if (!live) {
+            MainActivity.fetchCurrentSourceChoices(requestId) { currentChoices ->
+                if (resultSent || isFinishing) return@fetchCurrentSourceChoices
+                val snapshot = payload.optJSONArray("sourceChoices")?.takeIf { it.length() > 0 }
+                    ?: payload.optJSONArray("sources") ?: JSONArray()
+                val choices = currentChoices?.takeIf { it.length() >= snapshot.length() } ?: snapshot
+                val entries = (0 until choices.length()).mapNotNull { position ->
+                    val item = choices.optJSONObject(position) ?: return@mapNotNull null
+                    val index = item.optInt("webIndex", position)
+                    if (index < 0) return@mapNotNull null
+                    index to item.optString("label").trim().ifBlank { "Source ${position + 1}" }
+                }.distinctBy { it.first }
+                val episodeOffset = if (canChooseEpisode()) 2 else 0
+                val labels = mutableListOf<String>()
+                if (episodeOffset > 0) {
+                    labels.add("Choose season")
+                    labels.add("Choose episode")
+                }
+                val activeWebIndex = payload.optInt("activeSourceIndex", -1)
+                labels.addAll(entries.map { (index, label) ->
+                    if (index == activeWebIndex) "Current • $label" else label
+                })
+                if (labels.isEmpty()) {
+                    Toast.makeText(this, "Sources are still loading", Toast.LENGTH_SHORT).show()
+                    return@fetchCurrentSourceChoices
+                }
+                AlertDialog.Builder(this).setTitle("Sources • ${entries.size}")
+                    .setItems(labels.toTypedArray()) { _, position ->
+                        if (position < episodeOffset) {
+                            finishWithResult(reason = "episode")
+                        } else {
+                            val selected = entries[position - episodeOffset].first
+                            if (selected != activeWebIndex) {
+                                finishWithResult(reason = "source", selectedSourceIndex = selected)
+                            }
+                        }
+                    }.setNegativeButton("Close", null).show()
+            }
+            return
+        }
 
         sourceSpinner.removeCallbacks(hideSourceSelectorRunnable)
         sourceSpinner.visibility = View.VISIBLE
@@ -1711,7 +1752,6 @@ class PlayerActivity : Activity() {
                 "${index + 1}. ${item.label}"
             }
         )
-        if (!live) labels.add("Browse all sources in Media God")
 
         val sourceAdapter = object : ArrayAdapter<String>(
             this,
@@ -1781,10 +1821,6 @@ class PlayerActivity : Activity() {
                     }
 
                     val sourcePosition = position - sourceSelectorOffset()
-                    if (!live && sourcePosition == nativeSources.size) {
-                        finishWithResult(reason = "browse_sources")
-                        return
-                    }
                     if (
                         sourcePosition !in nativeSources.indices ||
                         sourcePosition == activeSourceIndex
