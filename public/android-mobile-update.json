@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 72,
-  "versionName": "1.0.71",
+  "versionCode": 76,
+  "versionName": "1.0.75",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.71 makes stuck Real-Debrid finalisation reportable and retryable. Live TV playback is unchanged.",
+  "message": "Media God Mobile 1.0.75 opens the current source dropdown inside the player without returning Home.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
