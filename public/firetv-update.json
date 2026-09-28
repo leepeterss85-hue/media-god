@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 84,
-  "versionName": "1.4.79",
+  "versionCode": 88,
+  "versionName": "1.4.83",
   "title": "Media God Fire TV",
-  "message": "Media God Fire TV 1.4.79 makes stuck Real-Debrid finalisation reportable and retryable. Live TV playback is unchanged.",
+  "message": "Media God Fire TV 1.4.83 opens the current source dropdown inside the player without returning Home.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
