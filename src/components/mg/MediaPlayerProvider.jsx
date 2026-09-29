@@ -3099,9 +3099,8 @@ export function PlayerProvider({
             !qualificationMode ||
             initialPlayableSources[0]?.launchQualified === true
           );
-        const suppliedImdbId = String(
-          request?.imdbId || request?.imdb_id || ""
-        ).trim();
+        const suppliedImdbId = String(request?.imdbId || request?.imdb_id || "").trim();
+        if (!isLive && !request?.debridManual && !request?.skipRdLookup && !request?.skipAddonLookup && launchEmbedFallbackRef.current?.({ ...request, mediaType, tmdbId, imdbId: suppliedImdbId, season, episode, title: request?.title || "Video" })) return true;
 
         /*
          * FAST START: open the player immediately. Source discovery continues
@@ -4146,7 +4145,6 @@ export function PlayerProvider({
         const primary = playerSources[0] || {};
         const activeUrl = getSourceUrl(primary);
         if (!isCurrentPlay()) return false;
-        if (!isLive && !request?.debridManual && !request?.skipRdLookup && !request?.skipAddonLookup && launchEmbedFallbackRef.current?.({ ...request, mediaType, tmdbId, imdbId, season, episode, title: request?.title || "Video" })) return true;
 
         setSource({
           ...request,
