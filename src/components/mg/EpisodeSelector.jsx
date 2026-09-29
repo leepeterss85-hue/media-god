@@ -19,6 +19,7 @@ import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
 import MediaReviews from "@/components/mg/MediaReviews";
 import { buildVidSrcEmbedUrl } from "@/components/mg/vidsrcEmbed";
+import { buildEmbedSuEmbedUrl } from "@/components/mg/webEmbedProviders";
 
 import {
   buildMediaSources,
@@ -1178,6 +1179,13 @@ export default function EpisodeSelector({
                 episode: episodeNumber,
               }));
 
+              const hasEmbedSuEpisode = Boolean(buildEmbedSuEmbedUrl({
+                mediaType: "tv",
+                tmdbId,
+                season: seasonNumber,
+                episode: episodeNumber,
+              }));
+
               const progressRecord =
                 progressMap.get(
                   episodeKey(
@@ -1374,6 +1382,25 @@ export default function EpisodeSelector({
                             className="min-h-10 rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 text-[11px] font-semibold text-amber-200 focus:outline-none focus:ring-2 focus:ring-mg-green"
                           >
                             VidSrc
+                          </button>
+                        )}
+
+                        {hasEmbedSuEpisode && (
+                          <button
+                            type="button"
+                            data-mg-focus-key={`episode:${tmdbId || showTitle}:${seasonNumber}:${episodeNumber}:embedsu`}
+                            onClick={() => player.playEmbedSu({
+                              id: tmdbId,
+                              tmdbId,
+                              title: `${showTitle} — S${String(seasonNumber).padStart(2, "0")}E${String(episodeNumber).padStart(2, "0")}`,
+                              poster: episodeData?.still_url || item?.poster_url || item?.poster || "",
+                              mediaType: "tv",
+                              season: seasonNumber,
+                              episode: episodeNumber,
+                            })}
+                            className="min-h-10 rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 text-[11px] font-semibold text-amber-200 focus:outline-none focus:ring-2 focus:ring-mg-green"
+                          >
+                            Embed.su
                           </button>
                         )}
 

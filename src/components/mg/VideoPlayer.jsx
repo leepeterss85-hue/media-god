@@ -95,6 +95,7 @@ import { sourceIsAioStreamsCandidate } from "@/components/mg/sourceProviderIdent
 import { canAutoHandoffStartup } from "@/components/mg/startupSourceHandoff";
 import { emptyPlaybackSourceMessage } from "@/components/mg/sourceDiscoveryFeedback";
 import { buildVidSrcEmbedUrl } from "@/components/mg/vidsrcEmbed";
+import { buildEmbedSuEmbedUrl } from "@/components/mg/webEmbedProviders";
 import {
   bestSmartUpgradeEntry,
   detectSmartSourceUpgrade,
@@ -845,6 +846,7 @@ export default function VideoPlayer({
   source,
   onClose,
   onOpenVidSrc,
+  onOpenEmbedSu,
 }) {
   const fallbackSourceUrl =
     getSourceUrl(source);
@@ -1168,6 +1170,11 @@ export default function VideoPlayer({
         : "movie";
 
   const vidSrcEmbedUrl = buildVidSrcEmbedUrl({
+    ...source,
+    mediaType: playbackMediaType,
+  });
+
+  const embedSuUrl = buildEmbedSuEmbedUrl({
     ...source,
     mediaType: playbackMediaType,
   });
@@ -10803,6 +10810,16 @@ export default function VideoPlayer({
                   Try VidSrc web player
                 </button>
               )}
+              {embedSuUrl && (
+                <button
+                  type="button"
+                  data-mg-embedsu-open="true"
+                  onClick={() => onOpenEmbedSu?.(playbackMediaType)}
+                  className="min-h-11 rounded-lg border border-white/20 px-4 text-sm font-semibold text-white focus:outline-none focus:ring-2 focus:ring-mg-green"
+                >
+                  Try Embed.su web player
+                </button>
+              )}
 
               {isRdSource && (
                 <button
@@ -10841,6 +10858,16 @@ export default function VideoPlayer({
                   className="min-h-11 rounded-lg border border-white/20 px-4 text-sm font-semibold text-white focus:outline-none focus:ring-2 focus:ring-mg-green"
                 >
                   Try VidSrc web player
+                </button>
+              )}
+              {embedSuUrl && (
+                <button
+                  type="button"
+                  data-mg-embedsu-open="true"
+                  onClick={() => onOpenEmbedSu?.(playbackMediaType)}
+                  className="min-h-11 rounded-lg border border-white/20 px-4 text-sm font-semibold text-white focus:outline-none focus:ring-2 focus:ring-mg-green"
+                >
+                  Try Embed.su web player
                 </button>
               )}
             </div>
@@ -11502,6 +11529,17 @@ export default function VideoPlayer({
               aria-label="Open VidSrc web player"
             >
               VidSrc web player
+            </button>
+          )}
+          {embedSuUrl && (
+            <button
+              type="button"
+              data-mg-embedsu-open="true"
+              onClick={() => onOpenEmbedSu?.(playbackMediaType)}
+              className="min-h-11 shrink-0 rounded-lg border border-white/20 bg-mg-card px-3 text-xs font-semibold text-white transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-mg-green"
+              aria-label="Open Embed.su web player"
+            >
+              Embed.su web player
             </button>
           )}
 
