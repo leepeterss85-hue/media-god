@@ -830,6 +830,55 @@ export default async function(req) {
       );
     }
 
+    if (body.community_reviews === true) {
+      const tmdbId = String(body.tmdb_id ?? '').trim();
+      if (!/^[1-9]\d{0,8}$/.test(tmdbId) || requestedMediaType === 'all') {
+        return Response.json({ error: 'Invalid movie or TV id.' }, { status: 400 });
+      }
+
+      const path = `${TMDB_BASE}/${mediaType}/${tmdbId}`;
+      const params = new URLSearchParams({ api_key: apiKey, language: 'en-GB' });
+      const reviewParams = new URLSearchParams({ api_key: apiKey, language: 'en-US', page: '1' });
+      try {
+        const [detailsResponse, reviewsResponse] = await Promise.all([
+          fetch(`${path}?${params}`, { signal: AbortSignal.timeout(8000) }),
+          fetch(`${path}/reviews?${reviewParams}`, { signal: AbortSignal.timeout(8000) }),
+        ]);
+        if (!detailsResponse.ok || !reviewsResponse.ok) {
+          return Response.json({ error: 'TMDB reviews are unavailable right now.' }, { status: 502 });
+        }
+
+        const [details, reviewData] = await Promise.all([
+          detailsResponse.json(),
+          reviewsResponse.json(),
+        ]);
+        const reviews = (Array.isArray(reviewData?.results) ? reviewData.results : [])
+          .filter((row) => /^[a-zA-Z0-9_-]{1,64}$/.test(String(row?.id ?? '')))
+          .filter((row) => String(row?.content ?? '').trim().length >= 30)
+          .slice(0, 3)
+          .map((row) => ({
+            id: String(row.id),
+            author: String(row.author_details?.name || row.author || 'TMDB member').slice(0, 80),
+            excerpt: String(row.content).replace(/\s+/g, ' ').trim().slice(0, 320),
+            rating: row.author_details?.rating != null &&
+              Number.isFinite(Number(row.author_details.rating)) &&
+              Number(row.author_details?.rating) >= 0 &&
+              Number(row.author_details?.rating) <= 10
+                ? Number(row.author_details.rating)
+                : null,
+            url: `https://www.themoviedb.org/review/${row.id}`,
+          }));
+
+        return Response.json({
+          overview: String(details?.overview ?? '').trim().slice(0, 2500),
+          reviews,
+          title_url: `https://www.themoviedb.org/${mediaType}/${tmdbId}`,
+        });
+      } catch {
+        return Response.json({ error: 'TMDB reviews are unavailable right now.' }, { status: 502 });
+      }
+    }
+
     if (body.person_id != null) {
       const personId = String(body.person_id).trim();
       if (!/^[1-9]\d{0,8}$/.test(personId)) {
