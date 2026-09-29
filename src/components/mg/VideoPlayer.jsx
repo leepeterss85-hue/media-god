@@ -10120,7 +10120,7 @@ export default function VideoPlayer({
     };
 
   // Auto-repair only on hard decoder evidence (zero decoded audio while video advances).
-  useSilentAudioGuard({ stageRef, enabled: !isLive && !isYoutube && !isProvider && !useNativePlayback && !rdResolving, streamKey: `${source?.playRequestId || ""}|${activeIdx}|${rdOverride?.src || activeUrl}`, onSilent: handleNoSound });
+  useSilentAudioGuard({ stageRef, enabled: !isLive && !isYoutube && !isProvider && !useNativePlayback && !rdResolving, streamKey: `${source?.playRequestId || ""}|${activeIdx}|${rdOverride?.src || activeUrl}`, onSilent: handleNoSound, onUnusable: (message) => { if (manualSourceLockActive()) return; forgetSuccessfulPlaybackSource(active); stageRef.current?.querySelector("video")?.pause?.(); tryNextSource(message, { immediate: true, allowCaching: false, authoritativeSourceRejection: true, userReportedNoSound: true }); } });
 
   useEffect(() => {
     const state = autoVideoRescueRef.current;

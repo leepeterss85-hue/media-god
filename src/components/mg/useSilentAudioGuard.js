@@ -1,15 +1,16 @@
 import { useEffect, useRef } from "react";
 
 /*
- * Automatic silent-audio detection for the web <video> player.
+ * Automatic playback-quality guard for the web <video> player.
  *
- * Browsers silently drop audio they cannot decode (E-AC-3/AC-3/DTS/TrueHD in
- * Chrome/Edge/Firefox) and keep playing the picture. The decoder itself
- * reports this: Chrome exposes webkitAudioDecodedByteCount (stays 0) and
- * Firefox exposes mozHasAudio (false). Once the video has genuinely advanced a
- * few seconds with zero decoded audio, run the existing audio repair once for
- * that stream. Muting does not affect these counters, so a muted autoplay is
- * never mistaken for silence.
+ * Once the video has genuinely advanced a few seconds it checks, using the
+ * decoder's own counters, that the stream really has:
+ *  - sound   (Chrome webkitAudioDecodedByteCount > 0 / Firefox mozHasAudio)
+ *  - picture (videoWidth > 0 and at least one decoded frame)
+ *  - English audio (when the file exposes tagged audio tracks)
+ * Silence runs the existing audio repair (which moves on to the next source
+ * if repair fails). No picture or no English track moves straight to the
+ * next ranked source. Muting does not affect these counters.
  */
 const ADVANCE_SECONDS = 3;
 
@@ -23,9 +24,34 @@ const decoderReportsSilence = (video) => {
   return false;
 };
 
-export function useSilentAudioGuard({ stageRef, enabled, streamKey, onSilent }) {
+const decoderReportsNoPicture = (video) => {
+  if (!video.videoWidth || !video.videoHeight) return true;
+  if (typeof video.webkitDecodedFrameCount === "number") {
+    return video.webkitDecodedFrameCount === 0;
+  }
+  const quality = video.getVideoPlaybackQuality?.();
+  return quality ? Number(quality.totalVideoFrames || 0) === 0 : false;
+};
+
+const ENGLISH_RE = /^(?:en|eng|english)(?:[-_].*)?$/i;
+
+const audioIsKnownNonEnglish = (video) => {
+  const list = video.audioTracks;
+  if (!list || !list.length) return false;
+  const languages = [];
+  for (let i = 0; i < list.length; i += 1) {
+    const lang = String(list[i]?.language || "").trim();
+    if (lang && !/^(?:und|zxx|mul)$/i.test(lang)) languages.push(lang);
+  }
+  if (languages.length === 0) return false;
+  return !languages.some((lang) => ENGLISH_RE.test(lang));
+};
+
+export function useSilentAudioGuard({ stageRef, enabled, streamKey, onSilent, onUnusable }) {
   const onSilentRef = useRef(onSilent);
+  const onUnusableRef = useRef(onUnusable);
   onSilentRef.current = onSilent;
+  onUnusableRef.current = onUnusable;
   const handledRef = useRef("");
 
   useEffect(() => {
@@ -48,18 +74,33 @@ export function useSilentAudioGuard({ stageRef, enabled, streamKey, onSilent }) 
       if (now - startTime < ADVANCE_SECONDS) return;
 
       window.clearInterval(timer);
-      if (!decoderReportsSilence(video)) return;
 
-      handledRef.current = streamKey;
-      window.dispatchEvent(
-        new CustomEvent("mg:player-status", {
-          detail: {
-            message:
-              "No audio detected — this device can't decode the source's audio. Loading a compatible stream…",
-          },
-        })
-      );
-      onSilentRef.current?.();
+      const status = (message) =>
+        window.dispatchEvent(
+          new CustomEvent("mg:player-status", { detail: { message } })
+        );
+
+      if (decoderReportsNoPicture(video)) {
+        handledRef.current = streamKey;
+        status("No picture detected — trying the next source…");
+        onUnusableRef.current?.("This source played without a picture.");
+        return;
+      }
+
+      if (audioIsKnownNonEnglish(video)) {
+        handledRef.current = streamKey;
+        status("This source has no English audio — trying the next source…");
+        onUnusableRef.current?.("This source has no English audio track.");
+        return;
+      }
+
+      if (decoderReportsSilence(video)) {
+        handledRef.current = streamKey;
+        status(
+          "No audio detected — this device can't decode the source's audio. Loading a compatible stream…"
+        );
+        onSilentRef.current?.();
+      }
     }, 1000);
 
     return () => window.clearInterval(timer);
