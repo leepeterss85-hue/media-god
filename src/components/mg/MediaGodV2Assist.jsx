@@ -303,11 +303,25 @@ export default function MediaGodV2Assist() {
     position >= 60 &&
     (
       exactCreditsWindow ||
-      remaining <= 45
+      remaining <= 90
     );
 
-  const autoNextCountdownWindow = false;
+  const autoNextCountdownWindow =
+    isTv &&
+    hasNextEpisode &&
+    context?.autoNext &&
+    duration >= 180 &&
+    position >= 60 &&
+    playing &&
+    !nextCountdownCancelled &&
+    (exactCreditsWindow || remaining <= 15);
+
   const showNextAction = nextEpisodeWindow;
+
+  const canPlayPrevious =
+    isTv &&
+    Boolean(context?.tmdbId ?? context?.tmdb_id) &&
+    Number(context?.episode ?? 0) > 0;
 
   useEffect(() => {
     setNextCountdownDeadline(0);
@@ -436,6 +450,27 @@ export default function MediaGodV2Assist() {
     window.dispatchEvent(new CustomEvent("mg:play-next-episode"));
   };
 
+  const playPrevious = () => {
+    if (typeof window === "undefined") return;
+    const tmdbId = context?.tmdbId ?? context?.tmdb_id ?? null;
+    const season = Number(context?.season ?? 0);
+    const episode = Number(context?.episode ?? 0);
+
+    if (!tmdbId || !season || !episode) return;
+
+    if (episode > 1) {
+      window.dispatchEvent(
+        new CustomEvent("mg:play-specific-episode", {
+          detail: {
+            tmdbId,
+            seasonNumber: season,
+            episodeNumber: episode - 1,
+          },
+        })
+      );
+    }
+  };
+
   const cancelAutoNextCountdown = () => {
     setNextCountdownDeadline(0);
     setNextCountdownSeconds(0);
@@ -462,6 +497,63 @@ export default function MediaGodV2Assist() {
 
   const buttonClass =
     "pointer-events-auto inline-flex min-h-12 min-w-[7.5rem] touch-manipulation items-center justify-center gap-2 rounded-xl border border-white/20 bg-black/85 px-4 py-2.5 text-sm font-semibold text-white shadow-2xl backdrop-blur-md transition hover:border-mg-green/60 hover:text-mg-green focus:outline-none focus:ring-4 focus:ring-mg-green/70 active:scale-[0.98]";
+
+  const nextEpisodeName = String(context?.nextEpisodeName || "").trim();
+  const nextCard = (
+    <div
+      className="pointer-events-auto flex items-center gap-3 rounded-2xl border border-white/15 bg-gradient-to-r from-black/90 to-black/75 p-3 shadow-2xl backdrop-blur-xl"
+      data-mg-next-episode-card="true"
+    >
+      <div className="flex flex-col gap-1.5">
+        {nextCountdownSeconds > 0 && context?.autoNext && !nextCountdownCancelled ? (
+          <p className="text-[11px] font-bold uppercase tracking-wider text-mg-green">
+            Next episode in {nextCountdownSeconds}s
+          </p>
+        ) : (
+          <p className="text-[11px] font-bold uppercase tracking-wider text-white/50">
+            Up next
+          </p>
+        )}
+        <p className="text-sm font-bold text-white">
+          {nextEpisodeLabel}
+        </p>
+        {nextEpisodeName && (
+          <p className="max-w-[14rem] truncate text-xs text-white/60">
+            {nextEpisodeName}
+          </p>
+        )}
+      </div>
+
+      <div className="flex items-center gap-2">
+        {nextCountdownSeconds > 0 && context?.autoNext && !nextCountdownCancelled && (
+          <button
+            type="button"
+            onPointerDown={(event) => runAction(event, cancelAutoNextCountdown)}
+            onClick={(event) => runClickFallback(event, cancelAutoNextCountdown)}
+            onKeyDown={(event) => runKeyAction(event, cancelAutoNextCountdown)}
+            tabIndex={0}
+            className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold text-white/80 transition hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-mg-green/60"
+            aria-label="Keep watching current episode"
+          >
+            <X className="h-3.5 w-3.5" />
+            Dismiss
+          </button>
+        )}
+        <button
+          type="button"
+          onPointerDown={(event) => runAction(event, playNext)}
+          onClick={(event) => runClickFallback(event, playNext)}
+          onKeyDown={(event) => runKeyAction(event, playNext)}
+          tabIndex={0}
+          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-mg-green px-4 py-2 text-sm font-bold text-black transition hover:bg-mg-green-dim focus:outline-none focus:ring-2 focus:ring-mg-green/70 active:scale-[0.98]"
+          aria-label="Play next episode"
+        >
+          <SkipForward className="h-4 w-4" />
+          Play
+        </button>
+      </div>
+    </div>
+  );
 
   const controls = (
     <div
@@ -494,7 +586,7 @@ export default function MediaGodV2Assist() {
           aria-label="Skip intro or opening titles"
         >
           <FastForward className="h-4 w-4" />
-          Skip intro / titles
+          Skip intro
         </button>
       )}
 
@@ -513,42 +605,22 @@ export default function MediaGodV2Assist() {
         </button>
       )}
 
-      {showNextAction && (
+      {canPlayPrevious && Number(context?.episode ?? 0) > 1 && (
         <button
           type="button"
-          onPointerDown={(event) => runAction(event, playNext)}
-          onClick={(event) => runClickFallback(event, playNext)}
-          onKeyDown={(event) => runKeyAction(event, playNext)}
+          onPointerDown={(event) => runAction(event, playPrevious)}
+          onClick={(event) => runClickFallback(event, playPrevious)}
+          onKeyDown={(event) => runKeyAction(event, playPrevious)}
           tabIndex={0}
-          className={buttonClass}
-          aria-label="Play next episode"
+          className="pointer-events-auto inline-flex min-h-12 touch-manipulation items-center justify-center gap-2 rounded-xl border border-white/20 bg-black/85 px-3 py-2.5 text-sm font-semibold text-white shadow-2xl backdrop-blur-md transition hover:border-mg-green/60 hover:text-mg-green focus:outline-none focus:ring-4 focus:ring-mg-green/70 active:scale-[0.98]"
+          aria-label="Play previous episode"
         >
-          <SkipForward className="h-4 w-4" />
-          {nextCountdownSeconds > 0 &&
-          context?.autoNext &&
-          !nextCountdownCancelled
-            ? `Next ${nextEpisodeLabel} in ${nextCountdownSeconds}s`
-            : `Play ${nextEpisodeLabel}`}
+          <SkipBack className="h-4 w-4" />
+          Previous
         </button>
       )}
 
-      {nextCountdownSeconds > 0 &&
-        context?.autoNext &&
-        !nextCountdownCancelled && (
-          <button
-            type="button"
-            onPointerDown={(event) => runAction(event, cancelAutoNextCountdown)}
-            onClick={(event) => runClickFallback(event, cancelAutoNextCountdown)}
-            onKeyDown={(event) => runKeyAction(event, cancelAutoNextCountdown)}
-            tabIndex={0}
-            className={buttonClass}
-            aria-label="Keep watching current episode"
-          >
-            <X className="h-4 w-4" />
-            Stay here
-          </button>
-        )}
-
+      {showNextAction && nextCard}
     </div>
   );
 

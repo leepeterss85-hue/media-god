@@ -14,6 +14,8 @@ import {
   Minimize,
   RotateCcw,
   RotateCw,
+  SkipBack,
+  SkipForward,
   Tv,
 } from "lucide-react";
 
@@ -203,6 +205,58 @@ export default function MediaPlayerControls({
   const [sourceSortMode, setSourceSortMode] = useState(
     () => readSourceSortMode()
   );
+
+  const [episodeContext, setEpisodeContext] = useState(() => {
+    if (typeof window === "undefined") return null;
+    return window.__MG_PLAYER_CONTEXT__ || null;
+  });
+
+  useEffect(() => {
+    const onContext = (event) => {
+      setEpisodeContext(event?.detail || null);
+    };
+
+    window.addEventListener("mg:player-context", onContext);
+    return () => {
+      window.removeEventListener("mg:player-context", onContext);
+    };
+  }, []);
+
+  const isTvEpisode =
+    !isLive &&
+    episodeContext?.mediaType === "tv" &&
+    Boolean(episodeContext?.tmdbId ?? episodeContext?.tmdb_id) &&
+    Number(episodeContext?.season ?? 0) > 0 &&
+    Number(episodeContext?.episode ?? 0) > 0;
+
+  const playNextEpisode = () => {
+    window.dispatchEvent(new CustomEvent("mg:play-next-episode"));
+    revealControls();
+  };
+
+  const playPreviousEpisode = () => {
+    if (!isTvEpisode) return;
+    const tmdbId = episodeContext?.tmdbId ?? episodeContext?.tmdb_id ?? null;
+    const season = Number(episodeContext?.season ?? 0);
+    const episode = Number(episodeContext?.episode ?? 0);
+
+    if (!tmdbId || !season || episode <= 1) return;
+
+    window.dispatchEvent(
+      new CustomEvent("mg:play-specific-episode", {
+        detail: {
+          tmdbId,
+          seasonNumber: season,
+          episodeNumber: episode - 1,
+        },
+      })
+    );
+    revealControls();
+  };
+
+  const hasNextEpisode = isTvEpisode && episodeContext?.nextEpisodeAvailable !== false;
+  const hasPreviousEpisode =
+    isTvEpisode && Number(episodeContext?.episode ?? 0) > 1;
 
   const [subtitleTracks, setSubtitleTracks] = useState([]);
   const [selectedSubtitle, setSelectedSubtitle] = useState(-1);
@@ -1959,6 +2013,20 @@ export default function MediaPlayerControls({
           ) : null}
 
           <div data-mg-player-button-row="true" className="flex items-center gap-2 sm:gap-3">
+            {hasPreviousEpisode ? (
+              <button
+                type="button"
+                onClick={playPreviousEpisode}
+                onFocus={focusControl}
+                onBlur={blurControl}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/45 text-white transition hover:bg-white/15 hover:text-mg-green focus:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green sm:h-10 sm:w-10"
+                aria-label="Previous episode"
+                title="Previous episode"
+              >
+                <SkipBack className="h-4 w-4" />
+              </button>
+            ) : null}
+
             {!isLive ? (
               <>
                 <button
@@ -2011,6 +2079,20 @@ export default function MediaPlayerControls({
               >
                 <RotateCw className="h-5 w-5" strokeWidth={2.3} />
                 <span aria-hidden="true" className="mg-player-ten">10</span>
+              </button>
+            ) : null}
+
+            {hasNextEpisode ? (
+              <button
+                type="button"
+                onClick={playNextEpisode}
+                onFocus={focusControl}
+                onBlur={blurControl}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-mg-green/30 bg-mg-green/10 text-mg-green transition hover:bg-mg-green/20 focus:bg-mg-green/20 focus:outline-none focus:ring-2 focus:ring-mg-green sm:h-10 sm:w-10"
+                aria-label="Next episode"
+                title="Next episode"
+              >
+                <SkipForward className="h-4 w-4" />
               </button>
             ) : null}
 
