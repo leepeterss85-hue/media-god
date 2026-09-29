@@ -18,6 +18,7 @@ import {
 import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
 import MediaReviews from "@/components/mg/MediaReviews";
+import { buildVidSrcEmbedUrl } from "@/components/mg/vidsrcEmbed";
 
 import {
   buildMediaSources,
@@ -1169,6 +1170,14 @@ export default function EpisodeSelector({
                   season
                 );
 
+              const hasVidSrcEpisode = Boolean(buildVidSrcEmbedUrl({
+                mediaType: "tv",
+                imdbId: item?.imdb_id || item?.imdbId,
+                tmdbId,
+                season: seasonNumber,
+                episode: episodeNumber,
+              }));
+
               const progressRecord =
                 progressMap.get(
                   episodeKey(
@@ -1347,6 +1356,26 @@ export default function EpisodeSelector({
                           <MessageSquare className="w-3.5 h-3.5" />
                           Review
                         </button>
+
+                        {hasVidSrcEpisode && (
+                          <button
+                            type="button"
+                            data-mg-focus-key={`episode:${tmdbId || showTitle}:${seasonNumber}:${episodeNumber}:vidsrc`}
+                            onClick={() => player.playVidSrc({
+                              id: tmdbId,
+                              tmdbId,
+                              imdbId: item?.imdb_id || item?.imdbId,
+                              title: `${showTitle} — S${String(seasonNumber).padStart(2, "0")}E${String(episodeNumber).padStart(2, "0")}`,
+                              poster: episodeData?.still_url || item?.poster_url || item?.poster || "",
+                              mediaType: "tv",
+                              season: seasonNumber,
+                              episode: episodeNumber,
+                            })}
+                            className="min-h-10 rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 text-[11px] font-semibold text-amber-200 focus:outline-none focus:ring-2 focus:ring-mg-green"
+                          >
+                            VidSrc
+                          </button>
+                        )}
 
                         <button
                           type="button"

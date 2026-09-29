@@ -2,10 +2,10 @@
   "version": 1,
   "note": "Update these hashes only when playback or Live TV core changes are explicitly intended and reviewed.",
   "files": {
-    "src/components/mg/VideoPlayer.jsx": "244516a6225f6c1cbef641d179ef3562f9fc23ca42bc33b1b44ec3e70a815220",
-    "src/components/mg/MediaPlayerProvider.jsx": "c3b956874e2bda76838cdfdd44bde7ccd9aadbfb55696a922b58dad1cc555df6",
+    "src/components/mg/VideoPlayer.jsx": "fb7c672fae729ef0972b1a99e51d4f5ae7b433aecdc744cc4a23b531a9fd0589",
+    "src/components/mg/MediaPlayerProvider.jsx": "a9e9008831d432def1028371652010ce2933dbd8f8933dd567b502af3482c61b",
     "src/components/mg/PlayerProvider.jsx": "d8c07cd2f7b41d57b74ae0c093a723a68c5f30fa897f3df5efa6b4e0ce5bc48d",
-    "src/components/mg/MediaPlayerControls.jsx": "5f0289012630f337587b463380ac7cd890d2ddd43094499e861e0601b78f2baf",
+    "src/components/mg/MediaPlayerControls.jsx": "290f9b8b5e211f7afefb6ebca919216a4ad49ec7b55c1839df1cebba8334d1a8",
     "src/components/mg/LiveTVView.jsx": "a07e8d6e96481992c71b88d6b24a8e5fec4510191153d793def30d2ea43ae3a6",
     "src/components/mg/freeTvPlaylist.js": "95dff78fbda2f7d0f1a259ac9cff1df529eb4ffe42739a9789090f07ed9fcc21",
     "base44/functions/realDebrid/entry.ts": "6e8c3b7fa13c480955136814ee4a52f519173f1bcc40904af188b95ce78b5530",

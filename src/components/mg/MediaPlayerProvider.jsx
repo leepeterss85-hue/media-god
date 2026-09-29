@@ -19,6 +19,8 @@ import {
 } from "@/components/mg/addonBrowserFallback";
 
 import VideoPlayer from "@/components/mg/VideoPlayer";
+import VidSrcEmbedPlayer from "@/components/mg/VidSrcEmbedPlayer";
+import { buildVidSrcEmbedUrl } from "@/components/mg/vidsrcEmbed";
 import { stopExclusivePlayback } from "@/components/mg/exclusivePlayback";
 import {
   detectLanguagePreference,
@@ -2667,6 +2669,7 @@ export function PlayerProvider({
     useState(
       null
     );
+  const [vidSrcEmbed, setVidSrcEmbed] = useState(null);
 
   const [
     hasRd,
@@ -2971,6 +2974,7 @@ export function PlayerProvider({
         request = {}
       ) => {
         const playId = ++playSequenceRef.current;
+        setVidSrcEmbed(null);
         stopExclusivePlayback();
 
         const isCurrentPlay = () =>
@@ -4427,12 +4431,49 @@ export function PlayerProvider({
       ]
     );
 
+  const playVidSrc = useCallback((media) => {
+    const url = buildVidSrcEmbedUrl(media);
+    if (!url) return false;
+
+    const playRequestId = ++playSequenceRef.current;
+    stopExclusivePlayback();
+    setSource({
+      ...media,
+      playRequestId,
+      title: String(media.title || "Video"),
+      sources: [],
+      completeSources: [],
+    });
+    setVidSrcEmbed({
+      url,
+      title: String(media.title || "Video"),
+      fromDetails: true,
+    });
+    return true;
+  }, []);
+
+  const openVidSrc = useCallback((mediaType) => {
+    if (!source || source.type === "live") return false;
+
+    const url = buildVidSrcEmbedUrl({ ...source, mediaType });
+    if (!url) return false;
+
+    // Unmount the Media God decoder before the web player is mounted.
+    stopExclusivePlayback();
+    setVidSrcEmbed({
+      url,
+      title: String(source.title || "Video"),
+    });
+    return true;
+  }, [source]);
+
   const close =
     useCallback(
       () => {
         playSequenceRef.current += 1;
         stopExclusivePlayback();
 
+        setVidSrcEmbed(null);
         setSource(
           null
         );
@@ -4487,6 +4528,8 @@ export function PlayerProvider({
       () => ({
         play,
 
+        playVidSrc,
+
         prepare,
 
         close,
@@ -4500,6 +4543,8 @@ export function PlayerProvider({
       }),
       [
         play,
+
+        playVidSrc,
 
         prepare,
 
@@ -4529,14 +4574,20 @@ export function PlayerProvider({
             }
             onClose={close}
           >
-            <VideoPlayer
-              source={
-                source
-              }
-              onClose={
-                close
-              }
-            />
+            {vidSrcEmbed ? (
+              <VidSrcEmbedPlayer
+                url={vidSrcEmbed.url}
+                title={vidSrcEmbed.title}
+                onBack={vidSrcEmbed.fromDetails ? close : () => setVidSrcEmbed(null)}
+                backLabel={vidSrcEmbed.fromDetails ? "Details" : "Sources"}
+              />
+            ) : (
+              <VideoPlayer
+                source={source}
+                onClose={close}
+                onOpenVidSrc={openVidSrc}
+              />
+            )}
           </PlayerRenderBoundary>,
           document.body
         )}

@@ -25,6 +25,7 @@ import {
 
 import { findChannelsByTitle } from "@/components/mg/freeTvPlaylist";
 import { usePlayer } from "@/components/mg/PlayerProvider";
+import { buildVidSrcEmbedUrl } from "@/components/mg/vidsrcEmbed";
 import { cn } from "@/lib/utils";
 
 const unwrap = (response) =>
@@ -1227,6 +1228,14 @@ export default function StreamSourcesBox({
       });
     };
 
+  const vidSrcUrl = buildVidSrcEmbedUrl({
+    mediaType,
+    imdbId: resolvedImdb || imdbId,
+    tmdbId,
+    season,
+    episode,
+  });
+
   const rows = [
     {
       id:
@@ -1246,6 +1255,23 @@ export default function StreamSourcesBox({
       onClick:
         playCombinedDebrid,
     },
+
+    ...(vidSrcUrl ? [{
+      id: "vidsrc-web-player",
+      kind: "vidsrc",
+      label: "VidSrc web player",
+      note: "Manual backup • uses VidSrc's own controls",
+      onClick: () => player.playVidSrc({
+        id: tmdbId,
+        tmdbId,
+        imdbId: resolvedImdb || imdbId,
+        title,
+        poster,
+        mediaType,
+        season,
+        episode,
+      }),
+    }] : []),
 
     ...(providers || [])
       .filter(
@@ -1497,6 +1523,10 @@ export default function StreamSourcesBox({
       );
     }
 
+    if (kind === "vidsrc") {
+      return <ExternalLink className="w-4 h-4 text-amber-300" />;
+    }
+
     if (
       kind ===
       "provider"
@@ -1573,6 +1603,8 @@ export default function StreamSourcesBox({
                   row.kind ===
                     "rd"
                     ? "bg-mg-green/10 hover:bg-mg-green/20 border-mg-green/30"
+                    : row.kind === "vidsrc"
+                      ? "bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30"
                     : row.kind ===
                         "addon-stream"
                       ? "bg-cyan-500/10 hover:bg-cyan-500/20 border-cyan-500/30"

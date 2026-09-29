@@ -94,6 +94,7 @@ import { sourceMatchesRequestedIdentity } from "@/components/mg/sourceIdentity";
 import { sourceIsAioStreamsCandidate } from "@/components/mg/sourceProviderIdentity";
 import { canAutoHandoffStartup } from "@/components/mg/startupSourceHandoff";
 import { emptyPlaybackSourceMessage } from "@/components/mg/sourceDiscoveryFeedback";
+import { buildVidSrcEmbedUrl } from "@/components/mg/vidsrcEmbed";
 import {
   bestSmartUpgradeEntry,
   detectSmartSourceUpgrade,
@@ -843,6 +844,7 @@ const resolvedMediaEnglishMainState = (mediaInfo) => {
 export default function VideoPlayer({
   source,
   onClose,
+  onOpenVidSrc,
 }) {
   const fallbackSourceUrl =
     getSourceUrl(source);
@@ -1164,6 +1166,11 @@ export default function VideoPlayer({
           source?.rdEpisode != null
         ? "tv"
         : "movie";
+
+  const vidSrcEmbedUrl = buildVidSrcEmbedUrl({
+    ...source,
+    mediaType: playbackMediaType,
+  });
 
   const preferredAudioLanguage = String(
     readTrackPreferences()?.audioLanguage || "en"
@@ -10786,6 +10793,17 @@ export default function VideoPlayer({
                 </button>
               )}
 
+              {vidSrcEmbedUrl && (
+                <button
+                  type="button"
+                  data-mg-vidsrc-open="true"
+                  onClick={() => onOpenVidSrc?.(playbackMediaType)}
+                  className="min-h-11 rounded-lg border border-white/20 px-4 text-sm font-semibold text-white focus:outline-none focus:ring-2 focus:ring-mg-green"
+                >
+                  Try VidSrc web player
+                </button>
+              )}
+
               {isRdSource && (
                 <button
                   type="button"
@@ -10815,6 +10833,16 @@ export default function VideoPlayer({
               <p className="max-w-md text-xs leading-relaxed text-white/50 sm:text-sm">
                 {emptyPlaybackSourceMessage(source?.sourceDiagnostics)}
               </p>
+              {vidSrcEmbedUrl && (
+                <button
+                  type="button"
+                  data-mg-vidsrc-open="true"
+                  onClick={() => onOpenVidSrc?.(playbackMediaType)}
+                  className="min-h-11 rounded-lg border border-white/20 px-4 text-sm font-semibold text-white focus:outline-none focus:ring-2 focus:ring-mg-green"
+                >
+                  Try VidSrc web player
+                </button>
+              )}
             </div>
           ) : fireTvNativeSelectorMode ? (
             <div
@@ -11463,6 +11491,18 @@ export default function VideoPlayer({
                 </div>
               </div>
             </label>
+          )}
+
+          {vidSrcEmbedUrl && (
+            <button
+              type="button"
+              data-mg-vidsrc-open="true"
+              onClick={() => onOpenVidSrc?.(playbackMediaType)}
+              className="min-h-11 shrink-0 rounded-lg border border-white/20 bg-mg-card px-3 text-xs font-semibold text-white transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-mg-green"
+              aria-label="Open VidSrc web player"
+            >
+              VidSrc web player
+            </button>
           )}
 
           {rdOverride &&
