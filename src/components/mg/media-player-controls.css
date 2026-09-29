@@ -112,15 +112,29 @@
   transform: scale(1.07);
 }
 
-@media (max-width: 640px) {
-  [data-mg-player-vod="true"] [data-mg-player-button-row="true"] {
-    flex-wrap: wrap;
-    gap: .25rem .5rem;
+/* Phone layout: big centre play/skip, one tidy bottom row. Fire TV keeps its layout. */
+[data-mg-mobile-center="true"] {
+  display: none;
+}
+
+@media (max-width: 639px) {
+  html:not(.mg-fire-tv):not(.mg-fire-tv-mode):not(.mg-fire-tv-stable) [data-mg-mobile-center="true"] {
+    display: flex;
   }
 
-  [data-mg-player-vod="true"] [data-mg-player-controls-spacer="true"] {
-    flex: 0 0 100%;
-    height: 0;
+  html:not(.mg-fire-tv):not(.mg-fire-tv-mode):not(.mg-fire-tv-stable) [data-mg-player-button-row="true"] [data-mg-transport="true"] {
+    display: none !important;
+  }
+
+  html:not(.mg-fire-tv):not(.mg-fire-tv-mode):not(.mg-fire-tv-stable) [data-mg-player-button-row="true"] button,
+  html:not(.mg-fire-tv):not(.mg-fire-tv-mode):not(.mg-fire-tv-stable) [data-mg-player-button-row="true"] select {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 640px) {
+  [data-mg-player-vod="true"] [data-mg-player-button-row="true"] {
+    gap: .5rem;
   }
 
   [data-mg-player-vod="true"] [data-mg-player-button-row="true"] .group input[aria-label="Volume"] {

@@ -21,6 +21,7 @@ import {
 
 import { cn } from "@/lib/utils";
 import "@/components/mg/media-player-controls.css";
+import MobileCenterControls from "@/components/mg/MobileCenterControls";
 import {
   friendlyTrackLabel,
   preferredAudioTrackScore,
@@ -1969,6 +1970,18 @@ export default function MediaPlayerControls({
           <div />
         )}
 
+        <MobileCenterControls
+          visible={controlsVisible}
+          isLive={isLive}
+          playing={playing}
+          togglePlay={togglePlay}
+          skip={skip}
+          hasPreviousEpisode={hasPreviousEpisode}
+          hasNextEpisode={hasNextEpisode}
+          playPreviousEpisode={playPreviousEpisode}
+          playNextEpisode={playNextEpisode}
+        />
+
         <div data-mg-player-controls-bottom="true" className="pointer-events-auto relative bg-gradient-to-t from-black/95 via-black/60 to-transparent px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-12 select-none sm:px-5 sm:pt-16">
           {!isLive ? (
             <div data-mg-player-seek-row="true" className="mb-2 flex items-center gap-2 sm:mb-3">
@@ -2027,6 +2040,7 @@ export default function MediaPlayerControls({
                 onClick={playPreviousEpisode}
                 onFocus={focusControl}
                 onBlur={blurControl}
+                data-mg-transport="true"
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/45 text-white transition hover:bg-white/15 hover:text-mg-green focus:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green sm:h-10 sm:w-10"
                 aria-label="Previous episode"
                 title="Previous episode"
@@ -2039,6 +2053,7 @@ export default function MediaPlayerControls({
               <>
                 <button
                   type="button"
+                  data-mg-transport="true"
                   onClick={() => {
                     skip(-10);
                   }}
@@ -2064,6 +2079,7 @@ export default function MediaPlayerControls({
               onClick={togglePlay}
               onFocus={focusControl}
               onBlur={blurControl}
+              data-mg-transport="true"
               className="mg-player-primary flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-black transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-mg-green focus:ring-offset-2 focus:ring-offset-black sm:h-11 sm:w-11"
               aria-label={playing ? "Pause" : "Play"}
               title={playing ? "Pause" : "Play"}
@@ -2079,6 +2095,7 @@ export default function MediaPlayerControls({
               <button
                 type="button"
                 onClick={() => skip(10)}
+                data-mg-transport="true"
                 onFocus={focusControl}
                 onBlur={blurControl}
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/45 text-white transition hover:bg-white/15 focus:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green sm:h-10 sm:w-10"
@@ -2096,6 +2113,7 @@ export default function MediaPlayerControls({
                 onClick={playNextEpisode}
                 onFocus={focusControl}
                 onBlur={blurControl}
+                data-mg-transport="true"
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-mg-green/30 bg-mg-green/10 text-mg-green transition hover:bg-mg-green/20 focus:bg-mg-green/20 focus:outline-none focus:ring-2 focus:ring-mg-green sm:h-10 sm:w-10"
                 aria-label="Next episode"
                 title="Next episode"
