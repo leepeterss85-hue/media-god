@@ -11154,20 +11154,14 @@ export default function VideoPlayer({
           ) : (
             <div className="flex flex-col items-center gap-3 p-6 text-center">
               <Loader2 className="w-8 h-8 text-mg-green animate-spin" />
-
               {isRdSource && (
-                <button
-                  type="button"
-                  onClick={
-                    retryResolution
-                  }
-                  className="flex items-center gap-2 px-3 py-2 rounded-md bg-mg-green text-black text-xs font-semibold hover:bg-mg-green-dim"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-
-                  Try Again
+                <button type="button" onClick={retryResolution} className="flex items-center gap-2 px-3 py-2 rounded-md bg-mg-green text-black text-xs font-semibold hover:bg-mg-green-dim">
+                  <RefreshCw className="w-3.5 h-3.5" /> Try Again
                 </button>
               )}
+              <button type="button" onClick={returnFromPlayback} className="flex items-center gap-1.5 px-3 py-2 rounded-md bg-white/10 text-white text-xs font-semibold hover:bg-white/20">
+                <ArrowLeft className="w-3.5 h-3.5" /> Back to sources
+              </button>
             </div>
           )}
 
