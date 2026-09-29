@@ -4407,7 +4407,7 @@ export function PlayerProvider({
   const playEmbedSu = useCallback((media) => { const url = buildEmbedSuEmbedUrl(media); return url ? startEmbed(url, media, "embedsu") : false; }, []);
   const playVidCore = useCallback((media) => { const url = buildVidCoreEmbedUrl(media); return url ? startEmbed(url, media, "vidcore") : false; }, []);
   const playExtraEmbed = useCallback((key, media) => { const url = ({ twoembed: buildTwoEmbedEmbedUrl, cinesrc: buildCineSrcEmbedUrl, multiembed: buildMultiEmbedEmbedUrl }[key] || (() => ""))(media); return url ? startEmbed(url, media, key) : false; }, []);
-  launchEmbedFallbackRef.current = (m) => playVidSrc(m) || playExtraEmbed("twoembed", m) || playExtraEmbed("cinesrc", m) || playExtraEmbed("multiembed", m) || playVidCore(m) || playEmbedSu(m);
+  launchEmbedFallbackRef.current = (m) => playVidCore(m) || playEmbedSu(m) || playVidSrc(m) || playExtraEmbed("twoembed", m) || playExtraEmbed("cinesrc", m) || playExtraEmbed("multiembed", m);
 
   const openEmbedSu = useCallback((mediaType) => {
     if (!source || source.type === "live") return false;
