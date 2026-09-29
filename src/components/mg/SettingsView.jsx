@@ -2409,7 +2409,14 @@ export default function SettingsView() {
         </div>
       </div>
 
-
+      <section className="mt-6 rounded-xl border border-white/10 bg-mg-card/60 p-4 text-xs text-white/55" aria-label="About and data credits">
+        <h3 className="font-bold text-white/80">About &amp; data credits</h3>
+        <p className="mt-2">
+          Movie and TV descriptions and linked community reviews are provided by{" "}
+          <a href="https://www.themoviedb.org" target="_blank" rel="noopener noreferrer" className="text-mg-green hover:underline">The Movie Database (TMDB)</a>.
+        </p>
+        <p className="mt-1">This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
+      </section>
 
       <button
         type="button"
