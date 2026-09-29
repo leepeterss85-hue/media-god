@@ -241,6 +241,19 @@ const audioCodecKey = (track) => {
   if (/\bopus\b/i.test(text)) return "opus";
   if (/\bflac\b/i.test(text)) return "flac";
   if (/\b(?:mp3|mpeg audio)\b/i.test(text)) return "mp3";
+  if (/\b(?:wma|windows[ ._-]?media[ ._-]?audio)\b/i.test(text)) return "wma";
+  if (/\b(?:amr(?:[ ._-]?(?:wb|nb))?|adaptive[ ._-]?multi[ ._-]?rate)\b/i.test(text)) return "amr";
+  if (/\b(?:adpcm|ima[ ._-]?adpcm|ms[ ._-]?adpcm|g\.?726|g726)\b/i.test(text)) return "adpcm";
+  if (/\b(?:ape|monkey'?s[ ._-]?audio)\b/i.test(text)) return "ape";
+  if (/\b(?:wavpack|wv)\b/i.test(text)) return "wavpack";
+  if (/\b(?:tta|trueaudio)\b/i.test(text)) return "tta";
+  if (/\bspeex\b/i.test(text)) return "speex";
+  if (/\b(?:atrac(?:[ ._-]?(?:1|3|9|p|p3))?|at3|atrac3plus)\b/i.test(text)) return "atrac";
+  if (/\b(?:dsd(?:64|128)?|dsf|dff)\b/i.test(text)) return "dsd";
+  if (/\bshorten\b/i.test(text)) return "shorten";
+  if (/\btak\b/i.test(text)) return "tak";
+  if (/\b(?:mpc|musepack)\b/i.test(text)) return "musepack";
+  if (/\b(?:g\.?711|g711)\b/i.test(text)) return "g711";
   return "";
 };
 
@@ -539,6 +552,19 @@ const audioCodecLabel = (track) => {
   if (/\b(?:pcm|lpcm)\b/i.test(text)) return "PCM";
   if (/\bmp2\b/i.test(text)) return "MP2";
   if (/\b(?:mp3|mpeg audio)\b/i.test(text)) return "MP3";
+  if (/\b(?:wma|windows[ ._-]?media[ ._-]?audio)\b/i.test(text)) return "WMA";
+  if (/\b(?:amr(?:[ ._-]?(?:wb|nb))?|adaptive[ ._-]?multi[ ._-]?rate)\b/i.test(text)) return "AMR";
+  if (/\b(?:adpcm|ima[ ._-]?adpcm|ms[ ._-]?adpcm|g\.?726|g726)\b/i.test(text)) return "ADPCM";
+  if (/\b(?:ape|monkey'?s[ ._-]?audio)\b/i.test(text)) return "APE";
+  if (/\b(?:wavpack|wv)\b/i.test(text)) return "WavPack";
+  if (/\b(?:tta|trueaudio)\b/i.test(text)) return "TTA";
+  if (/\bspeex\b/i.test(text)) return "Speex";
+  if (/\b(?:atrac(?:[ ._-]?(?:1|3|9|p|p3))?|at3|atrac3plus)\b/i.test(text)) return "ATRAC";
+  if (/\b(?:dsd(?:64|128)?|dsf|dff)\b/i.test(text)) return "DSD";
+  if (/\bshorten\b/i.test(text)) return "Shorten";
+  if (/\btak\b/i.test(text)) return "TAK";
+  if (/\b(?:mpc|musepack)\b/i.test(text)) return "Musepack";
+  if (/\b(?:g\.?711|g711)\b/i.test(text)) return "G.711";
   return "";
 };
 

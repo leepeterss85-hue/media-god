@@ -71,6 +71,13 @@ export const concisePlaybackSourceLabel = (item, index = 0) => {
   else if (/\bmpeg[ ._-]?2\b/i.test(text)) pushUnique(parts, "MPEG-2");
   else if (/\b(?:mpeg[ ._-]?4|mp4v|xvid|divx)\b/i.test(text)) pushUnique(parts, "MPEG-4");
   else if (/\b(?:vc-?1|wmv3|wvc1)\b/i.test(text)) pushUnique(parts, "VC-1");
+  else if (/\bprores\b|\bapcn\b|\bapch\b|\bapco\b|\bap4h\b/i.test(text)) pushUnique(parts, "ProRes");
+  else if (/\b(?:dnxhd|dnxhr|dnx[ ._-]?hd|dnx[ ._-]?hr|avdn)\b/i.test(text)) pushUnique(parts, "DNxHD");
+  else if (/\b(?:mjpeg|mjpg|motion[ ._-]?jpeg)\b/i.test(text)) pushUnique(parts, "MJPEG");
+  else if (/\bmpeg[ ._-]?1\b(?!.*\blayer\b)/i.test(text)) pushUnique(parts, "MPEG-1");
+  else if (/\b(?:h\.?266|vvc|vvc1|vvi1)\b/i.test(text)) pushUnique(parts, "VVC");
+  else if (/\bavs(?:\+|2|3)?\b/i.test(text)) pushUnique(parts, "AVS");
+  else if (/\bdirac\b/i.test(text)) pushUnique(parts, "Dirac");
 
   if (/\b(?:ac-?4|ac4)\b/i.test(text)) pushUnique(parts, "AC4");
   else if (/\b(?:xhe-?aac|xheaac|usac)\b/i.test(text)) pushUnique(parts, "xHE-AAC");
@@ -85,6 +92,19 @@ export const concisePlaybackSourceLabel = (item, index = 0) => {
   else if (/\bvorbis\b/i.test(text)) pushUnique(parts, "Vorbis");
   else if (/\b(?:pcm|lpcm)\b/i.test(text)) pushUnique(parts, "PCM");
   else if (/\bmp2\b/i.test(text)) pushUnique(parts, "MP2");
+  else if (/\b(?:wma|windows[ ._-]?media[ ._-]?audio)\b/i.test(text)) pushUnique(parts, "WMA");
+  else if (/\b(?:amr(?:[ ._-]?(?:wb|nb))?|adaptive[ ._-]?multi[ ._-]?rate)\b/i.test(text)) pushUnique(parts, "AMR");
+  else if (/\b(?:adpcm|ima[ ._-]?adpcm|ms[ ._-]?adpcm|g\.?726|g726)\b/i.test(text)) pushUnique(parts, "ADPCM");
+  else if (/\b(?:ape|monkey'?s[ ._-]?audio)\b/i.test(text)) pushUnique(parts, "APE");
+  else if (/\b(?:wavpack|wv)\b/i.test(text)) pushUnique(parts, "WavPack");
+  else if (/\b(?:tta|trueaudio)\b/i.test(text)) pushUnique(parts, "TTA");
+  else if (/\bspeex\b/i.test(text)) pushUnique(parts, "Speex");
+  else if (/\b(?:atrac(?:[ ._-]?(?:1|3|9|p|p3))?|at3|atrac3plus)\b/i.test(text)) pushUnique(parts, "ATRAC");
+  else if (/\b(?:dsd(?:64|128)?|dsf|dff)\b/i.test(text)) pushUnique(parts, "DSD");
+  else if (/\bshorten\b/i.test(text)) pushUnique(parts, "Shorten");
+  else if (/\btak\b/i.test(text)) pushUnique(parts, "TAK");
+  else if (/\b(?:mpc|musepack)\b/i.test(text)) pushUnique(parts, "Musepack");
+  else if (/\b(?:g\.?711|g711)\b/i.test(text)) pushUnique(parts, "G.711");
 
   const channelMatch = text.match(/(?:^|[^0-9])(7\.1|5\.1|2\.1|2\.0)(?:[^0-9]|$)/i);
   if (channelMatch) pushUnique(parts, channelMatch[1]);
@@ -170,6 +190,13 @@ export const torrentFileLabel = (file, index = 0) => {
   else if (/\b(?:vp9|vp09)\b/i.test(text)) pushUnique(parts, "VP9");
   else if (/\b(?:mpeg[ ._-]?4|mp4v|xvid|divx)\b/i.test(text)) pushUnique(parts, "MPEG-4");
   else if (/\b(?:vc-?1|wmv3|wvc1)\b/i.test(text)) pushUnique(parts, "VC-1");
+  else if (/\bprores\b|\bapcn\b|\bapch\b|\bapco\b|\bap4h\b/i.test(text)) pushUnique(parts, "ProRes");
+  else if (/\b(?:dnxhd|dnxhr|dnx[ ._-]?hd|dnx[ ._-]?hr|avdn)\b/i.test(text)) pushUnique(parts, "DNxHD");
+  else if (/\b(?:mjpeg|mjpg|motion[ ._-]?jpeg)\b/i.test(text)) pushUnique(parts, "MJPEG");
+  else if (/\bmpeg[ ._-]?1\b(?!.*\blayer\b)/i.test(text)) pushUnique(parts, "MPEG-1");
+  else if (/\b(?:h\.?266|vvc|vvc1|vvi1)\b/i.test(text)) pushUnique(parts, "VVC");
+  else if (/\bavs(?:\+|2|3)?\b/i.test(text)) pushUnique(parts, "AVS");
+  else if (/\bdirac\b/i.test(text)) pushUnique(parts, "Dirac");
 
   if (/\b(?:ac-?4|ac4)\b/i.test(text)) pushUnique(parts, "AC4");
   else if (/\b(?:xhe-?aac|xheaac|usac)\b/i.test(text)) pushUnique(parts, "xHE-AAC");
@@ -183,6 +210,19 @@ export const torrentFileLabel = (file, index = 0) => {
   else if (/\b(?:alac|apple lossless)\b/i.test(text)) pushUnique(parts, "ALAC");
   else if (/\bvorbis\b/i.test(text)) pushUnique(parts, "Vorbis");
   else if (/\b(?:pcm|lpcm)\b/i.test(text)) pushUnique(parts, "PCM");
+  else if (/\b(?:wma|windows[ ._-]?media[ ._-]?audio)\b/i.test(text)) pushUnique(parts, "WMA");
+  else if (/\b(?:amr(?:[ ._-]?(?:wb|nb))?|adaptive[ ._-]?multi[ ._-]?rate)\b/i.test(text)) pushUnique(parts, "AMR");
+  else if (/\b(?:adpcm|ima[ ._-]?adpcm|ms[ ._-]?adpcm|g\.?726|g726)\b/i.test(text)) pushUnique(parts, "ADPCM");
+  else if (/\b(?:ape|monkey'?s[ ._-]?audio)\b/i.test(text)) pushUnique(parts, "APE");
+  else if (/\b(?:wavpack|wv)\b/i.test(text)) pushUnique(parts, "WavPack");
+  else if (/\b(?:tta|trueaudio)\b/i.test(text)) pushUnique(parts, "TTA");
+  else if (/\bspeex\b/i.test(text)) pushUnique(parts, "Speex");
+  else if (/\b(?:atrac(?:[ ._-]?(?:1|3|9|p|p3))?|at3|atrac3plus)\b/i.test(text)) pushUnique(parts, "ATRAC");
+  else if (/\b(?:dsd(?:64|128)?|dsf|dff)\b/i.test(text)) pushUnique(parts, "DSD");
+  else if (/\bshorten\b/i.test(text)) pushUnique(parts, "Shorten");
+  else if (/\btak\b/i.test(text)) pushUnique(parts, "TAK");
+  else if (/\b(?:mpc|musepack)\b/i.test(text)) pushUnique(parts, "Musepack");
+  else if (/\b(?:g\.?711|g711)\b/i.test(text)) pushUnique(parts, "G.711");
 
   const channels = text.match(/(?:^|[^0-9])(7\.1|5\.1|2\.1|2\.0)(?:[^0-9]|$)/i);
   if (channels) pushUnique(parts, channels[1]);

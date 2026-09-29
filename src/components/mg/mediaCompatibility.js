@@ -169,6 +169,68 @@ export const browserCodecSupport = {
       AUDIO_PROBE,
       'audio/mp4; codecs="mp4a.40.42"'
     ),
+
+  // Additional video codecs.
+  mjpeg:
+    canPlay(VIDEO_PROBE, "video/mjpeg") ||
+    canPlay(VIDEO_PROBE, 'video/mp4; codecs="jpeg"'),
+  prores:
+    canPlay(VIDEO_PROBE, 'video/mp4; codecs="apcn"') ||
+    canPlay(VIDEO_PROBE, 'video/mp4; codecs="apch"') ||
+    canPlay(VIDEO_PROBE, "video/quicktime"),
+  dnxhd:
+    canPlay(VIDEO_PROBE, 'video/mp4; codecs="avdn"'),
+  mpeg1:
+    canPlay(VIDEO_PROBE, "video/mpeg"),
+  vvc:
+    canPlay(VIDEO_PROBE, 'video/mp4; codecs="vvc1"'),
+  avs:
+    canPlay(VIDEO_PROBE, 'video/mp4; codecs="avs1"'),
+  dirac:
+    canPlay(VIDEO_PROBE, "video/dirac"),
+
+  // Additional audio codecs.
+  wma:
+    canPlay(AUDIO_PROBE, "audio/x-ms-wma") ||
+    canPlay(AUDIO_PROBE, "audio/wma"),
+  amr:
+    canPlay(AUDIO_PROBE, "audio/amr") ||
+    canPlay(AUDIO_PROBE, "audio/amr-wb"),
+  adpcm:
+    canPlay(AUDIO_PROBE, 'audio/wav; codecs="2"') ||
+    canPlay(AUDIO_PROBE, 'audio/wav; codecs="17"') ||
+    canPlay(AUDIO_PROBE, "audio/adpcm"),
+  ape:
+    canPlay(AUDIO_PROBE, "audio/x-ape") ||
+    canPlay(AUDIO_PROBE, "audio/ape"),
+  wavpack:
+    canPlay(AUDIO_PROBE, "audio/x-wavpack") ||
+    canPlay(AUDIO_PROBE, "audio/wavpack"),
+  tta:
+    canPlay(AUDIO_PROBE, "audio/x-tta") ||
+    canPlay(AUDIO_PROBE, "audio/tta"),
+  speex:
+    canPlay(AUDIO_PROBE, 'audio/ogg; codecs="speex"'),
+  atrac:
+    canPlay(AUDIO_PROBE, "audio/x-sonyatrac3") ||
+    canPlay(AUDIO_PROBE, "audio/atrac3"),
+  dsd:
+    canPlay(AUDIO_PROBE, "audio/x-dsd") ||
+    canPlay(AUDIO_PROBE, "audio/dsf") ||
+    canPlay(AUDIO_PROBE, "audio/dff"),
+  shorten:
+    canPlay(AUDIO_PROBE, "audio/x-shorten") ||
+    canPlay(AUDIO_PROBE, "audio/shorten"),
+  tak:
+    canPlay(AUDIO_PROBE, "audio/x-tak") ||
+    canPlay(AUDIO_PROBE, "audio/tak"),
+  musepack:
+    canPlay(AUDIO_PROBE, "audio/x-musepack") ||
+    canPlay(AUDIO_PROBE, "audio/musepack"),
+  g711:
+    canPlay(AUDIO_PROBE, 'audio/wav; codecs="6"') ||
+    canPlay(AUDIO_PROBE, 'audio/wav; codecs="7"') ||
+    canPlay(AUDIO_PROBE, "audio/g711"),
 };
 
 const NATIVE_VIDEO_MIME = {
@@ -181,6 +243,13 @@ const NATIVE_VIDEO_MIME = {
   mpeg2: ["video/mpeg2"],
   mpeg4: ["video/mp4v-es"],
   vc1: ["video/wvc1", "video/x-ms-wmv"],
+  prores: ["video/quicktime", 'video/mp4; codecs="apcn"', 'video/mp4; codecs="apch"'],
+  dnxhd: ['video/mp4; codecs="avdn"'],
+  mjpeg: ["video/mjpeg"],
+  mpeg1: ["video/mpeg"],
+  vvc: ['video/mp4; codecs="vvc1"'],
+  avs: ['video/mp4; codecs="avs1"'],
+  dirac: ["video/dirac"],
 };
 
 const NATIVE_AUDIO_MIME = {
@@ -197,6 +266,19 @@ const NATIVE_AUDIO_MIME = {
   mp3: ["audio/mpeg"],
   mp2: ["audio/mpeg-l2"],
   pcm: ["audio/raw"],
+  wma: ["audio/x-ms-wma", "audio/wma"],
+  amr: ["audio/amr", "audio/amr-wb"],
+  adpcm: ["audio/adpcm"],
+  ape: ["audio/x-ape", "audio/ape"],
+  wavpack: ["audio/x-wavpack", "audio/wavpack"],
+  tta: ["audio/x-tta"],
+  speex: ["audio/speex"],
+  atrac: ["audio/x-sonyatrac3", "audio/atrac3"],
+  dsd: ["audio/x-dsd", "audio/dsf"],
+  shorten: ["audio/x-shorten"],
+  tak: ["audio/x-tak"],
+  musepack: ["audio/x-musepack", "audio/musepack"],
+  g711: ["audio/g711"],
 };
 
 const nativeCodecSupportFor = (deviceProfile, kind, codec) => {
@@ -733,6 +815,55 @@ export const detectStreamTraits = (
     )
   ) {
     traits.video = "theora";
+  } else if (
+    has(
+      text,
+      /\bprores\b|\bapcn\b|\bapch\b|\bapco\b|\bap4h\b/i
+    )
+  ) {
+    traits.video = "prores";
+  } else if (
+    has(
+      text,
+      /\b(?:dnxhd|dnxhr|dnx[ ._-]?hd|dnx[ ._-]?hr|avdn)\b/i
+    )
+  ) {
+    traits.video = "dnxhd";
+  } else if (
+    has(
+      text,
+      /\b(?:mjpeg|mjpg|motion[ ._-]?jpeg)\b/i
+    )
+  ) {
+    traits.video = "mjpeg";
+  } else if (
+    has(
+      text,
+      /\bmpeg[ ._-]?1\b(?!.*\blayer\b)/i
+    )
+  ) {
+    traits.video = "mpeg1";
+  } else if (
+    has(
+      text,
+      /\b(?:h\.?266|vvc|vvc1|vvi1)\b/i
+    )
+  ) {
+    traits.video = "vvc";
+  } else if (
+    has(
+      text,
+      /\bavs(?:\+|2|3)?\b/i
+    )
+  ) {
+    traits.video = "avs";
+  } else if (
+    has(
+      text,
+      /\bdirac\b/i
+    )
+  ) {
+    traits.video = "dirac";
   }
 
   /*
@@ -853,6 +984,97 @@ export const detectStreamTraits = (
   ) {
     traits.audio =
       "mp3";
+  } else if (
+    has(
+      text,
+      /\b(?:wma|windows[ ._-]?media[ ._-]?audio)\b/i
+    )
+  ) {
+    traits.audio = "wma";
+  } else if (
+    has(
+      text,
+      /\b(?:amr(?:[ ._-]?(?:wb|nb))?|adaptive[ ._-]?multi[ ._-]?rate)\b/i
+    )
+  ) {
+    traits.audio = "amr";
+  } else if (
+    has(
+      text,
+      /\b(?:adpcm|ima[ ._-]?adpcm|ms[ ._-]?adpcm|g\.?726|g726)\b/i
+    )
+  ) {
+    traits.audio = "adpcm";
+  } else if (
+    has(
+      text,
+      /\b(?:ape|monkey'?s[ ._-]?audio)\b/i
+    )
+  ) {
+    traits.audio = "ape";
+  } else if (
+    has(
+      text,
+      /\b(?:wavpack|wv)\b/i
+    )
+  ) {
+    traits.audio = "wavpack";
+  } else if (
+    has(
+      text,
+      /\b(?:tta|trueaudio)\b/i
+    )
+  ) {
+    traits.audio = "tta";
+  } else if (
+    has(
+      text,
+      /\bspeex\b/i
+    )
+  ) {
+    traits.audio = "speex";
+  } else if (
+    has(
+      text,
+      /\b(?:atrac(?:[ ._-]?(?:1|3|9|p|p3))?|at3|atrac3plus)\b/i
+    )
+  ) {
+    traits.audio = "atrac";
+  } else if (
+    has(
+      text,
+      /\b(?:dsd(?:64|128)?|dsf|dff)\b/i
+    )
+  ) {
+    traits.audio = "dsd";
+  } else if (
+    has(
+      text,
+      /\bshorten\b/i
+    )
+  ) {
+    traits.audio = "shorten";
+  } else if (
+    has(
+      text,
+      /\btak\b/i
+    )
+  ) {
+    traits.audio = "tak";
+  } else if (
+    has(
+      text,
+      /\b(?:mpc|musepack)\b/i
+    )
+  ) {
+    traits.audio = "musepack";
+  } else if (
+    has(
+      text,
+      /\b(?:g\.?711|g711)\b/i
+    )
+  ) {
+    traits.audio = "g711";
   }
 
   traits.atmos =
@@ -1074,6 +1296,33 @@ const audioSupport = (
     return deviceProfile?.nativePlayerAvailable ? null : false;
   }
 
+  if (
+    audio === "wma" ||
+    audio === "amr" ||
+    audio === "adpcm" ||
+    audio === "ape" ||
+    audio === "wavpack" ||
+    audio === "tta" ||
+    audio === "speex" ||
+    audio === "atrac" ||
+    audio === "dsd" ||
+    audio === "shorten" ||
+    audio === "tak" ||
+    audio === "musepack" ||
+    audio === "g711"
+  ) {
+    const probed = browserCodecSupport[audio];
+    if (probed) return true;
+
+    /*
+     * These are uncommon, often hardware-specific codecs. A browser codec
+     * probe almost never reports them, but native Fire TV/Android decoders
+     * and passthrough paths frequently can. Leave them uncertain for the
+     * native player instead of rejecting them outright.
+     */
+    return deviceProfile?.nativePlayerAvailable ? null : false;
+  }
+
   return null;
 };
 
@@ -1144,6 +1393,29 @@ const videoSupport = (
       : null;
   }
   if (video === "vc1" || video === "theora") return null;
+
+  if (
+    video === "prores" ||
+    video === "dnxhd" ||
+    video === "mjpeg" ||
+    video === "mpeg1" ||
+    video === "vvc" ||
+    video === "avs" ||
+    video === "dirac"
+  ) {
+    const probed = browserCodecSupport[video];
+    if (probed) return true;
+
+    /*
+     * Professional and emerging codecs (ProRes, DNxHD, VVC, AVS, etc.) are
+     * rarely decoded by a stock browser WebView, but Fire TV/Android native
+     * decoders and external players often handle them. Keep them available
+     * for a real native attempt rather than rejecting from a browser probe.
+     */
+    return deviceProfile?.nativePlayerAvailable || deviceProfile?.fireTv
+      ? null
+      : false;
+  }
 
   return null;
 };
@@ -1602,6 +1874,22 @@ export const scoreSourceCompatibility = (
     traits.video === "theora"
   ) {
     score += 200;
+  } else if (
+    traits.video === "prores" ||
+    traits.video === "dnxhd" ||
+    traits.video === "mjpeg" ||
+    traits.video === "mpeg1" ||
+    traits.video === "vvc" ||
+    traits.video === "avs" ||
+    traits.video === "dirac"
+  ) {
+    const supported = videoSupport(traits.video, deviceProfile);
+    score +=
+      supported === true
+        ? 2600
+        : supported === null
+          ? 900
+          : -1200;
   }
 
   /*
@@ -1729,6 +2017,28 @@ export const scoreSourceCompatibility = (
         : deviceProfile.nativeFireTv
           ? -9000
           : -22000;
+  } else if (
+    traits.audio === "wma" ||
+    traits.audio === "amr" ||
+    traits.audio === "adpcm" ||
+    traits.audio === "ape" ||
+    traits.audio === "wavpack" ||
+    traits.audio === "tta" ||
+    traits.audio === "speex" ||
+    traits.audio === "atrac" ||
+    traits.audio === "dsd" ||
+    traits.audio === "shorten" ||
+    traits.audio === "tak" ||
+    traits.audio === "musepack" ||
+    traits.audio === "g711"
+  ) {
+    const supported = audioSupport(traits.audio, deviceProfile);
+    score +=
+      supported === true
+        ? 1500
+        : supported === null
+          ? 600
+          : -1500;
   }
 
   if (
@@ -1884,6 +2194,13 @@ const prettyVideo = {
   mpeg4: "MPEG-4/Xvid",
   vc1: "VC-1",
   theora: "Theora",
+  prores: "ProRes",
+  dnxhd: "DNxHD/HR",
+  mjpeg: "MJPEG",
+  mpeg1: "MPEG-1",
+  vvc: "H.266/VVC",
+  avs: "AVS",
+  dirac: "Dirac",
 };
 
 const prettyAudio = {
@@ -1922,6 +2239,19 @@ const prettyAudio = {
 
   mp2:
     "MP2",
+  wma: "WMA",
+  amr: "AMR",
+  adpcm: "ADPCM",
+  ape: "Monkey's Audio",
+  wavpack: "WavPack",
+  tta: "TTA",
+  speex: "Speex",
+  atrac: "ATRAC",
+  dsd: "DSD",
+  shorten: "Shorten",
+  tak: "TAK",
+  musepack: "Musepack",
+  g711: "G.711",
 };
 
 export const describeSourceCompatibility = (
