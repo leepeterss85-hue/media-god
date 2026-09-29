@@ -127,7 +127,7 @@ export default function MediaCard({
         <button
           type="button"
           onClick={handleDetails}
-          className="mg-hover-action absolute top-1.5 left-1.5 3xl:top-2 3xl:left-2 px-2 py-1 3xl:px-2.5 3xl:py-1.5 rounded bg-black/70 text-white text-[10px] 3xl:text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity"
+          className="absolute top-1.5 left-1.5 3xl:top-2 3xl:left-2 px-2 py-1 3xl:px-2.5 3xl:py-1.5 rounded bg-black/70 text-white text-[10px] 3xl:text-xs font-semibold transition-opacity"
         >
           Details
         </button>
