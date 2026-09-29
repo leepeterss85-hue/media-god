@@ -27,6 +27,7 @@ import { findChannelsByTitle } from "@/components/mg/freeTvPlaylist";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 import { buildVidSrcEmbedUrl } from "@/components/mg/vidsrcEmbed";
 import { buildEmbedSuEmbedUrl } from "@/components/mg/webEmbedProviders";
+import { fetchTmdbEmbedStreams } from "@/components/mg/tmdbEmbedStreams";
 import { cn } from "@/lib/utils";
 
 const unwrap = (response) =>
@@ -722,6 +723,38 @@ export default function StreamSourcesBox({
               reason =
                 browser.error;
             }
+          }
+
+          try {
+            const tmdbEmbed = await fetchTmdbEmbedStreams({
+              tmdbId,
+              mediaType,
+              season,
+              episode,
+            });
+
+            if (!cancelled && Array.isArray(tmdbEmbed.streams) && tmdbEmbed.streams.length > 0) {
+              streams = [
+                ...streams,
+                ...tmdbEmbed.streams.map((stream) => ({
+                  ...stream,
+                  browserFallback: false,
+                })),
+              ];
+
+              diagnostics = [
+                ...diagnostics,
+                {
+                  name: "TMDB Embed API",
+                  status: "ok",
+                  message: `${tmdbEmbed.streams.length} TMDB Embed source${tmdbEmbed.streams.length === 1 ? "" : "s"}`,
+                },
+              ];
+
+              checked = Math.max(checked, 1);
+            }
+          } catch {
+            // TMDB Embed is an optional self-hosted source; ignore failures.
           }
 
           setAddonStreams(
