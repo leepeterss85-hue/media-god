@@ -5,11 +5,10 @@ import React, {
 } from "react";
 
 import {
-  ArrowLeft, Play, Pause, Volume2, VolumeX, Maximize, Minimize, RotateCcw, RotateCw, SkipBack, SkipForward, Tv, Gauge, Captions, Languages, Repeat, PictureInPicture2, Languages as Translate
+  ArrowLeft, Play, Pause, Volume2, VolumeX, Maximize, Minimize, RotateCcw, RotateCw, SkipBack, SkipForward, Tv, Gauge, Captions, Languages, Repeat, PictureInPicture2
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { base44 } from "@/api/base44Client";
 import "@/components/mg/media-player-controls.css";
 import MobileCenterControls from "@/components/mg/MobileCenterControls";
 import usePlayerExtras from "@/components/mg/usePlayerExtras";
