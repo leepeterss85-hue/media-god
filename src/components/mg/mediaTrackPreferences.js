@@ -290,12 +290,23 @@ const audioTrackText = (track) =>
     .filter(Boolean)
     .join(" ");
 
+// Most desktop/mobile browsers cannot decode Dolby audio at all; picking such a
+// track in the web player means silent video, so rank it below everything else.
+const browserCanPlayAudio = (mime) => {
+  try {
+    return typeof document !== "undefined" &&
+      Boolean(document.createElement("audio").canPlayType(mime));
+  } catch {
+    return false;
+  }
+};
+
 const audioCodecPreferenceScore = (track) => {
   const codec = audioCodecKey(track);
 
   if (codec === "aac") return 2600;
-  if (codec === "eac3") return 1600;
-  if (codec === "ac3") return 1400;
+  if (codec === "eac3") return browserCanPlayAudio('audio/mp4; codecs="ec-3"') ? 1600 : -4000;
+  if (codec === "ac3") return browserCanPlayAudio('audio/mp4; codecs="ac-3"') ? 1400 : -4000;
   if (codec === "opus") return 1000;
   if (codec === "flac") return 900;
   if (codec === "mp3") return 700;

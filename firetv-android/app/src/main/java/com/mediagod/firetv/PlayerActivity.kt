@@ -249,61 +249,11 @@ class PlayerActivity : Activity() {
                 it.mediaTrackGroup.type == C.TRACK_TYPE_AUDIO
             }) return false
 
-        var selectedEnglishMain = false
-        var bestGroup: androidx.media3.common.Tracks.Group? = null
-        var bestIndex = -1
-        var bestScore = Int.MIN_VALUE
-
-        tracks.groups.forEach { group ->
-            if (group.type != C.TRACK_TYPE_AUDIO) return@forEach
-
-            for (index in 0 until group.length) {
-                if (!group.isTrackSupported(index)) continue
-
-                val format = group.getTrackFormat(index)
-                val english =
-                    formatLooksEnglish(format) ||
-                        formatMatchesVerifiedEnglishHint(format)
-                val commentary = formatLooksCommentary(format)
-
-                if (
-                    group.isTrackSelected(index) &&
-                    english &&
-                    !commentary
-                ) {
-                    selectedEnglishMain = true
-                }
-
-                if (!english) continue
-
-                var score = 1000
-                if (!commentary) score += 400
-                if ((format.roleFlags and C.ROLE_FLAG_MAIN) != 0) score += 100
-                if (group.isTrackSelected(index)) score += 25
-
-                val mime = format.sampleMimeType.orEmpty().lowercase()
-                if (
-                    mime.contains("aac") ||
-                    mime.contains("ac3") ||
-                    mime.contains("eac3") ||
-                    mime.contains("opus")
-                ) {
-                    score += 20
-                }
-
-                if (commentary) score -= 900
-
-                if (score > bestScore) {
-                    bestScore = score
-                    bestGroup = group
-                    bestIndex = index
-                }
-            }
-        }
-
-        if (selectedEnglishMain || bestGroup == null || bestIndex < 0) {
-            return false
-        }
+        val (bestGroup, bestIndex) = AudioTrackSafety.pickSaferTrack(
+            tracks,
+            { formatLooksEnglish(it) || formatMatchesVerifiedEnglishHint(it) },
+            { formatLooksCommentary(it) }
+        ) ?: return false
 
         return try {
             activePlayer.trackSelectionParameters =
@@ -311,7 +261,7 @@ class PlayerActivity : Activity() {
                     .buildUpon()
                     .setOverrideForType(
                         androidx.media3.common.TrackSelectionOverride(
-                            bestGroup!!.mediaTrackGroup,
+                            bestGroup.mediaTrackGroup,
                             bestIndex
                         )
                     )

@@ -224,14 +224,41 @@ class PlayerActivity : Activity() {
                 it.mediaTrackGroup.type == C.TRACK_TYPE_AUDIO
             }) return false
 
-        var selectedEnglishMain = false
+        // Rank tracks by how reliably they produce sound on real devices.
+        // "Supported" for DTS/TrueHD/Atmos often only means passthrough,
+        // which many outputs silently drop — so prefer AAC/AC-3 when present.
+        fun codecSafety(format: androidx.media3.common.Format): Int {
+            val mime = format.sampleMimeType.orEmpty().lowercase()
+            var score = when {
+                mime.contains("mp4a") || mime.contains("aac") -> 300
+                mime == "audio/ac3" -> 220
+                mime == "audio/eac3" -> 180
+                mime.contains("opus") || mime.contains("vorbis") ||
+                    mime.contains("flac") || mime == "audio/mpeg" ||
+                    mime == "audio/raw" -> 150
+                mime.contains("joc") || mime.contains("ac4") -> 40
+                mime.contains("dts") || mime.contains("true-hd") ||
+                    mime.contains("mlp") -> -400
+                else -> 0
+            }
+            if (format.channelCount > 6) score -= 30
+            return score
+        }
+
+        val audioGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
+        val anyLanguageTagged = audioGroups.any { group ->
+            (0 until group.length).any { i ->
+                val lang = group.getTrackFormat(i).language.orEmpty().lowercase()
+                lang.isNotBlank() && lang != "und"
+            }
+        }
+
+        var selectedScore = Int.MIN_VALUE
         var bestGroup: androidx.media3.common.Tracks.Group? = null
         var bestIndex = -1
         var bestScore = Int.MIN_VALUE
 
-        tracks.groups.forEach { group ->
-            if (group.type != C.TRACK_TYPE_AUDIO) return@forEach
-
+        audioGroups.forEach { group ->
             for (index in 0 until group.length) {
                 if (!group.isTrackSupported(index)) continue
 
@@ -241,32 +268,15 @@ class PlayerActivity : Activity() {
                         formatMatchesVerifiedEnglishHint(format)
                 val commentary = formatLooksCommentary(format)
 
-                if (
-                    group.isTrackSelected(index) &&
-                    english &&
-                    !commentary
-                ) {
-                    selectedEnglishMain = true
+                if (!english && anyLanguageTagged) continue
+                if (commentary) continue
+
+                var score = codecSafety(format)
+                if ((format.roleFlags and C.ROLE_FLAG_MAIN) != 0) score += 10
+                if (group.isTrackSelected(index)) {
+                    score += 5
+                    selectedScore = score
                 }
-
-                if (!english) continue
-
-                var score = 1000
-                if (!commentary) score += 400
-                if ((format.roleFlags and C.ROLE_FLAG_MAIN) != 0) score += 100
-                if (group.isTrackSelected(index)) score += 25
-
-                val mime = format.sampleMimeType.orEmpty().lowercase()
-                if (
-                    mime.contains("aac") ||
-                    mime.contains("ac3") ||
-                    mime.contains("eac3") ||
-                    mime.contains("opus")
-                ) {
-                    score += 20
-                }
-
-                if (commentary) score -= 900
 
                 if (score > bestScore) {
                     bestScore = score
@@ -276,7 +286,11 @@ class PlayerActivity : Activity() {
             }
         }
 
-        if (selectedEnglishMain || bestGroup == null || bestIndex < 0) {
+        if (
+            bestGroup == null || bestIndex < 0 ||
+            bestGroup!!.isTrackSelected(bestIndex) ||
+            selectedScore >= bestScore - 50
+        ) {
             return false
         }
 
