@@ -101,7 +101,7 @@ import {
   smartEntryUpgradeScore,
   smartSourceFingerprint,
 } from "@/components/mg/smartSourceSelection";
-
+import { useProactiveCodecGuard } from "@/components/mg/useProactiveCodecGuard";
 const SUCCESSFUL_VOD_PLAYBACK_SECONDS = 20;
 
 const isMagnet = (value) =>
@@ -8888,14 +8888,9 @@ export default function VideoPlayer({
     nativeFallbackUrl !== nativePlaybackUrl;
 
   /*
-   * Fire TV must not decode resolved VOD inside the WebView. The original
-   * dedicated build was stable because Media3 owned the actual video surface;
-   * keeping VOD in <video> reintroduced renderer/codec white-screen failures.
-   *
-   * Media God's web player remains the source/torrent selection surface, but
-   * every resolved HTTP media URL is handed to native Media3 for playback.
-   * Back from Media3 enters a safe selector mode rather than starting the same
-   * URL in WebView again.
+   * Fire TV/Android must not decode resolved VOD inside the WebView; every
+   * resolved HTTP media URL is handed to native Media3. Back from Media3
+   * enters a safe selector mode rather than restarting the URL in WebView.
    */
   const useNativePlayback =
     nativePlaybackAvailable &&
@@ -8912,6 +8907,8 @@ export default function VideoPlayer({
     !forceNativePlayback &&
     /^https?:\/\//i.test(nativePlaybackUrl) &&
     nativeFallbackUrl === nativePlaybackUrl;
+
+  useProactiveCodecGuard({ active, activeIdx, activeUrl, rdOverride, isDirectFile, isLive, isYoutube, isProvider, useNativePlayback, nativeFireTvPlayer, rdResolving, rdPolling, rdTorrentId, rdPreparation, manualSourceLockActive, markSourceFailed, findNextPlayableSource, switchToSource, setForceNativePlayback, setNativeFallbackUrl, setRdError, sourceDisplayLabel });
 
   /*
    * VOD STARTUP WATCHDOG

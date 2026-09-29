@@ -1643,6 +1643,30 @@ export const sourcePlaybackCompatibilityTier = (
   return 2;
 };
 
+/*
+ * True only when the browser's own <video> decoder (ignoring any native
+ * Fire TV/Android Media3 player) definitely cannot decode this source's
+ * video or audio. Used to proactively route undecodable codecs to native or
+ * skip to a decodable source instead of attempting and failing in the web
+ * player. A rescue/transcode flag on the resolved stream overrides this so
+ * a Real-Debrid-compatible rendition is never falsely rejected.
+ */
+export const isSourceWebUndecodable = (item, extraText = "") => {
+  const full = getPlaybackDeviceProfile();
+  const browserOnly = {
+    ...full,
+    fireTv: false,
+    isFireTv: false,
+    nativeFireTv: false,
+    nativeAndroidMobile: false,
+    nativePlayerAvailable: false,
+    nativeCodecSupport: { video: [], audio: [] },
+  };
+  return sourcePlaybackCompatibilityTier(item, extraText, {
+    deviceProfile: browserOnly,
+  }) === 3;
+};
+
 export const scoreSourceCompatibility = (
   item,
   extraText = "",
