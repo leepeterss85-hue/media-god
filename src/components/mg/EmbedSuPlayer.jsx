@@ -7,12 +7,16 @@ export default function EmbedSuPlayer({ url, media, title, onBack, backLabel = "
   const [active, setActive] = useState({ url, label: "Embed.su" });
   const [servers, setServers] = useState([]);
   const [lookup, setLookup] = useState("loading");
+  const [manualLink, setManualLink] = useState("");
+  const [manualError, setManualError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
     setActive({ url, label: "Embed.su" });
     setServers([]);
     setLookup("loading");
+    setManualLink("");
+    setManualError("");
 
     base44.functions.invoke("discoverEmbedSuServers", {
       mediaType: media.mediaType,
@@ -30,14 +34,32 @@ export default function EmbedSuPlayer({ url, media, title, onBack, backLabel = "
           ...item,
           label: hostedEmbedLabel[item.provider],
         }));
-      setServers(choices);
-      setLookup(choices.length ? "ready" : "unavailable");
+      setServers((existing) => {
+        const urls = new Set(choices.map((item) => item.url));
+        return [...choices, ...existing.filter((item) => !urls.has(item.url))];
+      });
+      setLookup(choices.length ? "ready" : data.status === "unavailable" ? "offline" : "no_servers");
     }).catch(() => {
-      if (!cancelled) setLookup("unavailable");
+      if (!cancelled) setLookup("error");
     });
 
     return () => { cancelled = true; };
   }, [url, media.mediaType, media.tmdbId, media.season, media.episode]);
+
+  const openManualLink = (event) => {
+    event.preventDefault();
+    const page = hostedEmbedPage(manualLink);
+    if (!page) {
+      setManualError("Paste a full HTTPS embed link from UpStream, MixDrop or VidCloud.");
+      return;
+    }
+    const choice = { ...page, label: hostedEmbedLabel[page.provider] };
+    setServers((existing) => existing.some((item) => item.url === choice.url)
+      ? existing
+      : [...existing, choice]);
+    setActive(choice);
+    setManualError("");
+  };
 
   return (
     <div
@@ -83,11 +105,33 @@ export default function EmbedSuPlayer({ url, media, title, onBack, backLabel = "
           <span className="text-xs text-white/50" role="status">
             {lookup === "loading"
               ? "Checking for UpStream, MixDrop and VidCloud links…"
-              : lookup === "unavailable"
-                ? "No verified server links found. You can use the Embed.su player or go back."
-                : "Choose a discovered server."}
+              : lookup === "offline"
+                ? "Embed.su could not be reached. Use a direct server link below or go back."
+                : lookup === "error"
+                  ? "Server discovery is unavailable. Use a direct server link below or go back."
+                  : lookup === "no_servers"
+                    ? "No server links were found. You can try a direct link below."
+                    : "Choose a discovered server."}
           </span>
         </div>
+
+        <form onSubmit={openManualLink} className="mb-2 flex flex-wrap items-end gap-2">
+          <label className="min-w-[12rem] flex-1 text-xs text-white/70">
+            Direct UpStream, MixDrop or VidCloud embed link
+            <input
+              type="url"
+              value={manualLink}
+              onChange={(event) => { setManualLink(event.target.value); setManualError(""); }}
+              placeholder="https://…/e/…"
+              className="mt-1 min-h-11 w-full rounded-lg border border-white/20 bg-mg-card px-3 text-sm text-white outline-none focus:ring-2 focus:ring-mg-green"
+              aria-invalid={Boolean(manualError)}
+            />
+          </label>
+          <button type="submit" className="min-h-11 rounded-lg border border-white/20 bg-mg-card px-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-mg-green">
+            Open link
+          </button>
+          {manualError && <p role="alert" className="w-full text-xs text-amber-200">{manualError}</p>}
+        </form>
 
         <div data-mg-player-stage="true" className="relative aspect-video min-h-[34vh] w-full overflow-hidden rounded-xl border border-white/10 bg-black">
           <iframe
