@@ -20,6 +20,8 @@ import {
 
 import VideoPlayer from "@/components/mg/VideoPlayer";
 import VidSrcEmbedPlayer from "@/components/mg/VidSrcEmbedPlayer";
+import EmbedSuPlayer from "@/components/mg/EmbedSuPlayer";
+import { buildEmbedSuEmbedUrl } from "@/components/mg/webEmbedProviders";
 import { buildVidSrcEmbedUrl } from "@/components/mg/vidsrcEmbed";
 import { stopExclusivePlayback } from "@/components/mg/exclusivePlayback";
 import {
@@ -4452,6 +4454,55 @@ export function PlayerProvider({
     return true;
   }, []);
 
+  const playEmbedSu = useCallback((media) => {
+    const url = buildEmbedSuEmbedUrl(media);
+    if (!url) return false;
+
+    const playRequestId = ++playSequenceRef.current;
+    stopExclusivePlayback();
+    setSource({
+      ...media,
+      playRequestId,
+      title: String(media.title || "Video"),
+      sources: [],
+      completeSources: [],
+    });
+    setVidSrcEmbed({
+      provider: "embedsu",
+      url,
+      media: {
+        mediaType: media.mediaType,
+        tmdbId: media.tmdbId ?? media.id,
+        season: media.season ?? media.rdSeason,
+        episode: media.episode ?? media.rdEpisode,
+      },
+      title: String(media.title || "Video"),
+      fromDetails: true,
+    });
+    return true;
+  }, []);
+
+  const openEmbedSu = useCallback((mediaType) => {
+    if (!source || source.type === "live") return false;
+    const media = { ...source, mediaType };
+    const url = buildEmbedSuEmbedUrl(media);
+    if (!url) return false;
+
+    stopExclusivePlayback();
+    setVidSrcEmbed({
+      provider: "embedsu",
+      url,
+      media: {
+        mediaType,
+        tmdbId: media.tmdbId ?? media.id,
+        season: media.season ?? media.rdSeason,
+        episode: media.episode ?? media.rdEpisode,
+      },
+      title: String(source.title || "Video"),
+    });
+    return true;
+  }, [source]);
+
   const openVidSrc = useCallback((mediaType) => {
     if (!source || source.type === "live") return false;
 
@@ -4530,6 +4581,8 @@ export function PlayerProvider({
 
         playVidSrc,
 
+        playEmbedSu,
+
         prepare,
 
         close,
@@ -4545,6 +4598,8 @@ export function PlayerProvider({
         play,
 
         playVidSrc,
+
+        playEmbedSu,
 
         prepare,
 
@@ -4574,7 +4629,15 @@ export function PlayerProvider({
             }
             onClose={close}
           >
-            {vidSrcEmbed ? (
+            {vidSrcEmbed?.provider === "embedsu" ? (
+              <EmbedSuPlayer
+                url={vidSrcEmbed.url}
+                media={vidSrcEmbed.media}
+                title={vidSrcEmbed.title}
+                onBack={vidSrcEmbed.fromDetails ? close : () => setVidSrcEmbed(null)}
+                backLabel={vidSrcEmbed.fromDetails ? "Details" : "Sources"}
+              />
+            ) : vidSrcEmbed ? (
               <VidSrcEmbedPlayer
                 url={vidSrcEmbed.url}
                 title={vidSrcEmbed.title}
@@ -4586,6 +4649,7 @@ export function PlayerProvider({
                 source={source}
                 onClose={close}
                 onOpenVidSrc={openVidSrc}
+                onOpenEmbedSu={openEmbedSu}
               />
             )}
           </PlayerRenderBoundary>,

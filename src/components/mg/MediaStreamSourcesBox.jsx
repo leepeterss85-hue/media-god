@@ -26,6 +26,7 @@ import {
 import { findChannelsByTitle } from "@/components/mg/freeTvPlaylist";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 import { buildVidSrcEmbedUrl } from "@/components/mg/vidsrcEmbed";
+import { buildEmbedSuEmbedUrl } from "@/components/mg/webEmbedProviders";
 import { cn } from "@/lib/utils";
 
 const unwrap = (response) =>
@@ -1236,6 +1237,13 @@ export default function StreamSourcesBox({
     episode,
   });
 
+  const embedSuUrl = buildEmbedSuEmbedUrl({
+    mediaType,
+    tmdbId,
+    season,
+    episode,
+  });
+
   const rows = [
     {
       id:
@@ -1265,6 +1273,22 @@ export default function StreamSourcesBox({
         id: tmdbId,
         tmdbId,
         imdbId: resolvedImdb || imdbId,
+        title,
+        poster,
+        mediaType,
+        season,
+        episode,
+      }),
+    }] : []),
+
+    ...(embedSuUrl ? [{
+      id: "embedsu-web-player",
+      kind: "embedsu",
+      label: "Embed.su web player",
+      note: "Manual backup • UpStream, MixDrop and VidCloud if discovered",
+      onClick: () => player.playEmbedSu({
+        id: tmdbId,
+        tmdbId,
         title,
         poster,
         mediaType,
@@ -1523,7 +1547,7 @@ export default function StreamSourcesBox({
       );
     }
 
-    if (kind === "vidsrc") {
+    if (kind === "vidsrc" || kind === "embedsu") {
       return <ExternalLink className="w-4 h-4 text-amber-300" />;
     }
 
@@ -1603,7 +1627,7 @@ export default function StreamSourcesBox({
                   row.kind ===
                     "rd"
                     ? "bg-mg-green/10 hover:bg-mg-green/20 border-mg-green/30"
-                    : row.kind === "vidsrc"
+                    : (row.kind === "vidsrc" || row.kind === "embedsu")
                       ? "bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30"
                     : row.kind ===
                         "addon-stream"
