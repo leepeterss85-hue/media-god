@@ -27,6 +27,7 @@ import { findChannelsByTitle } from "@/components/mg/freeTvPlaylist";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 import { buildVidSrcEmbedUrl } from "@/components/mg/vidsrcEmbed";
 import { buildEmbedSuEmbedUrl } from "@/components/mg/webEmbedProviders";
+import { buildVidCoreEmbedUrl } from "@/components/mg/vidCoreEmbed";
 import { fetchTmdbEmbedStreams } from "@/components/mg/tmdbEmbedStreams";
 import { cn } from "@/lib/utils";
 
@@ -1277,6 +1278,13 @@ export default function StreamSourcesBox({
     episode,
   });
 
+  const vidCoreUrl = buildVidCoreEmbedUrl({
+    mediaType,
+    tmdbId,
+    season,
+    episode,
+  });
+
   const rows = [
     {
       id:
@@ -1320,6 +1328,22 @@ export default function StreamSourcesBox({
       label: "Embed.su web player",
       note: "Manual backup • UpStream, MixDrop and VidCloud if discovered",
       onClick: () => player.playEmbedSu({
+        id: tmdbId,
+        tmdbId,
+        title,
+        poster,
+        mediaType,
+        season,
+        episode,
+      }),
+    }] : []),
+
+    ...(vidCoreUrl ? [{
+      id: "vidcore-web-player",
+      kind: "vidcore",
+      label: "VidCore web player",
+      note: "Manual backup • uses VidCore's own controls",
+      onClick: () => player.playVidCore({
         id: tmdbId,
         tmdbId,
         title,
@@ -1580,7 +1604,7 @@ export default function StreamSourcesBox({
       );
     }
 
-    if (kind === "vidsrc" || kind === "embedsu") {
+    if (kind === "vidsrc" || kind === "embedsu" || kind === "vidcore") {
       return <ExternalLink className="w-4 h-4 text-amber-300" />;
     }
 
@@ -1660,7 +1684,7 @@ export default function StreamSourcesBox({
                   row.kind ===
                     "rd"
                     ? "bg-mg-green/10 hover:bg-mg-green/20 border-mg-green/30"
-                    : (row.kind === "vidsrc" || row.kind === "embedsu")
+                    : (row.kind === "vidsrc" || row.kind === "embedsu" || row.kind === "vidcore")
                       ? "bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30"
                     : row.kind ===
                         "addon-stream"
