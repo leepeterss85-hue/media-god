@@ -9233,8 +9233,10 @@ export default function VideoPlayer({
       }
 
       if (reason === "browse_sources" && !isLive) {
-        // An older APK can still return this action. Keep the player mounted
-        // and reveal the current source chooser instead of exiting to Home.
+        // An older APK can still return this action, and discovery can finish
+        // after native playback starts. Keep the player mounted and return to
+        // the live WebView chooser so the viewer sees its newest complete pool
+        // instead of exiting to Home.
         setForceNativePlayback(false);
         setNativeFallbackUrl(nativePlaybackUrl);
         window.setTimeout(() => {

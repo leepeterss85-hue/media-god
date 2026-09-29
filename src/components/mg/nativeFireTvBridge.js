@@ -793,8 +793,10 @@ export const playNativeFireTv = ({
       : []
     : sourceRows.map(toNativeSource);
 
-  // Send the full VOD chooser as small labels and web indices alongside the
-  // single playable URL, avoiding Android's Activity payload size limit.
+  // The decoder needs only one URL, but its Sources control needs the full
+  // chooser. Send the full VOD chooser as small labels and web indices
+  // alongside the single playable URL, without torrent URLs, headers, or
+  // bulky media metadata, avoiding Android's Activity payload size limit.
   const sourceChoices = !live
     ? sourceRows.slice(0, 500).map((item, index) => ({
         webIndex: Number.isInteger(Number(item?.webIndex))
