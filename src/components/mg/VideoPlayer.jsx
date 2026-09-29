@@ -7381,28 +7381,18 @@ export default function VideoPlayer({
           .then(() => setAudioUnlockUrl((current) => current === url ? "" : current))
           .catch(
             (error) => {
-              if (!isLive) {
-                if (
-                  error?.name === "NotAllowedError" &&
-                  video === stageRef.current?.querySelector("video")
-                ) {
-                  setAudioUnlockUrl(String(url));
-                }
-                return;
+              if (
+                error?.name === "NotAllowedError" &&
+                video === stageRef.current?.querySelector("video")
+              ) {
+                setAudioUnlockUrl(String(url));
               }
 
-              video.muted =
-                true;
+              if (!isLive) return;
 
-              video.dataset
-                .mgAutoplayMuted =
-                "true";
-
-              video
-                .play()
-                .catch(
-                  () => {}
-                );
+              video.muted = true;
+              video.dataset.mgAutoplayMuted = "true";
+              video.play().catch(() => {});
             }
           );
       };
@@ -10580,7 +10570,6 @@ export default function VideoPlayer({
                   : "Loading";
 
   const audioUnlockRequired =
-    !isLive &&
     Boolean(audioUnlockUrl) &&
     audioUnlockUrl === String(rdOverride?.src || activeUrl || "");
 

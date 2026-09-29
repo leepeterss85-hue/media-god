@@ -1365,12 +1365,14 @@ const LiveVideo = forwardRef(
           } catch (error) {
             if (cancelled || error?.name === "AbortError") return;
 
+            if (error?.name === "NotAllowedError") {
+              onAutoplayBlockedRef.current?.();
+            }
+
             if (!allowMutedAutoplayRef.current) {
               video.muted = false;
               delete video.dataset.mgAutoplayMuted;
-              if (error?.name === "NotAllowedError") {
-                onAutoplayBlockedRef.current?.();
-              } else {
+              if (error?.name !== "NotAllowedError") {
                 reportError(error);
               }
               return;
