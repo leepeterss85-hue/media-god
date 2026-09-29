@@ -63,7 +63,9 @@ const markCompleted = () => {
 };
 
 export default function OnboardingTour() {
-  const [open, setOpen] = useState(() => !hasCompleted());
+  // Don't auto-open on Home load — it covers the catalogue cards.
+  // The tour stays reopenable from Settings via OPEN_ONBOARDING_EVENT.
+  const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
 
   useEffect(() => {

@@ -43,18 +43,13 @@ export default function PlaybackUpdateNotice({
     useRef(null);
 
   useEffect(() => {
+    // Don't auto-open on Home load — it covers the catalogue cards.
+    // The full update history is always available from Updates in the sidebar.
     if (!enabled || alreadySeen()) {
       return undefined;
     }
 
-    const timer =
-      window.setTimeout(
-        () => setOpen(true),
-        650
-      );
-
-    return () =>
-      window.clearTimeout(timer);
+    return undefined;
   }, [enabled]);
 
   useEffect(() => {
