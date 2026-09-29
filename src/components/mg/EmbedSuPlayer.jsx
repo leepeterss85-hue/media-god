@@ -2,8 +2,10 @@ import React, { useEffect, useState } from "react";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { hostedEmbedLabel, hostedEmbedPage } from "@/components/mg/webEmbedProviders";
+import useEmbedPopupBlocker from "@/components/mg/useEmbedPopupBlocker";
 
 export default function EmbedSuPlayer({ url, media, title, onBack, backLabel = "Sources" }) {
+  useEmbedPopupBlocker();
   const [active, setActive] = useState({ url, label: "Embed.su" });
   const [servers, setServers] = useState([]);
   const [lookup, setLookup] = useState("loading");
@@ -142,6 +144,7 @@ export default function EmbedSuPlayer({ url, media, title, onBack, backLabel = "
             allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
+            sandbox="allow-scripts allow-same-origin allow-presentation allow-pointer-lock allow-fullscreen"
           />
         </div>
 

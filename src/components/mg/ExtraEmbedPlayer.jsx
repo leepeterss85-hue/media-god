@@ -1,7 +1,9 @@
 import React from "react";
 import { ArrowLeft, ExternalLink } from "lucide-react";
+import useEmbedPopupBlocker from "@/components/mg/useEmbedPopupBlocker";
 
 export default function ExtraEmbedPlayer({ url, title, providerLabel = "Web", onBack, backLabel = "Sources" }) {
+  useEmbedPopupBlocker();
   return (
     <div
       data-mg-player-root="true"
@@ -39,6 +41,7 @@ export default function ExtraEmbedPlayer({ url, title, providerLabel = "Web", on
             allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
+            sandbox="allow-scripts allow-same-origin allow-presentation allow-pointer-lock allow-fullscreen"
           />
         </div>
 
