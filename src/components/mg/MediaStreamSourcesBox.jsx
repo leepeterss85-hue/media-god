@@ -28,6 +28,7 @@ import { usePlayer } from "@/components/mg/PlayerProvider";
 import { buildVidSrcEmbedUrl } from "@/components/mg/vidsrcEmbed";
 import { buildEmbedSuEmbedUrl } from "@/components/mg/webEmbedProviders";
 import { buildVidCoreEmbedUrl } from "@/components/mg/vidCoreEmbed";
+import { buildTwoEmbedEmbedUrl, buildCineSrcEmbedUrl, buildMultiEmbedEmbedUrl } from "@/components/mg/extraEmbedProviders";
 import { fetchTmdbEmbedStreams } from "@/components/mg/tmdbEmbedStreams";
 import { cn } from "@/lib/utils";
 
@@ -1285,6 +1286,10 @@ export default function StreamSourcesBox({
     episode,
   });
 
+  const twoEmbedUrl = buildTwoEmbedEmbedUrl({ mediaType, tmdbId, imdbId: resolvedImdb || imdbId, season, episode });
+  const cineSrcUrl = buildCineSrcEmbedUrl({ mediaType, tmdbId, season, episode });
+  const multiEmbedUrl = buildMultiEmbedEmbedUrl({ mediaType, tmdbId, imdbId: resolvedImdb || imdbId, season, episode });
+
   const rows = [
     {
       id:
@@ -1352,6 +1357,30 @@ export default function StreamSourcesBox({
         season,
         episode,
       }),
+    }] : []),
+
+    ...(twoEmbedUrl ? [{
+      id: "twoembed-web-player",
+      kind: "twoembed",
+      label: "2Embed web player",
+      note: "Manual backup • uses 2Embed's own controls",
+      onClick: () => player.playExtraEmbed("twoembed", { id: tmdbId, tmdbId, imdbId: resolvedImdb || imdbId, title, poster, mediaType, season, episode }),
+    }] : []),
+
+    ...(cineSrcUrl ? [{
+      id: "cinesrc-web-player",
+      kind: "cinesrc",
+      label: "CineSrc web player",
+      note: "Manual backup • controllable player",
+      onClick: () => player.playExtraEmbed("cinesrc", { id: tmdbId, tmdbId, title, poster, mediaType, season, episode }),
+    }] : []),
+
+    ...(multiEmbedUrl ? [{
+      id: "multiembed-web-player",
+      kind: "multiembed",
+      label: "MultiEmbed web player",
+      note: "Manual backup • uses MultiEmbed's own controls",
+      onClick: () => player.playExtraEmbed("multiembed", { id: tmdbId, tmdbId, imdbId: resolvedImdb || imdbId, title, poster, mediaType, season, episode }),
     }] : []),
 
     ...(providers || [])

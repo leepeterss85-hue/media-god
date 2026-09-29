@@ -11,10 +11,7 @@ import React, {
 import { createPortal } from "react-dom";
 import { base44 } from "@/api/base44Client";
 import { withGuestDebridPayload } from "@/components/mg/guestDebridDevice";
-import {
-  fetchBrowserAddonStreams,
-  mergeAddonStreams,
-} from "@/components/mg/addonBrowserFallback";
+import { fetchBrowserAddonStreams, mergeAddonStreams } from "@/components/mg/addonBrowserFallback";
 import VideoPlayer from "@/components/mg/VideoPlayer";
 import VidSrcEmbedPlayer from "@/components/mg/VidSrcEmbedPlayer";
 import EmbedSuPlayer from "@/components/mg/EmbedSuPlayer";
@@ -22,41 +19,22 @@ import { buildEmbedSuEmbedUrl } from "@/components/mg/webEmbedProviders";
 import { buildVidSrcEmbedUrl } from "@/components/mg/vidsrcEmbed";
 import { buildVidCoreEmbedUrl } from "@/components/mg/vidCoreEmbed";
 import VidCoreEmbedPlayer from "@/components/mg/VidCoreEmbedPlayer";
+import { buildTwoEmbedEmbedUrl, buildCineSrcEmbedUrl, buildMultiEmbedEmbedUrl } from "@/components/mg/extraEmbedProviders";
+import ExtraEmbedPlayer from "@/components/mg/ExtraEmbedPlayer";
 import { stopExclusivePlayback } from "@/components/mg/exclusivePlayback";
-import {
-  detectLanguagePreference,
-  getPlaybackDeviceProfile,
-  scoreSourceCompatibility,
-  sourcePlaybackCompatibilityTier,
-} from "@/components/mg/mediaCompatibility";
+import { detectLanguagePreference, getPlaybackDeviceProfile, scoreSourceCompatibility, sourcePlaybackCompatibilityTier } from "@/components/mg/mediaCompatibility";
 import { devicePlaybackReliabilityAdjustment, exactPlaybackSourceLabel } from "@/components/mg/playbackReliability";
 import { readPlaybackPreferences } from "@/components/mg/playbackPreferences";
 import { readTrackPreferences } from "@/components/mg/mediaTrackPreferences";
 import { debridProviderScoreHints } from "@/components/mg/debridProviderReliability";
 import { chooseDebridResolutionStrategy } from "@/components/mg/debridResolutionStrategy";
-import {
-  classifyDebridCacheCheck,
-  mergeDebridCacheCheckState,
-} from "@/components/mg/debridCacheCheck";
-import {
-  sourceHasPendingCacheSignal,
-  sourceIsConfirmedCachedForPlayback,
-} from "@/components/mg/sourceCacheVisibility";
-import {
-  readSourceSortMode,
-  sortSourceEntries,
-} from "@/components/mg/sourceSelectorPreferences";
+import { classifyDebridCacheCheck, mergeDebridCacheCheckState } from "@/components/mg/debridCacheCheck";
+import { sourceHasPendingCacheSignal, sourceIsConfirmedCachedForPlayback } from "@/components/mg/sourceCacheVisibility";
+import { readSourceSortMode, sortSourceEntries } from "@/components/mg/sourceSelectorPreferences";
 import { preservePublishedSourceOrder } from "@/components/mg/sourcePublication";
-import {
-  filterSourcesForRequestedIdentity,
-  sourceMatchesRequestedIdentity,
-} from "@/components/mg/sourceIdentity";
+import { filterSourcesForRequestedIdentity, sourceMatchesRequestedIdentity } from "@/components/mg/sourceIdentity";
 import { sourceIsAioStreamsCandidate } from "@/components/mg/sourceProviderIdentity";
-import {
-  canonicalImdbLookupFields,
-  sourceAddonFailure,
-  sourceLookupFailed,
-} from "@/components/mg/sourceDiscoveryFeedback";
+import { canonicalImdbLookupFields, sourceAddonFailure, sourceLookupFailed } from "@/components/mg/sourceDiscoveryFeedback";
 
 const PlayerContext = createContext(null);
 
@@ -4165,18 +4143,10 @@ export function PlayerProvider({
                     ...orderedSources,
                   ];
 
-        const primary =
-          playerSources[0] ||
-          {};
-
-        const activeUrl =
-          getSourceUrl(
-            primary
-          );
-
-        if (!isCurrentPlay()) {
-          return false;
-        }
+        const primary = playerSources[0] || {};
+        const activeUrl = getSourceUrl(primary);
+        if (!isCurrentPlay()) return false;
+        if (!isLive && !playerSources.some((item) => getSourceUrl(item)) && launchEmbedFallbackRef.current?.({ ...request, mediaType, tmdbId, imdbId, season, episode, title: request?.title || "Video" })) return true;
 
         setSource({
           ...request,
@@ -4432,35 +4402,14 @@ export function PlayerProvider({
       ]
     );
 
-  const playVidSrc = useCallback((media) => {
-    const url = buildVidSrcEmbedUrl(media);
-    if (!url) return false;
-    const playRequestId = ++playSequenceRef.current;
-    stopExclusivePlayback();
-    setSource({ ...media, playRequestId, title: String(media.title || "Video"), sources: [], completeSources: [] });
-    setVidSrcEmbed({ url, title: String(media.title || "Video"), fromDetails: true });
-    return true;
-  }, []);
-
-  const playEmbedSu = useCallback((media) => {
-    const url = buildEmbedSuEmbedUrl(media);
-    if (!url) return false;
-    const playRequestId = ++playSequenceRef.current;
-    stopExclusivePlayback();
-    setSource({ ...media, playRequestId, title: String(media.title || "Video"), sources: [], completeSources: [] });
-    setVidSrcEmbed({ provider: "embedsu", url, media: { mediaType: media.mediaType, tmdbId: media.tmdbId ?? media.id, season: media.season ?? media.rdSeason, episode: media.episode ?? media.rdEpisode }, title: String(media.title || "Video"), fromDetails: true });
-    return true;
-  }, []);
-
-  const playVidCore = useCallback((media) => {
-    const url = buildVidCoreEmbedUrl(media);
-    if (!url) return false;
-    const playRequestId = ++playSequenceRef.current;
-    stopExclusivePlayback();
-    setSource({ ...media, playRequestId, title: String(media.title || "Video"), sources: [], completeSources: [] });
-    setVidSrcEmbed({ provider: "vidcore", url, media: { mediaType: media.mediaType, tmdbId: media.tmdbId ?? media.id, season: media.season ?? media.rdSeason, episode: media.episode ?? media.rdEpisode }, title: String(media.title || "Video"), fromDetails: true });
-    return true;
-  }, []);
+  const launchEmbedFallbackRef = useRef(null);
+  const embedMedia = (m) => ({ mediaType: m.mediaType, tmdbId: m.tmdbId ?? m.id, imdbId: m.imdbId, season: m.season ?? m.rdSeason, episode: m.episode ?? m.rdEpisode });
+  const startEmbed = (url, media, provider) => { stopExclusivePlayback(); setSource({ ...media, playRequestId: ++playSequenceRef.current, title: String(media.title || "Video"), sources: [], completeSources: [] }); setVidSrcEmbed({ provider, url, media: embedMedia(media), title: String(media.title || "Video"), fromDetails: true }); return true; };
+  const playVidSrc = useCallback((media) => { const url = buildVidSrcEmbedUrl(media); return url ? startEmbed(url, media) : false; }, []);
+  const playEmbedSu = useCallback((media) => { const url = buildEmbedSuEmbedUrl(media); return url ? startEmbed(url, media, "embedsu") : false; }, []);
+  const playVidCore = useCallback((media) => { const url = buildVidCoreEmbedUrl(media); return url ? startEmbed(url, media, "vidcore") : false; }, []);
+  const playExtraEmbed = useCallback((key, media) => { const url = ({ twoembed: buildTwoEmbedEmbedUrl, cinesrc: buildCineSrcEmbedUrl, multiembed: buildMultiEmbedEmbedUrl }[key] || (() => ""))(media); return url ? startEmbed(url, media, key) : false; }, []);
+  launchEmbedFallbackRef.current = (m) => playVidSrc(m) || playExtraEmbed("twoembed", m) || playExtraEmbed("cinesrc", m) || playExtraEmbed("multiembed", m) || playVidCore(m) || playEmbedSu(m);
 
   const openEmbedSu = useCallback((mediaType) => {
     if (!source || source.type === "live") return false;
@@ -4554,32 +4503,9 @@ export function PlayerProvider({
       []
     );
 
-  const value =
-    useMemo(
-      () => ({
-        play,
-        playVidSrc,
-        playEmbedSu,
-        playVidCore,
-        prepare,
-        close,
-        hasRd,
-        hasDebrid,
-        isOpen:
-          Boolean(source),
-      }),
-      [
-        play,
-        playVidSrc,
-        playEmbedSu,
-        playVidCore,
-        prepare,
-        close,
-        hasRd,
-        hasDebrid,
-        source,
-      ]
-    );
+  const value = useMemo(() => ({
+    play, playVidSrc, playEmbedSu, playVidCore, playExtraEmbed, prepare, close, hasRd, hasDebrid, isOpen: Boolean(source),
+  }), [play, playVidSrc, playEmbedSu, playVidCore, playExtraEmbed, prepare, close, hasRd, hasDebrid, source]);
 
   return (
     <PlayerContext.Provider
@@ -4598,21 +4524,15 @@ export function PlayerProvider({
             onClose={close}
           >
             {vidSrcEmbed?.provider === "embedsu" ? (
-              <EmbedSuPlayer url={vidSrcEmbed.url} media={vidSrcEmbed.media} title={vidSrcEmbed.title}
-                onBack={vidSrcEmbed.fromDetails ? close : () => setVidSrcEmbed(null)} backLabel={vidSrcEmbed.fromDetails ? "Details" : "Sources"} />
+              <EmbedSuPlayer url={vidSrcEmbed.url} media={vidSrcEmbed.media} title={vidSrcEmbed.title} onBack={vidSrcEmbed.fromDetails ? close : () => setVidSrcEmbed(null)} backLabel={vidSrcEmbed.fromDetails ? "Details" : "Sources"} />
             ) : vidSrcEmbed?.provider === "vidcore" ? (
-              <VidCoreEmbedPlayer url={vidSrcEmbed.url} title={vidSrcEmbed.title}
-                onBack={vidSrcEmbed.fromDetails ? close : () => setVidSrcEmbed(null)} backLabel={vidSrcEmbed.fromDetails ? "Details" : "Sources"} />
+              <VidCoreEmbedPlayer url={vidSrcEmbed.url} title={vidSrcEmbed.title} onBack={vidSrcEmbed.fromDetails ? close : () => setVidSrcEmbed(null)} backLabel={vidSrcEmbed.fromDetails ? "Details" : "Sources"} />
+            ) : ["twoembed", "cinesrc", "multiembed"].includes(vidSrcEmbed?.provider) ? (
+              <ExtraEmbedPlayer url={vidSrcEmbed.url} title={vidSrcEmbed.title} providerLabel={{ twoembed: "2Embed", cinesrc: "CineSrc", multiembed: "MultiEmbed" }[vidSrcEmbed.provider]} onBack={vidSrcEmbed.fromDetails ? close : () => setVidSrcEmbed(null)} backLabel={vidSrcEmbed.fromDetails ? "Details" : "Sources"} />
             ) : vidSrcEmbed ? (
-              <VidSrcEmbedPlayer url={vidSrcEmbed.url} title={vidSrcEmbed.title}
-                onBack={vidSrcEmbed.fromDetails ? close : () => setVidSrcEmbed(null)} backLabel={vidSrcEmbed.fromDetails ? "Details" : "Sources"} />
+              <VidSrcEmbedPlayer url={vidSrcEmbed.url} title={vidSrcEmbed.title} onBack={vidSrcEmbed.fromDetails ? close : () => setVidSrcEmbed(null)} backLabel={vidSrcEmbed.fromDetails ? "Details" : "Sources"} />
             ) : (
-              <VideoPlayer
-                source={source}
-                onClose={close}
-                onOpenVidSrc={openVidSrc}
-                onOpenEmbedSu={openEmbedSu}
-              />
+              <VideoPlayer source={source} onClose={close} onOpenVidSrc={openVidSrc} onOpenEmbedSu={openEmbedSu} />
             )}
           </PlayerRenderBoundary>,
           document.body
