@@ -1988,6 +1988,64 @@ export default function MediaPlayerControls({
             </div>
           ) : null}
 
+          {selectableSourceEntries.length > 0 ? (
+            <div className="mb-2 flex items-center gap-2 sm:mb-3">
+              <span className="hidden shrink-0 text-[10px] font-semibold uppercase tracking-wide text-white/55 sm:block sm:text-xs">Source</span>
+              <div className="relative min-w-0 flex-1">
+                <select
+                  value={visibleSourceChoiceValue}
+                  onPointerDown={pinSourceChoices}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    const selectedEntry = visibleSourceChoices.find(
+                      (entry) => String(entry.index) === String(value)
+                    );
+                    releaseSourceChoices();
+                    onSelectSource?.(value, selectedEntry?.item || null);
+                  }}
+                  onFocus={() => {
+                    if (!sourceChoicePinned) {
+                      pinSourceChoices();
+                    }
+                    focusSelectControl();
+                  }}
+                  onBlur={() => {
+                    releaseSourceChoices();
+                    blurSelectControl();
+                  }}
+                  className="min-h-10 w-full appearance-none rounded-lg border border-white/15 bg-black/60 py-2.5 pl-3 pr-8 text-xs font-medium text-white outline-none backdrop-blur transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/30 sm:text-sm"
+                  aria-label="Choose source or quality"
+                  title="Choose source or quality"
+                >
+                  {visibleSourceChoiceValue === "" ? (
+                    <option value="" disabled>
+                      Preparing uncached sources…
+                    </option>
+                  ) : null}
+                  {visibleSourceChoices.map(({ item, index }) => (
+                    <option
+                      key={`${index}-${sourceRawLabel(item, index)}`}
+                      value={index}
+                      data-mg-source-label={sourceRawLabel(item, index)}
+                    >
+                      {sourceFailed(index)
+                        ? "Unavailable • "
+                        : index === activeIdx
+                          ? sourcePlaybackConfirmed
+                            ? "Playing • "
+                            : "Selected • "
+                          : ""}
+                      {sourceLabel(item, index)}
+                    </option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-white/60">
+                  <Tv className="h-4 w-4" />
+                </div>
+              </div>
+            </div>
+          ) : null}
+
           <div data-mg-player-button-row="true" className="flex items-center gap-2 sm:gap-3">
             {hasPreviousEpisode ? (
               <button
