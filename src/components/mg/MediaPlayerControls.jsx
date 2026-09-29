@@ -5,27 +5,15 @@ import React, {
 } from "react";
 
 import {
-  ArrowLeft,
-  Play,
-  Pause,
-  Volume2,
-  VolumeX,
-  Maximize,
-  Minimize,
-  RotateCcw,
-  RotateCw,
-  SkipBack,
-  SkipForward,
-  Tv,
-  Gauge,
-  Captions,
-  Languages,
-  Repeat,
+  ArrowLeft, Play, Pause, Volume2, VolumeX, Maximize, Minimize, RotateCcw, RotateCw, SkipBack, SkipForward, Tv, Gauge, Captions, Languages, Repeat, PictureInPicture2, Languages as Translate
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { base44 } from "@/api/base44Client";
 import "@/components/mg/media-player-controls.css";
 import MobileCenterControls from "@/components/mg/MobileCenterControls";
+import usePlayerExtras from "@/components/mg/usePlayerExtras";
+import SubtitleMenu from "@/components/mg/SubtitleMenu";
 import {
   friendlyTrackLabel,
   preferredAudioTrackScore,
@@ -427,6 +415,20 @@ export default function MediaPlayerControls({
     setShowControls(true);
     scheduleHide(delay);
   };
+
+  const {
+    pipActive,
+    togglePip,
+    translating,
+    translateStatus,
+    translateSubtitles,
+  } = usePlayerExtras({
+    videoRef,
+    subtitleTracks,
+    selectedSubtitle,
+    trackPreferencesRef,
+    revealControls,
+  });
 
   const refreshTrackLists = () => {
     const video = getVideo();
@@ -2285,106 +2287,18 @@ export default function MediaPlayerControls({
                 <Captions className="h-5 w-5" />
               </button>
 
-              {openMenu ===
-              "subtitles" ? (
-                <div className="absolute bottom-12 right-0 z-[80] max-h-64 w-52 overflow-y-auto rounded-xl border border-white/15 bg-black/95 p-1.5 shadow-2xl backdrop-blur sm:w-60">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      chooseSubtitle(
-                        -1
-                      );
-                    }}
-                    className={cn(
-                      "w-full rounded-lg px-3 py-2 text-left text-xs hover:bg-white/10",
-
-                      selectedSubtitle <
-                        0
-                        ? "text-mg-green"
-                        : "text-white"
-                    )}
-                  >
-                    Off
-                  </button>
-
-                  <div className="mx-1 my-1.5 rounded-lg border border-white/10 bg-white/5 p-2">
-                    <div className="mb-1.5 flex items-center justify-between gap-2 text-[10px] text-white/55">
-                      <span>Subtitle sync</span>
-                      <span className="font-semibold text-white/80">
-                        {Number(trackPreferences.subtitleOffsetSeconds || 0) === 0
-                          ? "0.0s"
-                          : `${Number(trackPreferences.subtitleOffsetSeconds || 0) > 0 ? "+" : ""}${Number(trackPreferences.subtitleOffsetSeconds || 0).toFixed(1)}s`}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => changeSubtitleOffset(-0.5)}
-                        className="rounded-md bg-white/8 px-2 py-1.5 text-[11px] font-semibold text-white hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green/50"
-                        aria-label="Show subtitles half a second earlier"
-                        title="Earlier by 0.5 seconds"
-                      >
-                        -0.5s
-                      </button>
-                      <button
-                        type="button"
-                        onClick={resetSubtitleOffset}
-                        className="rounded-md bg-white/8 px-2 py-1.5 text-[11px] font-semibold text-white hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green/50"
-                        aria-label="Reset subtitle timing"
-                        title="Reset subtitle timing"
-                      >
-                        Reset
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => changeSubtitleOffset(0.5)}
-                        className="rounded-md bg-white/8 px-2 py-1.5 text-[11px] font-semibold text-white hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green/50"
-                        aria-label="Show subtitles half a second later"
-                        title="Later by 0.5 seconds"
-                      >
-                        +0.5s
-                      </button>
-                    </div>
-                  </div>
-
-                  {subtitleTracks.length >
-                  0 ? (
-                    subtitleTracks.map(
-                      (track) => (
-                        <button
-                          type="button"
-                          key={`subtitle-${track.index}`}
-                          onClick={() => {
-                            chooseSubtitle(
-                              track.index
-                            );
-                          }}
-                          className={cn(
-                            "w-full rounded-lg px-3 py-2 text-left text-xs hover:bg-white/10",
-
-                            selectedSubtitle ===
-                              track.index
-                              ? "text-mg-green"
-                              : "text-white"
-                          )}
-                        >
-                          {
-                            track.label
-                          }
-
-                          {track.language
-                            ? ` · ${track.language}`
-                            : ""}
-                        </button>
-                      )
-                    )
-                  ) : (
-                    <p className="px-3 py-2 text-xs leading-relaxed text-white/45">
-                      No subtitle tracks are available from this source.
-                    </p>
-                  )}
-                </div>
+              {openMenu === "subtitles" ? (
+                <SubtitleMenu
+                  selectedSubtitle={selectedSubtitle}
+                  subtitleTracks={subtitleTracks}
+                  trackPreferences={trackPreferences}
+                  translating={translating}
+                  translateStatus={translateStatus}
+                  onChooseSubtitle={chooseSubtitle}
+                  onChangeSubtitleOffset={changeSubtitleOffset}
+                  onResetSubtitleOffset={resetSubtitleOffset}
+                  onTranslateSubtitles={translateSubtitles}
+                />
               ) : null}
             </div>
 
@@ -2444,6 +2358,22 @@ export default function MediaPlayerControls({
                 </div>
               ) : null}
             </div>
+
+            <button
+              type="button"
+              onClick={togglePip}
+              onFocus={focusControl}
+              onBlur={blurControl}
+              data-mg-utility="true"
+              className={cn(
+                "flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green sm:h-10 sm:w-10",
+                pipActive ? "text-mg-green" : "text-white"
+              )}
+              aria-label={pipActive ? "Exit picture-in-picture" : "Picture in picture"}
+              title={pipActive ? "Exit picture-in-picture" : "Picture in picture"}
+            >
+              <PictureInPicture2 className="h-4 w-4" />
+            </button>
 
             <button
               type="button"
