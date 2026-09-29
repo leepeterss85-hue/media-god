@@ -1802,6 +1802,20 @@ const LiveVideo = forwardRef(
                 preferEnglishNativeAudio();
 
                 playAutomatically();
+
+                /* Retry audio selection — tracks may arrive after MANIFEST_PARSED */
+                let retries = 0;
+                const retryTimer = window.setInterval(() => {
+                  if (cancelled || !hls || retries >= 5) {
+                    window.clearInterval(retryTimer);
+                    return;
+                  }
+                  if (Array.isArray(hls.audioTracks) && hls.audioTracks.length > 0) {
+                    preferEnglishHlsAudio();
+                    window.setTimeout(publishHlsAudioTracks, 20);
+                  }
+                  retries += 1;
+                }, 200);
               }
             );
 
@@ -1815,6 +1829,13 @@ const LiveVideo = forwardRef(
                 () => {
                   preferEnglishHlsAudio();
                   window.setTimeout(publishHlsAudioTracks, 20);
+
+                  /* Unmute if the track change reset the element's muted state */
+                  if (video.dataset?.mgAutoplayMuted === "true" && !video.paused) {
+                    video.muted = false;
+                    video.volume = 1;
+                    delete video.dataset.mgAutoplayMuted;
+                  }
                 }
               );
             }

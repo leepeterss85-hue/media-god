@@ -11151,11 +11151,10 @@ export default function VideoPlayer({
             </div>
           )}
 
-          {audioUnlockRequired && !busy && !displayedError &&
-            (rdOverride || isDirectFile) && (
+          {audioUnlockRequired && !busy && !displayedError && (
               <div
                 data-mg-audio-unlock="true"
-                className="absolute inset-0 z-50 flex items-center justify-center bg-black/65 p-4 text-center"
+                className="absolute inset-0 z-[70] flex items-center justify-center bg-black/65 p-4 text-center"
               >
                 <div className="rounded-xl border border-white/20 bg-black/85 p-4 text-white shadow-xl">
                   <p className="mb-3 text-sm">Your browser needs a tap to play this video with sound.</p>

@@ -1734,6 +1734,14 @@ export default function MediaPlayerControls({
             event.preventDefault();
             event.stopPropagation();
 
+            const video = getVideo();
+            if (video?.dataset?.mgAutoplayMuted === "true") {
+              video.muted = false;
+              video.volume = 1;
+              delete video.dataset.mgAutoplayMuted;
+              video.play().catch(() => {});
+            }
+
             revealControls(
               4200
             );
