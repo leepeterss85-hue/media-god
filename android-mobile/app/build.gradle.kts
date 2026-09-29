@@ -1,4 +1,4 @@
-// Native transport controls release 1.0.71 verification.
+// Live native source dropdown release 1.0.75 verification.
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.mediagod.mobile"
         minSdk = 23
         targetSdk = 35
-        versionCode = 72
-        versionName = "1.0.71"
+        versionCode = 76
+        versionName = "1.0.75"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

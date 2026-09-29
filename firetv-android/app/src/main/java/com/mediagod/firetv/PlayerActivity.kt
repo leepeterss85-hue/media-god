@@ -391,6 +391,7 @@ class PlayerActivity : Activity() {
                 "This source could not start with a confirmed English main audio track."
             )
         }
+
     }
 
     private fun armStrictEnglishStartupWatchdog() {
@@ -479,6 +480,21 @@ class PlayerActivity : Activity() {
             setOnClickListener { showPlaybackReport() }
         }
 
+        val sourcesButton = Button(this).apply {
+            id = View.generateViewId()
+            text = "Sources"
+            contentDescription = "Choose playback source"
+            isAllCaps = false
+            textSize = 14f
+            setTextColor(Color.WHITE)
+            background = episodeActionBackground()
+            backgroundTintList = null
+            minHeight = dp(46)
+            isFocusable = true
+            setPadding(dp(14), 0, dp(14), 0)
+            setOnClickListener { showSourceSelector() }
+        }
+
         val titleView = TextView(this).apply {
             text = title.trim().ifBlank { "Media God" }
             setTextColor(Color.WHITE)
@@ -505,6 +521,9 @@ class PlayerActivity : Activity() {
                 )
             )
             addView(reportButton, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { marginStart = dp(10) })
+            if (!live) addView(sourcesButton, LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
             ).apply { marginStart = dp(10) })
             addView(
@@ -1425,7 +1444,7 @@ class PlayerActivity : Activity() {
         !live && payload.optBoolean("canChooseEpisode", false)
 
     private fun sourceSelectorAvailable(): Boolean =
-        nativeSources.size > 1 || canChooseEpisode()
+        !live || nativeSources.size > 1 || canChooseEpisode()
 
     private fun sourceSelectorOffset(): Int =
         if (canChooseEpisode()) 2 else 0
@@ -1460,6 +1479,47 @@ class PlayerActivity : Activity() {
 
     private fun showSourceSelector() {
         if (!sourceSelectorAvailable() || resultSent) return
+
+        if (!live) {
+            MainActivity.fetchCurrentSourceChoices(requestId) { currentChoices ->
+                if (resultSent || isFinishing) return@fetchCurrentSourceChoices
+                val snapshot = payload.optJSONArray("sourceChoices")?.takeIf { it.length() > 0 }
+                    ?: payload.optJSONArray("sources") ?: JSONArray()
+                val choices = currentChoices?.takeIf { it.length() >= snapshot.length() } ?: snapshot
+                val entries = (0 until choices.length()).mapNotNull { position ->
+                    val item = choices.optJSONObject(position) ?: return@mapNotNull null
+                    val index = item.optInt("webIndex", position)
+                    if (index < 0) return@mapNotNull null
+                    index to item.optString("label").trim().ifBlank { "Source ${position + 1}" }
+                }.distinctBy { it.first }
+                val episodeOffset = if (canChooseEpisode()) 2 else 0
+                val labels = mutableListOf<String>()
+                if (episodeOffset > 0) {
+                    labels.add("Choose season")
+                    labels.add("Choose episode")
+                }
+                val activeWebIndex = payload.optInt("activeSourceIndex", -1)
+                labels.addAll(entries.map { (index, label) ->
+                    if (index == activeWebIndex) "Current • $label" else label
+                })
+                if (labels.isEmpty()) {
+                    Toast.makeText(this, "Sources are still loading", Toast.LENGTH_SHORT).show()
+                    return@fetchCurrentSourceChoices
+                }
+                AlertDialog.Builder(this).setTitle("Sources • ${entries.size}")
+                    .setItems(labels.toTypedArray()) { _, position ->
+                        if (position < episodeOffset) {
+                            finishWithResult(reason = "episode")
+                        } else {
+                            val selected = entries[position - episodeOffset].first
+                            if (selected != activeWebIndex) {
+                                finishWithResult(reason = "source", selectedSourceIndex = selected)
+                            }
+                        }
+                    }.setNegativeButton("Close", null).show()
+            }
+            return
+        }
 
         sourceSpinner.removeCallbacks(hideSourceSelectorRunnable)
         sourceSpinner.visibility = View.VISIBLE
@@ -1611,7 +1671,7 @@ class PlayerActivity : Activity() {
             val url = item.optString("url").trim()
             val webIndex = item.optInt("webIndex", index)
 
-            if (url.isBlank() || !seenKeys.add("$webIndex|$url")) {
+            if ((url.isBlank() && live) || !seenKeys.add("$webIndex|$url")) {
                 continue
             }
 
@@ -1648,6 +1708,25 @@ class PlayerActivity : Activity() {
                     webIndex = payload.optInt("activeSourceIndex", 0)
                 )
             )
+        }
+
+        // VOD sends one playable URL plus lightweight chooser rows. A selected
+        // row returns its web index for Real-Debrid resolution in the WebView.
+        if (!live) {
+            val choices = payload.optJSONArray("sourceChoices") ?: JSONArray()
+            for (index in 0 until choices.length()) {
+                val item = choices.optJSONObject(index) ?: continue
+                val webIndex = item.optInt("webIndex", index)
+                if (webIndex < 0 || result.any { it.webIndex == webIndex }) continue
+                result.add(NativeSource(
+                    label = item.optString("label").trim().ifBlank { "Source ${index + 1}" },
+                    url = "",
+                    headers = emptyMap(),
+                    mimeType = "",
+                    drm = null,
+                    webIndex = webIndex
+                ))
+            }
         }
 
         return result

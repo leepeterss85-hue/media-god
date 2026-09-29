@@ -491,12 +491,15 @@ class CompatibilityPlayerActivity : Activity() {
 
         val backButton = controlButton("← Back") { finishWithResult("back") }
         val reportButton = controlButton("Report") { showPlaybackReport() }
+        val sourcesButton = controlButton("Sources") { showSourceMenu() }
         val rewindButton = controlButton("−10s") { seekBy(-10_000L) }
         playPauseButton = controlButton("Pause") { togglePlayback() }
         val forwardButton = controlButton("+10s") { seekBy(10_000L) }
         audioButton = controlButton("Audio") { showAudioTrackMenu() }
         subtitleButton = controlButton("CC") { showSubtitleTrackMenu() }
         val moreButton = controlButton("Options") { showAdvancedControlsMenu() }
+        rewindButton.contentDescription = "Rewind 10 seconds"
+        forwardButton.contentDescription = "Forward 10 seconds"
 
         val titleText = TextView(this).apply {
             text =
@@ -515,6 +518,8 @@ class CompatibilityPlayerActivity : Activity() {
             progress = 0
             isFocusable = true
             setPadding(dp(6), 0, dp(6), 0)
+            progressTintList = android.content.res.ColorStateList.valueOf(Color.rgb(229, 9, 20))
+            thumbTintList = android.content.res.ColorStateList.valueOf(Color.WHITE)
             setOnSeekBarChangeListener(
                 object : SeekBar.OnSeekBarChangeListener {
                     override fun onProgressChanged(
@@ -609,9 +614,6 @@ class CompatibilityPlayerActivity : Activity() {
                     marginEnd = dp(4)
                 }
             )
-            addView(reportButton, LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { marginEnd = dp(6) })
             addView(
                 titleText,
                 LinearLayout.LayoutParams(
@@ -620,6 +622,9 @@ class CompatibilityPlayerActivity : Activity() {
                     1f
                 )
             )
+            addView(sourcesButton, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { marginStart = dp(6) })
         }
 
         val transportRow = LinearLayout(this).apply {
@@ -636,13 +641,17 @@ class CompatibilityPlayerActivity : Activity() {
             addWeighted(this, audioButton)
             addWeighted(this, subtitleButton)
             addWeighted(this, moreButton)
+            addWeighted(this, reportButton)
         }
 
         controls = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(dp(10), dp(9), dp(10), dp(10))
-            background = roundedBackground(Color.argb(210, 7, 7, 7), 18)
+            setPadding(dp(12), dp(12), dp(12), dp(14))
+            background = GradientDrawable(
+                GradientDrawable.Orientation.BOTTOM_TOP,
+                intArrayOf(Color.argb(245, 0, 0, 0), Color.argb(218, 0, 0, 0), Color.TRANSPARENT)
+            )
             addView(titleRow)
             addView(progressRow)
             addView(transportRow)
@@ -675,9 +684,9 @@ class CompatibilityPlayerActivity : Activity() {
                     ViewGroup.LayoutParams.WRAP_CONTENT
                 ).apply {
                     gravity = Gravity.BOTTOM
-                    leftMargin = dp(10)
-                    rightMargin = dp(10)
-                    bottomMargin = dp(12)
+                    leftMargin = dp(4)
+                    rightMargin = dp(4)
+                    bottomMargin = dp(4)
                 }
             )
         }
@@ -696,25 +705,33 @@ class CompatibilityPlayerActivity : Activity() {
         Button(this).apply {
             text = label
             isAllCaps = false
-            textSize = 14f
-            setTextColor(Color.WHITE)
+            val primary = label == "Pause" || label == "Play"
+            val sourceAction = label == "Sources"
+            textSize = if (primary) 16f else 13f
+            setTextColor(if (primary) Color.BLACK else Color.WHITE)
             isFocusable = true
             isFocusableInTouchMode = true
             minimumWidth = 0
             minWidth = 0
-            minimumHeight = dp(42)
-            minHeight = dp(42)
+            minimumHeight = dp(48)
+            minHeight = dp(48)
             stateListAnimator = null
-            setPadding(dp(7), dp(4), dp(7), dp(4))
-            background = roundedBackground(Color.argb(220, 34, 34, 34), 10)
+            setPadding(dp(9), dp(4), dp(9), dp(4))
+            val normalFill = when {
+                primary -> Color.WHITE
+                sourceAction -> Color.rgb(190, 18, 29)
+                else -> Color.argb(180, 32, 32, 32)
+            }
+            background = roundedBackground(normalFill, 12)
             setOnFocusChangeListener { _, focused ->
+                setTextColor(if (focused) Color.WHITE else if (primary) Color.BLACK else Color.WHITE)
                 background =
                     roundedBackground(
                         if (focused)
-                            Color.argb(255, 48, 145, 74)
+                            Color.rgb(190, 18, 29)
                         else
-                            Color.argb(220, 34, 34, 34),
-                        10
+                            normalFill,
+                        12
                     )
             }
             setOnClickListener {
@@ -912,7 +929,8 @@ class CompatibilityPlayerActivity : Activity() {
             }
         }
         collect(payload.optJSONObject("headers"))
-        val sources = payload.optJSONArray("sources") ?: JSONArray()
+        val sources = payload.optJSONArray("sourceChoices")?.takeIf { it.length() > 0 }
+            ?: payload.optJSONArray("sources") ?: JSONArray()
         for (index in 0 until sources.length()) {
             val item = sources.optJSONObject(index) ?: continue
             if (item.optString("url").trim() == streamUrl) {
@@ -1359,6 +1377,33 @@ class CompatibilityPlayerActivity : Activity() {
                 clipboard.setPrimaryClip(ClipData.newPlainText("Media God playback report", report))
                 Toast.makeText(this, "Playback report copied", Toast.LENGTH_SHORT).show()
             }.setNegativeButton("Close", null).show()
+    }
+
+    private fun showSourceMenu() {
+        MainActivity.fetchCurrentSourceChoices(requestId) { currentChoices ->
+            if (resultSent || isFinishing) return@fetchCurrentSourceChoices
+            val snapshot = payload.optJSONArray("sourceChoices")?.takeIf { it.length() > 0 }
+                ?: payload.optJSONArray("sources") ?: JSONArray()
+            val sources = currentChoices?.takeIf { it.length() >= snapshot.length() } ?: snapshot
+            val entries = (0 until sources.length()).mapNotNull { position ->
+                val item = sources.optJSONObject(position) ?: return@mapNotNull null
+                val index = item.optInt("webIndex", position)
+                if (index < 0) return@mapNotNull null
+                index to item.optString("label").trim().ifBlank { "Source ${position + 1}" }
+            }.distinctBy { it.first }
+            if (entries.isEmpty()) {
+                Toast.makeText(this, "Sources are still loading", Toast.LENGTH_SHORT).show()
+                return@fetchCurrentSourceChoices
+            }
+            val activeIndex = payload.optInt("activeSourceIndex", -1)
+            AlertDialog.Builder(this).setTitle("Sources • ${entries.size}")
+                .setItems(entries.map { (index, label) ->
+                    if (index == activeIndex) "Current • $label" else label
+                }.toTypedArray()) { _, position ->
+                    selectedSourceIndex = entries[position].first
+                    if (selectedSourceIndex != activeIndex) finishWithResult("source")
+                }.setNegativeButton("Close", null).show()
+        }
     }
 
     private fun showStatus(message: String) {

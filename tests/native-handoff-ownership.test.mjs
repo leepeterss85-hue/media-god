@@ -18,6 +18,15 @@ const fireTvMainSource = readFileSync(
   new URL("../firetv-android/app/src/main/java/com/mediagod/firetv/MainActivity.kt", import.meta.url),
   "utf8"
 );
+const nativePlayerFiles = ["android-mobile", "firetv-android"].flatMap((platform) => {
+  const packageName = platform === "android-mobile" ? "mobile" : "firetv";
+  return ["PlayerActivity", "CompatibilityPlayerActivity"].map((player) =>
+    readFileSync(
+      new URL(`../${platform}/app/src/main/java/com/mediagod/${packageName}/${player}.kt`, import.meta.url),
+      "utf8"
+    )
+  );
+});
 
 let moduleText = bridgeSource
   .replace(
@@ -115,6 +124,10 @@ test("Android phone and Fire TV VOD never serialise a hundreds-source catalogue 
   assert.equal(captured.sources.length, 1);
   assert.equal(captured.sources[0].webIndex, selectedIndex);
   assert.equal(captured.sources[0].url, selectedUrl);
+  assert.equal(captured.sourceChoices.length, sources.length);
+  assert.equal(captured.sourceChoices[selectedIndex].webIndex, selectedIndex);
+  assert.equal(captured.sourceChoices[0].url, undefined);
+  assert.equal(captured.sourceChoices[0].headers, undefined);
   assert.ok(JSON.stringify(captured).length < 100_000);
 
   window.MediaGodNative.getAppInfo = () => JSON.stringify({ platform: "fire-tv" });
@@ -132,6 +145,8 @@ test("Android phone and Fire TV VOD never serialise a hundreds-source catalogue 
   assert.equal(captured.sources.length, 1);
   assert.equal(captured.sources[0].webIndex, selectedIndex);
   assert.equal(captured.sources[0].url, selectedUrl);
+  assert.equal(captured.sourceChoices.length, sources.length);
+  assert.equal(captured.sourceChoices[0].url, undefined);
   assert.ok(JSON.stringify(captured).length < 100_000);
 
   for (const nativeMainSource of [mobileMainSource, fireTvMainSource]) {
@@ -140,6 +155,22 @@ test("Android phone and Fire TV VOD never serialise a hundreds-source catalogue 
     assert.match(nativeMainSource, /encoded\.toByteArray\(Charsets\.UTF_8\)\.size > 256 \* 1024/);
     assert.match(nativeMainSource, /if \(payload\.optBoolean\("live", false\)\) \{\s*return payload\.toString\(\)/);
   }
+});
+
+test("Sources stays in the native player and reads the latest visible chooser rows", () => {
+  for (const nativePlayer of nativePlayerFiles) {
+    assert.match(nativePlayer, /sourceChoices/);
+    assert.match(nativePlayer, /MainActivity\.fetchCurrentSourceChoices\(requestId\)/);
+    assert.doesNotMatch(nativePlayer, /Browse all sources in Media God|browse_sources/);
+  }
+  for (const mainSource of [mobileMainSource, fireTvMainSource]) {
+    assert.match(mainSource, /select\[aria-label="Choose from all playback sources"\]/);
+    assert.match(mainSource, /activeNativeRequestId != requestId/);
+    assert.match(mainSource, /webView\.evaluateJavascript/);
+    assert.match(mainSource, /postDelayed\(\{ deliver\(null\) \}, 900L\)/);
+  }
+  // Older APKs can still return this reason; the new native menu does not.
+  assert.match(playerSource, /reason === "browse_sources" && !isLive/);
 });
 
 test("Live TV keeps the complete native source payload on phone and Fire TV", () => {
