@@ -11,6 +11,7 @@ const entries = [
   "base44/functions/configureMediaFusion/entry.ts",
   "base44/functions/fetchAddonStreams/entry.ts",
   "base44/functions/getTmdbMovies/entry.ts",
+  "base44/functions/getEditorialReviews/entry.ts",
   "base44/functions/resolveImdb/entry.ts",
   "base44/functions/resolveTvImdb/entry.ts",
   "base44/functions/getSkipSegments/entry.ts",
