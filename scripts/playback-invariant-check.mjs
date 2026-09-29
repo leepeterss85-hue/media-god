@@ -234,15 +234,13 @@ expect(
 );
 
 expect(
-  videoPlayer.includes("Audio recovery is deliberately MANUAL ONLY.") &&
-    videoPlayer.includes("const handleNoSound =") &&
-    videoPlayer.includes("async () =>") &&
+  videoPlayer.includes("const handleNoSound =") &&
     videoPlayer.includes("handleNoSound();") &&
-    !videoPlayer.includes("handleNoSoundRef") &&
-    !videoPlayer.includes("browserConfirmedNoAudio") &&
-    !videoPlayer.includes("automatic: true") &&
+    videoPlayer.includes("useSilentAudioGuard({") &&
+    videoPlayer.includes("onSilent: handleNoSound") &&
+    videoPlayer.includes("if (manualSourceLockActive()) return;") &&
     !videoPlayer.includes("rejectAutomaticAioAudioFailure"),
-  "browser VOD audio recovery is manual-only and can never interrupt playback automatically"
+  "browser VOD audio recovery runs automatically on silent streams but respects a manually chosen source"
 );
 
 expect(

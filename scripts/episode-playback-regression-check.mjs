@@ -60,8 +60,10 @@ expect(
     assist.includes("const canSkipIntro = !canSkipRecap && exactIntroWindow;") &&
     !assist.includes("fallbackRecapWindow") &&
     !assist.includes("fallbackIntroWindow") &&
-    assist.includes("const autoNextCountdownWindow = false;") &&
-    assist.includes("remaining <= 45") &&
+    assist.includes("const autoNextCountdownWindow =") &&
+    assist.includes("!nextCountdownCancelled &&") &&
+    assist.includes("(exactCreditsWindow || remaining <= 15)") &&
+    assist.includes("remaining <= 90") &&
     assist.includes("creditsWindow && !isTv") &&
     provider.includes('"mg:native-playback-ended"') &&
     provider.includes('document.addEventListener(\n      "ended"'),
