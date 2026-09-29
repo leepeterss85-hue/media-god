@@ -66,7 +66,7 @@ const publisherReviews = async (tmdb, mediaType) => {
   return groups.flat().slice(0, 4);
 };
 
-Deno.serve(async (req) => {
+export default async function(req) {
   if (req.method !== 'POST') {
     return Response.json({ error: 'Method not allowed' }, { status: 405 });
   }
@@ -80,8 +80,7 @@ Deno.serve(async (req) => {
 
   const tmdbId = String(body?.tmdb_id ?? '').trim();
   const mediaType = body?.media_type === 'tv' ? 'tv' : 'movie';
-  if (!/^[1-9]\d{0,8}$/.test(tmdbId) ||
-      !['tv', 'movie'].includes(body?.media_type)) {
+  if (!/^[1-9]\d{0,8}$/.test(tmdbId)) {
     return Response.json({ error: 'Invalid title identity' }, { status: 400 });
   }
 
@@ -103,4 +102,4 @@ Deno.serve(async (req) => {
     // Publisher outages never block the description or Media God reviews.
     return Response.json({ reviews: [] });
   }
-});
+}
