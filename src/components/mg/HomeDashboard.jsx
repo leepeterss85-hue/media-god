@@ -1037,6 +1037,7 @@ export default function HomeDashboard({ onOpenTvService }) {
             key={sectionId}
             title="New Films"
             items={rows.newMovies}
+            detailsOnly
             onOpen={open}
             onWatchlist={onWatchlist}
             watched={watched}

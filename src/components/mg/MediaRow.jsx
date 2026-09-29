@@ -97,8 +97,8 @@ export default function MediaRow({
         data-mg-tv-row="true"
         className="flex gap-2.5 sm:gap-3 xl:gap-4 3xl:gap-5 4xl:gap-6 overflow-x-auto overscroll-x-contain pb-2 3xl:pb-3 scrollbar-hide snap-x snap-proximity"
       >
-        {items.map((item) => (
-          <div key={`${item?.media_type || "movie"}:${item.id}`} className="snap-start">
+        {items.map((item, index) => (
+          <div key={`${item?.media_type || "movie"}:${item.id}:${index}`} className="snap-start">
             <MediaCard
               item={item}
               onOpen={onOpen}
