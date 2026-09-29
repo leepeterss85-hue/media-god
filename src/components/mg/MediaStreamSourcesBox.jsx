@@ -956,6 +956,9 @@ export default function StreamSourcesBox({
           preferRd:
             true,
 
+          debridManual:
+            true,
+
           sources:
             [],
         });

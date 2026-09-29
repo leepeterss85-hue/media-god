@@ -4146,7 +4146,7 @@ export function PlayerProvider({
         const primary = playerSources[0] || {};
         const activeUrl = getSourceUrl(primary);
         if (!isCurrentPlay()) return false;
-        if (!isLive && !playerSources.some((item) => getSourceUrl(item)) && launchEmbedFallbackRef.current?.({ ...request, mediaType, tmdbId, imdbId, season, episode, title: request?.title || "Video" })) return true;
+        if (!isLive && !request?.debridManual && !request?.skipRdLookup && !request?.skipAddonLookup && launchEmbedFallbackRef.current?.({ ...request, mediaType, tmdbId, imdbId, season, episode, title: request?.title || "Video" })) return true;
 
         setSource({
           ...request,
