@@ -8,6 +8,7 @@ import React, {
 import {
   Loader2,
   MessageSquare,
+  ExternalLink,
   Pencil,
   Send,
   Star,
@@ -79,6 +80,8 @@ export default function MediaReviews({
   season = null,
   episode = null,
   episodeTitle = "",
+  overview = "",
+  imdbId = "",
   compact = false,
 }) {
   const {
@@ -88,6 +91,9 @@ export default function MediaReviews({
   } = useAuth();
 
   const { toast } = useToast();
+  const imdbReviewsUrl = /^tt\d{7,10}$/.test(clean(imdbId))
+    ? `https://www.imdb.com/title/${clean(imdbId)}/reviews/`
+    : "";
 
   const contentKey = useMemo(() => {
     const id = clean(tmdbId);
@@ -127,6 +133,40 @@ export default function MediaReviews({
   const [loading, setLoading] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState("");
+  const [externalReviews, setExternalReviews] = useState([]);
+  const [externalOverview, setExternalOverview] = useState("");
+  const [externalTitleUrl, setExternalTitleUrl] = useState("");
+  const [externalLoading, setExternalLoading] = useState(false);
+  const [externalError, setExternalError] = useState(false);
+
+  useEffect(() => {
+    if (!tmdbId || mediaType === "episode") return undefined;
+
+    let cancelled = false;
+    setExternalReviews([]);
+    setExternalOverview("");
+    setExternalTitleUrl("");
+    setExternalError(false);
+    setExternalLoading(true);
+
+    base44.functions.invoke("getTmdbMovies", {
+      community_reviews: true,
+      tmdb_id: tmdbId,
+      media_type: mediaType === "tv" ? "tv" : "movie",
+    }).then((response) => {
+      if (cancelled) return;
+      const data = response?.data ?? response;
+      setExternalReviews(asRows(data?.reviews));
+      setExternalOverview(clean(data?.overview));
+      setExternalTitleUrl(clean(data?.title_url));
+    }).catch(() => {
+      if (!cancelled) setExternalError(true);
+    }).finally(() => {
+      if (!cancelled) setExternalLoading(false);
+    });
+
+    return () => { cancelled = true; };
+  }, [mediaType, tmdbId]);
 
   const loadReviews = useCallback(async () => {
     if (!contentKey) {
@@ -418,6 +458,54 @@ export default function MediaReviews({
           <Loader2 className="h-4 w-4 animate-spin text-white/45" />
         )}
       </div>
+
+      {mediaType !== "episode" && (
+        <div className="mt-4 space-y-4" data-mg-tmdb-reviews="true">
+          <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+            <h4 className="text-xs font-bold text-white/80">What it’s about</h4>
+            <p className="mt-2 whitespace-pre-wrap text-xs leading-5 text-white/65">
+              {externalOverview || clean(overview) || "Description unavailable."}
+            </p>
+            {externalTitleUrl && (
+              <a href={externalTitleUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs text-mg-green hover:underline">
+                View title on TMDB <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+          </div>
+          <div>
+            <h4 className="text-xs font-bold text-white/80">Reviews from TMDB members</h4>
+            <p className="mt-1 text-[11px] text-white/45">Community opinions from The Movie Database, separate from Media God user reviews.</p>
+            {externalLoading ? (
+              <p className="mt-3 flex items-center gap-2 text-xs text-white/50"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading reviews…</p>
+            ) : externalError ? (
+              <p className="mt-3 text-xs text-white/45">TMDB reviews are unavailable right now. You can still leave your own review below.</p>
+            ) : externalReviews.length === 0 ? (
+              <p className="mt-3 text-xs text-white/45">No TMDB member reviews for this title yet.</p>
+            ) : (
+              <div className="mt-3 space-y-2">
+                {externalReviews.map((review) => (
+                  <article key={review.id} className="rounded-lg border border-white/10 bg-white/[0.025] p-3">
+                    <p className="text-xs font-semibold text-white/80">
+                      {review.author || "TMDB member"}
+                      {review.rating != null && <span className="ml-2 font-normal text-white/45">{review.rating}/10 on TMDB</span>}
+                    </p>
+                    <p className="mt-2 break-words text-xs leading-5 text-white/65">{review.excerpt}{review.excerpt?.length >= 320 ? "…" : ""}</p>
+                    <a href={review.url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs text-mg-green hover:underline">
+                      Read full review on TMDB <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
+          {imdbReviewsUrl && (
+            <a href={imdbReviewsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-10 items-center gap-1 text-xs text-mg-green hover:underline">
+              More reviews on IMDb <ExternalLink className="h-3 w-3" />
+            </a>
+          )}
+          <p className="text-[10px] leading-4 text-white/40">This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
+        </div>
+      )}
 
       <div className="mt-4 rounded-lg border border-white/10 bg-black/20 p-3">
         {isAuthenticated ? (

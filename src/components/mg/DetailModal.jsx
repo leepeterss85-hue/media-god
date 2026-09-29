@@ -1666,6 +1666,8 @@ export default function DetailModal({
               tmdbId={itemId}
               mediaType={resolvedMediaType}
               title={displayTitle}
+              overview={overview}
+              imdbId={firstText(safeItem.imdb_id, details.imdb_id)}
             />
           </div>}
 
