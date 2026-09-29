@@ -3432,7 +3432,7 @@ test("browser audio track choice stays manual while native decoders may repair m
     "../firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt",
   ];
 
-  assert.match(playerSource, /Audio recovery is deliberately MANUAL ONLY/);
+  assert.match(playerSource, /Automatic audio recovery acts only on hard decoder evidence/);
   assert.match(playerSource, /const handleNoSound =\s*\n\s*async \(\) =>/);
   assert.match(playerSource, /mg:audio-rescue-request/);
   assert.match(playerSource, /force_audio_rescue: true/);
@@ -3611,7 +3611,7 @@ test("audio menu ranks tracks but changes them only after a user choice", () => 
 
   const noSoundStart = playerSource.indexOf("const handleNoSound =");
   const noSoundEnd = playerSource.indexOf(
-    "Audio recovery is deliberately MANUAL ONLY",
+    "Automatic audio recovery acts only on hard decoder evidence",
     noSoundStart
   );
   assert.ok(noSoundStart >= 0 && noSoundEnd > noSoundStart);
@@ -3672,7 +3672,7 @@ test("VOD keeps manual audio choice but repairs verified missing native audio", 
     "../firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt",
   ];
 
-  assert.match(playerSource, /Audio recovery is deliberately MANUAL ONLY/);
+  assert.match(playerSource, /Automatic audio recovery acts only on hard decoder evidence/);
   assert.doesNotMatch(playerSource, /browserConfirmedNoAudio/);
   assert.doesNotMatch(playerSource, /handleNoSoundRef/);
   assert.match(controlsSource, /Manual-only audio policy/);
@@ -3784,7 +3784,7 @@ test("a no-sound report tries another English track before a ready backup", () =
 
   const manualStart = playerSource.indexOf("const handleNoSound =");
   const manualEnd = playerSource.indexOf(
-    "Audio recovery is deliberately MANUAL ONLY",
+    "Automatic audio recovery acts only on hard decoder evidence",
     manualStart
   );
   assert.ok(manualStart >= 0 && manualEnd > manualStart);
@@ -4024,7 +4024,7 @@ test("only a confirmed no-sound report can advance after same-file recovery fail
 
   const audioBlockStart = playerSource.indexOf("const handleNoSound =");
   const audioBlockEnd = playerSource.indexOf(
-    "Audio recovery is deliberately MANUAL ONLY",
+    "Automatic audio recovery acts only on hard decoder evidence",
     audioBlockStart
   );
   assert.ok(audioBlockStart >= 0 && audioBlockEnd > audioBlockStart);

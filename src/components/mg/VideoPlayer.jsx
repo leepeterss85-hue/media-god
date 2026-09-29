@@ -10119,7 +10119,7 @@ export default function VideoPlayer({
       });
     };
 
-  // Auto-repair only on hard decoder evidence (zero decoded audio while video advances).
+  // Automatic audio recovery acts only on hard decoder evidence (no decoded audio, no picture, or no English audio).
   useSilentAudioGuard({ stageRef, enabled: !isLive && !isYoutube && !isProvider && !useNativePlayback && !rdResolving, streamKey: `${source?.playRequestId || ""}|${activeIdx}|${rdOverride?.src || activeUrl}`, onSilent: handleNoSound, onUnusable: (message) => { if (manualSourceLockActive()) return; forgetSuccessfulPlaybackSource(active); stageRef.current?.querySelector("video")?.pause?.(); tryNextSource(message, { immediate: true, allowCaching: false, authoritativeSourceRejection: true, userReportedNoSound: true }); } });
 
   useEffect(() => {

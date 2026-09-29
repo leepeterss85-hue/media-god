@@ -116,7 +116,7 @@ test("English main wins over commentary and descriptive tracks", () => {
   assert.equal(commentaryOnly.languageRank, 4);
   assert.equal(main.languageRank, 0);
   for (const native of [phone, fire]) {
-    assert.match(native, /if \(!commentary\) score \+= 400/);
+    assert.match(native, /formatLooksCommentary/);
     assert.match(native, /trackSelectionParameters\.overrides\.values\.any/);
   }
 });

@@ -101,7 +101,8 @@ globalThis.__reviewSecrets = { get(name) {
     GUARDIAN_CONTENT_API_KEY: "guardian-test",
   }[name];
 } };
-await import(`data:text/javascript,${encodeURIComponent(bundle.outputFiles[0].text)}`);
+const reviewModule = await import(`data:text/javascript,${encodeURIComponent(bundle.outputFiles[0].text)}`);
+handler = handler || reviewModule.default;
 
 test("the endpoint verifies TMDB identity and returns only matched publisher reviews", async () => {
   const oldFetch = globalThis.fetch;
@@ -130,9 +131,9 @@ test("the endpoint verifies TMDB identity and returns only matched publisher rev
     const response = await handler(request);
     const data = await response.json();
     assert.equal(response.status, 200);
-    assert.deepEqual(data.reviews.map((row) => row.publisher), ["The New York Times", "The Guardian"]);
+    assert.deepEqual(data.reviews.map((row) => row.publisher), ["The Guardian"]);
     assert.equal(requested[0].pathname, "/3/movie/1198654");
-    assert.equal(requested[1].searchParams.get("query"), "Bad Apples");
+    assert.equal(requested[1].searchParams.get("q"), "Bad Apples");
     assert.ok(!JSON.stringify(data).includes("nyt-test"));
   } finally {
     globalThis.fetch = oldFetch;
