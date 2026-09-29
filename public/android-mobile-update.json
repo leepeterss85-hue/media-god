@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 76,
-  "versionName": "1.0.75",
+  "versionCode": 77,
+  "versionName": "1.0.76",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.75 opens the current source dropdown inside the player without returning Home.",
+  "message": "Media God Mobile 1.0.76 automatically picks the English audio track that actually plays sound, avoiding silent DTS/TrueHD/Atmos tracks.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"

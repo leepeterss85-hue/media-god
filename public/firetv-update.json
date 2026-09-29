@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 88,
-  "versionName": "1.4.83",
+  "versionCode": 89,
+  "versionName": "1.4.84",
   "title": "Media God Fire TV",
-  "message": "Media God Fire TV 1.4.83 opens the current source dropdown inside the player without returning Home.",
+  "message": "Media God Fire TV 1.4.84 automatically picks the English audio track that actually plays sound, avoiding silent DTS/TrueHD/Atmos tracks.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
