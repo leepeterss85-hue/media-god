@@ -1,12 +1,10 @@
 import { secrets } from 'base44:runtime';
 import {
   selectGuardianReviews,
-  selectNytReviews,
 } from './editorialReviewMatch.mjs';
 
 const TMDB_BASE = 'https://api.themoviedb.org/3';
 const GUARDIAN_BASE = 'https://content.guardianapis.com/search';
-const NYT_BASE = 'https://api.nytimes.com/svc/movies/v2/reviews/search.json';
 
 const safeYear = (date) => {
   const match = String(date || '').match(/^(\d{4})/);
@@ -29,21 +27,8 @@ const publisherReviews = async (tmdb, mediaType) => {
   const titles = [title, originalTitle].filter(Boolean);
   if (!title || !releaseYear) return [];
 
-  const nytKey = mediaType === 'movie'
-    ? String(secrets.get('NYT_MOVIE_REVIEWS_API_KEY') || '').trim()
-    : '';
   const guardianKey = String(secrets.get('GUARDIAN_CONTENT_API_KEY') || '').trim();
   const tasks = [];
-
-  if (nytKey) {
-    const url = new URL(NYT_BASE);
-    url.searchParams.set('query', title);
-    url.searchParams.set('api-key', nytKey);
-    tasks.push(
-      asJson(url).then((data) => selectNytReviews(data?.results, titles, releaseYear))
-        .catch(() => [])
-    );
-  }
 
   if (guardianKey) {
     const url = new URL(GUARDIAN_BASE);
