@@ -17,6 +17,10 @@ import {
   SkipBack,
   SkipForward,
   Tv,
+  Gauge,
+  Captions,
+  Languages,
+  Repeat,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -203,6 +207,7 @@ export default function MediaPlayerControls({
   const [seeking, setSeeking] = useState(false);
   const [openMenu, setOpenMenu] = useState("");
   const [playbackRate, setPlaybackRate] = useState(1);
+  const [looping, setLooping] = useState(false);
   const [sourceSortMode, setSourceSortMode] = useState(
     () => readSourceSortMode()
   );
@@ -1382,6 +1387,17 @@ export default function MediaPlayerControls({
 
     setPlaybackRate(rate);
 
+    setOpenMenu("");
+    menuOpenRef.current = false;
+
+    revealControls();
+  };
+
+  const toggleLoop = () => {
+    const video = getVideo();
+    const next = !looping;
+    if (video) video.loop = next;
+    setLooping(next);
     revealControls();
   };
 
@@ -1983,6 +1999,16 @@ export default function MediaPlayerControls({
         />
 
         <div data-mg-player-controls-bottom="true" className="pointer-events-auto relative bg-gradient-to-t from-black/95 via-black/60 to-transparent px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-12 select-none sm:px-5 sm:pt-16">
+          {!isAppFullscreen && (title || isTvEpisode) ? (
+            <div className="mb-2 px-1 sm:px-2">
+              <p className="truncate text-sm font-semibold text-white sm:text-base">{title || "Now playing"}</p>
+              {isTvEpisode ? (
+                <p className="truncate text-[11px] text-white/70 sm:text-xs">
+                  S{Number(episodeContext?.season ?? 0)} · E{Number(episodeContext?.episode ?? 0)}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
           {!isLive ? (
             <div data-mg-player-seek-row="true" className="mb-2 flex items-center gap-2 sm:mb-3">
               <span className="w-11 shrink-0 text-right text-[10px] tabular-nums text-white/85 sm:w-14 sm:text-xs">
@@ -2134,7 +2160,8 @@ export default function MediaPlayerControls({
                 onBlur={
                   blurControl
                 }
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/45 text-white transition hover:bg-white/15 focus:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green sm:h-10 sm:w-10"
+                data-mg-utility="true"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white transition hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green sm:h-10 sm:w-10"
                 aria-label={
                   muted
                     ? "Unmute"
@@ -2181,47 +2208,59 @@ export default function MediaPlayerControls({
             <div data-mg-player-controls-spacer="true" className="min-w-0 flex-1" />
 
             {!isLive ? (
-              <select
-                value={
-                  playbackRate
-                }
-                onChange={
-                  changeRate
-                }
-                onFocus={
-                  focusSelectControl
-                }
-                onBlur={
-                  blurSelectControl
-                }
-                className="h-10 rounded-lg border border-white/15 bg-black/45 px-2 text-xs font-semibold text-white outline-none transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/40 sm:h-10"
-                aria-label="Playback speed"
-                title="Playback speed"
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => toggleMenu("speed")}
+                  onFocus={focusControl}
+                  onBlur={blurControl}
+                  data-mg-utility="true"
+                  className={cn(
+                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green sm:h-10 sm:w-10",
+                    playbackRate !== 1 ? "text-mg-green" : "text-white"
+                  )}
+                  aria-label="Playback speed"
+                  title="Playback speed"
+                >
+                  <Gauge className="h-5 w-5" />
+                </button>
+
+                {openMenu === "speed" ? (
+                  <div className="absolute bottom-12 right-0 z-[80] w-36 rounded-xl border border-white/15 bg-black/95 p-1.5 shadow-2xl backdrop-blur">
+                    {[0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => (
+                      <button
+                        type="button"
+                        key={`rate-${rate}`}
+                        onClick={() => changeRate({ target: { value: rate } })}
+                        className={cn(
+                          "w-full rounded-lg px-3 py-2 text-left text-xs hover:bg-white/10",
+                          playbackRate === rate ? "text-mg-green" : "text-white"
+                        )}
+                      >
+                        {rate}x
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            {!isLive ? (
+              <button
+                type="button"
+                onClick={toggleLoop}
+                onFocus={focusControl}
+                onBlur={blurControl}
+                data-mg-utility="true"
+                className={cn(
+                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green sm:h-10 sm:w-10",
+                  looping ? "text-mg-green" : "text-white"
+                )}
+                aria-label={looping ? "Turn off repeat" : "Repeat"}
+                title={looping ? "Turn off repeat" : "Repeat"}
               >
-                <option value={0.5}>
-                  0.5x
-                </option>
-
-                <option value={0.75}>
-                  0.75x
-                </option>
-
-                <option value={1}>
-                  1x
-                </option>
-
-                <option value={1.25}>
-                  1.25x
-                </option>
-
-                <option value={1.5}>
-                  1.5x
-                </option>
-
-                <option value={2}>
-                  2x
-                </option>
-              </select>
+                <Repeat className="h-5 w-5" />
+              </button>
             ) : null}
 
             <div className="relative">
@@ -2235,18 +2274,15 @@ export default function MediaPlayerControls({
                 onFocus={
                   focusControl
                 }
+                data-mg-utility="true"
                 className={cn(
-                  "h-10 rounded-lg border px-2.5 text-xs font-semibold outline-none transition focus:ring-2 focus:ring-mg-green/40 sm:h-10",
-
-                  selectedSubtitle >=
-                    0
-                    ? "border-mg-green/60 bg-mg-green/15 text-mg-green"
-                    : "border-white/15 bg-black/45 text-white"
+                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green sm:h-10 sm:w-10",
+                  selectedSubtitle >= 0 ? "text-mg-green" : "text-white"
                 )}
                 aria-label="Subtitles"
                 title="Subtitles"
               >
-                CC
+                <Captions className="h-5 w-5" />
               </button>
 
               {openMenu ===
@@ -2363,11 +2399,15 @@ export default function MediaPlayerControls({
                 onFocus={
                   focusControl
                 }
-                className="h-10 rounded-lg border border-white/15 bg-black/45 px-2.5 text-xs font-semibold text-white outline-none transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/40 sm:h-10"
+                data-mg-utility="true"
+                className={cn(
+                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white transition hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green sm:h-10 sm:w-10",
+                  selectedAudio >= 0 ? "text-mg-green" : "text-white"
+                )}
                 aria-label="Audio track"
                 title="Audio track"
               >
-                Audio
+                <Languages className="h-5 w-5" />
               </button>
 
               {openMenu ===
@@ -2416,7 +2456,8 @@ export default function MediaPlayerControls({
               onBlur={
                 blurControl
               }
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/45 text-white transition hover:bg-white/15 focus:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green sm:h-10 sm:w-10"
+              data-mg-utility="true"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white transition hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green sm:h-10 sm:w-10"
               aria-label={
                 isAppFullscreen
                   ? "Exit fullscreen"

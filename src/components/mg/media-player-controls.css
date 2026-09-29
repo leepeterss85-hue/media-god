@@ -62,8 +62,14 @@
 }
 
 [data-mg-player-vod="true"] [data-mg-player-button-row="true"] button:hover,
-[data-mg-player-vod="true"] [data-mg-player-button-row="true"] button:focus-visible {
+[data-mg-player-vod="true"] [data-mg-player-button-row="true"] button:focus-visible,
+[data-mg-player-vod="true"] [data-mg-player-button-row="true"] [data-mg-utility="true"] {
   background: rgba(255, 255, 255, .17);
+}
+
+[data-mg-player-vod="true"] [data-mg-player-button-row="true"] [data-mg-utility="true"] {
+  border: 1px solid transparent;
+  background: transparent;
 }
 
 [data-mg-player-vod="true"] [data-mg-player-button-row="true"] .mg-player-primary {
