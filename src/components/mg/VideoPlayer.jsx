@@ -2425,7 +2425,6 @@ export default function VideoPlayer({
           candidate,
           sourceDisplayLabel(candidate, index)
         );
-
         return {
           index,
           trustedCached: trustedCachedByIndex.get(index) === true,
@@ -2437,6 +2436,7 @@ export default function VideoPlayer({
           quarantined:
             liveFailover && liveTvUrlQuarantined(url),
           score: recoverySourceScore(candidate, index),
+          decodableRank: ((t) => t <= 1 ? 0 : t === 2 ? 1 : 2)(sourcePlaybackCompatibilityTier(candidate, sourceDisplayLabel(candidate, index), { deviceProfile: getPlaybackDeviceProfile() })),
         };
       })
       .filter(Boolean)
@@ -2477,7 +2477,7 @@ export default function VideoPlayer({
             a.index - b.index
           );
         }
-
+        if (a.decodableRank !== b.decodableRank) return a.decodableRank - b.decodableRank;
         if (a.qualityRank !== b.qualityRank) {
           return a.qualityRank - b.qualityRank;
         }
