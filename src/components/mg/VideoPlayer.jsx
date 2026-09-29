@@ -101,7 +101,7 @@ import {
   smartEntryUpgradeScore,
   smartSourceFingerprint,
 } from "@/components/mg/smartSourceSelection";
-import { useProactiveCodecGuard } from "@/components/mg/useProactiveCodecGuard";
+import { useProactiveCodecGuard } from "@/components/mg/useProactiveCodecGuard"; import { useSilentAudioGuard } from "@/components/mg/useSilentAudioGuard";
 const SUCCESSFUL_VOD_PLAYBACK_SECONDS = 20;
 
 const isMagnet = (value) =>
@@ -10119,14 +10119,8 @@ export default function VideoPlayer({
       });
     };
 
-  /*
-   * Audio recovery is deliberately MANUAL ONLY.
-   *
-   * Do not inspect timers, codec reputation, browser audio metadata or old
-   * no-sound history and then call handleNoSound automatically. A film or
-   * episode keeps playing exactly as the decoder presents it until the viewer
-   * presses Audio / No sound and explicitly asks Media God to intervene.
-   */
+  // Auto-repair only on hard decoder evidence (zero decoded audio while video advances).
+  useSilentAudioGuard({ stageRef, enabled: !isLive && !isYoutube && !isProvider && !useNativePlayback && !rdResolving, streamKey: `${source?.playRequestId || ""}|${activeIdx}|${rdOverride?.src || activeUrl}`, onSilent: handleNoSound });
 
   useEffect(() => {
     const state = autoVideoRescueRef.current;

@@ -100,7 +100,16 @@ export function useProactiveCodecGuard({
       return;
     }
 
-    if (manualSourceLockActive()) {
+    // Real-Debrid-backed files can be repaired in place (compatible transcode)
+    // by the silent-audio guard, so don't throw away an otherwise good release.
+    if (
+      manualSourceLockActive() ||
+      rdOverride ||
+      active?.viaRealDebrid ||
+      active?.debridCached === true ||
+      active?.infoHash ||
+      active?.info_hash
+    ) {
       return;
     }
 
