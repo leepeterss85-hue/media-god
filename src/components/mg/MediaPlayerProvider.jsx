@@ -3100,7 +3100,7 @@ export function PlayerProvider({
             initialPlayableSources[0]?.launchQualified === true
           );
         const suppliedImdbId = String(request?.imdbId || request?.imdb_id || "").trim();
-        if (!isLive && !request?.debridManual && !request?.skipRdLookup && !request?.skipAddonLookup && launchEmbedFallbackRef.current?.({ ...request, mediaType, tmdbId, imdbId: suppliedImdbId, season, episode, title: request?.title || "Video" })) return true;
+        if (!isLive && mediaType !== "tv" && !request?.debridManual && !request?.skipRdLookup && !request?.skipAddonLookup && launchEmbedFallbackRef.current?.({ ...request, mediaType, tmdbId, imdbId: suppliedImdbId, season, episode, title: request?.title || "Video" })) return true;
 
         /*
          * FAST START: open the player immediately. Source discovery continues
