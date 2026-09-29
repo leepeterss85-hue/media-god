@@ -10,6 +10,7 @@ import {
 
 import {
   FastForward,
+  SkipBack,
   SkipForward,
   X,
 } from "lucide-react";
