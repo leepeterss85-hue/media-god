@@ -1100,6 +1100,12 @@ export default function DetailModal({
           safeItem.alternateYears
         ),
 
+      startTime:
+        Number(
+          safeItem.resumeProgress
+        ) ||
+        undefined,
+
       sources:
         buildMediaSources({
           title:

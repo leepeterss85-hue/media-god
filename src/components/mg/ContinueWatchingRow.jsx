@@ -216,7 +216,7 @@ const resolveTmdbIdQuickly = async (meta) => {
   }
 };
 
-export default function ContinueWatchingRow() {
+export default function ContinueWatchingRow({ onOpenDetail }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const player = usePlayer();
@@ -323,10 +323,36 @@ export default function ContinueWatchingRow() {
     }
   };
 
-  const resume = async (item) => {
+  const openDetail = async (item) => {
     const meta = parseContentKey(item);
     const isTv = meta.mediaType === "tv";
     const tmdbId = await resolveTmdbIdQuickly(meta);
+
+    /*
+     * Continue Watching cards open the detail view (source options, reviews,
+     * cast) instead of jumping straight into a stream. The resume position is
+     * forwarded so the detail page's Play button can pick up where the user
+     * stopped. If no detail handler is wired (component used standalone), fall
+     * back to the previous direct-resume behaviour so playback still works.
+     */
+    if (onOpenDetail) {
+      onOpenDetail({
+        id: tmdbId || undefined,
+        tmdb_id: tmdbId || undefined,
+        tmdbId: tmdbId || undefined,
+        title: meta.title,
+        poster_url: item.poster_url || "",
+        year: meta.year,
+        media_type: meta.mediaType,
+        mediaType: meta.mediaType,
+        type: isTv ? "tv" : "movie",
+        season: meta.season || undefined,
+        episode: meta.episode || undefined,
+        episodeName: meta.episodeName || "",
+        resumeProgress: Number(item.progress || 0),
+      });
+      return;
+    }
 
     const playbackTitle =
       isTv && meta.season && meta.episode
@@ -335,13 +361,6 @@ export default function ContinueWatchingRow() {
           ).padStart(2, "0")}`
         : meta.title;
 
-    /*
-     * Continue Watching URLs are often temporary Real-Debrid/provider links.
-     * Reusing one later can pin playback to an expired "Previous resume source"
-     * even though fresh sources are available. Resume the media identity and
-     * position instead, then let the normal source discovery resolve a current
-     * playable URL.
-     */
     player.play({
       id: tmdbId || undefined,
       tmdbId: tmdbId || undefined,
@@ -425,15 +444,15 @@ export default function ContinueWatchingRow() {
               key={item.id}
               data-mg-card-primary="true"
               data-mg-focus-key={`continue:${identityFor(meta)}`}
-              onClick={() => resume(item)}
+              onClick={() => openDetail(item)}
               role="button"
               tabIndex={0}
-              aria-label={`Resume ${meta.title}${episodeLabel ? ` ${episodeLabel}` : ""}`}
+              aria-label={`Open ${meta.title}${episodeLabel ? ` ${episodeLabel}` : ""}`}
               onKeyDown={(event) => {
                 if (isCardActivationKey(event)) {
                   event.preventDefault();
                   event.stopPropagation();
-                  resume(item);
+                  openDetail(item);
                 }
               }}
               className="mg-fire-tv-resume-card group relative w-44 sm:w-52 md:w-56 xl:w-60 3xl:w-72 4xl:w-80 shrink-0 text-left cursor-pointer snap-start rounded-xl focus:outline-none focus:ring-2 focus:ring-mg-green focus:ring-offset-2 focus:ring-offset-mg-background"

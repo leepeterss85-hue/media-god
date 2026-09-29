@@ -1030,7 +1030,7 @@ export default function HomeDashboard({ onOpenTvService }) {
 
     switch (sectionId) {
       case "continue-watching":
-        return <ContinueWatchingRow key={sectionId} />;
+        return <ContinueWatchingRow key={sectionId} onOpenDetail={open} />;
       case "new-films":
         return (
           <MediaRow
