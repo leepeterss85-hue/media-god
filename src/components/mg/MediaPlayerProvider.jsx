@@ -3100,7 +3100,7 @@ export function PlayerProvider({
             initialPlayableSources[0]?.launchQualified === true
           );
         const suppliedImdbId = String(request?.imdbId || request?.imdb_id || "").trim();
-        if (!isLive && mediaType !== "tv" && !request?.debridManual && !request?.skipRdLookup && !request?.skipAddonLookup && launchEmbedFallbackRef.current?.({ ...request, mediaType, tmdbId, imdbId: suppliedImdbId, season, episode, title: request?.title || "Video" })) return true;
+        if (!isLive && mediaType !== "tv" && !request?.debridManual && !request?.skipRdLookup && !request?.skipAddonLookup) { embedFastStartRef.current = true; launchEmbedFallbackRef.current?.({ ...request, mediaType, tmdbId, imdbId: suppliedImdbId, season, episode, title: request?.title || "Video" }); embedFastStartRef.current = false; }
 
         /*
          * FAST START: open the player immediately. Source discovery continues
@@ -4402,7 +4402,7 @@ export function PlayerProvider({
 
   const launchEmbedFallbackRef = useRef(null), embedFastStartRef = useRef(false);
   const embedMedia = (m) => ({ mediaType: m.mediaType, tmdbId: m.tmdbId ?? m.id, imdbId: m.imdbId, season: m.season ?? m.rdSeason, episode: m.episode ?? m.rdEpisode });
-  const startEmbed = (url, media, provider) => { stopExclusivePlayback(); setSource({ ...media, playRequestId: ++playSequenceRef.current, title: String(media.title || "Video"), sources: [], completeSources: [] }); setVidSrcEmbed({ provider, url, media: embedMedia(media), title: String(media.title || "Video"), fromDetails: true }); return true; };
+  const startEmbed = (url, media, provider) => { stopExclusivePlayback(); if (!embedFastStartRef.current) { setSource({ ...media, playRequestId: ++playSequenceRef.current, title: String(media.title || "Video"), sources: [], completeSources: [] }); } setVidSrcEmbed({ provider, url, media: embedMedia(media), title: String(media.title || "Video"), fromDetails: true }); return true; };
   const playVidSrc = useCallback((media) => { const url = buildVidSrcEmbedUrl(media); return url ? startEmbed(url, media) : false; }, []);
   const playEmbedSu = useCallback((media) => { const url = buildEmbedSuEmbedUrl(media); return url ? startEmbed(url, media, "embedsu") : false; }, []);
   const playVidCore = useCallback((media) => { const url = buildVidCoreEmbedUrl(media); return url ? startEmbed(url, media, "vidcore") : false; }, []);
