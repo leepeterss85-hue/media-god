@@ -22,6 +22,7 @@ import {
   readUxPreferences,
   UX_PREFERENCES_EVENT,
 } from "@/components/mg/uxPreferences";
+import { addToWatchlistItem } from "@/components/mg/watchlistActions";
 
 const WATCHED_THRESHOLD = 0.92;
 
@@ -975,14 +976,29 @@ export default function HomeDashboard({ onOpenTvService }) {
     }
 
     try {
-      await base44.entities.WatchlistItem.create({
-        title: movie.title,
-        year: movie.year,
-        poster_url: movie.poster_url,
-        description: movie.description,
-        tmdb_id: String(id),
-        media_type: mediaTypeOf(movie),
-      });
+      const result = await addToWatchlistItem(movie);
+
+      if (!result.ok) {
+        toast({
+          title: "Could not add",
+          description: "This title is missing its TMDB id.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!result.created) {
+        setWatched((current) => ({
+          ...current,
+          [id]: true,
+        }));
+
+        toast({
+          title: "Already in Watchlist",
+          description: movie.title,
+        });
+        return;
+      }
 
       const normalised = normaliseLibraryItem(
         {

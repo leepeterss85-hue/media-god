@@ -18,6 +18,7 @@ import {
 } from "@/components/mg/streamingRegion";
 import { COUNTRY_OPTIONS } from "@/components/mg/countryOptions";
 import useDebouncedValue from "@/components/mg/useDebouncedValue";
+import { addToWatchlistItem } from "@/components/mg/watchlistActions";
 
 const PosterImage = /** @type {any} */ (Image);
 
@@ -83,31 +84,16 @@ export default function MoviesView() {
 
   const addToWatchlist = async (movie) => {
     try {
-      const existing = await base44.entities.WatchlistItem.filter({
-        tmdb_id: String(movie.id),
-        media_type: "movie",
-      });
+      const result = await addToWatchlistItem(movie);
 
-      if (Array.isArray(existing) && existing.length > 0) {
-        setWatched((current) => ({
-          ...current,
-          [movie.id]: true,
-        }));
+      if (!result.ok) {
         toast({
-          title: "Already in Watchlist",
-          description: movie.title,
+          title: "Could not add",
+          description: "This title is missing its TMDB id.",
+          variant: "destructive",
         });
         return;
       }
-
-      await base44.entities.WatchlistItem.create({
-        title: movie.title,
-        year: movie.year,
-        poster_url: movie.poster_url,
-        description: movie.description,
-        tmdb_id: String(movie.id),
-        media_type: "movie",
-      });
 
       setWatched((current) => ({
         ...current,
@@ -115,7 +101,7 @@ export default function MoviesView() {
       }));
 
       toast({
-        title: "Added to Watchlist",
+        title: result.created ? "Added to Watchlist" : "Already in Watchlist",
         description: movie.title,
       });
     } catch {

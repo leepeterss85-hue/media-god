@@ -28,6 +28,7 @@ import {
   buildMediaSources,
 } from "@/components/mg/PlayerProvider";
 import StreamSourcesBox from "@/components/mg/StreamSourcesBox";
+import { addToWatchlistItem } from "@/components/mg/watchlistActions";
 import { Image } from "@/components/ui/image";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -1169,30 +1170,45 @@ export default function DetailModal({
       }
 
       try {
-        await base44.entities.WatchlistItem.create(
-          {
+        const result =
+          await addToWatchlistItem(
+            {
+              ...safeItem,
+              title:
+                displayTitle,
+              poster_url:
+                displayPoster,
+              description:
+                overview,
+              tmdb_id:
+                itemId,
+              media_type:
+                resolvedMediaType,
+            }
+          );
+
+        if (
+          !result.ok
+        ) {
+          toast({
             title:
-              displayTitle,
-            year:
-              safeItem.year,
-            poster_url:
-              displayPoster,
+              "Could not add",
             description:
-              overview,
-            tmdb_id:
-              String(
-                itemId
-              ),
-            media_type:
-              resolvedMediaType,
-          }
-        );
+              "This title is missing its TMDB id.",
+            variant:
+              "destructive",
+          });
+
+          return;
+        }
 
         setAdded(true);
 
         toast({
           title:
-            "Added to Watchlist",
+            result.created
+              ? "Added to Watchlist"
+              : "Already in Watchlist",
           description:
             displayTitle,
         });
