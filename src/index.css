@@ -141,6 +141,21 @@
   }
 }
 
+/*
+ * Gentle vertical scroll-snap on the Home dashboard so every row section
+ * (header + cards) snaps fully into view instead of straddling the fold.
+ * Proximity is soft — it only engages when the user is already near a row,
+ * so normal scrolling between rows stays smooth.
+ */
+html:has([data-mg-home-dashboard="true"]) {
+  scroll-snap-type: y proximity;
+}
+
+html:has([data-mg-home-dashboard="true"]) [data-mg-home-snap="true"] {
+  scroll-snap-align: start;
+  scroll-snap-stop: normal;
+}
+
 @layer utilities {
   .scrollbar-hide::-webkit-scrollbar {
     display: none;

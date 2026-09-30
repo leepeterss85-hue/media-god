@@ -1216,14 +1216,24 @@ export default function HomeDashboard({ onOpenTvService }) {
         data-mg-home-layout-lock={HOME_LAYOUT_LOCK_ID}
         className="flex flex-col gap-6 3xl:gap-8 4xl:gap-10 py-5 sm:py-6 3xl:py-8"
       >
-        <HeroSlider
-          items={hero}
-          onWatch={open}
-          onDetails={open}
-          onWatchlist={onWatchlist}
-        />
+        <div data-mg-home-snap="true">
+          <HeroSlider
+            items={hero}
+            onWatch={open}
+            onDetails={open}
+            onWatchlist={onWatchlist}
+          />
+        </div>
 
-        {(uxPreferences.homeOrder || []).map(renderHomeSection)}
+        {(uxPreferences.homeOrder || []).map((sectionId) => {
+          const section = renderHomeSection(sectionId);
+          if (!section) return null;
+          return (
+            <div key={sectionId} data-mg-home-snap="true">
+              {section}
+            </div>
+          );
+        })}
       </div>
 
       <footer data-mg-home-footer="true" className="border-t border-white/5 py-6 3xl:py-8 mt-4 px-4 sm:px-6 3xl:px-10 text-center text-white/40 text-xs 3xl:text-sm">
