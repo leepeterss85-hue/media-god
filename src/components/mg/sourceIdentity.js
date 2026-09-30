@@ -212,12 +212,18 @@ export const sourceIdentityMismatchReason = (
 
     /*
      * A real torrent/file filename is stronger evidence than an addon display
-     * label. Once we have that filename, it must actually contain the requested
-     * movie title OR one of the title's verified alternate release names.
-     * Year/sequel/suffix checks still run below, so an alias is not a broad
-     * fuzzy-title bypass.
+     * label — but only as a tiebreaker when the display label itself did NOT
+     * match the title. Filenames routinely drop articles ("The Movie" →
+     * "Movie.2025..."), abbreviate long titles, or reorder words, so rejecting
+     * every source whose filename lacks the exact contiguous title was
+     * collapsing the source selector down to a single row. When the display
+     * label already confirmed the title, trust it and let the filename through.
      */
-    if (strictFilename && acceptedTitleTokens.length > 0) {
+    if (
+      strictFilename &&
+      acceptedTitleTokens.length > 0 &&
+      !releaseTitleMatch
+    ) {
       const strictTokens = tokens(strictFilename);
       const strictTitleMatch = bestTitleTokenMatch(
         strictTokens,
