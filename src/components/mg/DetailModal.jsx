@@ -1180,7 +1180,9 @@ export default function DetailModal({
             description:
               overview,
             tmdb_id:
-              itemId,
+              String(
+                itemId
+              ),
             media_type:
               resolvedMediaType,
           }

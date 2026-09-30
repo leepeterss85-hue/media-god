@@ -105,7 +105,7 @@ export default function MoviesView() {
         year: movie.year,
         poster_url: movie.poster_url,
         description: movie.description,
-        tmdb_id: movie.id,
+        tmdb_id: String(movie.id),
         media_type: "movie",
       });
 

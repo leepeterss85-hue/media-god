@@ -980,7 +980,7 @@ export default function HomeDashboard({ onOpenTvService }) {
         year: movie.year,
         poster_url: movie.poster_url,
         description: movie.description,
-        tmdb_id: id,
+        tmdb_id: String(id),
         media_type: mediaTypeOf(movie),
       });
 
