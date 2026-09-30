@@ -153,6 +153,7 @@ const pickEpisodeForShow = (episodes, today) => {
 };
 
 export default function NewEpisodesRow({
+  onOpenDetail,
   historyRows = [],
   region = "",
   todayKey = dateKey(new Date()),
@@ -286,6 +287,22 @@ export default function NewEpisodesRow({
 
   const playEpisode = (item) => {
     if (!item || item.airDate > todayKey) return;
+
+    if (onOpenDetail) {
+      onOpenDetail({
+        id: item.tmdbId,
+        tmdb_id: item.tmdbId,
+        tmdbId: item.tmdbId,
+        title: item.showTitle,
+        name: item.showTitle,
+        year: item.year,
+        poster_url: item.poster,
+        media_type: "tv",
+        mediaType: "tv",
+        type: "tv",
+      });
+      return;
+    }
 
     const episodeCode = `S${String(item.season).padStart(2, "0")}E${String(
       item.episode

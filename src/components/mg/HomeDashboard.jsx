@@ -1077,6 +1077,7 @@ export default function HomeDashboard({ onOpenTvService }) {
             historyRows={historyRows}
             region={streamingRegion}
             todayKey={todayKey}
+            onOpenDetail={open}
           />
         );
       case "because-you-watched":
@@ -1102,7 +1103,7 @@ export default function HomeDashboard({ onOpenTvService }) {
           />
         ) : null;
       case "recently-watched":
-        return <RecentlyWatchedRow key={sectionId} />;
+        return <RecentlyWatchedRow key={sectionId} onOpenDetail={open} />;
       case "watchlist":
         return (rows.watchlist || []).length > 0 ? (
           <MediaRow
