@@ -48,7 +48,7 @@ object PlaybackCompatibilityRouter {
         val tenBit: Boolean
             get() = bitDepth >= 10 ||
                 Regex(
-                    """(?:10[ -]?bit|main[ ._-]?10|p010|hdr10\+?|dolby[ ._-]?vision|dovi|dvhe|dvh1)""",
+                    """(?:10[ -]?bit|main[ ._-]?10|p010|hdr10\+?|dolby[ ._-]?vision|dovi|dvhe|dvh1|hlg)""",
                     RegexOption.IGNORE_CASE
                 ).containsMatchIn("$profile $hdrFormat $text")
 
@@ -566,7 +566,7 @@ object PlaybackCompatibilityRouter {
             matches(text, "dts[- .]?(?:hd|ma)|dts:x") -> CodecSpec("dts-hd", listOf("audio/vnd.dts.hd"))
             matches(text, "true[- .]?hd|mlp") -> CodecSpec("truehd", listOf("audio/true-hd", "audio/vnd.dolby.mlp"))
             matches(text, "dts|dca") -> CodecSpec("dts", listOf("audio/vnd.dts"))
-            matches(text, "atmos") -> CodecSpec(
+            matches(text, "atmos|dolby[ -]?mat|mat[- .]?(?:1|2)") -> CodecSpec(
                 "atmos",
                 listOf("audio/eac3-joc", "audio/eac3", "audio/true-hd")
             )

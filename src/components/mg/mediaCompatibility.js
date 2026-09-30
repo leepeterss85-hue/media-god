@@ -875,6 +875,13 @@ export const detectStreamTraits = (
   if (
     has(
       text,
+      /\b(?:dolby[ ._-]?mat|mat[- ._-]?(?:1|2))\b/i
+    )
+  ) {
+    traits.audio = "eac3";
+  } else if (
+    has(
+      text,
       /\b(?:ac-?4|ac4)\b/i
     )
   ) {
@@ -927,7 +934,7 @@ export const detectStreamTraits = (
   } else if (
     has(
       text,
-      /\b(?:aac(?:[ ._-]?(?:lc|he|2\.0|5\.1))?|heaac|he-aac|mp4a)\b/i
+      /\b(?:eaac\+?|aac(?:[ ._-]?(?:lc|he|eld|2\.0|5\.1))?|heaac|he-aac|mp4a)\b/i
     )
   ) {
     traits.audio =
@@ -1080,7 +1087,7 @@ export const detectStreamTraits = (
   traits.atmos =
     has(
       text,
-      /\batmos\b/i
+      /\b(?:atmos|dolby[ ._-]?mat|mat[- ._-]?(?:1|2))\b/i
     );
 
   if (mainTrack?.codec) {
@@ -1112,7 +1119,7 @@ export const detectStreamTraits = (
     traits.dolbyVision ||
     has(
       text,
-      /\b(?:hdr10\+?|hdr)\b/i
+      /\b(?:hdr10\+?|hdr|hlg)\b/i
     );
 
   const explicitResolution =
