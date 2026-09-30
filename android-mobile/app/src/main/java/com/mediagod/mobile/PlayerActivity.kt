@@ -1059,14 +1059,12 @@ class PlayerActivity : Activity() {
                     )
                 }
 
-                /*
-                 * Leave a working audio track untouched. A second delayed
-                 * inspection can reject a genuinely missing/unsupported track,
-                 * but never opens a different player over this VOD screen.
-                 */
                 if (!live) {
-                    enforcePreferredEnglishAudio(exoPlayer, tracks)
-                    scheduleMissingAudioCheck(exoPlayer, tracks)
+                    val switched = enforcePreferredEnglishAudio(exoPlayer, tracks)
+                    if (!switched && !audioOutputConfirmed && selectedAudioRequiresPcmRescue(tracks))
+                        launchCompatibilityPlayer(exoPlayer, null,
+                            "DTS/TrueHD audio is silent on most devices. Trying the compatibility decoder.")
+                    else scheduleMissingAudioCheck(exoPlayer, tracks)
                 }
             }
 
@@ -1240,6 +1238,21 @@ class PlayerActivity : Activity() {
         }
     }
 
+    private fun selectedAudioRequiresPcmRescue(
+        tracks: androidx.media3.common.Tracks
+    ): Boolean {
+        tracks.groups.forEach { group ->
+            if (group.type != C.TRACK_TYPE_AUDIO) return@forEach
+            for (index in 0 until group.length) {
+                if (!group.isTrackSelected(index)) continue
+                val mime = group.getTrackFormat(index).sampleMimeType.orEmpty().trim().lowercase()
+                if (mime in setOf("audio/vnd.dts","audio/vnd.dts.hd","audio/true-hd","audio/vnd.dolby.mlp"))
+                    return true
+            }
+        }
+        return false
+    }
+
     private data class AudioReadiness(
         val present: Boolean,
         val supported: Boolean,
@@ -1341,26 +1354,17 @@ class PlayerActivity : Activity() {
             ) return@postDelayed
 
             val latest = inspectAudioReadiness(activePlayer.currentTracks)
-            if (latest.present && latest.supported && latest.selected) {
-                // Audio-sink callbacks can arrive late or be absent on a
-                // device. A selected supported track is not proof of silence;
-                // keep the working video and let the viewer use Audio.
-                return@postDelayed
-            }
+            if (latest.present && latest.supported && latest.selected) return@postDelayed
 
             val reason = when {
-                !latest.present ->
-                    "Video is playing but no audio track became available. Choose another source."
-                !latest.supported ->
-                    "The phone cannot decode this source's audio. Choose another source."
-                else ->
-                    "No usable audio track was selected. Choose another source."
+                !latest.present -> "Video is playing but no audio track became available."
+                !latest.supported -> "The device cannot decode this source's audio."
+                else -> "No usable audio track was selected."
             }
-            payload.put("compatibilityErrorCode", 5001)
-            payload.put("compatibilityError", reason)
-            payload.put("compatibilityReason", "audio-track-unavailable")
-            finishWithResult("error", reason)
-        }, 10000L)
+            if (!launchCompatibilityPlayer(activePlayer, null, "$reason Trying the compatibility decoder.")) {
+                finishWithResult("error", "$reason Choose another source.")
+            }
+        }, 6000L)
     }
 
     private fun buildMediaItem(mimeTypeOverride: String? = null): MediaItem {
