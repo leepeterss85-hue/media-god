@@ -175,7 +175,7 @@ const resolveTmdbIdQuickly = async (meta) => {
   }
 };
 
-export default function RecentlyWatchedRow() {
+export default function RecentlyWatchedRow({ onOpenDetail }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const player = usePlayer();
@@ -280,6 +280,30 @@ export default function RecentlyWatchedRow() {
     });
   };
 
+  const openDetail = async (item) => {
+    if (onOpenDetail) {
+      const meta = parseContentKey(item);
+      const tmdbId = await resolveTmdbIdQuickly(meta);
+
+      onOpenDetail({
+        id: tmdbId || undefined,
+        tmdb_id: tmdbId || undefined,
+        tmdbId: tmdbId || undefined,
+        title: meta.title,
+        name: meta.title,
+        year: meta.year,
+        poster_url: item.poster_url,
+        media_type: meta.mediaType,
+        mediaType: meta.mediaType,
+        type: meta.mediaType === "tv" ? "tv" : "movie",
+      });
+
+      return;
+    }
+
+    replay(item);
+  };
+
   const displayItems = useMemo(
     () =>
       items.map((item) => ({
@@ -319,7 +343,7 @@ export default function RecentlyWatchedRow() {
             key={item.id}
             data-mg-card-primary="true"
             data-mg-focus-key={`recent:${meta.mediaType}:${meta.tmdbId || normaliseTitle(meta.title)}:${meta.season || ""}:${meta.episode || ""}`}
-            onClick={() => replay(item)}
+            onClick={() => openDetail(item)}
             role="button"
             tabIndex={0}
             aria-label={`Replay ${meta.title}`}
@@ -327,7 +351,7 @@ export default function RecentlyWatchedRow() {
               if (isCardActivationKey(event)) {
                 event.preventDefault();
                 event.stopPropagation();
-                replay(item);
+                openDetail(item);
               }
             }}
             className="mg-fire-tv-resume-card group relative w-36 sm:w-44 md:w-48 xl:w-52 3xl:w-64 4xl:w-72 shrink-0 text-left cursor-pointer snap-start rounded-lg focus:outline-none focus:ring-2 focus:ring-mg-green focus:ring-offset-2 focus:ring-offset-mg-background"

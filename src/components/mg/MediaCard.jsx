@@ -41,7 +41,7 @@ export default function MediaCard({
      * at a consistent television scale. TV cards also always open Details so
      * the user can choose the exact season and episode.
      */
-    if ((detailsOnly || isFireTvRuntime() || mediaType === "tv") && onOpen) {
+    if (onOpen) {
       onOpen({
         ...item,
         id: tmdbId,
