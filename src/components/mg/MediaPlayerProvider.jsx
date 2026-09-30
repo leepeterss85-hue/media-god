@@ -3725,29 +3725,25 @@ export function PlayerProvider({
             ]
           );
 
-        const combined =
+        // Retain the details chooser's entire pool even when selecting one
+        // source intentionally skips a new addon/library lookup. Preserve
+        // occurrences so shared URLs/hashes do not collapse distinct rows.
+        const combined = preservePublishedSourceOrder(
+          suppliedCompleteSources,
           dedupeSources(
             stripVodTrailerSources(
               [
-                ...(rdLookup
-                  ?.source
-                  ? [
-                      rdLookup
-                        .source,
-                    ]
-                  : []),
-
-                ...(
-                  addonLookup
-                    ?.streams ||
-                  []
-                ),
-
+                ...(rdLookup?.source ? [rdLookup.source] : []),
+                ...(addonLookup?.streams || []),
                 ...originalSources,
+                ...suppliedCompleteSources,
               ],
               isLive
             )
-          );
+          ),
+          stableDiscoveredSourceKey,
+          { retainSurplusPublished: true }
+        );
 
         const cacheAnnotatedCombined =
           await annotateDebridCache(

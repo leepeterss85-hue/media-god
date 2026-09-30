@@ -961,6 +961,7 @@ export default function StreamSourcesBox({
 
           sources:
             [],
+          completeSources: visibleAddonStreams,
         });
       } catch (error) {
         setMessage(
@@ -1057,6 +1058,7 @@ export default function StreamSourcesBox({
         sources: [
           stream,
         ],
+        completeSources: visibleAddonStreams,
       });
     };
 
