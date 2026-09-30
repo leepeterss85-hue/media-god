@@ -4400,7 +4400,7 @@ export function PlayerProvider({
       ]
     );
 
-  const launchEmbedFallbackRef = useRef(null);
+  const launchEmbedFallbackRef = useRef(null), embedFastStartRef = useRef(false);
   const embedMedia = (m) => ({ mediaType: m.mediaType, tmdbId: m.tmdbId ?? m.id, imdbId: m.imdbId, season: m.season ?? m.rdSeason, episode: m.episode ?? m.rdEpisode });
   const startEmbed = (url, media, provider) => { stopExclusivePlayback(); setSource({ ...media, playRequestId: ++playSequenceRef.current, title: String(media.title || "Video"), sources: [], completeSources: [] }); setVidSrcEmbed({ provider, url, media: embedMedia(media), title: String(media.title || "Video"), fromDetails: true }); return true; };
   const playVidSrc = useCallback((media) => { const url = buildVidSrcEmbedUrl(media); return url ? startEmbed(url, media) : false; }, []);
