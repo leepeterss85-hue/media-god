@@ -1037,7 +1037,7 @@ function MediaGodApp() {
           />
         )}
 
-        <main className={`flex-1 min-w-0 w-full flex flex-col overflow-x-hidden ${showPageBack ? 'pt-16 3xl:pt-20' : ''}`}>
+        <main className={`flex-1 min-w-0 w-full flex flex-col overflow-x-hidden ${showPageBack ? 'pt-20 3xl:pt-24' : ''}`}>
           <RdBanner
             onLinkSettings={() => {
               setSearchOpen(
