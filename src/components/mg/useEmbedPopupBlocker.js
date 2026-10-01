@@ -6,10 +6,11 @@ import { useEffect } from "react";
  * VidSrc / Embed.su / VidCore / 2Embed / CineSrc / MultiEmbed pages are ad
  * supported and routinely try to open new windows or redirect the host tab.
  * The iframe is cross-origin so we cannot see clicks inside it, but we can:
- *   1. sandbox the iframe so it cannot call window.open or navigate top.
- *   2. override window.open on this window while an embed is mounted, so any
- *      script that reaches the parent (e.g. via postMessage bridges or the
- *      "Open separately" link being hijacked) is neutralised.
+ *   1. sandbox the iframe so it cannot navigate the top-level app tab.
+ *   2. override window.open on this window, allowing popups that originate
+ *      from a genuine user gesture (the embed's real "Play" button) while
+ *      blocking purely scripted popups (ads, redirects) that fire with no
+ *      user interaction.
  *
  * Use this hook from every embed player component for the lifetime of the
  * embed. Pair it with the `sandbox` attribute on the iframe itself.
@@ -17,11 +18,31 @@ import { useEffect } from "react";
 export default function useEmbedPopupBlocker() {
   useEffect(() => {
     const originalOpen = window.open;
+    let lastGestureAt = 0;
+    const GESTURE_WINDOW_MS = 2000;
+
+    const onGesture = () => {
+      lastGestureAt = Date.now();
+    };
+
+    const gestureEvents = ["click", "keydown", "touchend", "pointerdown"];
+    gestureEvents.forEach((event) =>
+      window.addEventListener(event, onGesture, {
+        capture: true,
+        passive: true,
+      })
+    );
 
     const blockedOpen = (...args) => {
-      // Swallow programmatic popups spawned while the embed player is open.
-      // Return the same null a blocked popup would yield so caller code that
-      // checks the return value does not crash.
+      const sinceGesture = Date.now() - lastGestureAt;
+
+      // Allow popups that follow a real user gesture — the embed's own Play
+      // button opens the video stream this way. Block only scripted popups
+      // (ads, auto-redirects) that fire with no recent interaction.
+      if (sinceGesture <= GESTURE_WINDOW_MS) {
+        return originalOpen.apply(window, args);
+      }
+
       try {
         window.dispatchEvent(
           new CustomEvent("mg:embed-popup-blocked", {
@@ -51,6 +72,9 @@ export default function useEmbedPopupBlocker() {
     return () => {
       window.open = originalOpen;
       window.removeEventListener("beforeunload", beforeUnload);
+      gestureEvents.forEach((event) =>
+        window.removeEventListener(event, onGesture, { capture: true })
+      );
     };
   }, []);
 }

@@ -144,7 +144,7 @@ export default function EmbedSuPlayer({ url, media, title, onBack, backLabel = "
             allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
-            sandbox="allow-scripts allow-same-origin allow-presentation allow-pointer-lock allow-fullscreen"
+            sandbox="allow-scripts allow-same-origin allow-presentation allow-pointer-lock allow-fullscreen allow-popups allow-forms"
           />
         </div>
 
