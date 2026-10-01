@@ -13,11 +13,11 @@ import {
   MonitorPlay,
   Power,
   Puzzle,
-  Radio,
   Search,
   Settings,
   Shield,
   Tv,
+  Users,
 } from "lucide-react";
 
 import { base44 } from "@/api/base44Client";
@@ -32,7 +32,7 @@ const NAV = [
   { id: "movies", label: "Movies", icon: Film },
   { id: "tv", label: "TV Shows", icon: MonitorPlay },
   { id: "live", label: "Live TV", icon: Tv },
-  { id: "music", label: "Music", icon: Radio },
+  { id: "watchparty", label: "Watch Party", icon: Users },
   { id: "roadmap", label: "Release Dates", icon: CalendarDays },
   { id: "watchlist", label: "Watchlist", icon: Bookmark },
   { id: "favorites", label: "Favorites", icon: Heart },

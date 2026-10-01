@@ -954,7 +954,7 @@ function MediaGodApp() {
           }
           className="
             fixed
-            left-3
+            left-20
             top-3
             z-[9999]
             flex
@@ -978,7 +978,8 @@ function MediaGodApp() {
             focus:outline-none
             focus:ring-4
             focus:ring-mg-green/50
-            3xl:left-5
+            md:left-64
+            3xl:left-72
             3xl:top-5
             3xl:min-h-14
             3xl:px-5
@@ -1102,13 +1103,6 @@ function MediaGodApp() {
               searchRequestKey={
                 liveSearchRequest.key
               }
-            />
-          )}
-
-          {view ===
-            "music" && (
-            <LiveTVView
-              initialQuickFilter="Radio"
             />
           )}
 
