@@ -1793,6 +1793,13 @@ export default function StreamSourcesBox({
         )}
       </div>
 
+      <p className="text-[10px] text-white/45 leading-relaxed mb-2.5 px-1">
+        Press <span className="text-mg-green font-semibold">Play</span> on any
+        card for a confirmed working copy. Try the other links below for a
+        potentially better copy, but some may not be in English, have no
+        sound, or have worse picture quality.
+      </p>
+
       {loading ? (
         <div className="flex flex-col gap-1.5">
           {Array.from({
