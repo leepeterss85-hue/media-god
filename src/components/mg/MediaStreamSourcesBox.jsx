@@ -28,7 +28,7 @@ import { usePlayer } from "@/components/mg/PlayerProvider";
 import { buildVidSrcEmbedUrl } from "@/components/mg/vidsrcEmbed";
 import { buildEmbedSuEmbedUrl } from "@/components/mg/webEmbedProviders";
 import { buildVidCoreEmbedUrl } from "@/components/mg/vidCoreEmbed";
-import { buildTwoEmbedEmbedUrl, buildCineSrcEmbedUrl, buildMultiEmbedEmbedUrl } from "@/components/mg/extraEmbedProviders";
+import { buildTwoEmbedEmbedUrl, buildCineSrcEmbedUrl, buildMultiEmbedEmbedUrl } from "@/components/mg/extraEmbedProviders"; import { buildOnlyFlixEmbedUrl } from "@/components/mg/onlyFlixEmbed";
 import { fetchTmdbEmbedStreams } from "@/components/mg/tmdbEmbedStreams";
 import { cn } from "@/lib/utils";
 import { magnetFromInput } from "@/components/mg/magnetStreamHelpers";
@@ -1366,6 +1366,7 @@ export default function StreamSourcesBox({
   const twoEmbedUrl = buildTwoEmbedEmbedUrl({ mediaType, tmdbId, imdbId: resolvedImdb || imdbId, season, episode });
   const cineSrcUrl = buildCineSrcEmbedUrl({ mediaType, tmdbId, season, episode });
   const multiEmbedUrl = buildMultiEmbedEmbedUrl({ mediaType, tmdbId, imdbId: resolvedImdb || imdbId, season, episode });
+  const onlyFlixUrl = buildOnlyFlixEmbedUrl({ mediaType, tmdbId, imdbId: resolvedImdb || imdbId, season, episode });
 
   const rows = [
     {
@@ -1458,6 +1459,14 @@ export default function StreamSourcesBox({
       label: "MultiEmbed web player",
       note: "Manual backup • uses MultiEmbed's own controls",
       onClick: () => player.playExtraEmbed("multiembed", { id: tmdbId, tmdbId, imdbId: resolvedImdb || imdbId, title, poster, mediaType, season, episode }),
+    }] : []),
+
+    ...(onlyFlixUrl ? [{
+      id: "onlyflix-web-player",
+      kind: "onlyflix",
+      label: "OnlyFlix web player",
+      note: "Manual backup • uses OnlyFlix's own controls",
+      onClick: () => player.playOnlyFlix({ id: tmdbId, tmdbId, imdbId: resolvedImdb || imdbId, title, poster, mediaType, season, episode }),
     }] : []),
 
     ...(providers || [])
@@ -1744,7 +1753,7 @@ export default function StreamSourcesBox({
       );
     }
 
-    if (kind === "vidsrc" || kind === "embedsu" || kind === "vidcore") {
+    if (kind === "vidsrc" || kind === "embedsu" || kind === "vidcore" || kind === "onlyflix") {
       return <ExternalLink className="w-4 h-4 text-amber-300" />;
     }
 
@@ -1828,7 +1837,7 @@ export default function StreamSourcesBox({
                   row.kind ===
                       "rd"
                     ? "bg-mg-green/10 hover:bg-mg-green/20 border-mg-green/30"
-                    : (row.kind === "vidsrc" || row.kind === "embedsu" || row.kind === "vidcore")
+                    : (row.kind === "vidsrc" || row.kind === "embedsu" || row.kind === "vidcore" || row.kind === "onlyflix")
                       ? "bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30"
                     : (row.kind === "webtor" || row.kind === "webtorrent")
                       ? "bg-purple-500/10 hover:bg-purple-500/20 border-purple-500/30"

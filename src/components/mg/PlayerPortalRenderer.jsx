@@ -5,6 +5,7 @@ import VidSrcEmbedPlayer from "@/components/mg/VidSrcEmbedPlayer";
 import EmbedSuPlayer from "@/components/mg/EmbedSuPlayer";
 import VidCoreEmbedPlayer from "@/components/mg/VidCoreEmbedPlayer";
 import ExtraEmbedPlayer from "@/components/mg/ExtraEmbedPlayer";
+import OnlyFlixEmbedPlayer from "@/components/mg/OnlyFlixEmbedPlayer";
 import WebtorEmbedPlayer from "@/components/mg/WebtorEmbedPlayer";
 import WebTorrentPlayer from "@/components/mg/WebTorrentPlayer";
 import { buildEmbedSuEmbedUrl } from "@/components/mg/webEmbedProviders";
@@ -112,6 +113,13 @@ export default function PlayerPortalRenderer({
           url={vidSrcEmbed.url}
           title={vidSrcEmbed.title}
           providerLabel={{ twoembed: "2Embed", cinesrc: "CineSrc", multiembed: "MultiEmbed" }[vidSrcEmbed.provider]}
+          onBack={vidSrcEmbed.fromDetails ? close : () => setVidSrcEmbed(null)}
+          backLabel={vidSrcEmbed.fromDetails ? "Details" : "Sources"}
+        />
+      ) : vidSrcEmbed?.provider === "onlyflix" ? (
+        <OnlyFlixEmbedPlayer
+          url={vidSrcEmbed.url}
+          title={vidSrcEmbed.title}
           onBack={vidSrcEmbed.fromDetails ? close : () => setVidSrcEmbed(null)}
           backLabel={vidSrcEmbed.fromDetails ? "Details" : "Sources"}
         />

@@ -15,7 +15,7 @@ import PlayerPortalRenderer from "@/components/mg/PlayerPortalRenderer";
 import { buildEmbedSuEmbedUrl } from "@/components/mg/webEmbedProviders";
 import { buildVidSrcEmbedUrl } from "@/components/mg/vidsrcEmbed";
 import { buildVidCoreEmbedUrl } from "@/components/mg/vidCoreEmbed";
-import { buildTwoEmbedEmbedUrl, buildCineSrcEmbedUrl, buildMultiEmbedEmbedUrl } from "@/components/mg/extraEmbedProviders";
+import { buildTwoEmbedEmbedUrl, buildCineSrcEmbedUrl, buildMultiEmbedEmbedUrl } from "@/components/mg/extraEmbedProviders"; import { buildOnlyFlixEmbedUrl } from "@/components/mg/onlyFlixEmbed";
 import { stopExclusivePlayback } from "@/components/mg/exclusivePlayback";
 import { detectLanguagePreference, getPlaybackDeviceProfile, scoreSourceCompatibility, sourcePlaybackCompatibilityTier } from "@/components/mg/mediaCompatibility";
 import { devicePlaybackReliabilityAdjustment, exactPlaybackSourceLabel } from "@/components/mg/playbackReliability";
@@ -4322,8 +4322,8 @@ export function PlayerProvider({
   const playVidSrc = useCallback((media) => { const url = buildVidSrcEmbedUrl(media); return url ? startEmbed(url, media) : false; }, []);
   const playEmbedSu = useCallback((media) => { const url = buildEmbedSuEmbedUrl(media); return url ? startEmbed(url, media, "embedsu") : false; }, []);
   const playVidCore = useCallback((media) => { const url = buildVidCoreEmbedUrl(media); return url ? startEmbed(url, media, "vidcore") : false; }, []);
-  const playExtraEmbed = useCallback((key, media) => { const url = ({ twoembed: buildTwoEmbedEmbedUrl, cinesrc: buildCineSrcEmbedUrl, multiembed: buildMultiEmbedEmbedUrl }[key] || (() => ""))(media); return url ? startEmbed(url, media, key) : false; }, []);
-  launchEmbedFallbackRef.current = (m) => playVidCore(m) || playEmbedSu(m) || playVidSrc(m) || playExtraEmbed("twoembed", m) || playExtraEmbed("cinesrc", m) || playExtraEmbed("multiembed", m);
+  const playExtraEmbed = useCallback((key, media) => { const url = ({ twoembed: buildTwoEmbedEmbedUrl, cinesrc: buildCineSrcEmbedUrl, multiembed: buildMultiEmbedEmbedUrl }[key] || (() => ""))(media); return url ? startEmbed(url, media, key) : false; }, []); const playOnlyFlix = useCallback((media) => { const url = buildOnlyFlixEmbedUrl(media); return url ? startEmbed(url, media, "onlyflix") : false; }, []);
+  launchEmbedFallbackRef.current = (m) => playOnlyFlix(m) || playVidCore(m) || playEmbedSu(m) || playVidSrc(m) || playExtraEmbed("twoembed", m) || playExtraEmbed("cinesrc", m) || playExtraEmbed("multiembed", m);
 
   const playWebtor = useCallback((media) => { if (!media?.magnet) return false; stopExclusivePlayback(); setSource({ ...media, playRequestId: ++playSequenceRef.current, title: String(media.title || "Video"), sources: [], completeSources: [] }); setMagnetPlayer({ type: "webtor", magnet: media.magnet, title: String(media.title || "Video"), fromDetails: true }); return true; }, []);
   const playWebTorrent = useCallback((media) => { if (!media?.magnet) return false; stopExclusivePlayback(); setSource({ ...media, playRequestId: ++playSequenceRef.current, title: String(media.title || "Video"), sources: [], completeSources: [] }); setMagnetPlayer({ type: "webtorrent", magnet: media.magnet, title: String(media.title || "Video"), fromDetails: true }); return true; }, []);
@@ -4384,8 +4384,8 @@ export function PlayerProvider({
     );
 
   const value = useMemo(() => ({
-    play, playVidSrc, playEmbedSu, playVidCore, playExtraEmbed, playWebtor, playWebTorrent, prepare, close, hasRd, hasDebrid, isOpen: Boolean(source),
-  }), [play, playVidSrc, playEmbedSu, playVidCore, playExtraEmbed, playWebtor, playWebTorrent, prepare, close, hasRd, hasDebrid, source]);
+    play, playVidSrc, playEmbedSu, playVidCore, playExtraEmbed, playOnlyFlix, playWebtor, playWebTorrent, prepare, close, hasRd, hasDebrid, isOpen: Boolean(source),
+  }), [play, playVidSrc, playEmbedSu, playVidCore, playExtraEmbed, playOnlyFlix, playWebtor, playWebTorrent, prepare, close, hasRd, hasDebrid, source]);
 
   return (
     <PlayerContext.Provider value={value}>
