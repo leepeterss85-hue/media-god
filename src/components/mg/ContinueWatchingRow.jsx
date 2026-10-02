@@ -329,6 +329,24 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
     const tmdbId = await resolveTmdbIdQuickly(meta);
 
     /*
+     * Movies launch straight into the OnlyFlix embed from the card for instant
+     * playback. TV still opens Details so the user can pick the exact episode.
+     */
+    if (!isTv && player.playOnlyFlix) {
+      if (player.playOnlyFlix({
+        id: tmdbId || undefined,
+        tmdbId: tmdbId || undefined,
+        tmdb_id: tmdbId || undefined,
+        imdbId: meta.imdbId || item.imdb_id,
+        title: meta.title,
+        year: meta.year,
+        poster: item.poster_url || "",
+        mediaType: "movie",
+        type: "movie",
+      })) return;
+    }
+
+    /*
      * Continue Watching cards open the detail view (source options, reviews,
      * cast) instead of jumping straight into a stream. The resume position is
      * forwarded so the detail page's Play button can pick up where the user

@@ -288,6 +288,25 @@ export default function NewEpisodesRow({
   const playEpisode = (item) => {
     if (!item || item.airDate > todayKey) return;
 
+    /*
+     * Episodes launch straight into the OnlyFlix embed from the card for instant
+     * playback. If OnlyFlix can't build a URL, fall back to the detail view.
+     */
+    if (player.playOnlyFlix) {
+      if (player.playOnlyFlix({
+        id: item.tmdbId,
+        tmdbId: item.tmdbId,
+        tmdb_id: item.tmdbId,
+        title: item.showTitle,
+        year: item.year,
+        poster: item.poster,
+        mediaType: "tv",
+        type: "tv",
+        season: item.season,
+        episode: item.episode,
+      })) return;
+    }
+
     if (onOpenDetail) {
       onOpenDetail({
         id: item.tmdbId,

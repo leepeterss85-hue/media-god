@@ -35,24 +35,8 @@ export default function MediaCard({
     const mediaType = getMediaType(item);
     const tmdbId = item.id || item.tmdb_id;
 
-    /*
-     * Fire TV gets one clean focus target per poster. Selecting a catalogue
-     * card opens Details first, where Play/Watchlist/Favorite are presented
-     * at a consistent television scale. TV cards also always open Details so
-     * the user can choose the exact season and episode.
-     */
-    if (onOpen) {
-      onOpen({
-        ...item,
-        id: tmdbId,
-        media_type: mediaType,
-        mediaType,
-        type: mediaType === "tv" ? "tv" : "movie",
-      });
-      return;
-    }
-
-    player.play({
+    const media = {
+      ...item,
       id: tmdbId,
       tmdbId,
       tmdb_id: tmdbId,
@@ -64,7 +48,29 @@ export default function MediaCard({
       mediaType,
       type: mediaType === "tv" ? "series" : "movie",
       rdTitle: item.title,
-    });
+    };
+
+    /*
+     * Movies launch straight into the OnlyFlix embed from the card play button
+     * for instant playback. TV still opens Details first so the user can pick
+     * the exact season and episode before playing.
+     */
+    if (mediaType === "movie" && player.playOnlyFlix) {
+      if (player.playOnlyFlix(media)) return;
+    }
+
+    if (onOpen) {
+      onOpen({
+        ...item,
+        id: tmdbId,
+        media_type: mediaType,
+        mediaType,
+        type: mediaType === "tv" ? "tv" : "movie",
+      });
+      return;
+    }
+
+    player.play(media);
 
     /*
      * Fallback for any MediaCard used without an onOpen handler:
