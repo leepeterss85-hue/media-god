@@ -31,20 +31,14 @@ import { buildVidCoreEmbedUrl } from "@/components/mg/vidCoreEmbed";
 import { buildTwoEmbedEmbedUrl, buildCineSrcEmbedUrl, buildMultiEmbedEmbedUrl } from "@/components/mg/extraEmbedProviders";
 import { fetchTmdbEmbedStreams } from "@/components/mg/tmdbEmbedStreams";
 import { cn } from "@/lib/utils";
+import { magnetFromInput } from "@/components/mg/magnetStreamHelpers";
 
 const unwrap = (response) =>
   response?.data ??
   response ??
   {};
 
-const magnetFromInput = (value) => {
-  const raw = String(value || "").trim();
-  if (/^magnet:\?/i.test(raw)) return raw;
-  if (/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i.test(raw)) {
-    return `magnet:?xt=urn:btih:${raw.toLowerCase()}`;
-  }
-  return "";
-};
+
 
 const resolveImdbId = async ({
   tmdbId,
@@ -1167,6 +1161,84 @@ export default function StreamSourcesBox({
       });
     };
 
+  const pasteMagnetForWebtor =
+    async () => {
+      const value =
+        window.prompt(
+          "Paste your magnet link or torrent hash for Webtor.io"
+        );
+
+      if (
+        value == null
+      ) {
+        return;
+      }
+
+      const magnet =
+        magnetFromInput(
+          value
+        );
+
+      if (
+        !magnet
+      ) {
+        setMessage(
+          "That is not a valid magnet link or torrent hash."
+        );
+
+        return;
+      }
+
+      setMessage(
+        ""
+      );
+
+      player.playWebtor({
+        title,
+        poster,
+        magnet,
+      });
+    };
+
+  const pasteMagnetForWebTorrent =
+    async () => {
+      const value =
+        window.prompt(
+          "Paste your magnet link or torrent hash for WebTorrent"
+        );
+
+      if (
+        value == null
+      ) {
+        return;
+      }
+
+      const magnet =
+        magnetFromInput(
+          value
+        );
+
+      if (
+        !magnet
+      ) {
+        setMessage(
+          "That is not a valid magnet link or torrent hash."
+        );
+
+        return;
+      }
+
+      setMessage(
+        ""
+      );
+
+      player.playWebTorrent({
+        title,
+        poster,
+        magnet,
+      });
+    };
+
   const playTrailer =
     async () => {
       if (
@@ -1509,6 +1581,40 @@ export default function StreamSourcesBox({
         pasteMagnet,
     },
 
+    {
+      id:
+        "webtor",
+
+      kind:
+        "webtor",
+
+      label:
+        "Webtor.io",
+
+      note:
+        "Stream your magnet via Webtor.io cloud player",
+
+      onClick:
+        pasteMagnetForWebtor,
+    },
+
+    {
+      id:
+        "webtorrent",
+
+      kind:
+        "webtorrent",
+
+      label:
+        "WebTorrent",
+
+      note:
+        "Stream your magnet directly in browser via WebRTC",
+
+      onClick:
+        pasteMagnetForWebTorrent,
+    },
+
     ...(trailerUrl
       ? [
           {
@@ -1642,6 +1748,10 @@ export default function StreamSourcesBox({
       return <ExternalLink className="w-4 h-4 text-amber-300" />;
     }
 
+    if (kind === "webtor" || kind === "webtorrent") {
+      return <Globe className="w-4 h-4 text-purple-400" />;
+    }
+
     if (
       kind ===
       "provider"
@@ -1716,10 +1826,12 @@ export default function StreamSourcesBox({
                   "flex items-center gap-2.5 w-full text-left px-2.5 py-2 rounded-md transition-colors border",
 
                   row.kind ===
-                    "rd"
+                      "rd"
                     ? "bg-mg-green/10 hover:bg-mg-green/20 border-mg-green/30"
                     : (row.kind === "vidsrc" || row.kind === "embedsu" || row.kind === "vidcore")
                       ? "bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30"
+                    : (row.kind === "webtor" || row.kind === "webtorrent")
+                      ? "bg-purple-500/10 hover:bg-purple-500/20 border-purple-500/30"
                     : row.kind ===
                         "addon-stream"
                       ? "bg-cyan-500/10 hover:bg-cyan-500/20 border-cyan-500/30"

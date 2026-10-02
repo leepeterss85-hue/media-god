@@ -8,19 +8,14 @@ import React, {
   useState,
 } from "react";
 
-import { createPortal } from "react-dom";
 import { base44 } from "@/api/base44Client";
 import { withGuestDebridPayload } from "@/components/mg/guestDebridDevice";
 import { fetchBrowserAddonStreams, mergeAddonStreams } from "@/components/mg/addonBrowserFallback";
-import VideoPlayer from "@/components/mg/VideoPlayer";
-import VidSrcEmbedPlayer from "@/components/mg/VidSrcEmbedPlayer";
-import EmbedSuPlayer from "@/components/mg/EmbedSuPlayer";
+import PlayerPortalRenderer from "@/components/mg/PlayerPortalRenderer";
 import { buildEmbedSuEmbedUrl } from "@/components/mg/webEmbedProviders";
 import { buildVidSrcEmbedUrl } from "@/components/mg/vidsrcEmbed";
 import { buildVidCoreEmbedUrl } from "@/components/mg/vidCoreEmbed";
-import VidCoreEmbedPlayer from "@/components/mg/VidCoreEmbedPlayer";
 import { buildTwoEmbedEmbedUrl, buildCineSrcEmbedUrl, buildMultiEmbedEmbedUrl } from "@/components/mg/extraEmbedProviders";
-import ExtraEmbedPlayer from "@/components/mg/ExtraEmbedPlayer";
 import { stopExclusivePlayback } from "@/components/mg/exclusivePlayback";
 import { detectLanguagePreference, getPlaybackDeviceProfile, scoreSourceCompatibility, sourcePlaybackCompatibilityTier } from "@/components/mg/mediaCompatibility";
 import { devicePlaybackReliabilityAdjustment, exactPlaybackSourceLabel } from "@/components/mg/playbackReliability";
@@ -37,62 +32,6 @@ import { sourceIsAioStreamsCandidate } from "@/components/mg/sourceProviderIdent
 import { canonicalImdbLookupFields, sourceAddonFailure, sourceLookupFailed } from "@/components/mg/sourceDiscoveryFeedback";
 
 const PlayerContext = createContext(null);
-
-class PlayerRenderBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { failed: false };
-  }
-
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-
-  componentDidCatch(error) {
-    console.error("[Media God] Player render failed", error);
-
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(
-        new CustomEvent("mg:player-status", {
-          detail: {
-            message:
-              "The web player hit an error. Media God kept the app alive so you can go back and try another source.",
-          },
-        })
-      );
-    }
-  }
-
-  render() {
-    if (!this.state.failed) {
-      return this.props.children;
-    }
-
-    return (
-      <div
-        data-mg-player-root="true"
-        className="fixed inset-0 z-[2147483646] flex items-center justify-center bg-black p-6 text-white"
-        style={{ backgroundColor: "#000" }}
-      >
-        <div className="max-w-md rounded-xl border border-white/10 bg-mg-card p-5 text-center">
-          <h2 className="text-base font-bold">Player recovered safely</h2>
-          <p className="mt-2 text-sm text-white/60">
-            This source could not open in the web player. Go back and choose another source.
-          </p>
-          <button
-            type="button"
-            data-mg-player-exit="true"
-            aria-label="Back to main menu"
-            onClick={this.props.onClose}
-            className="mt-4 min-h-10 rounded-lg bg-mg-green px-4 text-sm font-bold text-black"
-          >
-            Back to Media God
-          </button>
-        </div>
-      </div>
-    );
-  }
-}
 
 const FOREIGN_RE =
   /(truefrench|vostfr|vost|subfrench|\bvf\b|\bvff\b|\bvfi\b|french|spanish|german|italian|russian|\brus\b|hindi|\bhin\b|polish|turkish|arabic|japanese|korean|chinese|portuguese|\bdubbed\b)/i;
@@ -2641,30 +2580,11 @@ const buildDiagnosticLabel = ({
 export function PlayerProvider({
   children,
 }) {
-  const [
-    source,
-    setSource,
-  ] =
-    useState(
-      null
-    );
+  const [source, setSource] = useState(null);
   const [vidSrcEmbed, setVidSrcEmbed] = useState(null);
-
-  const [
-    hasRd,
-    setHasRd,
-  ] =
-    useState(
-      false
-    );
-
-  const [
-    hasDebrid,
-    setHasDebrid,
-  ] =
-    useState(
-      false
-    );
+  const [magnetPlayer, setMagnetPlayer] = useState(null);
+  const [hasRd, setHasRd] = useState(false);
+  const [hasDebrid, setHasDebrid] = useState(false);
 
   const playSequenceRef = useRef(0);
 
@@ -4405,41 +4325,8 @@ export function PlayerProvider({
   const playExtraEmbed = useCallback((key, media) => { const url = ({ twoembed: buildTwoEmbedEmbedUrl, cinesrc: buildCineSrcEmbedUrl, multiembed: buildMultiEmbedEmbedUrl }[key] || (() => ""))(media); return url ? startEmbed(url, media, key) : false; }, []);
   launchEmbedFallbackRef.current = (m) => playVidCore(m) || playEmbedSu(m) || playVidSrc(m) || playExtraEmbed("twoembed", m) || playExtraEmbed("cinesrc", m) || playExtraEmbed("multiembed", m);
 
-  const openEmbedSu = useCallback((mediaType) => {
-    if (!source || source.type === "live") return false;
-    const media = { ...source, mediaType };
-    const url = buildEmbedSuEmbedUrl(media);
-    if (!url) return false;
-
-    stopExclusivePlayback();
-    setVidSrcEmbed({
-      provider: "embedsu",
-      url,
-      media: {
-        mediaType,
-        tmdbId: media.tmdbId ?? media.id,
-        season: media.season ?? media.rdSeason,
-        episode: media.episode ?? media.rdEpisode,
-      },
-      title: String(source.title || "Video"),
-    });
-    return true;
-  }, [source]);
-
-  const openVidSrc = useCallback((mediaType) => {
-    if (!source || source.type === "live") return false;
-
-    const url = buildVidSrcEmbedUrl({ ...source, mediaType });
-    if (!url) return false;
-
-    // Unmount the Media God decoder before the web player is mounted.
-    stopExclusivePlayback();
-    setVidSrcEmbed({
-      url,
-      title: String(source.title || "Video"),
-    });
-    return true;
-  }, [source]);
+  const playWebtor = useCallback((media) => { if (!media?.magnet) return false; stopExclusivePlayback(); setSource({ ...media, playRequestId: ++playSequenceRef.current, title: String(media.title || "Video"), sources: [], completeSources: [] }); setMagnetPlayer({ type: "webtor", magnet: media.magnet, title: String(media.title || "Video"), fromDetails: true }); return true; }, []);
+  const playWebTorrent = useCallback((media) => { if (!media?.magnet) return false; stopExclusivePlayback(); setSource({ ...media, playRequestId: ++playSequenceRef.current, title: String(media.title || "Video"), sources: [], completeSources: [] }); setMagnetPlayer({ type: "webtorrent", magnet: media.magnet, title: String(media.title || "Video"), fromDetails: true }); return true; }, []);
 
   const close =
     useCallback(
@@ -4448,9 +4335,8 @@ export function PlayerProvider({
         stopExclusivePlayback();
 
         setVidSrcEmbed(null);
-        setSource(
-          null
-        );
+        setMagnetPlayer(null);
+        setSource(null);
 
         /*
          * VideoPlayer is rendered by this core provider, so its Exit/Back
@@ -4498,39 +4384,13 @@ export function PlayerProvider({
     );
 
   const value = useMemo(() => ({
-    play, playVidSrc, playEmbedSu, playVidCore, playExtraEmbed, prepare, close, hasRd, hasDebrid, isOpen: Boolean(source),
-  }), [play, playVidSrc, playEmbedSu, playVidCore, playExtraEmbed, prepare, close, hasRd, hasDebrid, source]);
+    play, playVidSrc, playEmbedSu, playVidCore, playExtraEmbed, playWebtor, playWebTorrent, prepare, close, hasRd, hasDebrid, isOpen: Boolean(source),
+  }), [play, playVidSrc, playEmbedSu, playVidCore, playExtraEmbed, playWebtor, playWebTorrent, prepare, close, hasRd, hasDebrid, source]);
 
   return (
-    <PlayerContext.Provider
-      value={value}
-    >
+    <PlayerContext.Provider value={value}>
       {children}
-
-      {source &&
-        typeof document !== "undefined" &&
-        createPortal(
-          <PlayerRenderBoundary
-            key={
-              source?.playRequestId ||
-              `${source?.title || "player"}-${source?.src || source?.url || ""}`
-            }
-            onClose={close}
-          >
-            {vidSrcEmbed?.provider === "embedsu" ? (
-              <EmbedSuPlayer url={vidSrcEmbed.url} media={vidSrcEmbed.media} title={vidSrcEmbed.title} onBack={vidSrcEmbed.fromDetails ? close : () => setVidSrcEmbed(null)} backLabel={vidSrcEmbed.fromDetails ? "Details" : "Sources"} />
-            ) : vidSrcEmbed?.provider === "vidcore" ? (
-              <VidCoreEmbedPlayer url={vidSrcEmbed.url} title={vidSrcEmbed.title} onBack={vidSrcEmbed.fromDetails ? close : () => setVidSrcEmbed(null)} backLabel={vidSrcEmbed.fromDetails ? "Details" : "Sources"} />
-            ) : ["twoembed", "cinesrc", "multiembed"].includes(vidSrcEmbed?.provider) ? (
-              <ExtraEmbedPlayer url={vidSrcEmbed.url} title={vidSrcEmbed.title} providerLabel={{ twoembed: "2Embed", cinesrc: "CineSrc", multiembed: "MultiEmbed" }[vidSrcEmbed.provider]} onBack={vidSrcEmbed.fromDetails ? close : () => setVidSrcEmbed(null)} backLabel={vidSrcEmbed.fromDetails ? "Details" : "Sources"} />
-            ) : vidSrcEmbed ? (
-              <VidSrcEmbedPlayer url={vidSrcEmbed.url} title={vidSrcEmbed.title} onBack={vidSrcEmbed.fromDetails ? close : () => setVidSrcEmbed(null)} backLabel={vidSrcEmbed.fromDetails ? "Details" : "Sources"} />
-            ) : (
-              <VideoPlayer source={source} onClose={close} onOpenVidSrc={openVidSrc} onOpenEmbedSu={openEmbedSu} />
-            )}
-          </PlayerRenderBoundary>,
-          document.body
-        )}
+      <PlayerPortalRenderer source={source} vidSrcEmbed={vidSrcEmbed} magnetPlayer={magnetPlayer} close={close} setVidSrcEmbed={setVidSrcEmbed} setMagnetPlayer={setMagnetPlayer} />
     </PlayerContext.Provider>
   );
 }
