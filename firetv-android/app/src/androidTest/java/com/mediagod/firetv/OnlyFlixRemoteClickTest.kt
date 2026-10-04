@@ -23,6 +23,8 @@ import java.util.concurrent.atomic.AtomicReference
 @RunWith(AndroidJUnit4::class)
 class OnlyFlixRemoteClickTest {
     class ClickProbe {
+        val diagnostics = java.util.concurrent.CopyOnWriteArrayList<String>()
+        @JavascriptInterface fun record(value: String) { diagnostics.add(value) }
         val loaded = CountDownLatch(1)
         val firstClick = CountDownLatch(1)
         val secondClick = CountDownLatch(1)
@@ -56,9 +58,15 @@ class OnlyFlixRemoteClickTest {
                 allow="autoplay; fullscreen" sandbox="allow-scripts allow-same-origin"></iframe>
                 <div id="pointer" data-mg-embed-pointer="true"></div></div></div>
             <script>
-            const nativeFireTvSimulateTap=(x,y)=>MediaGodNative.simulateTap(x,y);
+            const nativeFireTvSimulateTap=(x,y)=>{
+              const accepted=MediaGodNative.simulateTap(x,y);
+              ClickProbe.record(JSON.stringify({tap:[x,y],accepted,inner:[innerWidth,innerHeight],
+                visual:[visualViewport.width,visualViewport.height,visualViewport.offsetLeft,visualViewport.offsetTop,visualViewport.scale]}));
+              return accepted;
+            };
             $source
             window.addEventListener('keydown',event=>{
+              ClickProbe.record('key:'+event.key+',focus:'+document.activeElement.tagName);
               const direction=event.key.startsWith('Arrow')?event.key.slice(5).toLowerCase():null;
               tapOnlyFlixForRemote({direction,selectKey:event.key==='Enter',repeat:event.repeat,
                 mediaAction:event.key==='MediaPlayPause'?'playpause':event.key==='MediaPlay'?'play':null});
@@ -67,12 +75,14 @@ class OnlyFlixRemoteClickTest {
               if(event.detail==='right')document.getElementById('pointer').style.left='calc(10% + 16px)';
             });
             window.addEventListener('message',event=>{
-              if(event.origin==='https://onlyflix-player.test'&&event.data.type==='clicked')
-                ClickProbe.clicked(JSON.stringify(event.data));
+              if(event.origin==='https://onlyflix-player.test'){
+                ClickProbe.record(JSON.stringify(event.data));
+                if(event.data.type==='clicked')ClickProbe.clicked(JSON.stringify(event.data));
+              }
             });
             document.querySelector('iframe').onload=()=>{
               document.querySelector('iframe').focus();
-              MediaGodNative.setEmbeddedPlayerRemoteActive(true);ClickProbe.ready();
+              ClickProbe.record('enabled:'+MediaGodNative.setEmbeddedPlayerRemoteActive(true));ClickProbe.ready();
             };
             </script>
         """.trimIndent()
@@ -80,6 +90,10 @@ class OnlyFlixRemoteClickTest {
             <!doctype html><style>body{margin:0}button{position:absolute;left:10%;top:67%;
             width:160px;height:100px;transform:translate(-50%,-50%)}</style>
             <button id="play">Play movie</button><script>
+            window.addEventListener('load',()=>parent.postMessage({type:'child',inner:[innerWidth,innerHeight],
+              rect:document.getElementById('play').getBoundingClientRect().toJSON()},'*'));
+            document.addEventListener('touchstart',event=>parent.postMessage({type:'touch',
+              x:event.touches[0].clientX,y:event.touches[0].clientY,target:event.target.tagName},'*'));
             document.getElementById('play').onclick=event=>{
               event.target.textContent='Playing';parent.postMessage({type:'clicked',
               trusted:event.isTrusted,activation:navigator.userActivation.isActive},'*');
@@ -92,6 +106,10 @@ class OnlyFlixRemoteClickTest {
                     .apply { isAccessible = true }
                 val view = field.get(activity) as WebView
                 view.stopLoading()
+                view.setOnTouchListener { _, event ->
+                    probe.record("native touch:${event.action}:${event.x},${event.y},view:${view.width},${view.height}")
+                    false
+                }
                 view.addJavascriptInterface(probe, "ClickProbe")
                 view.webViewClient = object : WebViewClient() {
                     override fun shouldInterceptRequest(
@@ -121,7 +139,8 @@ class OnlyFlixRemoteClickTest {
                 assertTrue(activity.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_CENTER)))
                 assertTrue(activity.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DPAD_CENTER)))
             }
-            assertTrue("Select never pressed the movie Play button", probe.firstClick.await(10, TimeUnit.SECONDS))
+            val selected = probe.firstClick.await(10, TimeUnit.SECONDS)
+            assertTrue("Select never pressed the movie Play button: ${probe.diagnostics.joinToString("; ")}", selected)
             assertTrue("The player click must be a trusted touch", probe.lastClick.get().getBoolean("trusted"))
             assertTrue("The player must receive user activation", probe.lastClick.get().getBoolean("activation"))
             assertEquals(1, probe.clicks.get())
