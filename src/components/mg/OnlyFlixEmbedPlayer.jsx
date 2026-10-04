@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import useEmbedPopupBlocker from "@/components/mg/useEmbedPopupBlocker";
 import { isNativeFireTvEmbedRemoteAvailable, setNativeFireTvEmbedRemoteActive } from "@/components/mg/nativeFireTvBridge";
@@ -10,6 +10,30 @@ export default function OnlyFlixEmbedPlayer({ url, title, onBack, backLabel = "S
     setNativeFireTvEmbedRemoteActive(true);
     return () => { setNativeFireTvEmbedRemoteActive(false); };
   }, []);
+
+  const isFireTv = isNativeFireTvEmbedRemoteAvailable();
+  const [chromeVisible, setChromeVisible] = useState(true);
+  useEffect(() => {
+    if (!isFireTv) return;
+    let timer;
+    const scheduleHide = () => {
+      setChromeVisible(true);
+      clearTimeout(timer);
+      timer = setTimeout(() => setChromeVisible(false), 2500);
+    };
+    scheduleHide();
+    const onActivity = () => scheduleHide();
+    window.addEventListener("keydown", onActivity);
+    window.addEventListener("mg:onlyflix-pointer-move", onActivity);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("keydown", onActivity);
+      window.removeEventListener("mg:onlyflix-pointer-move", onActivity);
+    };
+  }, [isFireTv]);
+
+  const chromeFade = isFireTv && !chromeVisible ? "opacity-0" : "opacity-100";
+
   return (
     <div
       data-mg-player-root="true"
@@ -19,7 +43,7 @@ export default function OnlyFlixEmbedPlayer({ url, title, onBack, backLabel = "S
       <div className="flex max-h-[calc(100dvh-1rem)] w-full max-w-[1600px] flex-col">
         <div
           data-mg-player-topbar="true"
-          className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 bg-black/70 p-2.5"
+          className={`mb-2 flex items-center gap-2 rounded-xl border border-white/10 bg-black/70 p-2.5 transition-opacity duration-500 ${chromeFade}`}
         >
           <button
             type="button"
@@ -51,10 +75,10 @@ export default function OnlyFlixEmbedPlayer({ url, title, onBack, backLabel = "S
             tabIndex={0}
             data-mg-embed-iframe="true"
           />
-          <OnlyFlixRemotePointer />
+          <OnlyFlixRemotePointer visible={!isFireTv || chromeVisible} />
         </div>
 
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/70 p-2.5 text-xs text-white/60">
+        <div className={`mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/70 p-2.5 text-xs text-white/60 transition-opacity duration-500 ${chromeFade}`}>
           <span>{isNativeFireTvEmbedRemoteAvailable() ? "Move the pointer onto Play with the D-pad, then press Select. Press Back to return to Media God." : <>OnlyFlix has its own player controls. Use {backLabel} to return to Media God.</>}</span>
           <a
             href={url}

@@ -120,8 +120,8 @@ export default function MediaCard({
           className="mg-hover-action absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity"
           aria-label={detailsOnly ? `Open ${item.title}` : `Play ${item.title}`}
         >
-          <span className="w-10 h-10 3xl:w-12 3xl:h-12 4xl:w-14 4xl:h-14 rounded-full bg-mg-green text-black flex items-center justify-center shadow-lg">
-            <Play className="w-5 h-5 3xl:w-6 3xl:h-6 4xl:w-7 4xl:h-7 fill-black" />
+          <span className="w-10 h-10 3xl:w-12 3xl:h-12 4xl:w-14 4xl:h-14 rounded-full bg-[#e50914] text-white flex items-center justify-center shadow-lg">
+            <Play className="w-5 h-5 3xl:w-6 3xl:h-6 4xl:w-7 4xl:h-7 fill-white" />
           </span>
         </button>
 

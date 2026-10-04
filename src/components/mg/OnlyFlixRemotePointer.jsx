@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Crosshair } from "lucide-react";
 import { isNativeFireTvEmbedRemoteAvailable } from "@/components/mg/nativeFireTvBridge";
 
-export default function OnlyFlixRemotePointer() {
+export default function OnlyFlixRemotePointer({ visible = true }) {
   const [available] = useState(isNativeFireTvEmbedRemoteAvailable);
   const [point, setPoint] = useState({ x: 10, y: 67 });
   useEffect(() => {
@@ -23,7 +23,7 @@ export default function OnlyFlixRemotePointer() {
   }, [available]);
   if (!available) return null;
   return (
-    <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+    <div className={`pointer-events-none absolute inset-0 transition-opacity duration-500 ${visible ? "opacity-100" : "opacity-0"}`} aria-hidden="true">
       <Crosshair data-mg-embed-pointer="true" className="absolute h-8 w-8 -translate-x-1/2 -translate-y-1/2 text-mg-green drop-shadow-md" style={{ left: `${point.x}%`, top: `${point.y}%` }} />
     </div>
   );
