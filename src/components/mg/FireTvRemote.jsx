@@ -3,6 +3,7 @@ import {
   isAndroidMobileRuntime,
   isFireTvRuntime,
 } from "@/components/mg/runtimePlatform";
+import { nativeFireTvSimulateTap } from "@/components/mg/nativeFireTvBridge";
 
 const FOCUSABLE = [
   'button:not([disabled])',
@@ -928,15 +929,28 @@ export default function FireTvRemote() {
 
       /*
        * Embed iframe players (OnlyFlix, etc.) host their own play/pause
-       * controls inside a cross-origin iframe. When the iframe has focus,
-       * let D-pad/Select/Enter pass through untouched so the Fire TV WebView
-       * forwards them into the iframe's own player instead of the spatial
-       * navigator stealing the event and moving focus away.
+       * controls inside a cross-origin iframe. The Fire TV WebView does not
+       * forward D-pad/Select key events into cross-origin iframes, so when
+       * the iframe has focus and the user presses Select, simulate a physical
+       * tap at the centre of the iframe — where the embedded player's play
+       * button sits — via the native bridge. D-pad still works normally so
+       * the viewer can navigate away from the iframe to the Back button.
        */
       if (
         document.activeElement instanceof HTMLIFrameElement &&
-        document.activeElement.hasAttribute("data-mg-embed-iframe")
+        document.activeElement.hasAttribute("data-mg-embed-iframe") &&
+        isSelectKey(event)
       ) {
+        const iframe = document.activeElement;
+        const rect = iframe.getBoundingClientRect();
+        const tapX = rect.left + rect.width / 2;
+        const tapY = rect.top + rect.height / 2;
+
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+
+        nativeFireTvSimulateTap(tapX, tapY);
         return;
       }
 

@@ -8,10 +8,12 @@ import android.graphics.Color
 import android.media.MediaCodecList
 import android.media.AudioManager
 import android.os.Build
+import android.os.SystemClock
 import android.content.Context
 import android.net.Uri
 import android.os.Bundle
 import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.webkit.CookieManager
@@ -767,6 +769,30 @@ class MainActivity : Activity() {
             } else {
                 "error"
             }
+        }
+
+        @JavascriptInterface
+        fun simulateTap(cssX: Float, cssY: Float): Boolean {
+            if (!nativeBridgeAllowed()) {
+                return false
+            }
+
+            val density = resources.displayMetrics.density
+            val x = cssX * density
+            val y = cssY * density
+
+            runOnUiThread {
+                val now = SystemClock.uptimeMillis()
+                val down = MotionEvent.obtain(now, now, MotionEvent.ACTION_DOWN, x, y, 0)
+                webView.dispatchTouchEvent(down)
+                down.recycle()
+                val upTime = now + 60
+                val up = MotionEvent.obtain(upTime, upTime, MotionEvent.ACTION_UP, x, y, 0)
+                webView.dispatchTouchEvent(up)
+                up.recycle()
+            }
+
+            return true
         }
 
         @JavascriptInterface

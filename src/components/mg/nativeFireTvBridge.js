@@ -96,6 +96,21 @@ export const nativeFireTvExitAvailable = () => {
   return Boolean(native && typeof native.exitApp === "function");
 };
 
+export const nativeFireTvSimulateTap = (x, y) => {
+  const native = bridge();
+
+  if (!native || typeof native.simulateTap !== "function") {
+    return false;
+  }
+
+  try {
+    const result = native.simulateTap(Number(x) || 0, Number(y) || 0);
+    return result !== false && result !== "false" && result !== "error";
+  } catch {
+    return false;
+  }
+};
+
 export const exitNativeFireTvApp = () => {
   const native = bridge();
 
