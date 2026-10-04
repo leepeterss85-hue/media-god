@@ -82,9 +82,10 @@ test("Fire TV captures keys before child-frame dispatch and owns both event halv
 });
 
 test("taps use viewport scale and real delayed touch release, not display density", () => {
-  assert.match(native, /window\.innerWidth,window\.innerHeight/);
-  assert.match(native, /cssX \* webView\.width \/ width/);
-  assert.match(native, /cssY \* webView\.height \/ height/);
+  assert.match(native, /window\.visualViewport/);
+  assert.match(native, /v\.offsetLeft,v\.offsetTop/);
+  assert.match(native, /\(cssX - left\) \* webView\.width \/ width/);
+  assert.match(native, /\(cssY - top\) \* webView\.height \/ height/);
   assert.match(native, /postDelayed/);
   assert.match(native, /SOURCE_TOUCHSCREEN/);
   assert.doesNotMatch(native, /displayMetrics\.density|now \+ 60/);
