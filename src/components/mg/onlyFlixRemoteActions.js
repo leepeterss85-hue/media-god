@@ -29,6 +29,10 @@ export const tapOnlyFlixForRemote = ({ mediaAction, selectKey, direction, repeat
   const playKey = mediaAction === "play" || mediaAction === "playpause";
   if (!playKey && !selectKey) return false;
 
+  // A press counts as activity so the player chrome (back button) and the
+  // pointer fade out again after the interaction, matching D-pad moves.
+  window.dispatchEvent(new CustomEvent("mg:onlyflix-pointer-move", { detail: null }));
+
   // Consume the key even if the pointer is not ready. Never pass Select back
   // to the app's source list while OnlyFlix is the visible player.
   if (!pointer) return true;
