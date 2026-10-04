@@ -48,6 +48,10 @@ android {
         buildConfig = true
     }
 
+    sourceSets.getByName("androidTest").assets.srcDir(
+        layout.buildDirectory.dir("generated/onlyflix-remote-test-assets")
+    )
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -57,6 +61,13 @@ android {
         jvmTarget = "17"
     }
 }
+
+val copyOnlyFlixRemoteTestHelper by tasks.registering(Copy::class) {
+    from(rootProject.file("../src/components/mg/onlyFlixRemoteActions.js"))
+    into(layout.buildDirectory.dir("generated/onlyflix-remote-test-assets"))
+}
+tasks.matching { it.name.startsWith("merge") && it.name.endsWith("AndroidTestAssets") }
+    .configureEach { dependsOn(copyOnlyFlixRemoteTestHelper) }
 
 dependencies {
     // Media3 1.8.0 is the newest stable generation before Media3 raised minSdk
