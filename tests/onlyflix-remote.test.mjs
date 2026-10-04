@@ -107,7 +107,7 @@ test("taps use viewport scale and real delayed touch release, not display densit
   assert.match(native, /\(cssX - left\) \* webView\.width \/ width/);
   assert.match(native, /\(cssY - top\) \* webView\.height \/ height/);
   assert.match(native, /postDelayed/);
-  assert.match(native, /140L/);
-  assert.match(native, /SOURCE_TOUCHSCREEN/);
+  assert.match(native, /80L/);
+  assert.match(native, /SOURCE_MOUSE/);\n  assert.match(native, /BUTTON_PRIMARY/);\n  assert.match(native, /ACTION_HOVER_MOVE/);
   assert.doesNotMatch(native, /displayMetrics\.density|now \+ 60/);
 });
