@@ -7,17 +7,6 @@ import { resolveCatalogMediaType } from "@/components/mg/catalogMediaIdentity";
 
 const PosterImage = /** @type {any} */ (Image);
 
-const isFireTvRuntime = () =>
-  typeof document !== "undefined" &&
-  (
-    document.documentElement.classList.contains("mg-fire-tv") ||
-    document.documentElement.classList.contains("mg-fire-tv-mode") ||
-    document.documentElement.classList.contains("mg-fire-tv-stable") ||
-    document.body?.classList.contains("mg-fire-tv") ||
-    document.body?.classList.contains("mg-fire-tv-mode") ||
-    document.body?.classList.contains("mg-fire-tv-stable")
-  );
-
 const getMediaType = (item) => resolveCatalogMediaType(item);
 
 export default function MediaCard({
@@ -55,7 +44,7 @@ export default function MediaCard({
      * for instant playback. TV still opens Details first so the user can pick
      * the exact season and episode before playing.
      */
-    if (onOpen && (detailsOnly || isFireTvRuntime() || mediaType === "tv")) {
+    if (onOpen && (detailsOnly || mediaType === "tv")) {
       onOpen({ ...item, id: tmdbId, media_type: mediaType, mediaType,
         type: mediaType === "tv" ? "tv" : "movie" });
       return;
