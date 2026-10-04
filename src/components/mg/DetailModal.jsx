@@ -1544,24 +1544,24 @@ export default function DetailModal({
                 loading
               }
               data-mg-detail-primary="true"
-              className="shrink-0 min-w-[110px] flex items-center justify-center gap-2 bg-mg-green text-black font-semibold text-sm 3xl:text-lg px-3 py-2.5 3xl:py-3.5 rounded-lg 3xl:rounded-xl hover:bg-mg-green-dim disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black"
+              className="shrink-0 min-w-[110px] flex items-center justify-center gap-2 bg-[#e50914] text-white font-semibold text-sm 3xl:text-lg px-3 py-2.5 3xl:py-3.5 rounded-lg 3xl:rounded-xl hover:bg-[#b8120f] disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black"
               aria-label={
                 resolvedMediaType === "tv"
                   ? `Choose an episode of ${displayTitle}`
-                  : `Play ${displayTitle}`
+                  : `Play ${displayTitle} on OnlyFlix`
               }
             >
               {resolvedMediaType === "tv" ? (
                 <ListVideo className="w-4 h-4 3xl:w-5 3xl:h-5" />
               ) : (
-                <Play className="w-4 h-4 3xl:w-5 3xl:h-5 fill-black" />
+                <Play className="w-4 h-4 3xl:w-5 3xl:h-5 fill-white" />
               )}
 
               {resolvedMediaType === "tv"
                 ? loading
                   ? "Loading Episodes…"
                   : "Choose Episode"
-                : "Play"}
+                : "OnlyFlix"}
             </button>
 
             <button
