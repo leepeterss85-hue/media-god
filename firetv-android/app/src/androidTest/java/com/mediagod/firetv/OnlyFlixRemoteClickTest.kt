@@ -40,7 +40,12 @@ class OnlyFlixRemoteClickTest {
     }
 
     @Test
-    fun selectAndPlayPressTheButtonInsideAFocusedCrossOriginFrame() {
+    fun selectAndPlayPressTheButtonInsideAFocusedCrossOriginFrame() = verifyRemoteClick(960)
+
+    @Test
+    fun selectAndPlayRemainAccurateWithAWiderLayoutViewport() = verifyRemoteClick(1600)
+
+    private fun verifyRemoteClick(viewportWidth: Int) {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val probe = ClickProbe()
         val source = instrumentation.context.assets.open("onlyFlixRemoteActions.js")
@@ -49,7 +54,7 @@ class OnlyFlixRemoteClickTest {
             .replace("export const tapOnlyFlixForRemote", "const tapOnlyFlixForRemote")
         val childUrl = "https://onlyflix-player.test/player"
         val parent = """
-            <!doctype html><meta name="viewport" content="width=1600">
+            <!doctype html><meta name="viewport" content="width=$viewportWidth, initial-scale=1.0">
             <style>body{margin:0}#stage{position:relative;margin:90px 3% 0;width:94%;height:260px}
             iframe{width:100%;height:100%;border:0}#pointer{position:absolute;left:10%;top:67%;
             width:28px;height:28px;transform:translate(-50%,-50%);pointer-events:none}</style>

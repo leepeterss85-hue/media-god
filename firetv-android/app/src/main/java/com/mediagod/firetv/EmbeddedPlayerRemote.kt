@@ -41,15 +41,24 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
         if (!enabled || !allowed() || !cssX.isFinite() || !cssY.isFinite()) return false
         webView.post {
             if (!allowed()) return@post
-            // The fixed TV viewport can scale differently from display density.
-            webView.evaluateJavascript("(function(){return document.querySelector('[data-mg-onlyflix-player=\"true\"]')?[window.innerWidth,window.innerHeight]:[]})()") { raw ->
+            // Convert layout-relative CSS coordinates through the visible viewport.
+            // A fixed TV layout can be wider than the area WebView is showing.
+            webView.evaluateJavascript("""(function(){
+              if(!document.querySelector('[data-mg-onlyflix-player="true"]'))return [];
+              var v=window.visualViewport;
+              return v?[v.width,v.height,v.offsetLeft,v.offsetTop]:[window.innerWidth,window.innerHeight,0,0];
+            })()""".trimIndent()) { raw ->
                 if (!allowed()) return@evaluateJavascript
                 val viewport = runCatching { JSONArray(raw) }.getOrNull() ?: return@evaluateJavascript
                 val width = viewport.optDouble(0, 0.0).toFloat()
                 val height = viewport.optDouble(1, 0.0).toFloat()
-                if (width <= 0f || height <= 0f || cssX < 0f || cssY < 0f || cssX >= width || cssY >= height) return@evaluateJavascript
-                val x = cssX * webView.width / width
-                val y = cssY * webView.height / height
+                val left = viewport.optDouble(2, 0.0).toFloat()
+                val top = viewport.optDouble(3, 0.0).toFloat()
+                if (!width.isFinite() || !height.isFinite() || !left.isFinite() || !top.isFinite() ||
+                    width <= 0f || height <= 0f || cssX < left || cssY < top ||
+                    cssX >= left + width || cssY >= top + height) return@evaluateJavascript
+                val x = (cssX - left) * webView.width / width
+                val y = (cssY - top) * webView.height / height
                 val downAt = SystemClock.uptimeMillis()
                 val down = MotionEvent.obtain(downAt, downAt, MotionEvent.ACTION_DOWN, x, y, 0)
                 down.source = InputDevice.SOURCE_TOUCHSCREEN
