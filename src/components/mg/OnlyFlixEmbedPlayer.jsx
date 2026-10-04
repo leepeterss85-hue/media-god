@@ -42,6 +42,8 @@ export default function OnlyFlixEmbedPlayer({ url, title, onBack, backLabel = "S
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
             sandbox="allow-scripts allow-same-origin allow-presentation allow-pointer-lock allow-fullscreen allow-popups allow-forms"
+            tabIndex={0}
+            data-mg-embed-iframe="true"
           />
         </div>
 

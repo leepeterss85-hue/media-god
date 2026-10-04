@@ -770,6 +770,29 @@ export default function FireTvRemote() {
           return;
         }
 
+        /*
+         * Embed iframe players have no native Media God transport controls.
+         * Focus the iframe itself so the Fire TV remote forwards D-pad and
+         * Select into the embedded player's own controls.
+         */
+        const embedIframe = scope.querySelector(
+          '[data-mg-embed-iframe="true"]'
+        );
+
+        if (embedIframe instanceof HTMLElement && visible(embedIframe)) {
+          if (lastScopeRef.current === scope) {
+            return;
+          }
+
+          lastScopeRef.current = scope;
+
+          window.setTimeout(() => {
+            focusElement(embedIframe);
+          }, 40);
+
+          return;
+        }
+
         const mediaControls = scope.querySelector(
           '[data-mg-player-controls="true"]'
         );
@@ -900,6 +923,20 @@ export default function FireTvRemote() {
           new CustomEvent("mg:player-reveal-controls")
         );
 
+        return;
+      }
+
+      /*
+       * Embed iframe players (OnlyFlix, etc.) host their own play/pause
+       * controls inside a cross-origin iframe. When the iframe has focus,
+       * let D-pad/Select/Enter pass through untouched so the Fire TV WebView
+       * forwards them into the iframe's own player instead of the spatial
+       * navigator stealing the event and moving focus away.
+       */
+      if (
+        document.activeElement instanceof HTMLIFrameElement &&
+        document.activeElement.hasAttribute("data-mg-embed-iframe")
+      ) {
         return;
       }
 
