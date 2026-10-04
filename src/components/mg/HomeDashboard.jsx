@@ -23,6 +23,7 @@ import {
   UX_PREFERENCES_EVENT,
 } from "@/components/mg/uxPreferences";
 import { addToWatchlistItem } from "@/components/mg/watchlistActions";
+import { usePlayer } from "@/components/mg/PlayerProvider";
 
 const WATCHED_THRESHOLD = 0.92;
 
@@ -378,6 +379,7 @@ export default function HomeDashboard({ onOpenTvService }) {
   const [uxPreferences, setUxPreferences] = useState(readUxPreferences);
 
   const { toast } = useToast();
+  const player = usePlayer();
   const streamingRegion = useMemo(() => detectStreamingRegion(), []);
   const streamingTimezone = useMemo(() => detectStreamingTimezone(), []);
 
@@ -959,6 +961,32 @@ export default function HomeDashboard({ onOpenTvService }) {
     });
   };
 
+  const watchFeatured = (item) => {
+    const mediaType = mediaTypeOf(item);
+
+    /*
+     * The Home green Play button is an explicit movie playback action.
+     * Launch OnlyFlix directly so Fire TV never opens the generic source
+     * picker first. TV continues through the existing detail flow.
+     */
+    if (mediaType === "movie" && player?.playOnlyFlix) {
+      const media = {
+        ...item,
+        id: item?.id ?? item?.tmdb_id ?? item?.tmdbId,
+        tmdb_id: item?.tmdb_id ?? item?.tmdbId ?? item?.id,
+        tmdbId: item?.tmdbId ?? item?.tmdb_id ?? item?.id,
+        mediaType: "movie",
+        media_type: "movie",
+      };
+
+      if (player.playOnlyFlix(media)) {
+        return;
+      }
+    }
+
+    open(item, mediaType);
+  };
+
   const onWatchlist = async (movie) => {
     const id = movie?.id || movie?.tmdb_id || movie?.tmdbId;
 
@@ -1219,7 +1247,7 @@ export default function HomeDashboard({ onOpenTvService }) {
         <div data-mg-home-snap="true">
           <HeroSlider
             items={hero}
-            onWatch={open}
+            onWatch={watchFeatured}
             onDetails={open}
             onWatchlist={onWatchlist}
           />
