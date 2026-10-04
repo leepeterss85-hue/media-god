@@ -101,6 +101,8 @@ test("a tap over the app source picker is swallowed and never dispatched", () =>
 
 test("taps use viewport scale and real delayed touch release, not display density", () => {
   assert.match(native, /window\.visualViewport/);
+  assert.match(native, /document\.elementFromPoint\(x,y\)!==frame/);
+  assert.match(native, /viewport\.optInt\(4, 0\) != 1/);
   assert.match(native, /v\.offsetLeft,v\.offsetTop/);
   assert.match(native, /\(cssX - left\) \* webView\.width \/ width/);
   assert.match(native, /\(cssY - top\) \* webView\.height \/ height/);
