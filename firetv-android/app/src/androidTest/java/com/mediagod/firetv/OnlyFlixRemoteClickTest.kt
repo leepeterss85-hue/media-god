@@ -97,8 +97,10 @@ class OnlyFlixRemoteClickTest {
             <button id="play">Play movie</button><script>
             window.addEventListener('load',()=>parent.postMessage({type:'child',inner:[innerWidth,innerHeight],
               rect:document.getElementById('play').getBoundingClientRect().toJSON()},'*'));
-            document.addEventListener('touchstart',event=>parent.postMessage({type:'touch',
+            document.addEventListener('touchstart',event=>parent.postMessage({type:'touchstart',
               x:event.touches[0].clientX,y:event.touches[0].clientY,target:event.target.tagName},'*'));
+            document.addEventListener('touchend',event=>parent.postMessage({type:'touchend',
+              x:event.changedTouches[0].clientX,y:event.changedTouches[0].clientY,target:event.target.tagName},'*'));
             document.getElementById('play').onclick=event=>{
               event.target.textContent='Playing';parent.postMessage({type:'clicked',
               trusted:event.isTrusted,activation:navigator.userActivation.isActive},'*');
@@ -147,6 +149,7 @@ class OnlyFlixRemoteClickTest {
             val selected = probe.firstClick.await(10, TimeUnit.SECONDS)
             assertTrue("Select never pressed the movie Play button: ${probe.diagnostics.joinToString("; ")}", selected)
             assertTrue("The player click must be a trusted touch", probe.lastClick.get().getBoolean("trusted"))
+            assertTrue("The iframe did not receive the touch release", probe.diagnostics.any { it.contains("\\"type\\":\\"touchend\\"") })
             assertTrue("The player must receive user activation", probe.lastClick.get().getBoolean("activation"))
             assertEquals(1, probe.clicks.get())
             scenario.onActivity { activity ->
