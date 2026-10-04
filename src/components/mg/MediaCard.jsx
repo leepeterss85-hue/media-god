@@ -55,6 +55,12 @@ export default function MediaCard({
      * for instant playback. TV still opens Details first so the user can pick
      * the exact season and episode before playing.
      */
+    if (onOpen && (detailsOnly || isFireTvRuntime() || mediaType === "tv")) {
+      onOpen({ ...item, id: tmdbId, media_type: mediaType, mediaType,
+        type: mediaType === "tv" ? "tv" : "movie" });
+      return;
+    }
+
     if (mediaType === "movie" && player.playOnlyFlix) {
       if (player.playOnlyFlix(media)) return;
     }

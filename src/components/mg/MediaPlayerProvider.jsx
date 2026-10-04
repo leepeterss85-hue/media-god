@@ -2874,6 +2874,7 @@ export function PlayerProvider({
       ) => {
         const playId = ++playSequenceRef.current;
         setVidSrcEmbed(null);
+        setMagnetPlayer(null);
         stopExclusivePlayback();
 
         const isCurrentPlay = () =>
@@ -3020,7 +3021,6 @@ export function PlayerProvider({
             initialPlayableSources[0]?.launchQualified === true
           );
         const suppliedImdbId = String(request?.imdbId || request?.imdb_id || "").trim();
-        if (!isLive && mediaType !== "tv" && !request?.debridManual && !request?.skipRdLookup && !request?.skipAddonLookup) { embedFastStartRef.current = true; launchEmbedFallbackRef.current?.({ ...request, mediaType, tmdbId, imdbId: suppliedImdbId, season, episode, title: request?.title || "Video" }); embedFastStartRef.current = false; }
 
         /*
          * FAST START: open the player immediately. Source discovery continues
@@ -4316,17 +4316,72 @@ export function PlayerProvider({
       ]
     );
 
-  const launchEmbedFallbackRef = useRef(null), embedFastStartRef = useRef(false);
-  const embedMedia = (m) => ({ mediaType: m.mediaType, tmdbId: m.tmdbId ?? m.id, imdbId: m.imdbId, season: m.season ?? m.rdSeason, episode: m.episode ?? m.rdEpisode });
-  const startEmbed = (url, media, provider) => { stopExclusivePlayback(); if (!embedFastStartRef.current) { setSource({ ...media, playRequestId: ++playSequenceRef.current, title: String(media.title || "Video"), sources: [], completeSources: [] }); } setVidSrcEmbed({ provider, url, media: embedMedia(media), title: String(media.title || "Video"), fromDetails: !embedFastStartRef.current }); return true; };
-  const playVidSrc = useCallback((media) => { const url = buildVidSrcEmbedUrl(media); return url ? startEmbed(url, media) : false; }, []);
-  const playEmbedSu = useCallback((media) => { const url = buildEmbedSuEmbedUrl(media); return url ? startEmbed(url, media, "embedsu") : false; }, []);
-  const playVidCore = useCallback((media) => { const url = buildVidCoreEmbedUrl(media); return url ? startEmbed(url, media, "vidcore") : false; }, []);
-  const playExtraEmbed = useCallback((key, media) => { const url = ({ twoembed: buildTwoEmbedEmbedUrl, cinesrc: buildCineSrcEmbedUrl, multiembed: buildMultiEmbedEmbedUrl }[key] || (() => ""))(media); return url ? startEmbed(url, media, key) : false; }, []); const playOnlyFlix = useCallback((media) => { const url = buildOnlyFlixEmbedUrl(media); return url ? startEmbed(url, media, "onlyflix") : false; }, []);
-  launchEmbedFallbackRef.current = (m) => playOnlyFlix(m) || playVidCore(m) || playEmbedSu(m) || playVidSrc(m) || playExtraEmbed("twoembed", m) || playExtraEmbed("cinesrc", m) || playExtraEmbed("multiembed", m);
+  const startEmbed = useCallback((url, media, provider) => {
+    stopExclusivePlayback();
+    setMagnetPlayer(null);
+    setSource({
+      ...media,
+      playRequestId: ++playSequenceRef.current,
+      title: String(media.title || "Video"),
+      sources: [],
+      completeSources: [],
+    });
+    setVidSrcEmbed({
+      provider, url,
+      media: {
+        mediaType: media.mediaType,
+        tmdbId: media.tmdbId ?? media.id,
+        imdbId: media.imdbId,
+        season: media.season ?? media.rdSeason,
+        episode: media.episode ?? media.rdEpisode,
+      },
+      title: String(media.title || "Video"),
+      fromDetails: true,
+    });
+    return true;
+  }, []);
 
-  const playWebtor = useCallback((media) => { if (!media?.magnet) return false; stopExclusivePlayback(); setSource({ ...media, playRequestId: ++playSequenceRef.current, title: String(media.title || "Video"), sources: [], completeSources: [] }); setMagnetPlayer({ type: "webtor", magnet: media.magnet, title: String(media.title || "Video"), fromDetails: true }); return true; }, []);
-  const playWebTorrent = useCallback((media) => { if (!media?.magnet) return false; stopExclusivePlayback(); setSource({ ...media, playRequestId: ++playSequenceRef.current, title: String(media.title || "Video"), sources: [], completeSources: [] }); setMagnetPlayer({ type: "webtorrent", magnet: media.magnet, title: String(media.title || "Video"), fromDetails: true }); return true; }, []);
+  const playVidSrc = useCallback((media) => {
+    const url = buildVidSrcEmbedUrl(media);
+    return url ? startEmbed(url, media) : false;
+  }, [startEmbed]);
+  const playEmbedSu = useCallback((media) => {
+    const url = buildEmbedSuEmbedUrl(media);
+    return url ? startEmbed(url, media, "embedsu") : false;
+  }, [startEmbed]);
+  const playVidCore = useCallback((media) => {
+    const url = buildVidCoreEmbedUrl(media);
+    return url ? startEmbed(url, media, "vidcore") : false;
+  }, [startEmbed]);
+  const playExtraEmbed = useCallback((key, media) => {
+    const builder = {
+      twoembed: buildTwoEmbedEmbedUrl,
+      cinesrc: buildCineSrcEmbedUrl,
+      multiembed: buildMultiEmbedEmbedUrl,
+    }[key];
+    const url = builder?.(media);
+    return url ? startEmbed(url, media, key) : false;
+  }, [startEmbed]);
+  const playOnlyFlix = useCallback((media) => {
+    const url = buildOnlyFlixEmbedUrl(media);
+    return url ? startEmbed(url, media, "onlyflix") : false;
+  }, [startEmbed]);
+
+  const startMagnetPlayer = useCallback((media, type) => {
+    if (!media?.magnet) return false;
+    stopExclusivePlayback();
+    setVidSrcEmbed(null);
+    setSource({
+      ...media,
+      playRequestId: ++playSequenceRef.current,
+      title: String(media.title || "Video"),
+      sources: [], completeSources: [],
+    });
+    setMagnetPlayer({ type, magnet: media.magnet, title: String(media.title || "Video"), fromDetails: true });
+    return true;
+  }, []);
+  const playWebtor = useCallback((media) => startMagnetPlayer(media, "webtor"), [startMagnetPlayer]);
+  const playWebTorrent = useCallback((media) => startMagnetPlayer(media, "webtorrent"), [startMagnetPlayer]);
 
   const close =
     useCallback(

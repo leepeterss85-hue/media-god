@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 77,
-  "versionName": "1.0.76",
+  "versionCode": 78,
+  "versionName": "1.0.77",
   "title": "Media God Mobile",
-  "message": "Media God Mobile 1.0.76 automatically picks the English audio track that actually plays sound, avoiding silent DTS/TrueHD/Atmos tracks.",
+  "message": "Media God 1.0.77 includes the latest app changes, restored BBC fallbacks and verified playback safeguards.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"

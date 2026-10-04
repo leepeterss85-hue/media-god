@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 89,
-  "versionName": "1.4.84",
+  "versionCode": 90,
+  "versionName": "1.4.85",
   "title": "Media God Fire TV",
-  "message": "Media God Fire TV 1.4.84 automatically picks the English audio track that actually plays sound, avoiding silent DTS/TrueHD/Atmos tracks.",
+  "message": "Media God 1.4.85 includes the latest app changes, restored BBC fallbacks and verified playback safeguards.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",

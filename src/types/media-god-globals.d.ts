@@ -2,6 +2,8 @@ export {};
 
 declare global {
   interface Window {
+    WebTorrent?: any;
+    webtor?: any[];
     cast?: any;
     chrome?: any;
     __onGCastApiAvailable?: (available: boolean) => void;

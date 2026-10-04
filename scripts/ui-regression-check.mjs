@@ -37,6 +37,7 @@ const mediaCompatibility = await read("src/components/mg/mediaCompatibility.js")
 const playbackReliabilityCore = await read("src/components/mg/playbackReliability.js");
 const playerProvider = await read("src/components/mg/PlayerProvider.jsx");
 const coreMediaPlayerProvider = await read("src/components/mg/MediaPlayerProvider.jsx");
+const watchlistActions = await read("src/components/mg/watchlistActions.js");
 const mediaPlayerControls = await read("src/components/mg/MediaPlayerControls.jsx");
 const mediaGodV2Assist = await read("src/components/mg/MediaGodV2Assist.jsx");
 const seamlessNextCss = await read("src/fire-tv-seamless-next.css");
@@ -111,7 +112,7 @@ const requiredViews = [
   ["movies", "Movies"],
   ["tv", "TV Shows"],
   ["live", "Live TV"],
-  ["music", "Music"],
+  ["watchparty", "Watch Party"],
   ["watchlist", "Watchlist"],
   ["favorites", "Favorites"],
   ["addons", "Addons"],
@@ -134,7 +135,6 @@ for (const hiddenLabel of [
   "RD Library",
   "Downloads",
   "Phone Remote",
-  "Watch Party",
   "Sources",
   "Roadmap",
   "Updates",
@@ -156,9 +156,8 @@ expect(
     searchDialog.includes('media_type: "live"') &&
     searchDialog.includes("liveChannelSearchText") &&
     searchDialog.includes("Search movies, TV shows, live TV channels") &&
-    home.includes('rawItem?.media_type === "live"') &&
-    home.includes('initialQuickFilter="Radio"'),
-  "Global search or Music navigation no longer includes Live TV channels"
+    home.includes('rawItem?.media_type === "live"'),
+  "Global search no longer includes Live TV channels"
 );
 
 expect(
@@ -186,9 +185,10 @@ expect(
   "Watchlist schema no longer stores movie/TV media type"
 );
 expect(
-  movies.includes("WatchlistItem.filter") &&
-    movies.includes('media_type: "movie"') &&
-    movies.includes("Already in Watchlist"),
+  movies.includes("addToWatchlistItem(movie)") &&
+    watchlistActions.includes("WatchlistItem.filter") &&
+    watchlistActions.includes('reason: "duplicate"') &&
+    watchlistActions.includes("media_type: mediaType"),
   "Movies can create duplicate Watchlist rows again"
 );
 expect(
@@ -205,7 +205,8 @@ expect(
 
 expect(
   homeDashboard.includes("<HeroSlider") &&
-    homeDashboard.includes("(uxPreferences.homeOrder || []).map(renderHomeSection)") &&
+    homeDashboard.includes("(uxPreferences.homeOrder || []).map((sectionId) =>") &&
+    homeDashboard.includes("renderHomeSection(sectionId)") &&
     homeDashboard.includes('case "continue-watching"') &&
     homeDashboard.includes('case "new-films"') &&
     homeDashboard.includes('case "new-tv"') &&

@@ -38,11 +38,13 @@ test("VidSrc stays a manual separate player while normal provider pages remain b
   const player = readFileSync(new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url), "utf8");
   const movieDetails = readFileSync(new URL("../src/components/mg/MediaStreamSourcesBox.jsx", import.meta.url), "utf8");
   const episodes = readFileSync(new URL("../src/components/mg/EpisodeSelector.jsx", import.meta.url), "utf8");
+  const portal = readFileSync(new URL("../src/components/mg/PlayerPortalRenderer.jsx", import.meta.url), "utf8");
   assert.match(movieDetails, /player\.playVidSrc\(/);
   assert.match(episodes, /player\.playVidSrc\(/);
   assert.match(player, /data-mg-vidsrc-open="true"/);
-  assert.match(provider, /vidSrcEmbed \? \(/);
-  assert.match(provider, /stopExclusivePlayback\(\);\s*setVidSrcEmbed\(\{/);
+  assert.match(provider, /<PlayerPortalRenderer/);
+  assert.match(portal, /vidSrcEmbed \? \(/);
+  assert.match(portal, /stopExclusivePlayback\(\);\s*setVidSrcEmbed\(\{/);
   assert.match(player, /!isLive && \(isYoutube \|\| isProvider \|\| active\?\.type === "external"\)/);
   assert.doesNotMatch(provider, /buildMediaSources[\s\S]*vidsrc\.to/);
 });

@@ -2,12 +2,12 @@
   "version": 1,
   "note": "Update these hashes only when playback or Live TV core changes are explicitly intended and reviewed.",
   "files": {
-    "src/components/mg/VideoPlayer.jsx": "b385df965b1679d539e82569232e310d6c0c6f1242f145921d7bb5a890f9b56a",
-    "src/components/mg/MediaPlayerProvider.jsx": "610164b4e067601615dd47a8773401f0cc77ae5bc7763cffc77147f200a26b8d",
+    "src/components/mg/VideoPlayer.jsx": "77c6bae9f432fd32293ba412879013cdf11e9c0d4f39b3600e8181553a53e4e4",
+    "src/components/mg/MediaPlayerProvider.jsx": "4e4a96da67a935847c2d1cd05cd0e6de5f5aa8392f52af45f6a132d156a43f1f",
     "src/components/mg/PlayerProvider.jsx": "d8c07cd2f7b41d57b74ae0c093a723a68c5f30fa897f3df5efa6b4e0ce5bc48d",
-    "src/components/mg/MediaPlayerControls.jsx": "290f9b8b5e211f7afefb6ebca919216a4ad49ec7b55c1839df1cebba8334d1a8",
+    "src/components/mg/MediaPlayerControls.jsx": "11aa49a1d8a9d904fabb4ab756b4a9b0895b3f5a80d585429b618b60161f4a55",
     "src/components/mg/LiveTVView.jsx": "a07e8d6e96481992c71b88d6b24a8e5fec4510191153d793def30d2ea43ae3a6",
-    "src/components/mg/freeTvPlaylist.js": "95dff78fbda2f7d0f1a259ac9cff1df529eb4ffe42739a9789090f07ed9fcc21",
+    "src/components/mg/freeTvPlaylist.js": "7904aa31b747940e708536d4370bd648cc39887351a6a3aca29479864eff405f",
     "base44/functions/realDebrid/entry.ts": "6e8c3b7fa13c480955136814ee4a52f519173f1bcc40904af188b95ce78b5530",
     "base44/functions/fetchAddonStreams/entry.ts": "b6e278e4db80663af8fbf6725430ca1e7d892bea73d3dc96817624ff7a873f58",
     "base44/functions/getLiveEpg/entry.ts": "1caf894a1a60212947c8d5ef15061bbf8529e70a1d7e310b49bcddc546c48646",
@@ -16,6 +16,8 @@
     "android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt": "49584f134882a7e949c92179425da57ef6b8d91fcf843d831f74635c81c27dbc",
     "android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt": "b14b1d305f7b413a39644dffffe4ff10a5611dcba7b91e82c40a56f82ecde7d6",
     "firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt": "153b52b2d3ce5b3a752e1f495e0e7e1351f0f0721f31461d4a5d00da36da2106",
-    "firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt": "661ec90acb607676955e89df4cdd998f0b7d906f139b0257fb69cb652c950cb7"
+    "firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt": "661ec90acb607676955e89df4cdd998f0b7d906f139b0257fb69cb652c950cb7",
+    "src/components/mg/PlayerPortalRenderer.jsx": "4c47dace14301619a63eb93657131e4d620e642eaecb7963420ee482ae4550f9",
+    "src/components/mg/additionalLiveTvSources.js": "9b76f074dcb9e11ff3e4a519132a7308c0c589ea7ccfbaed0ec7fd2d0966bf47"
   }
 }

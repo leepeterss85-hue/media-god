@@ -16,6 +16,7 @@ test("a cache failure tries real media sources and never opens an embedded websi
   assert.match(recovery, /switchToSource\(nextSource,/);
   assert.doesNotMatch(recovery, /iframe|embed|window\.open|location\.assign/);
   assert.doesNotMatch(player, /alternateEmbedFallback|vaplayer\.ru/);
+  assert.doesNotMatch(provider, /launchEmbedFallbackRef|embedFastStartRef/);
 });
 
 test("movie and episode provider pages cannot replace the video stage", () => {

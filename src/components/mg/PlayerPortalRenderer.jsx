@@ -17,13 +17,54 @@ class PlayerRenderBoundary extends React.Component {
     super(props);
     this.state = { failed: false };
   }
+
   static getDerivedStateFromError() {
     return { failed: true };
   }
-  componentDidCatch() {}
+
+  componentDidCatch(error) {
+    console.error("[Media God] Player render failed", error);
+
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("mg:player-status", {
+          detail: {
+            message:
+              "The web player hit an error. Media God kept the app alive so you can go back and try another source.",
+          },
+        })
+      );
+    }
+  }
+
   render() {
-    if (this.state.failed) return null;
-    return this.props.children;
+    if (!this.state.failed) {
+      return this.props.children;
+    }
+
+    return (
+      <div
+        data-mg-player-root="true"
+        className="fixed inset-0 z-[2147483646] flex items-center justify-center bg-black p-6 text-white"
+        style={{ backgroundColor: "#000" }}
+      >
+        <div className="max-w-md rounded-xl border border-white/10 bg-mg-card p-5 text-center">
+          <h2 className="text-base font-bold">Player recovered safely</h2>
+          <p className="mt-2 text-sm text-white/60">
+            This source could not open in the web player. Go back and choose another source.
+          </p>
+          <button
+            type="button"
+            data-mg-player-exit="true"
+            aria-label="Back to main menu"
+            onClick={this.props.onClose}
+            className="mt-4 min-h-10 rounded-lg bg-mg-green px-4 text-sm font-bold text-black"
+          >
+            Back to Media God
+          </button>
+        </div>
+      </div>
+    );
   }
 }
 

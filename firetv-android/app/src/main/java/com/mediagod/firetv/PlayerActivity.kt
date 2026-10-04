@@ -1975,12 +1975,14 @@ class PlayerActivity : Activity() {
                     )
                 }
 
+                /*
+                 * Leave a working audio track untouched. If VOD is advancing
+                 * without any usable audio track, try the same file in the
+                 * compatibility decoder after a second delayed inspection.
+                 */
                 if (!live) {
-                    val switched = enforcePreferredEnglishAudio(exoPlayer, tracks)
-                    if (!switched && !audioOutputConfirmed && selectedAudioRequiresPcmRescue(tracks))
-                        launchCompatibilityPlayer(exoPlayer, null,
-                            "DTS/TrueHD audio is silent on most Fire TV devices. Trying the compatibility decoder.")
-                    else scheduleMissingAudioCheck(exoPlayer, tracks)
+                    enforcePreferredEnglishAudio(exoPlayer, tracks)
+                    scheduleMissingAudioCheck(exoPlayer, tracks)
                 }
             }
 
@@ -2276,13 +2278,35 @@ class PlayerActivity : Activity() {
     ): Boolean {
         tracks.groups.forEach { group ->
             if (group.type != C.TRACK_TYPE_AUDIO) return@forEach
+
             for (index in 0 until group.length) {
                 if (!group.isTrackSelected(index)) continue
-                val mime = group.getTrackFormat(index).sampleMimeType.orEmpty().trim().lowercase()
-                if (mime in setOf("audio/vnd.dts","audio/vnd.dts.hd","audio/true-hd","audio/vnd.dolby.mlp"))
+
+                val format = group.getTrackFormat(index)
+                val mime = format.sampleMimeType
+                    .orEmpty()
+                    .trim()
+                    .lowercase()
+                val channels = format.channelCount
+
+                if (
+                    channels > 2 ||
+                    mime in setOf(
+                        "audio/ac3",
+                        "audio/eac3",
+                        "audio/eac3-joc",
+                        "audio/ac4",
+                        "audio/vnd.dts",
+                        "audio/vnd.dts.hd",
+                        "audio/true-hd",
+                        "audio/vnd.dolby.mlp"
+                    )
+                ) {
                     return true
+                }
             }
         }
+
         return false
     }
 
@@ -2372,7 +2396,7 @@ class PlayerActivity : Activity() {
             if (!launchCompatibilityPlayer(activePlayer, null, reason)) {
                 finishWithResult("error", reason)
             }
-        }, 6000L)
+        }, 10000L)
     }
 
     private fun buildMediaItem(mimeTypeOverride: String? = null): MediaItem {

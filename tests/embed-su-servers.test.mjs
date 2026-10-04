@@ -60,10 +60,12 @@ test("Embed.su remains a manual web path with an optional browser fallback", () 
   const details = readFileSync(new URL("../src/components/mg/MediaStreamSourcesBox.jsx", import.meta.url), "utf8");
   const episodes = readFileSync(new URL("../src/components/mg/EpisodeSelector.jsx", import.meta.url), "utf8");
   const discovery = readFileSync(new URL("../base44/functions/discoverEmbedSuServers/entry.ts", import.meta.url), "utf8");
+  const portal = readFileSync(new URL("../src/components/mg/PlayerPortalRenderer.jsx", import.meta.url), "utf8");
   assert.match(details, /player\.playEmbedSu\(/);
   assert.match(episodes, /player\.playEmbedSu\(/);
   assert.match(player, /data-mg-embedsu-open="true"/);
-  assert.match(provider, /stopExclusivePlayback\(\);\s*setVidSrcEmbed\(\{[\s\S]*?provider: "embedsu"/);
+  assert.match(provider, /<PlayerPortalRenderer/);
+  assert.match(portal, /stopExclusivePlayback\(\);\s*setVidSrcEmbed\(\{[\s\S]*?provider: "embedsu"/);
   assert.match(discovery, /npm:cheerio/);
   assert.match(discovery, /npm:puppeteer-core/);
   assert.doesNotMatch(provider, /buildMediaSources[\s\S]*embed\.su/);
