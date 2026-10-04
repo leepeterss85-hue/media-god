@@ -8,12 +8,10 @@ import android.graphics.Color
 import android.media.MediaCodecList
 import android.media.AudioManager
 import android.os.Build
-import android.os.SystemClock
 import android.content.Context
 import android.net.Uri
 import android.os.Bundle
 import android.view.KeyEvent
-import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.webkit.CookieManager
@@ -85,6 +83,7 @@ class MainActivity : Activity() {
     }
 
     private lateinit var webView: WebView
+    private val embeddedPlayerRemote by lazy { EmbeddedPlayerRemote(webView) { nativeBridgeAllowed() } }
     private val nativePlayerLock = Any()
     @Volatile private var playerOpen = false
     @Volatile private var activeNativeRequestId = ""
@@ -135,6 +134,7 @@ class MainActivity : Activity() {
                     url: String?,
                     favicon: Bitmap?
                 ) {
+                    embeddedPlayerRemote.enabled = false
                     currentTopLevelUrl = url.orEmpty()
                     super.onPageStarted(view, url, favicon)
                 }
@@ -225,6 +225,13 @@ class MainActivity : Activity() {
         if (hasFocus) {
             enterImmersiveMode()
         }
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (::webView.isInitialized && !playerOpen && embeddedPlayerRemote.dispatchKeyEvent(event)) {
+            return true
+        }
+        return super.dispatchKeyEvent(event)
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
@@ -772,28 +779,15 @@ class MainActivity : Activity() {
         }
 
         @JavascriptInterface
-        fun simulateTap(cssX: Float, cssY: Float): Boolean {
-            if (!nativeBridgeAllowed()) {
-                return false
-            }
-
-            val density = resources.displayMetrics.density
-            val x = cssX * density
-            val y = cssY * density
-
-            runOnUiThread {
-                val now = SystemClock.uptimeMillis()
-                val down = MotionEvent.obtain(now, now, MotionEvent.ACTION_DOWN, x, y, 0)
-                webView.dispatchTouchEvent(down)
-                down.recycle()
-                val upTime = now + 60
-                val up = MotionEvent.obtain(upTime, upTime, MotionEvent.ACTION_UP, x, y, 0)
-                webView.dispatchTouchEvent(up)
-                up.recycle()
-            }
-
+        fun setEmbeddedPlayerRemoteActive(active: Boolean): Boolean {
+            if (!nativeBridgeAllowed()) return false
+            embeddedPlayerRemote.enabled = active
             return true
         }
+
+        @JavascriptInterface
+        fun simulateTap(cssX: Float, cssY: Float): Boolean =
+            embeddedPlayerRemote.tap(cssX, cssY)
 
         @JavascriptInterface
         fun exitApp(): Boolean {

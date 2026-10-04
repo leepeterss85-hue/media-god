@@ -1,9 +1,15 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import useEmbedPopupBlocker from "@/components/mg/useEmbedPopupBlocker";
+import { isNativeFireTvEmbedRemoteAvailable, setNativeFireTvEmbedRemoteActive } from "@/components/mg/nativeFireTvBridge";
+import OnlyFlixRemotePointer from "@/components/mg/OnlyFlixRemotePointer";
 
 export default function OnlyFlixEmbedPlayer({ url, title, onBack, backLabel = "Sources" }) {
   useEmbedPopupBlocker();
+  useEffect(() => {
+    setNativeFireTvEmbedRemoteActive(true);
+    return () => { setNativeFireTvEmbedRemoteActive(false); };
+  }, []);
   return (
     <div
       data-mg-player-root="true"
@@ -45,10 +51,11 @@ export default function OnlyFlixEmbedPlayer({ url, title, onBack, backLabel = "S
             tabIndex={0}
             data-mg-embed-iframe="true"
           />
+          <OnlyFlixRemotePointer />
         </div>
 
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/70 p-2.5 text-xs text-white/60">
-          <span>OnlyFlix has its own player controls. Use {backLabel} to return to Media God.</span>
+          <span>{isNativeFireTvEmbedRemoteAvailable() ? "Move the pointer onto Play with the D-pad, then press Select. Press Back to return to Media God." : <>OnlyFlix has its own player controls. Use {backLabel} to return to Media God.</>}</span>
           <a
             href={url}
             target="_blank"

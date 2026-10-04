@@ -3,7 +3,7 @@ import {
   isAndroidMobileRuntime,
   isFireTvRuntime,
 } from "@/components/mg/runtimePlatform";
-import { nativeFireTvSimulateTap } from "@/components/mg/nativeFireTvBridge";
+import { tapOnlyFlixForRemote } from "@/components/mg/onlyFlixRemoteActions";
 
 const FOCUSABLE = [
   'button:not([disabled])',
@@ -772,9 +772,10 @@ export default function FireTvRemote() {
         }
 
         /*
-         * Embed iframe players have no native Media God transport controls.
-         * Focus the iframe itself so the Fire TV remote forwards D-pad and
-         * Select into the embedded player's own controls.
+         * Embed players start focused on their stage. The native OnlyFlix
+         * adapter routes physical keys to this document even after the child
+         * frame takes focus. D-pad moves the pointer and Select taps its exact
+         * position; physical Back remains owned by the app's exit handler.
          */
         const embedIframe = scope.querySelector(
           '[data-mg-embed-iframe="true"]'
@@ -915,6 +916,13 @@ export default function FireTvRemote() {
 
       const mediaAction = mediaActionFromEvent(event);
 
+      if (tapOnlyFlixForRemote({ mediaAction, selectKey: isSelectKey(event), direction: directionFromEvent(event), repeat: event.repeat })) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        return;
+      }
+
       if (mediaAction && runMediaAction(mediaAction)) {
         event.preventDefault();
         event.stopPropagation();
@@ -924,33 +932,6 @@ export default function FireTvRemote() {
           new CustomEvent("mg:player-reveal-controls")
         );
 
-        return;
-      }
-
-      /*
-       * Embed iframe players (OnlyFlix, etc.) host their own play/pause
-       * controls inside a cross-origin iframe. The Fire TV WebView does not
-       * forward D-pad/Select key events into cross-origin iframes, so when
-       * the iframe has focus and the user presses Select, simulate a physical
-       * tap at the centre of the iframe — where the embedded player's play
-       * button sits — via the native bridge. D-pad still works normally so
-       * the viewer can navigate away from the iframe to the Back button.
-       */
-      if (
-        document.activeElement instanceof HTMLIFrameElement &&
-        document.activeElement.hasAttribute("data-mg-embed-iframe") &&
-        isSelectKey(event)
-      ) {
-        const iframe = document.activeElement;
-        const rect = iframe.getBoundingClientRect();
-        const tapX = rect.left + rect.width / 2;
-        const tapY = rect.top + rect.height / 2;
-
-        event.preventDefault();
-        event.stopPropagation();
-        event.stopImmediatePropagation();
-
-        nativeFireTvSimulateTap(tapX, tapY);
         return;
       }
 

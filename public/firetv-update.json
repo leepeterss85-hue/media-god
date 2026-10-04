@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 90,
-  "versionName": "1.4.85",
+  "versionCode": 91,
+  "versionName": "1.4.86",
   "title": "Media God Fire TV",
-  "message": "Media God 1.4.85 includes the latest app changes, restored BBC fallbacks and verified playback safeguards.",
+  "message": "Media God 1.4.86 adds an OnlyFlix D-pad pointer with screen-scaled Select taps for Fire TV.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",

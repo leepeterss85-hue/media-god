@@ -96,6 +96,17 @@ export const nativeFireTvExitAvailable = () => {
   return Boolean(native && typeof native.exitApp === "function");
 };
 
+export const isNativeFireTvEmbedRemoteAvailable = () => {
+  const native = bridge();
+  return Boolean(native && typeof native.setEmbeddedPlayerRemoteActive === "function" && typeof native.simulateTap === "function");
+};
+
+export const setNativeFireTvEmbedRemoteActive = (active) => {
+  const native = bridge();
+  if (!native || typeof native.setEmbeddedPlayerRemoteActive !== "function") return false;
+  return native.setEmbeddedPlayerRemoteActive(Boolean(active)) === true;
+};
+
 export const nativeFireTvSimulateTap = (x, y) => {
   const native = bridge();
 

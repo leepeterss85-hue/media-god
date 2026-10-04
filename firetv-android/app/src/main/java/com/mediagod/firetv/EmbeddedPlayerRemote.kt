@@ -1,0 +1,70 @@
+package com.mediagod.firetv
+
+import android.os.SystemClock
+import android.view.InputDevice
+import android.view.KeyEvent
+import android.view.MotionEvent
+import android.webkit.WebView
+import org.json.JSONArray
+import org.json.JSONObject
+
+/** Keep iframe remote input in the app document, where its navigator lives. */
+class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: () -> Boolean) {
+    @Volatile var enabled = false
+
+    fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (!enabled || !allowed()) return false
+        val key = when (event.keyCode) {
+            KeyEvent.KEYCODE_DPAD_UP -> "ArrowUp"
+            KeyEvent.KEYCODE_DPAD_DOWN -> "ArrowDown"
+            KeyEvent.KEYCODE_DPAD_LEFT -> "ArrowLeft"
+            KeyEvent.KEYCODE_DPAD_RIGHT -> "ArrowRight"
+            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> "Enter"
+            KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> "MediaPlayPause"
+            KeyEvent.KEYCODE_MEDIA_PLAY -> "MediaPlay"
+            else -> return false
+        }
+        if (event.action == KeyEvent.ACTION_DOWN && (event.repeatCount == 0 || key.startsWith("Arrow"))) {
+            webView.evaluateJavascript(
+                """(function(){
+                  if(!document.querySelector('[data-mg-onlyflix-player="true"]'))return;
+                  window.dispatchEvent(new KeyboardEvent('keydown',{
+                    key:${JSONObject.quote(key)},bubbles:true,cancelable:true,repeat:${event.repeatCount > 0}
+                  }));
+                })()""".trimIndent(), null
+            )
+        }
+        return true // Consume both halves so WebView cannot also click the iframe.
+    }
+
+    fun tap(cssX: Float, cssY: Float): Boolean {
+        if (!enabled || !allowed() || !cssX.isFinite() || !cssY.isFinite()) return false
+        webView.post {
+            if (!allowed()) return@post
+            // The fixed TV viewport can scale differently from display density.
+            webView.evaluateJavascript("(function(){return document.querySelector('[data-mg-onlyflix-player=\"true\"]')?[window.innerWidth,window.innerHeight]:[]})()") { raw ->
+                if (!allowed()) return@evaluateJavascript
+                val viewport = runCatching { JSONArray(raw) }.getOrNull() ?: return@evaluateJavascript
+                val width = viewport.optDouble(0, 0.0).toFloat()
+                val height = viewport.optDouble(1, 0.0).toFloat()
+                if (width <= 0f || height <= 0f || cssX < 0f || cssY < 0f || cssX >= width || cssY >= height) return@evaluateJavascript
+                val x = cssX * webView.width / width
+                val y = cssY * webView.height / height
+                val downAt = SystemClock.uptimeMillis()
+                val down = MotionEvent.obtain(downAt, downAt, MotionEvent.ACTION_DOWN, x, y, 0)
+                down.source = InputDevice.SOURCE_TOUCHSCREEN
+                webView.dispatchTouchEvent(down)
+                down.recycle()
+                webView.postDelayed({
+                    if (allowed()) {
+                        val up = MotionEvent.obtain(downAt, SystemClock.uptimeMillis(), MotionEvent.ACTION_UP, x, y, 0)
+                        up.source = InputDevice.SOURCE_TOUCHSCREEN
+                        webView.dispatchTouchEvent(up)
+                        up.recycle()
+                    }
+                }, 60L)
+            }
+        }
+        return true
+    }
+}
