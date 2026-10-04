@@ -159,7 +159,7 @@ class OnlyFlixRemoteClickTest {
                 activity.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE))
                 activity.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE))
             }
-            assertTrue("Play/Pause never reached the focused child player", probe.secondClick.await(10, TimeUnit.SECONDS))
+            assertTrue("Play/Pause never reached the focused child player: ${probe.diagnostics.joinToString(\"; \" )}", probe.secondClick.await(10, TimeUnit.SECONDS))
             assertEquals(2, probe.clicks.get())
             assertTrue(probe.lastClick.get().getBoolean("trusted"))
         }
