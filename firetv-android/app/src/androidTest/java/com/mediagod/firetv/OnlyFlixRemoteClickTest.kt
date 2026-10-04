@@ -149,7 +149,7 @@ class OnlyFlixRemoteClickTest {
             val selected = probe.firstClick.await(10, TimeUnit.SECONDS)
             assertTrue("Select never pressed the movie Play button: ${probe.diagnostics.joinToString("; ")}", selected)
             assertTrue("The player click must be a trusted touch", probe.lastClick.get().getBoolean("trusted"))
-            assertTrue("The iframe did not receive the touch release", probe.diagnostics.any { it.contains("\\"type\\":\\"touchend\\"") })
+            assertTrue("The iframe did not receive the touch release", probe.diagnostics.any { it.contains("\"type\":\"touchend\"") })
             assertTrue("The player must receive user activation", probe.lastClick.get().getBoolean("activation"))
             assertEquals(1, probe.clicks.get())
             scenario.onActivity { activity ->
