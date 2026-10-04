@@ -51,3 +51,15 @@ test("Fire TV restores a usable card in the same Home row after playback closes"
   assert.match(source, /mg:player-visibility/);
   assert.match(source, /data-mg-card-primary="true"/);
 });
+
+
+test("Home green Watch button launches OnlyFlix directly for movie items", () => {
+  const source = read("src/components/mg/HomeDashboard.jsx");
+
+  assert.match(source, /import \{ usePlayer \} from "@\/components\/mg\/PlayerProvider";/);
+  assert.match(source, /const watchFeatured = \(item\) =>/);
+  assert.match(source, /resolvedType === "movie" && player\.playOnlyFlix/);
+  assert.match(source, /if \(player\.playOnlyFlix\(media\)\) \{/);
+  assert.match(source, /onWatch=\{watchFeatured\}/);
+  assert.match(source, /open\(item, resolvedType\);/);
+});
