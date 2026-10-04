@@ -77,6 +77,8 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
                 down.source = InputDevice.SOURCE_TOUCHSCREEN
                 webView.dispatchTouchEvent(down)
                 down.recycle()
+                // Give Chromium enough time to register the touch sequence as a
+                // deliberate tap on the cross-origin player before releasing it.
                 webView.postDelayed({
                     if (allowed()) {
                         val up = MotionEvent.obtain(downAt, SystemClock.uptimeMillis(), MotionEvent.ACTION_UP, x, y, 0)
@@ -84,7 +86,7 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
                         webView.dispatchTouchEvent(up)
                         up.recycle()
                     }
-                }, 60L)
+                }, 140L)
             }
         }
         return true
