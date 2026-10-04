@@ -8,21 +8,29 @@ const source = read("src/components/mg/onlyFlixRemoteActions.js");
 const native = read("firetv-android/app/src/main/java/com/mediagod/firetv/EmbeddedPlayerRemote.kt");
 const main = read("firetv-android/app/src/main/java/com/mediagod/firetv/MainActivity.kt");
 
-const fixture = (accepted = true) => {
+const fixture = (accepted = true, hitIframe = true) => {
   class Frame {
-    getBoundingClientRect() { return { left: 20, top: 100, width: 920, height: 320 }; }
+    getBoundingClientRect() { return { left: 20, top: 100, width: 920, height: 320, right: 940, bottom: 420 }; }
+    focus() {}
   }
   const iframe = new Frame();
   const pointer = { getBoundingClientRect: () => ({ left: 116, top: 344, width: 28, height: 28 }) };
-  iframe.parentElement = { querySelector: () => pointer };
-  const document = { querySelector: () => iframe, activeElement: iframe };
+  const player = {
+    querySelector: (selector) => selector.includes("embed-iframe") ? iframe : selector.includes("embed-pointer") ? pointer : null,
+  };
+  const sourceSelector = {};
+  const document = {
+    querySelector: (selector) => selector.includes("onlyflix-player") ? player : null,
+    elementFromPoint: () => hitIframe ? iframe : sourceSelector,
+    activeElement: iframe,
+  };
   const taps = [];
   const movements = [];
   const tap = runInNewContext(
     source.replace(/^import[^\n]+\n/, "").replace("export const", "const") + "\ntapOnlyFlixForRemote;",
     { document, HTMLIFrameElement: Frame, nativeFireTvSimulateTap: (...xy) => { taps.push(xy); return accepted; }, window: { dispatchEvent: (event) => movements.push(event.detail) }, CustomEvent: class { constructor(type, { detail }) { this.detail = detail; } } }
   );
-  return { tap, taps, document, iframe, movements };
+  return { tap, taps, document, iframe, player, movements };
 };
 
 test("Select taps the visible pointer, not the iframe centre", () => {
@@ -31,19 +39,22 @@ test("Select taps the visible pointer, not the iframe centre", () => {
   assert.deepEqual(taps, [[130, 358]]);
 });
 
-test("D-pad moves the pointer only when the stage is focused", () => {
+test("D-pad stays with OnlyFlix even if WebView focus drifts to app controls", () => {
   const { tap, taps, document, movements } = fixture();
+  document.activeElement = {};
   assert.equal(tap({ direction: "left" }), true);
   assert.deepEqual(movements, ["left"]);
   assert.equal(taps.length, 0);
-  document.activeElement = {};
-  assert.equal(tap({ direction: "right" }), false);
+  assert.equal(tap({ selectKey: true }), true);
+  assert.deepEqual(taps, [[130, 358]]);
 });
 
-test("an absent pointer never falls back to a blind centre tap", () => {
-  const { tap, taps, iframe } = fixture();
-  iframe.parentElement.querySelector = () => null;
-  assert.equal(tap({ selectKey: true }), false);
+test("an absent pointer consumes Select instead of activating the background source picker", () => {
+  const { tap, taps, player } = fixture();
+  player.querySelector = (selector) => selector.includes("embed-iframe") ? player.querySelectorIframe : null;
+  // Keep the OnlyFlix iframe mounted while its pointer overlay is unavailable.
+  player.querySelectorIframe = { getBoundingClientRect: () => ({ left: 20, top: 100, right: 940, bottom: 420 }), focus() {} };
+  assert.equal(tap({ selectKey: true }), true);
   assert.equal(taps.length, 0);
 });
 
@@ -52,8 +63,8 @@ test("physical Play works even while the parent toolbar has focus", () => {
   document.activeElement = {};
   assert.equal(tap({ mediaAction: "playpause" }), true);
   assert.equal(tap({ mediaAction: "play" }), true);
-  assert.equal(tap({ selectKey: true }), false);
-  assert.equal(taps.length, 2);
+  assert.equal(tap({ selectKey: true }), true);
+  assert.equal(taps.length, 3);
 });
 
 test("held Select does not tap twice and a missing native bridge is not treated as success", () => {
@@ -79,6 +90,12 @@ test("Fire TV captures keys before child-frame dispatch and owns both event halv
   assert.match(native, /window\.dispatchEvent\(new KeyboardEvent/);
   assert.match(native, /event\.repeatCount == 0 \|\| key\.startsWith\("Arrow"\)/);
   assert.match(read("src/components/mg/OnlyFlixEmbedPlayer.jsx"), /setNativeFireTvEmbedRemoteActive\(false\)/);
+});
+
+test("a tap over the app source picker is swallowed and never dispatched", () => {
+  const { tap, taps } = fixture(true, false);
+  assert.equal(tap({ selectKey: true }), true);
+  assert.deepEqual(taps, []);
 });
 
 test("taps use viewport scale and real delayed touch release, not display density", () => {
