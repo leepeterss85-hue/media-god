@@ -72,21 +72,56 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
                     cssX >= left + width || cssY >= top + height) return@evaluateJavascript
                 val x = (cssX - left) * webView.width / width
                 val y = (cssY - top) * webView.height / height
+                /*
+                 * Fire TV's D-pad pointer is a mouse-like remote interaction.
+                 * Sending a real primary-button mouse sequence is more reliable
+                 * for HTML5 controls inside a cross-origin iframe than treating
+                 * Select as a touchscreen gesture. In particular, video players
+                 * commonly gate their Play control on trusted mouse activation.
+                 */
                 val downAt = SystemClock.uptimeMillis()
-                val down = MotionEvent.obtain(downAt, downAt, MotionEvent.ACTION_DOWN, x, y, 0)
-                down.source = InputDevice.SOURCE_TOUCHSCREEN
+                val hover = MotionEvent.obtain(
+                    downAt,
+                    downAt,
+                    MotionEvent.ACTION_HOVER_MOVE,
+                    x,
+                    y,
+                    0
+                )
+                hover.source = InputDevice.SOURCE_MOUSE
+                webView.dispatchTouchEvent(hover)
+                hover.recycle()
+
+                val down = MotionEvent.obtain(
+                    downAt,
+                    downAt,
+                    MotionEvent.ACTION_DOWN,
+                    x,
+                    y,
+                    0
+                )
+                down.source = InputDevice.SOURCE_MOUSE
+                down.buttonState = MotionEvent.BUTTON_PRIMARY
                 webView.dispatchTouchEvent(down)
                 down.recycle()
-                // Give Chromium enough time to register the touch sequence as a
-                // deliberate tap on the cross-origin player before releasing it.
+
                 webView.postDelayed({
                     if (allowed()) {
-                        val up = MotionEvent.obtain(downAt, SystemClock.uptimeMillis(), MotionEvent.ACTION_UP, x, y, 0)
-                        up.source = InputDevice.SOURCE_TOUCHSCREEN
+                        val upAt = SystemClock.uptimeMillis()
+                        val up = MotionEvent.obtain(
+                            downAt,
+                            upAt,
+                            MotionEvent.ACTION_UP,
+                            x,
+                            y,
+                            0
+                        )
+                        up.source = InputDevice.SOURCE_MOUSE
+                        up.buttonState = MotionEvent.BUTTON_PRIMARY
                         webView.dispatchTouchEvent(up)
                         up.recycle()
                     }
-                }, 140L)
+                }, 80L)
             }
         }
         return true
