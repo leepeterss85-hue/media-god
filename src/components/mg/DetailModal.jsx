@@ -1148,6 +1148,71 @@ export default function DetailModal({
       return;
     }
 
+    if (
+      itemId == null ||
+      itemId === ""
+    ) {
+      toast({
+        title:
+          "Cannot play this result",
+        description:
+          "This title is missing its TMDB id.",
+        variant:
+          "destructive",
+      });
+
+      return;
+    }
+
+    const onlyFlixMedia = {
+      id:
+        itemId,
+
+      tmdbId:
+        itemId,
+
+      tmdb_id:
+        itemId,
+
+      imdbId:
+        firstText(
+          safeItem.imdb_id,
+          details.imdb_id
+        ),
+
+      title:
+        displayTitle,
+
+      poster:
+        displayPoster,
+
+      year:
+        safeItem.year,
+
+      type:
+        "movie",
+
+      mediaType:
+        resolvedMediaType,
+
+      rdTitle:
+        displayTitle,
+
+      rdYear:
+        safeItem.year,
+    };
+
+    if (
+      player.playOnlyFlix &&
+      player.playOnlyFlix(
+        onlyFlixMedia
+      )
+    ) {
+      onClose?.();
+
+      return;
+    }
+
     play();
   };
 
