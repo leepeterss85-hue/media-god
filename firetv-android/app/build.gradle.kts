@@ -1,4 +1,4 @@
-// Live native source dropdown release 1.4.83 verification.
+// OnlyFlix remote focus isolation release 1.4.88.
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.mediagod.firetv"
         minSdk = 21
         targetSdk = 35
-        versionCode = 92
-        versionName = "1.4.87"
+        versionCode = 93
+        versionName = "1.4.88"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

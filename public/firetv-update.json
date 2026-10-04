@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 92,
-  "versionName": "1.4.87",
+  "versionCode": 93,
+  "versionName": "1.4.88",
   "title": "Media God Fire TV",
-  "message": "Media God 1.4.87 fixes OnlyFlix Play taps so Select lands at the visible pointer on scaled Fire TV screens.",
+  "message": "Media God 1.4.88 keeps Fire TV remote input inside OnlyFlix and prevents Select from launching a background source.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",

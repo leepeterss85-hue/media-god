@@ -43,13 +43,26 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
             if (!allowed()) return@post
             // Convert layout-relative CSS coordinates through the visible viewport.
             // A fixed TV layout can be wider than the area WebView is showing.
+            val xLiteral = cssX.toString()
+            val yLiteral = cssY.toString()
             webView.evaluateJavascript("""(function(){
-              if(!document.querySelector('[data-mg-onlyflix-player="true"]'))return [];
+              var frame=document.querySelector('[data-mg-onlyflix-player="true"] [data-mg-embed-iframe="true"]');
+              if(!frame)return [];
+              var x=$xLiteral, y=$yLiteral;
+              var rect=frame.getBoundingClientRect();
+              if(x<rect.left || x>rect.right || y<rect.top || y>rect.bottom ||
+                 document.elementFromPoint(x,y)!==frame)return [0,0,0,0,0];
               var v=window.visualViewport;
-              return v?[v.width,v.height,v.offsetLeft,v.offsetTop]:[window.innerWidth,window.innerHeight,0,0];
+              var result=v?[v.width,v.height,v.offsetLeft,v.offsetTop]:[window.innerWidth,window.innerHeight,0,0];
+              result.push(1);
+              return result;
             })()""".trimIndent()) { raw ->
                 if (!allowed()) return@evaluateJavascript
                 val viewport = runCatching { JSONArray(raw) }.getOrNull() ?: return@evaluateJavascript
+                // Refuse a tap unless hit-testing confirms the point is inside
+                // the OnlyFlix iframe. This prevents a scaled-coordinate miss
+                // from activating Media God's source selector underneath it.
+                if (viewport.optInt(4, 0) != 1) return@evaluateJavascript
                 val width = viewport.optDouble(0, 0.0).toFloat()
                 val height = viewport.optDouble(1, 0.0).toFloat()
                 val left = viewport.optDouble(2, 0.0).toFloat()
