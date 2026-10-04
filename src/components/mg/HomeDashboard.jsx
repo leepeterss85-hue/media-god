@@ -18,6 +18,7 @@ import NewEpisodesRow from "@/components/mg/NewEpisodesRow";
 import RecentlyWatchedRow from "@/components/mg/RecentlyWatchedRow";
 import DetailModal from "@/components/mg/DetailModal";
 import { useToast } from "@/components/ui/use-toast";
+import { usePlayer } from "@/components/mg/PlayerProvider";
 import {
   readUxPreferences,
   UX_PREFERENCES_EVENT,
@@ -370,6 +371,7 @@ export default function HomeDashboard({ onOpenTvService }) {
   const [rows, setRows] = useState(/** @type {any} */ ({}));
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
+  const player = usePlayer();
   const [watched, setWatched] = useState({});
   const [historyRows, setHistoryRows] = useState([]);
   const [recommendationSeed, setRecommendationSeed] = useState(null);
@@ -959,6 +961,44 @@ export default function HomeDashboard({ onOpenTvService }) {
     });
   };
 
+  const watchFeatured = (item) => {
+    const resolvedType = mediaTypeOf(item);
+
+    if (resolvedType === "movie" && player.playOnlyFlix) {
+      const id = item?.tmdb_id ?? item?.tmdbId ?? item?.id ?? null;
+
+      if (id != null && id !== "") {
+        const media = {
+          ...item,
+          id,
+          tmdbId: id,
+          tmdb_id: id,
+          imdbId: item?.imdb_id || item?.imdbId,
+          title:
+            item?.title ||
+            item?.name ||
+            item?.original_title ||
+            item?.original_name ||
+            "Untitled",
+          year: item?.year,
+          poster:
+            item?.poster_url ||
+            item?.posterUrl ||
+            item?.poster ||
+            "",
+          mediaType: "movie",
+          type: "movie",
+        };
+
+        if (player.playOnlyFlix(media)) {
+          return;
+        }
+      }
+    }
+
+    open(item, resolvedType);
+  };
+
   const onWatchlist = async (movie) => {
     const id = movie?.id || movie?.tmdb_id || movie?.tmdbId;
 
@@ -1219,7 +1259,7 @@ export default function HomeDashboard({ onOpenTvService }) {
         <div data-mg-home-snap="true">
           <HeroSlider
             items={hero}
-            onWatch={open}
+            onWatch={watchFeatured}
             onDetails={open}
             onWatchlist={onWatchlist}
           />
