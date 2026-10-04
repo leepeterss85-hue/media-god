@@ -50,10 +50,9 @@ test("D-pad stays with OnlyFlix even if WebView focus drifts to app controls", (
 });
 
 test("an absent pointer consumes Select instead of activating the background source picker", () => {
-  const { tap, taps, player } = fixture();
-  player.querySelector = (selector) => selector.includes("embed-iframe") ? player.querySelectorIframe : null;
+  const { tap, taps, player, iframe } = fixture();
   // Keep the OnlyFlix iframe mounted while its pointer overlay is unavailable.
-  player.querySelectorIframe = { getBoundingClientRect: () => ({ left: 20, top: 100, right: 940, bottom: 420 }), focus() {} };
+  player.querySelector = (selector) => selector.includes("embed-iframe") ? iframe : null;
   assert.equal(tap({ selectKey: true }), true);
   assert.equal(taps.length, 0);
 });
@@ -67,11 +66,13 @@ test("physical Play works even while the parent toolbar has focus", () => {
   assert.equal(taps.length, 3);
 });
 
-test("held Select does not tap twice and a missing native bridge is not treated as success", () => {
+test("held Select does not tap twice and failed native taps stay isolated from app controls", () => {
   const { tap, taps } = fixture();
   assert.equal(tap({ selectKey: true, repeat: true }), true);
   assert.equal(taps.length, 0);
-  assert.equal(fixture(false).tap({ selectKey: true }), false);
+  const rejected = fixture(false);
+  assert.equal(rejected.tap({ selectKey: true }), true);
+  assert.equal(rejected.taps.length, 1);
 });
 
 test("no embed and unrelated remote keys leave other playback untouched", () => {
