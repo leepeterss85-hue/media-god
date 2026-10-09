@@ -1469,6 +1469,14 @@ export default function StreamSourcesBox({
       onClick: () => player.playOnlyFlix({ id: tmdbId, tmdbId, imdbId: resolvedImdb || imdbId, title, poster, mediaType, season, episode }),
     }] : []),
 
+    ...(mediaType !== "live" && player.playReeznTv ? [{
+      id: "reezntv-external-app",
+      kind: "reezn",
+      label: "ReeznTV app",
+      note: "External app • choose this title inside ReeznTV",
+      onClick: () => player.playReeznTv(),
+    }] : []),
+
     ...(providers || [])
       .filter(
         (provider) =>
