@@ -18,13 +18,11 @@ test("ReeznTV appears as a clearly labelled external app handoff", () => {
   assert.match(provider, /https:\/\/reezntvapp\.com\/download/);
 });
 
-test("Fire TV only launches a matching installed Reezn app and excludes known discovery-only listings", () => {
+test("Fire TV launches the installed ReeznTV app by its launcher label or package name", () => {
   assert.match(bridge, /native\.launchReeznTvApp/);
   assert.match(main, /fun launchReeznTvApp\(\): Boolean/);
   assert.match(main, /label\.contains\("reezn", ignoreCase = true\)/);
-  assert.match(main, /com\.reezntv\.movieseriesdiscoveryhub/);
-  assert.match(main, /com\.reezntv\.allseriesandmovies/);
-  assert.match(main, /com\.reezntvlive\.quantumvisionstudios/);
+  assert.match(main, /packageId\.contains\("reezn", ignoreCase = true\)/);
   assert.match(manifest, /<category android:name="android\.intent\.category\.LAUNCHER" \/>/);
 });
 
