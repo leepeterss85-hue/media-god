@@ -747,15 +747,8 @@ class MainActivity : Activity() {
                     val activity = resolved.activityInfo
                     val packageId = activity?.packageName.orEmpty()
                     val label = resolved.loadLabel(packageManager)?.toString().orEmpty()
-                    val knownDiscoveryOnlyPackages = setOf(
-                        "com.reezntv.movieseriesdiscoveryhub",
-                        "com.reezntv.allseriesandmovies",
-                        "com.reezntvlive.quantumvisionstudios"
-                    )
-
                     (label.contains("reezn", ignoreCase = true) ||
                         packageId.contains("reezn", ignoreCase = true)) &&
-                        packageId !in knownDiscoveryOnlyPackages &&
                         packageId != packageName
                 }
             } catch (_: Throwable) {
