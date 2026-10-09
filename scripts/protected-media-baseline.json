@@ -18,6 +18,6 @@
     "firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt": "153b52b2d3ce5b3a752e1f495e0e7e1351f0f0721f31461d4a5d00da36da2106",
     "firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt": "661ec90acb607676955e89df4cdd998f0b7d906f139b0257fb69cb652c950cb7",
     "src/components/mg/PlayerPortalRenderer.jsx": "4c47dace14301619a63eb93657131e4d620e642eaecb7963420ee482ae4550f9",
-    "src/components/mg/additionalLiveTvSources.js": "db8296c77a17d89e8e17763c425c081fb9c409fec3b11f854ce8e1d7bf8b5b9b"
+    "src/components/mg/additionalLiveTvSources.js": "ef6d47788775798fd4b3937b31f64e4166901d4e1211a262dd5943726168ff59"
   }
 }
