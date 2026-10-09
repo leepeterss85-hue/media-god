@@ -20,7 +20,6 @@ import { stopExclusivePlayback } from "@/components/mg/exclusivePlayback";
 import { detectLanguagePreference, getPlaybackDeviceProfile, scoreSourceCompatibility, sourcePlaybackCompatibilityTier } from "@/components/mg/mediaCompatibility";
 import { devicePlaybackReliabilityAdjustment, exactPlaybackSourceLabel } from "@/components/mg/playbackReliability";
 import { readPlaybackPreferences } from "@/components/mg/playbackPreferences";
-import { launchNativeFireTvReeznTV, openNativeFireTvExternalUrl } from "@/components/mg/nativeFireTvBridge";
 import { readTrackPreferences } from "@/components/mg/mediaTrackPreferences";
 import { debridProviderScoreHints } from "@/components/mg/debridProviderReliability";
 import { chooseDebridResolutionStrategy } from "@/components/mg/debridResolutionStrategy";
@@ -4368,24 +4367,6 @@ export function PlayerProvider({
     return url ? startEmbed(url, media, "onlyflix") : false;
   }, [startEmbed]);
 
-  /**
-   * ReeznTV has no verified title-specific embed/deep-link contract. Launch its
-   * installed Android TV app so it can use its own player; if it is not
-   * installed, open the provider's download page instead of guessing stream URLs.
-   */
-  const playReeznTv = useCallback(() => {
-    if (launchNativeFireTvReeznTV()) return true;
-
-    const fallbackUrl = "https://reezntvapp.com/download";
-    if (openNativeFireTvExternalUrl(fallbackUrl)) return true;
-
-    if (typeof window !== "undefined") {
-      return Boolean(window.open(fallbackUrl, "_blank", "noopener,noreferrer"));
-    }
-
-    return false;
-  }, []);
-
   const startMagnetPlayer = useCallback((media, type) => {
     if (!media?.magnet) return false;
     stopExclusivePlayback();
@@ -4458,8 +4439,8 @@ export function PlayerProvider({
     );
 
   const value = useMemo(() => ({
-    play, playVidSrc, playEmbedSu, playVidCore, playExtraEmbed, playOnlyFlix, playReeznTv, playWebtor, playWebTorrent, prepare, close, hasRd, hasDebrid, isOpen: Boolean(source),
-  }), [play, playVidSrc, playEmbedSu, playVidCore, playExtraEmbed, playOnlyFlix, playReeznTv, playWebtor, playWebTorrent, prepare, close, hasRd, hasDebrid, source]);
+    play, playVidSrc, playEmbedSu, playVidCore, playExtraEmbed, playOnlyFlix, playWebtor, playWebTorrent, prepare, close, hasRd, hasDebrid, isOpen: Boolean(source),
+  }), [play, playVidSrc, playEmbedSu, playVidCore, playExtraEmbed, playOnlyFlix, playWebtor, playWebTorrent, prepare, close, hasRd, hasDebrid, source]);
 
   return (
     <PlayerContext.Provider value={value}>
