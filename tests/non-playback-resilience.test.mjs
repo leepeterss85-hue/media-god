@@ -147,7 +147,7 @@ test("related movie and TV cards use exact TMDB recommendation links and open de
   assert.match(detail, /person_id: selectedActor\.id/);
 
   assert.match(row, /detailsOnly=\{detailsOnly\}/);
-  assert.match(card, /detailsOnly \|\| isFireTvRuntime\(\) \|\| mediaType === "tv"/);
+  assert.match(card, /onOpen && \(detailsOnly \|\| mediaType === "tv"\)/);
 
   assert.match(home, /linkedRecommendations/);
   assert.match(home, /payload\?\.related/);
