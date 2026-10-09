@@ -110,6 +110,8 @@ test("taps use viewport scale and real delayed touch release, not display densit
   assert.match(native, /80L/);
   assert.match(native, /SOURCE_MOUSE/);
   assert.match(native, /BUTTON_PRIMARY/);
+  assert.match(native, /private fun obtainMouseButtonEvent\(/);
+  assert.doesNotMatch(native, /\.buttonState\s*=/);
   assert.match(native, /ACTION_HOVER_MOVE/);
   assert.doesNotMatch(native, /displayMetrics\.density|now \+ 60/);
 });
