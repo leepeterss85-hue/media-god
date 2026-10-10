@@ -93,6 +93,15 @@ test("Fire TV captures keys before child-frame dispatch and owns both event halv
   assert.match(read("src/components/mg/OnlyFlixEmbedPlayer.jsx"), /setNativeFireTvEmbedRemoteActive\(false\)/);
 });
 
+test("Live TV provider iframes share the trusted Fire TV remote click path", () => {
+  const videoPlayer = read("src/components/mg/VideoPlayer.jsx");
+  assert.match(videoPlayer, /data-mg-embedded-remote-player="true"/);
+  assert.match(videoPlayer, /data-mg-embed-iframe="true"/);
+  assert.match(videoPlayer, /isLive && <OnlyFlixRemotePointer \/>/);
+  assert.match(videoPlayer, /setNativeFireTvEmbedRemoteActive\(true\)/);
+  assert.match(native, /data-mg-embedded-remote-player/);
+});
+
 test("a tap over the app source picker is swallowed and never dispatched", () => {
   const { tap, taps } = fixture(true, false);
   assert.equal(tap({ selectKey: true }), true);
