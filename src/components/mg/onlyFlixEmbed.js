@@ -58,14 +58,8 @@ export const buildOnlyFlixEmbedUrl = (media = {}) => {
  */
 export const buildOnlyFlixTitlePageUrl = (media = {}) => {
   const type = validType(media);
-  const title = idText(media?.title)
-    .replace(/\\s*\\((?:19|20)\\d{2}\\)\\s*$/, "")
-    .normalize("NFKD")
-    .replace(/[\\u0300-\\u036f]/g, "")
-    .toLowerCase()
-    .replace(/&/g, " and ")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  const title = idText(media?.title).trim();
   if (!type || !title) return "";
-  return `https://onlyflix.to/${title}/`;
+  // Use search rather than guessing a slug, which can lead to a 404.
+  return `https://onlyflix.to/?s=${encodeURIComponent(title)}`;
 };
