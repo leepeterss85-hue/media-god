@@ -1465,20 +1465,18 @@ export default function StreamSourcesBox({
     ...(onlyFlixUrl ? [{
       id: "onlyflix-web-player",
       kind: "onlyflix",
-      label: "OnlyFlix web player",
-      note: "Manual backup • uses OnlyFlix's own controls",
+      label: "OnlyFlix • Multiple Servers",
+      note: "Open OnlyFlix's own webpage and choose an available server for this film or episode",
       onClick: () => player.playOnlyFlix({ id: tmdbId, tmdbId, imdbId: resolvedImdb || imdbId, title, poster, mediaType, season, episode }),
     }] : []),
 
-    [{
+    ...(mediaType === "live" ? [{
       id: "reezntv-external-app",
       kind: "reezn",
       label: "ReeznTV app",
-      note: mediaType === "live"
-        ? "External app • open ReeznTV and choose the live channel"
-        : "External app • choose this title inside ReeznTV",
+      note: "External app • open ReeznTV and choose the live channel",
       onClick: () => launchReeznTv(),
-    }],
+    }] : []),
 
     ...(providers || [])
       .filter(
