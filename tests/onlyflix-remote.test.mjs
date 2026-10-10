@@ -20,7 +20,7 @@ const fixture = (accepted = true, hitIframe = true) => {
   };
   const sourceSelector = {};
   const document = {
-    querySelector: (selector) => selector.includes("onlyflix-player") ? player : null,
+    querySelector: (selector) => selector.includes("embedded-remote-player") ? player : null,
     elementFromPoint: () => hitIframe ? iframe : sourceSelector,
     activeElement: iframe,
   };
