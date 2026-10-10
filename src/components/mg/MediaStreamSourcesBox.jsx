@@ -1367,7 +1367,7 @@ export default function StreamSourcesBox({
   const twoEmbedUrl = buildTwoEmbedEmbedUrl({ mediaType, tmdbId, imdbId: resolvedImdb || imdbId, season, episode });
   const cineSrcUrl = buildCineSrcEmbedUrl({ mediaType, tmdbId, season, episode });
   const multiEmbedUrl = buildMultiEmbedEmbedUrl({ mediaType, tmdbId, imdbId: resolvedImdb || imdbId, season, episode });
-  const onlyFlixUrl = buildOnlyFlixEmbedUrl({ mediaType, tmdbId, imdbId: resolvedImdb || imdbId, season, episode });
+  const onlyFlixUrl = buildOnlyFlixEmbedUrl({ mediaType, title, tmdbId, imdbId: resolvedImdb || imdbId, season, episode });
 
   const rows = [
     {
