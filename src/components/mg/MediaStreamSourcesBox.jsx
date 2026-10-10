@@ -1470,13 +1470,15 @@ export default function StreamSourcesBox({
       onClick: () => player.playOnlyFlix({ id: tmdbId, tmdbId, imdbId: resolvedImdb || imdbId, title, poster, mediaType, season, episode }),
     }] : []),
 
-    ...(mediaType !== "live" ? [{
+    {
       id: "reezntv-external-app",
       kind: "reezn",
-      label: "ReeznTV app",
-      note: "External app • choose this title inside ReeznTV",
+      label: mediaType === "live" ? "ReeznTV Live TV app" : "ReeznTV app",
+      note: mediaType === "live"
+        ? "External app • choose a live channel inside ReeznTV"
+        : "External app • choose this title inside ReeznTV",
       onClick: () => launchReeznTv(),
-    }] : []),
+    },
 
     ...(providers || [])
       .filter(
