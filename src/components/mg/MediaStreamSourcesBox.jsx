@@ -28,7 +28,7 @@ import { usePlayer } from "@/components/mg/PlayerProvider";
 import { buildVidSrcEmbedUrl } from "@/components/mg/vidsrcEmbed";
 import { buildEmbedSuEmbedUrl } from "@/components/mg/webEmbedProviders";
 import { buildVidCoreEmbedUrl } from "@/components/mg/vidCoreEmbed";
-import { buildTwoEmbedEmbedUrl, buildCineSrcEmbedUrl, buildMultiEmbedEmbedUrl } from "@/components/mg/extraEmbedProviders"; import { buildOnlyFlixEmbedUrl } from "@/components/mg/onlyFlixEmbed";
+import { buildTwoEmbedEmbedUrl, buildCineSrcEmbedUrl, buildMultiEmbedEmbedUrl } from "@/components/mg/extraEmbedProviders"; import { buildOnlyFlixEmbedUrl, buildOnlyFlixTitlePageUrl } from "@/components/mg/onlyFlixEmbed";
 import { fetchTmdbEmbedStreams } from "@/components/mg/tmdbEmbedStreams";
 import { cn } from "@/lib/utils";
 import { magnetFromInput } from "@/components/mg/magnetStreamHelpers";
@@ -1368,6 +1368,7 @@ export default function StreamSourcesBox({
   const cineSrcUrl = buildCineSrcEmbedUrl({ mediaType, tmdbId, season, episode });
   const multiEmbedUrl = buildMultiEmbedEmbedUrl({ mediaType, tmdbId, imdbId: resolvedImdb || imdbId, season, episode });
   const onlyFlixUrl = buildOnlyFlixEmbedUrl({ mediaType, tmdbId, imdbId: resolvedImdb || imdbId, season, episode });
+  const onlyFlixTitlePageUrl = buildOnlyFlixTitlePageUrl({ mediaType, title });
 
   const rows = [
     {
@@ -1467,7 +1468,7 @@ export default function StreamSourcesBox({
       kind: "onlyflix",
       label: "OnlyFlix • Multiple Servers",
       note: "Open OnlyFlix's own webpage and choose an available server for this film or episode",
-      onClick: () => player.playOnlyFlix({ id: tmdbId, tmdbId, imdbId: resolvedImdb || imdbId, title, poster, mediaType, season, episode }),
+      onClick: () => onlyFlixTitlePageUrl && window.open(onlyFlixTitlePageUrl, "_blank", "noopener,noreferrer"),
     }] : []),
 
     ...(mediaType === "live" ? [{
