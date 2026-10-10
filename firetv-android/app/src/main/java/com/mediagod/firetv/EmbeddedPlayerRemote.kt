@@ -52,10 +52,9 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
               var rect=frame.getBoundingClientRect();
               if(x<rect.left || x>rect.right || y<rect.top || y>rect.bottom ||
                  document.elementFromPoint(x,y)!==frame)return [0,0,0,0,0];
-              var v=window.visualViewport;
-              var result=v?[v.width,v.height,v.offsetLeft,v.offsetTop]:[window.innerWidth,window.innerHeight,0,0];
-              result.push(1);
-              return result;
+              // getBoundingClientRect() uses layout-viewport CSS coordinates.
+              // visualViewport can be much narrower on a TV WebView and distort remote taps.
+              return [window.innerWidth,window.innerHeight,0,0,1];
             })()""".trimIndent()) { raw ->
                 if (!allowed()) return@evaluateJavascript
                 val viewport = runCatching { JSONArray(raw) }.getOrNull() ?: return@evaluateJavascript
@@ -65,13 +64,11 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
                 if (viewport.optInt(4, 0) != 1) return@evaluateJavascript
                 val width = viewport.optDouble(0, 0.0).toFloat()
                 val height = viewport.optDouble(1, 0.0).toFloat()
-                val left = viewport.optDouble(2, 0.0).toFloat()
-                val top = viewport.optDouble(3, 0.0).toFloat()
-                if (!width.isFinite() || !height.isFinite() || !left.isFinite() || !top.isFinite() ||
-                    width <= 0f || height <= 0f || cssX < left || cssY < top ||
-                    cssX >= left + width || cssY >= top + height) return@evaluateJavascript
-                val x = (cssX - left) * webView.width / width
-                val y = (cssY - top) * webView.height / height
+                if (!width.isFinite() || !height.isFinite() ||
+                    width <= 0f || height <= 0f || cssX < 0f || cssY < 0f ||
+                    cssX >= width || cssY >= height) return@evaluateJavascript
+                val x = cssX * webView.width / width
+                val y = cssY * webView.height / height
                 /*
                  * Fire TV's D-pad pointer is a mouse-like remote interaction.
                  * Sending a real primary-button mouse sequence is more reliable
@@ -92,32 +89,26 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
                 webView.dispatchTouchEvent(hover)
                 hover.recycle()
 
-                val down = MotionEvent.obtain(
+                val down = obtainMouseButtonEvent(
                     downAt,
                     downAt,
                     MotionEvent.ACTION_DOWN,
                     x,
-                    y,
-                    0
+                    y
                 )
-                down.source = InputDevice.SOURCE_MOUSE
-                down.buttonState = MotionEvent.BUTTON_PRIMARY
                 webView.dispatchTouchEvent(down)
                 down.recycle()
 
                 webView.postDelayed({
                     if (allowed()) {
                         val upAt = SystemClock.uptimeMillis()
-                        val up = MotionEvent.obtain(
+                        val up = obtainMouseButtonEvent(
                             downAt,
                             upAt,
                             MotionEvent.ACTION_UP,
                             x,
-                            y,
-                            0
+                            y
                         )
-                        up.source = InputDevice.SOURCE_MOUSE
-                        up.buttonState = MotionEvent.BUTTON_PRIMARY
                         webView.dispatchTouchEvent(up)
                         up.recycle()
                     }
@@ -126,4 +117,43 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
         }
         return true
     }
+    /**
+     * Build a mouse-button event with buttonState supplied to MotionEvent.obtain.
+     * MotionEvent.buttonState is read-only on Android's Kotlin API.
+     */
+    private fun obtainMouseButtonEvent(
+        downTime: Long,
+        eventTime: Long,
+        action: Int,
+        x: Float,
+        y: Float
+    ): MotionEvent {
+        val properties = MotionEvent.PointerProperties().apply {
+            id = 0
+            toolType = MotionEvent.TOOL_TYPE_MOUSE
+        }
+        val coordinates = MotionEvent.PointerCoords().apply {
+            this.x = x
+            this.y = y
+            pressure = 1f
+            size = 1f
+        }
+        return MotionEvent.obtain(
+            downTime,
+            eventTime,
+            action,
+            1,
+            arrayOf(properties),
+            arrayOf(coordinates),
+            0,
+            MotionEvent.BUTTON_PRIMARY,
+            1f,
+            1f,
+            0,
+            0,
+            InputDevice.SOURCE_MOUSE,
+            0
+        )
+    }
+
 }

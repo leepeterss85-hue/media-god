@@ -101,6 +101,26 @@ export const isNativeFireTvEmbedRemoteAvailable = () => {
   return Boolean(native && typeof native.setEmbeddedPlayerRemoteActive === "function" && typeof native.simulateTap === "function");
 };
 
+/**
+ * Launch the installed ReeznTV app on Android or Fire TV when its launcher
+ * activity is visible to the native host. No undocumented title deep link is
+ * assumed; ReeznTV opens normally and the user chooses the title there.
+ */
+export const launchNativeReeznTvApp = () => {
+  const native = bridge();
+  if (!native || typeof native.launchReeznTvApp !== "function") return false;
+
+  try {
+    const result = native.launchReeznTvApp();
+    return result !== false && result !== "false" && result !== "error";
+  } catch {
+    return false;
+  }
+};
+
+// Backwards-compatible export for any older Fire TV-specific caller.
+export const launchNativeFireTvReeznTV = launchNativeReeznTvApp;
+
 export const setNativeFireTvEmbedRemoteActive = (active) => {
   const native = bridge();
   if (!native || typeof native.setEmbeddedPlayerRemoteActive !== "function") return false;
