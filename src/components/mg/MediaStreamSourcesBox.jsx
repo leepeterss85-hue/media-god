@@ -1474,7 +1474,7 @@ export default function StreamSourcesBox({
       id: "reezntv-external-app",
       kind: "reezn",
       label: "ReeznTV app",
-      note: "External app • opens the installed ReeznTV app when available",
+      note: "External app • choose this title inside ReeznTV",
       onClick: () => launchReeznTv(),
     }] : []),
 
