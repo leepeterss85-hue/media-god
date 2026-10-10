@@ -87,7 +87,7 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
                     0
                 )
                 hover.source = InputDevice.SOURCE_MOUSE
-                webView.dispatchTouchEvent(hover)
+                webView.dispatchGenericMotionEvent(hover)
                 hover.recycle()
 
                 val down = obtainMouseButtonEvent(
@@ -148,7 +148,7 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
             arrayOf(properties),
             arrayOf(coordinates),
             0,
-            MotionEvent.BUTTON_PRIMARY,
+            if (action == MotionEvent.ACTION_DOWN) MotionEvent.BUTTON_PRIMARY else 0,
             1f,
             1f,
             0,
