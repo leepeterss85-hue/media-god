@@ -99,15 +99,13 @@ test("a tap over the app source picker is swallowed and never dispatched", () =>
   assert.deepEqual(taps, []);
 });
 
-test("taps scale layout CSS coordinates through the visible viewport and release the mouse", () => {
-  assert.match(native, /visible&&visible\.width>0\?visible\.width:window\.innerWidth/);
-  assert.match(native, /visible&&visible\.height>0\?visible\.height:window\.innerHeight/);
+test("taps scale layout CSS coordinates through the layout viewport and release the mouse", () => {
+  assert.match(native, /return \[window\.innerWidth,window\.innerHeight,0,0,1\]/);
+  assert.doesNotMatch(native, /window\.visualViewport/);
   assert.match(native, /document\.elementFromPoint\(x,y\)!==frame/);
   assert.match(native, /viewport\.optInt\(4, 0\) != 1/);
-  assert.match(native, /viewport\.optDouble\(2, width\.toDouble\(\)\)/);
-  assert.match(native, /viewport\.optDouble\(3, height\.toDouble\(\)\)/);
-  assert.match(native, /cssX \* webView\.width \/ visibleWidth/);
-  assert.match(native, /cssY \* webView\.height \/ visibleHeight/);
+  assert.match(native, /cssX \* webView\.width \/ width/);
+  assert.match(native, /cssY \* webView\.height \/ height/);
   assert.match(native, /postDelayed/);
   assert.match(native, /80L/);
   assert.match(native, /SOURCE_MOUSE/);
