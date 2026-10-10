@@ -59,7 +59,7 @@ class OnlyFlixRemoteClickTest {
             <style>body{margin:0}#stage{position:relative;margin:90px 3% 0;width:94%;height:260px}
             iframe{width:100%;height:100%;border:0}#pointer{position:absolute;left:10%;top:67%;
             width:28px;height:28px;transform:translate(-50%,-50%);pointer-events:none}</style>
-            <div data-mg-onlyflix-player="true"><button id="toolbar">Back</button>
+            <div data-mg-onlyflix-player="true" data-mg-embedded-remote-player="true"><button id="toolbar">Back</button>
               <div id="stage"><iframe data-mg-embed-iframe="true" src="$childUrl"
                 allow="autoplay; fullscreen" sandbox="allow-scripts allow-same-origin"></iframe>
                 <div id="pointer" data-mg-embed-pointer="true"></div></div></div>
