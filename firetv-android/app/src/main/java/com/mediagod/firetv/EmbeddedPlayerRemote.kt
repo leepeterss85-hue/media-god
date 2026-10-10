@@ -90,14 +90,21 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
                 webView.dispatchGenericMotionEvent(hover)
                 hover.recycle()
 
+                /*
+                 * Mouse buttons are generic-motion events on Android. Sending
+                 * mouse-source ACTION_DOWN/UP through dispatchTouchEvent makes
+                 * the WebView log a touch but does not reliably forward a real
+                 * DOM mousedown/mouseup into a cross-origin iframe. Use the
+                 * dedicated button actions so Chromium receives mouse input.
+                 */
                 val down = obtainMouseButtonEvent(
                     downAt,
                     downAt,
-                    MotionEvent.ACTION_DOWN,
+                    MotionEvent.ACTION_BUTTON_PRESS,
                     x,
                     y
                 )
-                webView.dispatchTouchEvent(down)
+                webView.dispatchGenericMotionEvent(down)
                 down.recycle()
 
                 webView.postDelayed({
@@ -106,11 +113,11 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
                         val up = obtainMouseButtonEvent(
                             downAt,
                             upAt,
-                            MotionEvent.ACTION_UP,
+                            MotionEvent.ACTION_BUTTON_RELEASE,
                             x,
                             y
                         )
-                        webView.dispatchTouchEvent(up)
+                        webView.dispatchGenericMotionEvent(up)
                         up.recycle()
                     }
                 }, 80L)
