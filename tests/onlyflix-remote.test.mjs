@@ -20,7 +20,7 @@ const fixture = (accepted = true, hitIframe = true) => {
   };
   const sourceSelector = {};
   const document = {
-    querySelector: (selector) => selector.includes("onlyflix-player") ? player : null,
+    querySelector: (selector) => selector.includes("embedded-remote-player") ? player : null,
     elementFromPoint: () => hitIframe ? iframe : sourceSelector,
     activeElement: iframe,
   };
@@ -93,22 +93,43 @@ test("Fire TV captures keys before child-frame dispatch and owns both event halv
   assert.match(read("src/components/mg/OnlyFlixEmbedPlayer.jsx"), /setNativeFireTvEmbedRemoteActive\(false\)/);
 });
 
+test("Live TV provider iframes share the trusted Fire TV remote click path", () => {
+  const videoPlayer = read("src/components/mg/VideoPlayer.jsx");
+  assert.match(videoPlayer, /data-mg-embedded-remote-player="true"/);
+  assert.match(videoPlayer, /data-mg-embed-iframe="true"/);
+  assert.match(videoPlayer, /isLive && <OnlyFlixRemotePointer \/>/);
+  assert.match(videoPlayer, /setNativeFireTvEmbedRemoteActive\(true\)/);
+  assert.match(native, /data-mg-embedded-remote-player/);
+});
+
 test("a tap over the app source picker is swallowed and never dispatched", () => {
   const { tap, taps } = fixture(true, false);
   assert.equal(tap({ selectKey: true }), true);
   assert.deepEqual(taps, []);
 });
 
-test("taps use viewport scale and real delayed touch release, not display density", () => {
-  assert.match(native, /window\.visualViewport/);
+test("taps scale layout CSS coordinates through the visible viewport and release the mouse", () => {
+  assert.match(native, /visible&&visible\.width>0\?visible\.width:window\.innerWidth/);
+  assert.match(native, /visible&&visible\.height>0\?visible\.height:window\.innerHeight/);
   assert.match(native, /document\.elementFromPoint\(x,y\)!==frame/);
   assert.match(native, /viewport\.optInt\(4, 0\) != 1/);
-  assert.match(native, /v\.offsetLeft,v\.offsetTop/);
-  assert.match(native, /\(cssX - left\) \* webView\.width \/ width/);
-  assert.match(native, /\(cssY - top\) \* webView\.height \/ height/);
+  assert.match(native, /viewport\.optDouble\(2, width\.toDouble\(\)\)/);
+  assert.match(native, /viewport\.optDouble\(3, height\.toDouble\(\)\)/);
+  assert.match(native, /cssX \* webView\.width \/ visibleWidth/);
+  assert.match(native, /cssY \* webView\.height \/ visibleHeight/);
   assert.match(native, /postDelayed/);
   assert.match(native, /80L/);
-  assert.match(native, /SOURCE_MOUSE/);\n  assert.match(native, /BUTTON_PRIMARY/);\n  assert.match(native, /ACTION_HOVER_MOVE/);
+  assert.match(native, /SOURCE_MOUSE/);
+  assert.match(native, /BUTTON_PRIMARY/);
+  assert.match(native, /private fun obtainMouseButtonEvent\(/);
+  assert.doesNotMatch(native, /\.buttonState\s*=/);
+  assert.match(native, /ACTION_HOVER_MOVE/);
+  assert.match(native, /MotionEvent\.ACTION_BUTTON_PRESS/);
+  assert.match(native, /MotionEvent\.ACTION_BUTTON_RELEASE/);
+  assert.match(native, /dispatchGenericMotionEvent\(down\)/);
+  assert.match(native, /dispatchGenericMotionEvent\(up\)/);
+  assert.match(native, /if \(action == MotionEvent\.ACTION_BUTTON_PRESS\)/);
+  assert.doesNotMatch(native, /dispatchTouchEvent\(down\)|dispatchTouchEvent\(up\)/);
   assert.doesNotMatch(native, /displayMetrics\.density|now \+ 60/);
 });
 

@@ -1,6 +1,7 @@
 package com.mediagod.firetv
 
 import android.view.KeyEvent
+import android.view.MotionEvent
 import android.webkit.JavascriptInterface
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -19,7 +20,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
-/** Exercises real WebView touch delivery; the child player is a separate origin. */
+/** Exercises real WebView mouse delivery; the child player is a separate origin. */
 @RunWith(AndroidJUnit4::class)
 class OnlyFlixRemoteClickTest {
     class ClickProbe {
@@ -58,7 +59,7 @@ class OnlyFlixRemoteClickTest {
             <style>body{margin:0}#stage{position:relative;margin:90px 3% 0;width:94%;height:260px}
             iframe{width:100%;height:100%;border:0}#pointer{position:absolute;left:10%;top:67%;
             width:28px;height:28px;transform:translate(-50%,-50%);pointer-events:none}</style>
-            <div data-mg-onlyflix-player="true"><button id="toolbar">Back</button>
+            <div data-mg-onlyflix-player="true" data-mg-embedded-remote-player="true"><button id="toolbar">Back</button>
               <div id="stage"><iframe data-mg-embed-iframe="true" src="$childUrl"
                 allow="autoplay; fullscreen" sandbox="allow-scripts allow-same-origin"></iframe>
                 <div id="pointer" data-mg-embed-pointer="true"></div></div></div>
@@ -117,6 +118,10 @@ class OnlyFlixRemoteClickTest {
                     probe.record("native touch:${event.action}:${event.x},${event.y},view:${view.width},${view.height}")
                     false
                 }
+                view.setOnGenericMotionListener { _, event ->
+                    probe.record("native generic:${event.action}:${event.x},${event.y},buttons:${event.buttonState},view:${view.width},${view.height}")
+                    false
+                }
                 view.addJavascriptInterface(probe, "ClickProbe")
                 view.webViewClient = object : WebViewClient() {
                     override fun shouldInterceptRequest(
@@ -150,6 +155,10 @@ class OnlyFlixRemoteClickTest {
             assertTrue("Select never pressed the movie Play button: ${probe.diagnostics.joinToString("; ")}", selected)
             assertTrue("The player click must be a trusted mouse activation", probe.lastClick.get().getBoolean("trusted"))
             assertTrue("The iframe did not receive the mouse release", probe.diagnostics.any { it.contains("\"type\":\"mouseup\"") })
+            assertTrue("Native primary mouse press was not dispatched: ${probe.diagnostics.joinToString("; ")}",
+                probe.diagnostics.any { it.contains("native generic:${MotionEvent.ACTION_BUTTON_PRESS}:") && it.contains("buttons:1") })
+            assertTrue("Native primary mouse release was not dispatched: ${probe.diagnostics.joinToString("; ")}",
+                probe.diagnostics.any { it.contains("native generic:${MotionEvent.ACTION_BUTTON_RELEASE}:") })
             assertTrue("The player must receive user activation", probe.lastClick.get().getBoolean("activation"))
             assertEquals(1, probe.clicks.get())
             scenario.onActivity { activity ->

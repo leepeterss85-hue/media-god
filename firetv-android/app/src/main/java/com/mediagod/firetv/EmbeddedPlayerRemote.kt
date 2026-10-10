@@ -27,7 +27,7 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
         if (event.action == KeyEvent.ACTION_DOWN && (event.repeatCount == 0 || key.startsWith("Arrow"))) {
             webView.evaluateJavascript(
                 """(function(){
-                  if(!document.querySelector('[data-mg-onlyflix-player="true"]'))return;
+                  if(!document.querySelector('[data-mg-embedded-remote-player="true"]'))return;
                   window.dispatchEvent(new KeyboardEvent('keydown',{
                     key:${JSONObject.quote(key)},bubbles:true,cancelable:true,repeat:${event.repeatCount > 0}
                   }));
@@ -46,16 +46,19 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
             val xLiteral = cssX.toString()
             val yLiteral = cssY.toString()
             webView.evaluateJavascript("""(function(){
-              var frame=document.querySelector('[data-mg-onlyflix-player="true"] [data-mg-embed-iframe="true"]');
+              var frame=document.querySelector('[data-mg-embedded-remote-player="true"] [data-mg-embed-iframe="true"]');
               if(!frame)return [];
               var x=$xLiteral, y=$yLiteral;
               var rect=frame.getBoundingClientRect();
               if(x<rect.left || x>rect.right || y<rect.top || y>rect.bottom ||
                  document.elementFromPoint(x,y)!==frame)return [0,0,0,0,0];
-              var v=window.visualViewport;
-              var result=v?[v.width,v.height,v.offsetLeft,v.offsetTop]:[window.innerWidth,window.innerHeight,0,0];
-              result.push(1);
-              return result;
+              // getBoundingClientRect() returns layout-viewport CSS coordinates.
+              // visualViewport.width can be narrower on a TV WebView even at scale 1,
+              // which magnifies pointer coordinates and misses the iframe.
+              var visible=window.visualViewport;
+              return [window.innerWidth,window.innerHeight,
+                visible&&visible.width>0?visible.width:window.innerWidth,
+                visible&&visible.height>0?visible.height:window.innerHeight,1];
             })()""".trimIndent()) { raw ->
                 if (!allowed()) return@evaluateJavascript
                 val viewport = runCatching { JSONArray(raw) }.getOrNull() ?: return@evaluateJavascript
@@ -65,13 +68,18 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
                 if (viewport.optInt(4, 0) != 1) return@evaluateJavascript
                 val width = viewport.optDouble(0, 0.0).toFloat()
                 val height = viewport.optDouble(1, 0.0).toFloat()
-                val left = viewport.optDouble(2, 0.0).toFloat()
-                val top = viewport.optDouble(3, 0.0).toFloat()
-                if (!width.isFinite() || !height.isFinite() || !left.isFinite() || !top.isFinite() ||
-                    width <= 0f || height <= 0f || cssX < left || cssY < top ||
-                    cssX >= left + width || cssY >= top + height) return@evaluateJavascript
-                val x = (cssX - left) * webView.width / width
-                val y = (cssY - top) * webView.height / height
+                val visibleWidth = viewport.optDouble(2, width.toDouble()).toFloat()
+                val visibleHeight = viewport.optDouble(3, height.toDouble()).toFloat()
+                if (!width.isFinite() || !height.isFinite() ||
+                    !visibleWidth.isFinite() || !visibleHeight.isFinite() ||
+                    width <= 0f || height <= 0f || visibleWidth <= 0f || visibleHeight <= 0f ||
+                    cssX < 0f || cssY < 0f || cssX >= width || cssY >= height) return@evaluateJavascript
+                // The Fire TV WebView can have a fixed layout viewport wider than its
+                // visible CSS viewport. Convert the pointer from visible CSS coordinates
+                // to physical WebView pixels so the mouse press lands on the same element
+                // that document.elementFromPoint() verified.
+                val x = cssX * webView.width / visibleWidth
+                val y = cssY * webView.height / visibleHeight
                 /*
                  * Fire TV's D-pad pointer is a mouse-like remote interaction.
                  * Sending a real primary-button mouse sequence is more reliable
@@ -89,41 +97,88 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
                     0
                 )
                 hover.source = InputDevice.SOURCE_MOUSE
-                webView.dispatchTouchEvent(hover)
+                webView.dispatchGenericMotionEvent(hover)
                 hover.recycle()
 
-                val down = MotionEvent.obtain(
+                /*
+                 * WebView maps trusted mouse clicks from generic mouse-button events.
+                 * Touch ACTION_DOWN/UP only produced touch events and never a DOM click.
+                 * Set actionButton explicitly so Chromium sees which mouse button changed.
+                 */
+                val down = obtainMouseButtonEvent(
                     downAt,
                     downAt,
-                    MotionEvent.ACTION_DOWN,
+                    MotionEvent.ACTION_BUTTON_PRESS,
                     x,
-                    y,
-                    0
+                    y
                 )
-                down.source = InputDevice.SOURCE_MOUSE
-                down.buttonState = MotionEvent.BUTTON_PRIMARY
-                webView.dispatchTouchEvent(down)
+                webView.dispatchGenericMotionEvent(down)
                 down.recycle()
 
                 webView.postDelayed({
                     if (allowed()) {
                         val upAt = SystemClock.uptimeMillis()
-                        val up = MotionEvent.obtain(
+                        val up = obtainMouseButtonEvent(
                             downAt,
                             upAt,
-                            MotionEvent.ACTION_UP,
+                            MotionEvent.ACTION_BUTTON_RELEASE,
                             x,
-                            y,
-                            0
+                            y
                         )
-                        up.source = InputDevice.SOURCE_MOUSE
-                        up.buttonState = MotionEvent.BUTTON_PRIMARY
-                        webView.dispatchTouchEvent(up)
+                        webView.dispatchGenericMotionEvent(up)
                         up.recycle()
                     }
                 }, 80L)
             }
         }
         return true
+    }
+
+    /**
+     * Build a mouse-button event with buttonState supplied to MotionEvent.obtain.
+     * MotionEvent.buttonState is read-only on Android's Kotlin API.
+     */
+    private fun obtainMouseButtonEvent(
+        downTime: Long,
+        eventTime: Long,
+        action: Int,
+        x: Float,
+        y: Float
+    ): MotionEvent {
+        val properties = MotionEvent.PointerProperties().apply {
+            id = 0
+            toolType = MotionEvent.TOOL_TYPE_MOUSE
+        }
+        val coordinates = MotionEvent.PointerCoords().apply {
+            this.x = x
+            this.y = y
+            pressure = 1f
+            size = 1f
+        }
+        return MotionEvent.obtain(
+            downTime,
+            eventTime,
+            action,
+            1,
+            arrayOf(properties),
+            arrayOf(coordinates),
+            0,
+            if (action == MotionEvent.ACTION_BUTTON_PRESS)
+                MotionEvent.BUTTON_PRIMARY else 0,
+            1f,
+            1f,
+            0,
+            0,
+            InputDevice.SOURCE_MOUSE,
+            0
+        ).also { event ->
+            // ACTION_BUTTON_PRESS/RELEASE need the changed button encoded separately
+            // from buttonState. Keep this guarded for vendor WebView/API differences.
+            runCatching {
+                MotionEvent::class.java
+                    .getMethod("setActionButton", Int::class.javaPrimitiveType)
+                    .invoke(event, MotionEvent.BUTTON_PRIMARY)
+            }
+        }
     }
 }

@@ -8,7 +8,7 @@ import { nativeFireTvSimulateTap } from "@/components/mg/nativeFireTvBridge";
  * background source picker to steal Select and launch an unrelated stream.
  */
 export const tapOnlyFlixForRemote = ({ mediaAction, selectKey, direction, repeat }) => {
-  const player = document.querySelector('[data-mg-onlyflix-player="true"]');
+  const player = document.querySelector('[data-mg-embedded-remote-player="true"]');
   if (!player) return false;
 
   const iframe = player.querySelector('[data-mg-embed-iframe="true"]');

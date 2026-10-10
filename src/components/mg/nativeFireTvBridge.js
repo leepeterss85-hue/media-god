@@ -101,6 +101,23 @@ export const isNativeFireTvEmbedRemoteAvailable = () => {
   return Boolean(native && typeof native.setEmbeddedPlayerRemoteActive === "function" && typeof native.simulateTap === "function");
 };
 
+/**
+ * Launch the user's already-installed ReeznTV app on Fire TV.
+ * ReeznTV does not publish a title-specific deep-link contract, so this is an
+ * external app handoff rather than a guessed embed URL.
+ */
+export const launchNativeFireTvReeznTV = () => {
+  const native = bridge();
+  if (!native || typeof native.launchReeznTvApp !== "function") return false;
+
+  try {
+    const result = native.launchReeznTvApp();
+    return result !== false && result !== "false" && result !== "error";
+  } catch {
+    return false;
+  }
+};
+
 export const setNativeFireTvEmbedRemoteActive = (active) => {
   const native = bridge();
   if (!native || typeof native.setEmbeddedPlayerRemoteActive !== "function") return false;

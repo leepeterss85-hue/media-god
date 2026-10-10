@@ -32,6 +32,7 @@ import { buildTwoEmbedEmbedUrl, buildCineSrcEmbedUrl, buildMultiEmbedEmbedUrl } 
 import { fetchTmdbEmbedStreams } from "@/components/mg/tmdbEmbedStreams";
 import { cn } from "@/lib/utils";
 import { magnetFromInput } from "@/components/mg/magnetStreamHelpers";
+import { launchReeznTv } from "@/components/mg/reeznTvLauncher";
 
 const unwrap = (response) =>
   response?.data ??
@@ -1467,6 +1468,14 @@ export default function StreamSourcesBox({
       label: "OnlyFlix web player",
       note: "Manual backup • uses OnlyFlix's own controls",
       onClick: () => player.playOnlyFlix({ id: tmdbId, tmdbId, imdbId: resolvedImdb || imdbId, title, poster, mediaType, season, episode }),
+    }] : []),
+
+    ...(mediaType !== "live" ? [{
+      id: "reezntv-external-app",
+      kind: "reezn",
+      label: "ReeznTV app",
+      note: "External app • choose this title inside ReeznTV",
+      onClick: () => launchReeznTv(),
     }] : []),
 
     ...(providers || [])

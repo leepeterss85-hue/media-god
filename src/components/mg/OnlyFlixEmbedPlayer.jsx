@@ -38,6 +38,7 @@ export default function OnlyFlixEmbedPlayer({ url, title, onBack, backLabel = "S
     <div
       data-mg-player-root="true"
       data-mg-onlyflix-player="true"
+      data-mg-embedded-remote-player="true"
       className="fixed inset-0 z-[2147483646] flex items-center justify-center bg-black/95 p-2 text-white sm:p-3"
     >
       <div className="flex max-h-[calc(100dvh-1rem)] w-full max-w-[1600px] flex-col">

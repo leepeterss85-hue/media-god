@@ -23,9 +23,12 @@ import { stopExclusivePlayback } from "@/components/mg/exclusivePlayback";
 import PlayerControls from "@/components/mg/PlayerControls";
 import {
   isNativeFireTvPlayerAvailable,
+  isNativeFireTvEmbedRemoteAvailable,
+  setNativeFireTvEmbedRemoteActive,
   openNativeFireTvExternalUrl,
   playNativeFireTv,
 } from "@/components/mg/nativeFireTvBridge";
+import OnlyFlixRemotePointer from "@/components/mg/OnlyFlixRemotePointer";
 import {
   preferredAudioTrackScore,
   readTrackPreferences,
@@ -3078,6 +3081,17 @@ export default function VideoPlayer({
   const isProvider =
     active?.type ===
     "provider";
+
+  useEffect(() => {
+    if (!isLive || !isProvider || !isNativeFireTvEmbedRemoteAvailable()) {
+      return undefined;
+    }
+
+    setNativeFireTvEmbedRemoteActive(true);
+    return () => {
+      setNativeFireTvEmbedRemoteActive(false);
+    };
+  }, [isLive, isProvider, activeUrl]);
 
   useEffect(() => {
     if (!isLive || !isProvider || !isFireTvRemoteRuntime()) {
@@ -11039,19 +11053,21 @@ export default function VideoPlayer({
               referrerPolicy="strict-origin-when-cross-origin"
             />
           ) : isProvider ? (
-            <iframe
-              src={
-                active.src
-              }
-              title={
-                source?.title ||
-                "Provider"
-              }
-              className="w-full h-full"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen"
-              allowFullScreen
-              referrerPolicy="strict-origin-when-cross-origin"
-            />
+            <div
+              data-mg-embedded-remote-player="true"
+              className="absolute inset-0"
+            >
+              <iframe
+                data-mg-embed-iframe="true"
+                src={active.src}
+                title={source?.title || "Provider"}
+                className="h-full w-full border-0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen"
+                allowFullScreen
+                referrerPolicy="strict-origin-when-cross-origin"
+              />
+              {isLive && <OnlyFlixRemotePointer />}
+            </div>
           ) : isDirectFile ? (
             <>
               <LiveVideo
