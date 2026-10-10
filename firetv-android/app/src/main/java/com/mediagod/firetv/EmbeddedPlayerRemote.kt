@@ -55,7 +55,7 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
               // getBoundingClientRect() returns layout-viewport CSS coordinates.
               // visualViewport.width can be narrower on a TV WebView even at scale 1,
               // which magnifies pointer coordinates and misses the iframe.
-              return [window.innerWidth,window.innerHeight,1];
+              return [window.innerWidth,window.innerHeight,0,0,1];
             })()""".trimIndent()) { raw ->
                 if (!allowed()) return@evaluateJavascript
                 val viewport = runCatching { JSONArray(raw) }.getOrNull() ?: return@evaluateJavascript
