@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "note": "Update these hashes only when playback or Live TV core changes are explicitly intended and reviewed.",
+  "note": "Hashes are updated only for reviewed playback-core changes. The VideoPlayer hash includes the intentionally limited Fire TV embedded-provider remote-control handoff for Live TV; stream discovery, ranking, and channel data remain guarded.",
   "files": {
-    "src/components/mg/VideoPlayer.jsx": "77c6bae9f432fd32293ba412879013cdf11e9c0d4f39b3600e8181553a53e4e4",
+    "src/components/mg/VideoPlayer.jsx": "692f5450e549683ded6f507529564ffaa610d538f893d0736708ce31bd9da0e1",
     "src/components/mg/MediaPlayerProvider.jsx": "4e4a96da67a935847c2d1cd05cd0e6de5f5aa8392f52af45f6a132d156a43f1f",
     "src/components/mg/PlayerProvider.jsx": "d8c07cd2f7b41d57b74ae0c093a723a68c5f30fa897f3df5efa6b4e0ce5bc48d",
     "src/components/mg/MediaPlayerControls.jsx": "11aa49a1d8a9d904fabb4ab756b4a9b0895b3f5a80d585429b618b60161f4a55",
