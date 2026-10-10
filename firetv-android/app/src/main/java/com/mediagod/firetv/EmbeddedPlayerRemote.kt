@@ -92,32 +92,26 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
                 webView.dispatchTouchEvent(hover)
                 hover.recycle()
 
-                val down = MotionEvent.obtain(
+                val down = obtainMouseButtonEvent(
                     downAt,
                     downAt,
                     MotionEvent.ACTION_DOWN,
                     x,
-                    y,
-                    0
+                    y
                 )
-                down.source = InputDevice.SOURCE_MOUSE
-                down.buttonState = MotionEvent.BUTTON_PRIMARY
                 webView.dispatchTouchEvent(down)
                 down.recycle()
 
                 webView.postDelayed({
                     if (allowed()) {
                         val upAt = SystemClock.uptimeMillis()
-                        val up = MotionEvent.obtain(
+                        val up = obtainMouseButtonEvent(
                             downAt,
                             upAt,
                             MotionEvent.ACTION_UP,
                             x,
-                            y,
-                            0
+                            y
                         )
-                        up.source = InputDevice.SOURCE_MOUSE
-                        up.buttonState = MotionEvent.BUTTON_PRIMARY
                         webView.dispatchTouchEvent(up)
                         up.recycle()
                     }
@@ -126,4 +120,43 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
         }
         return true
     }
+    /**
+     * Build a mouse-button event with buttonState supplied to MotionEvent.obtain.
+     * MotionEvent.buttonState is read-only on Android's Kotlin API.
+     */
+    private fun obtainMouseButtonEvent(
+        downTime: Long,
+        eventTime: Long,
+        action: Int,
+        x: Float,
+        y: Float
+    ): MotionEvent {
+        val properties = MotionEvent.PointerProperties().apply {
+            id = 0
+            toolType = MotionEvent.TOOL_TYPE_MOUSE
+        }
+        val coordinates = MotionEvent.PointerCoords().apply {
+            this.x = x
+            this.y = y
+            pressure = 1f
+            size = 1f
+        }
+        return MotionEvent.obtain(
+            downTime,
+            eventTime,
+            action,
+            1,
+            arrayOf(properties),
+            arrayOf(coordinates),
+            0,
+            MotionEvent.BUTTON_PRIMARY,
+            1f,
+            1f,
+            0,
+            0,
+            InputDevice.SOURCE_MOUSE,
+            0
+        )
+    }
+
 }
