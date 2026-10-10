@@ -109,7 +109,7 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
                 val down = obtainMouseButtonEvent(
                     downAt,
                     downAt,
-                    MotionEvent.ACTION_BUTTON_PRESS,
+                    MotionEvent.ACTION_DOWN,
                     x,
                     y
                 )
@@ -122,17 +122,10 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
                         val up = obtainMouseButtonEvent(
                             downAt,
                             upAt,
-                            MotionEvent.ACTION_BUTTON_RELEASE,
+                            MotionEvent.ACTION_UP,
                             x,
                             y
-                        ).apply {
-                            // Avoid compile-time dependency on setActionButton, which is
-                            // absent from the project's compile SDK but present on supported Fire TV APIs.
-                            runCatching {
-                                javaClass.getMethod("setActionButton", Int::class.javaPrimitiveType)
-                                    .invoke(this, MotionEvent.BUTTON_PRIMARY)
-                            }
-                        }
+)
                         webView.dispatchGenericMotionEvent(up)
                         up.recycle()
                     }
@@ -171,7 +164,7 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
             arrayOf(properties),
             arrayOf(coordinates),
             0,
-            if (action == MotionEvent.ACTION_BUTTON_PRESS)
+            if (action == MotionEvent.ACTION_DOWN)
                 MotionEvent.BUTTON_PRIMARY else 0,
             1f,
             1f,
