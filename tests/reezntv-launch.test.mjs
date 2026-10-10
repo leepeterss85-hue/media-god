@@ -30,7 +30,14 @@ test("Fire TV launches the installed ReeznTV app by its launcher label or packag
   assert.match(manifest, /<category android:name="android\.intent\.category\.LAUNCHER" \/>/);
 });
 
-test("existing OnlyFlix integration remains wired", () => {
-  assert.match(sources, /id: "onlyflix-web-player"/);
+test("OnlyFlix multi-server webpage is offered for films and TV episodes", () => {
+  assert.match(sources, /label: "OnlyFlix • Multiple Servers"/);
+  assert.match(sources, /choose an available server for this film or episode/);
+  assert.match(sources, /onClick: \(\) => player\.playOnlyFlix\(/);
   assert.match(provider, /const playOnlyFlix = useCallback/);
+});
+
+test("ReeznTV app handoff remains limited to Live TV", () => {
+  assert.match(sources, /mediaType === "live" \? \[\{\s*id: "reezntv-external-app"/);
+  assert.doesNotMatch(sources, /External app • choose this title inside ReeznTV/);
 });
