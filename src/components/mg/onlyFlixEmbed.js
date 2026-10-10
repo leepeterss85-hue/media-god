@@ -51,3 +51,21 @@ export const buildOnlyFlixEmbedUrl = (media = {}) => {
 
   return `${base}?season=${ctx.season}&episode=${ctx.episode}`;
 };
+
+/**
+ * Public OnlyFlix title page for the separate Multiple Servers button.
+ * Keep buildOnlyFlixEmbedUrl unchanged for the green Play action.
+ */
+export const buildOnlyFlixTitlePageUrl = (media = {}) => {
+  const type = validType(media);
+  const title = idText(media?.title)
+    .replace(/\\s*\\((?:19|20)\\d{2}\\)\\s*$/, "")
+    .normalize("NFKD")
+    .replace(/[\\u0300-\\u036f]/g, "")
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  if (!type || !title) return "";
+  return `https://onlyflix.to/${title}/`;
+};
