@@ -93,9 +93,8 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
                 /*
                  * Chromium's WebView expects mouse-button transitions as
                  * ACTION_BUTTON_PRESS / ACTION_BUTTON_RELEASE generic-motion
-                 * events. Android also requires actionButton to identify which
-                 * button changed; buttonState alone is not enough for WebView
-                 * to reliably synthesize DOM mouse events inside an iframe.
+                 * events. Include BUTTON_PRIMARY in buttonState for the press;
+                 * MotionEvent.setActionButton is not exposed by this SDK.
                  */
                 val down = obtainMouseButtonEvent(
                     downAt,
@@ -103,7 +102,7 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
                     MotionEvent.ACTION_BUTTON_PRESS,
                     x,
                     y
-                ).apply { setActionButton(MotionEvent.BUTTON_PRIMARY) }
+                )
                 webView.dispatchGenericMotionEvent(down)
                 down.recycle()
 
