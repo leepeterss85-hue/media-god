@@ -32,6 +32,7 @@ import { buildTwoEmbedEmbedUrl, buildCineSrcEmbedUrl, buildMultiEmbedEmbedUrl } 
 import { fetchTmdbEmbedStreams } from "@/components/mg/tmdbEmbedStreams";
 import { cn } from "@/lib/utils";
 import { magnetFromInput } from "@/components/mg/magnetStreamHelpers";
+import { launchReeznTv } from "@/components/mg/reeznTvLauncher";
 
 const unwrap = (response) =>
   response?.data ??
@@ -1469,6 +1470,14 @@ export default function StreamSourcesBox({
       onClick: () => player.playOnlyFlix({ id: tmdbId, tmdbId, imdbId: resolvedImdb || imdbId, title, poster, mediaType, season, episode }),
     }] : []),
 
+    ...(mediaType !== "live" ? [{
+      id: "reezntv-external-app",
+      kind: "reezn",
+      label: "ReeznTV app",
+      note: "External app • opens the installed ReeznTV app when available",
+      onClick: () => launchReeznTv(),
+    }] : []),
+
     ...(providers || [])
       .filter(
         (provider) =>
@@ -1753,7 +1762,7 @@ export default function StreamSourcesBox({
       );
     }
 
-    if (kind === "vidsrc" || kind === "embedsu" || kind === "vidcore" || kind === "onlyflix") {
+    if (kind === "vidsrc" || kind === "embedsu" || kind === "vidcore" || kind === "onlyflix" || kind === "reezn") {
       return <ExternalLink className="w-4 h-4 text-amber-300" />;
     }
 
@@ -1844,7 +1853,7 @@ export default function StreamSourcesBox({
                   row.kind ===
                       "rd"
                     ? "bg-mg-green/10 hover:bg-mg-green/20 border-mg-green/30"
-                    : (row.kind === "vidsrc" || row.kind === "embedsu" || row.kind === "vidcore" || row.kind === "onlyflix")
+                    : (row.kind === "vidsrc" || row.kind === "embedsu" || row.kind === "vidcore" || row.kind === "onlyflix" || row.kind === "reezn")
                       ? "bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30"
                     : (row.kind === "webtor" || row.kind === "webtorrent")
                       ? "bg-purple-500/10 hover:bg-purple-500/20 border-purple-500/30"
