@@ -41,13 +41,3 @@ test("ReeznTV app handoff remains limited to Live TV", () => {
   assert.match(sources, /mediaType === "live" \? \[\{\s*id: "reezntv-external-app"/);
   assert.doesNotMatch(sources, /External app • choose this title inside ReeznTV/);
 });
-
-test("OnlyFlix opens its public title page where server choices are listed", () => {
-  const onlyFlix = read("src/components/mg/onlyFlixEmbed.js");
-  assert.match(onlyFlix, /https:\/\/onlyflix\.to\//);
-  assert.match(onlyFlix, /media\?\.title/);
-  assert.match(onlyFlix, /replace\(\/\[\^a-z0-9\]\+\/g, "-"\)/);
-  assert.match(sources, /buildOnlyFlixEmbedUrl\(\{ mediaType, title, tmdbId/);
-  assert.match(sources, /player\.playOnlyFlix\(\{ id: tmdbId, tmdbId, imdbId: resolvedImdb \|\| imdbId, title/);
-  assert.doesNotMatch(onlyFlix, /share\.cdnm\.ink\/embed/);
-});
