@@ -13,8 +13,9 @@ const manifest = read("firetv-android/app/src/main/AndroidManifest.xml");
 
 test("ReeznTV appears as a clearly labelled external app handoff", () => {
   assert.match(sources, /id: "reezntv-external-app"/);
-  assert.match(sources, /label: "ReeznTV app"/);
+  assert.match(sources, /label: mediaType === "live" \? "ReeznTV Live TV app" : "ReeznTV app"/);
   assert.match(sources, /choose this title inside ReeznTV/);
+  assert.match(sources, /choose a live channel inside ReeznTV/);
   assert.match(launcher, /launchNativeFireTvReeznTV\(\)/);
   assert.match(launcher, /https:\/\/reezntvapp\.com\/download/);
   assert.match(sources, /onClick: \(\) => launchReeznTv\(\)/);
