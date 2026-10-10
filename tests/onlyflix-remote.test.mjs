@@ -117,10 +117,10 @@ test("taps scale layout CSS coordinates through the visible viewport and release
   assert.match(native, /ACTION_HOVER_MOVE/);
   assert.match(native, /MotionEvent\.ACTION_DOWN/);
   assert.match(native, /MotionEvent\.ACTION_UP/);
-  assert.match(native, /dispatchGenericMotionEvent\(down\)/);
-  assert.match(native, /dispatchGenericMotionEvent\(up\)/);
+  assert.match(native, /dispatchTouchEvent\(down\)/);
+  assert.match(native, /dispatchTouchEvent\(up\)/);
   assert.match(native, /if \(action == MotionEvent\.ACTION_DOWN\)/);
-  assert.doesNotMatch(native, /dispatchTouchEvent\(down\)|dispatchTouchEvent\(up\)/);
+  assert.doesNotMatch(native, /dispatchGenericMotionEvent\(down\)|dispatchGenericMotionEvent\(up\)/);
   assert.doesNotMatch(native, /displayMetrics\.density|now \+ 60/);
 });
 
