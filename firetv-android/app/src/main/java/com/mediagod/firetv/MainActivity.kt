@@ -705,6 +705,44 @@ class MainActivity : Activity() {
         }
 
         @JavascriptInterface
+        fun launchReeznTvApp(): Boolean {
+            if (!nativeBridgeAllowed()) {
+                return false
+            }
+
+            val launcherIntent = Intent(Intent.ACTION_MAIN)
+                .addCategory(Intent.CATEGORY_LAUNCHER)
+
+            val target = try {
+                packageManager.queryIntentActivities(launcherIntent, 0).firstOrNull { resolved ->
+                    val activity = resolved.activityInfo
+                    val packageId = activity?.packageName.orEmpty()
+                    val label = resolved.loadLabel(packageManager)?.toString().orEmpty()
+                    (label.contains("reezn", ignoreCase = true) ||
+                        packageId.contains("reezn", ignoreCase = true)) &&
+                        packageId != packageName
+                }
+            } catch (_: Throwable) {
+                null
+            } ?: return false
+
+            val targetActivity = target.activityInfo ?: return false
+            runOnUiThread {
+                try {
+                    val launchIntent = Intent(Intent.ACTION_MAIN)
+                        .addCategory(Intent.CATEGORY_LAUNCHER)
+                        .setClassName(targetActivity.packageName, targetActivity.name)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    startActivity(launchIntent)
+                } catch (_: Throwable) {
+                    // The web fallback handles a missing or unlaunchable app.
+                }
+            }
+
+            return true
+        }
+
+        @JavascriptInterface
         fun openExternalUrl(url: String): Boolean {
             if (!nativeBridgeAllowed()) {
                 return false
