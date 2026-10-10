@@ -113,10 +113,11 @@ test("taps use viewport scale and real delayed touch release, not display densit
   assert.match(native, /private fun obtainMouseButtonEvent\(/);
   assert.doesNotMatch(native, /\.buttonState\s*=/);
   assert.match(native, /ACTION_HOVER_MOVE/);
-  assert.match(native, /ACTION_DOWN/);
-  assert.match(native, /ACTION_UP/);
+  assert.match(native, /ACTION_BUTTON_PRESS/);
+  assert.match(native, /ACTION_BUTTON_RELEASE/);
   assert.match(native, /dispatchGenericMotionEvent\(down\)/);
   assert.match(native, /dispatchGenericMotionEvent\(up\)/);
+  assert.match(native, /setActionButton\(MotionEvent\.BUTTON_PRIMARY\)/);
   assert.doesNotMatch(native, /dispatchTouchEvent\(down\)|dispatchTouchEvent\(up\)/);
   assert.doesNotMatch(native, /displayMetrics\.density|now \+ 60/);
 });
