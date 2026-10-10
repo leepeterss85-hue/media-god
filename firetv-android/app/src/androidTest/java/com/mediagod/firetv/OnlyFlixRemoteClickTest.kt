@@ -117,6 +117,10 @@ class OnlyFlixRemoteClickTest {
                     probe.record("native touch:${event.action}:${event.x},${event.y},view:${view.width},${view.height}")
                     false
                 }
+                view.setOnGenericMotionListener { _, event ->
+                    probe.record("native generic:${event.action}:${event.x},${event.y},buttons:${event.buttonState},view:${view.width},${view.height}")
+                    false
+                }
                 view.addJavascriptInterface(probe, "ClickProbe")
                 view.webViewClient = object : WebViewClient() {
                     override fun shouldInterceptRequest(
@@ -150,6 +154,10 @@ class OnlyFlixRemoteClickTest {
             assertTrue("Select never pressed the movie Play button: ${probe.diagnostics.joinToString("; ")}", selected)
             assertTrue("The player click must be a trusted mouse activation", probe.lastClick.get().getBoolean("trusted"))
             assertTrue("The iframe did not receive the mouse release", probe.diagnostics.any { it.contains("\"type\":\"mouseup\"") })
+            assertTrue("Native mouse button press was not dispatched: ${probe.diagnostics.joinToString("; ")}",
+                probe.diagnostics.any { it.contains("native generic:${MotionEvent.ACTION_BUTTON_PRESS}:") })
+            assertTrue("Native mouse button release was not dispatched: ${probe.diagnostics.joinToString("; ")}",
+                probe.diagnostics.any { it.contains("native generic:${MotionEvent.ACTION_BUTTON_RELEASE}:") })
             assertTrue("The player must receive user activation", probe.lastClick.get().getBoolean("activation"))
             assertEquals(1, probe.clicks.get())
             scenario.onActivity { activity ->
