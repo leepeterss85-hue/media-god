@@ -55,7 +55,10 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
               // getBoundingClientRect() returns layout-viewport CSS coordinates.
               // visualViewport.width can be narrower on a TV WebView even at scale 1,
               // which magnifies pointer coordinates and misses the iframe.
-              return [window.innerWidth,window.innerHeight,window.devicePixelRatio||1,0,1];
+              var visible=window.visualViewport;
+              return [window.innerWidth,window.innerHeight,
+                visible&&visible.width>0?visible.width:window.innerWidth,
+                visible&&visible.height>0?visible.height:window.innerHeight,1];
             })()""".trimIndent()) { raw ->
                 if (!allowed()) return@evaluateJavascript
                 val viewport = runCatching { JSONArray(raw) }.getOrNull() ?: return@evaluateJavascript
@@ -65,16 +68,18 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
                 if (viewport.optInt(4, 0) != 1) return@evaluateJavascript
                 val width = viewport.optDouble(0, 0.0).toFloat()
                 val height = viewport.optDouble(1, 0.0).toFloat()
-                val pixelRatio = viewport.optDouble(2, 1.0).toFloat()
-                if (!width.isFinite() || !height.isFinite() || !pixelRatio.isFinite() ||
-                    width <= 0f || height <= 0f || pixelRatio <= 0f ||
+                val visibleWidth = viewport.optDouble(2, width.toDouble()).toFloat()
+                val visibleHeight = viewport.optDouble(3, height.toDouble()).toFloat()
+                if (!width.isFinite() || !height.isFinite() ||
+                    !visibleWidth.isFinite() || !visibleHeight.isFinite() ||
+                    width <= 0f || height <= 0f || visibleWidth <= 0f || visibleHeight <= 0f ||
                     cssX < 0f || cssY < 0f || cssX >= width || cssY >= height) return@evaluateJavascript
-                // MotionEvent coordinates are Android physical pixels, while DOM
-                // hit-testing returns CSS pixels. The layout viewport can be wider
-                // than visualViewport on TV devices, so width-ratio scaling is wrong;
-                // use Chromium's CSS-to-device pixel ratio instead.
-                val x = cssX * pixelRatio
-                val y = cssY * pixelRatio
+                // MotionEvent coordinates are Android physical pixels, while DOM hit-testing
+                // returns layout CSS pixels. On some TV WebViews the layout viewport
+                // is wider than the visible viewport; devicePixelRatio alone does
+                // not account for that. Scale by the visible CSS viewport dimensions.
+                val x = cssX * webView.width / visibleWidth
+                val y = cssY * webView.height / visibleHeight
                 /*
                  * Fire TV's D-pad pointer is a mouse-like remote interaction.
                  * Sending a real primary-button mouse sequence is more reliable
