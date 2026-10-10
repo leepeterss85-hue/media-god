@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
 const sources = read("src/components/mg/MediaStreamSourcesBox.jsx");
+const onlyFlix = read("src/components/mg/onlyFlixEmbed.js");
 const provider = read("src/components/mg/MediaPlayerProvider.jsx");
 const bridge = read("src/components/mg/nativeFireTvBridge.js");
 const launcher = read("src/components/mg/reeznTvLauncher.js");
@@ -33,8 +34,12 @@ test("Fire TV launches the installed ReeznTV app by its launcher label or packag
 test("OnlyFlix multi-server webpage is offered for films and TV episodes", () => {
   assert.match(sources, /label: "OnlyFlix • Multiple Servers"/);
   assert.match(sources, /choose an available server for this film or episode/);
-  assert.match(sources, /onClick: \(\) => player\.playOnlyFlix\(/);
+  assert.match(sources, /onClick: \(\) => onlyFlixTitlePageUrl && window\.open\(onlyFlixTitlePageUrl/);
+  assert.match(sources, /buildOnlyFlixTitlePageUrl/);
+  assert.match(onlyFlix, /https:\/\/onlyflix\.to\//);
+  assert.match(onlyFlix, /media\?\.title/);
   assert.match(provider, /const playOnlyFlix = useCallback/);
+  assert.match(provider, /buildOnlyFlixEmbedUrl\(media\)/);
 });
 
 test("ReeznTV app handoff remains limited to Live TV", () => {
