@@ -55,7 +55,7 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
               // getBoundingClientRect() returns layout-viewport CSS coordinates.
               // visualViewport.width can be narrower on a TV WebView even at scale 1,
               // which magnifies pointer coordinates and misses the iframe.
-              return [window.innerWidth,window.innerHeight,0,0,1];
+              return [window.innerWidth,window.innerHeight,window.devicePixelRatio||1,0,1];
             })()""".trimIndent()) { raw ->
                 if (!allowed()) return@evaluateJavascript
                 val viewport = runCatching { JSONArray(raw) }.getOrNull() ?: return@evaluateJavascript
@@ -65,11 +65,16 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
                 if (viewport.optInt(4, 0) != 1) return@evaluateJavascript
                 val width = viewport.optDouble(0, 0.0).toFloat()
                 val height = viewport.optDouble(1, 0.0).toFloat()
-                if (!width.isFinite() || !height.isFinite() ||
-                    width <= 0f || height <= 0f || cssX < 0f || cssY < 0f ||
-                    cssX >= width || cssY >= height) return@evaluateJavascript
-                val x = cssX * webView.width / width
-                val y = cssY * webView.height / height
+                val pixelRatio = viewport.optDouble(2, 1.0).toFloat()
+                if (!width.isFinite() || !height.isFinite() || !pixelRatio.isFinite() ||
+                    width <= 0f || height <= 0f || pixelRatio <= 0f ||
+                    cssX < 0f || cssY < 0f || cssX >= width || cssY >= height) return@evaluateJavascript
+                // MotionEvent coordinates are Android physical pixels, while DOM
+                // hit-testing returns CSS pixels. The layout viewport can be wider
+                // than visualViewport on TV devices, so width-ratio scaling is wrong;
+                // use Chromium's CSS-to-device pixel ratio instead.
+                val x = cssX * pixelRatio
+                val y = cssY * pixelRatio
                 /*
                  * Fire TV's D-pad pointer is a mouse-like remote interaction.
                  * Sending a real primary-button mouse sequence is more reliable
