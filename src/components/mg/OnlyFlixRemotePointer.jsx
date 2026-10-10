@@ -9,7 +9,7 @@ export default function OnlyFlixRemotePointer({ visible = true }) {
     if (!available) return undefined;
     const move = (event) => {
       const direction = event.detail;
-      const frame = document.querySelector('[data-mg-onlyflix-player="true"] iframe');
+      const frame = document.querySelector('[data-mg-embedded-remote-player="true"] iframe');
       if (!frame) return;
       const rect = frame.getBoundingClientRect();
       if (rect.width < 2 || rect.height < 2) return;
