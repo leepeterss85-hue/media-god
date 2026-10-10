@@ -115,7 +115,14 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
                             MotionEvent.ACTION_BUTTON_RELEASE,
                             x,
                             y
-                        ).apply { setActionButton(MotionEvent.BUTTON_PRIMARY) }
+                        ).apply {
+                            // Avoid compile-time dependency on setActionButton, which is
+                            // absent from the project's compile SDK but present on supported Fire TV APIs.
+                            runCatching {
+                                javaClass.getMethod("setActionButton", Int::class.javaPrimitiveType)
+                                    .invoke(this, MotionEvent.BUTTON_PRIMARY)
+                            }
+                        }
                         webView.dispatchGenericMotionEvent(up)
                         up.recycle()
                     }
