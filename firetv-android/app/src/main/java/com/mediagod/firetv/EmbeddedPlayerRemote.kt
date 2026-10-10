@@ -27,7 +27,7 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
         if (event.action == KeyEvent.ACTION_DOWN && (event.repeatCount == 0 || key.startsWith("Arrow"))) {
             webView.evaluateJavascript(
                 """(function(){
-                  if(!document.querySelector('[data-mg-onlyflix-player="true"]'))return;
+                  if(!document.querySelector('[data-mg-embedded-remote-player="true"]'))return;
                   window.dispatchEvent(new KeyboardEvent('keydown',{
                     key:${JSONObject.quote(key)},bubbles:true,cancelable:true,repeat:${event.repeatCount > 0}
                   }));
@@ -46,7 +46,7 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
             val xLiteral = cssX.toString()
             val yLiteral = cssY.toString()
             webView.evaluateJavascript("""(function(){
-              var frame=document.querySelector('[data-mg-onlyflix-player="true"] [data-mg-embed-iframe="true"]');
+              var frame=document.querySelector('[data-mg-embedded-remote-player="true"] [data-mg-embed-iframe="true"]');
               if(!frame)return [];
               var x=$xLiteral, y=$yLiteral;
               var rect=frame.getBoundingClientRect();
