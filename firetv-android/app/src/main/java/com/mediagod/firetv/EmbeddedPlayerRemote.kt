@@ -155,7 +155,8 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
             arrayOf(properties),
             arrayOf(coordinates),
             0,
-            if (action == MotionEvent.ACTION_DOWN) MotionEvent.BUTTON_PRIMARY else 0,
+            if (action == MotionEvent.ACTION_BUTTON_PRESS || action == MotionEvent.ACTION_DOWN)
+                MotionEvent.BUTTON_PRIMARY else 0,
             1f,
             1f,
             0,
