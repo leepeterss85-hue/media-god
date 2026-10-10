@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
-/** Exercises real WebView touch delivery; the child player is a separate origin. */
+/** Exercises real WebView mouse delivery; the child player is a separate origin. */
 @RunWith(AndroidJUnit4::class)
 class OnlyFlixRemoteClickTest {
     class ClickProbe {
@@ -155,10 +155,10 @@ class OnlyFlixRemoteClickTest {
             assertTrue("Select never pressed the movie Play button: ${probe.diagnostics.joinToString("; ")}", selected)
             assertTrue("The player click must be a trusted mouse activation", probe.lastClick.get().getBoolean("trusted"))
             assertTrue("The iframe did not receive the mouse release", probe.diagnostics.any { it.contains("\"type\":\"mouseup\"") })
-            assertTrue("Native mouse button press was not dispatched: ${probe.diagnostics.joinToString("; ")}",
-                probe.diagnostics.any { it.contains("native generic:${MotionEvent.ACTION_BUTTON_PRESS}:") })
-            assertTrue("Native mouse button release was not dispatched: ${probe.diagnostics.joinToString("; ")}",
-                probe.diagnostics.any { it.contains("native generic:${MotionEvent.ACTION_BUTTON_RELEASE}:") })
+            assertTrue("Native primary mouse down was not dispatched: ${probe.diagnostics.joinToString("; ")}",
+                probe.diagnostics.any { it.contains("native generic:${MotionEvent.ACTION_DOWN}:") && it.contains("buttons:1") })
+            assertTrue("Native primary mouse up was not dispatched: ${probe.diagnostics.joinToString("; ")}",
+                probe.diagnostics.any { it.contains("native generic:${MotionEvent.ACTION_UP}:") })
             assertTrue("The player must receive user activation", probe.lastClick.get().getBoolean("activation"))
             assertEquals(1, probe.clicks.get())
             scenario.onActivity { activity ->
