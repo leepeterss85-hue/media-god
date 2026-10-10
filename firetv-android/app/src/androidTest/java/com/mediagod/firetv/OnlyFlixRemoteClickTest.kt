@@ -1,6 +1,7 @@
 package com.mediagod.firetv
 
 import android.view.KeyEvent
+import android.view.MotionEvent
 import android.webkit.JavascriptInterface
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
