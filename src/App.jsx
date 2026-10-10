@@ -93,9 +93,12 @@ const AuthenticatedApp = () => {
     </Routes>
   );
 
-  return isAuthenticated || isGuest
-    ? <PlayerProvider>{appRoutes}</PlayerProvider>
-    : appRoutes;
+  // Always wrap the route tree in PlayerProvider. Conditionally mounting it
+  // on `isAuthenticated || isGuest` unmounts the provider during auth-state
+  // transitions while Home is still mounted, throwing
+  // "usePlayer must be used within a PlayerProvider". The provider is just a
+  // context, so it is harmless on the public auth screens.
+  return <PlayerProvider>{appRoutes}</PlayerProvider>;
 };
 
 function App() {
