@@ -99,13 +99,14 @@ test("a tap over the app source picker is swallowed and never dispatched", () =>
   assert.deepEqual(taps, []);
 });
 
-test("taps use viewport scale and real delayed touch release, not display density", () => {
-  assert.match(native, /window\.innerWidth,window\.innerHeight,0,0,1/);
+test("taps use CSS-to-device pixel ratio and real delayed mouse release", () => {
+  assert.match(native, /window\.innerWidth,window\.innerHeight,window\.devicePixelRatio\|\|1,0,1/);
   assert.match(native, /document\.elementFromPoint\(x,y\)!==frame/);
   assert.match(native, /viewport\.optInt\(4, 0\) != 1/);
-  assert.match(native, /cssX \* webView\.width \/ width/);
-  assert.match(native, /cssX \* webView\.width \/ width/);
-  assert.match(native, /cssY \* webView\.height \/ height/);
+  assert.match(native, /viewport\.optDouble\(2, 1\.0\)/);
+  assert.match(native, /cssX \* pixelRatio/);
+  assert.match(native, /cssY \* pixelRatio/);
+  assert.doesNotMatch(native, /cssX \* webView\.width \/ width|cssY \* webView\.height \/ height/);
   assert.match(native, /postDelayed/);
   assert.match(native, /80L/);
   assert.match(native, /SOURCE_MOUSE/);
