@@ -91,16 +91,17 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
                 hover.recycle()
 
                 /*
-                 * Mouse buttons are generic-motion events on Android. Sending
-                 * mouse-source ACTION_DOWN/UP through dispatchTouchEvent makes
-                 * the WebView log a touch but does not reliably forward a real
-                 * DOM mousedown/mouseup into a cross-origin iframe. Use the
-                 * dedicated button actions so Chromium receives mouse input.
+                 * Chromium's WebView synthesizes DOM mouse down/up from the
+                 * primary mouse-button gesture actions. ACTION_BUTTON_PRESS /
+                 * RELEASE report auxiliary button-state changes and do not
+                 * consistently produce a DOM click for the primary button.
+                 * Keep the mouse source and route the pair through generic
+                 * motion dispatch so it remains a mouse gesture, not a touch.
                  */
                 val down = obtainMouseButtonEvent(
                     downAt,
                     downAt,
-                    MotionEvent.ACTION_BUTTON_PRESS,
+                    MotionEvent.ACTION_DOWN,
                     x,
                     y
                 )
@@ -113,7 +114,7 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
                         val up = obtainMouseButtonEvent(
                             downAt,
                             upAt,
-                            MotionEvent.ACTION_BUTTON_RELEASE,
+                            MotionEvent.ACTION_UP,
                             x,
                             y
                         )
@@ -155,7 +156,7 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
             arrayOf(properties),
             arrayOf(coordinates),
             0,
-            if (action == MotionEvent.ACTION_BUTTON_PRESS || action == MotionEvent.ACTION_DOWN)
+            if (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_BUTTON_PRESS)
                 MotionEvent.BUTTON_PRIMARY else 0,
             1f,
             1f,
