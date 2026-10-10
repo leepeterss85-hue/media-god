@@ -18,6 +18,8 @@ test("ReeznTV appears as a clearly labelled external app handoff", () => {
   assert.match(launcher, /launchNativeFireTvReeznTV\(\)/);
   assert.match(launcher, /https:\/\/reezntvapp\.com\/download/);
   assert.match(sources, /onClick: \(\) => launchReeznTv\(\)/);
+  assert.match(sources, /mediaType === "live"/);
+  assert.doesNotMatch(sources, /mediaType !== "live" \? \[\{\s*id: "reezntv-external-app"/);
 });
 
 test("Fire TV launches the installed ReeznTV app by its launcher label or package name", () => {
