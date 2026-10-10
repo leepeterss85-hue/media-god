@@ -94,18 +94,18 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
                 hover.recycle()
 
                 /*
-                 * Chromium's WebView expects mouse-button transitions as
-                 * trusted ACTION_DOWN / ACTION_UP mouse events. They must pass through
-                 * WebView's input dispatch path to produce a DOM click.
+                 * WebView maps trusted mouse clicks from generic mouse-button events.
+                 * Touch ACTION_DOWN/UP only produced touch events and never a DOM click.
+                 * Set actionButton explicitly so Chromium sees which mouse button changed.
                  */
                 val down = obtainMouseButtonEvent(
                     downAt,
                     downAt,
-                    MotionEvent.ACTION_DOWN,
+                    MotionEvent.ACTION_BUTTON_PRESS,
                     x,
                     y
                 )
-                webView.dispatchTouchEvent(down)
+                webView.dispatchGenericMotionEvent(down)
                 down.recycle()
 
                 webView.postDelayed({
@@ -114,11 +114,11 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
                         val up = obtainMouseButtonEvent(
                             downAt,
                             upAt,
-                            MotionEvent.ACTION_UP,
+                            MotionEvent.ACTION_BUTTON_RELEASE,
                             x,
                             y
-)
-                        webView.dispatchTouchEvent(up)
+                        )
+                        webView.dispatchGenericMotionEvent(up)
                         up.recycle()
                     }
                 }, 80L)
@@ -156,7 +156,7 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
             arrayOf(properties),
             arrayOf(coordinates),
             0,
-            if (action == MotionEvent.ACTION_DOWN)
+            if (action == MotionEvent.ACTION_BUTTON_PRESS)
                 MotionEvent.BUTTON_PRIMARY else 0,
             1f,
             1f,
@@ -164,6 +164,14 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
             0,
             InputDevice.SOURCE_MOUSE,
             0
-        )
+        ).also { event ->
+            // ACTION_BUTTON_PRESS/RELEASE need the changed button encoded separately
+            // from buttonState. Keep this guarded for vendor WebView/API differences.
+            runCatching {
+                MotionEvent::class.java
+                    .getMethod("setActionButton", Int::class.javaPrimitiveType)
+                    .invoke(event, MotionEvent.BUTTON_PRIMARY)
+            }
+        }
     }
 }
