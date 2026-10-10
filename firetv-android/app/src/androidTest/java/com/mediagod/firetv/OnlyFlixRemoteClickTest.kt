@@ -155,10 +155,10 @@ class OnlyFlixRemoteClickTest {
             assertTrue("Select never pressed the movie Play button: ${probe.diagnostics.joinToString("; ")}", selected)
             assertTrue("The player click must be a trusted mouse activation", probe.lastClick.get().getBoolean("trusted"))
             assertTrue("The iframe did not receive the mouse release", probe.diagnostics.any { it.contains("\"type\":\"mouseup\"") })
-            assertTrue("Native primary mouse down was not dispatched: ${probe.diagnostics.joinToString("; ")}",
-                probe.diagnostics.any { it.contains("native generic:${MotionEvent.ACTION_DOWN}:") && it.contains("buttons:1") })
-            assertTrue("Native primary mouse up was not dispatched: ${probe.diagnostics.joinToString("; ")}",
-                probe.diagnostics.any { it.contains("native generic:${MotionEvent.ACTION_UP}:") })
+            assertTrue("Native primary mouse press was not dispatched: ${probe.diagnostics.joinToString("; ")}",
+                probe.diagnostics.any { it.contains("native generic:${MotionEvent.ACTION_BUTTON_PRESS}:") && it.contains("buttons:1") })
+            assertTrue("Native primary mouse release was not dispatched: ${probe.diagnostics.joinToString("; ")}",
+                probe.diagnostics.any { it.contains("native generic:${MotionEvent.ACTION_BUTTON_RELEASE}:") })
             assertTrue("The player must receive user activation", probe.lastClick.get().getBoolean("activation"))
             assertEquals(1, probe.clicks.get())
             scenario.onActivity { activity ->
