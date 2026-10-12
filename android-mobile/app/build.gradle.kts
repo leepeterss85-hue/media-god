@@ -1,4 +1,4 @@
-// Live native source dropdown release 1.0.75 verification.
+// VOD audio compatibility release 1.0.78.
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.mediagod.mobile"
         minSdk = 23
         targetSdk = 35
-        versionCode = 78
-        versionName = "1.0.77"
+        versionCode = 79
+        versionName = "1.0.78"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
