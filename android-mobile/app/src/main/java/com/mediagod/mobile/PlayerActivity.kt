@@ -1323,6 +1323,35 @@ class PlayerActivity : Activity() {
         )
     }
 
+    private fun selectedAudioRequiresPcmRescue(
+        tracks: androidx.media3.common.Tracks
+    ): Boolean {
+        tracks.groups.forEach { group ->
+            if (group.type != C.TRACK_TYPE_AUDIO) return@forEach
+
+            for (index in 0 until group.length) {
+                if (!group.isTrackSelected(index)) continue
+
+                val format = group.getTrackFormat(index)
+                val mime = format.sampleMimeType.orEmpty().trim().lowercase()
+                if (
+                    format.channelCount > 2 ||
+                    mime in setOf(
+                        "audio/ac3",
+                        "audio/eac3",
+                        "audio/eac3-joc",
+                        "audio/ac4",
+                        "audio/vnd.dts",
+                        "audio/vnd.dts.hd",
+                        "audio/true-hd",
+                        "audio/vnd.dolby.mlp"
+                    )
+                ) return true
+            }
+        }
+        return false
+    }
+
     private fun scheduleMissingAudioCheck(
         activePlayer: ExoPlayer,
         tracks: androidx.media3.common.Tracks
@@ -1340,26 +1369,28 @@ class PlayerActivity : Activity() {
                 !activePlayer.isPlaying || activePlayer.currentPosition < 5000L
             ) return@postDelayed
 
-            val latest = inspectAudioReadiness(activePlayer.currentTracks)
-            if (latest.present && latest.supported && latest.selected) {
-                // Audio-sink callbacks can arrive late or be absent on a
-                // device. A selected supported track is not proof of silence;
-                // keep the working video and let the viewer use Audio.
-                return@postDelayed
-            }
+            val latestTracks = activePlayer.currentTracks
+            // A healthy sink callback is not proof that the user can hear a
+            // risky passthrough/multichannel track. Rescue those tracks too.
+            if (
+                audioOutputConfirmed &&
+                !selectedAudioRequiresPcmRescue(latestTracks)
+            ) return@postDelayed
 
+            val latest = inspectAudioReadiness(latestTracks)
             val reason = when {
                 !latest.present ->
-                    "Video is playing but no audio track became available. Choose another source."
+                    "Video is playing but no audio track became available. Trying the same file with the compatibility decoder."
                 !latest.supported ->
-                    "The phone cannot decode this source's audio. Choose another source."
+                    "Video is playing but this device cannot decode its audio. Trying the same file with the compatibility decoder."
+                !latest.selected ->
+                    "Video is playing but no usable audio track was selected. Trying the same file with the compatibility decoder."
                 else ->
-                    "No usable audio track was selected. Choose another source."
+                    "Video is playing but native audio output never started. Trying the same file with the compatibility decoder."
             }
-            payload.put("compatibilityErrorCode", 5001)
-            payload.put("compatibilityError", reason)
-            payload.put("compatibilityReason", "audio-track-unavailable")
-            finishWithResult("error", reason)
+            if (!launchCompatibilityPlayer(activePlayer, null, reason)) {
+                finishWithResult("error", reason)
+            }
         }, 10000L)
     }
 
