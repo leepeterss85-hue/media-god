@@ -94,8 +94,9 @@ test("unknown and late audio metadata never reject a source before real silent p
     assert.match(native, /activePlayer\.currentPosition < 5000L/);
     assert.match(native, /Video is playing but no audio track became available/);
   }
-  assert.match(phone, /latest.present && latest.supported && latest.selected/);
-  assert.match(phone, /finishWithResult\("error", reason\)/);
+  assert.match(phone, /selectedAudioRequiresPcmRescue/);
+  assert.match(phone, /native audio output never started/);
+  assert.match(phone, /launchCompatibilityPlayer\(activePlayer, null, reason\)/);
   assert.match(fire, /selectedAudioRequiresPcmRescue/);
   assert.match(fire, /native audio output never started/);
 });
