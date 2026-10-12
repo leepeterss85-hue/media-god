@@ -51,6 +51,15 @@ android {
     sourceSets.getByName("androidTest").assets.srcDir(
         layout.buildDirectory.dir("generated/onlyflix-remote-test-assets")
     )
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
 }
 
 val copyOnlyFlixRemoteTestHelper by tasks.registering(Copy::class) {
