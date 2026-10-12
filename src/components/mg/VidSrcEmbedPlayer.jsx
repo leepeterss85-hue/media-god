@@ -1,9 +1,7 @@
 import React from "react";
 import { ArrowLeft, ExternalLink } from "lucide-react";
-import useEmbedPopupBlocker from "@/components/mg/useEmbedPopupBlocker";
 
 export default function VidSrcEmbedPlayer({ url, title, onBack, backLabel = "Sources" }) {
-  useEmbedPopupBlocker();
   return (
     <div
       data-mg-player-root="true"
