@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 93,
-  "versionName": "1.4.88",
+  "versionCode": 94,
+  "versionName": "1.4.89",
   "title": "Media God Fire TV",
-  "message": "Media God 1.4.88 keeps Fire TV remote input inside OnlyFlix and prevents Select from launching a background source.",
+  "message": "Media God Fire TV 1.4.89 includes the latest playback compatibility and embed-player updates.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
