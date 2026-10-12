@@ -1,4 +1,4 @@
-// OnlyFlix remote focus isolation release 1.4.88.
+// VOD audio compatibility release 1.4.89.
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.mediagod.firetv"
         minSdk = 21
         targetSdk = 35
-        versionCode = 93
-        versionName = "1.4.88"
+        versionCode = 94
+        versionName = "1.4.89"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -51,15 +51,6 @@ android {
     sourceSets.getByName("androidTest").assets.srcDir(
         layout.buildDirectory.dir("generated/onlyflix-remote-test-assets")
     )
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    kotlinOptions {
-        jvmTarget = "17"
-    }
 }
 
 val copyOnlyFlixRemoteTestHelper by tasks.registering(Copy::class) {
