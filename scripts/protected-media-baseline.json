@@ -13,7 +13,7 @@
     "base44/functions/getLiveEpg/entry.ts": "1caf894a1a60212947c8d5ef15061bbf8529e70a1d7e310b49bcddc546c48646",
     "base44/functions/antSportsLive/entry.ts": "c4d7a7e0e769cabfd10f5df896d78cbf8f85081b41d346f82c36cc62e209bf0a",
     "base44/functions/evSportsLive/entry.ts": "149d7c13a8e56e602e450919ade50b3b6d58ea115c746370863803fbe4c8ec4d",
-    "android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt": "49584f134882a7e949c92179425da57ef6b8d91fcf843d831f74635c81c27dbc",
+    "android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt": "6b465b9240a1b6cb4698b80e5f9192ae437a4597a39fdbb13f2362e09f77b2ee",
     "android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt": "b14b1d305f7b413a39644dffffe4ff10a5611dcba7b91e82c40a56f82ecde7d6",
     "firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt": "153b52b2d3ce5b3a752e1f495e0e7e1351f0f0721f31461d4a5d00da36da2106",
     "firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt": "661ec90acb607676955e89df4cdd998f0b7d906f139b0257fb69cb652c950cb7",

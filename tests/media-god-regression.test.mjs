@@ -990,7 +990,7 @@ test("player context is owned above the authenticated routes tree", () => {
   );
   assert.match(
     appSource,
-    /return isAuthenticated \|\| isGuest[\s\S]{0,120}<PlayerProvider>\{appRoutes\}<\/PlayerProvider>/
+    /return <PlayerProvider>\{appRoutes\}<\/PlayerProvider>/
   );
   assert.doesNotMatch(
     appSource,
@@ -3642,8 +3642,8 @@ test("native players prefer English main audio without replacing a manual audio 
     assert.match(source, /trackSelectionParameters\.overrides\.values\.any/);
     assert.match(source, /enforcePreferredEnglishAudio\(exoPlayer, tracks\)/);
     if (file.includes("android-mobile")) {
-      assert.match(source, /latest.present && latest.supported && latest.selected/);
-      assert.doesNotMatch(source, /native audio output never started/);
+      assert.match(source, /selectedAudioRequiresPcmRescue/);
+      assert.match(source, /native audio output never started/);
     } else {
       assert.match(source, /selectedAudioRequiresPcmRescue/);
       assert.match(source, /audioOutputConfirmed &&[\s\S]{0,120}!selectedAudioRequiresPcmRescue/);
@@ -3935,9 +3935,9 @@ test("native VOD proves audio output after playback advances and rescues silent 
     assert.match(block, /activePlayer\.currentPosition < 5000L/);
     assert.match(block, /10000L/);
     if (file.includes("android-mobile")) {
-      assert.match(block, /latest.present && latest.supported && latest.selected/);
-      assert.match(block, /finishWithResult\("error", reason\)/);
-      assert.doesNotMatch(block, /launchCompatibilityPlayer\(/);
+      assert.match(block, /selectedAudioRequiresPcmRescue\(latestTracks\)/);
+      assert.match(block, /native audio output never started/);
+      assert.match(block, /launchCompatibilityPlayer\(activePlayer, null, reason\)/);
     } else {
       assert.match(block, /selectedAudioRequiresPcmRescue\(latestTracks\)/);
       assert.match(block, /native audio output never started/);
@@ -4934,8 +4934,8 @@ test("native audio repair never cycles to another source on uncertain sound", ()
     );
     assert.match(source, /onAudioPositionAdvancing\(/);
     if (relativePath.includes("android-mobile")) {
-      assert.match(source, /latest.present && latest.supported && latest.selected/);
-      assert.doesNotMatch(source, /native audio output never started/);
+      assert.match(source, /selectedAudioRequiresPcmRescue/);
+      assert.match(source, /native audio output never started/);
     } else {
       assert.match(source, /selectedAudioRequiresPcmRescue/);
       assert.match(source, /audioOutputConfirmed &&[\s\S]{0,120}!selectedAudioRequiresPcmRescue/);

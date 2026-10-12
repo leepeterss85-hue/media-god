@@ -262,19 +262,20 @@ expect(
   mobilePlayer.includes("strictEnglishStartupRequired(): Boolean = false") &&
     mobilePlayer.includes("group.isTrackSelected(index) && group.isTrackSupported(index)") &&
     mobilePlayer.includes("activePlayer.currentPosition < 5000L") &&
-    mobilePlayer.includes("latest.present && latest.supported && latest.selected") &&
+    mobilePlayer.includes("selectedAudioRequiresPcmRescue") &&
     mobilePlayer.includes('if (live && launchCompatibilityPlayer(exoPlayer, error))') &&
     mobilePlayer.includes('finishWithResult("error", reason)') &&
-    !mobilePlayer.slice(
+    mobilePlayer.includes("selectedAudioRequiresPcmRescue") &&
+    mobilePlayer.slice(
       mobilePlayer.indexOf("private fun scheduleMissingAudioCheck("),
       mobilePlayer.indexOf("private fun buildMediaItem(")
-    ).includes("launchCompatibilityPlayer(") &&
+    ).includes("launchCompatibilityPlayer(activePlayer, null, reason)") &&
     firePlayer.includes("strictEnglishStartupRequired(): Boolean = false") &&
     firePlayer.includes("launchCompatibilityPlayer(activePlayer, null, reason)") &&
     firePlayer.includes("selectedAudioRequiresPcmRescue") &&
     firePlayer.includes("EXTENSION_RENDERER_MODE_ON") &&
     firePlayer.includes("EXTENSION_RENDERER_MODE_PREFER"),
-  "phone VOD keeps one visible player while Fire TV retains its existing rescue path"
+  "phone and Fire TV VOD keep one visible player and rescue silent audio"
 );
 
 expect(

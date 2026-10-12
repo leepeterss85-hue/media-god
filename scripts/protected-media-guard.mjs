@@ -21,7 +21,7 @@ for (const [path, expected] of Object.entries(baseline.files || {})) {
 if (mismatches.length > 0) {
   console.error("\nProtected playback / Live TV core changed unexpectedly:\n");
   for (const item of mismatches) {
-    console.error(`- ${item.path}`);
+    console.error(`- ${item.path}: expected ${item.expected}, actual ${item.actual}`);
   }
   console.error(
     "\nIf these changes are intentional, review them separately and then update scripts/protected-media-baseline.json. " +
