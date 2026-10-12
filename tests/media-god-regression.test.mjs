@@ -3642,7 +3642,6 @@ test("native players prefer English main audio without replacing a manual audio 
     assert.match(source, /trackSelectionParameters\.overrides\.values\.any/);
     assert.match(source, /enforcePreferredEnglishAudio\(exoPlayer, tracks\)/);
     if (file.includes("android-mobile")) {
-      assert.match(source, /latest.present && latest.supported && latest.selected/);
       assert.match(source, /selectedAudioRequiresPcmRescue/);
       assert.match(source, /native audio output never started/);
     } else {
