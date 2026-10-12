@@ -2,10 +2,8 @@ import React, { useEffect, useState } from "react";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { hostedEmbedLabel, hostedEmbedPage } from "@/components/mg/webEmbedProviders";
-import useEmbedPopupBlocker from "@/components/mg/useEmbedPopupBlocker";
 
 export default function EmbedSuPlayer({ url, media, title, onBack, backLabel = "Sources" }) {
-  useEmbedPopupBlocker();
   const [active, setActive] = useState({ url, label: "Embed.su" });
   const [servers, setServers] = useState([]);
   const [lookup, setLookup] = useState("loading");
