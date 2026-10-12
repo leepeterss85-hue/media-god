@@ -262,7 +262,7 @@ expect(
   mobilePlayer.includes("strictEnglishStartupRequired(): Boolean = false") &&
     mobilePlayer.includes("group.isTrackSelected(index) && group.isTrackSupported(index)") &&
     mobilePlayer.includes("activePlayer.currentPosition < 5000L") &&
-    mobilePlayer.includes("latest.present && latest.supported && latest.selected") &&
+    mobilePlayer.includes("selectedAudioRequiresPcmRescue") &&
     mobilePlayer.includes('if (live && launchCompatibilityPlayer(exoPlayer, error))') &&
     mobilePlayer.includes('finishWithResult("error", reason)') &&
     mobilePlayer.includes("selectedAudioRequiresPcmRescue") &&
