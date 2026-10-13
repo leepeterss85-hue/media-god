@@ -153,6 +153,34 @@ const ratioFor = (row) => {
   return Math.max(0, Math.min(1, progress / duration));
 };
 
+const serialiseResumeSource = (source) => {
+  if (!source || typeof source !== "object") return null;
+  const fields = [
+    "id", "type", "label", "name", "title", "src", "url", "magnet",
+    "magnetLink", "richMagnet", "infoHash", "info_hash", "fileIdx",
+    "file_idx", "addon", "debridProvider", "sourceName", "provider",
+    "filename", "quality", "resolution", "debridCached", "viaRealDebrid",
+    "rdTorrentId", "torrentId", "cacheRequired", "cometUncached",
+  ];
+  const clean = {};
+  fields.forEach((key) => {
+    const value = source[key];
+    if (value == null) return;
+    if (["string", "number", "boolean"].includes(typeof value)) clean[key] = value;
+  });
+  return Object.keys(clean).length ? clean : null;
+};
+
+const encodeResumeSource = (source) => {
+  const clean = serialiseResumeSource(source);
+  if (!clean) return "";
+  try {
+    return `mgsource:${encodeURIComponent(JSON.stringify(clean))}`;
+  } catch {
+    return "";
+  }
+};
+
 const currentPlayerVideo = () => {
   const videos = Array.from(document.querySelectorAll("video"));
 
@@ -171,6 +199,7 @@ const currentPlayerVideo = () => {
 export default function ContinueWatchingAssist() {
   const stateRef = useRef({
     context: null,
+    selectedSource: null,
     recordIdByKey: new Map(),
     pendingResume: 0,
     pendingResumeKey: "",
@@ -249,12 +278,16 @@ export default function ContinueWatchingAssist() {
         );
       }
 
-      const patch = {
-        progress,
-        duration: safeDuration,
-        video_url: currentSrc,
-        poster_url: String(video?.poster || ""),
-        source_type: /real-debrid|debrid/i.test(currentSrc)
+      const selectedSource = serialiseResumeSource(state.selectedSource);
+      const selectedSourceUrl = encodeResumeSource(selectedSource);
+      const sourceUrl = selectedSourceUrl || currentSrc;
+      const sourceType = selectedSource
+        ? (/real-debrid|debrid/i.test(JSON.stringify(selectedSource)) ||
+            selectedSource.viaRealDebrid === true ||
+            Boolean(selectedSource.debridProvider)
+              ? "rd"
+              : "torrent")
+        : /real-debrid|debrid/i.test(currentSrc)
           ? "rd"
           : /torrent|webtor|webtorrent/i.test(currentSrc)
             ? "torrent"
@@ -262,7 +295,14 @@ export default function ContinueWatchingAssist() {
               ? "torrent"
               : /onlyflix/i.test(currentSrc)
                 ? "onlyflix"
-                : "file",
+                : "file";
+
+      const patch = {
+        progress,
+        duration: safeDuration,
+        video_url: sourceUrl,
+        poster_url: String(video?.poster || ""),
+        source_type: sourceType,
         title: context.title,
         year: context.year || "",
         episode_name: context.episodeName || "",
@@ -419,6 +459,7 @@ export default function ContinueWatchingAssist() {
       const next = normaliseContext(event?.detail || null);
 
       state.context = next;
+      state.selectedSource = null;
       state.lastPosition = {
         time: 0,
         duration: 0,
@@ -495,6 +536,15 @@ export default function ContinueWatchingAssist() {
       flush(true);
     };
 
+    const onSelectedSource = (event) => {
+      const source = serialiseResumeSource(event?.detail?.source);
+      if (!source || !state.context || state.context.mediaType === "live") return;
+      state.selectedSource = source;
+      const { time, duration, video } = state.lastPosition;
+      if (time >= MIN_RESUME_SECONDS) save(state.context, time, duration, video, true);
+    };
+
+    window.addEventListener("mg:continue-watching-source", onSelectedSource);
     window.addEventListener("mg:player-context", onContext);
     document.addEventListener("loadedmetadata", onLoadedMetadata, true);
     document.addEventListener("canplay", onCanPlay, true);
@@ -512,6 +562,7 @@ export default function ContinueWatchingAssist() {
 
     return () => {
       flush(true);
+      window.removeEventListener("mg:continue-watching-source", onSelectedSource);
       window.removeEventListener("mg:player-context", onContext);
       document.removeEventListener("loadedmetadata", onLoadedMetadata, true);
       document.removeEventListener("canplay", onCanPlay, true);
