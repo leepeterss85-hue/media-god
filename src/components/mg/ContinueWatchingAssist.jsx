@@ -258,7 +258,11 @@ export default function ContinueWatchingAssist() {
           ? "rd"
           : /torrent|webtor|webtorrent/i.test(currentSrc)
             ? "torrent"
-            : "file",
+            : /^https?:\/\//i.test(currentSrc) && !/onlyflix/i.test(currentSrc)
+              ? "torrent"
+              : /onlyflix/i.test(currentSrc)
+                ? "onlyflix"
+                : "file",
         title: context.title,
         year: context.year || "",
         episode_name: context.episodeName || "",
