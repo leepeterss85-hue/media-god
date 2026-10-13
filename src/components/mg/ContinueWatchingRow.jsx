@@ -329,50 +329,78 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
     const tmdbId = await resolveTmdbIdQuickly(meta);
 
     /*
-     * OnlyFlix remains the default movie launch for maximum device compatibility.
-     * If playback history recorded a concrete Real-Debrid/torrent stream URL,
-     * resume that exact source instead; this preserves titles that OnlyFlix
-     * doesn't carry. If there is no reusable saved source, use OnlyFlix.
+     * OnlyFlix is the default for a new movie launch. Continue Watching is
+     * different: if the user manually picked a source, replay that same source
+     * first. A saved mgsource descriptor carries the stable torrent/magnet and
+     * file/provider identity, not just the short-lived resolved stream URL.
      */
     const savedUrl = String(item.video_url || "").trim();
     const savedSourceType = String(item.source_type || "").toLowerCase();
-    const canResumeSavedSource =
+    const hasSavedSource =
       !isTv &&
-      /^https?:\/\//i.test(savedUrl) &&
-      /^(rd|torrent|debrid)$/i.test(savedSourceType);
+      /^(rd|torrent|debrid)$/i.test(savedSourceType) &&
+      (savedUrl.startsWith("mgsource:") || /^https?:\/\//i.test(savedUrl));
 
-    if (!isTv && canResumeSavedSource) {
-      const directRequest = {
-        id: tmdbId || undefined,
-        tmdbId: tmdbId || undefined,
-        tmdb_id: tmdbId || undefined,
-        imdbId: meta.imdbId || item.imdb_id,
-        title: meta.title,
-        year: meta.year,
-        poster: item.poster_url || "",
-        mediaType: "movie",
-        type: "movie",
-        startTime: Number(item.progress || 0),
-        src: savedUrl,
-        url: savedUrl,
-        video_url: savedUrl,
-        sources: [{
-          label: "Resume last source",
-          name: "Resume last source",
-          type: "url",
+    if (hasSavedSource) {
+      let savedSource = null;
+
+      if (savedUrl.startsWith("mgsource:")) {
+        try {
+          savedSource = JSON.parse(decodeURIComponent(savedUrl.slice("mgsource:".length)));
+        } catch {
+          savedSource = null;
+        }
+      }
+
+      if (savedSource && typeof savedSource === "object") {
+        await player.play({
+          id: tmdbId || undefined,
+          tmdbId: tmdbId || undefined,
+          tmdb_id: tmdbId || undefined,
+          imdbId: meta.imdbId || item.imdb_id,
+          title: meta.title,
+          year: meta.year,
+          poster: item.poster_url || "",
+          mediaType: "movie",
+          type: "movie",
+          startTime: Number(item.progress || 0),
+          preferRd: true,
+          sources: [savedSource],
+        });
+        return;
+      }
+
+      if (/^https?:\/\//i.test(savedUrl)) {
+        await player.play({
+          id: tmdbId || undefined,
+          tmdbId: tmdbId || undefined,
+          tmdb_id: tmdbId || undefined,
+          imdbId: meta.imdbId || item.imdb_id,
+          title: meta.title,
+          year: meta.year,
+          poster: item.poster_url || "",
+          mediaType: "movie",
+          type: "movie",
+          startTime: Number(item.progress || 0),
           src: savedUrl,
           url: savedUrl,
-          direct: true,
-          viaRealDebrid: savedSourceType === "rd" || savedSourceType === "debrid",
-        }],
-        verifiedPlaybackPolicy: "manual",
-        noRd: true,
-        skipRdLookup: true,
-        skipAddonLookup: true,
-      };
-
-      const resumed = await player.play(directRequest);
-      if (resumed) return;
+          video_url: savedUrl,
+          sources: [{
+            label: "Resume last source",
+            name: "Resume last source",
+            type: "url",
+            src: savedUrl,
+            url: savedUrl,
+            direct: true,
+            viaRealDebrid: savedSourceType === "rd" || savedSourceType === "debrid",
+          }],
+          verifiedPlaybackPolicy: "manual",
+          noRd: true,
+          skipRdLookup: true,
+          skipAddonLookup: true,
+        });
+        return;
+      }
     }
 
     if (!isTv && player.playOnlyFlix) {
