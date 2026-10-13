@@ -329,10 +329,64 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
     const tmdbId = await resolveTmdbIdQuickly(meta);
 
     /*
-     * Continue Watching must resume through the normal VOD source resolver.
-     * Do not force OnlyFlix here: the original play may have used a torrent/RD
-     * source, and some titles are not available on OnlyFlix.
+     * OnlyFlix remains the default movie launch for maximum device compatibility.
+     * If playback history recorded a concrete Real-Debrid/torrent stream URL,
+     * resume that exact source instead; this preserves titles that OnlyFlix
+     * doesn't carry. If there is no reusable saved source, use OnlyFlix.
      */
+    const savedUrl = String(item.video_url || "").trim();
+    const savedSourceType = String(item.source_type || "").toLowerCase();
+    const canResumeSavedSource =
+      !isTv &&
+      /^https?:\/\//i.test(savedUrl) &&
+      /^(rd|torrent|debrid)$/i.test(savedSourceType);
+
+    if (!isTv && canResumeSavedSource) {
+      const directRequest = {
+        id: tmdbId || undefined,
+        tmdbId: tmdbId || undefined,
+        tmdb_id: tmdbId || undefined,
+        imdbId: meta.imdbId || item.imdb_id,
+        title: meta.title,
+        year: meta.year,
+        poster: item.poster_url || "",
+        mediaType: "movie",
+        type: "movie",
+        startTime: Number(item.progress || 0),
+        src: savedUrl,
+        url: savedUrl,
+        video_url: savedUrl,
+        sources: [{
+          label: "Resume last source",
+          name: "Resume last source",
+          type: "url",
+          src: savedUrl,
+          url: savedUrl,
+          direct: true,
+          viaRealDebrid: savedSourceType === "rd" || savedSourceType === "debrid",
+        }],
+        verifiedPlaybackPolicy: "manual",
+        noRd: true,
+        skipRdLookup: true,
+        skipAddonLookup: true,
+      };
+
+      if (player.play(directRequest)) return;
+    }
+
+    if (!isTv && player.playOnlyFlix) {
+      if (player.playOnlyFlix({
+        id: tmdbId || undefined,
+        tmdbId: tmdbId || undefined,
+        tmdb_id: tmdbId || undefined,
+        imdbId: meta.imdbId || item.imdb_id,
+        title: meta.title,
+        year: meta.year,
+        poster: item.poster_url || "",
+        mediaType: "movie",
+        type: "movie",
+      })) return;
+    }
 
     /*
      * Continue Watching cards open the detail view (source options, reviews,
