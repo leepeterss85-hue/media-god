@@ -371,7 +371,8 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
         skipAddonLookup: true,
       };
 
-      if (player.play(directRequest)) return;
+      const resumed = await player.play(directRequest);
+      if (resumed) return;
     }
 
     if (!isTv && player.playOnlyFlix) {
