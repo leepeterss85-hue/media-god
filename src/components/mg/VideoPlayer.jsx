@@ -3059,6 +3059,15 @@ export default function VideoPlayer({
       return;
     }
 
+    if (!selectingLive && typeof window !== "undefined") {
+      const selectedSource = sources[nextIndex];
+      if (selectedSource && typeof selectedSource === "object") {
+        window.dispatchEvent(new CustomEvent("mg:continue-watching-source", {
+          detail: { source: selectedSource },
+        }));
+      }
+    }
+
     switchToSource(nextIndex, {
       preservePosition: true,
       manualSelection: !selectingLive,
