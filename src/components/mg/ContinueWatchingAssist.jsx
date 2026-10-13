@@ -541,7 +541,15 @@ export default function ContinueWatchingAssist() {
       if (!source || !state.context || state.context.mediaType === "live") return;
       state.selectedSource = source;
       const { time, duration, video } = state.lastPosition;
-      if (time >= MIN_RESUME_SECONDS) save(state.context, time, duration, video, true);
+      // Persist the source choice immediately, including native playback where
+      // no HTMLVideoElement emits timeupdate events.
+      save(
+        state.context,
+        Math.max(MIN_RESUME_SECONDS, Number(time || 0)),
+        duration,
+        video,
+        true
+      );
     };
 
     window.addEventListener("mg:continue-watching-source", onSelectedSource);
