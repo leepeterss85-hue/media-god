@@ -32,6 +32,8 @@ const realDebridBackend = await read("base44/functions/realDebrid/entry.ts");
 const addonStreamsBackend = await read("base44/functions/fetchAddonStreams/entry.ts");
 const addonBrowserFallback = await read("src/components/mg/addonBrowserFallback.js");
 const videoPlayer = await read("src/components/mg/VideoPlayer.jsx");
+const continueWatchingRow = await read("src/components/mg/ContinueWatchingRow.jsx");
+const continueWatchingAssist = await read("src/components/mg/ContinueWatchingAssist.jsx");
 const realDebridCacheEngine = await read("src/components/mg/realDebridCacheEngine.js");
 const mediaCompatibility = await read("src/components/mg/mediaCompatibility.js");
 const playbackReliabilityCore = await read("src/components/mg/playbackReliability.js");
@@ -757,6 +759,16 @@ expect(
     videoPlayer.includes("automaticNetworkScore") &&
     videoPlayer.includes("hdrRecoveryScore"),
   "Seamless/network/HDR automatic recovery markers are incomplete"
+);
+
+expect(
+  videoPlayer.includes('new CustomEvent("mg:continue-watching-source"') &&
+    continueWatchingAssist.includes('window.addEventListener("mg:continue-watching-source", onSelectedSource)') &&
+    continueWatchingAssist.includes("mgsource:") &&
+    continueWatchingRow.includes('savedUrl.startsWith("mgsource:")') &&
+    continueWatchingRow.includes("sources: [savedSource]") &&
+    continueWatchingRow.includes("await player.play({"),
+  "Continue Watching must persist the manually selected torrent identity and replay that source before OnlyFlix"
 );
 
 console.log("ok UI/navigation/download/watch-party/locked-source/version-update structural checks complete");
