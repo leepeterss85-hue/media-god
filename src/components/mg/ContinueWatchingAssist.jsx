@@ -256,7 +256,9 @@ export default function ContinueWatchingAssist() {
         poster_url: String(video?.poster || ""),
         source_type: /real-debrid|debrid/i.test(currentSrc)
           ? "rd"
-          : "file",
+          : /torrent|webtor|webtorrent/i.test(currentSrc)
+            ? "torrent"
+            : "file",
         title: context.title,
         year: context.year || "",
         episode_name: context.episodeName || "",
