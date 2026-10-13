@@ -329,22 +329,10 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
     const tmdbId = await resolveTmdbIdQuickly(meta);
 
     /*
-     * Movies launch straight into the OnlyFlix embed from the card for instant
-     * playback. TV still opens Details so the user can pick the exact episode.
+     * Continue Watching must resume through the normal VOD source resolver.
+     * Do not force OnlyFlix here: the original play may have used a torrent/RD
+     * source, and some titles are not available on OnlyFlix.
      */
-    if (!isTv && player.playOnlyFlix) {
-      if (player.playOnlyFlix({
-        id: tmdbId || undefined,
-        tmdbId: tmdbId || undefined,
-        tmdb_id: tmdbId || undefined,
-        imdbId: meta.imdbId || item.imdb_id,
-        title: meta.title,
-        year: meta.year,
-        poster: item.poster_url || "",
-        mediaType: "movie",
-        type: "movie",
-      })) return;
-    }
 
     /*
      * Continue Watching cards open the detail view (source options, reviews,
@@ -353,7 +341,7 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
      * stopped. If no detail handler is wired (component used standalone), fall
      * back to the previous direct-resume behaviour so playback still works.
      */
-    if (onOpenDetail) {
+    if (onOpenDetail && isTv) {
       onOpenDetail({
         id: tmdbId || undefined,
         tmdb_id: tmdbId || undefined,
