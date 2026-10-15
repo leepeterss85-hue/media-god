@@ -2553,6 +2553,33 @@ export default async function (req) {
             list.indexOf(value) === index
         );
 
+    const alternateTitles =
+      (
+        Array.isArray(
+          body.alternate_titles ||
+          body.alternateTitles
+        )
+          ? (
+              body.alternate_titles ||
+              body.alternateTitles
+            )
+          : []
+      )
+        .map(clean)
+        .filter(
+          (value) =>
+            value &&
+            value.toLowerCase() !== title.toLowerCase()
+        )
+        .filter(
+          (value, index, list) =>
+            list.findIndex(
+              (candidate) =>
+                candidate.toLowerCase() === value.toLowerCase()
+            ) === index
+        )
+        .slice(0, 8);
+
     const mediaType =
       body.media_type === "tv" ||
       body.mediaType === "tv"
@@ -2678,17 +2705,57 @@ export default async function (req) {
       titleWords.length === 1 &&
       title.length <= 6;
 
+    const candidateTitles = [
+      title,
+      ...alternateTitles,
+    ]
+      .map(clean)
+      .filter(Boolean)
+      .flatMap((candidateTitle) => {
+        const punctuationNormalised = candidateTitle
+          .replace(/[^a-zA-Z0-9\\s]/g, " ")
+          .replace(/\\s+/g, " ")
+          .trim();
+        return punctuationNormalised &&
+          punctuationNormalised.toLowerCase() !== candidateTitle.toLowerCase()
+          ? [candidateTitle, punctuationNormalised]
+          : [candidateTitle];
+      })
+      .filter(
+        (value, index, list) =>
+          list.findIndex(
+            (candidate) =>
+              candidate.toLowerCase() === value.toLowerCase()
+          ) === index
+      )
+      .slice(0, 12);
+
     const yearSearchIds =
-      title
-        ? [
-            year,
-            ...alternateYears,
-          ]
-            .filter(Boolean)
-            .map(
-              (candidateYear) =>
-                `search:${title}:${candidateYear}${episodeSuffix}`
-            )
+      candidateTitles.flatMap((candidateTitle) =>
+        [
+          year,
+          ...alternateYears,
+        ]
+          .filter(Boolean)
+          .map(
+            (candidateYear) =>
+              `search:${candidateTitle}:${candidateYear}${episodeSuffix}`
+          )
+      );
+
+    // Only movies get a yearless retry, and only after all ID- and
+    // year-qualified searches have been attempted. This recovers providers
+    // that ignore year metadata without weakening TV episode identity.
+    const unqualifiedTitleSearchIds =
+      mediaType === "movie" &&
+      !(
+        ambiguousShortTitle &&
+        (imdbId || tmdbId)
+      )
+        ? candidateTitles.map(
+            (candidateTitle) =>
+              `search:${candidateTitle}${episodeSuffix}`
+          )
         : [];
 
     const broadAlternateStreamIds = [
@@ -2702,12 +2769,8 @@ export default async function (req) {
         ? `${tmdbId}${episodeSuffix}`
         : "",
       ...yearSearchIds,
-      title &&
-      !year &&
-      !(
-        ambiguousShortTitle &&
-        (imdbId || tmdbId)
-      )
+      ...unqualifiedTitleSearchIds,
+      mediaType === "tv" && title && !year
         ? `search:${title}${episodeSuffix}`
         : "",
     ]
