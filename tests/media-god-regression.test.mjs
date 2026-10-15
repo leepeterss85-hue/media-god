@@ -927,6 +927,38 @@ test("addon and RD fast-start paths both enforce requested source identity", () 
   );
 });
 
+test("Matchbox search aliases are carried into strict source identity matching", () => {
+  const request = {
+    title: "Matchbox The Movie",
+    year: "2026",
+    alternateTitles: ["matchbox", "matchbox the movie"],
+    mediaType: "movie",
+  };
+
+  assert.equal(
+    sourceMatchesRequestedIdentity(
+      { label: "Matchbox.2026.1080p.WEB-DL", filename: "Matchbox.2026.1080p.WEB-DL.mkv" },
+      request
+    ),
+    true
+  );
+
+  assert.equal(
+    sourceMatchesRequestedIdentity(
+      { label: "Matchbox 2024 1080p WEB-DL", filename: "Matchbox.2024.1080p.WEB-DL.mkv" },
+      request
+    ),
+    false
+  );
+
+  const detailSource = readFileSync(
+    new URL("../src/components/mg/DetailModal.jsx", import.meta.url),
+    "utf8"
+  );
+  assert.match(detailSource, /alternateTitles:[\s\S]{0,160}?safeItem\.search_aliases/);
+  assert.match(detailSource, /rdAlternateTitles:[\s\S]{0,160}?safeItem\.search_aliases/);
+});
+
 test("verified movie/TV title conflicts keep the canonical media identity", () => {
   const catalogSource = readFileSync(
     new URL("../base44/functions/getTmdbMovies/entry.ts", import.meta.url),
