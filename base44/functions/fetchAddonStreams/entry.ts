@@ -2783,8 +2783,8 @@ export default async function (req) {
 
     const alternateStreamIds =
       fastMode
-        ? broadAlternateStreamIds.slice(0, 1)
-        : broadAlternateStreamIds.slice(0, 5);
+        ? broadAlternateStreamIds.slice(0, 4)
+        : broadAlternateStreamIds.slice(0, 12);
 
     /*
      * Fast mode is allowed to use shorter timeouts and fewer alternate IDs,
