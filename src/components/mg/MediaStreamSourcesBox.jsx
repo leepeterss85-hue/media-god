@@ -181,6 +181,7 @@ const serverAddonLookup = async ({
   title,
   year,
   alternateYears = [],
+  alternateTitles = [],
   mediaType,
   season,
   episode,
@@ -208,6 +209,11 @@ const serverAddonLookup = async ({
           alternate_years:
             Array.isArray(alternateYears)
               ? alternateYears
+              : [],
+
+          alternate_titles:
+            Array.isArray(alternateTitles)
+              ? alternateTitles
               : [],
 
           media_type:
@@ -642,6 +648,8 @@ export default function StreamSourcesBox({
                     rdYear,
 
                   alternateYears,
+
+                  alternateTitles,
 
                   mediaType,
 
