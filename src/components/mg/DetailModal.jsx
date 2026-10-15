@@ -1101,6 +1101,20 @@ export default function DetailModal({
           safeItem.alternateYears
         ),
 
+      alternateTitles:
+        asArray(
+          safeItem.search_aliases ??
+          safeItem.alternate_titles ??
+          safeItem.alternateTitles
+        ),
+
+      rdAlternateTitles:
+        asArray(
+          safeItem.search_aliases ??
+          safeItem.alternate_titles ??
+          safeItem.alternateTitles
+        ),
+
       startTime:
         Number(
           safeItem.resumeProgress
