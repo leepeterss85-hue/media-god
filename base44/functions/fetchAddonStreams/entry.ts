@@ -2713,8 +2713,8 @@ export default async function (req) {
       .filter(Boolean)
       .flatMap((candidateTitle) => {
         const punctuationNormalised = candidateTitle
-          .replace(/[^a-zA-Z0-9\\s]/g, " ")
-          .replace(/\\s+/g, " ")
+          .replace(/[^a-zA-Z0-9\s]/g, " ")
+          .replace(/\s+/g, " ")
           .trim();
         return punctuationNormalised &&
           punctuationNormalised.toLowerCase() !== candidateTitle.toLowerCase()
@@ -2730,19 +2730,20 @@ export default async function (req) {
       )
       .slice(0, 12);
 
-    const yearSearchIds =
-      candidateTitles.flatMap((candidateTitle) =>
-        [
-          year,
-          ...alternateYears,
-        ]
-          .filter(Boolean)
-          .map(
-            (candidateYear) =>
-              `search:${candidateTitle}:${candidateYear}${episodeSuffix}`
-          )
-      );
-
+    const yearSearchIds = [
+      ...candidateTitles
+        .filter(() => Boolean(year))
+        .map(
+          (candidateTitle) =>
+            `search:${candidateTitle}:${year}${episodeSuffix}`
+        ),
+      ...candidateTitles.flatMap((candidateTitle) =>
+        alternateYears.map(
+          (candidateYear) =>
+            `search:${candidateTitle}:${candidateYear}${episodeSuffix}`
+        )
+      ),
+    ];
     // Only movies get a yearless retry, and only after all ID- and
     // year-qualified searches have been attempted. This recovers providers
     // that ignore year metadata without weakening TV episode identity.
@@ -2783,8 +2784,8 @@ export default async function (req) {
 
     const alternateStreamIds =
       fastMode
-        ? broadAlternateStreamIds.slice(0, 4)
-        : broadAlternateStreamIds.slice(0, 12);
+        ? broadAlternateStreamIds.slice(0, 8)
+        : broadAlternateStreamIds.slice(0, 16);
 
     /*
      * Fast mode is allowed to use shorter timeouts and fewer alternate IDs,
