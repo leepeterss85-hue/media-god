@@ -1256,6 +1256,9 @@ const fetchAddonSources = async (
       alternateYears:
         args.alternateYears,
 
+      alternateTitles:
+        args.alternateTitles,
+
       excludeAddonNames:
         args.excludeAddonNames,
 
