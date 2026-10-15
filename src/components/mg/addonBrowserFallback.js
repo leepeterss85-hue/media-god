@@ -1820,7 +1820,7 @@ export async function fetchBrowserAddonStreams({
         value !== streamId &&
         list.indexOf(value) === index
     )
-    .slice(0, 6);
+    .slice(0, 12);
 
   const settled =
     await Promise.allSettled(
