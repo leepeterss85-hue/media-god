@@ -1562,6 +1562,7 @@ export async function fetchBrowserAddonStreams({
   title = "",
   year = "",
   alternateYears = [],
+  alternateTitles = [],
   excludeAddonNames = [],
   mediaType = "movie",
   season = null,
@@ -1738,6 +1739,31 @@ export async function fetchBrowserAddonStreams({
           list.indexOf(value) === index
       );
 
+  const candidateTitles = [
+    suppliedTitle,
+    ...(Array.isArray(alternateTitles) ? alternateTitles : []),
+  ]
+    .map(clean)
+    .filter(Boolean)
+    .flatMap((candidateTitle) => {
+      const punctuationNormalised = candidateTitle
+        .replace(/[^a-zA-Z0-9\\s]/g, " ")
+        .replace(/\\s+/g, " ")
+        .trim();
+      return punctuationNormalised &&
+        punctuationNormalised.toLowerCase() !== candidateTitle.toLowerCase()
+        ? [candidateTitle, punctuationNormalised]
+        : [candidateTitle];
+    })
+    .filter(
+      (value, index, list) =>
+        list.findIndex(
+          (candidate) =>
+            candidate.toLowerCase() === value.toLowerCase()
+        ) === index
+    )
+    .slice(0, 12);
+
   const titleWords =
     suppliedTitle
       .split(/\s+/)
@@ -1748,16 +1774,28 @@ export async function fetchBrowserAddonStreams({
     suppliedTitle.length <= 6;
 
   const yearSearchIds =
-    suppliedTitle
-      ? [
-          clean(year),
-          ...cleanAlternateYears,
-        ]
-          .filter(Boolean)
-          .map(
-            (candidateYear) =>
-              `search:${suppliedTitle}:${candidateYear}${episodeSuffix}`
-          )
+    candidateTitles.flatMap((candidateTitle) =>
+      [
+        clean(year),
+        ...cleanAlternateYears,
+      ]
+        .filter(Boolean)
+        .map(
+          (candidateYear) =>
+            `search:${candidateTitle}:${candidateYear}${episodeSuffix}`
+        )
+    );
+
+  const unqualifiedTitleSearchIds =
+    mediaType === "movie" &&
+    !(
+      ambiguousShortTitle &&
+      (hasValidImdb || suppliedTmdb)
+    )
+      ? candidateTitles.map(
+          (candidateTitle) =>
+            `search:${candidateTitle}${episodeSuffix}`
+        )
       : [];
 
   const alternateStreamIds = [
@@ -1771,12 +1809,8 @@ export async function fetchBrowserAddonStreams({
       ? `${suppliedTmdb}${episodeSuffix}`
       : "",
     ...yearSearchIds,
-    suppliedTitle &&
-    !clean(year) &&
-    !(
-      ambiguousShortTitle &&
-      (hasValidImdb || suppliedTmdb)
-    )
+    ...unqualifiedTitleSearchIds,
+    mediaType === "tv" && suppliedTitle && !clean(year)
       ? `search:${suppliedTitle}${episodeSuffix}`
       : "",
   ]
