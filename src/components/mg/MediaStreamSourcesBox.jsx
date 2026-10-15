@@ -295,6 +295,7 @@ export default function StreamSourcesBox({
   loading,
   rdYear,
   alternateYears = [],
+  alternateTitles = [],
   tmdbId,
   imdbId,
   mediaType = "movie",
@@ -588,6 +589,8 @@ export default function StreamSourcesBox({
 
                 alternateYears,
 
+                alternateTitles,
+
                 mediaType,
 
                 season,
@@ -813,6 +816,8 @@ export default function StreamSourcesBox({
     rdYear,
 
     alternateYears,
+
+    alternateTitles,
 
     tmdbId,
 
