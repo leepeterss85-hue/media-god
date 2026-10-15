@@ -942,6 +942,9 @@ test("verified movie/TV title conflicts keep the canonical media identity", () =
   );
 
   assert.match(catalogSource, /SEARCH_IDENTITY_CORRECTIONS/);
+  assert.match(catalogSource, /tmdb_id:\s*1148365/);
+  assert.match(catalogSource, /imdb_id:\s*'tt28498219'/);
+  assert.match(catalogSource, /'matchbox the movie'/);
   assert.match(catalogSource, /tmdb_id:\s*1198654/);
   assert.match(catalogSource, /imdb_id:\s*'tt29714073'/);
   assert.match(catalogSource, /'bad apple'/);
