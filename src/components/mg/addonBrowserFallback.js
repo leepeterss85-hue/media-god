@@ -1747,8 +1747,8 @@ export async function fetchBrowserAddonStreams({
     .filter(Boolean)
     .flatMap((candidateTitle) => {
       const punctuationNormalised = candidateTitle
-        .replace(/[^a-zA-Z0-9\\s]/g, " ")
-        .replace(/\\s+/g, " ")
+        .replace(/[^a-zA-Z0-9\s]/g, " ")
+        .replace(/\s+/g, " ")
         .trim();
       return punctuationNormalised &&
         punctuationNormalised.toLowerCase() !== candidateTitle.toLowerCase()
@@ -1773,19 +1773,20 @@ export async function fetchBrowserAddonStreams({
     titleWords.length === 1 &&
     suppliedTitle.length <= 6;
 
-  const yearSearchIds =
-    candidateTitles.flatMap((candidateTitle) =>
-      [
-        clean(year),
-        ...cleanAlternateYears,
-      ]
-        .filter(Boolean)
-        .map(
-          (candidateYear) =>
-            `search:${candidateTitle}:${candidateYear}${episodeSuffix}`
-        )
-    );
-
+  const yearSearchIds = [
+    ...candidateTitles
+      .filter(() => Boolean(clean(year)))
+      .map(
+        (candidateTitle) =>
+          `search:${candidateTitle}:${clean(year)}${episodeSuffix}`
+      ),
+    ...candidateTitles.flatMap((candidateTitle) =>
+      cleanAlternateYears.map(
+        (candidateYear) =>
+          `search:${candidateTitle}:${candidateYear}${episodeSuffix}`
+      )
+    ),
+  ];
   const unqualifiedTitleSearchIds =
     mediaType === "movie" &&
     !(
@@ -1820,7 +1821,7 @@ export async function fetchBrowserAddonStreams({
         value !== streamId &&
         list.indexOf(value) === index
     )
-    .slice(0, 12);
+    .slice(0, 16);
 
   const settled =
     await Promise.allSettled(
