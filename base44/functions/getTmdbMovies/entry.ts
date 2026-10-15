@@ -73,6 +73,19 @@ const EXTERNAL_SEARCH_OVERRIDES = [
 const SEARCH_IDENTITY_CORRECTIONS = [
   {
     aliases: [
+      'matchbox',
+      'matchbox the movie',
+    ],
+    media_type: 'movie',
+    tmdb_id: 1148365,
+    imdb_id: 'tt28498219',
+    title: 'Matchbox The Movie',
+    accepted_years: [
+      '2026',
+    ],
+  },
+  {
+    aliases: [
       'bad apple',
       'bad apples',
     ],
