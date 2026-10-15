@@ -593,7 +593,7 @@ test("modern RD cache markers are authoritative cached signals", () => {
     true
   );
 });
-test("year-specific franchise lookups never fall back to a bare title", () => {
+test("movie source discovery retries aliases and yearless titles only after qualified searches", () => {
   const serverSource = readFileSync(
     new URL("../base44/functions/fetchAddonStreams/entry.ts", import.meta.url),
     "utf8"
@@ -602,14 +602,21 @@ test("year-specific franchise lookups never fall back to a bare title", () => {
     new URL("../src/components/mg/addonBrowserFallback.js", import.meta.url),
     "utf8"
   );
-
-  assert.match(serverSource, /: year\s*\?\s*`search:\$\{title\}:\$\{year\}/);
-  assert.match(
-    browserSource,
-    /: clean\(year\)\s*\?\s*`search:\$\{suppliedTitle\}:\$\{clean\(year\)\}/
+  const sourceBox = readFileSync(
+    new URL("../src/components/mg/MediaStreamSourcesBox.jsx", import.meta.url),
+    "utf8"
   );
-  assert.match(serverSource, /title &&\s*!year &&/);
-  assert.match(browserSource, /suppliedTitle &&\s*!clean\(year\) &&/);
+
+  for (const source of [serverSource, browserSource]) {
+    assert.match(source, /candidateTitles/);
+    assert.match(source, /yearSearchIds/);
+    assert.match(source, /unqualifiedTitleSearchIds/);
+    assert.match(source, /mediaType === "movie"/);
+    assert.match(source, /punctuationNormalised/);
+  }
+  assert.match(serverSource, /body\.alternate_titles \|\|\s*body\.alternateTitles/);
+  assert.match(sourceBox, /alternate_titles:[\s\S]{0,100}?alternateTitles/);
+  assert.match(sourceBox, /fetchBrowserAddonStreams\([\s\S]{0,260}?alternateTitles/);
 });
 
 test("full addon discovery merges year-qualified sources after a non-empty primary result", () => {
