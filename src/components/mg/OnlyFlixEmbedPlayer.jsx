@@ -1,11 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { ArrowLeft, ExternalLink } from "lucide-react";
-import useEmbedPopupBlocker from "@/components/mg/useEmbedPopupBlocker";
 import { isNativeFireTvEmbedRemoteAvailable, setNativeFireTvEmbedRemoteActive } from "@/components/mg/nativeFireTvBridge";
 import OnlyFlixRemotePointer from "@/components/mg/OnlyFlixRemotePointer";
 
 export default function OnlyFlixEmbedPlayer({ url, title, onBack, backLabel = "Sources" }) {
-  useEmbedPopupBlocker();
   useEffect(() => {
     setNativeFireTvEmbedRemoteActive(true);
     return () => { setNativeFireTvEmbedRemoteActive(false); };
