@@ -20,6 +20,7 @@ import { Image } from "@/components/ui/image";
 import MediaReviews from "@/components/mg/MediaReviews";
 import { buildVidSrcEmbedUrl } from "@/components/mg/vidsrcEmbed";
 import { buildEmbedSuEmbedUrl } from "@/components/mg/webEmbedProviders";
+import { fetchTvEpisodeSources } from "@/components/mg/tvEpisodeScraper";
 
 import {
   buildMediaSources,
@@ -754,151 +755,104 @@ export default function EpisodeSelector({
     };
 
   const playEpisodeNumber =
-    ({
+    async ({
       seasonNumber,
       episodeNumber,
-      episodeData =
-        null,
-      startTime =
-        0,
+      episodeData = null,
+      startTime = 0,
     }) => {
       const episodeTitle =
-        `${showTitle} — S${String(
-          seasonNumber
-        ).padStart(
-          2,
-          "0"
-        )}E${String(
-          episodeNumber
-        ).padStart(
-          2,
-          "0"
-        )}`;
-
+        `${showTitle} — S${String(seasonNumber).padStart(2, "0")}E${String(episodeNumber).padStart(2, "0")}`;
       const poster =
-        episodeData
-          ?.still_url ||
-        item
-          ?.poster_url ||
+        episodeData?.still_url ||
+        item?.poster_url ||
         item?.poster ||
         "";
+      const showId =
+        item?.id ||
+        item?.tmdb_id ||
+        item?.tmdbId;
+      const showImdbId = String(item?.imdb_id || item?.imdbId || "").trim();
 
-      const showImdbId =
-        String(
-          item?.imdb_id ||
-            item?.imdbId ||
-            ""
-        ).trim();
+      const baseRequest = {
+        id: showId,
+        tmdbId: showId,
+        tmdb_id: showId,
+        imdbId: showImdbId,
+        imdb_id: showImdbId,
+        rdImdbId: showImdbId,
+        title: episodeTitle,
+        poster,
+        year: item?.year,
+        mediaType: "tv",
+        type: "series",
+        season: Number(seasonNumber),
+        episode: Number(episodeNumber),
+        rdTitle: showTitle,
+        rdYear: item?.year,
+        rdSeason: Number(seasonNumber),
+        rdEpisode: Number(episodeNumber),
+        startTime: Number(startTime || 0),
+        noRd: true,
+        skipRdLookup: true,
+        skipAddonLookup: true,
+        verifiedPlaybackPolicy: "manual",
+      };
+
+      /*
+       * Try the TV-episode scraper first. It resolves this exact TMDB show,
+       * season and episode; explicit English/multi-audio hints are ranked
+       * first, while unknown audio metadata remains eligible.
+       */
+      let scrapedSources = [];
+      try {
+        scrapedSources = await fetchTvEpisodeSources({
+          tmdbId: showId,
+          season: seasonNumber,
+          episode: episodeNumber,
+          title: episodeTitle,
+        });
+      } catch {
+        scrapedSources = [];
+      }
+
+      if (scrapedSources.length > 0) {
+        player.play({
+          ...baseRequest,
+          preferRd: false,
+          sources: scrapedSources,
+          completeSources: scrapedSources,
+        });
+        return;
+      }
+
+      /*
+       * Keep the same direct-play behaviour as the movie OnlyFlix button as a
+       * fallback when the TV scraper has no usable links.
+       */
+      if (player.playOnlyFlix && player.playOnlyFlix({
+        ...baseRequest,
+        title: showTitle,
+        mediaType: "tv",
+        type: "tv",
+        season: Number(seasonNumber),
+        episode: Number(episodeNumber),
+      })) {
+        return;
+      }
 
       player.play({
-        id:
-          item?.id ||
-          item
-            ?.tmdb_id ||
-          item
-            ?.tmdbId,
-
-        tmdbId:
-          item?.id ||
-          item
-            ?.tmdb_id ||
-          item
-            ?.tmdbId,
-
-        tmdb_id:
-          item?.id ||
-          item
-            ?.tmdb_id ||
-          item
-            ?.tmdbId,
-
-        imdbId:
-          showImdbId,
-
-        imdb_id:
-          showImdbId,
-
-        rdImdbId:
-          showImdbId,
-
-        title:
-          episodeTitle,
-
-        poster,
-
-        year:
-          item?.year,
-
-        mediaType:
-          "tv",
-
-        type:
-          "series",
-
-        season:
-          Number(
-            seasonNumber
-          ),
-
-        episode:
-          Number(
-            episodeNumber
-          ),
-
-        rdTitle:
-          showTitle,
-
-        rdYear:
-          item?.year,
-
-        rdSeason:
-          Number(
-            seasonNumber
-          ),
-
-        rdEpisode:
-          Number(
-            episodeNumber
-          ),
-
-        startTime:
-          Number(
-            startTime ||
-              0
-          ),
-
-        preferRd:
-          true,
-
-        sources:
-          buildMediaSources({
-            title:
-              episodeTitle,
-
-            id:
-              item?.id ||
-              item
-                ?.tmdb_id ||
-              item
-                ?.tmdbId,
-
-            poster,
-
-            providers,
-          }).map(
-            (fallbackSource) => ({
-              ...fallbackSource,
-
-              /*
-               * Show-level where-to-watch links may stay visible as manual
-               * fallbacks, but they are never allowed to become the automatic
-               * first source for a selected TV episode. Trailers are excluded
-               * from the playback source pool entirely.
-               */
-              episodeFallbackOnly:
-                true,
-            })
-          ),
+        ...baseRequest,
+        preferRd: true,
+        sources: buildMediaSources({
+          title: episodeTitle,
+          id: showId,
+          poster,
+          providers,
+        }).map((fallbackSource) => ({
+          ...fallbackSource,
+          episodeFallbackOnly: true,
+        })),
       });
     };
 
