@@ -20,7 +20,6 @@ import { Image } from "@/components/ui/image";
 import MediaReviews from "@/components/mg/MediaReviews";
 import { buildVidSrcEmbedUrl } from "@/components/mg/vidsrcEmbed";
 import { buildEmbedSuEmbedUrl } from "@/components/mg/webEmbedProviders";
-import { fetchTvEpisodeSources } from "@/components/mg/tvEpisodeScraper";
 
 import {
   buildMediaSources,
@@ -800,36 +799,10 @@ export default function EpisodeSelector({
       };
 
       /*
-       * Try the TV-episode scraper first. It resolves this exact TMDB show,
-       * season and episode; explicit English/multi-audio hints are ranked
-       * first, while unknown audio metadata remains eligible.
-       */
-      let scrapedSources = [];
-      try {
-        scrapedSources = await fetchTvEpisodeSources({
-          tmdbId: showId,
-          season: seasonNumber,
-          episode: episodeNumber,
-          title: episodeTitle,
-        });
-      } catch {
-        scrapedSources = [];
-      }
-
-      if (scrapedSources.length > 0) {
-        player.play({
-          ...baseRequest,
-          preferRd: false,
-          sources: scrapedSources,
-          completeSources: scrapedSources,
-        });
-        return;
-      }
-
-      /*
-       * OnlyFlix is not a TV-episode source. If the scraper API has no
-       * direct links, try the episode-aware VidSrc and Embed.su players,
-       * then leave the existing Media God source lookup as the final fallback.
+       * The FlixQuest scraper has not produced usable episode links, so do not
+       * block playback on it. Open episode-aware providers directly using the
+       * exact show ID, season and episode. Keep normal Media God lookup as the
+       * final fallback if neither provider can construct an episode URL.
        */
       const episodeEmbedRequest = {
         ...baseRequest,
