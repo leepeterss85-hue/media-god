@@ -827,17 +827,24 @@ export default function EpisodeSelector({
       }
 
       /*
-       * Keep the same direct-play behaviour as the movie OnlyFlix button as a
-       * fallback when the TV scraper has no usable links.
+       * OnlyFlix is not a TV-episode source. If the scraper API has no
+       * direct links, try the episode-aware VidSrc and Embed.su players,
+       * then leave the existing Media God source lookup as the final fallback.
        */
-      if (player.playOnlyFlix && player.playOnlyFlix({
+      const episodeEmbedRequest = {
         ...baseRequest,
-        title: showTitle,
+        title: episodeTitle,
         mediaType: "tv",
         type: "tv",
         season: Number(seasonNumber),
         episode: Number(episodeNumber),
-      })) {
+      };
+
+      if (player.playVidSrc && player.playVidSrc(episodeEmbedRequest)) {
+        return;
+      }
+
+      if (player.playEmbedSu && player.playEmbedSu(episodeEmbedRequest)) {
         return;
       }
 
