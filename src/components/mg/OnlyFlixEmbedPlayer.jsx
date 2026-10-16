@@ -70,7 +70,7 @@ export default function OnlyFlixEmbedPlayer({ url, title, onBack, backLabel = "S
             allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
-            sandbox="allow-scripts allow-same-origin allow-presentation allow-pointer-lock allow-fullscreen allow-popups allow-forms"
+            sandbox="allow-scripts allow-same-origin allow-presentation allow-pointer-lock allow-fullscreen allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation allow-forms"
             tabIndex={0}
             data-mg-embed-iframe="true"
           />
