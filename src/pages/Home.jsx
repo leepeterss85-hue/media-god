@@ -51,6 +51,7 @@ const SettingsView = lazy(() => import("@/components/mg/SettingsView"));
 const SettingsTools = lazy(() => import("@/components/mg/SettingsTools"));
 const WatchPartyView = lazy(() => import("@/components/mg/WatchPartyView"));
 const FavoritesView = lazy(() => import("@/components/mg/FavoritesView"));
+const EntertainmentNewsView = lazy(() => import("@/components/mg/EntertainmentNewsView"));
 const DiagnosticsView = lazy(() => import("@/components/mg/DiagnosticsView"));
 const DataBackupView = lazy(() => import("@/components/mg/DataBackupView"));
 
@@ -1086,6 +1087,13 @@ function MediaGodApp() {
                 providerRequestKey={tvProviderRequest.key}
                 onProviderChange={handleTvProviderChange}
               />
+            </SafeDeferredView>
+          )}
+
+          {view ===
+            "news" && (
+            <SafeDeferredView resetKey={view} label="TV & Film News" onHome={() => setView("home")}>
+              <EntertainmentNewsView />
             </SafeDeferredView>
           )}
 
