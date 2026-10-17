@@ -93,23 +93,20 @@ export default function MediaRow({
         </div>
       </div>
 
-      {iconUrl && iconSize === "large" && (
-        <div className="mb-2 w-28 min-[420px]:w-32 sm:w-36 md:w-40 xl:w-44 3xl:w-52 4xl:w-60">
+      <div
+        ref={ref}
+        data-mg-tv-row="true"
+        className="relative flex gap-2.5 sm:gap-3 xl:gap-4 3xl:gap-5 4xl:gap-6 overflow-x-auto overscroll-x-contain pb-2 3xl:pb-3 scrollbar-hide snap-x snap-proximity"
+      >
+        {iconUrl && iconSize === "large" && (
           <img
             src={iconUrl}
             alt=""
             aria-hidden="true"
-            className="block aspect-[2/3] h-auto w-full object-fill"
+            className="pointer-events-none absolute left-0 top-0 z-10 aspect-[2/3] w-28 min-[420px]:w-32 sm:w-36 md:w-40 xl:w-44 3xl:w-52 4xl:w-60 object-fill"
             loading="lazy"
           />
-        </div>
-      )}
-
-      <div
-        ref={ref}
-        data-mg-tv-row="true"
-        className="flex gap-2.5 sm:gap-3 xl:gap-4 3xl:gap-5 4xl:gap-6 overflow-x-auto overscroll-x-contain pb-2 3xl:pb-3 scrollbar-hide snap-x snap-proximity"
-      >
+        )}
         {items.map((item, index) => (
           <div key={`${item?.media_type || "movie"}:${item.id}:${index}`} className="snap-start">
             <MediaCard
