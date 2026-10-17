@@ -44,12 +44,12 @@ export default function MediaRow({
     >
       <div className={`flex items-center justify-between gap-3 mb-2 3xl:mb-3 ${iconSize === "large" ? "min-h-14 sm:min-h-16 3xl:min-h-20" : ""}`}>
         <div className="flex min-w-0 items-center gap-2.5 3xl:gap-3">
-          {iconUrl && (
+          {iconUrl && iconSize !== "large" && (
             <img
               src={iconUrl}
               alt=""
               aria-hidden="true"
-              className={`shrink-0 ${iconSize === "large" ? "h-16 w-44 sm:h-20 sm:w-56 xl:w-64 3xl:h-24 3xl:w-72 object-contain" : "h-7 w-7 rounded-md object-cover 3xl:h-9 3xl:w-9"}`}
+              className="h-7 w-7 shrink-0 rounded-md object-cover 3xl:h-9 3xl:w-9"
               loading="lazy"
             />
           )}
@@ -92,6 +92,18 @@ export default function MediaRow({
           </div>
         </div>
       </div>
+
+      {iconUrl && iconSize === "large" && (
+        <div className="mb-2 w-28 min-[420px]:w-32 sm:w-36 md:w-40 xl:w-44 3xl:w-52 4xl:w-60">
+          <img
+            src={iconUrl}
+            alt=""
+            aria-hidden="true"
+            className="block aspect-[2/3] h-auto w-full object-fill"
+            loading="lazy"
+          />
+        </div>
+      )}
 
       <div
         ref={ref}
