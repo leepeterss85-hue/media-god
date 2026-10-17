@@ -19,7 +19,6 @@ import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
 import MediaReviews from "@/components/mg/MediaReviews";
 import { buildVidSrcEmbedUrl } from "@/components/mg/vidsrcEmbed";
-import { buildEmbedSuEmbedUrl } from "@/components/mg/webEmbedProviders";
 
 import {
   buildMediaSources,
@@ -1116,13 +1115,6 @@ export default function EpisodeSelector({
                 episode: episodeNumber,
               }));
 
-              const hasEmbedSuEpisode = Boolean(buildEmbedSuEmbedUrl({
-                mediaType: "tv",
-                tmdbId,
-                season: seasonNumber,
-                episode: episodeNumber,
-              }));
-
               const progressRecord =
                 progressMap.get(
                   episodeKey(
@@ -1164,7 +1156,7 @@ export default function EpisodeSelector({
                     episodeData.id ||
                     `${seasonNumber}-${episodeNumber}`
                   }
-                  className="group relative flex gap-3 rounded-lg border border-white/5 bg-white/[0.02] p-2 hover:bg-white/[0.04] focus-within:border-mg-green/30"
+                  className="group relative flex flex-col sm:flex-row gap-3 rounded-lg border border-white/5 bg-white/[0.02] p-2 hover:bg-white/[0.04] focus-within:border-mg-green/30"
                 >
                   <button
                     type="button"
@@ -1174,7 +1166,7 @@ export default function EpisodeSelector({
                         episodeData
                       )
                     }
-                    className="relative w-28 sm:w-32 aspect-video shrink-0 overflow-hidden rounded-md bg-mg-card border border-white/10 focus:outline-none focus:ring-2 focus:ring-mg-green"
+                    className="relative w-full sm:w-32 aspect-video shrink-0 overflow-hidden rounded-md bg-mg-card border border-white/10 focus:outline-none focus:ring-2 focus:ring-mg-green"
                     aria-label={`${
                       hasResume
                         ? "Resume"
@@ -1239,7 +1231,7 @@ export default function EpisodeSelector({
                     )}
                   </button>
 
-                  <div className="flex-1 min-w-0 py-0.5">
+                  <div className="w-full sm:flex-1 min-w-0 py-0.5">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className="text-white text-sm font-medium truncate">
@@ -1279,7 +1271,7 @@ export default function EpisodeSelector({
                         </p>
                       </div>
 
-                      <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
+                      <div className="flex w-full min-w-0 flex-wrap justify-start gap-2">
                         <button
                           type="button"
                           data-mg-focus-key={`episode:${tmdbId || showTitle}:${seasonNumber}:${episodeNumber}:review`}
@@ -1322,43 +1314,24 @@ export default function EpisodeSelector({
                           </button>
                         )}
 
-                        {hasEmbedSuEpisode && (
-                          <button
-                            type="button"
-                            data-mg-focus-key={`episode:${tmdbId || showTitle}:${seasonNumber}:${episodeNumber}:embedsu`}
-                            onClick={() => player.playEmbedSu({
-                              id: tmdbId,
-                              tmdbId,
-                              title: `${showTitle} — S${String(seasonNumber).padStart(2, "0")}E${String(episodeNumber).padStart(2, "0")}`,
-                              poster: episodeData?.still_url || item?.poster_url || item?.poster || "",
-                              mediaType: "tv",
-                              season: seasonNumber,
-                              episode: episodeNumber,
-                            })}
-                            className="min-h-10 rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 text-[11px] font-semibold text-amber-200 focus:outline-none focus:ring-2 focus:ring-mg-green"
-                          >
-                            Embed.su
-                          </button>
-                        )}
-
                         <button
                           type="button"
                           data-mg-focus-key={`episode:${tmdbId || showTitle}:${seasonNumber}:${episodeNumber}:mediafusion`}
                           onClick={() => playEpisodeFromAddon(episodeData, "MediaFusion")}
-                          className="min-h-10 rounded-md border border-sky-500/30 bg-sky-500/10 px-2.5 text-[11px] font-semibold text-sky-200 focus:outline-none focus:ring-2 focus:ring-mg-green"
+                          className="min-h-11 rounded-md border border-sky-400/70 bg-sky-500/20 px-3 text-xs font-bold text-sky-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-mg-green"
                           title="Test TV episode sources from MediaFusion only"
                         >
-                          MediaFusion test
+                          Test MediaFusion
                         </button>
 
                         <button
                           type="button"
                           data-mg-focus-key={`episode:${tmdbId || showTitle}:${seasonNumber}:${episodeNumber}:stremsrc`}
                           onClick={() => playEpisodeFromAddon(episodeData, "StremSRC")}
-                          className="min-h-10 rounded-md border border-violet-500/30 bg-violet-500/10 px-2.5 text-[11px] font-semibold text-violet-200 focus:outline-none focus:ring-2 focus:ring-mg-green"
+                          className="min-h-11 rounded-md border border-violet-400/70 bg-violet-500/20 px-3 text-xs font-bold text-violet-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-mg-green"
                           title="Test TV episode sources from StremSRC only"
                         >
-                          StremSRC test
+                          Test StremSRC
                         </button>
 
                         <button
