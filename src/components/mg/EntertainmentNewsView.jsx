@@ -47,7 +47,7 @@ export default function EntertainmentNewsView() {
     setError("");
     try {
       // Load the combined feed once; switching All/Film/TV is then instant client-side.
-      const response = await base44.functions.invoke("getEntertainmentNews", { section: "all" });
+      const response = await base44.functions.invoke("getEntertainmentNews", { section: "all", forceRefresh: quiet });
       const payload = response?.data || response;
       const nextStories = Array.isArray(payload?.stories) ? payload.stories : [];
       setStories(nextStories);
