@@ -1572,6 +1572,7 @@ export async function fetchBrowserAddonStreams({
   alternateYears = [],
   alternateTitles = [],
   excludeAddonNames = [],
+  includeAddonNames = [],
   mediaType = "movie",
   season = null,
   episode = null,
@@ -1671,17 +1672,23 @@ export async function fetchBrowserAddonStreams({
         .filter(Boolean)
     );
 
+  const includedAddonNames = new Set(
+    (Array.isArray(includeAddonNames) ? includeAddonNames : [])
+      .map((value) => clean(value).toLowerCase().replace(/[^a-z0-9]/g, ""))
+      .filter(Boolean)
+  );
+
   const activeAddons =
-    withBuiltinPlaybackAddons(addons).filter(
-      (addon) =>
-        addon?.installed !== false &&
+    withBuiltinPlaybackAddons(addons).filter((addon) => {
+      const name = clean(addon?.name).toLowerCase();
+      const normalizedName = name.replace(/[^a-z0-9]/g, "");
+      return addon?.installed !== false &&
         addon?.active !== false &&
         addon?.url &&
         (!Array.isArray(addon?.mediaTypes) || addon.mediaTypes.includes(mediaType)) &&
-        !excludedAddonNames.has(
-          clean(addon?.name).toLowerCase()
-        )
-    );
+        !excludedAddonNames.has(name) &&
+        (includedAddonNames.size === 0 || includedAddonNames.has(normalizedName));
+    });
 
   if (
     activeAddons.length ===
