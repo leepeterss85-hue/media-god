@@ -9,6 +9,7 @@ import {
   RefreshCw,
   Search,
   Tv,
+  Zap,
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { cn } from "@/lib/utils";
@@ -89,7 +90,7 @@ export default function EntertainmentNewsView() {
             </div>
             <h1 className="text-3xl font-black tracking-tight text-white md:text-4xl">TV &amp; Film News</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-white/60 md:text-base">
-              New releases, trailers, casting, renewals and the stories behind the screen.
+              Breaking headlines, casting news, trailers, renewals and the latest stories from trusted entertainment publishers.
             </p>
           </div>
           <button
@@ -187,6 +188,12 @@ export default function EntertainmentNewsView() {
                   <span className="absolute bottom-3 left-3 rounded-full border border-white/15 bg-black/70 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-white backdrop-blur">
                     {story.category === "tv" ? "TV" : "Film"}
                   </span>
+                  {(story.breaking || story.justIn) && (
+                    <span className={cn("absolute right-3 top-3 inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider backdrop-blur", story.breaking ? "border-red-400/40 bg-red-950/90 text-red-100" : "border-mg-green/40 bg-emerald-950/90 text-emerald-100")}>
+                      <Zap className="h-3 w-3" />
+                      {story.breaking ? "Breaking" : "Just in"}
+                    </span>
+                  )}
                 </a>
                 <div className="flex flex-1 flex-col p-4">
                   <div className="mb-2 flex items-center justify-between gap-3 text-xs text-white/45">
@@ -233,7 +240,7 @@ export default function EntertainmentNewsView() {
         )}
 
         <p className="mt-8 text-xs leading-5 text-white/40">
-          Stories are supplied by Google News RSS and link through to their publishers. Headlines and excerpts remain credited to their original sources.
+          Stories are collected from Google News, IGN, Digital Spy, The Guardian, IndieWire, BBC News, Deadline, Variety, The Hollywood Reporter, Collider and Rolling Stone. Headlines link to the original publishers.
         </p>
       </div>
     </section>
