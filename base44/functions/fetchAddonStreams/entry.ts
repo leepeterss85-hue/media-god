@@ -27,6 +27,7 @@ const BUILTIN_PUBLIC_PLAYBACK_ADDONS = [
     installed: true,
     active: true,
     builtIn: true,
+    mediaTypes: ["tv"],
   },
 ];
 
@@ -2297,7 +2298,10 @@ export default async function (req) {
         (addon) =>
           addon?.installed !== false &&
           addon?.active !== false &&
-          addon?.url
+          addon?.url &&
+          (!Array.isArray(addon?.mediaTypes) || addon.mediaTypes.includes(
+            body.media_type === "tv" || body.mediaType === "tv" ? "tv" : "movie"
+          ))
       );
 
     const activeAddons =
