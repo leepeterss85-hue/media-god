@@ -503,8 +503,19 @@ test("VOD discovery keeps a credential-free fallback when user addon rows are un
   for (const source of [serverSource, browserSource]) {
     assert.match(source, /BUILTIN_PUBLIC_PLAYBACK_ADDONS/);
     assert.match(source, /https:\/\/torrentio\.strem\.fun\/manifest\.json/);
+    assert.match(source, /https:\/\/stremsrc\.theditor\.xyz\/manifest\.json/);
+    assert.match(source, /mediaTypes: \["tv"\]/);
     assert.match(source, /withBuiltinPlaybackAddons\(addons\)/);
   }
+
+  const episodeSelectorSource = readFileSync(
+    new URL("../src/components/mg/EpisodeSelector.jsx", import.meta.url),
+    "utf8"
+  );
+  assert.match(episodeSelectorSource, /skipAddonLookup: false/);
+  assert.match(episodeSelectorSource, /skipRdLookup: false/);
+  assert.doesNotMatch(episodeSelectorSource, /player\.playVidSrc\(episodeEmbedRequest\)/);
+  assert.doesNotMatch(episodeSelectorSource, /player\.playEmbedSu\(episodeEmbedRequest\)/);
 
   assert.match(serverSource, /let\s+user\s*=\s*null/);
   assert.match(serverSource, /user\s*=\s*await base44\.auth\.me\(\)/);
