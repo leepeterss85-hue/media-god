@@ -209,11 +209,26 @@ export default function EntertainmentNewsView() {
               </article>
             ))}
           </div>
-        ) : (
+        ) : stories.length === 0 ? (
           <div className="flex min-h-56 flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-6 text-center">
             <Newspaper className="mb-3 h-9 w-9 text-white/25" />
+            <h2 className="text-lg font-bold text-white">News is temporarily unavailable</h2>
+            <p className="mt-1 max-w-md text-sm text-white/55">The news providers did not return any stories. Try again, or switch to another news category.</p>
+            <button
+              type="button"
+              onClick={() => load({ quiet: true })}
+              disabled={refreshing}
+              className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
+            >
+              <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
+              Try again
+            </button>
+          </div>
+        ) : (
+          <div className="flex min-h-56 flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-6 text-center">
+            <Search className="mb-3 h-9 w-9 text-white/25" />
             <h2 className="text-lg font-bold text-white">No matching stories</h2>
-            <p className="mt-1 text-sm text-white/55">Try another search or switch between All News, Film News and TV News.</p>
+            <p className="mt-1 text-sm text-white/55">Try a different search term or switch between All News, Film News and TV News.</p>
           </div>
         )}
 
