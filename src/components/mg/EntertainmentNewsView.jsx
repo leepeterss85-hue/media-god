@@ -46,7 +46,8 @@ export default function EntertainmentNewsView() {
     else setLoading(true);
     setError("");
     try {
-      const response = await base44.functions.invoke("getEntertainmentNews", { section });
+      // Load the combined feed once; switching All/Film/TV is then instant client-side.
+      const response = await base44.functions.invoke("getEntertainmentNews", { section: "all" });
       const payload = response?.data || response;
       const nextStories = Array.isArray(payload?.stories) ? payload.stories : [];
       setStories(nextStories);
@@ -63,7 +64,7 @@ export default function EntertainmentNewsView() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [section]);
+  }, []);
 
   useEffect(() => {
     load();
@@ -71,12 +72,11 @@ export default function EntertainmentNewsView() {
 
   const filtered = useMemo(() => {
     const wanted = query.trim().toLowerCase();
-    return stories.filter((story) => !wanted || [
-      story.title,
-      story.description,
-      story.source,
-    ].join(" ").toLowerCase().includes(wanted));
-  }, [stories, query]);
+    return stories.filter((story) =>
+      (section === "all" || story.category === section) &&
+      (!wanted || [story.title, story.description, story.source].join(" ").toLowerCase().includes(wanted))
+    );
+  }, [stories, query, section]);
 
   return (
     <section className="w-full px-4 py-6 md:px-6 md:py-8 3xl:px-10">
