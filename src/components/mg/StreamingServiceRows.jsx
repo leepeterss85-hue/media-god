@@ -205,7 +205,7 @@ export default function StreamingServiceRows({
       {rows.map(({ service, items }) => (
         <MediaRow
           key={service.key}
-          title={service.label}
+          title={mediaType === "tv" ? "" : service.label}
           iconUrl={service.logoUrl}
           iconSize={mediaType === "tv" ? "large" : "default"}
           items={items}
