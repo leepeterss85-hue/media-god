@@ -71,7 +71,7 @@ export default function StreamingProviderLogos({
   region = "",
   limit = 3,
   className = "",
-  compact = true,
+  compact = false,
   initialProviders = null,
 }) {
   const rootRef = useRef(null);
@@ -140,7 +140,7 @@ export default function StreamingProviderLogos({
   return (
     <div
       ref={rootRef}
-      className={`min-h-6 ${className}`}
+      className={`min-h-9 ${className}`}
       aria-label="Streaming services"
     >
       {shown.length > 0 && (
@@ -149,7 +149,7 @@ export default function StreamingProviderLogos({
             <span
               key={`${provider?.provider_id || provider?.provider_name}-${provider?.availability || "watch"}`}
               className={`inline-flex items-center justify-center overflow-hidden rounded-md border border-white/15 bg-black/65 shadow-sm ${
-                compact ? "h-6 w-6" : "h-8 w-8"
+                compact ? "h-7 w-7" : "h-9 w-9 3xl:h-11 3xl:w-11"
               }`}
               title={`${provider?.provider_name || "Streaming service"}${
                 provider?.availability ? ` • ${provider.availability}` : ""
@@ -163,7 +163,7 @@ export default function StreamingProviderLogos({
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <Tv className="h-3 w-3 text-white/45" />
+                <Tv className="h-4 w-4 text-white/55" />
               )}
             </span>
           ))}
