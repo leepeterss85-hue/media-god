@@ -872,24 +872,6 @@ export default function EpisodeSelector({
       });
     };
 
-  const playEpisodeFromAddon = (episodeData, addonName) => {
-    const episodeNumber = Number(episodeData?.episode_number);
-    const seasonNumber = Number(season);
-    const progressRecord = progressMap.get(episodeKey(seasonNumber, episodeNumber));
-    const ratio = progressRatio(progressRecord);
-    const startTime = progressRecord && Number(progressRecord?.progress || 0) >= 5 && ratio < 0.96
-      ? Number(progressRecord.progress || 0)
-      : 0;
-
-    playEpisodeNumber({
-      seasonNumber,
-      episodeNumber,
-      episodeData,
-      startTime,
-      includeAddonNames: [addonName],
-    });
-  };
-
   const resumeLatest =
     () => {
       if (
