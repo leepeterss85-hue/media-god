@@ -30,6 +30,7 @@ import { preservePublishedSourceOrder } from "@/components/mg/sourcePublication"
 import { filterSourcesForRequestedIdentity, sourceMatchesRequestedIdentity } from "@/components/mg/sourceIdentity";
 import { sourceIsAioStreamsCandidate } from "@/components/mg/sourceProviderIdentity";
 import { canonicalImdbLookupFields, sourceAddonFailure, sourceLookupFailed } from "@/components/mg/sourceDiscoveryFeedback";
+import { fetchTvEpisodeSources } from "@/components/mg/tvEpisodeScraper";
 
 const PlayerContext = createContext(null);
 
@@ -3241,6 +3242,49 @@ export function PlayerProvider({
             });
           }
         });
+
+        /*
+         * TV episodes use the dedicated FlixQuest resolver as an early source
+         * pass. It runs alongside the normal addon/RD search, so a miss or
+         * timeout never blocks the standard source catalogue. Unknown language
+         * metadata remains eligible; the resolver ranks explicit English first.
+         */
+        const episodeResolverPromise =
+          !isLive &&
+          mediaType === "tv" &&
+          season != null &&
+          episode != null &&
+          !request?.skipEpisodeResolver
+            ? fetchTvEpisodeSources({
+                tmdbId,
+                season,
+                episode,
+                title: request?.rdTitle || request?.title || "",
+              })
+            : Promise.resolve([]);
+
+        episodeResolverPromise
+          .then((episodeSources) => {
+            if (!Array.isArray(episodeSources) || episodeSources.length === 0) {
+              return;
+            }
+
+            publishEarlySources(
+              episodeSources.map((item) => ({
+                ...item,
+                launchQualified: true,
+                runtimeNativeDirect: true,
+                episodeResolver: "flixquest",
+              })),
+              {
+                episodeResolver: "flixquest",
+                episodeResolverCount: episodeSources.length,
+              }
+            );
+          })
+          .catch(() => {
+            // Normal addon and Real-Debrid discovery remain the fallback.
+          });
 
         const imdbInfo =
           isLive
