@@ -1,13 +1,24 @@
 const FEEDS = {
   film: [
-    "https://news.google.com/rss/search?q=(film+OR+movie)+news+when%3A14d&hl=en-GB&gl=GB&ceid=GB%3Aen",
-    "https://www.theguardian.com/film/rss",
-    "https://www.indiewire.com/feed/",
+    { url: "https://news.google.com/rss/search?q=(film+OR+movie)+news+when%3A14d&hl=en-GB&gl=GB&ceid=GB%3Aen", label: "Google News" },
+    { url: "https://www.theguardian.com/film/rss", label: "The Guardian" },
+    { url: "https://www.indiewire.com/feed/", label: "IndieWire" },
+    { url: "https://feeds.feedburner.com/ign/movies-articles", label: "IGN" },
+    { url: "https://variety.com/v/film/feed/", label: "Variety" },
+    { url: "https://www.hollywoodreporter.com/c/movies/feed/", label: "The Hollywood Reporter" },
+    { url: "https://collider.com/feed/", label: "Collider" },
+    { url: "https://www.rollingstone.com/tv-movies/feed/", label: "Rolling Stone" },
+    { url: "https://www.digitalspy.com/rss/default.xml", label: "Digital Spy" },
   ],
   tv: [
-    "https://news.google.com/rss/search?q=(TV+OR+television)+series+news+when%3A14d&hl=en-GB&gl=GB&ceid=GB%3Aen",
-    "https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml",
-    "https://deadline.com/feed/",
+    { url: "https://news.google.com/rss/search?q=(TV+OR+television)+series+news+when%3A14d&hl=en-GB&gl=GB&ceid=GB%3Aen", label: "Google News" },
+    { url: "https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml", label: "BBC News" },
+    { url: "https://deadline.com/feed/", label: "Deadline" },
+    { url: "https://feeds.feedburner.com/ign/tv-articles", label: "IGN" },
+    { url: "https://variety.com/v/tv/feed/", label: "Variety" },
+    { url: "https://www.hollywoodreporter.com/c/tv/feed/", label: "The Hollywood Reporter" },
+    { url: "https://www.digitalspy.com/rss/tv.xml", label: "Digital Spy" },
+    { url: "https://www.rollingstone.com/tv-movies/feed/", label: "Rolling Stone" },
   ],
 };
 
@@ -50,7 +61,7 @@ const field = (item, name) => {
   return "";
 };
 
-const parseFeed = (xml, category) => {
+const parseFeed = (xml, category, feedLabel) => {
   const items = [];
   const matches = String(xml || "").match(/<(?:item|entry)(?:\s[^>]*)?>[\s\S]*?<\/(?:item|entry)>/gi) || [];
   for (const item of matches) {
@@ -68,11 +79,15 @@ const parseFeed = (xml, category) => {
     const description = cleanText(rawDescription);
     const timestamp = Date.parse(publishedAt);
     if (!title || !link) continue;
-    let fallbackSource = "Entertainment News";
-    try { fallbackSource = new URL(link).hostname.replace(/^www\./, ""); } catch {}
+    let fallbackSource = feedLabel || "Entertainment News";
+    try {
+      const hostname = new URL(link).hostname.replace(/^www\./, "");
+      if (!fallbackSource) fallbackSource = hostname;
+    } catch {}
+    const cleanTitle = title.replace(/\s+-\s+[^-]+$/, "").trim() || title;
     items.push({
       id: link,
-      title: title.replace(/\s+-\s+[^-]+$/, "").trim() || title,
+      title: cleanTitle,
       url: link,
       source: source || fallbackSource,
       sourceUrl,
@@ -80,21 +95,23 @@ const parseFeed = (xml, category) => {
       publishedAt: Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : "",
       description: description.slice(0, 360),
       image,
+      breaking: /\bbreaking\b/i.test(cleanTitle),
+      justIn: Number.isFinite(timestamp) && Date.now() - timestamp >= 0 && Date.now() - timestamp < 90 * 60 * 1000,
     });
   }
   return items;
 };
 
-async function fetchFeed(url, category) {
-  const response = await fetch(url, {
+async function fetchFeed(feed, category) {
+  const response = await fetch(feed.url, {
     headers: {
       Accept: "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
       "User-Agent": "MediaGodEntertainmentNews/1.0",
     },
-    signal: AbortSignal.timeout(4500),
+    signal: AbortSignal.timeout(3500),
   });
   if (!response.ok) throw new Error("Feed request failed: " + response.status);
-  const stories = parseFeed(await response.text(), category);
+  const stories = parseFeed(await response.text(), category, feed.label);
   if (!stories.length) throw new Error("Feed returned no parseable stories");
   return stories;
 }
@@ -121,10 +138,8 @@ export default async function(req: Request) {
   }
 
   const selected = section === "all" ? ["film", "tv"] : [section];
-  // Independent feeds run together; each gets a shorter timeout so one slow publisher
-  // cannot hold the news page open for too long.
   const feedResults = await Promise.allSettled(
-    selected.flatMap((category) => FEEDS[category].map((url) => fetchFeed(url, category)))
+    selected.flatMap((category) => FEEDS[category].map((feed) => fetchFeed(feed, category)))
   );
   const stories = feedResults.flatMap((result) => result.status === "fulfilled" ? result.value : []);
   const unique = new Map();
@@ -133,16 +148,18 @@ export default async function(req: Request) {
     if (key && !unique.has(key)) unique.set(key, story);
   }
 
-  const sorted = [...unique.values()].sort((a, b) => Date.parse(b.publishedAt || "") - Date.parse(a.publishedAt || ""));
+  const sorted = [...unique.values()].sort((a, b) => {
+    if (Boolean(a.breaking) !== Boolean(b.breaking)) return a.breaking ? -1 : 1;
+    return Date.parse(b.publishedAt || "") - Date.parse(a.publishedAt || "");
+  });
   const failedFeeds = feedResults.filter((result) => result.status === "rejected").length;
   const payload = {
-    stories: sorted.slice(0, 48),
+    stories: sorted.slice(0, 72),
     updatedAt: new Date().toISOString(),
     partial: failedFeeds > 0 && sorted.length > 0,
     unavailable: sorted.length === 0,
+    sourceCount: [...new Set(stories.map((story) => story.source))].length,
   };
-  // Cache useful responses in the warm function instance for five minutes.
-  // Do not cache empty failures, so a transient outage can recover on the next request.
   if (payload.stories.length) {
     responseCache.set(section, { expiresAt: Date.now() + CACHE_TTL_MS, payload });
   }
