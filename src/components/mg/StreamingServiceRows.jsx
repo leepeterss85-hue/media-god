@@ -207,6 +207,7 @@ export default function StreamingServiceRows({
           key={service.key}
           title={service.label}
           iconUrl={service.logoUrl}
+          iconSize={mediaType === "tv" ? "large" : "default"}
           items={items}
           onOpen={onOpen}
           onWatchlist={onWatchlist}
