@@ -2277,6 +2277,12 @@ export default async function (req) {
       }
     }
 
+    const includedAddonNames = new Set(
+      (Array.isArray(body?.include_addons) ? body.include_addons : [])
+        .map((value) => clean(value).toLowerCase().replace(/[^a-z0-9]/g, ""))
+        .filter(Boolean)
+    );
+
     const excludedAddonNames =
       new Set(
         (
@@ -2304,13 +2310,12 @@ export default async function (req) {
           ))
       );
 
-    const activeAddons =
-      allActiveAddons.filter(
-        (addon) =>
-          !excludedAddonNames.has(
-            clean(addon?.name).toLowerCase()
-          )
-      );
+    const activeAddons = allActiveAddons.filter((addon) => {
+      const name = clean(addon?.name).toLowerCase();
+      const normalizedName = name.replace(/[^a-z0-9]/g, "");
+      if (excludedAddonNames.has(name)) return false;
+      return includedAddonNames.size === 0 || includedAddonNames.has(normalizedName);
+    });
 
     if (
       allActiveAddons.length === 0
