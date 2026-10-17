@@ -21,6 +21,13 @@ const BUILTIN_PUBLIC_PLAYBACK_ADDONS = [
     active: true,
     builtIn: true,
   },
+  {
+    name: "StremSRC",
+    url: "https://stremsrc.theditor.xyz/manifest.json",
+    installed: true,
+    active: true,
+    builtIn: true,
+  },
 ];
 
 const addonUrlKey = (addon) =>
