@@ -42,14 +42,14 @@ export default function MediaRow({
           : undefined
       }
     >
-      <div className="flex items-center justify-between gap-3 mb-2 3xl:mb-3">
+      <div className={`flex items-center justify-between gap-3 mb-2 3xl:mb-3 ${iconSize === "large" ? "min-h-14 sm:min-h-16 3xl:min-h-20" : ""}`}>
         <div className="flex min-w-0 items-center gap-2.5 3xl:gap-3">
           {iconUrl && (
             <img
               src={iconUrl}
               alt=""
               aria-hidden="true"
-              className={`shrink-0 rounded-md object-cover ${iconSize === "large" ? "h-10 w-10 sm:h-12 sm:w-12 3xl:h-14 3xl:w-14" : "h-7 w-7 3xl:h-9 3xl:w-9"}`}
+              className={`shrink-0 ${iconSize === "large" ? "h-14 w-32 sm:h-16 sm:w-40 xl:h-[4.5rem] xl:w-48 3xl:h-20 3xl:w-56 rounded-lg bg-white/[0.06] px-2 py-1 object-contain" : "h-7 w-7 rounded-md object-cover 3xl:h-9 3xl:w-9"}`}
               loading="lazy"
             />
           )}
