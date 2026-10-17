@@ -792,35 +792,16 @@ export default function EpisodeSelector({
         rdSeason: Number(seasonNumber),
         rdEpisode: Number(episodeNumber),
         startTime: Number(startTime || 0),
-        noRd: true,
-        skipRdLookup: true,
-        skipAddonLookup: true,
+        // TV episodes must query the configured playback add-ons so
+        // MediaFusion and the built-in StremSRC source can return episode links.
+        skipRdLookup: false,
+        skipAddonLookup: false,
         verifiedPlaybackPolicy: "manual",
       };
 
-      /*
-       * The FlixQuest scraper has not produced usable episode links, so do not
-       * block playback on it. Open episode-aware providers directly using the
-       * exact show ID, season and episode. Keep normal Media God lookup as the
-       * final fallback if neither provider can construct an episode URL.
-       */
-      const episodeEmbedRequest = {
-        ...baseRequest,
-        title: episodeTitle,
-        mediaType: "tv",
-        type: "tv",
-        season: Number(seasonNumber),
-        episode: Number(episodeNumber),
-      };
-
-      if (player.playVidSrc && player.playVidSrc(episodeEmbedRequest)) {
-        return;
-      }
-
-      if (player.playEmbedSu && player.playEmbedSu(episodeEmbedRequest)) {
-        return;
-      }
-
+      // Use the standard source chooser here rather than forcing an embedded
+      // scraper first. This lets the configured MediaFusion manifest and
+      // StremSRC appear alongside other TV episode sources.
       player.play({
         ...baseRequest,
         preferRd: true,
