@@ -289,22 +289,36 @@ export default function NewEpisodesRow({
     if (!item || item.airDate > todayKey) return;
 
     /*
-     * Episodes launch straight into the OnlyFlix embed from the card for instant
-     * playback. If OnlyFlix can't build a URL, fall back to the detail view.
+     * Route episode cards through the shared episode playback pipeline.
+     * This invokes the FlixQuest resolver first while preserving the normal
+     * addon/Real-Debrid source lookup as fallback instead of bypassing both
+     * and opening OnlyFlix directly.
      */
-    if (player.playOnlyFlix) {
-      if (player.playOnlyFlix({
+    if (player.play) {
+      const episodeCode = `S${String(item.season).padStart(2, "0")}E${String(
+        item.episode
+      ).padStart(2, "0")}`;
+
+      void player.play({
         id: item.tmdbId,
         tmdbId: item.tmdbId,
         tmdb_id: item.tmdbId,
-        title: item.showTitle,
+        title: `${item.showTitle} — ${episodeCode}`,
         year: item.year,
         poster: item.poster,
         mediaType: "tv",
-        type: "tv",
+        type: "series",
         season: item.season,
         episode: item.episode,
-      })) return;
+        rdTitle: item.showTitle,
+        rdYear: item.year,
+        rdSeason: item.season,
+        rdEpisode: item.episode,
+        episodeName: item.episodeName,
+        preferRd: true,
+        sources: [],
+      });
+      return;
     }
 
     if (onOpenDetail) {
