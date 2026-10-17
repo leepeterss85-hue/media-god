@@ -759,6 +759,7 @@ export default function EpisodeSelector({
       episodeNumber,
       episodeData = null,
       startTime = 0,
+      includeAddonNames = [],
     }) => {
       const episodeTitle =
         `${showTitle} — S${String(seasonNumber).padStart(2, "0")}E${String(episodeNumber).padStart(2, "0")}`;
@@ -797,6 +798,7 @@ export default function EpisodeSelector({
         skipRdLookup: false,
         skipAddonLookup: false,
         verifiedPlaybackPolicy: "manual",
+        includeAddonNames,
       };
 
       // Use the standard source chooser here rather than forcing an embedded
@@ -868,6 +870,24 @@ export default function EpisodeSelector({
         startTime,
       });
     };
+
+  const playEpisodeFromAddon = (episodeData, addonName) => {
+    const episodeNumber = Number(episodeData?.episode_number);
+    const seasonNumber = Number(season);
+    const progressRecord = progressMap.get(episodeKey(seasonNumber, episodeNumber));
+    const ratio = progressRatio(progressRecord);
+    const startTime = progressRecord && Number(progressRecord?.progress || 0) >= 5 && ratio < 0.96
+      ? Number(progressRecord.progress || 0)
+      : 0;
+
+    playEpisodeNumber({
+      seasonNumber,
+      episodeNumber,
+      episodeData,
+      startTime,
+      includeAddonNames: [addonName],
+    });
+  };
 
   const resumeLatest =
     () => {
@@ -1318,6 +1338,26 @@ export default function EpisodeSelector({
                             Embed.su
                           </button>
                         )}
+
+                        <button
+                          type="button"
+                          data-mg-focus-key={`episode:${tmdbId || showTitle}:${seasonNumber}:${episodeNumber}:mediafusion`}
+                          onClick={() => playEpisodeFromAddon(episodeData, "MediaFusion")}
+                          className="min-h-10 rounded-md border border-sky-500/30 bg-sky-500/10 px-2.5 text-[11px] font-semibold text-sky-200 focus:outline-none focus:ring-2 focus:ring-mg-green"
+                          title="Test TV episode sources from MediaFusion only"
+                        >
+                          MediaFusion test
+                        </button>
+
+                        <button
+                          type="button"
+                          data-mg-focus-key={`episode:${tmdbId || showTitle}:${seasonNumber}:${episodeNumber}:stremsrc`}
+                          onClick={() => playEpisodeFromAddon(episodeData, "StremSRC")}
+                          className="min-h-10 rounded-md border border-violet-500/30 bg-violet-500/10 px-2.5 text-[11px] font-semibold text-violet-200 focus:outline-none focus:ring-2 focus:ring-mg-green"
+                          title="Test TV episode sources from StremSRC only"
+                        >
+                          StremSRC test
+                        </button>
 
                         <button
                           type="button"
