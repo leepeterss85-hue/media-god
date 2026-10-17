@@ -807,15 +807,17 @@ export default function EpisodeSelector({
       player.play({
         ...baseRequest,
         preferRd: true,
-        sources: buildMediaSources({
-          title: episodeTitle,
-          id: showId,
-          poster,
-          providers,
-        }).map((fallbackSource) => ({
-          ...fallbackSource,
-          episodeFallbackOnly: true,
-        })),
+        sources: includeAddonNames.length > 0
+          ? []
+          : buildMediaSources({
+              title: episodeTitle,
+              id: showId,
+              poster,
+              providers,
+            }).map((fallbackSource) => ({
+              ...fallbackSource,
+              episodeFallbackOnly: true,
+            })),
       });
     };
 
