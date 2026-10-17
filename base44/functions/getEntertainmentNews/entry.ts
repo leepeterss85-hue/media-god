@@ -11,6 +11,9 @@ const FEEDS = {
   ],
 };
 
+const CACHE_TTL_MS = 5 * 60 * 1000;
+const responseCache = new Map<string, { expiresAt: number; payload: any }>();
+
 const decodeXml = (value = "") => String(value)
   .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
   .replace(/&amp;/g, "&")
@@ -88,7 +91,7 @@ async function fetchFeed(url, category) {
       Accept: "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
       "User-Agent": "MediaGodEntertainmentNews/1.0",
     },
-    signal: AbortSignal.timeout(7000),
+    signal: AbortSignal.timeout(4500),
   });
   if (!response.ok) throw new Error("Feed request failed: " + response.status);
   const stories = parseFeed(await response.text(), category);
@@ -110,9 +113,16 @@ export default async function(req: Request) {
 
   const requested = String(body?.section || "all").toLowerCase();
   const section = ["all", "film", "tv"].includes(requested) ? requested : "all";
-  const selected = section === "all" ? ["film", "tv"] : [section];
+  const cached = responseCache.get(section);
+  if (cached && cached.expiresAt > Date.now()) {
+    return Response.json({ ...cached.payload, cached: true }, {
+      headers: { "Cache-Control": "public, max-age=300" },
+    });
+  }
 
-  // A single blocked or malformed publisher feed must not blank the page.
+  const selected = section === "all" ? ["film", "tv"] : [section];
+  // Independent feeds run together; each gets a shorter timeout so one slow publisher
+  // cannot hold the news page open for too long.
   const feedResults = await Promise.allSettled(
     selected.flatMap((category) => FEEDS[category].map((url) => fetchFeed(url, category)))
   );
@@ -125,12 +135,18 @@ export default async function(req: Request) {
 
   const sorted = [...unique.values()].sort((a, b) => Date.parse(b.publishedAt || "") - Date.parse(a.publishedAt || ""));
   const failedFeeds = feedResults.filter((result) => result.status === "rejected").length;
-  return Response.json({
+  const payload = {
     stories: sorted.slice(0, 48),
     updatedAt: new Date().toISOString(),
     partial: failedFeeds > 0 && sorted.length > 0,
     unavailable: sorted.length === 0,
-  }, {
+  };
+  // Cache useful responses in the warm function instance for five minutes.
+  // Do not cache empty failures, so a transient outage can recover on the next request.
+  if (payload.stories.length) {
+    responseCache.set(section, { expiresAt: Date.now() + CACHE_TTL_MS, payload });
+  }
+  return Response.json(payload, {
     headers: { "Cache-Control": "public, max-age=300" },
   });
 }
