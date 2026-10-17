@@ -1005,6 +1005,7 @@ const fetchServerAddonSources = async ({
   episode,
   fastMode = false,
   excludeAddonNames = [],
+  includeAddonNames = [],
 }) => {
   if (!imdbId && !tmdbId && !title) {
     return {
@@ -1095,6 +1096,10 @@ const fetchServerAddonSources = async ({
               excludeAddonNames
             )
               ? excludeAddonNames
+              : [],
+          include_addons:
+            Array.isArray(includeAddonNames)
+              ? includeAddonNames
               : [],
 
           ...(season != null
@@ -1261,6 +1266,9 @@ const fetchAddonSources = async (
 
       excludeAddonNames:
         args.excludeAddonNames,
+
+      includeAddonNames:
+        args.includeAddonNames,
 
       mediaType:
         args.mediaType,
@@ -2747,6 +2755,9 @@ export function PlayerProvider({
                 season,
                 episode,
                 fastMode: false,
+                includeAddonNames: Array.isArray(request?.includeAddonNames)
+                  ? request.includeAddonNames
+                  : [],
               });
 
         const rdPromise =
