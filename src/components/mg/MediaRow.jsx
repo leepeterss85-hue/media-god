@@ -49,7 +49,7 @@ export default function MediaRow({
               src={iconUrl}
               alt=""
               aria-hidden="true"
-              className={`shrink-0 ${iconSize === "large" ? "h-14 w-32 sm:h-16 sm:w-40 xl:h-[4.5rem] xl:w-48 3xl:h-20 3xl:w-56 rounded-lg bg-white/[0.06] px-2 py-1 object-contain" : "h-7 w-7 rounded-md object-cover 3xl:h-9 3xl:w-9"}`}
+              className={`shrink-0 ${iconSize === "large" ? "h-16 w-44 sm:h-20 sm:w-56 xl:w-64 3xl:h-24 3xl:w-72 object-contain" : "h-7 w-7 rounded-md object-cover 3xl:h-9 3xl:w-9"}`}
               loading="lazy"
             />
           )}
