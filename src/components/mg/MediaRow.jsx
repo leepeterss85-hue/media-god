@@ -9,6 +9,7 @@ export default function MediaRow({
   onWatchlist = null,
   watched = null,
   iconUrl = "",
+  iconSize = "default",
   actionLabel = "",
   onAction = null,
   embedded = false,
@@ -48,7 +49,7 @@ export default function MediaRow({
               src={iconUrl}
               alt=""
               aria-hidden="true"
-              className="h-7 w-7 shrink-0 rounded-md object-cover 3xl:h-9 3xl:w-9"
+              className={`shrink-0 rounded-md object-cover ${iconSize === "large" ? "h-10 w-10 sm:h-12 sm:w-12 3xl:h-14 3xl:w-14" : "h-7 w-7 3xl:h-9 3xl:w-9"}`}
               loading="lazy"
             />
           )}
