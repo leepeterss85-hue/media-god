@@ -21,6 +21,7 @@ const BUILTIN_PUBLIC_PLAYBACK_ADDONS = [
     installed: true,
     active: true,
     builtIn: true,
+    mediaTypes: ["tv"],
   },
 ];
 
@@ -1676,6 +1677,7 @@ export async function fetchBrowserAddonStreams({
         addon?.installed !== false &&
         addon?.active !== false &&
         addon?.url &&
+        (!Array.isArray(addon?.mediaTypes) || addon.mediaTypes.includes(mediaType)) &&
         !excludedAddonNames.has(
           clean(addon?.name).toLowerCase()
         )
