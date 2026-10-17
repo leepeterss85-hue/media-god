@@ -205,9 +205,9 @@ export default function StreamingServiceRows({
       {rows.map(({ service, items }) => (
         <MediaRow
           key={service.key}
-          title={mediaType === "tv" ? "" : service.label}
+          title={mediaType === "tv" || mediaType === "mixed" ? "" : service.label}
           iconUrl={service.logoUrl}
-          iconSize={mediaType === "tv" ? "large" : "default"}
+          iconSize={mediaType === "tv" || mediaType === "mixed" ? "large" : "default"}
           items={items}
           onOpen={onOpen}
           onWatchlist={onWatchlist}
