@@ -104,7 +104,7 @@ export default async function(req: Request) {
     return Response.json({ error: "Method not allowed" }, { status: 405 });
   }
 
-  let body: { section?: string } = {};
+  let body: { section?: string; forceRefresh?: boolean } = {};
   try {
     body = await req.json();
   } catch {
@@ -114,7 +114,7 @@ export default async function(req: Request) {
   const requested = String(body?.section || "all").toLowerCase();
   const section = ["all", "film", "tv"].includes(requested) ? requested : "all";
   const cached = responseCache.get(section);
-  if (cached && cached.expiresAt > Date.now()) {
+  if (!body.forceRefresh && cached && cached.expiresAt > Date.now()) {
     return Response.json({ ...cached.payload, cached: true }, {
       headers: { "Cache-Control": "public, max-age=300" },
     });
