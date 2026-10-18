@@ -1,6 +1,6 @@
 const FEEDS = {
   film: [
-    { url: "https://news.google.com/rss/search?q=(film+OR+movie)+news+when%3A14d&hl=en-GB&gl=GB&ceid=GB%3Aen", label: "Google News" },
+    { url: "https://news.google.com/rss/search?q=(film+OR+movie)+news+when%3A3d&hl=en-GB&gl=GB&ceid=GB%3Aen", label: "Google News" },
     { url: "https://www.theguardian.com/film/rss", label: "The Guardian" },
     { url: "https://www.indiewire.com/feed/", label: "IndieWire" },
     { url: "https://feeds.feedburner.com/ign/movies-articles", label: "IGN" },
@@ -9,9 +9,12 @@ const FEEDS = {
     { url: "https://collider.com/feed/", label: "Collider" },
     { url: "https://www.rollingstone.com/tv-movies/feed/", label: "Rolling Stone" },
     { url: "https://www.digitalspy.com/rss/default.xml", label: "Digital Spy" },
+    { url: "https://screenrant.com/movies/feed/", label: "Screen Rant" },
+    { url: "https://www.thewrap.com/category/film/feed/", label: "TheWrap" },
+    { url: "https://deadline.com/feed/", label: "Deadline" },
   ],
   tv: [
-    { url: "https://news.google.com/rss/search?q=(TV+OR+television)+series+news+when%3A14d&hl=en-GB&gl=GB&ceid=GB%3Aen", label: "Google News" },
+    { url: "https://news.google.com/rss/search?q=(TV+OR+television+OR+streaming)+series+news+when%3A3d&hl=en-GB&gl=GB&ceid=GB%3Aen", label: "Google News" },
     { url: "https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml", label: "BBC News" },
     { url: "https://deadline.com/feed/", label: "Deadline" },
     { url: "https://feeds.feedburner.com/ign/tv-articles", label: "IGN" },
@@ -19,6 +22,8 @@ const FEEDS = {
     { url: "https://www.hollywoodreporter.com/c/tv/feed/", label: "The Hollywood Reporter" },
     { url: "https://www.digitalspy.com/rss/tv.xml", label: "Digital Spy" },
     { url: "https://www.rollingstone.com/tv-movies/feed/", label: "Rolling Stone" },
+    { url: "https://screenrant.com/tv/feed/", label: "Screen Rant" },
+    { url: "https://www.thewrap.com/category/tv/feed/", label: "TheWrap" },
   ],
 };
 
@@ -95,7 +100,7 @@ const parseFeed = (xml, category, feedLabel) => {
       publishedAt: Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : "",
       description: description.slice(0, 360),
       image,
-      breaking: /\bbreaking\b/i.test(cleanTitle),
+      breaking: /\bbreaking\b/i.test(cleanTitle) && Number.isFinite(timestamp) && Date.now() - timestamp >= 0 && Date.now() - timestamp < 6 * 60 * 60 * 1000,
       justIn: Number.isFinite(timestamp) && Date.now() - timestamp >= 0 && Date.now() - timestamp < 90 * 60 * 1000,
     });
   }
@@ -108,7 +113,7 @@ async function fetchFeed(feed, category) {
       Accept: "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
       "User-Agent": "MediaGodEntertainmentNews/1.0",
     },
-    signal: AbortSignal.timeout(3500),
+    signal: AbortSignal.timeout(7000),
   });
   if (!response.ok) throw new Error("Feed request failed: " + response.status);
   const stories = parseFeed(await response.text(), category, feed.label);
@@ -145,12 +150,24 @@ export default async function(req: Request) {
   const unique = new Map();
   for (const story of stories) {
     const key = story.title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-    if (key && !unique.has(key)) unique.set(key, story);
+    if (!key) continue;
+    const existing = unique.get(key);
+    const existingTime = Date.parse(existing?.publishedAt || "");
+    const storyTime = Date.parse(story.publishedAt || "");
+    // If multiple publishers syndicate the same headline, retain the freshest copy.
+    if (!existing || (Number.isFinite(storyTime) && (!Number.isFinite(existingTime) || storyTime > existingTime))) unique.set(key, story);
   }
 
   const sorted = [...unique.values()].sort((a, b) => {
+    // Freshness always wins: an old headline containing “breaking” must never outrank new reporting.
+    const aTime = Date.parse(a.publishedAt || "");
+    const bTime = Date.parse(b.publishedAt || "");
+    const aValid = Number.isFinite(aTime), bValid = Number.isFinite(bTime);
+    if (aValid !== bValid) return aValid ? -1 : 1;
+    if (aValid && bValid && aTime !== bTime) return bTime - aTime;
+    if (Boolean(a.justIn) !== Boolean(b.justIn)) return a.justIn ? -1 : 1;
     if (Boolean(a.breaking) !== Boolean(b.breaking)) return a.breaking ? -1 : 1;
-    return Date.parse(b.publishedAt || "") - Date.parse(a.publishedAt || "");
+    return 0;
   });
   const failedFeeds = feedResults.filter((result) => result.status === "rejected").length;
   const payload = {
