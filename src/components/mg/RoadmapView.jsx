@@ -18,6 +18,13 @@ import { cn } from "@/lib/utils";
 
 const PosterImage = /** @type {any} */ (Image);
 
+const localDateYmd = () => {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}`;
+};
+
 export default function RoadmapView({ onBack }) {
   const [films, setFilms] = useState([]);
   const [shows, setShows] = useState([]);
@@ -41,13 +48,13 @@ export default function RoadmapView({ onBack }) {
         media_type: "movie",
         region: releaseRegion,
         include_global_releases: true,
-        date: new Date().toISOString().slice(0, 10),
+        date: localDateYmd(),
       }),
       base44.functions.invoke("getTmdbMovies", {
         category: "tv_upcoming",
         media_type: "tv",
         region: releaseRegion,
-        date: new Date().toISOString().slice(0, 10),
+        date: localDateYmd(),
       }),
     ]);
 
@@ -226,7 +233,7 @@ export default function RoadmapView({ onBack }) {
           <div className="min-w-0">
             <h1 className="text-xl font-bold text-white tracking-wide">Release Dates</h1>
             <p className="text-xs text-white/40 mt-0.5">
-              Cinema dates for {releaseRegionLabel}, plus films already released elsewhere and available to try through Media God.
+              Upcoming film and TV release dates from today onwards. Film dates are tailored to {releaseRegionLabel}; the calendar refreshes automatically.
             </p>
           </div>
         </div>
