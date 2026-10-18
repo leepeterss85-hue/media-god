@@ -2198,12 +2198,13 @@ export default async function(req) {
     const pages =
       providerIds.length > 0
         ? providerPageCount
-        : category ===
-          'movie_released_today'
+        : category === 'movie_released_today'
           ? 5
-          : query
-            ? 2
-            : 3;
+          : category === 'upcoming' || category === 'tv_upcoming'
+            ? 5
+            : query
+              ? 2
+              : 3;
 
     const pageResults =
       await Promise.all(
