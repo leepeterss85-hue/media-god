@@ -25,6 +25,12 @@ const localDateYmd = () => {
   return `${now.getFullYear()}-${month}-${day}`;
 };
 
+const formatReleaseDate = (value) => {
+  const match = String(value || "").match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);
+  if (!match) return String(value || "");
+  return `${match[3]}/${match[2]}/${match[1]}`;
+};
+
 export default function RoadmapView({ onBack }) {
   const [films, setFilms] = useState([]);
   const [shows, setShows] = useState([]);
@@ -359,12 +365,12 @@ export default function RoadmapView({ onBack }) {
                     <div className="flex flex-col items-end gap-1">
                       {(item?.release_date || item?.first_air_date) && (
                         <span className="text-[10px] font-bold bg-mg-green/15 text-mg-green border border-mg-green/40 px-2 py-1 rounded whitespace-nowrap">
-                          {item.release_date}
+                          {formatReleaseDate(item.release_date || item.first_air_date)}
                         </span>
                       )}
                       {item?.global_release_available && item?.global_release_date && item?.global_release_date !== item?.release_date && (
                         <span className="text-[10px] font-semibold bg-sky-400/10 text-sky-200 border border-sky-400/30 px-2 py-1 rounded whitespace-nowrap">
-                          Released elsewhere {item.global_release_date}
+                          Released elsewhere {formatReleaseDate(item.global_release_date)}
                         </span>
                       )}
                     </div>
