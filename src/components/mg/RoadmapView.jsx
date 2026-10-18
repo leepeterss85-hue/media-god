@@ -20,7 +20,7 @@ const PosterImage = /** @type {any} */ (Image);
 
 export default function RoadmapView({ onBack }) {
   const [films, setFilms] = useState([]);
-  const [broadcasts, setBroadcasts] = useState([]);
+  const [shows, setShows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [tab, setTab] = useState("film");
@@ -35,33 +35,40 @@ export default function RoadmapView({ onBack }) {
     setLoading(true);
     setError("");
 
-    const [filmResult, broadcastResult] = await Promise.allSettled([
+    const [filmResult, showResult] = await Promise.allSettled([
       base44.functions.invoke("getTmdbMovies", {
         category: "upcoming",
+        media_type: "movie",
         region: releaseRegion,
         include_global_releases: true,
+        date: new Date().toISOString().slice(0, 10),
       }),
-      base44.entities.RoadmapItem.list("-created_date", 50),
+      base44.functions.invoke("getTmdbMovies", {
+        category: "tv_upcoming",
+        media_type: "tv",
+        region: releaseRegion,
+        date: new Date().toISOString().slice(0, 10),
+      }),
     ]);
 
     const nextFilms =
       filmResult.status === "fulfilled" && Array.isArray(filmResult.value?.data?.movies)
         ? filmResult.value.data.movies
         : [];
-    const nextBroadcasts =
-      broadcastResult.status === "fulfilled" && Array.isArray(broadcastResult.value)
-        ? broadcastResult.value
+    const nextShows =
+      showResult.status === "fulfilled" && Array.isArray(showResult.value?.data?.movies)
+        ? showResult.value.data.movies
         : [];
 
     setFilms(nextFilms);
-    setBroadcasts(nextBroadcasts);
+    setShows(nextShows);
 
-    if (filmResult.status === "rejected" && broadcastResult.status === "rejected") {
-      setError("Release dates could not be loaded right now.");
+    if (filmResult.status === "rejected" && showResult.status === "rejected") {
+      setError("Upcoming film and TV release dates could not be loaded right now.");
     } else if (filmResult.status === "rejected") {
-      setError("Upcoming film release dates are temporarily unavailable, but saved TV and broadcast dates are still shown.");
-    } else if (broadcastResult.status === "rejected") {
-      setError("Saved TV and broadcast dates are temporarily unavailable, but upcoming film release dates are still shown.");
+      setError("Upcoming film release dates are temporarily unavailable; TV dates are still shown.");
+    } else if (showResult.status === "rejected") {
+      setError("Upcoming TV release dates are temporarily unavailable; film dates are still shown.");
     }
 
     setLoading(false);
@@ -69,13 +76,12 @@ export default function RoadmapView({ onBack }) {
 
   useEffect(() => {
     load();
+    const refreshId = window.setInterval(load, 30 * 60 * 1000);
+    return () => window.clearInterval(refreshId);
   }, [load]);
 
   const filtered = useMemo(() => {
-    const base =
-      tab === "film"
-        ? films
-        : broadcasts.filter((item) => item?.type === "broadcast");
+    const base = tab === "film" ? films : shows;
 
     const wanted = query.trim().toLowerCase();
     const now = new Date();
@@ -102,20 +108,12 @@ export default function RoadmapView({ onBack }) {
           return false;
         }
 
-        if (!windowDays) return true;
-
-        const rawDate =
-          item?.release_date ||
-          item?.air_date ||
-          item?.date ||
-          item?.created_date ||
-          "";
-        const time = Date.parse(rawDate);
-
-        if (!Number.isFinite(time)) return false;
-
-        const diffDays = (time - today) / 86400000;
-        return diffDays >= 0 && diffDays <= windowDays;
+        const rawDate = item?.release_date || item?.first_air_date || item?.air_date || item?.date || "";
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(String(rawDate))) return false;
+        const time = Date.parse(`${rawDate}T00:00:00`);
+        if (!Number.isFinite(time) || time < today) return false;
+        const diffDays = Math.floor((time - today) / 86400000);
+        return windowDays === null || diffDays <= windowDays;
       })
       .sort((a, b) => {
         const aDate = String(
@@ -126,7 +124,7 @@ export default function RoadmapView({ onBack }) {
         );
         return aDate.localeCompare(bDate);
       });
-  }, [films, broadcasts, tab, query, dateWindow]);
+  }, [films, shows, tab, query, dateWindow]);
 
   const fetchMedia = async (id) => {
     if (id && /^\d+$/.test(String(id))) {
@@ -251,10 +249,7 @@ export default function RoadmapView({ onBack }) {
       <div className="flex gap-2 border-b border-white/10 mb-5 overflow-x-auto">
         {[
           { id: "film", label: `Films (${films.length})` },
-          {
-            id: "broadcast",
-            label: `TV & broadcasts (${broadcasts.filter((item) => item?.type === "broadcast").length})`,
-          },
+          { id: "tv", label: `TV shows (${shows.length})` },
         ].map((item) => (
           <button
             key={item.id}
@@ -317,7 +312,7 @@ export default function RoadmapView({ onBack }) {
         <div className="rounded-xl border border-white/10 bg-mg-card/60 py-16 px-4 text-center">
           <CalendarDays className="mx-auto h-10 w-10 text-white/20" />
           <p className="mt-3 text-sm font-medium text-white/60">
-            {tab === "film" ? "No upcoming film release dates were returned." : "No TV or broadcast release dates have been saved yet."}
+            {tab === "film" ? "No upcoming film release dates were returned." : "No upcoming TV show release dates were returned."}
           </p>
         </div>
       ) : (
@@ -355,7 +350,7 @@ export default function RoadmapView({ onBack }) {
                       {item?.title || "Untitled"}
                     </h2>
                     <div className="flex flex-col items-end gap-1">
-                      {item?.release_date && (
+                      {(item?.release_date || item?.first_air_date) && (
                         <span className="text-[10px] font-bold bg-mg-green/15 text-mg-green border border-mg-green/40 px-2 py-1 rounded whitespace-nowrap">
                           {item.release_date}
                         </span>
