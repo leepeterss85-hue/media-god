@@ -44,8 +44,8 @@ export default function RoadmapView({ onBack }) {
   const releaseRegion = detectStreamingRegion();
   const releaseRegionLabel = streamingRegionName(releaseRegion);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     setError("");
 
     const [filmResult, showResult] = await Promise.allSettled([
@@ -84,13 +84,25 @@ export default function RoadmapView({ onBack }) {
       setError("Upcoming TV release dates are temporarily unavailable; film dates are still shown.");
     }
 
-    setLoading(false);
+    if (!silent) setLoading(false);
   }, [releaseRegion]);
 
   useEffect(() => {
     load();
-    const refreshId = window.setInterval(load, 30 * 60 * 1000);
-    return () => window.clearInterval(refreshId);
+    // Refresh periodically, when the app returns to the foreground, and when
+    // the browser tab becomes visible again. Silent refreshes avoid flashing
+    // the loading skeleton over a calendar the user is already reading.
+    const refreshId = window.setInterval(() => load(true), 30 * 60 * 1000);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") load(true);
+    };
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.clearInterval(refreshId);
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
   }, [load]);
 
   const filtered = useMemo(() => {
