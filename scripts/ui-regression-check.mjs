@@ -201,11 +201,14 @@ expect(
 expect(
   roadmap.includes('category: "tv_upcoming"') &&
     roadmap.includes('media_type: "tv"') &&
-    roadmap.includes('setInterval(load, 30 * 60 * 1000)') &&
+    roadmap.includes('setInterval(() => load(true), 30 * 60 * 1000)') &&
+    roadmap.includes('window.addEventListener("focus", refreshWhenVisible)') &&
+    roadmap.includes('document.addEventListener("visibilitychange", refreshWhenVisible)') &&
     roadmap.includes('time < today') &&
     roadmap.includes('TV shows (') &&
     tmdbBackend.includes("first_air_date.gte") &&
-    tmdbBackend.includes("first_air_date.asc"),
+    tmdbBackend.includes("first_air_date.asc") &&
+    tmdbBackend.includes("category === 'upcoming' || category === 'tv_upcoming'");
   "Release calendar must discover upcoming TV, exclude dates before today, and refresh automatically"
 );
 
