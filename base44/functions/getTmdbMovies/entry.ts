@@ -108,6 +108,7 @@ const MOVIE_ENDPOINTS = {
 };
 
 const TV_ENDPOINTS = {
+  tv_upcoming: 'discover/tv',
   tv_popular: 'tv/popular',
   tv_top_rated: 'tv/top_rated',
   tv_airing_today: 'tv/airing_today',
@@ -1972,6 +1973,22 @@ export default async function(req) {
             });
 
           return `${TMDB_BASE}/discover/movie?${params.toString()}`;
+        }
+
+        /*
+         * UPCOMING TV SHOWS: explicitly include dates from today onwards.
+         */
+        if (mediaType === 'tv' && category === 'tv_upcoming') {
+          const params = new URLSearchParams({
+            api_key: apiKey,
+            language: 'en-GB',
+            sort_by: 'first_air_date.asc',
+            page: String(page),
+            include_adult: 'false',
+            'first_air_date.gte': requestedDate,
+            'first_air_date.lte': `${Number(requestedDate.slice(0, 4)) + 5}${requestedDate.slice(4)}`,
+          });
+          return `${TMDB_BASE}/discover/tv?${params.toString()}`;
         }
 
         /*
