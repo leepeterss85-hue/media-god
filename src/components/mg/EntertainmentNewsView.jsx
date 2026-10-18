@@ -245,7 +245,7 @@ export default function EntertainmentNewsView() {
         )}
 
         <p className="mt-8 text-xs leading-5 text-white/40">
-          Stories are collected from Google News, IGN, Digital Spy, The Guardian, IndieWire, BBC News, Deadline, Variety, The Hollywood Reporter, Collider and Rolling Stone. Headlines link to the original publishers.
+          Stories are collected from Google News, IGN, Digital Spy, The Guardian, IndieWire, BBC News, Deadline, Variety, The Hollywood Reporter, Collider, Rolling Stone, Screen Rant and TheWrap. Headlines link to the original publishers.
         </p>
       </div>
     </section>
