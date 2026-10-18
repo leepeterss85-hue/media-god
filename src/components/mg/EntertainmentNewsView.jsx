@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   CalendarClock,
@@ -42,8 +42,12 @@ export default function EntertainmentNewsView() {
   const [query, setQuery] = useState("");
   const [updatedAt, setUpdatedAt] = useState("");
   const [sourceCount, setSourceCount] = useState(0);
+  const lastQuietRefreshAt = useRef(0);
 
   const load = useCallback(async ({ quiet = false } = {}) => {
+    // Focus and visibility events can fire together; avoid duplicate requests.
+    if (quiet && Date.now() - lastQuietRefreshAt.current < 30_000) return;
+    if (quiet) lastQuietRefreshAt.current = Date.now();
     if (quiet) setRefreshing(true);
     else setLoading(true);
     setError("");
@@ -71,9 +75,18 @@ export default function EntertainmentNewsView() {
 
   useEffect(() => {
     load();
-    // Keep the feed fresh while the news screen stays open, rather than waiting for a manual refresh.
+    // Keep the feed fresh while open and refresh promptly when the user returns to the app.
     const refreshTimer = window.setInterval(() => load({ quiet: true }), 5 * 60 * 1000);
-    return () => window.clearInterval(refreshTimer);
+    const refreshOnReturn = () => {
+      if (document.visibilityState === "visible") load({ quiet: true });
+    };
+    window.addEventListener("focus", refreshOnReturn);
+    document.addEventListener("visibilitychange", refreshOnReturn);
+    return () => {
+      window.clearInterval(refreshTimer);
+      window.removeEventListener("focus", refreshOnReturn);
+      document.removeEventListener("visibilitychange", refreshOnReturn);
+    };
   }, [load]);
 
   const filtered = useMemo(() => {
