@@ -41,6 +41,7 @@ export default function EntertainmentNewsView() {
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [updatedAt, setUpdatedAt] = useState("");
+  const [sourceCount, setSourceCount] = useState(0);
 
   const load = useCallback(async ({ quiet = false } = {}) => {
     if (quiet) setRefreshing(true);
@@ -51,16 +52,17 @@ export default function EntertainmentNewsView() {
       const response = await base44.functions.invoke("getEntertainmentNews", { section: "all", forceRefresh: quiet });
       const payload = response?.data || response;
       const nextStories = Array.isArray(payload?.stories) ? payload.stories : [];
-      setStories(nextStories);
+      if (nextStories.length) setStories(nextStories);
       setUpdatedAt(payload?.updatedAt || new Date().toISOString());
+      setSourceCount(Number(payload?.sourceCount) || 0);
       if (!nextStories.length) {
         setError("News is temporarily unavailable. Please try refreshing in a moment.");
       } else if (payload?.partial) {
         setError("Some news feeds are temporarily unavailable. Showing the stories we could retrieve.");
       }
     } catch {
-      setStories([]);
-      setError("News could not be loaded right now. Check your connection and try again.");
+      // Keep the last successful headlines visible if a refresh temporarily fails.
+      setError("News could not be refreshed right now. Showing the last available stories; try again shortly.");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -69,6 +71,9 @@ export default function EntertainmentNewsView() {
 
   useEffect(() => {
     load();
+    // Keep the feed fresh while the news screen stays open, rather than waiting for a manual refresh.
+    const refreshTimer = window.setInterval(() => load({ quiet: true }), 5 * 60 * 1000);
+    return () => window.clearInterval(refreshTimer);
   }, [load]);
 
   const filtered = useMemo(() => {
@@ -144,7 +149,7 @@ export default function EntertainmentNewsView() {
         {updatedAt && !loading && (
           <p className="mb-4 flex items-center gap-2 text-xs text-white/45">
             <CalendarClock className="h-3.5 w-3.5" />
-            Updated {dateLabel(updatedAt)}
+            Updated {dateLabel(updatedAt)}{sourceCount > 0 ? ` · ${sourceCount} sources` : ""} · auto-refreshes every 5 min
           </p>
         )}
 
