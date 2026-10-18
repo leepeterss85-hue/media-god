@@ -199,6 +199,17 @@ expect(
 );
 
 expect(
+  roadmap.includes('category: "tv_upcoming"') &&
+    roadmap.includes('media_type: "tv"') &&
+    roadmap.includes('setInterval(load, 30 * 60 * 1000)') &&
+    roadmap.includes('time < today') &&
+    roadmap.includes('TV shows (') &&
+    tmdbBackend.includes("first_air_date.gte") &&
+    tmdbBackend.includes("first_air_date.asc"),
+  "Release calendar must discover upcoming TV, exclude dates before today, and refresh automatically"
+);
+
+expect(
   homeDashboard.includes("StreamingServiceRows") &&
     homeDashboard.includes('mediaType="mixed"') &&
     homeDashboard.includes("onOpenTvService"),
