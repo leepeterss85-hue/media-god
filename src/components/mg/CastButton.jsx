@@ -30,13 +30,31 @@ let sdkPromise = null;
 function loadCastSdk() {
   if (sdkPromise) return sdkPromise;
   sdkPromise = new Promise((resolve) => {
-    if (window.cast && window.cast.framework) return resolve(true);
-    window.__onGCastApiAvailable = (available) => resolve(available === true);
-    if (!document.querySelector(`script[src^="${CAST_SDK_URL}"]`)) {
-      const s = document.createElement("script");
-      s.src = CAST_SDK_URL;
-      s.async = true;
-      document.head.appendChild(s);
+    if (window.cast && window.cast.framework) {
+      resolve(true);
+      return;
+    }
+
+    let settled = false;
+    const finish = (available) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      if (!available) sdkPromise = null;
+      resolve(available === true);
+    };
+    const timeout = setTimeout(() => finish(false), 8000);
+    window.__onGCastApiAvailable = (available) => finish(available === true);
+
+    let script = document.querySelector(`script[src^="${CAST_SDK_URL}"]`);
+    if (!script) {
+      script = document.createElement("script");
+      script.src = CAST_SDK_URL;
+      script.async = true;
+      script.onerror = () => finish(false);
+      document.head.appendChild(script);
+    } else {
+      script.addEventListener("error", () => finish(false), { once: true });
     }
   });
   return sdkPromise;
