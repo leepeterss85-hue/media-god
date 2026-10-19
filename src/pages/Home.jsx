@@ -46,6 +46,7 @@ const DebridDashboard = lazy(() => import("@/components/mg/DebridDashboard"));
 const AddonsView = lazy(() => import("@/components/mg/AddonsView"));
 const SourcesView = lazy(() => import("@/components/mg/SourcesView"));
 const RoadmapView = lazy(() => import("@/components/mg/RoadmapView"));
+const WatchmodeHub = lazy(() => import("@/components/mg/WatchmodeHub"));
 const UpdatesView = lazy(() => import("@/components/mg/UpdatesView"));
 const SettingsView = lazy(() => import("@/components/mg/SettingsView"));
 const SettingsTools = lazy(() => import("@/components/mg/SettingsTools"));
@@ -1167,6 +1168,13 @@ function MediaGodApp() {
             "roadmap" && (
             <SafeDeferredView resetKey={view} label="Release Dates" onHome={() => setView("home")}>
               <RoadmapView onBack={goBack} />
+            </SafeDeferredView>
+          )}
+
+          {view ===
+            "watchmode" && (
+            <SafeDeferredView resetKey={view} label="Watchmode discovery" onHome={() => setView("home")}>
+              <WatchmodeHub />
             </SafeDeferredView>
           )}
 
