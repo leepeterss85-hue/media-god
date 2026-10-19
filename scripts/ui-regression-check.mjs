@@ -785,4 +785,22 @@ expect(
   "Continue Watching must persist the manually selected torrent identity and replay that source before OnlyFlix"
 );
 
+const watchmodeFeatures = await read("src/components/mg/WatchmodeFeatures.jsx");
+const watchmodeBackend = await read("base44/functions/getWatchmodeFeatures/entry.ts");
+const homeDashboardWatchmode = await read("src/components/mg/HomeDashboard.jsx");
+expect(
+  homeDashboardWatchmode.includes("<WatchmodeFeatures />") &&
+    watchmodeFeatures.includes("Live Sports & TV") &&
+    watchmodeFeatures.includes("Leaving Soon") &&
+    watchmodeFeatures.includes("Find awards"),
+  "Watchmode live events, leaving-soon and awards features are not mounted on Home"
+);
+expect(
+  watchmodeBackend.includes('secrets.get("WATCHMODE_API_KEY")') &&
+    watchmodeBackend.includes('action === "live-events"') &&
+    watchmodeBackend.includes('action === "leaving"') &&
+    watchmodeBackend.includes('action === "awards"'),
+  "Watchmode server integration is missing an authenticated feature endpoint"
+);
+
 console.log("ok UI/navigation/download/watch-party/locked-source/version-update structural checks complete");
