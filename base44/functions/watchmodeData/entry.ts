@@ -14,7 +14,7 @@ const ACTIONS = {
   details: (p) => `/title/${encodeURIComponent(p.id)}/details/`,
   sources: (p) => `/title/${encodeURIComponent(p.id)}/sources/`,
   episodes: (p) => `/title/${encodeURIComponent(p.id)}/episodes/`,
-  awards: (p) => `/title/${encodeURIComponent(p.id)}/awards/`,
+  awards: (p) => `/title/${encodeURIComponent(p.id)}/details/`,
   person: (p) => `/person/${encodeURIComponent(p.id)}/`,
   sourceChanges: () => '/changes/titles_sources_changed/',
 };
