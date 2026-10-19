@@ -1,4 +1,4 @@
-// VOD audio compatibility release 1.0.78.
+// Voice search and casting compatibility release 1.0.79.
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.mediagod.mobile"
         minSdk = 23
         targetSdk = 35
-        versionCode = 79
-        versionName = "1.0.78"
+        versionCode = 80
+        versionName = "1.0.79"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
