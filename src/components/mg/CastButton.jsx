@@ -20,7 +20,7 @@ const mediaContentType = (value, explicitType) => {
   if (url.endsWith(".mkv")) return "video/x-matroska";
   if (url.endsWith(".mov")) return "video/quicktime";
   if (url.endsWith(".mp4") || url.endsWith(".m4v")) return "video/mp4";
-  return "application/x-mpegURL";
+  return "video/mp4";
 };
 
 const isCastableHttpUrl = (value) => /^https?:\/\//i.test(String(value || "").trim());
