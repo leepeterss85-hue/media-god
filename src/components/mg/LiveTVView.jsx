@@ -32,6 +32,7 @@ import { getFreeTvChannels } from "@/components/mg/freeTvPlaylist";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 import { base44 } from "@/api/base44Client";
 import { cn } from "@/lib/utils";
+import CastButton from "@/components/mg/CastButton";
 import {
   readHiddenLiveTvChannels,
   readHiddenLiveTvGroups,
@@ -894,6 +895,7 @@ export default function LiveTVView({
   );
   const [directOnly, setDirectOnly] = useState(Boolean(initialViewState?.directOnly));
   const [radioStation, setRadioStation] = useState(null);
+  const [selectedCastChannel, setSelectedCastChannel] = useState(null);
   const [radioSourceIndex, setRadioSourceIndex] = useState(0);
   const [radioPlaying, setRadioPlaying] = useState(false);
   const [radioStatus, setRadioStatus] = useState("");
@@ -2318,6 +2320,8 @@ export default function LiveTVView({
       return;
     }
 
+    setSelectedCastChannel(channel);
+
     setChannelNoticeActions([]);
 
     const memoryKey = channelMemoryKey(channel);
@@ -3421,6 +3425,20 @@ export default function LiveTVView({
       </div>
 
       <div className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-white/40 sm:text-xs">
+        {selectedCastChannel && !isRadioChannel(selectedCastChannel) && (() => {
+          const castSource = playableChannelCandidates(selectedCastChannel)[0];
+          return castSource?.url ? (
+            <div className="relative">
+              <CastButton
+                url={castSource.url}
+                title={selectedCastChannel.name || "Live TV"}
+                poster={selectedCastChannel.logo || ""}
+                contentType={castSource.format === "hls" ? "application/x-mpegURL" : castSource.format === "dash" ? "application/dash+xml" : ""}
+                source={castSource}
+              />
+            </div>
+          ) : null;
+        })()}
         <span className="flex items-center gap-1.5">
           <Tv className="h-3.5 w-3.5" />
 
