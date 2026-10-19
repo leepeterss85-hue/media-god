@@ -9,7 +9,7 @@ const apps = [
     dir: "firetv-android",
     packagePath: "com/mediagod/firetv",
     namespace: "com.mediagod.firetv",
-    expectedVersion: "1.4.89",
+    expectedVersion: "1.4.90",
     expectedMedia3: "1.8.0",
     expectedOrientation: "landscape",
   },
@@ -48,8 +48,28 @@ const playbackReliability = requireFile(
   "src/components/mg/playbackReliability.js",
   "permanent Real-Debrid rejection failover"
 );
+const searchDialog = requireFile(
+  "src/components/mg/SearchDialog.jsx",
+  "voice search UI and search integration"
+);
+const castButton = requireFile(
+  "src/components/mg/CastButton.jsx",
+  "Cast sender and stream MIME handling"
+);
 
 const nativeCoordinationChecks = [
+  [
+    searchDialog.includes("Search by voice") &&
+      searchDialog.includes("mg:native-voice-search-result") &&
+      searchDialog.includes("webkitSpeechRecognition"),
+    "voice search button and browser/native recognition result handling",
+  ],
+  [
+    castButton.includes("CastContext") &&
+      castButton.includes("mediaContentType(url)") &&
+      castButton.includes("isCastableHttpUrl"),
+    "Cast sender checks stream URL and selects media MIME type",
+  ],
   [
     /if\s*\(\s*!isLive\s*\|\|\s*isNativeFireTvPlayerAvailable\(\)\s*\)/m.test(
       videoPlayer
@@ -275,6 +295,14 @@ for (const app of apps) {
   ];
 
   if (app.name === "Fire TV") {
+    checks.push([
+      mainActivity.includes("fun startVoiceSearch(): Boolean") &&
+        mainActivity.includes("REQUEST_VOICE_SEARCH") &&
+        mainActivity.includes("mg:native-voice-search-result") &&
+        manifest.includes("android.permission.RECORD_AUDIO") &&
+        manifest.includes("android.speech.RecognitionService"),
+      "native Fire TV voice search bridge and speech-recognition manifest support",
+    ]);
     checks.push([
       compatibilityRouter.includes("firetv-dv-hdr10plus-mkv"),
       "Fire TV Dolby Vision + HDR10+ MKV workaround",
