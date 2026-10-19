@@ -8,19 +8,35 @@ const CAST_SDK_URL =
 // without registering a custom Cast app.
 const DEFAULT_RECEIVER_ID = "CC1AD845";
 
-const mediaContentType = (value, explicitType) => {
-  const explicit = String(explicitType || "").trim().toLowerCase();
-  if (explicit.includes("mpegurl") || explicit === "hls" || explicit === "m3u8") return "application/x-mpegURL";
+const mediaContentType = (value, explicitType, source) => {
+  // Prefer the stream's declared MIME type, then its format label, then the
+  // URL extension. Live playlist URLs often include query strings or tokens.
+  const declared = String(
+    explicitType ||
+      source?.mimeType ||
+      source?.contentType ||
+      source?.mime_type ||
+      ""
+  ).trim().toLowerCase();
+  const format = String(source?.format || source?.type || "").trim().toLowerCase();
+  const explicit = declared || format;
+  if (
+    explicit.includes("mpegurl") ||
+    explicit === "hls" ||
+    explicit === "m3u8" ||
+    explicit === "application/vnd.apple.mpegurl"
+  ) return "application/x-mpegURL";
   if (explicit.includes("dash") || explicit === "mpd") return "application/dash+xml";
   if (explicit.startsWith("video/")) return explicit;
   const url = String(value || "").toLowerCase().split(/[?#]/)[0];
   if (url.endsWith(".m3u8")) return "application/x-mpegURL";
   if (url.endsWith(".mpd")) return "application/dash+xml";
   if (url.endsWith(".webm")) return "video/webm";
-  if (url.endsWith(".mkv")) return "video/x-matroska";
   if (url.endsWith(".mov")) return "video/quicktime";
   if (url.endsWith(".mp4") || url.endsWith(".m4v")) return "video/mp4";
-  return "video/mp4";
+  // The default Cast receiver does not reliably support MKV. Avoid labelling
+  // unknown live endpoints as MKV; extensionless IPTV streams are usually HLS.
+  return "application/x-mpegURL";
 };
 
 const isCastableHttpUrl = (value) => /^https?:\/\//i.test(String(value || "").trim());
@@ -133,13 +149,17 @@ export default function CastButton({ url, title, poster, contentType, source, vi
       await ctx.requestSession();
       const session = ctx.getCurrentSession();
       if (!session) return;
-      const mediaInfo = new window.chrome.cast.media.MediaInfo(url, mediaContentType(url, contentType));
+      const mediaInfo = new window.chrome.cast.media.MediaInfo(
+        url,
+        mediaContentType(url, contentType, source)
+      );
       mediaInfo.metadata = new window.chrome.cast.media.GenericMediaMetadata();
       mediaInfo.metadata.title = title || "Media God";
       if (poster) mediaInfo.metadata.images = [{ url: poster }];
       const request = new window.chrome.cast.media.LoadRequest(mediaInfo);
       await session.loadMedia(request);
       setCasting(true);
+      setError("");
     } catch (e) {
       if (e?.code !== "cancel") setError("Could not start casting. Make sure a compatible Chromecast receiver is available on the same network.");
     } finally {
