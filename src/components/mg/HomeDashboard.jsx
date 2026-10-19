@@ -25,7 +25,6 @@ import {
 import { addToWatchlistItem } from "@/components/mg/watchlistActions";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 import WatchmodeFeatures from "@/components/mg/WatchmodeFeatures";
-import WatchmodeFeatures from "@/components/mg/WatchmodeFeatures";
 
 const WATCHED_THRESHOLD = 0.92;
 
