@@ -42,7 +42,7 @@ function loadCastSdk() {
   return sdkPromise;
 }
 
-export default function CastButton({ url, title, poster, contentType }) {
+export default function CastButton({ url, title, poster, contentType, source }) {
   const [ready, setReady] = useState(false);
   const [casting, setCasting] = useState(false);
   const [error, setError] = useState("");
@@ -74,6 +74,14 @@ export default function CastButton({ url, title, poster, contentType }) {
 
   const handleCast = async () => {
     if (!url) return;
+    if (source?.format === "external" || source?.type === "provider" || source?.browserPlayable === false) {
+      setError("This source is a web player rather than a direct video stream, so it cannot be cast directly.");
+      return;
+    }
+    if (source?.drm || source?.requiresHeaders === true || Object.keys(source?.headers || {}).length > 0) {
+      setError("This source needs DRM or custom request headers that the standard Cast receiver cannot forward. Try another direct stream source.");
+      return;
+    }
     if (!ready) {
       setError(error || "Casting is unavailable here. Use a compatible Chromecast receiver and browser.");
       return;
