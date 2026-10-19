@@ -60,7 +60,7 @@ function loadCastSdk() {
   return sdkPromise;
 }
 
-export default function CastButton({ url, title, poster, contentType, source, videoElement }) {
+export default function CastButton({ url, title, poster, contentType, source, videoRef }) {
   const [ready, setReady] = useState(false);
   const [casting, setCasting] = useState(false);
   const [error, setError] = useState("");
@@ -103,7 +103,7 @@ export default function CastButton({ url, title, poster, contentType, source, vi
       return;
     }
     if (!ready) {
-      const remote = videoElement?.remote;
+      const remote = videoRef?.current?.remote;
       if (remote && typeof remote.prompt === "function") {
         try {
           await remote.prompt();
