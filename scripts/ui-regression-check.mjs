@@ -208,7 +208,7 @@ expect(
     roadmap.includes('TV shows (') &&
     tmdbBackend.includes("first_air_date.gte") &&
     tmdbBackend.includes("first_air_date.asc") &&
-    tmdbBackend.includes("category === 'upcoming' || category === 'tv_upcoming'");
+    tmdbBackend.includes("category === 'upcoming' || category === 'tv_upcoming'"),
   "Release calendar must discover upcoming TV, exclude dates before today, and refresh automatically"
 );
 
