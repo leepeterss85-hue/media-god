@@ -143,7 +143,10 @@ export default function WatchmodeHub() {
     setSearchMatches([]);
     setSelectedTitle(null);
     const data = await request("search", { search_field: "name", search_value: query.trim(), types: "movie,tv,person" });
-    if (data) setSearchMatches(firstArray(data, ["title_results", "results", "titles"]).slice(0, 8));
+    if (data) {
+      const matches = [...firstArray(data, ["title_results"]), ...firstArray(data, ["people_results"]), ...firstArray(data, ["results", "titles"])];
+      setSearchMatches(matches.slice(0, 8));
+    }
   };
 
   const loadAwards = async (item) => {
