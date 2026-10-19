@@ -15,6 +15,7 @@ const TABS = [
 
 const asArray = (value) => Array.isArray(value) ? value : [];
 const firstArray = (data, keys) => {
+  if (Array.isArray(data)) return data;
   for (const key of keys) if (Array.isArray(data?.[key])) return data[key];
   return [];
 };
