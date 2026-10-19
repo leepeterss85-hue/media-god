@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 94,
-  "versionName": "1.4.89",
+  "versionCode": 95,
+  "versionName": "1.4.90",
   "title": "Media God Fire TV",
-  "message": "Media God Fire TV 1.4.89 includes the latest playback compatibility and embed-player updates.",
+  "message": "Media God Fire TV 1.4.90 adds native voice search and improved casting compatibility.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
