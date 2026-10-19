@@ -10717,6 +10717,14 @@ export default function VideoPlayer({
                   poster={
                     source?.poster
                   }
+                  contentType={
+                    active?.mimeType ||
+                    (active?.format === "hls"
+                      ? "application/x-mpegURL"
+                      : active?.format === "dash"
+                        ? "application/dash+xml"
+                        : active?.format)
+                  }
                 />
               </>
             )}
