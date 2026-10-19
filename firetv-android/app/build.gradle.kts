@@ -1,4 +1,4 @@
-// VOD audio compatibility release 1.4.89.
+// Voice search and casting compatibility release 1.4.90.
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.mediagod.firetv"
         minSdk = 21
         targetSdk = 35
-        versionCode = 94
-        versionName = "1.4.89"
+        versionCode = 95
+        versionName = "1.4.90"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
