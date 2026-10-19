@@ -6,6 +6,7 @@ import React, {
   useState,
 } from "react";
 import Hls from "hls.js";
+import CastButton from "@/components/mg/CastButton";
 import {
   claimExclusivePlayback,
   releaseExclusivePlayback,
@@ -702,12 +703,6 @@ const LiveVideo = forwardRef(
           video.disablePictureInPicture = true;
         } catch {
           // Older WebViews may not expose the property.
-        }
-
-        try {
-          video.disableRemotePlayback = true;
-        } catch {
-          // Remote playback is optional on older WebViews.
         }
 
         try {
@@ -2431,6 +2426,7 @@ const LiveVideo = forwardRef(
       );
 
     return (
+      <div className="relative h-full w-full">
       <video
         ref={videoRef}
         data-mg-playback-surface="true"
@@ -2438,8 +2434,7 @@ const LiveVideo = forwardRef(
         controls={controls}
         playsInline
         disablePictureInPicture
-        disableRemotePlayback
-        controlsList="nodownload noremoteplayback"
+        controlsList="nodownload"
         preload="auto"
         className={className}
         onLoadedMetadata={
@@ -2482,6 +2477,18 @@ const LiveVideo = forwardRef(
           )
         )}
       </video>
+      {/^https?:\/\//i.test(String(src || "").trim()) && (
+        <div className="absolute right-3 top-3 z-30">
+          <CastButton
+            url={src}
+            title={isLive ? "Live TV" : String(sourceLabel || "Media God")}
+            poster={poster}
+            contentType={isHlsUrl(src, sourceLabel) ? "application/x-mpegURL" : isDashUrl(src, sourceLabel) ? "application/dash+xml" : undefined}
+            source={{ headers, drm, live: isLive }}
+          />
+        </div>
+      )}
+      </div>
     );
   }
 );
