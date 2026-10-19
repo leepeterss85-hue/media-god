@@ -65,6 +65,7 @@ export default function CastButton({ url, title, poster, contentType, source }) 
   const [casting, setCasting] = useState(false);
   const [error, setError] = useState("");
   const [connecting, setConnecting] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -91,6 +92,7 @@ export default function CastButton({ url, title, poster, contentType, source }) 
   }, []);
 
   const handleCast = async () => {
+    setShowFeedback(true);
     if (!url) return;
     if (source?.format === "external" || source?.type === "provider" || source?.browserPlayable === false) {
       setError("This source is a web player rather than a direct video stream, so it cannot be cast directly.");
@@ -143,6 +145,7 @@ export default function CastButton({ url, title, poster, contentType, source }) 
     >
       <Cast className="w-4 h-4" />
       <span className="hidden sm:inline">{connecting ? "Connecting…" : casting ? "Casting" : "Cast"}</span>
+      {showFeedback && error && <span role="status" className="absolute right-0 top-full mt-2 w-64 rounded-lg border border-red-400/30 bg-black/95 p-2 text-left text-xs font-medium text-red-200 shadow-xl">{error}</span>}
     </button>
   );
 }
