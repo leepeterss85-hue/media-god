@@ -746,6 +746,7 @@ export default function DetailModal({
   const [actorCredits, setActorCredits] = useState([]);
   const [actorLoading, setActorLoading] = useState(false);
   const [actorError, setActorError] = useState("");
+  const [watchmodeData, setWatchmodeData] = useState(null);
 
   useEffect(() => {
     setActiveTab("overview");
@@ -908,6 +909,36 @@ export default function DetailModal({
     safeItem,
     streamingRegion,
   ]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setWatchmodeData(null);
+    if (itemId == null || itemId === "") return () => { cancelled = true; };
+
+    const loadWatchmode = async () => {
+      try {
+        const id = `${resolvedMediaType === "tv" ? "tv" : "movie"}-${itemId}`;
+        const response = await base44.functions.invoke("watchmodeData", {
+          action: "details",
+          params: {
+            id,
+            region: streamingRegion,
+            append_to_response: "sources,awards",
+          },
+        });
+        if (cancelled) return;
+        const payload = response?.data?.data ?? response?.data ?? response;
+        setWatchmodeData(payload && typeof payload === "object" ? payload : null);
+      } catch {
+        // Watchmode enriches the details screen when available; it must never
+        // prevent existing TMDB details, reviews, or playback from working.
+        if (!cancelled) setWatchmodeData(null);
+      }
+    };
+
+    loadWatchmode();
+    return () => { cancelled = true; };
+  }, [itemId, resolvedMediaType, streamingRegion]);
 
   const trailerUrl =
     firstText(
@@ -1757,6 +1788,48 @@ export default function DetailModal({
               }
               mediaType="movie"
             />
+          )}
+
+          {watchmodeData && (
+            <section className="mt-5 rounded-xl border border-white/10 bg-mg-card p-4" data-mg-watchmode-title-data="true">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-sm font-bold text-white">Streaming intelligence</h3>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-mg-green">Watchmode</span>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(watchmodeData.user_rating != null || watchmodeData.critic_score != null) && (
+                  <span className="rounded-lg bg-white/5 px-3 py-2 text-xs text-white/75">
+                    Ratings: {watchmodeData.user_rating != null ? `Users ${watchmodeData.user_rating}` : ""}{watchmodeData.user_rating != null && watchmodeData.critic_score != null ? " · " : ""}{watchmodeData.critic_score != null ? `Critics ${watchmodeData.critic_score}` : ""}
+                  </span>
+                )}
+                {watchmodeData.popularity_percentile != null && (
+                  <span className="rounded-lg bg-white/5 px-3 py-2 text-xs text-white/75">Popularity {Math.round(Number(watchmodeData.popularity_percentile))}/100</span>
+                )}
+                {asArray(watchmodeData.content_ratings).filter((rating) => !rating.region || rating.region === streamingRegion).slice(0, 2).map((rating, index) => (
+                  <span key={rating.region || index} className="rounded-lg bg-white/5 px-3 py-2 text-xs text-white/75">{rating.region || streamingRegion} rating: {rating.rating || rating.value || "Not rated"}</span>
+                ))}
+              </div>
+              {asArray(watchmodeData.sources).length > 0 && (
+                <div className="mt-4">
+                  <p className="mb-2 text-xs font-semibold text-white/55">Streaming services and supported app links</p>
+                  <div className="flex flex-wrap gap-2">
+                    {asArray(watchmodeData.sources).slice(0, 8).map((source, index) => {
+                      const link = firstText(source.android_tv_url, source.tvos_url, source.roku_url, source.android_url, source.ios_url, source.web_url);
+                      if (!/^https?:\/\//i.test(link)) return null;
+                      return <a key={source.source_id || source.id || index} href={link} target="_blank" rel="noreferrer" className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-white/80 hover:border-mg-green/50 hover:text-mg-green">{source.name || source.source_name || "Open service"} <ExternalLink className="h-3 w-3" /></a>;
+                    })}
+                  </div>
+                </div>
+              )}
+              {asArray(watchmodeData.awards).length > 0 && (
+                <div className="mt-4">
+                  <p className="mb-2 text-xs font-semibold text-white/55">Awards and nominations</p>
+                  <ul className="space-y-1 text-xs text-white/70">
+                    {asArray(watchmodeData.awards).slice(0, 5).map((award, index) => <li key={award.id || index}>{firstText(award.award_name, award.name, award.award, "Award")}{award.year ? ` · ${award.year}` : ""}{award.result ? ` · ${award.result}` : award.won ? " · Winner" : ""}</li>)}
+                  </ul>
+                </div>
+              )}
+            </section>
           )}
 
           <div className="mt-5 3xl:mt-8">
