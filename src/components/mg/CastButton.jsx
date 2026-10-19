@@ -8,7 +8,11 @@ const CAST_SDK_URL =
 // without registering a custom Cast app.
 const DEFAULT_RECEIVER_ID = "CC1AD845";
 
-const mediaContentType = (value) => {
+const mediaContentType = (value, explicitType) => {
+  const explicit = String(explicitType || "").trim().toLowerCase();
+  if (explicit.includes("mpegurl") || explicit === "hls" || explicit === "m3u8") return "application/x-mpegURL";
+  if (explicit.includes("dash") || explicit === "mpd") return "application/dash+xml";
+  if (explicit.startsWith("video/")) return explicit;
   const url = String(value || "").toLowerCase().split(/[?#]/)[0];
   if (url.endsWith(".m3u8")) return "application/x-mpegURL";
   if (url.endsWith(".mpd")) return "application/dash+xml";
@@ -16,7 +20,7 @@ const mediaContentType = (value) => {
   if (url.endsWith(".mkv")) return "video/x-matroska";
   if (url.endsWith(".mov")) return "video/quicktime";
   if (url.endsWith(".mp4") || url.endsWith(".m4v")) return "video/mp4";
-  return "video/mp4";
+  return "application/x-mpegURL";
 };
 
 const isCastableHttpUrl = (value) => /^https?:\/\//i.test(String(value || "").trim());
@@ -38,7 +42,7 @@ function loadCastSdk() {
   return sdkPromise;
 }
 
-export default function CastButton({ url, title, poster }) {
+export default function CastButton({ url, title, poster, contentType }) {
   const [ready, setReady] = useState(false);
   const [casting, setCasting] = useState(false);
   const [error, setError] = useState("");
@@ -69,7 +73,11 @@ export default function CastButton({ url, title, poster }) {
   }, []);
 
   const handleCast = async () => {
-    if (!ready || !url) return;
+    if (!url) return;
+    if (!ready) {
+      setError(error || "Casting is unavailable here. Use a compatible Chromecast receiver and browser.");
+      return;
+    }
     if (!isCastableHttpUrl(url)) {
       setError("This source cannot be sent directly to a Cast receiver. Choose a direct HTTP(S) stream instead.");
       return;
@@ -81,7 +89,7 @@ export default function CastButton({ url, title, poster }) {
       await ctx.requestSession();
       const session = ctx.getCurrentSession();
       if (!session) return;
-      const mediaInfo = new window.chrome.cast.media.MediaInfo(url, mediaContentType(url));
+      const mediaInfo = new window.chrome.cast.media.MediaInfo(url, mediaContentType(url, contentType));
       mediaInfo.metadata = new window.chrome.cast.media.GenericMediaMetadata();
       mediaInfo.metadata.title = title || "Media God";
       if (poster) mediaInfo.metadata.images = [{ url: poster }];
@@ -95,12 +103,12 @@ export default function CastButton({ url, title, poster }) {
     }
   };
 
-  const disabled = !ready || !url || connecting;
+  const disabled = !url || connecting;
   return (
     <button
       onClick={handleCast}
       disabled={disabled}
-      title={error || (casting ? "Casting to TV" : "Cast to TV")}
+      title={error || (casting ? "Casting to TV" : ready ? "Cast to a compatible receiver" : "Casting is unavailable until a compatible receiver/browser is detected")}
       className={cn(
         "flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-md shrink-0 transition-colors",
         casting ? "bg-mg-green text-black" : "bg-white/10 text-white hover:bg-white/20",
