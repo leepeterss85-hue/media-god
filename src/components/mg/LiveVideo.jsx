@@ -2485,7 +2485,7 @@ const LiveVideo = forwardRef(
             poster={poster}
             contentType={isHlsUrl(src, sourceLabel) ? "application/x-mpegURL" : isDashUrl(src, sourceLabel) ? "application/dash+xml" : undefined}
             source={{ headers, drm, live: isLive }}
-            videoElement={videoRef.current}
+            videoRef={videoRef}
           />
         </div>
       )}
