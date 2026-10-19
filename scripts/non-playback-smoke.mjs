@@ -18,6 +18,8 @@ const [
   watchlist,
   favorites,
   roadmap,
+  watchmode,
+  watchmodeBackend,
   settings,
   settingsTools,
   updates,
@@ -33,6 +35,8 @@ const [
   read("src/components/mg/WatchlistView.jsx"),
   read("src/components/mg/FavoritesView.jsx"),
   read("src/components/mg/RoadmapView.jsx"),
+  read("src/components/mg/WatchmodeHub.jsx"),
+  read("base44/functions/watchmodeData/entry.ts"),
   read("src/components/mg/SettingsView.jsx"),
   read("src/components/mg/SettingsTools.jsx"),
   read("src/components/mg/UpdatesView.jsx"),
@@ -47,6 +51,11 @@ expect(home.includes("<SearchDialog"), "Search overlay is missing");
 expect(home.includes("<WatchlistView"), "Watchlist view is missing");
 expect(home.includes("<FavoritesView"), "Favorites view is missing");
 expect(home.includes("<RoadmapView"), "Release Dates view is missing");
+expect(home.includes("<WatchmodeHub"), "Watchmode discovery route is missing");
+expect(navbar.includes('id: "watchmode"'), "Watchmode navigation is missing");
+expect(watchmode.includes("title-leaving-dates") && watchmode.includes("Live sports"), "Watchmode discovery features are missing");
+expect(watchmodeBackend.includes("WATCHMODE_API_KEY") && watchmodeBackend.includes("X-API-Key"), "Watchmode key is not securely proxied");
+expect(details.includes("data-mg-watchmode-title-data"), "Watchmode title enrichment is missing");
 expect(home.includes("<SettingsView"), "Settings view is missing");
 expect(home.includes("<UpdatesView"), "Updates view is missing");
 expect(home.includes("<DiagnosticsView"), "Diagnostics view is missing");
