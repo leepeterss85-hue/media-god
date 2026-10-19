@@ -29,7 +29,6 @@ class MainActivity : Activity() {
     companion object {
         private const val REQUEST_NATIVE_PLAYER = 8401
         private const val REQUEST_VOICE_SEARCH = 8402
-        private const val REQUEST_VOICE_SEARCH = 8402
         private var activeActivity: WeakReference<MainActivity>? = null
 
         /**
