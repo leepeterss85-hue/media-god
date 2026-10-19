@@ -518,8 +518,6 @@ export default function SearchDialog({
   const [yearFilter, setYearFilter] = useState("");
   const [visibleResultCount, setVisibleResultCount] = useState(SEARCH_RESULT_PAGE_SIZE);
   const [recentSearches, setRecentSearches] = useState(readRecentSearches);
-  const [voiceListening, setVoiceListening] = useState(false);
-  const [voiceError, setVoiceError] = useState("");
 
   useEffect(() => {
     setVisibleResultCount(SEARCH_RESULT_PAGE_SIZE);
@@ -913,69 +911,6 @@ export default function SearchDialog({
     mediaFilter,
     query,
   ]);
-
-  useEffect(() => {
-    if (!open || typeof window === "undefined") return undefined;
-    const onVoiceResult = (event) => {
-      const transcript = String(event?.detail?.transcript || "").trim();
-      setVoiceListening(false);
-      if (transcript) {
-        setVoiceError("");
-        setQuery(transcript);
-        setRecentSearches(rememberRecentSearch(transcript));
-      } else if (event?.detail?.error) {
-        setVoiceError(String(event.detail.error));
-      }
-    };
-    window.addEventListener("mg:native-voice-search-result", onVoiceResult);
-    return () => window.removeEventListener("mg:native-voice-search-result", onVoiceResult);
-  }, [open]);
-
-  const startVoiceSearch = async () => {
-    setVoiceError("");
-    const nativeBridge = window.MediaGodNative;
-    if (nativeBridge?.isAvailable?.() && typeof nativeBridge.startVoiceSearch === "function") {
-      try {
-        const started = nativeBridge.startVoiceSearch();
-        if (started) {
-          setVoiceListening(true);
-          return;
-        }
-      } catch {
-        // Fall through to browser speech recognition when the native recognizer is unavailable.
-      }
-    }
-
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      setVoiceError("Voice search is not available on this device. Try the Fire TV remote microphone or type your search.");
-      return;
-    }
-
-    try {
-      const recognition = new SpeechRecognition();
-      recognition.lang = "en-GB";
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
-      recognition.onstart = () => setVoiceListening(true);
-      recognition.onend = () => setVoiceListening(false);
-      recognition.onerror = () => {
-        setVoiceListening(false);
-        setVoiceError("Voice recognition stopped. Please try again or type your search.");
-      };
-      recognition.onresult = (event) => {
-        const transcript = String(event?.results?.[0]?.[0]?.transcript || "").trim();
-        if (transcript) {
-          setQuery(transcript);
-          setRecentSearches(rememberRecentSearch(transcript));
-        }
-      };
-      recognition.start();
-    } catch {
-      setVoiceListening(false);
-      setVoiceError("Could not start voice search. Please try again or type your search.");
-    }
-  };
 
   if (!open) {
     return null;
