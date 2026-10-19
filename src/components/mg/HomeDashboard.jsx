@@ -1267,8 +1267,6 @@ export default function HomeDashboard({ onOpenTvService }) {
 
       <WatchmodeFeatures />
 
-      <WatchmodeFeatures />
-
       <footer data-mg-home-footer="true" className="border-t border-white/5 py-6 3xl:py-8 mt-4 px-4 sm:px-6 3xl:px-10 text-center text-white/40 text-xs 3xl:text-sm">
         Media God — Your ultimate streaming destination
       </footer>
