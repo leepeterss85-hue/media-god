@@ -142,7 +142,7 @@ export default function WatchmodeHub() {
     if (!query.trim()) return;
     setSearchMatches([]);
     setSelectedTitle(null);
-    const data = await request("search", { search_field: "name", search_value: query.trim(), types: "movie,tv_series" });
+    const data = await request("search", { search_field: "name", search_value: query.trim(), types: "movie,tv,person" });
     if (data) setSearchMatches(firstArray(data, ["title_results", "results", "titles"]).slice(0, 8));
   };
 
@@ -150,7 +150,11 @@ export default function WatchmodeHub() {
     const id = item?.id || item?.title_id || item?.watchmode_id;
     if (!id) return;
     setSelectedTitle(item);
-    const data = await request("awards", { id: String(id) });
+    const isPerson = /person/i.test(String(item?.type || item?.result_type || item?.kind || ""));
+    const data = await request(isPerson ? "person" : "awards", {
+      id: String(id),
+      ...(isPerson ? { append_to_response: "awards" } : {}),
+    });
     if (data) setResults(firstArray(data, ["awards", "results", "nominations", "data"]));
   };
 
