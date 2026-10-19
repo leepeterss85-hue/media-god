@@ -10723,7 +10723,7 @@ export default function VideoPlayer({
                       ? "application/x-mpegURL"
                       : active?.format === "dash"
                         ? "application/dash+xml"
-                        : active?.format)
+                        : active?.format || (isLive ? "application/x-mpegURL" : "video/mp4"))
                   }
                 />
               </>
