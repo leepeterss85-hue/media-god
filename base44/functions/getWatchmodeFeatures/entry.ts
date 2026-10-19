@@ -59,6 +59,20 @@ export default async function(req) {
       return Response.json({ configured: true, coverage });
     }
 
+    if (action === "live-leagues") {
+      const leagues = await readJson(buildUrl("live-leagues", { region, page: 1, limit: 100 }), apiKey);
+      return Response.json({ configured: true, region, leagues });
+    }
+
+    if (action === "source-changes") {
+      const changes = await readJson(buildUrl("changes/titles_sources_changed", {
+        regions: region,
+        page: 1,
+        limit: 50,
+      }), apiKey);
+      return Response.json({ configured: true, region, changes });
+    }
+
     if (action === "live-events") {
       const now = new Date();
       const from = new Date(now.getTime() - 24 * 60 * 60 * 1000);
