@@ -20,12 +20,21 @@ const ACTIONS = {
   sourceChanges: () => '/changes/titles_sources_changed/',
 };
 
-const QUERY_KEYS = [
-  'region', 'regions', 'search_field', 'search_value', 'types', 'type',
-  'date_from', 'date_to', 'status', 'page', 'limit', 'league_id', 'search', 'sport', 'country',
-  'league_ids', 'provider_ids', 'start_date', 'end_date', 'season',
-  'episode', 'episode_language', 'append_to_response', 'source_types', 'award_ids', 'award_result',
-];
+const ACTION_QUERY_KEYS = {
+  coverage: [],
+  events: ['region', 'date_from', 'date_to', 'status', 'page', 'limit', 'league_id', 'league_ids', 'provider_ids', 'search'],
+  leagues: ['types', 'sport', 'country'],
+  teams: ['search', 'page', 'league_id'],
+  leaving: ['regions', 'start_date', 'end_date', 'page', 'limit'],
+  releases: ['regions', 'start_date', 'end_date', 'page', 'limit'],
+  search: ['search_field', 'search_value', 'types'],
+  details: ['append_to_response'],
+  sources: ['regions'],
+  episodes: ['regions', 'season', 'episode', 'episode_language', 'limit', 'offset'],
+  awards: ['append_to_response'],
+  person: ['append_to_response'],
+  sourceChanges: ['regions', 'start_date', 'end_date', 'page', 'limit'],
+};
 
 const asText = (value, max = 180) => String(value ?? '').trim().slice(0, max);
 
@@ -67,7 +76,7 @@ export default async function(req) {
   if (action === 'awards' && !params.append_to_response) {
     url.searchParams.set('append_to_response', 'awards');
   }
-  for (const key of QUERY_KEYS) {
+  for (const key of (ACTION_QUERY_KEYS[action] || [])) {
     const value = params[key];
     if (value === undefined || value === null || value === '') continue;
     if (key === 'region' && !VALID_REGION.test(asText(value, 2).toUpperCase())) continue;
