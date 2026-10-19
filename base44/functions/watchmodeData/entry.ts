@@ -1,6 +1,6 @@
 import { secrets } from 'base44:runtime';
 
-const API_BASE = 'https://api.watchmode.com/v1';
+const API_BASE = 'https://api.watchmode.com';
 const VALID_REGION = /^[A-Z]{2}$/;
 const VALID_ID = /^[1-9]\d{0,9}$/;
 
@@ -63,7 +63,7 @@ export default async function(req) {
   }
 
   const path = makePath({ ...params, id });
-  const url = new URL(path, API_BASE);
+  const url = new URL(`/v1${path}`, API_BASE);
   if (action === 'awards' && !params.append_to_response) {
     url.searchParams.set('append_to_response', 'awards');
   }
