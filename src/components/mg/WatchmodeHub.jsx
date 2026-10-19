@@ -67,6 +67,9 @@ export default function WatchmodeHub() {
   const [error, setError] = useState("");
   const [searchMatches, setSearchMatches] = useState([]);
   const [selectedTitle, setSelectedTitle] = useState(null);
+  const [liveMode, setLiveMode] = useState("events");
+  const [liveQuery, setLiveQuery] = useState("");
+  const [submittedLiveQuery, setSubmittedLiveQuery] = useState("");
 
   const request = useCallback(async (action, params = {}) => {
     setLoading(true);
@@ -88,13 +91,21 @@ export default function WatchmodeHub() {
   const loadTab = useCallback(async (nextTab = tab) => {
     setResults([]);
     setMetadata(null);
-    if (nextTab === "events") {
+    if (nextTab === "events" && liveMode === "leagues") {
+      const data = await request("leagues", { types: "sport,awards", country: region });
+      if (data) setResults(firstArray(data, ["leagues", "results"]));
+    } else if (nextTab === "events" && liveMode === "teams") {
+      if (!submittedLiveQuery.trim()) return;
+      const data = await request("teams", { search: submittedLiveQuery.trim(), page: "1" });
+      if (data) setResults(firstArray(data, ["teams", "results"]));
+    } else if (nextTab === "events") {
       const now = new Date();
       const from = new Date(now.getTime() - 7 * 86400000);
       const to = new Date(now.getTime() + 7 * 86400000);
       const data = await request("events", {
         date_from: from.toISOString(), date_to: to.toISOString(),
         status: "scheduled,live", page: "1", limit: "25",
+        ...(submittedLiveQuery.trim() ? { search: submittedLiveQuery.trim() } : {}),
       });
       if (data) {
         setResults(firstArray(data, ["events", "results"]));
@@ -123,7 +134,7 @@ export default function WatchmodeHub() {
         setMetadata({ total: data.total_results });
       }
     }
-  }, [request, tab]);
+  }, [request, tab, liveMode, submittedLiveQuery, region]);
 
   useEffect(() => { loadTab(tab); }, [tab, region, loadTab]);
 
@@ -173,6 +184,17 @@ export default function WatchmodeHub() {
         <div className="flex gap-2"><input value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") searchAwards(); }} placeholder="Search a title…" className="min-h-11 min-w-0 flex-1 rounded-lg border border-white/10 bg-black/20 px-3 text-sm text-white outline-none focus:border-mg-green" /><button onClick={searchAwards} disabled={loading || !query.trim()} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-mg-green px-4 text-sm font-bold text-black disabled:opacity-50"><Search className="h-4 w-4" />Search</button></div>
         {searchMatches.length > 0 && <div className="mt-3 grid gap-2 sm:grid-cols-2">{searchMatches.map((item, index) => <button key={item.id || index} onClick={() => loadAwards(item)} className="rounded-lg border border-white/10 p-3 text-left hover:border-mg-green/50"><span className="block font-semibold">{titleOf(item)}</span><span className="mt-1 block text-xs text-white/50">{item.year || item.type || "Title"}{item.id ? ` · Watchmode ID ${item.id}` : ""}</span></button>)}</div>}
         {selectedTitle && <p className="mt-3 text-xs text-white/50">Showing award records for {titleOf(selectedTitle)}.</p>}
+      </section>}
+
+      {tab === "events" && <section className="mb-4 rounded-xl border border-white/10 bg-mg-card p-3 sm:p-4">
+        <div className="flex flex-wrap gap-2">
+          {[{ id: "events", label: "Event schedule" }, { id: "leagues", label: "Sports & award leagues" }, { id: "teams", label: "Find teams" }].map((mode) => <button key={mode.id} onClick={() => { setLiveMode(mode.id); setSubmittedLiveQuery(""); setResults([]); setError(""); }} className={`min-h-9 rounded-lg border px-3 text-xs font-semibold ${liveMode === mode.id ? "border-mg-green bg-mg-green text-black" : "border-white/10 text-white/65 hover:bg-white/5"}`}>{mode.label}</button>)}
+        </div>
+        {liveMode !== "leagues" && <div className="mt-3 flex gap-2">
+          <input value={liveQuery} onChange={(event) => setLiveQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && liveQuery.trim()) setSubmittedLiveQuery(liveQuery.trim()); }} placeholder={liveMode === "teams" ? "Search teams by name…" : "Filter events by team, league or event…"} className="min-h-10 min-w-0 flex-1 rounded-lg border border-white/10 bg-black/20 px-3 text-sm text-white outline-none focus:border-mg-green" />
+          <button onClick={() => { if (!liveQuery.trim()) { setError(liveMode === "teams" ? "Enter a team name to search." : "Enter a team, league or event to filter the schedule."); return; } setSubmittedLiveQuery(liveQuery.trim()); }} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-mg-green px-3 text-xs font-bold text-black"><Search className="h-4 w-4" />Search</button>
+          {submittedLiveQuery && <button onClick={() => { setLiveQuery(""); setSubmittedLiveQuery(""); setError(""); }} className="min-h-10 rounded-lg border border-white/10 px-3 text-xs text-white/70">Clear</button>}
+        </div>}
       </section>}
 
       <div className="mb-3 flex items-center justify-between gap-3">
