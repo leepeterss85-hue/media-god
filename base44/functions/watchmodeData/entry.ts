@@ -9,7 +9,7 @@ const ACTIONS = {
   events: () => '/live-events/',
   leagues: () => '/live-leagues/',
   leaving: () => '/title-leaving-dates/',
-  releases: () => '/releases/',
+  releases: () => '/title-release-dates/',
   search: () => '/search/',
   details: (p) => `/title/${encodeURIComponent(p.id)}/details/`,
   sources: (p) => `/title/${encodeURIComponent(p.id)}/sources/`,
@@ -23,7 +23,7 @@ const QUERY_KEYS = [
   'region', 'regions', 'search_field', 'search_value', 'types', 'type',
   'date_from', 'date_to', 'status', 'page', 'limit', 'league_id',
   'league_ids', 'provider_ids', 'start_date', 'end_date', 'season',
-  'episode', 'episode_language', 'append_to_response', 'source_types',
+  'episode', 'episode_language', 'append_to_response', 'source_types', 'award_ids', 'award_result',
 ];
 
 const asText = (value, max = 180) => String(value ?? '').trim().slice(0, max);
@@ -63,6 +63,9 @@ export default async function(req) {
 
   const path = makePath({ ...params, id });
   const url = new URL(path, API_BASE);
+  if (action === 'awards' && !params.append_to_response) {
+    url.searchParams.set('append_to_response', 'awards');
+  }
   for (const key of QUERY_KEYS) {
     const value = params[key];
     if (value === undefined || value === null || value === '') continue;
