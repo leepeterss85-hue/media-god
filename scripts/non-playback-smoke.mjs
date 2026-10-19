@@ -53,7 +53,7 @@ expect(home.includes("<FavoritesView"), "Favorites view is missing");
 expect(home.includes("<RoadmapView"), "Release Dates view is missing");
 expect(home.includes("<WatchmodeHub"), "Watchmode discovery route is missing");
 expect(navbar.includes('id: "watchmode"'), "Watchmode navigation is missing");
-expect(watchmode.includes("title-leaving-dates") && watchmode.includes("Live sports"), "Watchmode discovery features are missing");
+expect(watchmodeBackend.includes("title-leaving-dates") && watchmode.includes("Live sports"), "Watchmode discovery features are missing");
 expect(watchmodeBackend.includes("WATCHMODE_API_KEY") && watchmodeBackend.includes("X-API-Key"), "Watchmode key is not securely proxied");
 expect(details.includes("data-mg-watchmode-title-data"), "Watchmode title enrichment is missing");
 expect(home.includes("<SettingsView"), "Settings view is missing");
