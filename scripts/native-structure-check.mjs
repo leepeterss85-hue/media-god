@@ -18,7 +18,7 @@ const apps = [
     dir: "android-mobile",
     packagePath: "com/mediagod/mobile",
     namespace: "com.mediagod.mobile",
-    expectedVersion: "1.0.78",
+    expectedVersion: "1.0.79",
     expectedMedia3: "1.11.0",
     expectedOrientation: "sensor",
   },
@@ -310,6 +310,17 @@ for (const app of apps) {
     checks.push([
       displayRateMatcher.includes("preferredDisplayModeId"),
       "Fire TV same-resolution display mode matching",
+    ]);
+  }
+
+  if (app.name === "Android mobile") {
+    checks.push([
+      mainActivity.includes("fun startVoiceSearch(): Boolean") &&
+        mainActivity.includes("REQUEST_VOICE_SEARCH") &&
+        mainActivity.includes("mg:native-voice-search-result") &&
+        manifest.includes("android.permission.RECORD_AUDIO") &&
+        manifest.includes("android.speech.RecognitionService"),
+      "native Android voice search bridge and speech-recognition manifest support",
     ]);
   }
 
