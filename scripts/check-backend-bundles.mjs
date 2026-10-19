@@ -12,6 +12,7 @@ const entries = [
   "base44/functions/fetchAddonStreams/entry.ts",
   "base44/functions/getTmdbMovies/entry.ts",
   "base44/functions/getWatchmodeFeatures/entry.ts",
+  "base44/functions/getWatchmodeFeatures/entry.ts",
   "base44/functions/getEditorialReviews/entry.ts",
   "base44/functions/getEntertainmentNews/entry.ts",
   "base44/functions/discoverEmbedSuServers/entry.ts",
