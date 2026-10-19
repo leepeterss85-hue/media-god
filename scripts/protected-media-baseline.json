@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "note": "Hashes are updated only for reviewed playback-core changes. VideoPlayer includes the existing Fire TV embedded-provider remote-control handoff for Live TV; stream discovery, ranking, and channel data remain guarded. The current main-branch playback/source-discovery implementations were reviewed when synchronising these checksums.",
+  "note": "Hashes are updated only for reviewed playback-core changes. VideoPlayer's CastButton now receives the active stream's MIME/format metadata so live HLS/DASH streams can be sent with the correct receiver content type; Live TV catalogue, discovery and channel data remain unchanged.",
   "files": {
-    "src/components/mg/VideoPlayer.jsx": "04550d5015bac4ba0fd03e82bd4746a355b72c38c7675da631cfb2bffa875c05",
+    "src/components/mg/VideoPlayer.jsx": "19494a47d410f853a43e43af1716d5d50934a2d3c1f6a04c2192b81c340103e2",
     "src/components/mg/MediaPlayerProvider.jsx": "ce8ecd32751c9f499a2ce5924c652a6c77ef576820ba33c22eec9b64dbd5a4f9",
     "src/components/mg/PlayerProvider.jsx": "d8c07cd2f7b41d57b74ae0c093a723a68c5f30fa897f3df5efa6b4e0ce5bc48d",
     "src/components/mg/MediaPlayerControls.jsx": "11aa49a1d8a9d904fabb4ab756b4a9b0895b3f5a80d585429b618b60161f4a55",
