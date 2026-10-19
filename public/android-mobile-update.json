@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 79,
-  "versionName": "1.0.78",
+  "versionCode": 80,
+  "versionName": "1.0.79",
   "title": "Media God Mobile",
-  "message": "Media God 1.0.78 includes the confirmed VOD audio compatibility fix and latest player updates. Build revision 2.",
+  "message": "Media God 1.0.79 adds native voice search and improved casting compatibility.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
