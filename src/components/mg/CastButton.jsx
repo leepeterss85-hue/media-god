@@ -60,7 +60,7 @@ function loadCastSdk() {
   return sdkPromise;
 }
 
-export default function CastButton({ url, title, poster, contentType, source }) {
+export default function CastButton({ url, title, poster, contentType, source, videoElement }) {
   const [ready, setReady] = useState(false);
   const [casting, setCasting] = useState(false);
   const [error, setError] = useState("");
@@ -103,6 +103,22 @@ export default function CastButton({ url, title, poster, contentType, source }) 
       return;
     }
     if (!ready) {
+      const remote = videoElement?.remote;
+      if (remote && typeof remote.prompt === "function") {
+        try {
+          await remote.prompt();
+          if (remote.state === "connected" || remote.state === "connecting") {
+            setCasting(true);
+            setError("");
+            return;
+          }
+        } catch (remoteError) {
+          if (remoteError?.name === "NotFoundError" || remoteError?.name === "NotSupportedError") {
+            setError("No compatible casting receiver was found. Use a Chromecast-compatible device on the same Wi-Fi network.");
+            return;
+          }
+        }
+      }
       setError(error || "Casting is unavailable here. Use a compatible Chromecast receiver and browser.");
       return;
     }
