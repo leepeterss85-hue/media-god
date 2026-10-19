@@ -267,31 +267,17 @@ class MainActivity : Activity() {
         super.onActivityResult(requestCode, resultCode, data)
 
         if (requestCode == REQUEST_VOICE_SEARCH) {
-            val transcript = if (resultCode == RESULT_OK) {
+            val spoken = if (resultCode == RESULT_OK) {
                 data?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)
                     ?.firstOrNull().orEmpty()
-            } else {
-                ""
-            }
-            val detail = JSONObject().apply {
-                put("transcript", transcript)
-                if (resultCode != RESULT_OK) put("error", "Voice search was cancelled or unavailable.")
-            }
-            dispatchJavascript(
-                "window.dispatchEvent(new CustomEvent('mg:native-voice-search-result',{detail:JSON.parse(${JSONObject.quote(detail.toString())})}));"
-            )
-            return
-        }
-
-        if (requestCode == REQUEST_VOICE_SEARCH) {
-            val spoken = if (resultCode == RESULT_OK) {
-                data?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)?.firstOrNull().orEmpty()
             } else ""
             val detail = JSONObject().apply {
                 put("text", spoken)
                 if (spoken.isBlank()) put("error", "cancelled")
             }
-            dispatchJavascript("window.dispatchEvent(new CustomEvent('mg:voice-search-result',{detail:JSON.parse(${JSONObject.quote(detail.toString())})}));")
+            dispatchJavascript(
+                "window.dispatchEvent(new CustomEvent('mg:voice-search-result',{detail:JSON.parse(${JSONObject.quote(detail.toString())})}));"
+            )
             return
         }
 
@@ -651,36 +637,6 @@ class MainActivity : Activity() {
             nativeBridgeAllowed()
 
         @JavascriptInterface
-        fun startVoiceSearch(): Boolean {
-            if (!nativeBridgeAllowed()) return false
-            val intent = Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                putExtra(
-                    android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                    android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
-                )
-                putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE, "en-GB")
-                putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "en-GB")
-                putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT, "Search Media God")
-                putExtra(android.speech.RecognizerIntent.EXTRA_MAX_RESULTS, 1)
-            }
-            return try {
-                if (intent.resolveActivity(packageManager) == null) return false
-                runOnUiThread {
-                    try {
-                        @Suppress("DEPRECATION")
-                        startActivityForResult(intent, REQUEST_VOICE_SEARCH)
-                    } catch (_: Throwable) {
-                        dispatchJavascript(
-                            "window.dispatchEvent(new CustomEvent('mg:native-voice-search-result',{detail:{error:'Voice recognition is not available on this Fire TV.'}}));"
-                        )
-                    }
-                }
-                true
-            } catch (_: Throwable) {
-                false
-            }
-        }
-
         @JavascriptInterface
         fun getDisplayInfo(): String {
             if (!nativeBridgeAllowed()) {
