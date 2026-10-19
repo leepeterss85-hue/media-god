@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import {
   Award, CalendarClock, CalendarDays, CircleAlert, Clock3, ExternalLink,
-  Loader2, Radio, RefreshCw, Search, Trophy, Tv, Wifi,
+  Loader2, Radio, RefreshCw, Search, Tv, Wifi,
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
@@ -19,7 +19,7 @@ const firstArray = (data, keys) => {
   for (const key of keys) if (Array.isArray(data?.[key])) return data[key];
   return [];
 };
-const titleOf = (item) => item?.title || item?.name || item?.event_name || item?.program_title || "Untitled";
+const titleOf = (item) => item?.title || item?.name || item?.full_name || item?.event_name || item?.program_title || "Untitled";
 const dateOf = (value) => {
   if (!value) return "";
   const date = new Date(value);
@@ -92,7 +92,7 @@ export default function WatchmodeHub() {
     setResults([]);
     setMetadata(null);
     if (nextTab === "events" && liveMode === "leagues") {
-      const data = await request("leagues", { types: "sport,awards", country: region });
+      const data = await request("leagues", { types: "sport,awards" });
       if (data) setResults(firstArray(data, ["leagues", "results"]));
     } else if (nextTab === "events" && liveMode === "teams") {
       if (!submittedLiveQuery.trim()) return;
