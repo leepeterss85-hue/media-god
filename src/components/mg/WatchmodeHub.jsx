@@ -67,9 +67,26 @@ export default function WatchmodeHub() {
   const [error, setError] = useState("");
   const [searchMatches, setSearchMatches] = useState([]);
   const [selectedTitle, setSelectedTitle] = useState(null);
+  const [coverage, setCoverage] = useState(null);
+  const [coverageError, setCoverageError] = useState("");
   const [liveMode, setLiveMode] = useState("events");
   const [liveQuery, setLiveQuery] = useState("");
   const [submittedLiveQuery, setSubmittedLiveQuery] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    base44.functions.invoke("watchmodeData", { action: "coverage", params: {} })
+      .then((response) => {
+        const payload = response?.data?.data ?? response?.data ?? response;
+        if (cancelled) return;
+        if (payload?.error) setCoverageError(payload.error);
+        else setCoverage(payload);
+      })
+      .catch((err) => {
+        if (!cancelled) setCoverageError(err?.response?.data?.error || err?.message || "Live coverage could not be checked.");
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   const request = useCallback(async (action, params = {}) => {
     setLoading(true);
@@ -178,6 +195,14 @@ export default function WatchmodeHub() {
           </select>
         </label>
       </header>
+
+      {(coverage || coverageError) && <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-mg-card px-3 py-2 text-xs text-white/55">
+        <span className="font-semibold text-white/75">Live API access</span>
+        {coverage?.access_level && <span className="rounded-full bg-mg-green/10 px-2 py-1 font-semibold text-mg-green">{coverage.access_level}</span>}
+        {coverage?.guide_available != null && <span>{coverage.guide_available ? "TV guide available" : "TV guide not included in this plan"}</span>}
+        {coverageError && <span>{coverageError}</span>}
+        {coverage?.available_event_ranges && <span>{coverage.available_event_ranges.length} event coverage windows reported</span>}
+      </div>}
 
       <div className="mb-5 flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Watchmode features">
         {TABS.map((item) => {
