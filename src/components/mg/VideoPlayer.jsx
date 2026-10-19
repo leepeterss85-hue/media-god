@@ -10725,6 +10725,7 @@ export default function VideoPlayer({
                         ? "application/dash+xml"
                         : active?.format || (isLive ? "application/x-mpegURL" : "video/mp4"))
                   }
+                  source={active}
                 />
               </>
             )}
