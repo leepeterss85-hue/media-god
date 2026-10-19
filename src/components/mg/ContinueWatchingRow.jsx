@@ -337,9 +337,10 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
     const savedUrl = String(item.video_url || "").trim();
     const savedSourceType = String(item.source_type || "").toLowerCase();
     const hasSavedSource =
-      !isTv &&
       /^(rd|torrent|debrid)$/i.test(savedSourceType) &&
       (savedUrl.startsWith("mgsource:") || /^https?:\/\//i.test(savedUrl));
+    const hasPreviouslySelectedAlternateSource =
+      /^(rd|torrent|debrid)$/i.test(savedSourceType);
 
     if (hasSavedSource) {
       let savedSource = null;
@@ -361,8 +362,15 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
           title: meta.title,
           year: meta.year,
           poster: item.poster_url || "",
-          mediaType: "movie",
-          type: "movie",
+          mediaType: meta.mediaType,
+          type: isTv ? "series" : "movie",
+          season: meta.season || undefined,
+          episode: meta.episode || undefined,
+          rdTitle: meta.title,
+          rdYear: meta.year,
+          rdSeason: meta.season || undefined,
+          rdEpisode: meta.episode || undefined,
+          episodeName: meta.episodeName || "",
           startTime: Number(item.progress || 0),
           preferRd: true,
           sources: [savedSource],
@@ -379,8 +387,15 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
           title: meta.title,
           year: meta.year,
           poster: item.poster_url || "",
-          mediaType: "movie",
-          type: "movie",
+          mediaType: meta.mediaType,
+          type: isTv ? "series" : "movie",
+          season: meta.season || undefined,
+          episode: meta.episode || undefined,
+          rdTitle: meta.title,
+          rdYear: meta.year,
+          rdSeason: meta.season || undefined,
+          rdEpisode: meta.episode || undefined,
+          episodeName: meta.episodeName || "",
           startTime: Number(item.progress || 0),
           src: savedUrl,
           url: savedUrl,
@@ -403,7 +418,10 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
       }
     }
 
-    if (!isTv && player.playOnlyFlix) {
+    // A previous non-OnlyFlix selection must never be silently replaced by
+    // OnlyFlix, even if an older record is missing its serialised source URL.
+    // In that recovery case, let the normal source resolver try again.
+    if (!isTv && !hasPreviouslySelectedAlternateSource && player.playOnlyFlix) {
       if (player.playOnlyFlix({
         id: tmdbId || undefined,
         tmdbId: tmdbId || undefined,
