@@ -8,6 +8,7 @@ const ACTIONS = {
   coverage: () => '/live-coverage/',
   events: () => '/live-events/',
   leagues: () => '/live-leagues/',
+  teams: () => '/live-teams/',
   leaving: () => '/title-leaving-dates/',
   releases: () => '/title-release-dates/',
   search: () => '/search/',
@@ -21,7 +22,7 @@ const ACTIONS = {
 
 const QUERY_KEYS = [
   'region', 'regions', 'search_field', 'search_value', 'types', 'type',
-  'date_from', 'date_to', 'status', 'page', 'limit', 'league_id',
+  'date_from', 'date_to', 'status', 'page', 'limit', 'league_id', 'search', 'sport', 'country',
   'league_ids', 'provider_ids', 'start_date', 'end_date', 'season',
   'episode', 'episode_language', 'append_to_response', 'source_types', 'award_ids', 'award_result',
 ];
