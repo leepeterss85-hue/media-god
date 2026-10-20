@@ -417,8 +417,8 @@ class PlayerActivity : Activity() {
 
         reportButton = Button(this).apply {
             id = View.generateViewId()
-            text = "Report"
-            contentDescription = "Show playback report"
+            text = "More"
+            contentDescription = "More playback options"
             isAllCaps = false
             textSize = 14f
             setTextColor(Color.WHITE)
@@ -2558,13 +2558,21 @@ class PlayerActivity : Activity() {
             return
         }
 
-        val duration = activePlayer.duration.takeIf { it > 0L } ?: Long.MAX_VALUE
+        // Seeking exactly to duration can immediately emit STATE_ENDED. Keep
+        // fast-forward inside the playable range so a seek never kicks the
+        // viewer back to the catalogue just because the stream reports its end.
+        val duration = activePlayer.duration.takeIf { it > 0L }
+        val safeEnd = duration?.let { (it - 1_000L).coerceAtLeast(0L) } ?: Long.MAX_VALUE
         val target = (activePlayer.currentPosition + deltaMs)
             .coerceAtLeast(0L)
-            .coerceAtMost(duration)
+            .coerceAtMost(safeEnd)
 
-        activePlayer.seekTo(target)
-        showControllerTemporarily()
+        try {
+            activePlayer.seekTo(target)
+            showControllerTemporarily()
+        } catch (_: IllegalStateException) {
+            // Ignore a seek arriving while Media3 is being released/replaced.
+        }
     }
 
     private fun releasePlayer() {
