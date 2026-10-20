@@ -10581,7 +10581,6 @@ export default function VideoPlayer({
             {(isDirectFile ||
               isLive ||
               rdOverride) && (
-              <>
                 <button
                   type="button"
                   onClick={
@@ -10593,6 +10592,7 @@ export default function VideoPlayer({
                 >
                   <Maximize className="w-4 h-4" />
                 </button>
+            )}
 
                 <CastButton
                   url={
@@ -10626,8 +10626,6 @@ export default function VideoPlayer({
                     startTime: Number(videoRef.current?.currentTime || source?.startTime || 0),
                   }}
                 />
-              </>
-            )}
           </div>
         </div>
 
