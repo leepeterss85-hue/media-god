@@ -1,4 +1,4 @@
-// Voice search and casting compatibility release 1.4.90.
+// Fire TV update compatibility release 1.4.91.
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.mediagod.firetv"
         minSdk = 21
         targetSdk = 35
-        versionCode = 95
-        versionName = "1.4.90"
+        versionCode = 96
+        versionName = "1.4.91"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
