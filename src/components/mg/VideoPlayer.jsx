@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 import { base44 } from "@/api/base44Client";
+import { safeSeek } from "./safeSeek";
 import CastButton from "@/components/mg/CastButton";
 import LiveVideo from "@/components/mg/LiveVideo";
 import { COMPATIBLE_AUTOPLAY_LIMIT } from "@/components/mg/automaticSourceOrder";
@@ -7181,15 +7182,7 @@ export default function VideoPlayer({
           ) {
             event.preventDefault();
 
-            video.currentTime =
-              video.duration *
-              (
-                parseInt(
-                  event.key,
-                  10
-                ) /
-                10
-              );
+            safeSeek(video, video.duration * (parseInt(event.key, 10) / 10));
 
             return;
           }
@@ -7219,15 +7212,7 @@ export default function VideoPlayer({
             case "j":
               event.preventDefault();
 
-              video.currentTime =
-                Math.max(
-                  0,
-                  (
-                    video.currentTime ||
-                    0
-                  ) -
-                    10
-                );
+              safeSeek(video, (video.currentTime || 0) - 10);
 
               break;
 
@@ -7235,19 +7220,7 @@ export default function VideoPlayer({
             case "l":
               event.preventDefault();
 
-              if (
-                video.duration
-              ) {
-                video.currentTime =
-                  Math.min(
-                    video.duration,
-                    (
-                      video.currentTime ||
-                      0
-                    ) +
-                      10
-                  );
-              }
+              safeSeek(video, (video.currentTime || 0) + 10);
 
               break;
 

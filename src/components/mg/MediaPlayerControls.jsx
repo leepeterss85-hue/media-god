@@ -8,6 +8,7 @@ import {
   ArrowLeft, Play, Pause, Volume2, VolumeX, Maximize, Minimize, RotateCcw, RotateCw, SkipBack, SkipForward, Tv, Gauge, Captions, Languages, Repeat, PictureInPicture2
 } from "lucide-react";
 
+import { safeSeek } from "./safeSeek";
 import { cn } from "@/lib/utils";
 import "@/components/mg/media-player-controls.css";
 import MobileCenterControls from "@/components/mg/MobileCenterControls";
@@ -1319,13 +1320,9 @@ export default function MediaPlayerControls({
         event.target.value
       ) / 100;
 
-    video.currentTime =
-      ratio *
-      video.duration;
-
-    setCurrent(
-      video.currentTime
-    );
+    if (safeSeek(video, ratio * video.duration)) {
+      setCurrent(video.currentTime);
+    }
 
     revealControls(4200);
   };
@@ -1353,22 +1350,9 @@ export default function MediaPlayerControls({
 
     if (!video) return;
 
-    const next =
-      Math.max(
-        0,
-        Math.min(
-          video.duration ||
-            Number.MAX_SAFE_INTEGER,
-
-          (video.currentTime || 0) +
-            delta
-        )
-      );
-
-    video.currentTime =
-      next;
-
-    setCurrent(next);
+    if (safeSeek(video, (video.currentTime || 0) + delta)) {
+      setCurrent(video.currentTime);
+    }
 
     revealControls();
   };
