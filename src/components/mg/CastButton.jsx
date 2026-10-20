@@ -228,6 +228,26 @@ export default function CastButton({
       return;
     }
 
+    // Validate before opening a receiver session, so invalid formats do not
+    // strand the TV on the receiver logo with an audio-only stream.
+    const mimeType = mediaContentType(targetUrl, contentType, source);
+    const filename = String(source?.filename || source?.name || "").trim();
+    if (
+      mimeType === "video/x-matroska" ||
+      /\.(?:mkv|avi|wmv|flv)(?:$|[?#])/i.test(targetUrl) ||
+      /\.(?:mkv|avi|wmv|flv)$/i.test(filename)
+    ) {
+      setCasting(false);
+      setError("This video container is not compatible with the standard Chromecast receiver. Choose a direct MP4 (H.264) or HLS version; casting cannot convert MKV/AVI video.");
+      return;
+    }
+    if (mimeType.startsWith("audio/") || /\.(?:mp3|m4a|aac)(?:$|[?#])/i.test(targetUrl)) {
+      setCasting(false);
+      setError("The selected source is audio-only. Choose a video source before casting.");
+      return;
+    }
+
+
     // Android WebView cannot host the Web Sender SDK. Use the APK's native
     // Cast session/route chooser; the receiver will fetch the direct video.
     if (typeof window.MediaGodNative?.castVideo === "function") {
@@ -254,29 +274,10 @@ export default function CastButton({
     }
 
     if (!ready) {
-      // HTMLMediaElement.remote.prompt() is not a safe Cast sender in Android
+      // HTML remote playback is not a safe Cast sender in Android
       // WebView: it can connect the audio track without any video surface.
       setCasting(false);
       setError("This device has no Google Cast sender available. The old remote-playback fallback could send audio without video. Try Chrome with a Chromecast receiver; Android APK casting needs native Cast support.");
-      return;
-    }
-
-    // Validate before opening a receiver session, so invalid formats do not
-    // strand the TV on the receiver logo with an audio-only stream.
-    const mimeType = mediaContentType(targetUrl, contentType, source);
-    const filename = String(source?.filename || source?.name || "").trim();
-    if (
-      mimeType === "video/x-matroska" ||
-      /\.(?:mkv|avi|wmv|flv)(?:$|[?#])/i.test(targetUrl) ||
-      /\.(?:mkv|avi|wmv|flv)$/i.test(filename)
-    ) {
-      setCasting(false);
-      setError("This video container is not compatible with the standard Chromecast receiver. Choose a direct MP4 (H.264) or HLS version; casting cannot convert MKV/AVI video.");
-      return;
-    }
-    if (mimeType.startsWith("audio/") || /\.(?:mp3|m4a|aac)(?:$|[?#])/i.test(targetUrl)) {
-      setCasting(false);
-      setError("The selected source is audio-only. Choose a video source before casting.");
       return;
     }
 
