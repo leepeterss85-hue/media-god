@@ -168,7 +168,9 @@ const serialiseResumeSource = (source) => {
     if (value == null) return;
     if (["string", "number", "boolean"].includes(typeof value)) clean[key] = value;
   });
-  return Object.keys(clean).length ? clean : null;
+  return (clean.src || clean.url || clean.magnet || clean.magnetLink ||
+    clean.richMagnet || clean.infoHash || clean.info_hash || clean.torrentId ||
+    clean.rdTorrentId) ? clean : null;
 };
 
 const hasPlayableSavedSource = (row) => {
@@ -213,6 +215,7 @@ export default function ContinueWatchingAssist() {
   const stateRef = useRef({
     context: null,
     selectedSource: null,
+    manualSelectionKey: "",
     recordIdByKey: new Map(),
     writesByKey: new Map(),
     pendingResume: 0,
@@ -327,8 +330,6 @@ export default function ContinueWatchingAssist() {
       const previous = state.writesByKey.get(key) || Promise.resolve();
       const write = previous.catch(() => {}).then(async () => {
         try {
-          const cachedId = state.recordIdByKey.get(key);
-
           // Always inspect the stored row before updating: a late native
           // progress callback may know the position but not the source.
           // Never let it replace an earlier manually chosen torrent.
@@ -342,7 +343,8 @@ export default function ContinueWatchingAssist() {
             const preserveSource =
               hasPlayableSavedSource(row) &&
               (!selectedSourceUrl ||
-                (!hasTorrentIdentity(selectedSource) &&
+                (state.manualSelectionKey !== key &&
+                  !hasTorrentIdentity(selectedSource) &&
                   row.video_url.startsWith("mgsource:") &&
                   (() => {
                     try {
@@ -507,6 +509,7 @@ export default function ContinueWatchingAssist() {
       flush(true);
       state.context = next;
       state.selectedSource = null;
+      state.manualSelectionKey = "";
       state.lastPosition = {
         time: 0,
         duration: 0,
@@ -606,6 +609,7 @@ export default function ContinueWatchingAssist() {
       const source = serialiseResumeSource(event?.detail?.source);
       if (!source || !state.context || state.context.mediaType === "live") return;
       state.selectedSource = source;
+      state.manualSelectionKey = contentKeyFor(state.context);
       const { time, duration, video } = state.lastPosition;
       // Persist the source choice immediately, including native playback where
       // no HTMLVideoElement emits timeupdate events.
