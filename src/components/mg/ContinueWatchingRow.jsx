@@ -337,10 +337,10 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
     const savedUrl = String(item.video_url || "").trim();
     const savedSourceType = String(item.source_type || "").toLowerCase();
     const hasSavedSource =
-      /^(rd|torrent|debrid)$/i.test(savedSourceType) &&
+      /^(rd|torrent|debrid|file)$/i.test(savedSourceType) &&
       (savedUrl.startsWith("mgsource:") || /^https?:\/\//i.test(savedUrl));
     const hasPreviouslySelectedAlternateSource =
-      /^(rd|torrent|debrid)$/i.test(savedSourceType);
+      /^(rd|torrent|debrid|file)$/i.test(savedSourceType);
 
     if (hasSavedSource) {
       let savedSource = null;
@@ -373,6 +373,7 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
           episodeName: meta.episodeName || "",
           startTime: Number(item.progress || 0),
           preferRd: true,
+          verifiedPlaybackPolicy: "manual",
           sources: [savedSource],
         });
         return;

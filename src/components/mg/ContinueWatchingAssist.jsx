@@ -201,6 +201,7 @@ export default function ContinueWatchingAssist() {
     context: null,
     selectedSource: null,
     recordIdByKey: new Map(),
+    writesByKey: new Map(),
     pendingResume: 0,
     pendingResumeKey: "",
     lookupToken: 0,
@@ -229,6 +230,8 @@ export default function ContinueWatchingAssist() {
 
       const safeTime = Math.max(0, Number(time || 0));
       const safeDuration = Math.max(0, Number(duration || 0));
+
+      if (!Number.isFinite(safeTime) || !Number.isFinite(safeDuration)) return;
 
       if (safeTime < MIN_RESUME_SECONDS && !force) {
         return;
@@ -308,36 +311,42 @@ export default function ContinueWatchingAssist() {
         episode_name: context.episodeName || "",
       };
 
-      try {
-        const cachedId = state.recordIdByKey.get(key);
+      const previous = state.writesByKey.get(key) || Promise.resolve();
+      const write = previous.catch(() => {}).then(async () => {
+        try {
+          const cachedId = state.recordIdByKey.get(key);
 
-        if (cachedId) {
-          await base44.entities.ContinueWatching.update(cachedId, patch);
-          return;
+          if (cachedId) {
+            await base44.entities.ContinueWatching.update(cachedId, patch);
+            return;
+          }
+
+          const existing = await base44.entities.ContinueWatching.filter({
+            content_key: key,
+          });
+
+          if (existing?.length) {
+            const id = existing[0].id;
+            state.recordIdByKey.set(key, id);
+            await base44.entities.ContinueWatching.update(id, patch);
+            return;
+          }
+
+          const created = await base44.entities.ContinueWatching.create({
+            content_key: key,
+            ...patch,
+          });
+
+          if (created?.id) {
+            state.recordIdByKey.set(key, created.id);
+          }
+        } catch {
+          // Continue Watching should never interrupt playback.
         }
-
-        const existing = await base44.entities.ContinueWatching.filter({
-          content_key: key,
-        });
-
-        if (existing?.length) {
-          const id = existing[0].id;
-          state.recordIdByKey.set(key, id);
-          await base44.entities.ContinueWatching.update(id, patch);
-          return;
-        }
-
-        const created = await base44.entities.ContinueWatching.create({
-          content_key: key,
-          ...patch,
-        });
-
-        if (created?.id) {
-          state.recordIdByKey.set(key, created.id);
-        }
-      } catch {
-        // Continue Watching should never interrupt playback.
-      }
+      });
+      state.writesByKey.set(key, write);
+      await write;
+      if (state.writesByKey.get(key) === write) state.writesByKey.delete(key);
     };
 
     const flush = (force = true) => {
@@ -536,6 +545,21 @@ export default function ContinueWatchingAssist() {
       flush(true);
     };
 
+    const onPlaybackProgress = (event) => {
+      const detail = event.detail || {};
+      const context = normaliseContext(detail.context);
+      // Reject callbacks from a player that has already been replaced.
+      if (!context || !state.context || !sameContent(context, state.context)) return;
+      const time = Number(detail.time);
+      const duration = Number(detail.duration);
+      if (!Number.isFinite(time) || time < MIN_RESUME_SECONDS) return;
+      const source = serialiseResumeSource(detail.source);
+      if (source) state.selectedSource = source;
+      const video = { currentSrc: detail.url || "", poster: detail.poster || "" };
+      state.lastPosition = { time, duration: Number.isFinite(duration) ? duration : 0, video };
+      save(state.context, time, state.lastPosition.duration, video, detail.force === true);
+    };
+
     const onSelectedSource = (event) => {
       const source = serialiseResumeSource(event?.detail?.source);
       if (!source || !state.context || state.context.mediaType === "live") return;
@@ -552,6 +576,7 @@ export default function ContinueWatchingAssist() {
       );
     };
 
+    window.addEventListener("mg:continue-watching-progress", onPlaybackProgress);
     window.addEventListener("mg:continue-watching-source", onSelectedSource);
     window.addEventListener("mg:player-context", onContext);
     document.addEventListener("loadedmetadata", onLoadedMetadata, true);
@@ -570,6 +595,7 @@ export default function ContinueWatchingAssist() {
 
     return () => {
       flush(true);
+      window.removeEventListener("mg:continue-watching-progress", onPlaybackProgress);
       window.removeEventListener("mg:continue-watching-source", onSelectedSource);
       window.removeEventListener("mg:player-context", onContext);
       document.removeEventListener("loadedmetadata", onLoadedMetadata, true);

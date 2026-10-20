@@ -426,7 +426,11 @@ export default function SearchDialog({
       }
     };
     window.addEventListener("mg:voice-search-result", onVoiceResult);
-    return () => window.removeEventListener("mg:voice-search-result", onVoiceResult);
+    window.addEventListener("mg:native-voice-search-result", onVoiceResult);
+    return () => {
+      window.removeEventListener("mg:voice-search-result", onVoiceResult);
+      window.removeEventListener("mg:native-voice-search-result", onVoiceResult);
+    };
   }, [open]);
 
   const startVoiceSearch = useCallback(() => {

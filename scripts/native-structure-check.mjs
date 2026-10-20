@@ -9,7 +9,7 @@ const apps = [
     dir: "firetv-android",
     packagePath: "com/mediagod/firetv",
     namespace: "com.mediagod.firetv",
-    expectedVersion: "1.4.90",
+    expectedVersion: "1.4.92",
     expectedMedia3: "1.8.0",
     expectedOrientation: "landscape",
   },
@@ -18,7 +18,7 @@ const apps = [
     dir: "android-mobile",
     packagePath: "com/mediagod/mobile",
     namespace: "com.mediagod.mobile",
-    expectedVersion: "1.0.79",
+    expectedVersion: "1.0.80",
     expectedMedia3: "1.11.0",
     expectedOrientation: "sensor",
   },
@@ -300,7 +300,7 @@ for (const app of apps) {
     checks.push([
       mainActivity.includes("fun startVoiceSearch(): Boolean") &&
         mainActivity.includes("REQUEST_VOICE_SEARCH") &&
-        mainActivity.includes("mg:native-voice-search-result") &&
+        mainActivity.includes("mg:voice-search-result") &&
         manifest.includes("android.permission.RECORD_AUDIO") &&
         manifest.includes("android.speech.RecognitionService"),
       "native Fire TV voice search bridge and speech-recognition manifest support",
