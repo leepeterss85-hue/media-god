@@ -1260,6 +1260,10 @@ function PlayerAutomationBridge({ children }) {
       const tmdbId =
         detail?.tmdbId ?? detail?.tmdb_id ?? detail?.id ?? null;
       const title = String(detail?.title || detail?.name || "").trim();
+      const incomingResume = Number(detail?.startTime || 0);
+      const remoteStartTime = Number.isFinite(incomingResume)
+        ? Math.min(24 * 60 * 60, Math.max(0, incomingResume))
+        : 0;
 
       if (!tmdbId || !title) {
         publishStatus("Could not send that title to the TV.");
@@ -1299,7 +1303,7 @@ function PlayerAutomationBridge({ children }) {
 
         if (request) {
           publishStatus(`Sending ${title} to the TV…`);
-          await play(request);
+          await play({ ...request, startTime: remoteStartTime });
         }
         return;
       }
@@ -1318,6 +1322,7 @@ function PlayerAutomationBridge({ children }) {
         rdYear: detail?.year ?? null,
         preferRd: true,
         sources: [],
+        startTime: remoteStartTime,
       });
     };
 
