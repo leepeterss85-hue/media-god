@@ -502,7 +502,9 @@ export default function ContinueWatchingAssist() {
       // It is not a new playback session. Resetting here lost the user's
       // chosen source before Android returned its final seek position.
       if (next && state.context && sameContent(next, state.context)) {
-        state.context = next;
+        // Keep the same object reference while an async resume lookup is in
+        // flight, otherwise the valid lookup is discarded as stale.
+        Object.assign(state.context, next);
         return;
       }
 
