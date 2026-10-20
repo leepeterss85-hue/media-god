@@ -66,8 +66,10 @@ const nativeCoordinationChecks = [
   ],
   [
     castButton.includes("CastContext") &&
-      castButton.includes("mediaContentType(url)") &&
-      castButton.includes("isCastableHttpUrl"),
+      castButton.includes("mediaContentType(targetUrl, contentType, source)") &&
+      castButton.includes("isCastableHttpUrl") &&
+      castButton.includes("ctx.getCurrentSession()") &&
+      castButton.includes("source?.live === true"),
     "Cast sender checks stream URL and selects media MIME type",
   ],
   [
