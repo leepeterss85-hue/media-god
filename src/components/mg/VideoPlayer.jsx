@@ -7458,9 +7458,6 @@ export default function VideoPlayer({
   const lastSaveRef =
     useRef(0);
 
-  const cwIdRef =
-    useRef({});
-
   const lastPosRef =
     useRef({
       t:
@@ -7510,110 +7507,28 @@ export default function VideoPlayer({
       lastSaveRef.current =
         now;
 
-      const legacyMediaType =
-        source?.mediaType === "tv" ||
-        source?.type === "series" ||
-        source?.season != null ||
-        source?.episode != null ||
-        source?.rdSeason != null ||
-        source?.rdEpisode != null
-          ? "tv"
-          : "movie";
-
-      const canonicalTitle = String(
-        source?.rdTitle || source?.title || "Video"
-      )
-        .replace(/\s+[—-]\s+S\d{1,2}E\d{1,3}.*$/i, "")
-        .trim();
-
-      const key = [
-        "mg2",
-        source?.tmdbId ?? source?.tmdb_id ?? source?.id ?? "",
-        legacyMediaType,
-        source?.rdYear || source?.year || "",
-        source?.rdSeason || source?.season || "",
-        source?.rdEpisode || source?.episode || "",
-        encodeURIComponent(canonicalTitle),
-      ].join("|");
-
-      const patch = {
-        progress:
+      // The canonical tracker is the only history writer. Pass the stable
+      // source descriptor as well as native progress; never replace it with
+      // a temporary debrid URL or mark a chosen torrent as a generic file.
+      window.dispatchEvent(new CustomEvent("mg:continue-watching-progress", {
+        detail: {
+          context: {
+            mediaType: playbackMediaType,
+            tmdbId: source.tmdbId ?? source.tmdb_id ?? source.id ?? "",
+            title: source.rdTitle || source.title,
+            year: source.rdYear || source.year || "",
+            season: source.rdSeason || source.season,
+            episode: source.rdEpisode || source.episode,
+            episodeName: source.episodeName || "",
+          },
+          source: active,
           time,
-
-        duration,
-
-        video_url:
+          duration,
           url,
-
-        poster_url:
-          source.poster ||
-          "",
-
-        source_type:
-          rdOverride ? "rd" : "file",
-      };
-
-      const id =
-        cwIdRef.current[
-          key
-        ];
-
-      if (
-        id
-      ) {
-        base44.entities.ContinueWatching
-          .update(
-            id,
-            patch
-          )
-          .catch(
-            () => {}
-          );
-
-        return;
-      }
-
-      base44.entities.ContinueWatching
-        .filter({
-          content_key:
-            key,
-        })
-        .then(
-          (
-            rows
-          ) => {
-            if (
-              rows?.length >
-              0
-            ) {
-              cwIdRef.current[
-                key
-              ] =
-                rows[0].id;
-
-              base44.entities.ContinueWatching
-                .update(
-                  rows[0].id,
-                  patch
-                )
-                .catch(
-                  () => {}
-                );
-
-              return;
-            }
-
-            /*
-             * ContinueWatchingAssist owns creation of canonical resume rows.
-             * The player may update an existing canonical row, but it must not
-             * create another record and race the canonical tracker.
-             */
-            return null;
-          }
-        )
-        .catch(
-          () => {}
-        );
+          poster: source.poster || "",
+          force,
+        },
+      }));
     };
 
   const saveProgressRef =
