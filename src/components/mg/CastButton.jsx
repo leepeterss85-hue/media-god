@@ -131,6 +131,19 @@ export default function CastButton({
   const [showFeedback, setShowFeedback] = useState(false);
 
   useEffect(() => {
+    const onNativeCast = (event) => {
+      const state = String(event?.detail?.state || "");
+      const message = String(event?.detail?.message || "");
+      setConnecting(state === "connecting");
+      setCasting(state === "playing");
+      setError(state === "error" ? message : "");
+      setShowFeedback(state === "error");
+    };
+    window.addEventListener("mg:native-cast-status", onNativeCast);
+    return () => window.removeEventListener("mg:native-cast-status", onNativeCast);
+  }, []);
+
+  useEffect(() => {
     let alive = true;
     let context = null;
     let onSessionState = null;
@@ -212,6 +225,31 @@ export default function CastButton({
     }
     if (!isCastableHttpUrl(targetUrl)) {
       setError("This source cannot be sent directly to a Cast receiver. Choose a direct HTTP(S) video stream.");
+      return;
+    }
+
+    // Android WebView cannot host the Web Sender SDK. Use the APK's native
+    // Cast session/route chooser; the receiver will fetch the direct video.
+    if (typeof window.MediaGodNative?.castVideo === "function") {
+      setConnecting(true);
+      try {
+        const accepted = window.MediaGodNative.castVideo(JSON.stringify({
+          url: targetUrl,
+          title: title || "Media God",
+          poster: poster || "",
+          contentType: mimeType,
+          live: source?.live === true,
+        }));
+        if (!accepted) {
+          setConnecting(false);
+          setCasting(false);
+          setError("Native Cast is unavailable on this device. Check Google Play services and use a compatible Cast receiver.");
+        }
+      } catch {
+        setConnecting(false);
+        setCasting(false);
+        setError("Android could not start a native Cast session.");
+      }
       return;
     }
 
