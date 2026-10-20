@@ -102,7 +102,8 @@ internal class MediaGodCastManager(
                 status("connecting", "Select your Chromecast or Google TV device…")
                 runCatching {
                     val chooser = MediaRouteChooserDialogFragment()
-                    chooser.routeSelector = castContext.mergedSelector
+                    chooser.routeSelector = castContext?.mergedSelector
+                        ?: throw IllegalStateException("No Cast routes available")
                     chooser.show(activity.supportFragmentManager, "media-god-cast-route")
                 }.onFailure {
                     pendingMedia = null
