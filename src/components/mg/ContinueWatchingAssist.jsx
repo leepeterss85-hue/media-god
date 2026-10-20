@@ -326,8 +326,16 @@ export default function ContinueWatchingAssist() {
           });
 
           if (existing?.length) {
-            const id = existing[0].id;
+            const prior = existing[0];
+            const id = prior.id;
             state.recordIdByKey.set(key, id);
+            // Keep the durable manual source when a player reports only its
+            // ephemeral URL before the selected-source event has arrived.
+            // An explicit new source selection supersedes the saved one.
+            if (!selectedSource && String(prior.video_url || "").startsWith("mgsource:")) {
+              patch.video_url = prior.video_url;
+              patch.source_type = prior.source_type || "torrent";
+            }
             await base44.entities.ContinueWatching.update(id, patch);
             return;
           }
@@ -447,6 +455,19 @@ export default function ContinueWatchingAssist() {
 
         if (!match) {
           return;
+        }
+
+        // Restore the last explicitly selected source before progress events can
+        // rewrite the row with a transient player URL. A newer manual choice
+        // made during this session always wins.
+        const storedUrl = String(match.video_url || "");
+        if (!state.selectedSource && storedUrl.startsWith("mgsource:")) {
+          try {
+            const decoded = JSON.parse(decodeURIComponent(storedUrl.slice("mgsource:".length)));
+            state.selectedSource = serialiseResumeSource(decoded);
+          } catch {
+            // Leave malformed legacy entries untouched.
+          }
         }
 
         const progress = Number(match.progress || 0);
