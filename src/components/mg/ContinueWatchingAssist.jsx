@@ -168,8 +168,23 @@ const serialiseResumeSource = (source) => {
     if (value == null) return;
     if (["string", "number", "boolean"].includes(typeof value)) clean[key] = value;
   });
-  return Object.keys(clean).length ? clean : null;
+  return (clean.src || clean.url || clean.magnet || clean.magnetLink ||
+    clean.richMagnet || clean.infoHash || clean.info_hash || clean.torrentId ||
+    clean.rdTorrentId) ? clean : null;
 };
+
+const hasPlayableSavedSource = (row) => {
+  const type = String(row?.source_type || "").toLowerCase();
+  const url = String(row?.video_url || "").trim();
+  return /^(rd|debrid|torrent|file)$/.test(type) &&
+    (url.startsWith("mgsource:") || /^https?:\/\//i.test(url));
+};
+
+const hasTorrentIdentity = (source) => Boolean(
+  source?.infoHash || source?.info_hash || source?.magnet ||
+  source?.magnetLink || source?.richMagnet || source?.torrentId ||
+  source?.rdTorrentId
+);
 
 const encodeResumeSource = (source) => {
   const clean = serialiseResumeSource(source);
@@ -200,7 +215,9 @@ export default function ContinueWatchingAssist() {
   const stateRef = useRef({
     context: null,
     selectedSource: null,
+    manualSelectionKey: "",
     recordIdByKey: new Map(),
+    writesByKey: new Map(),
     pendingResume: 0,
     pendingResumeKey: "",
     lookupToken: 0,
@@ -229,6 +246,8 @@ export default function ContinueWatchingAssist() {
 
       const safeTime = Math.max(0, Number(time || 0));
       const safeDuration = Math.max(0, Number(duration || 0));
+
+      if (!Number.isFinite(safeTime) || !Number.isFinite(safeDuration)) return;
 
       if (safeTime < MIN_RESUME_SECONDS && !force) {
         return;
@@ -308,36 +327,59 @@ export default function ContinueWatchingAssist() {
         episode_name: context.episodeName || "",
       };
 
-      try {
-        const cachedId = state.recordIdByKey.get(key);
+      const previous = state.writesByKey.get(key) || Promise.resolve();
+      const write = previous.catch(() => {}).then(async () => {
+        try {
+          // Always inspect the stored row before updating: a late native
+          // progress callback may know the position but not the source.
+          // Never let it replace an earlier manually chosen torrent.
+          const existing = await base44.entities.ContinueWatching.filter({
+            content_key: key,
+          });
 
-        if (cachedId) {
-          await base44.entities.ContinueWatching.update(cachedId, patch);
-          return;
+          if (existing?.length) {
+            const row = existing[0];
+            state.recordIdByKey.set(key, row.id);
+            const preserveSource =
+              hasPlayableSavedSource(row) &&
+              (!selectedSourceUrl ||
+                (state.manualSelectionKey !== key &&
+                  !hasTorrentIdentity(selectedSource) &&
+                  row.video_url.startsWith("mgsource:") &&
+                  (() => {
+                    try {
+                      const previousSource = JSON.parse(
+                        decodeURIComponent(row.video_url.slice("mgsource:".length))
+                      );
+                      return hasTorrentIdentity(previousSource);
+                    } catch {
+                      return false;
+                    }
+                  })()));
+            await base44.entities.ContinueWatching.update(
+              row.id,
+              preserveSource
+                ? { ...patch, video_url: row.video_url, source_type: row.source_type }
+                : patch
+            );
+            return;
+          }
+
+          const created = await base44.entities.ContinueWatching.create({
+            content_key: key,
+            ...patch,
+          });
+
+          if (created?.id) {
+            state.recordIdByKey.set(key, created.id);
+          }
+        } catch {
+          // Continue Watching should never interrupt playback.
         }
-
-        const existing = await base44.entities.ContinueWatching.filter({
-          content_key: key,
-        });
-
-        if (existing?.length) {
-          const id = existing[0].id;
-          state.recordIdByKey.set(key, id);
-          await base44.entities.ContinueWatching.update(id, patch);
-          return;
-        }
-
-        const created = await base44.entities.ContinueWatching.create({
-          content_key: key,
-          ...patch,
-        });
-
-        if (created?.id) {
-          state.recordIdByKey.set(key, created.id);
-        }
-      } catch {
-        // Continue Watching should never interrupt playback.
-      }
+      });
+      state.writesByKey.set(key, write);
+      await write;
+      if (state.writesByKey.get(key) === write) state.writesByKey.delete(key);
     };
 
     const flush = (force = true) => {
@@ -454,12 +496,20 @@ export default function ContinueWatchingAssist() {
     };
 
     const onContext = (event) => {
-      flush(true);
-
       const next = normaliseContext(event?.detail || null);
 
+      // Context is republished for skip markers, auto-next and preferences.
+      // It is not a new playback session. Resetting here lost the user's
+      // chosen source before Android returned its final seek position.
+      if (next && state.context && sameContent(next, state.context)) {
+        state.context = next;
+        return;
+      }
+
+      flush(true);
       state.context = next;
       state.selectedSource = null;
+      state.manualSelectionKey = "";
       state.lastPosition = {
         time: 0,
         duration: 0,
@@ -536,10 +586,30 @@ export default function ContinueWatchingAssist() {
       flush(true);
     };
 
+    const onPlaybackProgress = (event) => {
+      const detail = event.detail || {};
+      const context = normaliseContext(detail.context);
+      // Reject callbacks from a player that has already been replaced.
+      if (!context || !state.context || !sameContent(context, state.context)) return;
+      const time = Number(detail.time);
+      const duration = Number(detail.duration);
+      if (!Number.isFinite(time) || time < MIN_RESUME_SECONDS) return;
+      const source = serialiseResumeSource(detail.source);
+      // A resolved HTTP URL is less stable than the originally selected
+      // torrent identity. Retain that identity through native hand-offs.
+      if (source && (!hasTorrentIdentity(state.selectedSource) || hasTorrentIdentity(source))) {
+        state.selectedSource = source;
+      }
+      const video = { currentSrc: detail.url || "", poster: detail.poster || "" };
+      state.lastPosition = { time, duration: Number.isFinite(duration) ? duration : 0, video };
+      save(state.context, time, state.lastPosition.duration, video, detail.force === true);
+    };
+
     const onSelectedSource = (event) => {
       const source = serialiseResumeSource(event?.detail?.source);
       if (!source || !state.context || state.context.mediaType === "live") return;
       state.selectedSource = source;
+      state.manualSelectionKey = contentKeyFor(state.context);
       const { time, duration, video } = state.lastPosition;
       // Persist the source choice immediately, including native playback where
       // no HTMLVideoElement emits timeupdate events.
@@ -552,6 +622,7 @@ export default function ContinueWatchingAssist() {
       );
     };
 
+    window.addEventListener("mg:continue-watching-progress", onPlaybackProgress);
     window.addEventListener("mg:continue-watching-source", onSelectedSource);
     window.addEventListener("mg:player-context", onContext);
     document.addEventListener("loadedmetadata", onLoadedMetadata, true);
@@ -570,6 +641,7 @@ export default function ContinueWatchingAssist() {
 
     return () => {
       flush(true);
+      window.removeEventListener("mg:continue-watching-progress", onPlaybackProgress);
       window.removeEventListener("mg:continue-watching-source", onSelectedSource);
       window.removeEventListener("mg:player-context", onContext);
       document.removeEventListener("loadedmetadata", onLoadedMetadata, true);
