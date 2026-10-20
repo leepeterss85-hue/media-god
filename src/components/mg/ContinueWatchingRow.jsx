@@ -103,6 +103,13 @@ const parseContentKey = (item) => {
   };
 };
 
+const hasSavedPlayableSource = (item) => {
+  const type = String(item?.source_type || "").toLowerCase();
+  const url = String(item?.video_url || "").trim();
+  return /^(rd|debrid|torrent|file)$/.test(type) &&
+    (url.startsWith("mgsource:") || /^https?:\/\//i.test(url));
+};
+
 const progressRatio = (item) => {
   const progress = Number(item?.progress || 0);
   const duration = Number(item?.duration || 0);
