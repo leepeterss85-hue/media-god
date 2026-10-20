@@ -1,11 +1,11 @@
 {
   "version": 1,
-  "note": "Hashes are updated only for reviewed playback-core changes. VideoPlayer passes active stream MIME/format and compatibility metadata to CastButton so live HLS/DASH streams use suitable receiver types and unsupported web-player/DRM/header-required sources receive a clear explanation; Live TV catalogue, discovery and channel data remain unchanged.",
+  "note": "Reviewed: canonical resume tracking and safe seeking for the Android phone/Fire TV player. Live TV channel code unchanged; other historical baseline mismatches remain for separate review.",
   "files": {
-    "src/components/mg/VideoPlayer.jsx": "ab99f00582fd9bb11607f8306337fe2e88cac6a91cc536dc632bbfa2aa049f2b",
+    "src/components/mg/VideoPlayer.jsx": "7e75c0691dc60dc6b37065577e14ca6f6dbe38fd9c27f96c0f9403f9f5d2e895",
     "src/components/mg/MediaPlayerProvider.jsx": "ce8ecd32751c9f499a2ce5924c652a6c77ef576820ba33c22eec9b64dbd5a4f9",
     "src/components/mg/PlayerProvider.jsx": "d8c07cd2f7b41d57b74ae0c093a723a68c5f30fa897f3df5efa6b4e0ce5bc48d",
-    "src/components/mg/MediaPlayerControls.jsx": "11aa49a1d8a9d904fabb4ab756b4a9b0895b3f5a80d585429b618b60161f4a55",
+    "src/components/mg/MediaPlayerControls.jsx": "3112ef8fb0058d815c139ff5e461a3b90d386654ceaff79356ba4e03c4817d5d",
     "src/components/mg/LiveTVView.jsx": "a07e8d6e96481992c71b88d6b24a8e5fec4510191153d793def30d2ea43ae3a6",
     "src/components/mg/freeTvPlaylist.js": "7904aa31b747940e708536d4370bd648cc39887351a6a3aca29479864eff405f",
     "base44/functions/realDebrid/entry.ts": "6e8c3b7fa13c480955136814ee4a52f519173f1bcc40904af188b95ce78b5530",
