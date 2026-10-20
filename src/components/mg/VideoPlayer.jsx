@@ -10926,6 +10926,7 @@ export default function VideoPlayer({
                 ref={
                   videoRef
                 }
+                showCastButton={false}
                 src={
                   rdOverride.src
                 }
@@ -11065,6 +11066,7 @@ export default function VideoPlayer({
                 ref={
                   liveVideoRef
                 }
+                showCastButton={false}
                 key={
                   active.src
                 }
