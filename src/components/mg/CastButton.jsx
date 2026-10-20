@@ -34,9 +34,13 @@ const mediaContentType = (value, explicitType, source) => {
   if (url.endsWith(".webm")) return "video/webm";
   if (url.endsWith(".mov")) return "video/quicktime";
   if (url.endsWith(".mp4") || url.endsWith(".m4v")) return "video/mp4";
-  // The default Cast receiver does not reliably support MKV. Avoid labelling
-  // unknown live endpoints as MKV; extensionless IPTV streams are usually HLS.
-  return "application/x-mpegURL";
+  // Extensionless signed/debrid VOD URLs are commonly MP4 endpoints. Treating
+  // every unknown URL as HLS can leave the Cast receiver on its Chrome splash
+  // screen or produce audio without video. Extensionless Live TV is usually HLS.
+  if (source?.live === true || /\b(?:live|hls|m3u8|mpegurl)\b/i.test(format)) {
+    return "application/x-mpegURL";
+  }
+  return "video/mp4";
 };
 
 const isCastableHttpUrl = (value) => /^https?:\/\//i.test(String(value || "").trim());
@@ -76,7 +80,7 @@ function loadCastSdk() {
   return sdkPromise;
 }
 
-export default function CastButton({ url, title, poster, contentType, source, videoRef }) {
+export default function CastButton({ url, title, poster, contentType, source }) {
   const [ready, setReady] = useState(false);
   const [casting, setCasting] = useState(false);
   const [error, setError] = useState("");
@@ -119,23 +123,10 @@ export default function CastButton({ url, title, poster, contentType, source, vi
       return;
     }
     if (!ready) {
-      const remote = videoRef?.current?.remote;
-      if (remote && typeof remote.prompt === "function") {
-        try {
-          await remote.prompt();
-          if (remote.state === "connected" || remote.state === "connecting") {
-            setCasting(true);
-            setError("");
-            return;
-          }
-        } catch (remoteError) {
-          if (remoteError?.name === "NotFoundError" || remoteError?.name === "NotSupportedError") {
-            setError("No compatible casting receiver was found. Use a Chromecast-compatible device on the same Wi-Fi network.");
-            return;
-          }
-        }
-      }
-      setError(error || "Casting is unavailable here. Use a compatible Chromecast receiver and browser.");
+      // Do not use HTMLMediaElement Remote Playback as a fallback: it can
+      // report a connection while the receiver only plays audio. Only report
+      // casting after the Cast SDK successfully loads the media.
+      setError("Casting is not ready yet. Use Chrome with a Chromecast-compatible receiver on the same Wi-Fi network, then try again.");
       return;
     }
     if (!isCastableHttpUrl(url)) {
@@ -146,13 +137,23 @@ export default function CastButton({ url, title, poster, contentType, source, vi
     setConnecting(true);
     const ctx = window.cast.framework.CastContext.getInstance();
     try {
-      await ctx.requestSession();
-      const session = ctx.getCurrentSession();
-      if (!session) return;
+      let session = ctx.getCurrentSession();
+      if (!session) {
+        await ctx.requestSession();
+        session = ctx.getCurrentSession();
+      }
+      if (!session) {
+        setError("No Cast session was started. Select a Chromecast receiver and try again.");
+        return;
+      }
       const mediaInfo = new window.chrome.cast.media.MediaInfo(
         url,
         mediaContentType(url, contentType, source)
       );
+      mediaInfo.streamType =
+        source?.live === true
+          ? window.chrome.cast.media.StreamType.LIVE
+          : window.chrome.cast.media.StreamType.BUFFERED;
       mediaInfo.metadata = new window.chrome.cast.media.GenericMediaMetadata();
       mediaInfo.metadata.title = title || "Media God";
       if (poster) mediaInfo.metadata.images = [{ url: poster }];
