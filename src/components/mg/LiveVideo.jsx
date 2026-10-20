@@ -604,7 +604,8 @@ const srtToVtt = (text) => {
  *   onAutoplayBlocked?: (() => void),
  *   allowMutedAutoplay?: boolean,
  *   onEnded?: React.ReactEventHandler<HTMLVideoElement>,
- *   controls?: boolean
+ *   controls?: boolean,
+ *   showCastButton?: boolean
  * }} LiveVideoProps
  */
 
@@ -633,6 +634,7 @@ const LiveVideo = forwardRef(
       allowMutedAutoplay = true,
       onEnded,
       controls = true,
+      showCastButton = true,
     },
     ref
   ) {
@@ -2477,7 +2479,7 @@ const LiveVideo = forwardRef(
           )
         )}
       </video>
-      {/^https?:\/\//i.test(String(src || "").trim()) && (
+      {showCastButton && /^https?:\/\//i.test(String(src || "").trim()) && (
         <div className="absolute right-3 top-3 z-30">
           <CastButton
             url={src}
