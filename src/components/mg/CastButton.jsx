@@ -144,6 +144,13 @@ export default function CastButton({
   }, []);
 
   useEffect(() => {
+    // Native Android APKs run the Cast sender in Kotlin; do not try to
+    // initialise the browser Cast SDK inside an Android WebView.
+    if (typeof window.MediaGodNative?.castVideo === "function") {
+      setReady(true);
+      setError("");
+      return undefined;
+    }
     let alive = true;
     let context = null;
     let onSessionState = null;
