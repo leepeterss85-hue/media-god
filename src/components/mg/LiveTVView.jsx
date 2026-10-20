@@ -3434,7 +3434,7 @@ export default function LiveTVView({
                 title={selectedCastChannel.name || "Live TV"}
                 poster={selectedCastChannel.logo || ""}
                 contentType={castSource.format === "hls" ? "application/x-mpegURL" : castSource.format === "dash" ? "application/dash+xml" : ""}
-                source={castSource}
+                source={{ ...castSource, live: true }}
               />
             </div>
           ) : null;
