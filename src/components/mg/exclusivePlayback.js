@@ -59,11 +59,6 @@ const restorePlaybackSurface = (surface) => {
     media.style?.removeProperty?.("display");
     media.style?.removeProperty?.("visibility");
     media.style?.removeProperty?.("pointer-events");
-    // A media element can be reclaimed by a new effect before the browser has
-    // completed its previous surface teardown. Force the active surface visible.
-    media.style?.setProperty?.("display", "block", "important");
-    media.style?.setProperty?.("visibility", "visible", "important");
-    media.style?.setProperty?.("pointer-events", "auto", "important");
   } catch {
     // Styling is best effort for test doubles and detached DOM nodes.
   }
