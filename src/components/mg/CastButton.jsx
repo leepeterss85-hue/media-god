@@ -174,14 +174,14 @@ export default function CastButton({ url, title, poster, contentType, source, vi
       disabled={disabled}
       title={error || (casting ? "Casting to TV" : ready ? "Cast to a compatible receiver" : "Casting is unavailable until a compatible receiver/browser is detected")}
       className={cn(
-        "flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-md shrink-0 transition-colors",
+        "relative flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-md shrink-0 transition-colors",
         casting ? "bg-mg-green text-black" : "bg-white/10 text-white hover:bg-white/20",
         disabled && "opacity-40 cursor-not-allowed hover:bg-white/10"
       )}
     >
       <Cast className="w-4 h-4" />
       <span className="hidden sm:inline">{connecting ? "Connecting…" : casting ? "Casting" : "Cast"}</span>
-      {showFeedback && error && <span role="status" className="absolute right-0 top-full mt-2 w-64 rounded-lg border border-red-400/30 bg-black/95 p-2 text-left text-xs font-medium text-red-200 shadow-xl">{error}</span>}
+      {showFeedback && error && <span role="status" className="absolute right-0 top-full z-50 mt-2 w-[min(16rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)] break-words rounded-lg border border-red-400/30 bg-black/95 p-2 text-left text-xs font-medium text-red-200 shadow-xl [overflow-wrap:anywhere]">{error}</span>}
     </button>
   );
 }
