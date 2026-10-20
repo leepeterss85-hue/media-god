@@ -2,6 +2,7 @@ package com.mediagod.mobile
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import androidx.fragment.app.FragmentActivity
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
@@ -25,7 +26,7 @@ import org.json.JSONObject
 import org.json.JSONTokener
 import java.lang.ref.WeakReference
 
-class MainActivity : Activity() {
+class MainActivity : FragmentActivity() {
     companion object {
         private const val REQUEST_NATIVE_PLAYER = 8401
         private const val REQUEST_VOICE_SEARCH = 8402
@@ -90,6 +91,7 @@ class MainActivity : Activity() {
     @Volatile private var activeNativeRequestId = ""
     @Volatile private var pendingNativePreflightRequestId = ""
     private var pendingNativeResultScript: String? = null
+    private var castManager: MediaGodCastManager? = null
     private lateinit var appUpdater: AppUpdater
     @Volatile private var currentTopLevelUrl = ""
 
@@ -160,6 +162,17 @@ class MainActivity : Activity() {
 
         setContentView(webView)
         activeActivity = WeakReference(this)
+        // Cast discovery must live in Android, not HTMLMediaElement.remote.
+        castManager = runCatching {
+            MediaGodCastManager(this) { state, message ->
+                val detail = JSONObject()
+                    .put("state", state)
+                    .put("message", message)
+                dispatchJavascript(
+                    "window.dispatchEvent(new CustomEvent('mg:native-cast-status',{detail:${detail}}));"
+                )
+            }
+        }.getOrNull()
 
         appUpdater = AppUpdater(this) { detail ->
             dispatchJavascript(
@@ -229,6 +242,8 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        castManager?.close()
+        castManager = null
         if (activeActivity?.get() === this) activeActivity = null
         try {
             webView.apply {
@@ -697,6 +712,12 @@ class MainActivity : Activity() {
         @JavascriptInterface
         fun isAvailable(): Boolean =
             nativeBridgeAllowed()
+
+        @JavascriptInterface
+        fun castVideo(payloadJson: String): Boolean {
+            if (!nativeBridgeAllowed()) return false
+            return castManager?.start(payloadJson) == true
+        }
 
         @JavascriptInterface
         fun startVoiceSearch(): Boolean {
