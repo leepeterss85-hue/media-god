@@ -271,7 +271,23 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
             return;
           }
 
-          if (entry.item?.id) {
+          if (!hasSavedPlayableSource(existing.item) &&
+              hasSavedPlayableSource(entry.item)) {
+            // Recover a stable source saved by an older row without losing
+            // the newer row's playback position (e.g. 52 minutes).
+            byIdentity.set(stateIdentity, {
+              ...existing,
+              item: {
+                ...existing.item,
+                video_url: entry.item.video_url,
+                source_type: entry.item.source_type,
+              },
+            });
+            // The older record is a recovery copy until the next save.
+            return;
+          }
+
+          if (entry.item?.id && !hasSavedPlayableSource(entry.item)) {
             duplicateIds.add(entry.item.id);
           }
         });
@@ -344,10 +360,10 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
     const savedUrl = String(item.video_url || "").trim();
     const savedSourceType = String(item.source_type || "").toLowerCase();
     const hasSavedSource =
-      /^(rd|torrent|debrid)$/i.test(savedSourceType) &&
+      /^(rd|torrent|debrid|file)$/i.test(savedSourceType) &&
       (savedUrl.startsWith("mgsource:") || /^https?:\/\//i.test(savedUrl));
     const hasPreviouslySelectedAlternateSource =
-      /^(rd|torrent|debrid)$/i.test(savedSourceType);
+      /^(rd|torrent|debrid|file)$/i.test(savedSourceType);
 
     if (hasSavedSource) {
       let savedSource = null;
@@ -380,6 +396,7 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
           episodeName: meta.episodeName || "",
           startTime: Number(item.progress || 0),
           preferRd: true,
+          verifiedPlaybackPolicy: "manual",
           sources: [savedSource],
         });
         return;
@@ -428,7 +445,12 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
     // A previous non-OnlyFlix selection must never be silently replaced by
     // OnlyFlix, even if an older record is missing its serialised source URL.
     // In that recovery case, let the normal source resolver try again.
-    if (!isTv && !hasPreviouslySelectedAlternateSource && player.playOnlyFlix) {
+    // Only a recorded, explicit OnlyFlix URL can reopen that web player.
+    // Incomplete/stale history must resolve a playable source instead of
+    // silently replacing the viewer's last torrent with OnlyFlix.
+    const explicitOnlyFlixResume =
+      savedSourceType === "onlyflix" && /onlyflix/i.test(savedUrl);
+    if (!isTv && explicitOnlyFlixResume && !hasPreviouslySelectedAlternateSource && player.playOnlyFlix) {
       if (player.playOnlyFlix({
         id: tmdbId || undefined,
         tmdbId: tmdbId || undefined,
@@ -492,6 +514,7 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
       episodeName: meta.episodeName || "",
       startTime: Number(item.progress || 0),
       preferRd: true,
+      verifiedPlaybackPolicy: "strict",
       sources: [],
     });
   };
