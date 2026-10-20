@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Cast } from "lucide-react";
 import { cn } from "@/lib/utils";
+import MediaGodDeviceCast from "@/components/mg/MediaGodDeviceCast";
 
 const CAST_SDK_URL =
   "https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1";
@@ -123,12 +124,15 @@ export default function CastButton({
   poster,
   contentType,
   source,
+  media,
 }) {
   const [ready, setReady] = useState(false);
   const [casting, setCasting] = useState(false);
   const [error, setError] = useState("");
   const [connecting, setConnecting] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [showDestinations, setShowDestinations] = useState(false);
+  const [showMediaGodPairing, setShowMediaGodPairing] = useState(false);
 
   useEffect(() => {
     const onNativeCast = (event) => {
@@ -339,12 +343,24 @@ export default function CastButton({
     }
   }, [url, title, poster, contentType, source, ready]);
 
-  const disabled = !url || connecting;
+  const disabled = connecting;
+  const handoffMedia = {
+    title: media?.title || title,
+    poster: media?.poster || poster,
+    tmdbId: media?.tmdbId || media?.id || "",
+    year: media?.year || "",
+    season: media?.season,
+    episode: media?.episode,
+    mediaType: media?.mediaType || (source?.live ? "live" : "movie"),
+    startTime: media?.startTime || 0,
+    live: source?.live === true || media?.mediaType === "live",
+    channelId: source?.tvgId || source?.id || "",
+  };
   return (
     <div className="relative inline-flex">
       <button
         type="button"
-        onClick={handleCast}
+        onClick={() => setShowDestinations((open) => !open)}
         disabled={disabled}
         aria-label={connecting ? "Connecting to Cast" : casting ? "Casting to TV" : "Cast video to TV"}
         title={error || (casting ? "Casting to TV — select Cast to load the selected source" : ready ? "Cast to a compatible receiver" : "Cast is unavailable until a compatible receiver/browser is detected")}
@@ -357,6 +373,31 @@ export default function CastButton({
         <Cast className="w-4 h-4" />
         <span className="hidden sm:inline">{connecting ? "Connecting…" : casting ? "Casting" : "Cast"}</span>
       </button>
+      {showDestinations && (
+        <div className="absolute right-0 top-full z-[500] mt-2 w-64 overflow-hidden rounded-xl border border-white/20 bg-zinc-950 p-1 text-left text-white shadow-2xl">
+          <p className="px-3 py-2 text-xs font-semibold text-white/50">Choose where to play</p>
+          <button
+            type="button"
+            className="min-h-11 w-full rounded-md px-3 py-2 text-left text-sm hover:bg-white/10"
+            onClick={() => { setShowDestinations(false); void handleCast(); }}
+          >
+            Chromecast / Google TV
+          </button>
+          <button
+            type="button"
+            className="min-h-11 w-full rounded-md px-3 py-2 text-left text-sm hover:bg-white/10"
+            onClick={() => { setShowDestinations(false); setShowMediaGodPairing(true); }}
+          >
+            Media God TV / Fire Stick
+          </button>
+        </div>
+      )}
+      {showMediaGodPairing && (
+        <MediaGodDeviceCast
+          media={handoffMedia}
+          onClose={() => setShowMediaGodPairing(false)}
+        />
+      )}
       {showFeedback && error && (
         <div role="status" className="absolute right-0 top-full z-50 mt-2 w-[min(16rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)] break-words rounded-lg border border-red-400/30 bg-black/95 p-2 text-left text-xs font-medium text-red-200 shadow-xl [overflow-wrap:anywhere]">
           {error}
