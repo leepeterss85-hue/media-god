@@ -42,7 +42,7 @@ export default function MediaGodDeviceCast({ media, onClose }) {
         });
         if (!cancelled) {
           setReceivers((Array.isArray(rows) ? rows : [])
-            .filter(receiverOnline)
+            .filter((row) => receiverOnline(row))
             .slice(0, 8));
         }
       } catch {
