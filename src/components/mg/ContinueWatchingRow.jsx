@@ -690,7 +690,7 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
                 onKeyDown={(event) => {
                   if (isCardActivationKey(event)) event.stopPropagation();
                 }}
-                className="mg-fire-tv-secondary-action mt-2 inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-white/20 bg-mg-card px-2 text-xs font-semibold text-white hover:border-mg-green/60 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-mg-green"
+                className="mt-2 inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-white/20 bg-mg-card px-2 text-xs font-semibold text-white hover:border-mg-green/60 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-mg-green"
                 aria-label={`Find another source for ${meta.title}`}
                 title="Find another video source without losing your progress"
               >
