@@ -684,6 +684,14 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
                 </div>
               </div>
 
+              <div className="mt-2 text-white font-semibold text-sm sm:text-[15px] 3xl:text-base truncate">
+                {meta.title}
+              </div>
+
+              <div className="mt-1 min-h-[1rem] text-white/50 text-[11px] sm:text-xs 3xl:text-sm truncate">
+                {detailLine || `${Math.round(progress)}% watched`}
+              </div>
+
               <button
                 type="button"
                 onClick={(event) => chooseAnotherSource(item, event)}
@@ -697,14 +705,6 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
                 <Play className="mr-2 h-3.5 w-3.5 text-mg-green" />
                 Other sources
               </button>
-
-              <div className="mt-2 text-white font-semibold text-sm sm:text-[15px] 3xl:text-base truncate">
-                {meta.title}
-              </div>
-
-              <div className="mt-1 min-h-[1rem] text-white/50 text-[11px] sm:text-xs 3xl:text-sm truncate">
-                {detailLine || `${Math.round(progress)}% watched`}
-              </div>
             </div>
           );
         })}
