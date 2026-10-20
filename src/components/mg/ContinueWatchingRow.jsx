@@ -396,6 +396,9 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
           episodeName: meta.episodeName || "",
           startTime: Number(item.progress || 0),
           preferRd: true,
+          // The saved torrent is the preferred candidate, not the entire
+          // catalogue. Keep Real-Debrid and addon discovery available.
+          resumeFromHistory: true,
           verifiedPlaybackPolicy: "manual",
           sources: [savedSource],
         });
@@ -421,9 +424,9 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
           rdEpisode: meta.episode || undefined,
           episodeName: meta.episodeName || "",
           startTime: Number(item.progress || 0),
-          src: savedUrl,
-          url: savedUrl,
-          video_url: savedUrl,
+          // Old history may hold an expired CDN or debrid URL. Keep it as
+          // one candidate, but do not lock discovery onto it.
+          resumeFromHistory: true,
           sources: [{
             label: "Resume last source",
             name: "Resume last source",
@@ -434,9 +437,7 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
             viaRealDebrid: savedSourceType === "rd" || savedSourceType === "debrid",
           }],
           verifiedPlaybackPolicy: "manual",
-          noRd: true,
-          skipRdLookup: true,
-          skipAddonLookup: true,
+          preferRd: true,
         });
         return;
       }
@@ -514,7 +515,40 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
       episodeName: meta.episodeName || "",
       startTime: Number(item.progress || 0),
       preferRd: true,
+      resumeFromHistory: true,
       verifiedPlaybackPolicy: "strict",
+      sources: [],
+    });
+  };
+
+  // A reliable escape hatch for sources that have expired, show a black
+  // picture, or do not start. Preserve progress and run fresh discovery.
+  const chooseAnotherSource = async (item, event) => {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    const meta = parseContentKey(item);
+    const tmdbId = await resolveTmdbIdQuickly(meta);
+    await player.play({
+      id: tmdbId || undefined,
+      tmdbId: tmdbId || undefined,
+      tmdb_id: tmdbId || undefined,
+      imdbId: item.imdb_id || undefined,
+      title: meta.title,
+      year: meta.year,
+      poster: item.poster_url || "",
+      mediaType: meta.mediaType,
+      type: meta.mediaType === "tv" ? "series" : "movie",
+      season: meta.season || undefined,
+      episode: meta.episode || undefined,
+      rdTitle: meta.title,
+      rdYear: meta.year,
+      rdSeason: meta.season || undefined,
+      rdEpisode: meta.episode || undefined,
+      episodeName: meta.episodeName || "",
+      startTime: Number(item.progress || 0),
+      preferRd: true,
+      resumeFromHistory: true,
+      verifiedPlaybackPolicy: "manual",
       sources: [],
     });
   };
@@ -647,6 +681,20 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
               <div className="mt-1 min-h-[1rem] text-white/50 text-[11px] sm:text-xs 3xl:text-sm truncate">
                 {detailLine || `${Math.round(progress)}% watched`}
               </div>
+
+              <button
+                type="button"
+                onClick={(event) => chooseAnotherSource(item, event)}
+                onKeyDown={(event) => {
+                  if (isCardActivationKey(event)) event.stopPropagation();
+                }}
+                className="mt-2 inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-white/20 bg-mg-card px-2 text-xs font-semibold text-white hover:border-mg-green/60 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-mg-green"
+                aria-label={`Find another source for ${meta.title}`}
+                title="Find another video source without losing your progress"
+              >
+                <Play className="mr-2 h-3.5 w-3.5 text-mg-green" />
+                Other sources
+              </button>
             </div>
           );
         })}
