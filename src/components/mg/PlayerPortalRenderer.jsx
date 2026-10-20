@@ -161,6 +161,7 @@ export default function PlayerPortalRenderer({
         <OnlyFlixEmbedPlayer
           url={vidSrcEmbed.url}
           title={vidSrcEmbed.title}
+          media={vidSrcEmbed.media || source}
           onBack={vidSrcEmbed.fromDetails ? close : () => setVidSrcEmbed(null)}
           backLabel={vidSrcEmbed.fromDetails ? "Details" : "Sources"}
         />
