@@ -59,6 +59,11 @@ const restorePlaybackSurface = (surface) => {
     media.style?.removeProperty?.("display");
     media.style?.removeProperty?.("visibility");
     media.style?.removeProperty?.("pointer-events");
+    // A media element can be reclaimed by a new effect before the browser has
+    // completed its previous surface teardown. Force the active surface visible.
+    media.style?.setProperty?.("display", "block", "important");
+    media.style?.setProperty?.("visibility", "visible", "important");
+    media.style?.setProperty?.("pointer-events", "auto", "important");
   } catch {
     // Styling is best effort for test doubles and detached DOM nodes.
   }
@@ -86,9 +91,12 @@ export const claimExclusivePlayback = (owner, stop, surface = null) => {
   const previous = activePlaybackLease;
   activePlaybackLease = { owner, stop, surface };
 
+  const previousElement = mediaElementFrom(previous?.surface);
+  const nextElement = mediaElementFrom(surface);
   if (
     previous &&
-    (previous.owner !== owner || previous.surface !== surface)
+    previous.owner !== owner &&
+    previousElement !== nextElement
   ) {
     safelyStop(previous.stop);
     retirePlaybackSurface(previous.surface);

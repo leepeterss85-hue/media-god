@@ -10973,8 +10973,7 @@ export default function VideoPlayer({
                 onError={
                   handleRdPlaybackError
                 }
-                className={isLive ? "absolute inset-0 h-full w-full flex-none object-contain bg-black" : "absolute inset-0 h-full w-full flex-none object-contain bg-black transform-gpu"}
-                showCastButton={false}
+                className="absolute inset-0 h-full w-full flex-none object-contain bg-black"
               />
 
               <PlayerControls
@@ -11066,7 +11065,6 @@ export default function VideoPlayer({
                 ref={
                   liveVideoRef
                 }
-                showCastButton={false}
                 key={
                   active.src
                 }
@@ -11104,7 +11102,7 @@ export default function VideoPlayer({
                 preferredAudioLanguage={
                   trackPreferences.audioLanguage
                 }
-                className={isLive ? "absolute inset-0 h-full w-full flex-none object-contain bg-black" : "absolute inset-0 h-full w-full flex-none object-contain bg-black transform-gpu"}
+                className="absolute inset-0 h-full w-full flex-none object-contain bg-black"
                 onLoadedMetadata={
                   handleLoadedMetadata
                 }

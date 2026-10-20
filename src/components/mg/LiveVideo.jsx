@@ -6,7 +6,6 @@ import React, {
   useState,
 } from "react";
 import Hls from "hls.js";
-import CastButton from "@/components/mg/CastButton";
 import {
   claimExclusivePlayback,
   releaseExclusivePlayback,
@@ -604,8 +603,7 @@ const srtToVtt = (text) => {
  *   onAutoplayBlocked?: (() => void),
  *   allowMutedAutoplay?: boolean,
  *   onEnded?: React.ReactEventHandler<HTMLVideoElement>,
- *   controls?: boolean,
- *   showCastButton?: boolean
+ *   controls?: boolean
  * }} LiveVideoProps
  */
 
@@ -634,7 +632,6 @@ const LiveVideo = forwardRef(
       allowMutedAutoplay = true,
       onEnded,
       controls = true,
-      showCastButton = true,
     },
     ref
   ) {
@@ -2479,18 +2476,7 @@ const LiveVideo = forwardRef(
           )
         )}
       </video>
-      {showCastButton && /^https?:\/\//i.test(String(src || "").trim()) && (
-        <div className="absolute right-3 top-3 z-30">
-          <CastButton
-            url={src}
-            title={isLive ? "Live TV" : String(sourceLabel || "Media God")}
-            poster={poster}
-            contentType={isHlsUrl(src, sourceLabel) ? "application/x-mpegURL" : isDashUrl(src, sourceLabel) ? "application/dash+xml" : undefined}
-            source={{ headers, drm, live: isLive }}
-            videoRef={videoRef}
-          />
-        </div>
-      )}
+
       </div>
     );
   }
