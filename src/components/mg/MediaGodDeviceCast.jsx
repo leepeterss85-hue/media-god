@@ -100,7 +100,7 @@ export default function MediaGodDeviceCast({ media, onClose }) {
   };
 
   return typeof document === "undefined" ? null : createPortal(
-    <div className="fixed inset-0 z-[30000] flex items-center justify-center bg-black/80 p-3" onClick={onClose}>
+    <div className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-black/80 p-3" onClick={onClose}>
       <section
         role="dialog"
         aria-modal="true"
