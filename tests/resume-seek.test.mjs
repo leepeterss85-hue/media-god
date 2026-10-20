@@ -65,4 +65,37 @@ test('native resume saves the selected source and latest position in one canonic
   emit('mg:continue-watching-progress', { context: { ...context, tmdbId: '99' }, source, time: 700, force: true });
   await new Promise(resolve => setTimeout(resolve, 10));
   assert.equal(rows[0].progress, 240);
+
+  // Context changes for the same movie must not wipe selected torrent info.
+  // Reproduce a seek to 52 minutes followed by a native callback without
+  // the original source descriptor.
+  emit('mg:player-context', { ...context, autoNext: false });
+  emit('mg:continue-watching-progress', {
+    context, source: null, time: 52 * 60, duration: 6200,
+    url: '', force: true,
+  });
+  await new Promise(resolve => setTimeout(resolve, 30));
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].progress, 3120);
+  assert.equal(rows[0].source_type, 'rd');
+  assert.equal(JSON.parse(decodeURIComponent(rows[0].video_url.slice('mgsource:'.length))).infoHash, 'abc');
+
+  // Transient native stream URLs cannot replace durable torrent identity.
+  emit('mg:continue-watching-progress', {
+    context, source: { url: 'https://temporary.test/stream', type: 'file' },
+    time: 52 * 60 + 5, duration: 6200, force: true,
+  });
+  await new Promise(resolve => setTimeout(resolve, 30));
+  assert.equal(rows[0].progress, 3125);
+  assert.equal(JSON.parse(decodeURIComponent(rows[0].video_url.slice('mgsource:'.length))).infoHash, 'abc');
+});
+
+test('Continue Watching never silently selects OnlyFlix for a missing source', () => {
+  const rowCode = readFileSync(
+    new URL('../src/components/mg/ContinueWatchingRow.jsx', import.meta.url), 'utf8'
+  );
+  assert.match(rowCode, /const explicitOnlyFlixResume\s*=\s*savedSourceType === "onlyflix"/);
+  assert.match(rowCode, /\/onlyflix\/i\.test\(savedUrl\)/);
+  assert.doesNotMatch(rowCode, /if \(!isTv && !hasPreviouslySelectedAlternateSource && player\.playOnlyFlix\)/);
+  assert.match(rowCode, /verifiedPlaybackPolicy: "strict",\s*sources: \[\]/);
 });
