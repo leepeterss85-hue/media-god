@@ -54,16 +54,17 @@ test("Cheerio reads JSON-escaped server links without inventing a URL", () => {
   assert.deepEqual(extractEmbedSuServers("<script>window.servers = []</script>", load), []);
 });
 
-test("Embed.su remains a manual web path with an optional browser fallback", () => {
+test("Embed.su compatibility API remains separate from catalogue playback", () => {
   const provider = readFileSync(new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url), "utf8");
   const player = readFileSync(new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url), "utf8");
   const details = readFileSync(new URL("../src/components/mg/MediaStreamSourcesBox.jsx", import.meta.url), "utf8");
   const episodes = readFileSync(new URL("../src/components/mg/EpisodeSelector.jsx", import.meta.url), "utf8");
   const discovery = readFileSync(new URL("../base44/functions/discoverEmbedSuServers/entry.ts", import.meta.url), "utf8");
   const portal = readFileSync(new URL("../src/components/mg/PlayerPortalRenderer.jsx", import.meta.url), "utf8");
-  assert.match(details, /player\.playEmbedSu\(/);
-  assert.match(episodes, /player\.playEmbedSu\(/);
-  assert.match(player, /data-mg-embedsu-open="true"/);
+  assert.doesNotMatch(details, /player\.playEmbedSu\(/);
+  assert.match(episodes, /player\.play\(/);
+  assert.doesNotMatch(player, /data-mg-embedsu-open="true"/);
+  assert.match(provider, /const playEmbedSu = useCallback/);
   assert.match(provider, /<PlayerPortalRenderer/);
   assert.match(portal, /stopExclusivePlayback\(\);\s*setVidSrcEmbed\(\{[\s\S]*?provider: "embedsu"/);
   assert.match(discovery, /npm:cheerio/);
