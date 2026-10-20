@@ -396,6 +396,10 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
           episodeName: meta.episodeName || "",
           startTime: Number(item.progress || 0),
           preferRd: true,
+          // The saved torrent is the first choice, NOT the entire source
+          // catalogue. Keep addon and RD discovery running in the background
+          // so a silent/incompatible saved video can be replaced manually.
+          resumeFromHistory: true,
           verifiedPlaybackPolicy: "manual",
           sources: [savedSource],
         });
@@ -421,9 +425,11 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
           rdEpisode: meta.episode || undefined,
           episodeName: meta.episodeName || "",
           startTime: Number(item.progress || 0),
-          src: savedUrl,
-          url: savedUrl,
-          video_url: savedUrl,
+          // Old history can contain short-lived signed CDN/debrid URLs. Use
+          // the link as one manual candidate, but NEVER disable discovery.
+          // This is what previously trapped the player on audio-only video
+          // with no other sources to switch to.
+          resumeFromHistory: true,
           sources: [{
             label: "Resume last source",
             name: "Resume last source",
@@ -434,9 +440,7 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
             viaRealDebrid: savedSourceType === "rd" || savedSourceType === "debrid",
           }],
           verifiedPlaybackPolicy: "manual",
-          noRd: true,
-          skipRdLookup: true,
-          skipAddonLookup: true,
+          preferRd: true,
         });
         return;
       }
@@ -514,7 +518,47 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
       episodeName: meta.episodeName || "",
       startTime: Number(item.progress || 0),
       preferRd: true,
+      resumeFromHistory: true,
       verifiedPlaybackPolicy: "strict",
+      sources: [],
+    });
+  };
+
+  /*
+   * Accessible on every Continue Watching card, even when the last source is
+   * expired, plays audio without video or opens in a native player with only
+   * one source. Freshly discover alternatives instead of replaying that link.
+   * Keep the timestamp when switching to a different compatible file.
+   */
+  const chooseAnotherSource = async (item, event) => {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+
+    const meta = parseContentKey(item);
+    const tmdbId = await resolveTmdbIdQuickly(meta);
+    await player.play({
+      id: tmdbId || undefined,
+      tmdbId: tmdbId || undefined,
+      tmdb_id: tmdbId || undefined,
+      imdbId: item.imdb_id || undefined,
+      title: meta.title,
+      year: meta.year,
+      poster: item.poster_url || "",
+      mediaType: meta.mediaType,
+      type: meta.mediaType === "tv" ? "series" : "movie",
+      season: meta.season || undefined,
+      episode: meta.episode || undefined,
+      rdTitle: meta.title,
+      rdYear: meta.year,
+      rdSeason: meta.season || undefined,
+      rdEpisode: meta.episode || undefined,
+      episodeName: meta.episodeName || "",
+      startTime: Number(item.progress || 0),
+      preferRd: true,
+      resumeFromHistory: true,
+      // A manual source-chooser request exposes all discovered, selectable
+      // sources, rather than stalling behind strict automatic qualification.
+      verifiedPlaybackPolicy: "manual",
       sources: [],
     });
   };
@@ -639,6 +683,20 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
                   />
                 </div>
               </div>
+
+              <button
+                type="button"
+                onClick={(event) => chooseAnotherSource(item, event)}
+                onKeyDown={(event) => {
+                  if (isCardActivationKey(event)) event.stopPropagation();
+                }}
+                className="mg-fire-tv-secondary-action mt-2 inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-white/20 bg-mg-card px-2 text-xs font-semibold text-white hover:border-mg-green/60 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-mg-green"
+                aria-label={`Find another source for ${meta.title}`}
+                title="Find another video source without losing your progress"
+              >
+                <Play className="mr-2 h-3.5 w-3.5 text-mg-green" />
+                Other sources
+              </button>
 
               <div className="mt-2 text-white font-semibold text-sm sm:text-[15px] 3xl:text-base truncate">
                 {meta.title}
