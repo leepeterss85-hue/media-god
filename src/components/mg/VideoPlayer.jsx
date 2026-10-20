@@ -11066,6 +11066,7 @@ export default function VideoPlayer({
                 ref={
                   liveVideoRef
                 }
+                showCastButton={false}
                 key={
                   active.src
                 }
@@ -11103,7 +11104,7 @@ export default function VideoPlayer({
                 preferredAudioLanguage={
                   trackPreferences.audioLanguage
                 }
-                className="absolute inset-0 h-full w-full flex-none object-contain bg-black"
+                className={isLive ? "absolute inset-0 h-full w-full flex-none object-contain bg-black" : "absolute inset-0 h-full w-full flex-none object-contain bg-black transform-gpu"}
                 onLoadedMetadata={
                   handleLoadedMetadata
                 }
