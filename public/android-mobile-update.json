@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 81,
-  "versionName": "1.0.80",
+  "versionCode": 82,
+  "versionName": "1.0.81",
   "title": "Media God Mobile",
-  "message": "Media God 1.0.80: Continue Watching source retention and safer rewind/fast-forward.",
+  "message": "Media God 1.0.81: native Chromecast video casting and safer receiver playback checks.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"

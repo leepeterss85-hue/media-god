@@ -47,6 +47,41 @@ const mediaContentType = (value, explicitType, source) => {
   return source?.live === true ? "application/x-mpegURL" : "video/mp4";
 };
 
+const CAST_PLAYBACK_TIMEOUT_MS = 18000;
+
+// LOAD success only means that the receiver accepted a request. Watch the
+// receiver media state before claiming the selected video is casting.
+const waitForCastPlayback = (session, targetUrl) => new Promise((resolve, reject) => {
+  let settled = false;
+  let interval = null;
+  let timeout = null;
+  const finish = (error) => {
+    if (settled) return;
+    settled = true;
+    if (interval !== null) window.clearInterval(interval);
+    if (timeout !== null) window.clearTimeout(timeout);
+    if (error) reject(error);
+    else resolve(true);
+  };
+  const check = () => {
+    const media = session?.getMediaSession?.();
+    if (!media) return;
+    const currentId = String(media.media?.contentId || "");
+    // Ignore the previous video's player state while switching media.
+    if (currentId && currentId !== targetUrl) return;
+    if (media.playerState === "IDLE" && media.idleReason === "ERROR") {
+      finish(new Error("CAST_MEDIA_ERROR"));
+      return;
+    }
+    if (media.playerState === "PLAYING" || media.playerState === "PAUSED") {
+      finish();
+    }
+  };
+  interval = window.setInterval(check, 350);
+  timeout = window.setTimeout(() => finish(new Error("CAST_PLAYBACK_TIMEOUT")), CAST_PLAYBACK_TIMEOUT_MS);
+  check();
+});
+
 let sdkPromise = null;
 
 function loadCastSdk() {
@@ -88,7 +123,6 @@ export default function CastButton({
   poster,
   contentType,
   source,
-  videoRef,
 }) {
   const [ready, setReady] = useState(false);
   const [casting, setCasting] = useState(false);
@@ -97,6 +131,26 @@ export default function CastButton({
   const [showFeedback, setShowFeedback] = useState(false);
 
   useEffect(() => {
+    const onNativeCast = (event) => {
+      const state = String(event?.detail?.state || "");
+      const message = String(event?.detail?.message || "");
+      setConnecting(state === "connecting");
+      setCasting(state === "playing");
+      setError(state === "error" ? message : "");
+      setShowFeedback(state === "error");
+    };
+    window.addEventListener("mg:native-cast-status", onNativeCast);
+    return () => window.removeEventListener("mg:native-cast-status", onNativeCast);
+  }, []);
+
+  useEffect(() => {
+    // Native Android APKs run the Cast sender in Kotlin; do not try to
+    // initialise the browser Cast SDK inside an Android WebView.
+    if (typeof window.MediaGodNative?.castVideo === "function") {
+      setReady(true);
+      setError("");
+      return undefined;
+    }
     let alive = true;
     let context = null;
     let onSessionState = null;
@@ -118,7 +172,9 @@ export default function CastButton({
         const syncSession = () => {
           if (!alive || !context) return;
           const session = context.getCurrentSession();
-          setCasting(Boolean(session));
+          // A connected receiver is not proof that a video has loaded.
+          const media = session?.getMediaSession?.();
+          setCasting(Boolean(media && ["PLAYING", "PAUSED"].includes(media.playerState)));
         };
 
         onSessionState = syncSession;
@@ -179,26 +235,56 @@ export default function CastButton({
       return;
     }
 
-    if (!ready) {
-      const remote = videoRef?.current?.remote;
-      if (remote && typeof remote.prompt === "function") {
-        try {
-          await remote.prompt();
-          if (remote.state === "connected" || remote.state === "connecting") {
-            setCasting(true);
-            return;
-          }
-        } catch (remoteError) {
-          if (
-            remoteError?.name === "NotFoundError" ||
-            remoteError?.name === "NotSupportedError"
-          ) {
-            setError("No compatible casting receiver was found. Use a Chromecast-compatible device on the same Wi-Fi network.");
-            return;
-          }
+    // Validate before opening a receiver session, so invalid formats do not
+    // strand the TV on the receiver logo with an audio-only stream.
+    const mimeType = mediaContentType(targetUrl, contentType, source);
+    const filename = String(source?.filename || source?.name || "").trim();
+    if (
+      mimeType === "video/x-matroska" ||
+      /\.(?:mkv|avi|wmv|flv)(?:$|[?#])/i.test(targetUrl) ||
+      /\.(?:mkv|avi|wmv|flv)$/i.test(filename)
+    ) {
+      setCasting(false);
+      setError("This video container is not compatible with the standard Chromecast receiver. Choose a direct MP4 (H.264) or HLS version; casting cannot convert MKV/AVI video.");
+      return;
+    }
+    if (mimeType.startsWith("audio/") || /\.(?:mp3|m4a|aac)(?:$|[?#])/i.test(targetUrl)) {
+      setCasting(false);
+      setError("The selected source is audio-only. Choose a video source before casting.");
+      return;
+    }
+
+
+    // Android WebView cannot host the Web Sender SDK. Use the APK's native
+    // Cast session/route chooser; the receiver will fetch the direct video.
+    if (typeof window.MediaGodNative?.castVideo === "function") {
+      setConnecting(true);
+      try {
+        const accepted = window.MediaGodNative.castVideo(JSON.stringify({
+          url: targetUrl,
+          title: title || "Media God",
+          poster: poster || "",
+          contentType: mimeType,
+          live: source?.live === true,
+        }));
+        if (!accepted) {
+          setConnecting(false);
+          setCasting(false);
+          setError("Native Cast is unavailable on this device. Check Google Play services and use a compatible Cast receiver.");
         }
+      } catch {
+        setConnecting(false);
+        setCasting(false);
+        setError("Android could not start a native Cast session.");
       }
-      setError("Casting is unavailable here. Use a compatible Chromecast receiver and browser.");
+      return;
+    }
+
+    if (!ready) {
+      // HTML remote playback is not a safe Cast sender in Android
+      // WebView: it can connect the audio track without any video surface.
+      setCasting(false);
+      setError("This device has no Google Cast sender available. The old remote-playback fallback could send audio without video. Try Chrome with a Chromecast receiver; Android APK casting needs native Cast support.");
       return;
     }
 
@@ -218,12 +304,6 @@ export default function CastButton({
         return;
       }
 
-      const mimeType = mediaContentType(targetUrl, contentType, source);
-      if (mimeType === "video/x-matroska") {
-        setError("This source is MKV, which the standard Chromecast receiver may not play reliably. Choose an MP4 or HLS source.");
-        return;
-      }
-
       const mediaInfo = new window.chrome.cast.media.MediaInfo(targetUrl, mimeType);
       mediaInfo.streamType =
         source?.live === true
@@ -236,18 +316,28 @@ export default function CastButton({
       }
 
       const request = new window.chrome.cast.media.LoadRequest(mediaInfo);
-      await session.loadMedia(request);
+      const loadResult = await session.loadMedia(request);
+      // The Web Sender Promise can resolve to an ErrorCode rather than throw.
+      if (loadResult) throw new Error(String(loadResult));
+      // LOAD success acknowledges the command, not video playback. Wait for
+      // the receiver's real player state instead of showing a green Cast icon
+      // while its logo remains on screen.
+      await waitForCastPlayback(session, targetUrl);
       setCasting(true);
       setError("");
     } catch (castError) {
+      setCasting(false);
       if (castError?.code !== "cancel") {
-        setCasting(Boolean(ctx.getCurrentSession()));
-        setError("Could not start video casting. Check that the receiver supports this stream format and is on the same Wi-Fi network.");
+        setError(
+          castError?.message === "CAST_MEDIA_ERROR"
+            ? "The TV rejected this stream. Try a direct H.264 MP4 or HLS source; some formats play audio without video on Chromecast."
+            : "The Cast receiver did not confirm video playback. Try a compatible MP4/HLS source; a receiver logo with audio only usually means an unsupported video format."
+        );
       }
     } finally {
       setConnecting(false);
     }
-  }, [url, title, poster, contentType, source, videoRef, ready]);
+  }, [url, title, poster, contentType, source, ready]);
 
   const disabled = !url || connecting;
   return (
