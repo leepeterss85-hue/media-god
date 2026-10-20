@@ -10615,6 +10615,16 @@ export default function VideoPlayer({
                         : active?.format || (isLive ? "application/x-mpegURL" : "video/mp4"))
                   }
                   source={active}
+                  media={{
+                    tmdbId: source?.tmdbId || source?.tmdb_id || source?.id || "",
+                    title: source?.rdTitle || source?.title || "",
+                    poster: source?.poster || "",
+                    year: source?.rdYear || source?.year || "",
+                    mediaType: isLive ? "live" : playbackMediaType === "tv" ? "tv" : "movie",
+                    season: source?.rdSeason || source?.season || 0,
+                    episode: source?.rdEpisode || source?.episode || 0,
+                    startTime: Number(videoRef.current?.currentTime || source?.startTime || 0),
+                  }}
                 />
               </>
             )}
