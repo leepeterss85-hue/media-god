@@ -27,6 +27,10 @@ test("every history card has a distinct keyboard-accessible manual source escape
   assert.match(row, /onClick=\{\(event\) => chooseAnotherSource\(item, event\)\}/);
   assert.match(row, /Find another source for/);
   assert.match(row, /Other sources/);
+  // Fire TV CSS hides .mg-fire-tv-secondary-action, which is appropriate for
+  // Remove but must never conceal the recovery button.
+  const otherSourcesControl = row.slice(row.indexOf("chooseAnotherSource(item, event)"));
+  assert.doesNotMatch(otherSourcesControl.slice(0, 500), /className="mg-fire-tv-secondary-action/);
   assert.match(row, /event\?\.stopPropagation\?\.\(\)/);
   const start = row.indexOf("const chooseAnotherSource = async");
   const end = row.indexOf("const displayItems = useMemo", start);
