@@ -1,5 +1,26 @@
-import { exactPlaybackSourceLabel } from "./playbackReliability.js";
 import { isFlixQuestEpisodeSource } from "./episodeSourcePolicy.js";
+
+/*
+ * Store a short fingerprint, never a URL, signed query string, account token
+ * or torrent label. Keep this module independently testable in Node as well as
+ * in the browser; its keying mirrors the playback reliability exact-source key.
+ */
+const exactEpisodeSourceFingerprint = source => {
+  const hash = String(source?.infoHash || source?.info_hash || "").trim() ||
+    String(source?.magnet || source?.magnetLink || "").match(/btih:([a-f0-9]{40}|[a-f0-9]{64})/i)?.[1] || "";
+  const identity = hash || String(source?.id || source?.src || source?.url || "").trim();
+  if (!identity) return "";
+  const file = String(source?.fileIdx || source?.file_idx || "");
+  const raw = [source?.addon || source?.debridProvider || source?.sourceName || "",
+    identity, file].join("|");
+  let first = 2166136261;
+  let second = 0x811c9dc7 ^ 0x9e3779b9;
+  for (let index = 0; index < raw.length; index += 1) {
+    first = Math.imul(first ^ raw.charCodeAt(index), 16777619);
+    second = Math.imul(second ^ raw.charCodeAt(index), 16777619);
+  }
+  return `exact:${(first >>> 0).toString(36)}:${(second >>> 0).toString(36)}`;
+};
 
 const STORAGE_KEY = "mg:episode-source-health:v1";
 const TTL = 30 * 24 * 60 * 60 * 1000;
@@ -27,7 +48,7 @@ function sourceKey(source, context) {
   const tmdb = clean(context?.tmdbId ?? context?.tmdb_id ?? context?.id);
   const season = positive(context?.season ?? context?.rdSeason);
   const episode = positive(context?.episode ?? context?.rdEpisode);
-  const exact = exactPlaybackSourceLabel(source);
+  const exact = exactEpisodeSourceFingerprint(source);
   // Never persist a URL, bearer token, manifest or full torrent title.
   if (!/^\d{1,9}$/.test(tmdb) || !season || !episode || !exact) return "";
   return [tmdb, season, episode, exact].join(":");
