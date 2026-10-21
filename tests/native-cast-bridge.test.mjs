@@ -15,7 +15,7 @@ test("Android APK uses native Cast instead of WebView remote audio-only mode", (
   assert.doesNotMatch(sender, /\.remote\.prompt\s*\(/);
   assert.match(sender, /mg:native-cast-status/);
   assert.match(app, /fun castVideo\(payloadJson: String\)/);
-  assert.match(app, /MediaGodCastManager\(this\)/);
+  assert.match(app, /MediaGodCastManager\(this@MainActivity\)/);
   assert.match(app, /nativeBridgeAllowed\(\)/);
 });
 
