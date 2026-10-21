@@ -1,9 +1,9 @@
 {
   "version": 1,
-  "note": "Reviewed targeted 2026-10-21 TV episode source policy: FlixQuest stays primary with torrent/Real-Debrid/MediaFusion/Torrentio/Comet manual alternatives, exact episode mismatch exclusions and 20s video / native audio evidence-based local source health. Movie playback and all Live TV files unchanged.",
+  "note": "Reviewed 2026-10-21 TV-episode bug fix: 404 FlixQuest fallback and unverified MediaFusion error-video placeholders cannot silently own episode autoplay. Preserve player source-list completeness and manual alternatives. Movies, Live TV and native decoder untouched.",
   "files": {
-    "src/components/mg/VideoPlayer.jsx": "6598e50aaff225f062eb06ad5a8ae216afac3f9ebbdcb3ae2bb97052aa024373",
-    "src/components/mg/MediaPlayerProvider.jsx": "c6bf5f5b2b771e0b64390909c71f33d0a84b7a7ecb424dafb247042858b9759c",
+    "src/components/mg/VideoPlayer.jsx": "7bcc05c70547b74473d16258a4cf66914c473017602d2132426aeb1c87081cc7",
+    "src/components/mg/MediaPlayerProvider.jsx": "26c181bcfe5a254e8c2727c98f56cb2425175b49c091d0f9f43a9e3a8cd8d784",
     "src/components/mg/PlayerProvider.jsx": "aa08264c7925c1f23c5501a02f4424541fceae46acb106ea53bae5e041d8f442",
     "src/components/mg/MediaPlayerControls.jsx": "ef6cbff88fd9d8aad2396e7243ef9f2c09f54f6ad9d3a8c03acc124f1bfacd87",
     "src/components/mg/LiveTVView.jsx": "0a5734ecb0e167b7393845089cb3ef4fa1576ee071f170960d8bfcccef56ab50",
