@@ -1,6 +1,7 @@
 import { prioritiseCompatibleAutoplayEntries } from "@/components/mg/automaticSourceOrder";
 import { episodeSourceHealthScore } from "./episodeSourceHealth.js";
 import { isFlixQuestEpisodeSource } from "./episodeSourcePolicy.js";
+import { rankEpisodeSourceChoices } from "./episodeLaunchTrust.js";
 import {
   detectLanguagePreference,
   detectStreamTraits,
@@ -466,14 +467,16 @@ export const sortSourceEntries = (
 
     const ranked = prioritiseCompatibleAutoplayEntries(fallbackRanked);
     if (String(options?.mediaType || "").toLowerCase() !== "tv") return ranked;
-    // FlixQuest is the main episode player; don't hide or re-rank torrents out
-    // of the chooser. An active manually chosen source stays under player control.
-    return [
+    // Keep FlixQuest ahead when usable. An unverified MediaFusion link can
+    // contain a playable error clip, so place it *after* other alternatives
+    // without hiding it or changing the user's deliberate manual source.
+    const englishFirst = [
       ...ranked.filter(entry => isFlixQuestEpisodeSource(entry.item) &&
         Number(entry.languageRank ?? 3) < 3),
       ...ranked.filter(entry => !isFlixQuestEpisodeSource(entry.item) ||
         Number(entry.languageRank ?? 3) >= 3),
     ];
+    return rankEpisodeSourceChoices(englishFirst);
   }
 
   return list.slice().sort((a, b) => {
