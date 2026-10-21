@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 83,
-  "versionName": "1.0.82",
+  "versionCode": 84,
+  "versionName": "1.0.83",
   "title": "Media God Mobile",
-  "message": "Media God 1.0.82: black video recovery and in-player source selection improvements.",
+  "message": "Media God 1.0.83: prevent casting code from interfering with movie playback and fix black video when sources change.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
