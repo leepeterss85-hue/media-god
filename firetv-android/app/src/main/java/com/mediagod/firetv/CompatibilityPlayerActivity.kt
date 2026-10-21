@@ -602,16 +602,22 @@ class CompatibilityPlayerActivity : Activity() {
         }
 
         val backButton = controlButton("← Back") { finishWithResult("back") }
-        val reportButton = controlButton("Report") { showPlaybackReport() }
-        val sourcesButton = controlButton("Sources") { showSourceMenu() }
-        val rewindButton = controlButton("−10s") { seekBy(-10_000L) }
-        playPauseButton = controlButton("Pause") { togglePlayback() }
-        val forwardButton = controlButton("+10s") { seekBy(10_000L) }
-        audioButton = controlButton("Audio") { showAudioTrackMenu() }
+        val reportButton = controlButton("ⓘ") { showPlaybackReport() }
+        val sourcesButton = controlButton("☰ Sources") { showSourceMenu() }
+        val rewindButton = controlButton("↶ 10") { seekBy(-10_000L) }
+        playPauseButton = controlButton("⏸") { togglePlayback() }
+        val forwardButton = controlButton("↷ 10") { seekBy(10_000L) }
+        audioButton = controlButton("♫") { showAudioTrackMenu() }
         subtitleButton = controlButton("CC") { showSubtitleTrackMenu() }
-        val moreButton = controlButton("Options") { showAdvancedControlsMenu() }
+        val moreButton = controlButton("⚙") { showAdvancedControlsMenu() }
         rewindButton.contentDescription = "Rewind 10 seconds"
         forwardButton.contentDescription = "Forward 10 seconds"
+        playPauseButton.contentDescription = "Pause or play video"
+        audioButton.contentDescription = "Audio tracks"
+        subtitleButton.contentDescription = "Subtitles"
+        sourcesButton.contentDescription = "Choose source"
+        moreButton.contentDescription = "Player settings"
+        reportButton.contentDescription = "Report playback issue"
 
         val titleText = TextView(this).apply {
             text =
@@ -933,8 +939,8 @@ class CompatibilityPlayerActivity : Activity() {
         Button(this).apply {
             text = label
             isAllCaps = false
-            val primary = label == "Pause" || label == "Play"
-            val sourceAction = label == "Sources"
+            val primary = label == "⏸" || label == "▶"
+            val sourceAction = label == "☰ Sources"
             textSize = if (primary) 16f else 13f
             setTextColor(if (primary) Color.BLACK else Color.WHITE)
             isFocusable = true
@@ -1705,7 +1711,7 @@ class CompatibilityPlayerActivity : Activity() {
     }
 
     private fun updatePlayPauseLabel() {
-        if (::playPauseButton.isInitialized) playPauseButton.text = if (vlcPlayer?.isPlaying == true) "Pause" else "Play"
+        if (::playPauseButton.isInitialized) playPauseButton.text = if (vlcPlayer?.isPlaying == true) "⏸" else "▶"
     }
 
     private fun seekBy(deltaMs: Long) {
