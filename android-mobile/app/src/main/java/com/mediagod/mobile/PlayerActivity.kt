@@ -1438,6 +1438,13 @@ class PlayerActivity : Activity() {
             ) return@postDelayed
 
             val latestTracks = activePlayer.currentTracks
+            // A supported, selected audio track may already be audible even
+            // when the decoder's output counter hasn't fired. Neither AC3/DTS
+            // metadata nor multichannel layout proves sound is missing.
+            val latest = inspectAudioReadiness(latestTracks)
+            if (latest.present && latest.supported && latest.selected) {
+                return@postDelayed
+            }
             // A healthy sink callback is not proof that the user can hear a
             // risky passthrough/multichannel track. Rescue those tracks too.
             if (
@@ -1445,7 +1452,6 @@ class PlayerActivity : Activity() {
                 !selectedAudioRequiresPcmRescue(latestTracks)
             ) return@postDelayed
 
-            val latest = inspectAudioReadiness(latestTracks)
             val reason = when {
                 !latest.present ->
                     "Video is playing but no audio track became available. Trying the same file with the compatibility decoder."
