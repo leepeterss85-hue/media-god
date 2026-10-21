@@ -1391,35 +1391,6 @@ class PlayerActivity : Activity() {
         )
     }
 
-    private fun selectedAudioRequiresPcmRescue(
-        tracks: androidx.media3.common.Tracks
-    ): Boolean {
-        tracks.groups.forEach { group ->
-            if (group.type != C.TRACK_TYPE_AUDIO) return@forEach
-
-            for (index in 0 until group.length) {
-                if (!group.isTrackSelected(index)) continue
-
-                val format = group.getTrackFormat(index)
-                val mime = format.sampleMimeType.orEmpty().trim().lowercase()
-                if (
-                    format.channelCount > 2 ||
-                    mime in setOf(
-                        "audio/ac3",
-                        "audio/eac3",
-                        "audio/eac3-joc",
-                        "audio/ac4",
-                        "audio/vnd.dts",
-                        "audio/vnd.dts.hd",
-                        "audio/true-hd",
-                        "audio/vnd.dolby.mlp"
-                    )
-                ) return true
-            }
-        }
-        return false
-    }
-
     private fun scheduleMissingAudioCheck(
         activePlayer: ExoPlayer,
         tracks: androidx.media3.common.Tracks
@@ -1438,12 +1409,10 @@ class PlayerActivity : Activity() {
             ) return@postDelayed
 
             val latestTracks = activePlayer.currentTracks
-            // A healthy sink callback is not proof that the user can hear a
-            // risky passthrough/multichannel track. Rescue those tracks too.
-            if (
-                audioOutputConfirmed &&
-                !selectedAudioRequiresPcmRescue(latestTracks)
-            ) return@postDelayed
+            // Codec labels and multichannel audio are not evidence of failure.
+            // Once the native audio renderer has confirmed output, preserve
+            // the active video surface and the viewer's selected source.
+            if (audioOutputConfirmed) return@postDelayed
 
             val latest = inspectAudioReadiness(latestTracks)
             val reason = when {
