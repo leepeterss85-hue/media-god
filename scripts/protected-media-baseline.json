@@ -1,9 +1,9 @@
 {
   "version": 1,
-  "note": "Reviewed requested no-speculative-backup switching and icon-led player work 2026-10-21: both native VOD players keep supported selected audio even without output callbacks, browser VOD guard requires actual missing picture, native compatibility controls improved, web sources/audio/subtitles/settings accessible. Live TV code and Real-Debrid resolution unchanged.",
+  "note": "Reviewed targeted 2026-10-21 TV episode source policy: FlixQuest stays primary with torrent/Real-Debrid/MediaFusion/Torrentio/Comet manual alternatives, exact episode mismatch exclusions and 20s video / native audio evidence-based local source health. Movie playback and all Live TV files unchanged.",
   "files": {
-    "src/components/mg/VideoPlayer.jsx": "f3aab6cb02b36cb3e224a5b957b3ee8d77bbc0d4eb0adc6c6d2d5c5e4d14c21c",
-    "src/components/mg/MediaPlayerProvider.jsx": "1e852cfd44904d76aef6ba67f3d1c228352102927fb7b98e1e0af4c36c557163",
+    "src/components/mg/VideoPlayer.jsx": "6598e50aaff225f062eb06ad5a8ae216afac3f9ebbdcb3ae2bb97052aa024373",
+    "src/components/mg/MediaPlayerProvider.jsx": "c6bf5f5b2b771e0b64390909c71f33d0a84b7a7ecb424dafb247042858b9759c",
     "src/components/mg/PlayerProvider.jsx": "aa08264c7925c1f23c5501a02f4424541fceae46acb106ea53bae5e041d8f442",
     "src/components/mg/MediaPlayerControls.jsx": "ef6cbff88fd9d8aad2396e7243ef9f2c09f54f6ad9d3a8c03acc124f1bfacd87",
     "src/components/mg/LiveTVView.jsx": "0a5734ecb0e167b7393845089cb3ef4fa1576ee071f170960d8bfcccef56ab50",
