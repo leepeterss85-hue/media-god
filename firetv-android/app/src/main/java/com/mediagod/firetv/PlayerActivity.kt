@@ -699,7 +699,10 @@ class PlayerActivity : Activity() {
             this,
             payload,
             streamUrl,
-            forceDisplayMode = true
+            // Keep VOD's existing Surface alive; refresh-mode switches during
+            // opening can blank the output on some Fire TV HDMI displays.
+            // Live TV retains its original mode-switching behaviour.
+            forceDisplayMode = live
         )
 
         playerView = PlayerView(this).apply {
