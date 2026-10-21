@@ -57,6 +57,7 @@ class PlayerActivity : Activity() {
 
         private const val REQUEST_COMPATIBILITY_PLAYER = 8402
         private const val CONTROLLER_HIDE_DELAY_MS = 2500L
+        private const val VOD_FIRST_FRAME_TIMEOUT_MS = 25_000L
         private const val LIVE_STARTUP_TIMEOUT_MS = 15000L
         private const val LIVE_STALL_TIMEOUT_MS = 12000L
         private const val STRICT_ENGLISH_STARTUP_TIMEOUT_MS = 10000L
@@ -111,9 +112,35 @@ class PlayerActivity : Activity() {
     private var compatibilityPlayerOpen = false
     private var audioPresenceCheckGeneration = 0
     private var audioOutputConfirmed = false
+    private var firstVideoFrameRendered = false
     private var audioDecoderName = "unknown"
     private var videoDecoderName = "unknown"
     private var lastPlayerErrorCode = "none"
+
+    /*
+     * Fire TV used to consider audio playback sufficient evidence of VOD
+     * playback, leaving an entirely black frame indefinitely. Observe the
+     * first decoded video frame without changing Live TV recovery rules.
+     */
+    private val firstFrameWatchdogRunnable = Runnable {
+        val activePlayer = player ?: return@Runnable
+        if (resultSent || live || compatibilityPlayerOpen ||
+            firstVideoFrameRendered || !shouldPlayWhenReady
+        ) return@Runnable
+
+        val audioOnlyRender =
+            activePlayer.isPlaying &&
+            audioOutputConfirmed &&
+            activePlayer.currentPosition > 0L
+        if (audioOnlyRender && currentSourceDrm() == null &&
+            launchCompatibilityPlayer(activePlayer, null, "video-no-first-frame")
+        ) return@Runnable
+
+        finishWithResult(
+            "startup_timeout",
+            "Fire TV did not display a video frame. Choose another source."
+        )
+    }
 
     private val failedLiveSourceIndexes = linkedSetOf<Int>()
     private var livePlaybackStarted = false
@@ -668,12 +695,19 @@ class PlayerActivity : Activity() {
         )
         enterImmersiveMode()
 
-        DisplayRateMatcher.apply(
-            this,
-            payload,
-            streamUrl,
-            forceDisplayMode = true
-        )
+        // Even a preferredRefreshRate hint can change the Fire TV HDMI mode
+        // before the VOD surface is ready. Only Live TV opts into the original
+        // display-mode matching; movies and episodes keep the current mode.
+        if (live) {
+            DisplayRateMatcher.apply(
+                this,
+                payload,
+                streamUrl,
+                forceDisplayMode = true
+            )
+        } else {
+            DisplayRateMatcher.clear(this)
+        }
 
         playerView = PlayerView(this).apply {
             id = View.generateViewId()
@@ -1903,6 +1937,7 @@ class PlayerActivity : Activity() {
             .build()
 
         audioOutputConfirmed = false
+        firstVideoFrameRendered = false
         audioDecoderName = "unknown"
         videoDecoderName = "unknown"
         lastPlayerErrorCode = "none"
@@ -1952,6 +1987,13 @@ class PlayerActivity : Activity() {
                 .build()
 
         exoPlayer.addListener(object : Player.Listener {
+            override fun onRenderedFirstFrame() {
+                firstVideoFrameRendered = true
+                if (::playerView.isInitialized) {
+                    playerView.removeCallbacks(firstFrameWatchdogRunnable)
+                }
+            }
+
             override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
                 var selectedFrameRate = 0f
 
@@ -1967,7 +2009,9 @@ class PlayerActivity : Activity() {
                     }
                 }
 
-                if (selectedFrameRate > 0f) {
+                // VOD must never request a refresh-rate/display-mode change
+                // while the decoder is opening; preserve the HDMI video surface.
+                if (live && selectedFrameRate > 0f) {
                     DisplayRateMatcher.apply(
                         this@PlayerActivity,
                         selectedFrameRate,
@@ -2109,6 +2153,11 @@ class PlayerActivity : Activity() {
             exoPlayer.seekTo(restorePositionMs)
         }
 
+        if (!live && shouldPlayWhenReady && ::playerView.isInitialized) {
+            playerView.removeCallbacks(firstFrameWatchdogRunnable)
+            playerView.postDelayed(firstFrameWatchdogRunnable, VOD_FIRST_FRAME_TIMEOUT_MS)
+        }
+
         if (shouldPlayWhenReady && !holdForEnglishStartup) {
             exoPlayer.play()
         } else if (holdForEnglishStartup) {
@@ -2173,6 +2222,8 @@ class PlayerActivity : Activity() {
             put("preferredAudioTrackCodec", currentPreferredEnglishTrackCodec())
             put("preferredAudioTrackStream", currentPreferredEnglishTrackStream())
             put("compatibilityReason", compatibilityReason)
+            put("forceSoftwareVideoDecode",
+                !live && compatibilityReason == "video-no-first-frame")
             put(
                 "compatibilityError",
                 error?.message.orEmpty().ifBlank { compatibilityReason }
@@ -2582,6 +2633,7 @@ class PlayerActivity : Activity() {
 
         if (::playerView.isInitialized) {
             playerView.removeCallbacks(hideControllerRunnable)
+            playerView.removeCallbacks(firstFrameWatchdogRunnable)
         }
 
         val activePlayer = player ?: return

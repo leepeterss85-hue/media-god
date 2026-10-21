@@ -410,10 +410,27 @@ class PlayerActivity : Activity() {
         if (!resultSent && !live && !compatibilityPlayerOpen &&
             !firstVideoFrameRendered && shouldPlayWhenReady && player != null
         ) {
-            // Startup delay is device evidence, not proof this torrent is bad.
+            // Audio may advance on a track that the native video renderer
+            // cannot display. Retry the SAME stream in the existing software
+            // video compatibility player rather than playing a black screen.
+            val activePlayer = player ?: return@Runnable
+            val videoStalledWhileAudioAdvanced =
+                activePlayer.isPlaying &&
+                audioOutputConfirmed &&
+                activePlayer.currentPosition > 0L
+            if (videoStalledWhileAudioAdvanced &&
+                payload.optJSONObject("drm") == null &&
+                launchCompatibilityPlayer(
+                    activePlayer,
+                    null,
+                    "video-no-first-frame"
+                )
+            ) {
+                return@Runnable
+            }
             finishWithResult(
                 "startup_timeout",
-                "Android video did not show a frame in 25 seconds. Choose another source or retry."
+                "No video frame appeared. Use Sources to choose another release."
             )
         }
     }
@@ -1205,6 +1222,10 @@ class PlayerActivity : Activity() {
             put("preferredAudioTrackStream", currentPreferredEnglishTrackStream())
             put("compatibilityErrorCode", error?.errorCode ?: 0)
             put("compatibilityReason", compatibilityReason)
+            // An audio-only-looking black surface is not an audio decoder
+            // issue. Force VLC software VIDEO decode for this attempt.
+            put("forceSoftwareVideoDecode",
+                !live && compatibilityReason == "video-no-first-frame")
             put(
                 "compatibilityError",
                 error?.message.orEmpty().ifBlank { compatibilityReason }
