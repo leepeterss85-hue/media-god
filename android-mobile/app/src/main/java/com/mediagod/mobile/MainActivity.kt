@@ -162,17 +162,10 @@ class MainActivity : FragmentActivity() {
 
         setContentView(webView)
         activeActivity = WeakReference(this)
-        // Cast discovery must live in Android, not HTMLMediaElement.remote.
-        castManager = runCatching {
-            MediaGodCastManager(this) { state, message ->
-                val detail = JSONObject()
-                    .put("state", state)
-                    .put("message", message)
-                dispatchJavascript(
-                    "window.dispatchEvent(new CustomEvent('mg:native-cast-status',{detail:${detail}}));"
-                )
-            }
-        }.getOrNull()
+        // Do not initialise Google Cast at app startup. MediaGodCastManager
+        // creates CastContext and binds session listeners; those native
+        // discovery surfaces must not run while normal VOD plays.
+        // The manager is created lazily after an explicit Cast tap.
 
         appUpdater = AppUpdater(this) { detail ->
             dispatchJavascript(
@@ -726,7 +719,34 @@ class MainActivity : FragmentActivity() {
         @JavascriptInterface
         fun castVideo(payloadJson: String): Boolean {
             if (!nativeBridgeAllowed()) return false
-            return castManager?.start(payloadJson) == true
+            // Android's JavaScript interface methods run off the UI thread.
+            // CastContext and MediaRouter must be initialised on the UI thread,
+            // and ONLY after the user explicitly requests casting. Queue the
+            // result/status through the existing native Cast event bridge.
+            webView.post {
+                if (isFinishing || isDestroyed) return@post
+                if (castManager == null) {
+                    castManager = runCatching {
+                        MediaGodCastManager(this@MainActivity) { state, message ->
+                            val detail = JSONObject()
+                                .put("state", state)
+                                .put("message", message)
+                            dispatchJavascript(
+                                "window.dispatchEvent(new CustomEvent('mg:native-cast-status',{detail:${detail}}));"
+                            )
+                        }
+                    }.getOrNull()
+                }
+                if (castManager?.start(payloadJson) != true) {
+                    val detail = JSONObject()
+                        .put("state", "error")
+                        .put("message", "Could not open the Cast device chooser.")
+                    dispatchJavascript(
+                        "window.dispatchEvent(new CustomEvent('mg:native-cast-status',{detail:${detail}}));"
+                    )
+                }
+            }
+            return true
         }
 
         @JavascriptInterface
