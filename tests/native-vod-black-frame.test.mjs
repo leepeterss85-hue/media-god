@@ -30,9 +30,11 @@ test("Fire TV VOD validates the first video frame while leaving Live TV recovery
 });
 
 test("Fire TV keeps current resolution/refresh rate stable for VOD surfaces", () => {
-  assert.match(fire, /forceDisplayMode = live/);
-  assert.doesNotMatch(fire, /forceDisplayMode = true/);
-  assert.match(fireCompat, /forceDisplayMode = payload\.optBoolean\("live", false\)/);
+  assert.match(fire, /if \(live\) \{\s*DisplayRateMatcher\.apply/);
+  assert.match(fire, /DisplayRateMatcher\.clear\(this\)/);
+  assert.match(fire, /if \(live && selectedFrameRate > 0f\)/);
+  assert.match(fireCompat, /if \(payload\.optBoolean\("live", false\)\)/);
+  assert.match(fireCompat, /DisplayRateMatcher\.clear\(this\)/);
 });
 
 test("VLC fallback starts in software video decode when native video has no visible frame", () => {
