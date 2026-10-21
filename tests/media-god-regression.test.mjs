@@ -3700,10 +3700,12 @@ test("native players prefer English main audio without replacing a manual audio 
     assert.match(source, /trackSelectionParameters\.overrides\.values\.any/);
     assert.match(source, /enforcePreferredEnglishAudio\(exoPlayer, tracks\)/);
     if (file.includes("android-mobile")) {
-      assert.match(source, /selectedAudioRequiresPcmRescue/);
+      assert.doesNotMatch(source, /selectedAudioRequiresPcmRescue/);
+      assert.match(source, /if \(latest.present && latest.supported && latest.selected\)/);
       assert.match(source, /native audio output never started/);
     } else {
-      assert.match(source, /selectedAudioRequiresPcmRescue/);
+      assert.doesNotMatch(source, /selectedAudioRequiresPcmRescue/);
+      assert.match(source, /if \(latest.present && latest.supported && latest.selected\)/);
       assert.match(source, /audioOutputConfirmed &&[\s\S]{0,120}!selectedAudioRequiresPcmRescue/);
       assert.match(source, /native audio output never started/);
     }
@@ -4992,10 +4994,12 @@ test("native audio repair never cycles to another source on uncertain sound", ()
     );
     assert.match(source, /onAudioPositionAdvancing\(/);
     if (relativePath.includes("android-mobile")) {
-      assert.match(source, /selectedAudioRequiresPcmRescue/);
+      assert.doesNotMatch(source, /selectedAudioRequiresPcmRescue/);
+      assert.match(source, /if \(latest.present && latest.supported && latest.selected\)/);
       assert.match(source, /native audio output never started/);
     } else {
-      assert.match(source, /selectedAudioRequiresPcmRescue/);
+      assert.doesNotMatch(source, /selectedAudioRequiresPcmRescue/);
+      assert.match(source, /if \(latest.present && latest.supported && latest.selected\)/);
       assert.match(source, /audioOutputConfirmed &&[\s\S]{0,120}!selectedAudioRequiresPcmRescue/);
       assert.match(source, /native audio output never started/);
     }
