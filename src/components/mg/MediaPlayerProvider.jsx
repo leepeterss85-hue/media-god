@@ -4183,7 +4183,7 @@ export function PlayerProvider({
             : "No English episode audio found yet. Choose another source.",
           type: "status", src: "", url: "", diagnostic: true,
         };
-        const playerSources =
+        let playerSources =
           onlyEpisodeFallbacksRemain
             ? [
                 episodeSourceMissingStatus,
@@ -4205,6 +4205,25 @@ export function PlayerProvider({
                     ...orderedSources,
                   ];
 
+        /*
+         * Source-order preservation enriches a published torrent with cache
+         * metadata and may replace its object with the original addon row.
+         * Restore the verified *auto-preparation decision* onto the first
+         * launch candidate, or the RD cache engine could stop running and the
+         * viewer would be back to manually hunting for sources.
+         */
+        if (episodePreparationLeads.length > 0 &&
+            runtimeEpisodeSources.length === 0 &&
+            qualifiedLaunchSources.length === 0 &&
+            runtimeFallbackSources.length === 0 &&
+            playerSources[0] &&
+            stableDiscoveredSourceKey(playerSources[0]) ===
+              stableDiscoveredSourceKey(episodePreparationLeads[0])) {
+          playerSources = [
+            { ...playerSources[0], ...episodePreparationLeads[0] },
+            ...playerSources.slice(1),
+          ];
+        }
         const primary = playerSources[0] || {};
         const activeUrl = getSourceUrl(primary);
         if (!isCurrentPlay()) return false;
