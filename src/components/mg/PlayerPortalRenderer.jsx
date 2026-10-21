@@ -80,6 +80,7 @@ export default function PlayerPortalRenderer({
   close,
   setVidSrcEmbed,
   setMagnetPlayer,
+  onOpenSources,
 }) {
   if (!source || typeof document === "undefined") return null;
 
@@ -161,6 +162,7 @@ export default function PlayerPortalRenderer({
         <OnlyFlixEmbedPlayer
           url={vidSrcEmbed.url}
           title={vidSrcEmbed.title}
+          onOpenSources={onOpenSources}
           onBack={vidSrcEmbed.fromDetails ? close : () => setVidSrcEmbed(null)}
           backLabel={vidSrcEmbed.fromDetails ? "Details" : "Sources"}
         />
