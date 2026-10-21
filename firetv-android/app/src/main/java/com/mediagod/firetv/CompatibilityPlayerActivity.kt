@@ -387,10 +387,12 @@ class CompatibilityPlayerActivity : Activity() {
 
         window.setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN)
         enterImmersiveMode()
-        DisplayRateMatcher.apply(
-            this, payload, streamUrl,
-            forceDisplayMode = payload.optBoolean("live", false)
-        )
+        if (payload.optBoolean("live", false)) {
+            DisplayRateMatcher.apply(this, payload, streamUrl, forceDisplayMode = true)
+        } else {
+            // Prevent HDMI mode changes during software decoder recovery.
+            DisplayRateMatcher.clear(this)
+        }
         buildUi()
         startCompatibilityPlayback()
     }
