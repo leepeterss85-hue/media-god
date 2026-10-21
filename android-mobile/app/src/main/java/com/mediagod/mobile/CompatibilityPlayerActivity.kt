@@ -363,6 +363,11 @@ class CompatibilityPlayerActivity : Activity() {
         streamUrl = payload.optString("url").trim()
         startPositionMs = max(0L, payload.optLong("startPositionMs", 0L))
         pendingStartPositionMs = startPositionMs
+        // Decode video in software when Media3 advanced audio but never
+        // rendered a frame. This is confined to a VOD recovery attempt.
+        forceSoftwareVideoDecode =
+            !payload.optBoolean("live", false) &&
+            payload.optBoolean("forceSoftwareVideoDecode", false)
         
         audioOutputMode = payload.optString("audioOutputMode", "auto").lowercase().let {
             if (it in setOf("auto", "stereo", "surround", "passthrough")) it else "auto"
