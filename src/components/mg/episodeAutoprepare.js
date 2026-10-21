@@ -45,8 +45,20 @@ export function episodeAutoprepareCandidates(sources, { season, episode } = {}) 
       episodeAudioRank(a.item) - episodeAudioRank(b.item) ||
       a.index - b.index
     )
-    .map(({ item }) => ({
-      ...item,
-      episodeAutoPrepare: true,
-    }));
+    .map(({ item, hash }) => {
+      const rawMagnet = [
+        item.richMagnet, item.magnet, item.magnetLink, item.src, item.url,
+      ].find(value => /^magnet:/i.test(clean(value)));
+      const magnet = clean(rawMagnet) || `magnet:?xt=urn:btih:${hash}`;
+      return {
+        ...item,
+        // The fallback must go through Media God's Real-Debrid preparation,
+        // not blindly open a provider-hosted HTTP placeholder/error movie.
+        type: "torrent",
+        magnet,
+        src: magnet,
+        url: magnet,
+        episodeAutoPrepare: true,
+      };
+    });
 }
