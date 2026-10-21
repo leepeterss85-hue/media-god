@@ -274,7 +274,7 @@ for (const app of apps) {
     [compatibilityActivity.includes("setAudioDelay"), "lip-sync adjustment"],
     [compatibilityActivity.includes("audioOutputMode") && compatibilityActivity.includes("setAudioDigitalOutputEnabled"), "selectable audio output modes"],
     [
-      compatibilityActivity.includes("audioButton = controlButton(\"Audio\") { showAudioTrackMenu() }") &&
+      compatibilityActivity.includes("audioButton = controlButton(\"♫\") { showAudioTrackMenu() }") &&
         compatibilityActivity.includes("showAudioTrackMenu") &&
         compatibilityActivity.includes("recoverAudioTrack() = Unit") &&
         compatibilityActivity.includes("automaticNoSoundRecovery = false") &&
