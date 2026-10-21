@@ -695,15 +695,19 @@ class PlayerActivity : Activity() {
         )
         enterImmersiveMode()
 
-        DisplayRateMatcher.apply(
-            this,
-            payload,
-            streamUrl,
-            // Keep VOD's existing Surface alive; refresh-mode switches during
-            // opening can blank the output on some Fire TV HDMI displays.
-            // Live TV retains its original mode-switching behaviour.
-            forceDisplayMode = live
-        )
+        // Even a preferredRefreshRate hint can change the Fire TV HDMI mode
+        // before the VOD surface is ready. Only Live TV opts into the original
+        // display-mode matching; movies and episodes keep the current mode.
+        if (live) {
+            DisplayRateMatcher.apply(
+                this,
+                payload,
+                streamUrl,
+                forceDisplayMode = true
+            )
+        } else {
+            DisplayRateMatcher.clear(this)
+        }
 
         playerView = PlayerView(this).apply {
             id = View.generateViewId()
@@ -2005,14 +2009,13 @@ class PlayerActivity : Activity() {
                     }
                 }
 
-                if (selectedFrameRate > 0f) {
+                // VOD must never request a refresh-rate/display-mode change
+                // while the decoder is opening; preserve the HDMI video surface.
+                if (live && selectedFrameRate > 0f) {
                     DisplayRateMatcher.apply(
                         this@PlayerActivity,
                         selectedFrameRate,
-                        // Do not force a TV display mode switch while a VOD
-                        // decoder surface is starting. Some Fire OS devices
-                        // lose that surface and continue audio with black video.
-                        forceDisplayMode = live
+                        forceDisplayMode = true
                     )
                 }
 
