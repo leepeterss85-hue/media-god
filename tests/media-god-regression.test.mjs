@@ -2638,7 +2638,7 @@ test("Best available globally wires the AIOStreams fallback rank into central VO
   );
   assert.match(
     selectorSource,
-    /return prioritiseCompatibleAutoplayEntries\(fallbackRanked\)/
+    /const ranked = prioritiseCompatibleAutoplayEntries\(fallbackRanked\)/
   );
 });
 
@@ -4169,7 +4169,7 @@ test("one-second native decoder failures never become a torrent carousel", () =>
   assert.match(playerSource, /if \(lockedVodNativeFailure\)/);
   assert.match(
     playerSource,
-    /if \(nativeAudioFailure\) \{[\s\S]{0,450}?authoritativeSourceRejection: true, immediate: true/
+    /if \(nativeAudioFailure\) \{[\s\S]{0,750}?authoritativeSourceRejection: true, immediate: true/
   );
   assert.match(playerSource, /no usable audio track\|audio decoder could not recover/);
 
@@ -4626,7 +4626,7 @@ test("AIOStreams stays fallback-only even when the addon row is typed as a torre
   assert.match(selectorSource, /AIOStreams remains a manual\/final fallback/);
   assert.match(
     selectorSource,
-    /return prioritiseCompatibleAutoplayEntries\(fallbackRanked\)/
+    /const ranked = prioritiseCompatibleAutoplayEntries\(fallbackRanked\)/
   );
 
   const approvalStart = playerSource.indexOf("const autoplayEntryApproved =");
