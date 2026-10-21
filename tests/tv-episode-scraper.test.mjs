@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import { episodeAudioState, isEnglishMainTrack, hasUnusableEpisodeAudio, episodeAutoplayCandidates } from "../src/components/mg/episodeAudio.js";
 import { flixQuestFirstEpisodeSources } from "../src/components/mg/episodeSourcePolicy.js";
+import { episodeAutoplayCanTrustSource } from "../src/components/mg/episodeLaunchTrust.js";
 import { preferredAudioTrackScore } from "../src/components/mg/mediaTrackPreferences.js";
 import { preservePublishedSourceOrder } from "../src/components/mg/sourcePublication.js";
 
@@ -67,7 +68,7 @@ test("final episode publication keeps foreign sources available manually without
     isLive: false, mediaType: "tv", orderedSources, qualificationMode, playbackLeadSources,
     onlyEpisodeFallbacksRemain: false, episodeSourceMissingStatus: {},
     waitingForVerifiedSource: { type: "status", diagnostic: true },
-    episodeAutoplayCandidates, flixQuestFirstEpisodeSources, preservePublishedSourceOrder,
+    episodeAutoplayCandidates, flixQuestFirstEpisodeSources, episodeAutoplayCanTrustSource, hasUnusableEpisodeAudio, preservePublishedSourceOrder,
     stableDiscoveredSourceKey: source => source.id,
     isDirectSource: source => source.type === "url", isMagnetSource: () => false,
   });
