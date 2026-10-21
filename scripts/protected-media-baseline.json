@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "Reviewed native VOD-only video render recovery 2026-10-21: Android Mobile and Fire TV now require a first rendered video frame; only when audio actually advances without a video frame, the same stream and resume position fall back to LibVLC software video decode. Fire VOD no longer triggers HDMI display-mode changes during startup. Live TV source lists and playback watchdogs are unchanged.",
+  "note": "Reviewed 2026-10-21 native VOD black-screen fix: video frame watchdog on phone and Fire TV, software video decoder recovery for audio-without-frame; preserve current Fire TV HDMI mode for VOD while retaining all existing Live TV mode matching and sources. No unrelated protected files altered.",
   "files": {
     "src/components/mg/VideoPlayer.jsx": "7776823b2354c0fac53253a234c04659063126216d4476c47037f3efdf4f8bdc",
     "src/components/mg/MediaPlayerProvider.jsx": "a141311fa06d0bb40f27279e3cbca89f7308f618578a67d7fe7d39e8fd5826b7",
@@ -15,8 +15,8 @@
     "base44/functions/evSportsLive/entry.ts": "149d7c13a8e56e602e450919ade50b3b6d58ea115c746370863803fbe4c8ec4d",
     "android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt": "0799bd31c4e3a2da6de5c92c5eee14391a67d5824e4777c78af3d6992212ede0",
     "android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt": "ec473a604b64460520b6ba2368c512d7d01c475150627faa10ec1840129d6763",
-    "firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt": "38bac1c53d5d66e7088a963e106e30ae7c7f52542f81c8e2d7e325606373ba0d",
-    "firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt": "7c708cf9374ae77236512a17577c2c76dd4b4940a443abfb2f7da72a9f365a27",
+    "firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt": "7af79076eff1cb42284ece1b369a571993569b0139c25cd9cb660d461c7a2d42",
+    "firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt": "89e906cc8efa9946173f7a96c98462de91f2499cec685e058f0ea8f8acb823a4",
     "src/components/mg/PlayerPortalRenderer.jsx": "abdaff8b34fda347c8cbd39b72fa09dd454f1c5293ad603ac424213a2ce23d43",
     "src/components/mg/additionalLiveTvSources.js": "ef6d47788775798fd4b3937b31f64e4166901d4e1211a262dd5943726168ff59"
   }
