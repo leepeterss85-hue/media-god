@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 98,
-  "versionName": "1.4.93",
+  "versionCode": 99,
+  "versionName": "1.4.94",
   "title": "Media God Fire TV",
-  "message": "Media God 1.4.93: Fire Stick black-screen video recovery, stable display output and working source choices.",
+  "message": "Media God 1.4.94: Cast initialization is opt-in to keep video playback stable.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
