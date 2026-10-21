@@ -4183,7 +4183,7 @@ export function PlayerProvider({
             : "No English episode audio found yet. Choose another source.",
           type: "status", src: "", url: "", diagnostic: true,
         };
-        let playerSources =
+        const playerSources =
           onlyEpisodeFallbacksRemain
             ? [
                 episodeSourceMissingStatus,
@@ -4219,10 +4219,10 @@ export function PlayerProvider({
             playerSources[0] &&
             stableDiscoveredSourceKey(playerSources[0]) ===
               stableDiscoveredSourceKey(episodePreparationLeads[0])) {
-          playerSources = [
-            { ...playerSources[0], ...episodePreparationLeads[0] },
-            ...playerSources.slice(1),
-          ];
+          playerSources[0] = {
+            ...playerSources[0],
+            ...episodePreparationLeads[0],
+          };
         }
         const primary = playerSources[0] || {};
         const activeUrl = getSourceUrl(primary);
