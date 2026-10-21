@@ -1,10 +1,10 @@
 {
   "version": 1,
-  "note": "Reviewed requested playback/casting fixes 2026-10-21: Live TV casting metadata and controls, atomic Android resume position, and compatibility startup requiring video output. Other protected hashes unchanged.",
+  "note": "Reviewed requested TV playback and movie startup improvements 2026-10-21: English episode selection, isolated episode markers and preloading, verified skip/next controls in browser and both Android engines, duration/context handoff, startup intent preservation, and first verified cached-source qualification. Other protected hashes unchanged.",
   "files": {
-    "src/components/mg/VideoPlayer.jsx": "b2d75b5ff1fc8fbd76f7e4d9e45ec95eda833a94a85dfaf3d4b987039b5c77ce",
-    "src/components/mg/MediaPlayerProvider.jsx": "8c8920699d8f7cf9fc8cb0a3b343832790f8234808757bb9045cbf708ccef224",
-    "src/components/mg/PlayerProvider.jsx": "98653e6d5210bfca91e3b6f1786118abedffe4f00058db35beafeb3739dc2dd9",
+    "src/components/mg/VideoPlayer.jsx": "f3aab6cb02b36cb3e224a5b957b3ee8d77bbc0d4eb0adc6c6d2d5c5e4d14c21c",
+    "src/components/mg/MediaPlayerProvider.jsx": "1e852cfd44904d76aef6ba67f3d1c228352102927fb7b98e1e0af4c36c557163",
+    "src/components/mg/PlayerProvider.jsx": "aa08264c7925c1f23c5501a02f4424541fceae46acb106ea53bae5e041d8f442",
     "src/components/mg/MediaPlayerControls.jsx": "3112ef8fb0058d815c139ff5e461a3b90d386654ceaff79356ba4e03c4817d5d",
     "src/components/mg/LiveTVView.jsx": "0a5734ecb0e167b7393845089cb3ef4fa1576ee071f170960d8bfcccef56ab50",
     "src/components/mg/freeTvPlaylist.js": "7904aa31b747940e708536d4370bd648cc39887351a6a3aca29479864eff405f",
@@ -13,10 +13,10 @@
     "base44/functions/getLiveEpg/entry.ts": "1caf894a1a60212947c8d5ef15061bbf8529e70a1d7e310b49bcddc546c48646",
     "base44/functions/antSportsLive/entry.ts": "c4d7a7e0e769cabfd10f5df896d78cbf8f85081b41d346f82c36cc62e209bf0a",
     "base44/functions/evSportsLive/entry.ts": "149d7c13a8e56e602e450919ade50b3b6d58ea115c746370863803fbe4c8ec4d",
-    "android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt": "be655bdb3a480a2c8e5103fe319fc3ca90b63ddbbc0029c2cb2cb16dcfd7adb8",
-    "android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt": "6ef4c28f9c7b5148c82487aa0fee6fa3a6e10ca1531346c48d2bf6e0cce7deb3",
-    "firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt": "7af79076eff1cb42284ece1b369a571993569b0139c25cd9cb660d461c7a2d42",
-    "firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt": "89e906cc8efa9946173f7a96c98462de91f2499cec685e058f0ea8f8acb823a4",
+    "android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt": "199292f6bede7b60ab296430a08a402eae5f91a8c63850284a962b785b48b7d4",
+    "android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt": "a7c58cd5786e7bae26d9f5ced62013068a646ebf38f551a7a24d5c79c2377dbd",
+    "firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt": "7854c3acbc29c184eb64b0739e897ffbc2dd21b4a0f7c972f65e1b149844078a",
+    "firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt": "e9b8d64b27720ea9b3dfd604be42db27fe33ce5f4d73e84a30ae79aee35c81bd",
     "src/components/mg/PlayerPortalRenderer.jsx": "abdaff8b34fda347c8cbd39b72fa09dd454f1c5293ad603ac424213a2ce23d43",
     "src/components/mg/additionalLiveTvSources.js": "ef6d47788775798fd4b3937b31f64e4166901d4e1211a262dd5943726168ff59"
   }

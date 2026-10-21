@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 86,
-  "versionName": "1.0.85",
+  "versionCode": 87,
+  "versionName": "1.0.86",
   "title": "Media God Mobile",
-  "message": "Media God 1.0.85: fixes Continue Watching video startup and keeps native recovery active when audio starts without video output.",
+  "message": "Media God 1.0.86: English-first episode playback, verified recap/intro/credits skips, and seamless next-episode controls.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"

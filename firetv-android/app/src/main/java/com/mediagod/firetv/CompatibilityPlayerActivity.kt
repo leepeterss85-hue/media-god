@@ -4,6 +4,9 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.IntentFilter
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
@@ -21,6 +24,7 @@ import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import org.json.JSONArray
 import org.json.JSONObject
 import org.videolan.libvlc.LibVLC
@@ -51,6 +55,15 @@ class CompatibilityPlayerActivity : Activity() {
     private lateinit var outputButton: Button
     private lateinit var syncButton: Button
     private lateinit var dialogueButton: Button
+    private lateinit var episodeActions: LinearLayout
+    private lateinit var skipRecapButton: Button
+    private lateinit var skipIntroButton: Button
+    private lateinit var skipCreditsButton: Button
+    private lateinit var nextEpisodeButton: Button
+    private lateinit var cancelNextButton: Button
+    private var nextEpisodeCountdownStartedAtMs = -1L
+    private var nextEpisodeCountdownCancelled = false
+    private var contextReceiverRegistered = false
 
     private var libVLC: LibVLC? = null
     private var vlcPlayer: MediaPlayer? = null
@@ -76,6 +89,7 @@ class CompatibilityPlayerActivity : Activity() {
     private var compatibilityRetryPass = 0
     private var forceSoftwareVideoDecode = false
     private var compatibilityPlaybackStarted = false
+    private var videoStartupReadiness = VideoStartupReadiness(requireVideoOutput = true)
     private var compatibilityErrorProbePending = false
     private var userSeeking = false
 
@@ -244,11 +258,82 @@ class CompatibilityPlayerActivity : Activity() {
     private fun hasVerifiedEnglishMainAudio(): Boolean =
         payload.optBoolean("verifiedEnglishMain", false)
 
-    /*
-     * Never mute, gate, or change an already selected track automatically for
-     * a language preference. A missing selection is repaired after a delay.
-     */
-    private fun requiresStrictEnglishAudio(): Boolean = false
+    // Episode source selection can require verified English. A deliberate
+    // choice in the Audio menu always takes precedence over that startup gate.
+    private fun requiresStrictEnglishAudio(): Boolean = NativeEpisodePolicy.requiresEnglish(
+        isTvEpisode(), payload.optBoolean("strictEnglishPlayback", false), manualAudioTrackLocked
+    )
+
+    private fun confirmCompatibilityStartup(player: MediaPlayer) {
+        if (resultSent || vlcPlayer !== player) return
+        val tracks = try { player.audioTracks?.filter { it.id >= 0 }.orEmpty() }
+            catch (_: Throwable) { emptyList() }
+        val englishReady = !requiresStrictEnglishAudio() || selectedAudioIsVerifiedEnglish(player, tracks)
+        try { player.setVolume(if (englishReady) 100 else 0) } catch (_: Throwable) {}
+        if (englishReady && videoStartupReadiness.isReady() && !compatibilityPlaybackStarted) {
+            compatibilityPlaybackStarted = true
+            clearStartupTimeout()
+            showControlsTemporarily()
+        }
+    }
+
+    private fun isTvEpisode(): Boolean = NativeEpisodePolicy.isEpisode(
+        payload.optBoolean("live", false), payload.optString("mediaType"),
+        payload.optInt("season", 0), payload.optInt("episode", 0)
+    )
+
+    private val playbackContextReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action != "$packageName.UPDATE_PLAYBACK_CONTEXT" || resultSent ||
+                requestId.isBlank() || intent.getStringExtra("requestId") != requestId || !isTvEpisode()) return
+            val updated = try { JSONObject(intent.getStringExtra("payload").orEmpty()) }
+                catch (_: Throwable) { return }
+            if (!NativeEpisodePolicy.sameEpisode(
+                    payload.optLong("tmdbId", 0L), payload.optInt("season", 0), payload.optInt("episode", 0),
+                    updated.optLong("tmdbId", 0L), updated.optInt("season", 0), updated.optInt("episode", 0)
+                )) return
+            val oldCredits = payload.optDouble("creditsStart", -1.0)
+            for (key in arrayOf("recapStart", "recapEnd", "introStart", "introEnd", "creditsStart", "creditsEnd",
+                    "autoNext", "nextEpisodeAvailable", "nextSeason", "nextEpisode", "nextEpisodeName")) {
+                if (updated.has(key)) payload.put(key, updated.get(key))
+            }
+            if (oldCredits != payload.optDouble("creditsStart", -1.0)) nextEpisodeCountdownStartedAtMs = -1L
+            updateEpisodeActions()
+        }
+    }
+
+    private var lastReportedEpisodeDurationMs = 0L
+    private var lastEpisodeDurationReportAtMs = 0L
+
+    private fun reportEpisodeDuration(positionMs: Long, durationMs: Long) {
+        if (!isTvEpisode() || resultSent || requestId.isBlank() || durationMs <= 0L) return
+        val tmdbId = payload.optLong("tmdbId", 0L)
+        val season = payload.optInt("season", 0)
+        val episode = payload.optInt("episode", 0)
+        if (tmdbId <= 0L || season <= 0 || episode <= 0) return
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (!NativeEpisodePolicy.shouldReportDuration(durationMs, lastReportedEpisodeDurationMs,
+                now - lastEpisodeDurationReportAtMs)) return
+        lastReportedEpisodeDurationMs = durationMs
+        lastEpisodeDurationReportAtMs = now
+        // Only public episode identity and decoder timing cross back to the
+        // paused WebView for release-specific markers. No stream URL or headers.
+        sendBroadcast(Intent("$packageName.NATIVE_PLAYBACK_PROGRESS").apply {
+            setPackage(packageName)
+            putExtra("requestId", requestId)
+            putExtra("positionMs", positionMs.coerceAtLeast(0L))
+            putExtra("durationMs", durationMs)
+            putExtra("tmdbId", tmdbId)
+            putExtra("season", season)
+            putExtra("episode", episode)
+        })
+    }
+
+    private fun registerPlaybackContextReceiver() {
+        ContextCompat.registerReceiver(this, playbackContextReceiver,
+            IntentFilter("$packageName.UPDATE_PLAYBACK_CONTEXT"), ContextCompat.RECEIVER_NOT_EXPORTED)
+        contextReceiverRegistered = true
+    }
 
     private fun normaliseAudioTrackName(value: String): String =
         value.lowercase().replace(Regex("""[^a-z0-9]+"""), " ").trim()
@@ -295,13 +380,14 @@ class CompatibilityPlayerActivity : Activity() {
 
         return audioTrackNameLooksEnglish(selected.name.orEmpty()) ||
             (
-                expectedMatches.size == 1 &&
-                    expectedMatches.first().id == selected.id
+                hasVerifiedEnglishMainAudio() &&
+                    !audioTrackNameLooksCommentary(selected.name.orEmpty()) &&
+                    expectedMatches.size == 1 && expectedMatches.first().id == selected.id
             )
     }
 
     private fun preferEnglishMainAudio(player: MediaPlayer) {
-        if (manualAudioTrackLocked || payload.optBoolean("live", false)) return
+        if (!requiresStrictEnglishAudio()) return
         val tracks = try {
             player.audioTracks?.filter { it.id >= 0 }.orEmpty()
         } catch (_: Throwable) { emptyList() }
@@ -319,6 +405,7 @@ class CompatibilityPlayerActivity : Activity() {
         if (!resultSent && ::controls.isInitialized) {
             if (controls.hasFocus() && ::videoLayout.isInitialized) videoLayout.requestFocus()
             controls.visibility = View.GONE
+            updateEpisodeActions()
         }
     }
 
@@ -331,14 +418,20 @@ class CompatibilityPlayerActivity : Activity() {
     private val progressRunnable = object : Runnable {
         override fun run() {
             if (resultSent || !::root.isInitialized) return
+            vlcPlayer?.let { player ->
+                if (!compatibilityPlaybackStarted) {
+                    preferEnglishMainAudio(player)
+                    confirmCompatibilityStartup(player)
+                }
+            }
             updateProgressUi()
             root.postDelayed(this, PROGRESS_UPDATE_MS)
         }
     }
 
     /*
-     * Deliberately inert. Compatibility playback must never run automatic
-     * audio recovery; the Audio button is the only track-change authority.
+     * No automatic recovery cycles after startup. Requested TV English startup
+     * can select a verified main track; later choices belong to the Audio menu.
      */
     private val audioRecoveryRunnable = Runnable { }
 
@@ -360,6 +453,8 @@ class CompatibilityPlayerActivity : Activity() {
         super.onCreate(savedInstanceState)
         payload = try { JSONObject(intent.getStringExtra(PlayerActivity.EXTRA_PAYLOAD).orEmpty()) } catch (_: Throwable) { JSONObject() }
         requestId = payload.optString("requestId")
+        manualAudioTrackLocked = payload.optBoolean("manualAudioTrackLocked", false)
+        nextEpisodeCountdownCancelled = payload.optBoolean("autoNextCancelled", false)
         streamUrl = payload.optString("url").trim()
         startPositionMs = max(0L, payload.optLong("startPositionMs", 0L))
         pendingStartPositionMs = startPositionMs
@@ -394,6 +489,7 @@ class CompatibilityPlayerActivity : Activity() {
             DisplayRateMatcher.clear(this)
         }
         buildUi()
+        registerPlaybackContextReceiver()
         startCompatibilityPlayback()
     }
 
@@ -410,6 +506,7 @@ class CompatibilityPlayerActivity : Activity() {
         val activePlayer = vlcPlayer
         resumeAfterPause = activePlayer?.isPlaying == true
         if (resumeAfterPause) activePlayer?.pause()
+        nextEpisodeCountdownStartedAtMs = -1L
         startPositionMs = max(0L, activePlayer?.time ?: startPositionMs)
         super.onPause()
     }
@@ -426,7 +523,8 @@ class CompatibilityPlayerActivity : Activity() {
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (event.action == KeyEvent.ACTION_DOWN && !event.isLongPress) {
-            if (::controls.isInitialized && controls.hasFocus() && event.keyCode in setOf(
+            if (((::controls.isInitialized && controls.hasFocus()) ||
+                    (::episodeActions.isInitialized && episodeActions.hasFocus())) && event.keyCode in setOf(
                     KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT,
                     KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN,
                     KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER
@@ -454,6 +552,10 @@ class CompatibilityPlayerActivity : Activity() {
     }
 
     override fun onDestroy() {
+        if (contextReceiverRegistered) {
+            unregisterReceiver(playbackContextReceiver)
+            contextReceiverRegistered = false
+        }
         if (::root.isInitialized) {
             root.removeCallbacks(hideControlsRunnable)
             root.removeCallbacks(hideStatusRunnable)
@@ -701,11 +803,127 @@ class CompatibilityPlayerActivity : Activity() {
             )
         }
 
+        buildEpisodeActions()
         setContentView(root)
         videoLayout.requestFocus()
         updateControlLabels()
         updateProgressUi()
         showControlsTemporarily()
+    }
+
+    private fun episodeMarkerMs(key: String): Long {
+        val seconds = payload.optDouble(key, -1.0)
+        return if (seconds.isFinite() && seconds >= 0.0 && seconds < Long.MAX_VALUE / 1000.0)
+            (seconds * 1000.0).toLong() else -1L
+    }
+
+    private fun nextEpisodeConfirmed(): Boolean = NativeEpisodePolicy.hasConfirmedNext(
+        if (payload.has("nextEpisodeAvailable") && !payload.isNull("nextEpisodeAvailable"))
+            payload.optBoolean("nextEpisodeAvailable", false) else null,
+        payload.optInt("nextSeason", 0), payload.optInt("nextEpisode", 0)
+    )
+
+    private fun buildEpisodeActions() {
+        skipRecapButton = controlButton("Skip recap") { skipEpisodeSegment("recapEnd") }
+        skipIntroButton = controlButton("Skip intro") { skipEpisodeSegment("introEnd") }
+        skipCreditsButton = controlButton("Skip credits") { skipEpisodeSegment("creditsEnd", useDuration = true) }
+        nextEpisodeButton = controlButton("Next episode") { finishWithResult("next") }
+        cancelNextButton = controlButton("Stay here") {
+            nextEpisodeCountdownCancelled = true
+            nextEpisodeCountdownStartedAtMs = -1L
+            updateEpisodeActions()
+        }
+        episodeActions = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.END or Gravity.CENTER_VERTICAL
+            setPadding(dp(4), dp(4), dp(4), dp(4))
+            visibility = View.GONE
+            for (button in arrayOf(skipRecapButton, skipIntroButton, skipCreditsButton,
+                    nextEpisodeButton, cancelNextButton)) {
+                addView(button, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(6) })
+            }
+        }
+        root.addView(episodeActions, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+            gravity = Gravity.BOTTOM or Gravity.END
+            rightMargin = dp(14)
+            bottomMargin = dp(20)
+        })
+        root.post { updateEpisodeActions() }
+    }
+
+    private fun skipEpisodeSegment(endKey: String, useDuration: Boolean = false) {
+        val player = vlcPlayer ?: return
+        val duration = player.length
+        val position = max(0L, player.time)
+        if (!isTvEpisode() || duration <= 750L) return
+        val markerEnd = episodeMarkerMs(endKey)
+        val inWindow = if (useDuration)
+            NativeEpisodePolicy.creditsWindow(position, duration, episodeMarkerMs("creditsStart"))
+        else NativeEpisodePolicy.segmentWindow(position, duration,
+            episodeMarkerMs(endKey.removeSuffix("End") + "Start"), markerEnd)
+        if (!inWindow) return
+        val end = if (useDuration && markerEnd <= 0L) duration else markerEnd
+        if (end <= 0L || end > duration) return
+        val target = (end + 250L).coerceAtMost(duration - 750L)
+        if (target <= position) return
+        player.time = target
+        nextEpisodeCountdownStartedAtMs = -1L
+        updateProgressUi()
+    }
+
+    private fun updateEpisodeActions() {
+        if (!::episodeActions.isInitialized || resultSent) return
+        if (!isTvEpisode()) {
+            episodeActions.visibility = View.GONE
+            nextEpisodeCountdownStartedAtMs = -1L
+            return
+        }
+        val player = vlcPlayer
+        val position = max(0L, player?.time ?: 0L)
+        val duration = max(0L, player?.length ?: 0L)
+        reportEpisodeDuration(position, duration)
+        val recap = NativeEpisodePolicy.segmentWindow(position, duration,
+            episodeMarkerMs("recapStart"), episodeMarkerMs("recapEnd"))
+        val intro = !recap && NativeEpisodePolicy.segmentWindow(position, duration,
+            episodeMarkerMs("introStart"), episodeMarkerMs("introEnd"))
+        val creditsStart = episodeMarkerMs("creditsStart")
+        val credits = NativeEpisodePolicy.creditsWindow(position, duration, creditsStart)
+        val nextConfirmed = nextEpisodeConfirmed()
+        val countdown = NativeEpisodePolicy.countdownEligible(true,
+            payload.optBoolean("autoNext", true), nextConfirmed, position, duration, creditsStart) &&
+            player?.isPlaying == true && !userSeeking && !nextEpisodeCountdownCancelled
+        if (countdown) {
+            if (nextEpisodeCountdownStartedAtMs < 0L)
+                nextEpisodeCountdownStartedAtMs = android.os.SystemClock.elapsedRealtime()
+            val remaining = 10_000L - (android.os.SystemClock.elapsedRealtime() - nextEpisodeCountdownStartedAtMs)
+            if (remaining <= 0L) {
+                nextEpisodeCountdownStartedAtMs = -1L
+                finishWithResult("next")
+                return
+            }
+            nextEpisodeButton.text = "Next episode in ${(remaining + 999L) / 1000L}s"
+            controls.visibility = View.VISIBLE
+        } else {
+            nextEpisodeCountdownStartedAtMs = -1L
+            nextEpisodeButton.text = "Next episode"
+        }
+        skipRecapButton.visibility = if (recap) View.VISIBLE else View.GONE
+        skipIntroButton.visibility = if (intro) View.VISIBLE else View.GONE
+        skipCreditsButton.visibility = if (credits && !nextConfirmed) View.VISIBLE else View.GONE
+        nextEpisodeButton.visibility = if (nextConfirmed &&
+            (credits || controls.visibility == View.VISIBLE) && !recap && !intro) View.VISIBLE else View.GONE
+        cancelNextButton.visibility = if (countdown) View.VISIBLE else View.GONE
+        val showActions = arrayOf(skipRecapButton, skipIntroButton, skipCreditsButton,
+            nextEpisodeButton, cancelNextButton).any { it.visibility == View.VISIBLE }
+        episodeActions.visibility = if (showActions) View.VISIBLE else View.GONE
+        val layout = episodeActions.layoutParams as FrameLayout.LayoutParams
+        val bottom = if (controls.visibility == View.VISIBLE) controls.height.coerceAtLeast(dp(190)) + dp(10) else dp(20)
+        if (layout.bottomMargin != bottom) {
+            layout.bottomMargin = bottom
+            episodeActions.layoutParams = layout
+        }
     }
 
     private fun controlButton(
@@ -771,26 +989,33 @@ class CompatibilityPlayerActivity : Activity() {
             vlcPlayer = player
             configureAudioOutput(player)
             player.attachViews(videoLayout, null, true, false)
+            videoStartupReadiness = VideoStartupReadiness(
+                requireVideoOutput = !payload.optBoolean("live", false)
+            )
 
             player.setEventListener { event ->
                 root.post {
-                    if (resultSent) return@post
+                    if (resultSent || vlcPlayer !== player) return@post
                     when (event.type) {
                         MediaPlayer.Event.Opening -> showStatus("Compatibility decoder · opening")
                         MediaPlayer.Event.Buffering -> showStatus("Compatibility decoder · buffering")
+                        MediaPlayer.Event.Vout -> {
+                            videoStartupReadiness.onVideoOutput(event.voutCount)
+                            confirmCompatibilityStartup(player)
+                        }
                         MediaPlayer.Event.Playing -> {
-                            compatibilityPlaybackStarted = true
+                            videoStartupReadiness.onPlaying()
                             preferEnglishMainAudio(player)
+                            confirmCompatibilityStartup(player)
                             root.postDelayed({
                                 if (!resultSent && vlcPlayer === player && player.isPlaying) {
                                     preferEnglishMainAudio(player)
+                                    confirmCompatibilityStartup(player)
                                 }
                             }, 900L)
-                            clearStartupTimeout()
                             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                             showStatus("Compatibility decoder")
                             try {
-                                player.setVolume(100)
                                 player.setAudioDelay(lipSyncMs.toLong() * 1000L)
                             } catch (_: Throwable) {}
                             applyPreferredSubtitle()
@@ -860,11 +1085,9 @@ class CompatibilityPlayerActivity : Activity() {
             player.media = media
             media.release()
 
-            /*
-             * Manual-only audio policy: start with the decoder's current audio
-             * untouched. Never mute or pre-emptively change the selected track.
-             */
-
+            // Keep an unverified TV track inaudible while tracks become available.
+            // Films, live streams and explicit Audio menu choices keep normal playback.
+            player.setVolume(if (requiresStrictEnglishAudio()) 0 else 100)
             armStartupTimeout()
             player.play()
         } catch (error: Throwable) {
@@ -1151,6 +1374,7 @@ class CompatibilityPlayerActivity : Activity() {
 
         timeText.text =
             "${formatPlaybackTime(position)} / ${formatPlaybackTime(duration)}"
+        updateEpisodeActions()
     }
 
     private fun showAudioTrackMenu() {
@@ -1185,6 +1409,7 @@ class CompatibilityPlayerActivity : Activity() {
                 if (player.setAudioTrack(selected.id)) {
                     manualAudioTrackLocked = true
                     manualAudioTrackId = selected.id
+                    confirmCompatibilityStartup(player)
                     root.removeCallbacks(audioRecoveryRunnable)
                     updateAudioButtonLabel()
                     showStatus(
@@ -1502,6 +1727,7 @@ class CompatibilityPlayerActivity : Activity() {
         noAudioCheckGeneration += 1
         clearStartupTimeout()
         compatibilityPlaybackStarted = false
+        videoStartupReadiness.reset()
         compatibilityErrorProbePending = false
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         if (::root.isInitialized) {
@@ -1557,6 +1783,7 @@ class CompatibilityPlayerActivity : Activity() {
         val result = Intent().apply {
             putExtra(PlayerActivity.EXTRA_REQUEST_ID, requestId)
             putExtra(PlayerActivity.EXTRA_REASON, reason)
+            putExtra("mg_auto_next_cancelled", nextEpisodeCountdownCancelled)
             putExtra(PlayerActivity.EXTRA_POSITION_MS, positionMs)
             putExtra(PlayerActivity.EXTRA_DURATION_MS, durationMs)
             putExtra(PlayerActivity.EXTRA_MESSAGE, message)

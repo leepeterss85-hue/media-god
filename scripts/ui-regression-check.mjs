@@ -698,6 +698,7 @@ expect(
 const playbackAdvancedSettings = await read("src/components/mg/PlaybackAdvancedSettings.jsx");
 const playbackPreferences = await read("src/components/mg/playbackPreferences.js");
 const playerAutomation = await read("src/components/mg/PlayerProvider.jsx");
+const episodeExperience = await read("src/components/mg/episodeExperience.js");
 
 for (const marker of [
   "Audio output",
@@ -738,7 +739,8 @@ expect(
     playerAutomation.includes('typeof core.prepare === "function"') &&
     playerAutomation.includes("applyReliableVodPolicy") &&
     playerAutomation.includes("preparedFresh") &&
-    playerAutomation.includes("verifiedPrepared === true") &&
+    playerAutomation.includes("freshEpisodePreparation(cachedPreload?.prepared)") &&
+    episodeExperience.includes('prepared.verifiedPlaybackPolicy === "strict" && prepared.verifiedPrepared !== true') &&
     playerAutomation.includes("preparedEpisodeHandoff: true") &&
     coreMediaPlayerProvider.includes("verifiedPrepared:") &&
     coreMediaPlayerProvider.includes("phase: preparedEpisodeHandoff") &&

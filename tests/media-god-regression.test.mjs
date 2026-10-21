@@ -2710,7 +2710,7 @@ test("next episode preload only hands off verified prepared sources", () => {
 
   assert.match(
     wrapperSource,
-    /prepared\?\.verifiedPlaybackPolicy !== "strict"[\s\S]{0,100}prepared\?\.verifiedPrepared === true/
+    /freshEpisodePreparation\(cachedPreload\?\.prepared\)/
   );
   assert.match(
     providerSource,
@@ -2931,7 +2931,7 @@ test("LibVLC compatibility playback cannot spin forever during opening or buffer
     );
     assert.match(
       source,
-      /MediaPlayer\.Event\.Playing[\s\S]{0,220}?compatibilityPlaybackStarted = true[\s\S]{0,420}?clearStartupTimeout\(\)/
+      /englishReady && videoStartupReadiness\.isReady\(\)[\s\S]{0,150}?compatibilityPlaybackStarted = true[\s\S]{0,100}?clearStartupTimeout\(\)/
     );
     assert.match(
       source,
@@ -3253,7 +3253,8 @@ test("qualification picks the lead source without truncating the full chooser to
   const playerEnd = providerSource.indexOf("const primary", playerStart);
   assert.ok(playerStart >= 0 && playerEnd > playerStart);
   const playerBlock = providerSource.slice(playerStart, playerEnd);
-  assert.match(playerBlock, /preservePublishedSourceOrder\([\s\S]*playbackLeadSources[\s\S]*orderedSources/);
+  assert.match(playerBlock, /const automaticLeads = eligibleEpisodeLeads \|\| playbackLeadSources/);
+  assert.match(playerBlock, /preservePublishedSourceOrder\([\s\S]*automaticLeads[\s\S]*orderedSources/);
   assert.match(playerBlock, /waitingForVerifiedSource[\s\S]*\.\.\.orderedSources/);
 
   assert.match(
@@ -3508,7 +3509,7 @@ test("browser audio track choice stays manual while native decoders may repair m
     assert.match(source, /subtitleButton\.text =[\s\S]{0,80}?"CC On"[\s\S]{0,40}?"CC"/);
     assert.doesNotMatch(source, /postDelayed\(audioRecoveryRunnable, 1000L\)/);
     assert.match(source, /private fun preferEnglishMainAudio\(player: MediaPlayer\)/);
-    assert.match(source, /if \(manualAudioTrackLocked \|\| payload\.optBoolean\("live", false\)\) return/);
+    assert.match(source, /if \(!requiresStrictEnglishAudio\(\)\) return/);
     assert.match(source, /player\.audioTrack < 0 && !manualAudioTrackLocked/);
     assert.match(source, /player\.time < 5000L/);
   }
@@ -3582,7 +3583,11 @@ test("normal VOD native player uses Media God chrome without changing Live TV", 
     assert.match(source, /title\.trim\(\)\.ifBlank \{ "Media God" \}/);
     assert.match(source, /if \(!live\) \{[\s\S]{0,220}?addView\([\s\S]{0,80}?playerChrome/);
     assert.match(source, /showControllerTemporarily\([\s\S]{0,360}?playerChrome\.visibility = View\.VISIBLE/);
-    assert.match(source, /hideControllerRunnable[\s\S]{0,260}?playerChrome\.visibility = View\.GONE/);
+    const hideStart = source.indexOf("private val hideControllerRunnable = Runnable");
+    const hideEnd = source.indexOf("\n    private ", hideStart + 1);
+    const hideController = source.slice(hideStart, hideEnd);
+    assert.match(hideController, /playerChrome\.visibility = View\.GONE/);
+    assert.match(hideController, /nextEpisodeCountdownStartedAtMs >= 0L/);
     assert.match(source, /dispatchTouchEvent\(event: MotionEvent\)[\s\S]{0,160}?!live[\s\S]{0,120}?showControllerTemporarily\(\)/);
   }
 });
@@ -3690,7 +3695,7 @@ test("native players prefer English main audio without replacing a manual audio 
 
   for (const file of nativeFiles) {
     const source = readFileSync(new URL(file, import.meta.url), "utf8");
-    assert.match(source, /strictEnglishStartupRequired\(\): Boolean = false/);
+    assert.match(source, /strictEnglishStartupRequired\(\): Boolean = NativeEpisodePolicy\.requiresEnglish\([\s\S]{0,160}manualAudioTrackLocked/);
     assert.match(source, /group\.isTrackSelected\(index\) && group\.isTrackSupported\(index\)/);
     assert.match(source, /trackSelectionParameters\.overrides\.values\.any/);
     assert.match(source, /enforcePreferredEnglishAudio\(exoPlayer, tracks\)/);
@@ -3732,7 +3737,7 @@ test("VOD keeps manual audio choice but repairs verified missing native audio", 
 
   for (const file of nativeFiles) {
     const source = readFileSync(new URL(file, import.meta.url), "utf8");
-    assert.match(source, /strictEnglishStartupRequired\(\): Boolean = false/);
+    assert.match(source, /strictEnglishStartupRequired\(\): Boolean = NativeEpisodePolicy\.requiresEnglish\([\s\S]{0,160}manualAudioTrackLocked/);
     assert.match(source, /activePlayer\.currentPosition < 5000L/);
     if (file.includes("android-mobile")) {
       assert.match(source, /finishWithResult\("error", reason\)/);
@@ -3747,7 +3752,7 @@ test("VOD keeps manual audio choice but repairs verified missing native audio", 
 
   for (const file of compatibilityFiles) {
     const source = readFileSync(new URL(file, import.meta.url), "utf8");
-    assert.match(source, /requiresStrictEnglishAudio\(\): Boolean = false/);
+    assert.match(source, /requiresStrictEnglishAudio\(\): Boolean = NativeEpisodePolicy\.requiresEnglish\([\s\S]{0,180}manualAudioTrackLocked/);
     assert.match(source, /recoverAudioTrack\(\) = Unit/);
     assert.match(source, /later choices belong to Audio/);
     assert.doesNotMatch(source, /postDelayed\(audioRecoveryRunnable, 1000L\)/);
@@ -3759,7 +3764,7 @@ test("VOD keeps manual audio choice but repairs verified missing native audio", 
   }
 });
 
-test("strict native English audio gates stay disabled under manual-only audio policy", () => {
+test("native English startup gates apply only to requested TV episodes and respect manual audio", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
     "utf8"
@@ -3769,7 +3774,7 @@ test("strict native English audio gates stay disabled under manual-only audio po
     "utf8"
   );
 
-  assert.match(playerSource, /strictEnglishPlayback:\s*false/);
+  assert.match(playerSource, /strictEnglishPlayback:\s*playbackMediaType === "tv"/);
   assert.doesNotMatch(playerSource, /strictEnglishNativeFailure/);
   assert.match(bridgeSource, /strictEnglishPlayback = false/);
 
@@ -3778,7 +3783,7 @@ test("strict native English audio gates stay disabled under manual-only audio po
     "../firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt",
   ]) {
     const source = readFileSync(new URL(relativePath, import.meta.url), "utf8");
-    assert.match(source, /strictEnglishStartupRequired\(\): Boolean = false/);
+    assert.match(source, /strictEnglishStartupRequired\(\): Boolean = NativeEpisodePolicy\.requiresEnglish\([\s\S]{0,160}manualAudioTrackLocked/);
     assert.match(source, /holdForEnglishStartup/);
     assert.match(source, /shouldPlayWhenReady && !holdForEnglishStartup/);
     assert.match(source, /scheduleMissingAudioCheck/);
@@ -3789,8 +3794,8 @@ test("strict native English audio gates stay disabled under manual-only audio po
     "../firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt",
   ]) {
     const source = readFileSync(new URL(relativePath, import.meta.url), "utf8");
-    assert.match(source, /requiresStrictEnglishAudio\(\): Boolean = false/);
-    assert.doesNotMatch(source, /player\.setVolume\(0\)/);
+    assert.match(source, /requiresStrictEnglishAudio\(\): Boolean = NativeEpisodePolicy\.requiresEnglish\([\s\S]{0,180}manualAudioTrackLocked/);
+    assert.match(source, /requiresStrictEnglishAudio\(\)/);
     assert.doesNotMatch(source, /postDelayed\(audioRecoveryRunnable, 1000L\)/);
   }
 });
@@ -4271,7 +4276,7 @@ test("qualification can choose the lead source but can never truncate the choose
   assert.match(providerSource, /const playbackLeadSources/);
   assert.match(
     providerSource,
-    /preservePublishedSourceOrder\([\s\S]{0,160}?playbackLeadSources,[\s\S]{0,160}?orderedSources/
+    /preservePublishedSourceOrder\([\s\S]{0,160}?automaticLeads,[\s\S]{0,160}?orderedSources/
   );
   assert.match(providerSource, /sources:\s*playerSources/);
   assert.match(providerSource, /completeSources:\s*canonicalCompletePlaybackSources/);
@@ -4977,7 +4982,7 @@ test("native audio repair never cycles to another source on uncertain sound", ()
   ]) {
     const source = readFileSync(new URL(relativePath, import.meta.url), "utf8");
 
-    assert.match(source, /strictEnglishStartupRequired\(\): Boolean = false/);
+    assert.match(source, /strictEnglishStartupRequired\(\): Boolean = NativeEpisodePolicy\.requiresEnglish\([\s\S]{0,160}manualAudioTrackLocked/);
     assert.match(source, /group\.isTrackSelected\(index\) && group\.isTrackSupported\(index\)/);
     assert.match(source, /player !== activePlayer/);
     assert.equal((source.match(/enforcePreferredEnglishAudio\(/g) || []).length, 2);

@@ -15,8 +15,10 @@ test("native VOD starts at the saved position before preparation and first-frame
 test("VLC startup timeout requires video output as well as Playing", () => {
   const player = read("CompatibilityPlayerActivity");
   const playing = player.slice(player.indexOf("MediaPlayer.Event.Playing ->"), player.indexOf("MediaPlayer.Event.Paused ->"));
-  assert.match(playing, /if \(videoStartupReadiness\.onPlaying\(\)\) \{\s*compatibilityPlaybackStarted = true\s*clearStartupTimeout\(\)\s*\}/);
-  assert.equal(playing.match(/clearStartupTimeout\(\)/g)?.length, 1);
+  assert.match(playing, /videoStartupReadiness\.onPlaying\(\)/);
+  assert.match(playing, /confirmCompatibilityStartup\(player\)/);
+  assert.doesNotMatch(playing, /clearStartupTimeout\(\)/);
+  assert.match(player, /englishReady && videoStartupReadiness\.isReady\(\) && !compatibilityPlaybackStarted\) \{\s*compatibilityPlaybackStarted = true\s*clearStartupTimeout\(\)/);
   assert.match(player, /MediaPlayer\.Event\.Vout ->[\s\S]*?onVideoOutput\(event\.voutCount\)/);
   assert.match(player, /requireVideoOutput = !payload\.optBoolean\("live", false\)/);
   assert.match(player, /if \(resultSent \|\| vlcPlayer !== player\) return@post/);

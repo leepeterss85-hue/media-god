@@ -10,6 +10,8 @@ import React, {
 
 import { base44 } from "@/api/base44Client";
 import { canonicalizeCatalogPlaybackRequest } from "./catalogMediaIdentity";
+import { episodeHasAired, freshEpisodePreparation, resetEpisodePlaybackState } from "./episodeExperience";
+import { restoreResumeSource } from "./resumeSource";
 
 import {
   PlayerProvider as CorePlayerProvider,
@@ -130,7 +132,7 @@ const episodeNumberFrom = (item) =>
 
 const normaliseEpisodes = (items) =>
   (Array.isArray(items) ? items : [])
-    .filter((item) => episodeNumberFrom(item) != null)
+    .filter((item) => episodeNumberFrom(item) != null && episodeHasAired(item))
     .sort(
       (a, b) =>
         Number(episodeNumberFrom(a) || 0) -
@@ -180,7 +182,7 @@ const episodePlaybackRequest = ({
   ).padStart(2, "0")}`;
 
   return {
-    ...current,
+    ...resetEpisodePlaybackState(current),
 
     id: resolvedTmdbId,
     tmdbId: resolvedTmdbId,
@@ -221,6 +223,10 @@ const episodePlaybackRequest = ({
     src: "",
     url: "",
     sources: [],
+    completeSources: [],
+    discoveredSources: [],
+    verifiedPlaybackPolicy: "strict",
+    noRd: false,
   };
 };
 
@@ -240,6 +246,20 @@ const episodeIdentityForRequest = (request) => {
 
 const skipMarkerImdbCache = new Map();
 const skipMarkerResultCache = new Map();
+
+const boundedMarkerLookup = async (lookup, timeoutMs) => {
+  let timer;
+  try {
+    return await Promise.race([
+      typeof lookup === "function" ? lookup() : lookup,
+      new Promise((resolve) => { timer = setTimeout(() => resolve(null), timeoutMs); }),
+    ]);
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+};
 
 const validImdbId = (value) => {
   const id = String(value || "").trim();
@@ -261,11 +281,11 @@ const resolveSkipMarkerImdbId = async (request) => {
 
     if (tmdbId) {
       try {
-        const response = await base44.functions.invoke("resolveTvImdb", {
+        const response = await boundedMarkerLookup(() => base44.functions.invoke("resolveTvImdb", {
           tmdb_id: tmdbId,
           title: seriesTitleFromRequest(request),
           year: request?.rdYear ?? request?.year ?? "",
-        });
+        }), 1500);
         const resolved = validImdbId(unwrap(response)?.imdb_id);
         if (resolved) return resolved;
       } catch {
@@ -277,12 +297,14 @@ const resolveSkipMarkerImdbId = async (request) => {
   })();
 
   skipMarkerImdbCache.set(episodeKey, lookup);
-  return lookup;
+  const resolved = await lookup;
+  if (!resolved) skipMarkerImdbCache.delete(episodeKey);
+  return resolved;
 };
 
 const mergeEpisodeSkipMarkers = (request, lookup) => {
   const databaseMarkers = lookup?.markers || {};
-  const existingMarkers = request?.skipMarkers || request?.skip_markers || {};
+  const existingMarkers = request?.explicitSkipMarkers ?? request?.skipMarkers ?? request?.skip_markers ?? {};
 
   const mergeType = (type) => ({
     ...(databaseMarkers?.[type] || {}),
@@ -292,6 +314,8 @@ const mergeEpisodeSkipMarkers = (request, lookup) => {
   return {
     ...request,
     imdbId: validImdbId(lookup?.imdb_id) || request?.imdbId || request?.imdb_id || "",
+    explicitSkipMarkers: existingMarkers,
+    skipMarkerLookupFailed: false,
     skipMarkers: {
       ...databaseMarkers,
       ...existingMarkers,
@@ -312,7 +336,7 @@ const loadEpisodeSkipMarkers = async (request, durationSeconds = null) => {
   if (!season || !episode) return request;
 
   const imdbId = await resolveSkipMarkerImdbId(request);
-  if (!imdbId) return request;
+  if (!imdbId) return { ...request, skipMarkerLookupFailed: true };
 
   const duration = Number(durationSeconds);
   const safeDuration =
@@ -323,23 +347,26 @@ const loadEpisodeSkipMarkers = async (request, durationSeconds = null) => {
 
   let lookupPromise = skipMarkerResultCache.get(cacheKey);
   if (!lookupPromise) {
-    lookupPromise = base44.functions
+    lookupPromise = boundedMarkerLookup(() => base44.functions
       .invoke("getSkipSegments", {
         imdb_id: imdbId,
         season,
         episode,
         ...(safeDuration ? { duration: safeDuration } : {}),
-      })
-      .then((response) => unwrap(response))
-      .catch(() => null);
+      }), 4000)
+      .then((response) => response ? unwrap(response) : null);
     skipMarkerResultCache.set(cacheKey, lookupPromise);
   }
 
   const lookup = await lookupPromise;
-  if (!lookup || typeof lookup !== "object") {
+  if (!lookup || typeof lookup !== "object" || lookup.error ||
+      (!lookup.markers && !Array.isArray(lookup.providers)) ||
+      (!Object.keys(lookup.markers || {}).length && !lookup.providers?.length)) {
+    skipMarkerResultCache.delete(cacheKey);
     return {
       ...request,
       imdbId: imdbId || request?.imdbId || "",
+      skipMarkerLookupFailed: true,
     };
   }
 
@@ -575,6 +602,8 @@ function PlayerAutomationBridge({ children }) {
   const core = useCorePlayer();
 
   const currentRequestRef = useRef(null);
+  const playbackSessionRef = useRef(0);
+  const autoNextCancelledRef = useRef(false);
   const advancingRef = useRef(false);
   const nextEpisodePreloadRef = useRef({
     currentKey: "",
@@ -584,7 +613,8 @@ function PlayerAutomationBridge({ children }) {
     availability: "unknown",
   });
   const lastPreloadCheckRef = useRef(0);
-  const skipMarkerLookupKeysRef = useRef(new Set());
+  const skipMarkerLookupKeysRef = useRef(new Map());
+  const appliedMarkerDurationRef = useRef({ sessionId: null, duration: null });
 
   const [autoNext, setAutoNext] = useState(
     readAutoNext
@@ -600,8 +630,7 @@ function PlayerAutomationBridge({ children }) {
       const preloadState = nextEpisodePreloadRef.current;
       const preloadMatches =
         Boolean(requestKey) &&
-        preloadState.currentKey === requestKey &&
-        !preloadState.promise;
+        preloadState.currentKey === requestKey;
       const knownNext =
         preloadMatches && preloadState.availability === "yes"
           ? preloadState.next
@@ -650,6 +679,8 @@ function PlayerAutomationBridge({ children }) {
         episodeName:
           request?.episodeName ||
           "",
+
+        playbackSessionId: request?.playbackSessionId ?? null,
 
         autoNext: Boolean(enabled),
 
@@ -713,24 +744,38 @@ function PlayerAutomationBridge({ children }) {
         Number.isFinite(duration) && duration >= 60
           ? Math.round(duration)
           : null;
-      const lookupKey = `${episodeKey}:d${safeDuration || "any"}`;
-
-      if (skipMarkerLookupKeysRef.current.has(lookupKey)) {
-        return;
-      }
-      skipMarkerLookupKeysRef.current.add(lookupKey);
+      const lookupKey = `${episodeKey}:${request?.playbackSessionId || ""}:d${safeDuration || "any"}`;
+      if (Number(skipMarkerLookupKeysRef.current.get(lookupKey) || 0) > Date.now()) return;
+      skipMarkerLookupKeysRef.current.set(lookupKey, Date.now() + 30_000);
 
       const enriched = await loadEpisodeSkipMarkers(request, safeDuration);
+      skipMarkerLookupKeysRef.current.set(lookupKey,
+        enriched?.skipMarkerLookupFailed ? Date.now() + 30_000 : Number.POSITIVE_INFINITY);
 
       if (
-        episodeIdentityForRequest(currentRequestRef.current) !== episodeKey
+        episodeIdentityForRequest(currentRequestRef.current) !== episodeKey ||
+        currentRequestRef.current?.playbackSessionId !== request?.playbackSessionId
       ) {
         return;
       }
 
+      const adjustedMarkersAlreadyApplied = !safeDuration &&
+        appliedMarkerDurationRef.current.sessionId === request?.playbackSessionId &&
+        appliedMarkerDurationRef.current.duration != null;
+      const applyMarkers = !enriched?.skipMarkerLookupFailed && !adjustedMarkersAlreadyApplied;
+      if (applyMarkers && safeDuration) {
+        appliedMarkerDurationRef.current = { sessionId: request?.playbackSessionId, duration: safeDuration };
+      }
+
       currentRequestRef.current = {
         ...currentRequestRef.current,
-        ...enriched,
+        imdbId: enriched?.imdbId || currentRequestRef.current?.imdbId || "",
+        ...(applyMarkers ? {
+          skipMarkers: enriched?.skipMarkers || {},
+          explicitSkipMarkers: enriched?.explicitSkipMarkers || {},
+          skipMarkerProvenance: enriched?.skipMarkerProvenance || {},
+          skipMarkerProviders: enriched?.skipMarkerProviders || [],
+        } : {}),
         skipMarkersPending: false,
       };
       publishContext(currentRequestRef.current);
@@ -779,24 +824,32 @@ function PlayerAutomationBridge({ children }) {
             return null;
           }
 
-          await queueContinueWatching(next);
+          void queueContinueWatching(next);
+          if (episodeIdentityForRequest(currentRequestRef.current) !== currentKey) return null;
+          nextEpisodePreloadRef.current = {
+            ...nextEpisodePreloadRef.current,
+            currentKey,
+            next,
+            availability: "yes",
+          };
+          publishContext(currentRequestRef.current || request);
 
-          const prepared =
-            typeof core.prepare === "function"
-              ? await core.prepare(
-                  applyReliableVodPolicy(next)
-                )
-              : null;
+          const markerLookup = loadEpisodeSkipMarkers(next).then((enrichedNext) => {
+            if (nextEpisodePreloadRef.current.currentKey === currentKey) {
+              nextEpisodePreloadRef.current.next = enrichedNext;
+            }
+            return enrichedNext;
+          });
+          const preparation = typeof core.prepare === "function"
+            ? core.prepare(applyReliableVodPolicy(next))
+            : Promise.resolve(null);
+          const [enrichedNext, prepared] = await Promise.all([markerLookup, preparation]);
 
-          if (
-            episodeIdentityForRequest(currentRequestRef.current) !== currentKey
-          ) {
-            return null;
-          }
+          if (episodeIdentityForRequest(currentRequestRef.current) !== currentKey) return null;
 
           nextEpisodePreloadRef.current = {
             currentKey,
-            next,
+            next: enrichedNext,
             prepared,
             promise: null,
             availability: "yes",
@@ -811,12 +864,13 @@ function PlayerAutomationBridge({ children }) {
           );
 
           if (nextEpisodePreloadRef.current.currentKey === currentKey) {
+            const knownNext = nextEpisodePreloadRef.current.next;
             nextEpisodePreloadRef.current = {
               currentKey,
-              next: null,
+              next: knownNext || null,
               prepared: null,
               promise: null,
-              availability: "unknown",
+              availability: knownNext ? "yes" : "unknown",
             };
             if (episodeIdentityForRequest(currentRequestRef.current) === currentKey) {
               publishContext(currentRequestRef.current || request);
@@ -842,8 +896,11 @@ function PlayerAutomationBridge({ children }) {
 
   const play = useCallback(
     async (request = {}) => {
-      const reliableRequest =
-        applyReliableVodPolicy(request);
+      const reliableRequest = {
+        ...applyReliableVodPolicy(request),
+        playbackSessionId: ++playbackSessionRef.current,
+      };
+      autoNextCancelledRef.current = false;
       const contextRequest =
         isTvRequest(reliableRequest)
           ? {
@@ -879,6 +936,7 @@ function PlayerAutomationBridge({ children }) {
 
   const resetEnhancedPlayerState = useCallback(() => {
     currentRequestRef.current = null;
+    autoNextCancelledRef.current = false;
     advancingRef.current = false;
     nextEpisodePreloadRef.current = {
       currentKey: "",
@@ -978,27 +1036,32 @@ function PlayerAutomationBridge({ children }) {
           return;
         }
 
-        const prepared = cachedPreload?.prepared;
-        const preparedFresh =
-          prepared &&
-          Number(prepared?.preparedAt || 0) > Date.now() - 2 * 60 * 60 * 1000 &&
-          Array.isArray(prepared?.sources) &&
-          prepared.sources.length > 0 &&
-          (
-            prepared?.verifiedPlaybackPolicy !== "strict" ||
-            prepared?.verifiedPrepared === true
-          );
+        const prepared = freshEpisodePreparation(cachedPreload?.prepared);
+        const preparedFresh = Boolean(prepared);
+        const stalePreparation = cachedPreload?.prepared;
+        const durableCandidates = [
+          ...(Array.isArray(stalePreparation?.completeSources) ? stalePreparation.completeSources : []),
+          ...(Array.isArray(stalePreparation?.sources) ? stalePreparation.sources : []),
+        ].filter((candidate) => candidate?.infoHash || candidate?.info_hash || candidate?.magnet ||
+          candidate?.magnetLink || candidate?.richMagnet || candidate?.rdTorrentId || candidate?.torrentId ||
+          /^magnet:/i.test(String(candidate?.src || candidate?.url || "")))
+          .map((candidate) => {
+            const restored = restoreResumeSource(candidate);
+            if (!restored || /^https?:/i.test(String(restored.src || restored.url || ""))) return null;
+            for (const key of ["expiresAt", "expires_at", "expiration", "expiry"]) delete restored[key];
+            return restored;
+          }).filter(Boolean);
 
         const nextRequest = preparedFresh
           ? {
               ...next,
               imdbId: prepared?.imdbId || next?.imdbId || next?.imdb_id || "",
               sources: prepared.sources,
-              completeSources:
-                Array.isArray(prepared?.completeSources) &&
-                prepared.completeSources.length > 0
-                  ? prepared.completeSources
-                  : prepared.sources,
+              completeSources: [
+                ...(Array.isArray(prepared?.completeSources) && prepared.completeSources.length > 0
+                  ? prepared.completeSources : prepared.sources),
+                ...(prepared.refreshRequired ? durableCandidates : []),
+              ],
 
               /*
                * The prepare pass already completed the full addon/RD source
@@ -1007,13 +1070,14 @@ function PlayerAutomationBridge({ children }) {
                */
               skipAddonLookup: true,
               skipRdLookup: true,
+              ...(prepared.refreshRequired ? { skipAddonLookup: false, skipRdLookup: false } : {}),
               preparedEpisodeHandoff: true,
               verifiedPlaybackPolicy:
                 prepared?.verifiedPlaybackPolicy ||
                 next?.verifiedPlaybackPolicy ||
                 "strict",
             }
-          : next;
+          : { ...next, sources: durableCandidates };
 
         nextEpisodePreloadRef.current = {
           currentKey: "",
@@ -1023,7 +1087,7 @@ function PlayerAutomationBridge({ children }) {
           availability: "unknown",
         };
 
-        await queueContinueWatching(nextRequest);
+        void queueContinueWatching(nextRequest);
         await play(nextRequest);
       } catch (error) {
         console.error(
@@ -1216,6 +1280,12 @@ function PlayerAutomationBridge({ children }) {
 
     const onPlayNextEpisode = () => {
       advanceToNext(true);
+    };
+
+    const onCancelNextEpisode = (event) => {
+      if (event?.detail?.playbackSessionId === currentRequestRef.current?.playbackSessionId) {
+        autoNextCancelledRef.current = true;
+      }
     };
 
     const onEpisodeCompleted = async (event) => {
@@ -1411,76 +1481,23 @@ function PlayerAutomationBridge({ children }) {
       }
       lastPreloadCheckRef.current = now;
 
+      void preloadNextEpisode(current);
+    };
+
+    const onNativePlaybackProgress = (event) => {
+      const detail = event?.detail || {};
+      const current = currentRequestRef.current;
       const currentKey = episodeIdentityForRequest(current);
-      if (!currentKey) return;
+      if (!currentKey || episodeIdentityForRequest(detail) !== currentKey) return;
 
-      const existing = nextEpisodePreloadRef.current;
-      if (
-        existing.currentKey === currentKey &&
-        (existing.prepared || existing.promise)
-      ) {
-        return;
+      const duration = Number(detail.durationSeconds);
+      if (Number.isFinite(duration) && duration >= 60) {
+        void hydrateEpisodeSkipMarkers(current, duration);
       }
-
-      const preloadPromise = (async () => {
-        try {
-          const next = await findNextEpisodeRequest(current);
-          if (!next) return null;
-
-          /*
-           * Queue the canonical next-episode resume row immediately as well as
-           * preparing its source. If the app is interrupted later in the
-           * episode, Continue Watching still knows the correct following item.
-           */
-          await queueContinueWatching(next);
-
-          const prepared =
-            typeof core.prepare === "function"
-              ? await core.prepare(
-                  applyReliableVodPolicy(next)
-                )
-              : null;
-
-          if (
-            episodeIdentityForRequest(currentRequestRef.current) !== currentKey
-          ) {
-            return null;
-          }
-
-          nextEpisodePreloadRef.current = {
-            currentKey,
-            next,
-            prepared,
-            promise: null,
-            availability: "yes",
-          };
-
-          return prepared;
-        } catch {
-          if (nextEpisodePreloadRef.current.currentKey === currentKey) {
-            nextEpisodePreloadRef.current = {
-              currentKey,
-              next: null,
-              prepared: null,
-              promise: null,
-              availability: "unknown",
-            };
-          }
-          return null;
-        }
-      })();
-
-      nextEpisodePreloadRef.current = {
-        currentKey,
-        next: null,
-        prepared: null,
-        promise: preloadPromise,
-        availability: "unknown",
-      };
     };
 
     const onEnded = (event) => {
-      if (!autoNext) {
+      if (!autoNext || autoNextCancelledRef.current) {
         return;
       }
 
@@ -1515,8 +1532,9 @@ function PlayerAutomationBridge({ children }) {
      * dedicated event so TV episodes use the exact same auto-next pipeline as
      * browser playback.
      */
-    const onNativePlaybackEnded = () => {
-      if (!autoNext || advancingRef.current) {
+    const onNativePlaybackEnded = (event) => {
+      if (!autoNext || advancingRef.current || autoNextCancelledRef.current ||
+          event?.detail?.autoNextCancelled === true) {
         return;
       }
 
@@ -1541,6 +1559,8 @@ function PlayerAutomationBridge({ children }) {
       "mg:play-next-episode",
       onPlayNextEpisode
     );
+
+    window.addEventListener("mg:cancel-next-episode", onCancelNextEpisode);
 
     window.addEventListener(
       "mg:set-auto-next",
@@ -1574,6 +1594,8 @@ function PlayerAutomationBridge({ children }) {
       onNativePlaybackEnded
     );
 
+    window.addEventListener("mg:native-playback-progress", onNativePlaybackProgress);
+
     return () => {
       window.removeEventListener(
         "mg:choose-episode",
@@ -1589,6 +1611,8 @@ function PlayerAutomationBridge({ children }) {
         "mg:play-next-episode",
         onPlayNextEpisode
       );
+
+      window.removeEventListener("mg:cancel-next-episode", onCancelNextEpisode);
 
       window.removeEventListener(
         "mg:set-auto-next",
@@ -1621,6 +1645,8 @@ function PlayerAutomationBridge({ children }) {
         "mg:native-playback-ended",
         onNativePlaybackEnded
       );
+
+      window.removeEventListener("mg:native-playback-progress", onNativePlaybackProgress);
     };
   }, [
     advanceToNext,
@@ -1628,6 +1654,7 @@ function PlayerAutomationBridge({ children }) {
     close,
     hydrateEpisodeSkipMarkers,
     play,
+    preloadNextEpisode,
     publishContext,
     publishStatus,
   ]);

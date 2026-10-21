@@ -641,6 +641,33 @@ const setNativePlaybackOwnership = (active) => {
   });
 };
 
+// Forward only episode controls, never stream URLs or account credentials.
+// Android receivers also match request + episode identity before applying it.
+export const updateNativeEpisodePlaybackContext = (context, requestId) => {
+  const native = bridge();
+  if (!native || typeof native.updatePlaybackContext !== "function" ||
+      !requestId || context?.mediaType !== "tv") return false;
+  const tmdbId = positiveWholeNumber(context.tmdbId ?? context.tmdb_id);
+  const season = positiveWholeNumber(context.season);
+  const episode = positiveWholeNumber(context.episode);
+  if (!tmdbId || !season || !episode) return false;
+  const payload = {
+    requestId, mediaType: "tv", tmdbId, season, episode,
+    autoNext: context.autoNext !== false,
+    nextEpisodeAvailable: context.nextEpisodeAvailable == null ? null : Boolean(context.nextEpisodeAvailable),
+    nextSeason: positiveWholeNumber(context.nextSeason),
+    nextEpisode: positiveWholeNumber(context.nextEpisode),
+    nextEpisodeName: String(context.nextEpisodeName || "").slice(0, 300),
+    recapStart: playerMarkerSeconds(context, "recapStart"),
+    recapEnd: playerMarkerSeconds(context, "recapEnd"),
+    introStart: playerMarkerSeconds(context, "introStart"),
+    introEnd: playerMarkerSeconds(context, "introEnd"),
+    creditsStart: playerMarkerSeconds(context, "creditsStart"),
+  };
+  try { return native.updatePlaybackContext(JSON.stringify(payload)) === true; }
+  catch { return false; }
+};
+
 export const playNativeFireTv = ({
   requestId,
   url,

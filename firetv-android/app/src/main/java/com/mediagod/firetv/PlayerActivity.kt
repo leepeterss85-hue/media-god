@@ -2,6 +2,9 @@ package com.mediagod.firetv
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.IntentFilter
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
@@ -26,6 +29,7 @@ import android.widget.LinearLayout
 import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -49,6 +53,7 @@ class PlayerActivity : Activity() {
         const val EXTRA_PAYLOAD = "mg_payload"
         const val EXTRA_REQUEST_ID = "mg_request_id"
         const val EXTRA_REASON = "mg_reason"
+        const val EXTRA_AUTO_NEXT_CANCELLED = "mg_auto_next_cancelled"
         const val EXTRA_POSITION_MS = "mg_position_ms"
         const val EXTRA_DURATION_MS = "mg_duration_ms"
         const val EXTRA_MESSAGE = "mg_message"
@@ -192,11 +197,16 @@ class PlayerActivity : Activity() {
         ) ?: payload.optBoolean("verifiedEnglishMain", false)
 
     /*
-     * Audio correction is manual-only. Never hold VOD startup waiting for an
-     * English/audio validation gate; the viewer can use Audio if the selected
-     * track is wrong or silent.
+     * TV episodes can request verified English startup. An explicit Audio menu
+     * choice always takes precedence; films and Live TV keep their usual startup.
      */
-    private fun strictEnglishStartupRequired(): Boolean = false
+    private var manualAudioTrackLocked = false
+    private var strictEnglishStartupPending = false
+    private var automaticEnglishAudioOverride: androidx.media3.common.TrackSelectionOverride? = null
+
+    private fun strictEnglishStartupRequired(): Boolean = NativeEpisodePolicy.requiresEnglish(
+        isTvEpisode(), payload.optBoolean("strictEnglishPlayback", false), manualAudioTrackLocked
+    )
 
     private fun currentPreferredEnglishTrackName(): String =
         activeSourceMetadata()?.optString("preferredAudioTrackName").orEmpty()
@@ -270,6 +280,8 @@ class PlayerActivity : Activity() {
             return false
         }
 
+        if (manualAudioTrackLocked) return false
+
         // PlayerView's Audio menu writes an explicit override. Never replace
         // that user choice when track lists arrive or change later.
         if (activePlayer.trackSelectionParameters.overrides.values.any {
@@ -283,15 +295,12 @@ class PlayerActivity : Activity() {
         ) ?: return false
 
         return try {
+            val override = androidx.media3.common.TrackSelectionOverride(bestGroup.mediaTrackGroup, bestIndex)
+            automaticEnglishAudioOverride = override
             activePlayer.trackSelectionParameters =
                 activePlayer.trackSelectionParameters
                     .buildUpon()
-                    .setOverrideForType(
-                        androidx.media3.common.TrackSelectionOverride(
-                            bestGroup.mediaTrackGroup,
-                            bestIndex
-                        )
-                    )
+                    .setOverrideForType(override)
                     .build()
             true
         } catch (_: Throwable) {
@@ -310,6 +319,7 @@ class PlayerActivity : Activity() {
         activePlayer: ExoPlayer
     ): Boolean {
         if (
+            !strictEnglishStartupPending ||
             !strictEnglishStartupRequired() ||
             !shouldPlayWhenReady ||
             resultSent ||
@@ -329,6 +339,7 @@ class PlayerActivity : Activity() {
             return false
         }
 
+        strictEnglishStartupPending = false
         audioPresenceCheckGeneration += 1
         activePlayer.playWhenReady = true
         activePlayer.play()
@@ -343,6 +354,7 @@ class PlayerActivity : Activity() {
     private val strictEnglishStartupWatchdogRunnable = Runnable {
         if (
             resultSent ||
+            !strictEnglishStartupPending ||
             live ||
             compatibilityPlayerOpen ||
             !strictEnglishStartupRequired()
@@ -373,6 +385,7 @@ class PlayerActivity : Activity() {
 
     private fun armStrictEnglishStartupWatchdog() {
         if (
+            !strictEnglishStartupPending ||
             !strictEnglishStartupRequired() ||
             !::playerView.isInitialized
         ) {
@@ -395,6 +408,7 @@ class PlayerActivity : Activity() {
 
     private val hideControllerRunnable = Runnable {
         if (!resultSent && ::playerView.isInitialized) {
+            if (nextEpisodeCountdownStartedAtMs >= 0L) return@Runnable
             playerView.hideController()
             if (!live && ::playerChrome.isInitialized) {
                 playerChrome.visibility = View.GONE
@@ -656,6 +670,8 @@ class PlayerActivity : Activity() {
         live = payload.optBoolean("live", false)
         mediaType = payload.optString("mediaType").trim().lowercase()
         autoNext = payload.optBoolean("autoNext", true)
+        manualAudioTrackLocked = payload.optBoolean("manualAudioTrackLocked", false)
+        nextEpisodeCountdownCancelled = payload.optBoolean("autoNextCancelled", false)
         recapStartMs = payloadMarkerMs("recapStart")
         recapEndMs = payloadMarkerMs("recapEnd")
         introStartMs = payloadMarkerMs("introStart")
@@ -777,6 +793,7 @@ class PlayerActivity : Activity() {
         }
 
         setContentView(root)
+        registerPlaybackContextReceiver()
         if (!live) playerView.post { styleNativeVodController() }
         playerView.requestFocus()
         playerView.post(updateAssistControlsRunnable)
@@ -813,7 +830,9 @@ class PlayerActivity : Activity() {
         clearLiveWatchdogs()
         player?.let {
             restorePositionMs = max(0L, it.currentPosition)
-            shouldPlayWhenReady = it.playWhenReady
+            // The English startup gate pauses the decoder, not the viewer's
+            // Play intent. Preserve that intent across a background/resume.
+            if (!strictEnglishStartupPending) shouldPlayWhenReady = it.playWhenReady
         }
         releasePlayer()
         super.onPause()
@@ -825,6 +844,10 @@ class PlayerActivity : Activity() {
     }
 
     override fun onDestroy() {
+        if (playbackContextReceiverRegistered) {
+            unregisterReceiver(playbackContextReceiver)
+            playbackContextReceiverRegistered = false
+        }
         if (::sourceSpinner.isInitialized) {
             sourceSpinner.removeCallbacks(hideSourceSelectorRunnable)
         }
@@ -900,6 +923,7 @@ class PlayerActivity : Activity() {
                 )
             }
 
+        if (nextEpisodeCountdownCancelled) forwarded.putExtra(EXTRA_AUTO_NEXT_CANCELLED, true)
         setResult(RESULT_OK, forwarded)
         finish()
     }
@@ -1053,14 +1077,74 @@ class PlayerActivity : Activity() {
         }
     }
 
-    private fun isTvEpisode(): Boolean =
-        !live &&
-            (
-                mediaType == "tv" ||
-                    mediaType == "series" ||
-                    payload.optInt("season", 0) > 0 ||
-                    payload.optInt("episode", 0) > 0
-            )
+    private fun isTvEpisode(): Boolean = NativeEpisodePolicy.isEpisode(
+        live, payload.optString("mediaType"), payload.optInt("season", 0), payload.optInt("episode", 0)
+    )
+
+    private var playbackContextReceiverRegistered = false
+    private val playbackContextReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action != "$packageName.UPDATE_PLAYBACK_CONTEXT" ||
+                requestId.isBlank() || intent.getStringExtra("requestId") != requestId ||
+                !isTvEpisode() || resultSent) return
+            val update = try {
+                JSONObject(intent.getStringExtra("payload").orEmpty())
+            } catch (_: Throwable) { return }
+            if (!NativeEpisodePolicy.sameEpisode(
+                    payload.optLong("tmdbId", 0L), payload.optInt("season", 0), payload.optInt("episode", 0),
+                    update.optLong("tmdbId", 0L), update.optInt("season", 0), update.optInt("episode", 0)
+                )) return
+
+            // Metadata can arrive after the isolated native player opens. Only
+            // update this episode's actions; never replace playback or audio state.
+            val previousCreditsStart = creditsStartMs
+            listOf("recapStart", "recapEnd", "introStart", "introEnd", "creditsStart", "creditsEnd",
+                "autoNext", "nextEpisodeAvailable", "nextSeason", "nextEpisode", "nextEpisodeName")
+                .forEach { key -> if (update.has(key)) payload.put(key, update.opt(key)) }
+            autoNext = payload.optBoolean("autoNext", true)
+            recapStartMs = payloadMarkerMs("recapStart")
+            recapEndMs = payloadMarkerMs("recapEnd")
+            introStartMs = payloadMarkerMs("introStart")
+            introEndMs = payloadMarkerMs("introEnd")
+            creditsStartMs = payloadMarkerMs("creditsStart")
+            if (creditsStartMs != previousCreditsStart) nextEpisodeCountdownStartedAtMs = -1L
+            updateAssistControls()
+        }
+    }
+
+    private var lastReportedEpisodeDurationMs = 0L
+    private var lastEpisodeDurationReportAtMs = 0L
+
+    private fun reportEpisodeDuration(positionMs: Long, durationMs: Long) {
+        if (!isTvEpisode() || resultSent || requestId.isBlank() || durationMs <= 0L) return
+        val tmdbId = payload.optLong("tmdbId", 0L)
+        val season = payload.optInt("season", 0)
+        val episode = payload.optInt("episode", 0)
+        if (tmdbId <= 0L || season <= 0 || episode <= 0) return
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (!NativeEpisodePolicy.shouldReportDuration(durationMs, lastReportedEpisodeDurationMs,
+                now - lastEpisodeDurationReportAtMs)) return
+        lastReportedEpisodeDurationMs = durationMs
+        lastEpisodeDurationReportAtMs = now
+        // Only public episode identity and decoder timing cross back to the
+        // paused WebView for release-specific markers. No stream URL or headers.
+        sendBroadcast(Intent("$packageName.NATIVE_PLAYBACK_PROGRESS").apply {
+            setPackage(packageName)
+            putExtra("requestId", requestId)
+            putExtra("positionMs", positionMs.coerceAtLeast(0L))
+            putExtra("durationMs", durationMs)
+            putExtra("tmdbId", tmdbId)
+            putExtra("season", season)
+            putExtra("episode", episode)
+        })
+    }
+
+    private fun registerPlaybackContextReceiver() {
+        if (playbackContextReceiverRegistered) return
+        ContextCompat.registerReceiver(this, playbackContextReceiver,
+            IntentFilter("$packageName.UPDATE_PLAYBACK_CONTEXT"), ContextCompat.RECEIVER_NOT_EXPORTED)
+        playbackContextReceiverRegistered = true
+    }
 
     private fun episodeActionBackground(): StateListDrawable {
         fun pill(fill: Int, border: Int): GradientDrawable = GradientDrawable().apply {
@@ -1115,40 +1199,22 @@ class PlayerActivity : Activity() {
     private fun buildAssistControls(): LinearLayout {
         skipRecapButton = buildAssistButton("Skip recap") {
             val activePlayer = player ?: return@buildAssistButton
-            val target =
-                if (recapEndMs > activePlayer.currentPosition) {
-                    recapEndMs + 250L
-                } else {
-                    minOf(
-                        75_000L,
-                        maxOf(activePlayer.currentPosition + 30_000L, 50_000L)
-                    )
-                }
-            seekAssistTo(target)
+            if (NativeEpisodePolicy.segmentWindow(activePlayer.currentPosition, activePlayer.duration,
+                    recapStartMs, recapEndMs)) seekAssistTo(recapEndMs + 250L)
         }
 
         skipIntroButton = buildAssistButton("Skip intro") {
             val activePlayer = player ?: return@buildAssistButton
-            val target =
-                if (introEndMs > activePlayer.currentPosition) {
-                    introEndMs + 250L
-                } else {
-                    minOf(
-                        210_000L,
-                        maxOf(activePlayer.currentPosition + 60_000L, 105_000L)
-                    )
-                }
-            seekAssistTo(target)
+            if (NativeEpisodePolicy.segmentWindow(activePlayer.currentPosition, activePlayer.duration,
+                    introStartMs, introEndMs)) seekAssistTo(introEndMs + 250L)
         }
 
         skipCreditsButton = buildAssistButton("Skip credits") {
-            if (isTvEpisode()) {
-                finishWithResult("next")
-            } else {
-                val activePlayer = player ?: return@buildAssistButton
-                val duration = activePlayer.duration.takeIf { it > 0L } ?: return@buildAssistButton
-                seekAssistTo(maxOf(0L, duration - 750L))
-            }
+            val activePlayer = player ?: return@buildAssistButton
+            val mediaDuration = activePlayer.duration.takeIf { it > 750L } ?: return@buildAssistButton
+            if (isTvEpisode() && !NativeEpisodePolicy.creditsWindow(
+                    activePlayer.currentPosition, mediaDuration, creditsStartMs)) return@buildAssistButton
+            seekAssistTo(maxOf(0L, mediaDuration - 750L))
         }
 
         playNextButton = buildAssistButton("Next episode") {
@@ -1259,8 +1325,8 @@ class PlayerActivity : Activity() {
     }
 
     private fun updateAssistControls() {
-        // Marker-backed episode actions are safe to show again. Automatic next
-        // remains owned by the natural ended handoff, not a guessed countdown.
+        // Episode actions use marker boundaries. Next can count down during
+        // verified credits once the following episode is confirmed.
         if (
             resultSent ||
             !::assistControls.isInitialized ||
@@ -1281,15 +1347,15 @@ class PlayerActivity : Activity() {
 
         val position = maxOf(0L, activePlayer.currentPosition)
         val duration = activePlayer.duration.takeIf { it > 0L } ?: 0L
+        reportEpisodeDuration(position, duration)
         val remaining = if (duration > 0L) maxOf(0L, duration - position) else Long.MAX_VALUE
         val tvEpisode = isTvEpisode()
         val playingNow = activePlayer.isPlaying
-        val nextEpisodeKnown =
-            payload.has("nextEpisodeAvailable") &&
-                !payload.isNull("nextEpisodeAvailable")
-        val hasNextEpisode =
-            !nextEpisodeKnown ||
-                payload.optBoolean("nextEpisodeAvailable", true)
+        val hasNextEpisode = NativeEpisodePolicy.hasConfirmedNext(
+            if (payload.has("nextEpisodeAvailable") && !payload.isNull("nextEpisodeAvailable"))
+                payload.optBoolean("nextEpisodeAvailable", false) else null,
+            payload.optInt("nextSeason", 0), payload.optInt("nextEpisode", 0)
+        )
         val focusedAssistBeforeUpdate =
             listOf(
                 skipRecapButton,
@@ -1299,30 +1365,20 @@ class PlayerActivity : Activity() {
                 cancelNextButton
             ).firstOrNull { it.hasFocus() }
 
-        val exactRecap =
-            tvEpisode &&
-                recapEndMs > 0L &&
-                position >= maxOf(0L, recapStartMs) &&
-                position < recapEndMs
-        val recapVisible = exactRecap
-
-        val exactIntro =
-            tvEpisode &&
-                introEndMs > 0L &&
-                position >= maxOf(0L, introStartMs) &&
-                position < introEndMs
-        val introVisible = !recapVisible && exactIntro
+        val recapVisible = tvEpisode && NativeEpisodePolicy.segmentWindow(
+            position, duration, recapStartMs, recapEndMs
+        )
+        val introVisible = !recapVisible && tvEpisode && NativeEpisodePolicy.segmentWindow(
+            position, duration, introStartMs, introEndMs
+        )
 
         val creditsFallbackWindow =
             if (!tvEpisode && duration > 0L) {
                 minOf(180_000L, maxOf(90_000L, (duration * 0.05).toLong()))
             } else 0L
 
-        val exactCredits =
-            duration >= 300_000L &&
-                creditsStartMs > 0L &&
-                position >= creditsStartMs &&
-                position < duration - 500L
+        val exactCredits = (tvEpisode || duration >= 300_000L) &&
+            NativeEpisodePolicy.creditsWindow(position, duration, creditsStartMs)
         val fallbackCredits =
             !tvEpisode &&
                 duration >= 300_000L &&
@@ -1333,22 +1389,19 @@ class PlayerActivity : Activity() {
 
         setAssistVisible(skipRecapButton, recapVisible)
         setAssistVisible(skipIntroButton, introVisible)
-        // TV has one clear end-of-episode action instead of duplicate
-        // "Skip credits" and "Play next" buttons.
-        setAssistVisible(skipCreditsButton, creditsVisible && !tvEpisode)
+        // A confirmed next episode replaces Skip credits. Final episodes can
+        // still skip their verified credits without inventing another episode.
+        setAssistVisible(skipCreditsButton, creditsVisible && (!tvEpisode || !hasNextEpisode))
         skipCreditsButton.text = "Skip credits"
 
-        val nextEpisodeWindow =
-            tvEpisode &&
-                hasNextEpisode &&
-                duration >= 180_000L &&
-                position >= 60_000L &&
-                (exactCredits || remaining <= 45_000L)
+        val nextEpisodeWindow = tvEpisode && hasNextEpisode && exactCredits
         setAssistVisible(playNextButton, nextEpisodeWindow)
 
-        // Do not auto-jump before the stream actually ends; this avoids
-        // cutting off post-credit scenes. STATE_ENDED still advances naturally.
-        val countdownWindow = false
+        // Stay here cancels this episode's verified-credits timer. A metadata
+        // refresh never clears that viewer choice.
+        val countdownWindow = NativeEpisodePolicy.countdownEligible(
+            tvEpisode, autoNext, hasNextEpisode, position, duration, creditsStartMs
+        )
 
         if (
             autoNext &&
@@ -1365,13 +1418,15 @@ class PlayerActivity : Activity() {
             val left = NEXT_EPISODE_COUNTDOWN_MS - elapsed
 
             if (left <= 0L) {
-                nextEpisodeCountdownCancelled = true
                 nextEpisodeCountdownStartedAtMs = -1L
                 finishWithResult("next")
                 return
             }
 
             val seconds = maxOf(1L, (left + 999L) / 1000L)
+            // Keep transport controls available throughout the cancellable timer.
+            playerView.showController()
+            if (::playerChrome.isInitialized) playerChrome.visibility = View.VISIBLE
             playNextButton.text = "Next episode in ${seconds}s"
             setAssistVisible(playNextButton, true)
             setAssistVisible(cancelNextButton, true)
@@ -1938,6 +1993,7 @@ class PlayerActivity : Activity() {
 
         audioOutputConfirmed = false
         firstVideoFrameRendered = false
+        automaticEnglishAudioOverride = null
         audioDecoderName = "unknown"
         videoDecoderName = "unknown"
         lastPlayerErrorCode = "none"
@@ -1987,6 +2043,19 @@ class PlayerActivity : Activity() {
                 .build()
 
         exoPlayer.addListener(object : Player.Listener {
+            override fun onTrackSelectionParametersChanged(parameters: androidx.media3.common.TrackSelectionParameters) {
+                val audioOverrides = parameters.overrides.values.filter {
+                    it.mediaTrackGroup.type == C.TRACK_TYPE_AUDIO
+                }
+                if (audioOverrides.any { it != automaticEnglishAudioOverride }) {
+                    manualAudioTrackLocked = true
+                    val releaseStartupGate = strictEnglishStartupPending
+                    strictEnglishStartupPending = false
+                    clearStrictEnglishStartupWatchdog()
+                    if (releaseStartupGate && shouldPlayWhenReady && !live) exoPlayer.play()
+                }
+            }
+
             override fun onRenderedFirstFrame() {
                 firstVideoFrameRendered = true
                 if (::playerView.isInitialized) {
@@ -2026,6 +2095,7 @@ class PlayerActivity : Activity() {
                  */
                 if (!live) {
                     enforcePreferredEnglishAudio(exoPlayer, tracks)
+                    resumeStrictEnglishPlaybackIfReady(exoPlayer)
                     scheduleMissingAudioCheck(exoPlayer, tracks)
                 }
             }
@@ -2136,6 +2206,7 @@ class PlayerActivity : Activity() {
 
         val holdForEnglishStartup =
             strictEnglishStartupRequired()
+        strictEnglishStartupPending = holdForEnglishStartup && shouldPlayWhenReady
 
         /*
          * Set the startup gate before prepare(). ExoPlayer may report tracks
@@ -2207,6 +2278,8 @@ class PlayerActivity : Activity() {
             JSONObject()
         }.apply {
             put("requestId", requestId)
+            put("manualAudioTrackLocked", manualAudioTrackLocked)
+            put("autoNextCancelled", nextEpisodeCountdownCancelled)
             put("url", streamUrl)
             put("startPositionMs", positionMs)
             put("mimeType", currentSourceMimeType())
@@ -2729,6 +2802,7 @@ class PlayerActivity : Activity() {
         val result = Intent().apply {
             putExtra(EXTRA_REQUEST_ID, requestId)
             putExtra(EXTRA_REASON, reason)
+            putExtra(EXTRA_AUTO_NEXT_CANCELLED, nextEpisodeCountdownCancelled)
             putExtra(EXTRA_POSITION_MS, positionMs)
             putExtra(EXTRA_DURATION_MS, durationMs)
             putExtra(EXTRA_MESSAGE, message)

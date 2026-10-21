@@ -6,6 +6,7 @@ import React, {
   useState,
 } from "react";
 import Hls from "hls.js";
+import { hasUnusableEpisodeAudio } from "./episodeAudio";
 import {
   claimExclusivePlayback,
   releaseExclusivePlayback,
@@ -218,17 +219,19 @@ const choosePreferredHlsAudioTrack = (
   tracks,
   preferredLanguage = "en",
   excludeIndex = -1,
-  skipIndices = []
+  skipIndices = [],
+  requireEnglish = false
 ) => {
   let bestIndex = -1;
   let bestScore = -Infinity;
 
   (tracks || []).forEach((track, index) => {
     if (index === excludeIndex || skipIndices.includes(index)) return;
+    if (requireEnglish && hasUnusableEpisodeAudio({ audioTracks: [track] })) return;
 
     const score = audioTrackPreferenceScore(
       track,
-      preferredLanguage
+      requireEnglish ? "en" : preferredLanguage
     );
 
     if (score > bestScore) {
@@ -243,7 +246,8 @@ const choosePreferredHlsAudioTrack = (
 const selectPreferredNativeAudioTrack = (
   video,
   preferredLanguage = "en",
-  excludeIndex = -1
+  excludeIndex = -1,
+  requireEnglish = false
 ) => {
   const tracks =
     video?.audioTracks;
@@ -265,10 +269,11 @@ const selectPreferredNativeAudioTrack = (
     index += 1
   ) {
     if (index === excludeIndex) continue;
+    if (requireEnglish && hasUnusableEpisodeAudio({ audioTracks: [tracks[index]] })) continue;
 
     const score = audioTrackPreferenceScore(
       tracks[index],
-      preferredLanguage
+      requireEnglish ? "en" : preferredLanguage
     );
 
     if (score > bestScore) {
@@ -597,6 +602,7 @@ const srtToVtt = (text) => {
  *   subtitlesEnabled?: boolean,
  *   preferredSubtitleLanguage?: string,
  *   preferredAudioLanguage?: string,
+ *   requireEnglishAudio?: boolean,
  *   onLoadedMetadata?: React.ReactEventHandler<HTMLVideoElement>,
  *   onTimeUpdate?: React.ReactEventHandler<HTMLVideoElement>,
  *   onError?: ((eventOrOptions?: any) => void),
@@ -626,6 +632,7 @@ const LiveVideo = forwardRef(
       subtitlesEnabled = false,
       preferredSubtitleLanguage = "en",
       preferredAudioLanguage = "en",
+      requireEnglishAudio = false,
       onLoadedMetadata,
       onTimeUpdate,
       onError,
@@ -652,6 +659,8 @@ const LiveVideo = forwardRef(
     const onAutoplayBlockedRef = useRef(onAutoplayBlocked);
     const allowMutedAutoplayRef = useRef(allowMutedAutoplay);
     const sourceLabelRef = useRef(sourceLabel);
+    const requireEnglishAudioRef = useRef(requireEnglishAudio);
+    requireEnglishAudioRef.current = requireEnglishAudio;
     const headersRef = useRef(headers);
     const drmRef = useRef(drm);
     const subtitlesEnabledRef = useRef(subtitlesEnabled);
@@ -1171,7 +1180,8 @@ const LiveVideo = forwardRef(
             currentIndex,
             Array.isArray(event?.detail?.skipIndices)
               ? event.detail.skipIndices
-              : []
+              : [],
+            requireEnglishAudioRef.current
           );
 
         if (targetIndex < 0) {
@@ -1280,35 +1290,31 @@ const LiveVideo = forwardRef(
         onHlsAudioSelection
       );
 
-      const preferEnglishNativeAudio =
-        () => {
-          // Browser HTMLMediaElement.audioTracks is not a reliable automatic
-          // selector. Keep VOD's active track until the user chooses Audio.
-          if (!isLive || manualVodAudioChoice) return;
-          selectPreferredNativeAudioTrack(
-            video,
-            preferredAudioLanguageRef.current
-          );
+      const selectOrRejectNativeEpisodeAudio = () => {
+        if (manualVodAudioChoice) return;
+        if (requireEnglishAudioRef.current &&
+            hasUnusableEpisodeAudio({ audioTracks: Array.from(video.audioTracks || []) })) {
+          video.pause();
+          reportError(Object.assign(new Error("This episode source has no English main audio track. Choose another source."), { code: "EPISODE_ENGLISH_UNAVAILABLE" }));
+          return;
+        }
+        selectPreferredNativeAudioTrack(
+          video,
+          preferredAudioLanguageRef.current,
+          -1,
+          requireEnglishAudioRef.current
+        );
+      };
 
-          if (
-            nativeAudioTimer
-          ) {
-            window.clearTimeout(
-              nativeAudioTimer
-            );
-          }
-
-          nativeAudioTimer =
-            window.setTimeout(
-              () => {
-                selectPreferredNativeAudioTrack(
-                  video,
-                  preferredAudioLanguage
-                );
-              },
-              700
-            );
-        };
+      const preferEnglishNativeAudio = () => {
+        // Ordinary VOD leaves the user's active track alone. Episode English
+        // checks also run after tracks arrive late, without undoing a choice
+        // made through the Audio menu while that check was pending.
+        if ((!isLive && !requireEnglishAudioRef.current) || manualVodAudioChoice) return;
+        selectOrRejectNativeEpisodeAudio();
+        if (nativeAudioTimer) window.clearTimeout(nativeAudioTimer);
+        nativeAudioTimer = window.setTimeout(selectOrRejectNativeEpisodeAudio, 700);
+      };
 
       const reportError =
         (error) => {
@@ -1553,7 +1559,9 @@ const LiveVideo = forwardRef(
                 const targetAudio = choosePreferredHlsAudioTrack(
                   audioTracks,
                   preferredAudioLanguageRef.current,
-                  currentAudio
+                  currentAudio,
+                  [],
+                  requireEnglishAudioRef.current
                 );
 
                 if (
@@ -1748,7 +1756,10 @@ const LiveVideo = forwardRef(
                 const englishIndex =
                   choosePreferredHlsAudioTrack(
                     tracks,
-                    preferredAudioLanguageRef.current
+                    preferredAudioLanguageRef.current,
+                    -1,
+                    [],
+                    requireEnglishAudioRef.current
                   );
 
                 if (
@@ -1765,11 +1776,18 @@ const LiveVideo = forwardRef(
                   }
                 }
 
+                if (requireEnglishAudioRef.current && hasUnusableEpisodeAudio({ audioTracks: tracks })) {
+                  video.pause();
+                  reportError(Object.assign(new Error("This episode source has no English main audio track. Choose another source."), { code: "EPISODE_ENGLISH_UNAVAILABLE" }));
+                  return;
+                }
+
                 const aacIndex =
                   tracks.findIndex(
                     (
                       track
                     ) =>
+                      (!requireEnglishAudioRef.current || !hasUnusableEpisodeAudio({ audioTracks: [track] })) &&
                       /aac|mp4a/i.test(
                         hlsTrackText(
                           track

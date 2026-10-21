@@ -11,6 +11,7 @@ const expect = (condition, message) => {
 };
 
 const provider = read("src/components/mg/PlayerProvider.jsx");
+const episodeExperience = read("src/components/mg/episodeExperience.js");
 const home = read("src/pages/Home.jsx");
 const mediaPlayerProvider = read("src/components/mg/MediaPlayerProvider.jsx");
 const assist = read("src/components/mg/MediaGodV2Assist.jsx");
@@ -30,10 +31,12 @@ const skipSegments = read("base44/functions/getSkipSegments/entry.ts");
 
 expect(
   provider.includes("currentTime < 60") &&
-    provider.includes("await queueContinueWatching(next)") &&
-    provider.includes("2 * 60 * 60 * 1000") &&
+    provider.includes("void queueContinueWatching(next)") &&
+    provider.includes("freshEpisodePreparation(cachedPreload?.prepared)") &&
+    episodeExperience.includes("2 * 60 * 60 * 1000") &&
+    episodeExperience.includes("15 * 60 * 1000") &&
     !provider.includes("const preloadWindow = Math.min(150"),
-  "next episode starts preparing after one minute and remains reusable for long episodes"
+  "next episode prepares early, reuses RD results for long episodes and refreshes expiring public links"
 );
 
 expect(
@@ -45,13 +48,15 @@ expect(
     provider.includes("skipMarkersPending: false") &&
     videoPlayer.includes('window.addEventListener("mg:player-context", onPlayerContext)') &&
     videoPlayer.includes("nativeEpisodeContext?.skipMarkersPending === true") &&
-    videoPlayer.includes("if (episodeMarkerLookupPending)") &&
+    videoPlayer.includes("episodeMarkerLookupPending && remainingMarkerWait > 0") &&
+    videoPlayer.includes("remainingMarkerWait = 6000") &&
+    nativeBridge.includes("updateNativeEpisodePlaybackContext") &&
     skipSegments.includes("https://api.skipdb.tv/api/segments") &&
     skipSegments.includes("https://api.introdb.app/segments") &&
     skipSegments.includes('skipUrl.searchParams.set("adjust", "conservative")') &&
     skipSegments.includes('if (match === "out-of-range") return null;') &&
     !skipSegments.includes("intro_length_estimate_ms"),
-  "episode marker lookup settles before native TV launch and rejects uncertain release matches"
+  "episode marker lookup has a bounded native launch wait, late updates and conservative release matching"
 );
 
 expect(
@@ -61,13 +66,16 @@ expect(
     !assist.includes("fallbackRecapWindow") &&
     !assist.includes("fallbackIntroWindow") &&
     assist.includes("const autoNextCountdownWindow =") &&
-    assist.includes("!nextCountdownCancelled &&") &&
-    assist.includes("(exactCreditsWindow || remaining <= 15)") &&
+    assist.includes("shouldStartEpisodeCountdown({") &&
+    episodeExperience.includes("autoNext || !playing || cancelled") &&
+    episodeExperience.includes("duration - position <= 10") &&
+    assist.includes('new CustomEvent("mg:cancel-next-episode"') &&
+    provider.includes("event?.detail?.autoNextCancelled === true") &&
     assist.includes("remaining <= 90") &&
-    assist.includes("creditsWindow && !isTv") &&
+    assist.includes("const showSkipCredits = creditsWindow && (!isTv || context?.nextEpisodeAvailable === false);") &&
     provider.includes('"mg:native-playback-ended"') &&
     provider.includes('document.addEventListener(\n      "ended"'),
-  "episode assist only trusts explicit recap/intro markers and natural endings own auto-next"
+  "episode assist trusts episode markers, uses a ten-second next countdown and honors cancellation"
 );
 
 expect(
@@ -114,15 +122,15 @@ expect(
 
 expect(
   native.includes("private fun updateAssistControls()") &&
-    native.includes("val recapVisible = exactRecap") &&
-    native.includes("val introVisible = !recapVisible && exactIntro") &&
-    native.includes("val countdownWindow = false") &&
-    native.includes("remaining <= 45_000L") &&
+    native.includes("val recapVisible = tvEpisode && NativeEpisodePolicy.segmentWindow(") &&
+    native.includes("val introVisible = !recapVisible && tvEpisode && NativeEpisodePolicy.segmentWindow(") &&
+    native.includes("val countdownWindow = NativeEpisodePolicy.countdownEligible(") &&
+    native.includes("val nextEpisodeWindow = tvEpisode && hasNextEpisode && exactCredits") &&
     native.includes("!tvEpisode &&") &&
     !native.includes("val fallbackRecap =") &&
     !native.includes("val fallbackIntro =") &&
     native.includes('finishWithResult("ended")'),
-  "Fire TV only shows marker-backed episode skips and waits for natural completion to auto-next"
+  "Fire TV uses bounded episode markers and a cancellable verified-credits countdown"
 );
 
 
@@ -232,15 +240,15 @@ expect(
 
 expect(
   mobileNative.includes("private fun updateAssistControls()") &&
-    mobileNative.includes("val recapVisible = exactRecap") &&
-    mobileNative.includes("val introVisible = !recapVisible && exactIntro") &&
-    mobileNative.includes("val countdownWindow = false") &&
-    mobileNative.includes("remaining <= 45_000L") &&
+    mobileNative.includes("val recapVisible = tvEpisode && NativeEpisodePolicy.segmentWindow(") &&
+    mobileNative.includes("val introVisible = !recapVisible && tvEpisode && NativeEpisodePolicy.segmentWindow(") &&
+    mobileNative.includes("val countdownWindow = NativeEpisodePolicy.countdownEligible(") &&
+    mobileNative.includes("val nextEpisodeWindow = tvEpisode && hasNextEpisode && exactCredits") &&
     mobileNative.includes("!tvEpisode &&") &&
     !mobileNative.includes("val fallbackRecap =") &&
     !mobileNative.includes("val fallbackIntro =") &&
     mobileNative.includes('finishWithResult("ended")'),
-  "Android mobile only shows marker-backed episode skips and waits for natural completion to auto-next"
+  "Android mobile uses bounded episode markers and a cancellable verified-credits countdown"
 );
 
 expect(

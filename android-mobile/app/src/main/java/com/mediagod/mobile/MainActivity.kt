@@ -4,6 +4,9 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import androidx.fragment.app.FragmentActivity
 import android.content.Intent
+import android.content.BroadcastReceiver
+import android.content.IntentFilter
+import androidx.core.content.ContextCompat
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.media.MediaCodecList
@@ -95,9 +98,31 @@ class MainActivity : FragmentActivity() {
     private lateinit var appUpdater: AppUpdater
     @Volatile private var currentTopLevelUrl = ""
 
+    private var nativeProgressReceiverRegistered = false
+    private val nativeProgressReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action != "$packageName.NATIVE_PLAYBACK_PROGRESS" || !playerOpen ||
+                activeNativeRequestId.isBlank() || intent.getStringExtra("requestId") != activeNativeRequestId) return
+            val durationMs = intent.getLongExtra("durationMs", 0L)
+            if (durationMs <= 0L) return
+            val detail = JSONObject().apply {
+                put("requestId", activeNativeRequestId)
+                put("tmdbId", intent.getLongExtra("tmdbId", 0L))
+                put("season", intent.getIntExtra("season", 0))
+                put("episode", intent.getIntExtra("episode", 0))
+                put("positionSeconds", intent.getLongExtra("positionMs", 0L).coerceAtLeast(0L) / 1000.0)
+                put("durationSeconds", durationMs / 1000.0)
+            }
+            dispatchJavascript("window.dispatchEvent(new CustomEvent('mg:native-playback-progress',{detail:JSON.parse(${JSONObject.quote(detail.toString())})}));")
+        }
+    }
+
     @SuppressLint("SetJavaScriptEnabled", "JavascriptInterface")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        ContextCompat.registerReceiver(this, nativeProgressReceiver,
+            IntentFilter("$packageName.NATIVE_PLAYBACK_PROGRESS"), ContextCompat.RECEIVER_NOT_EXPORTED)
+        nativeProgressReceiverRegistered = true
 
         webView = WebView(this).apply {
             setBackgroundColor(Color.BLACK)
@@ -230,11 +255,17 @@ class MainActivity : FragmentActivity() {
 
     override fun onPause() {
         webView.onPause()
-        webView.pauseTimers()
+        // Native owns all video/audio. Keep metadata/source prefetch timers
+        // alive while that player is open so episode controls can arrive late.
+        if (!playerOpen) webView.pauseTimers()
         super.onPause()
     }
 
     override fun onDestroy() {
+        if (nativeProgressReceiverRegistered) {
+            runCatching { unregisterReceiver(nativeProgressReceiver) }
+            nativeProgressReceiverRegistered = false
+        }
         castManager?.close()
         castManager = null
         if (activeActivity?.get() === this) activeActivity = null
@@ -332,6 +363,7 @@ class MainActivity : FragmentActivity() {
             )
             put("positionMs", data?.getLongExtra(PlayerActivity.EXTRA_POSITION_MS, 0L) ?: 0L)
             put("durationMs", data?.getLongExtra(PlayerActivity.EXTRA_DURATION_MS, 0L) ?: 0L)
+            put("autoNextCancelled", data?.getBooleanExtra(PlayerActivity.EXTRA_AUTO_NEXT_CANCELLED, false) ?: false)
             put("selectedSourceIndex", data?.getIntExtra(PlayerActivity.EXTRA_SELECTED_SOURCE_INDEX, -1) ?: -1)
             put(
                 "message",
@@ -712,6 +744,26 @@ class MainActivity : FragmentActivity() {
     }
 
     inner class NativeBridge {
+        @JavascriptInterface
+        fun updatePlaybackContext(payloadJson: String): Boolean {
+            if (!nativeBridgeAllowed() || !playerOpen || payloadJson.length > 16_384) return false
+            return try {
+                val context = JSONObject(payloadJson)
+                val requestId = activeNativeRequestId
+                if (requestId.isBlank() || context.optString("requestId") != requestId ||
+                    context.optString("mediaType") != "tv" || context.optInt("tmdbId") <= 0 ||
+                    context.optInt("season") <= 0 || context.optInt("episode") <= 0) return false
+                sendBroadcast(Intent("$packageName.UPDATE_PLAYBACK_CONTEXT").apply {
+                    setPackage(packageName)
+                    putExtra("requestId", requestId)
+                    putExtra("payload", context.toString())
+                })
+                true
+            } catch (_: Throwable) {
+                false
+            }
+        }
+
         @JavascriptInterface
         fun isAvailable(): Boolean =
             nativeBridgeAllowed()

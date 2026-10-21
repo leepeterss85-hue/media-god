@@ -31,6 +31,8 @@ import { filterSourcesForRequestedIdentity, sourceMatchesRequestedIdentity } fro
 import { sourceIsAioStreamsCandidate } from "@/components/mg/sourceProviderIdentity";
 import { canonicalImdbLookupFields, sourceAddonFailure, sourceLookupFailed } from "@/components/mg/sourceDiscoveryFeedback";
 import { fetchTvEpisodeSources } from "@/components/mg/tvEpisodeScraper";
+import { firstAcceptedQualificationBatch } from "./qualificationBatch";
+import { hasUnusableEpisodeAudio, episodeAutoplayCandidates, isEnglishMainTrack } from "./episodeAudio";
 
 const PlayerContext = createContext(null);
 
@@ -1429,7 +1431,7 @@ const launchTrackLooksCommentaryOrDescriptive = (track) =>
   );
 
 const launchTrackIsEnglishMain = (track) =>
-  launchTrackIsEnglish(track) &&
+  isEnglishMainTrack(track) &&
   !launchTrackLooksCommentaryOrDescriptive(track);
 
 /**
@@ -2382,8 +2384,7 @@ const qualifyCachedRealDebridLaunchPool = async ({
         return key && !seen.has(key);
       });
 
-    const results = await Promise.all(
-      batch.map((item) =>
+    const probes = batch.map((item) =>
         withDeadline(
           qualifyCachedRealDebridLaunchSource({
             item,
@@ -2400,8 +2401,13 @@ const qualifyCachedRealDebridLaunchPool = async ({
             PER_SOURCE_PROBE_MS
           )
         )
-      )
-    );
+      );
+    const results = targetCount === 1
+      ? await firstAcceptedQualificationBatch(probes, item => {
+          const key = item?.launchQualified ? stableDiscoveredSourceKey(item) : "";
+          return Boolean(key && !seen.has(key));
+        })
+      : await Promise.all(probes);
 
     results.forEach(add);
   }
@@ -2992,8 +2998,11 @@ export function PlayerProvider({
             preferRd: Boolean(request?.preferRd),
           });
 
+        const initialAudioCandidates = !isLive && mediaType === "tv"
+          ? episodeAutoplayCandidates(initialOrderedSources)
+          : initialOrderedSources;
         const initialPlayableSources =
-          initialOrderedSources.filter(
+          initialAudioCandidates.filter(
             (item) =>
               (
                 isDirectSource(item) ||
@@ -3106,7 +3115,7 @@ export function PlayerProvider({
 
           const incoming = stripVodTrailerSources(
             Array.isArray(incomingSources)
-              ? incomingSources.filter(Boolean)
+              ? incomingSources.filter(item => item && (mediaType !== "tv" || !hasUnusableEpisodeAudio(item)))
               : [],
             isLive
           );
@@ -3138,7 +3147,10 @@ export function PlayerProvider({
               preferRd: Boolean(request?.preferRd),
             });
 
-            const playable = ordered.filter(
+            const audioCandidates = !isLive && mediaType === "tv"
+              ? episodeAutoplayCandidates(ordered)
+              : ordered;
+            const playable = audioCandidates.filter(
               (item) =>
                 isDirectSource(item) ||
                 isMagnetSource(item) ||
@@ -3246,8 +3258,9 @@ export function PlayerProvider({
         /*
          * TV episodes use the dedicated FlixQuest resolver as an early source
          * pass. It runs alongside the normal addon/RD search, so a miss or
-         * timeout never blocks the standard source catalogue. Unknown language
-         * metadata remains eligible; the resolver ranks explicit English first.
+         * timeout never blocks the standard source catalogue. Explicit foreign
+         * or commentary-only audio is excluded; unknown tracks require runtime
+         * language selection and are never reported as verified English.
          */
         const episodeResolverPromise =
           !isLive &&
@@ -3272,8 +3285,10 @@ export function PlayerProvider({
             publishEarlySources(
               episodeSources.map((item) => ({
                 ...item,
-                launchQualified: true,
+                launchQualified: false,
                 runtimeNativeDirect: true,
+                runtimeNativeEnglishValidation: true,
+                runtimeQualificationFallback: true,
                 episodeResolver: "flixquest",
               })),
               {
@@ -4067,13 +4082,23 @@ export function PlayerProvider({
          * decide how many sources the user can see. Keep the verified/runtime
          * lead rows first, then append the complete discovered pool losslessly.
          */
+        // Direct episode resolver rows retain their runtime language check.
+        // Do not replace an already published usable episode with a waiting
+        // RD status merely because the independent RD inspection found none.
+        const runtimeEpisodeSources = !isLive && mediaType === "tv"
+          ? episodeAutoplayCandidates(orderedSources.filter(item =>
+              item?.episodeResolver === "flixquest" &&
+              item?.runtimeQualificationFallback === true && isDirectSource(item)))
+          : [];
         const playbackLeadSources =
           qualificationMode
             ? qualifiedLaunchSources.length > 0
               ? qualifiedLaunchSources
-              : nativeRuntimeAudioValidationAvailable
-                ? runtimeFallbackSources
-                : []
+              : runtimeEpisodeSources.length > 0
+                ? runtimeEpisodeSources
+                : nativeRuntimeAudioValidationAvailable
+                  ? runtimeFallbackSources
+                  : []
             : [];
 
         const onlyEpisodeFallbacksRemain =
@@ -4098,16 +4123,28 @@ export function PlayerProvider({
             true,
         };
 
+        const eligibleEpisodeLeads = !isLive && mediaType === "tv"
+          ? episodeAutoplayCandidates(qualificationMode ? playbackLeadSources : orderedSources.filter(item => isDirectSource(item) || isMagnetSource(item)))
+          : null;
+        const automaticLeads = eligibleEpisodeLeads || playbackLeadSources;
+        const episodeAudioMissingStatus = {
+          label: "No English episode audio found yet. Choose another source.",
+          type: "status", src: "", url: "", diagnostic: true,
+        };
         const playerSources =
           onlyEpisodeFallbacksRemain
             ? [
                 episodeSourceMissingStatus,
               ]
             : !qualificationMode
-              ? orderedSources
-              : playbackLeadSources.length > 0
+              ? eligibleEpisodeLeads
+                ? eligibleEpisodeLeads.length > 0
+                  ? preservePublishedSourceOrder(eligibleEpisodeLeads, orderedSources, stableDiscoveredSourceKey)
+                  : [episodeAudioMissingStatus, ...orderedSources]
+                : orderedSources
+              : automaticLeads.length > 0
                 ? preservePublishedSourceOrder(
-                    playbackLeadSources,
+                    automaticLeads,
                     orderedSources,
                     stableDiscoveredSourceKey
                   )

@@ -7,6 +7,7 @@ import React, {
 import {
   createPortal,
 } from "react-dom";
+import { playbackContextIdentity, shouldStartEpisodeCountdown } from "./episodeExperience";
 
 import {
   FastForward,
@@ -112,6 +113,7 @@ export default function MediaGodV2Assist() {
   const [nextCountdownCancelled, setNextCountdownCancelled] = useState(false);
   const [portalTarget, setPortalTarget] = useState(() => getPlayerRoot());
   const lastDirectActionAtRef = useRef(0);
+  const playbackContextKeyRef = useRef(playbackContextIdentity(context));
 
   useEffect(() => {
     if (typeof document === "undefined") return undefined;
@@ -151,10 +153,15 @@ export default function MediaGodV2Assist() {
     if (typeof window === "undefined") return undefined;
 
     const onContext = (event) => {
-      setContext(event?.detail || null);
-      setPosition(0);
-      setDuration(0);
-      setPlaying(false);
+      const nextContext = event?.detail || null;
+      const nextKey = playbackContextIdentity(nextContext);
+      setContext(nextContext);
+      if (nextKey !== playbackContextKeyRef.current) {
+        playbackContextKeyRef.current = nextKey;
+        setPosition(0);
+        setDuration(0);
+        setPlaying(false);
+      }
     };
 
     const onPosition = (event) => {
@@ -216,11 +223,7 @@ export default function MediaGodV2Assist() {
   const isTv = context?.mediaType === "tv";
   const isMovie = context?.mediaType === "movie";
   const isPlayableVod = isTv || isMovie;
-  const episodeKey = [
-    context?.tmdbId ?? context?.tmdb_id ?? "",
-    context?.season ?? "",
-    context?.episode ?? "",
-  ].join(":");
+  const episodeKey = playbackContextIdentity(context);
 
   const recapStart = markerSeconds(context?.recapStart, duration);
   const recapEnd = markerSeconds(context?.recapEnd, duration);
@@ -290,12 +293,8 @@ export default function MediaGodV2Assist() {
     remaining,
   ]);
 
-  /*
-   * "Next episode" can be offered once verified credits begin, or very near
-   * the natural end when no credits marker exists. Automatic advancement is
-   * deliberately left to the media `ended` event so post-credit scenes are
-   * never cut short by a guessed countdown.
-   */
+  /* Offer the next episode during verified credits or near the natural
+   * end. A cancellable countdown only starts for a confirmed successor. */
   const nextEpisodeWindow =
     isTv &&
     hasNextEpisode &&
@@ -306,17 +305,20 @@ export default function MediaGodV2Assist() {
       remaining <= 90
     );
 
-  const autoNextCountdownWindow =
-    isTv &&
-    hasNextEpisode &&
-    context?.autoNext &&
-    duration >= 180 &&
-    position >= 60 &&
-    playing &&
-    !nextCountdownCancelled &&
-    (exactCreditsWindow || remaining <= 15);
+  const autoNextCountdownWindow = shouldStartEpisodeCountdown({
+    isTv,
+    hasNextEpisode: context?.nextEpisodeAvailable === true ||
+      (Number(context?.nextSeason) > 0 && Number(context?.nextEpisode) > 0),
+    autoNext: context?.autoNext,
+    duration,
+    position,
+    playing,
+    cancelled: nextCountdownCancelled,
+    creditsStart,
+  });
 
   const showNextAction = nextEpisodeWindow;
+  const showSkipCredits = creditsWindow && (!isTv || context?.nextEpisodeAvailable === false);
 
   const canPlayPrevious =
     isTv &&
@@ -428,8 +430,7 @@ export default function MediaGodV2Assist() {
         ? recapEnd + 0.25
         : null;
 
-    const fallbackTarget = Math.min(75, Math.max(position + 30, 50));
-    seekVisibleVideo(exactTarget ?? fallbackTarget);
+    if (exactTarget != null) seekVisibleVideo(exactTarget);
   };
 
   const skipIntro = () => {
@@ -438,8 +439,7 @@ export default function MediaGodV2Assist() {
         ? introEnd + 0.25
         : null;
 
-    const fallbackTarget = Math.min(210, Math.max(position + 60, 105));
-    seekVisibleVideo(exactTarget ?? fallbackTarget);
+    if (exactTarget != null) seekVisibleVideo(exactTarget);
   };
 
   const playNext = () => {
@@ -475,10 +475,13 @@ export default function MediaGodV2Assist() {
     setNextCountdownDeadline(0);
     setNextCountdownSeconds(0);
     setNextCountdownCancelled(true);
+    window.dispatchEvent(new CustomEvent("mg:cancel-next-episode", {
+      detail: { playbackSessionId: context?.playbackSessionId },
+    }));
   };
 
   const skipCredits = () => {
-    if (isTv) {
+    if (isTv && hasNextEpisode) {
       playNext();
       return;
     }
@@ -590,7 +593,7 @@ export default function MediaGodV2Assist() {
         </button>
       )}
 
-      {creditsWindow && !isTv && (
+      {showSkipCredits && (
         <button
           type="button"
           onPointerDown={(event) => runAction(event, skipCredits)}
@@ -598,10 +601,10 @@ export default function MediaGodV2Assist() {
           onKeyDown={(event) => runKeyAction(event, skipCredits)}
           tabIndex={0}
           className={buttonClass}
-          aria-label={isTv ? "Skip credits and play next episode" : "Skip credits"}
+          aria-label="Skip credits"
         >
           <SkipForward className="h-4 w-4" />
-          {isTv ? "Skip credits → Next" : "Skip credits"}
+          Skip credits
         </button>
       )}
 

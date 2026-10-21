@@ -18,6 +18,7 @@ import {
 
 import { base44 } from "@/api/base44Client";
 import { safeSeek } from "./safeSeek";
+import { hasUnusableEpisodeAudio } from "./episodeAudio";
 import CastButton from "@/components/mg/CastButton";
 import InPlayerSourceDrawer from "@/components/mg/InPlayerSourceDrawer";
 import LiveVideo from "@/components/mg/LiveVideo";
@@ -30,6 +31,7 @@ import {
   setNativeFireTvEmbedRemoteActive,
   openNativeFireTvExternalUrl,
   playNativeFireTv,
+  updateNativeEpisodePlaybackContext,
 } from "@/components/mg/nativeFireTvBridge";
 import OnlyFlixRemotePointer from "@/components/mg/OnlyFlixRemotePointer";
 import {
@@ -1003,17 +1005,27 @@ export default function VideoPlayer({
     useState(false);
   const [nativeBusyRetryTick, setNativeBusyRetryTick] = useState(0);
   const [playerContextRevision, setPlayerContextRevision] = useState(0);
+  const episodeMarkerWaitRef = useRef({ key: "", startedAt: 0 });
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
 
-    const onPlayerContext = () => {
+    const onPlayerContext = (event) => {
+      updateNativeEpisodePlaybackContext(
+        event?.detail || window.__MG_PLAYER_CONTEXT__,
+        nativePlaybackRef.current?.requestId
+      );
       setPlayerContextRevision((value) => value + 1);
     };
 
+    const onNativeProgress = () => updateNativeEpisodePlaybackContext(
+      window.__MG_PLAYER_CONTEXT__, nativePlaybackRef.current?.requestId
+    );
     window.addEventListener("mg:player-context", onPlayerContext);
+    window.addEventListener("mg:native-playback-progress", onNativeProgress);
     return () => {
       window.removeEventListener("mg:player-context", onPlayerContext);
+      window.removeEventListener("mg:native-playback-progress", onNativeProgress);
     };
   }, []);
 
@@ -1469,6 +1481,7 @@ export default function VideoPlayer({
     if (
       !item ||
       failedSourcesRef.current.has(index) ||
+      (playbackMediaType === "tv" && hasUnusableEpisodeAudio(item)) ||
       sourceNeedsCaching(item)
     ) {
       return false;
@@ -8665,7 +8678,21 @@ export default function VideoPlayer({
       }, 0);
     };
 
-  const handleRdPlaybackError = () => {
+  const rejectEpisodeAudioSource = (error) => {
+    if (playbackMediaType !== "tv" || !(
+      error?.code === "EPISODE_ENGLISH_UNAVAILABLE" ||
+      /no English main audio|(?:confirmed|usable) English main audio track|English main audio.*(?:missing|unavailable|not found)/i.test(String(error?.message || error || ""))
+    )) return false;
+    const position = Number(stageRef.current?.querySelector("video")?.currentTime || lastPosRef.current?.t || 0);
+    if (position > 5) recoveryResumeRef.current = position;
+    tryNextSource("This episode source has no English audio. Trying another source…", {
+      authoritativeSourceRejection: true, immediate: true,
+    });
+    return true;
+  };
+
+  const handleRdPlaybackError = (error) => {
+    if (rejectEpisodeAudioSource(error)) return;
     if (vodPlaybackIsAdvancing(stageRef.current?.querySelector("video"))) {
       return;
     }
@@ -8718,6 +8745,7 @@ export default function VideoPlayer({
   };
 
   const handleDirectPlaybackError = (eventOrOptions = null) => {
+    if (rejectEpisodeAudioSource(eventOrOptions)) return;
     if (
       !isLive &&
       vodPlaybackIsAdvancing(stageRef.current?.querySelector("video"))
@@ -9195,6 +9223,7 @@ export default function VideoPlayer({
       }
 
       if (reason === "error") {
+        if (rejectEpisodeAudioSource(detail?.message)) return;
         const nativeAudioFailure =
           !isLive &&
           /no usable audio track|audio decoder could not recover|audio (?:decoder|renderer|sink) (?:failed|stopped)/i.test(
@@ -9322,9 +9351,13 @@ export default function VideoPlayer({
               detail: {
                 positionSeconds,
                 durationSeconds,
+                autoNextCancelled: detail?.autoNextCancelled === true,
               },
             })
           );
+          if (detail?.autoNextCancelled === true || playerContext?.nextEpisodeAvailable === false) {
+            returnFromPlayback();
+          }
           return;
         }
       }
@@ -9460,14 +9493,18 @@ export default function VideoPlayer({
       playbackMediaType === "tv" &&
       nativeEpisodeContext?.skipMarkersPending === true;
 
-    /*
-     * The native Activity receives skip markers only in its launch payload.
-     * Do not race that launch against the asynchronous IntroDB/SkipDB lookup;
-     * wait until the lookup has either supplied markers or explicitly settled
-     * with none. Movies and Live TV never enter this gate.
-     */
-    if (episodeMarkerLookupPending) {
-      return;
+    // Give initial episode markers a bounded head start. Late metadata is
+    // forwarded to the active native session without restarting the video.
+    const markerWaitKey = String(source?.playRequestId || nativePlaybackUrl);
+    if (episodeMarkerWaitRef.current.key !== markerWaitKey) {
+      episodeMarkerWaitRef.current = { key: markerWaitKey, startedAt: Date.now() };
+    }
+    const remainingMarkerWait = 6000 - (Date.now() - episodeMarkerWaitRef.current.startedAt);
+    if (episodeMarkerLookupPending && remainingMarkerWait > 0) {
+      const timer = window.setTimeout(() => {
+        setPlayerContextRevision(value => value + 1);
+      }, remainingMarkerWait + 10);
+      return () => window.clearTimeout(timer);
     }
 
     const current = nativePlaybackRef.current;
@@ -9522,11 +9559,11 @@ export default function VideoPlayer({
         rdOverride?.drm ||
         active?.drm ||
         null,
-      audioLanguage: trackPreferences.audioLanguage,
+      audioLanguage: playbackMediaType === "tv" ? "en" : trackPreferences.audioLanguage,
       subtitleLanguage: trackPreferences.subtitleLanguage,
       subtitlesEnabled: trackPreferences.subtitlesEnabled,
       preferForcedSubtitles: trackPreferences.preferForcedSubtitles,
-      strictEnglishPlayback: false,
+      strictEnglishPlayback: playbackMediaType === "tv",
       subtitles: Array.isArray(active?.subtitles)
         ? active.subtitles
         : [],
@@ -10870,6 +10907,7 @@ export default function VideoPlayer({
                 }
                 isLive={isLive}
                 allowMutedAutoplay={isLive}
+                requireEnglishAudio={playbackMediaType === "tv"}
                 onAutoplayBlocked={() => setAudioUnlockUrl(String(rdOverride?.src || activeUrl))}
                 headers={
                   rdOverride?.headers ||
@@ -10896,7 +10934,7 @@ export default function VideoPlayer({
                   trackPreferences.subtitleLanguage
                 }
                 preferredAudioLanguage={
-                  trackPreferences.audioLanguage
+                  playbackMediaType === "tv" ? "en" : trackPreferences.audioLanguage
                 }
                 onLoadedMetadata={
                   handleLoadedMetadata
@@ -11014,6 +11052,7 @@ export default function VideoPlayer({
                 }
                 isLive={isLive}
                 allowMutedAutoplay={isLive}
+                requireEnglishAudio={playbackMediaType === "tv"}
                 onAutoplayBlocked={() => setAudioUnlockUrl(String(activeUrl))}
                 headers={active?.headers || active?.requestHeaders || {}}
                 drm={active?.drm || null}
@@ -11035,7 +11074,7 @@ export default function VideoPlayer({
                   trackPreferences.subtitleLanguage
                 }
                 preferredAudioLanguage={
-                  trackPreferences.audioLanguage
+                  playbackMediaType === "tv" ? "en" : trackPreferences.audioLanguage
                 }
                 className={isLive ? "absolute inset-0 h-full w-full flex-none object-contain bg-black" : "absolute inset-0 h-full w-full flex-none object-contain bg-black"}
                 onLoadedMetadata={

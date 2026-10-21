@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import vm from "node:vm";
 
 const bridgeSource = readFileSync(
   new URL("../src/components/mg/nativeFireTvBridge.js", import.meta.url),
@@ -38,7 +39,7 @@ let moduleText = bridgeSource
     'const readPlaybackPreferences = () => ({ audioOutputMode: "auto", lipSyncMs: 0, dialogueBoost: "off", volumeNormalization: false });'
   );
 assert.ok(!moduleText.includes('from "@/components/mg/'));
-const { playNativeFireTv } = await import(`data:text/javascript,${encodeURIComponent(moduleText)}`);
+const { playNativeFireTv, updateNativeEpisodePlaybackContext } = await import(`data:text/javascript,${encodeURIComponent(moduleText)}`);
 
 globalThis.__testExclusiveStops = 0;
 globalThis.document = { querySelectorAll: () => [] };
@@ -200,4 +201,50 @@ test("Live TV keeps the complete native source payload on phone and Fire TV", ()
     );
     assert.equal(captured.sources.length, sources.length);
   }
+});
+
+
+test("late native episode controls contain only safe context and reject incomplete identities", () => {
+  let captured;
+  window.MediaGodNative.updatePlaybackContext = text => { captured = JSON.parse(text); return true; };
+  const context = { mediaType: "tv", tmdbId: 42, season: 1, episode: 3, recapStart: 0, recapEnd: 40,
+    introStart: 40, introEnd: 90, creditsStart: 1100, nextSeason: 1, nextEpisode: 4,
+    nextEpisodeAvailable: true, autoNext: true, url: "https://secret.test/token", headers: { Authorization: "private" } };
+  assert.equal(updateNativeEpisodePlaybackContext(context, "episode-request"), true);
+  assert.equal(captured.requestId, "episode-request");
+  assert.equal(captured.tmdbId, 42);
+  assert.equal(captured.recapStart, 0);
+  assert.equal(captured.introEnd, 90);
+  assert.equal(captured.nextEpisodeAvailable, true);
+  assert.equal(captured.nextEpisode, 4);
+  assert.equal(captured.url, undefined);
+  assert.equal(captured.headers, undefined);
+  assert.equal(updateNativeEpisodePlaybackContext({ ...context, tmdbId: 0 }, "episode-request"), false);
+  assert.equal(updateNativeEpisodePlaybackContext({ ...context, mediaType: "movie" }, "episode-request"), false);
+  assert.equal(updateNativeEpisodePlaybackContext(context, ""), false);
+  window.MediaGodNative.updatePlaybackContext = () => { throw new Error("older app bridge"); };
+  assert.equal(updateNativeEpisodePlaybackContext(context, "episode-request"), false);
+  delete window.MediaGodNative.updatePlaybackContext;
+  assert.equal(updateNativeEpisodePlaybackContext(context, "episode-request"), false);
+});
+
+
+test("episode language rejection retries an eligible source immediately and retains resume position", () => {
+  const start = playerSource.indexOf("  const rejectEpisodeAudioSource =");
+  const end = playerSource.indexOf("  const handleRdPlaybackError =", start);
+  const calls = [];
+  const recoveryResumeRef = { current: 0 };
+  const scope = { playbackMediaType: "tv", recoveryResumeRef,
+    stageRef: { current: { querySelector: () => ({ currentTime: 42 }) } },
+    lastPosRef: { current: { t: 40 } }, tryNextSource: (...args) => calls.push(args) };
+  const reject = vm.runInNewContext(playerSource.slice(start, end) + "\nrejectEpisodeAudioSource;", scope);
+  assert.equal(reject({ code: "EPISODE_ENGLISH_UNAVAILABLE" }), true);
+  assert.equal(recoveryResumeRef.current, 42);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0][1].authoritativeSourceRejection, true);
+  assert.equal(calls[0][1].immediate, true);
+  assert.equal(reject("This source could not start with a confirmed English main audio track."), true);
+  assert.equal(reject(new Error("temporary network outage")), false);
+  scope.playbackMediaType = "movie";
+  assert.equal(reject({ code: "EPISODE_ENGLISH_UNAVAILABLE" }), false);
 });
