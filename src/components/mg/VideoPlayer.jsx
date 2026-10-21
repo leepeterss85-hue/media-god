@@ -10634,7 +10634,7 @@ export default function VideoPlayer({
                         ? "application/dash+xml"
                         : active?.format || (isLive ? "application/x-mpegURL" : "video/mp4"))
                   }
-                  source={active}
+                  source={{ ...active, live: isLive, headers: rdOverride?.headers || active?.headers || active?.requestHeaders || {}, drm: rdOverride?.drm || active?.drm }}
                   media={{
                     tmdbId: source?.tmdbId || source?.tmdb_id || source?.id || "",
                     title: source?.rdTitle || source?.title || "",

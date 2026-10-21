@@ -3997,6 +3997,20 @@ export default function LiveTVView({
                     )}
                   </button>
 
+                  {!radio && (() => {
+                    const castSource = playableChannelCandidates(channel)[0];
+                    return castSource?.url ? (
+                      <div className="relative z-10 mt-1 flex justify-start" data-mg-live-tv-cast="true">
+                        <CastButton
+                          url={castSource.url}
+                          title={channel.name || "Live TV"}
+                          poster={channel.logo || ""}
+                          source={{ ...castSource, live: true, id: channel.id, tvgId: channel.tvgId }}
+                          menuAlign="left"
+                        />
+                      </div>
+                    ) : null;
+                  })()}
                   <div className="absolute right-2 top-2 grid gap-1">
                     <button
                       type="button"

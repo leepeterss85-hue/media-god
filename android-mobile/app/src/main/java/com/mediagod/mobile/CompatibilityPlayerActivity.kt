@@ -76,6 +76,7 @@ class CompatibilityPlayerActivity : Activity() {
     private var compatibilityRetryPass = 0
     private var forceSoftwareVideoDecode = false
     private var compatibilityPlaybackStarted = false
+    private var videoStartupReadiness = VideoStartupReadiness(requireVideoOutput = true)
     private var compatibilityErrorProbePending = false
     private var userSeeking = false
 
@@ -317,6 +318,7 @@ class CompatibilityPlayerActivity : Activity() {
 
     private val hideControlsRunnable = Runnable {
         if (!resultSent && ::controls.isInitialized) {
+            if (!payload.optBoolean("live", false) && !compatibilityPlaybackStarted) return@Runnable
             if (controls.hasFocus() && ::videoLayout.isInitialized) videoLayout.requestFocus()
             controls.visibility = View.GONE
         }
@@ -766,22 +768,36 @@ class CompatibilityPlayerActivity : Activity() {
             vlcPlayer = player
             configureAudioOutput(player)
             player.attachViews(videoLayout, null, true, false)
+            videoStartupReadiness = VideoStartupReadiness(
+                requireVideoOutput = !payload.optBoolean("live", false)
+            )
 
             player.setEventListener { event ->
                 root.post {
-                    if (resultSent) return@post
+                    if (resultSent || vlcPlayer !== player) return@post
                     when (event.type) {
                         MediaPlayer.Event.Opening -> showStatus("Compatibility decoder · opening")
                         MediaPlayer.Event.Buffering -> showStatus("Compatibility decoder · buffering")
+                        MediaPlayer.Event.Vout -> {
+                            // Playing can mean audio-only playback. Confirm a
+                            // video output before accepting VOD startup.
+                            if (videoStartupReadiness.onVideoOutput(event.voutCount)) {
+                                compatibilityPlaybackStarted = true
+                                clearStartupTimeout()
+                                showControlsTemporarily()
+                            }
+                        }
                         MediaPlayer.Event.Playing -> {
-                            compatibilityPlaybackStarted = true
+                            if (videoStartupReadiness.onPlaying()) {
+                                compatibilityPlaybackStarted = true
+                                clearStartupTimeout()
+                            }
                             preferEnglishMainAudio(player)
                             root.postDelayed({
                                 if (!resultSent && vlcPlayer === player && player.isPlaying) {
                                     preferEnglishMainAudio(player)
                                 }
                             }, 900L)
-                            clearStartupTimeout()
                             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                             showStatus("Compatibility decoder")
                             try {
@@ -789,7 +805,7 @@ class CompatibilityPlayerActivity : Activity() {
                                 player.setAudioDelay(lipSyncMs.toLong() * 1000L)
                             } catch (_: Throwable) {}
                             applyPreferredSubtitle()
-                            if (pendingStartPositionMs > 0L) {
+                            if (payload.optBoolean("live", false) && pendingStartPositionMs > 0L) {
                                 val target = pendingStartPositionMs; pendingStartPositionMs = 0L; player.time = target
                             }
                             root.removeCallbacks(thermalRunnable)
@@ -834,6 +850,12 @@ class CompatibilityPlayerActivity : Activity() {
 
             val media = Media(engine, Uri.parse(streamUrl)).apply {
                 setHWDecoderEnabled(!forceSoftwareVideoDecode, false)
+                // VLC accepts start-time in seconds before the input opens.
+                // Starting VOD here avoids a Playing/Vout event for position
+                // zero being accepted before a separate resume seek.
+                if (!payload.optBoolean("live", false) && pendingStartPositionMs > 0L) {
+                    addOption(":start-time=${pendingStartPositionMs / 1000.0}")
+                }
                 addOption(":network-caching=1800")
                 addOption(":file-caching=1200")
                 addOption(":live-caching=1800")
@@ -853,6 +875,7 @@ class CompatibilityPlayerActivity : Activity() {
                 addExternalSubtitles(this, payload.optJSONArray("subtitles") ?: JSONArray())
             }
             player.media = media
+            if (!payload.optBoolean("live", false)) pendingStartPositionMs = 0L
             media.release()
 
             /*
@@ -1499,6 +1522,7 @@ class CompatibilityPlayerActivity : Activity() {
         noAudioCheckGeneration += 1
         clearStartupTimeout()
         compatibilityPlaybackStarted = false
+        videoStartupReadiness.reset()
         compatibilityErrorProbePending = false
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         if (::root.isInitialized) {

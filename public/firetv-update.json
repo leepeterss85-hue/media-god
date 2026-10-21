@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 99,
-  "versionName": "1.4.94",
+  "versionCode": 100,
+  "versionName": "1.4.95",
   "title": "Media God Fire TV",
-  "message": "Media God 1.4.94: Cast initialization is opt-in to keep video playback stable.",
+  "message": "Media God 1.4.95: keeps the active video source intact when Cast helper elements appear.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",

@@ -1156,16 +1156,19 @@ class PlayerActivity : Activity() {
         exoPlayer.playWhenReady =
             shouldPlayWhenReady && !holdForEnglishStartup
 
-        exoPlayer.setMediaItem(mediaItem)
+        // Establish the requested resume position before preparation can emit
+        // a first-frame callback. Preparing at zero and seeking afterwards
+        // lets an unrelated opening frame cancel the resume startup watchdog.
+        if (live) {
+            exoPlayer.setMediaItem(mediaItem)
+        } else {
+            exoPlayer.setMediaItem(mediaItem, restorePositionMs)
+        }
         exoPlayer.prepare()
 
         if (!live && shouldPlayWhenReady) {
             playerView.removeCallbacks(firstFrameWatchdogRunnable)
             playerView.postDelayed(firstFrameWatchdogRunnable, VOD_FIRST_FRAME_TIMEOUT_MS)
-        }
-
-        if (!live && restorePositionMs > 0L) {
-            exoPlayer.seekTo(restorePositionMs)
         }
 
         if (shouldPlayWhenReady && !holdForEnglishStartup) {

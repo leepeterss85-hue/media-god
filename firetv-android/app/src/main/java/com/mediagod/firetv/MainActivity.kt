@@ -385,46 +385,56 @@ class MainActivity : Activity() {
                 if(!window.__MG_SINGLE_VIDEO_SURFACE_GUARD__){
                   window.__MG_SINGLE_VIDEO_SURFACE_GUARD__=true;
                   var singleSurfaceQueued=false;
-                  var retirePlaybackSurface=function(video){
-                    if(!video){return;}
-                    try{video.pause();}catch(e){}
-                    try{
-                      video.removeAttribute('autoplay');
-                      video.removeAttribute('poster');
-                      video.removeAttribute('src');
-                      Array.prototype.slice.call(video.querySelectorAll('source')).forEach(function(source){
-                        source.removeAttribute('src');
-                      });
-                      video.load();
-                    }catch(e){}
-                    video.setAttribute('data-mg-playback-retired','true');
-                    video.style.setProperty('display','none','important');
-                    video.style.setProperty('visibility','hidden','important');
-                    video.style.setProperty('pointer-events','none','important');
-                  };
+                  /* Cast can insert extra media elements and a source
+                   * switch can briefly leave old and new videos in the DOM.
+                   * DOM order is NOT playback ownership. The former guard
+                   * always kept the last <video> and deleted src from every
+                   * other video, including an actively playing real movie.
+                   * That produced audio-with-black-picture regressions.
+                   *
+                   * Never delete a video's URL or force video CSS layout.
+                   * Only hide clearly paused, superseded videos when an
+                   * actual active stage video has been identified.
+                   */
                   var restorePlaybackSurface=function(video){
                     if(!video){return;}
                     video.removeAttribute('data-mg-playback-retired');
                     video.style.removeProperty('display');
                     video.style.removeProperty('visibility');
                     video.style.removeProperty('pointer-events');
-                    video.style.setProperty('position','absolute','important');
-                    video.style.setProperty('inset','0','important');
-                    video.style.setProperty('width','100%','important');
-                    video.style.setProperty('height','100%','important');
-                    video.style.setProperty('max-width','100%','important');
-                    video.style.setProperty('flex','0 0 100%','important');
                   };
                   var enforceSinglePlaybackSurface=function(){
                     singleSurfaceQueued=false;
-                    var videos=Array.prototype.slice.call(
-                      document.querySelectorAll('[data-mg-player-root="true"] video')
+                    var stages=Array.prototype.slice.call(
+                      document.querySelectorAll('[data-mg-player-stage="true"]')
                     );
-                    if(videos.length===0){return;}
-                    var keep=videos[videos.length-1];
-                    videos.forEach(function(video){
-                      if(video===keep){restorePlaybackSurface(video);}
-                      else{retirePlaybackSurface(video);}
+                    stages.forEach(function(stage){
+                      var videos=Array.prototype.slice.call(stage.querySelectorAll('video'));
+                      if(videos.length<2){
+                        videos.forEach(restorePlaybackSurface);
+                        return;
+                      }
+                      var active=videos.filter(function(video){
+                        return !video.paused && !video.ended &&
+                          !!(video.currentSrc || video.getAttribute('src'));
+                      });
+                      // Ambiguous ownership? Do nothing. Never retire a
+                      // video merely because a Cast overlay was inserted.
+                      if(active.length!==1){
+                        videos.forEach(restorePlaybackSurface);
+                        return;
+                      }
+                      var keep=active[0];
+                      videos.forEach(function(video){
+                        if(video===keep || !video.paused){
+                          restorePlaybackSurface(video);
+                          return;
+                        }
+                        video.setAttribute('data-mg-playback-retired','true');
+                        video.style.setProperty('display','none','important');
+                        video.style.setProperty('visibility','hidden','important');
+                        video.style.setProperty('pointer-events','none','important');
+                      });
                     });
                   };
                   var queueSinglePlaybackSurfaceGuard=function(){

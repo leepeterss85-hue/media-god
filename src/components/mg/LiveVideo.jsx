@@ -2427,7 +2427,6 @@ const LiveVideo = forwardRef(
       );
 
     return (
-      <div className="relative h-full w-full">
       <video
         ref={videoRef}
         data-mg-playback-surface="true"
@@ -2478,8 +2477,6 @@ const LiveVideo = forwardRef(
           )
         )}
       </video>
-
-      </div>
     );
   }
 );

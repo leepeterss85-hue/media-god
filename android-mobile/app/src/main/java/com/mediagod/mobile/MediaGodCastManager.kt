@@ -141,9 +141,14 @@ internal class MediaGodCastManager(
                 )
                 .setMetadata(metadata)
                 .build()
+            val startSeconds = request.optDouble("startTime", 0.0)
+            val startPositionMs = if (!request.optBoolean("live") && startSeconds.isFinite()) {
+                (startSeconds.coerceIn(0.0, 86400.0) * 1000).toLong()
+            } else 0L
             val loadRequest = MediaLoadRequestData.Builder()
                 .setMediaInfo(mediaInfo)
                 .setAutoplay(true)
+                .setCurrentTime(startPositionMs)
                 .build()
             status("connecting", "Loading video on the Cast receiver…")
             client.load(loadRequest).setResultCallback { result ->

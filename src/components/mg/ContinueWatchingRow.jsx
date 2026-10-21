@@ -14,6 +14,7 @@ import {
 import { base44 } from "@/api/base44Client";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 import { Image } from "@/components/ui/image";
+import { restoreResumeSource } from "./resumeSource";
 
 const PosterImage = /** @type {any} */ (Image);
 
@@ -370,7 +371,7 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
 
       if (savedUrl.startsWith("mgsource:")) {
         try {
-          savedSource = JSON.parse(decodeURIComponent(savedUrl.slice("mgsource:".length)));
+          savedSource = restoreResumeSource(JSON.parse(decodeURIComponent(savedUrl.slice("mgsource:".length))));
         } catch {
           savedSource = null;
         }

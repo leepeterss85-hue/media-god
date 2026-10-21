@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 85,
-  "versionName": "1.0.84",
+  "versionCode": 86,
+  "versionName": "1.0.85",
   "title": "Media God Mobile",
-  "message": "Media God 1.0.84: phone casting loads only when requested, keeping movie video surfaces stable.",
+  "message": "Media God 1.0.85: fixes Continue Watching video startup and keeps native recovery active when audio starts without video output.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"

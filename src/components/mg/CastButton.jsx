@@ -101,13 +101,13 @@ function loadCastSdk() {
     const timeout = window.setTimeout(() => finish(false), 8000);
     window.__onGCastApiAvailable = (available) => finish(available === true);
 
-    let script = document.querySelector(`script[src^="${CAST_SDK_URL}"]`);
+    const script = document.querySelector(`script[src^="${CAST_SDK_URL}"]`);
     if (!script) {
-      script = document.createElement("script");
-      script.src = CAST_SDK_URL;
-      script.async = true;
-      script.onerror = () => finish(false);
-      document.head.appendChild(script);
+      const senderScript = document.createElement("script");
+      senderScript.src = CAST_SDK_URL;
+      senderScript.async = true;
+      senderScript.onerror = () => { senderScript.remove(); finish(false); };
+      document.head.appendChild(senderScript);
     } else {
       script.addEventListener("error", () => finish(false), { once: true });
       // The script may have loaded before this component mounted.
@@ -120,12 +120,14 @@ function loadCastSdk() {
 export default function CastButton({
   url,
   title,
-  poster,
-  contentType,
+  poster = "",
+  contentType = "",
   source,
-  media,
+  media = null,
+  menuAlign = "right",
 }) {
   const [ready, setReady] = useState(false);
+  const [initialising, setInitialising] = useState(false);
   const [casting, setCasting] = useState(false);
   const [error, setError] = useState("");
   const [connecting, setConnecting] = useState(false);
@@ -159,10 +161,13 @@ export default function CastButton({
       setReady(true);
       return;
     }
+    setInitialising(true);
     loadCastSdk().then((available) => {
+      setInitialising(false);
       if (!available) {
         setReady(false);
         setError("Cast is unavailable in this browser.");
+        setShowFeedback(true);
         return;
       }
       try {
@@ -251,6 +256,7 @@ export default function CastButton({
           poster: poster || "",
           contentType: mimeType,
           live: source?.live === true,
+          startTime: source?.live === true ? 0 : Math.max(0, Number(media?.startTime) || 0),
         }));
         if (!accepted) {
           setConnecting(false);
@@ -301,6 +307,11 @@ export default function CastButton({
       }
 
       const request = new window.chrome.cast.media.LoadRequest(mediaInfo);
+      request.autoplay = true;
+      const resumeTime = Number(media?.startTime);
+      if (source?.live !== true && Number.isFinite(resumeTime) && resumeTime > 0) {
+        request.currentTime = resumeTime;
+      }
       const loadResult = await session.loadMedia(request);
       // The Web Sender Promise can resolve to an ErrorCode rather than throw.
       if (loadResult) throw new Error(String(loadResult));
@@ -322,7 +333,7 @@ export default function CastButton({
     } finally {
       setConnecting(false);
     }
-  }, [url, title, poster, contentType, source, ready]);
+  }, [url, title, poster, contentType, source, media?.startTime, ready]);
 
   const disabled = connecting;
   const handoffMedia = {
@@ -357,14 +368,15 @@ export default function CastButton({
         <span>{connecting ? "Connecting…" : casting ? "Casting" : "Cast"}</span>
       </button>
       {showDestinations && (
-        <div className="absolute right-0 top-full z-[500] mt-2 w-64 overflow-hidden rounded-xl border border-white/20 bg-zinc-950 p-1 text-left text-white shadow-2xl">
+        <div className={cn("absolute top-full z-[500] mt-2 w-64 max-w-[calc(100vw-2rem)] rounded-xl border border-white/20 bg-zinc-950 p-1 text-left text-white shadow-2xl", menuAlign === "left" ? "left-0" : "right-0")}>
           <p className="px-3 py-2 text-xs font-semibold text-white/50">Choose where to play</p>
           <button
             type="button"
-            className="min-h-11 w-full rounded-md px-3 py-2 text-left text-sm hover:bg-white/10"
+            disabled={initialising || !ready}
+            className="min-h-11 w-full rounded-md px-3 py-2 text-left text-sm hover:bg-white/10 disabled:opacity-50"
             onClick={() => { setShowDestinations(false); void handleCast(); }}
           >
-            {ready ? "Chromecast / Google TV" : "Chromecast / Google TV (initialising)"}
+            {ready ? "Chromecast / Google TV" : initialising ? "Chromecast / Google TV (initialising)" : "Chromecast unavailable"}
           </button>
           <button
             type="button"
