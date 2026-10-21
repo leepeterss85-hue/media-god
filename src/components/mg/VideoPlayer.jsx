@@ -2339,6 +2339,7 @@ export default function VideoPlayer({
 
     if (
       !isLive &&
+      (playbackMediaType !== "tv" || episodeAutoplayCanTrustSource(active)) &&
       currentTime >= SUCCESSFUL_VOD_PLAYBACK_SECONDS &&
       !hasRecentNoSoundHistory(activeExactReliabilityLabel())
     ) {
@@ -9120,6 +9121,7 @@ export default function VideoPlayer({
       if (
         !isLive &&
         reason !== "error" &&
+        (playbackMediaType !== "tv" || episodeAutoplayCanTrustSource(active)) &&
         positionSeconds >= SUCCESSFUL_VOD_PLAYBACK_SECONDS &&
         !hasRecentNoSoundHistory(activeExactReliabilityLabel())
       ) {
