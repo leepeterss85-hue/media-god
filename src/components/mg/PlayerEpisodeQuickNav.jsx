@@ -5,6 +5,7 @@ import React, {
 } from "react";
 import { createPortal } from "react-dom";
 import {
+  ArrowLeft,
   ChevronDown,
   ListVideo,
   LoaderCircle,
@@ -47,6 +48,7 @@ const playerOverlay = () => {
 };
 
 const episodeNavigationKey = (context) => [
+  String(context?.mediaType ?? ""),
   String(context?.tmdbId ?? ""),
   positiveInt(context?.season) ?? "",
   positiveInt(context?.episode) ?? "",
@@ -288,8 +290,7 @@ export default function PlayerEpisodeQuickNav() {
       const seasonData = unwrap(seasonResponse);
       const lastEpisode = regularEpisodes(seasonData?.episodes)
         .filter((item) => episodeHasAired(item)).slice(-1)[0];
-      const episodeNumber = positiveInt(lastEpisode?.episode_number) ||
-        positiveInt(previousSeason?.episode_count);
+      const episodeNumber = positiveInt(lastEpisode?.episode_number);
       if (!episodeNumber) return;
 
       window.dispatchEvent(new CustomEvent("mg:play-specific-episode", {
@@ -352,7 +353,7 @@ export default function PlayerEpisodeQuickNav() {
           title="Browse seasons and episodes"
         >
           <ListVideo className="h-4 w-4" />
-          <span>Seasons & episodes</span>
+          <span className="sm:hidden">Episodes</span><span className="hidden sm:inline">Seasons & episodes</span>
           <ChevronDown className={`h-3.5 w-3.5 transition ${pickerOpen ? "rotate-180" : ""}`} />
         </button>
         <button type="button" data-mg-overlay-back="true" onClick={playPrevious}
@@ -377,7 +378,8 @@ export default function PlayerEpisodeQuickNav() {
           aria-label="Back to episodes"
           title="Back to episodes"
         >
-          <span>Back to episodes</span>
+          <ArrowLeft className="h-4 w-4" />
+          <span className="hidden sm:inline">Back to episodes</span>
         </button>
       </div>
 
