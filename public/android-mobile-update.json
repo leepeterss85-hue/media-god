@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 87,
-  "versionName": "1.0.86",
+  "versionCode": 88,
+  "versionName": "1.0.87",
   "title": "Media God Mobile",
-  "message": "Media God 1.0.86: English-first episode playback, verified recap/intro/credits skips, and seamless next-episode controls.",
+  "message": "Media God 1.0.87: preserve working movie video and audio, prevent speculative decoder handoffs, and simplify player controls.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
