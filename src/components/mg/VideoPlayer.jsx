@@ -9281,6 +9281,9 @@ export default function VideoPlayer({
 
         if (nativeAudioFailure) {
           recordPlaybackReliability(activeExactReliabilityLabel(), "no-sound");
+          if (playbackMediaType === "tv") {
+            recordEpisodeSourceHealth(active, episodeHealthContext, "no-sound");
+          }
           if (positionSeconds > 5) {
             recoveryResumeRef.current = positionSeconds;
           }
@@ -10081,6 +10084,9 @@ export default function VideoPlayer({
 
       /* The viewer confirmed silence and same-file repair was exhausted. */
       forgetSuccessfulPlaybackSource(active);
+      if (playbackMediaType === "tv") {
+        recordEpisodeSourceHealth(active, episodeHealthContext, "no-sound");
+      }
       window.dispatchEvent(new CustomEvent("mg:playback-no-sound", {
         detail: { label: activeExactReliabilityLabel() },
       }));
