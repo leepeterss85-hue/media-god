@@ -35,6 +35,7 @@ import { firstAcceptedQualificationBatch } from "./qualificationBatch";
 import { hasUnusableEpisodeAudio, episodeAutoplayCandidates, isEnglishMainTrack } from "./episodeAudio";
 import { episodeSourceMatchesRequest, flixQuestFirstEpisodeSources } from "./episodeSourcePolicy.js";
 import { episodeAutoplayCanTrustSource } from "./episodeLaunchTrust.js";
+import { episodeAutoprepareCandidates } from "./episodeAutoprepare.js";
 
 const PlayerContext = createContext(null);
 
@@ -3553,11 +3554,30 @@ export function PlayerProvider({
           }
 
           /*
-           * Keep the fast discovery result hidden from playback when no row
-           * passed qualification. The comprehensive pass will still publish
-           * every source to the chooser, but the player will not guess at the
-           * first torrent merely because it arrived first.
+           * TV ONE-CLICK FALLBACK
+           * A zero-result cached-only qualification is not a reason to leave
+           * 100+ exact-episode torrents behind the Sources button. Start
+           * preparing the top actual torrent identity through Media God's
+           * foreground RD cache engine. FlixQuest still publishes in parallel,
+           * and a healthy playing source is never automatically replaced.
+           * Other torrents remain visible for manual override.
            */
+          if (mediaType === "tv" && hasRd && !request?.skipEpisodeAutoPrepare) {
+            const fallback = episodeAutoprepareCandidates(
+              automaticFastCandidates,
+              { season, episode }
+            );
+            if (fallback.length) {
+              publishEarlySources(fallback.slice(0, 1), {
+                addonLookupStatus: "PREPARING EPISODE AUTOMATICALLY",
+                episodeAutoprepare: true,
+                discoveredCount: addonLookup.streams.length,
+              });
+              return;
+            }
+          }
+
+          /* No qualifying or preparable episode source yet; await full search. */
           setSource((current) => {
             if (
               !current ||
@@ -4107,15 +4127,25 @@ export function PlayerProvider({
               item?.episodeResolver === "flixquest" &&
               item?.runtimeQualificationFallback === true && isDirectSource(item)))
           : [];
+        /*
+         * Strict RD inspection remains first choice. If it finds zero cached
+         * matches, start the best exact-episode torrent instead of publishing
+         * only a waiting row and forcing the viewer to hunt in Sources.
+         */
+        const episodePreparationLeads = qualificationMode &&
+          mediaType === "tv" &&
+          hasRd && !request?.skipEpisodeAutoPrepare
+            ? episodeAutoprepareCandidates(orderedSources, { season, episode })
+            : [];
         const playbackLeadSources =
           qualificationMode
             ? runtimeEpisodeSources.length > 0
               ? runtimeEpisodeSources
               : qualifiedLaunchSources.length > 0
                 ? qualifiedLaunchSources
-                : nativeRuntimeAudioValidationAvailable
+                : runtimeFallbackSources.length > 0
                   ? runtimeFallbackSources
-                  : []
+                  : episodePreparationLeads
             : [];
 
         const onlyEpisodeFallbacksRemain =
@@ -4175,6 +4205,25 @@ export function PlayerProvider({
                     ...orderedSources,
                   ];
 
+        /*
+         * Source-order preservation enriches a published torrent with cache
+         * metadata and may replace its object with the original addon row.
+         * Restore the verified *auto-preparation decision* onto the first
+         * launch candidate, or the RD cache engine could stop running and the
+         * viewer would be back to manually hunting for sources.
+         */
+        if (episodePreparationLeads.length > 0 &&
+            runtimeEpisodeSources.length === 0 &&
+            qualifiedLaunchSources.length === 0 &&
+            runtimeFallbackSources.length === 0 &&
+            playerSources[0] &&
+            stableDiscoveredSourceKey(playerSources[0]) ===
+              stableDiscoveredSourceKey(episodePreparationLeads[0])) {
+          playerSources[0] = {
+            ...playerSources[0],
+            ...episodePreparationLeads[0],
+          };
+        }
         const primary = playerSources[0] || {};
         const activeUrl = getSourceUrl(primary);
         if (!isCurrentPlay()) return false;

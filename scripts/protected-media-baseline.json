@@ -1,9 +1,9 @@
 {
   "version": 1,
-  "note": "Reviewed 2026-10-21 TV-episode bug fix: 404 FlixQuest fallback and unverified MediaFusion error-video placeholders cannot silently own episode autoplay. Preserve player source-list completeness and manual alternatives. Movies, Live TV and native decoder untouched.",
+  "note": "Reviewed 2026-10-21 TV one-click episode start: when verified RD results are empty, choose an exact-episode torrent magnet for foreground preparation automatically, preserving FlixQuest first, manual override, real failure recovery, movie policy and all Live TV.",
   "files": {
-    "src/components/mg/VideoPlayer.jsx": "d27871e23d8348e453b98ef8b91db73a59c877c4d27a33cf368dbc6f6cb8c83b",
-    "src/components/mg/MediaPlayerProvider.jsx": "26c181bcfe5a254e8c2727c98f56cb2425175b49c091d0f9f43a9e3a8cd8d784",
+    "src/components/mg/VideoPlayer.jsx": "ac3b76f85dbf429a9cf7c0aa0488c532b86460dfe5b7deae80cc120fe2927c38",
+    "src/components/mg/MediaPlayerProvider.jsx": "bcc58802e8c7bbd4d03f3c7781d3e71adb779bf0bb59c8d87b036ec2dc470aaf",
     "src/components/mg/PlayerProvider.jsx": "aa08264c7925c1f23c5501a02f4424541fceae46acb106ea53bae5e041d8f442",
     "src/components/mg/MediaPlayerControls.jsx": "ef6cbff88fd9d8aad2396e7243ef9f2c09f54f6ad9d3a8c03acc124f1bfacd87",
     "src/components/mg/LiveTVView.jsx": "0a5734ecb0e167b7393845089cb3ef4fa1576ee071f170960d8bfcccef56ab50",

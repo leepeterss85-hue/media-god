@@ -67,6 +67,10 @@ test("final episode publication keeps foreign sources available manually without
   const publish = (orderedSources, qualificationMode = false, playbackLeadSources = []) => vm.runInNewContext(`${finalPublication}\nplayerSources;`, {
     isLive: false, mediaType: "tv", orderedSources, qualificationMode, playbackLeadSources,
     onlyEpisodeFallbacksRemain: false, episodeSourceMissingStatus: {},
+    // No RD preparation lead in this fixture: preserve foreign-only manual
+    // sources and the waiting row exactly as before.
+    episodePreparationLeads: [], runtimeEpisodeSources: [],
+    qualifiedLaunchSources: [], runtimeFallbackSources: [],
     waitingForVerifiedSource: { type: "status", diagnostic: true },
     episodeAutoplayCandidates, flixQuestFirstEpisodeSources, episodeAutoplayCanTrustSource, hasUnusableEpisodeAudio, preservePublishedSourceOrder,
     stableDiscoveredSourceKey: source => source.id,
@@ -97,6 +101,7 @@ test("uninspected direct episode sources keep runtime validation instead of beco
   const lead = vm.runInNewContext(`${leadSelection}\nplaybackLeadSources;`, {
     isLive: false, mediaType: "tv", orderedSources: [foreign, unknown],
     qualificationMode: true, qualifiedLaunchSources: [], nativeRuntimeAudioValidationAvailable: false,
+    hasRd: false, request: {}, season: 1, episode: 1,
     runtimeFallbackSources: [], episodeAutoplayCandidates, isDirectSource: source => source.type === "url",
   });
   assert.equal(lead.length, 1);
