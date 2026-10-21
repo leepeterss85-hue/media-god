@@ -1,4 +1,5 @@
 import { isFlixQuestEpisodeSource } from "./episodeSourcePolicy.js";
+import { hasUnusableEpisodeAudio } from "./episodeAudio.js";
 
 /*
  * Certain MediaFusion/ElfHosted links return a *playable two-minute error
@@ -37,11 +38,15 @@ export const rankEpisodeSourceChoices = entries => {
   const list = Array.isArray(entries) ? entries : [];
   const preferred = list.filter(entry =>
     isFlixQuestEpisodeSource(entry?.item) &&
+    !hasUnusableEpisodeAudio(entry?.item) &&
     episodeAutoplayCanTrustSource(entry?.item));
   const alternatives = list.filter(entry =>
     !isFlixQuestEpisodeSource(entry?.item) &&
     episodeAutoplayCanTrustSource(entry?.item));
   const unverified = list.filter(entry =>
     isUnverifiedHostedEpisodeStream(entry?.item));
-  return [...preferred, ...alternatives, ...unverified];
+  const nonEnglishFlixQuest = list.filter(entry =>
+    isFlixQuestEpisodeSource(entry?.item) &&
+    hasUnusableEpisodeAudio(entry?.item));
+  return [...preferred, ...alternatives, ...unverified, ...nonEnglishFlixQuest];
 };
