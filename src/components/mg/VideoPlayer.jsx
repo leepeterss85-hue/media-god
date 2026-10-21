@@ -19,6 +19,7 @@ import {
 import { base44 } from "@/api/base44Client";
 import { safeSeek } from "./safeSeek";
 import { hasUnusableEpisodeAudio } from "./episodeAudio";
+import { recordEpisodeSourceHealth } from "./episodeSourceHealth.js";
 import CastButton from "@/components/mg/CastButton";
 import InPlayerSourceDrawer from "@/components/mg/InPlayerSourceDrawer";
 import LiveVideo from "@/components/mg/LiveVideo";
@@ -1311,10 +1312,15 @@ export default function VideoPlayer({
     }
   }, [availableSortOptionValues, sourceSortMode]);
 
+  const episodeHealthContext = {
+    tmdbId: source?.tmdbId ?? source?.tmdb_id ?? source?.id,
+    season: source?.season ?? source?.rdSeason,
+    episode: source?.episode ?? source?.rdEpisode,
+  };
   const sortedSourceEntries = sortSourceEntries(
     sourcesForSelector,
     sourceSortMode,
-    { mediaType: playbackMediaType }
+    { mediaType: playbackMediaType, episodeContext: episodeHealthContext }
   );
 
   const smartMediaContext = {
@@ -2204,6 +2210,9 @@ export default function VideoPlayer({
 
     if (failedItem) {
       forgetSuccessfulPlaybackSource(failedItem);
+      if (playbackMediaType === "tv" && !failedSourcesRef.current.has(index)) {
+        recordEpisodeSourceHealth(failedItem, episodeHealthContext, "failure");
+      }
     }
 
     failedSourcesRef.current.add(index);
@@ -2336,6 +2345,9 @@ export default function VideoPlayer({
       recordSuccessfulPlaybackSource(active, {
         languageRank: Number(activeEntry?.languageRank ?? 3),
       });
+      if (playbackMediaType === "tv") {
+        recordEpisodeSourceHealth(active, episodeHealthContext, "good");
+      }
       recordPlaybackReliability(
         sourceDisplayLabel(active, activeIdx),
         "good"
@@ -9113,6 +9125,11 @@ export default function VideoPlayer({
         recordSuccessfulPlaybackSource(active, {
           languageRank: Number(activeEntry?.languageRank ?? 3),
         });
+        if (playbackMediaType === "tv") {
+          recordEpisodeSourceHealth(active, episodeHealthContext, "good", {
+            audioDecoded: audioTimelineAdvanced,
+          });
+        }
         recordPlaybackReliability(
           sourceDisplayLabel(active, activeIdx),
           "good"
@@ -9264,6 +9281,9 @@ export default function VideoPlayer({
 
         if (nativeAudioFailure) {
           recordPlaybackReliability(activeExactReliabilityLabel(), "no-sound");
+          if (playbackMediaType === "tv") {
+            recordEpisodeSourceHealth(active, episodeHealthContext, "no-sound");
+          }
           if (positionSeconds > 5) {
             recoveryResumeRef.current = positionSeconds;
           }
@@ -10064,6 +10084,9 @@ export default function VideoPlayer({
 
       /* The viewer confirmed silence and same-file repair was exhausted. */
       forgetSuccessfulPlaybackSource(active);
+      if (playbackMediaType === "tv") {
+        recordEpisodeSourceHealth(active, episodeHealthContext, "no-sound");
+      }
       window.dispatchEvent(new CustomEvent("mg:playback-no-sound", {
         detail: { label: activeExactReliabilityLabel() },
       }));

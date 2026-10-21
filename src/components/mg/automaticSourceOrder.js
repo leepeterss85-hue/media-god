@@ -21,6 +21,9 @@ const compareLegacyEntries = (left, right) =>
   Number(left?.hardSubtitleRank ?? 0) - Number(right?.hardSubtitleRank ?? 0) ||
   Number(Boolean(right?.successfulPlayback)) - Number(Boolean(left?.successfulPlayback)) ||
   Number(Boolean(right?.provenWorking)) - Number(Boolean(left?.provenWorking)) ||
+  // An exact episode/file that actually played on this device beats guesses.
+  // This is zero for movies and Live TV; their ranking is unchanged.
+  Number(right?.episodeHealthScore || 0) - Number(left?.episodeHealthScore || 0) ||
   Number(Boolean(right?.trustedCached)) - Number(Boolean(left?.trustedCached)) ||
   Number(Boolean(right?.cached)) - Number(Boolean(left?.cached)) ||
   Number(right?.compatibility || 0) - Number(left?.compatibility || 0) ||
@@ -33,6 +36,9 @@ const compareSmartEntries = (left, right) =>
   effectiveCompatibilityTier(left) - effectiveCompatibilityTier(right) ||
   Number(Boolean(right?.successfulPlayback)) - Number(Boolean(left?.successfulPlayback)) ||
   Number(Boolean(right?.provenWorking)) - Number(Boolean(left?.provenWorking)) ||
+  // An exact episode/file that actually played on this device beats guesses.
+  // This is zero for movies and Live TV; their ranking is unchanged.
+  Number(right?.episodeHealthScore || 0) - Number(left?.episodeHealthScore || 0) ||
   Number(Boolean(right?.trustedCached)) - Number(Boolean(left?.trustedCached)) ||
   Number(Boolean(right?.cached)) - Number(Boolean(left?.cached)) ||
   effectiveAudioSafetyRank(left) - effectiveAudioSafetyRank(right) ||

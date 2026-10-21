@@ -33,6 +33,7 @@ import { canonicalImdbLookupFields, sourceAddonFailure, sourceLookupFailed } fro
 import { fetchTvEpisodeSources } from "@/components/mg/tvEpisodeScraper";
 import { firstAcceptedQualificationBatch } from "./qualificationBatch";
 import { hasUnusableEpisodeAudio, episodeAutoplayCandidates, isEnglishMainTrack } from "./episodeAudio";
+import { episodeSourceMatchesRequest, flixQuestFirstEpisodeSources } from "./episodeSourcePolicy.js";
 
 const PlayerContext = createContext(null);
 
@@ -2999,7 +3000,9 @@ export function PlayerProvider({
           });
 
         const initialAudioCandidates = !isLive && mediaType === "tv"
-          ? episodeAutoplayCandidates(initialOrderedSources)
+          ? flixQuestFirstEpisodeSources(episodeAutoplayCandidates(initialOrderedSources.filter(item =>
+              episodeSourceMatchesRequest(item, { season, episode })
+            )))
           : initialOrderedSources;
         const initialPlayableSources =
           initialAudioCandidates.filter(
@@ -3142,13 +3145,13 @@ export function PlayerProvider({
                 ...incoming,
                 ...existing,
                 ...originalSources,
-              ]),
+              ]).filter(item => mediaType !== "tv" || episodeSourceMatchesRequest(item, { season, episode })),
               hasDebrid,
               preferRd: Boolean(request?.preferRd),
             });
 
             const audioCandidates = !isLive && mediaType === "tv"
-              ? episodeAutoplayCandidates(ordered)
+              ? flixQuestFirstEpisodeSources(episodeAutoplayCandidates(ordered))
               : ordered;
             const playable = audioCandidates.filter(
               (item) =>
@@ -3246,15 +3249,6 @@ export function PlayerProvider({
                 detail: hasRd ? "RD lookup skipped" : "No RD token",
               });
 
-        rdPromise.then((rdLookup) => {
-          if (rdLookup?.source) {
-            publishEarlySources([rdLookup.source], {
-              rdLookupStatus: rdLookup?.status || "READY",
-              rdLookupDetail: rdLookup?.detail || "",
-            });
-          }
-        });
-
         /*
          * TV episodes use the dedicated FlixQuest resolver as an early source
          * pass. It runs alongside the normal addon/RD search, so a miss or
@@ -3300,6 +3294,27 @@ export function PlayerProvider({
           .catch(() => {
             // Normal addon and Real-Debrid discovery remain the fallback.
           });
+
+        /*
+         * FlixQuest remains the viewer's default episode player. Give its
+         * parallel lookup a short head start before publishing an RD/torrent
+         * fallback; never wait the full scraper timeout and never interrupt a
+         * source already playing successfully.
+         */
+        rdPromise.then(async (rdLookup) => {
+          if (mediaType === "tv" && !request?.skipEpisodeResolver) {
+            await Promise.race([
+              episodeResolverPromise.catch(() => []),
+              new Promise(resolve => window.setTimeout(resolve, 2500)),
+            ]);
+          }
+          if (rdLookup?.source && isCurrentPlay()) {
+            publishEarlySources([rdLookup.source], {
+              rdLookupStatus: rdLookup?.status || "READY",
+              rdLookupDetail: rdLookup?.detail || "",
+            });
+          }
+        });
 
         const imdbInfo =
           isLive
@@ -3736,7 +3751,7 @@ export function PlayerProvider({
           ),
           stableDiscoveredSourceKey,
           { retainSurplusPublished: true }
-        );
+        ).filter(item => mediaType !== "tv" || episodeSourceMatchesRequest(item, { season, episode }));
 
         const cacheAnnotatedCombined =
           await annotateDebridCache(
@@ -4092,10 +4107,10 @@ export function PlayerProvider({
           : [];
         const playbackLeadSources =
           qualificationMode
-            ? qualifiedLaunchSources.length > 0
-              ? qualifiedLaunchSources
-              : runtimeEpisodeSources.length > 0
-                ? runtimeEpisodeSources
+            ? runtimeEpisodeSources.length > 0
+              ? runtimeEpisodeSources
+              : qualifiedLaunchSources.length > 0
+                ? qualifiedLaunchSources
                 : nativeRuntimeAudioValidationAvailable
                   ? runtimeFallbackSources
                   : []
@@ -4103,6 +4118,7 @@ export function PlayerProvider({
 
         const onlyEpisodeFallbacksRemain =
           mediaType === "tv" &&
+          runtimeEpisodeSources.length === 0 &&
           season != null &&
           episode != null &&
           canonicalCompletePlaybackSources.length > 0 &&
@@ -4124,7 +4140,9 @@ export function PlayerProvider({
         };
 
         const eligibleEpisodeLeads = !isLive && mediaType === "tv"
-          ? episodeAutoplayCandidates(qualificationMode ? playbackLeadSources : orderedSources.filter(item => isDirectSource(item) || isMagnetSource(item)))
+          ? flixQuestFirstEpisodeSources(episodeAutoplayCandidates(
+              qualificationMode ? playbackLeadSources : orderedSources.filter(item => isDirectSource(item) || isMagnetSource(item))
+            ))
           : null;
         const automaticLeads = eligibleEpisodeLeads || playbackLeadSources;
         const episodeAudioMissingStatus = {

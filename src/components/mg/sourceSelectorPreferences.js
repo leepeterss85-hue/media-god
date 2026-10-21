@@ -1,4 +1,6 @@
 import { prioritiseCompatibleAutoplayEntries } from "@/components/mg/automaticSourceOrder";
+import { episodeSourceHealthScore } from "./episodeSourceHealth.js";
+import { isFlixQuestEpisodeSource } from "./episodeSourcePolicy.js";
 import {
   detectLanguagePreference,
   detectStreamTraits,
@@ -380,6 +382,10 @@ export const sortSourceEntries = (
           deviceProfile,
         }),
         provenWorking: sourceHasPlaybackProof(item),
+        episodeHealthScore:
+          String(options?.mediaType || "").toLowerCase() === "tv"
+            ? episodeSourceHealthScore(item, options?.episodeContext)
+            : 0,
         languageRank: smartEvidence.languageRank,
         englishEvidenceRank: smartEvidence.languageRank,
         englishEvidenceVerified: smartEvidence.languageVerified,
@@ -458,7 +464,16 @@ export const sortSourceEntries = (
         )
     );
 
-    return prioritiseCompatibleAutoplayEntries(fallbackRanked);
+    const ranked = prioritiseCompatibleAutoplayEntries(fallbackRanked);
+    if (String(options?.mediaType || "").toLowerCase() !== "tv") return ranked;
+    // FlixQuest is the main episode player; don't hide or re-rank torrents out
+    // of the chooser. An active manually chosen source stays under player control.
+    return [
+      ...ranked.filter(entry => isFlixQuestEpisodeSource(entry.item) &&
+        Number(entry.languageRank ?? 3) < 3),
+      ...ranked.filter(entry => !isFlixQuestEpisodeSource(entry.item) ||
+        Number(entry.languageRank ?? 3) >= 3),
+    ];
   }
 
   return list.slice().sort((a, b) => {
