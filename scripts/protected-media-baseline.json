@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "Reviewed Continue Watching in-player source controls: VideoPlayer displays an accessible source drawer and preserves selection/position, PlayerPortalRenderer and MediaPlayerProvider allow OnlyFlix to transition to the in-app chooser without a second overlapping player. No Live TV sources, channel lists, codecs, playback recovery or green Play behavior changed.",
+  "note": "Reviewed native VOD-only video render recovery 2026-10-21: Android Mobile and Fire TV now require a first rendered video frame; only when audio actually advances without a video frame, the same stream and resume position fall back to LibVLC software video decode. Fire VOD no longer triggers HDMI display-mode changes during startup. Live TV source lists and playback watchdogs are unchanged.",
   "files": {
     "src/components/mg/VideoPlayer.jsx": "7776823b2354c0fac53253a234c04659063126216d4476c47037f3efdf4f8bdc",
     "src/components/mg/MediaPlayerProvider.jsx": "a141311fa06d0bb40f27279e3cbca89f7308f618578a67d7fe7d39e8fd5826b7",
@@ -13,10 +13,10 @@
     "base44/functions/getLiveEpg/entry.ts": "1caf894a1a60212947c8d5ef15061bbf8529e70a1d7e310b49bcddc546c48646",
     "base44/functions/antSportsLive/entry.ts": "c4d7a7e0e769cabfd10f5df896d78cbf8f85081b41d346f82c36cc62e209bf0a",
     "base44/functions/evSportsLive/entry.ts": "149d7c13a8e56e602e450919ade50b3b6d58ea115c746370863803fbe4c8ec4d",
-    "android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt": "fffa99430e534f50bd232e684976c3d533c8a69014caa63e2813c63a724505e7",
-    "android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt": "b14b1d305f7b413a39644dffffe4ff10a5611dcba7b91e82c40a56f82ecde7d6",
-    "firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt": "65bf111ac29e12c4d589742656557de4c659b9ec05bbff13cc46154dd8401f18",
-    "firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt": "661ec90acb607676955e89df4cdd998f0b7d906f139b0257fb69cb652c950cb7",
+    "android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt": "0799bd31c4e3a2da6de5c92c5eee14391a67d5824e4777c78af3d6992212ede0",
+    "android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt": "ec473a604b64460520b6ba2368c512d7d01c475150627faa10ec1840129d6763",
+    "firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt": "38bac1c53d5d66e7088a963e106e30ae7c7f52542f81c8e2d7e325606373ba0d",
+    "firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt": "7c708cf9374ae77236512a17577c2c76dd4b4940a443abfb2f7da72a9f365a27",
     "src/components/mg/PlayerPortalRenderer.jsx": "abdaff8b34fda347c8cbd39b72fa09dd454f1c5293ad603ac424213a2ce23d43",
     "src/components/mg/additionalLiveTvSources.js": "ef6d47788775798fd4b3937b31f64e4166901d4e1211a262dd5943726168ff59"
   }
