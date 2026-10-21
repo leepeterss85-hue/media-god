@@ -19,6 +19,7 @@ import {
 import { base44 } from "@/api/base44Client";
 import { safeSeek } from "./safeSeek";
 import { hasUnusableEpisodeAudio } from "./episodeAudio";
+import { episodeAutoplayCanTrustSource, isUnverifiedHostedEpisodeStream } from "./episodeLaunchTrust.js";
 import { recordEpisodeSourceHealth } from "./episodeSourceHealth.js";
 import CastButton from "@/components/mg/CastButton";
 import InPlayerSourceDrawer from "@/components/mg/InPlayerSourceDrawer";
@@ -1458,6 +1459,7 @@ export default function VideoPlayer({
         return Boolean(
           index !== activeIdx &&
             !failedSourcesRef.current.has(index) &&
+            (playbackMediaType !== "tv" || episodeAutoplayCanTrustSource(item)) &&
             (
               playbackMediaType === "live" ||
               !["provider", "external", "youtube"].includes(type)
@@ -1487,7 +1489,7 @@ export default function VideoPlayer({
     if (
       !item ||
       failedSourcesRef.current.has(index) ||
-      (playbackMediaType === "tv" && hasUnusableEpisodeAudio(item)) ||
+      (playbackMediaType === "tv" && (!episodeAutoplayCanTrustSource(item) || hasUnusableEpisodeAudio(item))) ||
       sourceNeedsCaching(item)
     ) {
       return false;
@@ -1606,6 +1608,7 @@ export default function VideoPlayer({
       return Boolean(
         sourceIsUserSelectable(item) &&
           !failedSourcesRef.current.has(entry?.index) &&
+          (playbackMediaType !== "tv" || episodeAutoplayCanTrustSource(item)) &&
           Number(entry?.languageRank ?? 3) <= 3 &&
           Number(entry?.hardSubtitleRank ?? 0) === 0 &&
           type !== "provider" &&
@@ -1635,6 +1638,7 @@ export default function VideoPlayer({
           return Boolean(
             sourceIsUserSelectable(item) &&
               !failedSourcesRef.current.has(entry?.index) &&
+              (playbackMediaType !== "tv" || episodeAutoplayCanTrustSource(item)) &&
               sourceIsTorrentPlaybackCandidate(item) &&
               !sourceIsAioStreamsCandidate(item) &&
               Number(entry?.languageRank ?? 3) <= 3 &&
@@ -2455,6 +2459,7 @@ export default function VideoPlayer({
           failedSourcesRef.current.has(index) ||
           (candidateHash && failedTorrentHashesRef.current.has(candidateHash)) ||
           candidate?.diagnostic ||
+          (playbackMediaType === "tv" && !episodeAutoplayCanTrustSource(candidate)) ||
           candidate?.type === "status" ||
           candidate?.type === "provider" ||
           candidate?.type === "youtube" ||
@@ -10343,6 +10348,10 @@ export default function VideoPlayer({
 
     if (sourceNeedsCaching(item)) {
       return `Uncached • ${base}`;
+    }
+
+    if (playbackMediaType === "tv" && isUnverifiedHostedEpisodeStream(item)) {
+      return `Unverified • ${base}`;
     }
 
     return base;
