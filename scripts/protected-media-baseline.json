@@ -1,9 +1,9 @@
 {
   "version": 1,
-  "note": "Reviewed paired Media God casting: VideoPlayer exposes a single Cast destination menu for all playback modes, PlayerPortalRenderer passes OnlyFlix title identity to the Cast UI, and PlayerProvider honors incoming paired resume time. No Live TV catalogue, source priority or audio/decoder behavior changed. Previously reviewed resume/seek and protected playback changes remain locked.",
+  "note": "Reviewed Continue Watching in-player source controls: VideoPlayer displays an accessible source drawer and preserves selection/position, PlayerPortalRenderer and MediaPlayerProvider allow OnlyFlix to transition to the in-app chooser without a second overlapping player. No Live TV sources, channel lists, codecs, playback recovery or green Play behavior changed.",
   "files": {
-    "src/components/mg/VideoPlayer.jsx": "765678896acf9c5f5db829fa377700544e35d47862cb7f41789627a5c2031ca7",
-    "src/components/mg/MediaPlayerProvider.jsx": "f580247813f5a1cec72ce65c484108eb2016ac1855e2367d5b744b2cf72d667f",
+    "src/components/mg/VideoPlayer.jsx": "7776823b2354c0fac53253a234c04659063126216d4476c47037f3efdf4f8bdc",
+    "src/components/mg/MediaPlayerProvider.jsx": "a141311fa06d0bb40f27279e3cbca89f7308f618578a67d7fe7d39e8fd5826b7",
     "src/components/mg/PlayerProvider.jsx": "98653e6d5210bfca91e3b6f1786118abedffe4f00058db35beafeb3739dc2dd9",
     "src/components/mg/MediaPlayerControls.jsx": "3112ef8fb0058d815c139ff5e461a3b90d386654ceaff79356ba4e03c4817d5d",
     "src/components/mg/LiveTVView.jsx": "8281cb1a7a4969a8332bc8b4e2ae48b7866a4745f0ca134ca5eea13e5c166daa",
@@ -17,7 +17,7 @@
     "android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt": "b14b1d305f7b413a39644dffffe4ff10a5611dcba7b91e82c40a56f82ecde7d6",
     "firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt": "65bf111ac29e12c4d589742656557de4c659b9ec05bbff13cc46154dd8401f18",
     "firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt": "661ec90acb607676955e89df4cdd998f0b7d906f139b0257fb69cb652c950cb7",
-    "src/components/mg/PlayerPortalRenderer.jsx": "86b5cbad5870f470857e616bcb7c6f3e42b5e899bfec996a4df9b23c058ce483",
+    "src/components/mg/PlayerPortalRenderer.jsx": "abdaff8b34fda347c8cbd39b72fa09dd454f1c5293ad603ac424213a2ce23d43",
     "src/components/mg/additionalLiveTvSources.js": "ef6d47788775798fd4b3937b31f64e4166901d4e1211a262dd5943726168ff59"
   }
 }
