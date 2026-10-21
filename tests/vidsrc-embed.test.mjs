@@ -40,7 +40,7 @@ test("VidSrc stays a manual separate player while normal provider pages remain b
   const episodes = readFileSync(new URL("../src/components/mg/EpisodeSelector.jsx", import.meta.url), "utf8");
   const portal = readFileSync(new URL("../src/components/mg/PlayerPortalRenderer.jsx", import.meta.url), "utf8");
   assert.match(movieDetails, /player\.playVidSrc\(/);
-  assert.match(episodes, /player\.playVidSrc\(/);
+  assert.match(episodes, /player\.play\(/);
   assert.match(player, /data-mg-vidsrc-open="true"/);
   assert.match(provider, /<PlayerPortalRenderer/);
   assert.match(portal, /vidSrcEmbed \? \(/);

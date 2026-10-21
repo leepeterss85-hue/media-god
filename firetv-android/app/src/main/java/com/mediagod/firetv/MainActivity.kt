@@ -637,7 +637,6 @@ class MainActivity : Activity() {
             nativeBridgeAllowed()
 
         @JavascriptInterface
-        @JavascriptInterface
         fun getDisplayInfo(): String {
             if (!nativeBridgeAllowed()) {
                 return JSONObject()

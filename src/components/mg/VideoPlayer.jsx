@@ -7438,6 +7438,7 @@ export default function VideoPlayer({
   const lastSaveRef =
     useRef(0);
 
+
   const lastPosRef =
     useRef({
       t:
@@ -10600,7 +10601,6 @@ export default function VideoPlayer({
             {(isDirectFile ||
               isLive ||
               rdOverride) && (
-              <>
                 <button
                   type="button"
                   onClick={
@@ -10612,6 +10612,7 @@ export default function VideoPlayer({
                 >
                   <Maximize className="w-4 h-4" />
                 </button>
+            )}
 
                 <CastButton
                   url={
@@ -10634,9 +10635,17 @@ export default function VideoPlayer({
                         : active?.format || (isLive ? "application/x-mpegURL" : "video/mp4"))
                   }
                   source={active}
+                  media={{
+                    tmdbId: source?.tmdbId || source?.tmdb_id || source?.id || "",
+                    title: source?.rdTitle || source?.title || "",
+                    poster: source?.poster || "",
+                    year: source?.rdYear || source?.year || "",
+                    mediaType: isLive ? "live" : playbackMediaType === "tv" ? "tv" : "movie",
+                    season: source?.rdSeason || source?.season || 0,
+                    episode: source?.rdEpisode || source?.episode || 0,
+                    startTime: Number(videoRef.current?.currentTime || source?.startTime || 0),
+                  }}
                 />
-              </>
-            )}
           </div>
         </div>
 
@@ -10850,6 +10859,7 @@ export default function VideoPlayer({
                 ref={
                   videoRef
                 }
+                showCastButton={false}
                 src={
                   rdOverride.src
                 }
@@ -10897,7 +10907,7 @@ export default function VideoPlayer({
                 onError={
                   handleRdPlaybackError
                 }
-                className="absolute inset-0 h-full w-full flex-none object-contain bg-black"
+                className={isLive ? "absolute inset-0 h-full w-full flex-none object-contain bg-black" : "absolute inset-0 h-full w-full flex-none object-contain bg-black"}
               />
 
               <PlayerControls
@@ -10989,6 +10999,7 @@ export default function VideoPlayer({
                 ref={
                   liveVideoRef
                 }
+                showCastButton={false}
                 key={
                   active.src
                 }
@@ -11026,7 +11037,7 @@ export default function VideoPlayer({
                 preferredAudioLanguage={
                   trackPreferences.audioLanguage
                 }
-                className="absolute inset-0 h-full w-full flex-none object-contain bg-black"
+                className={isLive ? "absolute inset-0 h-full w-full flex-none object-contain bg-black" : "absolute inset-0 h-full w-full flex-none object-contain bg-black"}
                 onLoadedMetadata={
                   handleLoadedMetadata
                 }

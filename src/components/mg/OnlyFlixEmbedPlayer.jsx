@@ -2,8 +2,9 @@ import React, { useEffect, useState } from "react";
 import { ArrowLeft, ExternalLink, ListVideo } from "lucide-react";
 import { isNativeFireTvEmbedRemoteAvailable, setNativeFireTvEmbedRemoteActive } from "@/components/mg/nativeFireTvBridge";
 import OnlyFlixRemotePointer from "@/components/mg/OnlyFlixRemotePointer";
+import CastButton from "@/components/mg/CastButton";
 
-export default function OnlyFlixEmbedPlayer({ url, title, onBack, onOpenSources, backLabel = "Sources" }) {
+export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenSources, backLabel = "Sources" }) {
   useEffect(() => {
     setNativeFireTvEmbedRemoteActive(true);
     return () => { setNativeFireTvEmbedRemoteActive(false); };
@@ -65,6 +66,21 @@ export default function OnlyFlixEmbedPlayer({ url, title, onBack, onOpenSources,
             <ListVideo className="h-4 w-4" />
             Sources
           </button>
+          <CastButton
+            url=""
+            title={title}
+            source={{ type: "provider", browserPlayable: false }}
+            media={{
+              title,
+              tmdbId: media?.tmdbId || media?.tmdb_id || media?.id || "",
+              year: media?.year || "",
+              poster: media?.poster || "",
+              mediaType: media?.mediaType || media?.type || "movie",
+              season: media?.season || media?.rdSeason || 0,
+              episode: media?.episode || media?.rdEpisode || 0,
+              startTime: media?.startTime || 0,
+            }}
+          />
           <span className="hidden shrink-0 text-xs text-white/50 sm:block">OnlyFlix web player</span>
         </div>
 

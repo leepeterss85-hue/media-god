@@ -603,7 +603,8 @@ const srtToVtt = (text) => {
  *   onAutoplayBlocked?: (() => void),
  *   allowMutedAutoplay?: boolean,
  *   onEnded?: React.ReactEventHandler<HTMLVideoElement>,
- *   controls?: boolean
+ *   controls?: boolean,
+ *   showCastButton?: boolean
  * }} LiveVideoProps
  */
 
@@ -632,6 +633,7 @@ const LiveVideo = forwardRef(
       allowMutedAutoplay = true,
       onEnded,
       controls = true,
+      showCastButton = true,
     },
     ref
   ) {

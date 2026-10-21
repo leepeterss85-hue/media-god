@@ -2,6 +2,7 @@ package com.mediagod.mobile
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import androidx.fragment.app.FragmentActivity
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
@@ -25,7 +26,7 @@ import org.json.JSONObject
 import org.json.JSONTokener
 import java.lang.ref.WeakReference
 
-class MainActivity : Activity() {
+class MainActivity : FragmentActivity() {
     companion object {
         private const val REQUEST_NATIVE_PLAYER = 8401
         private const val REQUEST_VOICE_SEARCH = 8402
@@ -90,6 +91,7 @@ class MainActivity : Activity() {
     @Volatile private var activeNativeRequestId = ""
     @Volatile private var pendingNativePreflightRequestId = ""
     private var pendingNativeResultScript: String? = null
+    private var castManager: MediaGodCastManager? = null
     private lateinit var appUpdater: AppUpdater
     @Volatile private var currentTopLevelUrl = ""
 
@@ -160,6 +162,10 @@ class MainActivity : Activity() {
 
         setContentView(webView)
         activeActivity = WeakReference(this)
+        // Do not initialise Google Cast at app startup. MediaGodCastManager
+        // creates CastContext and binds session listeners; those native
+        // discovery surfaces must not run while normal VOD plays.
+        // The manager is created lazily after an explicit Cast tap.
 
         appUpdater = AppUpdater(this) { detail ->
             dispatchJavascript(
@@ -229,6 +235,8 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        castManager?.close()
+        castManager = null
         if (activeActivity?.get() === this) activeActivity = null
         try {
             webView.apply {
@@ -462,46 +470,56 @@ class MainActivity : Activity() {
                 if(!window.__MG_SINGLE_VIDEO_SURFACE_GUARD__){
                   window.__MG_SINGLE_VIDEO_SURFACE_GUARD__=true;
                   var singleSurfaceQueued=false;
-                  var retirePlaybackSurface=function(video){
-                    if(!video){return;}
-                    try{video.pause();}catch(e){}
-                    try{
-                      video.removeAttribute('autoplay');
-                      video.removeAttribute('poster');
-                      video.removeAttribute('src');
-                      Array.prototype.slice.call(video.querySelectorAll('source')).forEach(function(source){
-                        source.removeAttribute('src');
-                      });
-                      video.load();
-                    }catch(e){}
-                    video.setAttribute('data-mg-playback-retired','true');
-                    video.style.setProperty('display','none','important');
-                    video.style.setProperty('visibility','hidden','important');
-                    video.style.setProperty('pointer-events','none','important');
-                  };
+                  /* Cast can insert extra media elements and a source
+                   * switch can briefly leave old and new videos in the DOM.
+                   * DOM order is NOT playback ownership. The former guard
+                   * always kept the last <video> and deleted src from every
+                   * other video, including an actively playing real movie.
+                   * That produced audio-with-black-picture regressions.
+                   *
+                   * Never delete a video's URL or force video CSS layout.
+                   * Only hide clearly paused, superseded videos when an
+                   * actual active stage video has been identified.
+                   */
                   var restorePlaybackSurface=function(video){
                     if(!video){return;}
                     video.removeAttribute('data-mg-playback-retired');
                     video.style.removeProperty('display');
                     video.style.removeProperty('visibility');
                     video.style.removeProperty('pointer-events');
-                    video.style.setProperty('position','absolute','important');
-                    video.style.setProperty('inset','0','important');
-                    video.style.setProperty('width','100%','important');
-                    video.style.setProperty('height','100%','important');
-                    video.style.setProperty('max-width','100%','important');
-                    video.style.setProperty('flex','0 0 100%','important');
                   };
                   var enforceSinglePlaybackSurface=function(){
                     singleSurfaceQueued=false;
-                    var videos=Array.prototype.slice.call(
-                      document.querySelectorAll('[data-mg-player-root="true"] video')
+                    var stages=Array.prototype.slice.call(
+                      document.querySelectorAll('[data-mg-player-stage="true"]')
                     );
-                    if(videos.length===0){return;}
-                    var keep=videos[videos.length-1];
-                    videos.forEach(function(video){
-                      if(video===keep){restorePlaybackSurface(video);}
-                      else{retirePlaybackSurface(video);}
+                    stages.forEach(function(stage){
+                      var videos=Array.prototype.slice.call(stage.querySelectorAll('video'));
+                      if(videos.length<2){
+                        videos.forEach(restorePlaybackSurface);
+                        return;
+                      }
+                      var active=videos.filter(function(video){
+                        return !video.paused && !video.ended &&
+                          !!(video.currentSrc || video.getAttribute('src'));
+                      });
+                      // Ambiguous ownership? Do nothing. Never retire a
+                      // video merely because a Cast overlay was inserted.
+                      if(active.length!==1){
+                        videos.forEach(restorePlaybackSurface);
+                        return;
+                      }
+                      var keep=active[0];
+                      videos.forEach(function(video){
+                        if(video===keep || !video.paused){
+                          restorePlaybackSurface(video);
+                          return;
+                        }
+                        video.setAttribute('data-mg-playback-retired','true');
+                        video.style.setProperty('display','none','important');
+                        video.style.setProperty('visibility','hidden','important');
+                        video.style.setProperty('pointer-events','none','important');
+                      });
                     });
                   };
                   var queueSinglePlaybackSurfaceGuard=function(){
@@ -697,6 +715,39 @@ class MainActivity : Activity() {
         @JavascriptInterface
         fun isAvailable(): Boolean =
             nativeBridgeAllowed()
+
+        @JavascriptInterface
+        fun castVideo(payloadJson: String): Boolean {
+            if (!nativeBridgeAllowed()) return false
+            // Android's JavaScript interface methods run off the UI thread.
+            // CastContext and MediaRouter must be initialised on the UI thread,
+            // and ONLY after the user explicitly requests casting. Queue the
+            // result/status through the existing native Cast event bridge.
+            webView.post {
+                if (isFinishing || isDestroyed) return@post
+                if (castManager == null) {
+                    castManager = runCatching {
+                        MediaGodCastManager(this@MainActivity) { state, message ->
+                            val detail = JSONObject()
+                                .put("state", state)
+                                .put("message", message)
+                            dispatchJavascript(
+                                "window.dispatchEvent(new CustomEvent('mg:native-cast-status',{detail:${detail}}));"
+                            )
+                        }
+                    }.getOrNull()
+                }
+                if (castManager?.start(payloadJson) != true) {
+                    val detail = JSONObject()
+                        .put("state", "error")
+                        .put("message", "Could not open the Cast device chooser.")
+                    dispatchJavascript(
+                        "window.dispatchEvent(new CustomEvent('mg:native-cast-status',{detail:${detail}}));"
+                    )
+                }
+            }
+            return true
+        }
 
         @JavascriptInterface
         fun startVoiceSearch(): Boolean {

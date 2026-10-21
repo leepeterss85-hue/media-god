@@ -410,10 +410,27 @@ class PlayerActivity : Activity() {
         if (!resultSent && !live && !compatibilityPlayerOpen &&
             !firstVideoFrameRendered && shouldPlayWhenReady && player != null
         ) {
-            // Startup delay is device evidence, not proof this torrent is bad.
+            // Audio may advance on a track that the native video renderer
+            // cannot display. Retry the SAME stream in the existing software
+            // video compatibility player rather than playing a black screen.
+            val activePlayer = player ?: return@Runnable
+            val videoStalledWhileAudioAdvanced =
+                activePlayer.isPlaying &&
+                audioOutputConfirmed &&
+                activePlayer.currentPosition > 0L
+            if (videoStalledWhileAudioAdvanced &&
+                payload.optJSONObject("drm") == null &&
+                launchCompatibilityPlayer(
+                    activePlayer,
+                    null,
+                    "video-no-first-frame"
+                )
+            ) {
+                return@Runnable
+            }
             finishWithResult(
                 "startup_timeout",
-                "Android video did not show a frame in 25 seconds. Choose another source or retry."
+                "No video frame appeared. Use Sources to choose another release."
             )
         }
     }
@@ -441,8 +458,8 @@ class PlayerActivity : Activity() {
         }
 
         val reportButton = Button(this).apply {
-            text = "Report"
-            contentDescription = "Show playback report"
+            text = "More"
+            contentDescription = "More playback options"
             isAllCaps = false
             textSize = 12f
             setTextColor(Color.WHITE)
@@ -1205,6 +1222,10 @@ class PlayerActivity : Activity() {
             put("preferredAudioTrackStream", currentPreferredEnglishTrackStream())
             put("compatibilityErrorCode", error?.errorCode ?: 0)
             put("compatibilityReason", compatibilityReason)
+            // An audio-only-looking black surface is not an audio decoder
+            // issue. Force VLC software VIDEO decode for this attempt.
+            put("forceSoftwareVideoDecode",
+                !live && compatibilityReason == "video-no-first-frame")
             put(
                 "compatibilityError",
                 error?.message.orEmpty().ifBlank { compatibilityReason }
@@ -1807,13 +1828,21 @@ class PlayerActivity : Activity() {
             return
         }
 
-        val duration = activePlayer.duration.takeIf { it > 0L } ?: Long.MAX_VALUE
+        // Seeking exactly to duration can immediately emit STATE_ENDED. Keep
+        // fast-forward inside the playable range so a seek never kicks the
+        // viewer back to the catalogue just because the stream reports its end.
+        val duration = activePlayer.duration.takeIf { it > 0L }
+        val safeEnd = duration?.let { (it - 1_000L).coerceAtLeast(0L) } ?: Long.MAX_VALUE
         val target = (activePlayer.currentPosition + deltaMs)
             .coerceAtLeast(0L)
-            .coerceAtMost(duration)
+            .coerceAtMost(safeEnd)
 
-        activePlayer.seekTo(target)
-        showControllerTemporarily()
+        try {
+            activePlayer.seekTo(target)
+            showControllerTemporarily()
+        } catch (_: IllegalStateException) {
+            // Ignore a seek arriving while Media3 is being released/replaced.
+        }
     }
 
     private fun releasePlayer() {
