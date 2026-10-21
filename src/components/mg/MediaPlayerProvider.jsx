@@ -34,6 +34,7 @@ import { fetchTvEpisodeSources } from "@/components/mg/tvEpisodeScraper";
 import { firstAcceptedQualificationBatch } from "./qualificationBatch";
 import { hasUnusableEpisodeAudio, episodeAutoplayCandidates, isEnglishMainTrack } from "./episodeAudio";
 import { episodeSourceMatchesRequest, flixQuestFirstEpisodeSources } from "./episodeSourcePolicy.js";
+import { episodeAutoplayCanTrustSource } from "./episodeLaunchTrust.js";
 
 const PlayerContext = createContext(null);
 
@@ -3002,7 +3003,7 @@ export function PlayerProvider({
         const initialAudioCandidates = !isLive && mediaType === "tv"
           ? flixQuestFirstEpisodeSources(episodeAutoplayCandidates(initialOrderedSources.filter(item =>
               episodeSourceMatchesRequest(item, { season, episode })
-            )))
+            )).filter(episodeAutoplayCanTrustSource))
           : initialOrderedSources;
         const initialPlayableSources =
           initialAudioCandidates.filter(
@@ -3151,7 +3152,8 @@ export function PlayerProvider({
             });
 
             const audioCandidates = !isLive && mediaType === "tv"
-              ? flixQuestFirstEpisodeSources(episodeAutoplayCandidates(ordered))
+              ? flixQuestFirstEpisodeSources(episodeAutoplayCandidates(ordered)
+                  .filter(episodeAutoplayCanTrustSource))
               : ordered;
             const playable = audioCandidates.filter(
               (item) =>
@@ -4142,11 +4144,13 @@ export function PlayerProvider({
         const eligibleEpisodeLeads = !isLive && mediaType === "tv"
           ? flixQuestFirstEpisodeSources(episodeAutoplayCandidates(
               qualificationMode ? playbackLeadSources : orderedSources.filter(item => isDirectSource(item) || isMagnetSource(item))
-            ))
+            ).filter(episodeAutoplayCanTrustSource))
           : null;
         const automaticLeads = eligibleEpisodeLeads || playbackLeadSources;
         const episodeAudioMissingStatus = {
-          label: "No English episode audio found yet. Choose another source.",
+          label: orderedSources.some(item => !hasUnusableEpisodeAudio(item))
+            ? "No verified episode stream is ready yet. Try Sources to choose another."
+            : "No English episode audio found yet. Choose another source.",
           type: "status", src: "", url: "", diagnostic: true,
         };
         const playerSources =
