@@ -286,6 +286,10 @@ const sourceNeedsCaching = (item) => {
   return (
     strategy === "comet_uncached" ||
     strategy === "rd_magnet" ||
+    // This marker is applied only to matching TV torrent fallbacks after
+    // verified RD inspection found no ready link. Foreground cache/resolve
+    // must run automatically rather than leaving the viewer in Sources.
+    (item?.episodeAutoPrepare === true && Boolean(sourceTorrentHash(item))) ||
     item?.cacheRequired === true ||
     (
       item?.debridCacheChecked === true &&
