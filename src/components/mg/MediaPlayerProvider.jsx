@@ -4503,7 +4503,34 @@ export function PlayerProvider({
   return (
     <PlayerContext.Provider value={value}>
       {children}
-      <PlayerPortalRenderer source={source} vidSrcEmbed={vidSrcEmbed} magnetPlayer={magnetPlayer} close={close} setVidSrcEmbed={setVidSrcEmbed} setMagnetPlayer={setMagnetPlayer} />
+      <PlayerPortalRenderer
+        source={source}
+        vidSrcEmbed={vidSrcEmbed}
+        magnetPlayer={magnetPlayer}
+        close={close}
+        setVidSrcEmbed={setVidSrcEmbed}
+        setMagnetPlayer={setMagnetPlayer}
+        onOpenSources={() => {
+          // Embedded sites cannot expose video URLs to our chooser. Replace
+          // the iframe with Media God's own player and discover proper source
+          // candidates; never launch a second video behind the iframe.
+          void play({
+            ...source,
+            sources: [],
+            completeSources: [],
+            discoveredSources: [],
+            src: "",
+            url: "",
+            video_url: "",
+            skipRdLookup: false,
+            skipAddonLookup: false,
+            noRd: false,
+            preferRd: true,
+            resumeFromHistory: true,
+            verifiedPlaybackPolicy: "strict",
+          });
+        }}
+      />
     </PlayerContext.Provider>
   );
 }
