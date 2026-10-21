@@ -2468,6 +2468,12 @@ class PlayerActivity : Activity() {
             if (audioOutputConfirmed) return@postDelayed
 
             val latest = inspectAudioReadiness(latestTracks)
+            // Decoder callbacks may not report output even while AC3/DTS or
+            // multichannel sound is actually audible. Do not interrupt a
+            // healthy selected audio track or its playing video surface.
+            if (latest.present && latest.supported && latest.selected) {
+                return@postDelayed
+            }
             val reason = when {
                 !latest.present ->
                     "Video is playing but no audio track became available. Trying the same file with the compatibility decoder."

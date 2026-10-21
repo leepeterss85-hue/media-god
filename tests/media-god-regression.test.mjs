@@ -3502,7 +3502,7 @@ test("browser audio track choice stays manual while native decoders may repair m
     assert.match(source, /recoverAudioTrack\(\) = Unit/);
     assert.match(
       source,
-      /audioButton = controlButton\("Audio"\) \{ showAudioTrackMenu\(\) \}/
+      /audioButton = controlButton\("♫"\) \{ showAudioTrackMenu\(\) \}/
     );
     assert.match(source, /AlertDialog\.Builder\(this\)[\s\S]{0,500}?setTitle\("Audio"\)/);
     assert.match(source, /audioButton\.text = "Audio"/);
@@ -3626,11 +3626,11 @@ test("compatibility player keeps technical decoder details off the normal playba
     assert.match(source, /progressBar = SeekBar\(this\)/);
     assert.match(source, /timeText\.text =[\s\S]{0,80}?formatPlaybackTime/);
     assert.match(source, /controlButton\("← Back"\)/);
-    assert.match(source, /controlButton\("−10s"\)/);
-    assert.match(source, /controlButton\("\+10s"\)/);
-    assert.match(source, /audioButton = controlButton\("Audio"\) \{ showAudioTrackMenu\(\) \}/);
+    assert.match(source, /controlButton\("↶ 10"\)/);
+    assert.match(source, /controlButton\("↷ 10"\)/);
+    assert.match(source, /audioButton = controlButton\("♫"\) \{ showAudioTrackMenu\(\) \}/);
     assert.match(source, /subtitleButton = controlButton\("CC"\) \{ showSubtitleTrackMenu\(\) \}/);
-    assert.match(source, /controlButton\("Options"\) \{ showAdvancedControlsMenu\(\) \}/);
+    assert.match(source, /controlButton\("⚙"\) \{ showAdvancedControlsMenu\(\) \}/);
     assert.match(source, /message\.startsWith\([\s\S]{0,90}?"Compatibility decoder · buffering"[\s\S]{0,90}?\) -> "Buffering…"/);
     assert.match(source, /message\.equals\([\s\S]{0,80}?"Compatibility decoder"[\s\S]{0,80}?\) -> ""/);
     assert.match(source, /private fun showControlsTemporarily\([\s\S]{0,260}?controls\.visibility = View\.VISIBLE[\s\S]{0,120}?updateProgressUi\(\)/);
@@ -3700,11 +3700,13 @@ test("native players prefer English main audio without replacing a manual audio 
     assert.match(source, /trackSelectionParameters\.overrides\.values\.any/);
     assert.match(source, /enforcePreferredEnglishAudio\(exoPlayer, tracks\)/);
     if (file.includes("android-mobile")) {
-      assert.match(source, /selectedAudioRequiresPcmRescue/);
+      assert.doesNotMatch(source, /selectedAudioRequiresPcmRescue/);
+      assert.match(source, /if \(latest.present && latest.supported && latest.selected\)/);
       assert.match(source, /native audio output never started/);
     } else {
-      assert.match(source, /selectedAudioRequiresPcmRescue/);
-      assert.match(source, /audioOutputConfirmed &&[\s\S]{0,120}!selectedAudioRequiresPcmRescue/);
+      assert.doesNotMatch(source, /selectedAudioRequiresPcmRescue/);
+      assert.match(source, /if \(latest.present && latest.supported && latest.selected\)/);
+      assert.match(source, /if \(audioOutputConfirmed\) return@postDelayed/);
       assert.match(source, /native audio output never started/);
     }
     assert.doesNotMatch(source, /val englishOverrideApplied =/);
@@ -3993,11 +3995,11 @@ test("native VOD proves audio output after playback advances and rescues silent 
     assert.match(block, /activePlayer\.currentPosition < 5000L/);
     assert.match(block, /10000L/);
     if (file.includes("android-mobile")) {
-      assert.match(block, /selectedAudioRequiresPcmRescue\(latestTracks\)/);
+      assert.match(block, /if \(latest.present && latest.supported && latest.selected\)/);
       assert.match(block, /native audio output never started/);
       assert.match(block, /launchCompatibilityPlayer\(activePlayer, null, reason\)/);
     } else {
-      assert.match(block, /selectedAudioRequiresPcmRescue\(latestTracks\)/);
+      assert.match(block, /if \(latest.present && latest.supported && latest.selected\)/);
       assert.match(block, /native audio output never started/);
       assert.match(block, /launchCompatibilityPlayer\(activePlayer, null, reason\)/);
     }
@@ -4992,11 +4994,13 @@ test("native audio repair never cycles to another source on uncertain sound", ()
     );
     assert.match(source, /onAudioPositionAdvancing\(/);
     if (relativePath.includes("android-mobile")) {
-      assert.match(source, /selectedAudioRequiresPcmRescue/);
+      assert.doesNotMatch(source, /selectedAudioRequiresPcmRescue/);
+      assert.match(source, /if \(latest.present && latest.supported && latest.selected\)/);
       assert.match(source, /native audio output never started/);
     } else {
-      assert.match(source, /selectedAudioRequiresPcmRescue/);
-      assert.match(source, /audioOutputConfirmed &&[\s\S]{0,120}!selectedAudioRequiresPcmRescue/);
+      assert.doesNotMatch(source, /selectedAudioRequiresPcmRescue/);
+      assert.match(source, /if \(latest.present && latest.supported && latest.selected\)/);
+      assert.match(source, /if \(audioOutputConfirmed\) return@postDelayed/);
       assert.match(source, /native audio output never started/);
     }
     assert.doesNotMatch(

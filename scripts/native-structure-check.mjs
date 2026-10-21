@@ -9,7 +9,7 @@ const apps = [
     dir: "firetv-android",
     packagePath: "com/mediagod/firetv",
     namespace: "com.mediagod.firetv",
-    expectedVersion: "1.4.96",
+    expectedVersion: "1.4.97",
     expectedMedia3: "1.8.0",
     expectedOrientation: "landscape",
   },
@@ -18,7 +18,7 @@ const apps = [
     dir: "android-mobile",
     packagePath: "com/mediagod/mobile",
     namespace: "com.mediagod.mobile",
-    expectedVersion: "1.0.86",
+    expectedVersion: "1.0.87",
     expectedMedia3: "1.11.0",
     expectedOrientation: "sensor",
   },
@@ -274,7 +274,7 @@ for (const app of apps) {
     [compatibilityActivity.includes("setAudioDelay"), "lip-sync adjustment"],
     [compatibilityActivity.includes("audioOutputMode") && compatibilityActivity.includes("setAudioDigitalOutputEnabled"), "selectable audio output modes"],
     [
-      compatibilityActivity.includes("audioButton = controlButton(\"Audio\") { showAudioTrackMenu() }") &&
+      compatibilityActivity.includes("audioButton = controlButton(\"♫\") { showAudioTrackMenu() }") &&
         compatibilityActivity.includes("showAudioTrackMenu") &&
         compatibilityActivity.includes("recoverAudioTrack() = Unit") &&
         compatibilityActivity.includes("automaticNoSoundRecovery = false") &&
