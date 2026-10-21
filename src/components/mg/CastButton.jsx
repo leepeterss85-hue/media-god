@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Cast } from "lucide-react";
 import { cn } from "@/lib/utils";
+import MediaGodDeviceCast from "@/components/mg/MediaGodDeviceCast";
 
 const CAST_SDK_URL =
   "https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1";
@@ -123,14 +123,21 @@ export default function CastButton({
   poster,
   contentType,
   source,
+  media,
 }) {
   const [ready, setReady] = useState(false);
   const [casting, setCasting] = useState(false);
   const [error, setError] = useState("");
   const [connecting, setConnecting] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [showDestinations, setShowDestinations] = useState(false);
+  const [showMediaGodPairing, setShowMediaGodPairing] = useState(false);
+  const [castInitiated, setCastInitiated] = useState(false);
 
   useEffect(() => {
+    // Never listen to native Cast callbacks just because a player/source
+    // mounted. Only a deliberate Cast action may change the playback UI.
+    if (!castInitiated) return undefined;
     const onNativeCast = (event) => {
       const state = String(event?.detail?.state || "");
       const message = String(event?.detail?.message || "");
@@ -141,71 +148,49 @@ export default function CastButton({
     };
     window.addEventListener("mg:native-cast-status", onNativeCast);
     return () => window.removeEventListener("mg:native-cast-status", onNativeCast);
-  }, []);
+  }, [castInitiated]);
 
-  useEffect(() => {
-    // Native Android APKs run the Cast sender in Kotlin; do not try to
-    // initialise the browser Cast SDK inside an Android WebView.
+  // CAST IS OPT-IN: mounting/remounting a video player must never load the
+  // Google Cast sender, auto-rejoin a receiver, or inject Cast SDK elements
+  // into the video document. The viewer explicitly opens the Cast menu first.
+  const prepareCastSdk = useCallback(() => {
+    if (typeof window === "undefined") return;
     if (typeof window.MediaGodNative?.castVideo === "function") {
       setReady(true);
-      setError("");
-      return undefined;
+      return;
     }
-    let alive = true;
-    let context = null;
-    let onSessionState = null;
-
     loadCastSdk().then((available) => {
-      if (!alive) return;
       if (!available) {
+        setReady(false);
         setError("Cast is unavailable in this browser.");
         return;
       }
-
       try {
-        context = window.cast.framework.CastContext.getInstance();
+        const context = window.cast.framework.CastContext.getInstance();
         context.setOptions({
           receiverApplicationId: DEFAULT_RECEIVER_ID,
-          autoJoinPolicy: window.chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED,
+          // Do not silently take over a session from an earlier video.
+          autoJoinPolicy: window.chrome.cast.AutoJoinPolicy.NO_AUTO_JOIN,
         });
-
-        const syncSession = () => {
-          if (!alive || !context) return;
-          const session = context.getCurrentSession();
-          // A connected receiver is not proof that a video has loaded.
-          const media = session?.getMediaSession?.();
-          setCasting(Boolean(media && ["PLAYING", "PAUSED"].includes(media.playerState)));
-        };
-
-        onSessionState = syncSession;
-        context.addEventListener(
-          window.cast.framework.CastContextEventType.SESSION_STATE_CHANGED,
-          onSessionState
-        );
-        syncSession();
         setReady(true);
         setError("");
       } catch {
-        setError("Cast failed to initialize.");
+        setReady(false);
+        setError("Cast failed to initialise.");
       }
     });
-
-    return () => {
-      alive = false;
-      if (context && onSessionState) {
-        try {
-          context.removeEventListener(
-            window.cast.framework.CastContextEventType.SESSION_STATE_CHANGED,
-            onSessionState
-          );
-        } catch {
-          // Cast SDK teardown is best-effort.
-        }
-      }
-    };
   }, []);
 
+  useEffect(() => {
+    // Close transient Cast overlays whenever the actual stream changes.
+    // Source switching never starts a receiver session or creates video
+    // overlays. A new explicit click is required to cast another source.
+    setShowDestinations(false);
+    setShowFeedback(false);
+  }, [url]);
+
   const handleCast = useCallback(async () => {
+    setCastInitiated(true);
     setShowFeedback(true);
     setError("");
 
@@ -339,12 +324,27 @@ export default function CastButton({
     }
   }, [url, title, poster, contentType, source, ready]);
 
-  const disabled = !url || connecting;
+  const disabled = connecting;
+  const handoffMedia = {
+    title: media?.title || title,
+    poster: media?.poster || poster,
+    tmdbId: media?.tmdbId || media?.id || "",
+    year: media?.year || "",
+    season: media?.season,
+    episode: media?.episode,
+    mediaType: media?.mediaType || (source?.live ? "live" : "movie"),
+    startTime: media?.startTime || 0,
+    live: source?.live === true || media?.mediaType === "live",
+    channelId: source?.tvgId || source?.id || "",
+  };
   return (
     <div className="relative inline-flex">
       <button
         type="button"
-        onClick={handleCast}
+        onClick={() => {
+          setShowDestinations((open) => !open);
+          if (!showDestinations) prepareCastSdk();
+        }}
         disabled={disabled}
         aria-label={connecting ? "Connecting to Cast" : casting ? "Casting to TV" : "Cast video to TV"}
         title={error || (casting ? "Casting to TV — select Cast to load the selected source" : ready ? "Cast to a compatible receiver" : "Cast is unavailable until a compatible receiver/browser is detected")}
@@ -354,9 +354,33 @@ export default function CastButton({
           disabled && "opacity-40 cursor-not-allowed hover:bg-white/10"
         )}
       >
-        <Cast className="w-4 h-4" />
-        <span className="hidden sm:inline">{connecting ? "Connecting…" : casting ? "Casting" : "Cast"}</span>
+        <span>{connecting ? "Connecting…" : casting ? "Casting" : "Cast"}</span>
       </button>
+      {showDestinations && (
+        <div className="absolute right-0 top-full z-[500] mt-2 w-64 overflow-hidden rounded-xl border border-white/20 bg-zinc-950 p-1 text-left text-white shadow-2xl">
+          <p className="px-3 py-2 text-xs font-semibold text-white/50">Choose where to play</p>
+          <button
+            type="button"
+            className="min-h-11 w-full rounded-md px-3 py-2 text-left text-sm hover:bg-white/10"
+            onClick={() => { setShowDestinations(false); void handleCast(); }}
+          >
+            {ready ? "Chromecast / Google TV" : "Chromecast / Google TV (initialising)"}
+          </button>
+          <button
+            type="button"
+            className="min-h-11 w-full rounded-md px-3 py-2 text-left text-sm hover:bg-white/10"
+            onClick={() => { setShowDestinations(false); setShowMediaGodPairing(true); }}
+          >
+            Media God TV / Fire Stick
+          </button>
+        </div>
+      )}
+      {showMediaGodPairing && (
+        <MediaGodDeviceCast
+          media={handoffMedia}
+          onClose={() => setShowMediaGodPairing(false)}
+        />
+      )}
       {showFeedback && error && (
         <div role="status" className="absolute right-0 top-full z-50 mt-2 w-[min(16rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)] break-words rounded-lg border border-red-400/30 bg-black/95 p-2 text-left text-xs font-medium text-red-200 shadow-xl [overflow-wrap:anywhere]">
           {error}
