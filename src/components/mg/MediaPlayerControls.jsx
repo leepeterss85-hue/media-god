@@ -5,7 +5,7 @@ import React, {
 } from "react";
 
 import {
-  ArrowLeft, Play, Pause, Volume2, VolumeX, Maximize, Minimize, RotateCcw, RotateCw, SkipBack, SkipForward, Tv, Gauge, Captions, Languages, Repeat, PictureInPicture2
+  ArrowLeft, Play, Pause, Volume2, VolumeX, Maximize, Minimize, RotateCcw, RotateCw, SkipBack, SkipForward, ListVideo, Settings2, Gauge, Captions, Languages, Repeat, PictureInPicture2
 } from "lucide-react";
 
 import { safeSeek } from "./safeSeek";
@@ -1972,64 +1972,6 @@ export default function MediaPlayerControls({
             </div>
           ) : null}
 
-          {selectableSourceEntries.length > 0 ? (
-            <div className="mb-2 flex items-center gap-2 sm:mb-3">
-              <span className="hidden shrink-0 text-[10px] font-semibold uppercase tracking-wide text-white/55 sm:block sm:text-xs">Source</span>
-              <div className="relative min-w-0 flex-1">
-                <select
-                  value={visibleSourceChoiceValue}
-                  onPointerDown={pinSourceChoices}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    const selectedEntry = visibleSourceChoices.find(
-                      (entry) => String(entry.index) === String(value)
-                    );
-                    releaseSourceChoices();
-                    onSelectSource?.(value, selectedEntry?.item || null);
-                  }}
-                  onFocus={() => {
-                    if (!sourceChoicePinned) {
-                      pinSourceChoices();
-                    }
-                    focusSelectControl();
-                  }}
-                  onBlur={() => {
-                    releaseSourceChoices();
-                    blurSelectControl();
-                  }}
-                  className="min-h-10 w-full appearance-none rounded-lg border border-white/15 bg-black/60 py-2.5 pl-3 pr-8 text-xs font-medium text-white outline-none backdrop-blur transition focus:border-mg-green focus:ring-2 focus:ring-mg-green/30 sm:text-sm"
-                  aria-label="Choose source or quality"
-                  title="Choose source or quality"
-                >
-                  {visibleSourceChoiceValue === "" ? (
-                    <option value="" disabled>
-                      Preparing uncached sources…
-                    </option>
-                  ) : null}
-                  {visibleSourceChoices.map(({ item, index }) => (
-                    <option
-                      key={`${index}-${sourceRawLabel(item, index)}`}
-                      value={index}
-                      data-mg-source-label={sourceRawLabel(item, index)}
-                    >
-                      {sourceFailed(index)
-                        ? "Unavailable • "
-                        : index === activeIdx
-                          ? sourcePlaybackConfirmed
-                            ? "Playing • "
-                            : "Selected • "
-                          : ""}
-                      {sourceLabel(item, index)}
-                    </option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-white/60">
-                  <Tv className="h-4 w-4" />
-                </div>
-              </div>
-            </div>
-          ) : null}
-
           <div data-mg-player-button-row="true" className="flex items-center gap-2 sm:gap-3">
             {hasPreviousEpisode ? (
               <button
@@ -2178,61 +2120,132 @@ export default function MediaPlayerControls({
 
             <div data-mg-player-controls-spacer="true" className="min-w-0 flex-1" />
 
-            {!isLive ? (
-              <div className="relative">
+            {selectableSourceEntries.length > 0 ? (
+              <div className="relative shrink-0">
                 <button
                   type="button"
-                  onClick={() => toggleMenu("speed")}
+                  data-mg-utility="true"
+                  aria-label="Sources and quality"
+                  title="Sources and quality"
+                  aria-expanded={openMenu === "sources"}
+                  aria-controls="mg-player-source-menu"
+                  onClick={() => {
+                    if (openMenu === "sources") releaseSourceChoices();
+                    else pinSourceChoices();
+                    toggleMenu("sources");
+                  }}
                   onFocus={focusControl}
                   onBlur={blurControl}
-                  data-mg-utility="true"
-                  className={cn(
-                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green sm:h-10 sm:w-10",
-                    playbackRate !== 1 ? "text-mg-green" : "text-white"
-                  )}
-                  aria-label="Playback speed"
-                  title="Playback speed"
+                  className="flex h-10 w-10 items-center justify-center rounded-full text-white transition hover:bg-white/15 focus-visible:ring-2 focus-visible:ring-mg-green"
                 >
-                  <Gauge className="h-5 w-5" />
+                  <ListVideo className="h-5 w-5" />
                 </button>
-
-                {openMenu === "speed" ? (
-                  <div className="absolute bottom-12 right-0 z-[80] w-36 rounded-xl border border-white/15 bg-black/95 p-1.5 shadow-2xl backdrop-blur">
-                    {[0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => (
-                      <button
-                        type="button"
-                        key={`rate-${rate}`}
-                        onClick={() => changeRate({ target: { value: rate } })}
-                        className={cn(
-                          "w-full rounded-lg px-3 py-2 text-left text-xs hover:bg-white/10",
-                          playbackRate === rate ? "text-mg-green" : "text-white"
-                        )}
-                      >
-                        {rate}x
-                      </button>
-                    ))}
+                {openMenu === "sources" ? (
+                  <div id="mg-player-source-menu" data-mg-source-menu="true" className="mg-player-menu absolute bottom-12 right-0 z-[90] w-[min(20rem,calc(100vw-1.5rem))] rounded-xl border border-white/20 bg-zinc-950/95 p-3 shadow-2xl backdrop-blur">
+                    <label className="mb-2 block text-xs font-semibold text-white/80" htmlFor="mg-player-source-select">
+                      Sources &amp; quality
+                    </label>
+                <select
+                  id="mg-player-source-select"
+                  value={visibleSourceChoiceValue}
+                  onPointerDown={pinSourceChoices}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    const selectedEntry = visibleSourceChoices.find(
+                      (entry) => String(entry.index) === String(value)
+                    );
+                    releaseSourceChoices();
+                    onSelectSource?.(value, selectedEntry?.item || null);
+                    setOpenMenu("");
+                    menuOpenRef.current = false;
+                    revealControls();
+                  }}
+                  onFocus={() => {
+                    if (!sourceChoicePinned) {
+                      pinSourceChoices();
+                    }
+                    focusSelectControl();
+                  }}
+                  onBlur={() => {
+                    releaseSourceChoices();
+                    blurSelectControl();
+                  }}
+                  className="min-h-11 w-full rounded-lg border border-white/20 bg-zinc-900 px-3 py-2.5 text-sm font-medium text-white outline-none focus:border-mg-green focus:ring-2 focus:ring-mg-green/30"
+                  aria-label="Choose source or quality"
+                  title="Choose source or quality"
+                >
+                  {visibleSourceChoiceValue === "" ? (
+                    <option value="" disabled>
+                      Preparing uncached sources…
+                    </option>
+                  ) : null}
+                  {visibleSourceChoices.map(({ item, index }) => (
+                    <option
+                      key={`${index}-${sourceRawLabel(item, index)}`}
+                      value={index}
+                      data-mg-source-label={sourceRawLabel(item, index)}
+                    >
+                      {sourceFailed(index)
+                        ? "Unavailable • "
+                        : index === activeIdx
+                          ? sourcePlaybackConfirmed
+                            ? "Playing • "
+                            : "Selected • "
+                          : ""}
+                      {sourceLabel(item, index)}
+                    </option>
+                  ))}
+                </select>
                   </div>
                 ) : null}
               </div>
             ) : null}
 
-            {!isLive ? (
+            <div className="relative shrink-0">
               <button
                 type="button"
-                onClick={toggleLoop}
+                data-mg-utility="true"
+                onClick={() => toggleMenu("settings")}
                 onFocus={focusControl}
                 onBlur={blurControl}
-                data-mg-utility="true"
-                className={cn(
-                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green sm:h-10 sm:w-10",
-                  looping ? "text-mg-green" : "text-white"
-                )}
-                aria-label={looping ? "Turn off repeat" : "Repeat"}
-                title={looping ? "Turn off repeat" : "Repeat"}
+                aria-label="Playback settings"
+                title="Playback settings"
+                aria-expanded={openMenu === "settings"}
+                className="flex h-10 w-10 items-center justify-center rounded-full text-white transition hover:bg-white/15 focus-visible:ring-2 focus-visible:ring-mg-green"
               >
-                <Repeat className="h-5 w-5" />
+                <Settings2 className="h-5 w-5" />
               </button>
-            ) : null}
+              {openMenu === "settings" ? (
+                <div data-mg-settings-menu="true" className="mg-player-menu absolute bottom-12 right-0 z-[90] w-48 max-w-[calc(100vw-1.5rem)] rounded-xl border border-white/20 bg-zinc-950/95 p-2 shadow-2xl backdrop-blur">
+                  <p className="px-2 py-1 text-xs font-semibold text-white/75">Playback settings</p>
+                  {!isLive ? (
+                    <>
+                      <p className="flex items-center gap-2 px-2 pt-2 text-xs text-white/70"><Gauge className="h-4 w-4" /> Playback speed</p>
+                      <div className="my-1 grid grid-cols-3 gap-1" role="group" aria-label="Playback speed">
+                        {[0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => (
+                          <button key={`rate-${rate}`} type="button"
+                            onClick={() => changeRate({ target: { value: rate } })}
+                            aria-label={`Playback speed ${rate}x`}
+                            aria-pressed={playbackRate === rate}
+                            className={cn("rounded-lg px-1 py-2 text-xs hover:bg-white/15", playbackRate === rate ? "bg-white/15 text-mg-green" : "text-white")}>
+                            {rate}x
+                          </button>
+                        ))}
+                      </div>
+                      <button type="button" onClick={toggleLoop} aria-pressed={looping}
+                        className="flex min-h-11 w-full items-center gap-2 rounded-lg px-2 text-sm text-white hover:bg-white/15">
+                        <Repeat className="h-4 w-4" /> {looping ? "Repeat on" : "Repeat off"}
+                      </button>
+                    </>
+                  ) : null}
+                  <button type="button" onClick={togglePip} aria-pressed={pipActive}
+                    className="flex min-h-11 w-full items-center gap-2 rounded-lg px-2 text-sm text-white hover:bg-white/15">
+                    <PictureInPicture2 className="h-4 w-4" />
+                    {pipActive ? "Exit picture-in-picture" : "Picture in picture"}
+                  </button>
+                </div>
+              ) : null}
+            </div>
 
             <div className="relative">
               <button
@@ -2327,22 +2340,6 @@ export default function MediaPlayerControls({
                 </div>
               ) : null}
             </div>
-
-            <button
-              type="button"
-              onClick={togglePip}
-              onFocus={focusControl}
-              onBlur={blurControl}
-              data-mg-utility="true"
-              className={cn(
-                "flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-mg-green sm:h-10 sm:w-10",
-                pipActive ? "text-mg-green" : "text-white"
-              )}
-              aria-label={pipActive ? "Exit picture-in-picture" : "Picture in picture"}
-              title={pipActive ? "Exit picture-in-picture" : "Picture in picture"}
-            >
-              <PictureInPicture2 className="h-4 w-4" />
-            </button>
 
             <button
               type="button"
