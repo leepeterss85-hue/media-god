@@ -262,17 +262,17 @@ expect(
   mobilePlayer.includes("strictEnglishStartupRequired(): Boolean = NativeEpisodePolicy.requiresEnglish(") &&
     mobilePlayer.includes("group.isTrackSelected(index) && group.isTrackSupported(index)") &&
     mobilePlayer.includes("activePlayer.currentPosition < 5000L") &&
-    mobilePlayer.includes("selectedAudioRequiresPcmRescue") &&
+    mobilePlayer.includes("if (latest.present && latest.supported && latest.selected)") &&
     mobilePlayer.includes('if (live && launchCompatibilityPlayer(exoPlayer, error))') &&
     mobilePlayer.includes('finishWithResult("error", reason)') &&
-    mobilePlayer.includes("selectedAudioRequiresPcmRescue") &&
+    mobilePlayer.includes("if (latest.present && latest.supported && latest.selected)") &&
     mobilePlayer.slice(
       mobilePlayer.indexOf("private fun scheduleMissingAudioCheck("),
       mobilePlayer.indexOf("private fun buildMediaItem(")
     ).includes("launchCompatibilityPlayer(activePlayer, null, reason)") &&
     firePlayer.includes("strictEnglishStartupRequired(): Boolean = NativeEpisodePolicy.requiresEnglish(") &&
     firePlayer.includes("launchCompatibilityPlayer(activePlayer, null, reason)") &&
-    firePlayer.includes("selectedAudioRequiresPcmRescue") &&
+    firePlayer.includes("if (latest.present && latest.supported && latest.selected)") &&
     firePlayer.includes("EXTENSION_RENDERER_MODE_ON") &&
     firePlayer.includes("EXTENSION_RENDERER_MODE_PREFER"),
   "phone and Fire TV VOD keep one visible player and rescue silent audio"
