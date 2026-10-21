@@ -158,3 +158,24 @@
     transition: none;
   }
 }
+
+/* Compact icon menus stay inside short landscape phone viewports. */
+[data-mg-player-vod="true"] .mg-player-menu {
+  max-height: min(65vh, 24rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+[data-mg-player-vod="true"] [data-mg-source-menu="true"] select {
+  color-scheme: dark;
+}
+
+@media (max-width: 639px) {
+  html:not(.mg-fire-tv):not(.mg-fire-tv-mode):not(.mg-fire-tv-stable) [data-mg-player-button-row="true"] {
+    gap: .25rem;
+  }
+
+  html:not(.mg-fire-tv):not(.mg-fire-tv-mode):not(.mg-fire-tv-stable) [data-mg-player-button-row="true"] [data-mg-utility="true"] {
+    flex-shrink: 0;
+  }
+}
