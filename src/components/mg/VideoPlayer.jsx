@@ -13,11 +13,13 @@ import {
   RefreshCw,
   Maximize,
   Minimize,
+  ListVideo,
 } from "lucide-react";
 
 import { base44 } from "@/api/base44Client";
 import { safeSeek } from "./safeSeek";
 import CastButton from "@/components/mg/CastButton";
+import InPlayerSourceDrawer from "@/components/mg/InPlayerSourceDrawer";
 import LiveVideo from "@/components/mg/LiveVideo";
 import { COMPATIBLE_AUTOPLAY_LIMIT } from "@/components/mg/automaticSourceOrder";
 import { stopExclusivePlayback } from "@/components/mg/exclusivePlayback";
@@ -931,6 +933,11 @@ export default function VideoPlayer({
 
   const [activeIdx, setActiveIdx] =
     useState(0);
+  const [inPlayerSourcesOpen, setInPlayerSourcesOpen] = useState(false);
+
+  useEffect(() => {
+    setInPlayerSourcesOpen(false);
+  }, [source?.playRequestId]);
 
   const [sourceSortMode, setSourceSortMode] = useState(
     () => readSourceSortMode()
@@ -10578,6 +10585,19 @@ export default function VideoPlayer({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            {!isLive && (
+              <button
+                type="button"
+                data-mg-open-in-player-sources="true"
+                onClick={() => setInPlayerSourcesOpen(true)}
+                aria-label="Sources inside player"
+                title="Choose another video source without leaving the player"
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-mg-green/40 bg-mg-green/10 px-3 text-xs font-bold text-mg-green hover:bg-mg-green/20 focus:outline-none focus:ring-2 focus:ring-mg-green sm:min-h-10"
+              >
+                <ListVideo className="h-4 w-4" />
+                Sources
+              </button>
+            )}
             {(isDirectFile ||
               isLive ||
               rdOverride) && (
@@ -10628,6 +10648,22 @@ export default function VideoPlayer({
                 />
           </div>
         </div>
+
+        {inPlayerSourcesOpen && (
+          <InPlayerSourceDrawer
+            title={source?.title}
+            entries={selectableSourceEntries}
+            activeIdx={activeIdx}
+            failedSources={failedSources}
+            sourceLabel={sourceCacheStateLabel}
+            discovering={["searching", "fast-start", "verifying", "preparing"].includes(String(source?.sourceDiagnostics?.phase || ""))}
+            onClose={() => setInPlayerSourcesOpen(false)}
+            onSelect={(index, item) => {
+              selectSource(index, item);
+              setInPlayerSourcesOpen(false);
+            }}
+          />
+        )}
 
         <div
           data-mg-player-stage="true"

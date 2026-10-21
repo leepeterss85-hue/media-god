@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ArrowLeft, ExternalLink, ListVideo } from "lucide-react";
 import { isNativeFireTvEmbedRemoteAvailable, setNativeFireTvEmbedRemoteActive } from "@/components/mg/nativeFireTvBridge";
 import OnlyFlixRemotePointer from "@/components/mg/OnlyFlixRemotePointer";
 import CastButton from "@/components/mg/CastButton";
 
-export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, backLabel = "Sources" }) {
+export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenSources, backLabel = "Sources" }) {
   useEffect(() => {
     setNativeFireTvEmbedRemoteActive(true);
     return () => { setNativeFireTvEmbedRemoteActive(false); };
@@ -56,6 +56,16 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, backLab
             {backLabel}
           </button>
           <span className="min-w-0 flex-1 truncate text-sm font-semibold">{title}</span>
+          <button
+            type="button"
+            data-mg-embedded-open-sources="true"
+            onClick={onOpenSources}
+            aria-label="Sources inside video player"
+            className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border border-mg-green/40 bg-mg-green/10 px-3 text-xs font-bold text-mg-green hover:bg-mg-green/20 focus:outline-none focus:ring-2 focus:ring-mg-green"
+          >
+            <ListVideo className="h-4 w-4" />
+            Sources
+          </button>
           <CastButton
             url=""
             title={title}

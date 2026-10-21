@@ -22,23 +22,12 @@ test("saved torrent is respected but alternative sources are still discovered", 
   assert.match(row, /startTime:\s*Number\(item\.progress\s*\|\|\s*0\)/);
 });
 
-test("every history card has a distinct keyboard-accessible manual source escape route", () => {
-  assert.match(row, /const chooseAnotherSource = async/);
-  assert.match(row, /onClick=\{\(event\) => chooseAnotherSource\(item, event\)\}/);
-  assert.match(row, /Find another source for/);
-  assert.match(row, /Other sources/);
-  // Fire TV CSS hides .mg-fire-tv-secondary-action, which is appropriate for
-  // Remove but must never conceal the recovery button.
-  const otherSourcesControl = row.slice(row.indexOf("chooseAnotherSource(item, event)"));
-  assert.doesNotMatch(otherSourcesControl.slice(0, 500), /className="mg-fire-tv-secondary-action/);
-  assert.match(row, /event\?\.stopPropagation\?\.\(\)/);
-  const start = row.indexOf("const chooseAnotherSource = async");
-  const end = row.indexOf("const displayItems = useMemo", start);
-  const other = row.slice(start, end);
-  assert.match(other, /verifiedPlaybackPolicy:\s*"manual"/);
-  assert.match(other, /sources:\s*\[\]/);
-  assert.doesNotMatch(other, /playOnlyFlix/);
-  assert.doesNotMatch(other, /skipRdLookup:\s*true|skipAddonLookup:\s*true/);
+test("every history card uses in-player source control rather than a second player launch", () => {
+  assert.doesNotMatch(row, /chooseAnotherSource|Other sources/);
+  assert.match(row, /onClick=\{\(\) => openDetail\(item\)\}/);
+  const player = readFileSync(new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url), "utf8");
+  assert.match(player, /data-mg-open-in-player-sources="true"/);
+  assert.match(player, /<InPlayerSourceDrawer/);
 });
 
 test("normal Play keeps its existing OnlyFlix semantics distinct from Continue Watching", () => {
