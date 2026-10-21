@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 101,
-  "versionName": "1.4.96",
+  "versionCode": 102,
+  "versionName": "1.4.97",
   "title": "Media God Fire TV",
-  "message": "Media God 1.4.96: English-first episodes, verified skip controls in both players, and cancellable next-episode countdowns.",
+  "message": "Media God 1.4.97: protect working audio from unnecessary decoder switches and keep source selection accessible.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
