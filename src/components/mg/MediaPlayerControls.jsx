@@ -5,7 +5,7 @@ import React, {
 } from "react";
 
 import {
-  ArrowLeft, Play, Pause, Volume2, VolumeX, Maximize, Minimize, RotateCcw, RotateCw, SkipBack, SkipForward, Tv, ListVideo, Settings2, Gauge, Captions, Languages, Repeat, PictureInPicture2
+  ArrowLeft, Play, Pause, Volume2, VolumeX, Maximize, Minimize, RotateCcw, RotateCw, SkipBack, SkipForward, ListVideo, Settings2, Gauge, Captions, Languages, Repeat, PictureInPicture2
 } from "lucide-react";
 
 import { safeSeek } from "./safeSeek";
