@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 80,
-  "versionName": "1.0.79",
+  "versionCode": 83,
+  "versionName": "1.0.82",
   "title": "Media God Mobile",
-  "message": "Media God 1.0.79 adds native voice search and improved casting compatibility.",
+  "message": "Media God 1.0.82: black video recovery and in-player source selection improvements.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
