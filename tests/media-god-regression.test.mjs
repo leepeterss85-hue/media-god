@@ -3706,7 +3706,7 @@ test("native players prefer English main audio without replacing a manual audio 
     } else {
       assert.doesNotMatch(source, /selectedAudioRequiresPcmRescue/);
       assert.match(source, /if \(latest.present && latest.supported && latest.selected\)/);
-      assert.match(source, /audioOutputConfirmed &&[\s\S]{0,120}!selectedAudioRequiresPcmRescue/);
+      assert.match(source, /if \(audioOutputConfirmed\) return@postDelayed/);
       assert.match(source, /native audio output never started/);
     }
     assert.doesNotMatch(source, /val englishOverrideApplied =/);
@@ -3995,11 +3995,11 @@ test("native VOD proves audio output after playback advances and rescues silent 
     assert.match(block, /activePlayer\.currentPosition < 5000L/);
     assert.match(block, /10000L/);
     if (file.includes("android-mobile")) {
-      assert.match(block, /selectedAudioRequiresPcmRescue\(latestTracks\)/);
+      assert.match(block, /if \(latest.present && latest.supported && latest.selected\)/);
       assert.match(block, /native audio output never started/);
       assert.match(block, /launchCompatibilityPlayer\(activePlayer, null, reason\)/);
     } else {
-      assert.match(block, /selectedAudioRequiresPcmRescue\(latestTracks\)/);
+      assert.match(block, /if \(latest.present && latest.supported && latest.selected\)/);
       assert.match(block, /native audio output never started/);
       assert.match(block, /launchCompatibilityPlayer\(activePlayer, null, reason\)/);
     }
@@ -5000,7 +5000,7 @@ test("native audio repair never cycles to another source on uncertain sound", ()
     } else {
       assert.doesNotMatch(source, /selectedAudioRequiresPcmRescue/);
       assert.match(source, /if \(latest.present && latest.supported && latest.selected\)/);
-      assert.match(source, /audioOutputConfirmed &&[\s\S]{0,120}!selectedAudioRequiresPcmRescue/);
+      assert.match(source, /if \(audioOutputConfirmed\) return@postDelayed/);
       assert.match(source, /native audio output never started/);
     }
     assert.doesNotMatch(
