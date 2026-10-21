@@ -75,9 +75,13 @@ export function recordEpisodeSourceHealth(source, context, kind, details = {}) {
     row.lastGood = now;
     row.audioDecoded ||= details?.audioDecoded === true;
     row.failures = 0;
-    row.noSound = 0;
     row.lastFailure = 0;
-    row.lastNoSound = 0;
+    // Decoding video does not prove the speakers produced sound. Preserve an
+    // explicit no-sound report unless native audio output is confirmed.
+    if (details?.audioDecoded === true) {
+      row.noSound = 0;
+      row.lastNoSound = 0;
+    }
   } else if (kind === "failure") {
     if (now - row.lastFailure < 30_000) return false;
     row.failures += 1;
