@@ -364,6 +364,11 @@ class CompatibilityPlayerActivity : Activity() {
         startPositionMs = max(0L, payload.optLong("startPositionMs", 0L))
         pendingStartPositionMs = startPositionMs
         selectedSourceIndex = payload.optInt("activeSourceIndex", -1)
+        // Media3 audio without a video frame requires video decoder rescue,
+        // not another hardware-decoder pass on the same black surface.
+        forceSoftwareVideoDecode =
+            !payload.optBoolean("live", false) &&
+            payload.optBoolean("forceSoftwareVideoDecode", false)
         audioOutputMode = payload.optString("audioOutputMode", "auto").lowercase().let {
             if (it in setOf("auto", "stereo", "surround", "passthrough")) it else "auto"
         }
@@ -382,7 +387,10 @@ class CompatibilityPlayerActivity : Activity() {
 
         window.setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN)
         enterImmersiveMode()
-        DisplayRateMatcher.apply(this, payload, streamUrl, forceDisplayMode = true)
+        DisplayRateMatcher.apply(
+            this, payload, streamUrl,
+            forceDisplayMode = payload.optBoolean("live", false)
+        )
         buildUi()
         startCompatibilityPlayback()
     }
