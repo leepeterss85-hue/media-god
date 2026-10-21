@@ -68,7 +68,7 @@ test("final episode publication keeps foreign sources available manually without
     isLive: false, mediaType: "tv", orderedSources, qualificationMode, playbackLeadSources,
     onlyEpisodeFallbacksRemain: false, episodeSourceMissingStatus: {},
     waitingForVerifiedSource: { type: "status", diagnostic: true },
-    episodeAutoplayCandidates, flixQuestFirstEpisodeSources, episodeAutoplayCanTrustSource, preservePublishedSourceOrder,
+    episodeAutoplayCandidates, flixQuestFirstEpisodeSources, episodeAutoplayCanTrustSource, hasUnusableEpisodeAudio, preservePublishedSourceOrder,
     stableDiscoveredSourceKey: source => source.id,
     isDirectSource: source => source.type === "url", isMagnetSource: () => false,
   });
