@@ -1,9 +1,9 @@
 {
   "version": 1,
-  "note": "2026-10-22 reviewed TV-only latency and configured FlixQuest v2 API support: shorter episode-first source qualification, faster fallback, no changes to movies, Live TV, native player or manual sources. English audio remains decoder-verified.",
+  "note": "2026-10-22 TV-only: Stremio-compatible addons take priority; configured FlixQuest v2 is on-demand backup after source misses. No changes to movies, Live TV or native players.",
   "files": {
     "src/components/mg/VideoPlayer.jsx": "ac3b76f85dbf429a9cf7c0aa0488c532b86460dfe5b7deae80cc120fe2927c38",
-    "src/components/mg/MediaPlayerProvider.jsx": "129f7e745ab9f9bb9e4ee03bb66fdd3782b39f4eb94b347e77dd626ad6c1dcd8",
+    "src/components/mg/MediaPlayerProvider.jsx": "fe26a46781e3a120bd94695a39cf3f3b0dcc70f44fbcbe01fbbf7817ec83dbeb",
     "src/components/mg/PlayerProvider.jsx": "aa08264c7925c1f23c5501a02f4424541fceae46acb106ea53bae5e041d8f442",
     "src/components/mg/MediaPlayerControls.jsx": "ef6cbff88fd9d8aad2396e7243ef9f2c09f54f6ad9d3a8c03acc124f1bfacd87",
     "src/components/mg/LiveTVView.jsx": "0a5734ecb0e167b7393845089cb3ef4fa1576ee071f170960d8bfcccef56ab50",
