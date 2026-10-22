@@ -7,6 +7,7 @@ import React, {
 import {
   Clock3,
   History,
+  ListVideo,
   Play,
   X,
 } from "lucide-react";
@@ -522,6 +523,47 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
     });
   };
 
+  // An explicit Players action offers the same OnlyFlix + backup tabs
+  // available from normal movie and episode Play. It must never replace
+  // card activation: resuming a saved torrent or native source still uses
+  // the original file and playback position.
+  const openPlayerOptions = async (item, event) => {
+    event?.stopPropagation();
+    const meta = parseContentKey(item);
+    const isTv = meta.mediaType === "tv";
+    const tmdbId = await resolveTmdbIdQuickly(meta);
+
+    if (isTv && (!meta.season || !meta.episode)) {
+      // A generic TV series page cannot identify the watched episode.
+      // Preserve the existing resume route rather than guessing.
+      await openDetail(item);
+      return;
+    }
+
+    const launched = player.playOnlyFlix?.({
+      id: tmdbId || undefined,
+      tmdbId: tmdbId || undefined,
+      tmdb_id: tmdbId || undefined,
+      imdbId: item.imdb_id || undefined,
+      title: meta.title,
+      year: meta.year,
+      poster: item.poster_url || "",
+      mediaType: meta.mediaType,
+      type: isTv ? "series" : "movie",
+      season: isTv ? meta.season : undefined,
+      episode: isTv ? meta.episode : undefined,
+      rdSeason: isTv ? meta.season : undefined,
+      rdEpisode: isTv ? meta.episode : undefined,
+      episodeName: meta.episodeName || "",
+    });
+
+    if (!launched) {
+      // Older history records may lack any resolvable TMDB/IMDb identity.
+      // Never open the wrong film or episode; keep their prior resume path.
+      await openDetail(item);
+    }
+  };
+
   const displayItems = useMemo(
     () =>
       items.map((item) => {
@@ -553,7 +595,7 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
           </h2>
 
           <p className="mt-0.5 text-[11px] sm:text-xs 3xl:text-sm text-white/40">
-            Pick up exactly where you stopped.
+            Select a card to resume, or use Players to try the other web players.
           </p>
         </div>
       </div>
@@ -651,6 +693,17 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
                 {detailLine || `${Math.round(progress)}% watched`}
               </div>
 
+              <button
+                type="button"
+                data-mg-continue-player-options="true"
+                onClick={(event) => openPlayerOptions(item, event)}
+                onKeyDown={(event) => event.stopPropagation()}
+                aria-label={`Open movie and episode player options for ${meta.title}`}
+                className="mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-mg-green/35 bg-mg-green/10 px-3 text-xs font-semibold text-mg-green hover:bg-mg-green/20 focus:outline-none focus:ring-2 focus:ring-mg-green"
+              >
+                <ListVideo className="h-4 w-4" />
+                Players
+              </button>
 
             </div>
           );
