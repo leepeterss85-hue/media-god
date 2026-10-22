@@ -33,7 +33,7 @@ import { canonicalImdbLookupFields, sourceAddonFailure, sourceLookupFailed } fro
 import { fetchTvEpisodeSources, flixQuestV2Configured } from "@/components/mg/tvEpisodeScraper";
 import { firstAcceptedQualificationBatch } from "./qualificationBatch";
 import { hasUnusableEpisodeAudio, episodeAutoplayCandidates, isEnglishMainTrack } from "./episodeAudio";
-import { episodeSourceMatchesRequest, flixQuestFirstEpisodeSources } from "./episodeSourcePolicy.js";
+import { episodeSourceMatchesRequest, flixQuestFirstEpisodeSources, hasUsableEpisodeAddonSource } from "./episodeSourcePolicy.js";
 import { episodeAutoplayCanTrustSource } from "./episodeLaunchTrust.js";
 import { episodeAutoprepareCandidates } from "./episodeAutoprepare.js";
 
@@ -3253,69 +3253,51 @@ export function PlayerProvider({
               });
 
         /*
-         * TV episodes use the dedicated FlixQuest resolver as an early source
-         * pass. It runs alongside the normal addon/RD search, so a miss or
-         * timeout never blocks the standard source catalogue. Explicit foreign
-         * or commentary-only audio is excluded; unknown tracks require runtime
-         * language selection and are never reported as verified English.
+         * Primary TV discovery is the configured Stremio-compatible addon
+         * pipeline. Do not make a speculative FlixQuest network call on every
+         * play (and never use the retired anonymous v1 route in production).
+         * A configured v2 instance is an on-demand backup after addon miss.
          */
-        const episodeResolverPromise =
+        const flixQuestBackupEnabled =
           !isLive &&
           mediaType === "tv" &&
           season != null &&
           episode != null &&
-          !request?.skipEpisodeResolver
-            ? fetchTvEpisodeSources({
-                tmdbId,
-                season,
-                episode,
-                title: request?.rdTitle || request?.title || "",
-              })
-            : Promise.resolve([]);
-
-        episodeResolverPromise
-          .then((episodeSources) => {
-            if (!Array.isArray(episodeSources) || episodeSources.length === 0) {
-              return;
-            }
-
-            publishEarlySources(
-              episodeSources.map((item) => ({
+          !request?.skipEpisodeResolver &&
+          flixQuestV2Configured();
+        let episodeResolverPromise = null;
+        const launchFlixQuestBackup = () => {
+          if (!flixQuestBackupEnabled || !isCurrentPlay()) {
+            return Promise.resolve([]);
+          }
+          if (episodeResolverPromise) return episodeResolverPromise;
+          episodeResolverPromise = fetchTvEpisodeSources({
+            tmdbId,
+            season,
+            episode,
+            title: request?.rdTitle || request?.title || "",
+          }).then(episodeSources => {
+            if (Array.isArray(episodeSources) && episodeSources.length > 0) {
+              publishEarlySources(episodeSources.map(item => ({
                 ...item,
                 launchQualified: false,
                 runtimeNativeDirect: true,
                 runtimeNativeEnglishValidation: true,
                 runtimeQualificationFallback: true,
                 episodeResolver: "flixquest",
-              })),
-              {
-                episodeResolver: "flixquest",
+              })), {
+                episodeResolver: "flixquest-backup",
                 episodeResolverCount: episodeSources.length,
-              }
-            );
-          })
-          .catch(() => {
-            // Normal addon and Real-Debrid discovery remain the fallback.
-          });
+              });
+            }
+            return episodeSources;
+          }).catch(() => []);
+          return episodeResolverPromise;
+        };
 
-        /*
-         * FlixQuest remains the viewer's default episode player. Give its
-         * parallel lookup a short head start before publishing an RD/torrent
-         * fallback; never wait the full scraper timeout and never interrupt a
-         * source already playing successfully.
-         */
-        rdPromise.then(async (rdLookup) => {
-          if (mediaType === "tv" && !request?.skipEpisodeResolver) {
-            await Promise.race([
-              episodeResolverPromise.catch(() => []),
-              // Avoid a 2.5-second artificial hold when the retired v1
-              // service is down. A configured v2 scraper receives a modest
-              // head start; RD still launches automatically if it misses.
-              new Promise(resolve => window.setTimeout(
-                resolve, flixQuestV2Configured() ? 850 : 250
-              )),
-            ]);
-          }
+        // A ready RD library item is still a useful fallback. Do not delay it
+        // to wait for an API that may not be configured or reachable.
+        rdPromise.then(rdLookup => {
           if (rdLookup?.source && isCurrentPlay()) {
             publishEarlySources([rdLookup.source], {
               rdLookupStatus: rdLookup?.status || "READY",
@@ -3470,6 +3452,17 @@ export function PlayerProvider({
                 fastMode: true,
               })
             : Promise.resolve(skippedAddonLookup);
+
+        // Call the FlixQuest backup only after the fast addon pass misses.
+        fastAddonPromise.then(addonLookup => {
+          if (isCurrentPlay() && mediaType === "tv" &&
+              !request?.skipAddonLookup &&
+              !hasUsableEpisodeAddonSource(addonLookup?.streams, { season, episode })) {
+            void launchFlixQuestBackup();
+          }
+        }).catch(() => {
+          if (isCurrentPlay() && mediaType === "tv") void launchFlixQuestBackup();
+        });
 
         fastAddonPromise.then(async (addonLookup) => {
           if (
@@ -3711,6 +3704,18 @@ export function PlayerProvider({
                 }
               )
             : Promise.resolve(skippedAddonLookup);
+
+        // Fast discovery may return a placeholder; retry the backup decision
+        // after the complete Stremio-compatible addon search as well.
+        addonPromise.then(addonLookup => {
+          if (isCurrentPlay() && mediaType === "tv" &&
+              !request?.skipAddonLookup &&
+              !hasUsableEpisodeAddonSource(addonLookup?.streams, { season, episode })) {
+            void launchFlixQuestBackup();
+          }
+        }).catch(() => {
+          if (isCurrentPlay() && mediaType === "tv") void launchFlixQuestBackup();
+        });
 
         addonPromise.then((addonLookup) => {
           if (
