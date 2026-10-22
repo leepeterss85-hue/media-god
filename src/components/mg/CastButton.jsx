@@ -48,6 +48,9 @@ const mediaContentType = (value, explicitType, source) => {
 };
 
 const CAST_PLAYBACK_TIMEOUT_MS = 18000;
+// Android's native route picker does not always report a cancellation.
+// Bound the UI wait so closing the chooser never leaves Cast disabled forever.
+const NATIVE_CAST_CHOOSER_TIMEOUT_MS = 35000;
 
 // LOAD success only means that the receiver accepted a request. Watch the
 // receiver media state before claiming the selected video is casting.
@@ -137,6 +140,18 @@ export default function CastButton({
   const [castInitiated, setCastInitiated] = useState(false);
 
   useEffect(() => {
+    if (!castInitiated || !connecting ||
+        typeof window.MediaGodNative?.castVideo !== "function") return undefined;
+    const timeout = window.setTimeout(() => {
+      setConnecting(false);
+      setCasting(false);
+      setError("Cast did not connect. If you dismissed the device chooser, tap Cast to try again.");
+      setShowFeedback(true);
+    }, NATIVE_CAST_CHOOSER_TIMEOUT_MS);
+    return () => window.clearTimeout(timeout);
+  }, [castInitiated, connecting]);
+
+  useEffect(() => {
     // Never listen to native Cast callbacks just because a player/source
     // mounted. Only a deliberate Cast action may change the playback UI.
     if (!castInitiated) return undefined;
@@ -147,6 +162,10 @@ export default function CastButton({
       setCasting(state === "playing");
       setError(state === "error" ? message : "");
       setShowFeedback(state === "error");
+      if (state === "disconnected" || state === "cancelled") {
+        setConnecting(false);
+        setCasting(false);
+      }
     };
     window.addEventListener("mg:native-cast-status", onNativeCast);
     return () => window.removeEventListener("mg:native-cast-status", onNativeCast);
@@ -192,6 +211,10 @@ export default function CastButton({
     // overlays. A new explicit click is required to cast another source.
     setShowDestinations(false);
     setShowFeedback(false);
+    setCastInitiated(false);
+    setConnecting(false);
+    setCasting(false);
+    setError("");
   }, [url]);
 
   const handleCast = useCallback(async () => {
@@ -229,7 +252,12 @@ export default function CastButton({
     // strand the TV on the receiver logo with an audio-only stream.
     const mimeType = mediaContentType(targetUrl, contentType, source);
     const filename = String(source?.filename || source?.name || "").trim();
+    // Debrid links can be extensionless: trust the file/container metadata
+    // rather than guessing they are MP4 before a receiver is selected.
+    const formatHint = String(source?.format || source?.container || "").trim().toLowerCase();
+    const incompatibleContainer = /^(?:mkv|matroska|avi|wmv|flv|mpegts|transport-stream)$/.test(formatHint);
     if (
+      incompatibleContainer ||
       mimeType === "video/x-matroska" ||
       /\.(?:mkv|avi|wmv|flv)(?:$|[?#])/i.test(targetUrl) ||
       /\.(?:mkv|avi|wmv|flv)$/i.test(filename)
@@ -336,6 +364,9 @@ export default function CastButton({
   }, [url, title, poster, contentType, source, media?.startTime, ready]);
 
   const disabled = connecting;
+  const directCastEligible = Boolean(String(url || "").trim()) &&
+    source?.type !== "provider" && source?.format !== "external" &&
+    source?.browserPlayable !== false;
   const handoffMedia = {
     title: media?.title || title,
     poster: media?.poster || poster,
@@ -370,13 +401,16 @@ export default function CastButton({
       {showDestinations && (
         <div className={cn("absolute top-full z-[500] mt-2 w-64 max-w-[calc(100vw-2rem)] rounded-xl border border-white/20 bg-zinc-950 p-1 text-left text-white shadow-2xl", menuAlign === "left" ? "left-0" : "right-0")}>
           <p className="px-3 py-2 text-xs font-semibold text-white/50">Choose where to play</p>
+          {!directCastEligible && (
+            <p className="px-3 pb-2 text-xs text-amber-200/85">This web player has no direct video URL for Chromecast. Use Media God TV / Fire Stick to open the title on that device, or choose a direct source in Sources.</p>
+          )}
           <button
             type="button"
-            disabled={initialising || !ready}
+            disabled={initialising || !ready || !directCastEligible}
             className="min-h-11 w-full rounded-md px-3 py-2 text-left text-sm hover:bg-white/10 disabled:opacity-50"
             onClick={() => { setShowDestinations(false); void handleCast(); }}
           >
-            {ready ? "Chromecast / Google TV" : initialising ? "Chromecast / Google TV (initialising)" : "Chromecast unavailable"}
+            {!directCastEligible ? "Chromecast requires a direct stream" : ready ? "Chromecast / Google TV" : initialising ? "Chromecast / Google TV (initialising)" : "Chromecast unavailable"}
           </button>
           <button
             type="button"
