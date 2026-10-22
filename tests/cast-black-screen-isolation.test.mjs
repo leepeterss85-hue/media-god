@@ -35,6 +35,24 @@ test("Android WebView cannot retire playing movie video based on Cast-injected D
   assert.doesNotMatch(android, /video\.style\.setProperty\('position','absolute'/);
 });
 
+test("cancelled Android Cast selection never leaves the Cast button disabled forever", () => {
+  assert.match(cast, /NATIVE_CAST_CHOOSER_TIMEOUT_MS = 35000/);
+  assert.match(cast, /!castInitiated \|\| !connecting/);
+  assert.match(cast, /setConnecting\(false\);\s*setCasting\(false\);\s*setError\("Cast did not connect/);
+  assert.match(cast, /return \(\) => window\.clearTimeout\(timeout\)/);
+  assert.match(cast, /state === "disconnected" \|\| state === "cancelled"/);
+  assert.match(cast, /setCastInitiated\(false\);\s*setConnecting\(false\);\s*setCasting\(false\)/);
+});
+
+test("embedded video pages offer paired-device handoff without an unusable Chromecast command", () => {
+  assert.match(cast, /const directCastEligible = Boolean/);
+  assert.match(cast, /disabled=\{initialising \|\| !ready \|\| !directCastEligible\}/);
+  assert.match(cast, /Chromecast requires a direct stream/);
+  assert.match(cast, /Media God TV \/ Fire Stick/);
+  assert.match(onlyflix, /<CastButton/);
+  assert.match(onlyflix, /url=""/);
+});
+
 test("Cast is still explicit and usable, but media playback remains independent", () => {
   assert.match(cast, /onClick=\{\(\) => \{ setShowDestinations\(false\); void handleCast\(\); \}\}/);
   assert.match(cast, /Media God TV \/ Fire Stick/);
