@@ -31,6 +31,7 @@ import { filterSourcesForRequestedIdentity, sourceMatchesRequestedIdentity } fro
 import { sourceIsAioStreamsCandidate } from "@/components/mg/sourceProviderIdentity";
 import { canonicalImdbLookupFields, sourceAddonFailure, sourceLookupFailed } from "@/components/mg/sourceDiscoveryFeedback";
 import { fetchTvEpisodeSources, flixQuestV2Configured } from "@/components/mg/tvEpisodeScraper";
+import { fetchVylaEpisodePilot, vylaTvPilotEnabled } from "@/components/mg/vylaEpisodePilot";
 import { firstAcceptedQualificationBatch } from "./qualificationBatch";
 import { hasUnusableEpisodeAudio, episodeAutoplayCandidates, isEnglishMainTrack } from "./episodeAudio";
 import { episodeSourceMatchesRequest, flixQuestFirstEpisodeSources, hasUsableEpisodeAddonSource } from "./episodeSourcePolicy.js";
@@ -3258,6 +3259,26 @@ export function PlayerProvider({
          * play (and never use the retired anonymous v1 route in production).
          * A configured v2 instance is an on-demand backup after addon miss.
          */
+        /*
+         * Optional TV-only pilot, gated at build time and on the backend.
+         * Starts alongside existing discovery; a missing/unreachable Vyla
+         * server must never delay or replace the stable playback path.
+         */
+        if (!isLive && mediaType === "tv" &&
+            season != null && episode != null &&
+            !request?.skipAddonLookup && !request?.skipEpisodeResolver &&
+            vylaTvPilotEnabled()) {
+          void fetchVylaEpisodePilot({ tmdbId, season, episode })
+            .then(result => {
+              if (!isCurrentPlay() || !result?.streams?.length) return;
+              publishEarlySources(result.streams, {
+                vylaPilotStatus: result.status,
+                vylaPilotCount: result.streams.length,
+              });
+            })
+            .catch(() => { /* existing addon and RD discovery continue */ });
+        }
+
         const flixQuestBackupEnabled =
           !isLive &&
           mediaType === "tv" &&

@@ -79,15 +79,23 @@ export const episodeSourceMatchesRequest = (item, context = {}) =>
  */
 export function flixQuestFirstEpisodeSources(sources) {
   const list = Array.isArray(sources) ? sources : [];
+  const pilot = list.filter(item =>
+    item?.episodeResolver === "vyla" &&
+    item?.vylaPilotCandidate === true &&
+    !hasUnusableEpisodeAudio(item) &&
+    /^https?:\/\//i.test(String(item?.src || item?.url || ""))
+  );
   const primary = list.filter(item =>
+    !pilot.includes(item) &&
     !isFlixQuestEpisodeSource(item) && !hasUnusableEpisodeAudio(item)
   );
   const backup = list.filter(item =>
     isFlixQuestEpisodeSource(item) && !hasUnusableEpisodeAudio(item) &&
     /^https?:\/\//i.test(String(item?.src || item?.url || ""))
   );
-  const others = list.filter(item => !primary.includes(item) && !backup.includes(item));
-  return [...primary, ...backup, ...others];
+  const others = list.filter(item =>
+    !pilot.includes(item) && !primary.includes(item) && !backup.includes(item));
+  return [...pilot, ...primary, ...backup, ...others];
 }
 
 /** A search result is not a playable episode just because one row was found. */
