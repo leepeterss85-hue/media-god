@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   episodeSourceMismatchReason, episodeSourceMatchesRequest,
-  flixQuestFirstEpisodeSources, isFlixQuestEpisodeSource,
+  flixQuestFirstEpisodeSources, isFlixQuestEpisodeSource, hasUsableEpisodeAddonSource,
 } from "../src/components/mg/episodeSourcePolicy.js";
 import {
   episodeHealthProvider, episodeProviderHealthSummary,
@@ -24,14 +24,21 @@ test("episode source checker rejects mismatched seasons and single episodes but 
   assert.equal(episodeSourceMatchesRequest({ filename: "Series.S01E04.mkv" }, requested), false);
 });
 
-test("FlixQuest remains primary while all torrent alternatives remain selectable", () => {
+test("Stremio-compatible addon streams lead while FlixQuest stays available as backup", () => {
   const torrentio = { addon: "Torrentio", filename: "Series.S01E03.WEB-DL.mkv", type: "torrent" };
   const comet = { addon: "Comet", type: "torrent" };
   const mediaFusion = { addon: "MediaFusion", type: "torrent" };
   const flixQuest = { provider: "flixquest-showbox", episodeResolver: "flixquest", src: "https://example.test/episode.m3u8" };
   const ordered = flixQuestFirstEpisodeSources([torrentio, comet, flixQuest, mediaFusion]);
-  assert.equal(isFlixQuestEpisodeSource(ordered[0]), true);
-  assert.deepEqual(ordered.slice(1), [torrentio, comet, mediaFusion]);
+  assert.deepEqual(ordered, [torrentio, comet, mediaFusion, flixQuest]);
+  assert.equal(isFlixQuestEpisodeSource(ordered.at(-1)), true);
+  assert.equal(hasUsableEpisodeAddonSource([torrentio], { season: 1, episode: 3 }), false);
+  assert.equal(hasUsableEpisodeAddonSource([
+    { addon: "StremSRC", url: "https://video.test/episode.m3u8", season: 1, episode: 3 }
+  ], { season: 1, episode: 3 }), true);
+  assert.equal(hasUsableEpisodeAddonSource([
+    { addon: "StremSRC", url: "https://video.test/episode.m3u8", season: 1, episode: 4 }
+  ], { season: 1, episode: 3 }), false);
   assert.deepEqual(flixQuestFirstEpisodeSources([torrentio, comet]), [torrentio, comet]);
   assert.deepEqual(flixQuestFirstEpisodeSources([
     torrentio, { ...flixQuest, audioLanguage: "fr" },
@@ -81,17 +88,17 @@ test("health learns exact episode/source outcome and never saves raw stream URLs
   }
 });
 
-test("source publication, user choice and media-type guards preserve FlixQuest main and manual torrents", () => {
+test("source publication preserves addon-first priority and manual torrent options", () => {
   const provider = readFileSync(new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url), "utf8");
   const player = readFileSync(new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url), "utf8");
   const selector = readFileSync(new URL("../src/components/mg/sourceSelectorPreferences.js", import.meta.url), "utf8");
   assert.match(provider, /flixQuestFirstEpisodeSources\(episodeAutoplayCandidates/);
   assert.match(provider, /episodeSourceMatchesRequest\(item, \{ season, episode \}\)/);
   assert.match(provider, /runtimeEpisodeSources\.length > 0\s*\? runtimeEpisodeSources\s*: qualifiedLaunchSources/);
-  assert.match(provider, /episodeResolverPromise\.catch\(\(\) => \[\]\)/);
+  assert.match(provider, /launchFlixQuestBackup\(\)/);
   assert.match(player, /recordEpisodeSourceHealth\(active, episodeHealthContext, "good"/);
   assert.match(player, /recordEpisodeSourceHealth\(failedItem, episodeHealthContext, "failure"\)/);
-  assert.match(selector, /isFlixQuestEpisodeSource\(entry\.item\)/);
+  assert.match(selector, /rankEpisodeSourceChoices\(ranked\)/);
   assert.match(selector, /episodeSourceHealthScore\(item, options\?\.episodeContext\)/);
   assert.match(player, /manualSourceLockActive/);
 });
