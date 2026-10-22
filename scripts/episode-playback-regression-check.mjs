@@ -47,16 +47,15 @@ expect(
     provider.includes("skipMarkersPending: true") &&
     provider.includes("skipMarkersPending: false") &&
     videoPlayer.includes('window.addEventListener("mg:player-context", onPlayerContext)') &&
-    videoPlayer.includes("nativeEpisodeContext?.skipMarkersPending === true") &&
-    videoPlayer.includes("episodeMarkerLookupPending && remainingMarkerWait > 0") &&
-    videoPlayer.includes("remainingMarkerWait = 6000") &&
+    videoPlayer.includes("sourceDiscoveryPending && !episodeReadyForNative") &&
+    !videoPlayer.includes("remainingMarkerWait = 6000") &&
     nativeBridge.includes("updateNativeEpisodePlaybackContext") &&
     skipSegments.includes("https://api.skipdb.tv/api/segments") &&
     skipSegments.includes("https://api.introdb.app/segments") &&
     skipSegments.includes('skipUrl.searchParams.set("adjust", "conservative")') &&
     skipSegments.includes('if (match === "out-of-range") return null;') &&
     !skipSegments.includes("intro_length_estimate_ms"),
-  "episode marker lookup has a bounded native launch wait, late updates and conservative release matching"
+  "episode marker lookup never blocks native launch, supports late updates and conservative release matching"
 );
 
 expect(

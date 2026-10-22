@@ -4732,10 +4732,10 @@ test("startup discovery cannot flash through unverified English candidates", () 
     /claimed: true/
   );
 
-  assert.match(
-    playerSource,
-    /MAX_RAPID_IMMEDIATE_VOD_FAILOVERS = 2/
-  );
+  const rapidLimit = playerSource.match(/const MAX_RAPID_IMMEDIATE_VOD_FAILOVERS = ([\s\S]*?);/)[1];
+  const evaluateLimit = new Function("playbackMediaType", "sources", `return (${rapidLimit})`);
+  assert.equal(evaluateLimit("movie", Array(8)), 2);
+  assert.equal(evaluateLimit("tv", Array(8)), 8);
   assert.match(
     playerSource,
     /RAPID_FAILOVER_WINDOW_MS = 8000/

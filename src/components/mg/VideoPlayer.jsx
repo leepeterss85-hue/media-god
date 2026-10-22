@@ -1011,7 +1011,6 @@ export default function VideoPlayer({
     useState(false);
   const [nativeBusyRetryTick, setNativeBusyRetryTick] = useState(0);
   const [playerContextRevision, setPlayerContextRevision] = useState(0);
-  const episodeMarkerWaitRef = useRef({ key: "", startedAt: 0 });
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -2783,7 +2782,9 @@ export default function VideoPlayer({
       const now = Date.now();
       const state = autoRecoveryRef.current;
       const RAPID_FAILOVER_WINDOW_MS = 8000;
-      const MAX_RAPID_IMMEDIATE_VOD_FAILOVERS = 2;
+      const MAX_RAPID_IMMEDIATE_VOD_FAILOVERS = playbackMediaType === "tv"
+        ? Math.max(2, sources.length)
+        : 2;
 
       if (
         !state.rapidImmediateWindowAt ||
@@ -9520,39 +9521,20 @@ export default function VideoPlayer({
       return;
     }
 
-    /*
-     * On Fire TV, launching Media3 pauses the WebView. If we launch as soon as
-     * the first RD/library hit arrives, the later addon results cannot update
-     * the native source selector until the user backs out. Wait for the normal
-     * source pass to finish so the native player receives the full list.
-     */
-    if (!useNativePlayback || !nativePlaybackUrl || sourceDiscoveryPending) {
+    // Native Sources reads the current web dropdown on demand. A qualified
+    // episode can therefore start while the remaining choices are discovered.
+    // Keep the existing complete-search behaviour for movies and unproven rows.
+    const episodeReadyForNative = !isLive && playbackMediaType === "tv" && (
+      activeStartupProven ||
+      (Boolean(rdOverride?.src) && !rdResolving && !rdPolling && !rdPreparation)
+    );
+    if (!useNativePlayback || !nativePlaybackUrl ||
+        (sourceDiscoveryPending && !episodeReadyForNative)) {
       return;
     }
 
-    const nativeEpisodeContext =
-      typeof window !== "undefined"
-        ? window.__MG_PLAYER_CONTEXT__ || {}
-        : {};
-    const episodeMarkerLookupPending =
-      !isLive &&
-      playbackMediaType === "tv" &&
-      nativeEpisodeContext?.skipMarkersPending === true;
-
-    // Give initial episode markers a bounded head start. Late metadata is
-    // forwarded to the active native session without restarting the video.
-    const markerWaitKey = String(source?.playRequestId || nativePlaybackUrl);
-    if (episodeMarkerWaitRef.current.key !== markerWaitKey) {
-      episodeMarkerWaitRef.current = { key: markerWaitKey, startedAt: Date.now() };
-    }
-    const remainingMarkerWait = 6000 - (Date.now() - episodeMarkerWaitRef.current.startedAt);
-    if (episodeMarkerLookupPending && remainingMarkerWait > 0) {
-      const timer = window.setTimeout(() => {
-        setPlayerContextRevision(value => value + 1);
-      }, remainingMarkerWait + 10);
-      return () => window.clearTimeout(timer);
-    }
-
+    // Skip markers arrive through updateNativeEpisodePlaybackContext. They
+    // must never delay Play; late updates also include the next-episode state.
     const current = nativePlaybackRef.current;
 
     const currentPlayRequestId = source?.playRequestId ?? null;
@@ -9716,6 +9698,9 @@ export default function VideoPlayer({
     playbackMediaType,
     playerContextRevision,
     rdOverride,
+    rdResolving,
+    rdPolling,
+    rdPreparation,
     source,
     startupHandoffAvailable,
     useNativePlayback,

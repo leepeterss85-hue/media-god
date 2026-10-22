@@ -2,7 +2,7 @@
   "version": 1,
   "note": "2026-10-22 TV-only: avoid autoplay of unverified MediaFusion placeholder video and retry configured FlixQuest fallback after blocked addon hits; do not modify movie/Live TV or native decoder paths.",
   "files": {
-    "src/components/mg/VideoPlayer.jsx": "dc2f79977f8ebb2d7c0275d74f8ad023627d6f2ecc8e8f3c9a49372a0ac6d6fc",
+    "src/components/mg/VideoPlayer.jsx": "ef7df40c813036e71484301579c0c83511eb7e7bd956f4b58123316a23946e0c",
     "src/components/mg/MediaPlayerProvider.jsx": "da8d06555b4632ed94843ac1488901be89b9374fea7c830544f74d4009b2c32d",
     "src/components/mg/PlayerProvider.jsx": "8402d6f7463ea9a1824c7e4c1bb683818f4803b40fc486fbdcfdddaf73195040",
     "src/components/mg/MediaPlayerControls.jsx": "ef6cbff88fd9d8aad2396e7243ef9f2c09f54f6ad9d3a8c03acc124f1bfacd87",
