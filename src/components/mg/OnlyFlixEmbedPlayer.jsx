@@ -9,6 +9,9 @@ import {
   buildVidRiftMovieEmbedUrl,
   buildStellarMovieEmbedUrl,
   buildVidLinkMovieEmbedUrl,
+  buildTwoEmbedEmbedUrl,
+  buildCineSrcEmbedUrl,
+  buildMultiEmbedEmbedUrl,
 } from "@/components/mg/extraEmbedProviders";
 
 export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenSources, backLabel = "Sources" }) {
@@ -32,6 +35,9 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
     { id: "vidrift", label: "VidRift", url: buildVidRiftMovieEmbedUrl(media) },
     { id: "stellar", label: "Stellar", url: buildStellarMovieEmbedUrl(media) },
     { id: "vidlink", label: "VidLink", url: buildVidLinkMovieEmbedUrl(media) },
+    { id: "twoembed", label: "2Embed", url: buildTwoEmbedEmbedUrl(media) },
+    { id: "cinesrc", label: "CineSrc", url: buildCineSrcEmbedUrl(media) },
+    { id: "multiembed", label: "MultiEmbed", url: buildMultiEmbedEmbedUrl(media) },
   ].filter((item) => Boolean(item.url)) : [];
   const activeBackups = tvBackups.length ? tvBackups : movieBackups;
   const chosen = activeBackups.find((item) => item.id === activeEpisodePlayer);
