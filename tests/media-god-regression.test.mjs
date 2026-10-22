@@ -514,6 +514,11 @@ test("VOD discovery keeps a credential-free fallback when user addon rows are un
   );
   assert.match(episodeSelectorSource, /skipAddonLookup: false/);
   assert.match(episodeSelectorSource, /skipRdLookup: false/);
+  assert.match(episodeSelectorSource, /verifiedPlaybackPolicy:\s*"strict"/);
+  assert.match(episodeSelectorSource, /preferRd:\s*true/);
+  assert.match(episodeSelectorSource, /includeAddonNames:\s*\[\]/);
+  assert.doesNotMatch(episodeSelectorSource, /includeAddonNames:\s*\["MediaFusion"\]/);
+  assert.doesNotMatch(episodeSelectorSource, /verifiedPlaybackPolicy:\s*"manual"/);
   assert.doesNotMatch(episodeSelectorSource, /player\.playVidSrc\(episodeEmbedRequest\)/);
   assert.doesNotMatch(episodeSelectorSource, /player\.playEmbedSu\(episodeEmbedRequest\)/);
 
