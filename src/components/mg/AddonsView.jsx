@@ -39,6 +39,9 @@ const COMET_CONFIGURE_URL =
 const MEDIAFUSION_CONFIGURE_URL =
   "https://mediafusion.elfhosted.com/configure";
 
+const JACKETTIO_CONFIGURE_URL =
+  "https://jackettio.elfhosted.com/configure";
+
 const normaliseManifestUrl = (
   value
 ) => {
@@ -245,6 +248,25 @@ const isBareCometManifest = (value) => {
   }
 };
 
+const isElfHostedJackettio = (value) => {
+  try {
+    const parsed = new URL(normaliseManifestUrl(value));
+    return parsed.hostname.toLowerCase() === "jackettio.elfhosted.com";
+  } catch {
+    return false;
+  }
+};
+
+const isBareJackettioManifest = (value) => {
+  try {
+    const parsed = new URL(normaliseManifestUrl(value));
+    return isElfHostedJackettio(value) &&
+      /^\/manifest\.json\/?$/i.test(parsed.pathname);
+  } catch {
+    return false;
+  }
+};
+
 const isElfHostedMediaFusion = (value) => {
   try {
     const parsed = new URL(normaliseManifestUrl(value));
@@ -262,6 +284,10 @@ const displayManifestUrl = (value) => {
 
   if (!raw) {
     return raw;
+  }
+
+  if (isElfHostedJackettio(raw)) {
+    return "https://jackettio.elfhosted.com/[configured]/manifest.json";
   }
 
   if (isElfHostedComet(raw) && !isBareCometManifest(raw)) {
@@ -643,6 +669,17 @@ export default function AddonsManager() {
           "Comet needs its generated configured manifest. Open Configure Comet, add your debrid service, use Copy Link, then paste that generated manifest URL here — not the bare public manifest."
         );
 
+        return;
+      }
+
+      if (
+        isElfHostedJackettio(rawUrl) &&
+        (/\/configure(?:[/?#]|$)/i.test(rawUrl) ||
+          isBareJackettioManifest(url))
+      ) {
+        setError(
+          "Jackettio needs your own configured manifest. Open Configure Jackettio, choose its indexers and debrid settings, then use Copy Link. The public manifest alone does not provide your personalised episode sources."
+        );
         return;
       }
 
@@ -1049,6 +1086,42 @@ export default function AddonsManager() {
         </div>
       )}
 
+      <div className="rounded-xl border border-indigo-900/60 bg-indigo-950/20 p-4 space-y-3" data-mg-jackettio-setup="true">
+        <div>
+          <h2 className="text-md font-semibold text-white">Jackettio (optional)</h2>
+          <p className="mt-1 text-xs text-gray-400">
+            Configure the public Jackettio instance with indexers and your own debrid access, then add the generated HTTPS manifest. Jackettio has its own rate limits, and a working manifest does not guarantee a playable episode. Your existing add-ons keep working.
+          </p>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <a
+            href={JACKETTIO_CONFIGURE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex min-h-11 items-center justify-center gap-2 rounded-lg bg-indigo-700 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-600"
+          >
+            <ExternalLink className="h-4 w-4" />
+            Configure Jackettio
+          </a>
+          <button
+            type="button"
+            onClick={() => {
+              setNewName("Jackettio");
+              setNewUrl("");
+              setError("");
+              setMessage("After configuring Jackettio, select Copy Link on its setup page, paste the generated manifest below and press Add Addon. Never paste your raw Real-Debrid key here.");
+              document.getElementById("mg-addon-manifest-url")?.focus();
+            }}
+            className="min-h-11 rounded-lg border border-indigo-800 bg-zinc-900 px-3 py-2 text-sm font-medium text-indigo-200 hover:bg-zinc-800"
+          >
+            Add configured Jackettio
+          </button>
+        </div>
+        <p className="text-[11px] text-gray-500">
+          Media God hides saved Jackettio profile paths. Configure your personal debrid connection on Jackettio itself, not in the addon name or URL fields.
+        </p>
+      </div>
+
       <div className="rounded-xl border border-sky-900/60 bg-sky-950/20 p-4 space-y-3">
         <div>
           <h2 className="text-md font-semibold text-white">
@@ -1240,6 +1313,7 @@ export default function AddonsManager() {
               )
             }
             aria-label="Addon manifest URL"
+            id="mg-addon-manifest-url"
             inputMode="url"
             autoCapitalize="none"
             autoCorrect="off"
