@@ -387,7 +387,9 @@ export default function CastButton({
         type="button"
         onClick={() => {
           setShowDestinations((open) => !open);
-          if (!showDestinations) prepareCastSdk();
+          // Embedded players cannot send a webpage as a Cast video. Keep
+          // Media God handoff available without loading the Google SDK.
+          if (!showDestinations && directCastEligible) prepareCastSdk();
         }}
         disabled={disabled}
         aria-label={connecting ? "Connecting to Cast" : casting ? "Casting to TV" : "Cast video to TV"}
