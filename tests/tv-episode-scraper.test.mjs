@@ -225,7 +225,8 @@ test("Fast episode lookup accepts the first provider with a playable-looking lin
 
 test("TV-only scraper startup delay shrinks without changing movie selection or manual source access", () => {
   const provider = readFileSync(new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url), "utf8");
-  assert.match(provider, /flixQuestV2Configured\(\) \? 850 : 250/);
+  assert.match(provider, /flixQuestBackupEnabled/);
+  assert.match(provider, /hasUsableEpisodeAddonSource\(addonLookup\?\.streams, \{ season, episode \}\)/);
   assert.match(provider, /timeBudgetMs: mediaType === "tv" \? 2400 : 5000/);
   assert.match(provider, /const playerSources =/);
   assert.match(provider, /episodeAutoprepareCandidates/);
