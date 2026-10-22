@@ -10,7 +10,7 @@ const onlyflix = readFileSync(new URL("../src/components/mg/OnlyFlixEmbedPlayer.
 test("opening video or switching sources never implicitly loads Google Cast SDK", () => {
   assert.match(cast, /const prepareCastSdk = useCallback\(\(\) => \{/);
   assert.match(cast, /onClick=\{\(\) => \{\s*setShowDestinations/);
-  assert.match(cast, /if \(!showDestinations\) prepareCastSdk\(\)/);
+  assert.match(cast, /if \(!showDestinations && directCastEligible\) prepareCastSdk\(\)/);
   assert.doesNotMatch(cast, /useEffect\(\(\) => \{\s*\/\/ Native Android APKs[\s\S]*?loadCastSdk\(\)/);
   assert.match(cast, /autoJoinPolicy:\s*window\.chrome\.cast\.AutoJoinPolicy\.NO_AUTO_JOIN/);
   assert.match(cast, /if \(!castInitiated\) return undefined/);
