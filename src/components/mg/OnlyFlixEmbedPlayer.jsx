@@ -3,6 +3,10 @@ import { ArrowLeft, ExternalLink, ListVideo } from "lucide-react";
 import { isNativeFireTvEmbedRemoteAvailable, setNativeFireTvEmbedRemoteActive } from "@/components/mg/nativeFireTvBridge";
 import OnlyFlixRemotePointer from "@/components/mg/OnlyFlixRemotePointer";
 import CastButton from "@/components/mg/CastButton";
+import {
+  buildVidRiftEpisodeEmbedUrl,
+  buildStellarEpisodeEmbedUrl,
+} from "@/components/mg/extraEmbedProviders";
 
 export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenSources, backLabel = "Sources" }) {
   useEffect(() => {
@@ -11,6 +15,16 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
   }, []);
 
   const isFireTv = isNativeFireTvEmbedRemoteAvailable();
+  const [activeEpisodePlayer, setActiveEpisodePlayer] = useState("onlyflix");
+  useEffect(() => setActiveEpisodePlayer("onlyflix"), [url]);
+  const tvBackups = media?.mediaType === "tv" ? [
+    { id: "onlyflix", label: "OnlyFlix", url },
+    { id: "vidrift", label: "VidRift", url: buildVidRiftEpisodeEmbedUrl(media) },
+    { id: "stellar", label: "Stellar", url: buildStellarEpisodeEmbedUrl(media) },
+  ].filter((item) => Boolean(item.url)) : [];
+  const chosen = tvBackups.find((item) => item.id === activeEpisodePlayer);
+  const selectedUrl = chosen?.url || url;
+  const providerLabel = chosen?.label || "OnlyFlix";
   const [chromeVisible, setChromeVisible] = useState(true);
   useEffect(() => {
     if (!isFireTv) return;
@@ -81,17 +95,40 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
               startTime: media?.startTime || 0,
             }}
           />
-          <span className="hidden shrink-0 text-xs text-white/50 sm:block">OnlyFlix web player</span>
+          <span className="hidden shrink-0 text-xs text-white/50 sm:block">{providerLabel} web player</span>
         </div>
 
+        {tvBackups.length > 1 && (
+          <nav
+            data-mg-episode-player-backups="true"
+            aria-label="TV episode players"
+            className="mb-2 flex max-w-full items-center gap-2 overflow-x-auto rounded-lg bg-zinc-950/80 px-2 py-2"
+          >
+            <span className="shrink-0 text-xs text-white/50">Episode player:</span>
+            {tvBackups.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setActiveEpisodePlayer(option.id)}
+                aria-pressed={activeEpisodePlayer === option.id}
+                data-mg-episode-provider={option.id}
+                className={`min-h-10 shrink-0 rounded-lg border px-3 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mg-green ${activeEpisodePlayer === option.id
+                  ? "border-mg-green/70 bg-mg-green/20 text-mg-green"
+                  : "border-white/15 bg-white/5 text-white hover:bg-white/15"}`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </nav>
+        )}
         <div
           data-mg-player-stage="true"
           className="relative aspect-video min-h-[34vh] w-full overflow-hidden rounded-xl border border-white/10 bg-black"
         >
           <iframe
-            key={url}
-            src={url}
-            title={"OnlyFlix: " + title}
+            key={selectedUrl}
+            src={selectedUrl}
+            title={providerLabel + ": " + title}
             className="h-full w-full border-0"
             allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
             allowFullScreen
@@ -103,9 +140,9 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
         </div>
 
         <div className={`mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/70 p-2.5 text-xs text-white/60 transition-opacity duration-500 ${chromeFade}`}>
-          <span>{isNativeFireTvEmbedRemoteAvailable() ? "Move the pointer onto Play with the D-pad, then press Select. Press Back to return to Media God." : <>OnlyFlix has its own player controls. Use {backLabel} to return to Media God.</>}</span>
+          <span>{isNativeFireTvEmbedRemoteAvailable() ? "Move the pointer onto Play with the D-pad, then press Select. Press Back to return to Media God." : <>{providerLabel} has its own player controls. Use {backLabel} to return to Media God.</>}</span>
           <a
-            href={url}
+            href={selectedUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-white/20 px-3 font-semibold text-white focus:outline-none focus:ring-2 focus:ring-mg-green"
