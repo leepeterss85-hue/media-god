@@ -18,6 +18,31 @@ test("Continue Watching uses a single card without outside Other sources button"
   assert.doesNotMatch(home, /skipAddonLookup:\s*true|skipRdLookup:\s*true|noRd:\s*true/);
 });
 
+test("Continue Watching offers movie and exact-episode player tabs without changing resume", () => {
+  // Resume still restores the saved file and seek position. Players is
+  // a separate explicit action, not an alternate primary-card click.
+  assert.match(home, /data-mg-continue-player-options="true"/);
+  assert.match(home, /onClick=\{\(event\) => openPlayerOptions\(item, event\)\}/);
+  assert.match(home, /onKeyDown=\{\(event\) => event\.stopPropagation\(\)\}/);
+  assert.match(home, /event\?\.stopPropagation\(\)/);
+  assert.match(home, /player\.playOnlyFlix\?\.\(\{/);
+  assert.match(home, /mediaType: meta\.mediaType/);
+  assert.match(home, /type: isTv \? "series" : "movie"/);
+  assert.match(home, /season: isTv \? meta\.season : undefined/);
+  assert.match(home, /episode: isTv \? meta\.episode : undefined/);
+  assert.match(home, /if \(!launched\)\s*\{[\s\S]*?await openDetail\(item\)/);
+  assert.match(home, /if \(hasSavedSource\) \{/);
+  assert.match(home, /startTime: Number\(item\.progress \|\| 0\)/);
+  // Same top-of-player options that normal Play exposes.
+  assert.match(onlyflix, /data-mg-movie-player-backups=/);
+  assert.match(onlyflix, /data-mg-episode-player-backups=/);
+  assert.match(onlyflix, /buildTwoEmbedEmbedUrl\(media\)/);
+  assert.match(onlyflix, /buildCineSrcEmbedUrl\(media\)/);
+  assert.match(onlyflix, /buildMultiEmbedEmbedUrl\(media\)/);
+  assert.match(onlyflix, /buildVidRiftEpisodeEmbedUrl\(media\)/);
+  assert.match(onlyflix, /buildStellarEpisodeEmbedUrl\(media\)/);
+});
+
 test("the VideoPlayer always has its own usable Sources button for VOD", () => {
   assert.match(player, /data-mg-open-in-player-sources="true"/);
   assert.match(player, /!isLive\s*&&\s*\(\s*<button/);
