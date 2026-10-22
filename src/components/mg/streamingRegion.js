@@ -31,7 +31,7 @@ export const inferStreamingRegion = ({ override = "", timezone = "", locales = [
   const selected = normaliseStreamingRegion(override);
   if (selected) return { region: selected, source: "manual" };
 
-  if (/^Europe\\/(?:London|Belfast|Guernsey|Isle_of_Man|Jersey)$/i.test(String(timezone))) {
+  if (/^Europe\/(?:London|Belfast|Guernsey|Isle_of_Man|Jersey)$/i.test(String(timezone))) {
     return { region: "GB", source: "timezone" };
   }
 
