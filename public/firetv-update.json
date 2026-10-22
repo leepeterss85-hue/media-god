@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 102,
-  "versionName": "1.4.97",
+  "versionCode": 103,
+  "versionName": "1.4.98",
   "title": "Media God Fire TV",
-  "message": "Media God 1.4.97: protect working audio from unnecessary decoder switches and keep source selection accessible.",
+  "message": "Media God 1.4.98: TV episodes open OnlyFlix by default, with movie and TV player backup buttons; existing Live TV stays unchanged.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
