@@ -71,6 +71,28 @@ export const buildMultiEmbedEmbedUrl = (media = {}) => {
   return "";
 };
 
+/**
+ * Optional TV-only embed buttons for the same episode shown in OnlyFlix.
+ * Missing or invalid episode IDs never produce generic show pages.
+ */
+export const buildVidRiftEpisodeEmbedUrl = (media = {}) => {
+  if (validType(media) !== "tv") return "";
+  const id = tmdbId(media);
+  const ctx = tvContext(media);
+  return id && ctx
+    ? `https://embed.vidrift.net/embed/tv/${id}/${ctx.season}/${ctx.episode}?exit=1`
+    : "";
+};
+
+export const buildStellarEpisodeEmbedUrl = (media = {}) => {
+  if (validType(media) !== "tv") return "";
+  const id = tmdbId(media);
+  const ctx = tvContext(media);
+  return id && ctx
+    ? `https://stellar.rip/en/watch/embed/tv/${id}-${ctx.season}-${ctx.episode}?autoPlay=true&nextButton=true&autoNext=true`
+    : "";
+};
+
 export const EXTRA_EMBED_PROVIDERS = [
   { key: "twoembed", label: "2Embed", build: buildTwoEmbedEmbedUrl },
   { key: "cinesrc", label: "CineSrc", build: buildCineSrcEmbedUrl },
