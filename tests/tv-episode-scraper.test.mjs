@@ -144,3 +144,89 @@ test("episode lookup deduplicates simultaneous requests and caches only successf
     assert.equal(r.calls.length, 9);
   } finally { r.restore(); }
 });
+
+test("FlixQuest v2 API uses the documented provider discovery and exact-episode endpoint", async () => {
+  const previous = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async url => {
+    const current = String(url);
+    calls.push(current);
+    const body = current.endsWith("/providers")
+      ? { success: true, providers: [
+          { id: "vixsrc", enabled: true },
+          { id: "disabled", enabled: false },
+        ] }
+      : current.includes("/stream-tv?")
+        ? { success: true, links: [
+            { url: "https://media.test/real-episode.m3u8", quality: "1080p",
+              hlsAudioLanguage: "eng", isM3U8: true },
+            { url: "https://media.test/wrong.m3u8", season: 1, episode: 9 },
+          ] }
+        : null;
+    return { ok: Boolean(body), status: body ? 200 : 404, json: async () => body };
+  };
+  try {
+    const { fetchTvEpisodeSources } = await import(`../src/components/mg/tvEpisodeScraper.js?case=v2-${++sequence}`);
+    const sources = await fetchTvEpisodeSources({
+      tmdbId: 1396, season: 1, episode: 1,
+      scraperBaseUrl: "https://scraper.example.test",
+    });
+    assert.equal(sources.length, 1);
+    assert.equal(sources[0].url, "https://media.test/real-episode.m3u8");
+    assert.equal(sources[0].format, "hls");
+    assert.equal(sources[0].audioLanguage, "eng");
+    assert.equal(sources[0].launchQualified, false, "a scraper label is never proof of English audio");
+    assert.ok(calls.some(url => url.endsWith("/api/v2/providers")));
+    assert.ok(calls.some(url => url.includes("/api/v2/stream-tv?") &&
+      url.includes("provider=vixsrc") && url.includes("episode=1")));
+    assert.equal(calls.some(url => url.includes("/watch-tv?")), false);
+  } finally { globalThis.fetch = previous; }
+});
+
+test("FlixQuest legacy HTTP 404 routes are quarantined instead of queried for every next episode", async () => {
+  const previous = globalThis.fetch;
+  let attempts = 0;
+  globalThis.fetch = async () => {
+    attempts += 1;
+    return { ok: false, status: 404, json: async () => null };
+  };
+  try {
+    const { fetchTvEpisodeSources } = await import(`../src/components/mg/tvEpisodeScraper.js?case=404-${++sequence}`);
+    assert.deepEqual(await fetchTvEpisodeSources({ tmdbId: 1396, season: 1, episode: 1 }), []);
+    assert.equal(attempts, 3);
+    assert.deepEqual(await fetchTvEpisodeSources({ tmdbId: 1396, season: 1, episode: 2 }), []);
+    assert.equal(attempts, 3, "do not repeat three known dead routes for every episode");
+  } finally { globalThis.fetch = previous; }
+});
+
+test("Fast episode lookup accepts the first provider with a playable-looking link", async () => {
+  const previous = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async url => {
+    calls.push(String(url));
+    if (String(url).includes("/showbox/")) {
+      return { ok: true, status: 200, json: async () => ({
+        links: [{ url: "https://media.test/fast.m3u8", audioLanguage: "en" }],
+      }) };
+    }
+    return new Promise(resolve => setTimeout(() => resolve({
+      ok: false, status: 500, json: async () => null,
+    }), 250));
+  };
+  try {
+    const { fetchTvEpisodeSources } = await import(`../src/components/mg/tvEpisodeScraper.js?case=race-${++sequence}`);
+    const start = Date.now();
+    const sources = await fetchTvEpisodeSources({ tmdbId: 1396, season: 1, episode: 1 });
+    assert.equal(sources[0].url, "https://media.test/fast.m3u8");
+    assert.ok(Date.now() - start < 180, "do not wait for slower sibling providers");
+    assert.equal(calls.length, 3);
+  } finally { globalThis.fetch = previous; }
+});
+
+test("TV-only scraper startup delay shrinks without changing movie selection or manual source access", () => {
+  const provider = readFileSync(new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url), "utf8");
+  assert.match(provider, /flixQuestV2Configured\(\) \? 850 : 250/);
+  assert.match(provider, /timeBudgetMs: mediaType === "tv" \? 2400 : 5000/);
+  assert.match(provider, /const playerSources =/);
+  assert.match(provider, /episodeAutoprepareCandidates/);
+});
