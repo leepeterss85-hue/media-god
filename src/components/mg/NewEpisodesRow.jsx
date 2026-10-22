@@ -289,11 +289,23 @@ export default function NewEpisodesRow({
     if (!item || item.airDate > todayKey) return;
 
     /*
-     * Route episode cards through the shared episode playback pipeline.
-     * This invokes the FlixQuest resolver first while preserving the normal
-     * addon/Real-Debrid source lookup as fallback instead of bypassing both
-     * and opening OnlyFlix directly.
+     * A new-episode card uses the same direct OnlyFlix launch as films.
+     * Fall back to the existing episode-source pipeline if no embed exists.
      */
+    if (player.playOnlyFlix?.({
+      id: item.tmdbId,
+      tmdbId: item.tmdbId,
+      title: item.showTitle,
+      year: item.year,
+      poster: item.poster,
+      mediaType: "tv",
+      type: "series",
+      season: item.season,
+      episode: item.episode,
+      rdTitle: item.showTitle,
+      rdYear: item.year,
+    })) return;
+
     if (player.play) {
       const episodeCode = `S${String(item.season).padStart(2, "0")}E${String(
         item.episode
