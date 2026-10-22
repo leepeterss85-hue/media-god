@@ -13,7 +13,7 @@ test("missing API key yields an actionable error without making a provider reque
 });
 test("feature responses preserve arrays and nested provider envelopes",()=>{
  for(const value of [[{id:1}],{events:[{id:1}]},{leaving_dates:{titles:[{id:1}]}},{changes:{title_ids:[1,2]}},{awards:{results:[{id:1}]}}]){
-  const rows=watchmodeRows(value); if(value.leaving_dates) continue;
+  const rows=watchmodeRows(value);
   assert.ok(rows.length);
  }
  assert.deepEqual(watchmodeRows(null),[]);

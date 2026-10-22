@@ -9,7 +9,7 @@ export function watchmodeError(error) {
  if(status===429) return "Watchmode’s request limit has been reached. Please try again later.";
  return error?.message || "Watchmode data could not be loaded.";
 }
-export function watchmodeRows(value, keys=["events","titles","results","leagues","changes","title_ids","awards","data"]) {
+export function watchmodeRows(value, keys=["events","live_events","leaving_dates","title_results","titles","results","leagues","changes","title_ids","awards","data"]) {
  if(Array.isArray(value)) return value;
  if(!value || typeof value!=="object") return [];
  for(const key of keys) {
