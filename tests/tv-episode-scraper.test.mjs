@@ -230,3 +230,27 @@ test("TV-only scraper startup delay shrinks without changing movie selection or 
   assert.match(provider, /const playerSources =/);
   assert.match(provider, /episodeAutoprepareCandidates/);
 });
+
+test("fast provider race ignores a prompt response containing only the wrong episode or foreign audio", async () => {
+  const previous = globalThis.fetch;
+  globalThis.fetch = async url => {
+    const request = String(url);
+    const payload = request.endsWith("/providers")
+      ? { providers: [{ id: "wrong", enabled: true }, { id: "correct", enabled: true }] }
+      : request.includes("provider=wrong")
+        ? { links: [
+            { url: "https://media.test/s01e03.mp4", season: 1, episode: 3, language: "en" },
+            { url: "https://media.test/s01e01-foreign.mp4", season: 1, episode: 1, language: "fr" },
+          ] }
+        : { links: [{ url: "https://media.test/s01e01-english.m3u8", season: 1, episode: 1,
+          audioLanguage: "en", isM3U8: true }] };
+    return { ok: true, status: 200, json: async () => payload };
+  };
+  try {
+    const { fetchTvEpisodeSources } = await import(`../src/components/mg/tvEpisodeScraper.js?case=validrace-${++sequence}`);
+    const sources = await fetchTvEpisodeSources({
+      tmdbId: 1396, season: 1, episode: 1, scraperBaseUrl: "https://provider.test",
+    });
+    assert.deepEqual(sources.map(item => item.url), ["https://media.test/s01e01-english.m3u8"]);
+  } finally { globalThis.fetch = previous; }
+});
