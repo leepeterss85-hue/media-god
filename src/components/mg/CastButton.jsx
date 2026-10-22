@@ -70,8 +70,10 @@ const waitForCastPlayback = (session, targetUrl) => new Promise((resolve, reject
     const media = session?.getMediaSession?.();
     if (!media) return;
     const currentId = String(media.media?.contentId || "");
-    // Ignore the previous video's player state while switching media.
-    if (currentId && currentId !== targetUrl) return;
+    // A session may still report PLAYING for its previous film after
+    // LOAD resolves. A missing or different content ID cannot confirm
+    // playback of the newly requested title.
+    if (!currentId || currentId !== targetUrl) return;
     if (media.playerState === "IDLE" && media.idleReason === "ERROR") {
       finish(new Error("CAST_MEDIA_ERROR"));
       return;
