@@ -791,17 +791,17 @@ export default function EpisodeSelector({
         rdSeason: Number(seasonNumber),
         rdEpisode: Number(episodeNumber),
         startTime: Number(startTime || 0),
-        // TV episodes must query the configured playback add-ons so
-        // MediaFusion and the built-in StremSRC source can return episode links.
+        // A normal episode tap uses the verified one-click pipeline.
+        // Query all active addons and Real-Debrid instead of forcing
+        // manual playback or restricting discovery to MediaFusion.
         skipRdLookup: false,
         skipAddonLookup: false,
-        verifiedPlaybackPolicy: "manual",
+        verifiedPlaybackPolicy: "strict",
         includeAddonNames,
       };
 
-      // Use the standard source chooser here rather than forcing an embedded
-      // scraper first. This lets the configured MediaFusion manifest and
-      // StremSRC appear alongside other TV episode sources.
+      // Launch the exact episode while the player qualifies usable sources.
+      // Keep the manual Sources list available only as an override.
       player.play({
         ...baseRequest,
         preferRd: true,
@@ -868,7 +868,7 @@ export default function EpisodeSelector({
         episodeNumber,
         episodeData,
         startTime,
-        includeAddonNames: ["MediaFusion"],
+        includeAddonNames: [],
       });
     };
 
