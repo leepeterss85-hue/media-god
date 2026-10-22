@@ -93,6 +93,29 @@ export const buildStellarEpisodeEmbedUrl = (media = {}) => {
     : "";
 };
 
+/**
+ * Movie-only iframe backups for the existing OnlyFlix movie player.
+ * Use the verified numeric TMDB movie identity: never guess a title URL
+ * or change the default green Play action.
+ */
+export const buildVidRiftMovieEmbedUrl = (media = {}) => {
+  if (validType(media) !== "movie") return "";
+  const id = tmdbId(media);
+  return id ? `https://embed.vidrift.net/embed/movie/${id}` : "";
+};
+
+export const buildStellarMovieEmbedUrl = (media = {}) => {
+  if (validType(media) !== "movie") return "";
+  const id = tmdbId(media);
+  return id ? `https://stellar.rip/en/watch/embed/movie/${id}?autoPlay=true` : "";
+};
+
+export const buildVidLinkMovieEmbedUrl = (media = {}) => {
+  if (validType(media) !== "movie") return "";
+  const id = tmdbId(media);
+  return id ? `https://vidlink.pro/movie/${id}` : "";
+};
+
 export const EXTRA_EMBED_PROVIDERS = [
   { key: "twoembed", label: "2Embed", build: buildTwoEmbedEmbedUrl },
   { key: "cinesrc", label: "CineSrc", build: buildCineSrcEmbedUrl },
