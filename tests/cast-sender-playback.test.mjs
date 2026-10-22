@@ -15,6 +15,7 @@ test("requires receiver media state before reporting a successful cast", () => {
   assert.match(sender, /media\.playerState === "PLAYING"/);
   assert.match(sender, /media\.playerState === "IDLE" && media\.idleReason === "ERROR"/);
   assert.match(sender, /getMediaSession/);
+  assert.match(sender, /if \(!currentId \|\| currentId !== targetUrl\) return/);
   assert.match(sender, /if \(loadResult\) throw/);
 });
 
