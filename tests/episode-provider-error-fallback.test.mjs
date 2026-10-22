@@ -6,6 +6,7 @@ import {
   episodeAutoplayCanTrustSource,
   rankEpisodeSourceChoices,
 } from "../src/components/mg/episodeLaunchTrust.js";
+import { hasUsableEpisodeAddonSource } from "../src/components/mg/episodeSourcePolicy.js";
 
 const flixQuest = {
   provider: "flixquest-showbox",
@@ -56,6 +57,35 @@ test("episode chooser prioritises alternatives and retains FlixQuest as backup",
   assert.deepEqual(ranked.map(({ index }) => index), [1, 2, 3, 0]);
   assert.deepEqual(new Set(ranked.map(({ index }) => index)), new Set([0, 1, 2, 3]));
   assert.equal(rankEpisodeSourceChoices([entries[0]])[0], entries[0]);
+});
+
+test("an unverified MediaFusion error video cannot satisfy primary episode discovery", () => {
+  const badOnly = [mediaFusionErrorClip];
+  const ready = badOnly.filter(episodeAutoplayCanTrustSource);
+  assert.equal(ready.length, 0);
+  assert.equal(hasUsableEpisodeAddonSource(ready, { season: 1, episode: 1 }), false);
+
+  const genuinelyDirect = {
+    addon: "StremSRC", type: "url", url: "https://media.example.test/episode.m3u8",
+    season: 1, episode: 1,
+  };
+  assert.equal(hasUsableEpisodeAddonSource(
+    [...badOnly, genuinelyDirect].filter(episodeAutoplayCanTrustSource),
+    { season: 1, episode: 1 }
+  ), true);
+
+  const provider = readFileSync(new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url), "utf8");
+  assert.equal((provider.match(/addonLookup\?\.streams \|\| \[\]\)\.filter\(episodeAutoplayCanTrustSource\)/g) || []).length, 2);
+});
+
+test("single unverified episode source must not start a playable error clip", () => {
+  const player = readFileSync(new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url), "utf8");
+  assert.match(player, /const activeIsUnverifiedHostedEpisode =/);
+  assert.match(player, /isUnverifiedHostedEpisodeStream\(active\) &&\s*!rdOverride\?\.src &&\s*!manualSourceLockActive\(\)/);
+  assert.match(player, /const activeUrl = activeIsUnverifiedHostedEpisode\s*\? ""\s*: getSourceUrl\(active\)/);
+  assert.match(player, /!activeIsUnverifiedHostedEpisode &&\s*!activeNeedsCaching/);
+  assert.match(player, /data-mg-unverified-episode-source="true"/);
+  assert.match(player, /\? "Unverified"/);
 });
 
 test("other providers, movies and Live TV are outside the new MediaFusion-only gate", () => {
