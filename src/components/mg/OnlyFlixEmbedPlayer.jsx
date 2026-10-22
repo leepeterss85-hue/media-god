@@ -6,6 +6,9 @@ import CastButton from "@/components/mg/CastButton";
 import {
   buildVidRiftEpisodeEmbedUrl,
   buildStellarEpisodeEmbedUrl,
+  buildVidRiftMovieEmbedUrl,
+  buildStellarMovieEmbedUrl,
+  buildVidLinkMovieEmbedUrl,
 } from "@/components/mg/extraEmbedProviders";
 
 export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenSources, backLabel = "Sources" }) {
@@ -22,7 +25,16 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
     { id: "vidrift", label: "VidRift", url: buildVidRiftEpisodeEmbedUrl(media) },
     { id: "stellar", label: "Stellar", url: buildStellarEpisodeEmbedUrl(media) },
   ].filter((item) => Boolean(item.url)) : [];
-  const chosen = tvBackups.find((item) => item.id === activeEpisodePlayer);
+  // Movie backups mirror the proven TV switcher without changing the
+  // default OnlyFlix film launch or making backup network requests upfront.
+  const movieBackups = media?.mediaType === "movie" ? [
+    { id: "onlyflix", label: "OnlyFlix", url },
+    { id: "vidrift", label: "VidRift", url: buildVidRiftMovieEmbedUrl(media) },
+    { id: "stellar", label: "Stellar", url: buildStellarMovieEmbedUrl(media) },
+    { id: "vidlink", label: "VidLink", url: buildVidLinkMovieEmbedUrl(media) },
+  ].filter((item) => Boolean(item.url)) : [];
+  const activeBackups = tvBackups.length ? tvBackups : movieBackups;
+  const chosen = activeBackups.find((item) => item.id === activeEpisodePlayer);
   const selectedUrl = chosen?.url || url;
   const providerLabel = chosen?.label || "OnlyFlix";
   const [chromeVisible, setChromeVisible] = useState(true);
@@ -98,20 +110,24 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
           <span className="hidden shrink-0 text-xs text-white/50 sm:block">{providerLabel} web player</span>
         </div>
 
-        {tvBackups.length > 1 && (
+        {activeBackups.length > 1 && (
           <nav
-            data-mg-episode-player-backups="true"
-            aria-label="TV episode players"
+            data-mg-episode-player-backups={tvBackups.length ? "true" : undefined}
+            data-mg-movie-player-backups={movieBackups.length ? "true" : undefined}
+            aria-label={movieBackups.length ? "Movie players" : "TV episode players"}
             className="mb-2 flex max-w-full items-center gap-2 overflow-x-auto rounded-lg bg-zinc-950/80 px-2 py-2"
           >
-            <span className="shrink-0 text-xs text-white/50">Episode player:</span>
-            {tvBackups.map((option) => (
+            <span className="shrink-0 text-xs text-white/50">
+              {movieBackups.length ? "Movie player:" : "Episode player:"}
+            </span>
+            {activeBackups.map((option) => (
               <button
                 key={option.id}
                 type="button"
                 onClick={() => setActiveEpisodePlayer(option.id)}
                 aria-pressed={activeEpisodePlayer === option.id}
-                data-mg-episode-provider={option.id}
+                data-mg-episode-provider={tvBackups.length ? option.id : undefined}
+                data-mg-movie-provider={movieBackups.length ? option.id : undefined}
                 className={`min-h-10 shrink-0 rounded-lg border px-3 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mg-green ${activeEpisodePlayer === option.id
                   ? "border-mg-green/70 bg-mg-green/20 text-mg-green"
                   : "border-white/15 bg-white/5 text-white hover:bg-white/15"}`}
