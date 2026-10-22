@@ -49,11 +49,11 @@ test("confirmed cached/qualified MediaFusion stays available for automatic episo
   }), false);
 });
 
-test("episode chooser retains *all* manual torrents while FlixQuest remains first", () => {
+test("episode chooser prioritises alternatives and retains FlixQuest as backup", () => {
   const entries = [mediaFusionErrorClip, torrentio, reliableRd, flixQuest]
     .map((item, index) => ({ item, index }));
   const ranked = rankEpisodeSourceChoices(entries);
-  assert.deepEqual(ranked.map(({ index }) => index), [3, 1, 2, 0]);
+  assert.deepEqual(ranked.map(({ index }) => index), [1, 2, 3, 0]);
   assert.deepEqual(new Set(ranked.map(({ index }) => index)), new Set([0, 1, 2, 3]));
   assert.equal(rankEpisodeSourceChoices([entries[0]])[0], entries[0]);
 });
@@ -70,10 +70,10 @@ test("other providers, movies and Live TV are outside the new MediaFusion-only g
   assert.match(provider, /No verified episode stream is ready yet/);
   assert.match(player, /playbackMediaType !== "tv" \|\| episodeAutoplayCanTrustSource\(item\)/);
   assert.match(player, /Unverified •/);
-  assert.match(selector, /rankEpisodeSourceChoices\(englishFirst\)/);
+  assert.match(selector, /rankEpisodeSourceChoices\(ranked\)/);
 });
 
-test("FlixQuest is still primary and there is no default auto-switch to an unverified error clip", () => {
+test("FlixQuest backup remains ahead of unverified error clips when no trusted addon is available", () => {
   const ranked = rankEpisodeSourceChoices([
     { item: mediaFusionErrorClip, index: 0 },
     { item: flixQuest, index: 1 },
