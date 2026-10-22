@@ -33,6 +33,8 @@ import SocialLoginSection from "@/components/mg/SocialLoginSection";
 import MultiDebridSettings from "@/components/mg/MultiDebridSettings";
 import PlaybackAdvancedSettings from "@/components/mg/PlaybackAdvancedSettings";
 import { nativeFireTvAppInfo } from "@/components/mg/nativeFireTvBridge";
+import { COUNTRY_OPTIONS, countryLabel } from "@/components/mg/countryOptions";
+import { getStreamingRegionDetails, getStreamingRegionOverride, setStreamingRegionOverride } from "@/components/mg/streamingRegion";
 import { fetchLatestNativeRelease } from "@/components/mg/nativeReleaseInfo";
 import {
   readTrackPreferences,
@@ -342,6 +344,9 @@ export default function SettingsView() {
     appVersionChecking,
     setAppVersionChecking,
   ] = useState(false);
+
+  const [regionOverride, setRegionOverride] = useState(getStreamingRegionOverride);
+  const [preferredRegion, setPreferredRegion] = useState(getStreamingRegionDetails);
 
   const [uxPreferences, setUxPreferences] = useState(readUxPreferences);
   const [supportCopied, setSupportCopied] = useState(false);
@@ -2204,6 +2209,32 @@ export default function SettingsView() {
             </span>
           </div>
 
+          <div className="flex flex-col gap-3 p-4 3xl:p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm 3xl:text-base font-medium text-white">
+                Preferred country for Live TV
+              </p>
+              <p className="mt-1 text-xs 3xl:text-sm text-white/40">
+                {countryLabel(preferredRegion.region)} ({preferredRegion.region}) · {preferredRegion.source === "manual" ? "Chosen on this device" : preferredRegion.source === "timezone" ? "Inferred from device time zone" : preferredRegion.source === "locale" ? "Inferred from device language" : "Default preference"}.
+                This helps organise regional feeds, but does not change your IP address or bypass broadcast restrictions.
+              </p>
+            </div>
+            <select
+              aria-label="Preferred Live TV country"
+              value={regionOverride}
+              onChange={(event) => {
+                const next = setStreamingRegionOverride(event.target.value);
+                setRegionOverride(next);
+                setPreferredRegion(getStreamingRegionDetails());
+              }}
+              className="min-h-11 w-full rounded-md border border-white/10 bg-mg-surface px-3 py-2 text-sm text-white focus:border-mg-green focus:outline-none sm:w-56"
+            >
+              <option value="">Automatic ({preferredRegion.source === "manual" ? "device" : preferredRegion.region})</option>
+              {COUNTRY_OPTIONS.filter((item) => item.code).map((item) => (
+                <option value={item.code} key={item.code}>{item.label} ({item.code})</option>
+              ))}
+            </select>
+          </div>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 3xl:p-5">
             <div>
               <p className="text-sm 3xl:text-base text-white font-medium">
