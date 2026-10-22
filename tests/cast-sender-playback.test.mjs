@@ -20,6 +20,8 @@ test("requires receiver media state before reporting a successful cast", () => {
 
 test("rejects known unsupported video containers before launching the receiver", () => {
   assert.match(sender, /mkv\|avi\|wmv\|flv/);
+  assert.match(sender, /const formatHint = String\(source\?\.format \|\| source\?\.container \|\| ""\)/);
+  assert.match(sender, /incompatibleContainer \|\|\s*mimeType === "video\/x-matroska"/);
   assert.match(sender, /casting cannot convert MKV\/AVI video/i);
   assert.ok(
     sender.indexOf('const mimeType = mediaContentType(targetUrl, contentType, source);') <
