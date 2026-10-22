@@ -1877,8 +1877,20 @@ export default function VideoPlayer({
     return () => window.removeEventListener("mg:hls-audio-tracks", onHlsTracks);
   }, [active, rdOverride, playbackMediaType]);
 
-  const activeUrl =
-    getSourceUrl(active);
+  /*
+   * An unverified MediaFusion episode URL can return a perfectly playable
+   * ElfHosted "Stream not found" video. Never start that clip automatically.
+   * Keep the row in Sources so the viewer can explicitly try it.
+   */
+  const activeIsUnverifiedHostedEpisode =
+    playbackMediaType === "tv" &&
+    isUnverifiedHostedEpisodeStream(active) &&
+    !rdOverride?.src &&
+    !manualSourceLockActive();
+
+  const activeUrl = activeIsUnverifiedHostedEpisode
+    ? ""
+    : getSourceUrl(active);
 
   const activeResolutionKey =
     stablePlaybackSourceKey(active, activeIdx);
@@ -3316,6 +3328,7 @@ export default function VideoPlayer({
   const isDirectFile =
     launchQualifiedDirect ||
     (
+      !activeIsUnverifiedHostedEpisode &&
       !activeNeedsCaching &&
       !isRdSource &&
       (
@@ -10541,6 +10554,8 @@ export default function VideoPlayer({
       ? "Source issue"
       : noPlayableVodSources && !busy
         ? "No sources"
+      : activeIsUnverifiedHostedEpisode && !busy
+        ? "Unverified"
       : rdResolving
         ? "Resolving"
         : rdPolling || rdTorrentId
@@ -10883,6 +10898,28 @@ export default function VideoPlayer({
                   Try VidSrc web player
                 </button>
               )}
+            </div>
+          ) : activeIsUnverifiedHostedEpisode ? (
+            <div
+              role="alert"
+              data-mg-unverified-episode-source="true"
+              className="flex max-w-lg flex-col items-center gap-3 p-6 text-center"
+            >
+              <p className="text-sm font-semibold text-white/85 sm:text-base">
+                This episode source is not verified
+              </p>
+              <p className="max-w-md text-xs leading-relaxed text-white/50 sm:text-sm">
+                MediaFusion may return a playable “Stream not found” error clip.
+                Media God will not autoplay it as the episode. Other sources
+                remain available in Sources.
+              </p>
+              <button
+                type="button"
+                onClick={showSourceChooser}
+                className="min-h-11 rounded-lg border border-white/20 px-4 text-sm font-semibold text-white"
+              >
+                Check available sources
+              </button>
             </div>
           ) : fireTvNativeSelectorMode ? (
             <div
