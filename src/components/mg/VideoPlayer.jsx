@@ -8931,7 +8931,9 @@ export default function VideoPlayer({
     }
 
     const STARTUP_GRACE_MS = 12000;
-    const MAX_AUTOMATIC_STARTUP_ATTEMPTS = 3;
+    const MAX_AUTOMATIC_STARTUP_ATTEMPTS = playbackMediaType === "tv"
+      ? Math.max(3, sortedSourceEntries.length)
+      : 3;
 
     const timer = window.setTimeout(() => {
       const video = stageRef.current?.querySelector("video");

@@ -2863,10 +2863,10 @@ export function PlayerProvider({
             qualificationMode
               ? verifiedSources
               : ordered,
-          completeSources:
-            qualificationMode
-              ? verifiedSources
-              : ordered,
+          // Qualification selects the automatic lead, not the manual/failover pool.
+          completeSources: mediaType === "tv"
+            ? dedupeSources([...verifiedSources, ...ordered])
+            : qualificationMode ? verifiedSources : ordered,
           discoveredSources: ordered,
           verifiedPrepared:
             qualificationMode

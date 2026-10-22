@@ -4882,7 +4882,10 @@ test("VOD startup keeps a slow manual source mounted and only tries ready automa
   const block = playerSource.slice(start, end);
 
   assert.match(block, /STARTUP_GRACE_MS = 12000/);
-  assert.match(block, /MAX_AUTOMATIC_STARTUP_ATTEMPTS = 3/);
+  const attemptExpression = block.match(/const MAX_AUTOMATIC_STARTUP_ATTEMPTS = ([\s\S]*?);/)[1];
+  const attemptLimit = new Function("playbackMediaType", "sortedSourceEntries", `return (${attemptExpression})`);
+  assert.equal(attemptLimit("movie", Array(8)), 3);
+  assert.equal(attemptLimit("tv", Array(8)), 8, "episodes try all available ready alternatives");
   assert.match(block, /manualSourceLockActive\(\)/);
   assert.match(block, /hasBufferedData/);
   assert.match(block, /setVodStartupNotice\(/);

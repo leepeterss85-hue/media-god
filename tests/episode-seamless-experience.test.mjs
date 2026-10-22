@@ -4,7 +4,7 @@ import vm from "node:vm";
 import { readFileSync } from "node:fs";
 import { restoreResumeSource } from "../src/components/mg/resumeSource.js";
 import {
-  episodeHasAired, episodeSourceExpiresAt, freshEpisodePreparation, playbackContextIdentity, resetEpisodePlaybackState, shouldStartEpisodeCountdown,
+  episodeHasAired, episodeSourceExpiresAt, freshEpisodePreparation, playbackContextIdentity, resetEpisodePlaybackState, shouldStartEpisodeCountdown, shouldRefreshEpisodePreparation,
 } from "../src/components/mg/episodeExperience.js";
 
 function providerHelpers(invoke = async () => ({ data: {} }), timers = {}) {
@@ -137,6 +137,7 @@ test("native duration metadata hydrates markers only for the active TV episode",
   const lookups = [];
   const context = { createContext: () => null, episodeHasAired, freshEpisodePreparation, resetEpisodePlaybackState,
     restoreResumeSource, currentRequestRef: { current },
+    autoNext: true, advancingRef: { current: false }, preloadNextEpisode: () => {},
     hydrateEpisodeSkipMarkers: (request, duration) => lookups.push({ request, duration }) };
   vm.runInNewContext(prefix + callback + "\nglobalThis.progress = onNativePlaybackProgress;", context);
   for (const patch of [{ tmdbId: 99 }, { episode: 2 }, { season: 2 }, { durationSeconds: NaN }]) {
@@ -264,4 +265,25 @@ test("up next excludes unaired episodes but permits older entries without releas
   assert.equal(episodeHasAired({ air_date: "2026-10-20" }, now), true);
   assert.equal(episodeHasAired({ airDate: "2026-11-01" }, now), false);
   assert.equal(episodeHasAired({ episode_number: 3 }, now), true);
+});
+
+
+test("empty next-episode preparation retries after cooldown instead of sticking forever", () => {
+  const now = 1_800_000_000_000;
+  const state = { next: { episode: 2 }, availability: "yes", prepared: { sources: [] }, attemptedAt: now - 61_000 };
+  assert.equal(shouldRefreshEpisodePreparation(state, now), true);
+  assert.equal(shouldRefreshEpisodePreparation({ ...state, attemptedAt: now - 10_000 }, now), false);
+  assert.equal(shouldRefreshEpisodePreparation({ ...state, promise: Promise.resolve() }, now), false);
+  assert.equal(shouldRefreshEpisodePreparation({ ...state, availability: "no" }, now), false);
+});
+
+test("refresh next-episode signed URLs ahead of expiry without redoing healthy preparation", () => {
+  const now = 1_800_000_000_000;
+  const state = { attemptedAt: now - 61_000, prepared: {
+    preparedAt: now - 61_000, verifiedPrepared: true, verifiedPlaybackPolicy: "strict",
+    sources: [{ src: "https://media.test/episode.mp4", expiresAt: now + 90_000 }],
+  } };
+  assert.equal(shouldRefreshEpisodePreparation(state, now), true);
+  state.prepared.sources[0].expiresAt = now + 600_000;
+  assert.equal(shouldRefreshEpisodePreparation(state, now), false);
 });

@@ -10,7 +10,7 @@ import React, {
 
 import { base44 } from "@/api/base44Client";
 import { canonicalizeCatalogPlaybackRequest } from "./catalogMediaIdentity";
-import { episodeHasAired, freshEpisodePreparation, resetEpisodePlaybackState } from "./episodeExperience";
+import { episodeHasAired, freshEpisodePreparation, resetEpisodePlaybackState, shouldRefreshEpisodePreparation } from "./episodeExperience";
 import { restoreResumeSource } from "./resumeSource";
 
 import {
@@ -800,17 +800,19 @@ function PlayerAutomationBridge({ children }) {
           return existing.promise;
         }
 
-        if (existing.next) {
+        if (!shouldRefreshEpisodePreparation(existing)) {
           return Promise.resolve(existing.prepared || existing.next);
         }
       }
 
+      const attemptedAt = Date.now();
       const preloadPromise = (async () => {
         try {
           const next = await findNextEpisodeRequest(request);
           if (!next) {
             if (nextEpisodePreloadRef.current.currentKey === currentKey) {
               nextEpisodePreloadRef.current = {
+                attemptedAt,
                 currentKey,
                 next: null,
                 prepared: null,
@@ -828,6 +830,7 @@ function PlayerAutomationBridge({ children }) {
           if (episodeIdentityForRequest(currentRequestRef.current) !== currentKey) return null;
           nextEpisodePreloadRef.current = {
             ...nextEpisodePreloadRef.current,
+            attemptedAt,
             currentKey,
             next,
             availability: "yes",
@@ -848,6 +851,7 @@ function PlayerAutomationBridge({ children }) {
           if (episodeIdentityForRequest(currentRequestRef.current) !== currentKey) return null;
 
           nextEpisodePreloadRef.current = {
+            attemptedAt,
             currentKey,
             next: enrichedNext,
             prepared,
@@ -866,6 +870,7 @@ function PlayerAutomationBridge({ children }) {
           if (nextEpisodePreloadRef.current.currentKey === currentKey) {
             const knownNext = nextEpisodePreloadRef.current.next;
             nextEpisodePreloadRef.current = {
+              attemptedAt,
               currentKey,
               next: knownNext || null,
               prepared: null,
@@ -882,9 +887,10 @@ function PlayerAutomationBridge({ children }) {
       })();
 
       nextEpisodePreloadRef.current = {
+        attemptedAt,
         currentKey,
-        next: null,
-        prepared: null,
+        next: existing.currentKey === currentKey ? existing.next : null,
+        prepared: existing.currentKey === currentKey ? existing.prepared : null,
         promise: preloadPromise,
         availability: "unknown",
       };
@@ -1042,6 +1048,7 @@ function PlayerAutomationBridge({ children }) {
         const durableCandidates = [
           ...(Array.isArray(stalePreparation?.completeSources) ? stalePreparation.completeSources : []),
           ...(Array.isArray(stalePreparation?.sources) ? stalePreparation.sources : []),
+          ...(Array.isArray(stalePreparation?.discoveredSources) ? stalePreparation.discoveredSources : []),
         ].filter((candidate) => candidate?.infoHash || candidate?.info_hash || candidate?.magnet ||
           candidate?.magnetLink || candidate?.richMagnet || candidate?.rdTorrentId || candidate?.torrentId ||
           /^magnet:/i.test(String(candidate?.src || candidate?.url || "")))
@@ -1494,6 +1501,7 @@ function PlayerAutomationBridge({ children }) {
       if (Number.isFinite(duration) && duration >= 60) {
         void hydrateEpisodeSkipMarkers(current, duration);
       }
+      if (autoNext && !advancingRef.current) void preloadNextEpisode(current);
     };
 
     const onEnded = (event) => {

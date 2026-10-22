@@ -89,3 +89,12 @@ export function episodeHasAired(episode, now = Date.now()) {
   const releasedAt = Date.parse(date.length === 10 ? `${date}T00:00:00Z` : date);
   return !Number.isFinite(releasedAt) || releasedAt <= now;
 }
+
+// Retry empty/expired preparations without repeatedly hitting providers on
+// every progress event. Refresh near expiry before the handoff needs the URL.
+export function shouldRefreshEpisodePreparation(state, now = Date.now()) {
+  if (state?.promise || state?.availability === "no") return false;
+  if (Number(state?.attemptedAt || 0) > now - 60_000) return false;
+  const fresh = freshEpisodePreparation(state?.prepared, now + 120_000);
+  return !fresh || fresh.refreshRequired === true;
+}
