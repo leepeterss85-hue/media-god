@@ -6,7 +6,7 @@
     "src/components/mg/MediaPlayerProvider.jsx": "2e1e5a8aa727a6a018765cf40291bdd77449e4b4209a4d4d49a1619404290a33",
     "src/components/mg/PlayerProvider.jsx": "aa08264c7925c1f23c5501a02f4424541fceae46acb106ea53bae5e041d8f442",
     "src/components/mg/MediaPlayerControls.jsx": "ef6cbff88fd9d8aad2396e7243ef9f2c09f54f6ad9d3a8c03acc124f1bfacd87",
-    "src/components/mg/LiveTVView.jsx": "0a5734ecb0e167b7393845089cb3ef4fa1576ee071f170960d8bfcccef56ab50",
+    "src/components/mg/LiveTVView.jsx": "a00de3519ec662c2fcecf0654a6184984b4da2b3d1f8185cd7740c890214e098",
     "src/components/mg/freeTvPlaylist.js": "7904aa31b747940e708536d4370bd648cc39887351a6a3aca29479864eff405f",
     "base44/functions/realDebrid/entry.ts": "6e8c3b7fa13c480955136814ee4a52f519173f1bcc40904af188b95ce78b5530",
     "base44/functions/fetchAddonStreams/entry.ts": "082052c29dae4944e4885b720931c6625ab17549d38d3c6f0a8c57f1c83219e6",
