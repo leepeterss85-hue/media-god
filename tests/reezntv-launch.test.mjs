@@ -5,6 +5,9 @@ import { buildOnlyFlixEmbedUrl } from "../src/components/mg/onlyFlixEmbed.js";
 import {
   buildVidRiftEpisodeEmbedUrl,
   buildStellarEpisodeEmbedUrl,
+  buildVidRiftMovieEmbedUrl,
+  buildStellarMovieEmbedUrl,
+  buildVidLinkMovieEmbedUrl,
 } from "../src/components/mg/extraEmbedProviders.js";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -72,6 +75,40 @@ test("TV Play uses the movie OnlyFlix player with two optional episode backups",
   assert.match(embeddedPlayer, /src=\{selectedUrl\}/);
   assert.match(embeddedPlayer, /data-mg-embedded-open-sources="true"/);
   assert.match(embeddedPlayer, /media\?\.mediaType === "tv"/);
+});
+
+test("Movies show optional VidRift, Stellar and VidLink buttons, but OnlyFlix stays default", () => {
+  const movie = { tmdbId: 1081003, mediaType: "movie" };
+  assert.equal(buildOnlyFlixEmbedUrl(movie),
+    "https://share.cdnm.ink/embed/tmdb/1081003");
+  assert.equal(buildVidRiftMovieEmbedUrl(movie),
+    "https://embed.vidrift.net/embed/movie/1081003");
+  assert.equal(buildStellarMovieEmbedUrl(movie),
+    "https://stellar.rip/en/watch/embed/movie/1081003?autoPlay=true");
+  assert.equal(buildVidLinkMovieEmbedUrl(movie),
+    "https://vidlink.pro/movie/1081003");
+  for (const build of [buildVidRiftMovieEmbedUrl, buildStellarMovieEmbedUrl, buildVidLinkMovieEmbedUrl]) {
+    assert.equal(build({ ...movie, mediaType: "tv", season: 1, episode: 1 }), "");
+    assert.equal(build({ ...movie, tmdbId: "tt0100010" }), "");
+    assert.equal(build({ ...movie, tmdbId: 0 }), "");
+  }
+  const player = read("src/components/mg/OnlyFlixEmbedPlayer.jsx");
+  const movieDetails = read("src/components/mg/DetailModal.jsx");
+  const core = read("src/components/mg/MediaPlayerProvider.jsx");
+  assert.match(movieDetails, /player\.playOnlyFlix\s*&&/);
+  assert.match(core, /const playOnlyFlix = useCallback/);
+  assert.match(core, /buildOnlyFlixEmbedUrl\(media\)/);
+  assert.match(player, /data-mg-movie-player-backups/);
+  assert.match(player, /movieBackups = media\?\.mediaType === "movie"/);
+  assert.match(player, /activeBackups = tvBackups\.length \? tvBackups : movieBackups/);
+  assert.match(player, /\{ id: "onlyflix", label: "OnlyFlix", url \}/);
+  assert.match(player, /\{ id: "vidrift", label: "VidRift"/);
+  assert.match(player, /\{ id: "stellar", label: "Stellar"/);
+  assert.match(player, /\{ id: "vidlink", label: "VidLink"/);
+  assert.match(player, /setActiveEpisodePlayer\(option\.id\)/);
+  assert.match(player, /key=\{selectedUrl\}/);
+  assert.match(player, /src=\{selectedUrl\}/);
+  assert.match(player, /data-mg-embedded-open-sources="true"/);
 });
 
 test("ReeznTV app handoff remains limited to Live TV", () => {
