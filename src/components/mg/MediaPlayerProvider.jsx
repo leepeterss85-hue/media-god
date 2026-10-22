@@ -3457,7 +3457,10 @@ export function PlayerProvider({
         fastAddonPromise.then(addonLookup => {
           if (isCurrentPlay() && mediaType === "tv" &&
               !request?.skipAddonLookup &&
-              !hasUsableEpisodeAddonSource(addonLookup?.streams, { season, episode })) {
+              !hasUsableEpisodeAddonSource(
+                (addonLookup?.streams || []).filter(episodeAutoplayCanTrustSource),
+                { season, episode }
+              )) {
             void launchFlixQuestBackup();
           }
         }).catch(() => {
@@ -3710,7 +3713,10 @@ export function PlayerProvider({
         addonPromise.then(addonLookup => {
           if (isCurrentPlay() && mediaType === "tv" &&
               !request?.skipAddonLookup &&
-              !hasUsableEpisodeAddonSource(addonLookup?.streams, { season, episode })) {
+              !hasUsableEpisodeAddonSource(
+                (addonLookup?.streams || []).filter(episodeAutoplayCanTrustSource),
+                { season, episode }
+              )) {
             void launchFlixQuestBackup();
           }
         }).catch(() => {
