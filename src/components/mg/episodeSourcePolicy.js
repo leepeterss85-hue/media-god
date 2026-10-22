@@ -72,19 +72,32 @@ export const episodeSourceMatchesRequest = (item, context = {}) =>
   episodeSourceMismatchReason(item, context) === "";
 
 /*
- * FlixQuest is the user's primary episode playback choice. Torrentio, Comet,
- * MediaFusion, StremSRC and configured add-ons are *alternatives*: all remain
- * in the chooser even when a FlixQuest source is available.
- *
- * Never let a foreign/commentary-only FlixQuest entry be the primary.
+ * Stremio-compatible addon results (including cached/debrid alternatives)
+ * take precedence for TV. FlixQuest is a direct-stream BACKUP only.
+ * Do not hide manual choices or promote foreign/commentary-only audio.
+ * The legacy export name is retained for existing playback call sites.
  */
 export function flixQuestFirstEpisodeSources(sources) {
   const list = Array.isArray(sources) ? sources : [];
-  const preferred = list.filter(item =>
+  const primary = list.filter(item =>
+    !isFlixQuestEpisodeSource(item) && !hasUnusableEpisodeAudio(item)
+  );
+  const backup = list.filter(item =>
     isFlixQuestEpisodeSource(item) && !hasUnusableEpisodeAudio(item) &&
     /^https?:\/\//i.test(String(item?.src || item?.url || ""))
   );
-  if (!preferred.length) return list.slice();
-  const preferredSet = new Set(preferred);
-  return [...preferred, ...list.filter(item => !preferredSet.has(item))];
+  const others = list.filter(item => !primary.includes(item) && !backup.includes(item));
+  return [...primary, ...backup, ...others];
+}
+
+/** A search result is not a playable episode just because one row was found. */
+export function hasUsableEpisodeAddonSource(sources, context = {}) {
+  return (Array.isArray(sources) ? sources : []).some(item => {
+    if (!item || item.diagnostic || item.type === "status" ||
+        isFlixQuestEpisodeSource(item) || hasUnusableEpisodeAudio(item) ||
+        !episodeSourceMatchesRequest(item, context)) return false;
+    const url = String(item.src || item.url || item.magnet || item.magnetLink || "").trim();
+    return /^(?:https?:\/\/|magnet:)/i.test(url) ||
+      /^[a-f\d]{40}$/i.test(String(item.infoHash || item.info_hash || ""));
+  });
 }

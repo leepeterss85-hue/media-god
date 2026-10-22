@@ -82,7 +82,7 @@ test("provider starts fallback early and final publication preserves autoplay pr
   assert.match(video, /const nextSource = findNextPlayableSource\(activeIdx\)/);
 });
 
-test("FlixQuest remains the preferred direct lead and no-sound error videos are excluded", () => {
+test("FlixQuest remains an on-demand direct backup and no-sound error videos are excluded", () => {
   const provider = readFileSync(new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url), "utf8");
   assert.match(provider, /runtimeEpisodeSources\.length > 0\s*\? runtimeEpisodeSources/);
   assert.match(provider, /flixQuestFirstEpisodeSources\(episodeAutoplayCandidates/);

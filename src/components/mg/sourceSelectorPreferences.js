@@ -1,6 +1,5 @@
 import { prioritiseCompatibleAutoplayEntries } from "@/components/mg/automaticSourceOrder";
 import { episodeSourceHealthScore } from "./episodeSourceHealth.js";
-import { isFlixQuestEpisodeSource } from "./episodeSourcePolicy.js";
 import { rankEpisodeSourceChoices } from "./episodeLaunchTrust.js";
 import {
   detectLanguagePreference,
@@ -467,16 +466,9 @@ export const sortSourceEntries = (
 
     const ranked = prioritiseCompatibleAutoplayEntries(fallbackRanked);
     if (String(options?.mediaType || "").toLowerCase() !== "tv") return ranked;
-    // Keep FlixQuest ahead when usable. An unverified MediaFusion link can
-    // contain a playable error clip, so place it *after* other alternatives
-    // without hiding it or changing the user's deliberate manual source.
-    const englishFirst = [
-      ...ranked.filter(entry => isFlixQuestEpisodeSource(entry.item) &&
-        Number(entry.languageRank ?? 3) < 3),
-      ...ranked.filter(entry => !isFlixQuestEpisodeSource(entry.item) ||
-        Number(entry.languageRank ?? 3) >= 3),
-    ];
-    return rankEpisodeSourceChoices(englishFirst);
+    // TV: prefer compatible Stremio addon sources, then FlixQuest backup.
+    // Keep unverified MediaFusion error clips selectable, never first.
+    return rankEpisodeSourceChoices(ranked);
   }
 
   return list.slice().sort((a, b) => {

@@ -48,5 +48,5 @@ export const rankEpisodeSourceChoices = entries => {
   const nonEnglishFlixQuest = list.filter(entry =>
     isFlixQuestEpisodeSource(entry?.item) &&
     hasUnusableEpisodeAudio(entry?.item));
-  return [...preferred, ...alternatives, ...unverified, ...nonEnglishFlixQuest];
+  return [...alternatives, ...preferred, ...unverified, ...nonEnglishFlixQuest];
 };
