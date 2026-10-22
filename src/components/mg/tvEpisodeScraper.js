@@ -108,6 +108,28 @@ const contentFormat = (item, url) => {
   return text(item?.format);
 };
 
+// An API may return links for other episodes, adverts, or commentary. A
+// provider with only rejected links must not win the first-response race.
+const validEpisodeLink = (item, payload, id, seasonNumber, episodeNumber) => {
+  if (!item || typeof item !== "object") return false;
+  const url = sourceUrl(item);
+  if (!/^https?:\/\//i.test(url) ||
+      /\.(?:jpg|jpeg|png|webp|vtt|srt|mp3|aac|m4a|html?)(?:$|[?#])/i.test(url) ||
+      /^(?:external|iframe|embed|provider)$/i.test(text(item.type)) ||
+      hasUnusableEpisodeAudio(item)) return false;
+  const returnedTmdbId = Number(item.tmdbId ?? item.tmdb_id ?? payload.tmdbId ?? payload.tmdb_id);
+  const returnedSeason = Number(item.season ?? item.season_number ?? payload.season ?? payload.season_number);
+  const returnedEpisode = Number(item.episode ?? item.episode_number ?? payload.episode ?? payload.episode_number);
+  if ((returnedTmdbId > 0 && returnedTmdbId !== Number(id)) ||
+      (returnedSeason > 0 && returnedSeason !== seasonNumber) ||
+      (returnedEpisode > 0 && returnedEpisode !== episodeNumber)) return false;
+  // An API may provide a fully proxied media URL and also describe headers
+  // used inside its proxy. Only a raw URL requiring custom headers is unsafe.
+  if (item.headers && Object.keys(item.headers).length &&
+      !/\/proxy(?:\/|\?)/i.test(url)) return false;
+  return true;
+};
+
 /** Resolve only the requested episode; provider labels are hints, not audio proof. */
 export async function fetchTvEpisodeSources({
   tmdbId, season, episode, title = "", scraperBaseUrl = "",
@@ -139,7 +161,9 @@ export async function fetchTvEpisodeSources({
       if (!v2Base && payload?.__missingRoute)
         legacyRouteUnavailableUntil.set(provider, Date.now() + DEAD_ROUTE_TTL_MS);
       if (!payload || payload.__missingRoute || payload.success === false ||
-          unwrapLinks(payload).length === 0) throw new Error("no_episode_stream");
+          !unwrapLinks(payload).some(item =>
+            validEpisodeLink(item, payload, id, seasonNumber, episodeNumber)
+          )) throw new Error("no_episode_stream");
       return { provider, payload };
     })).catch(() => null);
     const results = firstUseful ? [firstUseful] : [];
@@ -147,22 +171,8 @@ export async function fetchTvEpisodeSources({
     for (const { provider, payload } of results) {
       if (!payload || payload?.success === false) continue;
       for (const item of unwrapLinks(payload)) {
-        if (!item || typeof item !== "object") continue;
+        if (!validEpisodeLink(item, payload, id, seasonNumber, episodeNumber)) continue;
         const url = sourceUrl(item);
-        if (!/^https?:\/\//i.test(url)) continue;
-        if (/\.(?:jpg|jpeg|png|webp|vtt|srt|mp3|aac|m4a|html?)(?:$|[?#])/i.test(url) ||
-            /^(?:external|iframe|embed|provider)$/i.test(text(item.type)) ||
-            // The native player cannot attach arbitrary authentication or
-            // referrer headers to its video decoder. Proxy-authenticated v2
-            // links may work, raw anti-hotlink headers do not.
-            (item?.headers && Object.keys(item.headers).length && item?.requiresProxy !== false)) continue;
-        const returnedTmdbId = Number(item.tmdbId ?? item.tmdb_id ?? payload.tmdbId ?? payload.tmdb_id);
-        if (returnedTmdbId > 0 && returnedTmdbId !== Number(id)) continue;
-        const returnedSeason = Number(item.season ?? item.season_number ?? payload.season ?? payload.season_number);
-        const returnedEpisode = Number(item.episode ?? item.episode_number ?? payload.episode ?? payload.episode_number);
-        if ((returnedSeason > 0 && returnedSeason !== seasonNumber) ||
-            (returnedEpisode > 0 && returnedEpisode !== episodeNumber)) continue;
-        if (hasUnusableEpisodeAudio(item)) continue;
         const language = text(
           item.audioLanguage || item.audio_language || item.language || item.lang ||
           item.hlsAudioLanguage
