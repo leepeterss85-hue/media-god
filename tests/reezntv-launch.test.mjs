@@ -8,6 +8,9 @@ import {
   buildVidRiftMovieEmbedUrl,
   buildStellarMovieEmbedUrl,
   buildVidLinkMovieEmbedUrl,
+  buildTwoEmbedEmbedUrl,
+  buildCineSrcEmbedUrl,
+  buildMultiEmbedEmbedUrl,
 } from "../src/components/mg/extraEmbedProviders.js";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -87,6 +90,12 @@ test("Movies show optional VidRift, Stellar and VidLink buttons, but OnlyFlix st
     "https://stellar.rip/en/watch/embed/movie/1081003?autoPlay=true");
   assert.equal(buildVidLinkMovieEmbedUrl(movie),
     "https://vidlink.pro/movie/1081003");
+  assert.equal(buildTwoEmbedEmbedUrl(movie),
+    "https://www.2embed.cc/embed/1081003");
+  assert.equal(buildCineSrcEmbedUrl(movie),
+    "https://cinesrc.st/embed/movie/1081003");
+  assert.equal(buildMultiEmbedEmbedUrl(movie),
+    "https://multiembed.mov/?video_id=1081003&tmdb=1");
   for (const build of [buildVidRiftMovieEmbedUrl, buildStellarMovieEmbedUrl, buildVidLinkMovieEmbedUrl]) {
     assert.equal(build({ ...movie, mediaType: "tv", season: 1, episode: 1 }), "");
     assert.equal(build({ ...movie, tmdbId: "tt0100010" }), "");
@@ -105,6 +114,10 @@ test("Movies show optional VidRift, Stellar and VidLink buttons, but OnlyFlix st
   assert.match(player, /\{ id: "vidrift", label: "VidRift"/);
   assert.match(player, /\{ id: "stellar", label: "Stellar"/);
   assert.match(player, /\{ id: "vidlink", label: "VidLink"/);
+  assert.match(player, /\{ id: "twoembed", label: "2Embed", url: buildTwoEmbedEmbedUrl\(media\) \}/);
+  assert.match(player, /\{ id: "cinesrc", label: "CineSrc", url: buildCineSrcEmbedUrl\(media\) \}/);
+  assert.match(player, /\{ id: "multiembed", label: "MultiEmbed", url: buildMultiEmbedEmbedUrl\(media\) \}/);
+  assert.match(player, /aria-label=\{movieBackups\.length \? "Movie players" : "TV episode players"\}/);
   assert.match(player, /setActiveEpisodePlayer\(option\.id\)/);
   assert.match(player, /key=\{selectedUrl\}/);
   assert.match(player, /src=\{selectedUrl\}/);
