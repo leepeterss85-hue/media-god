@@ -57,6 +57,8 @@ import {
 } from "@/components/mg/nativeFireTvBridge";
 import { isAndroidMobileRuntime } from "@/components/mg/runtimePlatform";
 import { compareLiveTvRankRecords } from "@/components/mg/liveTvRankingCore";
+import { detectStreamingRegion, getStreamingRegionDetails } from "@/components/mg/streamingRegion";
+import { classifyLiveTvAccessIssue, liveTvGeoPreferenceTier } from "@/components/mg/liveTvRegionalAccess";
 
 const DEFAULT_FILTER = "All";
 const MAX_VISIBLE = 400;
@@ -681,6 +683,7 @@ const channelReliabilityScore = (channel) =>
   );
 
 const playableChannelCandidates = (channel) => {
+  const viewerRegion = detectStreamingRegion();
   const nativeFireTv = isNativeFireTvPlayerAvailable();
   const androidMobileApp = isAndroidMobileRuntime();
 
@@ -725,7 +728,7 @@ const playableChannelCandidates = (channel) => {
       candidate,
       index,
       quarantined: liveTvUrlQuarantined(candidate.url),
-      geoRestricted: candidate?.geoRestricted === true,
+      geoRiskTier: liveTvGeoPreferenceTier(candidate, viewerRegion),
       score:
         liveTvUrlScore(candidate.url) +
         Number(candidate?.sourcePriority || 0) * 30 +
@@ -734,7 +737,7 @@ const playableChannelCandidates = (channel) => {
     }))
     .sort(
       (a, b) =>
-        Number(a.geoRestricted) - Number(b.geoRestricted) ||
+        a.geoRiskTier - b.geoRiskTier ||
         Number(a.quarantined) - Number(b.quarantined) ||
         b.score - a.score ||
         a.index - b.index
@@ -1113,10 +1116,9 @@ export default function LiveTVView({
       );
 
     } catch (loadError) {
-      setError(
-        loadError?.message ||
-          "Could not load the public Live TV playlists."
-      );
+      const issue = classifyLiveTvAccessIssue(loadError);
+      const message = loadError?.message || "Could not load the public Live TV playlists.";
+      setError(issue.reason === "unknown" ? message : `${message} ${issue.message}`);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -2532,7 +2534,8 @@ export default function LiveTVView({
             "Could not start Sky Sport Now playback."
         ).trim();
 
-        setChannelNotice(message);
+        const issue = classifyLiveTvAccessIssue(skyError);
+        setChannelNotice(issue.reason === "unknown" ? message : `${message} ${issue.message}`);
         setChannelNoticeAction({
           label: "Open Sky Sport Now",
           url: channel.officialUrl || "https://www.skysportnow.co.nz/",
@@ -2902,7 +2905,14 @@ export default function LiveTVView({
       >
         <CheckCircle2 className="h-4 w-4 shrink-0" />
 
-        Regional filtering disabled — Media God keeps geo-marked Live TV channels and backups eligible for playback.
+        <div>
+          <p>Regional filtering disabled — Media God keeps geo-marked Live TV channels and backups eligible for playback.</p>
+          <p className="mt-1 text-white/60">
+            Preferred country: {countryDisplayName(getStreamingRegionDetails().region)}.
+            Regional labels help choose backups, but do not bypass a broadcaster&apos;s location or subscription restrictions.
+            Change your preferred country in Settings.
+          </p>
+        </div>
       </div>
 
       {radioStation && (
