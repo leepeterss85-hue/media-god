@@ -1,6 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { buildOnlyFlixEmbedUrl } from "../src/components/mg/onlyFlixEmbed.js";
+import {
+  buildVidRiftEpisodeEmbedUrl,
+  buildStellarEpisodeEmbedUrl,
+} from "../src/components/mg/extraEmbedProviders.js";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
@@ -40,6 +45,33 @@ test("OnlyFlix multi-server webpage is offered for films and TV episodes", () =>
   assert.match(onlyFlix, /media\?\.title/);
   assert.match(provider, /const playOnlyFlix = useCallback/);
   assert.match(provider, /buildOnlyFlixEmbedUrl\(media\)/);
+});
+
+test("TV Play uses the movie OnlyFlix player with two optional episode backups", () => {
+  const episode = { tmdbId: 1399, mediaType: "tv", season: 1, episode: 3 };
+  assert.equal(buildOnlyFlixEmbedUrl(episode),
+    "https://share.cdnm.ink/embed/tmdb/1399?season=1&episode=3");
+  assert.equal(buildVidRiftEpisodeEmbedUrl(episode),
+    "https://embed.vidrift.net/embed/tv/1399/1/3?exit=1");
+  assert.equal(buildStellarEpisodeEmbedUrl(episode),
+    "https://stellar.rip/en/watch/embed/tv/1399-1-3?autoPlay=true&nextButton=true&autoNext=true");
+  for (const build of [buildVidRiftEpisodeEmbedUrl, buildStellarEpisodeEmbedUrl]) {
+    assert.equal(build({ ...episode, mediaType: "movie" }), "");
+    assert.equal(build({ ...episode, episode: 0 }), "");
+    assert.equal(build({ ...episode, tmdbId: "nonsense" }), "");
+  }
+  const episodeSelector = read("src/components/mg/EpisodeSelector.jsx");
+  const newEpisodes = read("src/components/mg/NewEpisodesRow.jsx");
+  const embeddedPlayer = read("src/components/mg/OnlyFlixEmbedPlayer.jsx");
+  assert.match(episodeSelector, /!startTime && player\.playOnlyFlix\?\.\(baseRequest\)/);
+  assert.match(episodeSelector, /player\.play\(\{/);
+  assert.match(newEpisodes, /player\.playOnlyFlix\?\.\(\{/);
+  assert.match(newEpisodes, /if \(player\.play\)/);
+  assert.match(embeddedPlayer, /data-mg-episode-player-backups/);
+  assert.match(embeddedPlayer, /aria-pressed=\{activeEpisodePlayer === option\.id\}/);
+  assert.match(embeddedPlayer, /src=\{selectedUrl\}/);
+  assert.match(embeddedPlayer, /data-mg-embedded-open-sources="true"/);
+  assert.match(embeddedPlayer, /media\?\.mediaType === "tv"/);
 });
 
 test("ReeznTV app handoff remains limited to Live TV", () => {
