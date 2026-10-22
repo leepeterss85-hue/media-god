@@ -30,7 +30,7 @@ import { preservePublishedSourceOrder } from "@/components/mg/sourcePublication"
 import { filterSourcesForRequestedIdentity, sourceMatchesRequestedIdentity } from "@/components/mg/sourceIdentity";
 import { sourceIsAioStreamsCandidate } from "@/components/mg/sourceProviderIdentity";
 import { canonicalImdbLookupFields, sourceAddonFailure, sourceLookupFailed } from "@/components/mg/sourceDiscoveryFeedback";
-import { fetchTvEpisodeSources } from "@/components/mg/tvEpisodeScraper";
+import { fetchTvEpisodeSources, flixQuestV2Configured } from "@/components/mg/tvEpisodeScraper";
 import { firstAcceptedQualificationBatch } from "./qualificationBatch";
 import { hasUnusableEpisodeAudio, episodeAutoplayCandidates, isEnglishMainTrack } from "./episodeAudio";
 import { episodeSourceMatchesRequest, flixQuestFirstEpisodeSources } from "./episodeSourcePolicy.js";
@@ -3308,7 +3308,12 @@ export function PlayerProvider({
           if (mediaType === "tv" && !request?.skipEpisodeResolver) {
             await Promise.race([
               episodeResolverPromise.catch(() => []),
-              new Promise(resolve => window.setTimeout(resolve, 2500)),
+              // Avoid a 2.5-second artificial hold when the retired v1
+              // service is down. A configured v2 scraper receives a modest
+              // head start; RD still launches automatically if it misses.
+              new Promise(resolve => window.setTimeout(
+                resolve, flixQuestV2Configured() ? 850 : 250
+              )),
             ]);
           }
           if (rdLookup?.source && isCurrentPlay()) {
@@ -3528,7 +3533,9 @@ export function PlayerProvider({
                   episode,
                   targetCount: 1,
                   scanLimit: 12,
-                  timeBudgetMs: 5000,
+                  // TV must not sit on a five-second cached-only gate
+                  // before trying the actual episode. Movies are unchanged.
+                  timeBudgetMs: mediaType === "tv" ? 2400 : 5000,
                 })
               : [];
 
