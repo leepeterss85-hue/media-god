@@ -2,7 +2,8 @@ const REGION_STORAGE_KEY = "mg:streaming-region";
 const REGION_RE = /^[A-Z]{2}$/;
 
 export const normaliseStreamingRegion = (value) => {
-  const region = String(value || "").trim().toUpperCase();
+  const raw = String(value || "").trim().toUpperCase();
+  const region = { UK: "GB", GBR: "GB", USA: "US" }[raw] || raw;
   return REGION_RE.test(region) ? region : "";
 };
 
@@ -21,41 +22,48 @@ const regionFromLocale = (locale) => {
   return normaliseStreamingRegion(match?.[1]);
 };
 
-export const detectStreamingRegion = () => {
-  if (typeof window !== "undefined") {
-    try {
-      const stored = normaliseStreamingRegion(
-        window.localStorage?.getItem(REGION_STORAGE_KEY)
-      );
-      if (stored) return stored;
-    } catch {
-      // Storage is optional.
-    }
+/*
+ * This is the preferred catalogue/playback region, not a claim about network
+ * geolocation. Timezone can correct en-US locale defaults on UK Android devices.
+ * A manually chosen region always wins; providers still enforce their own rights.
+ */
+export const inferStreamingRegion = ({ override = "", timezone = "", locales = [] } = {}) => {
+  const selected = normaliseStreamingRegion(override);
+  if (selected) return { region: selected, source: "manual" };
+
+  if (/^Europe\\/(?:London|Belfast|Guernsey|Isle_of_Man|Jersey)$/i.test(String(timezone))) {
+    return { region: "GB", source: "timezone" };
   }
 
-  const locales = [];
+  for (const locale of locales) {
+    const region = regionFromLocale(locale);
+    if (region) return { region, source: "locale" };
+  }
 
+  return { region: "US", source: "default" };
+};
+
+export const getStreamingRegionDetails = () => {
+  const locales = [];
   if (typeof navigator !== "undefined") {
-    if (Array.isArray(navigator.languages)) {
-      locales.push(...navigator.languages);
-    }
+    if (Array.isArray(navigator.languages)) locales.push(...navigator.languages);
     locales.push(navigator.language, navigator.userLanguage);
   }
 
   try {
     locales.push(Intl.DateTimeFormat().resolvedOptions().locale);
   } catch {
-    // Intl may be restricted on older WebViews.
+    // Older WebViews may not expose a locale.
   }
 
-  for (const locale of locales) {
-    const region = regionFromLocale(locale);
-    if (region) return region;
-  }
-
-  // Neutral fallback when the device does not expose a region.
-  return "US";
+  return inferStreamingRegion({
+    override: getStreamingRegionOverride(),
+    timezone: detectStreamingTimezone(),
+    locales,
+  });
 };
+
+export const detectStreamingRegion = () => getStreamingRegionDetails().region;
 
 export const detectStreamingTimezone = () => {
   try {
