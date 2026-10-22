@@ -1,7 +1,8 @@
-import React, { useCallback, useState } from "react";
+import { watchmodeError, watchmodeRows } from "./watchmodeResponse";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Award, CalendarClock, ChevronRight, CircleAlert, Loader2, Radio, RefreshCw, Trophy, ListChecks, History } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { detectStreamingRegion } from "@/components/mg/streamingRegion";
+import { detectStreamingRegion, setStreamingRegionOverride } from "@/components/mg/streamingRegion";
 
 const TABS = [
   { id: "live-events", label: "Live Sports & TV", icon: Radio, description: "Upcoming games, award ceremonies and where to watch them." },
@@ -15,26 +16,10 @@ const unwrap = (response) => response?.data?.data ?? response?.data ?? response 
 const asArray = (value) => Array.isArray(value) ? value : [];
 const text = (...values) => values.map((value) => String(value ?? "").trim()).find(Boolean) || "";
 
-const eventRows = (payload) => {
-  const data = payload?.events ?? payload?.results ?? payload?.live_events ?? payload;
-  return Array.isArray(data) ? data : Array.isArray(data?.events) ? data.events : [];
-};
-
-const leavingRows = (payload) => {
-  const data = payload?.titles ?? payload?.results ?? payload?.leaving_dates ?? payload;
-  return Array.isArray(data) ? data : Array.isArray(data?.titles) ? data.titles : [];
-};
-
-const awardRows = (payload) => asArray(payload?.awards ?? payload?.results ?? payload);
-
-const objectRows = (payload) => {
-  const candidate = payload?.leagues ?? payload?.changes ?? payload?.results ?? payload?.data ?? payload;
-  if (Array.isArray(candidate)) return candidate;
-  if (Array.isArray(candidate?.results)) return candidate.results;
-  if (Array.isArray(candidate?.leagues)) return candidate.leagues;
-  if (Array.isArray(candidate?.changes)) return candidate.changes;
-  return [];
-};
+const eventRows = watchmodeRows;
+const leavingRows = watchmodeRows;
+const awardRows = watchmodeRows;
+const objectRows = watchmodeRows;
 
 const formatDate = (value) => {
   if (!value) return "Date TBC";
@@ -47,15 +32,20 @@ const formatDate = (value) => {
 export default function WatchmodeFeatures() {
   const [activeTab, setActiveTab] = useState("live-events");
   const [payloads, setPayloads] = useState({});
-  const [loading, setLoading] = useState("");
+  const [loading, setLoading] = useState({});
+  const inFlight = useRef(new Set());
   const [errors, setErrors] = useState({});
   const [awardQuery, setAwardQuery] = useState("");
   const [loaded, setLoaded] = useState({});
-  const region = detectStreamingRegion() || "GB";
+  const [region, setRegion] = useState(() => detectStreamingRegion() || "GB");
+  const cacheKey = region + ":" + activeTab + (activeTab === "awards" ? ":" + awardQuery.trim() : "");
 
   const load = useCallback(async (action, extra = {}) => {
-    setLoading(action);
-    setErrors((current) => ({ ...current, [action]: "" }));
+    const key = region + ":" + action + (action === "awards" ? ":" + String(extra.title || "").trim() : "");
+    if (inFlight.current.has(key)) return;
+    inFlight.current.add(key);
+    setLoading(current => ({...current, [key]: true}));
+    setErrors((current) => ({ ...current, [key]: "" }));
     try {
       const response = await base44.functions.invoke("getWatchmodeFeatures", {
         action,
@@ -64,22 +54,27 @@ export default function WatchmodeFeatures() {
       });
       const data = unwrap(response);
       if (data?.error) throw new Error(data.error);
-      setPayloads((current) => ({ ...current, [action]: data }));
-      setLoaded((current) => ({ ...current, [action]: true }));
+      setPayloads((current) => ({ ...current, [key]: data }));
+      setLoaded((current) => ({ ...current, [key]: true }));
     } catch (error) {
       setErrors((current) => ({
         ...current,
-        [action]: error?.message || "Watchmode data could not be loaded.",
+        [key]: watchmodeError(error),
       }));
     } finally {
-      setLoading("");
+      inFlight.current.delete(key);
+      setLoading(current => ({...current, [key]: false}));
     }
   }, [region]);
 
+  useEffect(() => {
+    if (activeTab !== "awards" && !loaded[cacheKey] && !errors[cacheKey]) load(activeTab);
+  }, [activeTab, cacheKey, load, loaded, errors]);
+
   const selected = TABS.find((tab) => tab.id === activeTab) || TABS[0];
   const Icon = selected.icon;
-  const payload = payloads[activeTab];
-  const busy = loading === activeTab;
+  const payload = payloads[cacheKey];
+  const busy = Boolean(loading[cacheKey]);
 
   return (
     <section data-mg-watchmode-features="true" className="mx-3 sm:mx-5 md:mx-6 3xl:mx-8 rounded-2xl border border-white/10 bg-gradient-to-br from-[#13221f] to-[#101318] p-4 sm:p-5 3xl:p-7">
@@ -89,7 +84,12 @@ export default function WatchmodeFeatures() {
           <h2 className="mt-1 text-xl sm:text-2xl 3xl:text-3xl font-bold text-white">More to watch</h2>
           <p className="mt-1 text-sm text-white/55">Sports schedules, streaming departures and award history.</p>
         </div>
-        <span className="text-xs text-white/40">Region: {region}</span>
+        <label className="text-xs text-white/60">Country
+          <select aria-label="Watchmode country" value={region} onChange={event => {setStreamingRegionOverride(event.target.value);setRegion(event.target.value);}}
+            className="ml-2 min-h-11 rounded-lg border border-white/20 bg-[#101318] px-3 text-white">
+            {[...new Set(["GB","US","CA","AU","IE","DE","FR",region])].map(code=><option key={code} value={code}>{code==="GB"?"United Kingdom":code==="US"?"United States":code}</option>)}
+          </select>
+        </label>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-5" role="tablist" aria-label="Watchmode features">
@@ -121,7 +121,7 @@ export default function WatchmodeFeatures() {
             <Icon className="h-5 w-5 text-mg-green" />
             <h3 className="font-semibold text-white">{selected.label}</h3>
           </div>
-          {loaded[activeTab] && !busy && (
+          {loaded[cacheKey] && !busy && (
             <button type="button" onClick={() => load(activeTab, activeTab === "awards" ? { title: awardQuery.trim() } : {})} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs text-white/65 hover:bg-white/5" aria-label={`Refresh ${selected.label}`}>
               <RefreshCw className="h-3.5 w-3.5" /> Refresh
             </button>
@@ -146,7 +146,7 @@ export default function WatchmodeFeatures() {
           </form>
         )}
 
-        {!loaded[activeTab] && !busy && !errors[activeTab] && (
+        {!loaded[cacheKey] && !busy && !errors[cacheKey] && (
           <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <p className="text-sm text-white/55">
               {activeTab === "live-events" ? "Check the events available to your Watchmode plan, including event status and supported viewing links." : activeTab === "leaving" ? "Check the next 45 days of scheduled departures. Streaming services can change dates, so treat them as estimates." : "Search a title to see its award history where Watchmode has coverage."}
@@ -161,14 +161,14 @@ export default function WatchmodeFeatures() {
 
         {busy && <div className="mt-5 flex items-center gap-2 text-sm text-white/60"><Loader2 className="h-4 w-4 animate-spin text-mg-green" /> Loading from Watchmode…</div>}
 
-        {errors[activeTab] && (
+        {errors[cacheKey] && (
           <div className="mt-4 flex items-start gap-2 rounded-lg border border-amber-300/15 bg-amber-300/5 p-3 text-sm text-amber-100/80">
             <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
-            <div><p>{errors[activeTab]}</p><button type="button" onClick={() => load(activeTab, activeTab === "awards" ? { title: awardQuery.trim() } : {})} className="mt-2 font-semibold underline underline-offset-2">Try again</button></div>
+            <div><p>{errors[cacheKey]}</p><button type="button" onClick={() => load(activeTab, activeTab === "awards" ? { title: awardQuery.trim() } : {})} className="mt-2 font-semibold underline underline-offset-2">Try again</button></div>
           </div>
         )}
 
-        {loaded[activeTab] && !busy && !errors[activeTab] && activeTab === "live-events" && (
+        {loaded[cacheKey] && !busy && !errors[cacheKey] && activeTab === "live-events" && (
           <div className="mt-4 space-y-2">
             {eventRows(payload?.events).length ? eventRows(payload?.events).slice(0, 25).map((event, index) => {
               const name = text(event?.name, event?.title, event?.event_name, event?.matchup, "Live event");
@@ -187,7 +187,7 @@ export default function WatchmodeFeatures() {
           </div>
         )}
 
-        {loaded[activeTab] && !busy && !errors[activeTab] && activeTab === "leaving" && (
+        {loaded[cacheKey] && !busy && !errors[cacheKey] && activeTab === "leaving" && (
           <div className="mt-4 space-y-2">
             {leavingRows(payload?.leaving).length ? leavingRows(payload?.leaving).slice(0, 50).map((item, index) => {
               const title = text(item?.title, item?.name, "Untitled");
@@ -200,10 +200,10 @@ export default function WatchmodeFeatures() {
           </div>
         )}
 
-        {loaded[activeTab] && !busy && !errors[activeTab] && (activeTab === "live-leagues" || activeTab === "source-changes") && (
+        {loaded[cacheKey] && !busy && !errors[cacheKey] && (activeTab === "live-leagues" || activeTab === "source-changes") && (
           <div className="mt-4 space-y-2">
             {objectRows(payload).length ? objectRows(payload).slice(0, 50).map((item, index) => {
-              const name = text(item?.name, item?.title, item?.league_name, item?.competition, item?.event_name, item?.source_name, item?.provider_name, "Watchmode record");
+              const name = text(item?.name, item?.title, (typeof item === "number" || typeof item === "string") ? "Updated title " + item : "", item?.league_name, item?.competition, item?.event_name, item?.source_name, item?.provider_name, "Watchmode record");
               const detail = text(item?.sport, item?.category, item?.country, item?.region, item?.change_type, item?.status, item?.event_status);
               const date = text(item?.date, item?.changed_at, item?.change_date, item?.start_date, item?.start_time);
               const href = text(item?.web_url, item?.url, item?.link);
@@ -215,7 +215,7 @@ export default function WatchmodeFeatures() {
           </div>
         )}
 
-        {loaded[activeTab] && !busy && !errors[activeTab] && activeTab === "awards" && (
+        {loaded[cacheKey] && !busy && !errors[cacheKey] && activeTab === "awards" && (
           <div className="mt-4 space-y-2">
             {payload?.matched_title && <p className="text-xs text-white/45">Results for {payload.matched_title}</p>}
             {awardRows(payload?.awards).length ? awardRows(payload?.awards).map((award, index) => {

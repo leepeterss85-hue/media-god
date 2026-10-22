@@ -14,7 +14,11 @@ const readJson = async (url, apiKey) => {
   let data = {};
   try { data = await response.json(); } catch { /* handled below */ }
   if (!response.ok) {
-    const message = clean(data?.message || data?.error || data?.detail);
+    const message = response.status === 401 ? "The Watchmode API key was rejected. Check WATCHMODE_API_KEY in Base44 backend secrets."
+      : response.status === 403 ? "The Watchmode account does not have access to this feature or country. Check its enabled regions and plan."
+      : response.status === 429 ? "The Watchmode request limit has been reached. Please try again later."
+      : response.status === 503 ? "Watchmode is temporarily unavailable. Please try again shortly."
+      : clean(data?.message || data?.error || data?.detail);
     const error = new Error(message || `Watchmode request failed (${response.status}).`);
     error.status = response.status;
     throw error;
@@ -23,7 +27,7 @@ const readJson = async (url, apiKey) => {
 };
 
 const buildUrl = (path, params = {}) => {
-  const url = new URL(`${API_BASE}/${String(path).replace(/^\/+/, "")}`);
+  const url = new URL(`${API_BASE}/${String(path).replace(/^\/+/, "").replace(/\/*$/, "/")}`);
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== null && value !== "") {
       url.searchParams.set(key, String(value));
@@ -46,6 +50,7 @@ export default async function(req) {
   if (!apiKey) {
     return Response.json({
       configured: false,
+      code: "WATCHMODE_NOT_CONFIGURED",
       error: "Watchmode is not connected yet. Add WATCHMODE_API_KEY to the Base44 backend secrets to enable these features.",
     }, { status: 503 });
   }
@@ -60,7 +65,7 @@ export default async function(req) {
     }
 
     if (action === "live-leagues") {
-      const leagues = await readJson(buildUrl("live-leagues", { region, page: 1, limit: 100 }), apiKey);
+      const leagues = await readJson(buildUrl("live-leagues"), apiKey);
       return Response.json({ configured: true, region, leagues });
     }
 
@@ -91,7 +96,7 @@ export default async function(req) {
     if (action === "leaving") {
       const today = new Date();
       const end = new Date(today.getTime() + 45 * 24 * 60 * 60 * 1000);
-      const ymd = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+      const ymd = (date) => date.toISOString().slice(0, 10).replace(/-/g, "");
       const leaving = await readJson(buildUrl("title-leaving-dates", {
         regions: region,
         start_date: ymd(today),
@@ -110,7 +115,6 @@ export default async function(req) {
       const search = await readJson(buildUrl("search", {
         search_field: "name",
         search_value: title,
-        types: "movie,tv",
       }), apiKey);
       const results = Array.isArray(search?.title_results)
         ? search.title_results
