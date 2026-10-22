@@ -800,8 +800,11 @@ export default function EpisodeSelector({
         includeAddonNames,
       };
 
-      // Launch the exact episode while the player qualifies usable sources.
-      // Keep the manual Sources list available only as an override.
+      // Match the film green Play action for a fresh episode.
+      // Resume preserves the previously selected source and exact seek position.
+      // The OnlyFlix player's Sources button retains manual playback fallback.
+      if (!startTime && player.playOnlyFlix?.(baseRequest)) return;
+
       player.play({
         ...baseRequest,
         preferRd: true,
