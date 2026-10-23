@@ -31,6 +31,7 @@ import { buildTwoEmbedEmbedUrl, buildCineSrcEmbedUrl, buildMultiEmbedEmbedUrl } 
 import { fetchTmdbEmbedStreams } from "@/components/mg/tmdbEmbedStreams";
 import { cn } from "@/lib/utils";
 import { magnetFromInput } from "@/components/mg/magnetStreamHelpers";
+import { excludeServerIssuedIpBoundVod } from "@/components/mg/ipBoundVodSafety";
 import { launchReeznTv } from "@/components/mg/reeznTvLauncher";
 
 const unwrap = (response) =>
@@ -242,11 +243,7 @@ const serverAddonLookup = async ({
 
     return {
       streams:
-        Array.isArray(
-          data?.streams
-        )
-          ? data.streams
-          : [],
+        excludeServerIssuedIpBoundVod(data?.streams),
 
       diagnostics:
         Array.isArray(
