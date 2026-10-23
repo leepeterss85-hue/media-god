@@ -2094,13 +2094,18 @@ const lookupAddon = async ({
   const addonUrlParts =
     parseAddonUrl(addon?.url);
 
+  // All ElfHosted-configured VOD addons can generate IP-bound direct links.
+  // Browser discovery remains available from the viewer's own connection.
   const ipBoundElfHostedOrigin =
-    addonUrlParts?.origin === "https://comet.elfhosted.com" ||
-    addonUrlParts?.origin === "https://aiostreams.elfhosted.com";
+    /(^|\.)elfhosted\.com$/i.test(
+      (() => {
+        try { return new URL(addon?.url).hostname; }
+        catch { return ""; }
+      })()
+    );
 
   const deferIpBoundDirectToBrowser =
-    ipBoundElfHostedOrigin &&
-    Boolean(addonUrlParts?.basePath && addonUrlParts.basePath !== "/");
+    ipBoundElfHostedOrigin;
 
   const normalised =
     rawStreams
@@ -2149,8 +2154,14 @@ const lookupAddon = async ({
            * them from the actual playback device instead.
            */
           if (
-            deferIpBoundDirectToBrowser &&
-            item?.type === "url"
+            item?.type === "url" &&
+            (deferIpBoundDirectToBrowser ||
+              /(^|\.)elfhosted\.com$/i.test(
+                (() => {
+                  try { return new URL(item?.src || item?.url).hostname; }
+                  catch { return ""; }
+                })()
+              ))
           ) {
             ipBoundDirectStreams += 1;
             return false;
