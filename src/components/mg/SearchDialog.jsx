@@ -90,6 +90,18 @@ export const cleanVoiceSearch = (spoken) =>
 export const searchRelevance = (item, query) => {
   const title = normaliseSearchText(item?.title || item?.name);
   const wanted = normaliseSearchText(query);
+  // "Film 2026" should find the right release rather than ranking any
+  // similarly named film from a different year ahead of it.
+  const requestedYear = wanted.match(/(?:^|\s)((?:19|20)\d{2})(?:$|\s)/)?.[1] || "";
+  const titleWanted = requestedYear
+    ? wanted.replace(new RegExp(`(?:^|\\s)${requestedYear}(?=$|\\s)`), " ").replace(/\s+/g, " ").trim()
+    : wanted;
+  const itemYear = String(
+    item?.year || item?.release_date || item?.first_air_date || ""
+  ).slice(0, 4);
+  const yearBoost = requestedYear
+    ? itemYear === requestedYear ? 240 : itemYear ? -250 : -50
+    : 0;
   const aliases = (
     Array.isArray(item?.search_aliases)
       ? item.search_aliases
@@ -98,7 +110,7 @@ export const searchRelevance = (item, query) => {
     .map(normaliseSearchText)
     .filter(Boolean);
 
-  if (!wanted || !title) return 0;
+  if (!titleWanted || !title) return 0;
 
   /*
    * Verified identity corrections carry explicit aliases. Let an exact alias
@@ -107,23 +119,23 @@ export const searchRelevance = (item, query) => {
    */
   if (
     item?.identity_corrected === true &&
-    aliases.includes(wanted)
+    aliases.includes(titleWanted)
   ) {
-    return 1200;
+    return 1200 + yearBoost;
   }
 
-  if (title === wanted) return 1000;
+  if (title === titleWanted) return 1000 + yearBoost;
   // A title's opening word is more useful than a numerical fragment in an
   // unrelated title (e.g. TV series "24" versus films from 2024).
-  if (title.startsWith(wanted + " ")) return 850;
-  if (title.startsWith(wanted)) return 800;
-  if (title.split(" ").includes(wanted)) return 700;
-  if (title.includes(wanted)) return 400;
+  if (title.startsWith(titleWanted + " ")) return 850 + yearBoost;
+  if (title.startsWith(titleWanted)) return 800 + yearBoost;
+  if (title.split(" ").includes(titleWanted)) return 700 + yearBoost;
+  if (title.includes(titleWanted)) return 400 + yearBoost;
 
-  const words = wanted.split(" ").filter(Boolean);
+  const words = titleWanted.split(" ").filter(Boolean);
   return words.reduce(
     (score, word) => score + (title.includes(word) ? 80 : 0),
-    Number(item?.popularity || 0) / 100
+    Number(item?.popularity || 0) / 100 + yearBoost
   );
 };
 
