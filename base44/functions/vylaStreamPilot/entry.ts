@@ -59,16 +59,27 @@ export default async function (request: Request) {
   if (!enabled || !base || !token) return reply({ status: "DISABLED", streams: [] });
   let input: any;
   try { input = await request.json(); } catch { return reply({ status: "INVALID_INPUT", streams: [] }, 400); }
-  // Temporary transport-only probe; no content lookup or credentials sent.
+  // Temporary transport-only probe; does not query content or send credentials.
   if (input?.diagnostic_probe === "gateway-connectivity") {
-    try {
-      const probeUrl = new URL("/", base);
-      const response = await fetch(probeUrl, { signal: AbortSignal.timeout(5000), redirect: "error" });
-      return reply({ status: response.ok ? "NETWORK_OK" : "NETWORK_HTTP_ERROR", http_status: response.status });
-    } catch (error: any) {
-      return reply({ status: "NETWORK_ERROR", category: String(error?.name || "Unknown").slice(0, 36),
-        cause: String(error?.cause?.code || error?.code || "unknown").slice(0, 36) });
+    const hosts = [
+      { name: "railway", url: new URL("/", base).toString() },
+      { name: "example", url: "https://example.com/" },
+      { name: "tmdb", url: "https://api.themoviedb.org/3/configuration" }
+    ];
+    const results = [];
+    for (const item of hosts) {
+      const started = Date.now();
+      try {
+        const response = await fetch(item.url, { signal: AbortSignal.timeout(5000), redirect: "error" });
+        results.push({ name: item.name, status: response.status, ms: Date.now() - started });
+      } catch (error: any) {
+        const message = String(error?.message || "").replace(/https?:\\/\\/[^\\s]+/gi, "[url]").slice(0, 140);
+        results.push({ name: item.name, category: String(error?.name || "unknown").slice(0, 35),
+          cause: String(error?.cause?.code || error?.code || "unknown").slice(0, 35),
+          message, ms: Date.now() - started });
+      }
     }
+    return reply({ status: "NETWORK_PROBE", results });
   }
   const type = input?.media_type === "tv" ? "tv" : input?.media_type === "movie" ? "movie" : "";
   const id = positive(input?.tmdb_id ?? input?.tmdbId, 999999999);
