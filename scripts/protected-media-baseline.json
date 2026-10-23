@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "note": "2026-10-23 deliberate review of two protected TV-only pathways: normal episode Play no longer submits unverified uncached torrents as immediate video on HTTP 429, and VideoPlayer shows no-ready status plus manual caching/web alternatives. Cached/direct episode sources, movies, native VLC routing, and Live TV unchanged.",
+  "note": "2026-10-23 reviewed native playback bridge handoff: a resolved direct or Real-Debrid VOD media URL in an installed Android/Fire TV APK always uses the detected MediaGodNative bridge even if WebView UA/CSS markers are missing. Native LibVLC VOD default and Live TV bridge behavior are preserved; browsers lacking the bridge still use HTML playback.",
   "files": {
-    "src/components/mg/VideoPlayer.jsx": "a740b7439e9d5f3646beb27a5125979b353a1eb81eafae3ce23b568e01931b8d",
+    "src/components/mg/VideoPlayer.jsx": "978dab2f0922fa276e327046b72d39886559f09d9e37f05314e0f89eebf8f72f",
     "src/components/mg/MediaPlayerProvider.jsx": "296950ac2a69bcfcd597f93895c67add29c18c5323e57518306a79777fc76a84",
     "src/components/mg/PlayerProvider.jsx": "8402d6f7463ea9a1824c7e4c1bb683818f4803b40fc486fbdcfdddaf73195040",
     "src/components/mg/MediaPlayerControls.jsx": "ef6cbff88fd9d8aad2396e7243ef9f2c09f54f6ad9d3a8c03acc124f1bfacd87",
