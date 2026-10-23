@@ -1020,13 +1020,18 @@ export default function StreamSourcesBox({
       // candidates. Do not submit another uncached torrent as an instant-play
       // request. Ready/direct sources still honour the exact manual choice.
       const selectedType = String(stream?.type || "").toLowerCase();
-      const isEpisodeTorrent = mediaType === "tv" && [
-        "rd", "rd_torrent", "torrent", "magnet",
-      ].includes(selectedType);
+      const pendingCache = sourceHasPendingCacheSignal(stream);
+      // Some addons label an uncached torrent as type:"url" with an
+      // infoHash/cacheRequired field. Do not send that URL to the native
+      // player as a file while the debrid cache is still pending.
+      const isEpisodeTorrent = mediaType === "tv" && (
+        ["rd", "rd_torrent", "torrent", "magnet"].includes(selectedType) ||
+        pendingCache ||
+        /^magnet:/i.test(String(stream?.src || stream?.url || ""))
+      );
       const selectedUnreadyTorrent = isEpisodeTorrent &&
         !sourceIsConfirmedCachedForPlayback(stream) &&
-        (sourceHasPendingCacheSignal(stream) ||
-          stream?.debridCached !== true);
+        (pendingCache || stream?.debridCached !== true);
       if (hasDebrid && selectedUnreadyTorrent) {
         setMessage("Checking Combined Debrid for a playable copy of this episode…");
         await playCombinedDebrid({ readyOnly: true });
