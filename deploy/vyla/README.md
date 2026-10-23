@@ -5,7 +5,8 @@ This is a **separate service**, not the Media God frontend. Do not deploy the re
 - Source: GitHub `leepeterss85-hue/media-god` branch `feature/vyla-tv-pilot-20261022`
 - Root Directory: `/deploy/vyla`
 - Builder: Dockerfile (found at that root)
-- Healthcheck: `/health`
+- Railway startup healthcheck: `/` (fast HTTP 200; `/health` probes upstream providers and may return 207 or time out even when the server is healthy)
+- Use `/health` separately for provider diagnostics; it is **not** an appropriate container startup probe
 - Service variables (private, Railway): `TMDB_API_KEY`, `ENABLE_DEBUG_ROUTE=false`, `WORKER_COUNT=1`
 - The runtime listens on Railway's provided `PORT` (fallback 7860).
 - No secrets or source-provider credentials are committed to GitHub or baked into the image.
