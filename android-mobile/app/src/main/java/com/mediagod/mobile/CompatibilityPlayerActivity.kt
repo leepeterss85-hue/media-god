@@ -576,6 +576,43 @@ class CompatibilityPlayerActivity : Activity() {
             cornerRadius = dp(radiusDp).toFloat()
         }
 
+    /**
+     * Chromecast receivers need a browser-independent direct media URL;
+     * LibVLC's ability to decode an MKV does not transfer to Chromecast.
+     * Return only a compatible VOD to the foreground MainActivity, which
+     * owns the already-working native Cast SDK and its device picker.
+     */
+    private fun castContentType(): String {
+        val type = payload.optString("mimeType").trim().lowercase()
+        val path = runCatching { Uri.parse(streamUrl).path.orEmpty().lowercase() }.getOrDefault("")
+        return when {
+            path.endsWith(".m3u8") || type.contains("mpegurl") -> "application/x-mpegurl"
+            path.endsWith(".mpd") || type.contains("dash+xml") -> "application/dash+xml"
+            path.endsWith(".mp4") || path.endsWith(".m4v") || type == "video/mp4" -> "video/mp4"
+            path.endsWith(".webm") || type == "video/webm" -> "video/webm"
+            else -> ""
+        }
+    }
+
+    private fun requestCastFromVlc() {
+        if (payload.optBoolean("live", false)) {
+            Toast.makeText(this, "Use Live TV Cast controls", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val url = runCatching { Uri.parse(streamUrl) }.getOrNull()
+        if (url == null || url.scheme !in setOf("https", "http") ||
+            castContentType().isBlank()) {
+            AlertDialog.Builder(this)
+                .setTitle("Cast this video")
+                .setMessage("Chromecast requires a compatible MP4, WebM or HLS/DASH video. This VLC source may use MKV or another unsupported format. Try another source from Sources, or continue watching here with VLC.")
+                .setPositiveButton("Sources") { _, _ -> showSourceMenu() }
+                .setNegativeButton("Keep watching", null)
+                .show()
+            return
+        }
+        finishWithResult("cast")
+    }
+
     private fun buildUi() {
         videoLayout = VLCVideoLayout(this).apply {
             setBackgroundColor(Color.BLACK)
@@ -947,8 +984,14 @@ class CompatibilityPlayerActivity : Activity() {
             text = label
             isAllCaps = false
             val primary = label == "⏸" || label == "▶"
-            val sourceAction = label == "☰ Sources"
-            textSize = if (primary) 16f else 13f
+            val sourceAction = label.contains("Sources")
+            val green = Color.rgb(36, 244, 95)
+            val normalFill = when {
+                primary -> green
+                sourceAction -> Color.argb(244, 9, 57, 28)
+                else -> Color.argb(217, 21, 27, 29)
+            }
+            textSize = if (primary) 26f else 13f
             setTextColor(if (primary) Color.BLACK else Color.WHITE)
             isFocusable = true
             isFocusableInTouchMode = true
@@ -957,23 +1000,17 @@ class CompatibilityPlayerActivity : Activity() {
             minimumHeight = dp(48)
             minHeight = dp(48)
             stateListAnimator = null
-            setPadding(dp(9), dp(4), dp(9), dp(4))
-            val normalFill = when {
-                primary -> Color.WHITE
-                sourceAction -> Color.rgb(190, 18, 29)
-                else -> Color.argb(180, 32, 32, 32)
-            }
-            background = roundedBackground(normalFill, 12)
+            setPadding(dp(14), dp(5), dp(14), dp(5))
+            fun surface(focused: Boolean): GradientDrawable =
+                GradientDrawable().apply {
+                    setColor(if (focused) Color.WHITE else normalFill)
+                    cornerRadius = dp(if (primary) 32 else 18).toFloat()
+                    setStroke(dp(1), if (focused || sourceAction) green else Color.argb(115, 160, 185, 170))
+                }
+            background = surface(false)
             setOnFocusChangeListener { _, focused ->
-                setTextColor(if (focused) Color.WHITE else if (primary) Color.BLACK else Color.WHITE)
-                background =
-                    roundedBackground(
-                        if (focused)
-                            Color.rgb(190, 18, 29)
-                        else
-                            normalFill,
-                        12
-                    )
+                setTextColor(if (focused || primary) Color.BLACK else Color.WHITE)
+                background = surface(focused)
             }
             setOnClickListener {
                 action()
@@ -1805,6 +1842,12 @@ class CompatibilityPlayerActivity : Activity() {
         }
         val diagnostics = NativePlaybackDiagnostics.snapshot(payload, streamUrl, "libvlc", reason, message, extra, this).toString()
         val result = Intent().apply {
+            if (reason == "cast") {
+                putExtra("mg_cast_url", streamUrl)
+                putExtra("mg_cast_content_type", castContentType())
+                putExtra("mg_cast_title", payload.optString("title").take(150))
+                putExtra("mg_cast_poster", payload.optString("poster").take(2048))
+            }
             putExtra(PlayerActivity.EXTRA_REQUEST_ID, requestId)
             putExtra(PlayerActivity.EXTRA_REASON, reason)
             putExtra("mg_auto_next_cancelled", nextEpisodeCountdownCancelled)
