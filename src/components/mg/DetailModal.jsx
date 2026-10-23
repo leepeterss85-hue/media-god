@@ -1865,6 +1865,9 @@ export default function DetailModal({
               <EpisodeSelector
                 item={{
                   ...safeItem,
+                  // Use the TMDB show id, not a local row identifier.
+                  tmdb_id: itemId,
+                  tmdbId: itemId,
                   title:
                     displayTitle,
                   poster_url:
