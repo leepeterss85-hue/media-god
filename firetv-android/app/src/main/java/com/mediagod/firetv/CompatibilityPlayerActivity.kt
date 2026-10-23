@@ -386,6 +386,37 @@ class CompatibilityPlayerActivity : Activity() {
             )
     }
 
+    // Store only a per-show/movie language choice on this device, never an
+    // expiring source URL, stream token, or episode-specific torrent identity.
+    private fun trackPreferenceKey(): String {
+        val type = if (isTvEpisode()) "tv" else "movie"
+        val id = payload.optLong("tmdbId", 0L)
+        val fallback = payload.optString("rdTitle", payload.optString("title"))
+            .substringBefore(" — S").trim().lowercase().take(90).hashCode()
+        return "v1:${type}:${if (id > 0L) id.toString() else fallback.toString()}"
+    }
+
+    private fun rememberedEnglishTrack(): String =
+        if (payload.optBoolean("live", false)) "" else
+            getSharedPreferences("mg_vlc_track_choices", MODE_PRIVATE)
+                .getString("${trackPreferenceKey()}:audio", "").orEmpty()
+
+    private fun saveEnglishTrackChoice(name: String) {
+        // Do not let an ambiguous, foreign or commentary track displace
+        // the safe English-first default on another episode.
+        if (payload.optBoolean("live", false) || !audioTrackNameLooksEnglish(name)) return
+        getSharedPreferences("mg_vlc_track_choices", MODE_PRIVATE).edit()
+            .putString("${trackPreferenceKey()}:audio", name.take(100)).apply()
+    }
+
+    private fun saveSubtitleChoice(name: String?) {
+        if (payload.optBoolean("live", false)) return
+        getSharedPreferences("mg_vlc_track_choices", MODE_PRIVATE).edit()
+            .putBoolean("${trackPreferenceKey()}:subtitlesEnabled", name != null)
+            .putString("${trackPreferenceKey()}:subtitle", name.orEmpty().take(100)).apply()
+        payload.put("subtitlesEnabled", name != null)
+    }
+
     private fun preferEnglishMainAudio(player: MediaPlayer) {
         if (!requiresStrictEnglishAudio()) return
         val tracks = try {
@@ -397,7 +428,11 @@ class CompatibilityPlayerActivity : Activity() {
             tracks.filter { namesMatchExpectedAudio(it.name.orEmpty(), expected) &&
                 !audioTrackNameLooksCommentary(it.name.orEmpty()) }
         } else emptyList()
-        val wanted = matchingHint.singleOrNull() ?: english.firstOrNull() ?: return
+        val remembered = rememberedEnglishTrack()
+        val rememberedMatchingEnglish = english.firstOrNull {
+            remembered.isNotBlank() && namesMatchExpectedAudio(it.name.orEmpty(), remembered)
+        }
+        val wanted = rememberedMatchingEnglish ?: matchingHint.singleOrNull() ?: english.firstOrNull() ?: return
         if (player.audioTrack != wanted.id) player.setAudioTrack(wanted.id)
     }
 
@@ -1326,13 +1361,25 @@ class CompatibilityPlayerActivity : Activity() {
 
     private fun applyPreferredSubtitle() {
         val player = vlcPlayer ?: return
+        if (!payload.optBoolean("live", false)) {
+            val saved = getSharedPreferences("mg_vlc_track_choices", MODE_PRIVATE)
+            val key = trackPreferenceKey()
+            if (saved.contains("${key}:subtitlesEnabled")) {
+                payload.put("subtitlesEnabled", saved.getBoolean("${key}:subtitlesEnabled", false))
+            }
+        }
         if (!payload.optBoolean("subtitlesEnabled", false)) {
             try { player.setSpuTrack(-1) } catch (_: Throwable) {}
             updateSubtitleButtonLabel(); return
         }
         val tracks = try { player.spuTracks?.filter { it.id >= 0 }.orEmpty() } catch (_: Throwable) { emptyList() }
-        val preferred = preferredSubtitle(tracks) ?: return
-        try { if (player.spuTrack < 0) player.setSpuTrack(preferred.id) } catch (_: Throwable) {}
+        val savedName = if (payload.optBoolean("live", false)) "" else
+            getSharedPreferences("mg_vlc_track_choices", MODE_PRIVATE)
+                .getString("${trackPreferenceKey()}:subtitle", "").orEmpty()
+        val preferred = tracks.firstOrNull {
+            savedName.isNotBlank() && namesMatchExpectedAudio(it.name.orEmpty(), savedName)
+        } ?: preferredSubtitle(tracks) ?: return
+        try { if (player.spuTrack != preferred.id) player.setSpuTrack(preferred.id) } catch (_: Throwable) {}
         updateSubtitleButtonLabel()
     }
 
@@ -1439,6 +1486,7 @@ class CompatibilityPlayerActivity : Activity() {
                 if (player.setAudioTrack(selected.id)) {
                     manualAudioTrackLocked = true
                     manualAudioTrackId = selected.id
+                    saveEnglishTrackChoice(selected.name.orEmpty())
                     confirmCompatibilityStartup(player)
                     root.removeCallbacks(audioRecoveryRunnable)
                     updateAudioButtonLabel()
@@ -1486,10 +1534,12 @@ class CompatibilityPlayerActivity : Activity() {
                 try {
                     if (which == 0) {
                         player.setSpuTrack(-1)
+                        saveSubtitleChoice(null)
                         showStatus("Subtitles off")
                     } else {
                         val selected = tracks[which - 1]
                         player.setSpuTrack(selected.id)
+                        saveSubtitleChoice(selected.name.orEmpty())
                         showStatus(
                             "Subtitles: " +
                                 selected.name?.trim().orEmpty()
