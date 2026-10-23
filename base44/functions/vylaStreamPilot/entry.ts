@@ -31,7 +31,18 @@ const normalise = (event: any, type: string, season: number | null, episode: num
     positive(src.episode, 1000) && positive(src.episode, 1000) !== episode
   )) return null;
   const url = safeUrl(src.url);
-  if (!url || src.requiresHeaders === true ||
+  // Vyla runs on Railway. ElfHosted/Comet/MediaFusion direct links minted
+  // there can be tied to Railway's IP rather than the viewer's device.
+  // Skip only those server-bound candidates; other Vyla links remain available.
+  const urlHost = (() => {
+    try { return new URL(url).hostname; } catch { return ""; }
+  })();
+  const sourceProvider = [
+    src.addon, src.provider, src.providerName, src.sourceName, src.source_name,
+  ].filter(Boolean).join(" ");
+  if (/(^|\.)elfhosted\.com$/i.test(urlHost) ||
+      /\b(?:elf\s*hosted|aiostreams?|aio\s*streams?|media\s*fusion|mediafusion)\b/i.test(sourceProvider) ||
+      !url || src.requiresHeaders === true ||
       src.proxyHeaders && Object.keys(src.proxyHeaders).length > 0) return null;
   const lang = String(src.audioLanguage || src.language || src.lang || "").trim().toLowerCase();
   if (lang && !/^(?:en|eng|english|en-[a-z]{2}|multi|mul|und|unknown)$/i.test(lang)) return null;
