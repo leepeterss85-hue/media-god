@@ -7,6 +7,7 @@ import React, {
 import {
   Check,
   Clock,
+  Download,
   ExternalLink,
   Heart,
   ListVideo,
@@ -28,6 +29,7 @@ import {
   buildMediaSources,
 } from "@/components/mg/PlayerProvider";
 import StreamSourcesBox from "@/components/mg/StreamSourcesBox";
+import MediaDownloadPicker from "@/components/mg/MediaDownloadPicker";
 import { addToWatchlistItem } from "@/components/mg/watchlistActions";
 import { Image } from "@/components/ui/image";
 import { useToast } from "@/components/ui/use-toast";
@@ -745,6 +747,7 @@ export default function DetailModal({
     initialTab === "reviews" ? "reviews" : "overview"
   );
   const [reviewsVisited, setReviewsVisited] = useState(false);
+  const [downloadOpen, setDownloadOpen] = useState(false);
   const [selectedActor, setSelectedActor] = useState(null);
   const [actorCredits, setActorCredits] = useState([]);
   const [actorLoading, setActorLoading] = useState(false);
@@ -1679,6 +1682,24 @@ export default function DetailModal({
 
             <button
               type="button"
+              data-mg-detail-download="true"
+              onClick={() => {
+                if (resolvedMediaType === "tv") {
+                  goToEpisodes();
+                  return;
+                }
+                setDownloadOpen((open) => !open);
+              }}
+              aria-expanded={resolvedMediaType === "movie" ? downloadOpen : undefined}
+              className="shrink-0 flex items-center justify-center gap-1.5 bg-mg-card border border-mg-green/30 text-mg-green text-sm 3xl:text-lg font-semibold px-3 3xl:px-6 py-2.5 3xl:py-3.5 rounded-lg 3xl:rounded-xl hover:bg-mg-green/10 focus:outline-none focus:ring-2 focus:ring-mg-green focus:ring-offset-2 focus:ring-offset-black"
+              aria-label={resolvedMediaType === "tv" ? `Choose episode to download from ${displayTitle}` : `Download ${displayTitle}`}
+            >
+              <Download className="h-4 w-4 3xl:h-5 3xl:w-5" />
+              Download
+            </button>
+
+            <button
+              type="button"
               onClick={
                 addToWatchlist
               }
@@ -1745,10 +1766,24 @@ export default function DetailModal({
             </div>
           </div>
 
+          {downloadOpen && resolvedMediaType === "movie" && (
+            <MediaDownloadPicker
+              key={`movie:${itemId}`}
+              title={displayTitle}
+              year={safeItem.year}
+              mediaType="movie"
+              onClose={() => setDownloadOpen(false)}
+              onFindSources={() => {
+                setDownloadOpen(false);
+                setActiveTab("overview");
+                window.setTimeout(() => document.getElementById("mg-detail-download-sources")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+              }}
+            />
+          )}
           <div id="mg-detail-tab-panel" role="tabpanel" aria-labelledby={`mg-detail-tab-${activeTab}`} className="pb-6 3xl:pb-10">
           {activeTab === "overview" && (<>
           {resolvedMediaType === "movie" && (
-            <StreamSourcesBox
+            <div id="mg-detail-download-sources"><StreamSourcesBox
               title={
                 displayTitle
               }
@@ -1790,8 +1825,8 @@ export default function DetailModal({
                 )
               }
               mediaType="movie"
-            />
-          )}
+            /></div>
+          )
 
           {watchmodeData && (
             <section className="mt-5 rounded-xl border border-white/10 bg-mg-card p-4" data-mg-watchmode-title-data="true">
