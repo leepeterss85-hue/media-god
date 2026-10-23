@@ -108,7 +108,7 @@ test("Movies show optional VidRift, Stellar and VidLink buttons, but OnlyFlix st
   assert.match(core, /const playOnlyFlix = useCallback/);
   assert.match(core, /buildOnlyFlixEmbedUrl\(media\)/);
   assert.match(player, /data-mg-movie-player-backups/);
-  assert.match(player, /movieBackups = media\?\.mediaType === "movie"/);
+  assert.match(player, /movieBackups = useMemo\(\(\) => media\?\.mediaType === "movie"/);
   assert.match(player, /activeBackups = tvBackups\.length \? tvBackups : movieBackups/);
   assert.match(player, /\{ id: "onlyflix", label: "OnlyFlix", url \}/);
   assert.match(player, /\{ id: "vidrift", label: "VidRift"/);
