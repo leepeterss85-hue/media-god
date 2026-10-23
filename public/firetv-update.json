@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 105,
-  "versionName": "1.4.100",
+  "versionCode": 106,
+  "versionName": "1.4.101",
   "title": "Media God Fire TV",
-  "message": "Media God 1.4.100: VLC is now the default decoder for non-DRM films and episodes to address silent audio, with source selection, resume and Live TV preserved.",
+  "message": "Media God 1.4.101: redesigned remote-friendly VLC controls, prominent Sources, green seek bar, and Back straight to Home for films or episode selection for TV. Default VLC audio and Live TV preserved.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
