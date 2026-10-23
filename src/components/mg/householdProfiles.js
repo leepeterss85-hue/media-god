@@ -69,17 +69,25 @@ const scopedEntity = name => {
   const target = base44.entities[name];
   return {
     list: async (...args) => {
-      // Base44 lists paginate across all profiles belonging to the account.
-      // Fetch enough rows that a more active household member can't push the
-      // current member's saved history out of the first page.
+      const profileId = activeHouseholdProfileId();
       const [sort = "-created_date", requested = 100, ...rest] = args;
       const count = Number.isInteger(Number(requested)) ? Number(requested) : 100;
-      const rows = await target.list(sort, Math.min(500, Math.max(count, count * 4)), ...rest);
+      // The secondary profile is queried server-side; Main preserves all
+      // historical rows with a missing/default profile_id. This is more
+      // reliable than fetching 4x another profile's rows and filtering later.
+      const rows = profileId === "main"
+        ? await target.list(sort, Math.min(500, Math.max(count, count * 4)), ...rest)
+        : await target.filter({ profile_id: profileId }, sort, count, ...rest);
       return (Array.isArray(rows) ? rows : [])
-        .filter(row => profileOwnsRow(row)).slice(0, count);
+        .filter(row => profileOwnsRow(row, profileId)).slice(0, count);
     },
-    filter: async (criteria = {}, ...rest) => (await target.filter(criteria, ...rest) || [])
-      .filter(row => profileOwnsRow(row)),
+    filter: async (criteria = {}, ...rest) => {
+      const profileId = activeHouseholdProfileId();
+      const rows = await target.filter(profileId === "main"
+        ? criteria
+        : { ...criteria, profile_id: profileId }, ...rest);
+      return (Array.isArray(rows) ? rows : []).filter(row => profileOwnsRow(row, profileId));
+    },
     create: async row => target.create({ ...row, profile_id: activeHouseholdProfileId() }),
     update: (...args) => target.update(...args),
     delete: (...args) => target.delete(...args),
