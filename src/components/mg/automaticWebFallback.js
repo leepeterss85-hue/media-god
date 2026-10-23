@@ -5,12 +5,13 @@
  */
 export const WEB_FALLBACK_LOAD_TIMEOUT_MS = 30000;
 
-export const nextWebFallback = (options, active, allowVyla = false) => {
+export const nextWebFallback = (options, active, allowVyla = false, skipIds = []) => {
+  if (active === "vyla") return "torrents";
   const rows = Array.isArray(options) ? options.filter((entry) => entry?.id && entry?.url) : [];
+  const skip = new Set(skipIds);
   const index = rows.findIndex((entry) => entry.id === active);
-  if (index < 0) return rows[0]?.id || (allowVyla ? "vyla" : "torrents");
-  if (index + 1 < rows.length) return rows[index + 1].id;
-  return allowVyla ? "vyla" : "torrents";
+  const next = rows.slice(index < 0 ? 0 : index + 1).find((entry) => !skip.has(entry.id));
+  return next?.id || (allowVyla ? "vyla" : "torrents");
 };
 
 export const mediaForTorrentFallback = (media = {}) => {
