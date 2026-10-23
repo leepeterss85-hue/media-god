@@ -8919,14 +8919,21 @@ export default function VideoPlayer({
     nativeFallbackUrl !== nativePlaybackUrl;
 
   /*
-   * Fire TV/Android must not decode resolved VOD inside the WebView; every
-   * resolved HTTP media URL is handed to native Media3. Back from Media3
-   * enters a safe selector mode rather than restarting the URL in WebView.
+   * A working MediaGodNative bridge—not the WebView user-agent or injected
+   * CSS classes—is the authority for native movie/episode playback. Those
+   * runtime markers can arrive late or be absent after a page navigation;
+   * previously this made a resolved TV torrent fall through to our older
+   * HTML player despite the installed APK supporting LibVLC.
+   *
+   * All resolved non-live VOD goes to the native bridge, whose Android
+   * PlaybackCompatibilityRouter defaults to LibVLC. The native fallback/paused
+   * selector still works via nativePlaybackAvailable. Live TV keeps its
+   * existing routing and ordinary Chrome/Base44 browsers have no bridge.
    */
   const useNativePlayback =
     nativePlaybackAvailable &&
     (
-      isLive ||
+      !isLive ||
       forceNativePlayback ||
       isFireTvRemoteRuntime() ||
       isAndroidMobileNativeRuntime()
