@@ -306,6 +306,8 @@ export default function StreamSourcesBox({
   mediaType = "movie",
   season = null,
   episode = null,
+  resumeAt = 0,
+  torrentOnly = false,
 }) {
   const player =
     usePlayer();
@@ -921,6 +923,8 @@ export default function StreamSourcesBox({
 
       try {
         await player.play({
+          // Keep the stored seek point when opened from Continue Watching.
+          startTime: Math.max(0, Number(resumeAt) || 0),
           id:
             tmdbId,
 
@@ -1007,6 +1011,7 @@ export default function StreamSourcesBox({
       );
 
       await player.play({
+        startTime: Math.max(0, Number(resumeAt) || 0),
         id:
           tmdbId,
 
@@ -1108,6 +1113,7 @@ export default function StreamSourcesBox({
       );
 
       await player.play({
+        startTime: Math.max(0, Number(resumeAt) || 0),
         id:
           tmdbId,
 
@@ -1820,7 +1826,9 @@ export default function StreamSourcesBox({
         </div>
       ) : (
         <div className="flex flex-col gap-1.5">
-          {rows.map(
+          {(torrentOnly
+            ? rows.filter((row) => ["rd", "addon-stream", "paste"].includes(row.kind))
+            : rows).map(
             (
               row
             ) => (
