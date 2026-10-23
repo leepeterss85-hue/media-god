@@ -1019,7 +1019,7 @@ test("verified movie/TV title conflicts keep the canonical media identity", () =
   assert.ok(staleTmdbTypeIndex > forcedMovieIndex);
 
   assert.match(searchSource, /identity_corrected === true/);
-  assert.match(searchSource, /aliases\.includes\(wanted\)/);
+  assert.match(searchSource, /aliases\.includes\(titleWanted\)/);
   assert.match(searchSource, /return 1200/);
 
   const explicitMovieIndex = homeSource.indexOf('type === "movie"');
