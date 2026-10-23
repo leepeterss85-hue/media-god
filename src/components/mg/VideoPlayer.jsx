@@ -4529,6 +4529,29 @@ export default function VideoPlayer({
           /\b429\b/i.test(
             String(error?.message || "")
           );
+        // A transient account-side RD rate limit is not a bad VLC file.
+        // On automatic TV startup, prefer a source already known to be
+        // playable instead of pinning the first uncached candidate. Never
+        // auto-switch away from a source the viewer explicitly selected,
+        // and never start another uncached job during rate limiting.
+        if (
+          rdRateLimited &&
+          playbackMediaType === "tv" &&
+          !manualSourceLockActive()
+        ) {
+          const readyBackup = findNextPlayableSource(activeIdx, {
+            allowCaching: false,
+          });
+          if (
+            readyBackup >= 0 &&
+            switchToSource(readyBackup, {
+              preservePosition: true,
+              statusMessage: "Real-Debrid is rate limited. Trying a ready episode source…",
+            })
+          ) {
+            return;
+          }
+        }
         setRdError(
           rdRateLimited
             ? "Real-Debrid is temporarily rate limiting requests (HTTP 429). This torrent is not ready to play. Choose Sources to find another ready copy through Combined Debrid; wait before retrying this torrent."
