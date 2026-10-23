@@ -148,14 +148,14 @@ export default function PlayerPortalRenderer({
           magnet={magnetPlayer.magnet}
           title={magnetPlayer.title}
           onBack={exitToDestination}
-          backLabel={magnetPlayer.fromDetails ? "Details" : "Sources"}
+          backLabel={source.mediaType === "tv" || source.episode != null ? "Episodes" : "Home"}
         />
       ) : magnetPlayer?.type === "webtorrent" ? (
         <WebTorrentPlayer
           magnet={magnetPlayer.magnet}
           title={magnetPlayer.title}
           onBack={exitToDestination}
-          backLabel={magnetPlayer.fromDetails ? "Details" : "Sources"}
+          backLabel={source.mediaType === "tv" || source.episode != null ? "Episodes" : "Home"}
         />
       ) : vidSrcEmbed?.provider === "embedsu" ? (
         <EmbedSuPlayer
@@ -163,14 +163,14 @@ export default function PlayerPortalRenderer({
           media={vidSrcEmbed.media}
           title={vidSrcEmbed.title}
           onBack={exitToDestination}
-          backLabel={vidSrcEmbed.fromDetails ? "Details" : "Sources"}
+          backLabel={source.mediaType === "tv" || source.episode != null ? "Episodes" : "Home"}
         />
       ) : vidSrcEmbed?.provider === "vidcore" ? (
         <VidCoreEmbedPlayer
           url={vidSrcEmbed.url}
           title={vidSrcEmbed.title}
           onBack={exitToDestination}
-          backLabel={vidSrcEmbed.fromDetails ? "Details" : "Sources"}
+          backLabel={source.mediaType === "tv" || source.episode != null ? "Episodes" : "Home"}
         />
       ) : ["twoembed", "cinesrc", "multiembed"].includes(vidSrcEmbed?.provider) ? (
         <ExtraEmbedPlayer
@@ -178,7 +178,7 @@ export default function PlayerPortalRenderer({
           title={vidSrcEmbed.title}
           providerLabel={{ twoembed: "2Embed", cinesrc: "CineSrc", multiembed: "MultiEmbed" }[vidSrcEmbed.provider]}
           onBack={exitToDestination}
-          backLabel={vidSrcEmbed.fromDetails ? "Details" : "Sources"}
+          backLabel={source.mediaType === "tv" || source.episode != null ? "Episodes" : "Home"}
         />
       ) : vidSrcEmbed?.provider === "onlyflix" ? (
         <OnlyFlixEmbedPlayer
@@ -187,14 +187,14 @@ export default function PlayerPortalRenderer({
           media={vidSrcEmbed.media || source}
           onOpenSources={onOpenSources}
           onBack={exitToDestination}
-          backLabel={vidSrcEmbed.fromDetails ? "Details" : "Sources"}
+          backLabel={source.mediaType === "tv" || source.episode != null ? "Episodes" : "Home"}
         />
       ) : vidSrcEmbed ? (
         <VidSrcEmbedPlayer
           url={vidSrcEmbed.url}
           title={vidSrcEmbed.title}
           onBack={exitToDestination}
-          backLabel={vidSrcEmbed.fromDetails ? "Details" : "Sources"}
+          backLabel={source.mediaType === "tv" || source.episode != null ? "Episodes" : "Home"}
         />
       ) : (
         <VideoPlayer
