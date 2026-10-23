@@ -1279,6 +1279,7 @@ export default function HomeDashboard({ onOpenTvService }) {
           <DetailModal
             item={selected}
             mediaType={selected?.media_type || mediaTypeOf(selected)}
+            initialTab={selected?.initialDetailTab || "overview"}
             onClose={() => setSelected(null)}
             onSelectRelated={open}
           />
