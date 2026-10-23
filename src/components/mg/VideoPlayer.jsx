@@ -4554,7 +4554,7 @@ export default function VideoPlayer({
         }
         setRdError(
           rdRateLimited
-            ? "Real-Debrid is temporarily rate limiting requests (HTTP 429). This torrent is not ready to play. Choose Sources to find another ready copy through Combined Debrid; wait before retrying this torrent."
+            ? "Playback lookup returned HTTP 429 (too many requests). This torrent is not ready to play. Please wait before retrying. Choose Sources to look for an already-ready file; VLC cannot play an uncached torrent."
             : `${error?.message || "The Real-Debrid cache engine stopped unexpectedly."} The same uncached source has been kept selected; Retry will reconnect to it.`
         );
       });
@@ -10372,6 +10372,15 @@ export default function VideoPlayer({
     rdError ||
     "";
 
+  // All discovered exact-episode torrents require caching. This is a
+  // normal availability state, not a broken VLC decoder. Do not show an
+  // endless spinner or submit another torrent automatically.
+  const noReadyEpisodeFile =
+    playbackMediaType === "tv" &&
+    source?.sourceDiagnostics?.noReadyEpisodeFile === true &&
+    (active?.diagnostic === true || active?.type === "status") &&
+    !rdOverride && !busy && !displayedError;
+
   const friendlyError =
     friendlyPlaybackError(
       displayedError
@@ -10901,6 +10910,34 @@ export default function VideoPlayer({
                 <button type="button" onClick={copyPreparationReport}
                   className="rounded-lg border border-white/20 px-3 py-2 text-xs font-medium text-white">
                   Copy preparation report
+                </button>
+              )}
+            </div>
+          ) : noReadyEpisodeFile ? (
+            <div
+              role="status"
+              data-mg-no-ready-episode-file="true"
+              className="flex max-w-lg flex-col items-center gap-3 p-6 text-center"
+            >
+              <p className="text-base font-semibold text-white">
+                No ready episode torrent found
+              </p>
+              <p className="max-w-md text-sm leading-relaxed text-white/65">
+                Media God found {Number(source?.sourceDiagnostics?.cacheCandidateCount || 0)} torrent candidates,
+                but verified cached files: 0. An uncached torrent must finish caching before
+                VLC can play it. Media God will not repeatedly submit it during HTTP 429 errors.
+              </p>
+              {selectableSourceCount > 0 && (
+                <button type="button" onClick={showSourceChooser}
+                  className="min-h-11 rounded-lg bg-mg-green px-4 text-sm font-bold text-black">
+                  Choose a torrent to cache ({selectableSourceCount} sources)
+                </button>
+              )}
+              {vidSrcEmbedUrl && (
+                <button type="button" data-mg-vidsrc-open="true"
+                  onClick={() => onOpenVidSrc?.(playbackMediaType)}
+                  className="min-h-11 rounded-lg border border-white/20 px-4 text-sm font-semibold text-white">
+                  Try VidSrc web player
                 </button>
               )}
             </div>
