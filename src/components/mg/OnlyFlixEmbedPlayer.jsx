@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { ArrowLeft, ExternalLink, ListVideo, Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { usePlayer } from "@/components/mg/PlayerProvider";
+// The player portal is inside CorePlayerProvider but outside PlayerAutomationBridge.
+// Its enhanced context is unavailable: use the core player context instead.
+import { usePlayer } from "@/components/mg/MediaPlayerProvider";
 import { isNativeFireTvEmbedRemoteAvailable, setNativeFireTvEmbedRemoteActive } from "@/components/mg/nativeFireTvBridge";
 import OnlyFlixRemotePointer from "@/components/mg/OnlyFlixRemotePointer";
 import CastButton from "@/components/mg/CastButton";
