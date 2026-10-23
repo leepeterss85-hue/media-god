@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "2026-10-23 reviewed TV-only seamless episode features: native VLC skip recap/opening titles/credits, next episode title and 10-second verified-credits countdown with Stay Here. Background next-episode source preparation no longer depends on skip-marker success. VLC audio, Sources, Cast, Back and Live TV untouched.",
+  "note": "2026-10-23 reviewed native VLC per-show English audio and subtitle memory with delayed text-track pickup, plus enhanced Continue Watching progress and Fire TV focus UI. Preserves preloaded next-episode handoff, native decoder settings, manual Sources, Cast, Back, Live TV and existing one-tap update UX.",
   "files": {
     "src/components/mg/VideoPlayer.jsx": "18bffc0fb431487bf31ea23c62dd9fd87eab2f407daedd3595eb4563cea50db0",
     "src/components/mg/MediaPlayerProvider.jsx": "296950ac2a69bcfcd597f93895c67add29c18c5323e57518306a79777fc76a84",
@@ -14,9 +14,9 @@
     "base44/functions/antSportsLive/entry.ts": "c4d7a7e0e769cabfd10f5df896d78cbf8f85081b41d346f82c36cc62e209bf0a",
     "base44/functions/evSportsLive/entry.ts": "149d7c13a8e56e602e450919ade50b3b6d58ea115c746370863803fbe4c8ec4d",
     "android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt": "a80ec6a5a4e6a8f36d51a046e319619f2fa86bb647209154750e881f173d875a",
-    "android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt": "33d647cfffa4277992ff0369eae3191cc99b6d4c428eaec56b2f641bb6f550e5",
+    "android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt": "6cc5bc8b5cb79800692878efeb5f7bae7d35b82156f95225466231cc56d8819e",
     "firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt": "6f0bf56e97efce0613dbc015408babc43ad7d7d3db17c31bd312611fd42396f4",
-    "firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt": "1077e223e64bfd0d65f736cf66b55fb17c21791af7eaeae0077658f7a07b70cb",
+    "firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt": "73117322339333193d3a1cb5232aae192c779ca905062b7bf676ebbab134aad9",
     "src/components/mg/PlayerPortalRenderer.jsx": "95ac158e24ed8747c1be66c0fa2605b896bf4b537fe20c6aceee64a10516ebcf",
     "src/components/mg/additionalLiveTvSources.js": "351e08e7413ea8c8b0b90db8f5151c065639b47528f4a5d005147ba53410846b"
   }
