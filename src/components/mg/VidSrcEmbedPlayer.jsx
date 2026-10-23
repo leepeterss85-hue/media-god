@@ -1,5 +1,6 @@
 import React from "react";
 import { ArrowLeft, ExternalLink } from "lucide-react";
+import SafeEmbedStage from "@/components/mg/SafeEmbedStage";
 
 export default function VidSrcEmbedPlayer({ url, title, onBack, backLabel = "Sources" }) {
   return (
@@ -27,20 +28,16 @@ export default function VidSrcEmbedPlayer({ url, title, onBack, backLabel = "Sou
           <span className="hidden shrink-0 text-xs text-white/50 sm:block">VidSrc web player</span>
         </div>
 
-        <div
-          data-mg-player-stage="true"
-          className="relative aspect-video min-h-[34vh] w-full overflow-hidden rounded-xl border border-white/10 bg-black"
-        >
+        <SafeEmbedStage>
           <iframe
             key={url}
             src={url}
             title={"VidSrc: " + title}
             className="h-full w-full border-0"
-            allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-            allowFullScreen
+            allow="autoplay; encrypted-media; picture-in-picture"
             referrerPolicy="strict-origin-when-cross-origin"
           />
-        </div>
+        </SafeEmbedStage>
 
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/70 p-2.5 text-xs text-white/60">
           <span>VidSrc has its own player controls. Use {backLabel} to return to Media God.</span>
