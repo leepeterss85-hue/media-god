@@ -912,6 +912,23 @@ export default function EpisodeSelector({
       });
     };
 
+  // Never guess which episode was completed: use the existing saved
+  // playback progress for this exact season. The next unwatched button
+  // stays within the currently loaded season and ignores future air dates.
+  const airedEpisodes = [...episodes]
+    .filter(episode => {
+      const airDate = String(episode?.air_date || "").slice(0, 10);
+      const today = new Date().toISOString().slice(0, 10);
+      return !airDate || airDate <= today;
+    })
+    .sort((a, b) => Number(a?.episode_number || 0) - Number(b?.episode_number || 0));
+  const completedEpisodeCount = airedEpisodes.filter(episode =>
+    progressRatio(progressMap.get(episodeKey(Number(season), Number(episode?.episode_number)))) >= 0.92
+  ).length;
+  const nextUnwatchedEpisode = airedEpisodes.find(episode =>
+    progressRatio(progressMap.get(episodeKey(Number(season), Number(episode?.episode_number)))) < 0.92
+  );
+
   if (
     !regularSeasons.length
   ) {
@@ -936,6 +953,20 @@ export default function EpisodeSelector({
           </span>
         )}
       </div>
+
+      {!loading && airedEpisodes.length > 0 && (
+        <div data-mg-season-watch-progress="true"
+          className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs text-white/60">
+          <span>{completedEpisodeCount} of {airedEpisodes.length} released episodes watched this season</span>
+          {nextUnwatchedEpisode && (
+            <button type="button" onClick={() => playEpisode(nextUnwatchedEpisode)}
+              className="min-h-11 rounded-lg border border-mg-green/30 bg-mg-green/10 px-3 font-semibold text-mg-green focus:outline-none focus:ring-2 focus:ring-mg-green">
+              {progressRatio(progressMap.get(episodeKey(Number(season), Number(nextUnwatchedEpisode.episode_number)))) > 0
+                ? "Continue" : "Play next unwatched"} · E{nextUnwatchedEpisode.episode_number}
+            </button>
+          )}
+        </div>
+      )}
 
       {latestProgress && (
         <button
