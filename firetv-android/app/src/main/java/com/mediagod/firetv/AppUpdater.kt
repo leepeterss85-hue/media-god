@@ -19,6 +19,7 @@ class AppUpdater(
     private val activity: MainActivity,
     private val publishStatus: (JSONObject) -> Unit,
 ) {
+    private class StaleReleaseAssetException(message: String) : IllegalStateException(message)
     private class SigningIdentityMismatchException(message: String) :
         IllegalStateException(message)
 
@@ -71,8 +72,7 @@ class AppUpdater(
                     progress = 0,
                 )
 
-                val apk = downloadUpdate(STABLE_UPDATE_URL)
-                verifyDownloadedApk(apk)
+                val apk = downloadVerifiedRelease(versionName)
 
                 activity.getSharedPreferences(PREFS, 0)
                     .edit()
@@ -139,6 +139,45 @@ class AppUpdater(
         }
     }
 
+    /**
+     * Main branch manifests become visible before the signed GitHub APK is
+     * published. If the stable download still yields an older archive, retry
+     * with a fresh URL instead of immediately failing a one-tap update.
+     * Never bypass version or signer verification.
+     */
+    private fun downloadVerifiedRelease(requestedVersion: String): File {
+        for (attempt in 0..2) {
+            if (attempt > 0) {
+                sendStatus("downloading", "Waiting for signed Media God Fire TV update…", 0)
+                Thread.sleep(1500L * attempt)
+            }
+            val safeVersion = requestedVersion.filter {
+                it.isLetterOrDigit() || it == '.' || it == '-' || it == '_'
+            }
+            val url = "$STABLE_UPDATE_URL?mg_version=$safeVersion&retry=$attempt&fresh=${System.currentTimeMillis()}"
+            val apk = downloadUpdate(url)
+            try {
+                verifyDownloadedApk(apk)
+                val archive = getArchivePackageInfo(apk)
+                if (requestedVersion.isNotBlank() &&
+                    archive?.versionName != requestedVersion) {
+                    throw StaleReleaseAssetException(
+                        "Downloaded APK version does not match requested $requestedVersion."
+                    )
+                }
+                return apk
+            } catch (stale: StaleReleaseAssetException) {
+                apk.delete()
+                if (attempt == 2) {
+                    throw IllegalStateException(
+                        "The signed $requestedVersion update is still publishing. Please press Update again shortly."
+                    )
+                }
+            }
+        }
+        throw IllegalStateException("The update could not be verified.")
+    }
+
     private fun downloadUpdate(url: String): File {
         val updateDir = File(activity.cacheDir, "updates")
         if (!updateDir.exists() && !updateDir.mkdirs()) {
@@ -163,6 +202,8 @@ class AppUpdater(
                     readTimeout = 90_000
                     requestMethod = "GET"
                     setRequestProperty("User-Agent", "MediaGodFireTV/${BuildConfig.VERSION_NAME}")
+                    setRequestProperty("Cache-Control", "no-cache, no-store")
+                    setRequestProperty("Pragma", "no-cache")
                     setRequestProperty(
                         "Accept",
                         "application/vnd.android.package-archive, application/octet-stream, */*"
@@ -271,7 +312,7 @@ class AppUpdater(
         }
 
         if (versionCodeOf(archiveInfo) <= BuildConfig.VERSION_CODE.toLong()) {
-            throw IllegalStateException("Downloaded APK is not newer than this Media God Fire TV version.")
+            throw StaleReleaseAssetException("Downloaded APK is not newer than this Media God Fire TV version.")
         }
 
         val currentInfo = getInstalledPackageInfo()
