@@ -32,6 +32,7 @@ import { fetchTmdbEmbedStreams } from "@/components/mg/tmdbEmbedStreams";
 import { cn } from "@/lib/utils";
 import { magnetFromInput } from "@/components/mg/magnetStreamHelpers";
 import { excludeServerIssuedIpBoundVod } from "@/components/mg/ipBoundVodSafety";
+import { sourceHasPendingCacheSignal, sourceIsConfirmedCachedForPlayback } from "@/components/mg/sourceCacheVisibility";
 import { launchReeznTv } from "@/components/mg/reeznTvLauncher";
 
 const unwrap = (response) =>
@@ -895,7 +896,7 @@ export default function StreamSourcesBox({
     );
 
   const playCombinedDebrid =
-    async () => {
+    async ({ readyOnly = false } = {}) => {
       if (!hasDebrid) {
         setMessage(
           "Connect a debrid service in Settings first."
@@ -967,6 +968,14 @@ export default function StreamSourcesBox({
           debridManual:
             true,
 
+          // When a viewer picked an uncached TV torrent, use the same
+          // successful Combined Debrid lookup automatically. Do not
+          // immediately re-add its unavailable hash (which can trigger
+          // RD HTTP 429) while seeking an already-playable alternative.
+          ...(readyOnly && mediaType === "tv"
+            ? { skipEpisodeAutoPrepare: true }
+            : {}),
+
           sources:
             [],
           completeSources: visibleAddonStreams,
@@ -1000,6 +1009,27 @@ export default function StreamSourcesBox({
           "This source needs a debrid service. Connect one in Settings first."
         );
 
+        return;
+      }
+
+      // The screenshot's 38 pending torrents are discovery results, not
+      // playable files. Sending one straight to RD's add-torrent endpoint
+      // can return HTTP 429 before the VLC activity can start. Automatically
+      // use the existing Combined Debrid route for an unready episode source:
+      // first check the exact episode's ready/library files and other debrid
+      // candidates. Do not submit another uncached torrent as an instant-play
+      // request. Ready/direct sources still honour the exact manual choice.
+      const selectedType = String(stream?.type || "").toLowerCase();
+      const isEpisodeTorrent = mediaType === "tv" && [
+        "rd", "rd_torrent", "torrent", "magnet",
+      ].includes(selectedType);
+      const selectedUnreadyTorrent = isEpisodeTorrent &&
+        !sourceIsConfirmedCachedForPlayback(stream) &&
+        (sourceHasPendingCacheSignal(stream) ||
+          stream?.debridCached !== true);
+      if (hasDebrid && selectedUnreadyTorrent) {
+        setMessage("Checking Combined Debrid for a playable copy of this episode…");
+        await playCombinedDebrid({ readyOnly: true });
         return;
       }
 
@@ -1410,7 +1440,7 @@ export default function StreamSourcesBox({
           : "Connect a debrid service in Settings",
 
       onClick:
-        playCombinedDebrid,
+        () => playCombinedDebrid(),
     },
 
     ...(vidSrcUrl ? [{
