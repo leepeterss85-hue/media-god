@@ -75,6 +75,18 @@ test("unknown-cache episode torrent checks ready sources first", async () => {
   assert.equal(selection.captured[0].sources.length, 0);
 });
 
+test("addon-labeled URL still uses Combined Debrid when cache is pending", async () => {
+  const selection = selectedEpisodeSource({
+    type: "url",
+    src: "https://example.test/uncached-torrent-playback",
+    properties: { cacheRequired: true, debridCacheChecked: true, debridCached: false },
+  });
+  await selection.run();
+  assert.equal(selection.captured.length, 1);
+  assert.equal(selection.captured[0].skipEpisodeAutoPrepare, true);
+  assert.equal(selection.captured[0].sources.length, 0);
+});
+
 test("confirmed cached episode torrent still opens exact selected VLC media route", async () => {
   const selection = selectedEpisodeSource({ properties: { debridCached: true } });
   await selection.run();
