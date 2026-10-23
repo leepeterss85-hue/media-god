@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "note": "2026-10-23 targeted TV episode Sources fix: pin a user-selected torrent/direct source from the first player render so automatic best-source handoff cannot hijack the VLC route. Normal movie autoplay and Live TV are unchanged.",
+  "note": "2026-10-23 review of RD 429 UI in VideoPlayer only: explain account rate-limiting and do not promise immediate retry. Uncached TV episode Sources now check Combined Debrid automatically before trying to open VLC, while movies and Live TV retain their existing routing.",
   "files": {
-    "src/components/mg/VideoPlayer.jsx": "3a7c483431bcca101afa871f59756544085abfbca2518bb03d1ef19b8b36ef7c",
+    "src/components/mg/VideoPlayer.jsx": "fec12f37b5f662c83d26cde4ffa2f52f4fd991b36114b0f2adb74a202591f783",
     "src/components/mg/MediaPlayerProvider.jsx": "ed113a7e3b1521647481792d8092bba97d8d152f0a49acb350c57cba24d10d37",
     "src/components/mg/PlayerProvider.jsx": "8402d6f7463ea9a1824c7e4c1bb683818f4803b40fc486fbdcfdddaf73195040",
     "src/components/mg/MediaPlayerControls.jsx": "ef6cbff88fd9d8aad2396e7243ef9f2c09f54f6ad9d3a8c03acc124f1bfacd87",
