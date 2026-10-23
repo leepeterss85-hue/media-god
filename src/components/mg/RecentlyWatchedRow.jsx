@@ -11,7 +11,6 @@ import {
   X,
 } from "lucide-react";
 
-import { base44 } from "@/api/base44Client";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 import { Image } from "@/components/ui/image";
 
@@ -182,7 +181,7 @@ export default function RecentlyWatchedRow({ onOpenDetail }) {
   const player = usePlayer();
 
   const load = () => {
-    base44.entities.ContinueWatching
+    profiledLibrary.ContinueWatching
       .list("-updated_date", 100)
       .then((rows) => {
         const completed = [];

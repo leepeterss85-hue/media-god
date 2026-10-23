@@ -255,7 +255,7 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
   }, [player.isOpen]);
 
   const load = () => {
-    base44.entities.ContinueWatching
+    profiledLibrary.ContinueWatching
       .list("-updated_date", 100)
       .then((rows) => {
         const entries = [...(rows || [])]
