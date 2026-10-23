@@ -6,6 +6,8 @@ const read = (path) => readFileSync(new URL("../" + path, import.meta.url), "utf
 const embed = read("src/components/mg/OnlyFlixEmbedPlayer.jsx");
 const backend = read("base44/functions/vylaStreamPilot/entry.ts");
 const player = read("src/components/mg/MediaPlayerProvider.jsx");
+const portal = read("src/components/mg/PlayerPortalRenderer.jsx");
+const enhanced = read("src/components/mg/PlayerProvider.jsx");
 
 test("Vyla stays an explicit test choice for BOTH TV episodes and films", () => {
   assert.match(embed, /data-mg-vyla-test-player="true"/);
@@ -21,6 +23,17 @@ test("Vyla stays an explicit test choice for BOTH TV episodes and films", () => 
   assert.match(embed, /skipRdLookup: true/);
   assert.match(embed, /onClick=\{\(\) => launchVylaCandidate\(candidate\)\}/);
   assert.match(player, /const playOnlyFlix = useCallback/);
+});
+
+test("embedded-player Vyla cannot read the enhanced context outside its provider", () => {
+  // The portal is rendered inside CorePlayerProvider, beside (not inside)
+  // PlayerAutomationBridge, so the enhanced usePlayer hook throws immediately.
+  assert.match(player, /<PlayerContext\.Provider value=\{value\}>[\s\S]*<PlayerPortalRenderer/);
+  assert.match(enhanced, /<CorePlayerProvider>[\s\S]*<PlayerAutomationBridge>/);
+  assert.match(portal, /<OnlyFlixEmbedPlayer/);
+  assert.match(embed, /import \{ usePlayer \} from "@\/components\/mg\/MediaPlayerProvider"/);
+  assert.doesNotMatch(embed, /import \{ usePlayer \} from "@\/components\/mg\/PlayerProvider"/);
+  assert.match(embed, /const player = usePlayer\(\)/);
 });
 
 test("Vyla lookup is server-side, bounded and rejects unqualified links", () => {
