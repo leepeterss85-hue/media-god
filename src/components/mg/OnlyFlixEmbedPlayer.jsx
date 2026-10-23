@@ -83,6 +83,17 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
   const vylaReady = Boolean(vylaType && Number.isInteger(vylaId) && vylaId > 0 &&
     (vylaType === "movie" || (Number.isInteger(vylaSeason) && vylaSeason > 0 &&
       Number.isInteger(vylaEpisode) && vylaEpisode > 0)));
+  const beginTorrentFallback = useCallback(() => {
+    if (torrentStartedRef.current) return;
+    torrentStartedRef.current = true;
+    // This Sources handoff closes the iframe and starts the existing
+    // torrent/Real-Debrid discovery pipeline for this exact title/episode.
+    if (typeof onOpenSources === "function") {
+      onOpenSources();
+      return;
+    }
+    void player.play(mediaForTorrentFallback(media));
+  }, [onOpenSources, player, media]);
   useEffect(() => {
     if (activeEpisodePlayer !== "vyla") return undefined;
     if (!vylaReady) {
@@ -128,6 +139,62 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
   const chosen = activeBackups.find((item) => item.id === activeEpisodePlayer);
   const selectedUrl = chosen?.url || url;
   const providerLabel = chosen?.label || "OnlyFlix";
+  const advanceAfterFailure = useCallback(() => {
+    if (handledFailureRef.current) return;
+    handledFailureRef.current = true;
+    failedProvidersRef.current.add(activeEpisodePlayer);
+    const next = nextWebFallback(
+      activeBackups, activeEpisodePlayer, vylaReady,
+      Array.from(failedProvidersRef.current)
+    );
+    setAutoRecovery(true);
+    if (next === "torrents") {
+      beginTorrentFallback();
+    } else {
+      if (next === "vyla") {
+        vylaStartedRef.current = false;
+        setVylaResult({ status: "LOADING", streams: [] });
+      }
+      setActiveEpisodePlayer(next);
+    }
+  }, [activeBackups, activeEpisodePlayer, vylaReady, beginTorrentFallback]);
+
+  useEffect(() => {
+    // Cross-origin iframes cannot report actual video playback. Never change
+    // a loaded page on a timer: only auto-advance a failed/stalled page load.
+    if (activeEpisodePlayer === "vyla") return undefined;
+    iframeLoadedRef.current = false;
+    handledFailureRef.current = false;
+    const timeout = window.setTimeout(() => {
+      if (!iframeLoadedRef.current) advanceAfterFailure();
+    }, WEB_FALLBACK_LOAD_TIMEOUT_MS);
+    return () => window.clearTimeout(timeout);
+  }, [activeEpisodePlayer, selectedUrl, advanceAfterFailure]);
+
+  useEffect(() => {
+    if (activeEpisodePlayer !== "vyla" || !autoRecovery ||
+        vylaResult.status === "IDLE" || vylaResult.status === "LOADING" ||
+        vylaStartedRef.current) return;
+    vylaStartedRef.current = true;
+    const candidates = vylaResult.streams.filter((item) =>
+      item?.addon === "Vyla (test)" && item?.type === "url" &&
+      /^https:\/\//i.test(String(item?.url || ""))
+    );
+    if (candidates.length) {
+      // Vyla's direct candidates are all supplied to the existing native
+      // player before any torrent lookup is permitted.
+      void player.play({
+        ...mediaForTorrentFallback(media),
+        skipAddonLookup: true,
+        skipRdLookup: true,
+        preferRd: false,
+        sources: candidates,
+        completeSources: candidates,
+      });
+    } else {
+      beginTorrentFallback();
+    }
+  }, [activeEpisodePlayer, autoRecovery, vylaResult, player, media, beginTorrentFallback]);
   const [chromeVisible, setChromeVisible] = useState(true);
   useEffect(() => {
     if (!isFireTv) return;
@@ -175,6 +242,16 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
           <span className="min-w-0 flex-1 truncate text-sm font-semibold">{title}</span>
           <button
             type="button"
+            data-mg-try-next-web-source="true"
+            onClick={() => {
+              handledFailureRef.current = false;
+              advanceAfterFailure();
+            }}
+            className="inline-flex min-h-11 shrink-0 items-center rounded-lg border border-white/20 bg-white/10 px-3 text-xs font-semibold hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-mg-green"
+            title="Try the next web player, Vyla, then torrents"
+          >Try next</button>
+          <button
+            type="button"
             data-mg-embedded-open-sources="true"
             onClick={onOpenSources}
             aria-label="Sources inside video player"
@@ -215,7 +292,10 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
               <button
                 key={option.id}
                 type="button"
-                onClick={() => setActiveEpisodePlayer(option.id)}
+                onClick={() => {
+                  setAutoRecovery(false);
+                  setActiveEpisodePlayer(option.id);
+                }}
                 aria-pressed={activeEpisodePlayer === option.id}
                 data-mg-episode-provider={tvBackups.length ? option.id : undefined}
                 data-mg-movie-provider={movieBackups.length ? option.id : undefined}
@@ -230,7 +310,10 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
               <button
                 type="button"
                 data-mg-vyla-test-player="true"
-                onClick={() => setActiveEpisodePlayer("vyla")}
+                onClick={() => {
+                  setAutoRecovery(false);
+                  setActiveEpisodePlayer("vyla");
+                }}
                 aria-pressed={activeEpisodePlayer === "vyla"}
                 className={`min-h-10 shrink-0 rounded-lg border px-3 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mg-green ${activeEpisodePlayer === "vyla" ? "border-mg-green/70 bg-mg-green/20 text-mg-green" : "border-white/15 bg-white/5 text-white hover:bg-white/15"}`}
               >Vyla (test)</button>
@@ -281,6 +364,8 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
                 referrerPolicy="strict-origin-when-cross-origin"
                 tabIndex={0}
                 data-mg-embed-iframe="true"
+                onLoad={() => { iframeLoadedRef.current = true; }}
+                onError={advanceAfterFailure}
               />
               <OnlyFlixRemotePointer visible={!isFireTv || chromeVisible} />
             </>
