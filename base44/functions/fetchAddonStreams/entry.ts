@@ -2091,9 +2091,6 @@ const lookupAddon = async ({
   let ipBoundDirectStreams =
     0;
 
-  const addonUrlParts =
-    parseAddonUrl(addon?.url);
-
   // All ElfHosted-configured VOD addons can generate IP-bound direct links.
   // Browser discovery remains available from the viewer's own connection.
   const ipBoundElfHostedOrigin =
