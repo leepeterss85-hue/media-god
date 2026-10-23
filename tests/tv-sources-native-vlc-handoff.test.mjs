@@ -129,7 +129,7 @@ test("manual episode source stays pinned before automatic startup handoff", () =
 
 test("HTTP 429 is described as a Real-Debrid rate limit, not a VLC failure", () => {
   assert.match(player, /const rdRateLimited =/);
-  assert.match(player, /temporarily rate limiting requests \(HTTP 429\)/);
+  assert.match(player, /Playback lookup returned HTTP 429 \(too many requests\)/);
   assert.match(player, /This torrent is not ready to play/);
 });
 
