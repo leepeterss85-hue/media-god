@@ -79,7 +79,15 @@ const normaliseSearchText = (value) =>
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 
-const searchRelevance = (item, query) => {
+// Voice-search phrases are search requests, not commands to auto-start video.
+// Keep search and source selection within the existing UI.
+export const cleanVoiceSearch = (spoken) =>
+  String(spoken || "").trim()
+    .replace(/^(?:hey\s+media\s+god[,\s]*)?(?:please\s+)?(?:search\s+for|look\s+up|find|show\s+me|play)\s+/i, "")
+    .replace(/[?.!]+$/, "")
+    .trim();
+
+export const searchRelevance = (item, query) => {
   const title = normaliseSearchText(item?.title || item?.name);
   const wanted = normaliseSearchText(query);
   const aliases = (
@@ -105,8 +113,12 @@ const searchRelevance = (item, query) => {
   }
 
   if (title === wanted) return 1000;
+  // A title's opening word is more useful than a numerical fragment in an
+  // unrelated title (e.g. TV series "24" versus films from 2024).
+  if (title.startsWith(wanted + " ")) return 850;
   if (title.startsWith(wanted)) return 800;
-  if (title.includes(wanted)) return 600;
+  if (title.split(" ").includes(wanted)) return 700;
+  if (title.includes(wanted)) return 400;
 
   const words = wanted.split(" ").filter(Boolean);
   return words.reduce(
@@ -415,7 +427,7 @@ export default function SearchDialog({
   useEffect(() => {
     if (!open) return undefined;
     const onVoiceResult = (event) => {
-      const spoken = String(event?.detail?.text || "").trim();
+      const spoken = cleanVoiceSearch(event?.detail?.text);
       setVoiceListening(false);
       if (spoken) {
         setQuery(spoken);
@@ -459,7 +471,7 @@ export default function SearchDialog({
       recognition.maxAlternatives = 1;
       recognition.onresult = (event) => {
         const spoken = event?.results?.[0]?.[0]?.transcript;
-        if (spoken) setQuery(String(spoken).trim());
+        if (spoken) setQuery(cleanVoiceSearch(spoken));
         setVoiceListening(false);
       };
       recognition.onerror = () => {
