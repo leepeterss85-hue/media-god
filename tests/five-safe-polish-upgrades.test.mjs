@@ -15,7 +15,7 @@ test("existing Media God theme, Home row order, and navigation remain intact", (
   assert.match(hero, /mg-fire-tv-hero relative w-full h-\[52svh\]/);
   assert.match(hero, /from-mg-background via-mg-background/);
   assert.match(hero, /bg-mg-green text-black/);
-  assert.match(hero, /if \(fireTv \|\| count <= 1 \|\| !heroVisible\)/);
+  assert.match(hero, /if \(fireTv \|\| count <= 1 \|\| !heroVisible \|\| heroFocused\)/);
   assert.match(hero, /IntersectionObserver/);
   assert.match(nav, /\{ id: "home", label: "Home"/);
   assert.match(nav, /\{ id: "live", label: "Live TV"/);
