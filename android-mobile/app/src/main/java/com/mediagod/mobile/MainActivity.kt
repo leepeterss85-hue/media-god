@@ -397,6 +397,43 @@ class MainActivity : FragmentActivity() {
          */
         pendingNativeResultScript = resultScript
         dispatchJavascript(resultScript)
+
+        // The LibVLC Cast button is explicit opt-in. The separate VLC process
+        // has now exited, so open the already-proven Cast SDK device chooser
+        // from this resumed FragmentActivity rather than behind the video.
+        if (result.optString("reason") == "cast") {
+            val url = data?.getStringExtra("mg_cast_url").orEmpty()
+            val contentType = data?.getStringExtra("mg_cast_content_type").orEmpty()
+            if (url.startsWith("https://") || url.startsWith("http://")) {
+                if (contentType in setOf("video/mp4", "video/webm", "application/x-mpegurl", "application/dash+xml")) {
+                    val request = JSONObject().apply {
+                        put("url", url)
+                        put("contentType", contentType)
+                        put("title", data?.getStringExtra("mg_cast_title").orEmpty())
+                        put("poster", data?.getStringExtra("mg_cast_poster").orEmpty())
+                        put("live", false)
+                        put("startTime", result.optLong("positionMs", 0L).coerceAtLeast(0L) / 1000.0)
+                    }
+                    window.decorView.postDelayed({
+                        if (!isFinishing && !isDestroyed) {
+                            if (castManager == null) {
+                                castManager = runCatching {
+                                    MediaGodCastManager(this@MainActivity) { state, message ->
+                                        val detail = JSONObject().put("state", state).put("message", message)
+                                        dispatchJavascript(
+                                            "window.dispatchEvent(new CustomEvent('mg:native-cast-status',{detail:${detail}}));"
+                                        )
+                                    }
+                                }.getOrNull()
+                            }
+                            if (castManager?.start(request.toString()) != true) {
+                                android.widget.Toast.makeText(this, "Casting unavailable for this source", android.widget.Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    }, 350L)
+                }
+            }
+        }
     }
 
     private fun injectMobileBootstrap() {
