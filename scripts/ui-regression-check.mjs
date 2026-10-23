@@ -117,6 +117,7 @@ const requiredViews = [
   ["watchparty", "Watch Party"],
   ["watchlist", "Watchlist"],
   ["favorites", "Favorites"],
+  ["downloads", "Downloads"],
   ["addons", "Addons"],
   ["settings", "Settings"],
 ];
@@ -135,7 +136,6 @@ for (const [id, label] of requiredViews) {
 
 for (const hiddenLabel of [
   "RD Library",
-  "Downloads",
   "Phone Remote",
   "Sources",
   "Roadmap",
