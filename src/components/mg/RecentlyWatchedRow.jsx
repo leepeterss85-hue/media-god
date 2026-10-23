@@ -1,3 +1,4 @@
+import { profiledLibrary } from "@/components/mg/householdProfiles";
 import React, {
   useEffect,
   useMemo,
@@ -219,7 +220,7 @@ export default function RecentlyWatchedRow({ onOpenDetail }) {
     let unsubscribe = null;
 
     try {
-      unsubscribe = base44.entities.ContinueWatching.subscribe(() =>
+      unsubscribe = profiledLibrary.ContinueWatching.subscribe(() =>
         load()
       );
     } catch {
@@ -241,7 +242,7 @@ export default function RecentlyWatchedRow({ onOpenDetail }) {
     );
 
     try {
-      await base44.entities.ContinueWatching.delete(id);
+      await profiledLibrary.ContinueWatching.delete(id);
     } catch {
       load();
     }

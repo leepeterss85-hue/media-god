@@ -1,3 +1,4 @@
+import { profiledLibrary } from "@/components/mg/householdProfiles";
 import React, {
   createContext,
   useCallback,
@@ -414,7 +415,7 @@ const queueContinueWatching = async (request) => {
   };
 
   try {
-    const existing = await base44.entities.ContinueWatching.filter({
+    const existing = await profiledLibrary.ContinueWatching.filter({
       content_key: key,
     });
 
@@ -422,7 +423,7 @@ const queueContinueWatching = async (request) => {
       const row = existing[0];
       const existingProgress = Number(row?.progress || 0);
 
-      await base44.entities.ContinueWatching.update(
+      await profiledLibrary.ContinueWatching.update(
         row.id,
         existingProgress > 5
           ? {
@@ -436,7 +437,7 @@ const queueContinueWatching = async (request) => {
       return;
     }
 
-    await base44.entities.ContinueWatching.create({
+    await profiledLibrary.ContinueWatching.create({
       content_key: key,
       ...patch,
     });

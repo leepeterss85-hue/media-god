@@ -1,3 +1,4 @@
+import { profiledLibrary } from "@/components/mg/householdProfiles";
 import React, { useRef, useState } from "react";
 import {
   CheckCircle2,
@@ -71,8 +72,8 @@ export default function DataBackupView() {
 
     try {
       const [watchlist, favorites] = await Promise.all([
-        base44.entities.WatchlistItem.list("-created_date", MAX_LIBRARY_ITEMS),
-        base44.entities.Favorite.list("-created_date", MAX_LIBRARY_ITEMS),
+        profiledLibrary.WatchlistItem.list("-created_date", MAX_LIBRARY_ITEMS),
+        profiledLibrary.Favorite.list("-created_date", MAX_LIBRARY_ITEMS),
       ]);
 
       const payload = {
@@ -131,8 +132,8 @@ export default function DataBackupView() {
         .filter((item) => item.title);
 
       const [currentWatchlist, currentFavorites] = await Promise.all([
-        base44.entities.WatchlistItem.list("-created_date", MAX_LIBRARY_ITEMS),
-        base44.entities.Favorite.list("-created_date", MAX_LIBRARY_ITEMS),
+        profiledLibrary.WatchlistItem.list("-created_date", MAX_LIBRARY_ITEMS),
+        profiledLibrary.Favorite.list("-created_date", MAX_LIBRARY_ITEMS),
       ]);
 
       const existingWatchlist = new Set(
@@ -148,7 +149,7 @@ export default function DataBackupView() {
       for (const item of incomingWatchlist) {
         const key = itemKey(item);
         if (existingWatchlist.has(key)) continue;
-        await base44.entities.WatchlistItem.create(item);
+        await profiledLibrary.WatchlistItem.create(item);
         existingWatchlist.add(key);
         watchlistAdded += 1;
       }
@@ -156,7 +157,7 @@ export default function DataBackupView() {
       for (const item of incomingFavorites) {
         const key = itemKey(item);
         if (existingFavorites.has(key)) continue;
-        await base44.entities.Favorite.create(item);
+        await profiledLibrary.Favorite.create(item);
         existingFavorites.add(key);
         favoritesAdded += 1;
       }

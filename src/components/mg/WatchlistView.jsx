@@ -1,3 +1,4 @@
+import { profiledLibrary } from "@/components/mg/householdProfiles";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
@@ -53,7 +54,7 @@ export default function WatchlistView() {
     setError("");
 
     try {
-      const rows = await base44.entities.WatchlistItem.list("-created_date", 200);
+      const rows = await profiledLibrary.WatchlistItem.list("-created_date", 200);
       setItems(Array.isArray(rows) ? rows : []);
     } catch (loadError) {
       setItems([]);
@@ -84,7 +85,7 @@ export default function WatchlistView() {
 
   const remove = async (item) => {
     try {
-      await base44.entities.WatchlistItem.delete(item.id);
+      await profiledLibrary.WatchlistItem.delete(item.id);
       setItems((current) => current.filter((row) => row.id !== item.id));
       toast({ title: "Removed from Watchlist" });
     } catch {
@@ -117,7 +118,7 @@ export default function WatchlistView() {
 
     for (const item of items.filter((row) => wanted.has(row.id))) {
       try {
-        await base44.entities.WatchlistItem.delete(item.id);
+        await profiledLibrary.WatchlistItem.delete(item.id);
       } catch {
         failed += 1;
       }
@@ -153,7 +154,7 @@ export default function WatchlistView() {
 
     for (const item of items) {
       try {
-        await base44.entities.WatchlistItem.delete(item.id);
+        await profiledLibrary.WatchlistItem.delete(item.id);
       } catch {
         failed += 1;
       }

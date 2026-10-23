@@ -1,3 +1,4 @@
+import { profiledLibrary } from "@/components/mg/householdProfiles";
 import React, {
   useEffect,
   useMemo,
@@ -300,7 +301,7 @@ export default function EpisodeSelector({
 
         try {
           const rows =
-            await base44.entities.ContinueWatching.list(
+            await profiledLibrary.ContinueWatching.list(
               "-updated_date",
               100
             );
@@ -387,7 +388,7 @@ export default function EpisodeSelector({
 
     try {
       unsubscribe =
-        base44.entities.ContinueWatching.subscribe(
+        profiledLibrary.ContinueWatching.subscribe(
           () =>
             loadProgress()
         );

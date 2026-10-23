@@ -1,3 +1,4 @@
+import { profiledLibrary } from "@/components/mg/householdProfiles";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
@@ -54,7 +55,7 @@ export default function FavoritesView() {
     setError("");
 
     try {
-      const rows = await base44.entities.Favorite.list("-created_date", 200);
+      const rows = await profiledLibrary.Favorite.list("-created_date", 200);
       setItems(Array.isArray(rows) ? rows : []);
     } catch (loadError) {
       setItems([]);
@@ -85,7 +86,7 @@ export default function FavoritesView() {
 
   const remove = async (id, title) => {
     try {
-      await base44.entities.Favorite.delete(id);
+      await profiledLibrary.Favorite.delete(id);
       setItems((rows) => rows.filter((row) => row.id !== id));
       toast({ title: "Removed from Favorites", description: title });
     } catch {
@@ -118,7 +119,7 @@ export default function FavoritesView() {
 
     for (const item of items.filter((row) => wanted.has(row.id))) {
       try {
-        await base44.entities.Favorite.delete(item.id);
+        await profiledLibrary.Favorite.delete(item.id);
       } catch {
         failed += 1;
       }
@@ -154,7 +155,7 @@ export default function FavoritesView() {
 
     for (const item of items) {
       try {
-        await base44.entities.Favorite.delete(item.id);
+        await profiledLibrary.Favorite.delete(item.id);
       } catch {
         failed += 1;
       }

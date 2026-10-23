@@ -1,3 +1,4 @@
+import { profiledLibrary } from "@/components/mg/householdProfiles";
 import React, {
   useEffect,
   useMemo,
@@ -1023,7 +1024,7 @@ export default function DetailModal({
       async () => {
         try {
           const rows =
-            await base44.entities.Favorite.filter(
+            await profiledLibrary.Favorite.filter(
               {
                 tmdb_id:
                   String(
@@ -1367,7 +1368,7 @@ export default function DetailModal({
           if (!rowId) {
             const rows =
               asArray(
-                await base44.entities.Favorite.filter(
+                await profiledLibrary.Favorite.filter(
                   {
                     tmdb_id:
                       String(
@@ -1383,7 +1384,7 @@ export default function DetailModal({
           }
 
           if (rowId) {
-            await base44.entities.Favorite.delete(
+            await profiledLibrary.Favorite.delete(
               rowId
             );
           }
@@ -1414,7 +1415,7 @@ export default function DetailModal({
 
       try {
         const created =
-          await base44.entities.Favorite.create(
+          await profiledLibrary.Favorite.create(
             {
               title:
                 displayTitle,

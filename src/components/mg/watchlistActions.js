@@ -1,3 +1,4 @@
+import { profiledLibrary } from "@/components/mg/householdProfiles";
 import { base44 } from "@/api/base44Client";
 import { resolveCatalogMediaType } from "@/components/mg/catalogMediaIdentity";
 
@@ -41,7 +42,7 @@ export const addToWatchlistItem = async (item) => {
 
   try {
     const existing = asList(
-      await base44.entities.WatchlistItem.filter({
+      await profiledLibrary.WatchlistItem.filter({
         tmdb_id: tmdbId,
       })
     );
@@ -59,7 +60,7 @@ export const addToWatchlistItem = async (item) => {
     // transient network error never blocks a legitimate first add.
   }
 
-  const record = await base44.entities.WatchlistItem.create({
+  const record = await profiledLibrary.WatchlistItem.create({
     title: item?.title || item?.name || "Untitled",
     year: item?.year || "",
     poster_url:

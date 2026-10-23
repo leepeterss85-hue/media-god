@@ -1,3 +1,4 @@
+import { profiledLibrary } from "@/components/mg/householdProfiles";
 import {
   useEffect,
   useRef,
@@ -333,7 +334,7 @@ export default function ContinueWatchingAssist() {
           // Always inspect the stored row before updating: a late native
           // progress callback may know the position but not the source.
           // Never let it replace an earlier manually chosen torrent.
-          const existing = await base44.entities.ContinueWatching.filter({
+          const existing = await profiledLibrary.ContinueWatching.filter({
             content_key: key,
           });
 
@@ -356,7 +357,7 @@ export default function ContinueWatchingAssist() {
                       return false;
                     }
                   })()));
-            await base44.entities.ContinueWatching.update(
+            await profiledLibrary.ContinueWatching.update(
               row.id,
               preserveSource
                 ? { ...patch, video_url: row.video_url, source_type: row.source_type }
@@ -365,7 +366,7 @@ export default function ContinueWatchingAssist() {
             return;
           }
 
-          const created = await base44.entities.ContinueWatching.create({
+          const created = await profiledLibrary.ContinueWatching.create({
             content_key: key,
             ...patch,
           });
@@ -446,7 +447,7 @@ export default function ContinueWatchingAssist() {
       state.pendingResumeKey = key;
 
       try {
-        const rows = await base44.entities.ContinueWatching.list(
+        const rows = await profiledLibrary.ContinueWatching.list(
           "-updated_date",
           100
         );

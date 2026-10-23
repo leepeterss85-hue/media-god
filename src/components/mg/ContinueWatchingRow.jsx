@@ -1,3 +1,4 @@
+import { profiledLibrary } from "@/components/mg/householdProfiles";
 import React, {
   useEffect,
   useMemo,
@@ -330,7 +331,7 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
         if (duplicateIds.size > 0) {
           Promise.allSettled(
             Array.from(duplicateIds).map((id) =>
-              base44.entities.ContinueWatching.delete(id)
+              profiledLibrary.ContinueWatching.delete(id)
             )
           ).catch(() => {});
         }
@@ -345,7 +346,7 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
     let unsubscribe = null;
 
     try {
-      unsubscribe = base44.entities.ContinueWatching.subscribe(load);
+      unsubscribe = profiledLibrary.ContinueWatching.subscribe(load);
     } catch {
       unsubscribe = null;
     }
@@ -365,7 +366,7 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
     );
 
     try {
-      await base44.entities.ContinueWatching.delete(id);
+      await profiledLibrary.ContinueWatching.delete(id);
     } catch {
       load();
     }

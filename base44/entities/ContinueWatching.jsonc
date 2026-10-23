@@ -32,6 +32,10 @@
     "episode_name": {
       "type": "string",
       "default": ""
+    },
+    "profile_id": {
+      "type": "string",
+      "default": "main"
     }
   },
   "required": [

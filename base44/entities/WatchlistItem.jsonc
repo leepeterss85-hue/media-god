@@ -20,6 +20,10 @@
     "media_type": {
       "type": "string",
       "default": "movie"
+    },
+    "profile_id": {
+      "type": "string",
+      "default": "main"
     }
   },
   "required": [

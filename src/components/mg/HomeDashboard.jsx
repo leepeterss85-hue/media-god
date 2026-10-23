@@ -1,3 +1,4 @@
+import { profiledLibrary } from "@/components/mg/householdProfiles";
 import React, {
   useEffect,
   useMemo,
@@ -506,7 +507,7 @@ export default function HomeDashboard({ onOpenTvService }) {
 
     const fetchWatchlist = async () => {
       try {
-        const rows = await base44.entities.WatchlistItem.list("-created_date", 40);
+        const rows = await profiledLibrary.WatchlistItem.list("-created_date", 40);
         return Array.isArray(rows) ? rows : [];
       } catch {
         return [];
@@ -515,7 +516,7 @@ export default function HomeDashboard({ onOpenTvService }) {
 
     const fetchFavorites = async () => {
       try {
-        const rows = await base44.entities.Favorite.list("-created_date", 40);
+        const rows = await profiledLibrary.Favorite.list("-created_date", 40);
         return Array.isArray(rows) ? rows : [];
       } catch {
         return [];
@@ -524,7 +525,7 @@ export default function HomeDashboard({ onOpenTvService }) {
 
     const fetchHistory = async () => {
       try {
-        const rows = await base44.entities.ContinueWatching.list("-updated_date", 100);
+        const rows = await profiledLibrary.ContinueWatching.list("-updated_date", 100);
         return Array.isArray(rows) ? rows : [];
       } catch {
         return [];
