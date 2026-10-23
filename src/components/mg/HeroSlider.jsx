@@ -32,6 +32,7 @@ export default function HeroSlider({
   onWatchlist,
 }) {
   const [idx, setIdx] = useState(0);
+  const [heroVisible, setHeroVisible] = useState(true);
   const count = items.length;
   const fireTv = isFireTvRuntime();
 
@@ -44,16 +45,34 @@ export default function HeroSlider({
     setIdx((current) => (current - 1 + count) % Math.max(count, 1));
 
   useEffect(() => {
+    if (typeof document === "undefined") return undefined;
+    const hero = document.querySelector("[data-mg-featured-hero='true']");
+    const onVisibility = () => setHeroVisible(!document.hidden);
+    document.addEventListener("visibilitychange", onVisibility);
+    if (typeof IntersectionObserver === "undefined" || !hero) {
+      return () => document.removeEventListener("visibilitychange", onVisibility);
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      setHeroVisible(Boolean(entry?.isIntersecting) && !document.hidden);
+    }, { threshold: 0.2 });
+    observer.observe(hero);
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
+
+  useEffect(() => {
     /*
      * On Fire TV keep the hero stable unless the user changes it manually.
      * Rotating every few seconds forces large backdrop decode/download work
      * while the user is trying to navigate rows with the remote.
      */
-    if (fireTv || count <= 1) return undefined;
+    if (fireTv || count <= 1 || !heroVisible) return undefined;
 
     const timer = setInterval(next, 8000);
     return () => clearInterval(timer);
-  }, [next, count, fireTv]);
+  }, [next, count, fireTv, heroVisible]);
 
   useEffect(() => {
     setIdx(0);
@@ -72,7 +91,7 @@ export default function HeroSlider({
   const year = (item.release_date || item.year || "").slice(0, 4);
 
   return (
-    <section className="mg-fire-tv-hero relative w-full h-[52svh] min-h-[350px] max-h-[680px] sm:h-[56vh] md:min-h-[430px] 3xl:h-[62vh] 3xl:min-h-[620px] 3xl:max-h-[900px] 4xl:min-h-[760px] 4xl:max-h-[1100px] overflow-hidden">
+    <section data-mg-featured-hero="true" aria-label="Featured movies and television" className="mg-fire-tv-hero relative w-full h-[52svh] min-h-[350px] max-h-[680px] sm:h-[56vh] md:min-h-[430px] 3xl:h-[62vh] 3xl:min-h-[620px] 3xl:max-h-[900px] 4xl:min-h-[760px] 4xl:max-h-[1100px] overflow-hidden">
       {item.backdrop_url ? (
         <BackdropImage
           src={item.backdrop_url}
@@ -184,7 +203,7 @@ export default function HeroSlider({
             key={index}
             onClick={() => setIdx(index)}
             className={cn(
-              "h-2 3xl:h-2.5 rounded-full transition-all",
+              "h-2 3xl:h-2.5 rounded-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mg-green focus-visible:ring-offset-2 focus-visible:ring-offset-mg-background",
               index === idx
                 ? "bg-mg-green w-6 3xl:w-9"
                 : "bg-white/30 w-2 3xl:w-2.5 hover:bg-white/50"
