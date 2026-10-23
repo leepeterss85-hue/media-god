@@ -120,8 +120,13 @@ export default async function (request: Request) {
       status: streams.length ? "CANDIDATES" : "NO_CANDIDATES",
       streams, upstream_finished: done, http_status: upstreamStatus,
     });
-  } catch {
-    return reply({ status: streams.length ? "PARTIAL" : "UPSTREAM_UNAVAILABLE", streams, http_status: upstreamStatus });
+  } catch (error: any) {
+    // Harmless diagnostics: error category only, never include credentials,
+    // request headers, stream URLs, or exception text in responses.
+    const category = String(error?.name || "Unknown").slice(0, 40);
+    const cause = String(error?.cause?.code || error?.code || "unknown").slice(0, 40);
+    return reply({ status: streams.length ? "PARTIAL" : "UPSTREAM_UNAVAILABLE", streams,
+      http_status: upstreamStatus, diagnostic: { category, cause } });
   } finally {
     clearTimeout(timeout);
   }
