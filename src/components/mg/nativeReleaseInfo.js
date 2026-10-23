@@ -13,6 +13,19 @@ const CACHE_TTL_MS = 4 * 60 * 1000;
 const FAILURE_CACHE_TTL_MS = 30 * 1000;
 const REQUEST_TIMEOUT_MS = 4000;
 
+const RELEASE_META = {
+  "android-mobile": {
+    tag: "android-mobile-latest",
+    filename: "Media-God-Android-Mobile.apk",
+    manifest: "android-mobile-update.json",
+  },
+  "fire-tv": {
+    tag: "firetv-latest",
+    filename: "Media-God-Fire-TV.apk",
+    manifest: "firetv-update.json",
+  },
+};
+const REPOSITORY = "leepeterss85-hue/media-god";
 const releaseCache = new Map();
 const inFlight = new Map();
 
@@ -35,6 +48,51 @@ const fetchReleaseJson = async (url) => {
   }
 };
 
+/**
+ * Only a published GitHub APK release may trigger the update pop-up.
+ * The manifest on main can become visible long before device tests, signing,
+ * and asset upload finish. Read the manifest from the published release's
+ * exact commit, not the newer main branch. The installer stays unchanged.
+ */
+export const fetchPublishedNativeRelease = async (
+  platform,
+  { fetchJson = fetchReleaseJson } = {}
+) => {
+  const info = RELEASE_META[String(platform || "")];
+  if (!info) return null;
+
+  const release = await fetchJson(
+    `https://api.github.com/repos/${REPOSITORY}/releases/tags/${info.tag}`
+  );
+  const commit = String(release?.target_commitish || "").trim();
+  if (
+    release?.tag_name !== info.tag ||
+    release?.draft !== false ||
+    !release?.published_at ||
+    !/^[a-f0-9]{40}$/i.test(commit) ||
+    !Array.isArray(release?.assets) ||
+    !release.assets.some(asset =>
+      asset?.name === info.filename &&
+      asset?.state === "uploaded" &&
+      Number(asset?.size || 0) > 1_000_000
+    )
+  ) return null;
+
+  const manifest = await fetchJson(
+    `https://raw.githubusercontent.com/${REPOSITORY}/${commit}/public/${info.manifest}`
+  );
+  const versionCode = Number(manifest?.versionCode || 0);
+  const versionName = String(manifest?.versionName || "");
+  if (
+    !Number.isSafeInteger(versionCode) || versionCode < 1 ||
+    !/^[0-9][0-9a-z.+-]*$/i.test(versionName) ||
+    manifest?.apkUrl !== `https://github.com/${REPOSITORY}/releases/download/${info.tag}/${info.filename}` ||
+    manifest?.releaseUrl !== `https://github.com/${REPOSITORY}/releases/tag/${info.tag}`
+  ) return null;
+
+  return manifest;
+};
+
 export const clearNativeReleaseCache = (platform) => {
   if (platform) {
     releaseCache.delete(String(platform));
@@ -51,8 +109,7 @@ export const fetchLatestNativeRelease = async (
   if (typeof window === "undefined") return null;
 
   const key = String(platform || "");
-  const urls = RELEASE_URLS[key] || [];
-  if (!urls.length) return null;
+  if (!RELEASE_META[key] || !RELEASE_URLS[key]) return null;
 
   const now = Date.now();
   const cached = releaseCache.get(key);
@@ -66,14 +123,9 @@ export const fetchLatestNativeRelease = async (
   }
 
   const request = (async () => {
-    const releases = await Promise.all(urls.map(fetchReleaseJson));
-    const latest =
-      releases
-        .filter(Boolean)
-        .sort(
-          (a, b) =>
-            Number(b?.versionCode || 0) - Number(a?.versionCode || 0)
-        )[0] || null;
+    // Until the APK asset is uploaded AND its pinned release manifest
+    // matches, there is no update to advertise. Never fetch "main" here.
+    const latest = await fetchPublishedNativeRelease(key);
 
     releaseCache.set(key, {
       value: latest,
