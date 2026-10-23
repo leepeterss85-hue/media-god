@@ -48,6 +48,10 @@ test("Vyla lookup is server-side, bounded and rejects unqualified links", () => 
   assert.match(backend, /streams\.length < 6/);
   assert.match(backend, /bytes < 262144/);
   assert.match(backend, /new URL\(type, base\.endsWith/);
-  assert.match(backend, /redirect: "error"/);
+  // Base44 server fetch only supports "follow" and "manual". The old
+  // "error" mode throws a TypeError before sending anything to Railway.
+  assert.match(backend, /redirect: "manual"/);
+  assert.doesNotMatch(backend, /redirect: "error"/);
+  assert.doesNotMatch(backend, /diagnostic_probe/);
   assert.doesNotMatch(embed, /VYLA_STREAM_API_TOKEN/);
 });
