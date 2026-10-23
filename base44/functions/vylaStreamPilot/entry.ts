@@ -59,28 +59,6 @@ export default async function (request: Request) {
   if (!enabled || !base || !token) return reply({ status: "DISABLED", streams: [] });
   let input: any;
   try { input = await request.json(); } catch { return reply({ status: "INVALID_INPUT", streams: [] }, 400); }
-  // Temporary transport-only probe; does not query content or send credentials.
-  if (input?.diagnostic_probe === "gateway-connectivity") {
-    const hosts = [
-      { name: "railway", url: new URL("/", base).toString() },
-      { name: "example", url: "https://example.com/" },
-      { name: "tmdb", url: "https://api.themoviedb.org/3/configuration" }
-    ];
-    const results = [];
-    for (const item of hosts) {
-      const started = Date.now();
-      try {
-        const response = await fetch(item.url, { signal: AbortSignal.timeout(5000), redirect: "manual" });
-        results.push({ name: item.name, status: response.status, ms: Date.now() - started });
-      } catch (error: any) {
-        const message = String(error?.message || "").split("https://")[0].slice(0, 100);
-        results.push({ name: item.name, category: String(error?.name || "unknown").slice(0, 35),
-          cause: String(error?.cause?.code || error?.code || "unknown").slice(0, 35),
-          message, ms: Date.now() - started });
-      }
-    }
-    return reply({ status: "NETWORK_PROBE", results });
-  }
   const type = input?.media_type === "tv" ? "tv" : input?.media_type === "movie" ? "movie" : "";
   const id = positive(input?.tmdb_id ?? input?.tmdbId, 999999999);
   const season = type === "tv" ? positive(input?.season, 100) : null;
