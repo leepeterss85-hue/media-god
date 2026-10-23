@@ -31,11 +31,11 @@ test("TV source tabs expose only exact-episode embeds and preserve movie VidCore
   for (const id of ["onlyflix", "vidcore", "vidrift", "stellar", "vidsrc", "twoembed", "cinesrc", "multiembed"]) {
     assert.match(tabs, new RegExp(`id: "${id}", label: `));
   }
-  assert.match(tabs, /const tvBackups = media\?\.mediaType === "tv"/);
+  assert.match(tabs, /const tvBackups = useMemo\(\(\) => media\?\.mediaType === "tv"/);
   assert.match(tabs, /data-mg-vyla-test-player="true"/);
   assert.match(tabs, /initialEpisodeProvider = "onlyflix"/);
   assert.match(tabs, /initialEpisodeProvider === "vidcore"/);
-  assert.match(tabs, /const movieBackups = media\?\.mediaType === "movie"/);
+  assert.match(tabs, /const movieBackups = useMemo\(\(\) => media\?\.mediaType === "movie"/);
   const portal = read("src/components/mg/PlayerPortalRenderer.jsx");
   const vidCore = read("src/components/mg/VidCoreEmbedPlayer.jsx");
   assert.match(portal, /<VidCoreEmbedPlayer/);
