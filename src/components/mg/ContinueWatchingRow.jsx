@@ -129,6 +129,17 @@ const progressRatio = (item) => {
   return Math.max(0, Math.min(1, progress / duration));
 };
 
+const formatWatched = (item) => {
+  const seconds = Number(item?.progress || 0);
+  if (!Number.isFinite(seconds) || seconds <= 0) return "";
+  const whole = Math.floor(seconds);
+  const minutes = Math.floor(whole / 60);
+  const hours = Math.floor(minutes / 60);
+  return hours > 0
+    ? `${hours}h ${String(minutes % 60).padStart(2, "0")}m`
+    : `${Math.max(1, minutes)}m`;
+};
+
 const formatRemaining = (item) => {
   const progress = Number(item?.progress || 0);
   const duration = Number(item?.duration || 0);
@@ -647,6 +658,7 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
                 ).padStart(2, "0")}`
               : "";
 
+          const watched = formatWatched(item);
           const detailLine = [
             episodeLabel,
             meta.episodeName,
@@ -663,7 +675,7 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
               onClick={() => openDetail(item)}
               role="button"
               tabIndex={0}
-              aria-label={`Open ${meta.title}${episodeLabel ? ` ${episodeLabel}` : ""}`}
+              aria-label={`Resume ${meta.title}${episodeLabel ? ` ${episodeLabel}` : ""} at ${watched || "saved position"}`}
               onKeyDown={(event) => {
                 if (isCardActivationKey(event)) {
                   event.preventDefault();
@@ -671,7 +683,7 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
                   openDetail(item);
                 }
               }}
-              className="mg-fire-tv-resume-card group relative w-44 sm:w-52 md:w-56 xl:w-60 3xl:w-72 4xl:w-80 shrink-0 text-left cursor-pointer snap-start rounded-xl focus:outline-none focus:ring-2 focus:ring-mg-green focus:ring-offset-2 focus:ring-offset-mg-background"
+              className="mg-fire-tv-resume-card group relative w-44 sm:w-52 md:w-56 xl:w-60 3xl:w-72 4xl:w-80 shrink-0 text-left cursor-pointer snap-start rounded-xl transition-transform duration-150 focus:outline-none focus:ring-2 focus:ring-mg-green focus:ring-offset-2 focus:ring-offset-mg-background focus:scale-[1.025] focus-within:ring-2 focus-within:ring-mg-green"
             >
               <div className="relative aspect-video rounded-xl overflow-hidden bg-mg-card border border-white/10 shadow-lg shadow-black/20 group-focus:border-mg-green">
                 <PosterImage
@@ -682,7 +694,7 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
 
                 <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
 
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity pointer-events-none">
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 group-focus:opacity-100 group-focus-within:opacity-100 transition-opacity pointer-events-none">
                   <div className="w-9 h-9 3xl:w-12 3xl:h-12 4xl:w-14 4xl:h-14 rounded-full bg-mg-green text-black flex items-center justify-center shadow-xl">
                     <Play className="w-4 h-4 3xl:w-6 3xl:h-6 fill-black" />
                   </div>
@@ -691,7 +703,7 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
                 <button
                   type="button"
                   onClick={(event) => remove(item.id, event)}
-                  className="mg-fire-tv-secondary-action absolute top-1 right-1 3xl:top-2 3xl:right-2 w-7 h-7 3xl:w-9 3xl:h-9 rounded-full bg-black/75 text-white/75 hover:text-white hover:bg-black flex items-center justify-center opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-mg-green"
+                  className="mg-fire-tv-secondary-action absolute top-1 right-1 3xl:top-2 3xl:right-2 w-7 h-7 3xl:w-9 3xl:h-9 rounded-full bg-black/75 text-white/75 hover:text-white hover:bg-black flex items-center justify-center opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-mg-green"
                   aria-label={`Remove ${meta.title} from Continue Watching`}
                   title="Remove from Continue Watching"
                 >
@@ -711,7 +723,7 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
                   </span>
                 )}
 
-                <div className="absolute bottom-0 left-0 right-0 h-1 3xl:h-1.5 bg-white/20">
+                <div role="progressbar" aria-label="Episode watched" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress)} className="absolute bottom-0 left-0 right-0 h-1.5 3xl:h-2 bg-white/20">
                   <div
                     className="h-full bg-mg-green"
                     style={{ width: `${progress}%` }}
@@ -736,7 +748,7 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
                   className="flex min-h-11 items-center justify-center gap-1 rounded-lg bg-mg-green px-2 text-xs font-bold text-black focus:outline-none focus:ring-2 focus:ring-white"
                 >
                   <Play className="h-3.5 w-3.5 fill-black" />
-                  Resume
+                  {watched ? `Resume · ${watched}` : "Resume"}
                 </button>
                 <button
                   type="button"
