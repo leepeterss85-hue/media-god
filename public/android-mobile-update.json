@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 89,
-  "versionName": "1.0.88",
+  "versionCode": 90,
+  "versionName": "1.0.89",
   "title": "Media God Mobile",
-  "message": "Media God 1.0.88: TV episodes start with OnlyFlix, with movie and TV backup player buttons, while preserving working playback and Live TV.",
+  "message": "Media God 1.0.89: safer in-app fullscreen for embedded players and restored Save to Device downloads. Existing film, episode and Live TV playback preserved.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
