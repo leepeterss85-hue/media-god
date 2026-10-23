@@ -999,7 +999,7 @@ class CompatibilityPlayerActivity : Activity() {
             text = label
             isAllCaps = false
             val primary = label == "⏸" || label == "▶"
-            val sourceAction = label.contains("Sources")
+            val sourceAction = label.contains("Sources") || label.startsWith("▶ Next episode")
             val green = Color.rgb(36, 244, 95)
             val normalFill = when {
                 primary -> green
@@ -1084,6 +1084,14 @@ class CompatibilityPlayerActivity : Activity() {
                                 player.setAudioDelay(lipSyncMs.toLong() * 1000L)
                             } catch (_: Throwable) {}
                             applyPreferredSubtitle()
+                            // MKV subtitle tracks can appear after the native
+                            // Playing callback. Apply the stored choice once
+                            // more when those tracks have settled.
+                            if (!payload.optBoolean("live", false)) {
+                                root.postDelayed({
+                                    if (!resultSent && vlcPlayer === player) applyPreferredSubtitle()
+                                }, 900L)
+                            }
                             if (pendingStartPositionMs > 0L) {
                                 val target = pendingStartPositionMs; pendingStartPositionMs = 0L; player.time = target
                             }
