@@ -2991,6 +2991,13 @@ export function PlayerProvider({
           !request?.noRd &&
           request?.verifiedPlaybackPolicy !== "manual";
 
+        // Default Play must not submit an uncached torrent merely because
+        // discovery failed to find a ready episode: doing so repeatedly can
+        // exhaust the playback gateway's rate limit (HTTP 429).
+        // Intentional source caching is still available from the chooser.
+        const allowAutomaticUncachedEpisodePreparation =
+          request?.allowUncachedEpisodePreparation === true;
+
         const initialOrderedSources =
           orderSources({
             sources: dedupeSources(originalSources),
@@ -3562,7 +3569,9 @@ export function PlayerProvider({
            * and a healthy playing source is never automatically replaced.
            * Other torrents remain visible for manual override.
            */
-          if (mediaType === "tv" && hasRd && !request?.skipEpisodeAutoPrepare) {
+          if (mediaType === "tv" && hasRd &&
+              allowAutomaticUncachedEpisodePreparation &&
+              !request?.skipEpisodeAutoPrepare) {
             const fallback = episodeAutoprepareCandidates(
               automaticFastCandidates,
               { season, episode }
@@ -4149,7 +4158,8 @@ export function PlayerProvider({
          */
         const episodePreparationLeads = qualificationMode &&
           mediaType === "tv" &&
-          hasRd && !request?.skipEpisodeAutoPrepare
+          hasRd && allowAutomaticUncachedEpisodePreparation &&
+          !request?.skipEpisodeAutoPrepare
             ? episodeAutoprepareCandidates(orderedSources, { season, episode })
             : [];
         const playbackLeadSources =
@@ -4192,6 +4202,11 @@ export function PlayerProvider({
             ).filter(episodeAutoplayCanTrustSource))
           : null;
         const automaticLeads = eligibleEpisodeLeads || playbackLeadSources;
+        const noReadyEpisodeFile =
+          qualificationMode && mediaType === "tv" && hasRd &&
+          cacheCandidateCount > 0 && cachedSourceCount === 0 &&
+          automaticLeads.length === 0 &&
+          !rdLookup?.source;
         const episodeAudioMissingStatus = {
           label: orderedSources.some(item => !hasUnusableEpisodeAudio(item))
             ? "No verified episode stream is ready yet. Try Sources to choose another."
@@ -4203,6 +4218,10 @@ export function PlayerProvider({
             ? [
                 episodeSourceMissingStatus,
               ]
+            : noReadyEpisodeFile
+              ? [{ ...episodeSourceMissingStatus,
+                   label: "No instant-play episode file found. These torrents require caching." },
+                 ...orderedSources]
             : !qualificationMode
               ? eligibleEpisodeLeads
                 ? eligibleEpisodeLeads.length > 0
@@ -4315,6 +4334,9 @@ export function PlayerProvider({
           hasDebrid,
 
           sourceDiagnostics: {
+            phase: noReadyEpisodeFile ? "no-ready-episode" : "complete",
+            noReadyEpisodeFile,
+
             imdbId,
 
             tmdbId,
