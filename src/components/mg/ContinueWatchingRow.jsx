@@ -9,10 +9,13 @@ import {
   History,
   ListVideo,
   Play,
+  Star,
   X,
 } from "lucide-react";
 
+import { createPortal } from "react-dom";
 import { base44 } from "@/api/base44Client";
+import StreamSourcesBox from "@/components/mg/StreamSourcesBox";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 import { Image } from "@/components/ui/image";
 import { restoreResumeSource } from "./resumeSource";
@@ -228,7 +231,12 @@ const resolveTmdbIdQuickly = async (meta) => {
 export default function ContinueWatchingRow({ onOpenDetail }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [sourcePicker, setSourcePicker] = useState(null);
   const player = usePlayer();
+  useEffect(() => {
+    // Once an explicitly chosen torrent opens the player, hide the selector.
+    if (player.isOpen) setSourcePicker(null);
+  }, [player.isOpen]);
 
   const load = () => {
     base44.entities.ContinueWatching
@@ -467,31 +475,9 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
       })) return;
     }
 
-    /*
-     * Continue Watching cards open the detail view (source options, reviews,
-     * cast) instead of jumping straight into a stream. The resume position is
-     * forwarded so the detail page's Play button can pick up where the user
-     * stopped. If no detail handler is wired (component used standalone), fall
-     * back to the previous direct-resume behaviour so playback still works.
-     */
-    if (onOpenDetail && isTv) {
-      onOpenDetail({
-        id: tmdbId || undefined,
-        tmdb_id: tmdbId || undefined,
-        tmdbId: tmdbId || undefined,
-        title: meta.title,
-        poster_url: item.poster_url || "",
-        year: meta.year,
-        media_type: meta.mediaType,
-        mediaType: meta.mediaType,
-        type: isTv ? "tv" : "movie",
-        season: meta.season || undefined,
-        episode: meta.episode || undefined,
-        episodeName: meta.episodeName || "",
-        resumeProgress: Number(item.progress || 0),
-      });
-      return;
-    }
+    // A TV resume must not route through Choose Episode: that is a fresh
+    // Play action, which loses the saved seek point. Both films and episodes
+    // continue to the native/source player at the recorded position.
 
     const playbackTitle =
       isTv && meta.season && meta.episode
@@ -564,6 +550,39 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
     }
   };
 
+  const openTorrentSources = async (item, event) => {
+    event?.stopPropagation();
+    const meta = parseContentKey(item);
+    // Avoid a generic TV show search that could return the wrong episode.
+    if (meta.mediaType === "tv" && (!meta.season || !meta.episode)) {
+      await openReviews(item, event, "overview");
+      return;
+    }
+    const tmdbId = await resolveTmdbIdQuickly(meta);
+    setSourcePicker({ item, meta, tmdbId });
+  };
+
+  const openReviews = async (item, event, tab = "reviews") => {
+    event?.stopPropagation();
+    const meta = parseContentKey(item);
+    const tmdbId = await resolveTmdbIdQuickly(meta);
+    if (!onOpenDetail) return;
+    onOpenDetail({
+      id: tmdbId || undefined,
+      tmdb_id: tmdbId || undefined,
+      tmdbId: tmdbId || undefined,
+      title: meta.title,
+      poster_url: item.poster_url || "",
+      year: meta.year,
+      media_type: meta.mediaType,
+      mediaType: meta.mediaType,
+      type: meta.mediaType,
+      season: meta.season || undefined,
+      episode: meta.episode || undefined,
+      initialDetailTab: tab,
+    });
+  };
+
   const displayItems = useMemo(
     () =>
       items.map((item) => {
@@ -595,7 +614,7 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
           </h2>
 
           <p className="mt-0.5 text-[11px] sm:text-xs 3xl:text-sm text-white/40">
-            Select a card to resume, or use Players to try the other web players.
+            Resume where you stopped, or choose a torrent. Web players may start from the beginning.
           </p>
         </div>
       </div>
@@ -693,22 +712,95 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
                 {detailLine || `${Math.round(progress)}% watched`}
               </div>
 
-              <button
-                type="button"
-                data-mg-continue-player-options="true"
-                onClick={(event) => openPlayerOptions(item, event)}
-                onKeyDown={(event) => event.stopPropagation()}
-                aria-label={`Open movie and episode player options for ${meta.title}`}
-                className="mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-mg-green/35 bg-mg-green/10 px-3 text-xs font-semibold text-mg-green hover:bg-mg-green/20 focus:outline-none focus:ring-2 focus:ring-mg-green"
-              >
-                <ListVideo className="h-4 w-4" />
-                Players
-              </button>
+              <div className="mt-2 grid grid-cols-2 gap-1.5" data-mg-continue-actions="true">
+                <button
+                  type="button"
+                  data-mg-continue-resume="true"
+                  onClick={(event) => { event.stopPropagation(); void openDetail(item); }}
+                  onKeyDown={(event) => event.stopPropagation()}
+                  className="flex min-h-11 items-center justify-center gap-1 rounded-lg bg-mg-green px-2 text-xs font-bold text-black focus:outline-none focus:ring-2 focus:ring-white"
+                >
+                  <Play className="h-3.5 w-3.5 fill-black" />
+                  Resume
+                </button>
+                <button
+                  type="button"
+                  data-mg-continue-sources="true"
+                  onClick={(event) => { void openTorrentSources(item, event); }}
+                  onKeyDown={(event) => event.stopPropagation()}
+                  className="flex min-h-11 items-center justify-center gap-1 rounded-lg border border-mg-green/40 bg-mg-green/10 px-2 text-xs font-semibold text-mg-green focus:outline-none focus:ring-2 focus:ring-mg-green"
+                >
+                  <ListVideo className="h-3.5 w-3.5" />
+                  Sources
+                </button>
+                <button
+                  type="button"
+                  data-mg-continue-reviews="true"
+                  onClick={(event) => { void openReviews(item, event); }}
+                  onKeyDown={(event) => event.stopPropagation()}
+                  className="flex min-h-11 items-center justify-center gap-1 rounded-lg border border-white/15 bg-white/5 px-2 text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-mg-green"
+                >
+                  <Star className="h-3.5 w-3.5" />
+                  Reviews
+                </button>
+                <button
+                  type="button"
+                  data-mg-continue-player-options="true"
+                  onClick={(event) => { void openPlayerOptions(item, event); }}
+                  onKeyDown={(event) => event.stopPropagation()}
+                  aria-label={`Open web player alternatives for ${meta.title} (may restart)`}
+                  className="flex min-h-11 items-center justify-center gap-1 rounded-lg border border-white/15 bg-white/5 px-2 text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-mg-green"
+                >
+                  <ListVideo className="h-3.5 w-3.5" />
+                  Web players
+                </button>
+              </div>
 
             </div>
           );
         })}
       </div>
+      {sourcePicker && typeof document !== "undefined" && createPortal(
+        <div
+          className="fixed inset-0 z-[2147483645] flex items-center justify-center bg-black/90 p-3"
+          onClick={() => setSourcePicker(null)}
+          role="presentation"
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Torrent sources for ${sourcePicker.meta.title}`}
+            className="max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-xl border border-white/20 bg-zinc-950 p-4 text-white"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="font-semibold">{sourcePicker.meta.title}</h3>
+                <p className="text-xs text-white/60">Choose a torrent or Real-Debrid source. The saved playback position will be requested.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSourcePicker(null)}
+                aria-label="Close torrent sources"
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-white/20 focus:outline-none focus:ring-2 focus:ring-mg-green"
+              ><X className="h-4 w-4" /></button>
+            </div>
+            <StreamSourcesBox
+              title={sourcePicker.meta.title}
+              poster={sourcePicker.item.poster_url || ""}
+              tmdbId={sourcePicker.tmdbId}
+              imdbId={sourcePicker.item.imdb_id || ""}
+              rdYear={sourcePicker.meta.year}
+              mediaType={sourcePicker.meta.mediaType}
+              season={sourcePicker.meta.season}
+              episode={sourcePicker.meta.episode}
+              resumeAt={Number(sourcePicker.item.progress || 0)}
+              torrentOnly
+            />
+          </section>
+        </div>,
+        document.body
+      )}
     </section>
   );
 }
