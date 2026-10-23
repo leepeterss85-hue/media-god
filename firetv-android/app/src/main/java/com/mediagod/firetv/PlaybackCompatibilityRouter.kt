@@ -6,13 +6,12 @@ import org.json.JSONObject
 import kotlin.math.roundToInt
 
 /**
- * Chooses the playback engine before a native player surface is opened.
+ * Chooses the engine before showing a native player surface.
  *
- * Media3 remains first choice when the device advertises a decoder that can
- * actually handle the hinted codec, resolution and frame rate. The broad
- * LibVLC compatibility engine is selected up front for legacy containers,
- * unsupported codec profiles and 4K/8K streams that exceed the device's
- * advertised MediaCodec capabilities.
+ * LibVLC is the default for non-DRM films and TV episodes; its audio decoders
+ * handle tracks that produce silence on some Android / Fire TV hardware.
+ * Live TV retains the previous Media3-first routing. DRM stays on Media3
+ * and browser embeds remain separate from the native engine.
  */
 object PlaybackCompatibilityRouter {
     data class Decision(
@@ -103,8 +102,17 @@ object PlaybackCompatibilityRouter {
     }
 
     fun decide(payload: JSONObject): Decision {
+        // DRM requires the Media3 DRM session; do not send it to LibVLC.
         if (payload.optJSONObject("drm") != null) {
             return Decision(false)
+        }
+
+        if (!payload.optBoolean("live", false)) {
+            // Both the initial choice and the post-preflight choice launch
+            // the existing VLC player for ordinary VOD. Keep request ID,
+            // saved position, English audio, episode metadata and source
+            // switching in the original payload without modifying them.
+            return Decision(true, "default-libvlc-vod")
         }
 
         if (payload.optBoolean("forceCompatibility", false)) {
