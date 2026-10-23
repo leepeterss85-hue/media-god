@@ -44,6 +44,13 @@ test("movie details and TV episodes have their own Download actions without chan
   assert.match(picker,/startDeviceDownload\(file\)/);
   assert.match(picker,/data-mg-main-page-save="true"/);
   assert.match(picker,/No matching completed file was found/);
+  const continueWatching = read("src/components/mg/ContinueWatchingRow.jsx");
+  assert.match(continueWatching,/data-mg-continue-download="true"/);
+  assert.match(continueWatching,/setDownloadPicker\(\{ item, meta \}\)/);
+  assert.match(continueWatching,/<MediaDownloadPicker/);
+  assert.match(continueWatching,/season=\{downloadPicker\.meta\.season\}/);
+  assert.match(continueWatching,/episode=\{downloadPicker\.meta\.episode\}/);
+  assert.match(continueWatching,/data-mg-continue-resume="true"/);
   const nav=read("src/components/mg/Navbar.jsx");
   assert.match(nav,/id: "downloads", label: "Downloads"/);
 });
