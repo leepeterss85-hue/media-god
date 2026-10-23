@@ -26,7 +26,8 @@ export const downloadableMedia = (response, suggestedFilename) => {
 export const startDeviceDownload = ({ url, filename }) => {
   if (typeof window === "undefined" || typeof document === "undefined") return "unavailable";
   if (typeof window.MediaGodNative?.downloadFile === "function") {
-    window.MediaGodNative.downloadFile(JSON.stringify({ url, filename }));
+    const accepted = window.MediaGodNative.downloadFile(JSON.stringify({ url, filename }));
+    if (accepted === false) return "unavailable";
     return "native";
   }
   // Browsers can honour content-disposition / download URLs, but a remote
