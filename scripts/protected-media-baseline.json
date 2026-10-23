@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "note": "2026-10-23 reviewed native playback bridge handoff: a resolved direct or Real-Debrid VOD media URL in an installed Android/Fire TV APK always uses the detected MediaGodNative bridge even if WebView UA/CSS markers are missing. Native LibVLC VOD default and Live TV bridge behavior are preserved; browsers lacking the bridge still use HTML playback.",
+  "note": "2026-10-23 reviewed VLC native controls and Back navigation: actionable Sources/audio/subtitles/seek plus phone Cast opt-in for compatible media, movie Back to Home and episode Back to season list across APK/web overlays. Core LibVLC decoding and Live TV unchanged.",
   "files": {
-    "src/components/mg/VideoPlayer.jsx": "978dab2f0922fa276e327046b72d39886559f09d9e37f05314e0f89eebf8f72f",
+    "src/components/mg/VideoPlayer.jsx": "18bffc0fb431487bf31ea23c62dd9fd87eab2f407daedd3595eb4563cea50db0",
     "src/components/mg/MediaPlayerProvider.jsx": "296950ac2a69bcfcd597f93895c67add29c18c5323e57518306a79777fc76a84",
     "src/components/mg/PlayerProvider.jsx": "8402d6f7463ea9a1824c7e4c1bb683818f4803b40fc486fbdcfdddaf73195040",
     "src/components/mg/MediaPlayerControls.jsx": "ef6cbff88fd9d8aad2396e7243ef9f2c09f54f6ad9d3a8c03acc124f1bfacd87",
@@ -14,10 +14,10 @@
     "base44/functions/antSportsLive/entry.ts": "c4d7a7e0e769cabfd10f5df896d78cbf8f85081b41d346f82c36cc62e209bf0a",
     "base44/functions/evSportsLive/entry.ts": "149d7c13a8e56e602e450919ade50b3b6d58ea115c746370863803fbe4c8ec4d",
     "android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt": "a80ec6a5a4e6a8f36d51a046e319619f2fa86bb647209154750e881f173d875a",
-    "android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt": "a60ac989764c96bf8f106614c408cb2433ff7976daad20e29f2ce3c11643c2a5",
+    "android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt": "5885d942d78afebbd7225cfca3f1a9d329520baa0a4334a8bbbc3c2a27dadc29",
     "firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt": "6f0bf56e97efce0613dbc015408babc43ad7d7d3db17c31bd312611fd42396f4",
-    "firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt": "167108cb4cb6fb6e8389b248059a8888d706d373c3f076cdba9d6ce5e5abf209",
-    "src/components/mg/PlayerPortalRenderer.jsx": "abdaff8b34fda347c8cbd39b72fa09dd454f1c5293ad603ac424213a2ce23d43",
+    "firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt": "0932281144eda94569c003f12c09496b3bbc47d6e3c8905c8d0b5f9244f4b44d",
+    "src/components/mg/PlayerPortalRenderer.jsx": "95ac158e24ed8747c1be66c0fa2605b896bf4b537fe20c6aceee64a10516ebcf",
     "src/components/mg/additionalLiveTvSources.js": "351e08e7413ea8c8b0b90db8f5151c065639b47528f4a5d005147ba53410846b"
   }
 }
