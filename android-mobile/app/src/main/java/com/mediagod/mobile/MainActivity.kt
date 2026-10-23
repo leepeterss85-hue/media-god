@@ -756,7 +756,7 @@ class MainActivity : FragmentActivity() {
                     host.matches(Regex("^(127|10|192|169)\\..*")) ||
                     host.matches(Regex("^172\\.(1[6-9]|2[0-9]|3[01])\\..*"))) return false
                 val filename = data.optString("filename")
-                    .substringAfterLast('/').substringAfterLast('\\\\')
+                    .substringAfterLast('/').substringAfterLast('\\')
                     .replace(Regex("[^A-Za-z0-9._ ()\\[\\]-]"), "_")
                     .take(140).trimStart('.')
                 if (!filename.matches(Regex("(?i)^.{1,130}\\.(mp4|mkv|avi|mov|webm|m4v|ts)$"))) return false
