@@ -48,6 +48,21 @@ for (const [platform, pkg] of [
   });
 }
 
+test("all resolved native VOD streams use the Android bridge even without runtime UA markers", () => {
+  const player = read("src/components/mg/VideoPlayer.jsx");
+  assert.match(player, /const nativePlaybackAvailable =[\s\S]*?nativeFireTvPlayer &&[\s\S]*?\^https\?:/);
+  assert.match(player, /const useNativePlayback =\s*nativePlaybackAvailable;/);
+  assert.match(player, /const nativePlaybackUrl =[\s\S]*?rdOverride\?\.src[\s\S]*?isDirectFile \? activeUrl/);
+  assert.match(player, /const started = playNativeFireTv\(\{/);
+  assert.match(player, /nativeFallbackUrl !== nativePlaybackUrl/);
+  assert.match(player, /const fireTvNativeSelectorMode =/);
+  // The Chrome/Base44 page does not expose MediaGodNative. Only the
+  // installed native wrapper can hand the resolved file to LibVLC.
+  const bridge = read("src/components/mg/nativeFireTvBridge.js");
+  assert.match(bridge, /window\.MediaGodNative/);
+  assert.match(bridge, /typeof native\.play === "function"/);
+});
+
 test("VLC default requires updated signed APK versions on both platforms", () => {
   assert.match(read("android-mobile/app/build.gradle.kts"),/versionCode = 91/);
   assert.match(read("android-mobile/app/build.gradle.kts"),/versionName = "1\.0\.90"/);
