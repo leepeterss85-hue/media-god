@@ -55,7 +55,15 @@ test('native resume saves the selected source and latest position in one canonic
   const source = { infoHash: 'abc', fileIdx: 2, url: 'https://example.test/temporary', viaRealDebrid: true };
   emit('mg:continue-watching-progress', { context, source, time: 120, duration: 1000, force: true });
   emit('mg:continue-watching-progress', { context, source, time: 240, duration: 1000, force: true });
-  await new Promise(resolve => setTimeout(resolve, 40));
+  // Regression tests run concurrently; allow the real queued async write
+  // time to commit rather than racing a hardcoded 40ms host timer.
+  const waitFor = async (ready) => {
+    for (let attempt = 0; attempt < 60 && !ready(); attempt += 1) {
+      await new Promise(resolve => setTimeout(resolve, 15));
+    }
+    assert.ok(ready(), "Timed out waiting for Continue Watching persistence");
+  };
+  await waitFor(() => rows.length === 1 && rows[0]?.progress === 240);
   assert.equal(rows.length, 1);
   assert.equal(rows[0].progress, 240);
   assert.equal(rows[0].source_type, 'rd');
@@ -74,7 +82,7 @@ test('native resume saves the selected source and latest position in one canonic
     context, source: null, time: 52 * 60, duration: 6200,
     url: '', force: true,
   });
-  await new Promise(resolve => setTimeout(resolve, 30));
+  await waitFor(() => rows.length === 1 && rows[0]?.progress === 3120);
   assert.equal(rows.length, 1);
   assert.equal(rows[0].progress, 3120);
   assert.equal(rows[0].source_type, 'rd');
@@ -85,7 +93,7 @@ test('native resume saves the selected source and latest position in one canonic
     context, source: { url: 'https://temporary.test/stream', type: 'file' },
     time: 52 * 60 + 5, duration: 6200, force: true,
   });
-  await new Promise(resolve => setTimeout(resolve, 30));
+  await waitFor(() => rows[0]?.progress === 3125);
   assert.equal(rows[0].progress, 3125);
   assert.equal(JSON.parse(decodeURIComponent(rows[0].video_url.slice('mgsource:'.length))).infoHash, 'abc');
 });
