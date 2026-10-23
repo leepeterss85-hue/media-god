@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 95,
-  "versionName": "1.0.94",
+  "versionCode": 94,
+  "versionName": "1.0.93",
   "title": "Media God Mobile",
-  "message": "Media God 1.0.94: reliable one-tap updates. Wait until the matching signed APK is published before advertising it, and safely retry stale downloads. Working VLC playback, Sources, Cast and Live TV unchanged.",
+  "message": "Media God 1.0.93: Continue Watching shows saved progress, improved English audio and subtitle choice memory for VLC, smoother Up Next, and refined player controls. Playback and the one-tap update experience are unchanged.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"

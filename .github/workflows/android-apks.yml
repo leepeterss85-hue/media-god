@@ -244,27 +244,6 @@ jobs:
           gradle -p firetv-android :app:assembleRelease --stacktrace
           cp android-mobile/app/build/outputs/apk/release/app-release.apk Media-God-Android-Mobile.apk
           cp firetv-android/app/build/outputs/apk/release/app-release.apk Media-God-Fire-TV.apk
-      - name: Verify the signed APK versions match the advertised updates
-        run: |
-          python3 - <<'PY'
-          import json, os, re, subprocess
-          from pathlib import Path
-          aapt = Path(os.environ["ANDROID_HOME"]) / "build-tools" / "35.0.0" / "aapt"
-          for apk, release, package in [
-              ("Media-God-Android-Mobile.apk", "public/android-mobile-update.json", "com.mediagod.mobile"),
-              ("Media-God-Fire-TV.apk", "public/firetv-update.json", "com.mediagod.firetv"),
-          ]:
-              result = subprocess.run([str(aapt), "dump", "badging", apk],
-                                      check=True, capture_output=True, text=True)
-              match = re.search(r"^package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'",
-                                result.stdout, re.MULTILINE)
-              manifest = json.loads(Path(release).read_text())
-              observed = (match.group(1), int(match.group(2)), match.group(3)) if match else None
-              required = (package, int(manifest["versionCode"]), str(manifest["versionName"]))
-              if observed != required:
-                  raise SystemExit(f"{apk}: signed APK {observed} differs from advertised {required}")
-              print(f"Verified signed {apk}: {observed}")
-          PY
       - name: Verify APK signing identities
         run: |
           keytool -printcert -jarfile Media-God-Android-Mobile.apk | grep -E "Owner:|SHA256:" || true

@@ -16,46 +16,6 @@ const REQUEST_TIMEOUT_MS = 4000;
 const releaseCache = new Map();
 const inFlight = new Map();
 
-const PUBLISHED_RELEASE_TAGS = {
-  "android-mobile": "android-mobile-latest",
-  "fire-tv": "firetv-latest",
-};
-const REPOSITORY = "leepeterss85-hue/media-god";
-
-/**
- * The public manifest is committed before the signed APK release job finishes.
- * Never advertise a future version while the stable GitHub APK URL still
- * points at the previous build. Verify the released commit's manifest matches
- * the announced version, instead of trusting the newer branch file alone.
- * Read-only checks; no change to the existing one-tap install experience.
- */
-export const publishedNativeReleaseMatches = async (platform, announced, {
-  fetchJson = fetchReleaseJson,
-} = {}) => {
-  const tag = PUBLISHED_RELEASE_TAGS[String(platform || "")];
-  if (!tag || !announced || !Number(announced.versionCode)) return false;
-
-  const release = await fetchJson(
-    `https://api.github.com/repos/${REPOSITORY}/releases/tags/${tag}`
-  );
-  const sha = String(release?.target_commitish || "").trim();
-  if (!/^[0-9a-f]{40}$/i.test(sha) || release?.draft === true ||
-      !Array.isArray(release?.assets) || release.assets.length === 0) return false;
-
-  const assetName = platform === "android-mobile"
-    ? "Media-God-Android-Mobile.apk"
-    : "Media-God-Fire-TV.apk";
-  if (!release.assets.some(asset =>
-    asset?.name === assetName && Number(asset?.size || 0) > 1_000_000
-  )) return false;
-
-  const expectedAtRelease = await fetchJson(
-    `https://raw.githubusercontent.com/${REPOSITORY}/${sha}/public/${platform === "android-mobile" ? "android-mobile-update" : "firetv-update"}.json`
-  );
-  return Number(expectedAtRelease?.versionCode || 0) === Number(announced.versionCode) &&
-    String(expectedAtRelease?.versionName || "") === String(announced.versionName || "");
-};
-
 const fetchReleaseJson = async (url) => {
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -107,19 +67,13 @@ export const fetchLatestNativeRelease = async (
 
   const request = (async () => {
     const releases = await Promise.all(urls.map(fetchReleaseJson));
-    const announced =
+    const latest =
       releases
         .filter(Boolean)
         .sort(
           (a, b) =>
             Number(b?.versionCode || 0) - Number(a?.versionCode || 0)
         )[0] || null;
-    const published = announced &&
-      await publishedNativeReleaseMatches(key, announced);
-    // During an APK build, the version JSON is already on main but its
-    // corresponding signed asset is not. Check again shortly rather than
-    // offering the old APK under the new version's Update button.
-    const latest = published ? announced : null;
 
     releaseCache.set(key, {
       value: latest,
