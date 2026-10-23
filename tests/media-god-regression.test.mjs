@@ -4850,7 +4850,7 @@ test("Android Mobile resolved VOD is owned by the native Media3 player", () => {
   assert.match(playerSource, /mg-native-android-mobile/);
   assert.match(
     playerSource,
-    /const useNativePlayback =[\s\S]{0,420}?isFireTvRemoteRuntime\(\)[\s\S]{0,120}?isAndroidMobileNativeRuntime\(\)/
+    /const useNativePlayback =[\s\S]{0,420}?nativePlaybackAvailable &&[\s\S]{0,100}?!isLive \|\|[\s\S]{0,130}?isFireTvRemoteRuntime\(\)[\s\S]{0,120}?isAndroidMobileNativeRuntime\(\)/
   );
   assert.match(
     mobileMainSource,
