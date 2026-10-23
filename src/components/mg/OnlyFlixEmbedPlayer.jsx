@@ -256,15 +256,15 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
         </div>
 
         <div className={`mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/70 p-2.5 text-xs text-white/60 transition-opacity duration-500 ${chromeFade}`}>
-          <span>{isNativeFireTvEmbedRemoteAvailable() ? "Move the pointer onto Play with the D-pad, then press Select. Press Back to return to Media God." : <>{providerLabel} has its own player controls. Use {backLabel} to return to Media God.</>}</span>
-          <a
+          <span>{activeEpisodePlayer === "vyla" ? "Select a returned source to try it, or choose OnlyFlix to return to the usual player." : isNativeFireTvEmbedRemoteAvailable() ? "Move the pointer onto Play with the D-pad, then press Select. Press Back to return to Media God." : <>{providerLabel} has its own player controls. Use {backLabel} to return to Media God.</>}</span>
+          {activeEpisodePlayer !== "vyla" && <a
             href={selectedUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-white/20 px-3 font-semibold text-white focus:outline-none focus:ring-2 focus:ring-mg-green"
           >
             Open separately <ExternalLink className="h-4 w-4" />
-          </a>
+          </a>}
         </div>
       </div>
     </div>
