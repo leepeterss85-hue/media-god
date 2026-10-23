@@ -1085,8 +1085,13 @@ export default function VideoPlayer({
     key: "", tried: new Set(), hlsTried: new Set(),
   });
   const manualSourceLockRef = useRef({
-    sourceKey: "",
-    playRequestId: null,
+    // A source chosen on the episode detail page is as authoritative
+    // as one picked from the in-player Sources drawer. Claim it before
+    // any automatic English/best-source handoff can run.
+    sourceKey: source?.manualSourceSelection === true
+      ? stablePlaybackSourceKey(sources[0], 0)
+      : "",
+    playRequestId: source?.playRequestId ?? null,
   });
   const startupAutoplayClaimRef = useRef({
     playRequestId: source?.playRequestId ?? null,
@@ -1113,13 +1118,19 @@ export default function VideoPlayer({
     }
 
     lastPlayRequestIdRef.current = nextPlayRequestId;
+    // Retain the viewer's explicit episode-source choice across new
+    // playback requests, but leave normal Play and Live TV unrestricted.
+    const initialManualSourceKey =
+      source?.manualSourceSelection === true && source?.type !== "live"
+        ? stablePlaybackSourceKey(sources[0], 0)
+        : "";
     manualSourceLockRef.current = {
-      sourceKey: "",
+      sourceKey: initialManualSourceKey,
       playRequestId: nextPlayRequestId,
     };
     startupAutoplayClaimRef.current = {
       playRequestId: nextPlayRequestId,
-      claimed: false,
+      claimed: Boolean(initialManualSourceKey),
     };
     englishAudioRejectedRef.current = new Set();
     setSmartUpgradeNotice(null);
