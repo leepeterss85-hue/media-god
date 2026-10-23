@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Download,
   Loader2,
   ListVideo,
   MessageSquare,
@@ -20,6 +21,7 @@ import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
 import MediaReviews from "@/components/mg/MediaReviews";
 import StreamSourcesBox from "@/components/mg/StreamSourcesBox";
+import MediaDownloadPicker from "@/components/mg/MediaDownloadPicker";
 
 import {
   buildMediaSources,
@@ -270,7 +272,8 @@ export default function EpisodeSelector({
       null
     );
   const [sourcesEpisode, setSourcesEpisode] = useState(null);
-  useEffect(() => { setSourcesEpisode(null); }, [season]);
+  const [downloadEpisode, setDownloadEpisode] = useState(null);
+  useEffect(() => { setSourcesEpisode(null); setDownloadEpisode(null); }, [season]);
 
   const showTitle =
     showTitleOf(
@@ -1255,6 +1258,17 @@ export default function EpisodeSelector({
                       <div className="flex w-full min-w-0 flex-wrap justify-start gap-2">
                         <button
                           type="button"
+                          data-mg-episode-download="true"
+                          data-mg-focus-key={`episode:${tmdbId || showTitle}:${seasonNumber}:${episodeNumber}:download`}
+                          aria-expanded={downloadEpisode === episodeNumber}
+                          onClick={() => setDownloadEpisode((current) => current === episodeNumber ? null : episodeNumber)}
+                          className="min-h-10 inline-flex items-center gap-1.5 rounded-md border border-mg-green/30 bg-mg-green/10 px-2.5 text-[11px] font-semibold text-mg-green hover:bg-mg-green/20 focus:outline-none focus:ring-2 focus:ring-mg-green"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                          Download
+                        </button>
+                        <button
+                          type="button"
                           data-mg-episode-sources="true"
                           data-mg-focus-key={`episode:${tmdbId || showTitle}:${seasonNumber}:${episodeNumber}:sources`}
                           onClick={() => setSourcesEpisode((current) => current === episodeNumber ? null : episodeNumber)}
@@ -1314,6 +1328,21 @@ export default function EpisodeSelector({
                         "No description available."}
                     </p>
 
+                    {downloadEpisode === episodeNumber && (
+                      <MediaDownloadPicker
+                        key={`episode:${tmdbId}:${seasonNumber}:${episodeNumber}`}
+                        title={showTitle}
+                        year={item?.year}
+                        mediaType="tv"
+                        season={seasonNumber}
+                        episode={episodeNumber}
+                        onClose={() => setDownloadEpisode(null)}
+                        onFindSources={() => {
+                          setDownloadEpisode(null);
+                          setSourcesEpisode(episodeNumber);
+                        }}
+                      />
+                    )}
                     {sourcesEpisode === episodeNumber && (
                       <div data-mg-episode-source-panel="true" className="mt-3 w-full">
                         <StreamSourcesBox
