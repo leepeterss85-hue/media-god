@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { ArrowLeft, ExternalLink, ListVideo, Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { buildOnlyFlixEmbedUrl } from "@/components/mg/onlyFlixEmbed";
-import { buildVidCoreEmbedUrl } from "@/components/mg/vidcoreEmbed";
+import { buildVidCoreEmbedUrl } from "@/components/mg/vidCoreEmbed";
 import { buildVidSrcEmbedUrl } from "@/components/mg/vidsrcEmbed";
 // The player portal is inside CorePlayerProvider but outside PlayerAutomationBridge.
 // Its enhanced context is unavailable: use the core player context instead.
