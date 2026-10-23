@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 92,
-  "versionName": "1.0.91",
+  "versionCode": 93,
+  "versionName": "1.0.92",
   "title": "Media God Mobile",
-  "message": "Media God 1.0.91: redesigned VLC controls with Sources, native Cast for compatible streams, green seek bar and clear Back navigation—movies to Home and TV episodes to their episode list. Working audio and Live TV preserved.",
+  "message": "Media God 1.0.92: VLC Skip Recap/Intro/Titles/Credits, next-episode preview, timed auto-next and Stay Here. Prepare next-episode sources in the background without losing ready streams when skip metadata fails. VLC audio, Sources, Cast and Live TV preserved.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
