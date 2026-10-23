@@ -649,6 +649,52 @@ class MainActivity : Activity() {
 
     inner class NativeBridge {
         @JavascriptInterface
+        fun downloadFile(payloadJson: String): Boolean {
+            if (!nativeBridgeAllowed() || payloadJson.length > 4_096) return false
+            return try {
+                val data = JSONObject(payloadJson)
+                val url = Uri.parse(data.optString("url"))
+                val host = url.host.orEmpty().lowercase()
+                if (url.scheme != "https" || host.isBlank() ||
+                    host == "localhost" || host.endsWith(".local") ||
+                    host.matches(Regex("^(127|10|192|169)\\..*")) ||
+                    host.matches(Regex("^172\\.(1[6-9]|2[0-9]|3[01])\\..*"))) return false
+                val filename = data.optString("filename")
+                    .substringAfterLast('/').substringAfterLast('\\\\')
+                    .replace(Regex("[^A-Za-z0-9._ ()\\[\\]-]"), "_")
+                    .take(140).trimStart('.')
+                if (!filename.matches(Regex("(?i)^.{1,130}\\.(mp4|mkv|avi|mov|webm|m4v|ts)$"))) return false
+                runOnUiThread {
+                    if (isFinishing || isDestroyed) return@runOnUiThread
+                    try {
+                        val request = android.app.DownloadManager.Request(url)
+                            .setTitle(filename)
+                            .setDescription("Media God video download")
+                            .setNotificationVisibility(
+                                android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
+                            )
+                            .setMimeType("application/octet-stream")
+                        if (Build.VERSION.SDK_INT >= 29) {
+                            request.setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_DOWNLOADS, filename)
+                        } else {
+                            request.setDestinationInExternalFilesDir(
+                                this@MainActivity, android.os.Environment.DIRECTORY_DOWNLOADS, filename
+                            )
+                        }
+                        val manager = getSystemService(Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
+                        manager.enqueue(request)
+                        dispatchJavascript("window.dispatchEvent(new CustomEvent('mg:download-started'));")
+                    } catch (_: Throwable) {
+                        dispatchJavascript("window.dispatchEvent(new CustomEvent('mg:download-failed'));")
+                    }
+                }
+                true
+            } catch (_: Throwable) {
+                false
+            }
+        }
+
+        @JavascriptInterface
         fun updatePlaybackContext(payloadJson: String): Boolean {
             if (!nativeBridgeAllowed() || !playerOpen || payloadJson.length > 16_384) return false
             return try {
