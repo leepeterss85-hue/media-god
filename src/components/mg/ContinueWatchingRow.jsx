@@ -19,6 +19,7 @@ import StreamSourcesBox from "@/components/mg/StreamSourcesBox";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 import { Image } from "@/components/ui/image";
 import { restoreResumeSource } from "./resumeSource";
+import { isIpBoundHostedProvider, isElfHostedUrl } from "@/components/mg/ipBoundVodSafety";
 
 const PosterImage = /** @type {any} */ (Image);
 
@@ -386,7 +387,13 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
         }
       }
 
-      if (savedSource && typeof savedSource === "object") {
+      // Old history can contain a direct ElfHosted link issued from a server
+      // IP. Never reopen that expired/IP-bound URL when resuming; fall back
+      // to fresh source discovery while retaining the saved seek position.
+      const savedDirectIsIpBound = savedSource &&
+        String(savedSource.type || "").toLowerCase() === "url" &&
+        isIpBoundHostedProvider(savedSource);
+      if (savedSource && typeof savedSource === "object" && !savedDirectIsIpBound) {
         await player.play({
           id: tmdbId || undefined,
           tmdbId: tmdbId || undefined,
@@ -415,7 +422,12 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
         return;
       }
 
-      if (/^https?:\/\//i.test(savedUrl)) {
+      if (/^https?:\/\//i.test(savedUrl) &&
+          !isElfHostedUrl(savedUrl) &&
+          !isIpBoundHostedProvider({
+            url: savedUrl,
+            addon: item?.source_name || item?.sourceName || item?.addon || "",
+          })) {
         await player.play({
           id: tmdbId || undefined,
           tmdbId: tmdbId || undefined,
