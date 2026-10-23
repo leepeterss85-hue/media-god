@@ -1010,6 +1010,21 @@ export default function DetailModal({
       "No overview available."
     );
 
+  // Enrich the existing Overview tab with metadata only when a provider
+  // actually supplied it. No guesswork and no changes to layout or palette.
+  const detailFacts = [
+    ["Original title", firstText(details.original_title, details.original_name)],
+    ["Status", firstText(details.status)],
+    ["Seasons", Number(details.number_of_seasons || 0) > 0
+      ? String(details.number_of_seasons) : ""],
+    ["Episodes", Number(details.number_of_episodes || 0) > 0
+      ? String(details.number_of_episodes) : ""],
+  ].filter(([label, value]) =>
+    Boolean(value) && !(label === "Original title" &&
+      String(value).toLowerCase() ===
+        firstText(details.title, safeItem.title).toLowerCase())
+  );
+
   /*
    * Favorites lookup also uses await only.
    */
@@ -1892,6 +1907,16 @@ export default function DetailModal({
             <p className="text-white/70 text-sm 3xl:text-lg 4xl:text-xl leading-relaxed">
               {overview}
             </p>
+            {detailFacts.length > 0 && (
+              <dl data-mg-verified-title-facts="true" className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-white/60">
+                {detailFacts.map(([label, value]) => (
+                  <div key={label} className="inline-flex items-center gap-1.5">
+                    <dt className="text-white/45">{label}:</dt>
+                    <dd className="font-medium text-white/75">{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
           </div>
           </>)}
 
