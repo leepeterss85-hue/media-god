@@ -45,7 +45,7 @@ test('native resume saves the selected source and latest position in one canonic
     .replace('export default function', 'function');
   vm.runInNewContext(code + '\nContinueWatchingAssist();', {
     useRef: current => ({ current }), useEffect: effect => effect(), window, document,
-    base44: { entities: { ContinueWatching: entity } },
+    profiledLibrary: { ContinueWatching: entity },
     CustomEvent: class { constructor(type, options) { this.type = type; this.detail = options?.detail; } },
     HTMLVideoElement: class {},
   });
