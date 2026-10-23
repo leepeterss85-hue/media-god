@@ -33,6 +33,7 @@ export default function HeroSlider({
 }) {
   const [idx, setIdx] = useState(0);
   const [heroVisible, setHeroVisible] = useState(true);
+  const [heroFocused, setHeroFocused] = useState(false);
   const count = items.length;
   const fireTv = isFireTvRuntime();
 
@@ -68,11 +69,11 @@ export default function HeroSlider({
      * Rotating every few seconds forces large backdrop decode/download work
      * while the user is trying to navigate rows with the remote.
      */
-    if (fireTv || count <= 1 || !heroVisible) return undefined;
+    if (fireTv || count <= 1 || !heroVisible || heroFocused) return undefined;
 
     const timer = setInterval(next, 8000);
     return () => clearInterval(timer);
-  }, [next, count, fireTv, heroVisible]);
+  }, [next, count, fireTv, heroVisible, heroFocused]);
 
   useEffect(() => {
     setIdx(0);
@@ -91,7 +92,12 @@ export default function HeroSlider({
   const year = (item.release_date || item.year || "").slice(0, 4);
 
   return (
-    <section data-mg-featured-hero="true" aria-label="Featured movies and television" className="mg-fire-tv-hero relative w-full h-[52svh] min-h-[350px] max-h-[680px] sm:h-[56vh] md:min-h-[430px] 3xl:h-[62vh] 3xl:min-h-[620px] 3xl:max-h-[900px] 4xl:min-h-[760px] 4xl:max-h-[1100px] overflow-hidden">
+    <section data-mg-featured-hero="true" aria-label="Featured movies and television"
+      onFocusCapture={() => setHeroFocused(true)}
+      onBlurCapture={event => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setHeroFocused(false);
+      }}
+      className="mg-fire-tv-hero relative w-full h-[52svh] min-h-[350px] max-h-[680px] sm:h-[56vh] md:min-h-[430px] 3xl:h-[62vh] 3xl:min-h-[620px] 3xl:max-h-[900px] 4xl:min-h-[760px] 4xl:max-h-[1100px] overflow-hidden">
       {item.backdrop_url ? (
         <BackdropImage
           src={item.backdrop_url}
