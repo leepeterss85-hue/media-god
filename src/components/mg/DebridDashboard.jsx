@@ -4,6 +4,7 @@ import {
   AlertCircle,
   CheckCircle2,
   Clock3,
+  Download,
   HardDrive,
   Loader2,
   Play,
@@ -31,11 +32,13 @@ import {
   normaliseDebridStatus as normaliseStatus,
 } from "@/components/mg/debridLibraryUtils";
 import { cn } from "@/lib/utils";
+import { downloadableMedia, startDeviceDownload } from "@/components/mg/deviceMediaDownload";
 
 export default function DebridDashboard() {
   const [torrents, setTorrents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [downloadMessage, setDownloadMessage] = useState("");
   const [busyId, setBusyId] = useState("");
   const [clearingErrors, setClearingErrors] = useState(false);
   const [clearingReady, setClearingReady] = useState(false);
@@ -116,6 +119,37 @@ export default function DebridDashboard() {
         },
       ],
     });
+  };
+
+  const saveToDevice = async (torrent) => {
+    const torrentId = String(torrent?.id || "").trim();
+    if (!torrentId || busyId || !isReady(torrent)) return;
+    setBusyId(torrentId);
+    setError("");
+    setDownloadMessage("");
+    try {
+      const response = await base44.functions.invoke("realDebrid", {
+        action: "torrent_info",
+        torrent_id: torrentId,
+      });
+      const result = response?.data ?? response ?? {};
+      if (result.status !== "ready") {
+        throw new Error("This download is not ready to save to the device.");
+      }
+      const file = downloadableMedia(result, torrent.filename);
+      if (!file) {
+        throw new Error("No direct video file was available. Embedded players and streaming playlists cannot be downloaded as files.");
+      }
+      const method = startDeviceDownload(file);
+      if (method === "unavailable") throw new Error("Device downloads are unavailable.");
+      setDownloadMessage(method === "native"
+        ? `Downloading ${file.filename} to your device's Downloads folder.`
+        : `Opened ${file.filename} for download. Your browser may ask where to save it.`);
+    } catch (downloadError) {
+      setError(downloadError?.message || "Could not start the device download.");
+    } finally {
+      setBusyId("");
+    }
   };
 
   const remove = async (torrent) => {
@@ -441,6 +475,7 @@ export default function DebridDashboard() {
         </div>
       </div>
 
+      {downloadMessage && <p role="status" className="mb-4 rounded-lg border border-mg-green/30 bg-mg-green/10 p-3 text-sm text-mg-green">{downloadMessage}</p>}
       {error && (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">
           <AlertCircle className="w-4 h-4 shrink-0" />
@@ -559,6 +594,20 @@ export default function DebridDashboard() {
                       >
                         <Play className="h-3.5 w-3.5 fill-black" />
                         Play
+                      </button>
+                    )}
+
+                    {readyNow && (
+                      <button
+                        type="button"
+                        data-mg-save-to-device="true"
+                        onClick={() => { void saveToDevice(torrent); }}
+                        disabled={Boolean(busyId) || clearingErrors || clearingReady || retryingErrors}
+                        title="Download video file to this device"
+                        className="min-h-10 inline-flex items-center gap-1.5 rounded-lg border border-mg-green/35 bg-mg-green/10 px-3 py-2 text-xs font-semibold text-mg-green hover:bg-mg-green/15 disabled:opacity-40"
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                        Save
                       </button>
                     )}
 
