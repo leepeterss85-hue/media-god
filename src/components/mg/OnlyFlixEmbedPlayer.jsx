@@ -11,6 +11,7 @@ import { usePlayer } from "@/components/mg/MediaPlayerProvider";
 import { isNativeFireTvEmbedRemoteAvailable, setNativeFireTvEmbedRemoteActive } from "@/components/mg/nativeFireTvBridge";
 import OnlyFlixRemotePointer from "@/components/mg/OnlyFlixRemotePointer";
 import CastButton from "@/components/mg/CastButton";
+import SafeEmbedStage from "@/components/mg/SafeEmbedStage";
 import {
   buildVidRiftEpisodeEmbedUrl,
   buildStellarEpisodeEmbedUrl,
@@ -320,10 +321,7 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
             )}
           </nav>
         )}
-        <div
-          data-mg-player-stage="true"
-          className="relative aspect-video min-h-[34vh] w-full overflow-hidden rounded-xl border border-white/10 bg-black"
-        >
+        <SafeEmbedStage>
           {activeEpisodePlayer === "vyla" ? (
             <div data-mg-vyla-source-panel="true" className="h-full w-full overflow-y-auto p-4 sm:p-6">
               <h3 className="mb-2 text-base font-bold">Vyla (test) · {vylaType === "tv" ? `S${vylaSeason} E${vylaEpisode}` : "Film"}</h3>
@@ -359,8 +357,7 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
                 src={selectedUrl}
                 title={providerLabel + ": " + title}
                 className="h-full w-full border-0"
-                allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-                allowFullScreen
+                allow="autoplay; encrypted-media; picture-in-picture"
                 referrerPolicy="strict-origin-when-cross-origin"
                 tabIndex={0}
                 data-mg-embed-iframe="true"
@@ -370,7 +367,7 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
               <OnlyFlixRemotePointer visible={!isFireTv || chromeVisible} />
             </>
           )}
-        </div>
+        </SafeEmbedStage>
 
         <div className={`mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/70 p-2.5 text-xs text-white/60 transition-opacity duration-500 ${chromeFade}`}>
           <span>{activeEpisodePlayer === "vyla" ? "Select a returned source to try it, or choose OnlyFlix to return to the usual player." : isNativeFireTvEmbedRemoteAvailable() ? "Move the pointer onto Play with the D-pad, then press Select. Press Back to return to Media God." : <>{providerLabel} has its own player controls. Use {backLabel} to return to Media God.</>}</span>
