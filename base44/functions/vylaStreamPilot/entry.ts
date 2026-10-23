@@ -73,7 +73,7 @@ export default async function (request: Request) {
         const response = await fetch(item.url, { signal: AbortSignal.timeout(5000), redirect: "error" });
         results.push({ name: item.name, status: response.status, ms: Date.now() - started });
       } catch (error: any) {
-        const message = String(error?.message || "").replace(/https?:\\/\\/[^\\s]+/gi, "[url]").slice(0, 140);
+        const message = String(error?.message || "").split("https://")[0].slice(0, 100);
         results.push({ name: item.name, category: String(error?.name || "unknown").slice(0, 35),
           cause: String(error?.cause?.code || error?.code || "unknown").slice(0, 35),
           message, ms: Date.now() - started });
