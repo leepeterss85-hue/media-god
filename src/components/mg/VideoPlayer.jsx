@@ -1250,6 +1250,11 @@ export default function VideoPlayer({
 
   const returnFromPlayback = useCallback(() => {
     if (playbackMediaType !== "tv") {
+      // Movie Back always returns Home rather than exposing the previous
+      // details/search overlay. TV episodes still restore their episode list.
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("mg:return-to-home"));
+      }
       onClose?.();
       return;
     }
@@ -9449,6 +9454,14 @@ export default function VideoPlayer({
           }
           return;
         }
+      }
+
+      if (reason === "cast" && !isLive) {
+        // The phone's MainActivity receives the matching native cast request
+        // and opens the real Google Cast chooser after this VLC activity exits.
+        // Return the WebView to the correct movie/episode destination.
+        returnFromPlayback();
+        return;
       }
 
       if (
