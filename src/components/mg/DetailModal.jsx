@@ -621,6 +621,7 @@ export default function DetailModal({
   mediaType,
   onClose,
   onSelectRelated,
+  initialTab = "overview",
 }) {
   const safeItem = useMemo(() => {
     const source =
@@ -740,7 +741,9 @@ export default function DetailModal({
     setFavoriteRowId,
   ] = useState(null);
 
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(
+    initialTab === "reviews" ? "reviews" : "overview"
+  );
   const [reviewsVisited, setReviewsVisited] = useState(false);
   const [selectedActor, setSelectedActor] = useState(null);
   const [actorCredits, setActorCredits] = useState([]);
@@ -749,11 +752,11 @@ export default function DetailModal({
   const [watchmodeData, setWatchmodeData] = useState(null);
 
   useEffect(() => {
-    setActiveTab("overview");
-    setReviewsVisited(false);
+    setActiveTab(initialTab === "reviews" ? "reviews" : "overview");
+    setReviewsVisited(initialTab === "reviews");
     setSelectedActor(null);
     setActorCredits([]);
-  }, [itemId, resolvedMediaType]);
+  }, [itemId, resolvedMediaType, initialTab]);
 
   useEffect(() => {
     if (activeTab === "reviews") setReviewsVisited(true);
