@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { ArrowLeft, ExternalLink, ListVideo } from "lucide-react";
+import { ArrowLeft, ExternalLink, ListVideo, Loader2 } from "lucide-react";
+import { base44 } from "@/api/base44Client";
+import { usePlayer } from "@/components/mg/PlayerProvider";
 import { isNativeFireTvEmbedRemoteAvailable, setNativeFireTvEmbedRemoteActive } from "@/components/mg/nativeFireTvBridge";
 import OnlyFlixRemotePointer from "@/components/mg/OnlyFlixRemotePointer";
 import CastButton from "@/components/mg/CastButton";
@@ -20,6 +22,8 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
     return () => { setNativeFireTvEmbedRemoteActive(false); };
   }, []);
 
+  const player = usePlayer();
+  const [vylaResult, setVylaResult] = useState({ status: "IDLE", streams: [] });
   const isFireTv = isNativeFireTvEmbedRemoteAvailable();
   const [activeEpisodePlayer, setActiveEpisodePlayer] = useState("onlyflix");
   useEffect(() => setActiveEpisodePlayer("onlyflix"), [url]);
@@ -40,6 +44,55 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
     { id: "multiembed", label: "MultiEmbed", url: buildMultiEmbedEmbedUrl(media) },
   ].filter((item) => Boolean(item.url)) : [];
   const activeBackups = tvBackups.length ? tvBackups : movieBackups;
+  const vylaType = media?.mediaType === "tv" ? "tv" : media?.mediaType === "movie" ? "movie" : "";
+  const vylaId = Number(media?.tmdbId ?? media?.tmdb_id ?? media?.id);
+  const vylaSeason = Number(media?.season ?? media?.rdSeason);
+  const vylaEpisode = Number(media?.episode ?? media?.rdEpisode);
+  const vylaReady = Boolean(vylaType && Number.isInteger(vylaId) && vylaId > 0 &&
+    (vylaType === "movie" || (Number.isInteger(vylaSeason) && vylaSeason > 0 &&
+      Number.isInteger(vylaEpisode) && vylaEpisode > 0)));
+  useEffect(() => {
+    if (activeEpisodePlayer !== "vyla") return undefined;
+    if (!vylaReady) {
+      setVylaResult({ status: "INVALID_IDENTITY", streams: [] });
+      return undefined;
+    }
+    let cancelled = false;
+    setVylaResult({ status: "LOADING", streams: [] });
+    base44.functions.invoke("vylaStreamPilot", {
+      media_type: vylaType,
+      tmdb_id: vylaId,
+      ...(vylaType === "tv" ? { season: vylaSeason, episode: vylaEpisode } : {}),
+    }).then((response) => {
+      if (cancelled) return;
+      const result = response?.data ?? response ?? {};
+      setVylaResult({
+        status: String(result.status || "UNAVAILABLE"),
+        streams: Array.isArray(result.streams) ? result.streams.slice(0, 6) : [],
+      });
+    }).catch(() => {
+      if (!cancelled) setVylaResult({ status: "UNAVAILABLE", streams: [] });
+    });
+    return () => { cancelled = true; };
+  }, [activeEpisodePlayer, vylaType, vylaId, vylaSeason, vylaEpisode, vylaReady]);
+  const launchVylaCandidate = (candidate) => {
+    if (candidate?.type !== "url" || candidate?.addon !== "Vyla (test)" ||
+      !/^https:\/\//i.test(String(candidate?.url || ""))) return;
+    // Only a viewer-selected candidate enters the normal player. The
+    // iframe default and every existing movie/episode provider remain intact.
+    void player.play({
+      ...media,
+      tmdbId: vylaId,
+      mediaType: vylaType,
+      ...(vylaType === "tv" ? { season: vylaSeason, episode: vylaEpisode } : {}),
+      verifiedPlaybackPolicy: "strict",
+      preferRd: false,
+      skipAddonLookup: true,
+      skipRdLookup: true,
+      sources: [candidate],
+      completeSources: [candidate],
+    });
+  };
   const chosen = activeBackups.find((item) => item.id === activeEpisodePlayer);
   const selectedUrl = chosen?.url || url;
   const providerLabel = chosen?.label || "OnlyFlix";
@@ -141,24 +194,65 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
                 {option.label}
               </button>
             ))}
+            {vylaReady && (
+              <button
+                type="button"
+                data-mg-vyla-test-player="true"
+                onClick={() => setActiveEpisodePlayer("vyla")}
+                aria-pressed={activeEpisodePlayer === "vyla"}
+                className={`min-h-10 shrink-0 rounded-lg border px-3 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mg-green ${activeEpisodePlayer === "vyla" ? "border-mg-green/70 bg-mg-green/20 text-mg-green" : "border-white/15 bg-white/5 text-white hover:bg-white/15"}`}
+              >Vyla (test)</button>
+            )}
           </nav>
         )}
         <div
           data-mg-player-stage="true"
           className="relative aspect-video min-h-[34vh] w-full overflow-hidden rounded-xl border border-white/10 bg-black"
         >
-          <iframe
-            key={selectedUrl}
-            src={selectedUrl}
-            title={providerLabel + ": " + title}
-            className="h-full w-full border-0"
-            allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-            allowFullScreen
-            referrerPolicy="strict-origin-when-cross-origin"
-            tabIndex={0}
-            data-mg-embed-iframe="true"
-          />
-          <OnlyFlixRemotePointer visible={!isFireTv || chromeVisible} />
+          {activeEpisodePlayer === "vyla" ? (
+            <div data-mg-vyla-source-panel="true" className="h-full w-full overflow-y-auto p-4 sm:p-6">
+              <h3 className="mb-2 text-base font-bold">Vyla (test) · {vylaType === "tv" ? `S${vylaSeason} E${vylaEpisode}` : "Film"}</h3>
+              <p className="mb-4 text-xs text-white/60">
+                Choose a candidate to test it. Availability and English audio have not been verified.
+                OnlyFlix remains the default; return to its tab at any time.
+              </p>
+              {vylaResult.status === "LOADING" ? (
+                <p className="flex items-center gap-2 text-sm"><Loader2 className="h-4 w-4 animate-spin" />Checking Vyla sources…</p>
+              ) : vylaResult.streams.length ? (
+                <div className="flex flex-col gap-2">
+                  {vylaResult.streams.map((candidate, index) => (
+                    <button
+                      type="button"
+                      key={candidate.url || index}
+                      onClick={() => launchVylaCandidate(candidate)}
+                      className="min-h-11 rounded-lg border border-white/20 bg-white/10 p-3 text-left text-sm font-medium hover:border-mg-green/60 hover:bg-mg-green/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mg-green"
+                    >{candidate.label || `Vyla candidate ${index + 1}`} · Try source</button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-amber-100">
+                  {vylaResult.status === "DISABLED" ? "Vyla is not enabled yet." :
+                    vylaResult.status === "NO_CANDIDATES" ? "No playable candidates were returned for this title." :
+                    "Vyla could not return a source. Please use OnlyFlix or Sources instead."}
+                </p>
+              )}
+            </div>
+          ) : (
+            <>
+              <iframe
+                key={selectedUrl}
+                src={selectedUrl}
+                title={providerLabel + ": " + title}
+                className="h-full w-full border-0"
+                allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+                allowFullScreen
+                referrerPolicy="strict-origin-when-cross-origin"
+                tabIndex={0}
+                data-mg-embed-iframe="true"
+              />
+              <OnlyFlixRemotePointer visible={!isFireTv || chromeVisible} />
+            </>
+          )}
         </div>
 
         <div className={`mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/70 p-2.5 text-xs text-white/60 transition-opacity duration-500 ${chromeFade}`}>
