@@ -36,6 +36,7 @@ import { nativeFireTvAppInfo } from "@/components/mg/nativeFireTvBridge";
 import { COUNTRY_OPTIONS, countryLabel } from "@/components/mg/countryOptions";
 import { getStreamingRegionDetails, getStreamingRegionOverride, setStreamingRegionOverride } from "@/components/mg/streamingRegion";
 import { fetchLatestNativeRelease } from "@/components/mg/nativeReleaseInfo";
+import HouseholdProfilesPanel from "@/components/mg/HouseholdProfilesPanel";
 import {
   readTrackPreferences,
   writeTrackPreferences,
@@ -2439,6 +2440,8 @@ export default function SettingsView() {
           </button>
         </div>
       </div>
+
+      <HouseholdProfilesPanel />
 
       <section className="mt-6 rounded-xl border border-white/10 bg-mg-card/60 p-4 text-xs text-white/55" aria-label="About and data credits">
         <h3 className="font-bold text-white/80">About &amp; data credits</h3>
