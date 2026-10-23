@@ -82,4 +82,12 @@ test("legacy Main history and new profile history are isolated in the shared acc
   const visible = await profiledLibrary.ContinueWatching.list();
   assert.equal(visible.length, 1);
   assert.equal(visible[0].id, "old");
+
+  // Rows written before household profiles existed had no profile_id.
+  // They must remain visible to Main, but never appear in Guest history.
+  rows.push({ id: "legacy", content_key: "movie-2" });
+  assert.equal((await profiledLibrary.ContinueWatching.list()).length, 2);
+  selectHouseholdProfile(added.id);
+  assert.equal((await profiledLibrary.ContinueWatching.list()).length, 1);
+  assert.equal((await profiledLibrary.ContinueWatching.filter({ content_key: "movie-2" })).length, 0);
 });
