@@ -6,6 +6,7 @@ import React, {
 
 import {
   Clock3,
+  Download,
   History,
   ListVideo,
   Play,
@@ -16,6 +17,7 @@ import {
 import { createPortal } from "react-dom";
 import { base44 } from "@/api/base44Client";
 import StreamSourcesBox from "@/components/mg/StreamSourcesBox";
+import MediaDownloadPicker from "@/components/mg/MediaDownloadPicker";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 import { Image } from "@/components/ui/image";
 import { restoreResumeSource } from "./resumeSource";
@@ -233,6 +235,7 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sourcePicker, setSourcePicker] = useState(null);
+  const [downloadPicker, setDownloadPicker] = useState(null);
   const player = usePlayer();
   useEffect(() => {
     // Once an explicitly chosen torrent opens the player, hide the selector.
@@ -766,12 +769,48 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
                   <ListVideo className="h-3.5 w-3.5" />
                   Web players
                 </button>
+                <button
+                  type="button"
+                  data-mg-continue-download="true"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setDownloadPicker({ item, meta });
+                  }}
+                  onKeyDown={(event) => event.stopPropagation()}
+                  className="col-span-2 flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-mg-green/30 bg-mg-green/10 px-2 text-xs font-semibold text-mg-green focus:outline-none focus:ring-2 focus:ring-mg-green"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Download
+                </button>
               </div>
 
             </div>
           );
         })}
       </div>
+      {downloadPicker && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-[2147483645] flex items-center justify-center bg-black/90 p-3"
+          onClick={() => setDownloadPicker(null)} role="presentation">
+          <div role="dialog" aria-modal="true"
+            aria-label={`Download ${downloadPicker.meta.title}`}
+            className="max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-xl bg-zinc-950 p-3 text-white"
+            onClick={(event) => event.stopPropagation()}>
+            <MediaDownloadPicker
+              title={downloadPicker.meta.title}
+              year={downloadPicker.meta.year}
+              mediaType={downloadPicker.meta.mediaType}
+              season={downloadPicker.meta.season}
+              episode={downloadPicker.meta.episode}
+              onClose={() => setDownloadPicker(null)}
+              onFindSources={() => {
+                const selected = downloadPicker.item;
+                setDownloadPicker(null);
+                void openTorrentSources(selected);
+              }}
+            />
+          </div>
+        </div>, document.body
+      )}
       {sourcePicker && typeof document !== "undefined" && createPortal(
         <div
           className="fixed inset-0 z-[2147483645] flex items-center justify-center bg-black/90 p-3"
