@@ -658,6 +658,26 @@ function MediaGodApp() {
   }, []);
 
   /*
+   * The native VLC Back action closes playback, not just the decoder.
+   * Films return directly Home; TV episodes use the separate show-selector
+   * restoration event above. Close any leftover details/search overlays.
+   */
+  useEffect(() => {
+    const onReturnHome = () => {
+      setSearchOpen(false);
+      setSearchResult(null);
+      setPendingSearchSelection(null);
+      setTvProviderRequest(current => ({
+        service: null,
+        key: Number(current?.key || 0) + 1,
+      }));
+      setView("home");
+    };
+    window.addEventListener("mg:return-to-home", onReturnHome);
+    return () => window.removeEventListener("mg:return-to-home", onReturnHome);
+  }, []);
+
+  /*
    * One back routine for the entire application.
    */
   const goBack =
