@@ -598,21 +598,24 @@ class CompatibilityPlayerActivity : Activity() {
             maxWidth = dp(520)
         }
 
-        val backButton = controlButton("← Back") { finishWithResult("back") }
+        val backButton = controlButton(if (isTvEpisode()) "‹ Episodes" else "‹ Home") { finishWithResult("back") }
         val reportButton = controlButton("ⓘ") { showPlaybackReport() }
-        val sourcesButton = controlButton("☰ Sources") { showSourceMenu() }
+        val sourcesButton = controlButton("☷ Sources") { showSourceMenu() }
+        val castButton = controlButton("◉ Cast") { requestCastFromVlc() }
         val rewindButton = controlButton("↶ 10") { seekBy(-10_000L) }
         playPauseButton = controlButton("⏸") { togglePlayback() }
         val forwardButton = controlButton("↷ 10") { seekBy(10_000L) }
-        audioButton = controlButton("♫") { showAudioTrackMenu() }
-        subtitleButton = controlButton("CC") { showSubtitleTrackMenu() }
-        val moreButton = controlButton("⚙") { showAdvancedControlsMenu() }
+        audioButton = controlButton("♫ Audio") { showAudioTrackMenu() }
+        subtitleButton = controlButton("CC Subtitles") { showSubtitleTrackMenu() }
+        val moreButton = controlButton("⚙ Settings") { showAdvancedControlsMenu() }
         rewindButton.contentDescription = "Rewind 10 seconds"
         forwardButton.contentDescription = "Forward 10 seconds"
         playPauseButton.contentDescription = "Pause or play video"
         audioButton.contentDescription = "Audio tracks"
         subtitleButton.contentDescription = "Subtitles"
-        sourcesButton.contentDescription = "Choose source"
+        sourcesButton.contentDescription = "Choose video source"
+        castButton.contentDescription = "Cast video to a compatible screen"
+        backButton.contentDescription = if (isTvEpisode()) "Back to episode list" else "Back to home"
         moreButton.contentDescription = "Player settings"
         reportButton.contentDescription = "Report playback issue"
 
@@ -633,7 +636,7 @@ class CompatibilityPlayerActivity : Activity() {
             progress = 0
             isFocusable = true
             setPadding(dp(6), 0, dp(6), 0)
-            progressTintList = android.content.res.ColorStateList.valueOf(Color.rgb(229, 9, 20))
+            progressTintList = android.content.res.ColorStateList.valueOf(Color.rgb(36, 244, 95))
             thumbTintList = android.content.res.ColorStateList.valueOf(Color.WHITE)
             setOnSeekBarChangeListener(
                 object : SeekBar.OnSeekBarChangeListener {
@@ -740,14 +743,17 @@ class CompatibilityPlayerActivity : Activity() {
             addView(sourcesButton, LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
             ).apply { marginStart = dp(6) })
+            addView(castButton, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { marginStart = dp(6) })
         }
 
         val transportRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            addWeighted(this, rewindButton)
-            addWeighted(this, playPauseButton, 1.25f)
-            addWeighted(this, forwardButton)
+            addView(rewindButton, LinearLayout.LayoutParams(dp(84), dp(56)).apply { marginEnd = dp(10) })
+            addView(playPauseButton, LinearLayout.LayoutParams(dp(86), dp(64)))
+            addView(forwardButton, LinearLayout.LayoutParams(dp(84), dp(56)).apply { marginStart = dp(10) })
         }
 
         val optionsRow = LinearLayout(this).apply {
@@ -762,15 +768,19 @@ class CompatibilityPlayerActivity : Activity() {
         controls = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(dp(12), dp(12), dp(12), dp(14))
+            setPadding(dp(18), dp(18), dp(18), dp(20))
             background = GradientDrawable(
                 GradientDrawable.Orientation.BOTTOM_TOP,
-                intArrayOf(Color.argb(245, 0, 0, 0), Color.argb(218, 0, 0, 0), Color.TRANSPARENT)
+                intArrayOf(Color.argb(250, 5, 9, 10), Color.argb(226, 5, 9, 10), Color.argb(12, 5, 9, 10))
             )
             addView(titleRow)
-            addView(progressRow)
+            addView(progressRow, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp(12); bottomMargin = dp(8) })
             addView(transportRow)
-            addView(optionsRow)
+            addView(optionsRow, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp(10) })
         }
 
         root = FrameLayout(this).apply {
