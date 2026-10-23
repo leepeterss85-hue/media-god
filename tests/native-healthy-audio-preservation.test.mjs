@@ -22,7 +22,7 @@ for (const platform of ["android-mobile", "firetv-android"]) {
 
   test(`${platform}: compatibility controls remain accessible and keep source selection`, () => {
     const compat = read(platform, "CompatibilityPlayerActivity");
-    assert.match(compat, /sourcesButton\.contentDescription = "Choose source"/);
+    assert.match(compat, /sourcesButton\.contentDescription = "Choose video source"/);
     assert.match(compat, /playPauseButton\.contentDescription = "Pause or play video"/);
     assert.match(compat, /audioButton\.contentDescription = "Audio tracks"/);
     assert.match(compat, /subtitleButton\.contentDescription = "Subtitles"/);
