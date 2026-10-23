@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import OnlyFlixEmbedPlayer from "@/components/mg/OnlyFlixEmbedPlayer";
+import SafeEmbedStage from "@/components/mg/SafeEmbedStage";
 import { usePlayer } from "@/components/mg/MediaPlayerProvider";
 import { buildOnlyFlixEmbedUrl } from "@/components/mg/onlyFlixEmbed";
 import { WEB_FALLBACK_LOAD_TIMEOUT_MS, mediaForTorrentFallback } from "@/components/mg/automaticWebFallback";
@@ -128,22 +129,18 @@ function VidCoreMoviePlayer({ url, title, onBack, backLabel }) {
           <span className="hidden shrink-0 text-xs text-white/50 sm:block">VidCore web player</span>
         </div>
 
-        <div
-          data-mg-player-stage="true"
-          className="relative aspect-video min-h-[34vh] w-full overflow-hidden rounded-xl border border-white/10 bg-black"
-        >
+        <SafeEmbedStage>
           <iframe
             key={url}
             src={url}
             title={"VidCore: " + title}
             className="h-full w-full border-0"
-            allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-            allowFullScreen
+            allow="autoplay; encrypted-media; picture-in-picture"
             referrerPolicy="strict-origin-when-cross-origin"
             onLoad={() => { loadedRef.current = true; }}
             onError={() => { if (movieMedia) setNeedsRecovery(true); }}
           />
-        </div>
+        </SafeEmbedStage>
 
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/70 p-2.5 text-xs text-white/60">
           <span>VidCore has its own player controls. Use {backLabel} to return to Media God.</span>
