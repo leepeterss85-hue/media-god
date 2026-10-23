@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { ArrowLeft, ExternalLink, ListVideo, Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { buildOnlyFlixEmbedUrl } from "@/components/mg/onlyFlixEmbed";
+import { buildVidCoreEmbedUrl } from "@/components/mg/vidcoreEmbed";
+import { buildVidSrcEmbedUrl } from "@/components/mg/vidsrcEmbed";
 // The player portal is inside CorePlayerProvider but outside PlayerAutomationBridge.
 // Its enhanced context is unavailable: use the core player context instead.
 import { usePlayer } from "@/components/mg/MediaPlayerProvider";
@@ -18,7 +21,7 @@ import {
   buildMultiEmbedEmbedUrl,
 } from "@/components/mg/extraEmbedProviders";
 
-export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenSources, backLabel = "Sources" }) {
+export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenSources, backLabel = "Sources", initialEpisodeProvider = "onlyflix" }) {
   useEffect(() => {
     setNativeFireTvEmbedRemoteActive(true);
     return () => { setNativeFireTvEmbedRemoteActive(false); };
@@ -27,12 +30,20 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
   const player = usePlayer();
   const [vylaResult, setVylaResult] = useState({ status: "IDLE", streams: [] });
   const isFireTv = isNativeFireTvEmbedRemoteAvailable();
-  const [activeEpisodePlayer, setActiveEpisodePlayer] = useState("onlyflix");
-  useEffect(() => setActiveEpisodePlayer("onlyflix"), [url]);
+  const [activeEpisodePlayer, setActiveEpisodePlayer] = useState(initialEpisodeProvider);
+  useEffect(() => setActiveEpisodePlayer(initialEpisodeProvider), [url, initialEpisodeProvider]);
+  // All eligible web players stay selectable for an exact TV episode.
+  // VidCore can be the entry point, but switching to OnlyFlix or another
+  // episode player never opens the unrelated torrent-finding screen.
   const tvBackups = media?.mediaType === "tv" ? [
-    { id: "onlyflix", label: "OnlyFlix", url },
+    { id: "onlyflix", label: "OnlyFlix", url: initialEpisodeProvider === "vidcore" ? buildOnlyFlixEmbedUrl(media) : url },
+    { id: "vidcore", label: "VidCore", url: initialEpisodeProvider === "vidcore" ? url : buildVidCoreEmbedUrl(media) },
     { id: "vidrift", label: "VidRift", url: buildVidRiftEpisodeEmbedUrl(media) },
     { id: "stellar", label: "Stellar", url: buildStellarEpisodeEmbedUrl(media) },
+    { id: "vidsrc", label: "VidSrc", url: buildVidSrcEmbedUrl(media) },
+    { id: "twoembed", label: "2Embed", url: buildTwoEmbedEmbedUrl(media) },
+    { id: "cinesrc", label: "CineSrc", url: buildCineSrcEmbedUrl(media) },
+    { id: "multiembed", label: "MultiEmbed", url: buildMultiEmbedEmbedUrl(media) },
   ].filter((item) => Boolean(item.url)) : [];
   // Movie backups mirror the proven TV switcher without changing the
   // default OnlyFlix film launch or making backup network requests upfront.
