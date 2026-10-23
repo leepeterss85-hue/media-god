@@ -1,9 +1,9 @@
 {
   "channel": "android-mobile",
-  "versionCode": 91,
-  "versionName": "1.0.90",
+  "versionCode": 92,
+  "versionName": "1.0.91",
   "title": "Media God Mobile",
-  "message": "Media God 1.0.90: VLC is now the default decoder for non-DRM movie and TV episode files, improving support for missing audio. Live TV, source choices and browser players stay unchanged.",
+  "message": "Media God 1.0.91: redesigned VLC controls with Sources, native Cast for compatible streams, green seek bar and clear Back navigation—movies to Home and TV episodes to their episode list. Working audio and Live TV preserved.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/android-mobile-latest/Media-God-Android-Mobile.apk",
   "downloaderCode": "",
   "releaseUrl": "https://github.com/leepeterss85-hue/media-god/releases/tag/android-mobile-latest"
