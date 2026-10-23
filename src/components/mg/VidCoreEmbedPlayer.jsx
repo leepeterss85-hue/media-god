@@ -1,7 +1,9 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import OnlyFlixEmbedPlayer from "@/components/mg/OnlyFlixEmbedPlayer";
 import { usePlayer } from "@/components/mg/MediaPlayerProvider";
+import { buildOnlyFlixEmbedUrl } from "@/components/mg/onlyFlixEmbed";
+import { WEB_FALLBACK_LOAD_TIMEOUT_MS, mediaForTorrentFallback } from "@/components/mg/automaticWebFallback";
 
 // The protected portal supplies VidCore's URL but not its media object.
 // Parse only the exact VidCore TV path; the movie player stays untouched.
@@ -48,10 +50,52 @@ function TvVidCoreWithEpisodeChoices({ url, title, media, onBack, backLabel }) {
   );
 }
 
+const vidCoreMovie = (url) => {
+  try {
+    const parsed = new URL(String(url || ""));
+    if (parsed.protocol !== "https:" || parsed.hostname !== "vidcore.org") return null;
+    const match = /^\/embed\/movie\/([1-9]\d{0,8})\/?$/.exec(parsed.pathname);
+    return match ? { tmdbId: Number(match[1]), mediaType: "movie" } : null;
+  } catch { return null; }
+};
+
 export default function VidCoreEmbedPlayer({ url, title, onBack, backLabel = "Sources" }) {
   const episodeMedia = vidCoreEpisode(url);
   if (episodeMedia) {
     return <TvVidCoreWithEpisodeChoices url={url} title={title} media={episodeMedia} onBack={onBack} backLabel={backLabel} />;
+  }
+  return <VidCoreMoviePlayer url={url} title={title} onBack={onBack} backLabel={backLabel} />;
+}
+
+function VidCoreMoviePlayer({ url, title, onBack, backLabel }) {
+  const player = usePlayer();
+  const movieMedia = vidCoreMovie(url);
+  const [needsRecovery, setNeedsRecovery] = useState(false);
+  const loadedRef = useRef(false);
+  useEffect(() => {
+    setNeedsRecovery(false);
+  }, [url]);
+  useEffect(() => {
+    if (!movieMedia || needsRecovery) return undefined;
+    loadedRef.current = false;
+    const timeout = window.setTimeout(() => {
+      if (!loadedRef.current) setNeedsRecovery(true);
+    }, WEB_FALLBACK_LOAD_TIMEOUT_MS);
+    return () => window.clearTimeout(timeout);
+  }, [url, needsRecovery, Boolean(movieMedia)]);
+  if (needsRecovery && movieMedia) {
+    const fallbackMedia = { ...movieMedia, title };
+    return (
+      <OnlyFlixEmbedPlayer
+        url={buildOnlyFlixEmbedUrl(fallbackMedia)}
+        title={title}
+        media={fallbackMedia}
+        initialFailedProvider="vidcore"
+        onBack={onBack}
+        backLabel={backLabel}
+        onOpenSources={() => { void player.play(mediaForTorrentFallback(fallbackMedia)); }}
+      />
+    );
   }
   return (
     <div
@@ -75,6 +119,12 @@ export default function VidCoreEmbedPlayer({ url, title, onBack, backLabel = "So
             {backLabel}
           </button>
           <span className="min-w-0 flex-1 truncate text-sm font-semibold">{title}</span>
+          {movieMedia && (
+            <button type="button" data-mg-vidcore-try-next="true"
+              onClick={() => setNeedsRecovery(true)}
+              className="min-h-11 shrink-0 rounded-lg border border-white/20 px-3 text-xs font-semibold hover:bg-white/10"
+            >Try next</button>
+          )}
           <span className="hidden shrink-0 text-xs text-white/50 sm:block">VidCore web player</span>
         </div>
 
@@ -90,6 +140,8 @@ export default function VidCoreEmbedPlayer({ url, title, onBack, backLabel = "So
             allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
+            onLoad={() => { loadedRef.current = true; }}
+            onError={() => { if (movieMedia) setNeedsRecovery(true); }}
           />
         </div>
 
