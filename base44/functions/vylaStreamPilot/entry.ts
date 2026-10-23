@@ -59,6 +59,17 @@ export default async function (request: Request) {
   if (!enabled || !base || !token) return reply({ status: "DISABLED", streams: [] });
   let input: any;
   try { input = await request.json(); } catch { return reply({ status: "INVALID_INPUT", streams: [] }, 400); }
+  // Temporary transport-only probe; no content lookup or credentials sent.
+  if (input?.diagnostic_probe === "gateway-connectivity") {
+    try {
+      const probeUrl = new URL("/", base);
+      const response = await fetch(probeUrl, { signal: AbortSignal.timeout(5000), redirect: "error" });
+      return reply({ status: response.ok ? "NETWORK_OK" : "NETWORK_HTTP_ERROR", http_status: response.status });
+    } catch (error: any) {
+      return reply({ status: "NETWORK_ERROR", category: String(error?.name || "Unknown").slice(0, 36),
+        cause: String(error?.cause?.code || error?.code || "unknown").slice(0, 36) });
+    }
+  }
   const type = input?.media_type === "tv" ? "tv" : input?.media_type === "movie" ? "movie" : "";
   const id = positive(input?.tmdb_id ?? input?.tmdbId, 999999999);
   const season = type === "tv" ? positive(input?.season, 100) : null;
