@@ -66,6 +66,8 @@ test("final episode publication keeps foreign sources available manually without
   const english = { id: "en", type: "url", url: "https://media.test/en.mp4", audioLanguage: "en" };
   const publish = (orderedSources, qualificationMode = false, playbackLeadSources = []) => vm.runInNewContext(`${finalPublication}\nplayerSources;`, {
     isLive: false, mediaType: "tv", orderedSources, qualificationMode, playbackLeadSources,
+    hasRd: false, cacheCandidateCount: 0, cachedSourceCount: 0,
+    rdLookup: { source: null },
     onlyEpisodeFallbacksRemain: false, episodeSourceMissingStatus: {},
     // No RD preparation lead in this fixture: preserve foreign-only manual
     // sources and the waiting row exactly as before.
