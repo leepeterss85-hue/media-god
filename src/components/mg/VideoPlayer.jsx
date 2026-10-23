@@ -8931,13 +8931,7 @@ export default function VideoPlayer({
    * existing routing and ordinary Chrome/Base44 browsers have no bridge.
    */
   const useNativePlayback =
-    nativePlaybackAvailable &&
-    (
-      !isLive ||
-      forceNativePlayback ||
-      isFireTvRemoteRuntime() ||
-      isAndroidMobileNativeRuntime()
-    );
+    nativePlaybackAvailable;
 
   const fireTvNativeSelectorMode =
     nativeFireTvPlayer &&
