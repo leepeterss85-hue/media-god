@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
+  ListVideo,
   MessageSquare,
   Play,
   RotateCcw,
@@ -18,6 +19,7 @@ import {
 import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
 import MediaReviews from "@/components/mg/MediaReviews";
+import StreamSourcesBox from "@/components/mg/StreamSourcesBox";
 
 import {
   buildMediaSources,
@@ -267,6 +269,8 @@ export default function EpisodeSelector({
     useState(
       null
     );
+  const [sourcesEpisode, setSourcesEpisode] = useState(null);
+  useEffect(() => { setSourcesEpisode(null); }, [season]);
 
   const showTitle =
     showTitleOf(
@@ -275,12 +279,10 @@ export default function EpisodeSelector({
 
   const tmdbId =
     String(
-      item?.id ||
-        item
-          ?.tmdb_id ||
-        item
-          ?.tmdbId ||
-        ""
+      asPositiveInt(item?.tmdb_id) ||
+      asPositiveInt(item?.tmdbId) ||
+      asPositiveInt(item?.id) ||
+      ""
     );
 
   useEffect(() => {
@@ -1253,6 +1255,17 @@ export default function EpisodeSelector({
                       <div className="flex w-full min-w-0 flex-wrap justify-start gap-2">
                         <button
                           type="button"
+                          data-mg-episode-sources="true"
+                          data-mg-focus-key={`episode:${tmdbId || showTitle}:${seasonNumber}:${episodeNumber}:sources`}
+                          onClick={() => setSourcesEpisode((current) => current === episodeNumber ? null : episodeNumber)}
+                          aria-expanded={sourcesEpisode === episodeNumber}
+                          className="min-h-10 inline-flex items-center gap-1.5 rounded-md border border-mg-green/30 bg-mg-green/10 px-2.5 text-[11px] font-semibold text-mg-green hover:bg-mg-green/20 focus:outline-none focus:ring-2 focus:ring-mg-green"
+                        >
+                          <ListVideo className="w-3.5 h-3.5" />
+                          Sources
+                        </button>
+                        <button
+                          type="button"
                           data-mg-focus-key={`episode:${tmdbId || showTitle}:${seasonNumber}:${episodeNumber}:review`}
                           onClick={() =>
                             setReviewEpisode(
@@ -1301,6 +1314,22 @@ export default function EpisodeSelector({
                         "No description available."}
                     </p>
 
+                    {sourcesEpisode === episodeNumber && (
+                      <div data-mg-episode-source-panel="true" className="mt-3 w-full">
+                        <StreamSourcesBox
+                          title={showTitle}
+                          poster={item?.poster_url || item?.poster || ""}
+                          providers={providers}
+                          rdYear={item?.year}
+                          tmdbId={tmdbId}
+                          imdbId={item?.imdb_id || item?.imdbId || ""}
+                          mediaType="tv"
+                          season={seasonNumber}
+                          episode={episodeNumber}
+                          resumeAt={hasResume ? Number(progressRecord?.progress || 0) : 0}
+                        />
+                      </div>
+                    )}
                     {reviewEpisode ===
                       episodeNumber && (
                       <MediaReviews
