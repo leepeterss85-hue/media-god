@@ -1,10 +1,10 @@
 {
   "version": 1,
-  "note": "2026-10-23 reviewed native VLC per-show English audio and subtitle memory with delayed text-track pickup, plus enhanced Continue Watching progress and Fire TV focus UI. Preserves preloaded next-episode handoff, native decoder settings, manual Sources, Cast, Back, Live TV and existing one-tap update UX.",
+  "note": "2026-10-23 separately reviewed PlayerProvider.jsx diff for optional household profiles: only three ContinueWatching read/update/create calls were switched to profiledLibrary plus its import. Source discovery, VLC decoder, English audio, episode preloading, Live TV and updater routines were not changed. Existing protected playback files retain their hashes.",
   "files": {
     "src/components/mg/VideoPlayer.jsx": "18bffc0fb431487bf31ea23c62dd9fd87eab2f407daedd3595eb4563cea50db0",
     "src/components/mg/MediaPlayerProvider.jsx": "296950ac2a69bcfcd597f93895c67add29c18c5323e57518306a79777fc76a84",
-    "src/components/mg/PlayerProvider.jsx": "a22da17dcc24054608147579c8078f7aa5468d20a57facd40ec2f892534bd17b",
+    "src/components/mg/PlayerProvider.jsx": "4e405ec7548e1685d34282249a4a0c25f7d92bdd742275ee0ba60e91a421a957",
     "src/components/mg/MediaPlayerControls.jsx": "ef6cbff88fd9d8aad2396e7243ef9f2c09f54f6ad9d3a8c03acc124f1bfacd87",
     "src/components/mg/LiveTVView.jsx": "a00de3519ec662c2fcecf0654a6184984b4da2b3d1f8185cd7740c890214e098",
     "src/components/mg/freeTvPlaylist.js": "7904aa31b747940e708536d4370bd648cc39887351a6a3aca29479864eff405f",
