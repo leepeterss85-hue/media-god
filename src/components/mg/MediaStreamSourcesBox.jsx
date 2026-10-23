@@ -1007,6 +1007,14 @@ export default function StreamSourcesBox({
         ""
       );
 
+      // This click is an intentional source selection, not an autoplay
+      // request. Otherwise the strict verification gate starts a spinner
+      // while the skip flags suppress the lookup that could clear it.
+      // Native phone/Fire TV hands resolved video files to VLC.
+      const nonMediaSource = ["provider", "youtube", "external"].includes(
+        String(stream?.type || "").toLowerCase()
+      );
+
       await player.play({
         startTime: Math.max(0, Number(resumeAt) || 0),
         id:
@@ -1058,11 +1066,13 @@ export default function StreamSourcesBox({
         skipRdLookup:
           true,
 
+        // Keep the chosen stream first and the other sources selectable.
+        // Do not repeat discovery and silently replace the manual choice.
+        verifiedPlaybackPolicy: "manual",
+        preparedEpisodeHandoff: !nonMediaSource,
+
         allowNonPlaybackFallback:
-          stream?.type ===
-            "provider" ||
-          stream?.type ===
-            "youtube",
+          nonMediaSource,
 
         sources: [
           stream,
@@ -1153,6 +1163,9 @@ export default function StreamSourcesBox({
 
         skipRdLookup:
           true,
+
+        verifiedPlaybackPolicy: "manual",
+        preparedEpisodeHandoff: true,
 
         sources: [
           {
@@ -1799,10 +1812,10 @@ export default function StreamSourcesBox({
       </div>
 
       <p className="text-[10px] text-white/45 leading-relaxed mb-2.5 px-1">
-        Press <span className="text-mg-green font-semibold">Play</span> on any
-        card for a confirmed working copy. Try the other links below for a
-        potentially better copy, but some may not be in English, have no
-        sound, or have worse picture quality.
+        Choose a torrent or direct video source to play it in Media God
+        (using VLC in the Android and Fire Stick apps). Web-player links
+        use their own separate players. Sources may vary in language,
+        audio availability and picture quality.
       </p>
 
       {loading ? (
@@ -1829,7 +1842,14 @@ export default function StreamSourcesBox({
           {(torrentOnly
             ? rows.filter((row) => row.kind === "rd" || row.kind === "paste" ||
                 (row.kind === "addon-stream" && row.selectableTorrentSource))
-            : rows).map(
+            : mediaType === "tv"
+              // Keep true episode video choices above external web embeds.
+              // Picking one of these cards now opens the native VLC route.
+              ? [
+                  ...rows.filter((row) => row.kind === "rd" || row.kind === "addon-stream"),
+                  ...rows.filter((row) => row.kind !== "rd" && row.kind !== "addon-stream"),
+                ]
+              : rows).map(
             (
               row
             ) => (
