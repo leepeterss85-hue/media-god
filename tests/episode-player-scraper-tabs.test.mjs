@@ -37,9 +37,16 @@ test("TV source tabs expose only exact-episode embeds and preserve movie VidCore
   assert.match(tabs, /initialEpisodeProvider === "vidcore"/);
   assert.match(tabs, /const movieBackups = media\?\.mediaType === "movie"/);
   const portal = read("src/components/mg/PlayerPortalRenderer.jsx");
-  assert.match(portal, /vidSrcEmbed\?\.media\?\.mediaType === "tv" \? \(/);
-  assert.match(portal, /initialEpisodeProvider="vidcore"/);
+  const vidCore = read("src/components/mg/VidCoreEmbedPlayer.jsx");
   assert.match(portal, /<VidCoreEmbedPlayer/);
+  assert.match(vidCore, /const episodeMedia = vidCoreEpisode\(url\)/);
+  assert.match(vidCore, /if \(episodeMedia\) \{/);
+  assert.match(vidCore, /<TvVidCoreWithEpisodeChoices/);
+  assert.match(vidCore, /<OnlyFlixEmbedPlayer/);
+  assert.match(vidCore, /initialEpisodeProvider="vidcore"/);
+  assert.match(vidCore, /<iframe/);
+  assert.match(vidCore, /data-mg-vidcore-player="true"/);
+  assert.doesNotMatch(portal, /initialEpisodeProvider="vidcore"/);
 });
 
 test("episode cards offer source lists without replacing Resume, Review or Play", () => {
