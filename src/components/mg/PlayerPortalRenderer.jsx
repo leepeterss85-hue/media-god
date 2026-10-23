@@ -144,12 +144,26 @@ export default function PlayerPortalRenderer({
           backLabel={vidSrcEmbed.fromDetails ? "Details" : "Sources"}
         />
       ) : vidSrcEmbed?.provider === "vidcore" ? (
-        <VidCoreEmbedPlayer
-          url={vidSrcEmbed.url}
-          title={vidSrcEmbed.title}
-          onBack={vidSrcEmbed.fromDetails ? close : () => setVidSrcEmbed(null)}
-          backLabel={vidSrcEmbed.fromDetails ? "Details" : "Sources"}
-        />
+        vidSrcEmbed?.media?.mediaType === "tv" ? (
+          // Only TV VidCore uses the shared episode source-switching bar.
+          // Movie VidCore retains its proven standalone player untouched.
+          <OnlyFlixEmbedPlayer
+            url={vidSrcEmbed.url}
+            title={vidSrcEmbed.title}
+            media={vidSrcEmbed.media}
+            initialEpisodeProvider="vidcore"
+            onOpenSources={onOpenSources}
+            onBack={vidSrcEmbed.fromDetails ? close : () => setVidSrcEmbed(null)}
+            backLabel={vidSrcEmbed.fromDetails ? "Details" : "Sources"}
+          />
+        ) : (
+          <VidCoreEmbedPlayer
+            url={vidSrcEmbed.url}
+            title={vidSrcEmbed.title}
+            onBack={vidSrcEmbed.fromDetails ? close : () => setVidSrcEmbed(null)}
+            backLabel={vidSrcEmbed.fromDetails ? "Details" : "Sources"}
+          />
+        )
       ) : ["twoembed", "cinesrc", "multiembed"].includes(vidSrcEmbed?.provider) ? (
         <ExtraEmbedPlayer
           url={vidSrcEmbed.url}
