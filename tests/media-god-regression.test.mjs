@@ -3507,7 +3507,7 @@ test("browser audio track choice stays manual while native decoders may repair m
     assert.match(source, /recoverAudioTrack\(\) = Unit/);
     assert.match(
       source,
-      /audioButton = controlButton\("♫"\) \{ showAudioTrackMenu\(\) \}/
+      /audioButton = controlButton\("♫ Audio"\) \{ showAudioTrackMenu\(\) \}/
     );
     assert.match(source, /AlertDialog\.Builder\(this\)[\s\S]{0,500}?setTitle\("Audio"\)/);
     assert.match(source, /audioButton\.text = "Audio"/);
@@ -3630,12 +3630,12 @@ test("compatibility player keeps technical decoder details off the normal playba
     assert.match(source, /statusText = TextView\(this\)[\s\S]{0,180}?visibility = View\.GONE/);
     assert.match(source, /progressBar = SeekBar\(this\)/);
     assert.match(source, /timeText\.text =[\s\S]{0,80}?formatPlaybackTime/);
-    assert.match(source, /controlButton\("← Back"\)/);
+    assert.match(source, /controlButton\(if \(isTvEpisode\(\)\) "‹ Episodes" else "‹ Home"\)/);
     assert.match(source, /controlButton\("↶ 10"\)/);
     assert.match(source, /controlButton\("↷ 10"\)/);
-    assert.match(source, /audioButton = controlButton\("♫"\) \{ showAudioTrackMenu\(\) \}/);
-    assert.match(source, /subtitleButton = controlButton\("CC"\) \{ showSubtitleTrackMenu\(\) \}/);
-    assert.match(source, /controlButton\("⚙"\) \{ showAdvancedControlsMenu\(\) \}/);
+    assert.match(source, /audioButton = controlButton\("♫ Audio"\) \{ showAudioTrackMenu\(\) \}/);
+    assert.match(source, /subtitleButton = controlButton\("CC Subtitles"\) \{ showSubtitleTrackMenu\(\) \}/);
+    assert.match(source, /controlButton\("⚙ Settings"\) \{ showAdvancedControlsMenu\(\) \}/);
     assert.match(source, /message\.startsWith\([\s\S]{0,90}?"Compatibility decoder · buffering"[\s\S]{0,90}?\) -> "Buffering…"/);
     assert.match(source, /message\.equals\([\s\S]{0,80}?"Compatibility decoder"[\s\S]{0,80}?\) -> ""/);
     assert.match(source, /private fun showControlsTemporarily\([\s\S]{0,260}?controls\.visibility = View\.VISIBLE[\s\S]{0,120}?updateProgressUi\(\)/);
