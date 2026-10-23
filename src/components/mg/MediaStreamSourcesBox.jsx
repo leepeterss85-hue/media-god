@@ -1522,6 +1522,9 @@ export default function StreamSourcesBox({
         kind:
           "addon-stream",
 
+        selectableTorrentSource:
+          !["provider", "youtube"].includes(String(stream?.type || "").toLowerCase()),
+
         label:
           stream?.label ||
           `Source ${index + 1}`,
@@ -1827,7 +1830,8 @@ export default function StreamSourcesBox({
       ) : (
         <div className="flex flex-col gap-1.5">
           {(torrentOnly
-            ? rows.filter((row) => ["rd", "addon-stream", "paste"].includes(row.kind))
+            ? rows.filter((row) => row.kind === "rd" || row.kind === "paste" ||
+                (row.kind === "addon-stream" && row.selectableTorrentSource))
             : rows).map(
             (
               row
