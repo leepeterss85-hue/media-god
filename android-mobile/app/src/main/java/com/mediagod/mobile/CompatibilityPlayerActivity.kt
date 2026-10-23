@@ -1038,7 +1038,7 @@ class CompatibilityPlayerActivity : Activity() {
             text = label
             isAllCaps = false
             val primary = label == "⏸" || label == "▶"
-            val sourceAction = label.contains("Sources")
+            val sourceAction = label.contains("Sources") || label.startsWith("▶ Next episode")
             val green = Color.rgb(36, 244, 95)
             val normalFill = when {
                 primary -> green
@@ -1125,6 +1125,14 @@ class CompatibilityPlayerActivity : Activity() {
                                 player.setAudioDelay(lipSyncMs.toLong() * 1000L)
                             } catch (_: Throwable) {}
                             applyPreferredSubtitle()
+                            // Some Matroska/4K streams publish the text-track
+                            // list after Playing. Reapply the saved choice once
+                            // tracks have settled; never restart video or seek.
+                            if (!payload.optBoolean("live", false)) {
+                                root.postDelayed({
+                                    if (!resultSent && vlcPlayer === player) applyPreferredSubtitle()
+                                }, 900L)
+                            }
                             if (payload.optBoolean("live", false) && pendingStartPositionMs > 0L) {
                                 val target = pendingStartPositionMs; pendingStartPositionMs = 0L; player.time = target
                             }
