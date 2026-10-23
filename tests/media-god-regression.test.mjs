@@ -4902,7 +4902,7 @@ test("VOD startup keeps a slow manual source mounted and only tries ready automa
   assert.match(playerSource, /Torrent candidates \{Number\(source\?\.sourceDiagnostics\?\.cacheCandidateCount/);
 });
 
-test("a new playback request resets the old source index and manual lock", () => {
+test("a new playback request resets old source state but pins an explicit TV selection", () => {
   const playerSource = readFileSync(
     new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url),
     "utf8"
@@ -4911,7 +4911,7 @@ test("a new playback request resets the old source index and manual lock", () =>
   assert.match(playerSource, /lastPlayRequestIdRef/);
   assert.match(
     playerSource,
-    /lastPlayRequestIdRef\.current = nextPlayRequestId[\s\S]{0,260}?manualSourceLockRef\.current = \{[\s\S]{0,220}?startupAutoplayClaimRef\.current = \{[\s\S]{0,180}?claimed: false[\s\S]{0,120}?setActiveIdx\(0\)/
+    /lastPlayRequestIdRef\.current = nextPlayRequestId[\s\S]*?const initialManualSourceKey =[\s\S]{0,170}?source\?\.manualSourceSelection === true[\s\S]{0,180}?stablePlaybackSourceKey\(sources\[0\], 0\)[\s\S]{0,140}?manualSourceLockRef\.current = \{[\s\S]{0,150}?sourceKey: initialManualSourceKey[\s\S]{0,180}?startupAutoplayClaimRef\.current = \{[\s\S]{0,150}?claimed: Boolean\(initialManualSourceKey\)[\s\S]{0,210}?setActiveIdx\(0\)/
   );
 });
 
