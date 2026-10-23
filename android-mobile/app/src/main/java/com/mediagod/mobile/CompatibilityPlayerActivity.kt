@@ -876,8 +876,18 @@ class CompatibilityPlayerActivity : Activity() {
     private fun buildEpisodeActions() {
         skipRecapButton = controlButton("Skip recap") { skipEpisodeSegment("recapEnd") }
         skipIntroButton = controlButton("Skip intro") { skipEpisodeSegment("introEnd") }
-        skipCreditsButton = controlButton("Skip credits") { skipEpisodeSegment("creditsEnd", useDuration = true) }
-        nextEpisodeButton = controlButton("Next episode") { finishWithResult("next") }
+        skipCreditsButton = controlButton("Skip credits") {
+            // One explicit tap should finish the credits and play the known
+            // next episode, not seek to the last half second then wait.
+            if (nextEpisodeConfirmed()) finishWithResult("next")
+            else skipEpisodeSegment("creditsEnd", useDuration = true)
+        }
+        nextEpisodeButton = controlButton("▶ Next episode") { finishWithResult("next") }
+        nextEpisodeButton.contentDescription = "Play next TV episode"
+        skipRecapButton.contentDescription = "Skip the recap"
+        skipIntroButton.contentDescription = "Skip the opening titles"
+        skipCreditsButton.contentDescription = "Skip end credits"
+
         cancelNextButton = controlButton("Stay here") {
             nextEpisodeCountdownCancelled = true
             nextEpisodeCountdownStartedAtMs = -1L
@@ -923,6 +933,15 @@ class CompatibilityPlayerActivity : Activity() {
         updateProgressUi()
     }
 
+    private fun buildNextEpisodeLabel(): String {
+        val season = payload.optInt("nextSeason", 0)
+        val episode = payload.optInt("nextEpisode", 0)
+        val name = payload.optString("nextEpisodeName").trim().take(35)
+        val episodeCode = if (season > 0 && episode > 0) "S${season}E${episode}" else ""
+        return listOf("▶ Next episode", episodeCode, name).filter { it.isNotBlank() }
+            .joinToString(" · ")
+    }
+
     private fun updateEpisodeActions() {
         if (!::episodeActions.isInitialized || resultSent) return
         if (!isTvEpisode()) {
@@ -953,15 +972,15 @@ class CompatibilityPlayerActivity : Activity() {
                 finishWithResult("next")
                 return
             }
-            nextEpisodeButton.text = "Next episode in ${(remaining + 999L) / 1000L}s"
+            nextEpisodeButton.text = "▶ Up next • ${(remaining + 999L) / 1000L}s"
             controls.visibility = View.VISIBLE
         } else {
             nextEpisodeCountdownStartedAtMs = -1L
-            nextEpisodeButton.text = "Next episode"
+            nextEpisodeButton.text = buildNextEpisodeLabel()
         }
         skipRecapButton.visibility = if (recap) View.VISIBLE else View.GONE
         skipIntroButton.visibility = if (intro) View.VISIBLE else View.GONE
-        skipCreditsButton.visibility = if (credits && !nextConfirmed) View.VISIBLE else View.GONE
+        skipCreditsButton.visibility = if (credits) View.VISIBLE else View.GONE
         nextEpisodeButton.visibility = if (nextConfirmed &&
             (credits || controls.visibility == View.VISIBLE) && !recap && !intro) View.VISIBLE else View.GONE
         cancelNextButton.visibility = if (countdown) View.VISIBLE else View.GONE
