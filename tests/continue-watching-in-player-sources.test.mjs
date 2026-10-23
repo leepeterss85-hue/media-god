@@ -9,6 +9,9 @@ const drawer = read("src/components/mg/InPlayerSourceDrawer.jsx");
 const onlyflix = read("src/components/mg/OnlyFlixEmbedPlayer.jsx");
 const portal = read("src/components/mg/PlayerPortalRenderer.jsx");
 const provider = read("src/components/mg/MediaPlayerProvider.jsx");
+const sourcesBox = read("src/components/mg/MediaStreamSourcesBox.jsx");
+const detail = read("src/components/mg/DetailModal.jsx");
+const homeDashboard = read("src/components/mg/HomeDashboard.jsx");
 
 test("Continue Watching uses a single card without outside Other sources button", () => {
   assert.doesNotMatch(home, /chooseAnotherSource|Other sources/);
@@ -49,6 +52,20 @@ test("Continue Watching offers movie and exact-episode player tabs without chang
   assert.match(onlyflix, /buildMultiEmbedEmbedUrl\(media\)/);
   assert.match(onlyflix, /buildVidRiftEpisodeEmbedUrl\(media\)/);
   assert.match(onlyflix, /buildStellarEpisodeEmbedUrl\(media\)/);
+});
+
+test("Continue Watching torrent sources retain the seek point and show exact TV episodes", () => {
+  assert.match(sourcesBox, /resumeAt = 0/);
+  assert.match(sourcesBox, /torrentOnly = false/);
+  assert.match(sourcesBox, /startTime: Math\.max\(0, Number\(resumeAt\) \|\| 0\)/);
+  assert.ok((sourcesBox.match(/startTime: Math\.max\(0, Number\(resumeAt\) \|\| 0\)/g) || []).length >= 3);
+  assert.match(sourcesBox, /selectableTorrentSource:/);
+  assert.match(sourcesBox, /row\.selectableTorrentSource/);
+  assert.match(home, /season=\{sourcePicker\.meta\.season\}/);
+  assert.match(home, /episode=\{sourcePicker\.meta\.episode\}/);
+  assert.match(home, /if \(player\.isOpen\) setSourcePicker\(null\)/);
+  assert.match(homeDashboard, /initialTab=\{selected\?\.initialDetailTab \|\| "overview"\}/);
+  assert.match(detail, /initialTab === "reviews"/);
 });
 
 test("the VideoPlayer always has its own usable Sources button for VOD", () => {
