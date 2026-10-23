@@ -40,6 +40,7 @@ test("TV Sources selection starts the exact user-picked video, not an empty auto
   assert.equal(selection.captured.length, 1);
   const selected = selection.captured[0];
   assert.equal(selected.verifiedPlaybackPolicy, "manual");
+  assert.equal(selected.manualSourceSelection, true);
   assert.equal(selected.preparedEpisodeHandoff, true);
   assert.equal(selected.skipAddonLookup, true);
   assert.equal(selected.skipRdLookup, true);
@@ -58,13 +59,27 @@ test("TV Sources direct HTTP choice uses same VLC path; provider pages do not pr
   const direct = selectedEpisodeSource({ type: "url", src: "https://example.test/episode.mp4" });
   await direct.run();
   assert.equal(direct.captured[0].preparedEpisodeHandoff, true);
+  assert.equal(direct.captured[0].manualSourceSelection, true);
   const webpage = selectedEpisodeSource({ type: "provider", src: "https://example.test/watch" });
   await webpage.run();
   assert.equal(webpage.captured[0].preparedEpisodeHandoff, false);
+  assert.equal(webpage.captured[0].manualSourceSelection, false);
   assert.equal(webpage.captured[0].allowNonPlaybackFallback, true);
   for (const router of [phone, fire]) {
     assert.match(router, /!payload\.optBoolean\("live", false\)[\s\S]{0,430}?return Decision\(true, "default-libvlc-vod"\)/);
   }
+});
+
+test("manually selected episode source stays pinned before startup handoff", () => {
+  const videoPlayer = read("src/components/mg/VideoPlayer.jsx");
+  assert.match(videoPlayer, /const manualSourceLockRef = useRef\(\{[\s\S]*?source\?\.manualSourceSelection === true[\s\S]*?stablePlaybackSourceKey\(sources\[0\], 0\)/);
+  assert.match(videoPlayer, /const initialManualSourceKey =[\s\S]*?source\?\.manualSourceSelection === true/);
+  assert.match(videoPlayer, /sourceKey: initialManualSourceKey/);
+  assert.match(videoPlayer, /claimed: Boolean\(initialManualSourceKey\)/);
+  assert.match(videoPlayer, /const startupHandoffAvailable = canAutoHandoffStartup\(\{[\s\S]*?manuallySelected: manualSourceLockActive\(\)/);
+  assert.match(videoPlayer, /const startupSelectionAllowed =[\s\S]*?!manualSourceLockActive\(\)/);
+  const native = read("src/components/mg/nativeFireTvBridge.js");
+  assert.match(native, /forceCompatibility: Boolean\(forceCompatibilityReason\)/);
 });
 
 test("Unavailable Real-Debrid source is not launched without a debrid connection", async () => {
@@ -80,5 +95,5 @@ test("Episode Sources remains a selector and orders playable rows above web embe
   assert.match(episodes, /<StreamSourcesBox/);
   assert.match(sourceBox, /mediaType === "tv"[\s\S]{0,320}?rows\.filter\(\(row\) => row\.kind === "rd" \|\| row\.kind === "addon-stream"\)/);
   assert.match(sourceBox, /Web-player links/);
-  assert.match(sourceBox, /verifiedPlaybackPolicy: "manual",[\s\S]{0,150}?preparedEpisodeHandoff: true/);
+  assert.match(sourceBox, /verifiedPlaybackPolicy: "manual",[\s\S]{0,150}?manualSourceSelection: true,[\s\S]{0,150}?preparedEpisodeHandoff: true/);
 });
