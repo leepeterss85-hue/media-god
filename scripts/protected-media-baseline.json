@@ -1,15 +1,15 @@
 {
   "version": 1,
-  "note": "2026-10-22 TV-only: avoid autoplay of unverified MediaFusion placeholder video and retry configured FlixQuest fallback after blocked addon hits; do not modify movie/Live TV or native decoder paths.",
+  "note": "2026-10-23 deliberate VOD source-safety review: reject Base44-issued ElfHosted IP-bound direct links at addon discovery and player intake, while retaining device-origin browser results and torrent metadata. No changes to Live TV or native decoders.",
   "files": {
     "src/components/mg/VideoPlayer.jsx": "ef7df40c813036e71484301579c0c83511eb7e7bd956f4b58123316a23946e0c",
-    "src/components/mg/MediaPlayerProvider.jsx": "da8d06555b4632ed94843ac1488901be89b9374fea7c830544f74d4009b2c32d",
+    "src/components/mg/MediaPlayerProvider.jsx": "ed113a7e3b1521647481792d8092bba97d8d152f0a49acb350c57cba24d10d37",
     "src/components/mg/PlayerProvider.jsx": "8402d6f7463ea9a1824c7e4c1bb683818f4803b40fc486fbdcfdddaf73195040",
     "src/components/mg/MediaPlayerControls.jsx": "ef6cbff88fd9d8aad2396e7243ef9f2c09f54f6ad9d3a8c03acc124f1bfacd87",
     "src/components/mg/LiveTVView.jsx": "a00de3519ec662c2fcecf0654a6184984b4da2b3d1f8185cd7740c890214e098",
     "src/components/mg/freeTvPlaylist.js": "7904aa31b747940e708536d4370bd648cc39887351a6a3aca29479864eff405f",
     "base44/functions/realDebrid/entry.ts": "6e8c3b7fa13c480955136814ee4a52f519173f1bcc40904af188b95ce78b5530",
-    "base44/functions/fetchAddonStreams/entry.ts": "082052c29dae4944e4885b720931c6625ab17549d38d3c6f0a8c57f1c83219e6",
+    "base44/functions/fetchAddonStreams/entry.ts": "d5f355a078f5ddc150c729e454ad9aa263ada77c8ace6fca500207ed4ad468be",
     "base44/functions/getLiveEpg/entry.ts": "1caf894a1a60212947c8d5ef15061bbf8529e70a1d7e310b49bcddc546c48646",
     "base44/functions/antSportsLive/entry.ts": "c4d7a7e0e769cabfd10f5df896d78cbf8f85081b41d346f82c36cc62e209bf0a",
     "base44/functions/evSportsLive/entry.ts": "149d7c13a8e56e602e450919ade50b3b6d58ea115c746370863803fbe4c8ec4d",
