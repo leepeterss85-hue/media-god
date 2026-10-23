@@ -1826,7 +1826,7 @@ export default function DetailModal({
               }
               mediaType="movie"
             /></div>
-          )
+          )}
 
           {watchmodeData && (
             <section className="mt-5 rounded-xl border border-white/10 bg-mg-card p-4" data-mg-watchmode-title-data="true">
