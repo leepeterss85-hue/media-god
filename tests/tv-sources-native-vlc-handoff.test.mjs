@@ -133,6 +133,12 @@ test("HTTP 429 is described as a Real-Debrid rate limit, not a VLC failure", () 
   assert.match(player, /This torrent is not ready to play/);
 });
 
+test("HTTP 429 attempts only already-ready TV fallback, never another uncached download", () => {
+  assert.match(player, /rdRateLimited &&[\s\S]{0,140}?playbackMediaType === "tv" &&[\s\S]{0,140}?!manualSourceLockActive\(\)/);
+  assert.match(player, /const readyBackup = findNextPlayableSource\(activeIdx, \{[\s\S]{0,90}?allowCaching: false/);
+  assert.match(player, /Real-Debrid is rate limited\. Trying a ready episode source/);
+});
+
 test("unconnected Real-Debrid source does not launch", async () => {
   const selection = selectedEpisodeSource({ type: "rd", hasDebrid: false });
   await selection.run();
