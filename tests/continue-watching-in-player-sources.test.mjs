@@ -22,7 +22,7 @@ test("Continue Watching offers movie and exact-episode player tabs without chang
   // Resume still restores the saved file and seek position. Players is
   // a separate explicit action, not an alternate primary-card click.
   assert.match(home, /data-mg-continue-player-options="true"/);
-  assert.match(home, /onClick=\{\(event\) => openPlayerOptions\(item, event\)\}/);
+  assert.match(home, /onClick=\{\(event\) => \{ void openPlayerOptions\(item, event\); \}\}/);
   assert.match(home, /onKeyDown=\{\(event\) => event\.stopPropagation\(\)\}/);
   assert.match(home, /event\?\.stopPropagation\(\)/);
   assert.match(home, /player\.playOnlyFlix\?\.\(\{/);
@@ -33,6 +33,14 @@ test("Continue Watching offers movie and exact-episode player tabs without chang
   assert.match(home, /if \(!launched\)\s*\{[\s\S]*?await openDetail\(item\)/);
   assert.match(home, /if \(hasSavedSource\) \{/);
   assert.match(home, /startTime: Number\(item\.progress \|\| 0\)/);
+  assert.doesNotMatch(home, /if \(onOpenDetail && isTv\)/);
+  assert.match(home, /data-mg-continue-resume="true"/);
+  assert.match(home, /data-mg-continue-sources="true"/);
+  assert.match(home, /data-mg-continue-reviews="true"/);
+  assert.match(home, /<StreamSourcesBox/);
+  assert.match(home, /resumeAt=\{Number\(sourcePicker\.item\.progress \|\| 0\)\}/);
+  assert.match(home, /torrentOnly/);
+  assert.match(home, /initialDetailTab: tab/);
   // Same top-of-player options that normal Play exposes.
   assert.match(onlyflix, /data-mg-movie-player-backups=/);
   assert.match(onlyflix, /data-mg-episode-player-backups=/);
