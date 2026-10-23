@@ -4526,7 +4526,7 @@ export default function VideoPlayer({
         }));
         const rdRateLimited =
           Number(error?.response?.status || error?.status || 0) === 429 ||
-          /(?:status code|HTTP|error)[^\\d]{0,20}429\\b|\\b429\\b/i.test(
+          /\b429\b/i.test(
             String(error?.message || "")
           );
         setRdError(
