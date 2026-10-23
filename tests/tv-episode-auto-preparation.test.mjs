@@ -66,12 +66,17 @@ test("reuse the full rich magnet and retain all manually selectable torrent rows
   assert.equal(prepared.length, 2);
 });
 
-test("provider starts fallback early and final publication preserves autoplay preparation", () => {
+test("episode torrent auto-preparation requires explicit opt-in and preserves manual caching", () => {
   const provider = readFileSync(new URL("../src/components/mg/MediaPlayerProvider.jsx", import.meta.url), "utf8");
   const video = readFileSync(new URL("../src/components/mg/VideoPlayer.jsx", import.meta.url), "utf8");
-  assert.match(provider, /if \(mediaType === "tv" && hasRd && !request\?\.skipEpisodeAutoPrepare\)/);
+  assert.match(provider, /allowAutomaticUncachedEpisodePreparation =\s*request\?\.allowUncachedEpisodePreparation === true/);
+  assert.match(provider, /if \(mediaType === "tv" && hasRd &&\s*allowAutomaticUncachedEpisodePreparation &&\s*!request\?\.skipEpisodeAutoPrepare\)/);
   assert.match(provider, /publishEarlySources\(fallback\.slice\(0, 1\)/);
-  assert.match(provider, /const episodePreparationLeads = qualificationMode &&/);
+  assert.match(provider, /const episodePreparationLeads = qualificationMode &&[\s\S]{0,95}?allowAutomaticUncachedEpisodePreparation/);
+  assert.match(provider, /const noReadyEpisodeFile =[\s\S]{0,200}?cachedSourceCount === 0/);
+  assert.match(provider, /phase: noReadyEpisodeFile \? "no-ready-episode" : "complete"/);
+  assert.match(video, /data-mg-no-ready-episode-file="true"/);
+  assert.match(video, /Choose a torrent to cache/);
   assert.match(provider, /episodeAutoprepareCandidates\(orderedSources, \{ season, episode \}\)/);
   assert.match(provider, /runtimeFallbackSources\.length > 0\s*\? runtimeFallbackSources\s*: episodePreparationLeads/);
   assert.match(provider, /stableDiscoveredSourceKey\(episodePreparationLeads\[0\]\)/);
