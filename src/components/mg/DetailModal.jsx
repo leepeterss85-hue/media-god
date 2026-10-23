@@ -19,7 +19,7 @@ import {
   X,
 } from "lucide-react";
 
-import { base44 } from "@/api/base44Client";
+import { base44 } from "@/components/mg/localProfiles";
 import EpisodeSelector from "@/components/mg/EpisodeSelector";
 import MediaReviews from "@/components/mg/MediaReviews";
 import MediaRow from "@/components/mg/MediaRow";
