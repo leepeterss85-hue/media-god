@@ -1,7 +1,58 @@
 import React from "react";
 import { ArrowLeft, ExternalLink } from "lucide-react";
+import OnlyFlixEmbedPlayer from "@/components/mg/OnlyFlixEmbedPlayer";
+import { usePlayer } from "@/components/mg/MediaPlayerProvider";
+
+// The protected portal supplies VidCore's URL but not its media object.
+// Parse only the exact VidCore TV path; the movie player stays untouched.
+const vidCoreEpisode = (url) => {
+  try {
+    const parsed = new URL(String(url || ""));
+    if (parsed.protocol !== "https:" || parsed.hostname !== "vidcore.org") return null;
+    const match = /^\/embed\/tv\/([1-9]\d{0,8})\/(0|[1-9]\d{0,2})\/([1-9]\d{0,3})\/?$/.exec(parsed.pathname);
+    if (!match) return null;
+    return { tmdbId: Number(match[1]), mediaType: "tv", season: Number(match[2]), episode: Number(match[3]) };
+  } catch { return null; }
+};
+
+function TvVidCoreWithEpisodeChoices({ url, title, media, onBack, backLabel }) {
+  const player = usePlayer();
+  const openSources = () => {
+    // Torrent/Real-Debrid discovery happens only on the explicit Sources action.
+    void player.play({
+      ...media,
+      id: media.tmdbId,
+      title,
+      type: "series",
+      rdTitle: title,
+      rdSeason: media.season,
+      rdEpisode: media.episode,
+      sources: [],
+      completeSources: [],
+      skipRdLookup: false,
+      skipAddonLookup: false,
+      preferRd: true,
+      verifiedPlaybackPolicy: "strict",
+    });
+  };
+  return (
+    <OnlyFlixEmbedPlayer
+      url={url}
+      title={title}
+      media={media}
+      onBack={onBack}
+      backLabel={backLabel}
+      onOpenSources={openSources}
+      initialEpisodeProvider="vidcore"
+    />
+  );
+}
 
 export default function VidCoreEmbedPlayer({ url, title, onBack, backLabel = "Sources" }) {
+  const episodeMedia = vidCoreEpisode(url);
+  if (episodeMedia) {
+    return <TvVidCoreWithEpisodeChoices url={url} title={title} media={episodeMedia} onBack={onBack} backLabel={backLabel} />;
+  }
   return (
     <div
       data-mg-player-root="true"
