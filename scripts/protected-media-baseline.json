@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "note": "2026-10-23 deliberate VOD source-safety review: reject Base44-issued ElfHosted IP-bound direct links at addon discovery and player intake, while retaining device-origin browser results and torrent metadata. No changes to Live TV or native decoders.",
+  "note": "2026-10-23 targeted TV episode Sources fix: pin a user-selected torrent/direct source from the first player render so automatic best-source handoff cannot hijack the VLC route. Normal movie autoplay and Live TV are unchanged.",
   "files": {
-    "src/components/mg/VideoPlayer.jsx": "ef7df40c813036e71484301579c0c83511eb7e7bd956f4b58123316a23946e0c",
+    "src/components/mg/VideoPlayer.jsx": "3a7c483431bcca101afa871f59756544085abfbca2518bb03d1ef19b8b36ef7c",
     "src/components/mg/MediaPlayerProvider.jsx": "ed113a7e3b1521647481792d8092bba97d8d152f0a49acb350c57cba24d10d37",
     "src/components/mg/PlayerProvider.jsx": "8402d6f7463ea9a1824c7e4c1bb683818f4803b40fc486fbdcfdddaf73195040",
     "src/components/mg/MediaPlayerControls.jsx": "ef6cbff88fd9d8aad2396e7243ef9f2c09f54f6ad9d3a8c03acc124f1bfacd87",
