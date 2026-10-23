@@ -65,9 +65,9 @@ test("all resolved native VOD streams use the Android bridge even without runtim
 
 test("VLC default requires updated signed APK versions on both platforms", () => {
   assert.match(read("android-mobile/app/build.gradle.kts"),/versionCode = 92/);
-  assert.match(read("android-mobile/app/build.gradle.kts"),/versionName = "1\.0\.90"/);
+  assert.match(read("android-mobile/app/build.gradle.kts"),/versionName = "1\.0\.91"/);
   assert.match(read("firetv-android/app/build.gradle.kts"),/versionCode = 106/);
-  assert.match(read("firetv-android/app/build.gradle.kts"),/versionName = "1\.4\.100"/);
+  assert.match(read("firetv-android/app/build.gradle.kts"),/versionName = "1\.4\.101"/);
   const mobile = JSON.parse(read("public/android-mobile-update.json"));
   const fire = JSON.parse(read("public/firetv-update.json"));
   assert.equal(mobile.versionCode,92);
