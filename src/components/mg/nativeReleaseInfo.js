@@ -107,13 +107,19 @@ export const fetchLatestNativeRelease = async (
 
   const request = (async () => {
     const releases = await Promise.all(urls.map(fetchReleaseJson));
-    const latest =
+    const announced =
       releases
         .filter(Boolean)
         .sort(
           (a, b) =>
             Number(b?.versionCode || 0) - Number(a?.versionCode || 0)
         )[0] || null;
+    const published = announced &&
+      await publishedNativeReleaseMatches(key, announced);
+    // During an APK build, the version JSON is already on main but its
+    // corresponding signed asset is not. Check again shortly rather than
+    // offering the old APK under the new version's Update button.
+    const latest = published ? announced : null;
 
     releaseCache.set(key, {
       value: latest,
