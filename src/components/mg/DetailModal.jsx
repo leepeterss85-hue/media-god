@@ -19,7 +19,7 @@ import {
   X,
 } from "lucide-react";
 
-import { base44 } from "@/components/mg/localProfiles";
+import { base44 } from "@/api/base44Client";
 import EpisodeSelector from "@/components/mg/EpisodeSelector";
 import MediaReviews from "@/components/mg/MediaReviews";
 import MediaRow from "@/components/mg/MediaRow";
@@ -432,6 +432,14 @@ const normaliseDetailPayload = (
           payload.runtime ??
           0
       ),
+
+    rating_votes: Number(
+      rawDetails.vote_count ??
+        rawDetails.rating_votes ??
+        payload.vote_count ??
+        fallback.vote_count ??
+        0
+    ),
 
     release_date:
       firstText(
@@ -1594,9 +1602,14 @@ export default function DetailModal({
                 </span>
 
                 {rating > 0 && (
-                  <span className="flex items-center gap-1 text-mg-green">
+                  <span className="flex items-center gap-1 text-mg-green" aria-label={`TMDB rating ${rating.toFixed(1)} out of 10`}>
                     <Star className="w-3 h-3 3xl:w-5 3xl:h-5 fill-mg-green" />
-                    {rating.toFixed(1)}
+                    {rating.toFixed(1)} <span className="text-white/45">TMDB</span>
+                    {details.rating_votes > 0 && (
+                      <span className="text-white/45">
+                        · {new Intl.NumberFormat(undefined, { notation: "compact" }).format(details.rating_votes)} ratings
+                      </span>
+                    )}
                   </span>
                 )}
 

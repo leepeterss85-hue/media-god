@@ -10,7 +10,7 @@ import {
   Trash2,
 } from "lucide-react";
 
-import { base44 } from "@/components/mg/localProfiles";
+import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
 import { useToast } from "@/components/ui/use-toast";
 import { buildMediaSources, usePlayer } from "@/components/mg/PlayerProvider";

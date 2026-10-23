@@ -11,7 +11,7 @@ import {
   X,
 } from "lucide-react";
 
-import { base44 } from "@/components/mg/localProfiles";
+import { base44 } from "@/api/base44Client";
 import { usePlayer } from "@/components/mg/PlayerProvider";
 import { Image } from "@/components/ui/image";
 

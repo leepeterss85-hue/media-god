@@ -5,7 +5,7 @@ import React, {
   useState,
 } from "react";
 
-import { base44 } from "@/components/mg/localProfiles";
+import { base44 } from "@/api/base44Client";
 import HeroSlider from "@/components/mg/HeroSlider";
 import MediaRow from "@/components/mg/MediaRow";
 import { resolveCatalogMediaType } from "@/components/mg/catalogMediaIdentity";

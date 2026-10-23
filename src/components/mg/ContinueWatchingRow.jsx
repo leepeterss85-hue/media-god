@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 
 import { createPortal } from "react-dom";
-import { base44 } from "@/components/mg/localProfiles";
+import { base44 } from "@/api/base44Client";
 import StreamSourcesBox from "@/components/mg/StreamSourcesBox";
 import MediaDownloadPicker from "@/components/mg/MediaDownloadPicker";
 import { usePlayer } from "@/components/mg/PlayerProvider";

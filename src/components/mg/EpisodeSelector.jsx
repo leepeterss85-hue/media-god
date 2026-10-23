@@ -18,7 +18,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 
-import { base44 } from "@/components/mg/localProfiles";
+import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
 import MediaReviews from "@/components/mg/MediaReviews";
 import StreamSourcesBox from "@/components/mg/StreamSourcesBox";
