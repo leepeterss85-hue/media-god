@@ -66,6 +66,7 @@ test("episode cards offer source lists without replacing Resume, Review or Play"
   const newEpisodes = read("src/components/mg/NewEpisodesRow.jsx");
   assert.match(newEpisodes, /player\.playVidCore\?\.\(\{/);
   const details = read("src/components/mg/DetailModal.jsx");
+  assert.match(details, /<EpisodeSelector[\s\S]*tmdb_id: itemId,\s*tmdbId: itemId/);
   assert.match(details, /player\.playOnlyFlix\s*&&/);
   // User-approved movie routing is deliberately not modified.
   const core = read("src/components/mg/MediaPlayerProvider.jsx");
