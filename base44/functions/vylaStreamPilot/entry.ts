@@ -70,7 +70,7 @@ export default async function (request: Request) {
     for (const item of hosts) {
       const started = Date.now();
       try {
-        const response = await fetch(item.url, { signal: AbortSignal.timeout(5000), redirect: "error" });
+        const response = await fetch(item.url, { signal: AbortSignal.timeout(5000), redirect: "manual" });
         results.push({ name: item.name, status: response.status, ms: Date.now() - started });
       } catch (error: any) {
         const message = String(error?.message || "").split("https://")[0].slice(0, 100);
@@ -100,7 +100,7 @@ export default async function (request: Request) {
   const seen = new Set<string>();
   try {
     const response = await fetch(endpoint.toString(), {
-      redirect: "error",
+      redirect: "manual",
       signal: controller.signal,
       headers: { Accept: "text/event-stream", Authorization: `Bearer ${token}` },
     });
