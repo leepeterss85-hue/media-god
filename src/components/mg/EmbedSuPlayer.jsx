@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { hostedEmbedLabel, hostedEmbedPage } from "@/components/mg/webEmbedProviders";
+import SafeEmbedStage from "@/components/mg/SafeEmbedStage";
 
 export default function EmbedSuPlayer({ url, media, title, onBack, backLabel = "Sources" }) {
   const [active, setActive] = useState({ url, label: "Embed.su" });
@@ -133,17 +134,16 @@ export default function EmbedSuPlayer({ url, media, title, onBack, backLabel = "
           {manualError && <p role="alert" className="w-full text-xs text-amber-200">{manualError}</p>}
         </form>
 
-        <div data-mg-player-stage="true" className="relative aspect-video min-h-[34vh] w-full overflow-hidden rounded-xl border border-white/10 bg-black">
+        <SafeEmbedStage>
           <iframe
             key={active.url}
             src={active.url}
             title={active.label + ": " + title}
             className="h-full w-full border-0"
-            allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-            allowFullScreen
+            allow="autoplay; encrypted-media; picture-in-picture"
             referrerPolicy="strict-origin-when-cross-origin"
           />
-        </div>
+        </SafeEmbedStage>
 
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/70 p-2.5 text-xs text-white/60">
           <span>{active.label} has its own player controls. Use {backLabel} to return to Media God.</span>
