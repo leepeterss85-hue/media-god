@@ -29,6 +29,7 @@ import { readSourceSortMode, sortSourceEntries } from "@/components/mg/sourceSel
 import { preservePublishedSourceOrder } from "@/components/mg/sourcePublication";
 import { filterSourcesForRequestedIdentity, sourceMatchesRequestedIdentity } from "@/components/mg/sourceIdentity";
 import { sourceIsAioStreamsCandidate } from "@/components/mg/sourceProviderIdentity";
+import { excludeServerIssuedIpBoundVod } from "@/components/mg/ipBoundVodSafety";
 import { canonicalImdbLookupFields, sourceAddonFailure, sourceLookupFailed } from "@/components/mg/sourceDiscoveryFeedback";
 import { fetchTvEpisodeSources, flixQuestV2Configured } from "@/components/mg/tvEpisodeScraper";
 import { firstAcceptedQualificationBatch } from "./qualificationBatch";
@@ -1129,11 +1130,7 @@ const fetchServerAddonSources = async ({
 
     return {
       streams:
-        Array.isArray(
-          data?.streams
-        )
-          ? data.streams
-          : [],
+        excludeServerIssuedIpBoundVod(data?.streams),
 
       diagnostics:
         Array.isArray(
