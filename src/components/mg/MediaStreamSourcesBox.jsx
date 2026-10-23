@@ -1069,6 +1069,7 @@ export default function StreamSourcesBox({
         // Keep the chosen stream first and the other sources selectable.
         // Do not repeat discovery and silently replace the manual choice.
         verifiedPlaybackPolicy: "manual",
+        manualSourceSelection: !nonMediaSource,
         preparedEpisodeHandoff: !nonMediaSource,
 
         allowNonPlaybackFallback:
@@ -1165,6 +1166,7 @@ export default function StreamSourcesBox({
           true,
 
         verifiedPlaybackPolicy: "manual",
+        manualSourceSelection: true,
         preparedEpisodeHandoff: true,
 
         sources: [
