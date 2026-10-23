@@ -4,7 +4,6 @@ import {
   useRef,
 } from "react";
 
-import { base44 } from "@/api/base44Client";
 
 const WATCHED_THRESHOLD = 0.92;
 const MIN_RESUME_SECONDS = 5;

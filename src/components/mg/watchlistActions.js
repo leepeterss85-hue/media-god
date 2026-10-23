@@ -1,5 +1,4 @@
 import { profiledLibrary } from "@/components/mg/householdProfiles";
-import { base44 } from "@/api/base44Client";
 import { resolveCatalogMediaType } from "@/components/mg/catalogMediaIdentity";
 
 /*
