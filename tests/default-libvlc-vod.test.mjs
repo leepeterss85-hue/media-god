@@ -32,7 +32,13 @@ for (const [platform, pkg] of [
 
   test(`${platform}: existing VLC player preserves seek, English audio and source selection`, () => {
     assert.match(vlc, /Media\(engine, Uri.parse\(streamUrl\)\)/);
-    assert.match(vlc, /:start-time=\$\{pendingStartPositionMs \/ 1000\.0\}/);
+    if (platform === "android-mobile") {
+      assert.match(vlc, /:start-time=\$\{pendingStartPositionMs \/ 1000\.0\}/);
+    } else {
+      // Existing Fire TV VLC seeks after the first native Playing callback.
+      assert.match(vlc, /player\.time = target/);
+      assert.match(vlc, /pendingStartPositionMs > 0L/);
+    }
     assert.match(vlc, /wantsPreferredEnglishAudio/);
     assert.match(vlc, /requiresStrictEnglishAudio/);
     assert.match(vlc, /payload.optJSONArray\("sourceChoices"\)/);
