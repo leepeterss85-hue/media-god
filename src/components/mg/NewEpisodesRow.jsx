@@ -306,6 +306,22 @@ export default function NewEpisodesRow({
       rdYear: item.year,
     })) return;
 
+    // Keep the fast web-player launch: only if OnlyFlix could not build
+    // this exact episode, try VidCore before the torrent discovery pipeline.
+    if (player.playVidCore?.({
+      id: item.tmdbId,
+      tmdbId: item.tmdbId,
+      title: item.showTitle,
+      year: item.year,
+      poster: item.poster,
+      mediaType: "tv",
+      type: "series",
+      season: item.season,
+      episode: item.episode,
+      rdTitle: item.showTitle,
+      rdYear: item.year,
+    })) return;
+
     if (player.play) {
       const episodeCode = `S${String(item.season).padStart(2, "0")}E${String(
         item.episode
