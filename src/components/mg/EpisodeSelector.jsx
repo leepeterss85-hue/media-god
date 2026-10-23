@@ -766,10 +766,11 @@ export default function EpisodeSelector({
         item?.poster_url ||
         item?.poster ||
         "";
+      // Prefer explicit numeric TMDB identity; item.id may be a Base44 row id.
       const showId =
-        item?.id ||
-        item?.tmdb_id ||
-        item?.tmdbId;
+        asPositiveInt(item?.tmdb_id) ||
+        asPositiveInt(item?.tmdbId) ||
+        asPositiveInt(item?.id);
       const showImdbId = String(item?.imdb_id || item?.imdbId || "").trim();
 
       const baseRequest = {
@@ -800,10 +801,11 @@ export default function EpisodeSelector({
         includeAddonNames,
       };
 
-      // Match the film green Play action for a fresh episode.
-      // Resume preserves the previously selected source and exact seek position.
-      // The OnlyFlix player's Sources button retains manual playback fallback.
+      // Fresh episodes use the embedded player and source-switching tabs.
+      // If OnlyFlix lacks an embed, try VidCore before falling into torrents.
+      // Resume stays on the seek-aware source pipeline.
       if (!startTime && player.playOnlyFlix?.(baseRequest)) return;
+      if (!startTime && player.playVidCore?.(baseRequest)) return;
 
       player.play({
         ...baseRequest,
