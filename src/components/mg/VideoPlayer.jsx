@@ -4524,8 +4524,15 @@ export default function VideoPlayer({
           updatedAt: Date.now(),
           cacheEngine: "v2",
         }));
+        const rdRateLimited =
+          Number(error?.response?.status || error?.status || 0) === 429 ||
+          /(?:status code|HTTP|error)[^\\d]{0,20}429\\b|\\b429\\b/i.test(
+            String(error?.message || "")
+          );
         setRdError(
-          `${error?.message || "The Real-Debrid cache engine stopped unexpectedly."} The same uncached source has been kept selected; Retry will reconnect to it.`
+          rdRateLimited
+            ? "Real-Debrid is temporarily rate limiting requests (HTTP 429). This torrent is not ready to play. Choose Sources to find another ready copy through Combined Debrid; wait before retrying this torrent."
+            : `${error?.message || "The Real-Debrid cache engine stopped unexpectedly."} The same uncached source has been kept selected; Retry will reconnect to it.`
         );
       });
 
