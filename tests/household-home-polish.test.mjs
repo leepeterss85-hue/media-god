@@ -110,7 +110,7 @@ test("episode tracking, details, and search build on existing UI", () => {
   assert.match(details,/MediaReviews/);
   assert.match(details,/activeTab === "cast"/);
   assert.match(search,/export const cleanVoiceSearch/);
-  assert.match(search,/title\.split\(" "\)\.includes\(wanted\)/);
+  assert.match(search,/title\.split\(" "\)\.includes\(titleWanted\)/);
   assert.match(search,/setQuery\(cleanVoiceSearch\(spoken\)\)/);
 });
 
