@@ -837,15 +837,34 @@ function PlayerAutomationBridge({ children }) {
           };
           publishContext(currentRequestRef.current || request);
 
-          const markerLookup = loadEpisodeSkipMarkers(next).then((enrichedNext) => {
-            if (nextEpisodePreloadRef.current.currentKey === currentKey) {
-              nextEpisodePreloadRef.current.next = enrichedNext;
-            }
-            return enrichedNext;
-          });
-          const preparation = typeof core.prepare === "function"
-            ? core.prepare(applyReliableVodPolicy(next))
-            : Promise.resolve(null);
+          // Skip-marker lookup and next-source discovery are independent.
+          // Don't let a failed intro/credits provider throw away a playable
+          // episode prepared by the scraper in the background.
+          const markerLookup = Promise.resolve()
+            .then(() => loadEpisodeSkipMarkers(next))
+            .then((enrichedNext) => {
+              if (nextEpisodePreloadRef.current.currentKey === currentKey) {
+                nextEpisodePreloadRef.current.next = enrichedNext;
+              }
+              return enrichedNext;
+            })
+            .catch(() => next);
+          const preparation = Promise.resolve()
+            .then(() => typeof core.prepare === "function"
+              ? core.prepare(applyReliableVodPolicy(next))
+              : null)
+            .then((prepared) => {
+              // Make the prepared sources available immediately, even if
+              // subtitle/intro metadata is still loading.
+              if (nextEpisodePreloadRef.current.currentKey === currentKey) {
+                nextEpisodePreloadRef.current.prepared = prepared;
+              }
+              return prepared;
+            })
+            .catch((error) => {
+              console.warn("[Media God] Next-episode source prefetch unavailable", error);
+              return null;
+            });
           const [enrichedNext, prepared] = await Promise.all([markerLookup, preparation]);
 
           if (episodeIdentityForRequest(currentRequestRef.current) !== currentKey) return null;
@@ -1015,10 +1034,14 @@ function PlayerAutomationBridge({ children }) {
             ? preload
             : null;
 
-        if (cachedPreload?.promise && !cachedPreload?.next) {
+        if (cachedPreload?.promise &&
+            (!cachedPreload?.next || !freshEpisodePreparation(cachedPreload?.prepared))) {
+          // The next episode may be known before its background stream lookup
+          // finishes. Reuse the in-flight result without a second scraper
+          // request; cap the wait so a stalled provider cannot trap the viewer.
           await Promise.race([
-            cachedPreload.promise,
-            new Promise((resolve) => window.setTimeout(resolve, 1200)),
+            cachedPreload.promise.catch(() => null),
+            new Promise((resolve) => window.setTimeout(resolve, 1400)),
           ]);
 
           const refreshed = nextEpisodePreloadRef.current;
