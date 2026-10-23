@@ -56,6 +56,15 @@ test("Vyla removes server-minted ElfHosted addresses before candidates reach Med
   assert.match(player,/beginTorrentFallback/);
 });
 
+test("Continue Watching cannot reopen known IP-bound saved direct links",()=>{
+  const row=read("src/components/mg/ContinueWatchingRow.jsx");
+  assert.match(row,/savedDirectIsIpBound/);
+  assert.match(row,/isIpBoundHostedProvider\(savedSource\)/);
+  assert.match(row,/!isElfHostedUrl\(savedUrl\)/);
+  assert.match(row,/startTime: Number\(item\.progress \|\| 0\)/);
+  assert.match(row,/resumeFromHistory: true/);
+});
+
 test("live TV and the established default movie and episode players are untouched",()=>{
   const player=read("src/components/mg/MediaPlayerProvider.jsx");
   assert.match(player,/const playOnlyFlix = useCallback/);
