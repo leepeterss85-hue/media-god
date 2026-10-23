@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ExternalLink, ListVideo, Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { buildOnlyFlixEmbedUrl } from "@/components/mg/onlyFlixEmbed";
 import { buildVidCoreEmbedUrl } from "@/components/mg/vidCoreEmbed";
 import { buildVidSrcEmbedUrl } from "@/components/mg/vidsrcEmbed";
+import { WEB_FALLBACK_LOAD_TIMEOUT_MS, nextWebFallback, mediaForTorrentFallback } from "@/components/mg/automaticWebFallback";
 // The player portal is inside CorePlayerProvider but outside PlayerAutomationBridge.
 // Its enhanced context is unavailable: use the core player context instead.
 import { usePlayer } from "@/components/mg/MediaPlayerProvider";
@@ -21,7 +22,7 @@ import {
   buildMultiEmbedEmbedUrl,
 } from "@/components/mg/extraEmbedProviders";
 
-export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenSources, backLabel = "Sources", initialEpisodeProvider = "onlyflix" }) {
+export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenSources, backLabel = "Sources", initialEpisodeProvider = "onlyflix", initialFailedProvider = "" }) {
   useEffect(() => {
     setNativeFireTvEmbedRemoteActive(true);
     return () => { setNativeFireTvEmbedRemoteActive(false); };
@@ -29,13 +30,25 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
 
   const player = usePlayer();
   const [vylaResult, setVylaResult] = useState({ status: "IDLE", streams: [] });
+  const [autoRecovery, setAutoRecovery] = useState(false);
+  const iframeLoadedRef = useRef(false);
+  const handledFailureRef = useRef(false);
+  const torrentStartedRef = useRef(false);
+  const vylaStartedRef = useRef(false);
+  const failedProvidersRef = useRef(new Set(initialFailedProvider ? [initialFailedProvider] : []));
   const isFireTv = isNativeFireTvEmbedRemoteAvailable();
   const [activeEpisodePlayer, setActiveEpisodePlayer] = useState(initialEpisodeProvider);
-  useEffect(() => setActiveEpisodePlayer(initialEpisodeProvider), [url, initialEpisodeProvider]);
+  useEffect(() => {
+    setActiveEpisodePlayer(initialEpisodeProvider);
+    setAutoRecovery(false);
+    torrentStartedRef.current = false;
+    vylaStartedRef.current = false;
+    failedProvidersRef.current = new Set(initialFailedProvider ? [initialFailedProvider] : []);
+  }, [url, initialEpisodeProvider, initialFailedProvider]);
   // All eligible web players stay selectable for an exact TV episode.
   // VidCore can be the entry point, but switching to OnlyFlix or another
   // episode player never opens the unrelated torrent-finding screen.
-  const tvBackups = media?.mediaType === "tv" ? [
+  const tvBackups = useMemo(() => media?.mediaType === "tv" ? [
     { id: "onlyflix", label: "OnlyFlix", url: initialEpisodeProvider === "vidcore" ? buildOnlyFlixEmbedUrl(media) : url },
     { id: "vidcore", label: "VidCore", url: initialEpisodeProvider === "vidcore" ? url : buildVidCoreEmbedUrl(media) },
     { id: "vidrift", label: "VidRift", url: buildVidRiftEpisodeEmbedUrl(media) },
@@ -44,19 +57,25 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
     { id: "twoembed", label: "2Embed", url: buildTwoEmbedEmbedUrl(media) },
     { id: "cinesrc", label: "CineSrc", url: buildCineSrcEmbedUrl(media) },
     { id: "multiembed", label: "MultiEmbed", url: buildMultiEmbedEmbedUrl(media) },
-  ].filter((item) => Boolean(item.url)) : [];
+  ].filter((item) => Boolean(item.url)) : [], [media, url, initialEpisodeProvider]);
   // Movie backups mirror the proven TV switcher without changing the
   // default OnlyFlix film launch or making backup network requests upfront.
-  const movieBackups = media?.mediaType === "movie" ? [
+  const movieBackups = useMemo(() => media?.mediaType === "movie" ? [
     { id: "onlyflix", label: "OnlyFlix", url },
+    { id: "vidcore", label: "VidCore", url: buildVidCoreEmbedUrl(media) },
+    { id: "vidsrc", label: "VidSrc", url: buildVidSrcEmbedUrl(media) },
     { id: "vidrift", label: "VidRift", url: buildVidRiftMovieEmbedUrl(media) },
     { id: "stellar", label: "Stellar", url: buildStellarMovieEmbedUrl(media) },
     { id: "vidlink", label: "VidLink", url: buildVidLinkMovieEmbedUrl(media) },
     { id: "twoembed", label: "2Embed", url: buildTwoEmbedEmbedUrl(media) },
     { id: "cinesrc", label: "CineSrc", url: buildCineSrcEmbedUrl(media) },
     { id: "multiembed", label: "MultiEmbed", url: buildMultiEmbedEmbedUrl(media) },
-  ].filter((item) => Boolean(item.url)) : [];
-  const activeBackups = tvBackups.length ? tvBackups : movieBackups;
+  ].filter((item) => Boolean(item.url)) : [], [media, url]);
+  const activeBackups = useMemo(() => {
+    const options = tvBackups.length ? tvBackups : movieBackups;
+    const index = options.findIndex((item) => item.id === initialEpisodeProvider);
+    return index > 0 ? [options[index], ...options.filter((_, i) => i !== index)] : options;
+  }, [tvBackups, movieBackups, initialEpisodeProvider]);
   const vylaType = media?.mediaType === "tv" ? "tv" : media?.mediaType === "movie" ? "movie" : "";
   const vylaId = Number(media?.tmdbId ?? media?.tmdb_id ?? media?.id);
   const vylaSeason = Number(media?.season ?? media?.rdSeason);
