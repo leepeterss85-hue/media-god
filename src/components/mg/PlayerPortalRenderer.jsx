@@ -84,6 +84,28 @@ export default function PlayerPortalRenderer({
 }) {
   if (!source || typeof document === "undefined") return null;
 
+  const exitToDestination = () => {
+    const isEpisode = source.mediaType === "tv" ||
+      source.type === "series" || source.season != null ||
+      source.episode != null || source.rdSeason != null || source.rdEpisode != null;
+    if (isEpisode) {
+      window.dispatchEvent(new CustomEvent("mg:return-to-episode-selector", {
+        detail: {
+          mediaType: "tv",
+          tmdbId: source.tmdbId ?? source.tmdb_id ?? source.id,
+          title: source.rdTitle || source.seriesTitle || source.title || "TV Show",
+          poster: source.poster || "",
+          year: source.rdYear ?? source.year ?? null,
+          season: source.season ?? source.rdSeason ?? null,
+          episode: source.episode ?? source.rdEpisode ?? null,
+        },
+      }));
+    } else {
+      window.dispatchEvent(new CustomEvent("mg:return-to-home"));
+    }
+    close();
+  };
+
   const openEmbedSu = (mediaType) => {
     if (!source || source.type === "live") return false;
     const media = { ...source, mediaType };
@@ -119,20 +141,20 @@ export default function PlayerPortalRenderer({
         source?.playRequestId ||
         `${source?.title || "player"}-${source?.src || source?.url || ""}`
       }
-      onClose={close}
+      onClose={exitToDestination}
     >
       {magnetPlayer?.type === "webtor" ? (
         <WebtorEmbedPlayer
           magnet={magnetPlayer.magnet}
           title={magnetPlayer.title}
-          onBack={magnetPlayer.fromDetails ? close : () => setMagnetPlayer(null)}
+          onBack={exitToDestination}
           backLabel={magnetPlayer.fromDetails ? "Details" : "Sources"}
         />
       ) : magnetPlayer?.type === "webtorrent" ? (
         <WebTorrentPlayer
           magnet={magnetPlayer.magnet}
           title={magnetPlayer.title}
-          onBack={magnetPlayer.fromDetails ? close : () => setMagnetPlayer(null)}
+          onBack={exitToDestination}
           backLabel={magnetPlayer.fromDetails ? "Details" : "Sources"}
         />
       ) : vidSrcEmbed?.provider === "embedsu" ? (
@@ -140,14 +162,14 @@ export default function PlayerPortalRenderer({
           url={vidSrcEmbed.url}
           media={vidSrcEmbed.media}
           title={vidSrcEmbed.title}
-          onBack={vidSrcEmbed.fromDetails ? close : () => setVidSrcEmbed(null)}
+          onBack={exitToDestination}
           backLabel={vidSrcEmbed.fromDetails ? "Details" : "Sources"}
         />
       ) : vidSrcEmbed?.provider === "vidcore" ? (
         <VidCoreEmbedPlayer
           url={vidSrcEmbed.url}
           title={vidSrcEmbed.title}
-          onBack={vidSrcEmbed.fromDetails ? close : () => setVidSrcEmbed(null)}
+          onBack={exitToDestination}
           backLabel={vidSrcEmbed.fromDetails ? "Details" : "Sources"}
         />
       ) : ["twoembed", "cinesrc", "multiembed"].includes(vidSrcEmbed?.provider) ? (
@@ -155,7 +177,7 @@ export default function PlayerPortalRenderer({
           url={vidSrcEmbed.url}
           title={vidSrcEmbed.title}
           providerLabel={{ twoembed: "2Embed", cinesrc: "CineSrc", multiembed: "MultiEmbed" }[vidSrcEmbed.provider]}
-          onBack={vidSrcEmbed.fromDetails ? close : () => setVidSrcEmbed(null)}
+          onBack={exitToDestination}
           backLabel={vidSrcEmbed.fromDetails ? "Details" : "Sources"}
         />
       ) : vidSrcEmbed?.provider === "onlyflix" ? (
@@ -164,14 +186,14 @@ export default function PlayerPortalRenderer({
           title={vidSrcEmbed.title}
           media={vidSrcEmbed.media || source}
           onOpenSources={onOpenSources}
-          onBack={vidSrcEmbed.fromDetails ? close : () => setVidSrcEmbed(null)}
+          onBack={exitToDestination}
           backLabel={vidSrcEmbed.fromDetails ? "Details" : "Sources"}
         />
       ) : vidSrcEmbed ? (
         <VidSrcEmbedPlayer
           url={vidSrcEmbed.url}
           title={vidSrcEmbed.title}
-          onBack={vidSrcEmbed.fromDetails ? close : () => setVidSrcEmbed(null)}
+          onBack={exitToDestination}
           backLabel={vidSrcEmbed.fromDetails ? "Details" : "Sources"}
         />
       ) : (
