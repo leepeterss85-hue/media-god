@@ -68,8 +68,16 @@ export const profileOwnsRow = (row, profileId = activeHouseholdProfileId()) =>
 const scopedEntity = name => {
   const target = base44.entities[name];
   return {
-    list: async (...args) => (await target.list(...args) || [])
-      .filter(row => profileOwnsRow(row)),
+    list: async (...args) => {
+      // Base44 lists paginate across all profiles belonging to the account.
+      // Fetch enough rows that a more active household member can't push the
+      // current member's saved history out of the first page.
+      const [sort = "-created_date", requested = 100, ...rest] = args;
+      const count = Number.isInteger(Number(requested)) ? Number(requested) : 100;
+      const rows = await target.list(sort, Math.min(500, Math.max(count, count * 4)), ...rest);
+      return (Array.isArray(rows) ? rows : [])
+        .filter(row => profileOwnsRow(row)).slice(0, count);
+    },
     filter: async (criteria = {}, ...rest) => (await target.filter(criteria, ...rest) || [])
       .filter(row => profileOwnsRow(row)),
     create: async row => target.create({ ...row, profile_id: activeHouseholdProfileId() }),
