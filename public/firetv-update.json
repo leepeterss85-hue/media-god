@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 106,
-  "versionName": "1.4.101",
+  "versionCode": 107,
+  "versionName": "1.4.102",
   "title": "Media God Fire TV",
-  "message": "Media God 1.4.101: redesigned remote-friendly VLC controls, prominent Sources, green seek bar, and Back straight to Home for films or episode selection for TV. Default VLC audio and Live TV preserved.",
+  "message": "Media God 1.4.102: new Netflix-style VLC episode controls for Skip Recap/Intro/Credits, Up Next and automatic next episode with Stay Here. Next episode sources prefetch in the background. Working audio, remote Sources and Live TV unchanged.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
