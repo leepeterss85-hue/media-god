@@ -9464,29 +9464,10 @@ export default function VideoPlayer({
         return;
       }
 
-      if (
-        reason === "back" &&
-        !isLive
-      ) {
-        if (playbackMediaType === "tv" || isAndroidMobileNativeRuntime()) {
-          // Back from phone VOD leaves the single native player. A fresh Play
-          // action can start another request without mounting WebView video.
-          returnFromPlayback();
-          return;
-        }
-
-        /* Fire TV retains its existing native source selector on Back. */
-        setForceNativePlayback(false);
-        setNativeFallbackUrl(String(activeRequest.url || "").trim());
-
-        window.dispatchEvent(
-          new CustomEvent("mg:player-status", {
-            detail: {
-              message:
-                "Playback paused — resume the player or choose another source.",
-            },
-          })
-        );
+      if (reason === "back" && !isLive) {
+        // One predictable exit on phone and Fire TV: movies to Home, TV
+        // episodes to the show episode list. The Sources control is separate.
+        returnFromPlayback();
         return;
       }
 
