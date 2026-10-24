@@ -22,6 +22,9 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> "Enter"
             KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> "MediaPlayPause"
             KeyEvent.KEYCODE_MEDIA_PLAY -> "MediaPlay"
+            // Use the Fire TV remote Menu button to reach provider tabs at
+            // the top without stealing D-pad pointer control from playback.
+            KeyEvent.KEYCODE_MENU -> "ContextMenu"
             else -> return false
         }
         if (event.action == KeyEvent.ACTION_DOWN && (event.repeatCount == 0 || key.startsWith("Arrow"))) {

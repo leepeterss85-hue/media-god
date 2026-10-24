@@ -180,6 +180,24 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
     "installer",
   ].includes(updateState.status);
 
+  // A Fire TV popup must put D-pad focus on Update now, not on Later or
+  // a hidden page button. Only focus it when a NEW prompt becomes visible;
+  // do not override the viewer's focus while navigating the dialog.
+  useEffect(() => {
+    if (!visible || !canSelfUpdate || signatureMigration) return undefined;
+    const timer = window.setTimeout(() => {
+      const prompt = document.querySelector('[data-mg-fire-tv-update="true"]');
+      const primary = prompt?.querySelector('[data-mg-update-primary="true"]:not([disabled])');
+      if (!(primary instanceof HTMLElement)) return;
+      try {
+        primary.focus({ preventScroll: true });
+      } catch {
+        primary.focus();
+      }
+    }, 65);
+    return () => window.clearTimeout(timer);
+  }, [visible, canSelfUpdate, signatureMigration]);
+
   const dismiss = () => {
     if (updateBusy) {
       return;
@@ -334,6 +352,7 @@ export default function FireTvAppUpdateNotice({ enabled = true }) {
               type="button"
               onClick={startUpdate}
               disabled={updateBusy || updateState.status === "starting"}
+              data-mg-update-primary="true"
               autoFocus
               className="mt-4 min-h-12 w-full rounded-xl bg-mg-green px-5 py-3 font-bold text-black outline-none hover:brightness-110 focus:ring-4 focus:ring-mg-green/40 disabled:cursor-wait disabled:opacity-60"
             >

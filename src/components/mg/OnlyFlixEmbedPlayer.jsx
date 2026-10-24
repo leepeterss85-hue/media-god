@@ -357,7 +357,10 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
                 src={selectedUrl}
                 title={providerLabel + ": " + title}
                 className="h-full w-full border-0"
-                allow="autoplay; encrypted-media; picture-in-picture"
+                allow={isFireTv
+                  ? "autoplay; encrypted-media; picture-in-picture; fullscreen"
+                  : "autoplay; encrypted-media; picture-in-picture"}
+                allowFullScreen={isFireTv}
                 referrerPolicy="strict-origin-when-cross-origin"
                 tabIndex={0}
                 data-mg-embed-iframe="true"
@@ -370,7 +373,7 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
         </SafeEmbedStage>
 
         <div className={`mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/70 p-2.5 text-xs text-white/60 transition-opacity duration-500 ${chromeFade}`}>
-          <span>{activeEpisodePlayer === "vyla" ? "Select a returned source to try it, or choose OnlyFlix to return to the usual player." : isNativeFireTvEmbedRemoteAvailable() ? "Move the pointer onto Play with the D-pad, then press Select. Press Back to return to Media God." : <>{providerLabel} has its own player controls. Use {backLabel} to return to Media God.</>}</span>
+          <span>{activeEpisodePlayer === "vyla" ? "Select a returned source to try it, or choose OnlyFlix to return to the usual player." : isNativeFireTvEmbedRemoteAvailable() ? "Use Menu for all movie/episode sources, Left/Right to choose and Select to switch. Press Down to return to the video pointer; press Back to exit." : <>{providerLabel} has its own player controls. Use {backLabel} to return to Media God.</>}</span>
           {activeEpisodePlayer !== "vyla" && <a
             href={selectedUrl}
             target="_blank"

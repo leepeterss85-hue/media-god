@@ -16,7 +16,14 @@ test("Fullscreen never hands embedded providers to WebView native fullscreen", (
     assert.match(src,/<SafeEmbedStage>/,path);
     assert.match(src,/<\/SafeEmbedStage>/,path);
     assert.match(src,/picture-in-picture/,path);
-    assert.doesNotMatch(src,/allowFullScreen|fullscreen; picture-in-picture/,path);
+    if (path === "OnlyFlixEmbedPlayer") {
+      // Only Fire TV may hand an iframe's own Fullscreen button to the native
+      // WebChromeClient. The phone and other web embed paths are unchanged.
+      assert.match(src, /allowFullScreen=\{isFireTv\}/, path);
+      assert.match(src, /fullscreen"/, path);
+    } else {
+      assert.doesNotMatch(src,/allowFullScreen|fullscreen; picture-in-picture/,path);
+    }
   }
 });
 

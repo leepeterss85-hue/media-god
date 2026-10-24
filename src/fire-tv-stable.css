@@ -125,6 +125,19 @@ body.mg-fire-tv-stable #root .mg-fire-tv-nav svg {
   height: 15px !important;
 }
 
+/* On Fire Stick, Down/Up follows the actual focused navigation icon.
+ * Keep the existing green palette and distinguish remote focus from the
+ * currently open section without opening pages on every D-pad movement. */
+body.mg-fire-tv #root .mg-fire-tv-nav button:focus,
+body.mg-fire-tv-mode #root .mg-fire-tv-nav button:focus,
+body.mg-fire-tv-stable #root .mg-fire-tv-nav button:focus {
+  outline: 2px solid hsl(var(--mg-green)) !important;
+  outline-offset: -2px !important;
+  background: hsl(var(--mg-green) / 0.25) !important;
+  color: hsl(var(--mg-green)) !important;
+  box-shadow: inset 3px 0 0 hsl(var(--mg-green)) !important;
+}
+
 /* Main catalogue content. */
 body.mg-fire-tv main,
 body.mg-fire-tv-mode main,
