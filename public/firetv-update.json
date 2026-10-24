@@ -3,7 +3,7 @@
   "versionCode": 119,
   "versionName": "1.4.114",
   "title": "Media God Fire TV",
-  "message": "Media God Fire TV 1.4.114: working movie and episode web scrapers retained; Fire Stick remote navigation is easier with faster held-direction cursor movement and a usable Up key; the bottom help box is removed. Native VLC remains available for direct streams. Phone and Live TV unchanged.",
+  "message": "Media God Fire TV 1.4.114: web scrapers kept working; Menu opens provider choices, Left/Right changes focus, Select chooses, and held D-pad moves the video cursor faster. The bottom help box is removed, including fullscreen. VLC direct streams, phone and Live TV unchanged.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
