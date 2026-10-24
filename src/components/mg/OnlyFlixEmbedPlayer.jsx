@@ -413,7 +413,7 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
                 onLoad={() => { iframeLoadedRef.current = true; }}
                 onError={advanceAfterFailure}
               />
-              <OnlyFlixRemotePointer visible={!isFireTv || chromeVisible} />
+              <OnlyFlixRemotePointer compact={isFireTv} visible={!isFireTv || chromeVisible} />
             </>
           )}
         </SafeEmbedStage>
