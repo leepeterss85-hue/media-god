@@ -17,10 +17,10 @@ test("Fullscreen never hands embedded providers to WebView native fullscreen", (
     assert.match(src,/<\/SafeEmbedStage>/,path);
     assert.match(src,/picture-in-picture/,path);
     if (path === "OnlyFlixEmbedPlayer") {
-      // Only Fire TV may hand an iframe's own Fullscreen button to the native
-      // WebChromeClient. The phone and other web embed paths are unchanged.
-      assert.match(src, /allowFullScreen=\{isFireTv\}/, path);
-      assert.match(src, /fullscreen"/, path);
+      // Scraper iframes must remain inline on Fire TV just like the phone.
+      // SafeEmbedStage supplies fullscreen without native WebView takeover.
+      assert.match(src, /allowFullScreen=\{false\}/, path);
+      assert.doesNotMatch(src, /picture-in-picture; fullscreen/, path);
     } else {
       assert.doesNotMatch(src,/allowFullScreen|fullscreen; picture-in-picture/,path);
     }
