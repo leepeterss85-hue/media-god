@@ -1,5 +1,25 @@
 const ERROR_STORAGE_KEY = "mg:diagnostics-errors:v1";
 const MAX_ERRORS = 20;
+const MONITORING_KEY = "mg:local-crash-monitoring:v1";
+export const CRASH_MONITORING_CHANGED_EVENT = "mg:crash-monitoring-changed";
+
+// Off by default: logs stay on this device and are never sent automatically.
+export const isCrashMonitoringEnabled = () => {
+  if (typeof window === "undefined") return false;
+  try { return window.localStorage.getItem(MONITORING_KEY) === "1"; }
+  catch { return false; }
+};
+
+export const setCrashMonitoringEnabled = (enabled) => {
+  if (typeof window === "undefined") return false;
+  try {
+    window.localStorage.setItem(MONITORING_KEY, enabled ? "1" : "0");
+    window.dispatchEvent(new CustomEvent(CRASH_MONITORING_CHANGED_EVENT, {
+      detail: { enabled: Boolean(enabled) },
+    }));
+    return isCrashMonitoringEnabled();
+  } catch { return false; }
+};
 
 export const sanitizeDiagnosticText = (value) =>
   String(value || "")
@@ -42,6 +62,7 @@ const writeStored = (items) => {
 };
 
 export const recordDiagnosticError = (error, context = "app") => {
+  if (!isCrashMonitoringEnabled()) return;
   const message = sanitizeDiagnosticText(
     error?.message || error?.reason?.message || error?.reason || error
   );
