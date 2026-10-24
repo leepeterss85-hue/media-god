@@ -295,6 +295,13 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
                 className="min-h-10 shrink-0 rounded-lg border border-mg-green/60 px-3 text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-mg-green"
               >Fullscreen</button>
             )}
+            {isFireTv && (
+              <button type="button"
+                data-mg-embedded-top-sources="true"
+                onClick={onOpenSources}
+                className="min-h-10 shrink-0 rounded-lg border border-mg-green/60 px-3 text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-mg-green"
+              >Sources</button>
+            )}
             <span className="shrink-0 text-xs text-white/50">
               {movieBackups.length ? "Movie player:" : "Episode player:"}
             </span>

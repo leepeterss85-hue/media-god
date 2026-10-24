@@ -795,3 +795,10 @@ body.mg-fire-tv-mode [data-mg-embedded-remote-player="true"] [data-mg-safe-embed
   z-index: 2147483647 !important;
   flex: 0 0 auto !important;
 }
+
+/* Remote focus must be visible even after programmatic Fire TV focus. */
+body.mg-fire-tv [data-mg-embedded-remote-player="true"] nav[data-mg-movie-player-backups="true"] button:focus,
+body.mg-fire-tv [data-mg-embedded-remote-player="true"] nav[data-mg-episode-player-backups="true"] button:focus {
+  outline: 3px solid hsl(var(--mg-green)) !important;
+  outline-offset: -2px !important;
+}
