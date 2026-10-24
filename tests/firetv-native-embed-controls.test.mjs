@@ -18,7 +18,10 @@ function fixture() {
     getBoundingClientRect() { return { width: 200, height: 42 }; },
     click() { this.clicks = (this.clicks || 0) + 1; },
   });
-  const fullscreen = el(), sources = el(), iframe = el(), first = el(), second = el();
+  const fullscreen = el(), sources = el(), iframe = el(), first = el(), second = el(), pointer = el();
+  let pointerTop = 220;
+  iframe.getBoundingClientRect = () => ({ top: 0, bottom: 500, left: 0, right: 1000, width: 1000, height: 500 });
+  pointer.getBoundingClientRect = () => ({ top: pointerTop, width: 32, height: 32 });
   const bar = el();
   bar.querySelectorAll = () => [first, second];
   first.getAttribute = () => 'true';
@@ -27,7 +30,7 @@ function fixture() {
   root.matches = () => true;
   root.querySelector = selector => selector.includes('movie-player-backups') ? bar :
     selector.includes('open-sources') ? sources : selector.includes('safe-fullscreen-toggle') ? fullscreen :
-    selector.includes('embed-iframe') ? iframe : null;
+    selector.includes('embed-iframe') ? iframe : selector.includes('embed-pointer') ? pointer : null;
   root.querySelectorAll = () => [sources];
   doc.querySelector = selector => selector.includes('fire-tv-update') ? null : root;
   const emits = [];
@@ -39,17 +42,23 @@ function fixture() {
       getComputedStyle: () => ({ display: 'block', visibility: 'visible' }),
     });
   };
-  return { doc, first, second, fullscreen, sources, iframe, emits, run };
+  return { doc, first, second, fullscreen, sources, iframe, emits, run,
+    setPointerTop: top => { pointerTop = top; } };
 }
 
 test('native Fire Stick remote can reach scraper controls from a black iframe', () => {
   const x = fixture(); x.doc.activeElement = x.iframe;
-  x.run('ArrowUp'); assert.equal(x.doc.activeElement, x.first);
+  x.run('ArrowUp'); assert.equal(x.doc.activeElement, x.iframe,
+    'Up inside the video must first move the cursor so playback controls are reachable');
+  assert.equal(x.emits.at(-1).key, 'ArrowUp');
+  x.setPointerTop(3);
+  x.run('ArrowUp'); assert.equal(x.doc.activeElement, x.first,
+    'At the top edge, Up moves to the provider bar');
   x.run('ArrowRight'); assert.equal(x.doc.activeElement, x.second);
   x.run('Enter'); assert.equal(x.second.clicks, 1);
   x.run('ContextMenu'); assert.equal(x.doc.activeElement, x.sources);
   x.run('Enter'); assert.equal(x.sources.clicks, 1);
-  assert.equal(x.emits.length, 0, 'Native focus keys never pass into black iframe');
+  assert.equal(x.emits.length, 1, 'Only real video-cursor movement reaches the iframe event handler');
 });
 
 test('native Fire Stick remote can select fullscreen and return to iframe', () => {
