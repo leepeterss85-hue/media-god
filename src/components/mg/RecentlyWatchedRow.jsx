@@ -1,3 +1,4 @@
+import { launchFireTvCardPlay } from "@/components/mg/fireTvCardPlay";
 import { profiledLibrary } from "@/components/mg/householdProfiles";
 import React, {
   useEffect,
@@ -288,6 +289,17 @@ export default function RecentlyWatchedRow({ onOpenDetail }) {
      * Movies launch straight into the OnlyFlix embed from the card for instant
      * playback. TV still opens Details so the user can pick the exact episode.
      */
+    if (meta.mediaType !== "tv" && launchFireTvCardPlay(player, {
+      id: tmdbId || undefined,
+      tmdbId: tmdbId || undefined,
+      tmdb_id: tmdbId || undefined,
+      imdbId: meta.imdbId || item.imdb_id,
+      title: meta.title,
+      year: meta.year,
+      poster: item.poster_url || "",
+      mediaType: "movie",
+      type: "movie",
+    })) return;
     if (meta.mediaType !== "tv" && player.playOnlyFlix) {
       if (player.playOnlyFlix({
         id: tmdbId || undefined,

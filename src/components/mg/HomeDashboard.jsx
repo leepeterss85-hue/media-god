@@ -1,3 +1,4 @@
+import { launchFireTvCardPlay } from "@/components/mg/fireTvCardPlay";
 import { profiledLibrary } from "@/components/mg/householdProfiles";
 import React, {
   useEffect,
@@ -981,6 +982,7 @@ export default function HomeDashboard({ onOpenTvService }) {
         media_type: "movie",
       };
 
+      if (launchFireTvCardPlay(player, media)) return;
       if (player.playOnlyFlix(media)) {
         return;
       }

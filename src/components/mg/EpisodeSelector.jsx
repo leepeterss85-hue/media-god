@@ -1,3 +1,4 @@
+import { launchFireTvCardPlay } from "@/components/mg/fireTvCardPlay";
 import { profiledLibrary } from "@/components/mg/householdProfiles";
 import React, {
   useEffect,
@@ -810,6 +811,7 @@ export default function EpisodeSelector({
       // Fresh episodes use the embedded player and source-switching tabs.
       // If OnlyFlix lacks an embed, try VidCore before falling into torrents.
       // Resume stays on the seek-aware source pipeline.
+      if (!startTime && launchFireTvCardPlay(player, baseRequest)) return;
       if (!startTime && player.playOnlyFlix?.(baseRequest)) return;
       if (!startTime && player.playVidCore?.(baseRequest)) return;
 

@@ -1,3 +1,4 @@
+import { launchFireTvCardPlay } from "@/components/mg/fireTvCardPlay";
 import React, { useEffect, useMemo, useState } from "react";
 import { CalendarClock, Play, Tv2 } from "lucide-react";
 
@@ -292,6 +293,20 @@ export default function NewEpisodesRow({
      * A new-episode card uses the same direct OnlyFlix launch as films.
      * Fall back to the existing episode-source pipeline if no embed exists.
      */
+    if (launchFireTvCardPlay(player, {
+      id: item.tmdbId,
+      tmdbId: item.tmdbId,
+      title: item.showTitle,
+      year: item.year,
+      poster: item.poster,
+      mediaType: "tv",
+      type: "series",
+      season: item.season,
+      episode: item.episode,
+      rdTitle: item.showTitle,
+      rdYear: item.year,
+    })) return;
+
     if (player.playOnlyFlix?.({
       id: item.tmdbId,
       tmdbId: item.tmdbId,

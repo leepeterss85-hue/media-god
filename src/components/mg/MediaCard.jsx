@@ -1,3 +1,4 @@
+import { launchFireTvCardPlay } from "@/components/mg/fireTvCardPlay";
 import React from "react";
 import { Play, Plus, Check } from "lucide-react";
 import { Image } from "@/components/ui/image";
@@ -50,6 +51,7 @@ export default function MediaCard({
       return;
     }
 
+    if (mediaType === "movie" && launchFireTvCardPlay(player, media)) return;
     if (mediaType === "movie" && player.playOnlyFlix) {
       if (player.playOnlyFlix(media)) return;
     }

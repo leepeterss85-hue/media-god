@@ -1,3 +1,4 @@
+import { launchFireTvCardPlay } from "@/components/mg/fireTvCardPlay";
 import { profiledLibrary } from "@/components/mg/householdProfiles";
 import React, {
   useEffect,
@@ -1276,6 +1277,11 @@ export default function DetailModal({
       rdYear:
         safeItem.year,
     };
+
+    if (launchFireTvCardPlay(player, onlyFlixMedia)) {
+      onClose?.();
+      return;
+    }
 
     if (
       player.playOnlyFlix &&
