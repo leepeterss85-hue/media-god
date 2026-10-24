@@ -11,6 +11,36 @@ import { syncEmbeddedFramePixels } from "@/components/mg/embeddedFramePixels";
 export default function SafeEmbedStage({ children }) {
   const [fullscreen, setFullscreen] = useState(false);
   const stageRef = useRef(null);
+  const [controlsVisible, setControlsVisible] = useState(true);
+  useEffect(() => {
+    if (!isNativeFireTvEmbedRemoteAvailable()) return undefined;
+    const stage = stageRef.current;
+    const root = stage?.closest('[data-mg-embedded-remote-player="true"]');
+    root?.setAttribute("data-mg-embed-expanded", String(fullscreen));
+    if (!fullscreen) {
+      setControlsVisible(true);
+      return () => root?.removeAttribute("data-mg-embed-expanded");
+    }
+    // Release the clicked control so it can hide without trapping D-pad focus.
+    stage?.querySelector('[data-mg-embed-iframe="true"]')?.focus({ preventScroll: true });
+    let timer;
+    const reveal = () => {
+      setControlsVisible(true);
+      clearTimeout(timer);
+      timer = setTimeout(() => setControlsVisible(false), 2500);
+    };
+    reveal();
+    window.addEventListener("keydown", reveal, true);
+    window.addEventListener("mg:onlyflix-pointer-move", reveal);
+    stage?.addEventListener("pointerdown", reveal);
+    return () => {
+      clearTimeout(timer);
+      root?.removeAttribute("data-mg-embed-expanded");
+      window.removeEventListener("keydown", reveal, true);
+      window.removeEventListener("mg:onlyflix-pointer-move", reveal);
+      stage?.removeEventListener("pointerdown", reveal);
+    };
+  }, [fullscreen]);
   useEffect(() => {
     if (!isNativeFireTvEmbedRemoteAvailable()) return undefined;
     const stage = stageRef.current;
@@ -67,6 +97,7 @@ export default function SafeEmbedStage({ children }) {
   return (
     <div
       ref={stageRef}
+      data-mg-embed-controls-visible={controlsVisible ? "true" : "false"}
       data-mg-player-stage="true"
       data-mg-safe-embed-fullscreen={fullscreen ? "true" : "false"}
       className={fullscreen

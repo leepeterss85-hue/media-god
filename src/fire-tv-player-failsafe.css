@@ -825,3 +825,18 @@ body.mg-fire-tv-mode [data-mg-embedded-remote-player="true"] [data-mg-embed-foot
   overflow: auto !important;
   z-index: 3 !important;
 }
+
+/* Fullscreen is picture-only after inactivity. Menu focuses the exit button,
+ * which remains visible while selected; Back also restores the controls view.
+ * Use visibility, never an opacity layer over the video. */
+body.mg-fire-tv [data-mg-embedded-remote-player="true"][data-mg-embed-expanded="true"] [data-mg-embed-footer="true"],
+body.mg-fire-tv-stable [data-mg-embedded-remote-player="true"][data-mg-embed-expanded="true"] [data-mg-embed-footer="true"],
+body.mg-fire-tv-mode [data-mg-embedded-remote-player="true"][data-mg-embed-expanded="true"] [data-mg-embed-footer="true"] {
+  display: none !important;
+}
+body.mg-fire-tv [data-mg-embedded-remote-player="true"] [data-mg-safe-embed-fullscreen="true"][data-mg-embed-controls-visible="false"] [data-mg-safe-fullscreen-toggle="true"]:not(:focus),
+body.mg-fire-tv-stable [data-mg-embedded-remote-player="true"] [data-mg-safe-embed-fullscreen="true"][data-mg-embed-controls-visible="false"] [data-mg-safe-fullscreen-toggle="true"]:not(:focus),
+body.mg-fire-tv-mode [data-mg-embedded-remote-player="true"] [data-mg-safe-embed-fullscreen="true"][data-mg-embed-controls-visible="false"] [data-mg-safe-fullscreen-toggle="true"]:not(:focus) {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
