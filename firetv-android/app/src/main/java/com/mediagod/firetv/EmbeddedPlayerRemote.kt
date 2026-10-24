@@ -38,7 +38,9 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
                   // never to the cross-origin iframe. Handle them here so a
                   // stalled/black iframe cannot swallow Menu, D-pad or Select.
                   // Restrict this recovery to VOD scrapers: Live TV unchanged.
-                  if(root.matches('[data-mg-onlyflix-player="true"]')){
+                  var updateDialog=document.querySelector('[data-mg-fire-tv-update="true"]');
+                  var updateIsOpen=updateDialog && updateDialog.getBoundingClientRect().height>1;
+                  if(root.matches('[data-mg-onlyflix-player="true"]') && !updateIsOpen){
                     var bar=root.querySelector('[data-mg-movie-player-backups="true"], [data-mg-episode-player-backups="true"]');
                     var usable=function(el){
                       if(!el || !el.getBoundingClientRect)return false;
