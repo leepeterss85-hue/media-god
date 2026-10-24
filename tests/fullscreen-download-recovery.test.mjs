@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { safeDownloadName, downloadableMedia, startDeviceDownload } from "../src/components/mg/deviceMediaDownload.js";
 const read = (path) => readFileSync(new URL("../" + path, import.meta.url), "utf8");
 
-test("Fullscreen never hands embedded providers to WebView native fullscreen", () => {
+test("OnlyFlix permits native fullscreen on Fire TV while phone and other embeds retain safe inline fullscreen", () => {
   const stage = read("src/components/mg/SafeEmbedStage.jsx");
   assert.match(stage,/data-mg-safe-embed-fullscreen/);
   assert.match(stage,/data-mg-safe-fullscreen-toggle/);
@@ -17,10 +17,10 @@ test("Fullscreen never hands embedded providers to WebView native fullscreen", (
     assert.match(src,/<\/SafeEmbedStage>/,path);
     assert.match(src,/picture-in-picture/,path);
     if (path === "OnlyFlixEmbedPlayer") {
-      // Scraper iframes must remain inline on Fire TV just like the phone.
-      // SafeEmbedStage supplies fullscreen without native WebView takeover.
-      assert.match(src, /allowFullScreen=\{false\}/, path);
-      assert.doesNotMatch(src, /picture-in-picture; fullscreen/, path);
+      // Fire TV alone can test the native video surface; phone stays inline.
+      assert.match(src, /allowFullScreen=\{isFireTv\}/, path);
+      assert.match(src, /\? "autoplay; encrypted-media; picture-in-picture; fullscreen"/, path);
+      assert.match(src, /: "autoplay; encrypted-media; picture-in-picture"/, path);
     } else {
       assert.doesNotMatch(src,/allowFullScreen|fullscreen; picture-in-picture/,path);
     }

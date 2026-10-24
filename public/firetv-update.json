@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 115,
-  "versionName": "1.4.110",
+  "versionCode": 116,
+  "versionName": "1.4.111",
   "title": "Media God Fire TV",
-  "message": "Media God Fire TV 1.4.110: scraper-first playback restored. Fire Stick direct Play chooses a working alternate web scraper when the old OnlyFlix embed is unavailable, retains all scraper tabs and OnlyFlix Multiple Servers, with manually accessible Sources, fullscreen, and torrents as fallback. Phone and Live TV are unchanged.",
+  "message": "Media God Fire TV 1.4.111: native embedded-video fullscreen surface test. Menu returns to scraper/provider controls and Back exits native fullscreen. Scrapers, Sources and torrent fallback retained. Phone and Live TV unchanged.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
