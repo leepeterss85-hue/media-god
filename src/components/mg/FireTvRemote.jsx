@@ -866,7 +866,7 @@ export default function FireTvRemote() {
 
       const preferred =
         scope.querySelector(
-          '[data-mg-search-dialog="true"] input[aria-label="Search"], button[data-mg-player-exit="true"], button[aria-label="Exit player"], button[aria-label="Back to main menu"], button[data-mg-detail-primary="true"], button[aria-label="Back"], button[aria-label="Close details"], button[aria-label="Close search"]'
+          '[data-mg-update-primary="true"]:not([disabled]), [data-mg-search-dialog="true"] input[aria-label="Search"], button[data-mg-player-exit="true"], button[aria-label="Exit player"], button[aria-label="Back to main menu"], button[data-mg-detail-primary="true"], button[aria-label="Back"], button[aria-label="Close details"], button[aria-label="Close search"]'
         ) ||
         focusables(scope)[0] ||
         null;
@@ -914,6 +914,72 @@ export default function FireTvRemote() {
         return;
       }
 
+      const direction = directionFromEvent(event);
+      const selectKey = isSelectKey(event);
+      const currentFocus = document.activeElement;
+      const menuKey = keyName(event) === "ContextMenu" ||
+        keyName(event) === "Menu" || keyCode(event) === 82;
+      const consume = () => {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+      };
+
+      /*
+       * Fire TV's Menu key opens the complete movie/episode provider strip.
+       * The embedded player normally owns D-pad input as a mouse pointer;
+       * keyboard focus on the strip must take precedence until Down returns
+       * to the iframe. Never change which player/source is selected unless
+       * the viewer explicitly presses Select on a provider.
+       */
+      const embedded = document.querySelector(
+        '[data-mg-embedded-remote-player="true"]'
+      );
+      const providerBar = embedded?.querySelector(
+        '[data-mg-movie-player-backups="true"], [data-mg-episode-player-backups="true"]'
+      );
+      const providerButtons = providerBar instanceof HTMLElement
+        ? Array.from(providerBar.querySelectorAll("button:not([disabled])")).filter(visible)
+        : [];
+      if (embedded instanceof HTMLElement && visible(embedded) && menuKey && providerButtons.length) {
+        consume();
+        const focusedProvider = providerBar.contains(currentFocus);
+        const iframe = embedded.querySelector('[data-mg-embed-iframe="true"]');
+        if (focusedProvider && iframe instanceof HTMLElement) {
+          focusElement(iframe);
+        } else {
+          const activeProvider = providerButtons.find(button => button.getAttribute("aria-pressed") === "true");
+          focusElement(activeProvider || providerButtons[0]);
+        }
+        return;
+      }
+      if (providerButtons.length && providerBar.contains(currentFocus) &&
+          (direction || selectKey)) {
+        consume();
+        const index = Math.max(0, providerButtons.indexOf(currentFocus));
+        if (direction === "left" || direction === "right") {
+          const step = direction === "left" ? -1 : 1;
+          focusElement(providerButtons[(index + step + providerButtons.length) % providerButtons.length]);
+        } else if (direction === "down") {
+          focusElement(embedded.querySelector('[data-mg-embed-iframe="true"]'));
+        } else if (direction === "up") {
+          focusElement(embedded.querySelector('[data-mg-embedded-open-sources="true"]') || providerButtons[index]);
+        } else if (selectKey && !event.repeat) {
+          currentFocus.click();
+        }
+        return;
+      }
+
+      const updateDialog = document.querySelector('[data-mg-fire-tv-update="true"]');
+      if (updateDialog instanceof HTMLElement && visible(updateDialog) &&
+          (direction || selectKey) && !updateDialog.contains(currentFocus)) {
+        const primary = updateDialog.querySelector('[data-mg-update-primary="true"]:not([disabled])');
+        if (focusElement(primary || updateDialog.querySelector('button:not([disabled])'))) {
+          consume();
+          return;
+        }
+      }
+
       const mediaAction = mediaActionFromEvent(event);
 
       if (tapOnlyFlixForRemote({ mediaAction, selectKey: isSelectKey(event), direction: directionFromEvent(event), repeat: event.repeat })) {
@@ -957,9 +1023,6 @@ export default function FireTvRemote() {
        * Downloads and every other authenticated main-app control that the
        * deterministic row navigator deliberately does not own.
        */
-      const direction = directionFromEvent(event);
-      const selectKey = isSelectKey(event);
-
       /*
        * When playback chrome has auto-hidden, the first D-pad/OK press should
        * wake it rather than seek, change volume or jump to an invisible
@@ -1037,6 +1100,37 @@ export default function FireTvRemote() {
       }
 
       if (direction) {
+        /*
+         * Sidebar D-pad Up/Down tracks the focused entry (not the currently
+         * open page); Right opens that entry and takes focus into its page.
+         * Left from the page is already handled by the existing sidebar
+         * return logic below.
+         */
+        const sidebar = current?.closest(".mg-fire-tv-nav");
+        if (sidebar instanceof HTMLElement && !document.querySelector('[aria-modal="true"]')) {
+          const navButtons = Array.from(sidebar.querySelectorAll("button:not([disabled])")).filter(visible);
+          const index = navButtons.indexOf(current);
+          if (index >= 0 && (direction === "up" || direction === "down")) {
+            const step = direction === "up" ? -1 : 1;
+            const next = navButtons[Math.max(0, Math.min(navButtons.length - 1, index + step))];
+            if (next && focusElement(next)) {
+              consume();
+              return;
+            }
+          }
+          if (index >= 0 && direction === "right") {
+            consume();
+            if (!event.repeat) current.click();
+            window.setTimeout(() => {
+              const main = document.querySelector("#root main");
+              if (!(main instanceof HTMLElement)) return;
+              const preferred = focusables(main)[0];
+              focusElement(preferred);
+            }, 100);
+            return;
+          }
+        }
+
         const tvShowsView = document.querySelector(
           '[data-mg-tv-shows-view="true"]'
         );
