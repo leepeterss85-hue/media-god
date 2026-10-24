@@ -170,6 +170,19 @@ class MainActivity : Activity() {
                     view: View?,
                     callback: CustomViewCallback?
                 ) {
+                    // Movie/episode scraper pages render inline in Media God's
+                    // CSS fullscreen stage. Some Fire OS iframe players still
+                    // invoke WebChromeClient's native fullscreen callback.
+                    // Taking that path hides the WHOLE app WebView; when the
+                    // vendor's custom video view is black, both picture and
+                    // Sources/provider buttons become inaccessible. Never
+                    // let an embedded scraper replace the app's WebView.
+                    if (embeddedPlayerRemote.enabled) {
+                        callback?.onCustomViewHidden()
+                        webView.visibility = View.VISIBLE
+                        webView.requestFocus()
+                        return
+                    }
                     val fullscreenView = view ?: run {
                         callback?.onCustomViewHidden()
                         return
@@ -1068,6 +1081,17 @@ class MainActivity : Activity() {
         fun setEmbeddedPlayerRemoteActive(active: Boolean): Boolean {
             if (!nativeBridgeAllowed()) return false
             embeddedPlayerRemote.enabled = active
+            if (active) {
+                // Recover a previous vendor fullscreen takeover before the
+                // newly opened movie/episode scraper receives any D-pad key.
+                runOnUiThread {
+                    exitEmbeddedFullscreen()
+                    if (::webView.isInitialized) {
+                        webView.visibility = View.VISIBLE
+                        webView.requestFocus()
+                    }
+                }
+            }
             return true
         }
 

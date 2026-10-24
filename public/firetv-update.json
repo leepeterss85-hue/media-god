@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 111,
-  "versionName": "1.4.106",
+  "versionCode": 112,
+  "versionName": "1.4.107",
   "title": "Media God Fire TV",
-  "message": "Media God Fire TV 1.4.106: refreshes the hosted player on upgrade using the working phone cache policy, preserving sign-in and source history. Includes Home and Play/Choose Episode focus corrections.",
+  "message": "Media God Fire TV 1.4.107: protects movie and episode scraper video from Fire OS native fullscreen takeover, restores the source controls when an embed opens, and supports D-pad Up to reach provider options. Phone and Live TV are unchanged.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",

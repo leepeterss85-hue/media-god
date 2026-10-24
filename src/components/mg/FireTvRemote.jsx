@@ -1051,6 +1051,24 @@ export default function FireTvRemote() {
         }
       }
 
+      // D-pad Up at the *top edge* of the embedded picture enters the
+      // episode/movie provider strip. This makes the buttons reachable even
+      // on remotes with no Menu key; normal Up movement inside the iframe
+      // still works until the visible crosshair reaches that edge.
+      if (embedded instanceof HTMLElement && providerButtons.length &&
+          direction === "up" && currentFocus === iframe &&
+          iframe instanceof HTMLElement) {
+        const pointer = embedded.querySelector('[data-mg-embed-pointer="true"]');
+        const frameRect = iframe.getBoundingClientRect();
+        const pointerRect = pointer?.getBoundingClientRect?.();
+        if (pointerRect && frameRect.height > 0 &&
+            pointerRect.top <= frameRect.top + Math.max(28, frameRect.height * 0.1)) {
+          consume();
+          focusElement(providerButtons.find(button => button.getAttribute("aria-pressed") === "true") || providerButtons[0]);
+          return;
+        }
+      }
+
       // Back from the dedicated fullscreen button and Source chrome stays
       // accessible; otherwise the iframe cursor still owns playback keys.
       const mediaAction = mediaActionFromEvent(event);
