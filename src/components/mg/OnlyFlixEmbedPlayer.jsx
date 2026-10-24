@@ -45,10 +45,10 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
     mediaType: media?.mediaType || (media?.type === "series" ? "tv" : media?.type),
     title,
   }) : "";
-  // The old OnlyFlix CDN iframe can return 404 on Fire TV. Start direct
-  // Play on a real alternate WEB SCRAPER when one is available; do NOT
-  // replace the scrapers with torrent discovery. Every scraper tab and the
-  // user's manual Sources option remain available, including OnlyFlix.
+  // Fire TV first tries OnlyFlix after its picture-surface fix. Do not
+  // pre-emptively select VidCore based on historic CDN failures. If this
+  // specific iframe cannot load, Try next and automatic web fallbacks still
+  // retain VidCore and every selectable scraper tab.
   const firstFireTvScraper = useMemo(() => initialFireTvScraper({
     nativeFireTv: isFireTv,
     url,

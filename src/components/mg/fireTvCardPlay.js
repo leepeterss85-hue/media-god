@@ -1,8 +1,8 @@
 import { getPlaybackDeviceProfile } from "./mediaCompatibility";
 
 // The Fire Stick's main Play button must enter the same selectable web-scraper
-// player available from source cards. OnlyFlix's obsolete CDN embed is
-// automatically skipped in that player on Fire TV; the other scraper tabs,
+// player available from source cards. OnlyFlix is the first provider
+// on Fire TV, with the other scrapers still selectable as backups; the
 // remote controls, fullscreen and explicit Sources button remain available.
 // Native VLC still owns resolved DIRECT media from the Sources handoff.
 // Phone, desktop and Live TV never enter this Fire TV-only route.

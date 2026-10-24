@@ -1,4 +1,4 @@
-// Fire TV 1.4.114: web-scraper Play recovery and native remote source controls.
+// Fire TV 1.4.115: web-scraper Play recovery and native remote source controls.
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.mediagod.firetv"
         minSdk = 21
         targetSdk = 35
-        versionCode = 119
-        versionName = "1.4.114"
+        versionCode = 120
+        versionName = "1.4.115"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

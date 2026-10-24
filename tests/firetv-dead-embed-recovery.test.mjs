@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { needsFireTvScraperRecovery, initialFireTvScraper } from '../src/components/mg/fireTvScraperRecovery.js';
+import { nextWebFallback } from '../src/components/mg/automaticWebFallback.js';
 
 const source = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const failedEmbed = 'https://share.cdnm.ink/embed/tmdb/550';
@@ -20,11 +21,14 @@ test('Phone, browser, Live TV and alternate scraper tabs never take this fallbac
   assert.equal(needsFireTvScraperRecovery({nativeFireTv:true,url:'javascript:alert(1)',mediaType:'tv'}), false);
 });
 
-test('Fire TV starts another WEB SCRAPER, not torrent discovery, when direct OnlyFlix is broken', () => {
+test('Fire TV starts with OnlyFlix again after video surface repair, retaining web backups for failures', () => {
   const opts = [{id: 'vidcore', url:'https://vidcore.org/embed/movie/550'}, {id:'vidrift',url:'https://embed.vidrift.net/embed/movie/550'}];
-  assert.equal(initialFireTvScraper({nativeFireTv:true,url:failedEmbed,mediaType:'movie',initialProvider:'onlyflix',alternatives:opts}), 'vidcore');
-  assert.equal(initialFireTvScraper({nativeFireTv:true,url:'https://share.cdnm.ink/embed/tmdb/1399?season=2&episode=4',mediaType:'tv',initialProvider:'onlyflix',alternatives:opts}), 'vidcore');
-  assert.equal(initialFireTvScraper({nativeFireTv:true,url:failedEmbed,mediaType:'movie',initialProvider:'onlyflix',alternatives:[{id:'vidcore',url:''},opts[1]]}), 'vidrift');
+  assert.equal(initialFireTvScraper({nativeFireTv:true,url:failedEmbed,mediaType:'movie',initialProvider:'onlyflix',alternatives:opts}), 'onlyflix');
+  assert.equal(initialFireTvScraper({nativeFireTv:true,url:'https://share.cdnm.ink/embed/tmdb/1399?season=2&episode=4',mediaType:'tv',initialProvider:'onlyflix',alternatives:opts}), 'onlyflix');
+  assert.equal(initialFireTvScraper({nativeFireTv:true,url:failedEmbed,mediaType:'movie',initialProvider:'onlyflix',alternatives:[{id:'vidcore',url:''},opts[1]]}), 'onlyflix');
+  assert.equal(initialFireTvScraper({nativeFireTv:true,url:'',mediaType:'movie',initialProvider:'onlyflix',alternatives:opts}), 'vidcore');
+  assert.equal(initialFireTvScraper({nativeFireTv:true,url:'',mediaType:'tv',initialProvider:'onlyflix',alternatives:[{id:'vidcore',url:''},opts[1]]}), 'vidrift');
+  assert.equal(nextWebFallback([{id:'onlyflix',url:failedEmbed},...opts], 'onlyflix'), 'vidcore');
   assert.equal(initialFireTvScraper({nativeFireTv:true,url:failedEmbed,mediaType:'movie',initialProvider:'onlyflix',alternatives:[]}), 'onlyflix');
   assert.equal(initialFireTvScraper({nativeFireTv:false,url:failedEmbed,mediaType:'movie',initialProvider:'onlyflix',alternatives:opts}), 'onlyflix');
   assert.equal(initialFireTvScraper({nativeFireTv:true,url:failedEmbed,mediaType:'live',initialProvider:'onlyflix',alternatives:opts}), 'onlyflix');
@@ -47,6 +51,8 @@ test('Fire TV keeps every manual scraper, fullscreen, source selection and expli
   assert.match(embed,/window\.open\(onlyFlixServersUrl, "_blank", "noopener,noreferrer"\)/);
   assert.match(embed,/onClick=\{\(\) => \{\s*setAutoRecovery\(false\);\s*setActiveEpisodePlayer\(option.id\)/);
   assert.match(embed,/if \(next === "torrents"\) \{\s*beginTorrentFallback\(\)/);
+  assert.match(embed,/onError=\{advanceAfterFailure\}/);
+  assert.match(embed,/const timeout = window\.setTimeout/);
   assert.match(portal,/onOpenSources=\{onOpenSources\}/);
 });
 
