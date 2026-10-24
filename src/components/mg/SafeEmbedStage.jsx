@@ -1,5 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Expand, Shrink } from "lucide-react";
+import { isNativeFireTvEmbedRemoteAvailable } from "@/components/mg/nativeFireTvBridge";
+import { syncEmbeddedFramePixels } from "@/components/mg/embeddedFramePixels";
 
 /**
  * Keep the same iframe mounted while expanding. WebView's native custom-view
@@ -8,6 +10,31 @@ import { Expand, Shrink } from "lucide-react";
  */
 export default function SafeEmbedStage({ children }) {
   const [fullscreen, setFullscreen] = useState(false);
+  const stageRef = useRef(null);
+  useEffect(() => {
+    if (!isNativeFireTvEmbedRemoteAvailable()) return undefined;
+    const stage = stageRef.current;
+    if (!stage) return undefined;
+    let paint = 0;
+    const measure = () => {
+      cancelAnimationFrame(paint);
+      paint = requestAnimationFrame(() => syncEmbeddedFramePixels(stage));
+    };
+    // Older Fire OS engines can play audio while an auto-height flex iframe
+    // has no usable video viewport. Give it the actual stage pixels; never
+    // reload the provider or touch the cross-origin video/source.
+    const observer = typeof ResizeObserver === "function" ? new ResizeObserver(measure) : null;
+    observer?.observe(stage);
+    stage.addEventListener("load", measure, true);
+    window.addEventListener("resize", measure);
+    measure();
+    return () => {
+      cancelAnimationFrame(paint);
+      observer?.disconnect();
+      stage.removeEventListener("load", measure, true);
+      window.removeEventListener("resize", measure);
+    };
+  }, [fullscreen]);
   useEffect(() => {
     const onToolbarToggle = () => setFullscreen((previous) => !previous);
     window.addEventListener("mg:embed-toggle-fullscreen", onToolbarToggle);
@@ -39,6 +66,7 @@ export default function SafeEmbedStage({ children }) {
   }, [fullscreen]);
   return (
     <div
+      ref={stageRef}
       data-mg-player-stage="true"
       data-mg-safe-embed-fullscreen={fullscreen ? "true" : "false"}
       className={fullscreen
