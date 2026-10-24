@@ -45,6 +45,8 @@ class CompatibilityPlayerActivity : Activity() {
 
     private lateinit var root: FrameLayout
     private lateinit var videoLayout: VLCVideoLayout
+    private var lastVoutWidth = 0
+    private var lastVoutHeight = 0
     private lateinit var controls: LinearLayout
     private lateinit var statusText: TextView
     private lateinit var playPauseButton: Button
@@ -614,11 +616,37 @@ class CompatibilityPlayerActivity : Activity() {
             cornerRadius = dp(radiusDp).toFloat()
         }
 
+    /*
+     * Fire OS can report a LibVLC Vout before the VLCVideoLayout has any
+     * real on-screen pixels. Audio then plays behind a black/zero-size video
+     * plane. Pass only measured, POSITIVE physical pixels to the video output
+     * after attachment and when HDMI/window layout changes.
+     */
+    private fun syncVideoSurfacePixels(player: MediaPlayer) {
+        if (resultSent || vlcPlayer !== player || !::videoLayout.isInitialized) return
+        val width = videoLayout.width
+        val height = videoLayout.height
+        if (width < 2 || height < 2) return
+        if (lastVoutWidth == width && lastVoutHeight == height) return
+        val updated = runCatching {
+            player.vlcVout.setWindowSize(width, height)
+        }.isSuccess
+        if (updated) {
+            lastVoutWidth = width
+            lastVoutHeight = height
+        }
+    }
+
     private fun buildUi() {
         videoLayout = VLCVideoLayout(this).apply {
             setBackgroundColor(Color.BLACK)
             isFocusable = true
             isFocusableInTouchMode = true
+            addOnLayoutChangeListener { _, left, top, right, bottom, _, _, _, _ ->
+                if (right - left > 1 && bottom - top > 1) {
+                    vlcPlayer?.let { syncVideoSurfacePixels(it) }
+                }
+            }
         }
 
         /*
@@ -1054,6 +1082,9 @@ class CompatibilityPlayerActivity : Activity() {
             vlcPlayer = player
             configureAudioOutput(player)
             player.attachViews(videoLayout, null, true, false)
+            lastVoutWidth = 0
+            lastVoutHeight = 0
+            videoLayout.post { syncVideoSurfacePixels(player) }
             videoStartupReadiness = VideoStartupReadiness(
                 requireVideoOutput = !payload.optBoolean("live", false)
             )
@@ -1065,6 +1096,7 @@ class CompatibilityPlayerActivity : Activity() {
                         MediaPlayer.Event.Opening -> showStatus("Compatibility decoder · opening")
                         MediaPlayer.Event.Buffering -> showStatus("Compatibility decoder · buffering")
                         MediaPlayer.Event.Vout -> {
+                            syncVideoSurfacePixels(player)
                             videoStartupReadiness.onVideoOutput(event.voutCount)
                             confirmCompatibilityStartup(player)
                         }
@@ -1827,6 +1859,8 @@ class CompatibilityPlayerActivity : Activity() {
             try { player.release() } catch (_: Throwable) {}
         }
         vlcPlayer = null
+        lastVoutWidth = 0
+        lastVoutHeight = 0
         try { libVLC?.release() } catch (_: Throwable) {}
         libVLC = null
     }
