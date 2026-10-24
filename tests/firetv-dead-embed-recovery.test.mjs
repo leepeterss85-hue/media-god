@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { needsFireTvScraperRecovery } from '../src/components/mg/fireTvScraperRecovery.js';
+import { needsFireTvScraperRecovery, initialFireTvScraper } from '../src/components/mg/fireTvScraperRecovery.js';
 
 const source = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const failedEmbed = 'https://share.cdnm.ink/embed/tmdb/550';
@@ -20,17 +20,32 @@ test('Phone, browser, Live TV and alternate scraper tabs never take this fallbac
   assert.equal(needsFireTvScraperRecovery({nativeFireTv:true,url:'javascript:alert(1)',mediaType:'tv'}), false);
 });
 
-test('Broken Fire TV embed calls existing source discovery and never mounts black iframe', () => {
+test('Fire TV starts another WEB SCRAPER, not torrent discovery, when direct OnlyFlix is broken', () => {
+  const opts = [{id: 'vidcore', url:'https://vidcore.org/embed/movie/550'}, {id:'vidrift',url:'https://embed.vidrift.net/embed/movie/550'}];
+  assert.equal(initialFireTvScraper({nativeFireTv:true,url:failedEmbed,mediaType:'movie',initialProvider:'onlyflix',alternatives:opts}), 'vidcore');
+  assert.equal(initialFireTvScraper({nativeFireTv:true,url:'https://share.cdnm.ink/embed/tmdb/1399?season=2&episode=4',mediaType:'tv',initialProvider:'onlyflix',alternatives:opts}), 'vidcore');
+  assert.equal(initialFireTvScraper({nativeFireTv:true,url:failedEmbed,mediaType:'movie',initialProvider:'onlyflix',alternatives:[{id:'vidcore',url:''},opts[1]]}), 'vidrift');
+  assert.equal(initialFireTvScraper({nativeFireTv:true,url:failedEmbed,mediaType:'movie',initialProvider:'onlyflix',alternatives:[]}), 'onlyflix');
+  assert.equal(initialFireTvScraper({nativeFireTv:false,url:failedEmbed,mediaType:'movie',initialProvider:'onlyflix',alternatives:opts}), 'onlyflix');
+  assert.equal(initialFireTvScraper({nativeFireTv:true,url:failedEmbed,mediaType:'live',initialProvider:'onlyflix',alternatives:opts}), 'onlyflix');
+  assert.equal(initialFireTvScraper({nativeFireTv:true,url:failedEmbed,mediaType:'movie',initialProvider:'vidcore',alternatives:opts}), 'vidcore');
+});
+
+test('Fire TV keeps every manual scraper, fullscreen, source selection and explicit torrent escape hatch', () => {
   const embed=source('src/components/mg/OnlyFlixEmbedPlayer.jsx');
   const portal=source('src/components/mg/PlayerPortalRenderer.jsx');
-  const core=source('src/components/mg/MediaPlayerProvider.jsx');
-  assert.match(embed,/const recoverBrokenFireTvEmbed = needsFireTvScraperRecovery/);
-  assert.match(embed,/if \(!recoverBrokenFireTvEmbed \|\| torrentStartedRef\.current\) return;\s*beginTorrentFallback\(\);/);
-  assert.match(embed,/if \(recoverBrokenFireTvEmbed\) \{\s*return \(/);
-  assert.ok(embed.indexOf('if (recoverBrokenFireTvEmbed) {') < embed.indexOf('data-mg-embed-iframe="true"'));
-  assert.match(embed,/typeof onOpenSources === "function"/);
+  assert.match(embed,/const firstFireTvScraper = useMemo\(\(\) => initialFireTvScraper/);
+  assert.match(embed,/setActiveEpisodePlayer\(firstFireTvScraper\)/);
+  assert.doesNotMatch(embed,/recoverBrokenFireTvEmbed/);
+  assert.doesNotMatch(embed,/Finding a working playback source/);
+  for (const id of ['onlyflix','vidcore','vidrift','stellar','vidsrc','twoembed','cinesrc','multiembed']) {
+    assert.match(embed,new RegExp('id: "'+id+'"'));
+  }
+  assert.match(embed,/data-mg-embedded-top-fullscreen="true"/);
+  assert.match(embed,/data-mg-embedded-top-sources="true"/);
+  assert.match(embed,/onClick=\{\(\) => \{\s*setAutoRecovery\(false\);\s*setActiveEpisodePlayer\(option.id\)/);
+  assert.match(embed,/if \(next === "torrents"\) \{\s*beginTorrentFallback\(\)/);
   assert.match(portal,/onOpenSources=\{onOpenSources\}/);
-  assert.match(core,/onOpenSources=\{\(\) => \{[\s\S]*?skipRdLookup: false,[\s\S]*?skipAddonLookup: false/);
 });
 
 test('The verified source card keeps manual external OnlyFlix and web-player options', () => {
