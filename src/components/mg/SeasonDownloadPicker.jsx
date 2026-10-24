@@ -24,6 +24,8 @@ export default function SeasonDownloadPicker({ title, year, season, episodes, on
   const [error, setError] = useState("");
   const [refresh, setRefresh] = useState(0);
   const cancelRef = useRef(false);
+  // Do not enqueue the same episode twice if the user clicks Retry.
+  const queuedEpisodesRef = useRef(new Set());
   const isMountedRef = useRef(true);
 
   useEffect(() => {
@@ -60,16 +62,21 @@ export default function SeasonDownloadPicker({ title, year, season, episodes, on
     cancelRef.current = false;
     setBusy(true);
     setError("");
-    const queued = [], missing = [], errors = [];
+    const queued = [...queuedEpisodesRef.current], missing = [], errors = [];
     const seenFiles = new Set();
     let checked = 0;
     try {
       for (const episode of numbers) {
         if (cancelRef.current) break;
+        if (queuedEpisodesRef.current.has(episode)) {
+          checked += 1;
+          if (isMountedRef.current) setProgress({ checked, queued: [...queued], missing: [...missing], errors: [...errors] });
+          continue;
+        }
         const candidates = candidatesForSeasonEpisode(torrents, season, episode);
         let saved = false;
         let couldNotQueue = false;
-        for (const torrent of candidates.slice(0, 5)) {
+        for (const torrent of candidates.slice(0, 10)) {
           if (cancelRef.current) break;
           try {
             const response = await base44.functions.invoke("realDebrid", {
@@ -95,6 +102,7 @@ export default function SeasonDownloadPicker({ title, year, season, episodes, on
             }
             seenFiles.add(file.url);
             queued.push(episode);
+            queuedEpisodesRef.current.add(episode);
             saved = true;
             break;
           } catch {
@@ -133,7 +141,7 @@ export default function SeasonDownloadPicker({ title, year, season, episodes, on
         </button>
       </div>
       <p className="mt-2 text-xs text-white/65">
-        Save {numbers.length} listed episodes as separate offline files. Only completed Real-Debrid sources are considered; missing episodes are skipped.
+        Save {numbers.length} listed episodes as separate offline files. Only completed Real-Debrid sources are considered; missing episodes are skipped. Previously saved files are not detected automatically.
       </p>
       {loading ? (
         <p className="mt-3 flex gap-2 items-center text-xs text-white/70"><Loader2 className="h-4 w-4 animate-spin" /> Checking ready season files…</p>
@@ -170,7 +178,7 @@ export default function SeasonDownloadPicker({ title, year, season, episodes, on
           onClick={() => { void startSeason(); }}
           className="min-h-11 inline-flex items-center gap-2 rounded-lg bg-mg-green px-4 text-xs font-bold text-black disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-white">
           <Download className="h-4 w-4" />
-          {progress.checked ? "Retry season" : "Queue season downloads"}
+          {progress.checked ? "Retry unavailable episodes" : "Queue season downloads"}
         </button>
         {busy ? (
           <button type="button" onClick={() => { cancelRef.current = true; }}
