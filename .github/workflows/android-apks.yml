@@ -319,6 +319,6 @@ jobs:
           for spec in "android-mobile-latest:phone/tablet" "firetv-latest:Fire TV/Stick"; do
             tag="${spec%%:*}"
             platform="${spec#*:}"
-            printf 'Verified Media God %s release.\\n\\nVerified-APK-Commit: %s\\nBoth phone and Fire TV APKs passed test, signature, and published-download verification.\\n' "$platform" "$GITHUB_SHA" > "$RUNNER_TEMP/$tag-verified-notes.txt"
+            printf 'Verified Media God %s release.\n\nVerified-APK-Commit: %s\nBoth phone and Fire TV APKs passed test, signature, and published-download verification.\n' "$platform" "$GITHUB_SHA" > "$RUNNER_TEMP/$tag-verified-notes.txt"
             gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --notes-file "$RUNNER_TEMP/$tag-verified-notes.txt"
           done
