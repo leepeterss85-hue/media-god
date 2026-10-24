@@ -763,6 +763,17 @@ export default function FireTvRemote() {
         return;
       }
 
+      const updatePrompt = document.querySelector('[data-mg-fire-tv-update="true"]');
+      if (updatePrompt instanceof HTMLElement && visible(updatePrompt)) {
+        if (lastScopeRef.current === updatePrompt) return;
+        lastScopeRef.current = updatePrompt;
+        window.setTimeout(() => {
+          const primary = updatePrompt.querySelector('[data-mg-update-primary="true"]:not([disabled])');
+          focusElement(primary || focusables(updatePrompt)[0]);
+        }, 30);
+        return;
+      }
+
       if (playerOpen()) {
         const scope = document.querySelector('[data-mg-player-root="true"]');
 
@@ -982,7 +993,8 @@ export default function FireTvRemote() {
 
       const mediaAction = mediaActionFromEvent(event);
 
-      if (tapOnlyFlixForRemote({ mediaAction, selectKey: isSelectKey(event), direction: directionFromEvent(event), repeat: event.repeat })) {
+      if (!(updateDialog instanceof HTMLElement && visible(updateDialog)) &&
+          tapOnlyFlixForRemote({ mediaAction, selectKey, direction, repeat: event.repeat })) {
         event.preventDefault();
         event.stopPropagation();
         event.stopImmediatePropagation();
@@ -1005,7 +1017,9 @@ export default function FireTvRemote() {
       const overlay = topOverlay();
       const appMain = document.querySelector("#root main");
       const scope =
-        player instanceof HTMLElement && visible(player)
+        updateDialog instanceof HTMLElement && visible(updateDialog)
+          ? updateDialog
+          : player instanceof HTMLElement && visible(player)
           ? player
           : overlay instanceof HTMLElement
             ? overlay
