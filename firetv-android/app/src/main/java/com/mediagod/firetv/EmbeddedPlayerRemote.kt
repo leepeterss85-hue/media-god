@@ -89,10 +89,17 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
                       else if(key==='ArrowUp' && !expanded)focus(selected||source);
                       return;
                     }
-                    // One Up press opens the sources from a black iframe.
-                    // Down from the provider row returns to the video.
-                    if(key==='ArrowUp' && tabs.length && !expanded){
-                      focus(selected);return;
+                    // D-pad Up must still reach the playback controls INSIDE
+                    // the iframe. Only leave cursor mode at the top edge; Menu
+                    // always opens the scraper strip immediately.
+                    if(key==='ArrowUp' && tabs.length && !expanded && current===frame){
+                      var pointer=root.querySelector('[data-mg-embed-pointer="true"]');
+                      var frameRect=frame&&frame.getBoundingClientRect();
+                      var pointerRect=pointer&&pointer.getBoundingClientRect();
+                      if(frameRect && pointerRect && frameRect.height>0 &&
+                         pointerRect.top<=frameRect.top+Math.max(28,frameRect.height*0.1)){
+                        focus(selected);return;
+                      }
                     }
                   }
                   window.dispatchEvent(new KeyboardEvent('keydown',{

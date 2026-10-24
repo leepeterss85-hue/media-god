@@ -8,14 +8,16 @@ export default function OnlyFlixRemotePointer({ visible = true, compact = false 
   useEffect(() => {
     if (!available) return undefined;
     const move = (event) => {
-      const direction = event.detail;
+      const direction = typeof event.detail === "string" ? event.detail : event.detail?.direction;
+      const fast = Boolean(event.detail?.fast);
+      const pixelsPerMove = fast ? 62 : 26;
       const frame = document.querySelector('[data-mg-embedded-remote-player="true"] iframe');
       if (!frame) return;
       const rect = frame.getBoundingClientRect();
       if (rect.width < 2 || rect.height < 2) return;
       setPoint((current) => ({
-        x: Math.max(2, Math.min(98, current.x + (direction === "left" ? -1 : direction === "right" ? 1 : 0) * 1600 / rect.width)),
-        y: Math.max(2, Math.min(98, current.y + (direction === "up" ? -1 : direction === "down" ? 1 : 0) * 1600 / rect.height)),
+        x: Math.max(2, Math.min(98, current.x + (direction === "left" ? -1 : direction === "right" ? 1 : 0) * pixelsPerMove * 100 / rect.width)),
+        y: Math.max(2, Math.min(98, current.y + (direction === "up" ? -1 : direction === "down" ? 1 : 0) * pixelsPerMove * 100 / rect.height)),
       }));
     };
     window.addEventListener("mg:onlyflix-pointer-move", move);
