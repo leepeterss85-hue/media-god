@@ -18,7 +18,7 @@ function fixture() {
     getBoundingClientRect() { return { width: 200, height: 42 }; },
     click() { this.clicks = (this.clicks || 0) + 1; },
   });
-  const fullscreen = el(), sources = el(), iframe = el(), first = el(), second = el(), pointer = el();
+  const fullscreen = el(), sources = el(), topFullscreen = el(), iframe = el(), first = el(), second = el(), pointer = el();
   let pointerTop = 220;
   iframe.getBoundingClientRect = () => ({ top: 0, bottom: 500, left: 0, right: 1000, width: 1000, height: 500 });
   pointer.getBoundingClientRect = () => ({ top: pointerTop, width: 32, height: 32 });
@@ -30,8 +30,9 @@ function fixture() {
   root.matches = () => true;
   root.querySelector = selector => selector.includes('movie-player-backups') ? bar :
     selector.includes('open-sources') ? sources : selector.includes('safe-fullscreen-toggle') ? fullscreen :
+    selector.includes('embedded-top-fullscreen') ? topFullscreen :
     selector.includes('embed-iframe') ? iframe : selector.includes('embed-pointer') ? pointer : null;
-  root.querySelectorAll = () => [sources];
+  root.querySelectorAll = () => [sources, topFullscreen];
   doc.querySelector = selector => selector.includes('fire-tv-update') ? null : root;
   const emits = [];
   const run = key => {
@@ -42,7 +43,7 @@ function fixture() {
       getComputedStyle: () => ({ display: 'block', visibility: 'visible' }),
     });
   };
-  return { doc, first, second, fullscreen, sources, iframe, emits, run,
+  return { doc, first, second, fullscreen, topFullscreen, sources, iframe, emits, run,
     setPointerTop: top => { pointerTop = top; } };
 }
 
@@ -61,11 +62,14 @@ test('native Fire Stick remote can reach scraper controls from a black iframe', 
   assert.equal(x.emits.length, 1, 'Only real video-cursor movement reaches the iframe event handler');
 });
 
-test('native Fire Stick remote can select fullscreen and return to iframe', () => {
+test('native Fire Stick remote selects top-row Fullscreen and returns to iframe', () => {
   const x = fixture(); x.doc.activeElement = x.iframe;
   x.run('ContextMenu'); assert.equal(x.doc.activeElement, x.first);
-  x.run('ArrowDown'); assert.equal(x.doc.activeElement, x.fullscreen);
-  x.run('Enter'); assert.equal(x.fullscreen.clicks, 1);
+  x.run('ArrowUp'); assert.equal(x.doc.activeElement, x.sources);
+  x.run('ArrowRight'); assert.equal(x.doc.activeElement, x.topFullscreen);
+  x.run('Enter'); assert.equal(x.topFullscreen.clicks, 1);
+  x.run('ContextMenu'); assert.equal(x.doc.activeElement, x.topFullscreen);
+  x.run('ArrowDown'); assert.equal(x.doc.activeElement, x.first);
   x.run('ArrowDown'); assert.equal(x.doc.activeElement, x.iframe);
 });
 
