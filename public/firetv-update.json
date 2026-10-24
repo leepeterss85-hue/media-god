@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 117,
-  "versionName": "1.4.112",
+  "versionCode": 118,
+  "versionName": "1.4.113",
   "title": "Media God Fire TV",
-  "message": "Media God Fire TV 1.4.112: main film and episode Play uses the working source-card discovery and VLC route instead of the unreliable embedded iframe. Existing manual scrapers, Sources, fullscreen and Fire Stick remote navigation retained. Phone and Live TV unchanged.",
+  "message": "Media God Fire TV 1.4.113: main film and episode Play restores selectable OnlyFlix and web scraper players; failed OnlyFlix CDN embeds start an alternate scraper. Direct files still use VLC with manual Sources, fullscreen and Fire Stick remote controls. Phone and Live TV unchanged.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
