@@ -359,9 +359,6 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
                 src={selectedUrl}
                 title={providerLabel + ": " + title}
                 className="h-full w-full border-0"
-                // Match working phone: stay inline rather than allowing Fire OS
-                // to hide the hosting WebView behind a black native custom view.
-                // SafeEmbedStage already provides working in-app fullscreen.
                 allow="autoplay; encrypted-media; picture-in-picture"
                 allowFullScreen={false}
                 referrerPolicy="strict-origin-when-cross-origin"
