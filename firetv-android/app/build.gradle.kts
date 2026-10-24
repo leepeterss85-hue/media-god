@@ -1,4 +1,4 @@
-// Fire TV 1.4.112: source-card Play routing and native remote source controls.
+// Fire TV 1.4.113: web-scraper Play recovery and native remote source controls.
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.mediagod.firetv"
         minSdk = 21
         targetSdk = 35
-        versionCode = 117
-        versionName = "1.4.112"
+        versionCode = 118
+        versionName = "1.4.113"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
