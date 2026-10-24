@@ -309,3 +309,16 @@ jobs:
             cmp "$asset" "$RUNNER_TEMP/$dir/$asset"
           done
           echo "Both signed APKs are published and byte-identical to the tested build"
+      - name: Mark both APK releases ready for update pop-ups
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # The client requires this marker from the published release notes.
+          # Never write it until BOTH public downloads are verified above.
+          for spec in "android-mobile-latest:phone/tablet" "firetv-latest:Fire TV/Stick"; do
+            tag="${spec%%:*}"
+            platform="${spec#*:}"
+            printf 'Verified Media God %s release.\\n\\nVerified-APK-Commit: %s\\nBoth phone and Fire TV APKs passed test, signature, and published-download verification.\\n' "$platform" "$GITHUB_SHA" > "$RUNNER_TEMP/$tag-verified-notes.txt"
+            gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --notes-file "$RUNNER_TEMP/$tag-verified-notes.txt"
+          done
