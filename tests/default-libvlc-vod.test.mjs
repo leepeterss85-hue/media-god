@@ -66,12 +66,12 @@ test("all resolved native VOD streams use the Android bridge even without runtim
 test("VLC default retains phone version while shipping the Fire TV-only fix", () => {
   assert.match(read("android-mobile/app/build.gradle.kts"),/versionCode = 94/);
   assert.match(read("android-mobile/app/build.gradle.kts"),/versionName = "1\.0\.93"/);
-  assert.match(read("firetv-android/app/build.gradle.kts"),/versionCode = 111/);
-  assert.match(read("firetv-android/app/build.gradle.kts"),/versionName = "1\.4\.106"/);
+  assert.match(read("firetv-android/app/build.gradle.kts"),/versionCode = 112/);
+  assert.match(read("firetv-android/app/build.gradle.kts"),/versionName = "1\.4\.107"/);
   const mobile = JSON.parse(read("public/android-mobile-update.json"));
   const fire = JSON.parse(read("public/firetv-update.json"));
   assert.equal(mobile.versionCode,94);
-  assert.equal(fire.versionCode,111);
+  assert.equal(fire.versionCode,112);
   assert.equal(mobile.versionName,"1.0.93");
-  assert.equal(fire.versionName,"1.4.106");
+  assert.equal(fire.versionName,"1.4.107");
 });
