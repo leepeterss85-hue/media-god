@@ -357,7 +357,8 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
                 src={selectedUrl}
                 title={providerLabel + ": " + title}
                 className="h-full w-full border-0"
-                allow="autoplay; encrypted-media; picture-in-picture"
+                allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                allowFullScreen
                 referrerPolicy="strict-origin-when-cross-origin"
                 tabIndex={0}
                 data-mg-embed-iframe="true"
