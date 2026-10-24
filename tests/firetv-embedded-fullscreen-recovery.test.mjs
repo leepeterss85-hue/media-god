@@ -27,8 +27,13 @@ test("Fire TV image stage selector cannot accidentally cover an embedded provide
   assert.match(css, /\[data-mg-safe-embed-fullscreen="true"\]/);
   assert.match(css, /width: 100% !important;/);
   const iframe = read("src/components/mg/OnlyFlixEmbedPlayer.jsx");
-  assert.match(iframe, /allowFullScreen=\{false\}/);
-  assert.doesNotMatch(iframe, /autoplay; encrypted-media; picture-in-picture; fullscreen/);
+  assert.match(iframe, /allowFullScreen=\{isFireTv\}/);
+  assert.match(iframe, /"autoplay; encrypted-media; picture-in-picture; fullscreen"/);
+  assert.match(iframe, /: "autoplay; encrypted-media; picture-in-picture"/);
+  assert.match(source, /embeddedFullscreenFromScraper = scraperFullscreen/);
+  assert.match(source, /webView\.visibility = if \(scraperFullscreen\) View\.VISIBLE else View\.INVISIBLE/);
+  assert.match(source, /swallowScraperMenuRelease = true/);
+  assert.match(source, /KEYCODE_MENU/);
   assert.match(iframe, /data-mg-embed-iframe="true"/);
   assert.match(iframe, /<SafeEmbedStage>/);
 });
