@@ -21,6 +21,7 @@ test("The embedded Fire TV player no longer hides top source buttons or allows z
   const css = read("src/fire-tv-player-failsafe.css");
   const scope = css.slice(css.indexOf("Fire TV embedded-video recovery (1.4.105)"));
   assert.ok(scope.length > 1500, "Fire TV-only video recovery must exist");
+  assert.match(scope, /\[data-mg-player-root="true"\]\[data-mg-embedded-remote-player="true"\] > div > \[data-mg-player-topbar="true"\]:first-child/);
   assert.match(scope, /\[data-mg-player-topbar="true"\] button:not\(\[data-mg-player-exit="true"\]\)/);
   assert.match(scope, /display: inline-flex !important/);
   assert.match(scope, /\[data-mg-episode-player-backups="true"\]/);
