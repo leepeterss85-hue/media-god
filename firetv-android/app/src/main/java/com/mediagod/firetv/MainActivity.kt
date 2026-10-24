@@ -16,7 +16,9 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager
+import android.widget.FrameLayout
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
@@ -87,6 +89,9 @@ class MainActivity : Activity() {
     }
 
     private lateinit var webView: WebView
+    private lateinit var webRoot: FrameLayout
+    private var embeddedFullscreenView: View? = null
+    private var embeddedFullscreenCallback: WebChromeClient.CustomViewCallback? = null
     private val embeddedPlayerRemote by lazy { EmbeddedPlayerRemote(webView) { nativeBridgeAllowed() } }
     private val nativePlayerLock = Any()
     @Volatile private var playerOpen = false
@@ -127,6 +132,8 @@ class MainActivity : Activity() {
         )
         enterImmersiveMode()
 
+        webRoot = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
+
         webView = WebView(this).apply {
             setBackgroundColor(Color.BLACK)
             isFocusable = true
@@ -153,7 +160,41 @@ class MainActivity : Activity() {
                     "${userAgentString} MediaGodFireTV/1.0 AmazonWebAppPlatform FireTV"
             }
 
-            webChromeClient = WebChromeClient()
+            // Provider iframes can request WebView's video fullscreen. A bare
+            // WebChromeClient silently ignores this on Fire OS and leaves the
+            // video tiny or blank. Keep the existing WebView alive beneath the
+            // native custom view: never reload the provider or reset its URL.
+            webChromeClient = object : WebChromeClient() {
+                override fun onShowCustomView(
+                    view: View?,
+                    callback: CustomViewCallback?
+                ) {
+                    val fullscreenView = view ?: run {
+                        callback?.onCustomViewHidden()
+                        return
+                    }
+                    if (embeddedFullscreenView != null) {
+                        callback?.onCustomViewHidden()
+                        return
+                    }
+                    embeddedFullscreenView = fullscreenView
+                    embeddedFullscreenCallback = callback
+                    webView.visibility = View.INVISIBLE
+                    webRoot.addView(
+                        fullscreenView,
+                        FrameLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT
+                        )
+                    )
+                    fullscreenView.requestFocus()
+                    enterImmersiveMode()
+                }
+
+                override fun onHideCustomView() {
+                    exitEmbeddedFullscreen()
+                }
+            }
             webViewClient = object : WebViewClient() {
                 override fun onPageStarted(
                     view: WebView?,
@@ -181,7 +222,14 @@ class MainActivity : Activity() {
             setAcceptThirdPartyCookies(webView, true)
         }
 
-        setContentView(webView)
+        webRoot.addView(
+            webView,
+            FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        )
+        setContentView(webRoot)
         activeActivity = WeakReference(this)
 
         appUpdater = AppUpdater(this) { detail ->
@@ -233,6 +281,7 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        exitEmbeddedFullscreen()
         if (nativeProgressReceiverRegistered) {
             runCatching { unregisterReceiver(nativeProgressReceiver) }
             nativeProgressReceiverRegistered = false
@@ -260,6 +309,7 @@ class MainActivity : Activity() {
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (embeddedFullscreenView != null) return super.dispatchKeyEvent(event)
         if (::webView.isInitialized && !playerOpen && embeddedPlayerRemote.dispatchKeyEvent(event)) {
             return true
         }
@@ -268,6 +318,10 @@ class MainActivity : Activity() {
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
         if (keyCode == KeyEvent.KEYCODE_BACK) {
+            if (embeddedFullscreenView != null) {
+                exitEmbeddedFullscreen()
+                return true
+            }
             val url = webView.url.orEmpty()
             val publicAuthScreen =
                 url.contains("/login") ||
@@ -380,6 +434,23 @@ class MainActivity : Activity() {
          */
         pendingNativeResultScript = resultScript
         dispatchJavascript(resultScript)
+    }
+
+    private fun exitEmbeddedFullscreen() {
+        val activeView = embeddedFullscreenView ?: return
+        embeddedFullscreenView = null
+        val callback = embeddedFullscreenCallback
+        embeddedFullscreenCallback = null
+        if (::webRoot.isInitialized) {
+            runCatching { webRoot.removeView(activeView) }
+        }
+        // WebChromeClient expects this callback exactly once on exit.
+        runCatching { callback?.onCustomViewHidden() }
+        if (::webView.isInitialized) {
+            webView.visibility = View.VISIBLE
+            webView.requestFocus()
+        }
+        enterImmersiveMode()
     }
 
     private fun enterImmersiveMode() {
