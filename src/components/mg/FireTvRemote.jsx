@@ -972,6 +972,10 @@ export default function FireTvRemote() {
       const sourcesButton = embedded?.querySelector(
         '[data-mg-embedded-open-sources="true"]'
       );
+      const headerButtons = embedded instanceof HTMLElement
+        ? Array.from(embedded.querySelectorAll('[data-mg-player-topbar="true"] button:not([disabled])')).filter(visible)
+        : [];
+      const embedIsFullscreen = !!embedded?.querySelector('[data-mg-safe-embed-fullscreen="true"]');
       const fullScreenFocused = fullscreenToggle instanceof HTMLElement &&
         currentFocus === fullscreenToggle;
       // Fire TV remote cannot naturally Tab from a cross-origin iframe to the
@@ -980,6 +984,7 @@ export default function FireTvRemote() {
         consume();
         if (selectKey && !event.repeat) currentFocus.click();
         else if (direction === "down") focusElement(iframe);
+        else if (embedIsFullscreen) return;
         else if (direction === "up" || direction === "left")
           focusElement(providerButtons[0] || sourcesButton || iframe);
         else if (direction === "right") focusElement(sourcesButton || iframe);
@@ -988,6 +993,10 @@ export default function FireTvRemote() {
       if (embedded instanceof HTMLElement && visible(embedded) && menuKey &&
           (providerButtons.length || fullscreenToggle instanceof HTMLElement)) {
         consume();
+        if (embedIsFullscreen) {
+          focusElement(fullscreenToggle);
+          return;
+        }
         const focusedProvider = providerBar instanceof HTMLElement &&
           providerBar.contains(currentFocus);
         if (focusedProvider && iframe instanceof HTMLElement) {
@@ -1011,6 +1020,21 @@ export default function FireTvRemote() {
           focusElement(sourcesButton || providerButtons[index]);
         } else if (selectKey && !event.repeat) {
           currentFocus.click();
+        }
+        return;
+      }
+
+      // Header actions must run before the iframe pointer consumes Select.
+      // This includes Sources, Try next and Back for both movies and episodes.
+      if (headerButtons.includes(currentFocus) && (direction || selectKey)) {
+        consume();
+        const index = headerButtons.indexOf(currentFocus);
+        if (selectKey && !event.repeat) currentFocus.click();
+        else if (direction === "left" || direction === "right") {
+          const step = direction === "left" ? -1 : 1;
+          focusElement(headerButtons[(index + step + headerButtons.length) % headerButtons.length]);
+        } else if (direction === "down") {
+          focusElement(providerButtons[0] || fullscreenToggle || iframe);
         }
         return;
       }
