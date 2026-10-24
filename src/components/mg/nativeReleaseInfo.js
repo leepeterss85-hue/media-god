@@ -69,6 +69,7 @@ export const fetchPublishedNativeRelease = async (
     release?.tag_name !== info.tag ||
     release?.draft !== false ||
     !release?.published_at ||
+    !String(release?.body || "").includes(`Verified-APK-Commit: ${commit}`) ||
     !/^[a-f0-9]{40}$/i.test(commit) ||
     !Array.isArray(release?.assets) ||
     !release.assets.some(asset =>
