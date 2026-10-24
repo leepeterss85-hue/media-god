@@ -23,7 +23,7 @@ export const tapOnlyFlixForRemote = ({ mediaAction, selectKey, direction, repeat
       iframe.focus();
     }
     window.dispatchEvent(new CustomEvent("mg:onlyflix-pointer-move", {
-      detail: { direction, fast: Boolean(repeat) },
+      detail: repeat ? { direction, fast: true } : direction,
     }));
     return true;
   }
