@@ -133,3 +133,28 @@ test("taps scale layout CSS coordinates through the visible viewport and release
   assert.doesNotMatch(native, /displayMetrics\.density|now \+ 60/);
 });
 
+
+test("cursor Select activates the app fullscreen button, including its SVG icon", () => {
+  const { tap, taps, document, player } = fixture();
+  let clicks = 0;
+  const button = { click: () => { clicks++; } };
+  const originalQuery = player.querySelector;
+  player.querySelector = selector => selector.includes('safe-fullscreen-toggle') ? button : originalQuery(selector);
+  document.elementFromPoint = () => ({ closest: selector => selector.includes('safe-fullscreen-toggle') ? button : null });
+  assert.equal(tap({ selectKey: true }), true);
+  assert.equal(clicks, 1);
+  assert.equal(tap({ selectKey: true, repeat: true }), true);
+  assert.equal(clicks, 1);
+  assert.equal(tap({ mediaAction: 'playpause' }), true);
+  assert.equal(clicks, 1);
+  assert.deepEqual(taps, []);
+});
+
+test("an unrelated fullscreen-looking overlay is never activated", () => {
+  const { tap, taps, document } = fixture();
+  let clicks = 0;
+  document.elementFromPoint = () => ({ closest: () => ({ click: () => { clicks++; } }) });
+  assert.equal(tap({ selectKey: true }), true);
+  assert.equal(clicks, 0);
+  assert.deepEqual(taps, []);
+});
