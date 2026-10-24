@@ -17,6 +17,8 @@ import {
   clearDiagnosticErrors,
   readDiagnosticErrors,
   sanitizeDiagnosticText,
+  isCrashMonitoringEnabled,
+  setCrashMonitoringEnabled,
 } from "@/components/mg/diagnostics";
 import { readUxPreferences } from "@/components/mg/uxPreferences";
 import { cn } from "@/lib/utils";
@@ -38,6 +40,7 @@ export default function DiagnosticsView() {
   const [rdStatus, setRdStatus] = useState(null);
   const [signedIn, setSignedIn] = useState(null);
   const [errors, setErrors] = useState(readDiagnosticErrors);
+  const [monitoringEnabled, setMonitoringEnabled] = useState(isCrashMonitoringEnabled);
   const [playbackAudio, setPlaybackAudio] = useState(readPlaybackAudioDiagnostic);
   const [checkedAt, setCheckedAt] = useState("");
 
@@ -175,6 +178,7 @@ export default function DiagnosticsView() {
           <p className="mt-2 max-w-2xl text-sm leading-6 text-white/50">
             Device, app and account-health information for troubleshooting.
             Private tokens, addon URLs, stream URLs and passwords are never included.
+            Reports remain on this device until you choose to copy and share them.
           </p>
         </div>
 
@@ -189,7 +193,7 @@ export default function DiagnosticsView() {
             ) : (
               <Clipboard className="h-4 w-4" />
             )}
-            {copied ? "Copied" : "Copy report"}
+            <span aria-live="polite">{copied ? "Copied" : "Copy report"}</span>
           </button>
           <button
             type="button"
@@ -226,6 +230,22 @@ export default function DiagnosticsView() {
             <p className="mt-1 text-xs text-white/35">
               Stored locally on this device. URLs and credential-like values are redacted.
             </p>
+            <label className="mt-3 flex cursor-pointer items-center gap-2 text-xs font-semibold text-white/70">
+              <input
+                type="checkbox"
+                checked={monitoringEnabled}
+                onChange={(event) => {
+                  setMonitoringEnabled(setCrashMonitoringEnabled(event.target.checked));
+                  setErrors(readDiagnosticErrors());
+                }}
+                className="h-4 w-4 accent-mg-green"
+              />
+              Record app crashes on this device (optional)
+            </label>
+            <p className="mt-1 text-xs text-white/40">
+              Off by default. No automatic reporting or uploads.
+              Share a redacted report only if you choose.
+            </p>
           </div>
           {errors.length > 0 && (
             <button
@@ -245,7 +265,9 @@ export default function DiagnosticsView() {
         {errors.length === 0 ? (
           <div className="flex items-center gap-2 p-5 text-sm text-white/45">
             <ShieldCheck className="h-4 w-4 text-mg-green" />
-            No recent application errors recorded.
+            {monitoringEnabled
+              ? "No recent application errors recorded."
+              : "Crash monitoring is off. Enable it above to record future errors."}
           </div>
         ) : (
           <div className="divide-y divide-white/5">
