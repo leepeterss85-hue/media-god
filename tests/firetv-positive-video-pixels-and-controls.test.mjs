@@ -37,7 +37,7 @@ test("Fire TV Menu reaches source choices and Fullscreen; Back restores picture 
   const stage = read("src/components/mg/SafeEmbedStage.jsx");
   assert.match(remote, /const fullscreenToggle = embedded\?\.querySelector/);
   assert.match(remote, /fullScreenFocused && \(direction \|\| selectKey\)/);
-  assert.match(remote, /focusElement\(fullscreenToggle \|\| iframe\)/);
+  assert.match(remote, /focusElement\(embedIsFullscreen \? fullscreenToggle : iframe\)/);
   assert.match(remote, /currentFocus\.click\(\)/);
   assert.match(stage, /data-mg-safe-fullscreen-toggle="true"/);
   assert.match(stage, /window\.addEventListener\("mg:native-back", onFireTvBack, true\)/);
