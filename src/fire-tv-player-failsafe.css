@@ -747,13 +747,21 @@ body.mg-fire-tv-mode [data-mg-embedded-remote-player="true"] [data-mg-episode-pl
 body.mg-fire-tv [data-mg-embedded-remote-player="true"] [data-mg-player-stage="true"]:not([data-mg-safe-embed-fullscreen="true"]),
 body.mg-fire-tv-stable [data-mg-embedded-remote-player="true"] [data-mg-player-stage="true"]:not([data-mg-safe-embed-fullscreen="true"]),
 body.mg-fire-tv-mode [data-mg-embedded-remote-player="true"] [data-mg-player-stage="true"]:not([data-mg-safe-embed-fullscreen="true"]) {
-  position: relative !important;
-  z-index: 1 !important;
+  /* Use the same fixed video surface as fullscreen, with room for controls.
+   * Auto-height flex sizing loses the Fire OS picture when leaving fullscreen. */
+  position: fixed !important;
+  top: 132px !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 64px !important;
+  z-index: 2 !important;
   display: block !important;
-  flex: 1 1 auto !important;
-  min-height: max(240px, 40vh) !important;
-  height: auto !important;
-  width: 100% !important;
+  flex: 0 0 auto !important;
+  min-height: 2px !important;
+  height: calc(100vh - 196px) !important;
+  width: 100vw !important;
+  border: 0 !important;
+  border-radius: 0 !important;
   overflow: hidden !important;
 }
 /* A positive-height stage is essential: a zero-pixel iframe cannot present
@@ -801,4 +809,19 @@ body.mg-fire-tv [data-mg-embedded-remote-player="true"] nav[data-mg-movie-player
 body.mg-fire-tv [data-mg-embedded-remote-player="true"] nav[data-mg-episode-player-backups="true"] button:focus {
   outline: 3px solid hsl(var(--mg-green)) !important;
   outline-offset: -2px !important;
+}
+
+/* The help row must not occupy or cover the fixed scraper video viewport. */
+body.mg-fire-tv [data-mg-embedded-remote-player="true"] [data-mg-embed-footer="true"],
+body.mg-fire-tv-stable [data-mg-embedded-remote-player="true"] [data-mg-embed-footer="true"],
+body.mg-fire-tv-mode [data-mg-embedded-remote-player="true"] [data-mg-embed-footer="true"] {
+  position: fixed !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  height: 60px !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  overflow: auto !important;
+  z-index: 3 !important;
 }
