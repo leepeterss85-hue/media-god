@@ -20,6 +20,7 @@ test("Fire TV WebView routes embedded native fullscreen without reloading provid
 });
 
 test("Fire TV image stage selector cannot accidentally cover an embedded provider selector bar", () => {
+  const source = read("firetv-android/app/src/main/java/com/mediagod/firetv/MainActivity.kt");
   const css = read("src/fire-tv-player-failsafe.css");
   assert.doesNotMatch(css, /\[data-mg-player-root="true"\]\s*>\s*div\s*>\s*div:nth-child\(2\)/);
   assert.match(css, /:not\(\[data-mg-embedded-remote-player="true"\]\) \[data-mg-player-stage="true"\]/);
@@ -43,10 +44,10 @@ test("Fire TV update is newer but phone and platform assets remain separate", ()
   const phone = read("android-mobile/app/build.gradle.kts");
   const fireManifest = JSON.parse(read("public/firetv-update.json"));
   const phoneManifest = JSON.parse(read("public/android-mobile-update.json"));
-  assert.match(fire, /versionCode = 115/);
+  assert.match(fire, /versionCode = 116/);
   assert.match(fire, /versionName = "1\.4\.110"/);
-  assert.equal(fireManifest.versionCode, 115);
-  assert.equal(fireManifest.versionName, "1.4.110");
+  assert.equal(fireManifest.versionCode, 116);
+  assert.equal(fireManifest.versionName, "1.4.111");
   assert.equal(phoneManifest.versionCode, 94);
   assert.equal(phoneManifest.versionName, "1.0.93");
   assert.match(phone, /versionCode = 94/);
