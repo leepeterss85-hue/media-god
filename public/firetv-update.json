@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 116,
-  "versionName": "1.4.111",
+  "versionCode": 117,
+  "versionName": "1.4.112",
   "title": "Media God Fire TV",
-  "message": "Media God Fire TV 1.4.111: native embedded-video fullscreen surface test. Menu returns to scraper/provider controls and Back exits native fullscreen. Scrapers, Sources and torrent fallback retained. Phone and Live TV unchanged.",
+  "message": "Media God Fire TV 1.4.112: main film and episode Play uses the working source-card discovery and VLC route instead of the unreliable embedded iframe. Manual scrapers, Sources, fullscreen and Fire remote retained. Phone and Live TV unchanged.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
