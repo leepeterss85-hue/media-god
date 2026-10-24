@@ -67,11 +67,17 @@ export default class PageErrorBoundary extends Component {
         >
           <h2 className="text-lg font-bold">Could not open {label}</h2>
           <p className="mt-2 text-sm text-white/60">
-            Media God contained the problem to this screen instead of letting it blank the whole app.
+            This screen did not load. Try again, or return to Home.
+            Your saved viewing progress is not erased.
           </p>
-          <p className="mt-3 break-words rounded-lg border border-white/10 bg-black/30 p-3 text-xs text-red-300">
-            {sanitizeDiagnosticText(this.state.message)}
-          </p>
+          <details className="mt-3 text-xs text-white/60">
+            <summary className="min-h-10 cursor-pointer rounded-lg border border-white/10 bg-black/20 p-3 focus:outline-none focus:ring-2 focus:ring-mg-green">
+              Show technical details
+            </summary>
+            <p className="mt-2 break-words rounded-lg border border-white/10 bg-black/30 p-3 text-red-300">
+              {sanitizeDiagnosticText(this.state.message)}
+            </p>
+          </details>
           <div className="mt-4 flex flex-wrap gap-2">
             <button
               type="button"
