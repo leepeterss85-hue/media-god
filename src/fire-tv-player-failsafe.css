@@ -753,12 +753,12 @@ body.mg-fire-tv-mode [data-mg-embedded-remote-player="true"] [data-mg-player-sta
   top: 132px !important;
   left: 0 !important;
   right: 0 !important;
-  bottom: 64px !important;
+  bottom: 0 !important;
   z-index: 2 !important;
   display: block !important;
   flex: 0 0 auto !important;
   min-height: 2px !important;
-  height: calc(100vh - 196px) !important;
+  height: calc(100vh - 132px) !important;
   width: 100vw !important;
   border: 0 !important;
   border-radius: 0 !important;
@@ -843,4 +843,12 @@ body.mg-fire-tv-mode [data-mg-embedded-remote-player="true"] [data-mg-safe-embed
   background: transparent !important;
   border-color: transparent !important;
   box-shadow: none !important;
+}
+
+/* Fire TV movie/episode web players no longer have a fixed helper box at the
+ * bottom. Hide it even on older WebViews while keeping the remote source bar. */
+body.mg-fire-tv [data-mg-embedded-remote-player="true"] [data-mg-embed-footer="true"],
+body.mg-fire-tv-stable [data-mg-embedded-remote-player="true"] [data-mg-embed-footer="true"],
+body.mg-fire-tv-mode [data-mg-embedded-remote-player="true"] [data-mg-embed-footer="true"] {
+  display: none !important;
 }
