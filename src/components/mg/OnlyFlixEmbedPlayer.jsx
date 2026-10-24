@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ExternalLink, ListVideo, Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { buildOnlyFlixEmbedUrl } from "@/components/mg/onlyFlixEmbed";
+import { buildOnlyFlixEmbedUrl, buildOnlyFlixTitlePageUrl } from "@/components/mg/onlyFlixEmbed";
 import { buildVidCoreEmbedUrl } from "@/components/mg/vidCoreEmbed";
 import { buildVidSrcEmbedUrl } from "@/components/mg/vidsrcEmbed";
 import { WEB_FALLBACK_LOAD_TIMEOUT_MS, nextWebFallback, mediaForTorrentFallback } from "@/components/mg/automaticWebFallback";
@@ -39,6 +39,12 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
   const vylaStartedRef = useRef(false);
   const failedProvidersRef = useRef(new Set(initialFailedProvider ? [initialFailedProvider] : []));
   const isFireTv = isNativeFireTvEmbedRemoteAvailable();
+  // Match the working source-card OnlyFlix Multiple Servers route. This is
+  // an extra manual scraper choice, not a replacement for web provider tabs.
+  const onlyFlixServersUrl = isFireTv ? buildOnlyFlixTitlePageUrl({
+    mediaType: media?.mediaType || (media?.type === "series" ? "tv" : media?.type),
+    title,
+  }) : "";
   // The old OnlyFlix CDN iframe can return 404 on Fire TV. Start direct
   // Play on a real alternate WEB SCRAPER when one is available; do NOT
   // replace the scrapers with torrent discovery. Every scraper tab and the
@@ -318,6 +324,13 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
                 onClick={onOpenSources}
                 className="min-h-10 shrink-0 rounded-lg border border-mg-green/60 px-3 text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-mg-green"
               >Sources</button>
+            )}
+            {onlyFlixServersUrl && (
+              <button type="button"
+                data-mg-embedded-onlyflix-servers="true"
+                onClick={() => window.open(onlyFlixServersUrl, "_blank", "noopener,noreferrer")}
+                className="min-h-10 shrink-0 rounded-lg border border-white/15 bg-white/5 px-3 text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-mg-green"
+              >OnlyFlix servers</button>
             )}
             <span className="shrink-0 text-xs text-white/50">
               {movieBackups.length ? "Movie player:" : "Episode player:"}

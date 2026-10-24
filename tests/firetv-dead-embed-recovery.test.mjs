@@ -43,6 +43,8 @@ test('Fire TV keeps every manual scraper, fullscreen, source selection and expli
   }
   assert.match(embed,/data-mg-embedded-top-fullscreen="true"/);
   assert.match(embed,/data-mg-embedded-top-sources="true"/);
+  assert.match(embed,/data-mg-embedded-onlyflix-servers="true"/);
+  assert.match(embed,/window\.open\(onlyFlixServersUrl, "_blank", "noopener,noreferrer"\)/);
   assert.match(embed,/onClick=\{\(\) => \{\s*setAutoRecovery\(false\);\s*setActiveEpisodePlayer\(option.id\)/);
   assert.match(embed,/if \(next === "torrents"\) \{\s*beginTorrentFallback\(\)/);
   assert.match(portal,/onOpenSources=\{onOpenSources\}/);
