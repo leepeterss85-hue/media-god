@@ -61,6 +61,28 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
                     };
                     var selected=tabs.find(function(el){return el.getAttribute('aria-pressed')==='true';})||tabs[0];
                     var tabIndex=tabs.indexOf(current),headIndex=headers.indexOf(current);
+                    // Vyla results are buttons in Media God's document, not
+                    // an iframe. The native Fire TV remote must walk and click
+                    // them before falling back to the scraper crosshair.
+                    var vylaPanel=root.querySelector('[data-mg-vyla-source-panel="true"]');
+                    var vylaChoices=vylaPanel?Array.from(
+                      vylaPanel.querySelectorAll('button[data-mg-vyla-candidate="true"]')
+                    ).filter(usable):[];
+                    if(vylaPanel && usable(vylaPanel)){
+                      var candidateIndex=vylaChoices.indexOf(current);
+                      if(key==='ContextMenu'){focus(selected||source);return;}
+                      if(candidateIndex>=0){
+                        if(key==='ArrowDown')focus(vylaChoices[Math.min(candidateIndex+1,vylaChoices.length-1)]);
+                        else if(key==='ArrowUp')focus(candidateIndex>0?vylaChoices[candidateIndex-1]:(selected||source));
+                        else if(key==='ArrowLeft')focus(selected||source);
+                        else if(key==='Enter' && !repeated)current.click();
+                        return;
+                      }
+                      if(key==='ArrowDown' && vylaChoices.length &&
+                         (tabIndex>=0 || headIndex>=0 || current===fullscreen || !vylaPanel.contains(current))){
+                        focus(vylaChoices[0]);return;
+                      }
+                    }
                     if(key==='ContextMenu'){
                       if(expanded)focus(fullscreen);
                       else if(tabIndex>=0)focus(source||headers[0]||fullscreen);
