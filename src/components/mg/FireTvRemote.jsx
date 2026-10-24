@@ -976,6 +976,39 @@ export default function FireTvRemote() {
         ? Array.from(embedded.querySelectorAll('[data-mg-player-topbar="true"] button:not([disabled])')).filter(visible)
         : [];
       const embedIsFullscreen = !!embedded?.querySelector('[data-mg-safe-embed-fullscreen="true"]');
+      // Vyla displays source candidates in a normal button list rather than
+      // an iframe. Keep remote selection in the parent document so Down from
+      // the active Vyla tab reaches a stream and Select can launch it.
+      const vylaPanel = embedded?.querySelector('[data-mg-vyla-source-panel="true"]');
+      const vylaCandidates = vylaPanel instanceof HTMLElement
+        ? Array.from(vylaPanel.querySelectorAll('button[data-mg-vyla-candidate="true"]')).filter(visible)
+        : [];
+      if (vylaPanel instanceof HTMLElement && visible(vylaPanel)) {
+        const candidateIndex = vylaCandidates.indexOf(currentFocus);
+        if (menuKey) {
+          consume();
+          focusElement(providerButtons.find(button => button.getAttribute("aria-pressed") === "true") ||
+            providerButtons[0] || sourcesButton);
+          return;
+        }
+        if (candidateIndex >= 0 && (direction || selectKey)) {
+          consume();
+          if (direction === "down") focusElement(vylaCandidates[Math.min(candidateIndex + 1, vylaCandidates.length - 1)]);
+          else if (direction === "up") focusElement(candidateIndex > 0
+            ? vylaCandidates[candidateIndex - 1]
+            : providerButtons.find(button => button.getAttribute("aria-pressed") === "true") || providerButtons[0]);
+          else if (direction === "left") focusElement(providerButtons.find(button => button.getAttribute("aria-pressed") === "true") || providerButtons[0]);
+          else if (selectKey && !event.repeat) currentFocus.click();
+          return;
+        }
+        if (direction === "down" && vylaCandidates.length &&
+            (providerBar?.contains(currentFocus) || headerButtons.includes(currentFocus) ||
+              (!vylaPanel.contains(currentFocus) && currentFocus !== null))) {
+          consume();
+          focusElement(vylaCandidates[0]);
+          return;
+        }
+      }
       const fullScreenFocused = fullscreenToggle instanceof HTMLElement &&
         currentFocus === fullscreenToggle;
       // Fire TV remote cannot naturally Tab from a cross-origin iframe to the
