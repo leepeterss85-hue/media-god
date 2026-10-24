@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "2026-10-23 separately reviewed PlayerProvider.jsx diff for optional household profiles: only three ContinueWatching read/update/create calls were switched to profiledLibrary plus its import. Source discovery, VLC decoder, English audio, episode preloading, Live TV and updater routines were not changed. Existing protected playback files retain their hashes.",
+  "note": "2026-10-24 reviewed Fire TV-only VLCVideoLayout positive-pixel surface fix (PR #88): an addOnLayoutChangeListener and Vout callback pass measured (>1px) width/height to vlcVout.setWindowSize. No source resolution, decoder modes, audio/subtitles, episode control, or Live TV logic was changed. The Android phone native player remains hash-identical. Previously reviewed profile isolation from 2026-10-23 remains intact.",
   "files": {
     "src/components/mg/VideoPlayer.jsx": "18bffc0fb431487bf31ea23c62dd9fd87eab2f407daedd3595eb4563cea50db0",
     "src/components/mg/MediaPlayerProvider.jsx": "296950ac2a69bcfcd597f93895c67add29c18c5323e57518306a79777fc76a84",
@@ -16,7 +16,7 @@
     "android-mobile/app/src/main/java/com/mediagod/mobile/PlayerActivity.kt": "a80ec6a5a4e6a8f36d51a046e319619f2fa86bb647209154750e881f173d875a",
     "android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt": "6cc5bc8b5cb79800692878efeb5f7bae7d35b82156f95225466231cc56d8819e",
     "firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt": "6f0bf56e97efce0613dbc015408babc43ad7d7d3db17c31bd312611fd42396f4",
-    "firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt": "73117322339333193d3a1cb5232aae192c779ca905062b7bf676ebbab134aad9",
+    "firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt": "102c74a1312e07b504ed7fc9ab45765f1122a2c4d4b64848ccc0159817e1b60f",
     "src/components/mg/PlayerPortalRenderer.jsx": "95ac158e24ed8747c1be66c0fa2605b896bf4b537fe20c6aceee64a10516ebcf",
     "src/components/mg/additionalLiveTvSources.js": "351e08e7413ea8c8b0b90db8f5151c065639b47528f4a5d005147ba53410846b"
   }
