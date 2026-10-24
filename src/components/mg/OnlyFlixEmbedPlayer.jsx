@@ -216,7 +216,9 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
     };
   }, [isFireTv]);
 
-  const chromeFade = isFireTv && !chromeVisible ? "opacity-0" : "opacity-100";
+  // Keep source buttons visible for Fire TV D-pad access even after inactivity.
+  // The crosshair itself can still fade independently.
+  const chromeFade = "opacity-100";
 
   return (
     <div
@@ -357,10 +359,11 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
                 src={selectedUrl}
                 title={providerLabel + ": " + title}
                 className="h-full w-full border-0"
-                allow={isFireTv
-                  ? "autoplay; encrypted-media; picture-in-picture; fullscreen"
-                  : "autoplay; encrypted-media; picture-in-picture"}
-                allowFullScreen={isFireTv}
+                // Match working phone: stay inline rather than allowing Fire OS
+                // to hide the hosting WebView behind a black native custom view.
+                // SafeEmbedStage already provides working in-app fullscreen.
+                allow="autoplay; encrypted-media; picture-in-picture"
+                allowFullScreen={false}
                 referrerPolicy="strict-origin-when-cross-origin"
                 tabIndex={0}
                 data-mg-embed-iframe="true"
