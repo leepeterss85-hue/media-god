@@ -30,6 +30,7 @@ function mockedRelease(platform, edits = {}) {
   const release = {
     tag_name: item.tag,
     target_commitish: SHA,
+    body: `Verified-APK-Commit: ${SHA}`,
     draft: false,
     published_at: "2026-10-23T17:16:10Z",
     assets: [{ name: item.asset, size: 180000000, state: "uploaded" }],
@@ -63,6 +64,8 @@ for (const platform of ["android-mobile", "fire-tv"]) {
     const invalid = [
       { ...release, draft: true },
       { ...release, published_at: null },
+      { ...release, body: "Build still running" },
+      { ...release, body: "Verified-APK-Commit: " + "0".repeat(40) },
       { ...release, target_commitish: "main" },
       { ...release, assets: [] },
       { ...release, assets: [{ ...release.assets[0], state: "starter" }] },
