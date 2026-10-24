@@ -30,9 +30,71 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
         if (event.action == KeyEvent.ACTION_DOWN && (event.repeatCount == 0 || key.startsWith("Arrow"))) {
             webView.evaluateJavascript(
                 """(function(){
-                  if(!document.querySelector('[data-mg-embedded-remote-player="true"]'))return;
+                  var root=document.querySelector('[data-mg-embedded-remote-player="true"]');
+                  if(!root)return;
+                  var key=${JSONObject.quote(key)};
+                  var repeated=${event.repeatCount > 0};
+                  // Provider controls belong to the trusted app document,
+                  // never to the cross-origin iframe. Handle them here so a
+                  // stalled/black iframe cannot swallow Menu, D-pad or Select.
+                  // Restrict this recovery to VOD scrapers: Live TV unchanged.
+                  if(root.matches('[data-mg-onlyflix-player="true"]')){
+                    var bar=root.querySelector('[data-mg-movie-player-backups="true"], [data-mg-episode-player-backups="true"]');
+                    var usable=function(el){
+                      if(!el || !el.getBoundingClientRect)return false;
+                      var r=el.getBoundingClientRect(),s=getComputedStyle(el);
+                      return r.width>1 && r.height>1 && s.display!=='none' && s.visibility!=='hidden';
+                    };
+                    var tabs=bar?Array.from(bar.querySelectorAll('button')).filter(usable):[];
+                    var headers=Array.from(root.querySelectorAll('[data-mg-player-topbar="true"] button')).filter(usable);
+                    var source=root.querySelector('[data-mg-embedded-open-sources="true"]');
+                    var fullscreen=root.querySelector('[data-mg-safe-fullscreen-toggle="true"]');
+                    var frame=root.querySelector('[data-mg-embed-iframe="true"]');
+                    var expanded=!!root.querySelector('[data-mg-safe-embed-fullscreen="true"]');
+                    var current=document.activeElement;
+                    var focus=function(el){
+                      if(!usable(el))return;
+                      try{el.focus({preventScroll:true});el.scrollIntoView({block:'nearest',inline:'nearest'});}
+                      catch(e){el.focus();}
+                    };
+                    var selected=tabs.find(function(el){return el.getAttribute('aria-pressed')==='true';})||tabs[0];
+                    var tabIndex=tabs.indexOf(current),headIndex=headers.indexOf(current);
+                    if(key==='ContextMenu'){
+                      if(expanded)focus(fullscreen);
+                      else if(tabIndex>=0)focus(source||headers[0]||fullscreen);
+                      else if(headIndex>=0)focus(fullscreen||selected);
+                      else focus(selected||source||fullscreen);
+                      return;
+                    }
+                    if(tabIndex>=0 && (key.indexOf('Arrow')===0 || key==='Enter')){
+                      if(key==='ArrowLeft')focus(tabs[(tabIndex-1+tabs.length)%tabs.length]);
+                      else if(key==='ArrowRight')focus(tabs[(tabIndex+1)%tabs.length]);
+                      else if(key==='ArrowDown')focus(fullscreen||frame);
+                      else if(key==='ArrowUp')focus(source||headers[0]);
+                      else if(!repeated)current.click();
+                      return;
+                    }
+                    if(headIndex>=0 && (key.indexOf('Arrow')===0 || key==='Enter')){
+                      if(key==='ArrowLeft')focus(headers[(headIndex-1+headers.length)%headers.length]);
+                      else if(key==='ArrowRight')focus(headers[(headIndex+1)%headers.length]);
+                      else if(key==='ArrowDown')focus(selected||fullscreen||frame);
+                      else if(!repeated && key==='Enter')current.click();
+                      return;
+                    }
+                    if(current===fullscreen && (key.indexOf('Arrow')===0 || key==='Enter')){
+                      if(key==='Enter' && !repeated)current.click();
+                      else if(key==='ArrowDown' && !expanded)focus(frame);
+                      else if(key==='ArrowUp' && !expanded)focus(selected||source);
+                      return;
+                    }
+                    // One Up press opens the sources from a black iframe.
+                    // Down from the provider row returns to the video.
+                    if(key==='ArrowUp' && tabs.length && !expanded){
+                      focus(selected);return;
+                    }
+                  }
                   window.dispatchEvent(new KeyboardEvent('keydown',{
-                    key:${JSONObject.quote(key)},bubbles:true,cancelable:true,repeat:${event.repeatCount > 0}
+                    key:key,bubbles:true,cancelable:true,repeat:repeated
                   }));
                 })()""".trimIndent(), null
             )
