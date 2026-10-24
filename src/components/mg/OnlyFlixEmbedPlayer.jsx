@@ -11,7 +11,7 @@ import { usePlayer } from "@/components/mg/MediaPlayerProvider";
 import { isNativeFireTvEmbedRemoteAvailable, setNativeFireTvEmbedRemoteActive } from "@/components/mg/nativeFireTvBridge";
 import OnlyFlixRemotePointer from "@/components/mg/OnlyFlixRemotePointer";
 import CastButton from "@/components/mg/CastButton";
-import { needsFireTvScraperRecovery } from "@/components/mg/fireTvScraperRecovery";
+import { initialFireTvScraper } from "@/components/mg/fireTvScraperRecovery";
 import SafeEmbedStage from "@/components/mg/SafeEmbedStage";
 import {
   buildVidRiftEpisodeEmbedUrl,
@@ -39,23 +39,29 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
   const vylaStartedRef = useRef(false);
   const failedProvidersRef = useRef(new Set(initialFailedProvider ? [initialFailedProvider] : []));
   const isFireTv = isNativeFireTvEmbedRemoteAvailable();
-  // The source-card's working scraper links are NOT the same as this older
-  // OnlyFlix iframe. Its /embed/* address can return 404 yet still fire
-  // iframe.onLoad, leaving audio/video diagnostics unable to trigger failover.
-  // Fire TV direct Play therefore uses the existing qualified source player.
-  const recoverBrokenFireTvEmbed = needsFireTvScraperRecovery({
+  // The old OnlyFlix CDN iframe can return 404 on Fire TV. Start direct
+  // Play on a real alternate WEB SCRAPER when one is available; do NOT
+  // replace the scrapers with torrent discovery. Every scraper tab and the
+  // user's manual Sources option remain available, including OnlyFlix.
+  const firstFireTvScraper = useMemo(() => initialFireTvScraper({
     nativeFireTv: isFireTv,
     url,
     mediaType: media?.mediaType || (media?.type === "series" ? "tv" : media?.type),
-  });
-  const [activeEpisodePlayer, setActiveEpisodePlayer] = useState(initialEpisodeProvider);
+    initialProvider: initialEpisodeProvider,
+    alternatives: [
+      { id: "vidcore", url: buildVidCoreEmbedUrl(media) },
+      { id: "vidrift", url: media?.mediaType === "tv" ? buildVidRiftEpisodeEmbedUrl(media) : buildVidRiftMovieEmbedUrl(media) },
+      { id: "stellar", url: media?.mediaType === "tv" ? buildStellarEpisodeEmbedUrl(media) : buildStellarMovieEmbedUrl(media) },
+    ],
+  }), [isFireTv, url, initialEpisodeProvider, media]);
+  const [activeEpisodePlayer, setActiveEpisodePlayer] = useState(firstFireTvScraper);
   useEffect(() => {
-    setActiveEpisodePlayer(initialEpisodeProvider);
+    setActiveEpisodePlayer(firstFireTvScraper);
     setAutoRecovery(false);
     torrentStartedRef.current = false;
     vylaStartedRef.current = false;
     failedProvidersRef.current = new Set(initialFailedProvider ? [initialFailedProvider] : []);
-  }, [url, initialEpisodeProvider, initialFailedProvider]);
+  }, [url, firstFireTvScraper, initialFailedProvider]);
   // All eligible web players stay selectable for an exact TV episode.
   // VidCore can be the entry point, but switching to OnlyFlix or another
   // episode player never opens the unrelated torrent-finding screen.
@@ -105,13 +111,6 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
     }
     void player.play(mediaForTorrentFallback(media));
   }, [onOpenSources, player, media]);
-  useEffect(() => {
-    // Do not mount a known-invalid Fire TV iframe: open the same in-app
-    // source finder used by the working card, and let native VLC/Media3
-    // own real video. A ref prevents repeated requests during re-renders.
-    if (!recoverBrokenFireTvEmbed || torrentStartedRef.current) return;
-    beginTorrentFallback();
-  }, [recoverBrokenFireTvEmbed, beginTorrentFallback]);
   useEffect(() => {
     if (activeEpisodePlayer !== "vyla") return undefined;
     if (!vylaReady) {
@@ -237,18 +236,6 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
   // The crosshair itself can still fade independently.
   const chromeFade = "opacity-100";
 
-  if (recoverBrokenFireTvEmbed) {
-    return (
-      <div data-mg-fire-tv-scraper-recovery="true"
-        className="fixed inset-0 z-[2147483646] flex flex-col items-center justify-center gap-3 bg-black p-6 text-center text-white">
-        <Loader2 className="h-7 w-7 animate-spin text-mg-green" />
-        <p className="text-sm font-semibold">Finding a working playback source…</p>
-        <p className="max-w-md text-xs text-white/60">The old embedded player is unavailable on Fire TV. Media God is checking playable sources for this title instead.</p>
-        <button type="button" onClick={beginTorrentFallback}
-          className="min-h-11 rounded-lg border border-mg-green/60 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-mg-green">Open sources</button>
-      </div>
-    );
-  }
 
   return (
     <div
