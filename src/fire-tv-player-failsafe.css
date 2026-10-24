@@ -52,17 +52,15 @@ body.mg-fire-tv-mode [data-mg-player-root="true"] > div {
 }
 
 /*
- * VideoPlayer structure:
- *   wrapper
- *     1. compact title/back row
- *     2. actual video stage
- *
- * The old Firestick CSS constrained child 2 to a short 16:9 card. Override
- * that exact stage so the MEDIA itself owns the whole television.
+ * VideoPlayer: target its explicitly marked video stage, NEVER a
+ * positional child. Embedded players include a source/provider tab bar as
+ * their second child. Treating that bar as the video stage covered the
+ * actual iframe with a black, full-screen layer on Fire Stick.
+ * Keep the embedded stage separate to preserve the web player's controls.
  */
-body.mg-fire-tv [data-mg-player-root="true"] > div > div:nth-child(2),
-body.mg-fire-tv-stable [data-mg-player-root="true"] > div > div:nth-child(2),
-body.mg-fire-tv-mode [data-mg-player-root="true"] > div > div:nth-child(2) {
+body.mg-fire-tv [data-mg-player-root="true"]:not([data-mg-embedded-remote-player="true"]) [data-mg-player-stage="true"],
+body.mg-fire-tv-stable [data-mg-player-root="true"]:not([data-mg-embedded-remote-player="true"]) [data-mg-player-stage="true"],
+body.mg-fire-tv-mode [data-mg-player-root="true"]:not([data-mg-embedded-remote-player="true"]) [data-mg-player-stage="true"] {
   position: fixed !important;
   inset: 0 !important;
   top: 0 !important;
@@ -408,6 +406,56 @@ body.mg-fire-tv-mode [data-mg-player-root="true"] iframe {
   border: 0 !important;
   transform: none !important;
   background: #000 !important;
+}
+
+/* On Fire TV embedded providers, the iframe stage must fill its own
+ * available area. Do NOT force the iframe to 100vw/100vh when the Back,
+ * Sources, Cast and provider controls are still on screen: this caused
+ * clipped/small video and the source menu to sit above the picture. */
+body.mg-fire-tv [data-mg-embedded-remote-player="true"] > div,
+body.mg-fire-tv-stable [data-mg-embedded-remote-player="true"] > div,
+body.mg-fire-tv-mode [data-mg-embedded-remote-player="true"] > div {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100vh !important;
+  max-height: 100vh !important;
+  min-height: 0 !important;
+}
+
+body.mg-fire-tv [data-mg-embedded-remote-player="true"] [data-mg-player-stage="true"]:not([data-mg-safe-embed-fullscreen="true"]),
+body.mg-fire-tv-stable [data-mg-embedded-remote-player="true"] [data-mg-player-stage="true"]:not([data-mg-safe-embed-fullscreen="true"]),
+body.mg-fire-tv-mode [data-mg-embedded-remote-player="true"] [data-mg-player-stage="true"]:not([data-mg-safe-embed-fullscreen="true"]) {
+  position: relative !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  width: 100% !important;
+  height: auto !important;
+  max-height: none !important;
+  aspect-ratio: auto !important;
+  overflow: hidden !important;
+}
+
+body.mg-fire-tv [data-mg-embedded-remote-player="true"] [data-mg-player-stage="true"] iframe,
+body.mg-fire-tv-stable [data-mg-embedded-remote-player="true"] [data-mg-player-stage="true"] iframe,
+body.mg-fire-tv-mode [data-mg-embedded-remote-player="true"] [data-mg-player-stage="true"] iframe {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+}
+
+body.mg-fire-tv [data-mg-embedded-remote-player="true"] [data-mg-player-stage="true"][data-mg-safe-embed-fullscreen="true"],
+body.mg-fire-tv-stable [data-mg-embedded-remote-player="true"] [data-mg-player-stage="true"][data-mg-safe-embed-fullscreen="true"],
+body.mg-fire-tv-mode [data-mg-embedded-remote-player="true"] [data-mg-player-stage="true"][data-mg-safe-embed-fullscreen="true"] {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2147483647 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  border: 0 !important;
+  border-radius: 0 !important;
 }
 
 /*
