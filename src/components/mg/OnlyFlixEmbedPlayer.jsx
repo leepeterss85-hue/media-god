@@ -11,6 +11,7 @@ import { usePlayer } from "@/components/mg/MediaPlayerProvider";
 import { isNativeFireTvEmbedRemoteAvailable, setNativeFireTvEmbedRemoteActive } from "@/components/mg/nativeFireTvBridge";
 import OnlyFlixRemotePointer from "@/components/mg/OnlyFlixRemotePointer";
 import CastButton from "@/components/mg/CastButton";
+import { needsFireTvScraperRecovery } from "@/components/mg/fireTvScraperRecovery";
 import SafeEmbedStage from "@/components/mg/SafeEmbedStage";
 import {
   buildVidRiftEpisodeEmbedUrl,
@@ -38,6 +39,15 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
   const vylaStartedRef = useRef(false);
   const failedProvidersRef = useRef(new Set(initialFailedProvider ? [initialFailedProvider] : []));
   const isFireTv = isNativeFireTvEmbedRemoteAvailable();
+  // The source-card's working scraper links are NOT the same as this older
+  // OnlyFlix iframe. Its /embed/* address can return 404 yet still fire
+  // iframe.onLoad, leaving audio/video diagnostics unable to trigger failover.
+  // Fire TV direct Play therefore uses the existing qualified source player.
+  const recoverBrokenFireTvEmbed = needsFireTvScraperRecovery({
+    nativeFireTv: isFireTv,
+    url,
+    mediaType: media?.mediaType || (media?.type === "series" ? "tv" : media?.type),
+  });
   const [activeEpisodePlayer, setActiveEpisodePlayer] = useState(initialEpisodeProvider);
   useEffect(() => {
     setActiveEpisodePlayer(initialEpisodeProvider);
@@ -95,6 +105,13 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
     }
     void player.play(mediaForTorrentFallback(media));
   }, [onOpenSources, player, media]);
+  useEffect(() => {
+    // Do not mount a known-invalid Fire TV iframe: open the same in-app
+    // source finder used by the working card, and let native VLC/Media3
+    // own real video. A ref prevents repeated requests during re-renders.
+    if (!recoverBrokenFireTvEmbed || torrentStartedRef.current) return;
+    beginTorrentFallback();
+  }, [recoverBrokenFireTvEmbed, beginTorrentFallback]);
   useEffect(() => {
     if (activeEpisodePlayer !== "vyla") return undefined;
     if (!vylaReady) {
@@ -219,6 +236,19 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
   // Keep source buttons visible for Fire TV D-pad access even after inactivity.
   // The crosshair itself can still fade independently.
   const chromeFade = "opacity-100";
+
+  if (recoverBrokenFireTvEmbed) {
+    return (
+      <div data-mg-fire-tv-scraper-recovery="true"
+        className="fixed inset-0 z-[2147483646] flex flex-col items-center justify-center gap-3 bg-black p-6 text-center text-white">
+        <Loader2 className="h-7 w-7 animate-spin text-mg-green" />
+        <p className="text-sm font-semibold">Finding a working playback source…</p>
+        <p className="max-w-md text-xs text-white/60">The old embedded player is unavailable on Fire TV. Media God is checking playable sources for this title instead.</p>
+        <button type="button" onClick={beginTorrentFallback}
+          className="min-h-11 rounded-lg border border-mg-green/60 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-mg-green">Open sources</button>
+      </div>
+    );
+  }
 
   return (
     <div
