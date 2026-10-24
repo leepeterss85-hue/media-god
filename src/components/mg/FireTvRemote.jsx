@@ -735,6 +735,7 @@ const runMediaAction = (action) => {
 
 export default function FireTvRemote() {
   const lastScopeRef = useRef(null);
+  const initialHomeFocusedRef = useRef(false);
 
   useEffect(() => {
     if (typeof document === "undefined") {
@@ -866,6 +867,10 @@ export default function FireTvRemote() {
 
       if (!(scope instanceof HTMLElement)) {
         lastScopeRef.current = null;
+        if (!initialHomeFocusedRef.current) {
+          const home = document.querySelector('[data-mg-focus-key="nav:home"]');
+          if (focusElement(home)) initialHomeFocusedRef.current = true;
+        }
         return;
       }
 
@@ -873,9 +878,15 @@ export default function FireTvRemote() {
         return;
       }
 
+      // A selector list uses DOM order, not the order of the selectors.
+      // Wait for TV episode loading before choosing the primary action.
+      const detailPrimary = scope.querySelector('button[data-mg-detail-primary="true"]');
+      if (detailPrimary?.disabled) return;
+
       lastScopeRef.current = scope;
 
       const preferred =
+        (detailPrimary && visible(detailPrimary) ? detailPrimary : null) ||
         scope.querySelector(
           '[data-mg-update-primary="true"]:not([disabled]), [data-mg-search-dialog="true"] input[aria-label="Search"], button[data-mg-player-exit="true"], button[aria-label="Exit player"], button[aria-label="Back to main menu"], button[data-mg-detail-primary="true"], button[aria-label="Back"], button[aria-label="Close details"], button[aria-label="Close search"]'
         ) ||
@@ -1375,6 +1386,8 @@ export default function FireTvRemote() {
     observer.observe(document.body, {
       childList: true,
       subtree: true,
+      attributes: true,
+      attributeFilter: ["disabled"],
     });
 
     focusOverlay();
