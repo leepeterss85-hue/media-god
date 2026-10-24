@@ -24,6 +24,7 @@ import { Image } from "@/components/ui/image";
 import MediaReviews from "@/components/mg/MediaReviews";
 import StreamSourcesBox from "@/components/mg/StreamSourcesBox";
 import MediaDownloadPicker from "@/components/mg/MediaDownloadPicker";
+import SeasonDownloadPicker from "@/components/mg/SeasonDownloadPicker";
 
 import {
   buildMediaSources,
@@ -275,7 +276,8 @@ export default function EpisodeSelector({
     );
   const [sourcesEpisode, setSourcesEpisode] = useState(null);
   const [downloadEpisode, setDownloadEpisode] = useState(null);
-  useEffect(() => { setSourcesEpisode(null); setDownloadEpisode(null); }, [season]);
+  const [downloadSeasonOpen, setDownloadSeasonOpen] = useState(false);
+  useEffect(() => { setSourcesEpisode(null); setDownloadEpisode(null); setDownloadSeasonOpen(false); }, [season]);
 
   const showTitle =
     showTitleOf(
@@ -1016,6 +1018,30 @@ export default function EpisodeSelector({
 
           <RotateCcw className="w-4 h-4 text-mg-green shrink-0" />
         </button>
+      )}
+
+      {!loading && airedEpisodes.length > 0 && (
+        <div className="mb-3">
+          <button type="button"
+            data-mg-download-season="true"
+            data-mg-focus-key={"season:" + (tmdbId || showTitle) + ":" + season + ":download"}
+            aria-expanded={downloadSeasonOpen}
+            onClick={() => setDownloadSeasonOpen((open) => !open)}
+            className="min-h-11 inline-flex items-center gap-2 rounded-lg border border-mg-green/30 bg-mg-green/10 px-3 text-xs font-semibold text-mg-green focus:outline-none focus:ring-2 focus:ring-mg-green">
+            <Download className="w-4 h-4" />
+            Download Season {season} · {airedEpisodes.length} episodes
+          </button>
+          {downloadSeasonOpen && (
+            <SeasonDownloadPicker
+              key={"season-download:" + tmdbId + ":" + season}
+              title={showTitle}
+              year={item?.year}
+              season={Number(season)}
+              episodes={airedEpisodes}
+              onClose={() => setDownloadSeasonOpen(false)}
+            />
+          )}
+        </div>
       )}
 
       <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 mb-3">
