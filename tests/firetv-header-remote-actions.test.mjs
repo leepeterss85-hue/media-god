@@ -7,12 +7,16 @@ const start = source.indexOf('    const onKeyDown = (event) => {');
 const end = source.indexOf('      if (updateIsOpen &&', start);
 const handler = source.slice(start, end) + '\n}; globalThis.run = onKeyDown;';
 class Element { click() { this.clicks = (this.clicks || 0) + 1; } }
-function setup(fullscreen = false) {
-  const back = new Element(), sources = new Element(), toggle = new Element(), iframe = new Element();
+function setup(fullscreen = false, withProviders = false) {
+  const back = new Element(), sources = new Element(), toggle = new Element(), iframe = new Element(), provider = new Element();
+  const providerBar = new Element();
+  providerBar.querySelectorAll = () => [provider];
+  providerBar.contains = el => el === provider;
+  provider.getAttribute = name => name === 'aria-pressed' ? 'true' : null;
   const state = { focused: sources };
   const embedded = new Element();
   embedded.querySelectorAll = () => [back, sources];
-  embedded.querySelector = selector => selector.includes('safe-fullscreen-toggle') ? toggle : selector.includes('safe-embed-fullscreen') ? (fullscreen ? toggle : null) : selector.includes('embed-iframe') ? iframe : selector.includes('open-sources') ? sources : null;
+  embedded.querySelector = selector => selector.includes('movie-player-backups') ? (withProviders ? providerBar : null) : selector.includes('safe-fullscreen-toggle') ? toggle : selector.includes('safe-embed-fullscreen') ? (fullscreen ? toggle : null) : selector.includes('embed-iframe') ? iframe : selector.includes('open-sources') ? sources : null;
   const context = {
     HTMLElement: Element, isFireTv: () => true, visible: () => true,
     directionFromEvent: e => ({ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',ArrowUp:'up'})[e.key],
@@ -21,13 +25,20 @@ function setup(fullscreen = false) {
     document: { get activeElement() { return state.focused; }, querySelector: selector => selector.includes('fire-tv-update') ? null : embedded },
   };
   vm.createContext(context); vm.runInContext(handler, context);
-  return { state, back, sources, toggle, iframe, key: key => context.run({key, preventDefault(){},stopPropagation(){},stopImmediatePropagation(){}}) };
+  return { state, back, sources, toggle, iframe, provider, key: key => context.run({key, preventDefault(){},stopPropagation(){},stopImmediatePropagation(){}}) };
 }
 test('Header Sources receives Select and arrows reach Fullscreen without iframe interception', () => {
   const x = setup(); x.key('Enter'); assert.equal(x.sources.clicks, 1);
   x.key('ArrowLeft'); assert.equal(x.state.focused, x.back);
   x.key('ArrowDown'); assert.equal(x.state.focused, x.toggle);
   x.key('Enter'); assert.equal(x.toggle.clicks, 1);
+});
+test('Fire TV Menu cycles from scraper provider choices into the Sources header', () => {
+  const x = setup(false, true);
+  x.state.focused = x.iframe;
+  x.key('ContextMenu'); assert.equal(x.state.focused, x.provider);
+  x.key('ContextMenu'); assert.equal(x.state.focused, x.sources);
+  x.key('Enter'); assert.equal(x.sources.clicks, 1);
 });
 test('Menu in fullscreen focuses Exit fullscreen and arrows cannot escape behind video', () => {
   const x = setup(true); x.state.focused = x.iframe;
