@@ -703,9 +703,9 @@ body.mg-fire-tv-mode [data-mg-player-vod="true"] .mg-player-ten {
  * embedded top bar on top of its provider selector. These explicit overrides
  * apply ONLY to embedded movie/episode web players. Do not touch Live TV.
  */
-body.mg-fire-tv [data-mg-embedded-remote-player="true"] [data-mg-player-topbar="true"],
-body.mg-fire-tv-stable [data-mg-embedded-remote-player="true"] [data-mg-player-topbar="true"],
-body.mg-fire-tv-mode [data-mg-embedded-remote-player="true"] [data-mg-player-topbar="true"] {
+body.mg-fire-tv [data-mg-player-root="true"][data-mg-embedded-remote-player="true"] > div > [data-mg-player-topbar="true"]:first-child,
+body.mg-fire-tv-stable [data-mg-player-root="true"][data-mg-embedded-remote-player="true"] > div > [data-mg-player-topbar="true"]:first-child,
+body.mg-fire-tv-mode [data-mg-player-root="true"][data-mg-embedded-remote-player="true"] > div > [data-mg-player-topbar="true"]:first-child {
   position: relative !important;
   inset: auto !important;
   top: auto !important;
