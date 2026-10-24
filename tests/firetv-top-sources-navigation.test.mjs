@@ -15,6 +15,8 @@ test("Fire Stick Menu reaches the full film/episode provider strip without hijac
   assert.match(remote, /providerButtons\.find\(button => button\.getAttribute\("aria-pressed"\) === "true"\)/);
   assert.match(remote, /direction === "left" \|\| direction === "right"/);
   assert.match(remote, /direction === "down"/);
+  assert.match(remote, /pointerRect\.top <= frameRect\.top/);
+  assert.match(remote, /focusElement\(providerButtons\.find/);
   assert.match(remote, /currentFocus\.click\(\)/);
   assert.ok(remote.indexOf("providerButtons.length && providerBar.contains(currentFocus)") <
     remote.indexOf("tapOnlyFlixForRemote("),
