@@ -837,6 +837,10 @@ body.mg-fire-tv-mode [data-mg-embedded-remote-player="true"][data-mg-embed-expan
 body.mg-fire-tv [data-mg-embedded-remote-player="true"] [data-mg-safe-embed-fullscreen="true"][data-mg-embed-controls-visible="false"] [data-mg-safe-fullscreen-toggle="true"]:not(:focus),
 body.mg-fire-tv-stable [data-mg-embedded-remote-player="true"] [data-mg-safe-embed-fullscreen="true"][data-mg-embed-controls-visible="false"] [data-mg-safe-fullscreen-toggle="true"]:not(:focus),
 body.mg-fire-tv-mode [data-mg-embedded-remote-player="true"] [data-mg-safe-embed-fullscreen="true"][data-mg-embed-controls-visible="false"] [data-mg-safe-fullscreen-toggle="true"]:not(:focus) {
-  visibility: hidden !important;
-  pointer-events: none !important;
+  /* Keep a focusable hit area: native Menu checks computed visibility
+   * before focusing this button. Hide its paint, not its focus target. */
+  color: transparent !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
 }
