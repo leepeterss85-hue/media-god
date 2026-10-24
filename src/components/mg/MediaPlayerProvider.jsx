@@ -15,7 +15,8 @@ import PlayerPortalRenderer from "@/components/mg/PlayerPortalRenderer";
 import { buildEmbedSuEmbedUrl } from "@/components/mg/webEmbedProviders";
 import { buildVidSrcEmbedUrl } from "@/components/mg/vidsrcEmbed";
 import { buildVidCoreEmbedUrl } from "@/components/mg/vidCoreEmbed";
-import { buildTwoEmbedEmbedUrl, buildCineSrcEmbedUrl, buildMultiEmbedEmbedUrl } from "@/components/mg/extraEmbedProviders"; import { buildOnlyFlixEmbedUrl } from "@/components/mg/onlyFlixEmbed";
+import { buildTwoEmbedEmbedUrl, buildCineSrcEmbedUrl, buildMultiEmbedEmbedUrl } from "@/components/mg/extraEmbedProviders";
+import { isNativeFireTvEmbedRemoteAvailable } from "@/components/mg/nativeFireTvBridge"; import { buildOnlyFlixEmbedUrl } from "@/components/mg/onlyFlixEmbed";
 import { stopExclusivePlayback } from "@/components/mg/exclusivePlayback";
 import { detectLanguagePreference, getPlaybackDeviceProfile, scoreSourceCompatibility, sourcePlaybackCompatibilityTier } from "@/components/mg/mediaCompatibility";
 import { devicePlaybackReliabilityAdjustment, exactPlaybackSourceLabel } from "@/components/mg/playbackReliability";
@@ -4566,9 +4567,18 @@ export function PlayerProvider({
     return url ? startEmbed(url, media, key) : false;
   }, [startEmbed]);
   const playOnlyFlix = useCallback((media) => {
+    // Fire Stick: the main Play action must use the SAME source-discovery and
+    // native VLC handoff as a playable source card (playAddonStream). Opening
+    // OnlyFlix inside a WebView iframe here can give audio without a picture.
+    // Keep the existing embed route unchanged on phone, tablet and Base44.
+    // Fire TV's embedded-remote bridge is not exposed by Android Mobile.
+    if (isNativeFireTvEmbedRemoteAvailable()) {
+      void play(media);
+      return true;
+    }
     const url = buildOnlyFlixEmbedUrl(media);
     return url ? startEmbed(url, media, "onlyflix") : false;
-  }, [startEmbed]);
+  }, [play, startEmbed]);
 
   const startMagnetPlayer = useCallback((media, type) => {
     if (!media?.magnet) return false;
