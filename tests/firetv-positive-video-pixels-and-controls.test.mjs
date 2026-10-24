@@ -26,7 +26,7 @@ test("The embedded Fire TV player no longer hides top source buttons or allows z
   assert.match(scope, /display: inline-flex !important/);
   assert.match(scope, /\[data-mg-episode-player-backups="true"\]/);
   assert.match(scope, /\[data-mg-movie-player-backups="true"\]/);
-  assert.match(scope, /height: calc\(100vh - 196px\) !important/);
+  assert.match(scope, /height: calc\(100vh - 132px\) !important/);
   assert.match(scope, /min-height: 2px !important/);
   assert.match(scope, /\[data-mg-safe-fullscreen-toggle="true"\]/);
   assert.match(scope, /\[data-mg-safe-embed-fullscreen="true"\]/);
