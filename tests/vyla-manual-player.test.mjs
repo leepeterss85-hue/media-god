@@ -13,7 +13,8 @@ test("Vyla stays an explicit test choice for BOTH TV episodes and films", () => 
   assert.match(embed, /data-mg-vyla-test-player="true"/);
   assert.match(embed, /setActiveEpisodePlayer\("vyla"\)/);
   assert.match(embed, /initialEpisodeProvider = "onlyflix"/);
-  assert.match(embed, /const \[activeEpisodePlayer, setActiveEpisodePlayer\] = useState\(initialEpisodeProvider\)/);
+  assert.match(embed, /const \[activeEpisodePlayer, setActiveEpisodePlayer\] = useState\(firstFireTvScraper\)/);
+  assert.match(embed, /initialProvider: initialEpisodeProvider/);
   assert.match(embed, /media\?\.mediaType === "tv"/);
   assert.match(embed, /media\?\.mediaType === "movie"/);
   assert.match(embed, /media_type: vylaType/);
