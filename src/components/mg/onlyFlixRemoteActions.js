@@ -53,8 +53,17 @@ export const tapOnlyFlixForRemote = ({ mediaAction, selectKey, direction, repeat
   // drift puts it over Media God's controls, swallow Select rather than
   // accidentally activating a background source.
   if (!insideFrame) return true;
-  if (typeof document.elementFromPoint === "function" && document.elementFromPoint(x, y) !== iframe) {
-    return true;
+  if (typeof document.elementFromPoint === "function") {
+    const hit = document.elementFromPoint(x, y);
+    const fullscreen = hit?.closest?.('[data-mg-safe-fullscreen-toggle="true"]');
+    // The cursor may be over the trusted app button (or its SVG), not the
+    // iframe. Activate only this player's exact fullscreen control directly;
+    // native iframe taps deliberately reject all parent-document overlays.
+    if (fullscreen && fullscreen === player.querySelector('[data-mg-safe-fullscreen-toggle="true"]')) {
+      if (selectKey && !repeat) fullscreen.click();
+      return true;
+    }
+    if (hit !== iframe) return true;
   }
 
   if (repeat) return true;
