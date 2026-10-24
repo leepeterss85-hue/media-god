@@ -72,6 +72,23 @@ const EXTERNAL_SEARCH_OVERRIDES = [
  */
 const SEARCH_IDENTITY_CORRECTIONS = [
   {
+    // Newly released LAIKA film: TMDB 791523 / IMDb tt2056785.
+    // The normal first-page multi-search can lag behind a theatrical
+    // release. Resolve the exact TMDB movie metadata on a matching query,
+    // even when there is not yet a lawful digital streaming option.
+    // No stream, download, or watch-provider URL is invented here.
+    aliases: [
+      'wildwood',
+    ],
+    media_type: 'movie',
+    tmdb_id: 791523,
+    imdb_id: 'tt2056785',
+    title: 'Wildwood',
+    accepted_years: [
+      '2026',
+    ],
+  },
+  {
     aliases: [
       'matchbox',
       'matchbox the movie',

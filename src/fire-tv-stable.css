@@ -1064,3 +1064,44 @@ body.mg-fire-tv-mode .fixed.inset-0.z-50.bg-black\/95,
 body.mg-fire-tv-stable .fixed.inset-0.z-50.bg-black\/95 {
   font-size: 16px !important;
 }
+
+/* Fire Stick remote navigation polish, catalogue ONLY. The protected player
+ * and embedded scraper controls are intentionally outside these selectors.
+ * Increase tiny 27px sidebar targets and give D-pad focus a clear halo.
+ * The nav is scrollable: focus stays within view on short TV screens. */
+body.mg-fire-tv #root .mg-fire-tv-nav nav button,
+body.mg-fire-tv #root .mg-fire-tv-nav > div:last-child button,
+body.mg-fire-tv-mode #root .mg-fire-tv-nav nav button,
+body.mg-fire-tv-mode #root .mg-fire-tv-nav > div:last-child button,
+body.mg-fire-tv-stable #root .mg-fire-tv-nav nav button,
+body.mg-fire-tv-stable #root .mg-fire-tv-nav > div:last-child button {
+  min-height: 34px !important;
+  height: 34px !important;
+  font-size: 12px !important;
+  padding: 4px 8px !important;
+  scroll-margin-block: 20px;
+}
+body.mg-fire-tv #root .mg-fire-tv-nav svg,
+body.mg-fire-tv-mode #root .mg-fire-tv-nav svg,
+body.mg-fire-tv-stable #root .mg-fire-tv-nav svg {
+  width: 17px !important;
+  height: 17px !important;
+}
+body.mg-fire-tv #root .mg-fire-tv-nav button:focus,
+body.mg-fire-tv-mode #root .mg-fire-tv-nav button:focus,
+body.mg-fire-tv-stable #root .mg-fire-tv-nav button:focus {
+  outline: 3px solid hsl(var(--mg-green)) !important;
+  outline-offset: -2px !important;
+  background: hsl(var(--mg-green) / 0.3) !important;
+  color: #fff !important;
+  box-shadow: inset 4px 0 0 hsl(var(--mg-green)), 0 0 0 2px rgba(0,0,0,.8) !important;
+}
+/* Results and filters get the same unmistakable D-pad highlight. */
+body.mg-fire-tv [data-mg-search-dialog="true"] button:focus,
+body.mg-fire-tv-mode [data-mg-search-dialog="true"] button:focus,
+body.mg-fire-tv-stable [data-mg-search-dialog="true"] button:focus {
+  outline: 3px solid hsl(var(--mg-green)) !important;
+  outline-offset: -3px !important;
+  background-color: hsl(var(--mg-green) / .17) !important;
+  scroll-margin-block: 16px;
+}
