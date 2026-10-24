@@ -18,7 +18,19 @@ export default function SafeEmbedStage({ children }) {
       }
     };
     window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
+    // The Fire TV native Back button raises this custom event, not Escape.
+    // Consume it when the embed is expanded, rather than exiting playback.
+    const onFireTvBack = (event) => {
+      if (!document.body?.classList.contains("mg-native-fire-tv")) return;
+      event.stopImmediatePropagation?.();
+      event.stopPropagation();
+      setFullscreen(false);
+    };
+    window.addEventListener("mg:native-back", onFireTvBack, true);
+    return () => {
+      window.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("mg:native-back", onFireTvBack, true);
+    };
   }, [fullscreen]);
   return (
     <div
