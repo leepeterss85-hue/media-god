@@ -384,6 +384,7 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
                       type="button"
                       key={candidate.url || index}
                       onClick={() => launchVylaCandidate(candidate)}
+                      data-mg-vyla-candidate="true"
                       className="min-h-11 rounded-lg border border-white/20 bg-white/10 p-3 text-left text-sm font-medium hover:border-mg-green/60 hover:bg-mg-green/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mg-green"
                     >{candidate.label || `Vyla candidate ${index + 1}`} · Try source</button>
                   ))}
