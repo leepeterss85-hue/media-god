@@ -1,4 +1,4 @@
-// Fire TV update compatibility release 1.4.91.
+// Fire TV 1.4.110: scraper-first playback and native remote source controls.
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
