@@ -4566,32 +4566,9 @@ export function PlayerProvider({
     return url ? startEmbed(url, media, key) : false;
   }, [startEmbed]);
   const playOnlyFlix = useCallback((media) => {
-    // Fire Stick-only: use the same resolved-source / native VLC playback path
-    // as the working source cards instead of launching the black iframe.
-    // Keep the existing embedded scraper tabs available as manual options.
-    const profile = getPlaybackDeviceProfile();
-    if (profile.nativeFireTv &&
-        media?.mediaType !== "live" && media?.type !== "live") {
-      void play({
-        ...media,
-        verifiedPlaybackPolicy: "strict",
-        preferRd: true,
-        noRd: false,
-        skipRdLookup: false,
-        skipAddonLookup: false,
-        sources: [],
-        completeSources: [],
-        discoveredSources: [],
-        src: "",
-        url: "",
-        video_url: "",
-      });
-      return true;
-    }
-    // Phone, tablet, browser and other non-Fire TV players stay unchanged.
     const url = buildOnlyFlixEmbedUrl(media);
     return url ? startEmbed(url, media, "onlyflix") : false;
-  }, [play, startEmbed]);
+  }, [startEmbed]);
 
   const startMagnetPlayer = useCallback((media, type) => {
     if (!media?.magnet) return false;
