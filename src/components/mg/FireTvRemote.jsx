@@ -954,15 +954,36 @@ export default function FireTvRemote() {
       const providerButtons = providerBar instanceof HTMLElement
         ? Array.from(providerBar.querySelectorAll("button:not([disabled])")).filter(visible)
         : [];
-      if (embedded instanceof HTMLElement && visible(embedded) && menuKey && providerButtons.length) {
+      const fullscreenToggle = embedded?.querySelector(
+        '[data-mg-safe-fullscreen-toggle="true"]'
+      );
+      const iframe = embedded?.querySelector('[data-mg-embed-iframe="true"]');
+      const sourcesButton = embedded?.querySelector(
+        '[data-mg-embedded-open-sources="true"]'
+      );
+      const fullScreenFocused = fullscreenToggle instanceof HTMLElement &&
+        currentFocus === fullscreenToggle;
+      // Fire TV remote cannot naturally Tab from a cross-origin iframe to the
+      // overlay's Fullscreen control. Menu and Down offer an explicit path.
+      if (fullScreenFocused && (direction || selectKey)) {
         consume();
-        const focusedProvider = providerBar.contains(currentFocus);
-        const iframe = embedded.querySelector('[data-mg-embed-iframe="true"]');
+        if (selectKey && !event.repeat) currentFocus.click();
+        else if (direction === "down") focusElement(iframe);
+        else if (direction === "up" || direction === "left")
+          focusElement(providerButtons[0] || sourcesButton || iframe);
+        else if (direction === "right") focusElement(sourcesButton || iframe);
+        return;
+      }
+      if (embedded instanceof HTMLElement && visible(embedded) && menuKey &&
+          (providerButtons.length || fullscreenToggle instanceof HTMLElement)) {
+        consume();
+        const focusedProvider = providerBar instanceof HTMLElement &&
+          providerBar.contains(currentFocus);
         if (focusedProvider && iframe instanceof HTMLElement) {
           focusElement(iframe);
         } else {
           const activeProvider = providerButtons.find(button => button.getAttribute("aria-pressed") === "true");
-          focusElement(activeProvider || providerButtons[0]);
+          focusElement(activeProvider || providerButtons[0] || fullscreenToggle);
         }
         return;
       }
@@ -974,9 +995,9 @@ export default function FireTvRemote() {
           const step = direction === "left" ? -1 : 1;
           focusElement(providerButtons[(index + step + providerButtons.length) % providerButtons.length]);
         } else if (direction === "down") {
-          focusElement(embedded.querySelector('[data-mg-embed-iframe="true"]'));
+          focusElement(fullscreenToggle || iframe);
         } else if (direction === "up") {
-          focusElement(embedded.querySelector('[data-mg-embedded-open-sources="true"]') || providerButtons[index]);
+          focusElement(sourcesButton || providerButtons[index]);
         } else if (selectKey && !event.repeat) {
           currentFocus.click();
         }
@@ -992,6 +1013,8 @@ export default function FireTvRemote() {
         }
       }
 
+      // Back from the dedicated fullscreen button and Source chrome stays
+      // accessible; otherwise the iframe cursor still owns playback keys.
       const mediaAction = mediaActionFromEvent(event);
 
       if (!updateIsOpen &&
