@@ -288,6 +288,13 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
             aria-label={movieBackups.length ? "Movie players" : "TV episode players"}
             className="mb-2 flex max-w-full items-center gap-2 overflow-x-auto rounded-lg bg-zinc-950/80 px-2 py-2"
           >
+            {isFireTv && (
+              <button type="button"
+                data-mg-embedded-top-fullscreen="true"
+                onClick={() => window.dispatchEvent(new CustomEvent("mg:embed-toggle-fullscreen"))}
+                className="min-h-10 shrink-0 rounded-lg border border-mg-green/60 px-3 text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-mg-green"
+              >Fullscreen</button>
+            )}
             <span className="shrink-0 text-xs text-white/50">
               {movieBackups.length ? "Movie player:" : "Episode player:"}
             </span>
