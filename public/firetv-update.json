@@ -3,7 +3,7 @@
   "versionCode": 121,
   "versionName": "1.4.116",
   "title": "Media God Fire TV",
-  "message": "Media God Fire TV 1.4.116: Fullscreen for films and TV episodes is now on the main top control row beside Sources, with an Exit fullscreen control accessible by Menu or Back. Working OnlyFlix-first scraper playback, VLC direct streams and the sound/picture fixes are preserved. Phone and Live TV unchanged.",
+  "message": "Media God Fire TV 1.4.116: Fullscreen for films and TV episodes is now on the main top control row beside Sources, with Exit fullscreen accessible by Menu or Back without stopping playback. Working OnlyFlix-first scraper playback, VLC direct streams and the sound/picture fixes are preserved. Phone and Live TV unchanged.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
