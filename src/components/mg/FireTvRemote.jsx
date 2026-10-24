@@ -1014,7 +1014,11 @@ export default function FireTvRemote() {
         return;
       }
 
-      const player = document.querySelector('[data-mg-player-root="true"]');
+      // A visible update modal owns remote focus even when a WebView player
+      // remains mounted underneath it. No background Play/Source interaction.
+      const player = updateIsOpen
+        ? null
+        : document.querySelector('[data-mg-player-root="true"]');
       const overlay = topOverlay();
       const appMain = document.querySelector("#root main");
       const scope =
