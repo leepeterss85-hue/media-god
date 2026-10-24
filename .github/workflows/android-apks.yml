@@ -244,10 +244,11 @@ jobs:
           gradle -p firetv-android :app:assembleRelease --stacktrace
           cp android-mobile/app/build/outputs/apk/release/app-release.apk Media-God-Android-Mobile.apk
           cp firetv-android/app/build/outputs/apk/release/app-release.apk Media-God-Fire-TV.apk
-      - name: Verify APK signing identities
+      - name: Verify both signed APKs (fail closed)
         run: |
-          keytool -printcert -jarfile Media-God-Android-Mobile.apk | grep -E "Owner:|SHA256:" || true
-          keytool -printcert -jarfile Media-God-Fire-TV.apk | grep -E "Owner:|SHA256:" || true
+          set -euo pipefail
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Media-God-Android-Mobile.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Media-God-Fire-TV.apk
       - name: Upload coordinated APK artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -257,6 +258,10 @@ jobs:
             Media-God-Fire-TV.apk
           if-no-files-found: error
           retention-days: 30
+      - name: Preserve previous known-good phone and TV APKs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/archive-stable-apks.sh
       - name: Publish stable phone and Fire TV downloads from this commit
         env:
           GH_TOKEN: ${{ github.token }}
@@ -286,3 +291,21 @@ jobs:
           }
           ensure_release "android-mobile-latest" "Media God Mobile - Android Phone and Tablet" "Latest tested Media God Android phone/tablet build. Released in lockstep with the Fire TV APK from commit $GITHUB_SHA." "Media-God-Android-Mobile.apk"
           ensure_release "firetv-latest" "Media God Fire TV" "Latest tested Media God Fire TV/Stick build. Released in lockstep with the phone/tablet APK from commit $GITHUB_SHA." "Media-God-Fire-TV.apk"
+      - name: Verify both published downloads match signed build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/verified-phone" "$RUNNER_TEMP/verified-firetv"
+          for item in "android-mobile-latest:Media-God-Android-Mobile.apk:verified-phone" "firetv-latest:Media-God-Fire-TV.apk:verified-firetv"; do
+            IFS=: read -r tag asset dir <<< "$item"
+            gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" > "$RUNNER_TEMP/$tag.json"
+            jq -e --arg sha "$GITHUB_SHA" --arg asset "$asset" '
+              .target_commitish == $sha and .draft == false and
+              .published_at != null and
+              (any(.assets[]?; .name == $asset and .state == "uploaded" and .size > 1000000))
+            ' "$RUNNER_TEMP/$tag.json" >/dev/null
+            gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern "$asset" --dir "$RUNNER_TEMP/$dir"
+            cmp "$asset" "$RUNNER_TEMP/$dir/$asset"
+          done
+          echo "Both signed APKs are published and byte-identical to the tested build"
