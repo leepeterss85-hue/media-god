@@ -968,6 +968,9 @@ export default function FireTvRemote() {
       const fullscreenToggle = embedded?.querySelector(
         '[data-mg-safe-fullscreen-toggle="true"]'
       );
+      const headerFullscreen = embedded?.querySelector(
+        '[data-mg-embedded-top-fullscreen="true"]'
+      );
       const iframe = embedded?.querySelector('[data-mg-embed-iframe="true"]');
       const sourcesButton = embedded?.querySelector(
         '[data-mg-embedded-open-sources="true"]'
@@ -991,7 +994,7 @@ export default function FireTvRemote() {
         return;
       }
       if (embedded instanceof HTMLElement && visible(embedded) && menuKey &&
-          (providerButtons.length || fullscreenToggle instanceof HTMLElement)) {
+          (providerButtons.length || headerFullscreen instanceof HTMLElement || fullscreenToggle instanceof HTMLElement)) {
         consume();
         if (embedIsFullscreen) {
           focusElement(fullscreenToggle);
@@ -1003,10 +1006,10 @@ export default function FireTvRemote() {
           // Second Menu reaches Sources, not the third-party iframe.
           focusElement(sourcesButton || headerButtons[0] || iframe);
         } else if (headerButtons.includes(currentFocus)) {
-          focusElement(iframe || providerButtons[0]);
+          focusElement(headerFullscreen || iframe || providerButtons[0]);
         } else {
           const activeProvider = providerButtons.find(button => button.getAttribute("aria-pressed") === "true");
-          focusElement(activeProvider || providerButtons[0] || fullscreenToggle);
+          focusElement(activeProvider || providerButtons[0] || headerFullscreen || iframe);
         }
         return;
       }
@@ -1018,7 +1021,7 @@ export default function FireTvRemote() {
           const step = direction === "left" ? -1 : 1;
           focusElement(providerButtons[(index + step + providerButtons.length) % providerButtons.length]);
         } else if (direction === "down") {
-          focusElement(fullscreenToggle || iframe);
+          focusElement(embedIsFullscreen ? fullscreenToggle : iframe);
         } else if (direction === "up") {
           focusElement(sourcesButton || providerButtons[index]);
         } else if (selectKey && !event.repeat) {
@@ -1037,7 +1040,7 @@ export default function FireTvRemote() {
           const step = direction === "left" ? -1 : 1;
           focusElement(headerButtons[(index + step + headerButtons.length) % headerButtons.length]);
         } else if (direction === "down") {
-          focusElement(providerButtons[0] || fullscreenToggle || iframe);
+          focusElement(providerButtons[0] || iframe);
         }
         return;
       }

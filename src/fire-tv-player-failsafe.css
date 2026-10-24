@@ -852,3 +852,21 @@ body.mg-fire-tv-stable [data-mg-embedded-remote-player="true"] [data-mg-embed-fo
 body.mg-fire-tv-mode [data-mg-embedded-remote-player="true"] [data-mg-embed-footer="true"] {
   display: none !important;
 }
+
+
+/* Fire Stick 1.4.116: Fullscreen is a full-sized button in the first
+ * movie/episode toolbar row, beside Sources, instead of a tiny target
+ * floating over the normal iframe. The stage button remains the visible
+ * Exit fullscreen control after expansion, reachable via Menu and Back. */
+body.mg-fire-tv [data-mg-embedded-remote-player="true"] [data-mg-player-topbar="true"] [data-mg-embedded-top-fullscreen="true"],
+body.mg-fire-tv-stable [data-mg-embedded-remote-player="true"] [data-mg-player-topbar="true"] [data-mg-embedded-top-fullscreen="true"],
+body.mg-fire-tv-mode [data-mg-embedded-remote-player="true"] [data-mg-player-topbar="true"] [data-mg-embedded-top-fullscreen="true"] {
+  display: inline-flex !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+body.mg-fire-tv [data-mg-embedded-remote-player="true"] [data-mg-player-stage="true"]:not([data-mg-safe-embed-fullscreen="true"]) [data-mg-safe-fullscreen-toggle="true"],
+body.mg-fire-tv-stable [data-mg-embedded-remote-player="true"] [data-mg-player-stage="true"]:not([data-mg-safe-embed-fullscreen="true"]) [data-mg-safe-fullscreen-toggle="true"],
+body.mg-fire-tv-mode [data-mg-embedded-remote-player="true"] [data-mg-player-stage="true"]:not([data-mg-safe-embed-fullscreen="true"]) [data-mg-safe-fullscreen-toggle="true"] {
+  display: none !important;
+}

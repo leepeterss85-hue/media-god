@@ -51,6 +51,7 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
                     var headers=Array.from(root.querySelectorAll('[data-mg-player-topbar="true"] button')).filter(usable);
                     var source=root.querySelector('[data-mg-embedded-open-sources="true"]');
                     var fullscreen=root.querySelector('[data-mg-safe-fullscreen-toggle="true"]');
+                    var topFullscreen=root.querySelector('[data-mg-embedded-top-fullscreen="true"]');
                     var frame=root.querySelector('[data-mg-embed-iframe="true"]');
                     var expanded=!!root.querySelector('[data-mg-safe-embed-fullscreen="true"]');
                     var current=document.activeElement;
@@ -63,15 +64,15 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
                     var tabIndex=tabs.indexOf(current),headIndex=headers.indexOf(current);
                     if(key==='ContextMenu'){
                       if(expanded)focus(fullscreen);
-                      else if(tabIndex>=0)focus(source||headers[0]||fullscreen);
-                      else if(headIndex>=0)focus(fullscreen||selected);
-                      else focus(selected||source||fullscreen);
+                      else if(tabIndex>=0)focus(source||headers[0]||topFullscreen);
+                      else if(headIndex>=0)focus(topFullscreen||selected);
+                      else focus(selected||source||topFullscreen);
                       return;
                     }
                     if(tabIndex>=0 && (key.indexOf('Arrow')===0 || key==='Enter')){
                       if(key==='ArrowLeft')focus(tabs[(tabIndex-1+tabs.length)%tabs.length]);
                       else if(key==='ArrowRight')focus(tabs[(tabIndex+1)%tabs.length]);
-                      else if(key==='ArrowDown')focus(fullscreen||frame);
+                      else if(key==='ArrowDown')focus(frame);
                       else if(key==='ArrowUp')focus(source||headers[0]);
                       else if(!repeated)current.click();
                       return;
@@ -79,11 +80,11 @@ class EmbeddedPlayerRemote(private val webView: WebView, private val allowed: ()
                     if(headIndex>=0 && (key.indexOf('Arrow')===0 || key==='Enter')){
                       if(key==='ArrowLeft')focus(headers[(headIndex-1+headers.length)%headers.length]);
                       else if(key==='ArrowRight')focus(headers[(headIndex+1)%headers.length]);
-                      else if(key==='ArrowDown')focus(selected||fullscreen||frame);
+                      else if(key==='ArrowDown')focus(selected||frame);
                       else if(!repeated && key==='Enter')current.click();
                       return;
                     }
-                    if(current===fullscreen && (key.indexOf('Arrow')===0 || key==='Enter')){
+                    if(expanded && current===fullscreen && (key.indexOf('Arrow')===0 || key==='Enter')){
                       if(key==='Enter' && !repeated)current.click();
                       else if(key==='ArrowDown' && !expanded)focus(frame);
                       else if(key==='ArrowUp' && !expanded)focus(selected||source);

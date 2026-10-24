@@ -286,6 +286,15 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
             <ListVideo className="h-4 w-4" />
             Sources
           </button>
+          {isFireTv && (
+            <button
+              type="button"
+              data-mg-embedded-top-fullscreen="true"
+              onClick={() => window.dispatchEvent(new CustomEvent("mg:embed-toggle-fullscreen"))}
+              aria-label="Fullscreen"
+              className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border border-mg-green/50 bg-mg-green/10 px-3 text-xs font-bold text-white hover:bg-mg-green/20 focus:outline-none focus:ring-2 focus:ring-mg-green"
+            >Fullscreen</button>
+          )}
           <CastButton
             url=""
             title={title}
@@ -311,13 +320,6 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
             aria-label={movieBackups.length ? "Movie players" : "TV episode players"}
             className="mb-2 flex max-w-full items-center gap-2 overflow-x-auto rounded-lg bg-zinc-950/80 px-2 py-2"
           >
-            {isFireTv && (
-              <button type="button"
-                data-mg-embedded-top-fullscreen="true"
-                onClick={() => window.dispatchEvent(new CustomEvent("mg:embed-toggle-fullscreen"))}
-                className="min-h-10 shrink-0 rounded-lg border border-mg-green/60 px-3 text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-mg-green"
-              >Fullscreen</button>
-            )}
             {isFireTv && (
               <button type="button"
                 data-mg-embedded-top-sources="true"
