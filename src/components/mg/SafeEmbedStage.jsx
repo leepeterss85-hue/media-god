@@ -9,6 +9,11 @@ import { Expand, Shrink } from "lucide-react";
 export default function SafeEmbedStage({ children }) {
   const [fullscreen, setFullscreen] = useState(false);
   useEffect(() => {
+    const onToolbarToggle = () => setFullscreen((previous) => !previous);
+    window.addEventListener("mg:embed-toggle-fullscreen", onToolbarToggle);
+    return () => window.removeEventListener("mg:embed-toggle-fullscreen", onToolbarToggle);
+  }, []);
+  useEffect(() => {
     if (!fullscreen) return undefined;
     const onKey = (event) => {
       if (event.key === "Escape" || event.key === "Backspace") {
