@@ -535,6 +535,18 @@ class MainActivity : Activity() {
                 var body=document.body;
                 html.classList.add('mg-fire-tv','mg-fire-tv-stable','mg-tv-remote','mg-native-fire-tv');
                 if(body){body.classList.add('mg-fire-tv','mg-fire-tv-stable','mg-tv-remote','mg-native-fire-tv');}
+                // Fire Stick 1.4.114: the hosted JS may lag the installed APK.
+                // Guarantee its movie/episode iframe never retains the 60px
+                // help footer, even before the Base44 web bundle is published.
+                // Scoped to the native Fire TV wrapper, not Live TV or phone.
+                if(!document.getElementById('mg-firetv-scraper-footer-repair')){
+                  var scraperCss=document.createElement('style');
+                  scraperCss.id='mg-firetv-scraper-footer-repair';
+                  scraperCss.textContent=
+                    'html body.mg-native-fire-tv [data-mg-embedded-remote-player="true"] [data-mg-embed-footer="true"]{display:none!important}' +
+                    'html body.mg-native-fire-tv [data-mg-embedded-remote-player="true"] [data-mg-player-stage="true"]:not([data-mg-safe-embed-fullscreen="true"]){bottom:0!important;height:calc(100vh - 132px)!important}';
+                  document.head.appendChild(scraperCss);
+                }
                 var meta=document.querySelector('meta[name="viewport"]');
                 if(!meta){meta=document.createElement('meta');meta.name='viewport';document.head.appendChild(meta);}
                 meta.setAttribute('content','width=960, height=540, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
