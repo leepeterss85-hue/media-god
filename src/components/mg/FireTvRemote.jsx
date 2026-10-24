@@ -999,8 +999,11 @@ export default function FireTvRemote() {
         }
         const focusedProvider = providerBar instanceof HTMLElement &&
           providerBar.contains(currentFocus);
-        if (focusedProvider && iframe instanceof HTMLElement) {
-          focusElement(iframe);
+        if (focusedProvider) {
+          // Second Menu reaches Sources, not the third-party iframe.
+          focusElement(sourcesButton || headerButtons[0] || iframe);
+        } else if (headerButtons.includes(currentFocus)) {
+          focusElement(iframe || providerButtons[0]);
         } else {
           const activeProvider = providerButtons.find(button => button.getAttribute("aria-pressed") === "true");
           focusElement(activeProvider || providerButtons[0] || fullscreenToggle);
