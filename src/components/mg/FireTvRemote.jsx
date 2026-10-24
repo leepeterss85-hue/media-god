@@ -943,7 +943,9 @@ export default function FireTvRemote() {
        * to the iframe. Never change which player/source is selected unless
        * the viewer explicitly presses Select on a provider.
        */
-      const embedded = document.querySelector(
+      const updateDialog = document.querySelector('[data-mg-fire-tv-update="true"]');
+      const updateIsOpen = updateDialog instanceof HTMLElement && visible(updateDialog);
+      const embedded = updateIsOpen ? null : document.querySelector(
         '[data-mg-embedded-remote-player="true"]'
       );
       const providerBar = embedded?.querySelector(
@@ -981,9 +983,8 @@ export default function FireTvRemote() {
         return;
       }
 
-      const updateDialog = document.querySelector('[data-mg-fire-tv-update="true"]');
-      if (updateDialog instanceof HTMLElement && visible(updateDialog) &&
-          (direction || selectKey) && !updateDialog.contains(currentFocus)) {
+      if (updateIsOpen &&
+          (direction || selectKey || menuKey) && !updateDialog.contains(currentFocus)) {
         const primary = updateDialog.querySelector('[data-mg-update-primary="true"]:not([disabled])');
         if (focusElement(primary || updateDialog.querySelector('button:not([disabled])'))) {
           consume();
@@ -993,7 +994,7 @@ export default function FireTvRemote() {
 
       const mediaAction = mediaActionFromEvent(event);
 
-      if (!(updateDialog instanceof HTMLElement && visible(updateDialog)) &&
+      if (!updateIsOpen &&
           tapOnlyFlixForRemote({ mediaAction, selectKey, direction, repeat: event.repeat })) {
         event.preventDefault();
         event.stopPropagation();
@@ -1017,7 +1018,7 @@ export default function FireTvRemote() {
       const overlay = topOverlay();
       const appMain = document.querySelector("#root main");
       const scope =
-        updateDialog instanceof HTMLElement && visible(updateDialog)
+        updateIsOpen
           ? updateDialog
           : player instanceof HTMLElement && visible(player)
           ? player
