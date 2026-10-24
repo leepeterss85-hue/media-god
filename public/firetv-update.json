@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 108,
-  "versionName": "1.4.103",
+  "versionCode": 109,
+  "versionName": "1.4.104",
   "title": "Media God Fire TV",
-  "message": "Media God 1.4.103: clearer Continue Watching resume time and remote focus, remembered English VLC audio and subtitle choices, polished Up Next actions. Working playback, Live TV and one-tap updates remain unchanged.",
+  "message": "Media God Fire TV 1.4.104: restores full-size video picture and native fullscreen for embedded web players. Phone, VLC source selection, Live TV and theme unchanged.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",
