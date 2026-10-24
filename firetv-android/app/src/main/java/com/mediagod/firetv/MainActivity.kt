@@ -92,6 +92,8 @@ class MainActivity : Activity() {
     private lateinit var webRoot: FrameLayout
     private var embeddedFullscreenView: View? = null
     private var embeddedFullscreenCallback: WebChromeClient.CustomViewCallback? = null
+    private var embeddedFullscreenFromScraper = false
+    private var swallowScraperMenuRelease = false
     private val embeddedPlayerRemote by lazy { EmbeddedPlayerRemote(webView) { nativeBridgeAllowed() } }
     private val nativePlayerLock = Any()
     @Volatile private var playerOpen = false
@@ -161,28 +163,17 @@ class MainActivity : Activity() {
                     "${userAgentString} MediaGodFireTV/1.0 AmazonWebAppPlatform FireTV"
             }
 
-            // Provider iframes can request WebView's video fullscreen. A bare
-            // WebChromeClient silently ignores this on Fire OS and leaves the
-            // video tiny or blank. Keep the existing WebView alive beneath the
-            // native custom view: never reload the provider or reset its URL.
+            // Allow Fire OS native video fullscreen for iframe playback.
+            // Keep Media God's WebView mounted and restore its source bar with Menu.
             webChromeClient = object : WebChromeClient() {
                 override fun onShowCustomView(
                     view: View?,
                     callback: CustomViewCallback?
                 ) {
-                    // Movie/episode scraper pages render inline in Media God's
-                    // CSS fullscreen stage. Some Fire OS iframe players still
-                    // invoke WebChromeClient's native fullscreen callback.
-                    // Taking that path hides the WHOLE app WebView; when the
-                    // vendor's custom video view is black, both picture and
-                    // Sources/provider buttons become inaccessible. Never
-                    // let an embedded scraper replace the app's WebView.
-                    if (embeddedPlayerRemote.enabled) {
-                        callback?.onCustomViewHidden()
-                        webView.visibility = View.VISIBLE
-                        webView.requestFocus()
-                        return
-                    }
+                    // Let Fire OS create the native video surface for embedded
+                    // movie/episode scrapers, instead of rejecting fullscreen.
+                    // Menu and Back exit to the SAME provider bar and iframe.
+                    val scraperFullscreen = embeddedPlayerRemote.enabled
                     val fullscreenView = view ?: run {
                         callback?.onCustomViewHidden()
                         return
@@ -193,7 +184,10 @@ class MainActivity : Activity() {
                     }
                     embeddedFullscreenView = fullscreenView
                     embeddedFullscreenCallback = callback
-                    webView.visibility = View.INVISIBLE
+                    embeddedFullscreenFromScraper = scraperFullscreen
+                    // Preserve the app's WebView underneath the native video
+                    // surface so the scraper tabs can be restored on exit.
+                    webView.visibility = if (scraperFullscreen) View.VISIBLE else View.INVISIBLE
                     webRoot.addView(
                         fullscreenView,
                         FrameLayout.LayoutParams(
@@ -349,7 +343,32 @@ class MainActivity : Activity() {
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (embeddedFullscreenView != null) return super.dispatchKeyEvent(event)
+        if (event.keyCode == KeyEvent.KEYCODE_MENU && swallowScraperMenuRelease) {
+            if (event.action == KeyEvent.ACTION_UP) swallowScraperMenuRelease = false
+            return true
+        }
+        if (embeddedFullscreenView != null) {
+            // Fullscreen video's surface owns focus. Menu restores the app
+            // toolbar without changing or reloading the selected provider.
+            if (embeddedFullscreenFromScraper && event.keyCode == KeyEvent.KEYCODE_MENU) {
+                if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+                    swallowScraperMenuRelease = true
+                    exitEmbeddedFullscreen()
+                    dispatchJavascript(
+                        """(function(){
+                          var root=document.querySelector('[data-mg-embedded-remote-player="true"]');
+                          if(!root)return;
+                          var bar=root.querySelector('[data-mg-movie-player-backups="true"], [data-mg-episode-player-backups="true"]');
+                          var tab=bar&&(bar.querySelector('button[aria-pressed="true"]')||bar.querySelector('button'));
+                          var target=tab||root.querySelector('[data-mg-embedded-open-sources="true"]');
+                          if(target){target.focus();target.scrollIntoView({block:'nearest',inline:'nearest'});}
+                        })();""".trimIndent()
+                    )
+                }
+                return true
+            }
+            return super.dispatchKeyEvent(event)
+        }
         if (::webView.isInitialized && !playerOpen && embeddedPlayerRemote.dispatchKeyEvent(event)) {
             return true
         }
@@ -479,6 +498,7 @@ class MainActivity : Activity() {
     private fun exitEmbeddedFullscreen() {
         val activeView = embeddedFullscreenView ?: return
         embeddedFullscreenView = null
+        embeddedFullscreenFromScraper = false
         val callback = embeddedFullscreenCallback
         embeddedFullscreenCallback = null
         if (::webRoot.isInitialized) {
