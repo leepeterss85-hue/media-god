@@ -1,3 +1,5 @@
+import useBrowseReturn from "@/components/mg/useBrowseReturn";
+import { catalogueLoadMessage } from "@/components/mg/catalogueFeedback";
 import React, { useEffect, useRef, useState } from "react";
 import { Search, Mic, Plus, Check, Play, Globe } from "lucide-react";
 import { base44 } from "@/api/base44Client";
@@ -38,6 +40,8 @@ const selectClass =
 export default function MoviesView() {
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [retry, setRetry] = useState(0);
   const [query, setQuery] = useState("");
   const [country, setCountry] = useState(() => getStreamingRegionOverride());
   const [category, setCategory] = useState("now_playing");
@@ -45,7 +49,7 @@ export default function MoviesView() {
   const [year, setYear] = useState("");
   const [language, setLanguage] = useState("");
   const [watched, setWatched] = useState({});
-  const [selected, setSelected] = useState(null);
+  const [selected, setSelected] = useBrowseReturn();
   const { toast } = useToast();
   const requestRef = useRef(0);
   const debouncedQuery = useDebouncedValue(query, 180);
@@ -54,6 +58,7 @@ export default function MoviesView() {
   useEffect(() => {
     const requestId = ++requestRef.current;
     setLoading(true);
+      setError("");
 
     base44.functions
       .invoke("getTmdbMovies", {
@@ -74,13 +79,14 @@ export default function MoviesView() {
       .catch(() => {
         if (requestId !== requestRef.current) return;
         setMovies([]);
+        setError(catalogueLoadMessage());
       })
       .finally(() => {
         if (requestId === requestRef.current) {
           setLoading(false);
         }
       });
-  }, [country, category, genre, year, language, debouncedQuery, streamingRegion]);
+  }, [country, category, genre, year, language, debouncedQuery, streamingRegion, retry]);
 
   const addToWatchlist = async (movie) => {
     try {
@@ -279,7 +285,14 @@ export default function MoviesView() {
         </div>
       )}
 
-      {!loading && movies.length === 0 && (
+      {!loading && error && (
+        <div role="alert" className="rounded-xl border border-red-400/20 bg-red-400/5 p-5 text-center">
+          <p className="text-sm text-red-200">{error}</p>
+          <button type="button" onClick={() => setRetry(value => value + 1)}
+            className="mt-3 min-h-11 rounded-lg bg-white/10 px-5 text-white focus-visible:ring-2 focus-visible:ring-mg-green">Retry</button>
+        </div>
+      )}
+      {!loading && !error && movies.length === 0 && (
         <p className="text-white/40 text-sm 3xl:text-base">
           No movies found for these filters.
         </p>

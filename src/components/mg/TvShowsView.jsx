@@ -1,3 +1,5 @@
+import useBrowseReturn from "@/components/mg/useBrowseReturn";
+import { catalogueLoadMessage } from "@/components/mg/catalogueFeedback";
 import React, { useEffect, useState } from "react";
 import { Search, Play, Globe } from "lucide-react";
 import { base44 } from "@/api/base44Client";
@@ -89,13 +91,15 @@ class TvDetailErrorBoundary extends React.Component {
 export default function TvShowsView({ initialProvider = null, providerRequestKey = 0, onProviderChange }) {
   const [shows, setShows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [retry, setRetry] = useState(0);
   const [query, setQuery] = useState("");
   const [country, setCountry] = useState(() => getStreamingRegionOverride());
   const [category, setCategory] = useState("tv_airing_today");
   const [genre, setGenre] = useState("");
   const [year, setYear] = useState("");
   const [language, setLanguage] = useState("");
-  const [selected, setSelected] = useState(null);
+  const [selected, setSelected] = useBrowseReturn();
   const [activeProvider, setActiveProvider] = useState(null);
   const debouncedQuery = useDebouncedValue(query, 400);
   const streamingRegion = country || detectStreamingRegion();
@@ -142,6 +146,7 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
 
     const loadShows = async () => {
       setLoading(true);
+      setError("");
 
       try {
         const response = await base44.functions.invoke("getTmdbMovies", {
@@ -182,6 +187,7 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
         if (!cancelled) {
           console.error("[Media God] TV show library failed to load", loadError);
           setShows([]);
+          setError(catalogueLoadMessage());
         }
       } finally {
         if (!cancelled) {
@@ -195,7 +201,7 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
     return () => {
       cancelled = true;
     };
-  }, [country, category, genre, year, language, debouncedQuery, activeProviderIdsKey, streamingRegion, streamingTimezone]);
+  }, [country, category, genre, year, language, debouncedQuery, activeProviderIdsKey, streamingRegion, streamingTimezone, retry]);
 
   const featured = FEATURED_SHOWS.find((item) => item.title === "Debris");
 
@@ -468,7 +474,14 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
         </div>
       )}
 
-      {!loading && shows.length === 0 && (
+      {!loading && error && (
+        <div role="alert" className="rounded-xl border border-red-400/20 bg-red-400/5 p-5 text-center">
+          <p className="text-sm text-red-200">{error}</p>
+          <button type="button" onClick={() => setRetry(value => value + 1)}
+            className="mt-3 min-h-11 rounded-lg bg-white/10 px-5 text-white focus-visible:ring-2 focus-visible:ring-mg-green">Retry</button>
+        </div>
+      )}
+      {!loading && !error && shows.length === 0 && (
         <p className="text-white/40 text-sm 3xl:text-base">
           {activeProvider
             ? `No TV shows found on ${activeProvider.label} for these filters.`

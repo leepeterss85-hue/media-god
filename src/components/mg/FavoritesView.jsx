@@ -1,3 +1,6 @@
+import useLibraryUndo from "@/components/mg/useLibraryUndo";
+import useBrowseReturn from "@/components/mg/useBrowseReturn";
+import { catalogueLoadMessage } from "@/components/mg/catalogueFeedback";
 import SavedLibraryResults from "@/components/mg/SavedLibraryResults";
 import { matchesLibraryQuery } from "@/components/mg/savedLibraryTools";
 import { profiledLibrary } from "@/components/mg/householdProfiles";
@@ -46,11 +49,12 @@ export default function FavoritesView() {
   const [sortMode, setSortMode] = useState("newest");
   const [mediaFilter, setMediaFilter] = useState("all");
   const [clearing, setClearing] = useState(false);
-  const [selected, setSelected] = useState(null);
+  const [selected, setSelected] = useBrowseReturn();
   const [editMode, setEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
   const { toast } = useToast();
   const player = usePlayer();
+  const offerUndo = useLibraryUndo("Favorite", setItems);
 
   const load = async () => {
     setLoading(true);
@@ -60,7 +64,7 @@ export default function FavoritesView() {
       const rows = await profiledLibrary.Favorite.list("-created_date", 200);
       setItems(Array.isArray(rows) ? rows : []);
     } catch (loadError) {
-      setError(loadError?.message || "Could not load your Favorites.");
+      setError(catalogueLoadMessage());
     } finally {
       setLoading(false);
     }
@@ -83,11 +87,13 @@ export default function FavoritesView() {
     return sortItems(filtered, sortMode);
   }, [items, mediaFilter, query, sortMode]);
 
-  const remove = async (id, title) => {
+  const remove = async (id) => {
+    const item = items.find(row => row.id === id);
+    if (!item) return;
     try {
       await profiledLibrary.Favorite.delete(id);
       setItems((rows) => rows.filter((row) => row.id !== id));
-      toast({ title: "Removed from Favorites", description: title });
+      offerUndo([item]);
     } catch {
       toast({ title: "Could not remove", variant: "destructive" });
     }
@@ -115,15 +121,18 @@ export default function FavoritesView() {
     setClearing(true);
     const wanted = new Set(selectedIds);
     let failed = 0;
+    const removed = [];
 
     for (const item of items.filter((row) => wanted.has(row.id))) {
       try {
         await profiledLibrary.Favorite.delete(item.id);
+        removed.push(item);
       } catch {
         failed += 1;
       }
     }
 
+    offerUndo(removed);
     await load();
     setSelectedIds([]);
     setEditMode(false);
@@ -151,15 +160,18 @@ export default function FavoritesView() {
 
     setClearing(true);
     let failed = 0;
+    const removed = [];
 
     for (const item of items) {
       try {
         await profiledLibrary.Favorite.delete(item.id);
+        removed.push(item);
       } catch {
         failed += 1;
       }
     }
 
+    offerUndo(removed);
     if (failed === 0) {
       setItems([]);
       toast({ title: "Favorites cleared" });

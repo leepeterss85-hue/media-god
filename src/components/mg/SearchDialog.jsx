@@ -1,3 +1,4 @@
+import { catalogueLoadMessage } from "@/components/mg/catalogueFeedback";
 import React, {
   useCallback,
   useEffect,
@@ -1155,7 +1156,7 @@ export default function SearchDialog({
                     key={recent}
                     type="button"
                     onClick={() => setQuery(recent)}
-                    className="min-h-9 rounded-lg border border-white/10 bg-white/5 px-3 text-xs text-white/70 hover:bg-white/10 hover:text-white"
+                    className="min-h-11 rounded-lg border border-white/10 bg-white/5 px-3 text-xs text-white/70 hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-mg-green"
                   >
                     {recent}
                   </button>
@@ -1170,9 +1171,10 @@ export default function SearchDialog({
                     }
                     setRecentSearches([]);
                   }}
-                  className="min-h-9 rounded-lg px-3 text-xs text-white/35 hover:bg-white/5 hover:text-white/70"
+                  aria-label="Clear recent search history"
+                  className="min-h-11 rounded-lg px-3 text-xs text-white/60 hover:bg-white/5 hover:text-white focus-visible:ring-2 focus-visible:ring-mg-green"
                 >
-                  Clear
+                  Clear history
                 </button>
               </div>
             </div>
@@ -1198,6 +1200,8 @@ export default function SearchDialog({
                     error
                   }
                 </p>
+                <button type="button" onClick={() => search(query)}
+                  className="mt-3 min-h-11 rounded-lg bg-white/10 px-5 text-white focus-visible:ring-2 focus-visible:ring-mg-green">Retry search</button>
               </div>
             )}
 

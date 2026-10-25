@@ -1,3 +1,6 @@
+import useLibraryUndo from "@/components/mg/useLibraryUndo";
+import useBrowseReturn from "@/components/mg/useBrowseReturn";
+import { catalogueLoadMessage } from "@/components/mg/catalogueFeedback";
 import SavedLibraryResults from "@/components/mg/SavedLibraryResults";
 import { matchesLibraryQuery } from "@/components/mg/savedLibraryTools";
 import { profiledLibrary } from "@/components/mg/householdProfiles";
@@ -45,11 +48,12 @@ export default function WatchlistView() {
   const [sortMode, setSortMode] = useState("newest");
   const [mediaFilter, setMediaFilter] = useState("all");
   const [clearing, setClearing] = useState(false);
-  const [selected, setSelected] = useState(null);
+  const [selected, setSelected] = useBrowseReturn();
   const [editMode, setEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
   const { toast } = useToast();
   const player = usePlayer();
+  const offerUndo = useLibraryUndo("WatchlistItem", setItems);
 
   const load = async () => {
     setLoading(true);
@@ -59,7 +63,7 @@ export default function WatchlistView() {
       const rows = await profiledLibrary.WatchlistItem.list("-created_date", 200);
       setItems(Array.isArray(rows) ? rows : []);
     } catch (loadError) {
-      setError(loadError?.message || "Could not load your Watchlist.");
+      setError(catalogueLoadMessage());
     } finally {
       setLoading(false);
     }
@@ -86,7 +90,7 @@ export default function WatchlistView() {
     try {
       await profiledLibrary.WatchlistItem.delete(item.id);
       setItems((current) => current.filter((row) => row.id !== item.id));
-      toast({ title: "Removed from Watchlist" });
+      offerUndo([item]);
     } catch {
       toast({ title: "Could not remove from Watchlist", variant: "destructive" });
     }
@@ -114,15 +118,18 @@ export default function WatchlistView() {
     setClearing(true);
     const wanted = new Set(selectedIds);
     let failed = 0;
+    const removed = [];
 
     for (const item of items.filter((row) => wanted.has(row.id))) {
       try {
         await profiledLibrary.WatchlistItem.delete(item.id);
+        removed.push(item);
       } catch {
         failed += 1;
       }
     }
 
+    offerUndo(removed);
     await load();
     setSelectedIds([]);
     setEditMode(false);
@@ -150,15 +157,18 @@ export default function WatchlistView() {
 
     setClearing(true);
     let failed = 0;
+    const removed = [];
 
     for (const item of items) {
       try {
         await profiledLibrary.WatchlistItem.delete(item.id);
+        removed.push(item);
       } catch {
         failed += 1;
       }
     }
 
+    offerUndo(removed);
     if (failed === 0) {
       setItems([]);
       toast({ title: "Watchlist cleared" });
