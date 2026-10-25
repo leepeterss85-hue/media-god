@@ -16,9 +16,19 @@ export const OPTIONAL_SCRAPER_PILOTS = Object.freeze([
   },
 ]);
 
+const canonicalPilotName = (name) => {
+  const value = String(name || "").trim().toLowerCase();
+  // A user can save a replacement configured Orion as Orion2, Orion-2 etc.
+  // Treat only these numbered aliases as the same pilot for safe masking and
+  // isolated manifest checks; do not sweep arbitrary unrelated addon names.
+  if (/^orion(?:[ _-]?\d+)?$/.test(value)) return "orion";
+  return value;
+};
+
 export function isOptionalScraperPilot(name) {
+  const canonical = canonicalPilotName(name);
   return OPTIONAL_SCRAPER_PILOTS.some(
-    candidate => candidate.name.toLowerCase() === String(name || "").trim().toLowerCase()
+    candidate => candidate.name.toLowerCase() === canonical
   );
 }
 
@@ -28,7 +38,7 @@ export function isBareOptionalPilotManifest(name, url) {
     const parsed = new URL(String(url));
     const path = parsed.pathname.replace(/\/+/g, "/").replace(/\/$/, "").toLowerCase();
     if (parsed.search) return false;
-    if (String(name).trim().toLowerCase() === "orion") {
+    if (canonicalPilotName(name) === "orion") {
       return path === "/manifest.json";
     }
     return path === "/stremio/torz/manifest.json" || path === "/manifest.json";
