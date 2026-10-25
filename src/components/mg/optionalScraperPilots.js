@@ -26,7 +26,7 @@ export function isBareOptionalPilotManifest(name, url) {
   if (!isOptionalScraperPilot(name)) return false;
   try {
     const parsed = new URL(String(url));
-    const path = parsed.pathname.replace(/\\/+/g, "/").replace(/\\/$/, "").toLowerCase();
+    const path = parsed.pathname.replace(/\/+/g, "/").replace(/\/$/, "").toLowerCase();
     if (parsed.search) return false;
     if (String(name).trim().toLowerCase() === "orion") {
       return path === "/manifest.json";
