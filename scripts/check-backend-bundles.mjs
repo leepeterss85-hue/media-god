@@ -10,6 +10,7 @@ const entries = [
   "base44/functions/findRdLibrary/entry.ts",
   "base44/functions/configureMediaFusion/entry.ts",
   "base44/functions/fetchAddonStreams/entry.ts",
+  "base44/functions/testScraperCandidate/entry.ts",
   "base44/functions/getTmdbMovies/entry.ts",
   "base44/functions/getWatchmodeFeatures/entry.ts",
   "base44/functions/watchmodeData/entry.ts",
