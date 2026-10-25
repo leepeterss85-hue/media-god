@@ -1,8 +1,9 @@
 import { launchFireTvCardPlay } from "@/components/mg/fireTvCardPlay";
-import { profiledLibrary } from "@/components/mg/householdProfiles";
+import { activeHouseholdProfileId, profiledLibrary } from "@/components/mg/householdProfiles";
 import React, {
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -274,6 +275,9 @@ export default function EpisodeSelector({
     useState(
       null
     );
+  const watchLock = useRef(false);
+  const [watchSaving, setWatchSaving] = useState(false);
+  const [watchMessage, setWatchMessage] = useState("");
   const [sourcesEpisode, setSourcesEpisode] = useState(null);
   const [downloadEpisode, setDownloadEpisode] = useState(null);
   const [downloadSeasonOpen, setDownloadSeasonOpen] = useState(false);
@@ -933,6 +937,61 @@ export default function EpisodeSelector({
     progressRatio(progressMap.get(episodeKey(Number(season), Number(episode?.episode_number)))) < 0.92
   );
 
+  const markEpisodes = async (targets, watched) => {
+    if (watchLock.current || progressLoading || !tmdbId) return;
+    watchLock.current = true;
+    setWatchSaving(true);
+    setWatchMessage("");
+    const profileId = activeHouseholdProfileId();
+    let saved = 0;
+    try {
+      for (const episode of targets) {
+        if (activeHouseholdProfileId() !== profileId) throw new Error("Profile changed");
+        const number = Number(episode.episode_number);
+        const key = ["mg2", tmdbId, "tv", item?.year || "", season, number, encodeURIComponent(showTitle)].join("|");
+        const exact = await profiledLibrary.ContinueWatching.filter({ content_key: key });
+        const matching = progressRows.filter(row => {
+          const parsed = parseProgressRecord(row);
+          return parsed.season === Number(season) && parsed.episode === number;
+        });
+        const rows = [...new Map([...matching, ...exact].map(row => [row.id, row])).values()];
+        const results = [];
+        for (const row of rows) {
+          const duration = Number(row.duration) > 0 ? Number(row.duration) : (Number(episode.runtime) || 45) * 60;
+          const patch = { duration, progress: watched ? duration : 0 };
+          await base44.entities.ContinueWatching.update(row.id, patch);
+          results.push({ ...row, ...patch });
+        }
+        if (!rows.length && watched) {
+          const duration = (Number(episode.runtime) || 45) * 60;
+          results.push(await base44.entities.ContinueWatching.create({
+            content_key: key, title: showTitle, year: String(item?.year || ""),
+            poster_url: item?.poster_url || item?.poster || "", video_url: "",
+            episode_name: episode.name || "", source_type: "queued",
+            duration, progress: duration, profile_id: profileId,
+          }));
+        }
+        if (activeHouseholdProfileId() === profileId) setProgressRows(current => {
+          const ids = new Set(results.map(row => row.id));
+          return [...current.filter(row => !ids.has(row.id)), ...results];
+        });
+        saved++;
+      }
+      if (activeHouseholdProfileId() === profileId) setWatchMessage(saved + " episodes marked " + (watched ? "watched." : "unwatched."));
+    } catch {
+      if (activeHouseholdProfileId() === profileId) setWatchMessage("Saved " + saved + " of " + targets.length + " episodes. Could not finish saving; please try again.");
+    } finally {
+      watchLock.current = false;
+      setWatchSaving(false);
+    }
+  };
+  const jumpToEpisode = last => {
+    const buttons = document.querySelectorAll('#mg-episode-selector [data-mg-episode-art]');
+    const target = buttons[last ? buttons.length - 1 : 0];
+    target?.focus();
+    target?.scrollIntoView({ block: "center", behavior: "auto" });
+  };
+
   if (
     !regularSeasons.length
   ) {
@@ -971,6 +1030,26 @@ export default function EpisodeSelector({
           )}
         </div>
       )}
+
+      <div className="mb-3 flex flex-wrap gap-2" aria-label="Episode list controls">
+        {[true, false].map(watched => (
+          <button key={String(watched)} type="button"
+            disabled={watchSaving || progressLoading || loading || !tmdbId || !airedEpisodes.length}
+            onClick={() => markEpisodes(airedEpisodes, watched)}
+            className="min-h-11 rounded-lg border border-mg-green/30 px-3 text-xs text-mg-green disabled:opacity-40 focus:ring-2 focus:ring-mg-green">
+            Mark released season {watched ? "watched" : "unwatched"}
+          </button>
+        ))}
+        {[false, true].map(last => (
+          <button key={String(last)} type="button" onClick={() => jumpToEpisode(last)} disabled={loading || !episodes.length}
+            className="min-h-11 rounded-lg border border-white/20 px-3 text-xs text-white/80 focus:ring-2 focus:ring-mg-green">
+            {last ? "Last episode" : "First episode"}
+          </button>
+        ))}
+      </div>
+      <p role="status" aria-live="polite" className="mb-2 text-xs text-white/70">
+        {watchSaving ? "Saving watched status…" : watchMessage}
+      </p>
 
       {latestProgress && (
         <button
@@ -1204,6 +1283,7 @@ export default function EpisodeSelector({
                 >
                   <button
                     type="button"
+                    data-mg-episode-art="true"
                     data-mg-focus-key={`episode:${tmdbId || showTitle}:${seasonNumber}:${episodeNumber}:art`}
                     onClick={() =>
                       playEpisode(
@@ -1316,6 +1396,15 @@ export default function EpisodeSelector({
                       </div>
 
                       <div className="flex w-full min-w-0 flex-wrap justify-start gap-2">
+                        <button type="button"
+                          data-mg-focus-key={`episode:${tmdbId || showTitle}:${seasonNumber}:${episodeNumber}:watched`}
+                          disabled={watchSaving || progressLoading || !tmdbId || !airedEpisodes.includes(episodeData)}
+                          onClick={() => markEpisodes([episodeData], !nearlyWatched)}
+                          aria-label={`Mark episode ${episodeNumber} ${nearlyWatched ? "unwatched" : "watched"}`}
+                          className="min-h-11 rounded-md border border-mg-green/30 px-3 text-xs font-semibold text-mg-green disabled:opacity-40 focus:ring-2 focus:ring-mg-green">
+                          Mark {nearlyWatched ? "unwatched" : "watched"}
+                        </button>
+
                         <button
                           type="button"
                           data-mg-episode-download="true"

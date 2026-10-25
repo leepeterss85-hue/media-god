@@ -1105,3 +1105,10 @@ body.mg-fire-tv-stable [data-mg-search-dialog="true"] button:focus {
   background-color: hsl(var(--mg-green) / .17) !important;
   scroll-margin-block: 16px;
 }
+
+/* Catalogue episode focus only; player surfaces are unchanged. */
+body:is(.mg-fire-tv, .mg-fire-tv-mode, .mg-fire-tv-stable) #mg-episode-selector :is(button, select):focus {
+  outline: 3px solid var(--mg-green, #39ff88) !important;
+  outline-offset: 3px !important;
+  scroll-margin-block: 72px;
+}
