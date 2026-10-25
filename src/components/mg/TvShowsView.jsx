@@ -1,3 +1,4 @@
+import CatalogueRetryNotice from "@/components/mg/CatalogueRetryNotice";
 import useBrowseReturn from "@/components/mg/useBrowseReturn";
 import { catalogueLoadMessage } from "@/components/mg/catalogueFeedback";
 import React, { useEffect, useState } from "react";
@@ -146,7 +147,6 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
 
     const loadShows = async () => {
       setLoading(true);
-      setError("");
 
       try {
         const response = await base44.functions.invoke("getTmdbMovies", {
@@ -183,10 +183,10 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
             : first;
 
         setShows(Array.isArray(payload?.movies) ? payload.movies : []);
+        setError("");
       } catch (loadError) {
         if (!cancelled) {
           console.error("[Media God] TV show library failed to load", loadError);
-          setShows([]);
           setError(catalogueLoadMessage());
         }
       } finally {
@@ -397,7 +397,7 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
         </div>
       )}
 
-      {loading ? (
+      {loading && shows.length === 0 ? (
         <div data-mg-library-grid="true" className={gridClass}>
           {Array.from({ length: 20 }).map((_, index) => (
             <div
@@ -474,13 +474,7 @@ export default function TvShowsView({ initialProvider = null, providerRequestKey
         </div>
       )}
 
-      {!loading && error && (
-        <div role="alert" className="rounded-xl border border-red-400/20 bg-red-400/5 p-5 text-center">
-          <p className="text-sm text-red-200">{error}</p>
-          <button type="button" onClick={() => setRetry(value => value + 1)}
-            className="mt-3 min-h-11 rounded-lg bg-white/10 px-5 text-white focus-visible:ring-2 focus-visible:ring-mg-green">Retry</button>
-        </div>
-      )}
+      {error && <CatalogueRetryNotice busy={loading} onRetry={() => setRetry(value => value + 1)} hasItems={shows.length > 0} catalogue />}
       {!loading && !error && shows.length === 0 && (
         <p className="text-white/40 text-sm 3xl:text-base">
           {activeProvider

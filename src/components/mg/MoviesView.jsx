@@ -1,3 +1,4 @@
+import CatalogueRetryNotice from "@/components/mg/CatalogueRetryNotice";
 import useBrowseReturn from "@/components/mg/useBrowseReturn";
 import { catalogueLoadMessage } from "@/components/mg/catalogueFeedback";
 import React, { useEffect, useRef, useState } from "react";
@@ -58,7 +59,6 @@ export default function MoviesView() {
   useEffect(() => {
     const requestId = ++requestRef.current;
     setLoading(true);
-      setError("");
 
     base44.functions
       .invoke("getTmdbMovies", {
@@ -75,10 +75,10 @@ export default function MoviesView() {
       .then((res) => {
         if (requestId !== requestRef.current) return;
         setMovies(res.data?.movies || []);
+        setError("");
       })
       .catch(() => {
         if (requestId !== requestRef.current) return;
-        setMovies([]);
         setError(catalogueLoadMessage());
       })
       .finally(() => {
@@ -209,7 +209,7 @@ export default function MoviesView() {
         </div>
       </div>
 
-      {loading ? (
+      {loading && movies.length === 0 ? (
         <div data-mg-library-grid="true" className={gridClass}>
           {Array.from({ length: 20 }).map((_, index) => (
             <div
@@ -285,13 +285,7 @@ export default function MoviesView() {
         </div>
       )}
 
-      {!loading && error && (
-        <div role="alert" className="rounded-xl border border-red-400/20 bg-red-400/5 p-5 text-center">
-          <p className="text-sm text-red-200">{error}</p>
-          <button type="button" onClick={() => setRetry(value => value + 1)}
-            className="mt-3 min-h-11 rounded-lg bg-white/10 px-5 text-white focus-visible:ring-2 focus-visible:ring-mg-green">Retry</button>
-        </div>
-      )}
+      {error && <CatalogueRetryNotice busy={loading} onRetry={() => setRetry(value => value + 1)} hasItems={movies.length > 0} catalogue />}
       {!loading && !error && movies.length === 0 && (
         <p className="text-white/40 text-sm 3xl:text-base">
           No movies found for these filters.

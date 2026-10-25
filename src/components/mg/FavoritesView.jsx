@@ -1,3 +1,4 @@
+import CatalogueRetryNotice from "@/components/mg/CatalogueRetryNotice";
 import useLibraryUndo from "@/components/mg/useLibraryUndo";
 import useBrowseReturn from "@/components/mg/useBrowseReturn";
 import { catalogueLoadMessage } from "@/components/mg/catalogueFeedback";
@@ -6,7 +7,6 @@ import { matchesLibraryQuery } from "@/components/mg/savedLibraryTools";
 import { profiledLibrary } from "@/components/mg/householdProfiles";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  AlertCircle,
   CheckSquare,
   Heart,
   Play,
@@ -59,11 +59,11 @@ export default function FavoritesView() {
 
   const load = async () => {
     setLoading(true);
-    setError("");
 
     try {
       const rows = await profiledLibrary.Favorite.list("-created_date", 200);
       setItems(Array.isArray(rows) ? rows : []);
+      setError("");
     } catch (loadError) {
       setError(catalogueLoadMessage());
     } finally {
@@ -370,16 +370,9 @@ export default function FavoritesView() {
           busy={clearing} />
       )}
 
-      {error && (
-        <div role="alert" className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">
-          <AlertCircle className="h-4 w-4 shrink-0" />
-          <span className="flex-1">{error}{items.length > 0 ? " Your last loaded titles are still shown." : ""}</span>
-          <button type="button" onClick={load} disabled={loading || clearing}
-            className="min-h-11 rounded-lg border border-red-300/30 px-3 font-semibold focus:outline-none focus:ring-2 focus:ring-mg-green disabled:opacity-50">Try again</button>
-        </div>
-      )}
+      {error && <CatalogueRetryNotice busy={loading} onRetry={load} hasItems={items.length > 0} blocked={clearing} />}
 
-      {loading ? (
+      {loading && items.length === 0 ? (
         <div
           data-mg-library-grid="true"
           className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6"
