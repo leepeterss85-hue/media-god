@@ -1,3 +1,5 @@
+import SavedLibraryResults from "@/components/mg/SavedLibraryResults";
+import { matchesLibraryQuery } from "@/components/mg/savedLibraryTools";
 import { profiledLibrary } from "@/components/mg/householdProfiles";
 import React, { useEffect, useMemo, useState } from "react";
 import {
@@ -57,7 +59,6 @@ export default function WatchlistView() {
       const rows = await profiledLibrary.WatchlistItem.list("-created_date", 200);
       setItems(Array.isArray(rows) ? rows : []);
     } catch (loadError) {
-      setItems([]);
       setError(loadError?.message || "Could not load your Watchlist.");
     } finally {
       setLoading(false);
@@ -75,9 +76,7 @@ export default function WatchlistView() {
       if (mediaFilter !== "all" && itemType !== mediaFilter) return false;
       if (!wanted) return true;
 
-      return `${item?.title || ""} ${item?.year || ""}`
-        .toLowerCase()
-        .includes(wanted);
+      return matchesLibraryQuery(item, wanted);
     });
 
     return sortItems(filtered, sortMode);
@@ -303,6 +302,8 @@ export default function WatchlistView() {
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
+            type="search"
+            aria-label="Search Watchlist"
             placeholder="Search Watchlist…"
             className="min-h-11 w-full rounded-lg border border-white/10 bg-black/25 pl-9 pr-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-mg-green/50"
           />
@@ -342,10 +343,20 @@ export default function WatchlistView() {
         </select>
       </div>
 
+      {!loading && items.length > 0 && (
+        <SavedLibraryResults total={items.length} visible={visible}
+          filtered={Boolean(query.trim()) || mediaFilter !== "all"}
+          onReset={() => { setQuery(""); setMediaFilter("all"); }}
+          editing={editMode} selectedIds={selectedIds} setSelectedIds={setSelectedIds}
+          busy={clearing} />
+      )}
+
       {error && (
-        <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">
+        <div role="alert" className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">
           <AlertCircle className="h-4 w-4 shrink-0" />
-          <span>{error}</span>
+          <span className="flex-1">{error}{items.length > 0 ? " Your last loaded titles are still shown." : ""}</span>
+          <button type="button" onClick={load} disabled={loading || clearing}
+            className="min-h-11 rounded-lg border border-red-300/30 px-3 font-semibold focus:outline-none focus:ring-2 focus:ring-mg-green disabled:opacity-50">Try again</button>
         </div>
       )}
 
@@ -361,11 +372,11 @@ export default function WatchlistView() {
             />
           ))}
         </div>
-      ) : visible.length === 0 ? (
+      ) : error && items.length === 0 ? null : visible.length === 0 ? (
         <div className="rounded-xl border border-white/10 bg-mg-card/60 py-20 text-center">
           <p className="text-white/45 text-sm">
-            {items.length > 0 && query.trim()
-              ? "No Watchlist titles match your search."
+            {items.length > 0
+              ? "No Watchlist titles match your search or filters."
               : "Your watchlist is empty."}
           </p>
           {items.length === 0 && (
@@ -397,6 +408,7 @@ export default function WatchlistView() {
                 {editMode ? (
                   <button
                     type="button"
+                    disabled={clearing}
                     onClick={() => toggleSelected(item.id)}
                     className={`absolute inset-0 flex items-start justify-end p-2 ${
                       selectedIds.includes(item.id)
@@ -441,7 +453,7 @@ export default function WatchlistView() {
                 )}
               </div>
 
-              <p className="mt-2 truncate text-sm text-white">{item.title}</p>
+              <p title={item.title} className="mt-2 truncate text-sm text-white">{item.title}</p>
               <p className="text-xs text-white/40">{item.year}</p>
             </div>
           ))}
