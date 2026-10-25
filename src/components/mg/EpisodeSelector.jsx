@@ -1,5 +1,5 @@
 import { launchFireTvCardPlay } from "@/components/mg/fireTvCardPlay";
-import { activeHouseholdProfileId, profiledLibrary } from "@/components/mg/householdProfiles";
+import { activeHouseholdProfileId, PROFILE_CHANGED_EVENT, profiledLibrary } from "@/components/mg/householdProfiles";
 import React, {
   useEffect,
   useMemo,
@@ -275,6 +275,13 @@ export default function EpisodeSelector({
     useState(
       null
     );
+  const [profileId, setProfileId] = useState(activeHouseholdProfileId);
+  useEffect(() => {
+    const updateProfile = () => setProfileId(activeHouseholdProfileId());
+    window.addEventListener(PROFILE_CHANGED_EVENT, updateProfile);
+    return () => window.removeEventListener(PROFILE_CHANGED_EVENT, updateProfile);
+  }, []);
+  const [progressFailed, setProgressFailed] = useState(false);
   const watchLock = useRef(false);
   const [watchSaving, setWatchSaving] = useState(false);
   const [watchMessage, setWatchMessage] = useState("");
@@ -302,6 +309,7 @@ export default function EpisodeSelector({
 
     const loadProgress =
       async () => {
+        setProgressFailed(false);
         setProgressLoading(
           true
         );
@@ -310,7 +318,7 @@ export default function EpisodeSelector({
           const rows =
             await profiledLibrary.ContinueWatching.list(
               "-updated_date",
-              100
+              500
             );
 
           if (
@@ -351,6 +359,8 @@ export default function EpisodeSelector({
                   return true;
                 }
 
+                if (parsed.tmdbId && tmdbId) return false;
+
                 const storedTitle =
                   String(
                     record
@@ -373,6 +383,7 @@ export default function EpisodeSelector({
           if (
             mounted
           ) {
+            setProgressFailed(true);
             setProgressRows(
               []
             );
@@ -418,6 +429,7 @@ export default function EpisodeSelector({
   }, [
     showTitle,
     tmdbId,
+    profileId,
   ]);
 
   const progressMap =
@@ -938,7 +950,7 @@ export default function EpisodeSelector({
   );
 
   const markEpisodes = async (targets, watched) => {
-    if (watchLock.current || progressLoading || !tmdbId) return;
+    if (watchLock.current || progressLoading || progressFailed || !tmdbId) return;
     watchLock.current = true;
     setWatchSaving(true);
     setWatchMessage("");
@@ -951,6 +963,7 @@ export default function EpisodeSelector({
         const key = ["mg2", tmdbId, "tv", item?.year || "", season, number, encodeURIComponent(showTitle)].join("|");
         const exact = await profiledLibrary.ContinueWatching.filter({ content_key: key });
         const matching = progressRows.filter(row => {
+          if (String(row.profile_id || "main") !== profileId) return false;
           const parsed = parseProgressRecord(row);
           return parsed.season === Number(season) && parsed.episode === number;
         });
@@ -1034,7 +1047,7 @@ export default function EpisodeSelector({
       <div className="mb-3 flex flex-wrap gap-2" aria-label="Episode list controls">
         {[true, false].map(watched => (
           <button key={String(watched)} type="button"
-            disabled={watchSaving || progressLoading || loading || !tmdbId || !airedEpisodes.length}
+            disabled={watchSaving || progressLoading || progressFailed || loading || !tmdbId || !airedEpisodes.length}
             onClick={() => markEpisodes(airedEpisodes, watched)}
             className="min-h-11 rounded-lg border border-mg-green/30 px-3 text-xs text-mg-green disabled:opacity-40 focus:ring-2 focus:ring-mg-green">
             Mark released season {watched ? "watched" : "unwatched"}
@@ -1048,7 +1061,7 @@ export default function EpisodeSelector({
         ))}
       </div>
       <p role="status" aria-live="polite" className="mb-2 text-xs text-white/70">
-        {watchSaving ? "Saving watched status…" : watchMessage}
+        {progressFailed ? "Could not load watched status. Reopen this title to retry." : watchSaving ? "Saving watched status…" : watchMessage}
       </p>
 
       {latestProgress && (
@@ -1398,7 +1411,7 @@ export default function EpisodeSelector({
                       <div className="flex w-full min-w-0 flex-wrap justify-start gap-2">
                         <button type="button"
                           data-mg-focus-key={`episode:${tmdbId || showTitle}:${seasonNumber}:${episodeNumber}:watched`}
-                          disabled={watchSaving || progressLoading || !tmdbId || !airedEpisodes.includes(episodeData)}
+                          disabled={watchSaving || progressLoading || progressFailed || !tmdbId || !airedEpisodes.includes(episodeData)}
                           onClick={() => markEpisodes([episodeData], !nearlyWatched)}
                           aria-label={`Mark episode ${episodeNumber} ${nearlyWatched ? "unwatched" : "watched"}`}
                           className="min-h-11 rounded-md border border-mg-green/30 px-3 text-xs font-semibold text-mg-green disabled:opacity-40 focus:ring-2 focus:ring-mg-green">
