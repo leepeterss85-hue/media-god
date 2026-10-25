@@ -22,7 +22,8 @@ const reply = (payload, status = 200) => new Response(JSON.stringify(payload), {
 const clean = value => String(value ?? "").trim();
 
 const manifestUrlFor = addon => {
-  const name = clean(addon?.name).toLowerCase();
+  const enteredName = clean(addon?.name).toLowerCase();
+  const name = /^orion(?:[ _-]?\d+)?$/.test(enteredName) ? "orion" : enteredName;
   const allowedHosts = ALLOWED_PROVIDERS[name];
   if (!allowedHosts) throw new Error("Only the two optional scraper candidates can be checked here.");
   let url;
