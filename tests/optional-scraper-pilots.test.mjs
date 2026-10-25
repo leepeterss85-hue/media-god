@@ -16,6 +16,9 @@ test("optional candidates are discoverable only by explicit setup, not installed
     item.configureUrl.startsWith("https://") && item.configureUrl.endsWith("/configure")
   ));
   assert.equal(isOptionalScraperPilot("orion"), true);
+  assert.equal(isOptionalScraperPilot("Orion2"), true, "a replacement saved as Orion2 gets an isolated test button");
+  assert.equal(isOptionalScraperPilot("Orion-3"), true);
+  assert.equal(isOptionalScraperPilot("orion-backdoor"), false);
   assert.equal(isOptionalScraperPilot("StremThru Torz"), true);
   assert.equal(isOptionalScraperPilot("Torrentio"), false);
 
@@ -39,6 +42,7 @@ test("optional candidates are discoverable only by explicit setup, not installed
 
 test("pilot setup blocks publicly unconfigured manifests", () => {
   assert.equal(isBareOptionalPilotManifest("Orion", "https://orion.example/manifest.json"), true);
+  assert.equal(isBareOptionalPilotManifest("Orion2", "https://orion.example/manifest.json"), true);
   assert.equal(isBareOptionalPilotManifest("StremThru Torz", "https://stremthru.example/stremio/torz/manifest.json"), true);
   assert.equal(isBareOptionalPilotManifest("StremThru Torz", "https://stremthru.example/stremio/torz/ENCRYPTED/manifest.json"), false);
   assert.equal(isBareOptionalPilotManifest("Orion", "https://orion.example/encoded-credentials/manifest.json"), false);
@@ -47,7 +51,7 @@ test("pilot setup blocks publicly unconfigured manifests", () => {
 });
 
 test("configured candidate manifest secrets stay hidden on the addons screen", () => {
-  for (const name of ["Orion", "StremThru Torz"]) {
+  for (const name of ["Orion", "Orion2", "StremThru Torz"]) {
     const secret = "PRIVATE_ABC123";
     const url = "https://user:password@demo.example/stremio/torz/" + secret + "/manifest.json?auth=" + secret;
     const result = redactOptionalPilotManifest(name, url);
@@ -64,6 +68,7 @@ test("the optional scraper check is read-only and leaves playback/navigation cod
   assert.match(branch, /base44\.entities\.Addon\.list/);
   assert.match(branch, /const addon = .*\.find/);
   assert.match(branch, /ALLOWED_PROVIDERS/);
+  assert.match(branch, /\^orion\(\?:\[ _-\]\?\\d\+\)\?\$/);
   assert.match(branch, /redirect: "error"/);
   assert.match(branch, /const limit = 64 \* 1024/);
   assert.match(branch, /readBoundedJson\(response\)/);
