@@ -24,9 +24,10 @@ export default function useBrowseReturn() {
   useEffect(() => {
     if (selected || !snapshot.current) return;
     const saved = snapshot.current;
-    snapshot.current = null;
     frame.current = requestAnimationFrame(() => {
       frame.current = requestAnimationFrame(() => {
+        snapshot.current = null;
+        if (document.querySelector('[data-mg-player-stage="true"]')) return;
         // Do not take focus from another dialog or a newly opened player.
         const active = document.activeElement;
         if (active && active !== document.body && active !== saved.focus &&

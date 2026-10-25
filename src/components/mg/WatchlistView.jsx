@@ -4,7 +4,7 @@ import { catalogueLoadMessage } from "@/components/mg/catalogueFeedback";
 import SavedLibraryResults from "@/components/mg/SavedLibraryResults";
 import { matchesLibraryQuery } from "@/components/mg/savedLibraryTools";
 import { profiledLibrary } from "@/components/mg/householdProfiles";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   CheckSquare,
@@ -53,6 +53,7 @@ export default function WatchlistView() {
   const [selectedIds, setSelectedIds] = useState([]);
   const { toast } = useToast();
   const player = usePlayer();
+  const removing = useRef(new Set());
   const offerUndo = useLibraryUndo("WatchlistItem", setItems);
 
   const load = async () => {
@@ -87,12 +88,16 @@ export default function WatchlistView() {
   }, [items, mediaFilter, query, sortMode]);
 
   const remove = async (item) => {
+    if (removing.current.has(item.id)) return;
+    removing.current.add(item.id);
     try {
       await profiledLibrary.WatchlistItem.delete(item.id);
       setItems((current) => current.filter((row) => row.id !== item.id));
       offerUndo([item]);
     } catch {
       toast({ title: "Could not remove from Watchlist", variant: "destructive" });
+    } finally {
+      removing.current.delete(item.id);
     }
   };
 
@@ -129,11 +134,11 @@ export default function WatchlistView() {
       }
     }
 
-    offerUndo(removed);
     await load();
     setSelectedIds([]);
     setEditMode(false);
     setClearing(false);
+    offerUndo(removed);
 
     toast({
       title: failed ? "Watchlist partly updated" : "Selected titles removed",
@@ -168,7 +173,6 @@ export default function WatchlistView() {
       }
     }
 
-    offerUndo(removed);
     if (failed === 0) {
       setItems([]);
       toast({ title: "Watchlist cleared" });
@@ -182,6 +186,7 @@ export default function WatchlistView() {
     }
 
     setClearing(false);
+    offerUndo(removed);
   };
 
   const playItem = async (item) => {

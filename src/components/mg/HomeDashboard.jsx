@@ -1,3 +1,4 @@
+import useBrowseReturn from "@/components/mg/useBrowseReturn";
 import { launchFireTvCardPlay } from "@/components/mg/fireTvCardPlay";
 import { profiledLibrary } from "@/components/mg/householdProfiles";
 import React, {
@@ -373,7 +374,7 @@ class HomeDetailErrorBoundary extends React.Component {
 export default function HomeDashboard({ onOpenTvService }) {
   const [rows, setRows] = useState(/** @type {any} */ ({}));
   const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState(null);
+  const [selected, setSelected] = useBrowseReturn();
   const [watched, setWatched] = useState({});
   const [historyRows, setHistoryRows] = useState([]);
   const [recommendationSeed, setRecommendationSeed] = useState(null);

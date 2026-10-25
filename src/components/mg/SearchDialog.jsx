@@ -657,8 +657,7 @@ export default function SearchDialog({
           );
 
           setError(
-            searchError?.message ||
-              "Search could not be completed."
+            catalogueLoadMessage()
           );
         } finally {
           if (

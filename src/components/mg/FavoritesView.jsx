@@ -4,7 +4,7 @@ import { catalogueLoadMessage } from "@/components/mg/catalogueFeedback";
 import SavedLibraryResults from "@/components/mg/SavedLibraryResults";
 import { matchesLibraryQuery } from "@/components/mg/savedLibraryTools";
 import { profiledLibrary } from "@/components/mg/householdProfiles";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   CheckSquare,
@@ -54,6 +54,7 @@ export default function FavoritesView() {
   const [selectedIds, setSelectedIds] = useState([]);
   const { toast } = useToast();
   const player = usePlayer();
+  const removing = useRef(new Set());
   const offerUndo = useLibraryUndo("Favorite", setItems);
 
   const load = async () => {
@@ -90,12 +91,16 @@ export default function FavoritesView() {
   const remove = async (id) => {
     const item = items.find(row => row.id === id);
     if (!item) return;
+    if (removing.current.has(item.id)) return;
+    removing.current.add(item.id);
     try {
       await profiledLibrary.Favorite.delete(id);
       setItems((rows) => rows.filter((row) => row.id !== id));
       offerUndo([item]);
     } catch {
       toast({ title: "Could not remove", variant: "destructive" });
+    } finally {
+      removing.current.delete(item.id);
     }
   };
 
@@ -132,11 +137,11 @@ export default function FavoritesView() {
       }
     }
 
-    offerUndo(removed);
     await load();
     setSelectedIds([]);
     setEditMode(false);
     setClearing(false);
+    offerUndo(removed);
 
     toast({
       title: failed ? "Favorites partly updated" : "Selected favorites removed",
@@ -171,7 +176,6 @@ export default function FavoritesView() {
       }
     }
 
-    offerUndo(removed);
     if (failed === 0) {
       setItems([]);
       toast({ title: "Favorites cleared" });
@@ -185,6 +189,7 @@ export default function FavoritesView() {
     }
 
     setClearing(false);
+    offerUndo(removed);
   };
 
   const play = async (item) => {
