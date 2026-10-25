@@ -18,6 +18,7 @@ import {
 
 import { base44 } from "@/api/base44Client";
 import RealDebridDeviceConnect from "@/components/mg/RealDebridDeviceConnect";
+import { OPTIONAL_SCRAPER_PILOTS, isOptionalScraperPilot, isBareOptionalPilotManifest, redactOptionalPilotManifest } from "@/components/mg/optionalScraperPilots.js";
 
 const unwrap = (response) =>
   response?.data ??
@@ -279,7 +280,9 @@ const isElfHostedMediaFusion = (value) => {
   }
 };
 
-const displayManifestUrl = (value) => {
+const displayManifestUrl = (value, name = "") => {
+  const pilotDisplay = redactOptionalPilotManifest(name, value);
+  if (pilotDisplay !== null) return pilotDisplay;
   const raw = clean(value);
 
   if (!raw) {
@@ -683,6 +686,11 @@ export default function AddonsManager() {
         return;
       }
 
+      if (isBareOptionalPilotManifest(name, url)) {
+        setError("This is the unconfigured public manifest. Configure the provider with your own account first, then copy its generated install/manifest URL.");
+        return;
+      }
+
       if (
         addons.some(
           (addon) =>
@@ -709,11 +717,11 @@ export default function AddonsManager() {
 
             url,
 
-            active:
-              true,
+            // New pilot candidates are saved OFF, so they cannot change
+            // working Fire TV / phone autoplay until explicitly enabled.
+            active: !isOptionalScraperPilot(name),
 
-            installed:
-              true,
+            installed: true,
           }
         );
 
@@ -735,7 +743,9 @@ export default function AddonsManager() {
         );
 
         setMessage(
-          "Addon saved. Use Test active to confirm the manifest is reachable."
+          isOptionalScraperPilot(name)
+            ? "Test candidate saved disabled. Use Test candidate to check its manifest before enabling. Nothing has changed in autoplay."
+            : "Addon saved. Use Test active to confirm the manifest is reachable."
         );
 
       } catch {
@@ -840,6 +850,30 @@ export default function AddonsManager() {
         setMutating(false);
       }
     };
+
+  const testCandidateAddon = async (addon) => {
+    if (!addon?.id || testing || mutating) return;
+    setTesting(true);
+    setError("");
+    setMessage("");
+    setHealth([]);
+    try {
+      const response = await base44.functions.invoke("fetchAddonStreams", {
+        action: "health_candidate", candidate_addon_id: addon.id,
+      });
+      const data = unwrap(response);
+      const report = Array.isArray(data?.diagnostics) ? data.diagnostics : [];
+      setHealth(report);
+      const result = report[0];
+      setMessage(result?.status === "ok"
+        ? "Manifest responded and advertises streams. This does not prove a playable English source; keep the candidate disabled until tested on a real device."
+        : result?.message || "Candidate manifest did not pass the health check.");
+    } catch {
+      setError("Candidate health check failed. The working scrapers were not changed.");
+    } finally {
+      setTesting(false);
+    }
+  };
 
   const testActiveAddons =
     async () => {
@@ -1264,6 +1298,33 @@ export default function AddonsManager() {
         </p>
       </div>
 
+      <section data-mg-optional-scraper-pilots="true" className="rounded-xl border border-blue-900/60 bg-blue-950/20 p-4 space-y-3">
+        <div>
+          <h2 className="text-md font-semibold text-white">New scraper candidates — optional testing</h2>
+          <p className="mt-1 text-xs text-gray-400">These are not installed automatically. Add a configured manifest to your own account, saved disabled by default. Test its manifest before enabling; no changes are made to the existing player, automatic source order or Live TV.</p>
+        </div>
+        {OPTIONAL_SCRAPER_PILOTS.map((pilot) => (
+          <div key={pilot.name} className="rounded-lg border border-blue-900/50 bg-zinc-950/40 p-3 space-y-2">
+            <div className="font-medium text-sm text-white">{pilot.name}</div>
+            <p className="text-xs text-gray-400">{pilot.description}</p>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <a href={pilot.configureUrl} target="_blank" rel="noopener noreferrer" className="flex min-h-10 items-center justify-center gap-2 rounded-lg bg-blue-800 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">
+                <ExternalLink className="h-4 w-4" /> Configure {pilot.name}
+              </a>
+              <button type="button" onClick={() => {
+                setNewName(pilot.name);
+                setNewUrl("");
+                setError("");
+                setMessage(`Copy the configured ${pilot.name} manifest URL from its provider page into the form below. It will be saved disabled until you test it.`);
+                document.getElementById("mg-addon-manifest-url")?.focus();
+              }} className="min-h-10 rounded-lg border border-blue-900 px-3 py-2 text-xs font-semibold text-blue-200 hover:bg-zinc-800">
+                Add disabled test candidate
+              </button>
+            </div>
+          </div>
+        ))}
+      </section>
+
       <form
         onSubmit={
           handleAdd
@@ -1412,7 +1473,7 @@ export default function AddonsManager() {
 
                     <p className="text-xs text-gray-500 break-all">
                       {
-                        displayManifestUrl(addon?.url)
+                        displayManifestUrl(addon?.url, addon?.name)
                       }
                     </p>
 
@@ -1425,7 +1486,12 @@ export default function AddonsManager() {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                    {isOptionalScraperPilot(addon?.name) && (
+                      <button type="button" onClick={() => testCandidateAddon(addon)} disabled={mutating || testing} className="min-h-10 rounded-lg border border-blue-800 bg-blue-950/50 px-3 py-1.5 text-xs font-medium text-blue-200 hover:bg-blue-900/60 disabled:opacity-50">
+                        Test candidate
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() =>
