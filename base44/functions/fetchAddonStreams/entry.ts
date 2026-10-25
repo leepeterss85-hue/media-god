@@ -2372,24 +2372,6 @@ export default async function (req) {
         body?.action
       ).toLowerCase();
 
-    /*
-     * Read-only isolated pilot check: test ONE manifest owned by the signed-in
-     * user, including disabled rows, without adding it to the active discovery
-     * pool or changing any source-selection / playback path.
-     * Never accept an arbitrary URL from the request body.
-     */
-    if (action === "health_candidate") {
-      const candidateId = clean(body?.candidate_addon_id);
-      const candidate = user && candidateId
-        ? addons.find((item) => clean(item?.id) === candidateId)
-        : null;
-      if (!candidate || !candidate?.url) {
-        return Response.json({ error: "Candidate not found in your addons.", diagnostics: [] }, { status: 404 });
-      }
-      const result = await healthCheckAddon(candidate);
-      return Response.json({ action: "health_candidate", diagnostics: [result], addons_checked: 1 });
-    }
-
     if (action === "trigger_comet_playback") {
       const target = configuredCometPlaybackTarget(
         body?.playback_url || body?.playbackUrl,
