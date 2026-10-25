@@ -858,8 +858,8 @@ export default function AddonsManager() {
     setMessage("");
     setHealth([]);
     try {
-      const response = await base44.functions.invoke("fetchAddonStreams", {
-        action: "health_candidate", candidate_addon_id: addon.id,
+      const response = await base44.functions.invoke("testScraperCandidate", {
+        candidate_addon_id: addon.id,
       });
       const data = unwrap(response);
       const report = Array.isArray(data?.diagnostics) ? data.diagnostics : [];
