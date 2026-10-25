@@ -20,18 +20,19 @@ test("optional candidates are discoverable only by explicit setup, not installed
   assert.equal(isOptionalScraperPilot("Torrentio"), false);
 
   const frontend = read("src/components/mg/AddonsView.jsx");
-  const backend = read("base44/functions/fetchAddonStreams/entry.ts");
+  const backend = read("base44/functions/testScraperCandidate/entry.ts");
   assert.match(frontend, /data-mg-optional-scraper-pilots/);
   assert.match(frontend, /active: !isOptionalScraperPilot\(name\)/);
-  assert.match(frontend, /action: "health_candidate", candidate_addon_id: addon.id/);
+  assert.match(frontend, /base44\.functions\.invoke\("testScraperCandidate"/);
   assert.match(frontend, /isBareOptionalPilotManifest\(name, url\)/);
-  assert.match(backend, /action === "health_candidate"/);
-  assert.match(backend, /addons\.find\(\(item\) => clean\(item\?\.id\) === candidateId\)/);
-  assert.match(backend, /const result = await healthCheckAddon\(candidate\)/);
-  assert.ok(backend.indexOf('action === "health_candidate"') < backend.indexOf('action === "trigger_comet_playback"'));
-  const builtinBlock = backend.slice(
-    backend.indexOf("const BUILTIN_PUBLIC_PLAYBACK_ADDONS"),
-    backend.indexOf("const addonUrlKey")
+  assert.match(backend, /base44\.auth\.me\(\)/);
+  assert.match(backend, /base44\.entities\.Addon\.list/);
+  assert.match(backend, /const addon = .*\.find\(item => clean\(item\?\.id\) === id\)/);
+  assert.match(backend, /const manifest = await readBoundedJson\(response\)/);
+  const discovery = read("base44/functions/fetchAddonStreams/entry.ts");
+  const builtinBlock = discovery.slice(
+    discovery.indexOf("const BUILTIN_PUBLIC_PLAYBACK_ADDONS"),
+    discovery.indexOf("const addonUrlKey")
   );
   assert.doesNotMatch(builtinBlock, /Orion|StremThru/);
 });
@@ -58,14 +59,14 @@ test("configured candidate manifest secrets stay hidden on the addons screen", (
 });
 
 test("the optional scraper check is read-only and leaves playback/navigation code alone", () => {
-  const backend = read("base44/functions/fetchAddonStreams/entry.ts");
-  const branch = backend.slice(
-    backend.indexOf('if (action === "health_candidate")'),
-    backend.indexOf('if (action === "trigger_comet_playback")')
-  );
-  assert.match(branch, /user && candidateId/);
-  assert.match(branch, /addons\.find/);
-  assert.match(branch, /healthCheckAddon\(candidate\)/);
+  const branch = read("base44/functions/testScraperCandidate/entry.ts");
+  assert.match(branch, /if \(!user\) return reply/);
+  assert.match(branch, /base44\.entities\.Addon\.list/);
+  assert.match(branch, /const addon = .*\.find/);
+  assert.match(branch, /ALLOWED_PROVIDERS/);
+  assert.match(branch, /redirect: "error"/);
+  assert.match(branch, /const limit = 64 \* 1024/);
+  assert.match(branch, /readBoundedJson\(response\)/);
   assert.doesNotMatch(branch, /lookupAddon|activeAddons\.push|Addon\.create|Addon\.update|stream\/|playback_url/);
   const ui = read("src/components/mg/AddonsView.jsx");
   assert.match(ui, /Test candidate/);
