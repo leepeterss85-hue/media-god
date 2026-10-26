@@ -47,6 +47,42 @@ export function isBareOptionalPilotManifest(name, url) {
   }
 }
 
+/**
+ * Converts the Orion Stremio addon configuration to *torrent index only*.
+ * Orion still finds hashes, but Media God (not Orion) resolves those hashes
+ * through the user's existing Real-Debrid integration. The returned manifest
+ * remains private: never log, display, or include it in diagnostics.
+ * Caller must keep the converted candidate disabled until it is tested.
+ */
+export function buildOrionTorrentOnlyManifest(manifestUrl) {
+  const url = new URL(String(manifestUrl || ""));
+  if (url.protocol !== "https:" || url.hostname !== "5a0d1888fa64-orion.baby-beamup.club" ||
+      url.username || url.password) throw new Error("Not a supported Orion manifest URL.");
+  const segments = url.pathname.split("/").filter(Boolean);
+  if (segments.length !== 2 || segments[1] !== "manifest.json" ||
+      segments[0].length > 8192) throw new Error("Orion profile is not in the expected format.");
+
+  let config;
+  try {
+    const encoded = segments[0].replace(/-/g, "+").replace(/_/g, "/");
+    const bytes = Uint8Array.from(atob(encoded), char => char.charCodeAt(0));
+    config = JSON.parse(new TextDecoder().decode(bytes));
+  } catch {
+    throw new Error("Cannot read the saved Orion profile. Reconfigure Orion using its official page.");
+  }
+  if (!config || typeof config !== "object" || Array.isArray(config) ||
+      typeof config.listOpt !== "string" || !Array.isArray(config.debridservices)) {
+    throw new Error("This Orion profile cannot be converted safely.");
+  }
+  if (config.listOpt === "torrent") return null;
+
+  const nextConfig = { ...config, listOpt: "torrent" };
+  const bytes = new TextEncoder().encode(JSON.stringify(nextConfig));
+  const nextProfile = btoa(Array.from(bytes, value => String.fromCharCode(value)).join(""));
+  url.pathname = "/" + nextProfile + "/manifest.json";
+  return url.toString();
+}
+
 export function redactOptionalPilotManifest(name, url) {
   if (!isOptionalScraperPilot(name)) return null;
   try {
