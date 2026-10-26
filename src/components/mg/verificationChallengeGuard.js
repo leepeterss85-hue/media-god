@@ -24,7 +24,7 @@ export const isVerificationChallengeUrl = (value) => {
 
 export const isVerificationChallengeStream = (stream) => {
   if (!stream || typeof stream !== "object") return false;
-  const url = String(stream.url || stream.src || stream.link || stream.file || stream.streamUrl || "");
+  const url = String(stream.url || stream.src || stream.link || stream.externalUrl || stream.external_url || stream.file || stream.streamUrl || "");
   if (isVerificationChallengeUrl(url)) return true;
   const text = [stream.name, stream.title, stream.description, stream.message, stream.status]
     .filter(value => typeof value === "string").join(" ");
