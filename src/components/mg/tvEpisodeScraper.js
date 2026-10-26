@@ -1,4 +1,5 @@
 import { episodeAudioRank, hasUnusableEpisodeAudio } from "./episodeAudio.js";
+import { isVerificationChallengeStream } from "./verificationChallengeGuard.js";
 
 const API_BASE = "https://flixquest-api.vercel.app";
 const PROVIDERS = ["showbox", "vidsrc", "vidsrcto"];
@@ -111,7 +112,7 @@ const contentFormat = (item, url) => {
 // An API may return links for other episodes, adverts, or commentary. A
 // provider with only rejected links must not win the first-response race.
 const validEpisodeLink = (item, payload, id, seasonNumber, episodeNumber) => {
-  if (!item || typeof item !== "object") return false;
+  if (!item || typeof item !== "object" || isVerificationChallengeStream(item)) return false;
   const url = sourceUrl(item);
   if (!/^https?:\/\//i.test(url) ||
       /\.(?:jpg|jpeg|png|webp|vtt|srt|mp3|aac|m4a|html?)(?:$|[?#])/i.test(url) ||
