@@ -124,7 +124,7 @@ function VidCoreMoviePlayer({ url, title, onBack, backLabel }) {
             <button type="button" data-mg-vidcore-try-next="true"
               onClick={() => setNeedsRecovery(true)}
               className="min-h-11 shrink-0 rounded-lg border border-white/20 px-3 text-xs font-semibold hover:bg-white/10"
-            >Try next</button>
+            >Skip QR / Try next</button>
           )}
           <span className="hidden shrink-0 text-xs text-white/50 sm:block">VidCore web player</span>
         </div>
