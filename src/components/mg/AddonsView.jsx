@@ -18,7 +18,7 @@ import {
 
 import { base44 } from "@/api/base44Client";
 import RealDebridDeviceConnect from "@/components/mg/RealDebridDeviceConnect";
-import { OPTIONAL_SCRAPER_PILOTS, isOptionalScraperPilot, isBareOptionalPilotManifest, redactOptionalPilotManifest } from "@/components/mg/optionalScraperPilots.js";
+import { OPTIONAL_SCRAPER_PILOTS, isOptionalScraperPilot, isBareOptionalPilotManifest, redactOptionalPilotManifest, buildOrionTorrentOnlyManifest } from "@/components/mg/optionalScraperPilots.js";
 
 const unwrap = (response) =>
   response?.data ??
@@ -851,6 +851,52 @@ export default function AddonsManager() {
       }
     };
 
+  const createTorrentOnlyOrionTest = async (addon) => {
+    if (!addon?.id || mutating || testing) return;
+    setError("");
+    setMessage("");
+    let converted;
+    try {
+      converted = buildOrionTorrentOnlyManifest(addon.url);
+    } catch {
+      setError("Orion's saved configuration cannot be converted safely. Reopen Orion Configure, select 'Torrents only', then add the generated manifest manually.");
+      return;
+    }
+    if (!converted) {
+      setMessage("This Orion addon already uses torrent-only results. Use Test candidate, then Enable to test it.");
+      return;
+    }
+    if (addons.some(item => normaliseManifestUrl(item?.url) === normaliseManifestUrl(converted))) {
+      setMessage("Torrent-only Orion is already saved. Disable the previous Orion entry and test the existing candidate.");
+      return;
+    }
+
+    setMutating(true);
+    setHealth([]);
+    try {
+      // Keep the original configured profile (and its credentials) saved.
+      // Disable the upstream resolver before adding a new OFF test candidate.
+      await base44.entities.Addon.update(addon.id, { active: false });
+      const indexes = addons.map(row => /^orion(?:[ _-]?(\d+))?$/i.exec(clean(row?.name)))
+        .filter(Boolean).map(match => Number(match[1] || 1));
+      const nextName = "Orion" + (Math.max(2, ...indexes) + 1);
+      await base44.entities.Addon.create({
+        name: nextName,
+        url: converted,
+        active: false,
+        installed: true,
+        description: "Experimental Orion torrent-only results. Resolve hashes using Media God's existing Real-Debrid connection.",
+      });
+      await loadAddons();
+      setMessage("Created a disabled Orion torrent-only test candidate and disabled the original Orion debrid-video feed. Test candidate, then enable only when ready. Normal sources and Live TV are unchanged.");
+    } catch {
+      await loadAddons();
+      setError("Could not complete the Orion test setup. Check whether the old Orion is disabled before testing.");
+    } finally {
+      setMutating(false);
+    }
+  };
+
   const testCandidateAddon = async (addon) => {
     if (!addon?.id || testing || mutating) return;
     setTesting(true);
@@ -1490,6 +1536,16 @@ export default function AddonsManager() {
                     {isOptionalScraperPilot(addon?.name) && (
                       <button type="button" onClick={() => testCandidateAddon(addon)} disabled={mutating || testing} className="min-h-10 rounded-lg border border-blue-800 bg-blue-950/50 px-3 py-1.5 text-xs font-medium text-blue-200 hover:bg-blue-900/60 disabled:opacity-50">
                         Test candidate
+                      </button>
+                    )}
+                    {/^s*orion(?:[ _-]?d+)?s*$/i.test(clean(addon?.name)) && (
+                      <button type="button" data-mg-orion-torrent-mode="true"
+                        onClick={() => createTorrentOnlyOrionTest(addon)}
+                        disabled={mutating || testing}
+                        className="min-h-10 rounded-lg border border-amber-700 bg-amber-950/40 px-3 py-1.5 text-xs font-medium text-amber-100 hover:bg-amber-900/50 disabled:opacity-50"
+                        title="Keep this Orion configuration as a disabled backup, and create a separate torrent-only test that uses your existing Media God Real-Debrid connection."
+                      >
+                        Try Orion torrent mode
                       </button>
                     )}
                     <button
