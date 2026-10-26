@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "2026-10-26 reviewed narrow Orion-only error-video guard in fetchAddonStreams: reject upstream Orion Stremio addon error.mp4 and error-general.mp4 controls masquerading as source candidates; no changes to valid Orion streams, other addon results, player selection, Fire TV, phone or Live TV. Previous baseline: 2026-10-24 reviewed Fire TV-only VLCVideoLayout positive-pixel surface fix (PR #88): an addOnLayoutChangeListener and Vout callback pass measured (>1px) width/height to vlcVout.setWindowSize. No source resolution, decoder modes, audio/subtitles, episode control, or Live TV logic was changed. The Android phone native player remains hash-identical. Previously reviewed profile isolation from 2026-10-23 remains intact.",
+  "note": "2026-10-26 reviewed scraper verification-guard update: filter explicit captcha/QR verification URLs and challenge-control responses before addon source publication, without bypassing challenges or changing valid media playback. The iframe UI offers user-directed Skip QR / Try next. Player, native VLC, Fire TV remote and Live TV files remain untouched. Previous change: 2026-10-26 reviewed narrow Orion-only error-video guard in fetchAddonStreams: reject upstream Orion Stremio addon error.mp4 and error-general.mp4 controls masquerading as source candidates; no changes to valid Orion streams, other addon results, player selection, Fire TV, phone or Live TV. Previous baseline: 2026-10-24 reviewed Fire TV-only VLCVideoLayout positive-pixel surface fix (PR #88): an addOnLayoutChangeListener and Vout callback pass measured (>1px) width/height to vlcVout.setWindowSize. No source resolution, decoder modes, audio/subtitles, episode control, or Live TV logic was changed. The Android phone native player remains hash-identical. Previously reviewed profile isolation from 2026-10-23 remains intact.",
   "files": {
     "src/components/mg/VideoPlayer.jsx": "18bffc0fb431487bf31ea23c62dd9fd87eab2f407daedd3595eb4563cea50db0",
     "src/components/mg/MediaPlayerProvider.jsx": "296950ac2a69bcfcd597f93895c67add29c18c5323e57518306a79777fc76a84",
@@ -9,7 +9,7 @@
     "src/components/mg/LiveTVView.jsx": "a00de3519ec662c2fcecf0654a6184984b4da2b3d1f8185cd7740c890214e098",
     "src/components/mg/freeTvPlaylist.js": "7904aa31b747940e708536d4370bd648cc39887351a6a3aca29479864eff405f",
     "base44/functions/realDebrid/entry.ts": "6e8c3b7fa13c480955136814ee4a52f519173f1bcc40904af188b95ce78b5530",
-    "base44/functions/fetchAddonStreams/entry.ts": "df405f95cd9f54944643acfd4efaaa9a42c8d247237df1432864868a220c9ca5",
+    "base44/functions/fetchAddonStreams/entry.ts": "c3b15f7ea5278963fdadbe788c21d371e7ffe93c3b4de71643482253818903d2",
     "base44/functions/getLiveEpg/entry.ts": "1caf894a1a60212947c8d5ef15061bbf8529e70a1d7e310b49bcddc546c48646",
     "base44/functions/antSportsLive/entry.ts": "c4d7a7e0e769cabfd10f5df896d78cbf8f85081b41d346f82c36cc62e209bf0a",
     "base44/functions/evSportsLive/entry.ts": "149d7c13a8e56e602e450919ade50b3b6d58ea115c746370863803fbe4c8ec4d",
