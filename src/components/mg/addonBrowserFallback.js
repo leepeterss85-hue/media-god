@@ -199,6 +199,22 @@ const isAddonControlStream = (stream, addonName = "") => {
     return true;
   }
 
+  /*
+   * The Orion Stremio addon returns its own short error.mp4 as a 'stream'
+   * when the Orion API/debrid resolver fails. It is NOT a playable movie.
+   * This exact guard leaves legitimate Orion magnet/direct candidates alone
+   * and never changes the user's working Torrentio/Comet/Live TV sources.
+   */
+  if (/^orion(?:[ _-]?\d+)?$/i.test(clean(addonName))) {
+    const errorTitle = clean(stream?.title || stream?.description);
+    const errorClip = clean(stream?.url || stream?.link || stream?.src);
+    if (/^\s*(?:⚠️\s*)?ERROR!/i.test(errorTitle) ||
+        /^https:\/\/(?:www\.)?github\.com\/gorlev\/orion-stremio-addon\/blob\/main\/videos\/error(?:-general)?\.mp4(?:\?.*)?$/i.test(errorClip) ||
+        /^https:\/\/raw\.githubusercontent\.com\/gorlev\/orion-stremio-addon\/main\/videos\/error(?:-general)?\.mp4(?:\?.*)?$/i.test(errorClip)) {
+      return true;
+    }
+  }
+
   const text = [
     addonName,
     name,
