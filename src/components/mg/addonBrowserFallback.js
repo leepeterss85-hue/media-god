@@ -1,4 +1,5 @@
 import { base44 } from "@/api/base44Client";
+import { isVerificationChallengeStream } from "./verificationChallengeGuard.js";
 
 const clean = (value) => String(value || "").trim();
 
@@ -189,6 +190,7 @@ const streamReportedSeeders = (stream) => {
 };
 
 const isAddonControlStream = (stream, addonName = "") => {
+  if (isVerificationChallengeStream(stream)) return true;
   const name = clean(
     stream?.name
   );
