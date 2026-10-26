@@ -594,6 +594,19 @@ const streamReportedSeeders = (stream) => {
 };
 
 const isAddonControlStream = (stream, addonName = "") => {
+  // Verification pages and QR challenges are not media. Reject explicit
+  // provider challenge results without attempting to bypass them or changing
+  // normal media streams, including all Live TV playback.
+  const challengeUrl = clean(stream?.url || stream?.src || stream?.link || stream?.file);
+  const challengeMessage = [stream?.name, stream?.title, stream?.description, stream?.message, stream?.status]
+    .map(clean).join(" ");
+  if (
+    /^https?:\/\/(?:challenges|verify)\.cloudflare\.com(?:\/|$)/i.test(challengeUrl) ||
+    /^https?:\/\/(?:www\.)?(?:hcaptcha\.com|recaptcha\.net)\/(?:recaptcha|hcaptcha)\//i.test(challengeUrl) ||
+    /^https?:\/\/[^/?#]+\/(?:[^?#]*\/)?(?:cdn-cgi\/challenge-platform|captcha|recaptcha|hcaptcha|turnstile|verify[-_]?human|verify[-_]?you[-_]?are[-_]?human|human[-_]?verification|bot[-_]?check|security[-_]?check)(?:[/?#]|$)/i.test(challengeUrl) ||
+    /\b(?:captcha (?:required|challenge)|verify (?:you are )?human|verification (?:required|challenge)|cloudflare challenge|scan (?:the )?qr (?:code )?to verify)\b/i.test(challengeMessage)
+  ) return true;
+
   const name = clean(
     stream?.name
   );
