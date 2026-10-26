@@ -274,9 +274,8 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
               advanceAfterFailure();
             }}
             className="inline-flex min-h-11 shrink-0 items-center rounded-lg border border-white/20 bg-white/10 px-3 text-xs font-semibold hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-mg-green"
-            title="A QR or human-verification page is not playable video. Skip this provider and try the next source without scanning anything."
-            aria-label="Skip QR verification page and try next source"
-          >Skip QR / Try next</button>
+            title="Try the next web player, Vyla, then torrents"
+          >Try next</button>
           <button
             type="button"
             data-mg-embedded-open-sources="true"
