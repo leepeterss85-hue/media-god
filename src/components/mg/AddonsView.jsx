@@ -399,6 +399,9 @@ export default function AddonsManager() {
       false
     );
 
+  const [orionRdChecking, setOrionRdChecking] = useState(false);
+  const [orionRdResult, setOrionRdResult] = useState(null);
+
   const [
     mutating,
     setMutating,
@@ -897,6 +900,43 @@ export default function AddonsManager() {
     }
   };
 
+  // Read-only check. Never copy an Orion configuration or a Real-Debrid
+  // token into the request/diagnostic; authentication remains per app user.
+  const checkOrionRealDebrid = async () => {
+    if (orionRdChecking) return;
+    setOrionRdChecking(true);
+    setOrionRdResult(null);
+    try {
+      const response = await base44.functions.invoke("realDebridAuth", {
+        action: "status",
+      });
+      const status = unwrap(response);
+      if (status?.connected !== true || status?.valid === false) {
+        setOrionRdResult({
+          healthy: false,
+          text: "Media God cannot confirm this device/account is connected to Real-Debrid. Reconnect through Settings → Real-Debrid, then test another source.",
+        });
+      } else if (status?.premium !== true) {
+        setOrionRdResult({
+          healthy: false,
+          text: "Real-Debrid is connected but a premium subscription was not confirmed. Check your subscription in Settings; Orion torrent mode cannot guarantee playable links.",
+        });
+      } else {
+        setOrionRdResult({
+          healthy: true,
+          text: "Real-Debrid login and premium status are valid. If a source still says 'info failed: 404', the selected torrent information is unavailable. Avoid retrying the same hash; try a different source. This connection check does not verify individual torrents.",
+        });
+      }
+    } catch {
+      setOrionRdResult({
+        healthy: false,
+        text: "Could not check Real-Debrid on this account or device. Check Settings → Real-Debrid. No playback settings were changed.",
+      });
+    } finally {
+      setOrionRdChecking(false);
+    }
+  };
+
   const testCandidateAddon = async (addon) => {
     if (!addon?.id || testing || mutating) return;
     setTesting(true);
@@ -1348,6 +1388,18 @@ export default function AddonsManager() {
         <div>
           <h2 className="text-md font-semibold text-white">New scraper candidates — optional testing</h2>
           <p className="mt-1 text-xs text-gray-400">These are not installed automatically. Add a configured manifest to your own account, saved disabled by default. Test its manifest before enabling; no changes are made to the existing player, automatic source order or Live TV.</p>
+        </div>
+        <div className="rounded-lg border border-amber-800/60 bg-amber-950/20 p-3 space-y-2" data-mg-orion-rd-diagnostics="true">
+          <p className="text-xs text-amber-100">Orion torrent test failing with “info failed: 404”? That comes from Real-Debrid's torrent-information lookup, not the addon manifest. The source may have an expired/missing torrent ID or unavailable download. Check your own Real-Debrid connection separately before retrying.</p>
+          <button type="button" onClick={checkOrionRealDebrid} disabled={orionRdChecking}
+            className="min-h-10 rounded-lg border border-amber-700 bg-amber-950/40 px-3 py-2 text-xs font-semibold text-amber-100 disabled:opacity-50">
+            {orionRdChecking ? "Checking Real-Debrid…" : "Check my Real-Debrid connection"}
+          </button>
+          {orionRdResult && (
+            <p role="status" className={`text-xs ${orionRdResult.healthy ? "text-green-300" : "text-amber-200"}`}>
+              {orionRdResult.text}
+            </p>
+          )}
         </div>
         {OPTIONAL_SCRAPER_PILOTS.map((pilot) => (
           <div key={pilot.name} className="rounded-lg border border-blue-900/50 bg-zinc-950/40 p-3 space-y-2">
