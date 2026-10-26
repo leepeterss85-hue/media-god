@@ -47,6 +47,16 @@ export default function EmbedSuPlayer({ url, media, title, onBack, backLabel = "
     return () => { cancelled = true; };
   }, [url, media.mediaType, media.tmdbId, media.season, media.episode]);
 
+  const skipVerification = () => {
+    // The provider's iframe is cross-origin; user explicitly skips a QR
+    // challenge instead of trying to defeat it.
+    const choices = [{ url, label: "Embed.su" }, ...servers];
+    const index = choices.findIndex(entry => entry.url === active.url);
+    const next = choices.slice(index + 1).find(entry => entry.url !== active.url);
+    if (next) setActive(next);
+    else onBack();
+  };
+
   const openManualLink = (event) => {
     event.preventDefault();
     const page = hostedEmbedPage(manualLink);
@@ -80,6 +90,7 @@ export default function EmbedSuPlayer({ url, media, title, onBack, backLabel = "
             <ArrowLeft className="h-4 w-4" /> {backLabel}
           </button>
           <span className="min-w-0 flex-1 truncate text-sm font-semibold">{title}</span>
+          <button type="button" data-mg-skip-verification="true" onClick={skipVerification} className="min-h-11 rounded-lg border border-white/20 bg-white/10 px-3 text-xs font-semibold focus-visible:ring-2 focus-visible:ring-mg-green" title="If this host displays a human-verification QR code, switch to another discovered host or return to Sources.">Skip QR / Next</button>
           <span className="hidden shrink-0 text-xs text-white/50 sm:block">{active.label} web player</span>
         </div>
 
