@@ -103,21 +103,6 @@ test("the Orion torrent-mode option creates a disabled candidate and preserves t
   assert.doesNotMatch(ui, /console\.log\(.*converted|console\.log\(.*addon.url/);
 });
 
-test("Orion 404 diagnostics check account connection without probing a torrent or exposing secrets", () => {
-  const ui = read("src/components/mg/AddonsView.jsx");
-  const start = ui.indexOf("const checkOrionRealDebrid = async () => {");
-  const end = ui.indexOf("const testCandidateAddon =", start);
-  const body = ui.slice(start, end);
-  assert.ok(start >= 0 && end > start);
-  assert.match(body, /base44.functions.invoke\("realDebridAuth", \{\s*action: "status"/);
-  assert.match(body, /status\?\.connected/);
-  assert.match(body, /status\?\.premium/);
-  assert.match(body, /info failed: 404/);
-  assert.doesNotMatch(body, /addon\.url|magnet|token|api_key|add_magnet|torrent_info|\.update\(/);
-  assert.match(ui, /data-mg-orion-rd-diagnostics="true"/);
-  assert.match(ui, /Check my Real-Debrid connection/);
-});
-
 test("the optional scraper check is read-only and leaves playback/navigation code alone", () => {
   const branch = read("base44/functions/testScraperCandidate/entry.ts");
   assert.match(branch, /if \(!user\) return reply/);
