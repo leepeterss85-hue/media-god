@@ -6,6 +6,7 @@ import {
   isBareOptionalPilotManifest,
   isOptionalScraperPilot,
   redactOptionalPilotManifest,
+  buildOrionTorrentOnlyManifest,
 } from "../src/components/mg/optionalScraperPilots.js";
 
 const read = path => readFileSync(new URL("../" + path, import.meta.url), "utf8");
@@ -60,6 +61,46 @@ test("configured candidate manifest secrets stay hidden on the addons screen", (
   }
   assert.equal(redactOptionalPilotManifest("Other", "https://example.com/manifest.json"), null);
   assert.equal(redactOptionalPilotManifest("Orion", "garbled"), "Configured manifest (hidden)");
+});
+
+test("Orion torrent mode preserves private settings while bypassing Orion direct debrid resolves", () => {
+  const profile = {
+    api: "TEST_SECRET_KEY_NOT_FOR_LOGS",
+    listOpt: "debrid",
+    linkLimit: "5",
+    debridservices: ["realdebrid"],
+    videoquality: "hd",
+    sortValue: "size",
+    audiolanguages: ["en"],
+  };
+  const profileText = btoa(JSON.stringify(profile));
+  const manifest = "https://5a0d1888fa64-orion.baby-beamup.club/" + profileText + "/manifest.json";
+  const converted = buildOrionTorrentOnlyManifest(manifest);
+  assert.ok(converted.startsWith("https://5a0d1888fa64-orion.baby-beamup.club/"));
+  assert.notEqual(converted, manifest);
+  const encoded = new URL(converted).pathname.split("/")[1];
+  const decoded = JSON.parse(atob(encoded));
+  assert.equal(decoded.listOpt, "torrent");
+  assert.deepEqual(decoded.debridservices, ["realdebrid"], "existing private authorization not modified");
+  assert.equal(decoded.api, profile.api, "API key preserved inside the private profile");
+  assert.equal(decoded.linkLimit, "5");
+  assert.equal(decoded.audiolanguages[0], "en");
+  assert.equal(buildOrionTorrentOnlyManifest(converted), null, "idempotent");
+  assert.throws(() => buildOrionTorrentOnlyManifest("https://untrusted.example/" + profileText + "/manifest.json"));
+  assert.throws(() => buildOrionTorrentOnlyManifest("https://5a0d1888fa64-orion.baby-beamup.club/manifest.json"));
+  assert.throws(() => buildOrionTorrentOnlyManifest("https://5a0d1888fa64-orion.baby-beamup.club/bad/manifest.json"));
+  assert.throws(() => buildOrionTorrentOnlyManifest("https://5a0d1888fa64-orion.baby-beamup.club/" + btoa(JSON.stringify({ listOpt: "debrid" })) + "/manifest.json"));
+});
+
+test("the Orion torrent-mode option creates a disabled candidate and preserves the original", () => {
+  const ui = read("src/components/mg/AddonsView.jsx");
+  assert.match(ui, /data-mg-orion-torrent-mode/);
+  assert.match(ui, /buildOrionTorrentOnlyManifest\(addon.url\)/);
+  assert.match(ui, /base44.entities.Addon.update\(addon.id, \{ active: false \}\)/);
+  assert.match(ui, /base44.entities.Addon.create\(\{/);
+  assert.match(ui, /active: false,\s*installed: true,\s*description: "Experimental Orion torrent-only results/);
+  assert.match(ui, /testCandidateAddon\(addon\)/);
+  assert.doesNotMatch(ui, /console\.log\(.*converted|console\.log\(.*addon.url/);
 });
 
 test("the optional scraper check is read-only and leaves playback/navigation code alone", () => {
