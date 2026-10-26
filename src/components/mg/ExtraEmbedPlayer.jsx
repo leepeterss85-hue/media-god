@@ -25,6 +25,7 @@ export default function ExtraEmbedPlayer({ url, title, providerLabel = "Web", on
             {backLabel}
           </button>
           <span className="min-w-0 flex-1 truncate text-sm font-semibold">{title}</span>
+          <button type="button" data-mg-skip-verification="true" onClick={onBack} className="min-h-11 rounded-lg border border-white/20 bg-white/10 px-3 text-xs font-semibold focus-visible:ring-2 focus-visible:ring-mg-green" title="Skip this provider if it requests QR or human verification.">Skip QR · Sources</button>
           <span className="hidden shrink-0 text-xs text-white/50 sm:block">{providerLabel} web player</span>
         </div>
 
