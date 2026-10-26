@@ -597,7 +597,7 @@ const isAddonControlStream = (stream, addonName = "") => {
   // Verification pages and QR challenges are not media. Reject explicit
   // provider challenge results without attempting to bypass them or changing
   // normal media streams, including all Live TV playback.
-  const challengeUrl = clean(stream?.url || stream?.src || stream?.link || stream?.file);
+  const challengeUrl = clean(stream?.url || stream?.src || stream?.link || stream?.externalUrl || stream?.external_url || stream?.file);
   const challengeMessage = [stream?.name, stream?.title, stream?.description, stream?.message, stream?.status]
     .map(clean).join(" ");
   if (
