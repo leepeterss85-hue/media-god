@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
+import { isVerificationChallengeStream } from "../src/components/mg/verificationChallengeGuard.js";
 
 const read = name => readFileSync(new URL("../" + name, import.meta.url), "utf8");
 const candidates = [
@@ -28,7 +29,7 @@ for (const file of candidates) {
     assert.ok(start > 0 && end > start, "guard function present");
     const fn = vm.runInNewContext(
       source.slice(start, end) + "\nisAddonControlStream;",
-      { clean: v => String(v || "").trim() }
+      { clean: v => String(v || "").trim(), isVerificationChallengeStream }
     );
     for (const addon of ["Orion", "Orion2", "Orion-3"]) {
       assert.equal(fn(sample, addon), true);
