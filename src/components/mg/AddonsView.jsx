@@ -1538,7 +1538,7 @@ export default function AddonsManager() {
                         Test candidate
                       </button>
                     )}
-                    {/^s*orion(?:[ _-]?d+)?s*$/i.test(clean(addon?.name)) && (
+                    {/^\s*orion(?:[ _-]?\d+)?\s*$/i.test(clean(addon?.name)) && (
                       <button type="button" data-mg-orion-torrent-mode="true"
                         onClick={() => createTorrentOnlyOrionTest(addon)}
                         disabled={mutating || testing}
