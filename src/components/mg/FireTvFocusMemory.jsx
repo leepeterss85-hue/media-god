@@ -911,17 +911,15 @@ export default function FireTvFocusMemory() {
 
     const inspectScopeChange =
       () => {
-        if (
-          state.timer
-        ) {
-          window.clearTimeout(
-            state.timer
-          );
-        }
+        // Coalesce scope checks instead of restarting the delay on every
+        // catalogue mutation. Continuous row/image updates used to postpone
+        // focus recovery indefinitely on slower Fire TV devices.
+        if (state.timer !== null) return;
 
         state.timer =
           window.setTimeout(
             () => {
+              state.timer = null;
               const previous =
                 state.currentScope ||
                 document.body;
@@ -960,6 +958,25 @@ export default function FireTvFocusMemory() {
 
               state.currentScope =
                 next;
+
+              // A restored/new page may have already focused its intended
+              // control. Never force focus back to an old saved position.
+              if (
+                active instanceof HTMLElement &&
+                active !== document.body &&
+                next.contains(active) &&
+                visible(active, next)
+              ) {
+                return;
+              }
+
+              // Dialogs are remounted frequently. Drop snapshots for removed
+              // DOM scopes so old modal trees do not accumulate in memory.
+              for (const savedScope of state.snapshots.keys()) {
+                if (savedScope !== document.body && !savedScope.isConnected) {
+                  state.snapshots.delete(savedScope);
+                }
+              }
 
               const saved =
                 state.snapshots.get(
