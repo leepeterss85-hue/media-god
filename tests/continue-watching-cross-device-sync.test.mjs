@@ -57,3 +57,14 @@ test('history rows ignore stale responses, preserve selected source, and cannot 
   const schema=read('base44/entities/ContinueWatching.jsonc');
   assert.match(schema,/"created_by_id": "\{\{user\.id\}\}"/);
 });
+
+test('Continue Watching appears before the featured banner, only once, without changing Live TV', () => {
+  const home = read('src/components/mg/HomeDashboard.jsx');
+  assert.ok(home.indexOf('data-mg-home-first="continue-watching"') < home.indexOf('<HeroSlider'),
+    'Resume row must render before the featured hero');
+  assert.equal((home.match(/<ContinueWatchingRow /g) || []).length, 1,
+    'Never show two Continue Watching rows');
+  assert.match(home, /homeOrder \|\| \[\]\)\.filter\(\(id\) => id !== "continue-watching"\)/);
+  assert.match(home, /hiddenHomeSections\.has\("continue-watching"\)/);
+  assert.match(home, /continue-watching>featured>new-films>new-tv/);
+});

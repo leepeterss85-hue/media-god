@@ -85,7 +85,7 @@ test("original look, locked Home row order, and existing navigation remain", () 
   const home = read("src/components/mg/HomeDashboard.jsx");
   const settings = read("src/components/mg/SettingsView.jsx");
   const nav = read("src/components/mg/Navbar.jsx");
-  assert.match(home,/featured>continue-watching>new-films>new-tv>new-episodes>because-you-watched/);
+  assert.match(home,/continue-watching>featured>new-films>new-tv>new-episodes>because-you-watched/);
   assert.match(hero,/from-mg-background/);
   assert.match(hero,/bg-mg-green/);
   assert.match(hero,/!heroVisible \|\| heroFocused/);

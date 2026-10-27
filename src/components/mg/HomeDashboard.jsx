@@ -34,12 +34,12 @@ const WATCHED_THRESHOLD = 0.92;
 /*
  * HOME LAYOUT CONTRACT
  *
- * This leading Home sequence is product-locked. Do not reorder, remove or
- * insert discovery rows into it without an explicit product decision to change
- * the Home layout contract and its regression test at the same time.
+ * Continue Watching leads the Home page as explicitly requested, before the
+ * featured banner; the rest of the original Home theme and row order stays.
+ * This product-locked sequence must be tested whenever it changes.
  */
 const HOME_LAYOUT_LOCK_ID =
-  "featured>continue-watching>new-films>new-tv>new-episodes>because-you-watched";
+  "continue-watching>featured>new-films>new-tv>new-episodes>because-you-watched";
 
 const localDateKey = (date = new Date()) => {
   const year = date.getFullYear();
@@ -1078,8 +1078,6 @@ export default function HomeDashboard({ onOpenTvService }) {
     if (hiddenHomeSections.has(sectionId)) return null;
 
     switch (sectionId) {
-      case "continue-watching":
-        return <ContinueWatchingRow key={sectionId} onOpenDetail={open} />;
       case "new-films":
         return (
           <MediaRow
@@ -1249,6 +1247,12 @@ export default function HomeDashboard({ onOpenTvService }) {
         data-mg-home-layout-lock={HOME_LAYOUT_LOCK_ID}
         className="flex flex-col gap-6 3xl:gap-8 4xl:gap-10 py-5 sm:py-6 3xl:py-8"
       >
+        {!hiddenHomeSections.has("continue-watching") && (
+          <div data-mg-home-snap="true" data-mg-home-first="continue-watching">
+            <ContinueWatchingRow onOpenDetail={open} />
+          </div>
+        )}
+
         <div data-mg-home-snap="true">
           <HeroSlider
             items={hero}
@@ -1258,7 +1262,7 @@ export default function HomeDashboard({ onOpenTvService }) {
           />
         </div>
 
-        {(uxPreferences.homeOrder || []).map((sectionId) => {
+        {(uxPreferences.homeOrder || []).filter((id) => id !== "continue-watching").map((sectionId) => {
           const section = renderHomeSection(sectionId);
           if (!section) return null;
           return (
