@@ -1,4 +1,4 @@
-// Fire TV 1.4.116: web-scraper Play recovery and native remote source controls.
+// Fire TV 1.4.117: hosted search/QR guard refresh; known-good playback unchanged.
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.mediagod.firetv"
         minSdk = 21
         targetSdk = 35
-        versionCode = 121
-        versionName = "1.4.116"
+        versionCode = 122
+        versionName = "1.4.117"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
