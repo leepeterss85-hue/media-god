@@ -107,3 +107,50 @@ test('Continue Watching never silently selects OnlyFlix for a missing source', (
   assert.doesNotMatch(rowCode, /if \(!isTv && !hasPreviouslySelectedAlternateSource && player\.playOnlyFlix\)/);
   assert.match(rowCode, /verifiedPlaybackPolicy: "strict",\s*sources: \[\]/);
 });
+
+test('a second device reuses the same TMDB history despite different metadata and never resets a saved playhead to five seconds', async () => {
+  const listeners = new Map();
+  const oldSource = { infoHash: 'reliable-42', fileIdx: 0, viaRealDebrid: true };
+  const video_url = `mgsource:${encodeURIComponent(JSON.stringify(oldSource))}`;
+  const rows = [{ id: 'same-account', content_key: 'mg2|42|movie|2025|||Test',
+    title: 'Test', year: '2025', source_type: 'rd', video_url,
+    progress: 3120, duration: 6200, updated_date: '2026-10-27T13:00:00Z' }];
+  const win = {
+    addEventListener: (name, fn) => listeners.set(name, fn),
+    removeEventListener() {},
+    dispatchEvent: event => listeners.get(event.type)?.(event),
+  };
+  const doc = { addEventListener() {}, removeEventListener() {}, querySelectorAll: () => [] };
+  const entity = {
+    list: async () => rows,
+    filter: async ({ content_key }) => rows.filter(row => row.content_key === content_key),
+    create: async data => { const row={ id: 'duplicate', ...data }; rows.push(row); return row; },
+    update: async (id, patch) => Object.assign(rows.find(row => row.id === id), patch),
+  };
+  const code = readFileSync(new URL('../src/components/mg/ContinueWatchingAssist.jsx', import.meta.url), 'utf8')
+    .replace(/import[\s\S]*?from "[^"]+";/g, '')
+    .replace('export default function', 'function');
+  vm.runInNewContext(code + '\nContinueWatchingAssist();', {
+    useRef: current => ({current}), useEffect: effect => effect(),
+    window: win, document: doc, EMBED_HISTORY_CHANGED: 'mg:continue-watching-saved',
+    profiledLibrary: {ContinueWatching: entity},
+    CustomEvent: class { constructor(type, options) { this.type=type; this.detail=options?.detail; } },
+    HTMLVideoElement: class {},
+  });
+  const context = {mediaType: 'movie', tmdbId: '42', title: 'Test', year: '2026'};
+  win.dispatchEvent({type:'mg:player-context',detail:context});
+  win.dispatchEvent({type:'mg:continue-watching-source', detail:{source:oldSource}});
+  const until = async condition => {
+    for (let i=0; i<60 && !condition(); i++) await new Promise(resolve => setTimeout(resolve, 10));
+    assert.ok(condition(), 'history write not received');
+  };
+  await until(() => rows[0].year === '2026');
+  assert.equal(rows.length,1);
+  assert.equal(rows[0].progress,3120,'starting a different device must not reset the saved playhead');
+  assert.equal(rows[0].duration,6200);
+  win.dispatchEvent({type:'mg:continue-watching-progress',detail:{context,source:oldSource,time:3300,duration:6200,force:true}});
+  await until(() => rows[0].progress === 3300);
+  assert.equal(rows.length,1);
+  assert.equal(rows[0].source_type,'rd');
+  assert.equal(JSON.parse(decodeURIComponent(rows[0].video_url.slice(9))).infoHash,'reliable-42');
+});
