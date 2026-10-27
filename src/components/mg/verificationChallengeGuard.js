@@ -30,5 +30,5 @@ export const isVerificationChallengeStream = (stream) => {
     .filter(value => typeof value === "string").join(" ");
   // A provider may report a challenge in a JSON result but supply a normal
   // looking URL. In that case do not send it to a video decoder either.
-  return /\b(?:captcha (?:required|challenge)|verify (?:you are )?human|verification (?:required|challenge)|cloudflare challenge|scan (?:the )?qr (?:code )?to verify)\b/i.test(text);
+  return /\b(?:captcha (?:required|challenge)|verify (?:you are )?human|prove (?:you are )?human|human verification (?:required|needed)|verification (?:required|challenge)|cloudflare challenge|scan (?:the )?qr (?:code )?(?:to verify|to continue|for verification)|qr code (?:verification|required))\b/i.test(text);
 };
