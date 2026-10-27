@@ -70,6 +70,8 @@ test("voice search and exact title/year matching do not launch another player", 
   assert.ok(searchRelevance({title:"Bad Apples", identity_corrected:true, search_aliases:["Bad Apple"]}, "Bad Apple") >
     searchRelevance({title:"Bad Apple"}, "Bad Apple"));
   assert.match(source, /mg:native-voice-search-result/);
+  assert.match(source, /event\?\.detail\?\.text \|\| event\?\.detail\?\.transcript/);
+  assert.equal((source.match(/onClick=\{startVoiceSearch\}/g) || []).length, 1, "One accessible voice-search button, not duplicates");
   assert.match(source, /startVoiceSearch/);
 });
 
