@@ -610,6 +610,9 @@ window.addEventListener('keydown', (event) => {
   if (document.querySelector('[data-mg-live-tv-view="true"]')) return
   if (document.querySelector('[data-mg-fire-tv-update="true"]')) return
   const active = document.activeElement
+  // The stable TV navigator already throttles these surfaces. Applying a
+  // second limiter here made menu presses feel unresponsive or disappear.
+  if (active?.closest?.('.mg-fire-tv-nav, .mg-fire-tv-hero, .mg-fire-tv-card, .mg-fire-tv-resume-card, [data-mg-live-tv-channel="true"]')) return
   const tag = String(active?.tagName || '').toLowerCase()
   const textInputFocused =
     (tag === 'input' && String(active?.type || '').toLowerCase() !== 'range') ||
