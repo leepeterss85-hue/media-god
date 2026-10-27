@@ -1,4 +1,4 @@
-// Voice search and casting compatibility release 1.0.79.
+// Media God 1.0.94: refreshed hosted voice-search handling; native player unchanged.
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.mediagod.mobile"
         minSdk = 23
         targetSdk = 35
-        versionCode = 94
-        versionName = "1.0.93"
+        versionCode = 95
+        versionName = "1.0.94"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
