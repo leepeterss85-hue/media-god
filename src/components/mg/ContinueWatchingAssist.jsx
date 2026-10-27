@@ -334,9 +334,18 @@ export default function ContinueWatchingAssist() {
           // Always inspect the stored row before updating: a late native
           // progress callback may know the position but not the source.
           // Never let it replace an earlier manually chosen torrent.
-          const existing = await profiledLibrary.ContinueWatching.filter({
+          let existing = await profiledLibrary.ContinueWatching.filter({
             content_key: key,
           });
+          // Fire TV and mobile sometimes supply different year/title metadata
+          // for the SAME TMDB movie or episode. Reuse its account history row
+          // instead of making two separate Continue Watching entries.
+          if (!existing?.length) {
+            const accountRows = await profiledLibrary.ContinueWatching.list("-updated_date", 100);
+            existing = (accountRows || []).filter((row) =>
+              sameContent(parseContentKey(row), context)
+            );
+          }
 
           if (existing?.length) {
             const row = existing[0];
@@ -357,11 +366,19 @@ export default function ContinueWatchingAssist() {
                       return false;
                     }
                   })()));
+            // A source-selection event can arrive before the second device
+            // retrieves the saved playhead. The synthetic 5-second bookmark
+            // must NEVER erase the genuine position saved on another device.
+            const preservePlayhead = safeTime <= MIN_RESUME_SECONDS &&
+              Number(row.progress || 0) > MIN_RESUME_SECONDS;
+            const savedPatch = preservePlayhead
+              ? { ...patch, progress: row.progress, duration: row.duration }
+              : patch;
             await profiledLibrary.ContinueWatching.update(
               row.id,
               preserveSource
-                ? { ...patch, video_url: row.video_url, source_type: row.source_type }
-                : patch
+                ? { ...savedPatch, video_url: row.video_url, source_type: row.source_type }
+                : savedPatch
             );
             window.dispatchEvent(new CustomEvent(EMBED_HISTORY_CHANGED));
             return;
