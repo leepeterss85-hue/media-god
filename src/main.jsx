@@ -8,6 +8,7 @@ import PlaybackReliabilityAssist from '@/components/mg/PlaybackReliabilityAssist
 import PlayerEpisodeQuickNav from '@/components/mg/PlayerEpisodeQuickNav.jsx'
 import ContinueWatchingAssist from '@/components/mg/ContinueWatchingAssist.jsx'
 import { installFireTvStableMode } from '@/components/mg/fireTvStableMode.js'
+import { createFireTvRepeatLimiter } from '@/components/mg/fireTvRepeatLimiter.js'
 import {
   clearFireTvStateFromAndroidMobile,
   isAndroidMobileRuntime,
@@ -596,6 +597,28 @@ const installFireTvHistoryBackGuard = () => {
 if (tvRemoteDetected && typeof document !== 'undefined') {
   markTvRemoteDetected()
 }
+
+// Older Fire TV WebViews can dispatch held-arrow repeats faster than the
+// catalogue can remeasure rows and update focus. Coalesce only extra repeats
+// during normal browsing; never delay an initial press, a search keyboard,
+// Select/Back, an update prompt or any playback/embedded-player controls.
+const limitRemoteRepeats = createFireTvRepeatLimiter(72)
+window.addEventListener('keydown', (event) => {
+  if (!tvRemoteDetected || isAndroidMobileRuntime()) return
+  if (!event.repeat) return
+  if (document.querySelector('[data-mg-player-root="true"]')) return
+  if (document.querySelector('[data-mg-fire-tv-update="true"]')) return
+  const active = document.activeElement
+  const tag = String(active?.tagName || '').toLowerCase()
+  const textInputFocused =
+    (tag === 'input' && String(active?.type || '').toLowerCase() !== 'range') ||
+    tag === 'textarea' || Boolean(active?.isContentEditable)
+  if (textInputFocused) return
+  if (limitRemoteRepeats(event, window.performance.now())) {
+    event.preventDefault()
+    event.stopImmediatePropagation()
+  }
+}, true)
 
 installFireTvStableMode()
 installTvRemoteDetection()
