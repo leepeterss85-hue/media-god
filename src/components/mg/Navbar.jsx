@@ -238,26 +238,43 @@ export default function Navbar({
     window.addEventListener("mg:player-context", onPlayerContext);
     window.addEventListener("mg:player-visibility", onPlayerVisibility);
 
-    const observer = new MutationObserver(scheduleSync);
+    // Movie posters, animated cards and search results update the DOM often.
+    // They do not change whether the sidebar should hide. A page-wide
+    // class/style observer previously remeasured all overlays repeatedly,
+    // making Fire Stick D-pad navigation feel stuck on catalogue pages.
+    const overlaySelector = [
+      '[role="dialog"]', '[aria-modal="true"]', '.fixed.inset-0',
+      '[data-mg-detail-dialog="true"]', '[data-mg-search-dialog="true"]',
+      '[data-mg-player-root="true"]', '[data-mg-overlay="true"]',
+    ].join(',');
+    const relevantNode = (node) =>
+      node instanceof HTMLElement &&
+      (node.matches(overlaySelector) || Boolean(node.querySelector(overlaySelector)));
+    const observer = new MutationObserver((records) => {
+      if (records.some((record) => {
+        if (record.type === 'attributes') {
+          return relevantNode(record.target) || Boolean(record.target.closest?.(overlaySelector));
+        }
+        return [...record.addedNodes, ...record.removedNodes].some(relevantNode);
+      })) {
+        scheduleSync();
+      }
+    });
 
     observer.observe(document.body, {
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: [
-        "class",
-        "style",
-        "hidden",
-        "aria-hidden",
-        "aria-modal",
-      ],
+      attributeFilter: ["class", "style", "hidden", "aria-hidden", "aria-modal"],
     });
 
+    // Explicit player events update immediately. This slower fallback covers
+    // third-party modals whose visibility is changed outside React.
     const watchdog = window.setInterval(() => {
       if (document.visibilityState !== "hidden") {
         scheduleSync();
       }
-    }, 750);
+    }, 2500);
 
     scheduleSync();
 
