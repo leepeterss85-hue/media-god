@@ -34,12 +34,12 @@ const WATCHED_THRESHOLD = 0.92;
 /*
  * HOME LAYOUT CONTRACT
  *
- * Continue Watching leads the Home page as explicitly requested, before the
- * featured banner; the rest of the original Home theme and row order stays.
- * This product-locked sequence must be tested whenever it changes.
+ * Featured remains first and Continue Watching is the second Home row.
+ * The remaining Home rows keep their configured order and visibility;
+ * this layout contract does not change playback or cross-device sync.
  */
 const HOME_LAYOUT_LOCK_ID =
-  "continue-watching>featured>new-films>new-tv>new-episodes>because-you-watched";
+  "featured>continue-watching>new-films>new-tv>new-episodes>because-you-watched";
 
 const localDateKey = (date = new Date()) => {
   const year = date.getFullYear();
@@ -1247,12 +1247,6 @@ export default function HomeDashboard({ onOpenTvService }) {
         data-mg-home-layout-lock={HOME_LAYOUT_LOCK_ID}
         className="flex flex-col gap-6 3xl:gap-8 4xl:gap-10 py-5 sm:py-6 3xl:py-8"
       >
-        {!hiddenHomeSections.has("continue-watching") && (
-          <div data-mg-home-snap="true" data-mg-home-first="continue-watching">
-            <ContinueWatchingRow onOpenDetail={open} />
-          </div>
-        )}
-
         <div data-mg-home-snap="true">
           <HeroSlider
             items={hero}
@@ -1261,6 +1255,12 @@ export default function HomeDashboard({ onOpenTvService }) {
             onWatchlist={onWatchlist}
           />
         </div>
+
+        {!hiddenHomeSections.has("continue-watching") && (
+          <div data-mg-home-snap="true" data-mg-home-second="continue-watching">
+            <ContinueWatchingRow onOpenDetail={open} />
+          </div>
+        )}
 
         {(uxPreferences.homeOrder || []).filter((id) => id !== "continue-watching").map((sectionId) => {
           const section = renderHomeSection(sectionId);
