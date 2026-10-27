@@ -519,9 +519,13 @@ export default function SearchDialog({
       recognition.lang = "en-GB";
       recognition.interimResults = false;
       recognition.maxAlternatives = 1;
+      let receivedText = false;
+      let recognitionFailed = false;
       recognition.onresult = (event) => {
         const spoken = event?.results?.[0]?.[0]?.transcript;
         if (spoken) {
+          receivedText = true;
+          clearVoiceTimeout();
           setQuery(cleanVoiceSearch(spoken));
           setVoiceError("");
           inputRef.current?.focus?.();
@@ -529,6 +533,7 @@ export default function SearchDialog({
         setVoiceListening(false);
       };
       recognition.onerror = (event) => {
+        recognitionFailed = true;
         clearVoiceTimeout();
         setVoiceListening(false);
         const failure = String(event?.error || "");
@@ -542,6 +547,9 @@ export default function SearchDialog({
         clearVoiceTimeout();
         setVoiceListening(false);
         voiceRecognitionRef.current = null;
+        if (!receivedText && !recognitionFailed) {
+          setVoiceError("No speech was recognised. Try again or use the Fire TV keyboard.");
+        }
       };
       recognition.start();
       setVoiceListening(true);
