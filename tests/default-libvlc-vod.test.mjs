@@ -71,7 +71,7 @@ test("VLC default retains phone version while shipping the Fire TV-only fix", ()
   const mobile = JSON.parse(read("public/android-mobile-update.json"));
   const fire = JSON.parse(read("public/firetv-update.json"));
   assert.equal(mobile.versionCode,95);
-  assert.equal(fire.versionCode,122);
+  assert.equal(fire.versionCode,123);
   assert.equal(mobile.versionName,"1.0.94");
   assert.equal(fire.versionName,"1.4.118");
 });
