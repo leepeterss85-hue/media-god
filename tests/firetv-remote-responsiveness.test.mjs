@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { createFireTvRepeatLimiter } from "../src/components/mg/fireTvRepeatLimiter.js";
+import { createFireTvRepeatLimiter, shouldIgnoreStableTvMove } from "../src/components/mg/fireTvRepeatLimiter.js";
 
 const read = (path) => readFileSync(new URL("../" + path, import.meta.url), "utf8");
 
@@ -41,4 +41,32 @@ test("voice search provides a bounded request, recogniser cleanup and a Fire TV 
   assert.match(search, /event\?\.detail\?\.text \|\| event\?\.detail\?\.transcript/);
   assert.match(search, /Fire TV keyboard/);
   assert.match(search, /if \(voiceListening\) return/);
+});
+
+
+test("a rapid sequence of separate menu taps never gets swallowed by the stable TV navigator", () => {
+  assert.equal(shouldIgnoreStableTvMove({repeat:false}, 50, 0), false);
+  assert.equal(shouldIgnoreStableTvMove({repeat:false}, 65, 50), false);
+  assert.equal(shouldIgnoreStableTvMove({repeat:false}, 70, 65), false);
+  assert.equal(shouldIgnoreStableTvMove({repeat:true}, 80, 70), true);
+  assert.equal(shouldIgnoreStableTvMove({repeat:true}, 155, 70), false);
+  assert.equal(shouldIgnoreStableTvMove({repeat:false}, 55, 0, true), true, "Live TV keeps its old spacing");
+  assert.equal(shouldIgnoreStableTvMove({repeat:false}, 130, 0, true), false);
+  const stable = read('src/components/mg/fireTvStableMode.js');
+  assert.match(stable, /shouldIgnoreStableTvMove\(event, now, lastMoveAt/);
+  const main = read('src/main.jsx');
+  assert.match(main, /active\?\.closest\?\.\('.mg-fire-tv-nav/);
+});
+
+test("sidebar update checks ignore routine poster and focus mutations and focus memory coalesces changes", () => {
+  const sidebar = read('src/components/mg/Navbar.jsx');
+  assert.match(sidebar, /overlaySelector/);
+  assert.match(sidebar, /record.type === 'attributes'/);
+  assert.match(sidebar, /record.addedNodes, \.\.\.record.removedNodes/);
+  assert.match(sidebar, /scheduleSync\(\)/);
+  const memory = read('src/components/mg/FireTvFocusMemory.jsx');
+  assert.match(memory, /if \(state.timer !== null\) return/);
+  assert.match(memory, /state.timer = null/);
+  assert.match(memory, /next.contains\(active\)/);
+  assert.match(memory, /!savedScope.isConnected/);
 });
