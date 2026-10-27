@@ -81,6 +81,20 @@ test("TV episode scraper rejects challenge results before picking first useful p
   assert.match(source, /validEpisodeLink\(item, payload, id, seasonNumber, episodeNumber\)/);
 });
 
+test("QR verification help points viewers to top-player choices or Sources without touching the locked player", () => {
+  const css = read("src/index.css");
+  assert.match(css, /\[data-mg-onlyflix-player="true"\].*\[data-mg-player-stage="true"\]/);
+  assert.match(css, /QR code or 'Verify you.re human' message\?/);
+  assert.match(css, /Choose another player from the top row or select Sources instead/);
+  assert.match(css, /pointer-events: none/);
+  for (const player of ["VidSrcEmbedPlayer", "ExtraEmbedPlayer", "EmbedSuPlayer", "VidCoreEmbedPlayer"]) {
+    const content = read(`src/components/mg/${player}.jsx`);
+    assert.match(content, /data-mg-qr-help="true"/);
+    assert.match(content, /human-verification message appears/);
+    assert.match(content, /Sources/);
+  }
+});
+
 test("web embeds offer an explicit escape from QR screens without altering native playback", () => {
   const main = read("src/components/mg/OnlyFlixEmbedPlayer.jsx");
   assert.match(main, /data-mg-try-next-web-source="true"/);
