@@ -4565,6 +4565,14 @@ export function PlayerProvider({
     const url = builder?.(media);
     return url ? startEmbed(url, media, key) : false;
   }, [startEmbed]);
+  const playSavedEmbed = useCallback((media, bookmark) => {
+    try {
+      const url = new URL(bookmark?.url);
+      if (url.protocol !== "https:") return false;
+      return startEmbed(url.href, media, bookmark.provider || "vidsrc");
+    } catch { return false; }
+  }, [startEmbed]);
+
   const playOnlyFlix = useCallback((media) => {
     const url = buildOnlyFlixEmbedUrl(media);
     return url ? startEmbed(url, media, "onlyflix") : false;
@@ -4642,8 +4650,8 @@ export function PlayerProvider({
     );
 
   const value = useMemo(() => ({
-    play, playVidSrc, playEmbedSu, playVidCore, playExtraEmbed, playOnlyFlix, playWebtor, playWebTorrent, prepare, close, hasRd, hasDebrid, isOpen: Boolean(source),
-  }), [play, playVidSrc, playEmbedSu, playVidCore, playExtraEmbed, playOnlyFlix, playWebtor, playWebTorrent, prepare, close, hasRd, hasDebrid, source]);
+    play, playVidSrc, playEmbedSu, playVidCore, playExtraEmbed, playOnlyFlix, playSavedEmbed, playWebtor, playWebTorrent, prepare, close, hasRd, hasDebrid, isOpen: Boolean(source),
+  }), [play, playVidSrc, playEmbedSu, playVidCore, playExtraEmbed, playOnlyFlix, playSavedEmbed, playWebtor, playWebTorrent, prepare, close, hasRd, hasDebrid, source]);
 
   return (
     <PlayerContext.Provider value={value}>

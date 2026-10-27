@@ -1,4 +1,5 @@
 import React from "react";
+import EmbedWatchingTracker from "./EmbedWatchingTracker";
 import { createPortal } from "react-dom";
 import VideoPlayer from "@/components/mg/VideoPlayer";
 import VidSrcEmbedPlayer from "@/components/mg/VidSrcEmbedPlayer";
@@ -143,6 +144,7 @@ export default function PlayerPortalRenderer({
       }
       onClose={exitToDestination}
     >
+      {vidSrcEmbed && <EmbedWatchingTracker media={source} embed={vidSrcEmbed} />}
       {magnetPlayer?.type === "webtor" ? (
         <WebtorEmbedPlayer
           magnet={magnetPlayer.magnet}

@@ -1,9 +1,9 @@
 {
   "version": 1,
-  "note": "2026-10-26 reviewed scraper verification-guard update: filter explicit captcha/QR verification URLs and challenge-control responses before addon source publication, without bypassing challenges or changing valid media playback. The iframe UI offers user-directed Skip QR / Try next. Player, native VLC, Fire TV remote and Live TV files remain untouched. Previous change: 2026-10-26 reviewed narrow Orion-only error-video guard in fetchAddonStreams: reject upstream Orion Stremio addon error.mp4 and error-general.mp4 controls masquerading as source candidates; no changes to valid Orion streams, other addon results, player selection, Fire TV, phone or Live TV. Previous baseline: 2026-10-24 reviewed Fire TV-only VLCVideoLayout positive-pixel surface fix (PR #88): an addOnLayoutChangeListener and Vout callback pass measured (>1px) width/height to vlcVout.setWindowSize. No source resolution, decoder modes, audio/subtitles, episode control, or Live TV logic was changed. The Android phone native player remains hash-identical. Previously reviewed profile isolation from 2026-10-23 remains intact.",
+  "note": "2026-10-27 user-requested Continue Watching repair: reviewed PlayerPortalRenderer addition of a nonvisual embedded-history tracker and MediaPlayerProvider HTTPS saved-embed reopening entrypoint. No existing decoder, source-resolution, native player or Live TV logic changed. Original files recoverable at 342f65457ae2e8c5b14bec48b61b0198c5214186. 2026-10-26 reviewed scraper verification-guard update: filter explicit captcha/QR verification URLs and challenge-control responses before addon source publication, without bypassing challenges or changing valid media playback. The iframe UI offers user-directed Skip QR / Try next. Player, native VLC, Fire TV remote and Live TV files remain untouched. Previous change: 2026-10-26 reviewed narrow Orion-only error-video guard in fetchAddonStreams: reject upstream Orion Stremio addon error.mp4 and error-general.mp4 controls masquerading as source candidates; no changes to valid Orion streams, other addon results, player selection, Fire TV, phone or Live TV. Previous baseline: 2026-10-24 reviewed Fire TV-only VLCVideoLayout positive-pixel surface fix (PR #88): an addOnLayoutChangeListener and Vout callback pass measured (>1px) width/height to vlcVout.setWindowSize. No source resolution, decoder modes, audio/subtitles, episode control, or Live TV logic was changed. The Android phone native player remains hash-identical. Previously reviewed profile isolation from 2026-10-23 remains intact.",
   "files": {
     "src/components/mg/VideoPlayer.jsx": "18bffc0fb431487bf31ea23c62dd9fd87eab2f407daedd3595eb4563cea50db0",
-    "src/components/mg/MediaPlayerProvider.jsx": "296950ac2a69bcfcd597f93895c67add29c18c5323e57518306a79777fc76a84",
+    "src/components/mg/MediaPlayerProvider.jsx": "4ac9442105a010730d0fdc99f2b4bad707df405fb991d80e2d46c7d894c17110",
     "src/components/mg/PlayerProvider.jsx": "4e405ec7548e1685d34282249a4a0c25f7d92bdd742275ee0ba60e91a421a957",
     "src/components/mg/MediaPlayerControls.jsx": "ef6cbff88fd9d8aad2396e7243ef9f2c09f54f6ad9d3a8c03acc124f1bfacd87",
     "src/components/mg/LiveTVView.jsx": "a00de3519ec662c2fcecf0654a6184984b4da2b3d1f8185cd7740c890214e098",
@@ -17,7 +17,7 @@
     "android-mobile/app/src/main/java/com/mediagod/mobile/CompatibilityPlayerActivity.kt": "6cc5bc8b5cb79800692878efeb5f7bae7d35b82156f95225466231cc56d8819e",
     "firetv-android/app/src/main/java/com/mediagod/firetv/PlayerActivity.kt": "6f0bf56e97efce0613dbc015408babc43ad7d7d3db17c31bd312611fd42396f4",
     "firetv-android/app/src/main/java/com/mediagod/firetv/CompatibilityPlayerActivity.kt": "102c74a1312e07b504ed7fc9ab45765f1122a2c4d4b64848ccc0159817e1b60f",
-    "src/components/mg/PlayerPortalRenderer.jsx": "95ac158e24ed8747c1be66c0fa2605b896bf4b537fe20c6aceee64a10516ebcf",
+    "src/components/mg/PlayerPortalRenderer.jsx": "d215a06e4d6a41a441036a2a505021327adcd9c536fb36d77b43ecef7c04cb52",
     "src/components/mg/additionalLiveTvSources.js": "351e08e7413ea8c8b0b90db8f5151c065639b47528f4a5d005147ba53410846b"
   }
 }

@@ -1,7 +1,9 @@
+import { readEmbedBookmark, EMBED_HISTORY_CHANGED } from "./embedWatchingHistory";
 import { profiledLibrary } from "@/components/mg/householdProfiles";
 import React, {
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -249,15 +251,18 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
   const [sourcePicker, setSourcePicker] = useState(null);
   const [downloadPicker, setDownloadPicker] = useState(null);
   const player = usePlayer();
+  const loadVersionRef = useRef(0);
   useEffect(() => {
     // Once an explicitly chosen torrent opens the player, hide the selector.
     if (player.isOpen) setSourcePicker(null);
   }, [player.isOpen]);
 
   const load = () => {
+    const version = ++loadVersionRef.current;
     profiledLibrary.ContinueWatching
       .list("-updated_date", 100)
       .then((rows) => {
+        if (version !== loadVersionRef.current) return;
         const entries = [...(rows || [])]
           .map((item) => ({
             item,
@@ -269,7 +274,7 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
           }))
           .filter(
             ({ item }) =>
-              Number(item?.progress || 0) >= MIN_PROGRESS_SECONDS
+              Number(item?.progress || 0) >= MIN_PROGRESS_SECONDS || Boolean(readEmbedBookmark(item))
           )
           .sort((a, b) => b.updatedAt - a.updatedAt);
 
@@ -337,11 +342,12 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
         }
       })
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => { if (version === loadVersionRef.current) setLoading(false); });
   };
 
   useEffect(() => {
     load();
+    window.addEventListener(EMBED_HISTORY_CHANGED, load);
 
     let unsubscribe = null;
 
@@ -352,6 +358,8 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
     }
 
     return () => {
+      loadVersionRef.current += 1;
+      window.removeEventListener(EMBED_HISTORY_CHANGED, load);
       if (typeof unsubscribe === "function") {
         unsubscribe();
       }
@@ -383,6 +391,14 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
      * first. A saved mgsource descriptor carries the stable torrent/magnet and
      * file/provider identity, not just the short-lived resolved stream URL.
      */
+    const bookmark = readEmbedBookmark(item);
+    if (bookmark && player.playSavedEmbed?.({
+      id: tmdbId || undefined, tmdbId: tmdbId || undefined,
+      title: meta.title, year: meta.year, poster: item.poster_url || "",
+      mediaType: meta.mediaType, type: isTv ? "series" : "movie",
+      season: meta.season || undefined, episode: meta.episode || undefined,
+    }, bookmark)) return;
+
     const savedUrl = String(item.video_url || "").trim();
     const savedSourceType = String(item.source_type || "").toLowerCase();
     const hasSavedSource =
@@ -737,7 +753,7 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
               </div>
 
               <div className="mt-1 min-h-[1rem] text-white/50 text-[11px] sm:text-xs 3xl:text-sm truncate">
-                {detailLine || `${Math.round(progress)}% watched`}
+                {readEmbedBookmark(item) ? "Reopen last player · position unavailable" : detailLine || `${Math.round(progress)}% watched`}
               </div>
 
               <div className="mt-2 grid grid-cols-2 gap-1.5" data-mg-continue-actions="true">
