@@ -8,7 +8,7 @@ test("existing Media God theme, Home row order, and navigation remain intact", (
   const home = read("src/components/mg/HomeDashboard.jsx");
   const hero = read("src/components/mg/HeroSlider.jsx");
   const nav = read("src/components/mg/Navbar.jsx");
-  assert.match(home, /continue-watching>featured>new-films>new-tv>new-episodes>because-you-watched/);
+  assert.match(home, /featured>continue-watching>new-films>new-tv>new-episodes>because-you-watched/);
   assert.match(home, /data-mg-home-layout-lock=\{HOME_LAYOUT_LOCK_ID\}/);
   assert.match(home, /<HeroSlider/);
   assert.match(home, /<ContinueWatchingRow/);
