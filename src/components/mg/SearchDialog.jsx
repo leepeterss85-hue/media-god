@@ -440,7 +440,9 @@ export default function SearchDialog({
   useEffect(() => {
     if (!open) return undefined;
     const onVoiceResult = (event) => {
-      const spoken = cleanVoiceSearch(event?.detail?.text);
+      // Fire TV sends `text`; Android phone sends `transcript`.
+      // Both are valid native speech-recognition results.
+      const spoken = cleanVoiceSearch(event?.detail?.text || event?.detail?.transcript);
       setVoiceListening(false);
       if (spoken) {
         setQuery(spoken);
@@ -458,6 +460,9 @@ export default function SearchDialog({
     };
   }, [open]);
 
+  const nativeBridgeUnavailableMessage = () =>
+    "Voice recognition is unavailable here. Select the search box and try your remote keyboard's voice input, or type a title.";
+
   const startVoiceSearch = useCallback(() => {
     setVoiceError("");
     try {
@@ -474,7 +479,9 @@ export default function SearchDialog({
     }
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      setVoiceError("Voice search is unavailable in this browser. Try the Fire TV remote's voice input, or type your search.");
+      setVoiceListening(false);
+      setVoiceError(nativeBridgeUnavailableMessage());
+      inputRef.current?.focus?.();
       return;
     }
     try {
@@ -484,7 +491,11 @@ export default function SearchDialog({
       recognition.maxAlternatives = 1;
       recognition.onresult = (event) => {
         const spoken = event?.results?.[0]?.[0]?.transcript;
-        if (spoken) setQuery(cleanVoiceSearch(spoken));
+        if (spoken) {
+          setQuery(cleanVoiceSearch(spoken));
+          setVoiceError("");
+          inputRef.current?.focus?.();
+        }
         setVoiceListening(false);
       };
       recognition.onerror = () => {
@@ -1025,17 +1036,6 @@ export default function SearchDialog({
       >
         <div className="flex items-center gap-3 3xl:gap-4 px-4 sm:px-5 3xl:px-7 py-3.5 3xl:py-5 border-b border-white/10">
           <Search className="w-5 h-5 3xl:w-6 3xl:h-6 4xl:w-7 4xl:h-7 text-white/40 shrink-0" />
-          <button
-            type="button"
-            onClick={startVoiceSearch}
-            aria-label="Search by voice"
-            aria-pressed={voiceListening}
-            title={voiceError || (voiceListening ? "Listening…" : "Search by voice")}
-            className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mg-green ${voiceListening ? "bg-mg-green text-black animate-pulse" : "text-white/60 hover:text-white hover:bg-white/10"}`}
-          >
-            <Mic className="w-5 h-5" />
-          </button>
-
           <button
             type="button"
             onClick={startVoiceSearch}
