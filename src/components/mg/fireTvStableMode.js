@@ -723,9 +723,13 @@ export const installFireTvStableMode = () => {
 
       const now = Date.now();
 
-      /* Allow holding the D-pad to repeat, but throttle it enough that one
-       * tap cannot skip multiple cards. */
-      if (now - lastMoveAt < 115) {
+      /* Never discard a fresh remote press: fast separate taps were being
+       * swallowed here after preventDefault, which felt like frozen menus.
+       * Restrict the spacing limit to actual held-key repeats. Preserve the
+       * older 115ms cadence for Live TV cards, whose navigation is unchanged.
+       */
+      const spacingMs = liveTvCardFor(current) ? 115 : 85;
+      if ((event.repeat || liveTvCardFor(current)) && now - lastMoveAt < spacingMs) {
         return;
       }
 
