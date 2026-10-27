@@ -377,3 +377,30 @@ body :is(
     overflow-wrap: anywhere;
   }
 }
+/*
+ * Scraper verification guidance, outside the locked playback components.
+ * Providers render inside cross-origin iframes, so we cannot reliably detect
+ * a QR challenge or remove it. This unobtrusive, non-interactive instruction
+ * sits over only the regular web-embed stage, without shifting the iframe,
+ * blocking remote clicks, or covering the native/fullscreen video surface.
+ */
+[data-mg-onlyflix-player="true"] [data-mg-player-stage="true"]:not([data-mg-safe-embed-fullscreen="true"])::before {
+  content: "QR code or 'Verify you're human' message? Choose another player from the top row or select Sources instead.";
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  right: 8px;
+  z-index: 5;
+  display: block;
+  width: fit-content;
+  max-width: calc(100% - 16px);
+  margin-inline: auto;
+  padding: 5px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.78);
+  color: #ffffff;
+  font: 600 12px/1.35 system-ui, sans-serif;
+  text-align: center;
+  pointer-events: none;
+}

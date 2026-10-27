@@ -29,6 +29,8 @@ export default function VidSrcEmbedPlayer({ url, title, onBack, backLabel = "Sou
           <span className="hidden shrink-0 text-xs text-white/50 sm:block">VidSrc web player</span>
         </div>
 
+        <p role="note" data-mg-qr-help="true" className="mb-2 rounded-lg border border-white/10 bg-black/70 px-3 py-1.5 text-xs leading-snug text-white/80">If a QR code or human-verification message appears, go back to Sources and choose another player. Do not scan the code.</p>
+
         <SafeEmbedStage>
           <iframe
             key={url}

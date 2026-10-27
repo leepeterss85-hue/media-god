@@ -145,6 +145,8 @@ export default function EmbedSuPlayer({ url, media, title, onBack, backLabel = "
           {manualError && <p role="alert" className="w-full text-xs text-amber-200">{manualError}</p>}
         </form>
 
+        <p role="note" data-mg-qr-help="true" className="mb-2 rounded-lg border border-white/10 bg-black/70 px-3 py-1.5 text-xs leading-snug text-white/80">If a QR code or human-verification message appears, choose a different server above or return to Sources. Do not scan the code.</p>
+
         <SafeEmbedStage>
           <iframe
             key={active.url}
