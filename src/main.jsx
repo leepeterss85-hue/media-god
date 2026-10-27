@@ -607,6 +607,7 @@ window.addEventListener('keydown', (event) => {
   if (!tvRemoteDetected || isAndroidMobileRuntime()) return
   if (!event.repeat) return
   if (document.querySelector('[data-mg-player-root="true"]')) return
+  if (document.querySelector('[data-mg-live-tv-view="true"]')) return
   if (document.querySelector('[data-mg-fire-tv-update="true"]')) return
   const active = document.activeElement
   const tag = String(active?.tagName || '').toLowerCase()
