@@ -1,4 +1,4 @@
-import { readEmbedBookmark, EMBED_HISTORY_CHANGED } from "./embedWatchingHistory";
+import { readEmbedBookmark } from "./embedWatchingHistory";
 import { profiledLibrary } from "@/components/mg/householdProfiles";
 import { watchContinueWatchingChanges } from "@/components/mg/continueWatchingSync";
 import React, {
@@ -280,7 +280,6 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
           .sort((a, b) => b.updatedAt - a.updatedAt);
 
         const byIdentity = new Map();
-        const duplicateIds = new Set();
 
         entries.forEach((entry) => {
           const identity = identityFor(entry.meta);
@@ -319,9 +318,6 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
             return;
           }
 
-          if (entry.item?.id && !hasSavedPlayableSource(entry.item)) {
-            duplicateIds.add(entry.item.id);
-          }
         });
 
         const winners = Array.from(byIdentity.values());

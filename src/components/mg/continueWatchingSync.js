@@ -1,9 +1,10 @@
+import { EMBED_HISTORY_CHANGED } from "./embedWatchingHistory.js";
 /*
  * Base44 ContinueWatching is account-backed; SDK subscriptions alone are not
  * sufficient to refresh a row when a different device writes to that account.
  * Keep a lightweight, visible-only poll plus an immediate refresh on return.
  */
-export const CONTINUE_WATCHING_SAVED = 'mg:continue-watching-saved';
+export const CONTINUE_WATCHING_SAVED = EMBED_HISTORY_CHANGED;
 export const CONTINUE_WATCHING_SYNC_INTERVAL_MS = 15000;
 export const PROFILE_CHANGED_EVENT = 'mg:household-profile-changed';
 
