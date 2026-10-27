@@ -274,8 +274,9 @@ export default function OnlyFlixEmbedPlayer({ url, title, media, onBack, onOpenS
               advanceAfterFailure();
             }}
             className="inline-flex min-h-11 shrink-0 items-center rounded-lg border border-white/20 bg-white/10 px-3 text-xs font-semibold hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-mg-green"
-            title="Try the next web player, Vyla, then torrents"
-          >Try next</button>
+            data-mg-skip-verification="true"
+            title="If this provider asks for a human-verification QR code, skip it and try the next source without scanning"
+          >Skip QR / Try next</button>
           <button
             type="button"
             data-mg-embedded-open-sources="true"
