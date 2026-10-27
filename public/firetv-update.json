@@ -1,9 +1,9 @@
 {
   "channel": "fire-tv",
-  "versionCode": 122,
-  "versionName": "1.4.117",
+  "versionCode": 123,
+  "versionName": "1.4.118",
   "title": "Media God Fire TV",
-  "message": "Media God Fire TV 1.4.117: on-screen guidance for QR/human-verification pages, refreshed voice-search handling, and safer flagged scraper results. Working VLC playback, movie and episode sources, fullscreen, remote controls, and Live TV are unchanged.",
+  "message": "Media God Fire TV 1.4.118: voice-search now offers Fire OS keyboard input when speech recognition is unavailable, with improved search recovery. Continue Watching syncs saved titles and source progress through the same account. Protected VLC playback, sources, fullscreen, and Live TV are unchanged.",
   "apkUrl": "https://github.com/leepeterss85-hue/media-god/releases/download/firetv-latest/Media-God-Fire-TV.apk",
   "downloaderCode": "4738952",
   "downloaderAddress": "https://mysterious-media-vault-pro.base44.app/tv.html",

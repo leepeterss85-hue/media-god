@@ -1,4 +1,4 @@
-// Fire TV 1.4.117: hosted search/QR guard refresh; known-good playback unchanged.
+// Fire TV 1.4.118: native voice-search keyboard fallback; known-good player unchanged.
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +12,8 @@ android {
         applicationId = "com.mediagod.firetv"
         minSdk = 21
         targetSdk = 35
-        versionCode = 122
-        versionName = "1.4.117"
+        versionCode = 123
+        versionName = "1.4.118"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
