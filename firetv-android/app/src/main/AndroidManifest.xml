@@ -71,6 +71,19 @@
             android:supportsPictureInPicture="false" />
 
         <activity
+            android:name=".VoiceSearchActivity"
+            android:exported="false"
+            android:screenOrientation="landscape"
+            android:windowSoftInputMode="stateAlwaysVisible|adjustResize">
+            <!-- Local fallback for the existing speech intent when Fire OS has
+                 no recognizer activity. Prefer installed recognizers. -->
+            <intent-filter android:priority="-1000">
+                <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <activity
             android:name=".MainActivity"
             android:configChanges="keyboardHidden|orientation|screenSize|smallestScreenSize|uiMode"
             android:exported="true"

@@ -471,6 +471,9 @@ export default function SearchDialog({
         setQuery(spoken);
         setVoiceError("");
         inputRef.current?.focus?.();
+      } else if (event?.detail?.error === "cancelled") {
+        setVoiceError("");
+        inputRef.current?.focus?.();
       } else if (event?.detail?.error) {
         setVoiceError("Fire TV could not recognise that request. Select the search box to use the Fire TV keyboard, or type a title.");
         inputRef.current?.focus?.();

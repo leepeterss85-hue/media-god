@@ -1,3 +1,4 @@
+import { EMBED_HISTORY_CHANGED } from "./embedWatchingHistory";
 import { profiledLibrary } from "@/components/mg/householdProfiles";
 import {
   useEffect,
@@ -362,6 +363,7 @@ export default function ContinueWatchingAssist() {
                 ? { ...patch, video_url: row.video_url, source_type: row.source_type }
                 : patch
             );
+            window.dispatchEvent(new CustomEvent(EMBED_HISTORY_CHANGED));
             return;
           }
 
@@ -370,6 +372,7 @@ export default function ContinueWatchingAssist() {
             ...patch,
           });
 
+          window.dispatchEvent(new CustomEvent(EMBED_HISTORY_CHANGED));
           if (created?.id) {
             state.recordIdByKey.set(key, created.id);
           }
