@@ -221,9 +221,11 @@ expect(
 
 expect(
   homeDashboard.includes("<HeroSlider") &&
-    homeDashboard.includes("(uxPreferences.homeOrder || []).map((sectionId) =>") &&
+    homeDashboard.includes('(uxPreferences.homeOrder || []).filter((id) => id !== "continue-watching").map((sectionId) =>') &&
+    homeDashboard.includes('data-mg-home-first="continue-watching"') &&
+    homeDashboard.indexOf('data-mg-home-first="continue-watching"') < homeDashboard.indexOf('<HeroSlider') &&
+    homeDashboard.includes('!hiddenHomeSections.has("continue-watching")') &&
     homeDashboard.includes("renderHomeSection(sectionId)") &&
-    homeDashboard.includes('case "continue-watching"') &&
     homeDashboard.includes('case "new-films"') &&
     homeDashboard.includes('case "new-tv"') &&
     homeDashboard.includes('case "new-episodes"') &&
@@ -239,7 +241,7 @@ expect(
     settings.includes("Home screen") &&
     settings.includes("moveHome") &&
     settings.includes("toggleHomeSection"),
-  "Home customization no longer preserves the featured banner plus user-controlled row order/visibility."
+  "Home no longer pins Continue Watching first or preserves the featured banner and the other configurable rows."
 );
 expect(
   newEpisodesRow.includes('data-mg-new-episodes-row="true"') &&
