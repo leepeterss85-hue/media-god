@@ -84,7 +84,7 @@ test("TV episode scraper rejects challenge results before picking first useful p
 test("web embeds offer an explicit escape from QR screens without altering native playback", () => {
   const main = read("src/components/mg/OnlyFlixEmbedPlayer.jsx");
   assert.match(main, /data-mg-try-next-web-source="true"/);
-  assert.match(main, />Skip QR \/ Try next<\/button>/);
+  assert.match(main, />Try next<\/button>/);
   assert.match(main, /advanceAfterFailure\(\)/);
   for (const name of ["VidSrcEmbedPlayer", "ExtraEmbedPlayer", "EmbedSuPlayer"]) {
     const ui = read("src/components/mg/" + name + ".jsx");
