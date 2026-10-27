@@ -48,6 +48,12 @@ test("normal videos and streams remain allowed, even if the title contains the w
   assert.equal(isVerificationChallengeStream({
     title: "Scan the QR code to verify", url: "https://stream.example/watch/1",
   }), true);
+  assert.equal(isVerificationChallengeStream({
+    description: "Scan QR code to continue", url: "https://stream.example/watch/2",
+  }), true);
+  assert.equal(isVerificationChallengeStream({
+    message: "Prove you are human", url: "https://stream.example/watch/3",
+  }), true);
 });
 
 test("server and browser addon normalizers both reject challenged links before playback", () => {
@@ -78,7 +84,7 @@ test("TV episode scraper rejects challenge results before picking first useful p
 test("web embeds offer an explicit escape from QR screens without altering native playback", () => {
   const main = read("src/components/mg/OnlyFlixEmbedPlayer.jsx");
   assert.match(main, /data-mg-try-next-web-source="true"/);
-  assert.match(main, />Try next<\/button>/);
+  assert.match(main, />Skip QR \/ Try next<\/button>/);
   assert.match(main, /advanceAfterFailure\(\)/);
   for (const name of ["VidSrcEmbedPlayer", "ExtraEmbedPlayer", "EmbedSuPlayer"]) {
     const ui = read("src/components/mg/" + name + ".jsx");
