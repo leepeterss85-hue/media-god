@@ -562,14 +562,24 @@ const installFireTvHistoryBackGuard = () => {
     }
   }
 
-  const observer = new MutationObserver(() => {
-    if (shouldArm()) {
-      arm()
-    } else {
-      armed = false
-    }
-  })
+  // Film artwork, search results and provider controls can mount dozens of
+  // nodes in one frame. Rechecking history for every DOM mutation causes
+  // avoidable main-thread work on older Fire Sticks, even though the guard
+  // depends only on whether the app has mounted and on its current route.
+  let guardCheckFrame = 0
+  const scheduleGuardCheck = () => {
+    if (guardCheckFrame) return
+    guardCheckFrame = window.requestAnimationFrame(() => {
+      guardCheckFrame = 0
+      if (shouldArm()) {
+        arm()
+      } else {
+        armed = false
+      }
+    })
+  }
 
+  const observer = new MutationObserver(scheduleGuardCheck)
   observer.observe(document.body, {
     childList: true,
     subtree: true,
