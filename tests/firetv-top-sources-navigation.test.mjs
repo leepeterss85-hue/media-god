@@ -51,5 +51,5 @@ test("Fire Stick update prompt focuses Update now and does not auto-start instal
   assert.match(notice, /onClick=\{startUpdate\}/);
   assert.doesNotMatch(notice, /useEffect\(\(\) => \{\s*startUpdate\(/);
   // Deliberately do not modify phone update/popup behavior.
-  assert.match(read("public/android-mobile-update.json"), /"versionName": "1\.0\.93"/);
+  assert.match(read("public/android-mobile-update.json"), /"versionName": "1\.0\.94"/);
 });

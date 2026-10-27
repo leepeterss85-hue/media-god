@@ -35,5 +35,5 @@ test("Fire TV fullscreen never paints a bottom help panel, without touching phon
   const fireNative = read("firetv-android/app/src/main/java/com/mediagod/firetv/MainActivity.kt");
   assert.match(fireNative, /mg-firetv-scraper-footer-repair/);
   assert.match(fireNative, /document\.head\.appendChild\(scraperCss\)/);
-  assert.match(read("public/android-mobile-update.json"), /"versionName": "1\.0\.93"/);
+  assert.match(read("public/android-mobile-update.json"), /"versionName": "1\.0\.94"/);
 });
