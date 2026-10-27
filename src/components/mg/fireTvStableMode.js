@@ -2,6 +2,7 @@ import {
   isAndroidMobileRuntime,
   isFireTvRuntime,
 } from "@/components/mg/runtimePlatform";
+import { shouldIgnoreStableTvMove } from "@/components/mg/fireTvRepeatLimiter";
 
 const DIRECTION_KEYS = {
   ArrowUp: "up",
@@ -728,8 +729,7 @@ export const installFireTvStableMode = () => {
        * Restrict the spacing limit to actual held-key repeats. Preserve the
        * older 115ms cadence for Live TV cards, whose navigation is unchanged.
        */
-      const spacingMs = liveTvCardFor(current) ? 115 : 85;
-      if ((event.repeat || liveTvCardFor(current)) && now - lastMoveAt < spacingMs) {
+      if (shouldIgnoreStableTvMove(event, now, lastMoveAt, Boolean(liveTvCardFor(current)))) {
         return;
       }
 
