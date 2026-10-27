@@ -1,5 +1,6 @@
 import { readEmbedBookmark, EMBED_HISTORY_CHANGED } from "./embedWatchingHistory";
 import { profiledLibrary } from "@/components/mg/householdProfiles";
+import { watchContinueWatchingChanges } from "@/components/mg/continueWatchingSync";
 import React, {
   useEffect,
   useMemo,
@@ -333,36 +334,21 @@ export default function ContinueWatchingRow({ onOpenDetail }) {
             .map(({ item }) => item)
         );
 
-        if (duplicateIds.size > 0) {
-          Promise.allSettled(
-            Array.from(duplicateIds).map((id) =>
-              profiledLibrary.ContinueWatching.delete(id)
-            )
-          ).catch(() => {});
-        }
+        // Never silently delete a duplicate on a history refresh. Another
+        // device may still be writing that row; explicit Remove is the only
+        // action that deletes account history.
       })
       .catch(() => {})
       .finally(() => { if (version === loadVersionRef.current) setLoading(false); });
   };
 
   useEffect(() => {
-    load();
-    window.addEventListener(EMBED_HISTORY_CHANGED, load);
-
-    let unsubscribe = null;
-
-    try {
-      unsubscribe = profiledLibrary.ContinueWatching.subscribe(load);
-    } catch {
-      unsubscribe = null;
-    }
-
+    const cleanup = watchContinueWatchingChanges(load, {
+      subscribe: (onChange) => profiledLibrary.ContinueWatching.subscribe(onChange),
+    });
     return () => {
       loadVersionRef.current += 1;
-      window.removeEventListener(EMBED_HISTORY_CHANGED, load);
-      if (typeof unsubscribe === "function") {
-        unsubscribe();
-      }
+      cleanup();
     };
   }, []);
 

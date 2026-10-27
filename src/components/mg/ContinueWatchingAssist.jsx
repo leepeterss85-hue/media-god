@@ -1,5 +1,6 @@
 import { EMBED_HISTORY_CHANGED } from "./embedWatchingHistory";
 import { profiledLibrary } from "@/components/mg/householdProfiles";
+import { notifyContinueWatchingSaved } from "@/components/mg/continueWatchingSync";
 import {
   useEffect,
   useRef,

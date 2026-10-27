@@ -1,8 +1,10 @@
 import { launchFireTvCardPlay } from "@/components/mg/fireTvCardPlay";
 import { profiledLibrary } from "@/components/mg/householdProfiles";
+import { watchContinueWatchingChanges } from "@/components/mg/continueWatchingSync";
 import React, {
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -179,12 +181,15 @@ const resolveTmdbIdQuickly = async (meta) => {
 export default function RecentlyWatchedRow({ onOpenDetail }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const loadVersionRef = useRef(0);
   const player = usePlayer();
 
   const load = () => {
+    const version = ++loadVersionRef.current;
     profiledLibrary.ContinueWatching
       .list("-updated_date", 100)
       .then((rows) => {
+        if (version !== loadVersionRef.current) return;
         const completed = [];
         const seen = new Set();
 
@@ -211,26 +216,16 @@ export default function RecentlyWatchedRow({ onOpenDetail }) {
         setItems(completed.slice(0, 20));
       })
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => { if (version === loadVersionRef.current) setLoading(false); });
   };
 
   useEffect(() => {
-    load();
-
-    let unsubscribe = null;
-
-    try {
-      unsubscribe = profiledLibrary.ContinueWatching.subscribe(() =>
-        load()
-      );
-    } catch {
-      unsubscribe = null;
-    }
-
+    const cleanup = watchContinueWatchingChanges(load, {
+      subscribe: (onChange) => profiledLibrary.ContinueWatching.subscribe(onChange),
+    });
     return () => {
-      if (typeof unsubscribe === "function") {
-        unsubscribe();
-      }
+      loadVersionRef.current += 1;
+      cleanup();
     };
   }, []);
 
