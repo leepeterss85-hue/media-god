@@ -1,6 +1,7 @@
 import useBrowseReturn from "@/components/mg/useBrowseReturn";
 import { launchFireTvCardPlay } from "@/components/mg/fireTvCardPlay";
 import { profiledLibrary } from "@/components/mg/householdProfiles";
+import { catalogueSourceChecker, showBrowseTitleWithSourceEvidence } from "@/components/mg/catalogueSourceCheckerClient";
 import React, {
   useEffect,
   useMemo,
@@ -786,6 +787,40 @@ export default function HomeDashboard({ onOpenTvService }) {
     streamingRegion,
   ]);
 
+  const [sourceAvailabilityEpoch, setSourceAvailabilityEpoch] = useState(0);
+
+  useEffect(() => {
+    // Only check a small selection of recent movie discovery cards. Never
+    // prefetch streams for an entire TMDB catalogue or block Home rendering.
+    const checkVisibleNewMovies = () => {
+      if (document.visibilityState === 'hidden') return;
+      const recent = (rows.newMovies || []).filter((item) => mediaTypeOf(item) === 'movie').slice(0, 6);
+      const trending = (rows.trending || []).filter((item) => mediaTypeOf(item) === 'movie').slice(0, 2);
+      const seen = new Set();
+      [...recent, ...trending].forEach((item) => {
+        const key = `${mediaTypeOf(item)}:${mediaId(item)}:${item.year || ''}`;
+        if (!mediaId(item) || seen.has(key)) return;
+        seen.add(key);
+        void catalogueSourceChecker.check(item);
+      });
+    };
+    const stopListening = catalogueSourceChecker.subscribe(() =>
+      setSourceAvailabilityEpoch((version) => version + 1)
+    );
+    checkVisibleNewMovies();
+    const timer = window.setInterval(checkVisibleNewMovies, 10 * 60 * 1000);
+    window.addEventListener('focus', checkVisibleNewMovies);
+    window.addEventListener('online', checkVisibleNewMovies);
+    document.addEventListener('visibilitychange', checkVisibleNewMovies);
+    return () => {
+      stopListening();
+      window.clearInterval(timer);
+      window.removeEventListener('focus', checkVisibleNewMovies);
+      window.removeEventListener('online', checkVisibleNewMovies);
+      document.removeEventListener('visibilitychange', checkVisibleNewMovies);
+    };
+  }, [rows.newMovies, rows.trending]);
+
   const completedHistoryTitles = useMemo(() => {
     const titles = new Set();
 
@@ -812,8 +847,9 @@ export default function HomeDashboard({ onOpenTvService }) {
         ...(rows.tvPremieresToday || []).slice(0, 2),
         ...(rows.newMovies || []).slice(0, 2),
         ...(rows.trending || []).slice(0, 4),
-      ]).slice(0, 6),
+      ]).filter(showBrowseTitleWithSourceEvidence).slice(0, 6),
     [
+      sourceAvailabilityEpoch,
       rows.todayMovies,
       rows.tvPremieresToday,
       rows.newMovies,
@@ -903,11 +939,12 @@ export default function HomeDashboard({ onOpenTvService }) {
     return dedupeMedia([
       ...linked,
       ...rankedFallback,
-    ]).slice(
+    ]).filter(showBrowseTitleWithSourceEvidence).slice(
       0,
       20
     );
   }, [
+    sourceAvailabilityEpoch,
     recommendationSeed,
     linkedRecommendations,
     completedHistoryTitles,
@@ -1083,7 +1120,7 @@ export default function HomeDashboard({ onOpenTvService }) {
           <MediaRow
             key={sectionId}
             title="New Films"
-            items={rows.newMovies}
+            items={(rows.newMovies || []).filter(showBrowseTitleWithSourceEvidence)}
             detailsOnly
             onOpen={open}
             onWatchlist={onWatchlist}
@@ -1162,7 +1199,7 @@ export default function HomeDashboard({ onOpenTvService }) {
           <MediaRow
             key={sectionId}
             title="Trending Now"
-            items={rows.trending}
+            items={(rows.trending || []).filter(showBrowseTitleWithSourceEvidence)}
             onOpen={open}
             onWatchlist={onWatchlist}
             watched={watched}
@@ -1188,7 +1225,7 @@ export default function HomeDashboard({ onOpenTvService }) {
           <MediaRow
             key={sectionId}
             title="Popular Movies"
-            items={rows.popularMovies}
+            items={(rows.popularMovies || []).filter(showBrowseTitleWithSourceEvidence)}
             onOpen={open}
             onWatchlist={onWatchlist}
             watched={watched}
@@ -1210,7 +1247,7 @@ export default function HomeDashboard({ onOpenTvService }) {
           <MediaRow
             key={sectionId}
             title="Top Rated Movies"
-            items={rows.topRated}
+            items={(rows.topRated || []).filter(showBrowseTitleWithSourceEvidence)}
             onOpen={open}
             onWatchlist={onWatchlist}
             watched={watched}

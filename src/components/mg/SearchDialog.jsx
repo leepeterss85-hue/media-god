@@ -17,7 +17,8 @@ import {
 } from "lucide-react";
 
 import { base44 } from "@/api/base44Client";
-import { catalogueSourceKey, createCatalogueSourceChecker, SOURCE_CHECK_BATCH } from "@/components/mg/catalogueSourceAvailability";
+import { catalogueSourceKey, SOURCE_CHECK_BATCH } from "@/components/mg/catalogueSourceAvailability";
+import { catalogueSourceChecker, showBrowseTitleWithSourceEvidence } from "@/components/mg/catalogueSourceCheckerClient";
 import { getFreeTvChannels } from "@/components/mg/freeTvPlaylist";
 import { searchTmdbId } from "@/components/mg/searchMediaIdentity";
 import { Image } from "@/components/ui/image";
@@ -37,7 +38,6 @@ const searchThumbnailUrl = (url) =>
 const RECENT_SEARCHES_KEY = "mg:recent-searches:v1";
 const SEARCH_CACHE_TTL_MS = 5 * 60 * 1000;
 const searchCache = new Map();
-const catalogueSourceChecker = createCatalogueSourceChecker((name, payload) => base44.functions.invoke(name, payload));
 
 const readRecentSearches = () => {
   if (typeof window === "undefined") return [];
@@ -616,6 +616,11 @@ export default function SearchDialog({
   const [sourcesFoundOnly, setSourcesFoundOnly] = useState(false);
   const [sourceCheckLimit, setSourceCheckLimit] = useState(SOURCE_CHECK_BATCH);
   const [sourceCheckResults, setSourceCheckResults] = useState({});
+  const [availabilityEpoch, setAvailabilityEpoch] = useState(0);
+  useEffect(() => {
+    if (!open) return undefined;
+    return catalogueSourceChecker.subscribe(() => setAvailabilityEpoch((version) => version + 1));
+  }, [open]);
   const [yearFilter, setYearFilter] = useState("");
   const [visibleResultCount, setVisibleResultCount] = useState(SEARCH_RESULT_PAGE_SIZE);
   const [recentSearches, setRecentSearches] = useState(readRecentSearches);
@@ -944,6 +949,10 @@ export default function SearchDialog({
   // This mode checks the user's selected movie search results only. Each
   // batch runs at most two concurrent addon lookups, avoiding a Fire Stick
   // stall and avoiding hundreds of background requests for TMDB posters.
+  const visibleMediaResults = useMemo(() =>
+    filteredMediaResults.filter(showBrowseTitleWithSourceEvidence),
+  [filteredMediaResults, availabilityEpoch]);
+
   const sourceCheckCandidates = useMemo(() =>
     filteredMediaResults.filter((item) => item.media_type === "movie" && catalogueSourceKey(item)),
   [filteredMediaResults]);
@@ -974,8 +983,8 @@ export default function SearchDialog({
       ? (resultsForQuery === query.trim().toLowerCase()
           ? sourceCheckWindow.filter((item) => sourceCheckResults[catalogueSourceKey(item)] === "found")
           : [])
-      : filteredMediaResults,
-  [sourcesFoundOnly, sourceCheckWindow, sourceCheckResults, filteredMediaResults, resultsForQuery, query]);
+      : visibleMediaResults,
+  [sourcesFoundOnly, sourceCheckWindow, sourceCheckResults, visibleMediaResults, resultsForQuery, query]);
 
   const liveResults = useMemo(
     () => {
