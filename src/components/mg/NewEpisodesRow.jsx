@@ -163,6 +163,23 @@ export default function NewEpisodesRow({
   const [loading, setLoading] = useState(false);
   const player = usePlayer();
 
+  const [refreshVersion, setRefreshVersion] = useState(0);
+  useEffect(() => {
+    const refreshVisible = () => {
+      if (document.visibilityState !== 'hidden') setRefreshVersion((value) => value + 1);
+    };
+    // Refresh upcoming and newly aired episodes during active browsing,
+    // without turning each newly published season into a torrent search.
+    const interval = window.setInterval(refreshVisible, 2 * 60 * 1000);
+    window.addEventListener('focus', refreshVisible);
+    document.addEventListener('visibilitychange', refreshVisible);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('focus', refreshVisible);
+      document.removeEventListener('visibilitychange', refreshVisible);
+    };
+  }, []);
+
   const seeds = useMemo(() => watchedTvSeeds(historyRows), [historyRows]);
   const seedKey = useMemo(
     () =>
@@ -284,7 +301,7 @@ export default function NewEpisodesRow({
     return () => {
       cancelled = true;
     };
-  }, [seedKey, region, todayKey]);
+  }, [seedKey, region, todayKey, refreshVersion]);
 
   const playEpisode = (item) => {
     if (!item || item.airDate > todayKey) return;
