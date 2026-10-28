@@ -11,6 +11,24 @@ export const SOURCE_CHECK_BATCH = 8;
 export const SOURCE_CHECK_CONCURRENCY = 2;
 const POSITIVE_TTL_MS = 20 * 60 * 1000;
 const INCONCLUSIVE_TTL_MS = 2 * 60 * 1000;
+const VERIFIED_EMPTY_TTL_MS = 5 * 60 * 1000;
+
+// An empty addon list does not prove the provider worked. Only a completed,
+// exhaustive, healthy check with zero raw streams from every enabled addon is
+// evidence of "no addon sources". Provider/browser embeds remain unverified.
+export function isComprehensiveAddonNoSourceResult(data) {
+  if (!data || data.error || !Array.isArray(data.streams) || data.streams.length) return false;
+  if (data.fast_mode !== false) return false;
+  const checked = Number(data.addons_checked);
+  const available = Number(data.addons_available);
+  const diagnostics = data.diagnostics;
+  if (!Number.isInteger(checked) || checked < 1 || checked !== available ||
+      !Array.isArray(diagnostics) || diagnostics.length !== checked) return false;
+  return diagnostics.every(item =>
+    item && item.status === 'no_playable_streams' &&
+    Number(item.stream_count) === 0 && Number(item.playable_count) === 0
+  );
+}
 
 export function catalogueSourceKey(item) {
   if (item?.media_type !== 'movie') return '';
@@ -43,31 +61,54 @@ export function classifyCatalogueSourceResult(data) {
   return 'unconfirmed';
 }
 
-/** Cap concurrent checks globally and cache only status, never streams. */
+/** Keep both source checks bounded; cache status only, never returned URLs. */
 export function createCatalogueSourceChecker(invoke, { now = () => Date.now(), concurrency = SOURCE_CHECK_CONCURRENCY } = {}) {
   const cache = new Map();
   const pending = new Map();
   const queue = [];
+  const listeners = new Set();
   let active = 0;
+  const sourceRequest = (item, fastMode) => invoke('fetchAddonStreams', {
+    tmdb_id: item.tmdb_id ?? item.tmdbId ?? item.id,
+    imdb_id: item.imdb_id || item.imdbId || '',
+    title: item.title || '',
+    year: item.year || '',
+    media_type: 'movie',
+    fast_mode: fastMode,
+  });
+  const unwrap = (response) => response?.data?.data || response?.data || response;
+  const getStatus = (item) => {
+    const row = cache.get(catalogueSourceKey(item));
+    return row && row.expires > now() ? row.status : 'unknown';
+  };
   const pump = () => {
     while (active < Math.max(1, Math.min(2, concurrency)) && queue.length) {
       const job = queue.shift();
       active += 1;
-      Promise.resolve().then(() => invoke('fetchAddonStreams', {
-        tmdb_id: job.item.tmdb_id ?? job.item.tmdbId ?? job.item.id,
-        imdb_id: job.item.imdb_id || job.item.imdbId || '',
-        title: job.item.title || '',
-        year: job.item.year || '',
-        media_type: 'movie',
-        fast_mode: true,
-      })).then(response => {
-        const payload = response?.data?.data || response?.data || response;
-        const status = classifyCatalogueSourceResult(payload);
-        cache.set(job.key, { status, expires: now() + (status === 'found' ? POSITIVE_TTL_MS : INCONCLUSIVE_TTL_MS) });
+      (async () => {
+        const fast = unwrap(await sourceRequest(job.item, true));
+        const first = classifyCatalogueSourceResult(fast);
+        if (first === 'found' || first === 'unknown') return first;
+        // Full pass can return additional configured sources the quick pass
+        // misses. Fail-open instead of hiding titles on a partial/failed scan.
+        const full = unwrap(await sourceRequest(job.item, false));
+        const second = classifyCatalogueSourceResult(full);
+        if (second === 'found') return 'found';
+        if (second !== 'unknown' && isComprehensiveAddonNoSourceResult(full) &&
+            Array.isArray(fast?.streams) && fast.streams.length === 0) {
+          return 'no-sources';
+        }
+        return second;
+      })().catch(() => 'unknown').then(status => {
+        cache.set(job.key, {
+          status,
+          expires: now() + (status === 'found' ? POSITIVE_TTL_MS :
+            status === 'no-sources' ? VERIFIED_EMPTY_TTL_MS : INCONCLUSIVE_TTL_MS),
+        });
         job.resolve(status);
-      }).catch(() => {
-        cache.set(job.key, { status: 'unknown', expires: now() + INCONCLUSIVE_TTL_MS });
-        job.resolve('unknown');
+        for (const listener of listeners) {
+          try { listener(job.key, status); } catch { /* UI listeners may unmount */ }
+        }
       }).finally(() => {
         pending.delete(job.key);
         active -= 1;
@@ -86,5 +127,9 @@ export function createCatalogueSourceChecker(invoke, { now = () => Date.now(), c
     pump();
     return promise;
   };
-  return { check };
+  const subscribe = listener => {
+    listeners.add(listener);
+    return () => listeners.delete(listener);
+  };
+  return { check, getStatus, subscribe };
 }
