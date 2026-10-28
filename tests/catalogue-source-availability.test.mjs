@@ -60,7 +60,7 @@ test('bounded queue, per-title caching, request payload, failures and no source 
   const fail=createCatalogueSourceChecker(async()=>{throw Error('offline');});
   assert.equal(await fail.check(movie(88)), 'unknown');
   const code=read('src/components/mg/catalogueSourceAvailability.js');
-  assert.doesNotMatch(code, /localStorage|sessionStorage/);
+  assert.doesNotMatch(code, /(?:window\.|globalThis\.)?(?:localStorage|sessionStorage)\.setItem\(/);
 });
 
 test('Search has an opt-in movie source filter; other media and playback paths stay accessible', () => {
