@@ -5,6 +5,7 @@ import { secrets } from 'base44:runtime';
 // Strict per-run cap. Monthly request cap is a conservative operational guard,
 // not an authoritative Base44 integration-credit meter.
 const MAX_MONTHLY_REQUESTS = 6000;
+const MAX_DAILY_REQUESTS = 180;
 const MAX_PER_RUN = 2;
 const TMDB = 'https://api.themoviedb.org/3';
 export default async function(req: Request) {
@@ -18,6 +19,11 @@ export default async function(req: Request) {
   const apiKey = secrets.get('TMDB_API_KEY');
   if (!apiKey) return Response.json({error:'TMDB not configured'}, {status:503});
   const month = new Date().toISOString().slice(0,7);
+  const day = new Date().toISOString().slice(0,10);
+  const dailyRows = await client.asServiceRole.entities.PublicSourceScanBudget.filter({month:day},'-created_date',1);
+  const dailyBudget = dailyRows?.[0];
+  const dailyUsed = Math.max(0,Number(dailyBudget?.requests)||0);
+  if (dailyUsed + 5 > MAX_DAILY_REQUESTS) return Response.json({status:'daily-budget-exhausted',dailyUsed});
   const rows = await client.asServiceRole.entities.PublicSourceScanBudget.filter({month},'-created_date',1);
   const budget = rows?.[0];
   const used = Math.max(0,Number(budget?.requests)||0);
@@ -26,6 +32,8 @@ export default async function(req: Request) {
   // are required; overlapping writers must be disabled at workflow level.
   if (budget) await client.asServiceRole.entities.PublicSourceScanBudget.update(budget.id,{requests:used+5,updated_at:new Date().toISOString()});
   else await client.asServiceRole.entities.PublicSourceScanBudget.create({month,requests:5,updated_at:new Date().toISOString()});
+  if (dailyBudget) await client.asServiceRole.entities.PublicSourceScanBudget.update(dailyBudget.id,{requests:dailyUsed+5,updated_at:new Date().toISOString()});
+  else await client.asServiceRole.entities.PublicSourceScanBudget.create({month:day,requests:5,updated_at:new Date().toISOString()});
   const page = Math.floor(Date.now()/900000)%5+1;
   const params = new URLSearchParams({api_key:String(apiKey),sort_by:'primary_release_date.desc', 'primary_release_date.lte':new Date().toISOString().slice(0,10),page:String(page)});
   const response = await fetch(`${TMDB}/discover/movie?${params}`,{signal:AbortSignal.timeout(8000)});
