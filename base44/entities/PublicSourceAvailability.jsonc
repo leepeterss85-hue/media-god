@@ -1,0 +1,16 @@
+{
+  "name": "PublicSourceAvailability",
+  "type": "object",
+  "properties": {
+    "media_key": {"type": "string"},
+    "media_type": {"type": "string"},
+    "tmdb_id": {"type": "string"},
+    "season": {"type": "number"},
+    "episode": {"type": "number"},
+    "status": {"type": "string"},
+    "checked_at": {"type": "string"},
+    "expires_at": {"type": "string"},
+    "provider_count": {"type": "number"}
+  },
+  "required": ["media_key", "media_type", "tmdb_id", "status", "checked_at"]
+}
