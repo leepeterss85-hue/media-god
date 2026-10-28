@@ -612,6 +612,7 @@ export default function SearchDialog({
   );
 
   const [mediaFilter, setMediaFilter] = useState("all");
+  const [resultsForQuery, setResultsForQuery] = useState("");
   const [sourcesFoundOnly, setSourcesFoundOnly] = useState(false);
   const [sourceCheckLimit, setSourceCheckLimit] = useState(SOURCE_CHECK_BATCH);
   const [sourceCheckResults, setSourceCheckResults] = useState({});
@@ -655,6 +656,7 @@ export default function SearchDialog({
           setResults(
             []
           );
+          setResultsForQuery("");
 
           setLoading(
             false
@@ -672,6 +674,7 @@ export default function SearchDialog({
 
         if (cached && cached.expiresAt > Date.now()) {
           setResults(cached.results);
+          setResultsForQuery(cacheKey);
           setLoading(false);
           setError("");
           return;
@@ -680,6 +683,7 @@ export default function SearchDialog({
         setLoading(
           true
         );
+        setResultsForQuery("");
 
         setResults(
           []
@@ -715,6 +719,7 @@ export default function SearchDialog({
           setResults(
             extracted
           );
+          setResultsForQuery(cacheKey);
         } catch (
           searchError
         ) {
@@ -728,6 +733,7 @@ export default function SearchDialog({
           setResults(
             []
           );
+          setResultsForQuery("");
 
           setError(
             catalogueLoadMessage()
@@ -947,7 +953,7 @@ export default function SearchDialog({
   [sourceCheckCandidates, sourceCheckLimit]);
 
   useEffect(() => {
-    if (!open || !sourcesFoundOnly || loading) return undefined;
+    if (!open || !sourcesFoundOnly || loading || resultsForQuery !== query.trim().toLowerCase()) return undefined;
     let cancelled = false;
     sourceCheckWindow.forEach((item) => {
       const key = catalogueSourceKey(item);
@@ -957,7 +963,7 @@ export default function SearchDialog({
       });
     });
     return () => { cancelled = true; };
-  }, [open, sourcesFoundOnly, loading, sourceCheckWindow]);
+  }, [open, sourcesFoundOnly, loading, sourceCheckWindow, resultsForQuery, query]);
 
   const searchedSourceCount = sourceCheckWindow.filter((item) => {
     const status = sourceCheckResults[catalogueSourceKey(item)];
@@ -965,9 +971,11 @@ export default function SearchDialog({
   }).length;
   const sourcedMediaResults = useMemo(() =>
     sourcesFoundOnly
-      ? sourceCheckWindow.filter((item) => sourceCheckResults[catalogueSourceKey(item)] === "found")
+      ? (resultsForQuery === query.trim().toLowerCase()
+          ? sourceCheckWindow.filter((item) => sourceCheckResults[catalogueSourceKey(item)] === "found")
+          : [])
       : filteredMediaResults,
-  [sourcesFoundOnly, sourceCheckWindow, sourceCheckResults, filteredMediaResults]);
+  [sourcesFoundOnly, sourceCheckWindow, sourceCheckResults, filteredMediaResults, resultsForQuery, query]);
 
   const liveResults = useMemo(
     () => {
