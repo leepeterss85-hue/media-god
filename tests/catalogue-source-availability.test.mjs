@@ -73,3 +73,79 @@ test('Search has an opt-in movie source filter; other media and playback paths s
   assert.match(search,/TV shows need an exact episode/);
   assert.match(search,/Checking movie addon sources/);
 });
+
+const healthyEmpty = fast_mode => ({
+  streams: [], fast_mode, addons_checked: 2, addons_available: 2,
+  diagnostics: [
+    {name:'Comet',status:'no_playable_streams',stream_count:0,playable_count:0},
+    {name:'Torrentio',status:'no_playable_streams',stream_count:0,playable_count:0},
+  ],
+});
+
+test('confirmed empty requires successful exhaustive checks; outages and partial addons never hide movies', async () => {
+  const { isComprehensiveAddonNoSourceResult } = await import('../src/components/mg/catalogueSourceAvailability.js');
+  assert.equal(isComprehensiveAddonNoSourceResult(healthyEmpty(false)), true);
+  assert.equal(isComprehensiveAddonNoSourceResult(healthyEmpty(true)), false);
+  assert.equal(isComprehensiveAddonNoSourceResult({ ...healthyEmpty(false),addons_checked:1 }),false);
+  assert.equal(isComprehensiveAddonNoSourceResult({ ...healthyEmpty(false),addons_available:3 }),false);
+  assert.equal(isComprehensiveAddonNoSourceResult({ ...healthyEmpty(false),diagnostics:[{
+    status:'browser_required',stream_count:1,playable_count:0
+  }] }), false);
+  assert.equal(isComprehensiveAddonNoSourceResult({ ...healthyEmpty(false),diagnostics:[
+    {...healthyEmpty(false).diagnostics[0],status:'http_429'},healthyEmpty(false).diagnostics[1]
+  ] }), false);
+  assert.equal(isComprehensiveAddonNoSourceResult({ ...healthyEmpty(false),streams:[{type:'magnet',infoHash:'abc'}] }),false);
+
+  const complete=createCatalogueSourceChecker(async (_name,payload)=>({data:healthyEmpty(payload.fast_mode)}));
+  assert.equal(await complete.check(movie(42)), 'no-sources');
+  assert.equal(complete.getStatus(movie(42)), 'no-sources');
+  const networkError=createCatalogueSourceChecker(async (_name,payload)=>({data:{
+    ...healthyEmpty(payload.fast_mode),
+    diagnostics:[{status:'error',stream_count:0,playable_count:0},healthyEmpty(false).diagnostics[1]]
+  }}));
+  assert.notEqual(await networkError.check(movie(42)), 'no-sources');
+  const suspiciousFast=createCatalogueSourceChecker(async (_name,payload)=>({data:payload.fast_mode
+    ? {...healthyEmpty(true),diagnostics:[{status:'error'},healthyEmpty(true).diagnostics[1]]}
+    : healthyEmpty(false)}));
+  assert.notEqual(await suspiciousFast.check(movie(42)), 'no-sources');
+});
+
+test('titles automatically return when verified empty cache expires and a source reappears', async () => {
+  let t=0;let available=false;let requests=0;let notices=[];
+  const checker=createCatalogueSourceChecker(async (_name,payload)=>{
+    requests++;
+    return {data:available
+      ? {...healthyEmpty(payload.fast_mode),streams:[{debridCached:true,src:'https://private.test/stream'}]}
+      : healthyEmpty(payload.fast_mode)};
+  },{now:()=>t});
+  const dispose=checker.subscribe((key,status)=>notices.push([key,status]));
+  assert.equal(await checker.check(movie(13)),'no-sources');
+  assert.equal(requests,2);
+  assert.equal(checker.getStatus(movie(13)),'no-sources');
+  t=4*60*1000;
+  available=true;
+  assert.equal(await checker.check(movie(13)),'no-sources','do not spam checks while negative cache is valid');
+  assert.equal(requests,2);
+  t=6*60*1000;
+  assert.equal(checker.getStatus(movie(13)),'unknown','expired negative cannot keep a title hidden');
+  assert.equal(await checker.check(movie(13)),'found');
+  assert.equal(checker.getStatus(movie(13)),'found');
+  assert.equal(requests,3);
+  assert.deepEqual(notices.map(row=>row[1]),['no-sources','found']);
+  dispose();
+});
+
+test('browse pages hide only verified no-source discovery, not user-owned rows or TV', () => {
+  const home=read('src/components/mg/HomeDashboard.jsx');
+  const search=read('src/components/mg/SearchDialog.jsx');
+  const client=read('src/components/mg/catalogueSourceCheckerClient.js');
+  assert.match(home,/\.filter\(showBrowseTitleWithSourceEvidence\)/);
+  assert.match(home,/sourceAvailabilityEpoch/);
+  assert.match(home,/10 \* 60 \* 1000/);
+  assert.match(home,/\(rows\.newMovies \|\| \[\]\)\.filter\(showBrowseTitleWithSourceEvidence\)/);
+  assert.match(home,/items=\{rows\.watchlist\}/);
+  assert.match(home,/items=\{rows\.favorites\}/);
+  assert.match(home,/<ContinueWatchingRow/);
+  assert.match(search,/visibleMediaResults\.filter|filteredMediaResults\.filter\(showBrowseTitleWithSourceEvidence\)/);
+  assert.match(client,/!== 'no-sources'/);
+});

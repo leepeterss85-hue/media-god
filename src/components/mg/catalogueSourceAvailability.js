@@ -16,9 +16,8 @@ const VERIFIED_EMPTY_TTL_MS = 5 * 60 * 1000;
 // An empty addon list does not prove the provider worked. Only a completed,
 // exhaustive, healthy check with zero raw streams from every enabled addon is
 // evidence of "no addon sources". Provider/browser embeds remain unverified.
-export function isComprehensiveAddonNoSourceResult(data) {
+const isHealthyEmptyAddonResponse = data => {
   if (!data || data.error || !Array.isArray(data.streams) || data.streams.length) return false;
-  if (data.fast_mode !== false) return false;
   const checked = Number(data.addons_checked);
   const available = Number(data.addons_available);
   const diagnostics = data.diagnostics;
@@ -28,6 +27,10 @@ export function isComprehensiveAddonNoSourceResult(data) {
     item && item.status === 'no_playable_streams' &&
     Number(item.stream_count) === 0 && Number(item.playable_count) === 0
   );
+};
+
+export function isComprehensiveAddonNoSourceResult(data) {
+  return data?.fast_mode === false && isHealthyEmptyAddonResponse(data);
 }
 
 export function catalogueSourceKey(item) {
@@ -95,7 +98,7 @@ export function createCatalogueSourceChecker(invoke, { now = () => Date.now(), c
         const second = classifyCatalogueSourceResult(full);
         if (second === 'found') return 'found';
         if (second !== 'unknown' && isComprehensiveAddonNoSourceResult(full) &&
-            Array.isArray(fast?.streams) && fast.streams.length === 0) {
+            fast?.fast_mode === true && isHealthyEmptyAddonResponse(fast)) {
           return 'no-sources';
         }
         return second;
