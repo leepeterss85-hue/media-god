@@ -142,7 +142,7 @@ test('browse pages hide only verified no-source discovery, not user-owned rows o
   const client=read('src/components/mg/catalogueSourceCheckerClient.js');
   assert.match(home,/\.filter\(showBrowseTitleWithSourceEvidence\)/);
   assert.match(home,/sourceAvailabilityEpoch/);
-  assert.match(home,/10 \* 60 \* 1000/);
+  assert.match(home,/createRollingSourceChecks/);
   assert.match(home,/\(rows\.newMovies \|\| \[\]\)\.filter\(showBrowseTitleWithSourceEvidence\)/);
   assert.match(home,/items=\{rows\.watchlist\}/);
   assert.match(home,/items=\{rows\.favorites\}/);
